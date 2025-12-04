@@ -1,4 +1,3 @@
-
 package app
 
 import (
@@ -7,6 +6,7 @@ import (
 	"scenario-dependency-analyzer/internal/app/services"
 	appconfig "scenario-dependency-analyzer/internal/config"
 	"scenario-dependency-analyzer/internal/detection"
+	"scenario-dependency-analyzer/internal/seams"
 	"scenario-dependency-analyzer/internal/store"
 	types "scenario-dependency-analyzer/internal/types"
 )
@@ -18,10 +18,21 @@ type Analyzer struct {
 	store    *store.Store
 	detector *detection.Detector
 	services services.Registry
+	seams    *seams.Dependencies // Optional seams for testability
+}
+
+// AnalyzerOption configures an Analyzer during construction.
+type AnalyzerOption func(*Analyzer)
+
+// WithSeams sets custom seams (for testing or dependency injection).
+func WithSeams(s *seams.Dependencies) AnalyzerOption {
+	return func(a *Analyzer) {
+		a.seams = s
+	}
 }
 
 // NewAnalyzer constructs an Analyzer bound to the provided configuration and database handle.
-func NewAnalyzer(cfg appconfig.Config, db *sql.DB) *Analyzer {
+func NewAnalyzer(cfg appconfig.Config, db *sql.DB, opts ...AnalyzerOption) *Analyzer {
 	var backingStore *store.Store
 	if db != nil {
 		backingStore = store.New(db)
@@ -31,9 +42,22 @@ func NewAnalyzer(cfg appconfig.Config, db *sql.DB) *Analyzer {
 		db:       db,
 		store:    backingStore,
 		detector: detection.New(cfg),
+		seams:    seams.Default, // Use package defaults
+	}
+	// Apply options
+	for _, opt := range opts {
+		opt(analyzer)
 	}
 	analyzer.services = newServices(analyzer)
 	return analyzer
+}
+
+// Seams returns the analyzer's seam dependencies.
+func (a *Analyzer) Seams() *seams.Dependencies {
+	if a.seams == nil {
+		return seams.Default
+	}
+	return a.seams
 }
 
 // Store exposes the backing persistence layer (primarily for tests).

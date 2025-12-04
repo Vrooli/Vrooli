@@ -1,7 +1,6 @@
 package app
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,15 +9,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-
-	types "scenario-dependency-analyzer/internal/types"
 )
 
-var (
-	db             *sql.DB
-	applyDiffsHook func(string, *types.ServiceConfig)
-)
-
+// normalizeName lowercases and trims whitespace for consistent name comparisons.
 func normalizeName(name string) string {
 	return strings.TrimSpace(strings.ToLower(name))
 }

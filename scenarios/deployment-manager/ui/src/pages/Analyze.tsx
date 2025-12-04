@@ -8,32 +8,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Tip } from "../components/ui/tip";
+import { InfoCard } from "../components/ui/info-card";
 import { analyzeDependencies, listProfiles } from "../lib/api";
-
-const TIER_NAMES: Record<string, string> = {
-  local: "Local/Dev",
-  desktop: "Desktop",
-  mobile: "Mobile",
-  saas: "SaaS/Cloud",
-  enterprise: "Enterprise",
-};
-
-const TIER_KEY_BY_ID: Record<string, string> = {
-  "1": "local",
-  "2": "desktop",
-  "3": "mobile",
-  "4": "saas",
-  "5": "enterprise",
-};
-
-function getFitnessColor(score: number): string {
-  if (score >= 75) return "text-green-400";
-  if (score >= 50) return "text-yellow-400";
-  if (score > 0) return "text-orange-400";
-  return "text-red-400";
-}
+import { TIER_NAMES, TIER_KEY_BY_ID, getFitnessColor, buildScenarioOptions, isTierKey } from "../lib/tiers";
 
 function getFitnessIcon(score: number) {
   if (score >= 75) return CheckCircle2;
@@ -83,29 +61,20 @@ export function Analyze() {
       setQueryScenario(fromQuery);
     }
     if (tierQuery) {
-      if (TIER_KEY_BY_ID[tierQuery]) {
-        setFocusedTier(TIER_KEY_BY_ID[tierQuery]);
-      } else if (TIER_NAMES[tierQuery]) {
+      // Support both numeric tier IDs (1-5) and tier keys (local, desktop, etc.)
+      const tierKey = TIER_KEY_BY_ID[tierQuery];
+      if (tierKey) {
+        setFocusedTier(tierKey);
+      } else if (isTierKey(tierQuery)) {
         setFocusedTier(tierQuery);
       }
     }
   }, [searchParams]);
 
-  const scenarioOptions = useMemo(() => {
-    const existing = Array.from(
-      new Set((profiles ?? []).map((p) => p.scenario).filter(Boolean))
-    );
-    const defaults = ["picker-wheel", "system-monitor", "browser-automation-studio"];
-    const combined = Array.from(new Set([...existing, ...defaults]));
-    const typed = scenario.trim().toLowerCase();
-    const filtered = combined.filter((name) =>
-      typed ? name.toLowerCase().includes(typed) : true
-    );
-    if (typed && !combined.some((name) => name.toLowerCase() === typed)) {
-      filtered.unshift(scenario);
-    }
-    return filtered;
-  }, [profiles, scenario]);
+  const scenarioOptions = useMemo(
+    () => buildScenarioOptions(profiles, scenario),
+    [profiles, scenario],
+  );
 
   const selectScenario = (name: string) => {
     setScenario(name);
@@ -309,36 +278,11 @@ export function Analyze() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                  <div className="text-sm text-slate-400">Memory</div>
-                  <div className="text-lg font-semibold mt-1">
-                    {data.aggregate_requirements.memory}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                  <div className="text-sm text-slate-400">CPU</div>
-                  <div className="text-lg font-semibold mt-1">
-                    {data.aggregate_requirements.cpu}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                  <div className="text-sm text-slate-400">GPU</div>
-                  <div className="text-lg font-semibold mt-1">
-                    {data.aggregate_requirements.gpu}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                  <div className="text-sm text-slate-400">Storage</div>
-                  <div className="text-lg font-semibold mt-1">
-                    {data.aggregate_requirements.storage}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                  <div className="text-sm text-slate-400">Network</div>
-                  <div className="text-lg font-semibold mt-1">
-                    {data.aggregate_requirements.network}
-                  </div>
-                </div>
+                <InfoCard label="Memory" value={data.aggregate_requirements.memory} />
+                <InfoCard label="CPU" value={data.aggregate_requirements.cpu} />
+                <InfoCard label="GPU" value={data.aggregate_requirements.gpu} />
+                <InfoCard label="Storage" value={data.aggregate_requirements.storage} />
+                <InfoCard label="Network" value={data.aggregate_requirements.network} />
               </div>
             </CardContent>
           </Card>

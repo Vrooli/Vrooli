@@ -8,6 +8,8 @@ import (
 	types "scenario-dependency-analyzer/internal/types"
 )
 
+// Note: config import retained for config.LoadServiceConfig and config.ResolvedResourceMap in AnalyzeGaps
+
 // AnalyzeGaps crawls the dependency tree and identifies missing deployment metadata.
 // It checks for:
 // - Missing deployment blocks in service.json
@@ -182,7 +184,8 @@ func AnalyzeGaps(scenarioName, scenariosDir string, nodes []types.DeploymentDepe
 	}
 }
 
-// DetectSecretRequirements analyzes dependencies and identifies which ones require secret configuration
+// DetectSecretRequirements analyzes dependencies and identifies which ones require secret configuration.
+// Delegates to ClassifySecretRequirements for the actual decision logic.
 func DetectSecretRequirements(nodes []types.DeploymentDependencyNode) []types.SecretRequirement {
 	requirements := []types.SecretRequirement{}
 	seen := make(map[string]bool)
@@ -196,62 +199,10 @@ func DetectSecretRequirements(nodes []types.DeploymentDependencyNode) []types.Se
 			}
 			seen[key] = true
 
-			// Determine if this resource needs secrets
-			secretType := ""
-			var secretNames []string
-			playbookRef := ""
-
-			normalized := config.NormalizeName(node.Name)
-			switch normalized {
-			case "postgres", "mysql", "mongodb":
-				secretType = "database_credentials"
-				secretNames = []string{normalized + "_password", normalized + "_user"}
-				playbookRef = "secrets-manager/playbooks/database-credentials.md"
-
-			case "redis":
-				secretType = "cache_credentials"
-				secretNames = []string{"redis_password"}
-				playbookRef = "secrets-manager/playbooks/cache-credentials.md"
-
-			case "minio", "s3":
-				secretType = "object_storage_credentials"
-				secretNames = []string{normalized + "_access_key", normalized + "_secret_key"}
-				playbookRef = "secrets-manager/playbooks/object-storage.md"
-
-			case "n8n", "huginn", "windmill":
-				secretType = "automation_credentials"
-				secretNames = []string{normalized + "_api_key", normalized + "_webhook_secret"}
-				playbookRef = "secrets-manager/playbooks/automation-platform.md"
-
-			case "ollama":
-				// Ollama typically doesn't need secrets for local use
-				secretType = ""
-
-			case "claude-code", "anthropic", "openai":
-				secretType = "ai_api_key"
-				secretNames = []string{normalized + "_api_key"}
-				playbookRef = "secrets-manager/playbooks/ai-api-keys.md"
-
-			case "qdrant":
-				secretType = "vector_db_credentials"
-				secretNames = []string{"qdrant_api_key"}
-				playbookRef = "secrets-manager/playbooks/vector-db.md"
-
-			case "browserless", "playwright":
-				secretType = "browser_automation_token"
-				secretNames = []string{normalized + "_token"}
-				playbookRef = "secrets-manager/playbooks/browser-automation.md"
-			}
-
-			if secretType != "" {
-				requirements = append(requirements, types.SecretRequirement{
-					DependencyName:    node.Name,
-					DependencyType:    node.Type,
-					SecretType:        secretType,
-					RequiredSecrets:   secretNames,
-					PlaybookReference: playbookRef,
-					Priority:          "required",
-				})
+			// Delegate secret classification to centralized decision logic
+			classification := ClassifySecretRequirements(node.Name)
+			if classification != nil {
+				requirements = append(requirements, BuildSecretRequirement(node.Name, node.Type, classification))
 			}
 		}
 
@@ -267,7 +218,8 @@ func DetectSecretRequirements(nodes []types.DeploymentDependencyNode) []types.Se
 	return requirements
 }
 
-// SuggestResourceSwaps analyzes dependencies and suggests lighter alternatives for specific deployment tiers
+// SuggestResourceSwaps analyzes dependencies and suggests lighter alternatives for specific deployment tiers.
+// Delegates to DecideResourceSwaps for the actual decision logic.
 func SuggestResourceSwaps(nodes []types.DeploymentDependencyNode) []types.ResourceSwapSuggestion {
 	suggestions := []types.ResourceSwapSuggestion{}
 	seen := make(map[string]bool)
@@ -281,61 +233,10 @@ func SuggestResourceSwaps(nodes []types.DeploymentDependencyNode) []types.Resour
 			}
 			seen[key] = true
 
-			normalized := config.NormalizeName(node.Name)
-
-			// Suggest swaps based on resource type
-			switch normalized {
-			case "ollama":
-				// For non-local tiers, suggest cloud AI APIs
-				suggestions = append(suggestions, types.ResourceSwapSuggestion{
-					OriginalResource:    node.Name,
-					AlternativeResource: "openrouter",
-					Reason:              "Lighter alternative for SaaS/mobile deployments",
-					ApplicableTiers:     []string{"mobile", "saas"},
-					Relationship:        "api_alternative",
-					ImpactDescription:   "Reduces deployment size and resource requirements",
-				})
-				suggestions = append(suggestions, types.ResourceSwapSuggestion{
-					OriginalResource:    node.Name,
-					AlternativeResource: "anthropic",
-					Reason:              "Managed AI API for production deployments",
-					ApplicableTiers:     []string{"saas", "enterprise"},
-					Relationship:        "api_alternative",
-					ImpactDescription:   "Better scalability and reliability",
-				})
-
-			case "postgres":
-				// For mobile/saas, suggest managed database
-				suggestions = append(suggestions, types.ResourceSwapSuggestion{
-					OriginalResource:    node.Name,
-					AlternativeResource: "supabase",
-					Reason:              "Managed PostgreSQL with built-in APIs",
-					ApplicableTiers:     []string{"mobile", "saas"},
-					Relationship:        "managed_service",
-					ImpactDescription:   "Eliminates database management overhead",
-				})
-
-			case "minio":
-				// Suggest cloud storage for production
-				suggestions = append(suggestions, types.ResourceSwapSuggestion{
-					OriginalResource:    node.Name,
-					AlternativeResource: "s3",
-					Reason:              "Cloud object storage for production deployments",
-					ApplicableTiers:     []string{"saas", "enterprise"},
-					Relationship:        "cloud_alternative",
-					ImpactDescription:   "Better reliability and global availability",
-				})
-
-			case "redis":
-				// For simple caching, suggest lighter alternatives
-				suggestions = append(suggestions, types.ResourceSwapSuggestion{
-					OriginalResource:    node.Name,
-					AlternativeResource: "in-memory-cache",
-					Reason:              "Embedded caching for desktop deployments",
-					ApplicableTiers:     []string{"desktop"},
-					Relationship:        "embedded_alternative",
-					ImpactDescription:   "Simplifies deployment, no separate service needed",
-				})
+			// Delegate swap decisions to centralized decision logic
+			recommendations := DecideResourceSwaps(node.Name)
+			for _, rec := range recommendations {
+				suggestions = append(suggestions, BuildSwapSuggestion(node.Name, rec))
 			}
 		}
 

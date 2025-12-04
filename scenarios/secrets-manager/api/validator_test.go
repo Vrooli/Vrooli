@@ -514,7 +514,7 @@ func TestValidationPatterns(t *testing.T) {
 		secretKeys := []string{"API_KEY", "PASSWORD", "SECRET_TOKEN", "DB_PASSWORD"}
 
 		for _, key := range secretKeys {
-			required := isLikelyRequired(key)
+			required := IsLikelyRequired(key)
 			if !required {
 				t.Logf("Secret '%s' not marked as required (may be intentional)", key)
 			}
@@ -526,7 +526,7 @@ func TestValidationPatterns(t *testing.T) {
 		secretKeys := []string{"DEBUG", "TIMEOUT", "LOG_LEVEL", "MAX_RETRIES"}
 
 		for _, key := range secretKeys {
-			required := isLikelyRequired(key)
+			required := IsLikelyRequired(key)
 			if required {
 				t.Logf("Secret '%s' marked as required (may be intentional)", key)
 			}
@@ -546,7 +546,7 @@ func TestValidationPatterns(t *testing.T) {
 		}
 
 		for _, tc := range testCases {
-			actualType := classifySecretType(tc.key)
+			actualType := ClassifySecretType(tc.key)
 			if actualType != tc.expectedType {
 				t.Logf("Secret '%s' classified as '%s', expected '%s'",
 					tc.key, actualType, tc.expectedType)

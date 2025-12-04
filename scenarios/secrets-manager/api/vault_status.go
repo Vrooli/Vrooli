@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -15,6 +16,61 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// -----------------------------------------------------------------------------
+// VaultCLI Interface
+// -----------------------------------------------------------------------------
+
+// VaultCLI abstracts vault CLI operations for testability.
+// This interface enables mocking vault responses in tests without requiring
+// the actual resource-vault CLI to be installed.
+type VaultCLI interface {
+	// GetSecretsStatus retrieves vault secrets status, optionally filtered by resource.
+	GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error)
+
+	// GetSecret retrieves a single secret value from vault.
+	GetSecret(ctx context.Context, key string) (string, error)
+
+	// PutSecret stores a secret in vault at the specified path.
+	PutSecret(ctx context.Context, path, vaultKey, value string) error
+}
+
+// DefaultVaultCLI implements VaultCLI using the resource-vault CLI.
+type DefaultVaultCLI struct{}
+
+// NewDefaultVaultCLI creates the production VaultCLI implementation.
+func NewDefaultVaultCLI() *DefaultVaultCLI {
+	return &DefaultVaultCLI{}
+}
+
+// GetSecretsStatus implements VaultCLI by calling resource-vault secrets check/validate.
+func (v *DefaultVaultCLI) GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
+	return getVaultSecretsStatusFromCLI(resourceFilter)
+}
+
+// GetSecret implements VaultCLI by calling resource-vault secrets get.
+func (v *DefaultVaultCLI) GetSecret(ctx context.Context, key string) (string, error) {
+	return getVaultSecretImpl(ctx, key)
+}
+
+// PutSecret implements VaultCLI by calling resource-vault content put-secret.
+func (v *DefaultVaultCLI) PutSecret(ctx context.Context, path, vaultKey, value string) error {
+	return putSecretInVaultImpl(ctx, path, vaultKey, value)
+}
+
+// defaultVaultCLI is the package-level vault CLI instance.
+// It can be replaced in tests via SetVaultCLI.
+var defaultVaultCLI VaultCLI = NewDefaultVaultCLI()
+
+// SetVaultCLI replaces the default vault CLI implementation.
+// This is primarily used for testing with mock implementations.
+func SetVaultCLI(cli VaultCLI) {
+	defaultVaultCLI = cli
+}
+
+// -----------------------------------------------------------------------------
+// Public API (uses VaultCLI interface)
+// -----------------------------------------------------------------------------
 
 // Vault integration - uses resource-vault CLI commands to get secrets status
 func getVaultSecretsStatus(resourceFilter string) (*VaultSecretsStatus, error) {
@@ -285,14 +341,8 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 
 	status.SecretsTotal = status.SecretsFound + status.SecretsMissing + status.SecretsOptional
 
-	// Determine health status
-	if status.SecretsMissing == 0 {
-		status.HealthStatus = "healthy"
-	} else if status.SecretsMissing <= 2 {
-		status.HealthStatus = "degraded"
-	} else {
-		status.HealthStatus = "critical"
-	}
+	// Determine health status using named decision function
+	status.HealthStatus = determineResourceHealthStatus(status.SecretsMissing)
 
 	return status
 }
@@ -334,15 +384,15 @@ func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, 
 			for _, match := range matches {
 				if len(match) > 1 {
 					varName := match[1]
-					if !foundVars[varName] && isLikelySecret(varName) {
+					if !foundVars[varName] && IsLikelySecret(varName) {
 						foundVars[varName] = true
 
 						secret := ResourceSecret{
 							ID:                uuid.New().String(),
 							ResourceName:      resourceName,
 							SecretKey:         varName,
-							SecretType:        classifySecretType(varName),
-							Required:          isLikelyRequired(varName),
+							SecretType:        ClassifySecretType(varName),
+							Required:          IsLikelyRequired(varName),
 							Description:       stringPtr(fmt.Sprintf("Environment variable found in %s", filepath.Base(path))),
 							ValidationPattern: nil,
 							DocumentationURL:  nil,
@@ -368,83 +418,25 @@ func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, 
 
 func isTextFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	textExtensions := []string{".sh", ".bash", ".yml", ".yaml", ".json", ".env", ".conf", ".config", ".md", ".txt", ".go", ".js", ".py", ".dockerfile", ".sql"}
-
-	for _, textExt := range textExtensions {
-		if ext == textExt {
-			return true
-		}
-	}
-
-	return false
+	return IsTextFileExtension(ext)
 }
 
-func isLikelySecret(varName string) bool {
-	secretKeywords := []string{
-		"PASSWORD", "PASS", "PWD", "SECRET", "KEY", "TOKEN", "AUTH", "API", "CREDENTIAL", "CERT", "TLS", "SSL", "PRIVATE",
-	}
-
-	upperVar := strings.ToUpper(varName)
-	for _, keyword := range secretKeywords {
-		if strings.Contains(upperVar, keyword) {
-			return true
-		}
-	}
-
-	// Also include common configuration variables that might be sensitive
-	configKeywords := []string{"HOST", "PORT", "URL", "ADDR", "DATABASE", "DB", "USER", "NAMESPACE"}
-	for _, keyword := range configKeywords {
-		if strings.Contains(upperVar, keyword) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func classifySecretType(varName string) string {
-	upperVar := strings.ToUpper(varName)
-
-	if strings.Contains(upperVar, "PASSWORD") || strings.Contains(upperVar, "PASS") || strings.Contains(upperVar, "PWD") {
-		return "password"
-	}
-	if strings.Contains(upperVar, "TOKEN") {
-		return "token"
-	}
-	if strings.Contains(upperVar, "KEY") && (strings.Contains(upperVar, "API") || strings.Contains(upperVar, "ACCESS")) {
-		return "api_key"
-	}
-	if strings.Contains(upperVar, "SECRET") || strings.Contains(upperVar, "CREDENTIAL") {
-		return "credential"
-	}
-	if strings.Contains(upperVar, "CERT") || strings.Contains(upperVar, "TLS") || strings.Contains(upperVar, "SSL") {
-		return "certificate"
-	}
-
-	return "env_var"
-}
-
-func isLikelyRequired(varName string) bool {
-	requiredKeywords := []string{"PASSWORD", "SECRET", "TOKEN", "KEY", "DATABASE", "DB", "HOST"}
-	upperVar := strings.ToUpper(varName)
-
-	for _, keyword := range requiredKeywords {
-		if strings.Contains(upperVar, keyword) {
-			return true
-		}
-	}
-
-	return false
-}
-
+// getVaultSecret retrieves a secret from vault (uses the interface).
 func getVaultSecret(key string) (string, error) {
-	// Use resource-vault CLI to get secret value
-	cmd := exec.Command("resource-vault", "secrets", "get", key)
+	ctx := context.Background()
+	return defaultVaultCLI.GetSecret(ctx, key)
+}
 
-	// Set timeout for vault command
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "get", key)
+// getVaultSecretImpl is the underlying implementation using resource-vault CLI.
+func getVaultSecretImpl(ctx context.Context, key string) (string, error) {
+	// Use resource-vault CLI to get secret value
+	// Apply timeout if not already set
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+	cmd := exec.CommandContext(ctx, "resource-vault", "secrets", "get", key)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -476,16 +468,7 @@ func getVaultSecret(key string) (string, error) {
 }
 
 func getLocalSecretsPath() (string, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
-
-	secretsDir := filepath.Join(vrooliRoot, ".vrooli")
+	secretsDir := filepath.Join(getVrooliRoot(), ".vrooli")
 	if err := os.MkdirAll(secretsDir, 0o755); err != nil {
 		return "", err
 	}
@@ -567,4 +550,86 @@ func saveSecretsToLocalStore(secrets map[string]string) (int, error) {
 	}
 
 	return len(secrets), nil
+}
+
+// secretMapping represents a vault path and key for a secret.
+// Moved from vault_handlers.go to separate integration logic from HTTP handlers.
+type secretMapping struct {
+	Path     string
+	VaultKey string
+}
+
+// buildSecretMappings builds a mapping of environment variable names to vault paths
+// based on the resource's secrets.yaml configuration.
+// Moved from vault_handlers.go to separate integration logic from HTTP handlers.
+func buildSecretMappings(resourceName string) map[string]secretMapping {
+	mappings := map[string]secretMapping{}
+	config, err := loadResourceSecrets(resourceName)
+	if err != nil || config == nil {
+		return mappings
+	}
+	replacer := strings.NewReplacer("{resource}", resourceName)
+	for _, definitions := range config.Secrets {
+		for _, def := range definitions {
+			path := strings.TrimSpace(def.Path)
+			if path == "" {
+				continue
+			}
+			path = replacer.Replace(path)
+			if len(def.Fields) > 0 {
+				for _, field := range def.Fields {
+					for keyName, env := range field {
+						envVar := strings.ToUpper(strings.TrimSpace(env))
+						if envVar == "" {
+							continue
+						}
+						mappings[envVar] = secretMapping{Path: path, VaultKey: keyName}
+					}
+				}
+			}
+			defaultEnv := strings.ToUpper(strings.TrimSpace(def.DefaultEnv))
+			if defaultEnv != "" {
+				mappings[defaultEnv] = secretMapping{Path: path, VaultKey: "value"}
+			}
+			nameAlias := strings.ToUpper(strings.TrimSpace(def.Name))
+			if nameAlias != "" {
+				alias := fmt.Sprintf("%s_%s", strings.ToUpper(resourceName), strings.ReplaceAll(nameAlias, " ", "_"))
+				mappings[alias] = secretMapping{Path: path, VaultKey: "value"}
+			}
+		}
+	}
+	return mappings
+}
+
+// putSecretInVault stores a secret in vault (uses the interface).
+// Moved from vault_handlers.go to separate integration logic from HTTP handlers.
+func putSecretInVault(path, vaultKey, value string) error {
+	ctx := context.Background()
+	return defaultVaultCLI.PutSecret(ctx, path, vaultKey, value)
+}
+
+// putSecretInVaultImpl is the underlying implementation using resource-vault CLI.
+func putSecretInVaultImpl(ctx context.Context, path, vaultKey, value string) error {
+	args := []string{"content", "put-secret", "--path", path, "--value", value}
+	if vaultKey != "" && vaultKey != "value" {
+		args = append(args, "--key", vaultKey)
+	}
+	// Apply timeout if not already set
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+	}
+	cmd := exec.CommandContext(ctx, "resource-vault", args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg != "" {
+			return fmt.Errorf("%w: %s", err, msg)
+		}
+		return err
+	}
+	return nil
 }

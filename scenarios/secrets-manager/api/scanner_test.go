@@ -743,7 +743,6 @@ func TestFindResourceFiles(t *testing.T) {
 func TestDetermineSecretType(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-	scanner := NewSecretScanner(nil)
 
 	tests := []struct {
 		name      string
@@ -759,9 +758,9 @@ func TestDetermineSecretType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotType := scanner.determineSecretType(tt.secretKey)
+			gotType := ClassifySecretType(tt.secretKey)
 			if gotType != tt.wantType {
-				t.Logf("determineSecretType(%s) = %s, want %s", tt.secretKey, gotType, tt.wantType)
+				t.Logf("ClassifySecretType(%s) = %s, want %s", tt.secretKey, gotType, tt.wantType)
 			}
 		})
 	}

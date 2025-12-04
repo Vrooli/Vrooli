@@ -1,16 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -128,7 +125,9 @@ func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource str
 		StoredSecrets: saved,
 	}
 
-	if strings.TrimSpace(resource) == "" {
+	// Decision: Local-only provision (no resource specified)
+	// Outcome: Success, but remind user to provide resource for vault sync
+	if isLocalOnlyProvision(resource) {
 		response.Success = true
 		response.Message = "Secrets stored locally. Provide a resource to sync with Vault."
 		return response, nil
@@ -136,27 +135,68 @@ func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource str
 
 	results, provisionErr := h.provisionSecretsToVault(ctx, resource, secrets)
 	response.Details = results
-	for _, result := range results {
-		if strings.EqualFold(result.Status, "stored") {
-			response.VaultStored++
-		}
-	}
+	response.VaultStored = countSuccessfullyStoredSecrets(results)
 
-	if provisionErr != nil && response.VaultStored == 0 {
+	// Decision: Determine provision outcome based on vault results
+	outcome := determineProvisionOutcome(provisionErr, response.VaultStored)
+	if outcome.shouldReturnError {
 		return response, fmt.Errorf("failed to store secrets in vault: %w", provisionErr)
 	}
 
-	response.Success = provisionErr == nil || response.VaultStored > 0
+	response.Success = outcome.isSuccess
 	if provisionErr != nil {
 		response.Message = provisionErr.Error()
 	}
 	return response, nil
 }
 
-type secretMapping struct {
-	Path     string
-	VaultKey string
+// isLocalOnlyProvision returns true when no resource is specified,
+// meaning secrets should only be stored locally without vault sync.
+func isLocalOnlyProvision(resource string) bool {
+	return strings.TrimSpace(resource) == ""
 }
+
+// countSuccessfullyStoredSecrets counts how many secrets were stored in vault.
+func countSuccessfullyStoredSecrets(results []secretProvisionResult) int {
+	count := 0
+	for _, result := range results {
+		if strings.EqualFold(result.Status, "stored") {
+			count++
+		}
+	}
+	return count
+}
+
+// provisionOutcome captures the decision result for provision success.
+type provisionOutcome struct {
+	isSuccess         bool
+	shouldReturnError bool
+}
+
+// determineProvisionOutcome decides whether the provision operation succeeded.
+//
+// Decision logic:
+//   - If vault provisioning had errors AND no secrets were stored → fail with error
+//   - If vault provisioning had errors BUT some secrets were stored → partial success
+//   - If no errors → full success
+//
+// This allows partial success when some secrets fail but others succeed,
+// which is preferable to failing the entire operation.
+func determineProvisionOutcome(provisionErr error, vaultStoredCount int) provisionOutcome {
+	// Complete failure: errors occurred and nothing was stored
+	if provisionErr != nil && vaultStoredCount == 0 {
+		return provisionOutcome{isSuccess: false, shouldReturnError: true}
+	}
+
+	// Partial or full success: either no errors, or some secrets were stored
+	return provisionOutcome{
+		isSuccess:         provisionErr == nil || vaultStoredCount > 0,
+		shouldReturnError: false,
+	}
+}
+
+// NOTE: secretMapping type, buildSecretMappings(), and putSecretInVault() have been
+// moved to vault_status.go to separate integration logic from HTTP handlers.
 
 func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceName string, secrets map[string]string) ([]secretProvisionResult, error) {
 	results := []secretProvisionResult{}
@@ -193,66 +233,6 @@ func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceNam
 		return results, fmt.Errorf(strings.Join(errs, "; "))
 	}
 	return results, nil
-}
-
-func buildSecretMappings(resourceName string) map[string]secretMapping {
-	mappings := map[string]secretMapping{}
-	config, err := loadResourceSecrets(resourceName)
-	if err != nil || config == nil {
-		return mappings
-	}
-	replacer := strings.NewReplacer("{resource}", resourceName)
-	for _, definitions := range config.Secrets {
-		for _, def := range definitions {
-			path := strings.TrimSpace(def.Path)
-			if path == "" {
-				continue
-			}
-			path = replacer.Replace(path)
-			if len(def.Fields) > 0 {
-				for _, field := range def.Fields {
-					for keyName, env := range field {
-						envVar := strings.ToUpper(strings.TrimSpace(env))
-						if envVar == "" {
-							continue
-						}
-						mappings[envVar] = secretMapping{Path: path, VaultKey: keyName}
-					}
-				}
-			}
-			defaultEnv := strings.ToUpper(strings.TrimSpace(def.DefaultEnv))
-			if defaultEnv != "" {
-				mappings[defaultEnv] = secretMapping{Path: path, VaultKey: "value"}
-			}
-			nameAlias := strings.ToUpper(strings.TrimSpace(def.Name))
-			if nameAlias != "" {
-				alias := fmt.Sprintf("%s_%s", strings.ToUpper(resourceName), strings.ReplaceAll(nameAlias, " ", "_"))
-				mappings[alias] = secretMapping{Path: path, VaultKey: "value"}
-			}
-		}
-	}
-	return mappings
-}
-
-func putSecretInVault(path, vaultKey, value string) error {
-	args := []string{"content", "put-secret", "--path", path, "--value", value}
-	if vaultKey != "" && vaultKey != "value" {
-		args = append(args, "--key", vaultKey)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "resource-vault", args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	cmd.Stdout = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg != "" {
-			return fmt.Errorf("%w: %s", err, msg)
-		}
-		return err
-	}
-	return nil
 }
 
 func (h *VaultHandlers) recordSecretProvision(ctx context.Context, resourceName, envKey, vaultPath string) {

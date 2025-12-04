@@ -104,7 +104,7 @@ var (
 
 // resourceHeuristic defines a heuristic for detecting a resource without explicit CLI usage
 type resourceHeuristic struct {
-	Name     string            // Canonical resource name
-	Type     string            // Resource type identifier
-	Patterns []*regexp.Regexp  // Patterns that indicate usage of this resource
+	Name     string           // Canonical resource name
+	Type     string           // Resource type identifier
+	Patterns []*regexp.Regexp // Patterns that indicate usage of this resource
 }

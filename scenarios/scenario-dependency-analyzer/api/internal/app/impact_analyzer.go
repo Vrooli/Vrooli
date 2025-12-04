@@ -7,15 +7,15 @@ import (
 
 // DependencyImpactReport represents the analysis of removing a dependency
 type DependencyImpactReport struct {
-	DependencyName    string              `json:"dependency_name"`
-	DependencyType    string              `json:"dependency_type"` // "resource", "scenario"
-	DirectDependents  []DependentScenario `json:"direct_dependents"`
+	DependencyName     string              `json:"dependency_name"`
+	DependencyType     string              `json:"dependency_type"` // "resource", "scenario"
+	DirectDependents   []DependentScenario `json:"direct_dependents"`
 	IndirectDependents []DependentScenario `json:"indirect_dependents"`
-	TotalAffected     int                 `json:"total_affected"`
-	CriticalImpact    bool                `json:"critical_impact"`    // true if any required dependency
-	Severity          string              `json:"severity"`           // "none", "low", "medium", "high", "critical"
-	ImpactSummary     string              `json:"impact_summary"`
-	Recommendations   []string            `json:"recommendations"`
+	TotalAffected      int                 `json:"total_affected"`
+	CriticalImpact     bool                `json:"critical_impact"` // true if any required dependency
+	Severity           string              `json:"severity"`        // "none", "low", "medium", "high", "critical"
+	ImpactSummary      string              `json:"impact_summary"`
+	Recommendations    []string            `json:"recommendations"`
 }
 
 // DependentScenario represents a scenario that depends on the analyzed dependency
@@ -56,25 +56,26 @@ func analyzeDependencyImpact(dependencyName string) (*DependencyImpactReport, er
 	summary := generateImpactSummary(dependencyName, depType, len(directDeps), len(indirectDeps), severity)
 
 	return &DependencyImpactReport{
-		DependencyName:    dependencyName,
-		DependencyType:    depType,
-		DirectDependents:  directDeps,
+		DependencyName:     dependencyName,
+		DependencyType:     depType,
+		DirectDependents:   directDeps,
 		IndirectDependents: indirectDeps,
-		TotalAffected:     len(directDeps) + len(indirectDeps),
-		CriticalImpact:    criticalImpact,
-		Severity:          severity,
-		ImpactSummary:     summary,
-		Recommendations:   recommendations,
+		TotalAffected:      len(directDeps) + len(indirectDeps),
+		CriticalImpact:     criticalImpact,
+		Severity:           severity,
+		ImpactSummary:      summary,
+		Recommendations:    recommendations,
 	}, nil
 }
 
 // findDirectDependents queries the database for scenarios that directly depend on the given dependency
 func findDirectDependents(dependencyName string) ([]DependentScenario, error) {
-	if db == nil {
+	dbConn := currentDB()
+	if dbConn == nil {
 		return []DependentScenario{}, nil
 	}
 
-	rows, err := db.Query(`
+	rows, err := dbConn.Query(`
 		SELECT scenario_name, required, purpose, access_method, configuration
 		FROM scenario_dependencies
 		WHERE dependency_name = $1
@@ -115,7 +116,8 @@ func findDirectDependents(dependencyName string) ([]DependentScenario, error) {
 
 // findIndirectDependents finds scenarios that depend on direct dependents
 func findIndirectDependents(directDeps []DependentScenario) []DependentScenario {
-	if db == nil || len(directDeps) == 0 {
+	dbConn := currentDB()
+	if dbConn == nil || len(directDeps) == 0 {
 		return []DependentScenario{}
 	}
 
@@ -135,7 +137,7 @@ func findIndirectDependents(directDeps []DependentScenario) []DependentScenario 
 
 	// For each direct dependent, find what depends on it
 	for _, scenarioName := range scenarioNames {
-		rows, err := db.Query(`
+		rows, err := dbConn.Query(`
 			SELECT scenario_name, required, purpose, access_method
 			FROM scenario_dependencies
 			WHERE dependency_name = $1 AND dependency_type = 'scenario'
@@ -313,13 +315,13 @@ func generateImpactSummary(dependencyName, depType string, directCount, indirect
 func suggestAlternatives(dependencyName string) []string {
 	// Common resource alternatives
 	alternatives := map[string][]string{
-		"postgres":     {"sqlite", "mysql"},
-		"redis":        {"memcached", "in-memory-cache"},
-		"ollama":       {"openrouter", "claude-code", "openai"},
-		"qdrant":       {"pinecone", "weaviate", "chromadb"},
-		"n8n":          {"zapier", "make", "custom-workflows"},
-		"minio":        {"s3", "local-filesystem"},
-		"browserless":  {"puppeteer", "playwright"},
+		"postgres":    {"sqlite", "mysql"},
+		"redis":       {"memcached", "in-memory-cache"},
+		"ollama":      {"openrouter", "claude-code", "openai"},
+		"qdrant":      {"pinecone", "weaviate", "chromadb"},
+		"n8n":         {"zapier", "make", "custom-workflows"},
+		"minio":       {"s3", "local-filesystem"},
+		"browserless": {"puppeteer", "playwright"},
 	}
 
 	if alts, ok := alternatives[dependencyName]; ok {

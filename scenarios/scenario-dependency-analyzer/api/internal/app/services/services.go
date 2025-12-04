@@ -1,4 +1,3 @@
-
 package services
 
 import types "scenario-dependency-analyzer/internal/types"

@@ -8,12 +8,12 @@ import (
 
 // CycleDetectionResult represents the outcome of circular dependency analysis
 type CycleDetectionResult struct {
-	HasCycles    bool                `json:"has_cycles"`
-	CycleCount   int                 `json:"cycle_count"`
-	Cycles       []DependencyCycle   `json:"cycles"`
-	AffectedDeps []string            `json:"affected_dependencies"`
-	Severity     string              `json:"severity"` // "none", "warning", "critical"
-	Message      string              `json:"message"`
+	HasCycles    bool              `json:"has_cycles"`
+	CycleCount   int               `json:"cycle_count"`
+	Cycles       []DependencyCycle `json:"cycles"`
+	AffectedDeps []string          `json:"affected_dependencies"`
+	Severity     string            `json:"severity"` // "none", "warning", "critical"
+	Message      string            `json:"message"`
 }
 
 // DependencyCycle represents a single circular dependency path

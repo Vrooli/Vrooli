@@ -1,5 +1,17 @@
 package app
 
+// detection_bridge.go provides a functional API for detector operations.
+//
+// These functions manage access to the dependency detector, which scans
+// scenarios and resources for dependency relationships. The bridge handles
+// fallback creation and caching of the detector instance.
+//
+// Key functions:
+// - detectorInstance(): Get or create the detector
+// - isKnownScenario/isKnownResource: Check catalog membership
+// - scanForResourceUsage, scanForScenarioDependencies, scanForSharedWorkflows: Detection ops
+// - refreshDependencyCatalogs: Invalidate cached catalogs after filesystem changes
+
 import (
 	"fmt"
 	"sync"
@@ -14,6 +26,7 @@ var (
 	fallbackDetectorOnce sync.Once
 )
 
+// detectorInstance returns the detector from the active analyzer, or a fallback.
 func detectorInstance() *detection.Detector {
 	if analyzer := analyzerInstance(); analyzer != nil && analyzer.Detector() != nil {
 		return analyzer.Detector()

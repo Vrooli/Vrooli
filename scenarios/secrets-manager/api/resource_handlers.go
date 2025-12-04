@@ -204,25 +204,5 @@ func (h *ResourceHandlers) SecretStrategy(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(secret)
 }
 
-func storeDiscoveredSecret(secret ResourceSecret) {
-	query := `
-		INSERT INTO resource_secrets (id, resource_name, secret_key, secret_type, 
-			required, description, validation_pattern, documentation_url, default_value,
-			created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT (resource_name, secret_key) 
-		DO UPDATE SET 
-			secret_type = EXCLUDED.secret_type,
-			required = EXCLUDED.required,
-			description = EXCLUDED.description,
-			updated_at = CURRENT_TIMESTAMP
-	`
-
-	_, err := db.Exec(query, secret.ID, secret.ResourceName, secret.SecretKey,
-		secret.SecretType, secret.Required, secret.Description,
-		secret.ValidationPattern, secret.DocumentationURL, secret.DefaultValue,
-		secret.CreatedAt, secret.UpdatedAt)
-	if err != nil {
-		logger.Info("Failed to store discovered secret: %v", err)
-	}
-}
+// NOTE: storeDiscoveredSecret has been moved to resource_queries.go
+// to separate infrastructure/persistence concerns from HTTP handlers.

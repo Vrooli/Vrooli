@@ -313,15 +313,15 @@ type BundleDependencyEntry struct {
 // It is intentionally conservative: defaults are portable, and values are placeholders
 // that deployment-manager can refine.
 type DesktopBundleSkeleton struct {
-	SchemaVersion string                      `json:"schema_version"`
-	Target        string                      `json:"target"`
-	App           BundleSkeletonApp           `json:"app"`
-	IPC           BundleSkeletonIPC           `json:"ipc"`
-	Telemetry     BundleSkeletonTelemetry     `json:"telemetry"`
-	Ports         BundleSkeletonPorts         `json:"ports"`
-	Swaps         []BundleSkeletonSwap        `json:"swaps,omitempty"`
-	Secrets       []BundleSkeletonSecret      `json:"secrets,omitempty"`
-	Services      []BundleSkeletonService     `json:"services"`
+	SchemaVersion string                  `json:"schema_version"`
+	Target        string                  `json:"target"`
+	App           BundleSkeletonApp       `json:"app"`
+	IPC           BundleSkeletonIPC       `json:"ipc"`
+	Telemetry     BundleSkeletonTelemetry `json:"telemetry"`
+	Ports         BundleSkeletonPorts     `json:"ports"`
+	Swaps         []BundleSkeletonSwap    `json:"swaps,omitempty"`
+	Secrets       []BundleSkeletonSecret  `json:"secrets,omitempty"`
+	Services      []BundleSkeletonService `json:"services"`
 }
 
 type BundleSkeletonApp struct {
@@ -331,9 +331,9 @@ type BundleSkeletonApp struct {
 }
 
 type BundleSkeletonIPC struct {
-	Mode         string `json:"mode"`
-	Host         string `json:"host"`
-	Port         int    `json:"port"`
+	Mode          string `json:"mode"`
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
 	AuthTokenPath string `json:"auth_token_path"`
 }
 
@@ -411,9 +411,9 @@ type BundleSkeletonServicePorts struct {
 }
 
 type BundleSkeletonRequestedPort struct {
-	Name           string                 `json:"name"`
+	Name           string                  `json:"name"`
 	Range          BundleSkeletonPortRange `json:"range"`
-	RequiresSocket bool                   `json:"requires_socket,omitempty"`
+	RequiresSocket bool                    `json:"requires_socket,omitempty"`
 }
 
 type BundleSkeletonHealth struct {
@@ -452,13 +452,13 @@ type BundleSkeletonGPU struct {
 
 // DeploymentMetadataGaps reports missing deployment metadata across the dependency tree.
 type DeploymentMetadataGaps struct {
-	TotalGaps              int                       `json:"total_gaps"`
-	ScenariosMissingAll    int                       `json:"scenarios_missing_all"`
-	GapsByScenario         map[string]ScenarioGapInfo `json:"gaps_by_scenario"`
-	MissingTiers           []string                  `json:"missing_tiers"`
-	SecretRequirements     []SecretRequirement       `json:"secret_requirements,omitempty"`
-	ResourceSwapSuggestions []ResourceSwapSuggestion  `json:"resource_swap_suggestions,omitempty"`
-	Recommendations        []string                  `json:"recommendations"`
+	TotalGaps               int                        `json:"total_gaps"`
+	ScenariosMissingAll     int                        `json:"scenarios_missing_all"`
+	GapsByScenario          map[string]ScenarioGapInfo `json:"gaps_by_scenario"`
+	MissingTiers            []string                   `json:"missing_tiers"`
+	SecretRequirements      []SecretRequirement        `json:"secret_requirements,omitempty"`
+	ResourceSwapSuggestions []ResourceSwapSuggestion   `json:"resource_swap_suggestions,omitempty"`
+	Recommendations         []string                   `json:"recommendations"`
 }
 
 // ScenarioGapInfo describes metadata gaps for a single scenario in the tree.

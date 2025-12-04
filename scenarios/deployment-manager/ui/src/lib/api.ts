@@ -12,6 +12,39 @@ const getApiBaseUrl = () => {
 };
 
 // ============================================================================
+// Shared Fetch Helper
+// ============================================================================
+
+interface FetchOptions {
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  body?: unknown;
+  errorPrefix?: string;
+}
+
+async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  const { method = "GET", body, errorPrefix = "Request failed" } = options;
+
+  const fetchOptions: RequestInit = {
+    method,
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  };
+
+  if (body !== undefined) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(buildApiUrl(path, { baseUrl: getApiBaseUrl() }), fetchOptions);
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(error.error || `${errorPrefix}: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -156,241 +189,81 @@ export interface TelemetrySummary {
 // API Client
 // ============================================================================
 
-export async function fetchHealth(): Promise<HealthResponse> {
-  const res = await fetch(buildApiUrl("/health", { baseUrl: getApiBaseUrl() }), {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store"
-  });
-
-  if (!res.ok) {
-    throw new Error(`API health check failed: ${res.status}`);
-  }
-
-  return res.json();
+export function fetchHealth(): Promise<HealthResponse> {
+  return apiFetch("/health", { errorPrefix: "API health check failed" });
 }
 
-export async function analyzeDependencies(scenario: string): Promise<DependencyAnalysisResponse> {
-  const res = await fetch(
-    buildApiUrl(`/dependencies/analyze/${scenario}`, { baseUrl: getApiBaseUrl() }),
-    {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Dependency analysis failed: ${res.status}`);
-  }
-
-  return res.json();
+export function analyzeDependencies(scenario: string): Promise<DependencyAnalysisResponse> {
+  return apiFetch(`/dependencies/analyze/${scenario}`, { errorPrefix: "Dependency analysis failed" });
 }
 
-export async function scoreFitness(request: FitnessScoreRequest): Promise<FitnessScoreResponse> {
-  const res = await fetch(
-    buildApiUrl("/fitness/score", { baseUrl: getApiBaseUrl() }),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Fitness scoring failed: ${res.status}`);
-  }
-
-  return res.json();
+export function scoreFitness(request: FitnessScoreRequest): Promise<FitnessScoreResponse> {
+  return apiFetch("/fitness/score", { method: "POST", body: request, errorPrefix: "Fitness scoring failed" });
 }
 
-export async function listProfiles(): Promise<DeploymentProfile[]> {
-  const res = await fetch(
-    buildApiUrl("/profiles", { baseUrl: getApiBaseUrl() }),
-    {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to list profiles: ${res.status}`);
-  }
-
-  return res.json();
+export function listProfiles(): Promise<DeploymentProfile[]> {
+  return apiFetch("/profiles", { errorPrefix: "Failed to list profiles" });
 }
 
-export async function createProfile(request: CreateProfileRequest): Promise<CreateProfileResponse> {
-  const res = await fetch(
-    buildApiUrl("/profiles", { baseUrl: getApiBaseUrl() }),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Failed to create profile: ${res.status}`);
-  }
-
-  return res.json();
+export function createProfile(request: CreateProfileRequest): Promise<CreateProfileResponse> {
+  return apiFetch("/profiles", { method: "POST", body: request, errorPrefix: "Failed to create profile" });
 }
 
-export async function getProfile(id: string): Promise<DeploymentProfile> {
-  const res = await fetch(
-    buildApiUrl(`/profiles/${id}`, { baseUrl: getApiBaseUrl() }),
-    {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to get profile: ${res.status}`);
-  }
-
-  return res.json();
+export function getProfile(id: string): Promise<DeploymentProfile> {
+  return apiFetch(`/profiles/${id}`, { errorPrefix: "Failed to get profile" });
 }
 
-export async function updateProfile(id: string, updates: Partial<DeploymentProfile>): Promise<DeploymentProfile> {
-  const res = await fetch(
-    buildApiUrl(`/profiles/${id}`, { baseUrl: getApiBaseUrl() }),
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Failed to update profile: ${res.status}`);
-  }
-
-  return res.json();
+export function updateProfile(id: string, updates: Partial<DeploymentProfile>): Promise<DeploymentProfile> {
+  return apiFetch(`/profiles/${id}`, { method: "PUT", body: updates, errorPrefix: "Failed to update profile" });
 }
 
-export async function deployProfile(profileId: string): Promise<DeployResponse> {
-  const res = await fetch(
-    buildApiUrl(`/deploy/${profileId}`, { baseUrl: getApiBaseUrl() }),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Deployment failed: ${res.status}`);
-  }
-
-  return res.json();
+export function deployProfile(profileId: string): Promise<DeployResponse> {
+  return apiFetch(`/deploy/${profileId}`, { method: "POST", errorPrefix: "Deployment failed" });
 }
 
-export async function getDeploymentStatus(deploymentId: string): Promise<DeploymentStatus> {
-  const res = await fetch(
-    buildApiUrl(`/deployments/${deploymentId}`, { baseUrl: getApiBaseUrl() }),
-    {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to get deployment status: ${res.status}`);
-  }
-
-  return res.json();
+export function getDeploymentStatus(deploymentId: string): Promise<DeploymentStatus> {
+  return apiFetch(`/deployments/${deploymentId}`, { errorPrefix: "Failed to get deployment status" });
 }
 
-export async function analyzeSwap(from: string, to: string): Promise<SwapAnalysis> {
-  const res = await fetch(
-    buildApiUrl(`/swaps/analyze/${from}/${to}`, { baseUrl: getApiBaseUrl() }),
-    {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Swap analysis failed: ${res.status}`);
-  }
-
-  return res.json();
+export function analyzeSwap(from: string, to: string): Promise<SwapAnalysis> {
+  return apiFetch(`/swaps/analyze/${from}/${to}`, { errorPrefix: "Swap analysis failed" });
 }
 
-export async function analyzeSwapCascade(from: string, to: string): Promise<SwapCascade> {
-  const res = await fetch(
-    buildApiUrl(`/swaps/cascade/${from}/${to}`, { baseUrl: getApiBaseUrl() }),
-    {
-      headers: { "Content-Type": "application/json" },
-      cache: "no-store"
-    }
-  );
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Cascade analysis failed: ${res.status}`);
-  }
-
-  return res.json();
+export function analyzeSwapCascade(from: string, to: string): Promise<SwapCascade> {
+  return apiFetch(`/swaps/cascade/${from}/${to}`, { errorPrefix: "Cascade analysis failed" });
 }
 
-export async function uploadTelemetry(scenario: string | undefined, file: File): Promise<{ path: string }> {
-  const raw = await file.text();
-  const lines = raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+function parseJsonLines(raw: string): unknown[] {
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (lines.length === 0) {
     throw new Error("File is empty");
   }
-  const events = lines.map((line, idx) => {
+  return lines.map((line, idx) => {
     try {
       return JSON.parse(line);
     } catch {
       throw new Error(`Line ${idx + 1} is not valid JSON`);
     }
   });
-
-  const res = await fetch(buildApiUrl(`/telemetry/upload${scenario ? `?scenario=${encodeURIComponent(scenario)}` : ""}`, { baseUrl: getApiBaseUrl() }), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      scenario_name: scenario || "unknown",
-      deployment_mode: "bundled",
-      source: "deployment-manager-ui",
-      events,
-    }),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || `Telemetry upload failed (${res.status})`);
-  }
-
-  const data = await res.json();
-  return { path: data.path as string };
 }
 
-export async function listTelemetry(): Promise<TelemetrySummary[]> {
-  const res = await fetch(buildApiUrl("/telemetry", { baseUrl: getApiBaseUrl() }), {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
+export async function uploadTelemetry(scenario: string | undefined, file: File): Promise<{ path: string }> {
+  const events = parseJsonLines(await file.text());
+  const queryParam = scenario ? `?scenario=${encodeURIComponent(scenario)}` : "";
+  const body = {
+    scenario_name: scenario || "unknown",
+    deployment_mode: "bundled",
+    source: "deployment-manager-ui",
+    events,
+  };
+  const data = await apiFetch<{ path: string }>(`/telemetry/upload${queryParam}`, {
+    method: "POST",
+    body,
+    errorPrefix: "Telemetry upload failed",
   });
+  return { path: data.path };
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || `Failed to list telemetry (${res.status})`);
-  }
-
-  return res.json();
+export function listTelemetry(): Promise<TelemetrySummary[]> {
+  return apiFetch("/telemetry", { errorPrefix: "Failed to list telemetry" });
 }

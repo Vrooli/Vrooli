@@ -24,6 +24,187 @@ type cachedSecurityScan struct {
 	expires time.Time
 }
 
+// -----------------------------------------------------------------------------
+// Path Resolution
+// -----------------------------------------------------------------------------
+
+// vrooliPaths holds the resolved paths for Vrooli directories.
+type vrooliPaths struct {
+	root      string
+	scenarios string
+	resources string
+}
+
+// getVrooliPaths resolves the VROOLI_ROOT and derived paths.
+func getVrooliPaths() (vrooliPaths, error) {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return vrooliPaths{}, fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		vrooliRoot = filepath.Join(home, "Vrooli")
+	}
+	return vrooliPaths{
+		root:      vrooliRoot,
+		scenarios: filepath.Join(vrooliRoot, "scenarios"),
+		resources: filepath.Join(vrooliRoot, "resources"),
+	}, nil
+}
+
+// -----------------------------------------------------------------------------
+// Directory Walking Infrastructure
+// -----------------------------------------------------------------------------
+
+// scanWalkConfig configures a directory walk for vulnerability scanning.
+type scanWalkConfig struct {
+	basePath          string
+	componentType     string // "scenario" or "resource"
+	componentFilter   string
+	severityFilter    string
+	allowedExtensions []string
+	maxFileSize       int64 // in bytes
+	maxFiles          int
+	maxFilesPerComp   int
+	timeoutSeconds    int
+}
+
+// scanWalkResult captures the results of a directory walk.
+type scanWalkResult struct {
+	vulnerabilities []SecurityVulnerability
+	componentsFound map[string]bool
+	filesScanned    int
+	filesSkipped    int
+	largeSkipped    int
+	scanTimeMs      int
+	errors          []string
+	timedOut        bool
+}
+
+// walkAndScan performs a directory walk with the given configuration.
+// This consolidates the common walking logic used for both scenarios and resources.
+func walkAndScan(ctx context.Context, cfg scanWalkConfig) scanWalkResult {
+	startTime := time.Now()
+	result := scanWalkResult{
+		vulnerabilities: []SecurityVulnerability{},
+		componentsFound: make(map[string]bool),
+		errors:          []string{},
+	}
+
+	filesPerComponent := make(map[string]int)
+	filesScanned := 0
+
+	err := filepath.WalkDir(cfg.basePath, func(path string, d os.DirEntry, err error) error {
+		// Check timeout
+		select {
+		case <-ctx.Done():
+			result.timedOut = true
+			result.errors = append(result.errors, fmt.Sprintf("%s scanning timeout after %ds", cfg.componentType, cfg.timeoutSeconds))
+			return filepath.SkipAll
+		default:
+		}
+
+		if err != nil {
+			result.filesSkipped++
+			return nil
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		// Extract component name from path
+		relPath, _ := filepath.Rel(cfg.basePath, path)
+		pathParts := strings.Split(relPath, string(filepath.Separator))
+		if len(pathParts) == 0 {
+			return nil
+		}
+		componentName := pathParts[0]
+
+		// Apply global file limit
+		if filesScanned >= cfg.maxFiles {
+			result.errors = append(result.errors, fmt.Sprintf("%s file limit reached (%d files)", cfg.componentType, cfg.maxFiles))
+			return filepath.SkipAll
+		}
+
+		// Apply per-component file limit
+		if filesPerComponent[componentName] >= cfg.maxFilesPerComp {
+			return nil
+		}
+
+		// Check file size
+		info, err := d.Info()
+		if err == nil && info.Size() > cfg.maxFileSize {
+			result.largeSkipped++
+			return nil
+		}
+
+		// Check file extension
+		ext := strings.ToLower(filepath.Ext(path))
+		if !isAllowedExtension(ext, cfg.allowedExtensions) {
+			return nil
+		}
+
+		// Apply component filter
+		if cfg.componentFilter != "" && cfg.componentFilter != componentName {
+			return nil
+		}
+
+		// Track unique components
+		if !result.componentsFound[componentName] {
+			result.componentsFound[componentName] = true
+		}
+
+		// Increment counters
+		filesScanned++
+		filesPerComponent[componentName]++
+		result.filesScanned++
+
+		// Scan file for vulnerabilities
+		var fileVulns []SecurityVulnerability
+		var scanErr error
+
+		if cfg.componentType == "resource" {
+			fileVulns, scanErr = scanResourceFileForVulnerabilities(ctx, path, cfg.componentType, componentName)
+		} else {
+			fileVulns, scanErr = scanFileForVulnerabilities(path, cfg.componentType, componentName)
+		}
+
+		if scanErr != nil {
+			logger.Warning("failed to scan %s file %s: %v", cfg.componentType, path, scanErr)
+			result.errors = append(result.errors, fmt.Sprintf("Failed to scan %s: %v", filepath.Base(path), scanErr))
+			return nil
+		}
+
+		// Filter by severity
+		for _, vuln := range fileVulns {
+			if cfg.severityFilter == "" || vuln.Severity == cfg.severityFilter {
+				result.vulnerabilities = append(result.vulnerabilities, vuln)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		logger.Warning("failed to walk %s directory: %v", cfg.componentType, err)
+		result.errors = append(result.errors, fmt.Sprintf("Failed to walk %s directory: %v", cfg.componentType, err))
+	}
+
+	result.scanTimeMs = int(time.Since(startTime).Milliseconds())
+	return result
+}
+
+// isAllowedExtension checks if an extension is in the allowed list.
+func isAllowedExtension(ext string, allowed []string) bool {
+	for _, a := range allowed {
+		if ext == a {
+			return true
+		}
+	}
+	return false
+}
+
 var (
 	securityScanCache     = map[string]cachedSecurityScan{}
 	securityScanCacheMu   sync.Mutex
@@ -83,22 +264,15 @@ func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, compon
 		logger.Info("Progressive scan %s completed: %d vulnerabilities found", scan.ScanID, len(scan.Vulnerabilities))
 	}()
 
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			scan.Status = "failed"
-			scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, fmt.Sprintf("Failed to get user home directory: %v", err))
-			return
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
+	paths, err := getVrooliPaths()
+	if err != nil {
+		scan.Status = "failed"
+		scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, err.Error())
+		return
 	}
 
-	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
-	resourcesPath := filepath.Join(vrooliRoot, "resources")
-
 	// Estimate total files for progress tracking
-	estimatedFiles := estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter)
+	estimatedFiles := estimateFileCount(paths.scenarios, paths.resources, componentTypeFilter)
 	scan.ScanMetrics.EstimatedTotalFiles = estimatedFiles
 
 	var allVulnerabilities []SecurityVulnerability
@@ -162,273 +336,82 @@ func performSecurityScan(componentFilter, componentTypeFilter, severityFilter st
 	startTime := time.Now()
 	scanID := uuid.New().String()
 
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user home directory: %w", err)
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
+	paths, err := getVrooliPaths()
+	if err != nil {
+		return nil, err
 	}
 
-	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
-	resourcesPath := filepath.Join(vrooliRoot, "resources")
 	var vulnerabilities []SecurityVulnerability
-	var resourcesScanned, scenariosScanned int
-	seenResources := make(map[string]bool)
-	seenScenarios := make(map[string]bool)
-
-	// Initialize scan metrics
-	metrics := ScanMetrics{
-		ScanErrors: []string{},
-	}
+	metrics := ScanMetrics{ScanErrors: []string{}}
+	var scenariosScanned, resourcesScanned int
 
 	// Scan scenarios if not filtering for resources only
 	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
-		scenarioStartTime := time.Now()
-		// Create timeout context for scenario scanning
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second) // Increased timeout for large projects
-		defer cancel()
-
-		scenarioFilesScanned := 0
-		maxScenarioFiles := 25000                // Significantly increased limit for large projects
-		filesPerScenario := make(map[string]int) // Track files per scenario to balance scanning
-
-		err := filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
-			// Check timeout
-			select {
-			case <-ctx.Done():
-				logger.Info("Scenario scanning timed out after 120 seconds")
-				metrics.TimeoutOccurred = true
-				metrics.ScanErrors = append(metrics.ScanErrors, "Scenario scanning timeout after 120 seconds")
-				return filepath.SkipAll
-			default:
-			}
-
-			if err != nil {
-				metrics.FilesSkipped++
-				return nil // Skip files we can't read
-			}
-
-			// Only scan source files in scenarios
-			if d.IsDir() {
-				return nil
-			}
-
-			// Extract scenario name first to apply per-scenario limits
-			relPath, _ := filepath.Rel(scenariosPath, path)
-			pathParts := strings.Split(relPath, string(filepath.Separator))
-			if len(pathParts) == 0 {
-				return nil
-			}
-			scenarioName := pathParts[0]
-
-			// Limit files scanned
-			if scenarioFilesScanned >= maxScenarioFiles {
-				logger.Info("Scenario scanning stopped after %d files (limit reached)", maxScenarioFiles)
-				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Scenario file limit reached (%d files)", maxScenarioFiles))
-				return filepath.SkipAll
-			}
-
-			// Limit files per scenario to ensure we scan more scenarios
-			const maxFilesPerScenario = 200 // Increased limit per scenario for large projects
-			if filesPerScenario[scenarioName] >= maxFilesPerScenario {
-				return nil // Skip additional files from this scenario
-			}
-
-			// Check file size
-			info, err := d.Info()
-			if err == nil && info.Size() > 500*1024 { // Skip files larger than 500KB for scenarios
-				metrics.LargeFilesSkipped++
-				return nil
-			}
-
-			// Check if it's a source file we should scan
-			ext := strings.ToLower(filepath.Ext(path))
-			if ext != ".go" && ext != ".js" && ext != ".ts" && ext != ".py" && ext != ".sh" {
-				return nil
-			}
-
-			// Skip if filtering by specific component
-			if componentFilter != "" && componentFilter != scenarioName {
-				return nil
-			}
-
-			// Track unique scenarios scanned
-			if strings.Contains(path, "/"+scenarioName+"/") {
-				// Only count each scenario once per scan
-				if !seenScenarios[scenarioName] {
-					scenariosScanned++
-					seenScenarios[scenarioName] = true
-				}
-			}
-
-			// Increment counters
-			scenarioFilesScanned++
-			filesPerScenario[scenarioName]++
-			metrics.FilesScanned++
-
-			// Scan file for vulnerabilities
-			fileVulns, err := scanFileForVulnerabilities(path, "scenario", scenarioName)
-			if err != nil {
-				logger.Warning(" failed to scan scenario file %s: %v", path, err)
-				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to scan %s: %v", filepath.Base(path), err))
-				return nil
-			}
-
-			// Filter by severity if specified
-			for _, vuln := range fileVulns {
-				if severityFilter == "" || vuln.Severity == severityFilter {
-					vulnerabilities = append(vulnerabilities, vuln)
-				}
-			}
-
-			return nil
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		scenarioResult := walkAndScan(ctx, scanWalkConfig{
+			basePath:          paths.scenarios,
+			componentType:     "scenario",
+			componentFilter:   componentFilter,
+			severityFilter:    severityFilter,
+			allowedExtensions: []string{".go", ".js", ".ts", ".py", ".sh"},
+			maxFileSize:       MaxScenarioWalkFileSize,
+			maxFiles:          25000,
+			maxFilesPerComp:   200,
+			timeoutSeconds:    120,
 		})
+		cancel()
 
-		metrics.ScenarioScanTimeMs = int(time.Since(scenarioStartTime).Milliseconds())
-
-		if err != nil {
-			logger.Warning(" failed to walk scenarios directory: %v", err)
-			metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to walk scenarios directory: %v", err))
+		vulnerabilities = append(vulnerabilities, scenarioResult.vulnerabilities...)
+		scenariosScanned = len(scenarioResult.componentsFound)
+		metrics.FilesScanned += scenarioResult.filesScanned
+		metrics.FilesSkipped += scenarioResult.filesSkipped
+		metrics.LargeFilesSkipped += scenarioResult.largeSkipped
+		metrics.ScenarioScanTimeMs = scenarioResult.scanTimeMs
+		metrics.ScanErrors = append(metrics.ScanErrors, scenarioResult.errors...)
+		if scenarioResult.timedOut {
+			metrics.TimeoutOccurred = true
 		}
 	}
 
 	// Scan resources if not filtering for scenarios only
 	if componentTypeFilter == "" || componentTypeFilter == "resource" {
-		resourceStartTime := time.Now()
-		// Create timeout context for resource scanning
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second) // Increased timeout for large projects
-		defer cancel()
-
-		resourceFilesScanned := 0
-		maxFiles := 15000                        // Significantly increased limit for large projects
-		filesPerResource := make(map[string]int) // Track files per resource to balance scanning
-
-		err := filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
-			// Check timeout
-			select {
-			case <-ctx.Done():
-				logger.Info("Resource scanning timed out after 90 seconds")
-				metrics.TimeoutOccurred = true
-				metrics.ScanErrors = append(metrics.ScanErrors, "Resource scanning timeout after 90 seconds")
-				return filepath.SkipAll
-			default:
-			}
-
-			if err != nil {
-				metrics.FilesSkipped++
-				return nil // Skip files we can't read
-			}
-
-			// Only scan config files in resources
-			if d.IsDir() {
-				return nil
-			}
-
-			// Extract resource name first to apply per-resource limits
-			relPath, _ := filepath.Rel(resourcesPath, path)
-			pathParts := strings.Split(relPath, string(filepath.Separator))
-			if len(pathParts) == 0 {
-				return nil
-			}
-			resourceName := pathParts[0]
-
-			// Limit number of files scanned to prevent runaway scanning
-			if resourceFilesScanned >= maxFiles {
-				logger.Info("Resource scanning stopped after %d files (limit reached)", maxFiles)
-				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Resource file limit reached (%d files)", maxFiles))
-				return filepath.SkipAll
-			}
-
-			// Limit files per resource to ensure we scan more resources
-			const maxFilesPerResource = 100 // Increased limit per resource for large projects
-			if filesPerResource[resourceName] >= maxFilesPerResource {
-				return nil // Skip additional files from this resource
-			}
-
-			// Check file size to prevent scanning huge files
-			info, err := d.Info()
-			if err == nil && info.Size() > 200*1024 { // Skip files larger than 200KB for resources
-				metrics.LargeFilesSkipped++
-				return nil
-			}
-
-			// Check if it's a config file we should scan
-			ext := strings.ToLower(filepath.Ext(path))
-			if ext != ".sh" && ext != ".yaml" && ext != ".yml" && ext != ".json" && ext != ".env" {
-				return nil
-			}
-
-			// Skip if filtering by specific component
-			if componentFilter != "" && componentFilter != resourceName {
-				return nil
-			}
-
-			// Track unique resources scanned
-			if strings.Contains(path, "/"+resourceName+"/") {
-				// Only count each resource once per scan
-				if !seenResources[resourceName] {
-					resourcesScanned++
-					seenResources[resourceName] = true
-				}
-			}
-
-			// Increment counters
-			resourceFilesScanned++
-			filesPerResource[resourceName]++
-			metrics.FilesScanned++
-
-			// Use optimized resource scanning with timeout
-			fileVulns, err := scanResourceFileForVulnerabilities(ctx, path, "resource", resourceName)
-			if err != nil {
-				logger.Warning(" failed to scan resource file %s: %v", path, err)
-				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to scan resource %s: %v", filepath.Base(path), err))
-				return nil
-			}
-
-			// Filter by severity if specified
-			for _, vuln := range fileVulns {
-				if severityFilter == "" || vuln.Severity == severityFilter {
-					vulnerabilities = append(vulnerabilities, vuln)
-				}
-			}
-
-			return nil
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		resourceResult := walkAndScan(ctx, scanWalkConfig{
+			basePath:          paths.resources,
+			componentType:     "resource",
+			componentFilter:   componentFilter,
+			severityFilter:    severityFilter,
+			allowedExtensions: []string{".sh", ".yaml", ".yml", ".json", ".env"},
+			maxFileSize:       MaxResourceWalkFileSize,
+			maxFiles:          15000,
+			maxFilesPerComp:   100,
+			timeoutSeconds:    90,
 		})
+		cancel()
 
-		metrics.ResourceScanTimeMs = int(time.Since(resourceStartTime).Milliseconds())
-
-		if err != nil {
-			logger.Warning(" failed to walk resources directory: %v", err)
-			metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to walk resources directory: %v", err))
+		vulnerabilities = append(vulnerabilities, resourceResult.vulnerabilities...)
+		resourcesScanned = len(resourceResult.componentsFound)
+		metrics.FilesScanned += resourceResult.filesScanned
+		metrics.FilesSkipped += resourceResult.filesSkipped
+		metrics.LargeFilesSkipped += resourceResult.largeSkipped
+		metrics.ResourceScanTimeMs = resourceResult.scanTimeMs
+		metrics.ScanErrors = append(metrics.ScanErrors, resourceResult.errors...)
+		if resourceResult.timedOut {
+			metrics.TimeoutOccurred = true
 		}
 	}
 
-	// Calculate risk score based on vulnerabilities
 	riskScore := calculateRiskScore(vulnerabilities)
-
-	// Generate remediation suggestions
 	recommendations := generateRemediationSuggestions(vulnerabilities)
 
-	// Finalize scan metrics
 	totalScanTime := int(time.Since(startTime).Milliseconds())
 	metrics.TotalScanTimeMs = totalScanTime
 
-	// Log scan summary
-	logger.Info("Vulnerability scan completed:")
-	logger.Info("  📊 Total scan time: %dms", totalScanTime)
-	logger.Info("  📁 Files scanned: %d", metrics.FilesScanned)
-	logger.Info("  ⏭️  Files skipped: %d", metrics.FilesSkipped)
-	logger.Info("  🔍 Vulnerabilities found: %d", len(vulnerabilities))
+	logScanSummary(metrics, len(vulnerabilities))
 
 	completedAt := time.Now()
 	if _, err := persistSecurityScan(context.Background(), scanID, componentFilter, componentTypeFilter, severityFilter, metrics, riskScore, vulnerabilities); err != nil {
 		logger.Info("failed to persist scan run: %v", err)
-	}
-	logger.Info("  ⚠️  Scan errors: %d", len(metrics.ScanErrors))
-	if metrics.TimeoutOccurred {
-		logger.Info("  ⏰ Timeout occurred during scanning")
 	}
 
 	return &SecurityScanResult{
@@ -443,11 +426,23 @@ func performSecurityScan(componentFilter, componentTypeFilter, severityFilter st
 			ResourcesScanned: resourcesScanned,
 			ScenariosScanned: scenariosScanned,
 			TotalComponents:  resourcesScanned + scenariosScanned,
-			ConfiguredCount:  0, // TODO: Calculate from vault status
 		},
 		ScanMetrics: metrics,
 		GeneratedAt: completedAt,
 	}, nil
+}
+
+// logScanSummary logs the scan results summary.
+func logScanSummary(metrics ScanMetrics, vulnCount int) {
+	logger.Info("Vulnerability scan completed:")
+	logger.Info("  📊 Total scan time: %dms", metrics.TotalScanTimeMs)
+	logger.Info("  📁 Files scanned: %d", metrics.FilesScanned)
+	logger.Info("  ⏭️  Files skipped: %d", metrics.FilesSkipped)
+	logger.Info("  🔍 Vulnerabilities found: %d", vulnCount)
+	logger.Info("  ⚠️  Scan errors: %d", len(metrics.ScanErrors))
+	if metrics.TimeoutOccurred {
+		logger.Info("  ⏰ Timeout occurred during scanning")
+	}
 }
 
 func buildEmptySecurityScan(componentFilter, componentTypeFilter, severityFilter string, completed bool) *SecurityScanResult {
@@ -479,13 +474,13 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 	default:
 	}
 
-	// Read file content with size limit (50KB max)
+	// Read file content with size limit
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	if len(content) > 50*1024 {
+	if len(content) > MaxResourceFileScanSize {
 		return nil, fmt.Errorf("file too large: %d bytes", len(content))
 	}
 
@@ -587,7 +582,7 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 				return nil
 			}
 			ext := strings.ToLower(filepath.Ext(path))
-			if ext == ".go" || ext == ".js" || ext == ".ts" || ext == ".py" || ext == ".sh" {
+			if IsScenarioSourceExtension(ext) {
 				count++
 			}
 			return nil
@@ -600,7 +595,7 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 				return nil
 			}
 			ext := strings.ToLower(filepath.Ext(path))
-			if ext == ".go" || ext == ".js" || ext == ".ts" || ext == ".py" || ext == ".sh" || ext == ".yml" || ext == ".yaml" || ext == ".json" {
+			if IsResourceConfigExtension(ext) {
 				count++
 			}
 			return nil
@@ -782,41 +777,45 @@ func scheduleSecurityScanRefresh(componentFilter, componentTypeFilter, severityF
 	}()
 }
 
-func loadPersistedSecurityScan(ctx context.Context, componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
+// persistedScanRun holds data loaded from a security_scan_runs row.
+type persistedScanRun struct {
+	runID       string
+	scanID      string
+	riskScore   int
+	metrics     ScanMetrics
+	completedAt time.Time
+}
+
+// loadScanRun loads the most recent scan run matching the filters.
+func loadScanRun(ctx context.Context, componentFilter, componentTypeFilter, severityFilter string) (*persistedScanRun, error) {
 	if db == nil {
 		return nil, nil
 	}
 	query := `
-		SELECT id, scan_id, component_filter, component_type, severity_filter,
-		       files_scanned, files_skipped, vulnerabilities_found, risk_score, duration_ms,
-		       metadata, completed_at
+		SELECT id, scan_id, risk_score, duration_ms, metadata, completed_at
 		FROM security_scan_runs
 		WHERE component_filter IS NOT DISTINCT FROM $1
 		  AND component_type IS NOT DISTINCT FROM $2
 		  AND severity_filter IS NOT DISTINCT FROM $3
 		ORDER BY completed_at DESC
 		LIMIT 1`
+
 	var (
-		runID             string
-		scanID            string
-		dbComponentFilter sql.NullString
-		dbComponentType   sql.NullString
-		dbSeverityFilter  sql.NullString
-		filesScanned      sql.NullInt64
-		filesSkipped      sql.NullInt64
-		vulnCount         sql.NullInt64
-		riskScore         sql.NullInt64
-		durationMs        sql.NullInt64
-		metadataBytes     []byte
-		completedAt       time.Time
+		runID         string
+		scanID        string
+		riskScore     sql.NullInt64
+		durationMs    sql.NullInt64
+		metadataBytes []byte
+		completedAt   time.Time
 	)
 	row := db.QueryRowContext(ctx, query, nullString(componentFilter), nullString(componentTypeFilter), nullString(severityFilter))
-	if err := row.Scan(&runID, &scanID, &dbComponentFilter, &dbComponentType, &dbSeverityFilter, &filesScanned, &filesSkipped, &vulnCount, &riskScore, &durationMs, &metadataBytes, &completedAt); err != nil {
+	if err := row.Scan(&runID, &scanID, &riskScore, &durationMs, &metadataBytes, &completedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
 	}
+
 	metrics := ScanMetrics{}
 	if len(metadataBytes) > 0 {
 		_ = json.Unmarshal(metadataBytes, &metrics)
@@ -826,6 +825,24 @@ func loadPersistedSecurityScan(ctx context.Context, componentFilter, componentTy
 	}
 	metrics.ScanComplete = true
 
+	return &persistedScanRun{
+		runID:       runID,
+		scanID:      scanID,
+		riskScore:   int(riskScore.Int64),
+		metrics:     metrics,
+		completedAt: completedAt,
+	}, nil
+}
+
+// vulnerabilitiesWithSummary holds vulnerabilities and component counts.
+type vulnerabilitiesWithSummary struct {
+	vulnerabilities  []SecurityVulnerability
+	resourcesScanned int
+	scenariosScanned int
+}
+
+// loadVulnerabilitiesForScan loads all vulnerabilities for a scan run.
+func loadVulnerabilitiesForScan(ctx context.Context, runID string) (*vulnerabilitiesWithSummary, error) {
 	rows, err := db.QueryContext(ctx, `
 		SELECT id, component_type, component_name, file_path, line_number, severity,
 		       vulnerability_type, title, description, recommendation, code_snippet,
@@ -838,38 +855,33 @@ func loadPersistedSecurityScan(ctx context.Context, componentFilter, componentTy
 		return nil, err
 	}
 	defer rows.Close()
-	var (
-		vulnerabilities []SecurityVulnerability
-		resourceSet     = map[string]struct{}{}
-		scenarioSet     = map[string]struct{}{}
-	)
+
+	var vulnerabilities []SecurityVulnerability
+	resourceSet := map[string]struct{}{}
+	scenarioSet := map[string]struct{}{}
+
 	for rows.Next() {
 		var (
-			id             string
-			compType       string
-			compName       string
-			filePath       string
-			lineNumber     sql.NullInt64
-			severityLevel  string
-			vulnType       string
-			title          string
-			description    sql.NullString
-			recommendation sql.NullString
-			codeSnippet    sql.NullString
-			canAutoFix     bool
-			status         string
-			fingerprint    string
-			firstObserved  time.Time
-			lastObserved   time.Time
+			id, compType, compName, filePath, severityLevel string
+			vulnType, title, status, fingerprint            string
+			lineNumber                                      sql.NullInt64
+			description, recommendation, codeSnippet        sql.NullString
+			canAutoFix                                      bool
+			firstObserved, lastObserved                     time.Time
 		)
-		if err := rows.Scan(&id, &compType, &compName, &filePath, &lineNumber, &severityLevel, &vulnType, &title, &description, &recommendation, &codeSnippet, &canAutoFix, &status, &fingerprint, &firstObserved, &lastObserved); err != nil {
+		if err := rows.Scan(&id, &compType, &compName, &filePath, &lineNumber, &severityLevel,
+			&vulnType, &title, &description, &recommendation, &codeSnippet,
+			&canAutoFix, &status, &fingerprint, &firstObserved, &lastObserved); err != nil {
 			return nil, err
 		}
+
+		// Track unique components
 		if compType == "resource" {
 			resourceSet[compName] = struct{}{}
 		} else if compType == "scenario" {
 			scenarioSet[compName] = struct{}{}
 		}
+
 		vulnerabilities = append(vulnerabilities, SecurityVulnerability{
 			ID:             id,
 			ComponentType:  compType,
@@ -889,20 +901,43 @@ func loadPersistedSecurityScan(ctx context.Context, componentFilter, componentTy
 			LastObservedAt: lastObserved,
 		})
 	}
+
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	result := &SecurityScanResult{
-		ScanID:            scanID,
-		ComponentFilter:   componentFilter,
-		ComponentType:     componentTypeFilter,
-		Vulnerabilities:   vulnerabilities,
-		RiskScore:         int(riskScore.Int64),
-		ScanDurationMs:    metrics.TotalScanTimeMs,
-		Recommendations:   generateRemediationSuggestions(vulnerabilities),
-		ComponentsSummary: ComponentScanSummary{ResourcesScanned: len(resourceSet), ScenariosScanned: len(scenarioSet), TotalComponents: len(resourceSet) + len(scenarioSet)},
-		ScanMetrics:       metrics,
-		GeneratedAt:       completedAt,
+
+	return &vulnerabilitiesWithSummary{
+		vulnerabilities:  vulnerabilities,
+		resourcesScanned: len(resourceSet),
+		scenariosScanned: len(scenarioSet),
+	}, nil
+}
+
+func loadPersistedSecurityScan(ctx context.Context, componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
+	scanRun, err := loadScanRun(ctx, componentFilter, componentTypeFilter, severityFilter)
+	if err != nil || scanRun == nil {
+		return nil, err
 	}
-	return result, nil
+
+	vulnData, err := loadVulnerabilitiesForScan(ctx, scanRun.runID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SecurityScanResult{
+		ScanID:          scanRun.scanID,
+		ComponentFilter: componentFilter,
+		ComponentType:   componentTypeFilter,
+		Vulnerabilities: vulnData.vulnerabilities,
+		RiskScore:       scanRun.riskScore,
+		ScanDurationMs:  scanRun.metrics.TotalScanTimeMs,
+		Recommendations: generateRemediationSuggestions(vulnData.vulnerabilities),
+		ComponentsSummary: ComponentScanSummary{
+			ResourcesScanned: vulnData.resourcesScanned,
+			ScenariosScanned: vulnData.scenariosScanned,
+			TotalComponents:  vulnData.resourcesScanned + vulnData.scenariosScanned,
+		},
+		ScanMetrics: scanRun.metrics,
+		GeneratedAt: scanRun.completedAt,
+	}, nil
 }

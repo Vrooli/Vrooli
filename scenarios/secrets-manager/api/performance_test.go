@@ -98,7 +98,7 @@ func BenchmarkIsLikelySecret(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, varName := range testVars {
-			_ = isLikelySecret(varName)
+			_ = IsLikelySecret(varName)
 		}
 	}
 }
@@ -118,7 +118,7 @@ func BenchmarkClassifySecretType(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, varName := range testVars {
-			_ = classifySecretType(varName)
+			_ = ClassifySecretType(varName)
 		}
 	}
 }
@@ -137,7 +137,7 @@ func BenchmarkIsLikelyRequired(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, varName := range testVars {
-			_ = isLikelyRequired(varName)
+			_ = IsLikelyRequired(varName)
 		}
 	}
 }
@@ -398,9 +398,9 @@ func TestPerformanceMetrics(t *testing.T) {
 		iterations := 10000
 		for i := 0; i < iterations; i++ {
 			for _, varName := range testVars {
-				_ = isLikelySecret(varName)
-				_ = classifySecretType(varName)
-				_ = isLikelyRequired(varName)
+				_ = IsLikelySecret(varName)
+				_ = ClassifySecretType(varName)
+				_ = IsLikelyRequired(varName)
 			}
 		}
 

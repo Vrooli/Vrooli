@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +11,53 @@ import (
 
 	"gopkg.in/yaml.v2"
 )
+
+// -----------------------------------------------------------------------------
+// Health Status Decision Thresholds
+// -----------------------------------------------------------------------------
+//
+// These constants define the thresholds for determining resource health status
+// based on the number of missing required secrets.
+//
+// Decision logic:
+//   - 0 missing secrets → healthy (fully operational)
+//   - 1-2 missing secrets → degraded (partially operational, attention needed)
+//   - 3+ missing secrets → critical (likely non-functional)
+
+const (
+	// healthyMissingSecretsThreshold is the maximum number of missing required
+	// secrets for a resource to be considered "healthy" (fully configured).
+	healthyMissingSecretsThreshold = 0
+
+	// degradedMissingSecretsThreshold is the maximum number of missing required
+	// secrets for a resource to be considered "degraded" rather than "critical".
+	// Resources with more missing secrets than this threshold are considered critical.
+	degradedMissingSecretsThreshold = 2
+)
+
+// determineResourceHealthStatus classifies a resource's operational readiness
+// based on how many required secrets are missing.
+//
+// Decision outcomes:
+//   - "healthy": All required secrets are configured, resource is fully operational
+//   - "degraded": Some required secrets missing, resource may work partially
+//   - "critical": Many required secrets missing, resource likely non-functional
+func determineResourceHealthStatus(missingRequiredSecrets int) string {
+	switch {
+	case missingRequiredSecrets <= healthyMissingSecretsThreshold:
+		return "healthy"
+	case missingRequiredSecrets <= degradedMissingSecretsThreshold:
+		return "degraded"
+	default:
+		return "critical"
+	}
+}
+
+// isResourceFullyConfigured returns true if a resource has no missing required secrets.
+// Used to count configured resources for summary statistics.
+func isResourceFullyConfigured(missingRequiredSecrets int) bool {
+	return missingRequiredSecrets <= healthyMissingSecretsThreshold
+}
 
 // ResourceSecretsConfig represents a resource's secrets.yaml file
 type ResourceSecretsConfig struct {
@@ -112,16 +158,7 @@ func extractPromptInfo(init *InitializationConfig, secret SecretDefinition) (str
 
 // scanResourcesDirectly scans resources directory for secrets.yaml files
 func scanResourcesDirectly() ([]string, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, err
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
-
-	resourcesPath := filepath.Join(vrooliRoot, "resources")
+	resourcesPath := filepath.Join(getVrooliRoot(), "resources")
 	logger.Info("🔍 Scanning resources directory: %s", resourcesPath)
 	var resourcesWithSecrets []string
 
@@ -151,18 +188,9 @@ func scanResourcesDirectly() ([]string, error) {
 
 // loadResourceSecrets loads secrets configuration for a specific resource
 func loadResourceSecrets(resourceName string) (*ResourceSecretsConfig, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, err
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
+	secretsPath := filepath.Join(getVrooliRoot(), "resources", resourceName, "config", "secrets.yaml")
 
-	secretsPath := filepath.Join(vrooliRoot, "resources", resourceName, "config", "secrets.yaml")
-
-	data, err := ioutil.ReadFile(secretsPath)
+	data, err := os.ReadFile(secretsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -214,16 +242,7 @@ func checkVaultForSecret(resourceName, secretName string) bool {
 }
 
 func loadLocalSecret(key string) (string, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
-
-	secretsPath := filepath.Join(vrooliRoot, ".vrooli", "secrets.json")
+	secretsPath := filepath.Join(getVrooliRoot(), ".vrooli", "secrets.json")
 	data, err := os.ReadFile(secretsPath)
 	if err != nil {
 		return "", err
@@ -351,14 +370,10 @@ func getVaultSecretsStatusFallback(resourceFilter string) (*VaultSecretsStatus, 
 
 		status.SecretsTotal = totalSecrets
 
-		// Determine health status
-		if status.SecretsMissing == 0 {
-			status.HealthStatus = "healthy"
+		// Determine health status using named decision function
+		status.HealthStatus = determineResourceHealthStatus(status.SecretsMissing)
+		if isResourceFullyConfigured(status.SecretsMissing) {
 			configuredCount++
-		} else if status.SecretsMissing <= 2 {
-			status.HealthStatus = "degraded"
-		} else {
-			status.HealthStatus = "critical"
 		}
 
 		resourceStatuses = append(resourceStatuses, status)
@@ -373,7 +388,20 @@ func getVaultSecretsStatusFallback(resourceFilter string) (*VaultSecretsStatus, 
 	}, nil
 }
 
-// getMockVaultStatus returns mock data for testing when vault is unavailable
+// getMockVaultStatus returns mock data for testing when vault is unavailable.
+//
+// REFACTORING NOTE: This function is currently used as a production fallback
+// in vault_handlers.go when both the vault CLI and filesystem-based fallback fail.
+// Using hardcoded mock data in production is a responsibility violation - this
+// function belongs in test code, not production code. Recommended future refactoring:
+//   - Return an error to the client when vault is truly unavailable
+//   - Expose a clear "degraded" status in the API response
+//   - Move this function to test_helpers.go once production code no longer relies on it
+//
+// The coupling exists because vault_handlers.Status() falls back to this mock
+// data as an "ultimate fallback" rather than propagating the error. Fixing this
+// requires updating the handler behavior and potentially the UI to handle the
+// unavailable state gracefully.
 func getMockVaultStatus() *VaultSecretsStatus {
 	return &VaultSecretsStatus{
 		TotalResources:      5,

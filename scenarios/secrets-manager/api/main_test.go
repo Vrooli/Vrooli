@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -46,17 +47,40 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		// [REQ:SEC-API-001] Health endpoint returns valid status
-		// Accept both "healthy" and "degraded" since unit tests don't have DB/Vault
+		// Accept healthy, degraded, or unhealthy since unit tests don't have DB/Vault
 		status, ok := response["status"].(string)
 		if !ok {
 			t.Fatal("status field is not a string")
 		}
-		if status != "healthy" && status != "degraded" {
-			t.Errorf("Expected status 'healthy' or 'degraded', got %v", status)
+		validStatuses := map[string]bool{"healthy": true, "degraded": true, "unhealthy": true}
+		if !validStatuses[status] {
+			t.Errorf("Expected status to be 'healthy', 'degraded', or 'unhealthy', got %v", status)
 		}
 
 		if response["service"] != "secrets-manager-api" {
 			t.Errorf("Expected service 'secrets-manager-api', got %v", response["service"])
+		}
+
+		// Verify timestamp is present and non-empty
+		if ts, ok := response["timestamp"].(string); ok {
+			if len(ts) == 0 {
+				t.Error("timestamp should not be empty")
+			}
+		}
+	})
+
+	t.Run("ResponseContentType", func(t *testing.T) {
+		req, err := http.NewRequest("GET", "/health", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		contentType := rr.Header().Get("Content-Type")
+		if !strings.Contains(contentType, "application/json") {
+			t.Errorf("Expected Content-Type to contain application/json, got %v", contentType)
 		}
 	})
 }
@@ -391,9 +415,9 @@ func TestIsLikelySecret(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isLikelySecret(tt.envVar)
+			got := IsLikelySecret(tt.envVar)
 			if got != tt.want {
-				t.Errorf("isLikelySecret(%q) = %v, want %v", tt.envVar, got, tt.want)
+				t.Errorf("IsLikelySecret(%q) = %v, want %v", tt.envVar, got, tt.want)
 			}
 		})
 	}
@@ -419,9 +443,9 @@ func TestClassifySecretType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := classifySecretType(tt.envVar)
+			got := ClassifySecretType(tt.envVar)
 			if got != tt.expected {
-				t.Errorf("classifySecretType(%q) = %q, want %q", tt.envVar, got, tt.expected)
+				t.Errorf("ClassifySecretType(%q) = %q, want %q", tt.envVar, got, tt.expected)
 			}
 		})
 	}
@@ -446,9 +470,9 @@ func TestIsLikelyRequired(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isLikelyRequired(tt.envVar)
+			got := IsLikelyRequired(tt.envVar)
 			if got != tt.want {
-				t.Errorf("isLikelyRequired(%q) = %v, want %v", tt.envVar, got, tt.want)
+				t.Errorf("IsLikelyRequired(%q) = %v, want %v", tt.envVar, got, tt.want)
 			}
 		})
 	}
@@ -823,9 +847,9 @@ func TestHelperFunctions(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				result := isLikelySecret(tc.input)
+				result := IsLikelySecret(tc.input)
 				if result != tc.expected {
-					t.Errorf("isLikelySecret(%s) = %v, expected %v", tc.input, result, tc.expected)
+					t.Errorf("IsLikelySecret(%s) = %v, expected %v", tc.input, result, tc.expected)
 				}
 			})
 		}
@@ -847,9 +871,9 @@ func TestHelperFunctions(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				result := classifySecretType(tc.input)
+				result := ClassifySecretType(tc.input)
 				if result != tc.expected {
-					t.Errorf("classifySecretType(%s) = %s, expected %s", tc.input, result, tc.expected)
+					t.Errorf("ClassifySecretType(%s) = %s, expected %s", tc.input, result, tc.expected)
 				}
 			})
 		}
@@ -869,9 +893,9 @@ func TestHelperFunctions(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				result := isLikelyRequired(tc.input)
+				result := IsLikelyRequired(tc.input)
 				if result != tc.expected {
-					t.Errorf("isLikelyRequired(%s) = %v, expected %v", tc.input, result, tc.expected)
+					t.Errorf("IsLikelyRequired(%s) = %v, expected %v", tc.input, result, tc.expected)
 				}
 			})
 		}

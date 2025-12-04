@@ -47,7 +47,8 @@ func ComputeTierAggregates(nodes []types.DeploymentDependencyNode) map[string]ty
 			if support.FitnessScore != nil {
 				acc.FitnessSum += *support.FitnessScore
 			}
-			if (support.Supported != nil && !*support.Supported) || (support.FitnessScore != nil && *support.FitnessScore < TierBlockerThreshold) {
+			// Use centralized decision helper to determine if this dependency blocks the tier
+			if IsTierBlocker(support) {
 				acc.Blockers[node.Name] = struct{}{}
 			}
 		}

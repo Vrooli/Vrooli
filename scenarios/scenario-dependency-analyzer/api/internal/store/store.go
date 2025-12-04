@@ -5,10 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -281,27 +277,6 @@ func (s *Store) LoadScenarioMetadataMap() (map[string]types.ScenarioSummary, err
 	return summaries, nil
 }
 
-// ListScenarioNames returns the directory names for scenarios that contain a service.json.
-func (s *Store) ListScenarioNames(scenariosDir string) ([]string, error) {
-	entries, err := os.ReadDir(scenariosDir)
-	if err != nil {
-		return nil, err
-	}
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		servicePath := filepath.Join(scenariosDir, entry.Name(), ".vrooli", "service.json")
-		if _, err := os.Stat(servicePath); errors.Is(err, fs.ErrNotExist) {
-			continue
-		}
-		names = append(names, entry.Name())
-	}
-	sort.Strings(names)
-	return names, nil
-}
-
 // CollectAnalysisMetrics aggregates summary stats for health endpoints.
 func (s *Store) CollectAnalysisMetrics() (map[string]interface{}, error) {
 	metrics := map[string]interface{}{
@@ -342,6 +317,37 @@ func (s *Store) CollectAnalysisMetrics() (map[string]interface{}, error) {
 	}
 
 	return metrics, nil
+}
+
+// LoadAllDependencies returns all scenario dependencies ordered for graph generation.
+func (s *Store) LoadAllDependencies() ([]types.ScenarioDependency, error) {
+	if s.db == nil {
+		return nil, errors.New("store not initialized")
+	}
+
+	rows, err := s.db.Query(`
+        SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
+        FROM scenario_dependencies
+        ORDER BY scenario_name, dependency_type, dependency_name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var deps []types.ScenarioDependency
+	for rows.Next() {
+		var dep types.ScenarioDependency
+		var configJSON []byte
+		if err := rows.Scan(&dep.ScenarioName, &dep.DependencyType, &dep.DependencyName, &dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON, &dep.DiscoveredAt, &dep.LastVerified); err != nil {
+			continue
+		}
+		if len(configJSON) > 0 {
+			_ = json.Unmarshal(configJSON, &dep.Configuration)
+		}
+		deps = append(deps, dep)
+	}
+
+	return deps, nil
 }
 
 func pqArray(values []string) interface{} {

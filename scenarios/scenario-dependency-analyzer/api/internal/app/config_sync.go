@@ -1,4 +1,3 @@
-
 package app
 
 import (
@@ -199,17 +198,19 @@ func applyOptimizationRecommendations(scenarioName string, recs []types.Optimiza
 	}, nil
 }
 
-func removeResourceFromServiceConfig(scenarioPath, resourceName string) (bool, error) {
+// removeDependencyFromServiceConfig removes a dependency entry from the specified
+// section ("resources" or "scenarios") in the service.json dependencies block.
+func removeDependencyFromServiceConfig(scenarioPath, sectionKey, dependencyName string) (bool, error) {
 	raw, err := loadRawServiceConfigMap(scenarioPath)
 	if err != nil {
 		return false, err
 	}
 	deps := ensureOrderedMap(raw, "dependencies")
-	resources := ensureOrderedMap(deps, "resources")
-	if _, ok := resources.Get(resourceName); !ok {
+	section := ensureOrderedMap(deps, sectionKey)
+	if _, ok := section.Get(dependencyName); !ok {
 		return false, nil
 	}
-	resources.Delete(resourceName)
+	section.Delete(dependencyName)
 	reordered := reorderTopLevelKeys(raw)
 	if err := writeRawServiceConfigMap(scenarioPath, reordered); err != nil {
 		return false, err
@@ -217,22 +218,12 @@ func removeResourceFromServiceConfig(scenarioPath, resourceName string) (bool, e
 	return true, nil
 }
 
+func removeResourceFromServiceConfig(scenarioPath, resourceName string) (bool, error) {
+	return removeDependencyFromServiceConfig(scenarioPath, "resources", resourceName)
+}
+
 func removeScenarioDependencyFromServiceConfig(scenarioPath, scenarioName string) (bool, error) {
-	raw, err := loadRawServiceConfigMap(scenarioPath)
-	if err != nil {
-		return false, err
-	}
-	deps := ensureOrderedMap(raw, "dependencies")
-	scenarios := ensureOrderedMap(deps, "scenarios")
-	if _, ok := scenarios.Get(scenarioName); !ok {
-		return false, nil
-	}
-	scenarios.Delete(scenarioName)
-	reordered := reorderTopLevelKeys(raw)
-	if err := writeRawServiceConfigMap(scenarioPath, reordered); err != nil {
-		return false, err
-	}
-	return true, nil
+	return removeDependencyFromServiceConfig(scenarioPath, "scenarios", scenarioName)
 }
 
 func ensureOrderedMap(parent *orderedmap.OrderedMap, key string) *orderedmap.OrderedMap {

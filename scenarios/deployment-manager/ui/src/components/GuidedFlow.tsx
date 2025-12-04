@@ -11,13 +11,15 @@ import {
   Sparkles,
   UserCircle2,
 } from "lucide-react";
-import { analyzeDependencies, DependencyAnalysisResponse, listProfiles } from "../lib/api";
+import { analyzeDependencies, listProfiles } from "../lib/api";
+import { TIER_OPTIONS, TierKey, getTierByKey, getFitnessColor, buildScenarioOptions, getFirstMatchingTierKey } from "../lib/tiers";
 import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { SelectableCard } from "./ui/selectable-card";
 
 type GuidedFlowProps = {
   open: boolean;
@@ -26,39 +28,15 @@ type GuidedFlowProps = {
 
 type FlowMode = "manual" | "profile";
 
-type TierOption = {
-  id: number;
-  key: keyof DependencyAnalysisResponse["tiers"];
-  label: string;
-  description: string;
-};
-
-const TIER_OPTIONS: TierOption[] = [
-  { id: 1, key: "local", label: "Tier 1 · Local/Dev", description: "Reference stack, best for iteration" },
-  { id: 2, key: "desktop", label: "Tier 2 · Desktop", description: "Windows/macOS/Linux bundles" },
-  { id: 3, key: "mobile", label: "Tier 3 · Mobile", description: "iOS/Android packages" },
-  { id: 4, key: "saas", label: "Tier 4 · SaaS/Cloud", description: "Managed or self-hosted cloud" },
-  { id: 5, key: "enterprise", label: "Tier 5 · Appliance", description: "Dedicated hardware deployments" },
-];
-
-const getFitnessColor = (score: number) => {
-  if (score >= 75) return "text-green-400";
-  if (score >= 50) return "text-yellow-400";
-  return "text-orange-400";
-};
-
 export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [mode, setMode] = useState<FlowMode>("manual");
   const [scenario, setScenario] = useState("");
-  const [tierKey, setTierKey] = useState<TierOption["key"]>("desktop");
+  const [tierKey, setTierKey] = useState<TierKey>("desktop");
   const [submittedScenario, setSubmittedScenario] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
-  const selectedTier = useMemo(
-    () => TIER_OPTIONS.find((tier) => tier.key === tierKey),
-    [tierKey],
-  );
+  const selectedTier = useMemo(() => getTierByKey(tierKey), [tierKey]);
 
   const { data: profiles } = useQuery({
     queryKey: ["profiles"],
@@ -70,19 +48,10 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
     [profiles, selectedProfileId],
   );
 
-  const scenarioOptions = useMemo(() => {
-    const existing = Array.from(new Set((profiles ?? []).map((p) => p.scenario).filter(Boolean)));
-    const defaults = ["picker-wheel", "system-monitor", "browser-automation-studio"];
-    const combined = Array.from(new Set([...existing, ...defaults]));
-    const typed = scenario.trim().toLowerCase();
-    const filtered = combined.filter((name) =>
-      typed ? name.toLowerCase().includes(typed) : true,
-    );
-    if (typed && !combined.some((name) => name.toLowerCase() === typed)) {
-      filtered.unshift(scenario);
-    }
-    return filtered.slice(0, 12);
-  }, [profiles, scenario]);
+  const scenarioOptions = useMemo(
+    () => buildScenarioOptions(profiles, scenario),
+    [profiles, scenario],
+  );
 
   const {
     data,
@@ -236,19 +205,14 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                           </p>
                         )}
                         {(profiles ?? []).map((p) => (
-                          <button
+                          <SelectableCard
                             key={p.id}
-                            type="button"
+                            selected={selectedProfileId === p.id}
                             onClick={() => {
                               setSelectedProfileId(p.id);
                               setScenario(p.scenario);
-                              setTierKey(TIER_OPTIONS.find((t) => p.tiers.includes(t.id))?.key ?? "desktop");
+                              setTierKey(getFirstMatchingTierKey(p.tiers));
                             }}
-                            className={`rounded-lg border px-3 py-2 text-left transition ${
-                              selectedProfileId === p.id
-                                ? "border-cyan-400 bg-cyan-500/10"
-                                : "border-white/10 bg-white/5 hover:border-white/20"
-                            }`}
                           >
                             <p className="font-semibold">{p.name}</p>
                             <p className="text-xs text-slate-400">Scenario: {p.scenario}</p>
@@ -259,7 +223,7 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                                 </Badge>
                               ))}
                             </div>
-                          </button>
+                          </SelectableCard>
                         ))}
                       </div>
                       {selectedProfile && (
@@ -283,19 +247,14 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                     {scenarioOptions.length > 0 && (
                       <div className="grid gap-2 sm:grid-cols-2">
                         {scenarioOptions.map((name) => (
-                          <button
+                          <SelectableCard
                             key={name}
-                            type="button"
+                            selected={scenario === name}
                             onClick={() => setScenario(name)}
-                            className={`rounded-lg border px-3 py-2 text-left transition ${
-                              scenario === name
-                                ? "border-cyan-400 bg-cyan-500/10"
-                                : "border-white/10 bg-white/5 hover:border-white/20"
-                            }`}
                           >
                             <p className="text-sm font-semibold">{name}</p>
                             <p className="text-[11px] text-slate-400">Select to autofill</p>
-                          </button>
+                          </SelectableCard>
                         ))}
                       </div>
                     )}
@@ -304,19 +263,15 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                     <Label>Target tier</Label>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {TIER_OPTIONS.map((tier) => (
-                        <button
+                        <SelectableCard
                           key={tier.id}
-                          type="button"
+                          selected={tierKey === tier.key}
                           onClick={() => setTierKey(tier.key)}
-                          className={`rounded-lg border p-3 text-left transition ${
-                            tierKey === tier.key
-                              ? "border-cyan-400 bg-cyan-500/10"
-                              : "border-white/10 bg-white/5 hover:border-white/20"
-                          }`}
+                          className="p-3"
                         >
                           <p className="text-sm font-semibold">{tier.label}</p>
                           <p className="text-xs text-slate-400">{tier.description}</p>
-                        </button>
+                        </SelectableCard>
                       ))}
                     </div>
                   </div>

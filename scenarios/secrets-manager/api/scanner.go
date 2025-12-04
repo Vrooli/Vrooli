@@ -86,13 +86,9 @@ func (s *SecretScanner) getSecretPatterns() []SecretPattern {
 	}
 }
 
-// getSecretKeywords returns keywords that indicate secrets
+// getSecretKeywords delegates to the consolidated GetSecretKeywords function.
 func (s *SecretScanner) getSecretKeywords() []string {
-	return []string{
-		"PASSWORD", "PASS", "PWD", "SECRET", "KEY", "TOKEN", "AUTH", "API",
-		"CREDENTIAL", "CERT", "TLS", "SSL", "PRIVATE", "HOST", "PORT",
-		"URL", "ADDR", "DATABASE", "DB", "USER", "NAMESPACE",
-	}
+	return GetSecretKeywords()
 }
 
 // ScanResources performs a resource scan for secrets
@@ -175,17 +171,7 @@ func (s *SecretScanner) ScanResources(request ScanRequest) (*ScanResponse, error
 func (s *SecretScanner) findResourceFiles(targetResources []string, config ScanConfig) ([]string, error) {
 	var files []string
 
-	// Get VROOLI_ROOT or fallback to HOME/Vrooli
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user home directory: %w", err)
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
-
-	resourcesDir := filepath.Join(vrooliRoot, "resources")
+	resourcesDir := filepath.Join(getVrooliRoot(), "resources")
 
 	// Check if resources directory exists
 	if _, err := os.Stat(resourcesDir); os.IsNotExist(err) {
@@ -260,13 +246,7 @@ func (s *SecretScanner) findResourceFiles(targetResources []string, config ScanC
 // scanFile scans a single file for secret patterns
 func (s *SecretScanner) scanFile(filePath string, patterns []SecretPattern, keywords []string) ([]ResourceSecret, string, error) {
 	// Extract resource name from path
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, _ := os.UserHomeDir()
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
-
-	resourcesDir := filepath.Join(vrooliRoot, "resources")
+	resourcesDir := filepath.Join(getVrooliRoot(), "resources")
 	relPath, err := filepath.Rel(resourcesDir, filePath)
 	if err != nil {
 		return nil, "", err
@@ -286,9 +266,8 @@ func (s *SecretScanner) scanFile(filePath string, patterns []SecretPattern, keyw
 	}
 	defer file.Close()
 
-	// Read file with size limit (100KB)
-	const maxFileSize = 100 * 1024
-	content := make([]byte, maxFileSize)
+	// Read file with size limit
+	content := make([]byte, MaxSecretScanFileSize)
 	n, _ := file.Read(content)
 	contentStr := string(content[:n])
 
@@ -335,10 +314,10 @@ func (s *SecretScanner) scanFile(filePath string, patterns []SecretPattern, keyw
 			foundSecrets[secretId] = true
 
 			// Determine secret type
-			secretType := s.determineSecretType(upperKey)
+			secretType := ClassifySecretType(upperKey)
 
 			// Determine if likely required
-			isRequired := s.isLikelyRequired(upperKey)
+			isRequired := IsLikelyRequired(upperKey)
 
 			description := fmt.Sprintf("Found in %s - %s", filepath.Base(filePath), pattern.Description)
 
@@ -358,33 +337,6 @@ func (s *SecretScanner) scanFile(filePath string, patterns []SecretPattern, keyw
 	}
 
 	return discoveredSecrets, resourceName, nil
-}
-
-// determineSecretType determines the type of secret based on its key
-func (s *SecretScanner) determineSecretType(upperKey string) string {
-	if strings.Contains(upperKey, "PASSWORD") || strings.Contains(upperKey, "PASS") || strings.Contains(upperKey, "PWD") {
-		return "password"
-	} else if strings.Contains(upperKey, "TOKEN") {
-		return "token"
-	} else if strings.Contains(upperKey, "KEY") && (strings.Contains(upperKey, "API") || strings.Contains(upperKey, "ACCESS")) {
-		return "api_key"
-	} else if strings.Contains(upperKey, "SECRET") || strings.Contains(upperKey, "CREDENTIAL") {
-		return "credential"
-	} else if strings.Contains(upperKey, "CERT") || strings.Contains(upperKey, "TLS") || strings.Contains(upperKey, "SSL") {
-		return "certificate"
-	}
-	return "env_var"
-}
-
-// isLikelyRequired determines if a secret is likely required
-func (s *SecretScanner) isLikelyRequired(upperKey string) bool {
-	requiredKeywords := []string{"PASSWORD", "SECRET", "TOKEN", "KEY", "DATABASE", "DB", "HOST"}
-	for _, keyword := range requiredKeywords {
-		if strings.Contains(upperKey, keyword) {
-			return true
-		}
-	}
-	return false
 }
 
 // storeScanRecord stores a scan record in the database

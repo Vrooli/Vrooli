@@ -31,8 +31,8 @@ describe('Dashboard', () => {
 
     render(<Dashboard />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText(/Manage deployment profiles and monitor your deployments/i)).toBeInTheDocument();
+    expect(screen.getByText('Make any scenario deployable')).toBeInTheDocument();
+    expect(screen.getByText(/Follow the scenario-to-desktop style 3-step flow/i)).toBeInTheDocument();
   });
 
   it('displays stat cards with correct titles', () => {
@@ -50,7 +50,7 @@ describe('Dashboard', () => {
 
     render(<Dashboard />, { wrapper: createWrapper() });
 
-    const newProfileButton = screen.getAllByText('New Profile')[0];
+    const newProfileButton = screen.getAllByText('New profile')[0];
     expect(newProfileButton).toBeInTheDocument();
   });
 

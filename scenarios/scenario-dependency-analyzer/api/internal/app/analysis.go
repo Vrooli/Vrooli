@@ -6,12 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
-
-	"github.com/google/uuid"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
 	"scenario-dependency-analyzer/internal/deployment"
+	"scenario-dependency-analyzer/internal/seams"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -144,12 +142,21 @@ func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error)
 	return analyzer.AnalyzeAllScenarios()
 }
 
+// extractDeclaredResources extracts declared resources using default seams.
+// For testable code, use extractDeclaredResourcesWithSeams.
 func extractDeclaredResources(scenarioName string, cfg *types.ServiceConfig) []types.ScenarioDependency {
+	return extractDeclaredResourcesWithSeams(scenarioName, cfg, seams.Default)
+}
+
+// extractDeclaredResourcesWithSeams extracts declared resources using injected seams.
+// This enables deterministic testing by controlling time and ID generation.
+func extractDeclaredResourcesWithSeams(scenarioName string, cfg *types.ServiceConfig, deps *seams.Dependencies) []types.ScenarioDependency {
 	resources := appconfig.ResolvedResourceMap(cfg)
 	declared := make([]types.ScenarioDependency, 0, len(resources))
+	now := deps.Clock.Now()
 	for name, resource := range resources {
 		declared = append(declared, types.ScenarioDependency{
-			ID:             uuid.New().String(),
+			ID:             deps.IDs.NewID(),
 			ScenarioName:   scenarioName,
 			DependencyType: "resource",
 			DependencyName: name,
@@ -164,27 +171,30 @@ func extractDeclaredResources(scenarioName string, cfg *types.ServiceConfig) []t
 				"models":     resource.Models,
 				"init_files": resource.Initialization,
 			},
-			DiscoveredAt: time.Now(),
-			LastVerified: time.Now(),
+			DiscoveredAt: now,
+			LastVerified: now,
 		})
 	}
 	sort.Slice(declared, func(i, j int) bool { return declared[i].DependencyName < declared[j].DependencyName })
 	return declared
 }
 
-func buildResourceDiff(declared map[string]types.Resource, detected []types.ScenarioDependency) types.DependencyDiff {
-	declaredSet := map[string]types.Resource{}
-	for name, cfg := range declared {
-		declaredSet[name] = cfg
-	}
-	detectedSet := map[string]types.ScenarioDependency{}
+// buildDependencyDiff computes missing/extra drifts between declared and detected dependencies.
+// declaredNames provides the set of names considered declared.
+// extractExtraDetails is called for each declared name not found in detected to build its Details.
+func buildDependencyDiff(
+	declaredNames map[string]struct{},
+	detected []types.ScenarioDependency,
+	extractExtraDetails func(name string) map[string]interface{},
+) types.DependencyDiff {
+	detectedSet := make(map[string]types.ScenarioDependency, len(detected))
 	for _, dep := range detected {
 		detectedSet[dep.DependencyName] = dep
 	}
 
-	missing := []types.DependencyDrift{}
+	var missing []types.DependencyDrift
 	for name, dep := range detectedSet {
-		if _, ok := declaredSet[name]; !ok {
+		if _, ok := declaredNames[name]; !ok {
 			missing = append(missing, types.DependencyDrift{
 				Name:    name,
 				Details: dep.Configuration,
@@ -192,15 +202,12 @@ func buildResourceDiff(declared map[string]types.Resource, detected []types.Scen
 		}
 	}
 
-	extra := []types.DependencyDrift{}
-	for name, cfg := range declaredSet {
+	var extra []types.DependencyDrift
+	for name := range declaredNames {
 		if _, ok := detectedSet[name]; !ok {
 			extra = append(extra, types.DependencyDrift{
-				Name: name,
-				Details: map[string]interface{}{
-					"type":     cfg.Type,
-					"required": cfg.Required,
-				},
+				Name:    name,
+				Details: extractExtraDetails(name),
 			})
 		}
 	}
@@ -211,43 +218,32 @@ func buildResourceDiff(declared map[string]types.Resource, detected []types.Scen
 	return types.DependencyDiff{Missing: missing, Extra: extra}
 }
 
+func buildResourceDiff(declared map[string]types.Resource, detected []types.ScenarioDependency) types.DependencyDiff {
+	names := make(map[string]struct{}, len(declared))
+	for name := range declared {
+		names[name] = struct{}{}
+	}
+	return buildDependencyDiff(names, detected, func(name string) map[string]interface{} {
+		cfg := declared[name]
+		return map[string]interface{}{
+			"type":     cfg.Type,
+			"required": cfg.Required,
+		}
+	})
+}
+
 func buildScenarioDiff(declared map[string]types.ScenarioDependencySpec, detected []types.ScenarioDependency) types.DependencyDiff {
-	declaredSet := map[string]types.ScenarioDependencySpec{}
-	for name, spec := range declared {
-		declaredSet[name] = spec
+	names := make(map[string]struct{}, len(declared))
+	for name := range declared {
+		names[name] = struct{}{}
 	}
-	detectedSet := map[string]types.ScenarioDependency{}
-	for _, dep := range detected {
-		detectedSet[dep.DependencyName] = dep
-	}
-
-	missing := []types.DependencyDrift{}
-	for name, dep := range detectedSet {
-		if _, ok := declaredSet[name]; !ok {
-			missing = append(missing, types.DependencyDrift{
-				Name:    name,
-				Details: dep.Configuration,
-			})
+	return buildDependencyDiff(names, detected, func(name string) map[string]interface{} {
+		spec := declared[name]
+		return map[string]interface{}{
+			"required": spec.Required,
+			"version":  spec.Version,
 		}
-	}
-
-	extra := []types.DependencyDrift{}
-	for name, spec := range declaredSet {
-		if _, ok := detectedSet[name]; !ok {
-			extra = append(extra, types.DependencyDrift{
-				Name: name,
-				Details: map[string]interface{}{
-					"required": spec.Required,
-					"version":  spec.Version,
-				},
-			})
-		}
-	}
-
-	sort.Slice(missing, func(i, j int) bool { return missing[i].Name < missing[j].Name })
-	sort.Slice(extra, func(i, j int) bool { return extra[i].Name < extra[j].Name })
-
-	return types.DependencyDiff{Missing: missing, Extra: extra}
+	})
 }
 
 func filterDetectedDependencies(deps []types.ScenarioDependency) []types.ScenarioDependency {
@@ -274,14 +270,23 @@ func normalizeScenarioSpecs(specs map[string]types.ScenarioDependencySpec) map[s
 	return specs
 }
 
+// convertDeclaredScenariosToDependencies converts declared scenario specs using default seams.
+// For testable code, use convertDeclaredScenariosToDependenciesWithSeams.
 func convertDeclaredScenariosToDependencies(scenarioName string, specs map[string]types.ScenarioDependencySpec) []types.ScenarioDependency {
+	return convertDeclaredScenariosToDependenciesWithSeams(scenarioName, specs, seams.Default)
+}
+
+// convertDeclaredScenariosToDependenciesWithSeams converts declared scenario specs using injected seams.
+// This enables deterministic testing by controlling time and ID generation.
+func convertDeclaredScenariosToDependenciesWithSeams(scenarioName string, specs map[string]types.ScenarioDependencySpec, deps *seams.Dependencies) []types.ScenarioDependency {
 	if len(specs) == 0 {
 		return nil
 	}
-	deps := make([]types.ScenarioDependency, 0, len(specs))
+	result := make([]types.ScenarioDependency, 0, len(specs))
+	now := deps.Clock.Now()
 	for name, spec := range specs {
-		deps = append(deps, types.ScenarioDependency{
-			ID:             uuid.New().String(),
+		result = append(result, types.ScenarioDependency{
+			ID:             deps.IDs.NewID(),
 			ScenarioName:   scenarioName,
 			DependencyType: "scenario",
 			DependencyName: name,
@@ -293,11 +298,10 @@ func convertDeclaredScenariosToDependencies(scenarioName string, specs map[strin
 				"version_range": spec.VersionRange,
 				"declared":      true,
 			},
-			DiscoveredAt: time.Now(),
-			LastVerified: time.Now(),
+			DiscoveredAt: now,
+			LastVerified: now,
 		})
 	}
-	sort.Slice(deps, func(i, j int) bool { return deps[i].DependencyName < deps[j].DependencyName })
-	return deps
+	sort.Slice(result, func(i, j int) bool { return result[i].DependencyName < result[j].DependencyName })
+	return result
 }
-

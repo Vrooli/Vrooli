@@ -2,7 +2,6 @@ package app
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -16,74 +15,60 @@ import (
 	types "scenario-dependency-analyzer/internal/types"
 )
 
+// handler routes HTTP requests to the appropriate service implementations.
+// Services are resolved once at construction to avoid repeated nil checks.
 type handler struct {
 	runtime  *Runtime
 	services services.Registry
+	dbHandle *sql.DB
 }
 
+// newHandler constructs a handler with services resolved from the runtime.
+// If no runtime is available, fallback services are created automatically.
 func newHandler(rt *Runtime) *handler {
-	var reg services.Registry
+	h := &handler{runtime: rt}
+
+	// Resolve database handle
+	if rt != nil && rt.DB() != nil {
+		h.dbHandle = rt.DB()
+	} else {
+		h.dbHandle = db
+	}
+
+	// Resolve services from runtime or create fallbacks
 	if rt != nil && rt.Analyzer() != nil {
-		reg = rt.Analyzer().Services()
+		h.services = rt.Analyzer().Services()
+	} else {
+		h.services = newFallbackServices()
 	}
-	return &handler{runtime: rt, services: reg}
+
+	return h
 }
 
-func (h *handler) dbConn() *sql.DB {
-	if h != nil && h.runtime != nil && h.runtime.DB() != nil {
-		return h.runtime.DB()
+// newFallbackServices creates a services registry using global state.
+// Used when no runtime is configured (e.g., testing, legacy code paths).
+func newFallbackServices() services.Registry {
+	analyzer := analyzerInstance()
+	analysis := &analysisService{analyzer: analyzer}
+	return services.Registry{
+		Analysis:     analysis,
+		Scan:         &scanService{analysis: analysis},
+		Graph:        &graphService{analyzer: analyzer},
+		Optimization: &optimizationService{analysis: analysis},
+		Scenarios:    &scenarioService{cfg: appconfig.Load(), store: currentStore()},
+		Deployment:   &deploymentService{cfg: appconfig.Load()},
+		Proposal:     &proposalService{},
 	}
-	return db
 }
 
-func (h *handler) analysisService() services.AnalysisService {
-	if h != nil && h.services.Analysis != nil {
-		return h.services.Analysis
-	}
-	return &analysisService{analyzer: analyzerInstance()}
-}
-
-func (h *handler) scanService() services.ScanService {
-	if h != nil && h.services.Scan != nil {
-		return h.services.Scan
-	}
-	return &scanService{analysis: h.analysisService()}
-}
-
-func (h *handler) optimizationService() services.OptimizationService {
-	if h != nil && h.services.Optimization != nil {
-		return h.services.Optimization
-	}
-	return &optimizationService{analysis: h.analysisService()}
-}
-
-func (h *handler) graphService() services.GraphService {
-	if h != nil && h.services.Graph != nil {
-		return h.services.Graph
-	}
-	return &graphService{analyzer: analyzerInstance()}
-}
-
-func (h *handler) scenarioService() services.ScenarioService {
-	if h != nil && h.services.Scenarios != nil {
-		return h.services.Scenarios
-	}
-	return &scenarioService{cfg: appconfig.Load(), store: currentStore()}
-}
-
-func (h *handler) deploymentService() services.DeploymentService {
-	if h != nil && h.services.Deployment != nil {
-		return h.services.Deployment
-	}
-	return &deploymentService{cfg: appconfig.Load()}
-}
-
-func (h *handler) proposalService() services.ProposalService {
-	if h != nil && h.services.Proposal != nil {
-		return h.services.Proposal
-	}
-	return &proposalService{}
-}
+func (h *handler) dbConn() *sql.DB                                   { return h.dbHandle }
+func (h *handler) analysisService() services.AnalysisService         { return h.services.Analysis }
+func (h *handler) scanService() services.ScanService                 { return h.services.Scan }
+func (h *handler) optimizationService() services.OptimizationService { return h.services.Optimization }
+func (h *handler) graphService() services.GraphService               { return h.services.Graph }
+func (h *handler) scenarioService() services.ScenarioService         { return h.services.Scenarios }
+func (h *handler) deploymentService() services.DeploymentService     { return h.services.Deployment }
+func (h *handler) proposalService() services.ProposalService         { return h.services.Proposal }
 
 func (h *handler) health(c *gin.Context) {
 	dbConnected := false
@@ -170,59 +155,17 @@ func (h *handler) analyzeScenario(c *gin.Context) {
 func (h *handler) getDependencies(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 
-	conn := h.dbConn()
-	if conn == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database unavailable"})
-		return
-	}
-	rows, err := conn.Query(`
-        SELECT id, scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
-        FROM scenario_dependencies
-        WHERE scenario_name = $1
-        ORDER BY dependency_type, dependency_name`, scenarioName)
+	stored, err := loadStoredDependencies(scenarioName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer rows.Close()
-
-	var dependencies []types.ScenarioDependency
-	for rows.Next() {
-		var dep types.ScenarioDependency
-		var configJSON string
-
-		err := rows.Scan(&dep.ID, &dep.ScenarioName, &dep.DependencyType, &dep.DependencyName,
-			&dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON, &dep.DiscoveredAt, &dep.LastVerified)
-		if err != nil {
-			continue
-		}
-
-		json.Unmarshal([]byte(configJSON), &dep.Configuration)
-		dependencies = append(dependencies, dep)
-	}
-
-	response := map[string][]types.ScenarioDependency{
-		"resources":        {},
-		"scenarios":        {},
-		"shared_workflows": {},
-	}
-
-	for _, dep := range dependencies {
-		switch dep.DependencyType {
-		case "resource":
-			response["resources"] = append(response["resources"], dep)
-		case "scenario":
-			response["scenarios"] = append(response["scenarios"], dep)
-		case "shared_workflow":
-			response["shared_workflows"] = append(response["shared_workflows"], dep)
-		}
-	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"scenario":         scenarioName,
-		"resources":        response["resources"],
-		"scenarios":        response["scenarios"],
-		"shared_workflows": response["shared_workflows"],
+		"resources":        stored["resources"],
+		"scenarios":        stored["scenarios"],
+		"shared_workflows": stored["shared_workflows"],
 		"transitive_depth": 0,
 	})
 }

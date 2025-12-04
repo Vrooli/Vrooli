@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
+	"scenario-dependency-analyzer/internal/seams"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -892,4 +893,417 @@ func TestParseClaudeCodeResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestExtractDeclaredResourcesWithSeams tests deterministic resource extraction
+func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
+	testSeams := newTestSeams()
+
+	t.Run("EmptyResources", func(t *testing.T) {
+		cfg := &types.ServiceConfig{}
+		cfg.Dependencies.Resources = map[string]types.Resource{}
+
+		result := extractDeclaredResourcesWithSeams("test-scenario", cfg, testSeams)
+
+		if len(result) != 0 {
+			t.Errorf("Expected empty result for empty resources, got %d", len(result))
+		}
+	})
+
+	t.Run("SingleResource", func(t *testing.T) {
+		cfg := &types.ServiceConfig{}
+		cfg.Dependencies.Resources = map[string]types.Resource{
+			"postgres": {
+				Type:     "database",
+				Enabled:  true,
+				Required: true,
+				Purpose:  "Primary database",
+			},
+		}
+
+		result := extractDeclaredResourcesWithSeams("test-scenario", cfg, testSeams)
+
+		if len(result) != 1 {
+			t.Fatalf("Expected 1 dependency, got %d", len(result))
+		}
+
+		dep := result[0]
+		if dep.ScenarioName != "test-scenario" {
+			t.Errorf("Expected scenario name 'test-scenario', got %q", dep.ScenarioName)
+		}
+		if dep.DependencyType != "resource" {
+			t.Errorf("Expected dependency type 'resource', got %q", dep.DependencyType)
+		}
+		if dep.DependencyName != "postgres" {
+			t.Errorf("Expected dependency name 'postgres', got %q", dep.DependencyName)
+		}
+		if !dep.Required {
+			t.Error("Expected Required to be true")
+		}
+		if dep.AccessMethod != "declared" {
+			t.Errorf("Expected access method 'declared', got %q", dep.AccessMethod)
+		}
+	})
+
+	t.Run("MultipleResourcesSorted", func(t *testing.T) {
+		cfg := &types.ServiceConfig{}
+		cfg.Dependencies.Resources = map[string]types.Resource{
+			"redis":    {Type: "cache", Enabled: true},
+			"postgres": {Type: "database", Enabled: true},
+			"minio":    {Type: "storage", Enabled: true},
+		}
+
+		result := extractDeclaredResourcesWithSeams("test-scenario", cfg, testSeams)
+
+		if len(result) != 3 {
+			t.Fatalf("Expected 3 dependencies, got %d", len(result))
+		}
+
+		// Verify sorted by name
+		names := []string{result[0].DependencyName, result[1].DependencyName, result[2].DependencyName}
+		expected := []string{"minio", "postgres", "redis"}
+		for i, name := range names {
+			if name != expected[i] {
+				t.Errorf("At position %d: expected %q, got %q", i, expected[i], name)
+			}
+		}
+	})
+
+	t.Run("ConfigurationPreserved", func(t *testing.T) {
+		cfg := &types.ServiceConfig{}
+		cfg.Dependencies.Resources = map[string]types.Resource{
+			"ollama": {
+				Type:    "ai",
+				Enabled: true,
+				Models:  []string{"llama2", "codellama"},
+			},
+		}
+
+		result := extractDeclaredResourcesWithSeams("test-scenario", cfg, testSeams)
+
+		if len(result) != 1 {
+			t.Fatalf("Expected 1 dependency, got %d", len(result))
+		}
+
+		config := result[0].Configuration
+		if config == nil {
+			t.Fatal("Expected configuration to be set")
+		}
+		if config["type"] != "ai" {
+			t.Errorf("Expected type 'ai', got %v", config["type"])
+		}
+		if config["declared"] != true {
+			t.Errorf("Expected declared=true, got %v", config["declared"])
+		}
+		models, ok := config["models"].([]string)
+		if !ok || len(models) != 2 {
+			t.Errorf("Expected 2 models, got %v", config["models"])
+		}
+	})
+}
+
+// TestBuildDependencyDiff tests the generic diff building logic
+func TestBuildDependencyDiff(t *testing.T) {
+	t.Run("NoChanges", func(t *testing.T) {
+		declared := map[string]struct{}{"postgres": {}, "redis": {}}
+		detected := []types.ScenarioDependency{
+			{DependencyName: "postgres", Configuration: map[string]interface{}{"source": "detected"}},
+			{DependencyName: "redis", Configuration: map[string]interface{}{"source": "detected"}},
+		}
+
+		diff := buildDependencyDiff(declared, detected, func(name string) map[string]interface{} {
+			return map[string]interface{}{"name": name}
+		})
+
+		if len(diff.Missing) != 0 {
+			t.Errorf("Expected no missing, got %d", len(diff.Missing))
+		}
+		if len(diff.Extra) != 0 {
+			t.Errorf("Expected no extra, got %d", len(diff.Extra))
+		}
+	})
+
+	t.Run("MissingDependencies", func(t *testing.T) {
+		declared := map[string]struct{}{}
+		detected := []types.ScenarioDependency{
+			{DependencyName: "redis", Configuration: map[string]interface{}{"port": 6379}},
+			{DependencyName: "minio", Configuration: map[string]interface{}{"port": 9000}},
+		}
+
+		diff := buildDependencyDiff(declared, detected, func(name string) map[string]interface{} {
+			return nil
+		})
+
+		if len(diff.Missing) != 2 {
+			t.Fatalf("Expected 2 missing, got %d", len(diff.Missing))
+		}
+
+		// Verify sorted
+		if diff.Missing[0].Name != "minio" || diff.Missing[1].Name != "redis" {
+			t.Errorf("Missing should be sorted: got %v, %v", diff.Missing[0].Name, diff.Missing[1].Name)
+		}
+
+		// Verify configuration is preserved
+		if diff.Missing[1].Details["port"] != 6379 {
+			t.Errorf("Expected redis port 6379, got %v", diff.Missing[1].Details["port"])
+		}
+	})
+
+	t.Run("ExtraDependencies", func(t *testing.T) {
+		declared := map[string]struct{}{"postgres": {}, "redis": {}, "n8n": {}}
+		detected := []types.ScenarioDependency{}
+
+		diff := buildDependencyDiff(declared, detected, func(name string) map[string]interface{} {
+			return map[string]interface{}{"extra": true, "name": name}
+		})
+
+		if len(diff.Extra) != 3 {
+			t.Fatalf("Expected 3 extra, got %d", len(diff.Extra))
+		}
+
+		// Verify sorted
+		expected := []string{"n8n", "postgres", "redis"}
+		for i, e := range diff.Extra {
+			if e.Name != expected[i] {
+				t.Errorf("At position %d: expected %q, got %q", i, expected[i], e.Name)
+			}
+		}
+	})
+
+	t.Run("MixedDiff", func(t *testing.T) {
+		declared := map[string]struct{}{"postgres": {}, "redis": {}}
+		detected := []types.ScenarioDependency{
+			{DependencyName: "postgres"},
+			{DependencyName: "minio"},
+		}
+
+		diff := buildDependencyDiff(declared, detected, func(name string) map[string]interface{} {
+			return map[string]interface{}{"was_declared": true}
+		})
+
+		if len(diff.Missing) != 1 || diff.Missing[0].Name != "minio" {
+			t.Errorf("Expected minio as missing, got %v", diff.Missing)
+		}
+		if len(diff.Extra) != 1 || diff.Extra[0].Name != "redis" {
+			t.Errorf("Expected redis as extra, got %v", diff.Extra)
+		}
+	})
+}
+
+// TestBuildResourceDiff tests resource-specific diff building
+func TestBuildResourceDiff(t *testing.T) {
+	t.Run("ResourceDetailsPreserved", func(t *testing.T) {
+		declared := map[string]types.Resource{
+			"postgres": {Type: "database", Required: true},
+		}
+		detected := []types.ScenarioDependency{}
+
+		diff := buildResourceDiff(declared, detected)
+
+		if len(diff.Extra) != 1 {
+			t.Fatalf("Expected 1 extra, got %d", len(diff.Extra))
+		}
+
+		details := diff.Extra[0].Details
+		if details["type"] != "database" {
+			t.Errorf("Expected type 'database', got %v", details["type"])
+		}
+		if details["required"] != true {
+			t.Errorf("Expected required=true, got %v", details["required"])
+		}
+	})
+}
+
+// TestBuildScenarioDiff tests scenario-specific diff building
+func TestBuildScenarioDiff(t *testing.T) {
+	t.Run("ScenarioDetailsPreserved", func(t *testing.T) {
+		declared := map[string]types.ScenarioDependencySpec{
+			"auth-service": {Required: true, Version: "2.0.0"},
+		}
+		detected := []types.ScenarioDependency{}
+
+		diff := buildScenarioDiff(declared, detected)
+
+		if len(diff.Extra) != 1 {
+			t.Fatalf("Expected 1 extra, got %d", len(diff.Extra))
+		}
+
+		details := diff.Extra[0].Details
+		if details["required"] != true {
+			t.Errorf("Expected required=true, got %v", details["required"])
+		}
+		if details["version"] != "2.0.0" {
+			t.Errorf("Expected version '2.0.0', got %v", details["version"])
+		}
+	})
+}
+
+// TestFilterDetectedDependencies tests filtering of declared dependencies
+func TestFilterDetectedDependencies(t *testing.T) {
+	t.Run("FiltersDeclaredSource", func(t *testing.T) {
+		deps := []types.ScenarioDependency{
+			{DependencyName: "postgres", Configuration: map[string]interface{}{"source": "declared"}},
+			{DependencyName: "redis", Configuration: map[string]interface{}{"source": "heuristic"}},
+			{DependencyName: "minio", Configuration: nil},
+		}
+
+		result := filterDetectedDependencies(deps)
+
+		if len(result) != 2 {
+			t.Fatalf("Expected 2 filtered dependencies, got %d", len(result))
+		}
+
+		for _, dep := range result {
+			if dep.DependencyName == "postgres" {
+				t.Error("postgres should have been filtered out")
+			}
+		}
+	})
+
+	t.Run("EmptyInput", func(t *testing.T) {
+		result := filterDetectedDependencies([]types.ScenarioDependency{})
+		if len(result) != 0 {
+			t.Errorf("Expected empty result, got %d", len(result))
+		}
+	})
+
+	t.Run("NilConfiguration", func(t *testing.T) {
+		deps := []types.ScenarioDependency{
+			{DependencyName: "test", Configuration: nil},
+		}
+		result := filterDetectedDependencies(deps)
+		if len(result) != 1 {
+			t.Errorf("Expected 1 dependency with nil config, got %d", len(result))
+		}
+	})
+}
+
+// TestNormalizeScenarioSpecs tests nil handling for scenario specs
+func TestNormalizeScenarioSpecs(t *testing.T) {
+	t.Run("NilInput", func(t *testing.T) {
+		result := normalizeScenarioSpecs(nil)
+		if result == nil {
+			t.Fatal("Expected non-nil map for nil input")
+		}
+		if len(result) != 0 {
+			t.Errorf("Expected empty map, got %d entries", len(result))
+		}
+	})
+
+	t.Run("EmptyInput", func(t *testing.T) {
+		result := normalizeScenarioSpecs(map[string]types.ScenarioDependencySpec{})
+		if result == nil {
+			t.Fatal("Expected non-nil map")
+		}
+		if len(result) != 0 {
+			t.Errorf("Expected empty map, got %d entries", len(result))
+		}
+	})
+
+	t.Run("NonEmptyInput", func(t *testing.T) {
+		input := map[string]types.ScenarioDependencySpec{
+			"service-a": {Required: true},
+		}
+		result := normalizeScenarioSpecs(input)
+		if len(result) != 1 {
+			t.Errorf("Expected 1 entry, got %d", len(result))
+		}
+		if _, ok := result["service-a"]; !ok {
+			t.Error("Expected service-a to be preserved")
+		}
+	})
+}
+
+// TestConvertDeclaredScenariosToDependenciesWithSeams tests deterministic conversion
+func TestConvertDeclaredScenariosToDependenciesWithSeams(t *testing.T) {
+	testSeams := newTestSeams()
+
+	t.Run("EmptySpecs", func(t *testing.T) {
+		result := convertDeclaredScenariosToDependenciesWithSeams("test", map[string]types.ScenarioDependencySpec{}, testSeams)
+		if result != nil {
+			t.Errorf("Expected nil for empty specs, got %v", result)
+		}
+	})
+
+	t.Run("NilSpecs", func(t *testing.T) {
+		result := convertDeclaredScenariosToDependenciesWithSeams("test", nil, testSeams)
+		if result != nil {
+			t.Errorf("Expected nil for nil specs, got %v", result)
+		}
+	})
+
+	t.Run("SingleSpec", func(t *testing.T) {
+		specs := map[string]types.ScenarioDependencySpec{
+			"auth-service": {
+				Required:     true,
+				Version:      "1.0.0",
+				VersionRange: ">=1.0.0",
+				Description:  "Authentication service",
+			},
+		}
+
+		result := convertDeclaredScenariosToDependenciesWithSeams("test-scenario", specs, testSeams)
+
+		if len(result) != 1 {
+			t.Fatalf("Expected 1 dependency, got %d", len(result))
+		}
+
+		dep := result[0]
+		if dep.ScenarioName != "test-scenario" {
+			t.Errorf("Expected scenario name 'test-scenario', got %q", dep.ScenarioName)
+		}
+		if dep.DependencyType != "scenario" {
+			t.Errorf("Expected type 'scenario', got %q", dep.DependencyType)
+		}
+		if dep.DependencyName != "auth-service" {
+			t.Errorf("Expected name 'auth-service', got %q", dep.DependencyName)
+		}
+		if !dep.Required {
+			t.Error("Expected Required to be true")
+		}
+		if dep.Purpose != "Authentication service" {
+			t.Errorf("Expected purpose 'Authentication service', got %q", dep.Purpose)
+		}
+		if dep.AccessMethod != "declared" {
+			t.Errorf("Expected access method 'declared', got %q", dep.AccessMethod)
+		}
+
+		config := dep.Configuration
+		if config["version"] != "1.0.0" {
+			t.Errorf("Expected version '1.0.0', got %v", config["version"])
+		}
+		if config["version_range"] != ">=1.0.0" {
+			t.Errorf("Expected version_range '>=1.0.0', got %v", config["version_range"])
+		}
+		if config["declared"] != true {
+			t.Errorf("Expected declared=true, got %v", config["declared"])
+		}
+	})
+
+	t.Run("MultipleSpecsSorted", func(t *testing.T) {
+		specs := map[string]types.ScenarioDependencySpec{
+			"zulu-service":  {Required: true},
+			"alpha-service": {Required: true},
+			"mike-service":  {Required: false},
+		}
+
+		result := convertDeclaredScenariosToDependenciesWithSeams("test", specs, testSeams)
+
+		if len(result) != 3 {
+			t.Fatalf("Expected 3 dependencies, got %d", len(result))
+		}
+
+		// Verify sorted by name
+		expected := []string{"alpha-service", "mike-service", "zulu-service"}
+		for i, dep := range result {
+			if dep.DependencyName != expected[i] {
+				t.Errorf("At position %d: expected %q, got %q", i, expected[i], dep.DependencyName)
+			}
+		}
+	})
+}
+
+// newTestSeams creates test seams with deterministic behavior
+func newTestSeams() *seams.Dependencies {
+	return seams.NewTestDependencies()
 }

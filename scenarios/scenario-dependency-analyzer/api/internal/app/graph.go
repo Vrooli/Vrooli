@@ -1,123 +1,106 @@
 package app
 
 import (
-	"encoding/json"
-	"time"
-
-	"github.com/google/uuid"
-
+	"scenario-dependency-analyzer/internal/seams"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
+// generateDependencyGraph generates a dependency graph using default seams.
+// For testable code, use generateDependencyGraphWithSeams.
 func generateDependencyGraph(graphType string) (*types.DependencyGraph, error) {
-	nodes := []types.GraphNode{}
-	edges := []types.GraphEdge{}
+	return generateDependencyGraphWithSeams(graphType, seams.Default)
+}
 
-	rows, err := db.Query(`
-        SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
-        FROM scenario_dependencies
-        ORDER BY scenario_name, dependency_type, dependency_name`)
+// generateDependencyGraphWithSeams generates a dependency graph using injected seams.
+// This enables deterministic testing by controlling time and ID generation.
+func generateDependencyGraphWithSeams(graphType string, deps *seams.Dependencies) (*types.DependencyGraph, error) {
+	allDeps, err := loadAllDependencies()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
+	nodes := []types.GraphNode{}
+	edges := []types.GraphEdge{}
 	nodeSet := make(map[string]bool)
 
-	for rows.Next() {
-		var scenarioName, depType, depName, purpose, accessMethod string
-		var required bool
-		var configJSON []byte
-		var discoveredAt, lastVerified time.Time
-
-		if err := rows.Scan(&scenarioName, &depType, &depName, &required, &purpose, &accessMethod, &configJSON, &discoveredAt, &lastVerified); err != nil {
+	for _, dep := range allDeps {
+		if graphType == "resource" && dep.DependencyType != "resource" {
+			continue
+		}
+		if graphType == "scenario" && dep.DependencyType == "resource" {
+			continue
+		}
+		if dep.DependencyType == "scenario" && !isKnownScenario(dep.DependencyName) {
 			continue
 		}
 
-		var configuration map[string]interface{}
-		if len(configJSON) > 0 {
-			if err := json.Unmarshal(configJSON, &configuration); err != nil {
-				configuration = map[string]interface{}{}
-			}
-		}
-
-		if graphType == "resource" && depType != "resource" {
-			continue
-		}
-		if graphType == "scenario" && depType == "resource" {
-			continue
-		}
-		if depType == "scenario" && !isKnownScenario(depName) {
-			continue
-		}
-
-		if !nodeSet[scenarioName] {
+		if !nodeSet[dep.ScenarioName] {
 			nodes = append(nodes, types.GraphNode{
-				ID:    scenarioName,
-				Label: scenarioName,
+				ID:    dep.ScenarioName,
+				Label: dep.ScenarioName,
 				Type:  "scenario",
 				Group: "scenarios",
 				Metadata: map[string]interface{}{
 					"node_type": "scenario",
 				},
 			})
-			nodeSet[scenarioName] = true
+			nodeSet[dep.ScenarioName] = true
 		}
 
-		if !nodeSet[depName] {
+		if !nodeSet[dep.DependencyName] {
 			nodeGroup := "resources"
 			nodeType := "resource"
-			if depType == "scenario" {
+			if dep.DependencyType == "scenario" {
 				nodeGroup = "scenarios"
 				nodeType = "scenario"
-			} else if depType == "shared_workflow" {
+			} else if dep.DependencyType == "shared_workflow" {
 				nodeGroup = "workflows"
 				nodeType = "workflow"
 			}
 
 			nodes = append(nodes, types.GraphNode{
-				ID:    depName,
-				Label: depName,
+				ID:    dep.DependencyName,
+				Label: dep.DependencyName,
 				Type:  nodeType,
 				Group: nodeGroup,
 				Metadata: map[string]interface{}{
-					"node_type": depType,
+					"node_type": dep.DependencyType,
 				},
 			})
-			nodeSet[depName] = true
+			nodeSet[dep.DependencyName] = true
 		}
 
 		weight := 1.0
-		if required {
+		if dep.Required {
 			weight = 2.0
 		}
 
 		edges = append(edges, types.GraphEdge{
-			Source:   scenarioName,
-			Target:   depName,
-			Label:    depType,
-			Type:     depType,
-			Required: required,
+			Source:   dep.ScenarioName,
+			Target:   dep.DependencyName,
+			Label:    dep.DependencyType,
+			Type:     dep.DependencyType,
+			Required: dep.Required,
 			Weight:   weight,
 			Metadata: map[string]interface{}{
-				"purpose":       purpose,
-				"access_method": accessMethod,
-				"configuration": configuration,
-				"discovered_at": discoveredAt,
-				"last_verified": lastVerified,
+				"purpose":       dep.Purpose,
+				"access_method": dep.AccessMethod,
+				"configuration": dep.Configuration,
+				"discovered_at": dep.DiscoveredAt,
+				"last_verified": dep.LastVerified,
 			},
 		})
 	}
 
 	graph := &types.DependencyGraph{
-		ID:    uuid.New().String(),
+		ID:    deps.IDs.NewID(),
 		Type:  graphType,
 		Nodes: nodes,
 		Edges: edges,
 		Metadata: map[string]interface{}{
 			"total_nodes":      len(nodes),
 			"total_edges":      len(edges),
-			"generated_at":     time.Now(),
+			"generated_at":     deps.Clock.Now(),
 			"complexity_score": calculateComplexityScore(nodes, edges),
 		},
 	}

@@ -34,6 +34,30 @@ const (
 	ValidationMethodFile  ValidationMethod = "file"
 )
 
+// -----------------------------------------------------------------------------
+// Validation Status Decisions
+// -----------------------------------------------------------------------------
+//
+// Validation status reflects whether a secret was found and is accessible.
+// The status differs based on whether the secret is required:
+//   - Required secrets that aren't found → "missing" (blocks functionality)
+//   - Optional secrets that aren't found → "optional_missing" (informational)
+//   - Found and valid secrets → "valid"
+//   - Found but malformed secrets → "invalid"
+
+// determineValidationFailureStatus returns the appropriate status when
+// a secret cannot be found or validated.
+//
+// Decision logic:
+//   - Required secrets get "missing" status (this is a blocking issue)
+//   - Optional secrets get "optional_missing" status (informational only)
+func determineValidationFailureStatus(isRequired bool) string {
+	if isRequired {
+		return "missing"
+	}
+	return "optional_missing"
+}
+
 // ValidateSecrets validates secrets for a specific resource or all resources
 func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse, error) {
 	validationID := uuid.New().String()
@@ -206,14 +230,9 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 		}
 	}
 
-	// Set validation status and error message
+	// Set validation status using named decision function
 	if !isValid {
-		if secret.Required {
-			validation.ValidationStatus = "missing"
-		} else {
-			validation.ValidationStatus = "optional_missing"
-		}
-
+		validation.ValidationStatus = determineValidationFailureStatus(secret.Required)
 		if lastError != "" {
 			validation.ErrorMessage = &lastError
 		}
@@ -288,7 +307,7 @@ func (v *SecretValidator) checkSecretInFile(filePath, secretKey string) bool {
 	defer file.Close()
 
 	// Read file content and look for the secret key
-	content := make([]byte, 10240) // 10KB limit
+	content := make([]byte, MaxConfigFileSize)
 	n, _ := file.Read(content)
 	fileContent := string(content[:n])
 

@@ -12,6 +12,45 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// -----------------------------------------------------------------------------
+// ScenarioCLI Interface
+// -----------------------------------------------------------------------------
+
+// ScenarioCLI abstracts scenario CLI operations for testability.
+// This interface enables mocking scenario list responses in tests without
+// requiring the actual vrooli CLI to be installed.
+type ScenarioCLI interface {
+	// ListScenarios retrieves the list of available scenarios.
+	ListScenarios(ctx context.Context) ([]scenarioSummary, error)
+}
+
+// DefaultScenarioCLI implements ScenarioCLI using the vrooli CLI.
+type DefaultScenarioCLI struct{}
+
+// NewDefaultScenarioCLI creates the production ScenarioCLI implementation.
+func NewDefaultScenarioCLI() *DefaultScenarioCLI {
+	return &DefaultScenarioCLI{}
+}
+
+// ListScenarios implements ScenarioCLI by calling vrooli scenario list.
+func (c *DefaultScenarioCLI) ListScenarios(ctx context.Context) ([]scenarioSummary, error) {
+	return fetchScenarioListImpl(ctx)
+}
+
+// defaultScenarioCLI is the package-level scenario CLI instance.
+// It can be replaced in tests via SetScenarioCLI.
+var defaultScenarioCLI ScenarioCLI = NewDefaultScenarioCLI()
+
+// SetScenarioCLI replaces the default scenario CLI implementation.
+// This is primarily used for testing with mock implementations.
+func SetScenarioCLI(cli ScenarioCLI) {
+	defaultScenarioCLI = cli
+}
+
+// -----------------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------------
+
 type scenarioSummary struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description,omitempty"`
@@ -26,10 +65,27 @@ type scenarioListPayload struct {
 	Scenarios []scenarioSummary `json:"scenarios"`
 }
 
-type ScenarioHandlers struct{}
+// -----------------------------------------------------------------------------
+// Handlers
+// -----------------------------------------------------------------------------
 
+type ScenarioHandlers struct {
+	scenarioCLI ScenarioCLI
+}
+
+// NewScenarioHandlers creates a ScenarioHandlers with the default ScenarioCLI.
 func NewScenarioHandlers() *ScenarioHandlers {
-	return &ScenarioHandlers{}
+	return &ScenarioHandlers{
+		scenarioCLI: defaultScenarioCLI,
+	}
+}
+
+// NewScenarioHandlersWithCLI creates a ScenarioHandlers with a custom ScenarioCLI.
+// This is primarily used for testing with mock implementations.
+func NewScenarioHandlersWithCLI(cli ScenarioCLI) *ScenarioHandlers {
+	return &ScenarioHandlers{
+		scenarioCLI: cli,
+	}
 }
 
 // RegisterRoutes exposes scenario list endpoints for UI selection lists.
@@ -41,7 +97,7 @@ func (h *ScenarioHandlers) ScenarioList(w http.ResponseWriter, r *http.Request) 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	scenarios, err := fetchScenarioList(ctx)
+	scenarios, err := h.scenarioCLI.ListScenarios(ctx)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to load scenarios: %v", err), http.StatusInternalServerError)
 		return
@@ -54,7 +110,14 @@ func (h *ScenarioHandlers) ScenarioList(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// fetchScenarioList retrieves scenarios using the package-level ScenarioCLI.
+// This function is retained for backward compatibility.
 func fetchScenarioList(ctx context.Context) ([]scenarioSummary, error) {
+	return defaultScenarioCLI.ListScenarios(ctx)
+}
+
+// fetchScenarioListImpl is the underlying implementation using the vrooli CLI.
+func fetchScenarioListImpl(ctx context.Context) ([]scenarioSummary, error) {
 	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
 	output, err := cmd.Output()
 	if err != nil {

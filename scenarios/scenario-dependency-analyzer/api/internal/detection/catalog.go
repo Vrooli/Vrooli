@@ -14,11 +14,11 @@ import (
 
 // catalogManager handles thread-safe catalog loading and caching
 type catalogManager struct {
-	cfg              appconfig.Config
-	mu               sync.RWMutex
-	loaded           bool
-	knownScenarios   map[string]struct{}
-	knownResources   map[string]struct{}
+	cfg            appconfig.Config
+	mu             sync.RWMutex
+	loaded         bool
+	knownScenarios map[string]struct{}
+	knownResources map[string]struct{}
 }
 
 // newCatalogManager creates a new catalog manager with the given configuration

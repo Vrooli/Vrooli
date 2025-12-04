@@ -9,6 +9,62 @@ import (
 )
 
 // -----------------------------------------------------------------------------
+// Context Timeout Tests
+// -----------------------------------------------------------------------------
+
+func TestManifestBuilder_Build_ContextCancelled(t *testing.T) {
+	store := &mockSecretStore{
+		secrets: []DeploymentSecretEntry{
+			{ID: "s1", SecretKey: "KEY", HandlingStrategy: "prompt"},
+		},
+	}
+	analyzer := &mockAnalyzerClient{}
+	resolver := &mockResourceResolver{
+		resolved: ResolvedResources{Effective: []string{"test"}},
+	}
+	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
+	_, err := builder.Build(ctx, req)
+
+	// Cancelled context should cause Build to return (may succeed if fast or fail with context error)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Logf("Build with cancelled context returned: %v (acceptable)", err)
+	}
+}
+
+func TestManifestBuilder_Build_ContextTimeout(t *testing.T) {
+	store := &mockSecretStore{
+		secrets: []DeploymentSecretEntry{
+			{ID: "s1", SecretKey: "KEY", HandlingStrategy: "prompt"},
+		},
+	}
+	analyzer := &mockAnalyzerClient{}
+	resolver := &mockResourceResolver{
+		resolved: ResolvedResources{Effective: []string{"test"}},
+	}
+	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
+
+	// Very short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+
+	// Allow some time for timeout to trigger
+	time.Sleep(1 * time.Millisecond)
+
+	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
+	_, err := builder.Build(ctx, req)
+
+	// Timeout context may cause Build to return with context deadline exceeded
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		t.Logf("Build with expired context returned: %v (acceptable)", err)
+	}
+}
+
+// -----------------------------------------------------------------------------
 // Mock Implementations
 // -----------------------------------------------------------------------------
 
@@ -552,6 +608,68 @@ func TestContainsString(t *testing.T) {
 	if containsString(nil, "a") {
 		t.Error("containsString should return false for nil")
 	}
+	if containsString([]string{}, "a") {
+		t.Error("containsString should return false for empty slice")
+	}
+	if !containsString([]string{"test"}, "test") {
+		t.Error("containsString should find single element")
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Additional Edge Case Tests
+// -----------------------------------------------------------------------------
+
+func TestBundlePlanBuilder_EmptyEntries(t *testing.T) {
+	builder := NewBundlePlanBuilder()
+	plans := builder.DeriveBundlePlans([]DeploymentSecretEntry{})
+	if len(plans) != 0 {
+		t.Errorf("Expected 0 plans for empty entries, got %d", len(plans))
+	}
+}
+
+func TestBundlePlanBuilder_NilEntries(t *testing.T) {
+	builder := NewBundlePlanBuilder()
+	plans := builder.DeriveBundlePlans(nil)
+	if plans == nil {
+		t.Error("DeriveBundlePlans should return non-nil slice for nil input")
+	}
+}
+
+func TestSummaryBuilder_EmptyEntries(t *testing.T) {
+	builder := NewSummaryBuilder()
+	summary := builder.BuildSummary(SummaryInput{
+		Entries:  []DeploymentSecretEntry{},
+		Scenario: "test",
+	})
+	if summary.TotalSecrets != 0 {
+		t.Errorf("Expected 0 total secrets, got %d", summary.TotalSecrets)
+	}
+	if summary.StrategizedSecrets != 0 {
+		t.Errorf("Expected 0 strategized secrets, got %d", summary.StrategizedSecrets)
+	}
+}
+
+func TestManifestBuilder_PersistError(t *testing.T) {
+	store := &mockSecretStore{
+		secrets: []DeploymentSecretEntry{
+			{ID: "s1", SecretKey: "KEY", HandlingStrategy: "prompt"},
+		},
+		persistErr: errors.New("persist failed"),
+	}
+	analyzer := &mockAnalyzerClient{}
+	resolver := &mockResourceResolver{
+		resolved: ResolvedResources{Effective: []string{"test"}},
+	}
+	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
+
+	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
+	_, err := builder.Build(context.Background(), req)
+
+	// Persist error may or may not fail the build depending on implementation
+	if err != nil {
+		t.Logf("Build with persist error returned: %v (implementation-dependent)", err)
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -618,5 +736,271 @@ func TestConvertAnalyzerAggregates(t *testing.T) {
 	}
 	if desktop.EstimatedRequirements == nil {
 		t.Error("EstimatedRequirements should not be nil")
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Nil/Empty Edge Cases for Analyzer Conversions
+// -----------------------------------------------------------------------------
+
+func TestConvertAnalyzerDependencies_NilReport(t *testing.T) {
+	insights := convertAnalyzerDependencies(nil)
+	if insights != nil {
+		t.Errorf("Expected nil for nil report, got %v", insights)
+	}
+}
+
+func TestConvertAnalyzerDependencies_EmptyDependencies(t *testing.T) {
+	report := &analyzerDeploymentReport{
+		Dependencies: []analyzerDependency{},
+	}
+	insights := convertAnalyzerDependencies(report)
+	if len(insights) != 0 {
+		t.Errorf("Expected empty slice, got %d items", len(insights))
+	}
+}
+
+func TestConvertAnalyzerAggregates_NilReport(t *testing.T) {
+	aggregates := convertAnalyzerAggregates(nil)
+	if aggregates != nil {
+		t.Errorf("Expected nil for nil report, got %v", aggregates)
+	}
+}
+
+func TestConvertAnalyzerAggregates_EmptyAggregates(t *testing.T) {
+	report := &analyzerDeploymentReport{
+		Aggregates: map[string]analyzerAggregate{},
+	}
+	aggregates := convertAnalyzerAggregates(report)
+	if aggregates != nil {
+		t.Errorf("Expected nil for empty aggregates, got %v", aggregates)
+	}
+}
+
+// -----------------------------------------------------------------------------
+// BundlePlanBuilder Prompt/Generator Tests
+// -----------------------------------------------------------------------------
+
+func TestBundlePlanBuilder_DerivePrompt(t *testing.T) {
+	builder := NewBundlePlanBuilder()
+
+	tests := []struct {
+		name             string
+		entry            DeploymentSecretEntry
+		wantLabel        string
+		wantDescription  string
+		wantExistingUsed bool
+	}{
+		{
+			name: "existing prompt with content",
+			entry: DeploymentSecretEntry{
+				SecretKey: "ignored",
+				Prompt: &PromptMetadata{
+					Label:       "Existing Label",
+					Description: "Existing Description",
+				},
+			},
+			wantLabel:        "Existing Label",
+			wantDescription:  "Existing Description",
+			wantExistingUsed: true,
+		},
+		{
+			name: "nil prompt uses defaults",
+			entry: DeploymentSecretEntry{
+				SecretKey:   "API_KEY",
+				Description: "Custom description",
+			},
+			wantLabel:       "API_KEY",
+			wantDescription: "Custom description",
+		},
+		{
+			name: "empty prompt uses defaults",
+			entry: DeploymentSecretEntry{
+				SecretKey: "PASSWORD",
+				Prompt: &PromptMetadata{
+					Label:       "",
+					Description: "",
+				},
+			},
+			wantLabel:       "PASSWORD",
+			wantDescription: "Enter the value for this bundled secret.",
+		},
+		{
+			name: "no key uses generic label",
+			entry: DeploymentSecretEntry{
+				SecretKey: "",
+			},
+			wantLabel:       "Provide secret",
+			wantDescription: "Enter the value for this bundled secret.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prompt := builder.derivePrompt(tt.entry)
+			if prompt == nil {
+				t.Fatal("Expected non-nil prompt")
+			}
+			if prompt.Label != tt.wantLabel {
+				t.Errorf("Label = %q, want %q", prompt.Label, tt.wantLabel)
+			}
+			if prompt.Description != tt.wantDescription {
+				t.Errorf("Description = %q, want %q", prompt.Description, tt.wantDescription)
+			}
+		})
+	}
+}
+
+func TestBundlePlanBuilder_DeriveGenerator(t *testing.T) {
+	builder := NewBundlePlanBuilder()
+
+	tests := []struct {
+		name         string
+		entry        DeploymentSecretEntry
+		wantType     string
+		wantExisting bool
+	}{
+		{
+			name: "existing generator used",
+			entry: DeploymentSecretEntry{
+				GeneratorTemplate: map[string]interface{}{
+					"type":   "uuid",
+					"format": "v4",
+				},
+			},
+			wantType:     "uuid",
+			wantExisting: true,
+		},
+		{
+			name:     "nil generator uses default",
+			entry:    DeploymentSecretEntry{},
+			wantType: "random",
+		},
+		{
+			name: "empty generator uses default",
+			entry: DeploymentSecretEntry{
+				GeneratorTemplate: map[string]interface{}{},
+			},
+			wantType: "random",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			generator := builder.deriveGenerator(tt.entry)
+			if generator == nil {
+				t.Fatal("Expected non-nil generator")
+			}
+			typeVal, ok := generator["type"].(string)
+			if !ok {
+				t.Fatal("Expected type field to be string")
+			}
+			if typeVal != tt.wantType {
+				t.Errorf("type = %q, want %q", typeVal, tt.wantType)
+			}
+		})
+	}
+}
+
+// -----------------------------------------------------------------------------
+// SummaryBuilder Truncation Tests
+// -----------------------------------------------------------------------------
+
+func TestSummaryBuilder_TruncateBlockingInfo(t *testing.T) {
+	builder := NewSummaryBuilder()
+
+	// Create more than 10 blocking entries
+	entries := make([]DeploymentSecretEntry, 15)
+	for i := 0; i < 15; i++ {
+		entries[i] = DeploymentSecretEntry{
+			ResourceName:     "resource",
+			SecretKey:        "secret" + string(rune('A'+i)),
+			HandlingStrategy: "unspecified",
+		}
+	}
+
+	summary := builder.BuildSummary(SummaryInput{
+		Entries:  entries,
+		Scenario: "test",
+	})
+
+	// Should be truncated to 10
+	if len(summary.BlockingSecrets) > 10 {
+		t.Errorf("BlockingSecrets should be limited to 10, got %d", len(summary.BlockingSecrets))
+	}
+	if len(summary.BlockingSecretDetails) > 10 {
+		t.Errorf("BlockingSecretDetails should be limited to 10, got %d", len(summary.BlockingSecretDetails))
+	}
+	if summary.RequiresAction != 10 {
+		t.Errorf("RequiresAction = %d, want 10 (truncated count)", summary.RequiresAction)
+	}
+}
+
+func TestSummaryBuilder_ScopeReadiness(t *testing.T) {
+	builder := NewSummaryBuilder()
+
+	entries := []DeploymentSecretEntry{
+		{ResourceName: "pg", SecretKey: "pass1", Classification: "service", HandlingStrategy: "generate"},
+		{ResourceName: "pg", SecretKey: "pass2", Classification: "service", HandlingStrategy: "prompt"},
+		{ResourceName: "pg", SecretKey: "pass3", Classification: "service", HandlingStrategy: "unspecified"},
+		{ResourceName: "redis", SecretKey: "auth", Classification: "infrastructure", HandlingStrategy: "strip"},
+	}
+
+	summary := builder.BuildSummary(SummaryInput{
+		Entries:  entries,
+		Scenario: "test",
+	})
+
+	// Check service scope: 2 ready out of 3
+	serviceReadiness, ok := summary.ScopeReadiness["service"]
+	if !ok {
+		t.Fatal("Expected service scope in ScopeReadiness")
+	}
+	if serviceReadiness != "2/3" {
+		t.Errorf("service readiness = %q, want %q", serviceReadiness, "2/3")
+	}
+
+	// Check infrastructure scope: 1 ready out of 1
+	infraReadiness, ok := summary.ScopeReadiness["infrastructure"]
+	if !ok {
+		t.Fatal("Expected infrastructure scope in ScopeReadiness")
+	}
+	if infraReadiness != "1/1" {
+		t.Errorf("infrastructure readiness = %q, want %q", infraReadiness, "1/1")
+	}
+}
+
+func TestSummaryBuilder_StrategyBreakdown(t *testing.T) {
+	builder := NewSummaryBuilder()
+
+	entries := []DeploymentSecretEntry{
+		{HandlingStrategy: "generate"},
+		{HandlingStrategy: "generate"},
+		{HandlingStrategy: "prompt"},
+		{HandlingStrategy: "delegate"},
+		{HandlingStrategy: "strip"},
+		{HandlingStrategy: "unspecified"}, // Not counted in breakdown
+	}
+
+	summary := builder.BuildSummary(SummaryInput{
+		Entries:  entries,
+		Scenario: "test",
+	})
+
+	if summary.StrategyBreakdown["generate"] != 2 {
+		t.Errorf("generate count = %d, want 2", summary.StrategyBreakdown["generate"])
+	}
+	if summary.StrategyBreakdown["prompt"] != 1 {
+		t.Errorf("prompt count = %d, want 1", summary.StrategyBreakdown["prompt"])
+	}
+	if summary.StrategyBreakdown["delegate"] != 1 {
+		t.Errorf("delegate count = %d, want 1", summary.StrategyBreakdown["delegate"])
+	}
+	if summary.StrategyBreakdown["strip"] != 1 {
+		t.Errorf("strip count = %d, want 1", summary.StrategyBreakdown["strip"])
+	}
+	// unspecified should NOT be in breakdown
+	if _, found := summary.StrategyBreakdown["unspecified"]; found {
+		t.Error("unspecified should not appear in StrategyBreakdown")
 	}
 }

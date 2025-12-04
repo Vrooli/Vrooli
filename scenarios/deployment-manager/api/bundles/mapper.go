@@ -25,12 +25,14 @@ func ApplyBundleSecrets(manifest *Manifest, bundleSecrets []secrets.BundleSecret
 				Description: s.Prompt.Description,
 			}
 		}
+		// Create a local copy of Required to avoid loop variable pointer aliasing (Go < 1.22)
+		required := s.Required
 		converted = append(converted, ManifestSecret{
 			ID:          s.ID,
 			Class:       s.Class,
 			Description: s.Description,
 			Format:      s.Format,
-			Required:    &s.Required,
+			Required:    &required,
 			Prompt:      prompt,
 			Generator:   s.Generator,
 			Target: SecretTarget{

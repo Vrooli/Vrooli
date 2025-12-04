@@ -178,7 +178,8 @@ func convertTierSupportMap(support map[string]types.DependencyTierSupport) map[s
 	return result
 }
 
-// convertTierTierMap converts deployment tier definitions to tier support summary format
+// convertTierTierMap converts deployment tier definitions to tier support summary format.
+// Uses InterpretTierStatus to decide how status strings map to supported flags.
 func convertTierTierMap(tiers map[string]types.DeploymentTier) map[string]types.TierSupportSummary {
 	if len(tiers) == 0 {
 		return nil
@@ -186,13 +187,15 @@ func convertTierTierMap(tiers map[string]types.DeploymentTier) map[string]types.
 	result := make(map[string]types.TierSupportSummary, len(tiers))
 	for tier, value := range tiers {
 		var supported *bool
-		switch strings.ToLower(value.Status) {
-		case "ready", "supported":
+		status := InterpretTierStatus(strings.ToLower(value.Status))
+		switch status {
+		case TierStatusReady:
 			flag := true
 			supported = &flag
-		case "limited", "blocked":
+		case TierStatusLimited:
 			flag := false
 			supported = &flag
+		// TierStatusUnknown leaves supported as nil
 		}
 		result[tier] = types.TierSupportSummary{
 			Supported:    supported,
@@ -304,111 +307,30 @@ func dedupeStrings(values []string) []string {
 
 // InferResourceTierSupport generates intelligent default tier support based on resource type.
 // This provides reasonable defaults when explicit metadata is missing.
+//
+// The function delegates to ClassifyResource and DecideTierFitness for all decision logic,
+// keeping the inference logic centralized in the decisions module.
 func InferResourceTierSupport(resourceName string, meta *types.DeploymentDependency) map[string]types.TierSupportSummary {
-	normalized := config.NormalizeName(resourceName)
+	// Classify the resource to understand its operational characteristics
+	classification := ClassifyResource(resourceName)
 
 	// Define standard tiers
 	standardTiers := []string{"local", "desktop", "server", "mobile", "saas", "enterprise"}
 
-	// Resource classification and fitness scoring
-	var resourceClass string
-	var heavyOps bool // Indicates resource-intensive operations
-
-	switch normalized {
-	case "postgres", "mysql", "mongodb", "redis", "qdrant":
-		resourceClass = "database"
-		heavyOps = (normalized == "postgres" || normalized == "mysql" || normalized == "mongodb")
-	case "ollama", "claude-code", "openai", "anthropic":
-		resourceClass = "ai"
-		heavyOps = (normalized == "ollama") // Local LLM is heavy
-	case "n8n", "huginn", "windmill":
-		resourceClass = "automation"
-		heavyOps = true
-	case "minio", "s3":
-		resourceClass = "storage"
-		heavyOps = false
-	case "browserless", "playwright":
-		resourceClass = "browser"
-		heavyOps = true
-	case "judge0", "sandbox":
-		resourceClass = "execution"
-		heavyOps = true
-	default:
-		resourceClass = "service"
-		heavyOps = false
-	}
-
-	// Build tier support map with intelligent defaults
+	// Build tier support map using decision helpers
 	support := make(map[string]types.TierSupportSummary, len(standardTiers))
 
 	for _, tier := range standardTiers {
-		summary := types.TierSupportSummary{}
-		supported := true
-		var fitness float64
+		// Delegate fitness decision to centralized decision logic
+		decision := DecideTierFitness(tier, classification)
 
-		switch tier {
-		case "local":
-			// Everything works locally (dev environment)
-			fitness = 1.0
-			supported = true
-
-		case "desktop":
-			// Desktop apps can run most things, but heavy ops reduce fitness
-			if heavyOps {
-				fitness = 0.6 // Can run but not ideal
-			} else {
-				fitness = 0.9
-			}
-			supported = true
-
-		case "server":
-			// Server environments are ideal for most resources
-			fitness = 0.95
-			supported = true
-
-		case "mobile":
-			// Mobile is very restrictive
-			if resourceClass == "ai" && heavyOps {
-				// Local LLMs don't work on mobile
-				fitness = 0.0
-				supported = false
-				summary.Reason = "Resource-intensive AI not supported on mobile"
-			} else if resourceClass == "database" || resourceClass == "storage" {
-				// Databases generally don't run on mobile (use remote APIs instead)
-				fitness = 0.2
-				supported = false
-				summary.Reason = "Database should be remote for mobile deployments"
-				summary.Alternatives = []string{"saas-" + normalized, "cloud-" + normalized}
-			} else if heavyOps {
-				fitness = 0.1
-				supported = false
-				summary.Reason = "Heavy operations not suitable for mobile"
-			} else {
-				fitness = 0.4 // Lightweight services might work
-				supported = true
-			}
-
-		case "saas":
-			// SaaS deployments - databases and storage work well, heavy compute less so
-			if resourceClass == "database" || resourceClass == "storage" {
-				fitness = 0.95
-				supported = true
-			} else if resourceClass == "ai" && heavyOps {
-				// Ollama -> use cloud APIs for SaaS
-				fitness = 0.3
-				supported = true
-				summary.Alternatives = []string{"openai", "anthropic", "openrouter"}
-				summary.Notes = "Consider using managed AI API for SaaS deployment"
-			} else {
-				fitness = 0.85
-				supported = true
-			}
-
-		case "enterprise":
-			// Enterprise deployments can handle everything
-			fitness = 0.98
-			supported = true
+		summary := types.TierSupportSummary{
+			Reason:       decision.Reason,
+			Notes:        decision.Notes,
+			Alternatives: decision.Alternatives,
 		}
+		supported := decision.Supported
+		fitness := decision.FitnessScore
 
 		summary.Supported = &supported
 		summary.FitnessScore = &fitness
