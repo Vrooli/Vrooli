@@ -12,40 +12,71 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
+// RDPType identifies which RDP implementation is in use
+type RDPType string
+
+const (
+	RDPTypeXrdp        RDPType = "xrdp"
+	RDPTypeGnome       RDPType = "gnome-remote-desktop"
+	RDPTypeTermService RDPType = "TermService"
+	RDPTypeUnknown     RDPType = "unknown"
+)
+
 // RDPServiceInfo describes which RDP service to check on a given platform
 type RDPServiceInfo struct {
 	ServiceName string
+	Type        RDPType
 	Checkable   bool
+	// IsUserSession indicates if the RDP runs as a user session daemon (not systemd)
+	IsUserSession bool
 }
 
-// SelectRDPService decides which RDP service to check based on platform capabilities.
-// This is the central decision point for RDP service selection.
+// SelectRDPService is a static helper that determines which RDP service to check
+// based on platform capabilities WITHOUT runtime detection.
+// This is used for tests and static analysis. For actual runtime detection
+// (which checks for running processes), use RDPCheck.detectRDPService().
 //
 // Decision logic:
-//   - Linux with systemd → xrdp service
-//   - Linux without systemd → not checkable (no service manager)
+//   - Linux with systemd → xrdp service (static fallback)
+//   - Linux without systemd → not checkable
 //   - Windows → TermService (built-in RDP)
 //   - Other platforms → not checkable
 func SelectRDPService(caps *platform.Capabilities) RDPServiceInfo {
 	switch caps.Platform {
 	case platform.Linux:
 		if caps.SupportsSystemd {
-			return RDPServiceInfo{ServiceName: "xrdp", Checkable: true}
+			// Note: Runtime detection in detectRDPService prefers GNOME RDP if running
+			return RDPServiceInfo{
+				ServiceName:   "xrdp",
+				Type:          RDPTypeXrdp,
+				Checkable:     true,
+				IsUserSession: false,
+			}
 		}
-		// Linux without systemd - can't reliably check service status
-		return RDPServiceInfo{ServiceName: "xrdp", Checkable: false}
+		return RDPServiceInfo{
+			ServiceName: "xrdp",
+			Type:        RDPTypeXrdp,
+			Checkable:   false,
+		}
 	case platform.Windows:
-		return RDPServiceInfo{ServiceName: "TermService", Checkable: true}
+		return RDPServiceInfo{
+			ServiceName:   "TermService",
+			Type:          RDPTypeTermService,
+			Checkable:     true,
+			IsUserSession: false,
+		}
 	default:
 		return RDPServiceInfo{Checkable: false}
 	}
 }
 
-// RDPCheck verifies RDP/xrdp service.
+// RDPCheck verifies RDP service (xrdp, GNOME Remote Desktop, or Windows TermService).
 // Platform capabilities are injected to avoid hidden dependencies and enable testing.
 type RDPCheck struct {
 	caps     *platform.Capabilities
 	executor checks.CommandExecutor
+	// cachedServiceInfo stores detected RDP service info to avoid repeated detection
+	cachedServiceInfo *RDPServiceInfo
 }
 
 // RDPCheckOption configures an RDPCheck.
@@ -71,10 +102,71 @@ func NewRDPCheck(caps *platform.Capabilities, opts ...RDPCheckOption) *RDPCheck 
 	return c
 }
 
+// detectRDPService determines which RDP implementation is available on this system.
+// Detection order on Linux:
+//  1. Check for running gnome-remote-desktop-daemon process (GNOME 42+ native RDP)
+//  2. Check for xrdp systemd service
+//  3. Fall back to unknown if neither is found
+func (c *RDPCheck) detectRDPService(ctx context.Context) RDPServiceInfo {
+	switch c.caps.Platform {
+	case platform.Linux:
+		// First check for GNOME Remote Desktop (runs as user session, not systemd)
+		if c.isGnomeRDPRunning(ctx) {
+			return RDPServiceInfo{
+				ServiceName:   "gnome-remote-desktop-daemon",
+				Type:          RDPTypeGnome,
+				Checkable:     true,
+				IsUserSession: true,
+			}
+		}
+
+		// Then check for xrdp (traditional systemd service)
+		if c.caps.SupportsSystemd {
+			// Check if xrdp is installed/available
+			output, err := c.executor.Output(ctx, "systemctl", "list-unit-files", "xrdp.service")
+			if err == nil && strings.Contains(string(output), "xrdp.service") {
+				return RDPServiceInfo{
+					ServiceName:   "xrdp",
+					Type:          RDPTypeXrdp,
+					Checkable:     true,
+					IsUserSession: false,
+				}
+			}
+		}
+
+		// No RDP service detected - this is OK, not all systems need RDP
+		return RDPServiceInfo{
+			Type:      RDPTypeUnknown,
+			Checkable: false,
+		}
+
+	case platform.Windows:
+		return RDPServiceInfo{
+			ServiceName:   "TermService",
+			Type:          RDPTypeTermService,
+			Checkable:     true,
+			IsUserSession: false,
+		}
+
+	default:
+		return RDPServiceInfo{Checkable: false}
+	}
+}
+
+// isGnomeRDPRunning checks if gnome-remote-desktop-daemon is running
+func (c *RDPCheck) isGnomeRDPRunning(ctx context.Context) bool {
+	// Check for the process using pgrep
+	output, err := c.executor.Output(ctx, "pgrep", "-f", "gnome-remote-desktop-daemon")
+	if err == nil && len(strings.TrimSpace(string(output))) > 0 {
+		return true
+	}
+	return false
+}
+
 func (c *RDPCheck) ID() string    { return "infra-rdp" }
 func (c *RDPCheck) Title() string { return "Remote Desktop" }
 func (c *RDPCheck) Description() string {
-	return "Checks xrdp (Linux) or TermService (Windows) is running"
+	return "Checks RDP service (GNOME Remote Desktop, xrdp, or Windows TermService)"
 }
 func (c *RDPCheck) Importance() string {
 	return "Required for remote desktop access to this machine"
@@ -91,27 +183,58 @@ func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	// Determine which service to check based on platform
-	serviceInfo := SelectRDPService(c.caps)
+	// Detect which RDP service is available on this system
+	serviceInfo := c.detectRDPService(ctx)
 	result.Details["service"] = serviceInfo.ServiceName
+	result.Details["type"] = string(serviceInfo.Type)
+	result.Details["isUserSession"] = serviceInfo.IsUserSession
 
 	if !serviceInfo.Checkable {
-		result.Status = checks.StatusWarning
-		result.Message = "RDP check not applicable on this platform"
+		// No RDP service detected - this is informational, not a failure
+		result.Status = checks.StatusOK
+		result.Message = "No RDP service installed (remote desktop not configured)"
+		result.Details["note"] = "RDP is optional; install xrdp or enable GNOME Remote Desktop if needed"
 		return result
 	}
 
-	// Execute platform-specific service check
-	switch c.caps.Platform {
-	case platform.Linux:
+	// Cache the service info for recovery actions
+	c.cachedServiceInfo = &serviceInfo
+
+	// Execute type-specific service check
+	switch serviceInfo.Type {
+	case RDPTypeGnome:
+		return c.checkGnomeRDP(ctx, result)
+	case RDPTypeXrdp:
 		return c.checkLinuxXRDP(ctx, result)
-	case platform.Windows:
+	case RDPTypeTermService:
 		return c.checkWindowsTermService(ctx, result)
 	default:
-		result.Status = checks.StatusWarning
-		result.Message = "RDP check not applicable on this platform"
+		result.Status = checks.StatusOK
+		result.Message = "No RDP service installed"
 		return result
 	}
+}
+
+// checkGnomeRDP verifies GNOME Remote Desktop daemon is running
+func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) checks.Result {
+	if c.isGnomeRDPRunning(ctx) {
+		result.Status = checks.StatusOK
+		result.Message = "GNOME Remote Desktop is running"
+		result.Details["status"] = "active"
+
+		// Get additional info about the daemon
+		output, _ := c.executor.Output(ctx, "pgrep", "-a", "-f", "gnome-remote-desktop-daemon")
+		if len(output) > 0 {
+			result.Details["processInfo"] = strings.TrimSpace(string(output))
+		}
+
+		return result
+	}
+
+	result.Status = checks.StatusWarning
+	result.Message = "GNOME Remote Desktop is not running"
+	result.Details["status"] = "inactive"
+	return result
 }
 
 // checkLinuxXRDP checks xrdp service status on Linux systems with systemd
@@ -154,47 +277,118 @@ func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Re
 // RecoveryActions returns available recovery actions for RDP service issues
 // [REQ:HEAL-ACTION-001]
 func (c *RDPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
-	serviceInfo := SelectRDPService(c.caps)
-	isRunning := false
+	// Use cached service info if available, otherwise detect
+	var serviceInfo RDPServiceInfo
+	if c.cachedServiceInfo != nil {
+		serviceInfo = *c.cachedServiceInfo
+	} else {
+		serviceInfo = c.detectRDPService(context.Background())
+	}
 
+	isRunning := false
 	if lastResult != nil {
 		if status, ok := lastResult.Details["status"].(string); ok {
 			isRunning = status == "active" || strings.Contains(status, "RUNNING")
 		}
 	}
 
-	actions := []checks.RecoveryAction{
-		{
-			ID:          "start",
-			Name:        "Start Service",
-			Description: "Start the RDP/xrdp service",
-			Dangerous:   false,
-			Available:   serviceInfo.Checkable && !isRunning,
-		},
-		{
-			ID:          "restart",
-			Name:        "Restart Service",
-			Description: "Restart the RDP/xrdp service",
-			Dangerous:   false,
-			Available:   serviceInfo.Checkable,
-		},
-		{
-			ID:          "status",
-			Name:        "Service Status",
-			Description: "Get detailed service status",
-			Dangerous:   false,
-			Available:   serviceInfo.Checkable,
-		},
-		{
-			ID:          "logs",
-			Name:        "View Logs",
-			Description: "View recent RDP/xrdp logs",
-			Dangerous:   false,
-			Available:   serviceInfo.Checkable && c.caps != nil && c.caps.Platform == platform.Linux,
-		},
-	}
+	// Actions differ based on RDP type
+	switch serviceInfo.Type {
+	case RDPTypeGnome:
+		// GNOME Remote Desktop is a user session daemon, limited recovery options
+		return []checks.RecoveryAction{
+			{
+				ID:          "status",
+				Name:        "Check Status",
+				Description: "Get detailed GNOME Remote Desktop status",
+				Dangerous:   false,
+				Available:   true,
+			},
+			{
+				ID:          "diagnose",
+				Name:        "Diagnose",
+				Description: "Gather diagnostic information about GNOME Remote Desktop",
+				Dangerous:   false,
+				Available:   true,
+			},
+			{
+				ID:          "open-settings",
+				Name:        "Open Settings",
+				Description: "Show command to open GNOME Remote Desktop settings",
+				Dangerous:   false,
+				Available:   true,
+			},
+		}
 
-	return actions
+	case RDPTypeXrdp:
+		return []checks.RecoveryAction{
+			{
+				ID:          "start",
+				Name:        "Start Service",
+				Description: "Start the xrdp service",
+				Dangerous:   false,
+				Available:   !isRunning,
+			},
+			{
+				ID:          "restart",
+				Name:        "Restart Service",
+				Description: "Restart the xrdp service",
+				Dangerous:   false,
+				Available:   true,
+			},
+			{
+				ID:          "status",
+				Name:        "Service Status",
+				Description: "Get detailed xrdp service status",
+				Dangerous:   false,
+				Available:   true,
+			},
+			{
+				ID:          "logs",
+				Name:        "View Logs",
+				Description: "View recent xrdp logs",
+				Dangerous:   false,
+				Available:   true,
+			},
+		}
+
+	case RDPTypeTermService:
+		return []checks.RecoveryAction{
+			{
+				ID:          "start",
+				Name:        "Start Service",
+				Description: "Start the Windows RDP service",
+				Dangerous:   false,
+				Available:   !isRunning,
+			},
+			{
+				ID:          "restart",
+				Name:        "Restart Service",
+				Description: "Restart the Windows RDP service",
+				Dangerous:   false,
+				Available:   true,
+			},
+			{
+				ID:          "status",
+				Name:        "Service Status",
+				Description: "Get detailed RDP service status",
+				Dangerous:   false,
+				Available:   true,
+			},
+		}
+
+	default:
+		// No RDP detected - provide informational action
+		return []checks.RecoveryAction{
+			{
+				ID:          "install-info",
+				Name:        "Installation Info",
+				Description: "Show how to install RDP on this system",
+				Dangerous:   false,
+				Available:   true,
+			},
+		}
+	}
 }
 
 // ExecuteAction runs the specified recovery action
@@ -207,23 +401,47 @@ func (c *RDPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		Timestamp: start,
 	}
 
-	serviceInfo := SelectRDPService(c.caps)
-	if !serviceInfo.Checkable {
-		result.Duration = time.Since(start)
-		result.Success = false
-		result.Error = "RDP service not checkable on this platform"
-		return result
+	// Use cached service info if available, otherwise detect
+	var serviceInfo RDPServiceInfo
+	if c.cachedServiceInfo != nil {
+		serviceInfo = *c.cachedServiceInfo
+	} else {
+		serviceInfo = c.detectRDPService(ctx)
 	}
 
+	// Handle actions based on RDP type
 	switch actionID {
+	case "status":
+		return c.executeStatus(ctx, result, serviceInfo, start)
+
+	case "diagnose":
+		return c.executeDiagnose(ctx, result, serviceInfo, start)
+
+	case "open-settings":
+		return c.executeOpenSettings(ctx, result, start)
+
+	case "install-info":
+		return c.executeInstallInfo(ctx, result, start)
+
 	case "start":
+		if serviceInfo.Type == RDPTypeGnome {
+			result.Duration = time.Since(start)
+			result.Success = false
+			result.Error = "GNOME Remote Desktop is managed via GNOME Settings, not command line"
+			result.Message = "Use: gnome-control-center sharing"
+			return result
+		}
 		return c.executeServiceAction(ctx, result, "start", serviceInfo, start)
 
 	case "restart":
+		if serviceInfo.Type == RDPTypeGnome {
+			result.Duration = time.Since(start)
+			result.Success = false
+			result.Error = "GNOME Remote Desktop is managed via GNOME Settings"
+			result.Message = "To restart, toggle Remote Desktop off and on in Settings > Sharing"
+			return result
+		}
 		return c.executeServiceAction(ctx, result, "restart", serviceInfo, start)
-
-	case "status":
-		return c.executeStatus(ctx, result, serviceInfo, start)
 
 	case "logs":
 		return c.executeLogs(ctx, result, serviceInfo, start)
@@ -271,24 +489,184 @@ func (c *RDPCheck) executeServiceAction(ctx context.Context, result checks.Actio
 
 // executeStatus gets detailed service status
 func (c *RDPCheck) executeStatus(ctx context.Context, result checks.ActionResult, serviceInfo RDPServiceInfo, start time.Time) checks.ActionResult {
-	var output []byte
+	var outputBuilder strings.Builder
 
-	if c.caps.Platform == platform.Linux {
-		output, _ = c.executor.CombinedOutput(ctx, "systemctl", "status", serviceInfo.ServiceName)
-	} else if c.caps.Platform == platform.Windows {
-		output, _ = c.executor.CombinedOutput(ctx, "sc", "query", serviceInfo.ServiceName)
+	switch serviceInfo.Type {
+	case RDPTypeGnome:
+		outputBuilder.WriteString("=== GNOME Remote Desktop Status ===\n")
+
+		// Check process status
+		output, err := c.executor.CombinedOutput(ctx, "pgrep", "-a", "-f", "gnome-remote-desktop-daemon")
+		if err == nil && len(output) > 0 {
+			outputBuilder.WriteString("Process: RUNNING\n")
+			outputBuilder.WriteString(string(output))
+		} else {
+			outputBuilder.WriteString("Process: NOT RUNNING\n")
+		}
+
+		// Check port 3389
+		outputBuilder.WriteString("\n=== Port 3389 Status ===\n")
+		portOutput, _ := c.executor.CombinedOutput(ctx, "ss", "-tlnp", "sport = :3389")
+		if len(portOutput) > 0 {
+			outputBuilder.Write(portOutput)
+		} else {
+			outputBuilder.WriteString("No listener on port 3389\n")
+		}
+
+	case RDPTypeXrdp:
+		output, _ := c.executor.CombinedOutput(ctx, "systemctl", "status", "xrdp")
+		outputBuilder.Write(output)
+
+	case RDPTypeTermService:
+		output, _ := c.executor.CombinedOutput(ctx, "sc", "query", "TermService")
+		outputBuilder.Write(output)
+
+	default:
+		outputBuilder.WriteString("No RDP service detected on this system.\n")
 	}
 
 	result.Duration = time.Since(start)
-	result.Output = string(output)
+	result.Output = outputBuilder.String()
 	result.Success = true
 	result.Message = "Service status retrieved"
 	return result
 }
 
-// executeLogs gets recent service logs (Linux only)
+// executeDiagnose gathers diagnostic information about RDP
+func (c *RDPCheck) executeDiagnose(ctx context.Context, result checks.ActionResult, serviceInfo RDPServiceInfo, start time.Time) checks.ActionResult {
+	var outputBuilder strings.Builder
+
+	outputBuilder.WriteString("=== RDP Diagnostics ===\n")
+	outputBuilder.WriteString(fmt.Sprintf("Detected RDP Type: %s\n", serviceInfo.Type))
+	outputBuilder.WriteString(fmt.Sprintf("Service Name: %s\n", serviceInfo.ServiceName))
+	outputBuilder.WriteString(fmt.Sprintf("User Session: %v\n\n", serviceInfo.IsUserSession))
+
+	// Check port 3389 listener
+	outputBuilder.WriteString("=== Port 3389 Status ===\n")
+	portOutput, _ := c.executor.CombinedOutput(ctx, "ss", "-tlnp", "sport = :3389")
+	if len(portOutput) > 0 {
+		outputBuilder.Write(portOutput)
+	} else {
+		outputBuilder.WriteString("No listener on port 3389\n")
+	}
+
+	// Network interfaces
+	outputBuilder.WriteString("\n=== Network Interfaces ===\n")
+	ifOutput, _ := c.executor.CombinedOutput(ctx, "ip", "addr", "show")
+	if len(ifOutput) > 0 {
+		// Just show the first few interfaces
+		lines := strings.Split(string(ifOutput), "\n")
+		for i, line := range lines {
+			if i >= 20 {
+				outputBuilder.WriteString("...(truncated)\n")
+				break
+			}
+			outputBuilder.WriteString(line + "\n")
+		}
+	}
+
+	// Firewall status
+	outputBuilder.WriteString("\n=== Firewall Port 3389 ===\n")
+	if c.caps.Platform == platform.Linux {
+		fwOutput, _ := c.executor.CombinedOutput(ctx, "sudo", "iptables", "-L", "-n", "--line-numbers")
+		if strings.Contains(string(fwOutput), "3389") {
+			outputBuilder.WriteString("Port 3389 found in iptables rules\n")
+		} else {
+			// Check ufw if iptables doesn't show it
+			ufwOutput, _ := c.executor.CombinedOutput(ctx, "sudo", "ufw", "status")
+			if strings.Contains(string(ufwOutput), "3389") {
+				outputBuilder.WriteString("Port 3389 found in UFW rules\n")
+			} else {
+				outputBuilder.WriteString("Port 3389 not explicitly allowed (may use default policy)\n")
+			}
+		}
+	}
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = true
+	result.Message = "Diagnostic information gathered"
+	return result
+}
+
+// executeOpenSettings provides information about opening RDP settings
+func (c *RDPCheck) executeOpenSettings(ctx context.Context, result checks.ActionResult, start time.Time) checks.ActionResult {
+	var outputBuilder strings.Builder
+
+	outputBuilder.WriteString("=== GNOME Remote Desktop Settings ===\n\n")
+	outputBuilder.WriteString("To configure GNOME Remote Desktop:\n\n")
+	outputBuilder.WriteString("1. Open GNOME Settings:\n")
+	outputBuilder.WriteString("   gnome-control-center sharing\n\n")
+	outputBuilder.WriteString("2. Or navigate to:\n")
+	outputBuilder.WriteString("   Settings → Sharing → Remote Desktop\n\n")
+	outputBuilder.WriteString("3. Enable 'Remote Desktop' toggle\n")
+	outputBuilder.WriteString("4. Configure username and password\n")
+	outputBuilder.WriteString("5. Optionally enable 'Remote Control' for input\n")
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = true
+	result.Message = "Settings information provided"
+	return result
+}
+
+// executeInstallInfo provides information about installing RDP
+func (c *RDPCheck) executeInstallInfo(ctx context.Context, result checks.ActionResult, start time.Time) checks.ActionResult {
+	var outputBuilder strings.Builder
+
+	outputBuilder.WriteString("=== RDP Installation Options ===\n\n")
+
+	if c.caps.Platform == platform.Linux {
+		outputBuilder.WriteString("Option 1: GNOME Remote Desktop (recommended for GNOME desktop)\n")
+		outputBuilder.WriteString("  • Built into GNOME 42+\n")
+		outputBuilder.WriteString("  • Enable in Settings → Sharing → Remote Desktop\n\n")
+
+		outputBuilder.WriteString("Option 2: xrdp (traditional RDP server)\n")
+		outputBuilder.WriteString("  • Install: sudo apt install xrdp\n")
+		outputBuilder.WriteString("  • Start: sudo systemctl enable --now xrdp\n")
+		outputBuilder.WriteString("  • Note: May conflict with GNOME Remote Desktop\n")
+	} else if c.caps.Platform == platform.Windows {
+		outputBuilder.WriteString("Windows Remote Desktop:\n")
+		outputBuilder.WriteString("  • Enable in Settings → System → Remote Desktop\n")
+		outputBuilder.WriteString("  • Or: sysdm.cpl → Remote tab\n")
+	} else {
+		outputBuilder.WriteString("RDP is not typically available on this platform.\n")
+		outputBuilder.WriteString("Consider using VNC or SSH instead.\n")
+	}
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = true
+	result.Message = "Installation information provided"
+	return result
+}
+
+// executeLogs gets recent service logs
 func (c *RDPCheck) executeLogs(ctx context.Context, result checks.ActionResult, serviceInfo RDPServiceInfo, start time.Time) checks.ActionResult {
-	output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", serviceInfo.ServiceName, "-n", "100", "--no-pager")
+	var output []byte
+	var err error
+
+	switch serviceInfo.Type {
+	case RDPTypeGnome:
+		// GNOME Remote Desktop logs to user journal
+		output, err = c.executor.CombinedOutput(ctx, "journalctl", "--user", "-u", "gnome-remote-desktop", "-n", "100", "--no-pager")
+		if err != nil || len(output) == 0 {
+			// Fallback to grep in syslog
+			output, err = c.executor.CombinedOutput(ctx, "grep", "-i", "gnome-remote-desktop", "/var/log/syslog")
+		}
+
+	case RDPTypeXrdp:
+		output, err = c.executor.CombinedOutput(ctx, "journalctl", "-u", "xrdp", "-n", "100", "--no-pager")
+
+	case RDPTypeTermService:
+		// Windows event logs would need different approach
+		output = []byte("Windows event logs require Event Viewer. Run: eventvwr.msc")
+		err = nil
+
+	default:
+		output = []byte("No RDP service detected to retrieve logs from")
+		err = nil
+	}
 
 	result.Duration = time.Since(start)
 	result.Output = string(output)
