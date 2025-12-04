@@ -28,7 +28,8 @@ interface EnrichedCheck extends HealthResult {
 function getTabFromHash(): TabType {
   const hash = window.location.hash.slice(1);
   if (hash === "trends") return "trends";
-  if (hash === "docs") return "docs";
+  // Support both #docs and #docs?path=... formats
+  if (hash === "docs" || hash.startsWith("docs?")) return "docs";
   return "dashboard";
 }
 

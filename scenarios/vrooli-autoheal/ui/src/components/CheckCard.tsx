@@ -2,10 +2,11 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001]
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, ChevronDown, ChevronRight, History, Loader2, AlertTriangle, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, History, Loader2, AlertTriangle, CheckCircle2, XCircle, Info, BookOpen } from "lucide-react";
 import { StatusIcon } from "./StatusIcon";
 import { fetchCheckHistory, type HealthResult, type HistoryEntry, type SubCheck, type CheckCategory } from "../lib/api";
 import { selectors } from "../consts/selectors";
+import { navigateToCheckDocs } from "../lib/docs";
 
 interface EnrichedCheck extends HealthResult {
   title?: string;
@@ -151,6 +152,15 @@ export function CheckCard({ check }: CheckCardProps) {
             >
               <History size={12} />
               <span>History</span>
+            </button>
+            <button
+              onClick={() => navigateToCheckDocs(check.checkId)}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-400 transition-colors"
+              title="View documentation for this check"
+              data-testid="check-learn-more"
+            >
+              <BookOpen size={12} />
+              <span>Learn more</span>
             </button>
           </div>
 

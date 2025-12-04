@@ -48,6 +48,21 @@
       ]
     },
     {
+      "id": "health-checks",
+      "title": "Health Check Details",
+      "icon": "heart",
+      "description": "Detailed documentation for each health check",
+      "documents": [
+        { "path": "reference/checks/infra-network.md", "title": "Internet Connection", "description": "Network connectivity check" },
+        { "path": "reference/checks/infra-dns.md", "title": "DNS Resolution", "description": "DNS lookup verification" },
+        { "path": "reference/checks/infra-docker.md", "title": "Docker Engine", "description": "Docker daemon health" },
+        { "path": "reference/checks/infra-cloudflared.md", "title": "Cloudflare Tunnel", "description": "Cloudflared service status" },
+        { "path": "reference/checks/infra-rdp.md", "title": "Remote Desktop", "description": "RDP service availability" },
+        { "path": "reference/checks/resource-check.md", "title": "Resource Checks", "description": "Vrooli resource monitoring" },
+        { "path": "reference/checks/scenario-check.md", "title": "Scenario Checks", "description": "Scenario health monitoring" }
+      ]
+    },
+    {
       "id": "project-status",
       "title": "Project Status",
       "icon": "clipboard",
@@ -61,7 +76,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "primary": ["getting-started", "concepts", "guides", "reference", "health-checks"],
     "secondary": ["project-status"]
   }
 }

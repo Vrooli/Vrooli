@@ -16,6 +16,7 @@
 | 2025-12-03 | Improver Agent | Failure Topography | Mapped failure modes, fixed swallowed errors, added structured error responses with codes, retry UX in UI |
 | 2025-12-03 | Improver Agent | Test Infrastructure | Fixed UI test REQ tags (moved from comments to test names), split monolithic BATS into focused files, updated requirement modules |
 | 2025-12-03 | Improver Agent | Documentation Tab | Added Docs tab with in-app documentation browser, markdown + mermaid rendering, searchable sidebar navigation |
+| 2025-12-03 | Improver Agent | Check-Level Docs | Added individual documentation for each health check with "Learn more" button on check cards for direct navigation |
 
 ## Completed Features
 
@@ -98,12 +99,25 @@
 - Markdown rendering with syntax highlighting
 - Mermaid diagram support with dark theme styling
 - Searchable sidebar navigation with collapsible sections
-- 11 documentation files covering:
+- 18 documentation files covering:
   - Getting Started (QUICKSTART, GLOSSARY)
   - Concepts (architecture, health-check-flow, watchdog-design)
   - Guides (dashboard, adding-checks, watchdog-installation, troubleshooting)
   - Reference (api-endpoints, cli-commands, check-catalog)
+  - Health Check Details (infra-network, infra-dns, infra-docker, infra-cloudflared, infra-rdp, resource-check, scenario-check)
   - Project Status (PROGRESS, PROBLEMS, SEAMS, RESEARCH)
+
+### Check-Level Documentation
+- Individual documentation file for each health check type
+- "Learn more" button on each check card navigates to relevant docs
+- Deep-link support via URL hash (e.g., `#docs?path=reference/checks/infra-network.md`)
+- Documentation includes:
+  - What it monitors and why
+  - Status meanings (OK/Warning/Critical)
+  - Common failure causes with commands to diagnose
+  - Step-by-step troubleshooting guide
+  - Configuration options
+  - Related checks and auto-heal actions
 
 ## Next Steps
 

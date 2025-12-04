@@ -1,17 +1,67 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DocsSidebar } from "./DocsSidebar";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { useDocsManifest, useDocContent } from "../../hooks/useDocs";
 
+/**
+ * Parse the path parameter from the URL hash.
+ * Expected format: #docs?path=some/doc.md
+ */
+function getPathFromHash(): string | null {
+  const hash = window.location.hash;
+  if (!hash.startsWith("#docs")) return null;
+
+  const queryStart = hash.indexOf("?");
+  if (queryStart === -1) return null;
+
+  const params = new URLSearchParams(hash.slice(queryStart + 1));
+  const path = params.get("path");
+  return path ? decodeURIComponent(path) : null;
+}
+
 export function DocsPage() {
   const { data: manifest, isLoading: manifestLoading, error: manifestError } = useDocsManifest();
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(() => {
+    // Initialize from URL hash if present
+    return getPathFromHash();
+  });
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Auto-select default document when manifest loads
+  // Listen for hash changes (e.g., from Learn more button on another tab)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const pathFromHash = getPathFromHash();
+      if (pathFromHash) {
+        setSelectedPath(pathFromHash);
+        // Clear the path from hash to avoid confusion on subsequent navigations
+        // Keep just #docs so the tab stays active
+        window.history.replaceState(null, "", "#docs");
+      }
+    };
+
+    // Also check current hash on mount (in case it wasn't caught by initial state)
+    const pathFromHash = getPathFromHash();
+    if (pathFromHash) {
+      setSelectedPath(pathFromHash);
+      window.history.replaceState(null, "", "#docs");
+    }
+
+    // Listen for hash changes
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  // Auto-select default document when manifest loads (only if no path selected)
   useEffect(() => {
     if (manifest && !selectedPath) {
-      setSelectedPath(manifest.defaultDocument);
+      // Double-check there's no URL path before using default
+      const pathFromHash = getPathFromHash();
+      if (pathFromHash) {
+        setSelectedPath(pathFromHash);
+        window.history.replaceState(null, "", "#docs");
+      } else {
+        setSelectedPath(manifest.defaultDocument);
+      }
     }
   }, [manifest, selectedPath]);
 

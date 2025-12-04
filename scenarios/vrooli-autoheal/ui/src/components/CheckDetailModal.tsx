@@ -2,11 +2,12 @@
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useCallback } from "react";
-import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info } from "lucide-react";
+import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen } from "lucide-react";
 import { fetchCheckHistory, HealthStatus } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
 import { exportCheckHistoryToCSV } from "../lib/export";
+import { navigateToCheckDocs } from "../lib/docs";
 import { useCheckMetadata } from "../contexts/CheckMetadataContext";
 
 interface CheckDetailModalProps {
@@ -105,6 +106,18 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                onClose();
+                navigateToCheckDocs(checkId);
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs rounded border border-white/10 bg-white/5 text-slate-400 hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/30 transition-colors"
+              title="View documentation for this check"
+              data-testid="modal-learn-more"
+            >
+              <BookOpen size={14} />
+              Docs
+            </button>
             <button
               onClick={handleExport}
               disabled={!data?.history?.length}
