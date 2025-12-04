@@ -58,6 +58,29 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 	registry.Register(system.NewZombieCheck())
 	registry.Register(system.NewPortCheck())
 	registry.Register(system.NewClaudeCacheCheck())
+
+	// Vrooli scenario checks - application/microservice health monitoring
+	// Critical scenarios are core to Vrooli's operation
+	criticalScenarios := []string{
+		"app-monitor",        // System health dashboard
+		"ecosystem-manager",  // Scenario improvement queue
+	}
+	for _, name := range criticalScenarios {
+		registry.Register(vrooli.NewScenarioCheck(name, true))
+	}
+
+	// Non-critical scenarios - useful but not essential
+	nonCriticalScenarios := []string{
+		"landing-manager",        // Landing page management
+		"browser-automation-studio", // Browser automation
+		"test-genie",             // Test generation
+		"deployment-manager",     // Deployment management
+		"git-control-tower",      // Git operations
+		"tidiness-manager",       // Code quality
+	}
+	for _, name := range nonCriticalScenarios {
+		registry.Register(vrooli.NewScenarioCheck(name, false))
+	}
 }
 
 // ResultLoader is the interface for loading persisted results.

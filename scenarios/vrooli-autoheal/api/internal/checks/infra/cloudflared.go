@@ -4,6 +4,8 @@ package infra
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os/exec"
 	"strings"
 	"time"
@@ -61,12 +63,50 @@ func SelectCloudflaredVerifyMethod(caps *platform.Capabilities) CloudflaredVerif
 // CloudflaredCheck verifies cloudflared service.
 // Platform capabilities are injected to avoid hidden dependencies and enable testing.
 type CloudflaredCheck struct {
-	caps *platform.Capabilities
+	caps           *platform.Capabilities
+	localTestPort  int    // Port to test local tunnel connectivity (e.g., 21774 for app-monitor UI)
+	externalURL    string // Optional external tunnel URL to verify end-to-end connectivity
+	connectTimeout time.Duration
+}
+
+// CloudflaredOption configures a CloudflaredCheck.
+type CloudflaredOption func(*CloudflaredCheck)
+
+// WithLocalTestPort sets the local port to test tunnel connectivity.
+// This tests that the tunnel is actually forwarding traffic, not just running.
+func WithLocalTestPort(port int) CloudflaredOption {
+	return func(c *CloudflaredCheck) {
+		c.localTestPort = port
+	}
+}
+
+// WithExternalURL sets an external URL to test end-to-end tunnel connectivity.
+// This verifies the tunnel is accessible from outside.
+func WithExternalURL(url string) CloudflaredOption {
+	return func(c *CloudflaredCheck) {
+		c.externalURL = url
+	}
+}
+
+// WithConnectTimeout sets the HTTP connect timeout for tunnel tests.
+func WithConnectTimeout(timeout time.Duration) CloudflaredOption {
+	return func(c *CloudflaredCheck) {
+		c.connectTimeout = timeout
+	}
 }
 
 // NewCloudflaredCheck creates a cloudflared health check with injected platform capabilities.
-func NewCloudflaredCheck(caps *platform.Capabilities) *CloudflaredCheck {
-	return &CloudflaredCheck{caps: caps}
+// Options can configure local port testing and external URL verification.
+func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption) *CloudflaredCheck {
+	c := &CloudflaredCheck{
+		caps:           caps,
+		localTestPort:  21774, // Default: app-monitor UI port
+		connectTimeout: 5 * time.Second,
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *CloudflaredCheck) ID() string          { return "infra-cloudflared" }
@@ -129,10 +169,78 @@ func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result check
 		return result
 	}
 
-	// Service is active - now check for error frequency in logs
-	// This matches the legacy bash behavior of checking journalctl for ERR entries
+	// Service is active - now test actual tunnel connectivity
+	subChecks := []checks.SubCheck{}
+	allPassed := true
+
+	// Test 1: Local port connectivity (verifies tunnel is forwarding)
+	if c.localTestPort > 0 {
+		localURL := fmt.Sprintf("http://127.0.0.1:%d/", c.localTestPort)
+		result.Details["localTestPort"] = c.localTestPort
+		result.Details["localTestURL"] = localURL
+
+		localPassed, localDetail := c.testHTTPConnectivity(ctx, localURL, "local tunnel endpoint")
+		subChecks = append(subChecks, checks.SubCheck{
+			Name:   "local-connectivity",
+			Passed: localPassed,
+			Detail: localDetail,
+		})
+		if !localPassed {
+			allPassed = false
+		}
+	}
+
+	// Test 2: External URL connectivity (verifies end-to-end tunnel access)
+	if c.externalURL != "" {
+		result.Details["externalURL"] = c.externalURL
+
+		externalPassed, externalDetail := c.testHTTPConnectivity(ctx, c.externalURL, "external tunnel URL")
+		subChecks = append(subChecks, checks.SubCheck{
+			Name:   "external-connectivity",
+			Passed: externalPassed,
+			Detail: externalDetail,
+		})
+		if !externalPassed {
+			allPassed = false
+		}
+	}
+
+	// Test 3: Check for error frequency in logs (legacy behavior)
 	errorCount := c.countRecentErrors(ctx)
 	result.Details["recentErrorCount"] = errorCount
+
+	errorCheckPassed := errorCount <= cloudflaredErrorThreshold
+	subChecks = append(subChecks, checks.SubCheck{
+		Name:   "error-rate",
+		Passed: errorCheckPassed,
+		Detail: fmt.Sprintf("%d errors in last 5 minutes (threshold: %d)", errorCount, cloudflaredErrorThreshold),
+	})
+
+	// Calculate health score
+	passedCount := 0
+	for _, sc := range subChecks {
+		if sc.Passed {
+			passedCount++
+		}
+	}
+	score := 0
+	if len(subChecks) > 0 {
+		score = (passedCount * 100) / len(subChecks)
+	}
+
+	result.Metrics = &checks.HealthMetrics{
+		Score:     &score,
+		SubChecks: subChecks,
+	}
+
+	// Determine overall status
+	if !allPassed && c.localTestPort > 0 {
+		// Local connectivity failed - this is critical for tunnel operation
+		result.Status = checks.StatusWarning
+		result.Message = "Cloudflared running but tunnel connectivity issues detected"
+		result.Details["recommendation"] = "Check if target service is running on port " + fmt.Sprintf("%d", c.localTestPort)
+		return result
+	}
 
 	if errorCount > cloudflaredErrorThreshold {
 		result.Status = checks.StatusWarning
@@ -145,6 +253,37 @@ func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result check
 	result.Status = checks.StatusOK
 	result.Message = "Cloudflared is healthy"
 	return result
+}
+
+// testHTTPConnectivity tests HTTP connectivity to a URL
+func (c *CloudflaredCheck) testHTTPConnectivity(ctx context.Context, url string, description string) (bool, string) {
+	client := &http.Client{
+		Timeout: c.connectTimeout,
+		// Don't follow redirects, just check connectivity
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return false, fmt.Sprintf("Failed to create request for %s: %v", description, err)
+	}
+
+	start := time.Now()
+	resp, err := client.Do(req)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		return false, fmt.Sprintf("%s unreachable: %v", description, err)
+	}
+	defer resp.Body.Close()
+
+	// Consider 2xx, 3xx, and even some 4xx as "reachable" (the service is responding)
+	if resp.StatusCode < 500 {
+		return true, fmt.Sprintf("%s responding (HTTP %d, %dms)", description, resp.StatusCode, elapsed.Milliseconds())
+	}
+	return false, fmt.Sprintf("%s returned server error (HTTP %d)", description, resp.StatusCode)
 }
 
 // countRecentErrors counts ERR entries in cloudflared logs from the last 5 minutes
@@ -199,9 +338,23 @@ func (c *CloudflaredCheck) RecoveryActions(lastResult *checks.Result) []checks.R
 			Available:   isInstalled,
 		},
 		{
+			ID:          "test-tunnel",
+			Name:        "Test Tunnel",
+			Description: "Test tunnel connectivity to local and external endpoints",
+			Dangerous:   false,
+			Available:   isRunning,
+		},
+		{
 			ID:          "logs",
 			Name:        "View Logs",
 			Description: "View recent cloudflared logs",
+			Dangerous:   false,
+			Available:   isInstalled,
+		},
+		{
+			ID:          "diagnose",
+			Name:        "Diagnose",
+			Description: "Get detailed diagnostic information about the tunnel",
 			Dangerous:   false,
 			Available:   isInstalled,
 		},
@@ -210,41 +363,210 @@ func (c *CloudflaredCheck) RecoveryActions(lastResult *checks.Result) []checks.R
 
 // ExecuteAction runs the specified recovery action
 func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
 	result := checks.ActionResult{
 		ActionID:  actionID,
 		CheckID:   c.ID(),
-		Timestamp: time.Now(),
+		Timestamp: start,
 	}
 
-	var cmd *exec.Cmd
 	switch actionID {
 	case "start":
-		cmd = exec.CommandContext(ctx, "sudo", "systemctl", "start", "cloudflared")
-		result.Message = "Starting cloudflared service"
+		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "start", "cloudflared")
+		output, err := cmd.CombinedOutput()
+		result.Output = string(output)
+		if err != nil {
+			result.Duration = time.Since(start)
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to start cloudflared service"
+			return result
+		}
+		// Verify cloudflared is running after start
+		return c.verifyRecovery(ctx, result, "start", start)
+
 	case "restart":
-		cmd = exec.CommandContext(ctx, "sudo", "systemctl", "restart", "cloudflared")
-		result.Message = "Restarting cloudflared service"
+		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", "cloudflared")
+		output, err := cmd.CombinedOutput()
+		result.Output = string(output)
+		if err != nil {
+			result.Duration = time.Since(start)
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to restart cloudflared service"
+			return result
+		}
+		// Verify cloudflared is running after restart
+		return c.verifyRecovery(ctx, result, "restart", start)
+
+	case "test-tunnel":
+		return c.executeTestTunnel(ctx, start)
+
 	case "logs":
-		cmd = exec.CommandContext(ctx, "journalctl", "-u", "cloudflared", "-n", "100", "--no-pager")
+		cmd := exec.CommandContext(ctx, "journalctl", "-u", "cloudflared", "-n", "100", "--no-pager")
+		output, err := cmd.CombinedOutput()
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to retrieve logs"
+			return result
+		}
+		result.Success = true
 		result.Message = "Retrieved cloudflared logs"
+		return result
+
+	case "diagnose":
+		return c.executeDiagnose(ctx, start)
+
 	default:
 		result.Success = false
 		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
 		return result
 	}
+}
 
-	start := time.Now()
-	output, err := cmd.CombinedOutput()
+// executeTestTunnel tests tunnel connectivity
+func (c *CloudflaredCheck) executeTestTunnel(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "test-tunnel",
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	var outputBuilder strings.Builder
+	allPassed := true
+
+	// Test local endpoint
+	if c.localTestPort > 0 {
+		localURL := fmt.Sprintf("http://127.0.0.1:%d/", c.localTestPort)
+		outputBuilder.WriteString(fmt.Sprintf("=== Testing Local Endpoint ===\nURL: %s\n", localURL))
+
+		passed, detail := c.testHTTPConnectivity(ctx, localURL, "local endpoint")
+		outputBuilder.WriteString(fmt.Sprintf("Result: %s\n\n", detail))
+		if !passed {
+			allPassed = false
+		}
+	} else {
+		outputBuilder.WriteString("=== Local Endpoint Test ===\nNo local port configured\n\n")
+	}
+
+	// Test external URL
+	if c.externalURL != "" {
+		outputBuilder.WriteString(fmt.Sprintf("=== Testing External Endpoint ===\nURL: %s\n", c.externalURL))
+
+		passed, detail := c.testHTTPConnectivity(ctx, c.externalURL, "external endpoint")
+		outputBuilder.WriteString(fmt.Sprintf("Result: %s\n\n", detail))
+		if !passed {
+			allPassed = false
+		}
+	} else {
+		outputBuilder.WriteString("=== External Endpoint Test ===\nNo external URL configured\n\n")
+	}
+
+	// Summary
+	if allPassed {
+		outputBuilder.WriteString("=== Summary ===\nAll connectivity tests passed!")
+	} else {
+		outputBuilder.WriteString("=== Summary ===\nSome connectivity tests failed. Check service availability.")
+	}
+
 	result.Duration = time.Since(start)
-	result.Output = string(output)
+	result.Output = outputBuilder.String()
+	result.Success = true // Test itself succeeded even if connectivity failed
+	if allPassed {
+		result.Message = "Tunnel connectivity tests passed"
+	} else {
+		result.Message = "Tunnel connectivity issues detected"
+	}
+	return result
+}
 
-	if err != nil {
-		result.Success = false
-		result.Error = err.Error()
-		return result
+// executeDiagnose gathers diagnostic information about cloudflared
+func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "diagnose",
+		CheckID:   c.ID(),
+		Timestamp: start,
 	}
 
+	var outputBuilder strings.Builder
+
+	// Service status
+	outputBuilder.WriteString("=== Service Status ===\n")
+	statusCmd := exec.CommandContext(ctx, "systemctl", "status", "cloudflared")
+	statusOutput, _ := statusCmd.CombinedOutput()
+	outputBuilder.Write(statusOutput)
+	outputBuilder.WriteString("\n\n")
+
+	// Tunnel info
+	outputBuilder.WriteString("=== Tunnel Info ===\n")
+	infoCmd := exec.CommandContext(ctx, "cloudflared", "tunnel", "info")
+	infoOutput, _ := infoCmd.CombinedOutput()
+	outputBuilder.Write(infoOutput)
+	outputBuilder.WriteString("\n\n")
+
+	// Recent logs with errors
+	outputBuilder.WriteString("=== Recent Errors (last 5 minutes) ===\n")
+	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
+	logCmd := exec.CommandContext(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager", "-p", "err")
+	logOutput, _ := logCmd.CombinedOutput()
+	if len(strings.TrimSpace(string(logOutput))) > 0 {
+		outputBuilder.Write(logOutput)
+	} else {
+		outputBuilder.WriteString("No errors in the last 5 minutes\n")
+	}
+	outputBuilder.WriteString("\n")
+
+	// Connectivity test summary
+	outputBuilder.WriteString("=== Connectivity Tests ===\n")
+	if c.localTestPort > 0 {
+		localURL := fmt.Sprintf("http://127.0.0.1:%d/", c.localTestPort)
+		passed, detail := c.testHTTPConnectivity(ctx, localURL, "Local")
+		status := "PASS"
+		if !passed {
+			status = "FAIL"
+		}
+		outputBuilder.WriteString(fmt.Sprintf("[%s] %s\n", status, detail))
+	}
+	if c.externalURL != "" {
+		passed, detail := c.testHTTPConnectivity(ctx, c.externalURL, "External")
+		status := "PASS"
+		if !passed {
+			status = "FAIL"
+		}
+		outputBuilder.WriteString(fmt.Sprintf("[%s] %s\n", status, detail))
+	}
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
 	result.Success = true
+	result.Message = "Diagnostic information gathered"
+	return result
+}
+
+// verifyRecovery checks that cloudflared is actually healthy after a start/restart action
+func (c *CloudflaredCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Wait for cloudflared to initialize (tunnels take a few seconds to establish)
+	time.Sleep(5 * time.Second)
+
+	// Check cloudflared status
+	checkResult := c.Run(ctx)
+	result.Duration = time.Since(start)
+
+	if checkResult.Status == checks.StatusOK {
+		result.Success = true
+		result.Message = "Cloudflared service " + actionID + " successful and verified healthy"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else {
+		result.Success = false
+		result.Error = "Cloudflared not healthy after " + actionID
+		result.Message = "Cloudflared service " + actionID + " completed but verification failed"
+		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+	}
+
 	return result
 }
 

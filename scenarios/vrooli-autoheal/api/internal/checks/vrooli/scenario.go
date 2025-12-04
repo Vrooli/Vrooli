@@ -181,19 +181,18 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	case "start":
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", c.scenarioName)
 		output, err := cmd.CombinedOutput()
-		result.Duration = time.Since(start)
 		result.Output = string(output)
 
 		if err != nil {
+			result.Duration = time.Since(start)
 			result.Success = false
 			result.Error = err.Error()
 			result.Message = "Failed to start " + c.scenarioName + " scenario"
 			return result
 		}
 
-		result.Success = true
-		result.Message = c.scenarioName + " scenario started successfully"
-		return result
+		// Verify the scenario is actually running
+		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "stop":
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "stop", c.scenarioName)
@@ -215,19 +214,18 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	case "restart":
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "restart", c.scenarioName)
 		output, err := cmd.CombinedOutput()
-		result.Duration = time.Since(start)
 		result.Output = string(output)
 
 		if err != nil {
+			result.Duration = time.Since(start)
 			result.Success = false
 			result.Error = err.Error()
 			result.Message = "Failed to restart " + c.scenarioName + " scenario"
 			return result
 		}
 
-		result.Success = true
-		result.Message = c.scenarioName + " scenario restarted successfully"
-		return result
+		// Verify the scenario is actually running
+		return c.verifyRecovery(ctx, result, "restart", start)
 
 	case "restart-clean":
 		return c.executeCleanRestart(ctx, start)
@@ -263,6 +261,29 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	}
 }
 
+// verifyRecovery checks that the scenario is actually healthy after a start/restart action
+func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Wait for scenario to initialize (scenarios typically need more time than resources)
+	time.Sleep(5 * time.Second)
+
+	// Check scenario status
+	checkResult := c.Run(ctx)
+	result.Duration = time.Since(start)
+
+	if checkResult.Status == checks.StatusOK {
+		result.Success = true
+		result.Message = c.scenarioName + " scenario " + actionID + " successful and verified healthy"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else {
+		result.Success = false
+		result.Error = "Scenario not healthy after " + actionID
+		result.Message = c.scenarioName + " scenario " + actionID + " completed but verification failed"
+		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+	}
+
+	return result
+}
+
 // executeCleanRestart performs a stop, port cleanup, and restart
 func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time) checks.ActionResult {
 	result := checks.ActionResult{
@@ -291,20 +312,18 @@ func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time
 	startCmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", c.scenarioName)
 	startOutput, err := startCmd.CombinedOutput()
 	outputBuilder.Write(startOutput)
-
-	result.Duration = time.Since(start)
 	result.Output = outputBuilder.String()
 
 	if err != nil {
+		result.Duration = time.Since(start)
 		result.Success = false
 		result.Error = err.Error()
 		result.Message = "Clean restart failed for " + c.scenarioName
 		return result
 	}
 
-	result.Success = true
-	result.Message = c.scenarioName + " scenario clean-restarted successfully"
-	return result
+	// Verify the scenario is actually running after clean restart
+	return c.verifyRecovery(ctx, result, "restart-clean", start)
 }
 
 // executePortCleanup kills processes holding scenario ports

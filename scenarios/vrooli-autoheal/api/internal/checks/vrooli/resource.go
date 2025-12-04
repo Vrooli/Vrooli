@@ -202,13 +202,16 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	}
 
 	var cmd *exec.Cmd
+	needsVerification := false
 	switch actionID {
 	case "start":
 		cmd = exec.CommandContext(ctx, "vrooli", "resource", "start", c.resourceName)
+		needsVerification = true
 	case "stop":
 		cmd = exec.CommandContext(ctx, "vrooli", "resource", "stop", c.resourceName)
 	case "restart":
 		cmd = exec.CommandContext(ctx, "vrooli", "resource", "restart", c.resourceName)
+		needsVerification = true
 	case "logs":
 		cmd = exec.CommandContext(ctx, "vrooli", "resource", "logs", c.resourceName, "--tail", "50")
 	default:
@@ -220,26 +223,52 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	}
 
 	output, err := cmd.CombinedOutput()
-	result.Duration = time.Since(start)
 	result.Output = string(output)
 
 	if err != nil {
+		result.Duration = time.Since(start)
 		result.Success = false
 		result.Error = err.Error()
 		result.Message = "Action failed: " + actionID
 		return result
 	}
 
+	// Verify recovery for start/restart actions
+	if needsVerification {
+		result = c.verifyRecovery(ctx, result, actionID, start)
+		return result
+	}
+
+	result.Duration = time.Since(start)
 	result.Success = true
 	switch actionID {
-	case "start":
-		result.Message = c.resourceName + " resource started successfully"
 	case "stop":
 		result.Message = c.resourceName + " resource stopped successfully"
-	case "restart":
-		result.Message = c.resourceName + " resource restarted successfully"
 	case "logs":
 		result.Message = "Retrieved logs for " + c.resourceName
+	}
+
+	return result
+}
+
+// verifyRecovery checks that the resource is actually healthy after a start/restart action
+func (c *ResourceCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Wait for resource to initialize
+	time.Sleep(3 * time.Second)
+
+	// Check resource status
+	checkResult := c.Run(ctx)
+	result.Duration = time.Since(start)
+
+	if checkResult.Status == checks.StatusOK {
+		result.Success = true
+		result.Message = c.resourceName + " resource " + actionID + " successful and verified healthy"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else {
+		result.Success = false
+		result.Error = "Resource not healthy after " + actionID
+		result.Message = c.resourceName + " resource " + actionID + " completed but verification failed"
+		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
 	}
 
 	return result

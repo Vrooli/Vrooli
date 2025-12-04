@@ -108,19 +108,18 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 	case "restart-resolved":
 		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
 		output, err := cmd.CombinedOutput()
-		result.Duration = time.Since(start)
 		result.Output = string(output)
 
 		if err != nil {
+			result.Duration = time.Since(start)
 			result.Success = false
 			result.Error = err.Error()
 			result.Message = "Failed to restart systemd-resolved"
 			return result
 		}
 
-		result.Success = true
-		result.Message = "Restarted systemd-resolved service"
-		return result
+		// Verify DNS resolution works after restart
+		return c.verifyRecovery(ctx, result, "restart-resolved", start)
 
 	case "flush-cache":
 		cmd := exec.CommandContext(ctx, "sudo", "resolvectl", "flush-caches")
@@ -163,6 +162,29 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		result.Duration = time.Since(start)
 		return result
 	}
+}
+
+// verifyRecovery checks that DNS resolution works after a restart action
+func (c *DNSCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Wait for DNS resolver to initialize
+	time.Sleep(2 * time.Second)
+
+	// Check DNS resolution
+	checkResult := c.Run(ctx)
+	result.Duration = time.Since(start)
+
+	if checkResult.Status == checks.StatusOK {
+		result.Success = true
+		result.Message = "DNS resolver " + actionID + " successful and verified working"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else {
+		result.Success = false
+		result.Error = "DNS not working after " + actionID
+		result.Message = "DNS resolver " + actionID + " completed but verification failed"
+		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+	}
+
+	return result
 }
 
 // Ensure DNSCheck implements HealableCheck

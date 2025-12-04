@@ -17,6 +17,7 @@
 | 2025-12-03 | Improver Agent | Test Infrastructure | Fixed UI test REQ tags (moved from comments to test names), split monolithic BATS into focused files, updated requirement modules |
 | 2025-12-03 | Improver Agent | Documentation Tab | Added Docs tab with in-app documentation browser, markdown + mermaid rendering, searchable sidebar navigation |
 | 2025-12-03 | Improver Agent | Check-Level Docs | Added individual documentation for each health check with "Learn more" button on check cards for direct navigation |
+| 2025-12-04 | Claude | Auto-Heal Verification | Added post-action verification to all recovery actions - restarts now confirm success by re-running checks |
 
 ## Completed Features
 
@@ -119,6 +120,17 @@
   - Configuration options
   - Related checks and auto-heal actions
 
+### Recovery Actions (HEAL-ACTION-*)
+- All recovery actions execute and log results to database
+- **Verified actions** - start/restart actions verify success by re-running health check:
+  - Resources: start, restart (waits 3s, verifies running)
+  - Scenarios: start, restart, restart-clean (waits 5s, verifies running)
+  - Infrastructure: Docker, Cloudflared, NTP, Resolved, DNS (waits 2-5s, verifies)
+  - System: Zombie reap (signals parents, verifies cleanup)
+- Action results include verification status in output
+- Actions logged with success/failure based on actual verification
+- API endpoints for listing and executing actions per check
+
 ## Next Steps
 
 1. **Core bootstrap logic** (04-core-bootstrap requirements)
@@ -130,17 +142,24 @@
    - Windows scheduled task/service
    - macOS launchd plist
 
-3. **Auto-heal actions** (existing check failures should trigger restarts)
-   - Restart failed resources
-   - Restart failed scenarios
+3. ~~**Auto-heal actions** (existing check failures should trigger restarts)~~ ✅ **COMPLETE**
+   - ~~Restart failed resources~~ ✅ Implemented with verification
+   - ~~Restart failed scenarios~~ ✅ Implemented with verification
+   - All recovery actions now verify success by re-running health checks
 
-4. **P1 infrastructure checks** (09-infrastructure-checks)
-   - Disk space, swap, zombie processes
-   - Time synchronization
+4. **P1 infrastructure checks** (09-infrastructure-checks) ✅ **COMPLETE**
+   - ~~Disk space, swap, zombie processes~~ ✅ All implemented
+   - ~~Time synchronization~~ ✅ NTP check implemented
 
-5. **History and trends** (08-persistence)
-   - Query historical data
-   - Dashboard timeline view
+5. ~~**History and trends** (08-persistence)~~ ✅ **COMPLETE**
+   - ~~Query historical data~~ ✅ Check history API
+   - ~~Dashboard timeline view~~ ✅ Events timeline implemented
+
+### Remaining Work
+
+1. **Core bootstrap logic** - Bootstrap Vrooli from cold state
+2. **OS watchdog installers** - systemd/launchd/Windows service generators
+3. **Migrate from legacy scripts/maintenance/** - Replace cron-based autoheal
 
 ## Architecture
 

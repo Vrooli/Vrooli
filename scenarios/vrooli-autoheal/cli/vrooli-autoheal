@@ -370,6 +370,478 @@ cmd_configure() {
     esac
 }
 
+cmd_watchdog() {
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json) json_output=true; shift ;;
+            *)      shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    response=$(api_request GET "/watchdog" || echo '{}')
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+        return 0
+    fi
+
+    local protection_level=$(echo "$response" | jq -r '.protectionLevel // "unknown"' 2>/dev/null)
+    local watchdog_type=$(echo "$response" | jq -r '.watchdogType // ""' 2>/dev/null)
+    local installed=$(echo "$response" | jq -r '.watchdogInstalled // false' 2>/dev/null)
+    local enabled=$(echo "$response" | jq -r '.watchdogEnabled // false' 2>/dev/null)
+    local running=$(echo "$response" | jq -r '.watchdogRunning // false' 2>/dev/null)
+    local can_install=$(echo "$response" | jq -r '.canInstall // false' 2>/dev/null)
+    local service_path=$(echo "$response" | jq -r '.servicePath // ""' 2>/dev/null)
+
+    echo ""
+    echo -e "${BLUE}OS Watchdog Status${NC}"
+    echo "════════════════════════════════════════"
+    echo ""
+
+    case "$protection_level" in
+        full)    echo -e "$(status_icon ok) Protection Level: ${GREEN}FULL${NC}" ;;
+        partial) echo -e "$(status_icon warning) Protection Level: ${YELLOW}PARTIAL${NC}" ;;
+        none)    echo -e "$(status_icon critical) Protection Level: ${RED}NONE${NC}" ;;
+        *)       echo -e "$(status_icon unknown) Protection Level: ${protection_level}" ;;
+    esac
+    echo ""
+
+    if [[ -n "$watchdog_type" && "$watchdog_type" != "null" ]]; then
+        echo -e "${CYAN}Type:${NC} $watchdog_type"
+    fi
+
+    # Helper to display yes/no with color
+    local installed_str=$([[ "$installed" == "true" ]] && echo -e "${GREEN}yes${NC}" || echo -e "${RED}no${NC}")
+    local enabled_str=$([[ "$enabled" == "true" ]] && echo -e "${GREEN}yes${NC}" || echo -e "${RED}no${NC}")
+    local running_str=$([[ "$running" == "true" ]] && echo -e "${GREEN}yes${NC}" || echo -e "${RED}no${NC}")
+    echo -e "  Installed: $installed_str"
+    echo -e "  Enabled:   $enabled_str"
+    echo -e "  Running:   $running_str"
+    echo ""
+
+    if [[ -n "$service_path" && "$service_path" != "null" ]]; then
+        echo -e "${CYAN}Service Path:${NC} $service_path"
+        echo ""
+    fi
+
+    if [[ "$installed" != "true" && "$can_install" == "true" ]]; then
+        echo -e "${YELLOW}Tip:${NC} Run '$CLI_NAME install' to set up OS watchdog protection"
+    fi
+}
+
+cmd_install() {
+    local system_wide=false
+    local force=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --system) system_wide=true; shift ;;
+            --force)  force=true; shift ;;
+            -h|--help)
+                echo "Usage: $CLI_NAME install [--system] [--force]"
+                echo ""
+                echo "Install the OS watchdog service for boot persistence."
+                echo ""
+                echo "Options:"
+                echo "  --system  Install as system service (requires sudo on Linux)"
+                echo "  --force   Overwrite existing installation"
+                return 0
+                ;;
+            *)        shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    # Get platform info
+    local platform_response=$(api_request GET "/platform" || echo '{}')
+    local platform=$(echo "$platform_response" | jq -r '.platform // "unknown"' 2>/dev/null)
+    local supports_systemd=$(echo "$platform_response" | jq -r '.supportsSystemd // false' 2>/dev/null)
+    local supports_launchd=$(echo "$platform_response" | jq -r '.supportsLaunchd // false' 2>/dev/null)
+
+    # Check current watchdog status
+    local watchdog_response=$(api_request GET "/watchdog" || echo '{}')
+    local already_installed=$(echo "$watchdog_response" | jq -r '.watchdogInstalled // false' 2>/dev/null)
+
+    if [[ "$already_installed" == "true" && "$force" != "true" ]]; then
+        echo -e "${YELLOW}Watchdog service is already installed.${NC}"
+        echo "Use --force to reinstall."
+        return 0
+    fi
+
+    # Get template
+    local template_response=$(api_request GET "/watchdog/template" || echo '{}')
+    local template=$(echo "$template_response" | jq -r '.template // ""' 2>/dev/null)
+
+    if [[ -z "$template" || "$template" == "null" ]]; then
+        echo -e "${RED}Failed to get service template from API${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Installing OS watchdog service...${NC}"
+    echo ""
+
+    case "$platform" in
+        linux)
+            install_linux_watchdog "$template" "$system_wide"
+            ;;
+        macos)
+            install_macos_watchdog "$template"
+            ;;
+        windows)
+            install_windows_watchdog "$template"
+            ;;
+        *)
+            echo -e "${RED}Unsupported platform: $platform${NC}"
+            return 1
+            ;;
+    esac
+}
+
+install_linux_watchdog() {
+    local template="$1"
+    local system_wide="$2"
+
+    local service_path
+    local use_sudo=""
+    local systemctl_cmd="systemctl"
+
+    if [[ "$system_wide" == "true" ]]; then
+        service_path="/etc/systemd/system/vrooli-autoheal.service"
+        use_sudo="sudo"
+        echo -e "${CYAN}Installing system-wide service (requires sudo)${NC}"
+    else
+        service_path="$HOME/.config/systemd/user/vrooli-autoheal.service"
+        systemctl_cmd="systemctl --user"
+        mkdir -p "$(dirname "$service_path")"
+        echo -e "${CYAN}Installing user service${NC}"
+
+        # Generate user-specific template (no User=root, uses default.target)
+        template='[Unit]
+Description=Vrooli Autoheal - Self-healing infrastructure supervisor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/vrooli autoheal loop
+Restart=always
+RestartSec=10
+Environment=VROOLI_LIFECYCLE_MANAGED=true
+
+[Install]
+WantedBy=default.target'
+    fi
+
+    echo "  Service path: $service_path"
+    echo ""
+
+    # Write service file
+    if [[ -n "$use_sudo" ]]; then
+        echo "$template" | $use_sudo tee "$service_path" > /dev/null
+    else
+        echo "$template" > "$service_path"
+    fi
+
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to write service file${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Service file written"
+
+    # Reload systemd
+    $use_sudo $systemctl_cmd daemon-reload
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to reload systemd${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Systemd reloaded"
+
+    # Enable service
+    $use_sudo $systemctl_cmd enable vrooli-autoheal
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to enable service${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Service enabled"
+
+    # Start service
+    $use_sudo $systemctl_cmd start vrooli-autoheal
+    if [[ $? -ne 0 ]]; then
+        echo -e "${YELLOW}Warning: Failed to start service (may already be running via scenario)${NC}"
+    else
+        echo -e "  ${GREEN}✓${NC} Service started"
+    fi
+
+    echo ""
+    echo -e "${GREEN}Watchdog installation complete!${NC}"
+    echo ""
+    echo "The autoheal service will now start automatically on boot."
+    echo ""
+    echo "Useful commands:"
+    if [[ -n "$use_sudo" ]]; then
+        echo "  sudo systemctl status vrooli-autoheal   # Check status"
+        echo "  sudo systemctl stop vrooli-autoheal     # Stop service"
+        echo "  sudo journalctl -u vrooli-autoheal -f   # View logs"
+    else
+        echo "  systemctl --user status vrooli-autoheal   # Check status"
+        echo "  systemctl --user stop vrooli-autoheal     # Stop service"
+        echo "  journalctl --user -u vrooli-autoheal -f   # View logs"
+    fi
+}
+
+install_macos_watchdog() {
+    local template="$1"
+
+    local plist_path="$HOME/Library/LaunchAgents/com.vrooli.autoheal.plist"
+    mkdir -p "$(dirname "$plist_path")"
+
+    echo -e "${CYAN}Installing LaunchAgent${NC}"
+    echo "  Plist path: $plist_path"
+    echo ""
+
+    # Unload if already loaded
+    launchctl unload "$plist_path" 2>/dev/null || true
+
+    # Write plist file
+    echo "$template" > "$plist_path"
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to write plist file${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Plist file written"
+
+    # Load the agent
+    launchctl load "$plist_path"
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to load LaunchAgent${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} LaunchAgent loaded"
+
+    echo ""
+    echo -e "${GREEN}Watchdog installation complete!${NC}"
+    echo ""
+    echo "The autoheal service will now start automatically on login."
+    echo ""
+    echo "Useful commands:"
+    echo "  launchctl list | grep vrooli       # Check if loaded"
+    echo "  launchctl unload '$plist_path'     # Stop service"
+    echo "  tail -f /var/log/vrooli-autoheal.log   # View logs"
+}
+
+install_windows_watchdog() {
+    local template="$1"
+
+    local task_xml="$TEMP/vrooli-autoheal-task.xml"
+
+    echo -e "${CYAN}Installing Windows Scheduled Task${NC}"
+    echo ""
+
+    # Write task XML
+    echo "$template" > "$task_xml"
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to write task XML${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Task XML written"
+
+    # Delete existing task if present
+    schtasks /Delete /TN "VrooliAutoheal" /F 2>/dev/null || true
+
+    # Create the task
+    schtasks /Create /TN "VrooliAutoheal" /XML "$task_xml"
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to create scheduled task${NC}"
+        rm -f "$task_xml"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Scheduled task created"
+
+    # Clean up temp file
+    rm -f "$task_xml"
+
+    echo ""
+    echo -e "${GREEN}Watchdog installation complete!${NC}"
+    echo ""
+    echo "The autoheal service will now start automatically on boot."
+    echo ""
+    echo "Useful commands:"
+    echo "  schtasks /Query /TN VrooliAutoheal    # Check status"
+    echo "  schtasks /End /TN VrooliAutoheal      # Stop task"
+    echo "  schtasks /Run /TN VrooliAutoheal      # Start task"
+}
+
+cmd_uninstall() {
+    local force=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force) force=true; shift ;;
+            -h|--help)
+                echo "Usage: $CLI_NAME uninstall [--force]"
+                echo ""
+                echo "Remove the OS watchdog service."
+                echo ""
+                echo "Options:"
+                echo "  --force   Skip confirmation prompt"
+                return 0
+                ;;
+            *)       shift ;;
+        esac
+    done
+
+    ensure_api_base
+
+    # Get platform info
+    local platform_response=$(api_request GET "/platform" || echo '{}')
+    local platform=$(echo "$platform_response" | jq -r '.platform // "unknown"' 2>/dev/null)
+
+    # Check current watchdog status from API
+    local watchdog_response=$(api_request GET "/watchdog" || echo '{}')
+    local installed=$(echo "$watchdog_response" | jq -r '.watchdogInstalled // false' 2>/dev/null)
+    local service_path=$(echo "$watchdog_response" | jq -r '.servicePath // ""' 2>/dev/null)
+
+    # Also check local file existence directly (API cache may be stale)
+    if [[ "$installed" != "true" ]]; then
+        case "$platform" in
+            linux)
+                # Check all possible service file locations
+                for path in \
+                    "/etc/systemd/system/vrooli-autoheal.service" \
+                    "/usr/lib/systemd/system/vrooli-autoheal.service" \
+                    "$HOME/.config/systemd/user/vrooli-autoheal.service"; do
+                    if [[ -f "$path" ]]; then
+                        installed="true"
+                        service_path="$path"
+                        break
+                    fi
+                done
+                ;;
+            macos)
+                for path in \
+                    "$HOME/Library/LaunchAgents/com.vrooli.autoheal.plist" \
+                    "/Library/LaunchDaemons/com.vrooli.autoheal.plist"; do
+                    if [[ -f "$path" ]]; then
+                        installed="true"
+                        service_path="$path"
+                        break
+                    fi
+                done
+                ;;
+        esac
+    fi
+
+    if [[ "$installed" != "true" ]]; then
+        echo -e "${YELLOW}Watchdog service is not installed.${NC}"
+        return 0
+    fi
+
+    if [[ "$force" != "true" ]]; then
+        echo -e "${YELLOW}This will remove the OS watchdog service.${NC}"
+        echo "The autoheal loop will no longer start automatically on boot."
+        echo ""
+        read -p "Are you sure? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Cancelled."
+            return 0
+        fi
+    fi
+
+    echo -e "${BLUE}Removing OS watchdog service...${NC}"
+    echo ""
+
+    case "$platform" in
+        linux)
+            uninstall_linux_watchdog "$service_path"
+            ;;
+        macos)
+            uninstall_macos_watchdog "$service_path"
+            ;;
+        windows)
+            uninstall_windows_watchdog
+            ;;
+        *)
+            echo -e "${RED}Unsupported platform: $platform${NC}"
+            return 1
+            ;;
+    esac
+}
+
+uninstall_linux_watchdog() {
+    local service_path="$1"
+
+    local use_sudo=""
+    local systemctl_cmd="systemctl"
+
+    # Determine if system or user service
+    if [[ "$service_path" == /etc/systemd/* || "$service_path" == /usr/lib/systemd/* ]]; then
+        use_sudo="sudo"
+    else
+        systemctl_cmd="systemctl --user"
+    fi
+
+    # Stop the service
+    $use_sudo $systemctl_cmd stop vrooli-autoheal 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Service stopped"
+
+    # Disable the service
+    $use_sudo $systemctl_cmd disable vrooli-autoheal 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Service disabled"
+
+    # Remove the service file
+    if [[ -n "$use_sudo" ]]; then
+        $use_sudo rm -f "$service_path"
+    else
+        rm -f "$service_path"
+    fi
+    echo -e "  ${GREEN}✓${NC} Service file removed"
+
+    # Reload systemd
+    $use_sudo $systemctl_cmd daemon-reload
+    echo -e "  ${GREEN}✓${NC} Systemd reloaded"
+
+    echo ""
+    echo -e "${GREEN}Watchdog uninstalled successfully.${NC}"
+}
+
+uninstall_macos_watchdog() {
+    local plist_path="$1"
+
+    # Unload the agent
+    launchctl unload "$plist_path" 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} LaunchAgent unloaded"
+
+    # Remove the plist file
+    rm -f "$plist_path"
+    echo -e "  ${GREEN}✓${NC} Plist file removed"
+
+    echo ""
+    echo -e "${GREEN}Watchdog uninstalled successfully.${NC}"
+}
+
+uninstall_windows_watchdog() {
+    # End the task if running
+    schtasks /End /TN "VrooliAutoheal" 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Task stopped"
+
+    # Delete the task
+    schtasks /Delete /TN "VrooliAutoheal" /F
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to delete scheduled task${NC}"
+        return 1
+    fi
+    echo -e "  ${GREEN}✓${NC} Scheduled task removed"
+
+    echo ""
+    echo -e "${GREEN}Watchdog uninstalled successfully.${NC}"
+}
+
 cmd_version() {
     echo "$CLI_NAME version $CLI_VERSION"
     if [[ -n "$API_BASE" ]]; then
@@ -397,6 +869,17 @@ Commands:
   status [--json]
       Show current health status summary. Use --json for structured output.
 
+  watchdog [--json]
+      Show OS watchdog service status (installed, enabled, running).
+
+  install [--system] [--force]
+      Install the OS watchdog service for boot persistence.
+      Use --system for system-wide installation (requires sudo on Linux).
+      Use --force to overwrite existing installation.
+
+  uninstall [--force]
+      Remove the OS watchdog service. Use --force to skip confirmation.
+
   platform
       Show detected platform capabilities.
 
@@ -418,6 +901,10 @@ Examples:
   vrooli-autoheal tick --force            # Force all checks to run
   vrooli-autoheal loop --interval-seconds=30  # Run every 30 seconds
   vrooli-autoheal status --json           # Get status as JSON
+  vrooli-autoheal watchdog                # Check watchdog status
+  vrooli-autoheal install                 # Install user-level watchdog
+  vrooli-autoheal install --system        # Install system-wide watchdog
+  vrooli-autoheal uninstall               # Remove watchdog service
 EOF
 }
 
@@ -453,6 +940,15 @@ main() {
             ;;
         status)
             cmd_status "$@"
+            ;;
+        watchdog)
+            cmd_watchdog "$@"
+            ;;
+        install)
+            cmd_install "$@"
+            ;;
+        uninstall)
+            cmd_uninstall "$@"
             ;;
         platform)
             cmd_platform

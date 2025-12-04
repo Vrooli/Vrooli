@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -199,19 +200,24 @@ func (c *ResolvedCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 
 // ExecuteAction runs the specified recovery action
 func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
 	result := checks.ActionResult{
-		ActionID: actionID,
-		CheckID:  c.ID(),
+		ActionID:  actionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
 	}
 
 	var cmd *exec.Cmd
+	needsVerification := false
 	switch actionID {
 	case "start":
 		cmd = exec.CommandContext(ctx, "sudo", "systemctl", "start", "systemd-resolved")
 		result.Message = "Starting systemd-resolved service"
+		needsVerification = true
 	case "restart":
 		cmd = exec.CommandContext(ctx, "sudo", "systemctl", "restart", "systemd-resolved")
 		result.Message = "Restarting systemd-resolved service"
+		needsVerification = true
 	case "flush-cache":
 		cmd = exec.CommandContext(ctx, "sudo", "resolvectl", "flush-caches")
 		result.Message = "Flushing DNS cache"
@@ -221,6 +227,7 @@ func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	default:
 		result.Success = false
 		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
 		return result
 	}
 
@@ -230,9 +237,39 @@ func (c *ResolvedCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
+		result.Duration = time.Since(start)
 		return result
 	}
 
+	// Verify recovery for start/restart actions
+	if needsVerification {
+		return c.verifyRecovery(ctx, result, actionID, start)
+	}
+
 	result.Success = true
+	result.Duration = time.Since(start)
+	return result
+}
+
+// verifyRecovery checks that systemd-resolved is actually running after a start/restart action
+func (c *ResolvedCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Wait for service to initialize
+	time.Sleep(2 * time.Second)
+
+	// Check service status
+	checkResult := c.Run(ctx)
+	result.Duration = time.Since(start)
+
+	if checkResult.Status == checks.StatusOK {
+		result.Success = true
+		result.Message = "systemd-resolved " + actionID + " successful and verified running"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else {
+		result.Success = false
+		result.Error = "systemd-resolved not running after " + actionID
+		result.Message = "systemd-resolved " + actionID + " completed but verification failed"
+		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+	}
+
 	return result
 }

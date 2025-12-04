@@ -13,10 +13,14 @@ Verifies that the cloudflared tunnel service is installed and running, enabling 
 
 ## What It Monitors
 
-This check performs a two-stage verification:
+This check performs a multi-stage verification:
 
 1. **Installation Check**: Verifies `cloudflared` binary is in PATH
 2. **Service Check**: On Linux with systemd, checks if the cloudflared service is active
+3. **Connectivity Tests**: Tests actual tunnel functionality:
+   - Local endpoint connectivity (default port 21774)
+   - External URL connectivity (optional)
+4. **Error Rate Monitoring**: Checks journal logs for ERR entries in the last 5 minutes
 
 ```mermaid
 flowchart TD
@@ -25,9 +29,33 @@ flowchart TD
     B -->|Yes| D{Can Verify Service?}
     D -->|systemd| E[Check systemctl is-active]
     D -->|No method| F[Warning: Cannot Verify]
-    E -->|active| G[OK: Healthy]
-    E -->|not active| H[Critical: Not Active]
+    E -->|not active| G[Critical: Not Active]
+    E -->|active| H[Test Local Connectivity]
+    H --> I[Test External URL]
+    I --> J[Check Error Rate]
+    J -->|High errors| K[Warning: High Error Rate]
+    J -->|Connectivity failed| L[Warning: Tunnel Issues]
+    J -->|All OK| M[OK: Healthy]
 ```
+
+## Connectivity Tests
+
+The check performs HTTP connectivity tests to verify the tunnel is actually forwarding traffic:
+
+### Local Endpoint Test
+- Tests `http://127.0.0.1:{port}/` where port defaults to 21774 (app-monitor UI)
+- Verifies the tunnel's target service is reachable
+- A failed local test indicates the target service may be down
+
+### External URL Test (Optional)
+- If configured, tests the public tunnel URL
+- Verifies end-to-end tunnel accessibility
+- Useful for detecting Cloudflare-side issues
+
+### Error Rate Monitoring
+- Counts "ERR" entries in cloudflared logs from the last 5 minutes
+- Threshold: 10 errors triggers a warning
+- High error rates may indicate network issues or tunnel instability
 
 ## Status Meanings
 
@@ -151,12 +179,39 @@ sudo cloudflared service install
 - **infra-network**: Cloudflared requires internet connectivity
 - **infra-dns**: Cloudflared uses DNS for coordination
 
-## Auto-Heal Actions
+## Recovery Actions
 
-When this check fails, autoheal may attempt:
+| Action | Description | Risk |
+|--------|-------------|------|
+| **Start Service** | Start the cloudflared service | Safe |
+| **Restart Service** | Restart the cloudflared service to recover from errors | Safe |
+| **Test Tunnel** | Test tunnel connectivity to local and external endpoints | Safe |
+| **View Logs** | View recent cloudflared logs | Safe |
+| **Diagnose** | Get detailed diagnostic information about the tunnel | Safe |
+
+### Test Tunnel
+
+The Test Tunnel action performs connectivity tests:
+1. Tests local endpoint connectivity (default port 21774)
+2. Tests external URL if configured
+3. Reports pass/fail for each test
+
+Use this to quickly verify tunnel health without restarting the service.
+
+### Diagnose
+
+The Diagnose action gathers:
+- Service status via `systemctl status cloudflared`
+- Tunnel info via `cloudflared tunnel info`
+- Recent errors from journal logs
+- Connectivity test results
+
+## Auto-Heal Behavior
+
+When this check fails and auto-heal is enabled, the system may:
 1. Restart cloudflared service
-2. Clear tunnel connection state
-3. Alert administrators for credential issues
+2. Wait for service to stabilize
+3. Re-run connectivity tests to verify recovery
 
 ## Security Notes
 

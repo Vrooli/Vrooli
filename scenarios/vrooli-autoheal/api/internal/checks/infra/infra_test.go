@@ -489,15 +489,76 @@ func TestCloudflaredCheckHealable(t *testing.T) {
 		t.Error("CloudflaredCheck should have recovery actions")
 	}
 
-	// Should have start, restart, logs actions
+	// Should have start, restart, test-tunnel, logs, diagnose actions
 	actionIDs := make(map[string]bool)
 	for _, a := range actions {
 		actionIDs[a.ID] = true
 	}
-	expectedActions := []string{"start", "restart", "logs"}
+	expectedActions := []string{"start", "restart", "test-tunnel", "logs", "diagnose"}
 	for _, expected := range expectedActions {
 		if !actionIDs[expected] {
 			t.Errorf("CloudflaredCheck should have %s action", expected)
+		}
+	}
+}
+
+// TestCloudflaredCheckOptions verifies CloudflaredCheck configuration options
+// [REQ:INFRA-CLOUDFLARED-001]
+func TestCloudflaredCheckOptions(t *testing.T) {
+	check := NewCloudflaredCheck(
+		testCaps(),
+		WithLocalTestPort(8080),
+		WithExternalURL("https://example.com"),
+		WithConnectTimeout(10*time.Second),
+	)
+
+	if check.localTestPort != 8080 {
+		t.Errorf("localTestPort = %d, want %d", check.localTestPort, 8080)
+	}
+	if check.externalURL != "https://example.com" {
+		t.Errorf("externalURL = %q, want %q", check.externalURL, "https://example.com")
+	}
+	if check.connectTimeout != 10*time.Second {
+		t.Errorf("connectTimeout = %v, want %v", check.connectTimeout, 10*time.Second)
+	}
+}
+
+// TestCloudflaredCheckDefaultOptions verifies CloudflaredCheck default options
+func TestCloudflaredCheckDefaultOptions(t *testing.T) {
+	check := NewCloudflaredCheck(testCaps())
+
+	if check.localTestPort != 21774 {
+		t.Errorf("default localTestPort = %d, want %d", check.localTestPort, 21774)
+	}
+	if check.externalURL != "" {
+		t.Errorf("default externalURL = %q, want empty", check.externalURL)
+	}
+	if check.connectTimeout != 5*time.Second {
+		t.Errorf("default connectTimeout = %v, want %v", check.connectTimeout, 5*time.Second)
+	}
+}
+
+// TestDockerCheckHealable verifies DockerCheck implements HealableCheck
+// [REQ:HEAL-ACTION-001]
+func TestDockerCheckHealable(t *testing.T) {
+	var _ checks.HealableCheck = (*DockerCheck)(nil)
+
+	check := NewDockerCheck(testCaps())
+	actions := check.RecoveryActions(nil)
+
+	if len(actions) == 0 {
+		t.Error("DockerCheck should have recovery actions")
+	}
+
+	// Should have restart, start, prune, logs, info actions
+	actionIDs := make(map[string]bool)
+	for _, a := range actions {
+		actionIDs[a.ID] = true
+	}
+	expectedActions := []string{"restart", "start", "prune", "logs", "info"}
+	for _, expected := range expectedActions {
+		if !actionIDs[expected] {
+			t.Errorf("DockerCheck should have %s action", expected)
 		}
 	}
 }

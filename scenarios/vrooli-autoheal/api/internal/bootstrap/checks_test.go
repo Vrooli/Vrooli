@@ -32,13 +32,26 @@ func TestRegisterDefaultChecks(t *testing.T) {
 
 	// Verify expected check IDs are registered
 	expectedIDs := []string{
+		// Infrastructure checks
 		"infra-network",
 		"infra-dns",
 		"infra-docker",
 		"infra-cloudflared",
 		"infra-rdp",
+		// Resource checks
 		"resource-postgres",
 		"resource-redis",
+		"resource-ollama",
+		"resource-qdrant",
+		"resource-searxng",
+		"resource-browserless",
+		// Scenario checks (critical)
+		"scenario-app-monitor",
+		"scenario-ecosystem-manager",
+		// Scenario checks (non-critical)
+		"scenario-landing-manager",
+		"scenario-browser-automation-studio",
+		"scenario-test-genie",
 	}
 
 	for _, expectedID := range expectedIDs {

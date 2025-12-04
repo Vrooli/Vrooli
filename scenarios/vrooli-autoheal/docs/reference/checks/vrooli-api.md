@@ -176,6 +176,37 @@ The health score is based on response time:
 
 ## Recovery Actions
 
+| Action | Description | Risk |
+|--------|-------------|------|
+| **Restart API** | Stop and restart the Vrooli API server | Medium - brief downtime |
+| **Kill Port Process** | Kill any process holding the API port (8092) | High - may affect other services |
+| **View Logs** | View recent Vrooli API logs | Safe |
+| **Diagnose** | Get diagnostic information including health check, port usage, and process info | Safe |
+
+### Restart API
+
+The restart action:
+1. Finds and kills processes on the API port (default 8092)
+2. Waits for processes to terminate
+3. Attempts to restart using `vrooli develop` or the restart script
+
+### Kill Port Process
+
+Use this when:
+- The port is held by a zombie or orphaned process
+- The API won't start due to "address already in use"
+- A previous API instance didn't terminate cleanly
+
+### Diagnose
+
+The diagnose action gathers:
+- Health endpoint response (status code, response body, timing)
+- Port usage details (what process is listening on 8092)
+- Running Vrooli processes
+- Resource status (postgres, redis, etc.)
+
+## Manual Recovery Steps
+
 When this check fails:
 
 1. **First**: Check if the API process crashed and restart it

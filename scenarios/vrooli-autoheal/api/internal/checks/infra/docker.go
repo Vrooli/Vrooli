@@ -151,36 +151,34 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 	case "restart":
 		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", "docker")
 		output, err := cmd.CombinedOutput()
-		result.Duration = time.Since(start)
 		result.Output = string(output)
 
 		if err != nil {
+			result.Duration = time.Since(start)
 			result.Success = false
 			result.Error = err.Error()
 			result.Message = "Failed to restart Docker daemon"
 			return result
 		}
 
-		result.Success = true
-		result.Message = "Docker daemon restarted successfully"
-		return result
+		// Verify Docker is responsive after restart
+		return c.verifyRecovery(ctx, result, "restart", start)
 
 	case "start":
 		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "start", "docker")
 		output, err := cmd.CombinedOutput()
-		result.Duration = time.Since(start)
 		result.Output = string(output)
 
 		if err != nil {
+			result.Duration = time.Since(start)
 			result.Success = false
 			result.Error = err.Error()
 			result.Message = "Failed to start Docker daemon"
 			return result
 		}
 
-		result.Success = true
-		result.Message = "Docker daemon started successfully"
-		return result
+		// Verify Docker is responsive after start
+		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "prune":
 		// Use docker system prune with --force to avoid interactive prompt
@@ -258,6 +256,29 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		result.Duration = time.Since(start)
 		return result
 	}
+}
+
+// verifyRecovery checks that Docker is actually responsive after a start/restart action
+func (c *DockerCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Wait for Docker to initialize
+	time.Sleep(5 * time.Second)
+
+	// Check Docker status
+	checkResult := c.Run(ctx)
+	result.Duration = time.Since(start)
+
+	if checkResult.Status == checks.StatusOK {
+		result.Success = true
+		result.Message = "Docker daemon " + actionID + " successful and verified responsive"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else {
+		result.Success = false
+		result.Error = "Docker not responsive after " + actionID
+		result.Message = "Docker daemon " + actionID + " completed but verification failed"
+		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+	}
+
+	return result
 }
 
 // Ensure DockerCheck implements HealableCheck

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -169,9 +170,11 @@ func (c *NTPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 
 // ExecuteAction runs the specified recovery action
 func (c *NTPCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
 	result := checks.ActionResult{
-		ActionID: actionID,
-		CheckID:  c.ID(),
+		ActionID:  actionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
 	}
 
 	var cmd *exec.Cmd
@@ -185,6 +188,7 @@ func (c *NTPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 	default:
 		result.Success = false
 		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
 		return result
 	}
 
@@ -194,9 +198,40 @@ func (c *NTPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
+		result.Duration = time.Since(start)
 		return result
 	}
 
-	result.Success = true
+	// Verify NTP status after action
+	return c.verifyRecovery(ctx, result, actionID, start)
+}
+
+// verifyRecovery checks that NTP is enabled/syncing after a recovery action
+func (c *NTPCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Wait for NTP to sync (initial sync can take a few seconds)
+	time.Sleep(3 * time.Second)
+
+	// Check NTP status
+	checkResult := c.Run(ctx)
+	result.Duration = time.Since(start)
+
+	// For NTP, we accept both OK and Warning (NTP enabled but not yet synchronized)
+	// because sync can take longer than our verification window
+	if checkResult.Status == checks.StatusOK {
+		result.Success = true
+		result.Message = "NTP " + actionID + " successful and verified synchronized"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else if checkResult.Status == checks.StatusWarning {
+		// NTP enabled but not yet synchronized - this is acceptable
+		result.Success = true
+		result.Message = "NTP " + actionID + " successful (synchronization in progress)"
+		result.Output += "\n\n=== Verification ===\n" + checkResult.Message
+	} else {
+		result.Success = false
+		result.Error = "NTP not working after " + actionID
+		result.Message = "NTP " + actionID + " completed but verification failed"
+		result.Output += "\n\n=== Verification Failed ===\n" + checkResult.Message
+	}
+
 	return result
 }
