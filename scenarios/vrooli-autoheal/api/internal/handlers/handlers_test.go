@@ -113,6 +113,25 @@ func (m *mockStore) GetIncidents(ctx context.Context, windowHours, limit int) (*
 	}, nil
 }
 
+// Action log mock methods [REQ:HEAL-ACTION-001]
+func (m *mockStore) SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
+	return nil
+}
+
+func (m *mockStore) GetActionLogs(ctx context.Context, limit int) (*persistence.ActionLogsResponse, error) {
+	return &persistence.ActionLogsResponse{
+		Logs:  []persistence.ActionLog{},
+		Total: 0,
+	}, nil
+}
+
+func (m *mockStore) GetActionLogsForCheck(ctx context.Context, checkID string, limit int) (*persistence.ActionLogsResponse, error) {
+	return &persistence.ActionLogsResponse{
+		Logs:  []persistence.ActionLog{},
+		Total: 0,
+	}, nil
+}
+
 // mockCheck implements checks.Check for testing
 type mockCheck struct {
 	id       string

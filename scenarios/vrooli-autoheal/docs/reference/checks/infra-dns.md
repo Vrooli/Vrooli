@@ -119,12 +119,24 @@ The check resolves `google.com` by default. This domain was chosen for its extre
 - **infra-cloudflared**: Uses DNS for tunnel coordination
 - **resource-***: May use DNS for external connections
 
-## Auto-Heal Actions
+## Recovery Actions
 
-When this check fails, autoheal may attempt:
-1. Restart systemd-resolved service
-2. Reset resolv.conf to known-good values
-3. Flush DNS cache
+| Action | Description | Risk |
+|--------|-------------|------|
+| **Restart DNS Resolver** | Restart systemd-resolved service | Safe - brief DNS interruption |
+| **Flush DNS Cache** | Flush the resolver cache | Safe |
+| **Test External DNS** | Test DNS via Google's public DNS (8.8.8.8) | Safe - diagnostic only |
+
+The "Test External DNS" action is particularly useful for diagnosis:
+- If external DNS works but local doesn't → issue is with systemd-resolved
+- If external DNS also fails → issue is likely network connectivity
+
+## Auto-Heal Behavior
+
+When this check fails and auto-recovery is triggered, the system will:
+1. Flush DNS cache (low risk, often fixes transient issues)
+2. Restart systemd-resolved service if flush doesn't help
+3. Log diagnostic information for manual review
 
 ---
 

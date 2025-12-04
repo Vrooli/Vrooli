@@ -36,6 +36,28 @@ CREATE TABLE IF NOT EXISTS autoheal_actions (
 CREATE INDEX IF NOT EXISTS idx_autoheal_actions_created_at
     ON autoheal_actions (created_at DESC);
 
+-- Recovery action logs table (for UI-triggered actions)
+-- [REQ:HEAL-ACTION-001]
+CREATE TABLE IF NOT EXISTS action_logs (
+    id SERIAL PRIMARY KEY,
+    check_id VARCHAR(100) NOT NULL,
+    action_id VARCHAR(50) NOT NULL,
+    success BOOLEAN NOT NULL DEFAULT false,
+    message TEXT NOT NULL,
+    output TEXT,
+    error TEXT,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Index for querying action logs by check
+CREATE INDEX IF NOT EXISTS idx_action_logs_check_id_created
+    ON action_logs (check_id, created_at DESC);
+
+-- Index for querying recent action logs
+CREATE INDEX IF NOT EXISTS idx_action_logs_created_at
+    ON action_logs (created_at DESC);
+
 -- Configuration table for check intervals and settings
 CREATE TABLE IF NOT EXISTS autoheal_config (
     key VARCHAR(100) PRIMARY KEY,

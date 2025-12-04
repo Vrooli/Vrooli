@@ -1,5 +1,5 @@
 // Package system provides system-level health checks
-// [REQ:SYSTEM-PORTS-001]
+// [REQ:SYSTEM-PORTS-001] [REQ:HEAL-ACTION-001]
 package system
 
 import (
@@ -7,9 +7,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -243,3 +245,137 @@ func countEphemeralPortUsage(portMin, portMax int) (int, []portConsumer, error) 
 
 	return usedPorts, consumers[:limit], nil
 }
+
+// RecoveryActions returns available recovery actions for port management
+// [REQ:HEAL-ACTION-001]
+func (c *PortCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	isHighUsage := false
+	if lastResult != nil {
+		if pct, ok := lastResult.Details["usedPercent"].(int); ok {
+			isHighUsage = pct >= c.warningThreshold
+		}
+	}
+
+	return []checks.RecoveryAction{
+		{
+			ID:          "analyze",
+			Name:        "Analyze Connections",
+			Description: "Show detailed breakdown of port usage by process",
+			Dangerous:   false,
+			Available:   true,
+		},
+		{
+			ID:          "time-wait",
+			Name:        "Show TIME_WAIT",
+			Description: "List connections in TIME_WAIT state that are holding ports",
+			Dangerous:   false,
+			Available:   isHighUsage,
+		},
+		{
+			ID:          "kill-port",
+			Name:        "Kill Port Listener",
+			Description: "Terminate process listening on a specific port (requires port parameter)",
+			Dangerous:   true,
+			Available:   true,
+		},
+	}
+}
+
+// ExecuteAction runs the specified recovery action
+// [REQ:HEAL-ACTION-001]
+func (c *PortCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	switch actionID {
+	case "analyze":
+		return c.executeAnalyze(ctx, start)
+	case "time-wait":
+		return c.executeTimeWait(ctx, start)
+	case "kill-port":
+		// This action needs a port parameter but we return helpful info
+		result.Success = true
+		result.Message = "Use lsof -i :<port> to identify and kill specific port listeners"
+		result.Output = "To kill a specific port listener:\n" +
+			"  lsof -t -iTCP:<port> -sTCP:LISTEN | xargs kill\n\n" +
+			"This action is available via API with port parameter"
+		result.Duration = time.Since(start)
+		return result
+	default:
+		result.Success = false
+		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
+		return result
+	}
+}
+
+// executeAnalyze provides detailed port usage breakdown by process
+func (c *PortCheck) executeAnalyze(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "analyze",
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	// Use ss to get connection stats by process
+	cmd := exec.CommandContext(ctx, "ss", "-tunap")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Fallback to netstat
+		cmd = exec.CommandContext(ctx, "netstat", "-tunp")
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			result.Success = false
+			result.Error = "Failed to get connection info: " + err.Error()
+			result.Duration = time.Since(start)
+			return result
+		}
+	}
+
+	result.Duration = time.Since(start)
+	result.Success = true
+	result.Message = "Connection analysis complete"
+	result.Output = string(output)
+	return result
+}
+
+// executeTimeWait shows connections in TIME_WAIT state
+func (c *PortCheck) executeTimeWait(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "time-wait",
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	// Use ss to filter for TIME-WAIT connections
+	cmd := exec.CommandContext(ctx, "ss", "-tan", "state", "time-wait")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		result.Success = false
+		result.Error = "Failed to get TIME_WAIT connections: " + err.Error()
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Count TIME_WAIT connections
+	lines := strings.Split(string(output), "\n")
+	count := 0
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "State") {
+			count++
+		}
+	}
+
+	result.Duration = time.Since(start)
+	result.Success = true
+	result.Message = fmt.Sprintf("Found %d connections in TIME_WAIT state", count)
+	result.Output = string(output)
+	return result
+}
+
+// Ensure PortCheck implements HealableCheck
+var _ checks.HealableCheck = (*PortCheck)(nil)

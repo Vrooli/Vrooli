@@ -1,21 +1,32 @@
 // Package infra provides infrastructure health checks
-// [REQ:INFRA-DOCKER-001]
+// [REQ:INFRA-DOCKER-001] [REQ:HEAL-ACTION-001]
 package infra
 
 import (
 	"context"
 	"encoding/json"
 	"os/exec"
+	"runtime"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
 
 // DockerCheck verifies Docker daemon is responsive
-type DockerCheck struct{}
+type DockerCheck struct {
+	caps *platform.Capabilities
+}
 
 // NewDockerCheck creates a Docker health check
-func NewDockerCheck() *DockerCheck { return &DockerCheck{} }
+// Platform capabilities are optional (for recovery actions).
+func NewDockerCheck(caps ...*platform.Capabilities) *DockerCheck {
+	c := &DockerCheck{}
+	if len(caps) > 0 {
+		c.caps = caps[0]
+	}
+	return c
+}
 
 func (c *DockerCheck) ID() string          { return "infra-docker" }
 func (c *DockerCheck) Title() string       { return "Docker Engine" }
@@ -61,3 +72,193 @@ func (c *DockerCheck) Run(ctx context.Context) checks.Result {
 	result.Message = "Docker daemon is healthy"
 	return result
 }
+
+// RecoveryActions returns available recovery actions for Docker check
+// [REQ:HEAL-ACTION-001]
+func (c *DockerCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	isLinux := runtime.GOOS == "linux"
+	isMac := runtime.GOOS == "darwin"
+	hasSystemd := c.caps != nil && c.caps.SupportsSystemd
+
+	isResponsive := false
+	if lastResult != nil && lastResult.Status == checks.StatusOK {
+		isResponsive = true
+	}
+
+	actions := []checks.RecoveryAction{
+		{
+			ID:          "restart",
+			Name:        "Restart Docker",
+			Description: "Restart the Docker daemon service",
+			Dangerous:   true, // Restarting Docker stops all containers
+			Available:   isLinux && hasSystemd,
+		},
+		{
+			ID:          "start",
+			Name:        "Start Docker",
+			Description: "Start the Docker daemon service",
+			Dangerous:   false,
+			Available:   (isLinux && hasSystemd) && !isResponsive,
+		},
+		{
+			ID:          "prune",
+			Name:        "Prune System",
+			Description: "Remove unused Docker data (stopped containers, unused networks, dangling images)",
+			Dangerous:   true, // Removes data
+			Available:   isResponsive,
+		},
+		{
+			ID:          "logs",
+			Name:        "View Logs",
+			Description: "View recent Docker daemon logs",
+			Dangerous:   false,
+			Available:   isLinux && hasSystemd,
+		},
+		{
+			ID:          "info",
+			Name:        "Docker Info",
+			Description: "Get detailed Docker daemon information",
+			Dangerous:   false,
+			Available:   true,
+		},
+	}
+
+	// macOS uses Docker Desktop, not systemd
+	if isMac {
+		actions = append(actions, checks.RecoveryAction{
+			ID:          "open-desktop",
+			Name:        "Open Docker Desktop",
+			Description: "Open Docker Desktop application (macOS)",
+			Dangerous:   false,
+			Available:   true,
+		})
+	}
+
+	return actions
+}
+
+// ExecuteAction runs the specified recovery action
+// [REQ:HEAL-ACTION-001]
+func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	switch actionID {
+	case "restart":
+		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "restart", "docker")
+		output, err := cmd.CombinedOutput()
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to restart Docker daemon"
+			return result
+		}
+
+		result.Success = true
+		result.Message = "Docker daemon restarted successfully"
+		return result
+
+	case "start":
+		cmd := exec.CommandContext(ctx, "sudo", "systemctl", "start", "docker")
+		output, err := cmd.CombinedOutput()
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to start Docker daemon"
+			return result
+		}
+
+		result.Success = true
+		result.Message = "Docker daemon started successfully"
+		return result
+
+	case "prune":
+		// Use docker system prune with --force to avoid interactive prompt
+		cmd := exec.CommandContext(ctx, "docker", "system", "prune", "--force")
+		output, err := cmd.CombinedOutput()
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to prune Docker system"
+			return result
+		}
+
+		result.Success = true
+		result.Message = "Docker system pruned successfully"
+		return result
+
+	case "logs":
+		cmd := exec.CommandContext(ctx, "journalctl", "-u", "docker", "-n", "100", "--no-pager")
+		output, err := cmd.CombinedOutput()
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to retrieve Docker logs"
+			return result
+		}
+
+		result.Success = true
+		result.Message = "Retrieved Docker daemon logs"
+		return result
+
+	case "info":
+		cmd := exec.CommandContext(ctx, "docker", "info")
+		output, err := cmd.CombinedOutput()
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to get Docker info"
+			return result
+		}
+
+		result.Success = true
+		result.Message = "Retrieved Docker daemon information"
+		return result
+
+	case "open-desktop":
+		// macOS: open Docker Desktop
+		cmd := exec.CommandContext(ctx, "open", "-a", "Docker")
+		output, err := cmd.CombinedOutput()
+		result.Duration = time.Since(start)
+		result.Output = string(output)
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			result.Message = "Failed to open Docker Desktop"
+			return result
+		}
+
+		result.Success = true
+		result.Message = "Docker Desktop is opening"
+		return result
+
+	default:
+		result.Success = false
+		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
+		return result
+	}
+}
+
+// Ensure DockerCheck implements HealableCheck
+var _ checks.HealableCheck = (*DockerCheck)(nil)

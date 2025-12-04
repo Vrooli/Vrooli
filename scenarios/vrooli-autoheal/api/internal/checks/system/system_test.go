@@ -238,3 +238,131 @@ func TestAllChecksImplementInterface(t *testing.T) {
 		})
 	}
 }
+
+// TestZombieCheck_Healable verifies ZombieCheck implements HealableCheck
+// [REQ:HEAL-ACTION-001]
+func TestZombieCheck_Healable(t *testing.T) {
+	var _ checks.HealableCheck = (*ZombieCheck)(nil)
+
+	c := NewZombieCheck()
+	actions := c.RecoveryActions(nil)
+
+	if len(actions) == 0 {
+		t.Error("ZombieCheck should have recovery actions")
+	}
+
+	// Should have reap and list actions
+	actionIDs := make(map[string]bool)
+	for _, a := range actions {
+		actionIDs[a.ID] = true
+	}
+	expectedActions := []string{"reap", "list"}
+	for _, expected := range expectedActions {
+		if !actionIDs[expected] {
+			t.Errorf("ZombieCheck should have %s action", expected)
+		}
+	}
+}
+
+// TestZombieCheck_ReapActionAvailability verifies reap action is only available when zombies exist
+func TestZombieCheck_ReapActionAvailability(t *testing.T) {
+	c := NewZombieCheck()
+
+	// With no zombies
+	resultNoZombies := &checks.Result{
+		Details: map[string]interface{}{"zombieCount": 0},
+	}
+	actions := c.RecoveryActions(resultNoZombies)
+	for _, a := range actions {
+		if a.ID == "reap" && a.Available {
+			t.Error("reap action should not be available when no zombies")
+		}
+	}
+
+	// With zombies
+	resultWithZombies := &checks.Result{
+		Details: map[string]interface{}{"zombieCount": 5},
+	}
+	actions = c.RecoveryActions(resultWithZombies)
+	for _, a := range actions {
+		if a.ID == "reap" && !a.Available {
+			t.Error("reap action should be available when zombies exist")
+		}
+	}
+}
+
+// TestPortCheck_Healable verifies PortCheck implements HealableCheck
+// [REQ:HEAL-ACTION-001]
+func TestPortCheck_Healable(t *testing.T) {
+	var _ checks.HealableCheck = (*PortCheck)(nil)
+
+	c := NewPortCheck()
+	actions := c.RecoveryActions(nil)
+
+	if len(actions) == 0 {
+		t.Error("PortCheck should have recovery actions")
+	}
+
+	// Should have analyze, time-wait, and kill-port actions
+	actionIDs := make(map[string]bool)
+	for _, a := range actions {
+		actionIDs[a.ID] = true
+	}
+	expectedActions := []string{"analyze", "time-wait", "kill-port"}
+	for _, expected := range expectedActions {
+		if !actionIDs[expected] {
+			t.Errorf("PortCheck should have %s action", expected)
+		}
+	}
+}
+
+// TestPortCheck_TimeWaitActionAvailability verifies time-wait action availability
+func TestPortCheck_TimeWaitActionAvailability(t *testing.T) {
+	c := NewPortCheck()
+
+	// With low port usage
+	resultLow := &checks.Result{
+		Details: map[string]interface{}{"usedPercent": 30},
+	}
+	actions := c.RecoveryActions(resultLow)
+	for _, a := range actions {
+		if a.ID == "time-wait" && a.Available {
+			t.Error("time-wait action should not be available with low port usage")
+		}
+	}
+
+	// With high port usage
+	resultHigh := &checks.Result{
+		Details: map[string]interface{}{"usedPercent": 75},
+	}
+	actions = c.RecoveryActions(resultHigh)
+	for _, a := range actions {
+		if a.ID == "time-wait" && !a.Available {
+			t.Error("time-wait action should be available with high port usage")
+		}
+	}
+}
+
+// TestPortCheck_ExecuteAction verifies action execution
+func TestPortCheck_ExecuteAction(t *testing.T) {
+	c := NewPortCheck()
+	ctx := context.Background()
+
+	// Test unknown action
+	result := c.ExecuteAction(ctx, "unknown")
+	if result.Success {
+		t.Error("unknown action should fail")
+	}
+	if result.Error == "" {
+		t.Error("unknown action should have error message")
+	}
+
+	// Test kill-port returns helpful info (doesn't actually kill)
+	result = c.ExecuteAction(ctx, "kill-port")
+	if !result.Success {
+		t.Error("kill-port should return successfully with instructions")
+	}
+	if result.Output == "" {
+		t.Error("kill-port should provide instructions")
+	}
+}

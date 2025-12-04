@@ -491,6 +491,109 @@ Complete reference of all available health checks.
 
 ---
 
+### system-claude-cache
+
+**Purpose:** Monitor Claude Code cache to prevent file watcher exhaustion.
+
+| Property | Value |
+|----------|-------|
+| ID | `system-claude-cache` |
+| Category | System |
+| Interval | 3600 seconds (1 hour) |
+| Platforms | All |
+| Importance | Medium |
+
+**What it checks:**
+- File count in ~/.claude/ directory
+- Stale files eligible for cleanup
+
+**Status mapping:**
+| Status | Condition |
+|--------|-----------|
+| OK | File count < 5,000 |
+| Warning | File count 5,000-10,000 |
+| Critical | File count > 10,000 |
+
+**Recovery actions:**
+- Cleanup Stale Files (safe)
+- Full Cleanup (medium risk)
+- Analyze Cache
+
+**Troubleshooting:**
+- Count files: `find ~/.claude -type f | wc -l`
+- Check inotify limit: `cat /proc/sys/fs/inotify/max_user_watches`
+
+[Detailed documentation](checks/system-claude-cache.md)
+
+---
+
+### infra-certificate
+
+**Purpose:** Monitor SSL/TLS certificate expiration.
+
+| Property | Value |
+|----------|-------|
+| ID | `infra-certificate` |
+| Category | Infrastructure |
+| Interval | 3600 seconds (1 hour) |
+| Platforms | All |
+| Importance | High |
+
+**What it checks:**
+- Certificate expiration dates in ~/.cloudflared/
+- System certificate paths
+
+**Status mapping:**
+| Status | Condition |
+|--------|-----------|
+| OK | All certs > 7 days until expiry |
+| Warning | At least one cert expires within 7 days |
+| Critical | At least one cert expires within 3 days |
+
+**Troubleshooting:**
+- Check cert: `openssl x509 -in ~/.cloudflared/cert.pem -noout -dates`
+- Renew cloudflared: `cloudflared login`
+
+[Detailed documentation](checks/infra-certificate.md)
+
+---
+
+### infra-display
+
+**Purpose:** Monitor display manager and X11/Wayland on Linux.
+
+| Property | Value |
+|----------|-------|
+| ID | `infra-display` |
+| Category | Infrastructure |
+| Interval | 300 seconds |
+| Platforms | Linux |
+| Importance | Medium |
+
+**What it checks:**
+- Display manager service (GDM, LightDM, SDDM)
+- X11/Wayland responsiveness
+
+**Status mapping:**
+| Status | Condition |
+|--------|-----------|
+| OK | Display manager running, X11 responsive |
+| Warning | Display manager running but X11 unresponsive |
+| Critical | Display manager not running |
+
+**Recovery actions:**
+- Restart Display Manager (dangerous - disconnects sessions)
+- Check Status
+- View Logs
+
+**Troubleshooting:**
+- Check DM: `systemctl status gdm`
+- Check X11: `xdpyinfo`
+
+[Detailed documentation](checks/infra-display.md)
+
+---
+
 ## Check Intervals Summary
 
 | Interval | Checks | Use Case |
@@ -504,10 +607,10 @@ Complete reference of all available health checks.
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| Infrastructure | 6 | Network, DNS, Docker, Cloudflared, RDP, Vrooli API |
+| Infrastructure | 9 | Network, DNS, Docker, Cloudflared, RDP, NTP, Resolved, Certificate, Display |
 | Resource | 6 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG, Browserless |
-| System | 5 | Disk, Inode, Swap, Zombies, Ports |
-| **Total** | **17** | |
+| System | 6 | Disk, Inode, Swap, Zombies, Ports, Claude Cache |
+| **Total** | **21** | |
 
 ## Adding Custom Checks
 

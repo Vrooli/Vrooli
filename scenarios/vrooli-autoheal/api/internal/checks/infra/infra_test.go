@@ -301,3 +301,203 @@ func TestRDPCheckUsesInjectedCaps(t *testing.T) {
 		t.Error("RDPCheck should store injected capabilities")
 	}
 }
+
+// TestNTPCheckInterface verifies NTPCheck implements Check
+// [REQ:INFRA-NTP-001]
+func TestNTPCheckInterface(t *testing.T) {
+	var _ checks.Check = (*NTPCheck)(nil)
+
+	check := NewNTPCheck(testCaps())
+	if check.ID() != "infra-ntp" {
+		t.Errorf("ID() = %q, want %q", check.ID(), "infra-ntp")
+	}
+	if check.Title() == "" {
+		t.Error("Title() is empty")
+	}
+	if check.Description() == "" {
+		t.Error("Description() is empty")
+	}
+	if check.Importance() == "" {
+		t.Error("Importance() is empty")
+	}
+	if check.IntervalSeconds() <= 0 {
+		t.Error("IntervalSeconds() should be positive")
+	}
+	if check.Category() != checks.CategoryInfrastructure {
+		t.Error("Category should be infrastructure")
+	}
+
+	// Should be Linux-only
+	platforms := check.Platforms()
+	if len(platforms) == 0 {
+		t.Error("NTPCheck should specify platforms")
+	}
+	hasLinux := false
+	for _, p := range platforms {
+		if p == platform.Linux {
+			hasLinux = true
+		}
+	}
+	if !hasLinux {
+		t.Error("NTPCheck should include Linux platform")
+	}
+}
+
+// TestNTPCheckRun verifies NTP check execution
+// [REQ:INFRA-NTP-001]
+func TestNTPCheckRun(t *testing.T) {
+	check := NewNTPCheck(testCaps())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result := check.Run(ctx)
+
+	if result.CheckID != check.ID() {
+		t.Errorf("result.CheckID = %q, want %q", result.CheckID, check.ID())
+	}
+
+	// Valid statuses depend on platform and timedatectl availability
+	validStatuses := map[checks.Status]bool{checks.StatusOK: true, checks.StatusWarning: true}
+	if !validStatuses[result.Status] {
+		t.Errorf("result.Status = %v, want OK or Warning", result.Status)
+	}
+
+	if result.Message == "" {
+		t.Error("result.Message is empty")
+	}
+
+	t.Logf("NTP check result: %s - %s", result.Status, result.Message)
+}
+
+// TestNTPCheckHealable verifies NTPCheck implements HealableCheck
+func TestNTPCheckHealable(t *testing.T) {
+	var _ checks.HealableCheck = (*NTPCheck)(nil)
+
+	check := NewNTPCheck(testCaps())
+	actions := check.RecoveryActions(nil)
+
+	if len(actions) == 0 {
+		t.Error("NTPCheck should have recovery actions")
+	}
+
+	// Should have enable-ntp and force-sync actions
+	actionIDs := make(map[string]bool)
+	for _, a := range actions {
+		actionIDs[a.ID] = true
+	}
+	if !actionIDs["enable-ntp"] {
+		t.Error("NTPCheck should have enable-ntp action")
+	}
+	if !actionIDs["force-sync"] {
+		t.Error("NTPCheck should have force-sync action")
+	}
+}
+
+// TestResolvedCheckInterface verifies ResolvedCheck implements Check
+// [REQ:INFRA-RESOLVED-001]
+func TestResolvedCheckInterface(t *testing.T) {
+	var _ checks.Check = (*ResolvedCheck)(nil)
+
+	check := NewResolvedCheck(testCaps())
+	if check.ID() != "infra-resolved" {
+		t.Errorf("ID() = %q, want %q", check.ID(), "infra-resolved")
+	}
+	if check.Title() == "" {
+		t.Error("Title() is empty")
+	}
+	if check.Description() == "" {
+		t.Error("Description() is empty")
+	}
+	if check.Importance() == "" {
+		t.Error("Importance() is empty")
+	}
+	if check.IntervalSeconds() <= 0 {
+		t.Error("IntervalSeconds() should be positive")
+	}
+
+	// Should be Linux-only
+	platforms := check.Platforms()
+	if len(platforms) == 0 {
+		t.Error("ResolvedCheck should specify platforms")
+	}
+}
+
+// TestResolvedCheckRun verifies systemd-resolved check execution
+// [REQ:INFRA-RESOLVED-001]
+func TestResolvedCheckRun(t *testing.T) {
+	check := NewResolvedCheck(testCaps())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result := check.Run(ctx)
+
+	if result.CheckID != check.ID() {
+		t.Errorf("result.CheckID = %q, want %q", result.CheckID, check.ID())
+	}
+
+	// Valid statuses depend on whether systemd-resolved is installed
+	validStatuses := map[checks.Status]bool{
+		checks.StatusOK:       true,
+		checks.StatusWarning:  true,
+		checks.StatusCritical: true,
+	}
+	if !validStatuses[result.Status] {
+		t.Errorf("result.Status = %v", result.Status)
+	}
+
+	if result.Message == "" {
+		t.Error("result.Message is empty")
+	}
+
+	t.Logf("Resolved check result: %s - %s", result.Status, result.Message)
+}
+
+// TestResolvedCheckHealable verifies ResolvedCheck implements HealableCheck
+func TestResolvedCheckHealable(t *testing.T) {
+	var _ checks.HealableCheck = (*ResolvedCheck)(nil)
+
+	check := NewResolvedCheck(testCaps())
+	actions := check.RecoveryActions(nil)
+
+	if len(actions) == 0 {
+		t.Error("ResolvedCheck should have recovery actions")
+	}
+
+	// Should have start, restart, flush-cache, logs actions
+	actionIDs := make(map[string]bool)
+	for _, a := range actions {
+		actionIDs[a.ID] = true
+	}
+	expectedActions := []string{"start", "restart", "flush-cache", "logs"}
+	for _, expected := range expectedActions {
+		if !actionIDs[expected] {
+			t.Errorf("ResolvedCheck should have %s action", expected)
+		}
+	}
+}
+
+// TestCloudflaredCheckHealable verifies CloudflaredCheck implements HealableCheck
+func TestCloudflaredCheckHealable(t *testing.T) {
+	var _ checks.HealableCheck = (*CloudflaredCheck)(nil)
+
+	check := NewCloudflaredCheck(testCaps())
+	actions := check.RecoveryActions(nil)
+
+	if len(actions) == 0 {
+		t.Error("CloudflaredCheck should have recovery actions")
+	}
+
+	// Should have start, restart, logs actions
+	actionIDs := make(map[string]bool)
+	for _, a := range actions {
+		actionIDs[a.ID] = true
+	}
+	expectedActions := []string{"start", "restart", "logs"}
+	for _, expected := range expectedActions {
+		if !actionIDs[expected] {
+			t.Errorf("CloudflaredCheck should have %s action", expected)
+		}
+	}
+}

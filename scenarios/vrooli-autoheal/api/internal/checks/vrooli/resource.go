@@ -1,10 +1,12 @@
 // Package vrooli provides Vrooli-specific health checks
-// [REQ:RESOURCE-CHECK-001]
+// [REQ:RESOURCE-CHECK-001] [REQ:HEAL-ACTION-001]
 package vrooli
 
 import (
 	"context"
 	"os/exec"
+	"strings"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -119,6 +121,126 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 	cliStatus := ClassifyCLIOutput(string(output))
 	result.Status = CLIStatusToCheckStatus(cliStatus, isCritical)
 	result.Message = CLIStatusDescription(cliStatus, c.resourceName+" resource")
+
+	return result
+}
+
+// ResourceName returns the name of the resource (for action execution)
+func (c *ResourceCheck) ResourceName() string {
+	return c.resourceName
+}
+
+// RecoveryActions returns the available recovery actions for this resource check
+// [REQ:HEAL-ACTION-001]
+func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	// Determine current state from last result
+	isRunning := false
+	isStopped := false
+	if lastResult != nil {
+		output, ok := lastResult.Details["output"].(string)
+		if ok {
+			lowerOutput := strings.ToLower(output)
+			isRunning = strings.Contains(lowerOutput, "running") ||
+				strings.Contains(lowerOutput, "healthy") ||
+				strings.Contains(lowerOutput, "started")
+			isStopped = strings.Contains(lowerOutput, "stopped") ||
+				strings.Contains(lowerOutput, "not running") ||
+				strings.Contains(lowerOutput, "exited")
+		}
+		// If status is OK, likely running
+		if lastResult.Status == checks.StatusOK {
+			isRunning = true
+		}
+		// If status is critical, likely stopped
+		if lastResult.Status == checks.StatusCritical {
+			isStopped = true
+		}
+	}
+
+	actions := []checks.RecoveryAction{
+		{
+			ID:          "start",
+			Name:        "Start",
+			Description: "Start the " + c.resourceName + " resource",
+			Dangerous:   false,
+			Available:   !isRunning, // Can start if not running
+		},
+		{
+			ID:          "stop",
+			Name:        "Stop",
+			Description: "Stop the " + c.resourceName + " resource",
+			Dangerous:   true, // Stopping is dangerous
+			Available:   isRunning || (!isRunning && !isStopped), // Can stop if running or unknown
+		},
+		{
+			ID:          "restart",
+			Name:        "Restart",
+			Description: "Restart the " + c.resourceName + " resource",
+			Dangerous:   true, // Restarting causes brief downtime
+			Available:   true, // Always available
+		},
+		{
+			ID:          "logs",
+			Name:        "View Logs",
+			Description: "View recent logs from the " + c.resourceName + " resource",
+			Dangerous:   false,
+			Available:   true, // Always available
+		},
+	}
+
+	return actions
+}
+
+// ExecuteAction runs the specified recovery action for this resource
+// [REQ:HEAL-ACTION-001]
+func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.id,
+		Timestamp: start,
+	}
+
+	var cmd *exec.Cmd
+	switch actionID {
+	case "start":
+		cmd = exec.CommandContext(ctx, "vrooli", "resource", "start", c.resourceName)
+	case "stop":
+		cmd = exec.CommandContext(ctx, "vrooli", "resource", "stop", c.resourceName)
+	case "restart":
+		cmd = exec.CommandContext(ctx, "vrooli", "resource", "restart", c.resourceName)
+	case "logs":
+		cmd = exec.CommandContext(ctx, "vrooli", "resource", "logs", c.resourceName, "--tail", "50")
+	default:
+		result.Success = false
+		result.Error = "unknown action: " + actionID
+		result.Message = "Action not recognized"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	output, err := cmd.CombinedOutput()
+	result.Duration = time.Since(start)
+	result.Output = string(output)
+
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Action failed: " + actionID
+		return result
+	}
+
+	result.Success = true
+	switch actionID {
+	case "start":
+		result.Message = c.resourceName + " resource started successfully"
+	case "stop":
+		result.Message = c.resourceName + " resource stopped successfully"
+	case "restart":
+		result.Message = c.resourceName + " resource restarted successfully"
+	case "logs":
+		result.Message = "Retrieved logs for " + c.resourceName
+	}
 
 	return result
 }

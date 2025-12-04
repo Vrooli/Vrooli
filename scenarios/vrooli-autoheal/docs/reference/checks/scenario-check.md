@@ -164,13 +164,45 @@ Scenario checks are auto-registered when scenarios are started. Configuration is
 - **infra-***: Scenarios need infrastructure (network, Docker)
 - Other scenario checks (inter-scenario dependencies)
 
-## Auto-Heal Actions
+## Recovery Actions
 
-When a scenario check fails, autoheal may attempt:
-1. Restart the scenario
-2. Start missing resource dependencies first
-3. Scale up resources if memory/CPU constrained
-4. Alert administrators for persistent failures
+| Action | Description | Risk |
+|--------|-------------|------|
+| **Start** | Start the scenario | Safe |
+| **Stop** | Stop the scenario | Medium - stops service |
+| **Restart** | Standard restart of the scenario | Medium - brief downtime |
+| **Restart (Clean Stale)** | Stop, cleanup ports, and restart | Medium - more thorough |
+| **Cleanup Ports** | Kill processes holding scenario ports | High - may kill unrelated processes |
+| **View Logs** | View recent scenario logs | Safe |
+| **Diagnose** | Get detailed diagnostic information | Safe |
+
+### Clean Stale Restart
+
+The "Restart (Clean Stale)" action is particularly useful when:
+- Scenario won't start due to "port already in use"
+- Previous process didn't terminate cleanly
+- Orphaned processes are holding ports
+
+This action:
+1. Stops the scenario normally
+2. Identifies scenario ports via `vrooli scenario port`
+3. Kills any processes still holding those ports
+4. Starts the scenario fresh
+
+### Port Cleanup Details
+
+The "Cleanup Ports" action:
+1. Gets scenario ports from `vrooli scenario port`
+2. Uses `lsof` to find processes on each port
+3. Sends SIGTERM first (graceful)
+4. Falls back to SIGKILL if needed (force)
+
+## Auto-Heal Behavior
+
+When a scenario check fails and auto-recovery is triggered, the system will:
+1. Attempt a standard restart
+2. If restart fails due to port conflicts, use clean-stale restart
+3. Log diagnostic information for manual review
 
 ## Scenario Health Endpoints
 

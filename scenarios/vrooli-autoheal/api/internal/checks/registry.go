@@ -176,3 +176,31 @@ func (r *Registry) ListChecks() []Info {
 	}
 	return infos
 }
+
+// GetCheck returns a check by ID
+func (r *Registry) GetCheck(id string) (Check, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	check, exists := r.checks[id]
+	return check, exists
+}
+
+// GetHealableCheck returns a HealableCheck by ID if the check supports recovery actions
+// [REQ:HEAL-ACTION-001]
+func (r *Registry) GetHealableCheck(id string) (HealableCheck, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	check, exists := r.checks[id]
+	if !exists {
+		return nil, false
+	}
+	healable, ok := check.(HealableCheck)
+	return healable, ok
+}
+
+// IsHealable returns true if the check with the given ID supports recovery actions
+// [REQ:HEAL-ACTION-001]
+func (r *Registry) IsHealable(id string) bool {
+	_, ok := r.GetHealableCheck(id)
+	return ok
+}

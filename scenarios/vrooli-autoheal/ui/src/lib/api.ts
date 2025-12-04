@@ -449,3 +449,67 @@ export function statusToEmoji(status: HealthStatus): string {
       return "\u2753"; // ?
   }
 }
+
+// ============================================================================
+// Recovery Actions API
+// [REQ:HEAL-ACTION-001]
+// ============================================================================
+
+export interface RecoveryAction {
+  id: string;
+  name: string;
+  description: string;
+  dangerous: boolean;
+  available: boolean;
+}
+
+export interface CheckActionsResponse {
+  checkId: string;
+  actions: RecoveryAction[];
+}
+
+export interface ActionResult {
+  actionId: string;
+  checkId: string;
+  success: boolean;
+  message: string;
+  output?: string;
+  error?: string;
+  timestamp: string;
+  duration: number;
+}
+
+export interface ActionLog {
+  id: number;
+  checkId: string;
+  actionId: string;
+  success: boolean;
+  message: string;
+  output?: string;
+  error?: string;
+  durationMs: number;
+  timestamp: string;
+}
+
+export interface ActionLogsResponse {
+  logs: ActionLog[];
+  total: number;
+}
+
+export async function fetchCheckActions(checkId: string): Promise<CheckActionsResponse> {
+  return apiRequest<CheckActionsResponse>(`/checks/${encodeURIComponent(checkId)}/actions`);
+}
+
+export async function executeAction(checkId: string, actionId: string): Promise<ActionResult> {
+  return apiRequest<ActionResult>(
+    `/checks/${encodeURIComponent(checkId)}/actions/${encodeURIComponent(actionId)}`,
+    { method: "POST" }
+  );
+}
+
+export async function fetchActionHistory(checkId?: string): Promise<ActionLogsResponse> {
+  const endpoint = checkId
+    ? `/actions/history?checkId=${encodeURIComponent(checkId)}`
+    : "/actions/history";
+  return apiRequest<ActionLogsResponse>(endpoint);
+}

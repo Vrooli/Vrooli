@@ -1,14 +1,18 @@
 // Package system provides system-level health checks
-// [REQ:SYSTEM-ZOMBIES-001]
+// [REQ:SYSTEM-ZOMBIES-001] [REQ:HEAL-ACTION-001]
 package system
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
@@ -197,3 +201,177 @@ func countZombies() (int, []zombieProcessInfo, error) {
 
 	return count, zombies, nil
 }
+
+// RecoveryActions returns available recovery actions for zombie cleanup
+// [REQ:HEAL-ACTION-001]
+func (c *ZombieCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	hasZombies := false
+	if lastResult != nil {
+		if count, ok := lastResult.Details["zombieCount"].(int); ok {
+			hasZombies = count > 0
+		}
+	}
+
+	return []checks.RecoveryAction{
+		{
+			ID:          "reap",
+			Name:        "Reap Zombies",
+			Description: "Send SIGCHLD to parent processes to trigger zombie cleanup",
+			Dangerous:   false,
+			Available:   hasZombies,
+		},
+		{
+			ID:          "list",
+			Name:        "List Zombies",
+			Description: "Show current zombie processes and their parents",
+			Dangerous:   false,
+			Available:   true,
+		},
+	}
+}
+
+// ExecuteAction runs the specified recovery action
+// [REQ:HEAL-ACTION-001]
+func (c *ZombieCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  actionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	switch actionID {
+	case "reap":
+		return c.executeReap(ctx, start)
+	case "list":
+		return c.executeList(ctx, start)
+	default:
+		result.Success = false
+		result.Error = "unknown action: " + actionID
+		result.Duration = time.Since(start)
+		return result
+	}
+}
+
+// executeReap sends SIGCHLD to parent processes of zombies to trigger reaping
+func (c *ZombieCheck) executeReap(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "reap",
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	// Get zombie parent PIDs
+	parentPIDs, err := c.getZombieParentPIDs()
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	if len(parentPIDs) == 0 {
+		result.Success = true
+		result.Message = "No zombie parent processes to signal"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Send SIGCHLD to each parent (except init)
+	var signaled []int
+	var failed []int
+	for _, ppid := range parentPIDs {
+		if ppid <= 1 {
+			continue // Never signal init
+		}
+		if err := syscall.Kill(ppid, syscall.SIGCHLD); err != nil {
+			failed = append(failed, ppid)
+		} else {
+			signaled = append(signaled, ppid)
+		}
+	}
+
+	// Wait briefly for parents to reap
+	time.Sleep(2 * time.Second)
+
+	// Check remaining zombies
+	remainingCount, _, _ := countZombies()
+
+	result.Duration = time.Since(start)
+	result.Output = fmt.Sprintf("Signaled %d parent processes, %d failed\nRemaining zombies: %d",
+		len(signaled), len(failed), remainingCount)
+
+	if remainingCount < c.criticalThreshold {
+		result.Success = true
+		result.Message = "Zombie cleanup successful"
+	} else {
+		result.Success = false
+		result.Message = "Zombie cleanup incomplete"
+		result.Error = fmt.Sprintf("%d zombies still remain", remainingCount)
+	}
+
+	return result
+}
+
+// executeList returns a list of current zombie processes
+func (c *ZombieCheck) executeList(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "list",
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	// Use ps to get zombie process info
+	cmd := exec.CommandContext(ctx, "ps", "aux")
+	output, err := cmd.Output()
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Filter for zombie processes (state Z)
+	var zombieLines []string
+	lines := strings.Split(string(output), "\n")
+	if len(lines) > 0 {
+		zombieLines = append(zombieLines, lines[0]) // Header
+	}
+	for _, line := range lines[1:] {
+		fields := strings.Fields(line)
+		if len(fields) >= 8 && strings.Contains(fields[7], "Z") {
+			zombieLines = append(zombieLines, line)
+		}
+	}
+
+	result.Duration = time.Since(start)
+	result.Success = true
+	result.Message = fmt.Sprintf("Found %d zombie processes", len(zombieLines)-1)
+	result.Output = strings.Join(zombieLines, "\n")
+	return result
+}
+
+// getZombieParentPIDs returns unique parent PIDs of all zombie processes
+func (c *ZombieCheck) getZombieParentPIDs() ([]int, error) {
+	_, zombieInfo, err := countZombies()
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect unique parent PIDs
+	parentSet := make(map[int]bool)
+	for _, z := range zombieInfo {
+		if pid, err := strconv.Atoi(z.PPID); err == nil && pid > 1 {
+			parentSet[pid] = true
+		}
+	}
+
+	var parents []int
+	for pid := range parentSet {
+		parents = append(parents, pid)
+	}
+	return parents, nil
+}
+
+// Ensure ZombieCheck implements HealableCheck
+var _ checks.HealableCheck = (*ZombieCheck)(nil)

@@ -534,3 +534,121 @@ func (s *Store) GetIncidents(ctx context.Context, windowHours, limit int) (*Inci
 		Total:       len(incidents),
 	}, nil
 }
+
+// ActionLog represents a logged recovery action execution
+// [REQ:HEAL-ACTION-001]
+type ActionLog struct {
+	ID        int64  `json:"id"`
+	CheckID   string `json:"checkId"`
+	ActionID  string `json:"actionId"`
+	Success   bool   `json:"success"`
+	Message   string `json:"message"`
+	Output    string `json:"output,omitempty"`
+	Error     string `json:"error,omitempty"`
+	DurationMs int64 `json:"durationMs"`
+	Timestamp string `json:"timestamp"`
+}
+
+// ActionLogsResponse contains action history
+type ActionLogsResponse struct {
+	Logs  []ActionLog `json:"logs"`
+	Total int         `json:"total"`
+}
+
+// SaveActionLog persists a recovery action execution to the database
+// [REQ:HEAL-ACTION-001]
+func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
+	query := `
+		INSERT INTO action_logs (check_id, action_id, success, message, output, error, duration_ms, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+	`
+	_, err := s.db.ExecContext(ctx, query, checkID, actionID, success, message, output, errMsg, durationMs)
+	return err
+}
+
+// GetActionLogs retrieves recent action logs
+// [REQ:HEAL-ACTION-001]
+func (s *Store) GetActionLogs(ctx context.Context, limit int) (*ActionLogsResponse, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+
+	query := `
+		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
+		FROM action_logs
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []ActionLog
+	for rows.Next() {
+		var l ActionLog
+		var timestamp time.Time
+
+		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.Message, &l.Output, &l.Error, &l.DurationMs, &timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		l.Timestamp = timestamp.UTC().Format(time.RFC3339)
+		logs = append(logs, l)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return &ActionLogsResponse{
+		Logs:  logs,
+		Total: len(logs),
+	}, nil
+}
+
+// GetActionLogsForCheck retrieves action logs for a specific check
+// [REQ:HEAL-ACTION-001]
+func (s *Store) GetActionLogsForCheck(ctx context.Context, checkID string, limit int) (*ActionLogsResponse, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 20
+	}
+
+	query := `
+		SELECT id, check_id, action_id, success, message, COALESCE(output, ''), COALESCE(error, ''), duration_ms, created_at
+		FROM action_logs
+		WHERE check_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, checkID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []ActionLog
+	for rows.Next() {
+		var l ActionLog
+		var timestamp time.Time
+
+		if err := rows.Scan(&l.ID, &l.CheckID, &l.ActionID, &l.Success, &l.Message, &l.Output, &l.Error, &l.DurationMs, &timestamp); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+
+		l.Timestamp = timestamp.UTC().Format(time.RFC3339)
+		logs = append(logs, l)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return &ActionLogsResponse{
+		Logs:  logs,
+		Total: len(logs),
+	}, nil
+}

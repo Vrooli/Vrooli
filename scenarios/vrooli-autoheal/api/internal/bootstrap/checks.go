@@ -31,10 +31,14 @@ const (
 func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilities) {
 	// Infrastructure checks - explicit targets make dependencies clear
 	registry.Register(infra.NewNetworkCheck(DefaultNetworkTarget))
-	registry.Register(infra.NewDNSCheck(DefaultDNSDomain))
-	registry.Register(infra.NewDockerCheck())
+	registry.Register(infra.NewDNSCheck(DefaultDNSDomain, caps))
+	registry.Register(infra.NewDockerCheck(caps))
 	registry.Register(infra.NewCloudflaredCheck(caps))
 	registry.Register(infra.NewRDPCheck(caps))
+	registry.Register(infra.NewNTPCheck(caps))
+	registry.Register(infra.NewResolvedCheck(caps))
+	registry.Register(infra.NewCertificateCheck())
+	registry.Register(infra.NewDisplayManagerCheck(caps))
 
 	// Vrooli API check - monitors the central orchestration layer
 	registry.Register(vrooli.NewAPICheck())
@@ -53,6 +57,7 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 	registry.Register(system.NewSwapCheck())
 	registry.Register(system.NewZombieCheck())
 	registry.Register(system.NewPortCheck())
+	registry.Register(system.NewClaudeCacheCheck())
 }
 
 // ResultLoader is the interface for loading persisted results.

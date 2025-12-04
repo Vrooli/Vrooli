@@ -121,6 +121,11 @@ func setupRouter(h *apiHandlers.Handlers) *mux.Router {
 	router.HandleFunc("/api/v1/watchdog", h.Watchdog).Methods("GET")
 	router.HandleFunc("/api/v1/watchdog/template", h.WatchdogTemplate).Methods("GET")
 
+	// Recovery action endpoints [REQ:HEAL-ACTION-001]
+	router.HandleFunc("/api/v1/checks/{checkId}/actions", h.GetCheckActions).Methods("GET")
+	router.HandleFunc("/api/v1/checks/{checkId}/actions/{actionId}", h.ExecuteCheckAction).Methods("POST")
+	router.HandleFunc("/api/v1/actions/history", h.GetActionHistory).Methods("GET")
+
 	// Documentation endpoints
 	router.HandleFunc("/api/v1/docs/manifest", h.DocsManifest).Methods("GET")
 	router.HandleFunc("/api/v1/docs/content", h.DocsContent).Methods("GET")

@@ -1,9 +1,10 @@
 // Individual health check result card with history drawer
-// [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001]
+// [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:HEAL-ACTION-001]
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, ChevronDown, ChevronRight, History, Loader2, AlertTriangle, CheckCircle2, XCircle, Info, BookOpen } from "lucide-react";
 import { StatusIcon } from "./StatusIcon";
+import { ActionButtons } from "./ActionButtons";
 import { fetchCheckHistory, type HealthResult, type HistoryEntry, type SubCheck, type CheckCategory } from "../lib/api";
 import { selectors } from "../consts/selectors";
 import { navigateToCheckDocs } from "../lib/docs";
@@ -163,6 +164,9 @@ export function CheckCard({ check }: CheckCardProps) {
               <span>Learn more</span>
             </button>
           </div>
+
+          {/* Recovery actions (for resource checks) */}
+          <ActionButtons checkId={check.checkId} category={check.category} />
 
           {/* Expanded details */}
           {viewMode === "details" && hasDetails && (

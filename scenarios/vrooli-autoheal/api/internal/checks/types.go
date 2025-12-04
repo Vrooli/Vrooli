@@ -137,3 +137,37 @@ func ComputeSummary(results []Result) Summary {
 	summary.Status = AggregateStatus(results)
 	return summary
 }
+
+// RecoveryAction represents a possible recovery action for a health check
+// [REQ:HEAL-ACTION-001]
+type RecoveryAction struct {
+	ID          string `json:"id"`          // Unique identifier, e.g., "start", "restart"
+	Name        string `json:"name"`        // Human-friendly name, e.g., "Start Resource"
+	Description string `json:"description"` // What this action does
+	Dangerous   bool   `json:"dangerous"`   // Requires confirmation before executing
+	Available   bool   `json:"available"`   // Can run in current state (e.g., can't start if already running)
+}
+
+// ActionResult represents the outcome of executing a recovery action
+// [REQ:HEAL-ACTION-001]
+type ActionResult struct {
+	ActionID  string    `json:"actionId"`
+	CheckID   string    `json:"checkId"`
+	Success   bool      `json:"success"`
+	Message   string    `json:"message"`
+	Output    string    `json:"output,omitempty"` // Command output if any
+	Error     string    `json:"error,omitempty"`  // Error message if failed
+	Timestamp time.Time `json:"timestamp"`
+	Duration  time.Duration `json:"duration"`
+}
+
+// HealableCheck extends Check with recovery action capabilities
+// [REQ:HEAL-ACTION-001]
+type HealableCheck interface {
+	Check
+	// RecoveryActions returns the available recovery actions for this check
+	// based on the current state (from lastResult)
+	RecoveryActions(lastResult *Result) []RecoveryAction
+	// ExecuteAction runs the specified recovery action
+	ExecuteAction(ctx context.Context, actionID string) ActionResult
+}

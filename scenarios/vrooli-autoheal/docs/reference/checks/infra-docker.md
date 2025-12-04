@@ -130,13 +130,35 @@ No special configuration required. The check uses the default Docker socket loca
 - **resource-qdrant**: Runs as Docker container
 - All resource checks depend on Docker being available
 
-## Auto-Heal Actions
+## Recovery Actions
 
-When this check fails, autoheal may attempt:
-1. Start Docker daemon via systemctl
-2. Restart Docker daemon if hung
-3. Clean up disk space if near capacity
-4. Alert administrators for manual intervention
+| Action | Description | Risk | Platform |
+|--------|-------------|------|----------|
+| **Start Docker** | Start the Docker daemon service | Safe | Linux |
+| **Restart Docker** | Restart the Docker daemon service | **HIGH** - stops all containers | Linux |
+| **Prune System** | Remove unused data (stopped containers, dangling images) | Medium - removes data | All |
+| **View Logs** | View recent Docker daemon logs | Safe | Linux |
+| **Docker Info** | Get detailed Docker daemon information | Safe | All |
+| **Open Docker Desktop** | Open Docker Desktop application | Safe | macOS |
+
+### Linux Recovery
+```bash
+# Start daemon
+sudo systemctl start docker
+
+# Restart daemon (WARNING: stops all containers!)
+sudo systemctl restart docker
+```
+
+### macOS Recovery
+Docker Desktop manages the daemon on macOS. Use the "Open Docker Desktop" action to launch the application.
+
+## Auto-Heal Behavior
+
+When this check fails and auto-recovery is triggered, the system will:
+1. Attempt to start Docker if not running
+2. Log diagnostic information for manual review
+3. Restart is NOT automatic due to high risk (stops all containers)
 
 ## Docker Alternatives
 
