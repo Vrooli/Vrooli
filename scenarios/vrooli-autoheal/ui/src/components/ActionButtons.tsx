@@ -1,8 +1,8 @@
 // Recovery action buttons for healable checks
 // [REQ:HEAL-ACTION-001]
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Square, RotateCcw, FileText, Loader2, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, Square, RotateCcw, FileText, Loader2, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { fetchCheckActions, executeAction, type RecoveryAction, type ActionResult } from "../lib/api";
 
 interface ActionButtonsProps {
@@ -17,6 +17,33 @@ const actionIcons: Record<string, typeof Play> = {
   restart: RotateCcw,
   logs: FileText,
 };
+
+// Get human-readable reason why an action is unavailable
+function getUnavailableReason(actionId: string, allActions: RecoveryAction[]): string {
+  // Check if the opposite action is available to infer state
+  const startAction = allActions.find((a) => a.id === "start");
+  const stopAction = allActions.find((a) => a.id === "stop");
+
+  switch (actionId) {
+    case "start":
+      if (stopAction?.available) {
+        return "Resource is already running";
+      }
+      return "Cannot start resource";
+    case "stop":
+      if (startAction?.available) {
+        return "Resource is not running";
+      }
+      return "Cannot stop resource";
+    case "restart":
+      if (startAction?.available) {
+        return "Resource is not running";
+      }
+      return "Cannot restart resource";
+    default:
+      return "Action not available";
+  }
+}
 
 export function ActionButtons({ checkId, category }: ActionButtonsProps) {
   const [expanded, setExpanded] = useState(false);
@@ -63,6 +90,15 @@ export function ActionButtons({ checkId, category }: ActionButtonsProps) {
     }
   }, [confirmAction, executeMutation]);
 
+  // Separate actions into available and unavailable groups
+  const { availableActions, unavailableActions } = useMemo(() => {
+    if (!data?.actions) return { availableActions: [], unavailableActions: [] };
+    return {
+      availableActions: data.actions.filter((a) => a.available),
+      unavailableActions: data.actions.filter((a) => !a.available),
+    };
+  }, [data?.actions]);
+
   // Don't show for non-resource checks
   if (!isResourceCheck) {
     return null;
@@ -89,34 +125,55 @@ export function ActionButtons({ checkId, category }: ActionButtonsProps) {
             </div>
           ) : data?.actions && data.actions.length > 0 ? (
             <>
-              {/* Action buttons */}
-              <div className="flex flex-wrap gap-2">
-                {data.actions.map((action) => {
-                  const Icon = actionIcons[action.id] || Play;
-                  return (
-                    <button
-                      key={action.id}
-                      onClick={() => handleActionClick(action)}
-                      disabled={!action.available || executeMutation.isPending}
-                      title={action.description}
-                      className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded border transition-colors ${
-                        action.available
-                          ? action.dangerous
+              {/* Available actions - prominent display */}
+              {availableActions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {availableActions.map((action) => {
+                    const Icon = actionIcons[action.id] || Play;
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => handleActionClick(action)}
+                        disabled={executeMutation.isPending}
+                        title={action.description}
+                        className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded border transition-colors ${
+                          action.dangerous
                             ? "border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
                             : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
-                          : "border-white/5 bg-white/[0.02] text-slate-600 cursor-not-allowed"
-                      }`}
-                    >
-                      {executeMutation.isPending && executeMutation.variables?.actionId === action.id ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
+                        }`}
+                      >
+                        {executeMutation.isPending && executeMutation.variables?.actionId === action.id ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Icon size={12} />
+                        )}
+                        {action.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Unavailable actions - subdued with tooltips explaining why */}
+              {unavailableActions.length > 0 && (
+                <div className={`flex flex-wrap gap-2 ${availableActions.length > 0 ? "mt-2 pt-2 border-t border-white/5" : ""}`}>
+                  {unavailableActions.map((action) => {
+                    const Icon = actionIcons[action.id] || Play;
+                    const reason = getUnavailableReason(action.id, data.actions);
+                    return (
+                      <div
+                        key={action.id}
+                        title={reason}
+                        className="flex items-center gap-1.5 px-2 py-1 text-xs rounded border border-white/5 bg-white/[0.02] text-slate-600 cursor-not-allowed group relative"
+                      >
                         <Icon size={12} />
-                      )}
-                      {action.name}
-                    </button>
-                  );
-                })}
-              </div>
+                        {action.name}
+                        <Info size={10} className="ml-0.5 opacity-50" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Confirmation dialog */}
               {confirmAction && (

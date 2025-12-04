@@ -2,10 +2,11 @@
 // [REQ:WATCH-DETECT-001] [REQ:UI-HEALTH-001]
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Shield, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, ChevronRight, Copy, Check, RefreshCw } from "lucide-react";
+import { Shield, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, ChevronRight, Copy, Check, RefreshCw, ExternalLink } from "lucide-react";
 import { fetchWatchdogStatus, fetchWatchdogTemplate, ProtectionLevel, WatchdogStatus } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { selectors } from "../consts/selectors";
+import { getDocsPath } from "../lib/docs";
 
 // Protection level colors and labels
 const PROTECTION_CONFIG: Record<ProtectionLevel, { color: string; bgColor: string; label: string; icon: typeof CheckCircle }> = {
@@ -251,6 +252,15 @@ export function SystemProtection({ compact = false }: SystemProtectionProps) {
         <StatusIndicator active={data.watchdogInstalled} label="OS Watchdog" />
         <StatusIndicator active={data.bootProtectionActive} label="Boot Recovery" />
       </div>
+
+      {/* Learn More Link */}
+      <a
+        href={`#docs?path=${encodeURIComponent(getDocsPath("system-protection"))}`}
+        className="mt-3 flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+      >
+        <ExternalLink size={12} />
+        Learn more about system protection
+      </a>
 
       {/* Watchdog Type Info */}
       {data.watchdogType && (

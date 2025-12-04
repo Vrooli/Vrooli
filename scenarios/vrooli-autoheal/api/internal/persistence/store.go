@@ -248,6 +248,8 @@ type UptimeHistory struct {
 }
 
 // GetUptimeHistory returns time-bucketed uptime data for charting
+// This returns the STATE SNAPSHOT at each bucket time - i.e., how many checks
+// were in each state at that point, NOT how many events occurred in that bucket.
 // [REQ:PERSIST-HISTORY-001] [REQ:UI-EVENTS-001]
 func (s *Store) GetUptimeHistory(ctx context.Context, windowHours, bucketCount int) (*UptimeHistory, error) {
 	if bucketCount <= 0 {
@@ -260,34 +262,50 @@ func (s *Store) GetUptimeHistory(ctx context.Context, windowHours, bucketCount i
 	// Calculate bucket duration in minutes
 	bucketMinutes := (windowHours * 60) / bucketCount
 
-	// Query to bucket health results by time
+	// Query to get state snapshot at each bucket time
+	// For each bucket, we find the most recent status for each check that occurred
+	// at or before that bucket time, then count how many are ok/warning/critical.
+	// This gives us the "state of the world" at each point in time.
 	query := `
 		WITH time_series AS (
 			SELECT generate_series(
 				date_trunc('hour', NOW()) - INTERVAL '1 hour' * $1 + INTERVAL '1 minute' * $2,
 				NOW(),
 				INTERVAL '1 minute' * $2
-			) AS bucket_start
+			) AS bucket_time
 		),
-		bucketed_results AS (
+		-- Get all unique check IDs that have results in our extended window
+		-- (include some buffer to catch checks that haven't run recently)
+		all_checks AS (
+			SELECT DISTINCT check_id
+			FROM health_results
+			WHERE created_at >= NOW() - INTERVAL '1 hour' * ($1 + 24)
+		),
+		-- For each bucket + check combination, find the most recent result at that time
+		check_states AS (
 			SELECT
-				ts.bucket_start,
-				hr.status
+				ts.bucket_time,
+				ac.check_id,
+				(
+					SELECT status
+					FROM health_results hr
+					WHERE hr.check_id = ac.check_id
+					AND hr.created_at <= ts.bucket_time
+					ORDER BY hr.created_at DESC
+					LIMIT 1
+				) as status_at_time
 			FROM time_series ts
-			LEFT JOIN health_results hr ON
-				hr.created_at >= ts.bucket_start AND
-				hr.created_at < ts.bucket_start + INTERVAL '1 minute' * $2 AND
-				hr.created_at >= NOW() - INTERVAL '1 hour' * $1
+			CROSS JOIN all_checks ac
 		)
 		SELECT
-			bucket_start,
-			COUNT(status) as total,
-			COUNT(CASE WHEN status = 'ok' THEN 1 END) as ok_count,
-			COUNT(CASE WHEN status = 'warning' THEN 1 END) as warning_count,
-			COUNT(CASE WHEN status = 'critical' THEN 1 END) as critical_count
-		FROM bucketed_results
-		GROUP BY bucket_start
-		ORDER BY bucket_start ASC
+			bucket_time,
+			COUNT(status_at_time) as total,
+			COUNT(CASE WHEN status_at_time = 'ok' THEN 1 END) as ok_count,
+			COUNT(CASE WHEN status_at_time = 'warning' THEN 1 END) as warning_count,
+			COUNT(CASE WHEN status_at_time = 'critical' THEN 1 END) as critical_count
+		FROM check_states
+		GROUP BY bucket_time
+		ORDER BY bucket_time ASC
 	`
 
 	rows, err := s.db.QueryContext(ctx, query, windowHours, bucketMinutes)
@@ -297,7 +315,7 @@ func (s *Store) GetUptimeHistory(ctx context.Context, windowHours, bucketCount i
 	defer rows.Close()
 
 	var buckets []UptimeHistoryBucket
-	var totalEvents, totalOk, totalWarning, totalCritical int
+	var totalSnapshots, totalOk, totalWarning, totalCritical int
 
 	for rows.Next() {
 		var b UptimeHistoryBucket
@@ -306,7 +324,7 @@ func (s *Store) GetUptimeHistory(ctx context.Context, windowHours, bucketCount i
 		}
 		buckets = append(buckets, b)
 
-		totalEvents += b.Total
+		totalSnapshots += b.Total
 		totalOk += b.Ok
 		totalWarning += b.Warning
 		totalCritical += b.Critical
@@ -316,16 +334,16 @@ func (s *Store) GetUptimeHistory(ctx context.Context, windowHours, bucketCount i
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
-	// Calculate overall uptime
+	// Calculate overall uptime as average across all snapshots
 	uptimePercent := 100.0
-	if totalEvents > 0 {
-		uptimePercent = float64(totalOk) / float64(totalEvents) * 100
+	if totalSnapshots > 0 {
+		uptimePercent = float64(totalOk) / float64(totalSnapshots) * 100
 	}
 
 	return &UptimeHistory{
 		Buckets: buckets,
 		Overall: UptimeStats{
-			TotalEvents:      totalEvents,
+			TotalEvents:      totalSnapshots,
 			OkEvents:         totalOk,
 			WarningEvents:    totalWarning,
 			CriticalEvents:   totalCritical,

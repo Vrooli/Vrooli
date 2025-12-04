@@ -2,7 +2,7 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity, TrendingUp, LayoutDashboard, BookOpen, Settings } from "lucide-react";
+import { RefreshCw, Play, Shield, AlertCircle, CheckCircle, AlertTriangle, HardDrive, Activity, TrendingUp, LayoutDashboard, BookOpen, Settings, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { fetchStatus, fetchChecks, runTick, groupChecksByStatus, statusToEmoji } from "./lib/api";
 import type { CheckInfo, HealthResult, CheckCategory } from "./lib/api";
@@ -33,11 +33,42 @@ function getTabFromHash(): TabType {
   return "dashboard";
 }
 
+// Collapsible group state type
+type CollapsedGroups = {
+  critical: boolean;
+  warning: boolean;
+  ok: boolean;
+};
+
+// Load collapsed state from localStorage
+function loadCollapsedState(): CollapsedGroups {
+  try {
+    const saved = localStorage.getItem("autoheal-collapsed-groups");
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  // Default: critical and warning expanded, healthy collapsed
+  return { critical: false, warning: false, ok: true };
+}
+
 export default function App() {
   const queryClient = useQueryClient();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>(getTabFromHash);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<CollapsedGroups>(loadCollapsedState);
+
+  // Persist collapsed state to localStorage
+  const toggleGroup = useCallback((group: keyof CollapsedGroups) => {
+    setCollapsedGroups((prev) => {
+      const next = { ...prev, [group]: !prev[group] };
+      localStorage.setItem("autoheal-collapsed-groups", JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   // Sync tab state with URL hash
   const handleTabChange = useCallback((tab: TabType) => {
@@ -274,33 +305,87 @@ export default function App() {
                   )}
                 </h2>
 
-                {/* Critical checks first */}
+                {/* Critical checks first - collapsible */}
                 {critChecks.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-medium text-red-400">Critical Issues</h3>
-                    {critChecks.map((check) => (
-                      <CheckCard key={check.checkId} check={check} />
-                    ))}
+                    <button
+                      onClick={() => toggleGroup("critical")}
+                      className="flex items-center gap-2 text-sm font-medium text-red-400 hover:text-red-300 transition-colors w-full text-left"
+                    >
+                      {collapsedGroups.critical ? (
+                        <ChevronRight size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                      <AlertCircle size={16} />
+                      <span>Critical Issues</span>
+                      <span className="ml-auto text-xs text-red-500/80 font-normal">
+                        {critChecks.length} {critChecks.length === 1 ? "check" : "checks"}
+                      </span>
+                    </button>
+                    {!collapsedGroups.critical && (
+                      <div className="space-y-2 ml-1">
+                        {critChecks.map((check) => (
+                          <CheckCard key={check.checkId} check={check} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Warning checks */}
+                {/* Warning checks - collapsible */}
                 {warnChecks.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-medium text-amber-400">Warnings</h3>
-                    {warnChecks.map((check) => (
-                      <CheckCard key={check.checkId} check={check} />
-                    ))}
+                    <button
+                      onClick={() => toggleGroup("warning")}
+                      className="flex items-center gap-2 text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors w-full text-left"
+                    >
+                      {collapsedGroups.warning ? (
+                        <ChevronRight size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                      <AlertTriangle size={16} />
+                      <span>Warnings</span>
+                      <span className="ml-auto text-xs text-amber-500/80 font-normal">
+                        {warnChecks.length} {warnChecks.length === 1 ? "check" : "checks"}
+                      </span>
+                    </button>
+                    {!collapsedGroups.warning && (
+                      <div className="space-y-2 ml-1">
+                        {warnChecks.map((check) => (
+                          <CheckCard key={check.checkId} check={check} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* OK checks */}
+                {/* OK checks - collapsible (collapsed by default) */}
                 {okChecks.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-medium text-emerald-400">Healthy</h3>
-                    {okChecks.map((check) => (
-                      <CheckCard key={check.checkId} check={check} />
-                    ))}
+                    <button
+                      onClick={() => toggleGroup("ok")}
+                      className="flex items-center gap-2 text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors w-full text-left"
+                    >
+                      {collapsedGroups.ok ? (
+                        <ChevronRight size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )}
+                      <CheckCircle size={16} />
+                      <span>Healthy</span>
+                      <span className="ml-auto text-xs text-emerald-500/80 font-normal">
+                        {okChecks.length} {okChecks.length === 1 ? "check" : "checks"}
+                      </span>
+                    </button>
+                    {!collapsedGroups.ok && (
+                      <div className="space-y-2 ml-1">
+                        {okChecks.map((check) => (
+                          <CheckCard key={check.checkId} check={check} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

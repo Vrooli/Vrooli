@@ -2,6 +2,23 @@
  * Documentation navigation helpers for health checks
  */
 
+// Map of doc topics to their file paths
+const DOCS_PATHS: Record<string, string> = {
+  "system-protection": "guides/system-protection.md",
+  "os-watchdog": "guides/system-protection.md",
+  "watchdog": "guides/system-protection.md",
+  "getting-started": "getting-started.md",
+  "configuration": "reference/configuration.md",
+  "check-catalog": "reference/check-catalog.md",
+};
+
+/**
+ * Get the documentation path for a general topic.
+ */
+export function getDocsPath(topic: string): string {
+  return DOCS_PATHS[topic] || "getting-started.md";
+}
+
 /**
  * Get the documentation path for a given check ID.
  * Maps check IDs to their corresponding documentation files.

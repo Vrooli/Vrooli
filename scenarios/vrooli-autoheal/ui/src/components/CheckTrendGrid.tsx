@@ -1,9 +1,10 @@
 // Per-check trend grid showing individual check health over time
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { TimelineEvent, HealthStatus, CheckTrend as APICheckTrend } from "../lib/api";
 import { StatusIcon } from "./StatusIcon";
 import { useCheckMetadata } from "../contexts/CheckMetadataContext";
+import { ChevronUp, ChevronDown } from "lucide-react";
 
 interface CheckTrendGridProps {
   /** Backend trends data (preferred) */
@@ -24,6 +25,10 @@ interface LocalCheckTrend {
   currentStatus: HealthStatus;
   recentStatuses: HealthStatus[];
 }
+
+// Sortable column keys
+type SortKey = "checkId" | "total" | "ok" | "warning" | "critical" | "uptimePercent";
+type SortDirection = "asc" | "desc";
 
 // Mini sparkline bar showing recent status history
 function StatusSparkline({ statuses }: { statuses: HealthStatus[] }) {
@@ -54,11 +59,61 @@ function StatusSparkline({ statuses }: { statuses: HealthStatus[] }) {
   );
 }
 
+// Sortable column header component
+function SortableHeader({
+  label,
+  sortKey,
+  currentSort,
+  currentDirection,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  sortKey: SortKey;
+  currentSort: SortKey;
+  currentDirection: SortDirection;
+  onSort: (key: SortKey) => void;
+  align?: "left" | "right" | "center";
+}) {
+  const isActive = currentSort === sortKey;
+  const alignClass = align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
+
+  return (
+    <button
+      onClick={() => onSort(sortKey)}
+      className={`flex items-center gap-1 text-xs font-medium uppercase tracking-wider transition-colors ${alignClass} ${
+        isActive ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
+      }`}
+    >
+      {label}
+      <span className="w-3">
+        {isActive && (currentDirection === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+      </span>
+    </button>
+  );
+}
+
 export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClick }: CheckTrendGridProps) {
   const { getTitle } = useCheckMetadata();
+  const [sortKey, setSortKey] = useState<SortKey>("uptimePercent");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Handle sort column click
+  const handleSort = useCallback((key: SortKey) => {
+    if (key === sortKey) {
+      // Toggle direction if same column
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      // New column - default direction based on column type
+      setSortKey(key);
+      // For uptime and ok, ascending means worst first (lower is worse)
+      // For warning/critical, descending means worst first (higher is worse)
+      setSortDirection(key === "warning" || key === "critical" ? "desc" : "asc");
+    }
+  }, [sortKey]);
 
   // Use backend trends if available, otherwise fall back to client-side aggregation
-  const trends = useMemo<LocalCheckTrend[]>(() => {
+  const baseTrends = useMemo<LocalCheckTrend[]>(() => {
     // If we have backend trends, convert them to local format
     if (backendTrends && backendTrends.length > 0) {
       return backendTrends.map((t) => ({
@@ -106,14 +161,38 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
       });
     });
 
-    // Sort by uptime (worst first), then by checkId
-    return checkTrends.sort((a, b) => {
-      if (a.uptimePercent !== b.uptimePercent) {
-        return a.uptimePercent - b.uptimePercent;
-      }
-      return a.checkId.localeCompare(b.checkId);
-    });
+    return checkTrends;
   }, [backendTrends, events]);
+
+  // Sort trends based on current sort settings
+  const trends = useMemo(() => {
+    return [...baseTrends].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortKey) {
+        case "checkId":
+          comparison = a.checkId.localeCompare(b.checkId);
+          break;
+        case "total":
+          comparison = a.total - b.total;
+          break;
+        case "ok":
+          comparison = a.ok - b.ok;
+          break;
+        case "warning":
+          comparison = a.warning - b.warning;
+          break;
+        case "critical":
+          comparison = a.critical - b.critical;
+          break;
+        case "uptimePercent":
+          comparison = a.uptimePercent - b.uptimePercent;
+          break;
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [baseTrends, sortKey, sortDirection]);
 
   if (trends.length === 0) {
     return (
@@ -125,80 +204,153 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
   }
 
   return (
-    <div className="space-y-2" data-testid="autoheal-trends-check-grid">
-      {trends.map((trend) => (
-        <div
-          key={trend.checkId}
-          onClick={() => onCheckClick?.(trend.checkId)}
-          className={`flex items-center gap-4 p-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors ${
-            onCheckClick ? "cursor-pointer" : ""
-          }`}
-          role={onCheckClick ? "button" : undefined}
-          tabIndex={onCheckClick ? 0 : undefined}
-          onKeyDown={(e) => {
-            if (onCheckClick && (e.key === "Enter" || e.key === " ")) {
-              e.preventDefault();
-              onCheckClick(trend.checkId);
-            }
-          }}
-        >
-          {/* Status icon */}
-          <div className="flex-shrink-0">
-            <StatusIcon status={trend.currentStatus} size={16} />
-          </div>
-
-          {/* Check name */}
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-slate-200 truncate" title={trend.checkId}>
-              {getTitle(trend.checkId)}
-            </div>
-            <div className="text-xs text-slate-500">
-              {getTitle(trend.checkId) !== trend.checkId && (
-                <span className="font-mono text-slate-600 mr-2">{trend.checkId}</span>
-              )}
-              {trend.total} checks
-            </div>
-          </div>
-
-          {/* Sparkline */}
-          <div className="flex-shrink-0">
-            <StatusSparkline statuses={trend.recentStatuses} />
-          </div>
-
-          {/* Uptime percentage */}
-          <div className="flex-shrink-0 w-16 text-right">
-            <div
-              className={`text-sm font-medium ${
-                trend.uptimePercent >= 99
-                  ? "text-emerald-400"
-                  : trend.uptimePercent >= 90
-                  ? "text-amber-400"
-                  : "text-red-400"
+    <div className="overflow-x-auto" data-testid="autoheal-trends-check-grid">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-white/10">
+            <th className="pb-2 pr-4 text-left">
+              <SortableHeader
+                label="Check"
+                sortKey="checkId"
+                currentSort={sortKey}
+                currentDirection={sortDirection}
+                onSort={handleSort}
+              />
+            </th>
+            <th className="pb-2 px-2 text-center w-16">
+              <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Trend</span>
+            </th>
+            <th className="pb-2 px-2 text-right w-16">
+              <SortableHeader
+                label="Uptime"
+                sortKey="uptimePercent"
+                currentSort={sortKey}
+                currentDirection={sortDirection}
+                onSort={handleSort}
+                align="right"
+              />
+            </th>
+            <th className="pb-2 px-2 text-right w-14">
+              <SortableHeader
+                label="OK"
+                sortKey="ok"
+                currentSort={sortKey}
+                currentDirection={sortDirection}
+                onSort={handleSort}
+                align="right"
+              />
+            </th>
+            <th className="pb-2 px-2 text-right w-14">
+              <SortableHeader
+                label="Warn"
+                sortKey="warning"
+                currentSort={sortKey}
+                currentDirection={sortDirection}
+                onSort={handleSort}
+                align="right"
+              />
+            </th>
+            <th className="pb-2 px-2 text-right w-14">
+              <SortableHeader
+                label="Crit"
+                sortKey="critical"
+                currentSort={sortKey}
+                currentDirection={sortDirection}
+                onSort={handleSort}
+                align="right"
+              />
+            </th>
+            <th className="pb-2 pl-2 text-right w-14">
+              <SortableHeader
+                label="Total"
+                sortKey="total"
+                currentSort={sortKey}
+                currentDirection={sortDirection}
+                onSort={handleSort}
+                align="right"
+              />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {trends.map((trend) => (
+            <tr
+              key={trend.checkId}
+              onClick={() => onCheckClick?.(trend.checkId)}
+              className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors ${
+                onCheckClick ? "cursor-pointer" : ""
               }`}
+              role={onCheckClick ? "button" : undefined}
+              tabIndex={onCheckClick ? 0 : undefined}
+              onKeyDown={(e) => {
+                if (onCheckClick && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  onCheckClick(trend.checkId);
+                }
+              }}
             >
-              {trend.uptimePercent.toFixed(0)}%
-            </div>
-          </div>
+              {/* Check name with status icon */}
+              <td className="py-2 pr-4">
+                <div className="flex items-center gap-2">
+                  <StatusIcon status={trend.currentStatus} size={14} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-200 truncate" title={trend.checkId}>
+                      {getTitle(trend.checkId)}
+                    </div>
+                    {getTitle(trend.checkId) !== trend.checkId && (
+                      <div className="text-xs text-slate-600 font-mono truncate">{trend.checkId}</div>
+                    )}
+                  </div>
+                </div>
+              </td>
 
-          {/* Progress bar */}
-          <div className="flex-shrink-0 w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full flex">
-              <div
-                className="h-full bg-emerald-500"
-                style={{ width: `${(trend.ok / trend.total) * 100}%` }}
-              />
-              <div
-                className="h-full bg-amber-500"
-                style={{ width: `${(trend.warning / trend.total) * 100}%` }}
-              />
-              <div
-                className="h-full bg-red-500"
-                style={{ width: `${(trend.critical / trend.total) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      ))}
+              {/* Sparkline */}
+              <td className="py-2 px-2">
+                <StatusSparkline statuses={trend.recentStatuses} />
+              </td>
+
+              {/* Uptime percentage */}
+              <td className="py-2 px-2 text-right">
+                <span
+                  className={`text-sm font-medium ${
+                    trend.uptimePercent >= 99
+                      ? "text-emerald-400"
+                      : trend.uptimePercent >= 90
+                      ? "text-amber-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {trend.uptimePercent.toFixed(0)}%
+                </span>
+              </td>
+
+              {/* OK count */}
+              <td className="py-2 px-2 text-right">
+                <span className="text-sm text-emerald-400">{trend.ok}</span>
+              </td>
+
+              {/* Warning count */}
+              <td className="py-2 px-2 text-right">
+                <span className={`text-sm ${trend.warning > 0 ? "text-amber-400" : "text-slate-600"}`}>
+                  {trend.warning}
+                </span>
+              </td>
+
+              {/* Critical count */}
+              <td className="py-2 px-2 text-right">
+                <span className={`text-sm ${trend.critical > 0 ? "text-red-400" : "text-slate-600"}`}>
+                  {trend.critical}
+                </span>
+              </td>
+
+              {/* Total count */}
+              <td className="py-2 pl-2 text-right">
+                <span className="text-sm text-slate-400">{trend.total}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
