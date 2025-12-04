@@ -20,6 +20,7 @@ interface DesktopConfig {
     author: string;
     author_email?: string;
     homepage?: string;
+    icon?: string;
     license: string;
     app_id: string;
     app_url?: string;
@@ -651,27 +652,67 @@ exports.default = async function notarizing(context) {
 
         // Create placeholder icon files (fixed size list prevents injection)
         const iconSizes = [16, 32, 48, 128, 256, 512, 1024];
+        let usedCustomIcon = false;
 
-        for (const size of iconSizes) {
-            const iconData = this.generatePlaceholderIcon(size);
-            const iconPath = path.join(assetsDir, `icon-${size}x${size}.png`);
+        // Attempt to use a custom icon if provided
+        if (this.config.icon) {
+            const customIconPath = path.resolve(this.config.icon);
+            try {
+                const stat = await fs.stat(customIconPath);
+                if (!stat.isFile()) {
+                    throw new Error('Custom icon is not a file');
+                }
+                if (!customIconPath.toLowerCase().endsWith('.png')) {
+                    throw new Error('Custom icon must be a .png file');
+                }
 
-            // Verify the icon path is still within assetsDir
-            if (!iconPath.startsWith(assetsDir)) {
-                throw new Error('Invalid icon path detected');
+                for (const size of iconSizes) {
+                    const targetPath = path.join(assetsDir, `icon-${size}x${size}.png`);
+                    if (!targetPath.startsWith(assetsDir)) {
+                        throw new Error('Invalid icon path detected');
+                    }
+                    if (path.resolve(customIconPath) !== path.resolve(targetPath)) {
+                        await fs.copyFile(customIconPath, targetPath);
+                    }
+                }
+
+                const mainIconPath = path.join(assetsDir, 'icon.png');
+                if (!mainIconPath.startsWith(assetsDir)) {
+                    throw new Error('Invalid platform icon path detected');
+                }
+                if (path.resolve(customIconPath) !== path.resolve(mainIconPath)) {
+                    await fs.copyFile(customIconPath, mainIconPath);
+                }
+
+                usedCustomIcon = true;
+                console.log(`🎨 Copied custom icon from ${customIconPath}`);
+            } catch (error) {
+                console.log(`⚠️  Custom icon unusable, falling back to placeholder icons (${error})`);
+            }
+        }
+
+        if (!usedCustomIcon) {
+            for (const size of iconSizes) {
+                const iconData = this.generatePlaceholderIcon(size);
+                const iconPath = path.join(assetsDir, `icon-${size}x${size}.png`);
+
+                // Verify the icon path is still within assetsDir
+                if (!iconPath.startsWith(assetsDir)) {
+                    throw new Error('Invalid icon path detected');
+                }
+
+                await fs.writeFile(iconPath, iconData);
             }
 
-            await fs.writeFile(iconPath, iconData);
+            // Create main icon.png (512x512) - electron-builder will convert to ICO/ICNS as needed
+            // We don't generate .ico or .icns placeholders because electron-builder requires
+            // specific multi-resolution formats that are complex to generate properly
+            const mainIconPath = path.join(assetsDir, 'icon.png');
+            if (!mainIconPath.startsWith(assetsDir)) {
+                throw new Error('Invalid platform icon path detected');
+            }
+            await fs.writeFile(mainIconPath, this.generatePlaceholderIcon(512));
         }
-
-        // Create main icon.png (512x512) - electron-builder will convert to ICO/ICNS as needed
-        // We don't generate .ico or .icns placeholders because electron-builder requires
-        // specific multi-resolution formats that are complex to generate properly
-        const mainIconPath = path.join(assetsDir, 'icon.png');
-        if (!mainIconPath.startsWith(assetsDir)) {
-            throw new Error('Invalid platform icon path detected');
-        }
-        await fs.writeFile(mainIconPath, this.generatePlaceholderIcon(512));
         
         // Create license file
         const licenseContent = `${this.config.app_display_name}

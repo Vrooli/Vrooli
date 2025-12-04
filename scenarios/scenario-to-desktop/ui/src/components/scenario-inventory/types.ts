@@ -6,6 +6,9 @@ export interface DesktopConnectionConfig {
   proxy_url?: string;
   server_url?: string;
   api_url?: string;
+  app_display_name?: string;
+  app_description?: string;
+  icon?: string;
   deployment_mode?: string;
   auto_manage_vrooli?: boolean;
   vrooli_binary_path?: string;

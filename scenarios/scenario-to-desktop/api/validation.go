@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // validateDesktopConfig validates desktop configuration
@@ -121,6 +122,23 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	}
 	if config.APIEndpoint == "" {
 		config.APIEndpoint = "http://127.0.0.1"
+	}
+	if config.Icon != "" {
+		iconPath, err := filepath.Abs(config.Icon)
+		if err != nil {
+			return fmt.Errorf("resolve icon path: %w", err)
+		}
+		info, err := os.Stat(iconPath)
+		if err != nil {
+			return fmt.Errorf("icon file not found: %w", err)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("icon must be a file, not a directory")
+		}
+		if !strings.HasSuffix(strings.ToLower(iconPath), ".png") {
+			return fmt.Errorf("icon must be a .png file")
+		}
+		config.Icon = iconPath
 	}
 
 	return nil

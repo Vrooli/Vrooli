@@ -175,6 +175,17 @@ func mergeQuickGenerateConfig(config *DesktopConfig, request quickGenerateReques
 	if savedConfig != nil && savedConfig.ServerType != "" && request.ProxyURL == "" && request.LegacyServerURL == "" {
 		config.ServerType = savedConfig.ServerType
 	}
+	if savedConfig != nil {
+		if savedConfig.AppDisplayName != "" {
+			config.AppDisplayName = savedConfig.AppDisplayName
+		}
+		if savedConfig.AppDescription != "" {
+			config.AppDescription = savedConfig.AppDescription
+		}
+		if savedConfig.Icon != "" {
+			config.Icon = savedConfig.Icon
+		}
+	}
 
 	return config
 }
@@ -539,6 +550,9 @@ func (s *Server) persistDesktopConfig(scenarioRoot string, config *DesktopConfig
 		ProxyURL:           config.ProxyURL,
 		ServerURL:          config.ExternalServerURL,
 		APIURL:             config.ExternalAPIURL,
+		AppDisplayName:     config.AppDisplayName,
+		AppDescription:     config.AppDescription,
+		Icon:               config.Icon,
 		DeploymentMode:     config.DeploymentMode,
 		AutoManageVrooli:   config.AutoManageVrooli,
 		VrooliBinary:       config.VrooliBinaryPath,

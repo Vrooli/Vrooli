@@ -14,6 +14,9 @@ type DesktopConnectionConfig struct {
 	ProxyURL           string    `json:"proxy_url,omitempty"`
 	ServerURL          string    `json:"server_url,omitempty"`
 	APIURL             string    `json:"api_url,omitempty"`
+	AppDisplayName     string    `json:"app_display_name,omitempty"`
+	AppDescription     string    `json:"app_description,omitempty"`
+	Icon               string    `json:"icon,omitempty"`
 	DeploymentMode     string    `json:"deployment_mode,omitempty"`
 	AutoManageVrooli   bool      `json:"auto_manage_vrooli"`
 	VrooliBinary       string    `json:"vrooli_binary_path,omitempty"`

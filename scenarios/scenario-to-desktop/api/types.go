@@ -11,6 +11,7 @@ type DesktopConfig struct {
 	Version        string `json:"version" validate:"required"`
 	Author         string `json:"author" validate:"required"`
 	AuthorEmail    string `json:"author_email"`
+	Icon           string `json:"icon,omitempty"`
 	Homepage       string `json:"homepage"`
 	License        string `json:"license"`
 	AppID          string `json:"app_id" validate:"required"`
@@ -44,7 +45,7 @@ type DesktopConfig struct {
 	Platforms []string `json:"platforms"`
 
 	// Output configuration
-	OutputPath string `json:"output_path" validate:"required"`
+	OutputPath string `json:"output_path"`
 
 	// Styling
 	Styling map[string]interface{} `json:"styling"`

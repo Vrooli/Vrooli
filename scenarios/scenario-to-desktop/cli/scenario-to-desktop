@@ -10,7 +10,6 @@ CLI_VERSION="1.0.0"
 # Use environment variable for API URL, fallback to default port (middle of range 15000-19999)
 API_PORT="${API_PORT:-${PORT:-15200}}"
 API_BASE_URL="${API_BASE_URL:-http://localhost:${API_PORT}}"
-DEFAULT_OUTPUT_DIR="./desktop-app"
 DEFAULT_FRAMEWORK="electron"
 DEFAULT_TEMPLATE="basic"
 DEFAULT_PLATFORMS="win,mac,linux"
@@ -317,10 +316,14 @@ cmd_generate() {
 	local framework="$DEFAULT_FRAMEWORK"
 	local template="$DEFAULT_TEMPLATE"
 	local platforms="$DEFAULT_PLATFORMS"
-	local output="$DEFAULT_OUTPUT_DIR"
+	local default_output_path="${SCENARIOS_DIR}/${scenario_name}/platforms/electron"
+	local output="$default_output_path"
 	local features=""
 	local config_file=""
 	local deployment_mode="external-server"
+	local app_display_name="${scenario_name} Desktop"
+	local app_description="Desktop application for ${scenario_name} scenario"
+	local icon_path=""
 	local server_type="$DEFAULT_SERVER_TYPE"
 	local server_url=""
 	local api_url=""
@@ -353,6 +356,18 @@ cmd_generate() {
                 ;;
 			--config)
 				config_file="$2"
+				shift 2
+				;;
+			--app-display-name)
+				app_display_name="$2"
+				shift 2
+				;;
+			--app-description)
+				app_description="$2"
+				shift 2
+				;;
+			--icon)
+				icon_path="$2"
 				shift 2
 				;;
 			--deployment-mode)
@@ -489,12 +504,13 @@ cmd_generate() {
 		config=$(cat << EOF
 {
   "app_name": "${scenario_name}",
-  "app_display_name": "${scenario_name^} Desktop",
-  "app_description": "Desktop application for ${scenario_name} scenario",
+  "app_display_name": "${app_display_name}",
+  "app_description": "${app_description}",
   "version": "1.0.0",
   "author": "Vrooli Platform",
   "license": "MIT",
   "app_id": "com.vrooli.${scenario_name//-/.}",
+  "icon": "${icon_path}",
   "server_type": "${server_type}",
   "server_port": 3000,
   "server_path": "${server_path_value}",
@@ -565,9 +581,12 @@ OPTIONS:
     --framework <framework>    Desktop framework (electron, tauri, neutralino) [default: electron]
     --template <template>      Application template (basic, advanced, multi_window, kiosk) [default: basic]
     --platforms <platforms>    Target platforms, comma-separated (win,mac,linux) [default: win,mac,linux]
-    --output <path>           Output directory for generated application [default: ./desktop-app]
+    --output <path>           Output directory for generated application [default: scenarios/<scenario>/platforms/electron]
     --features <features>     Comma-separated list of features (tray,updater,menus)
     --config <file>           Use JSON configuration file instead of command-line options
+    --app-display-name <name> Override the desktop product name (window titles, installers)
+    --app-description <text>  Override the desktop description shown in metadata
+    --icon <path>             Path to a PNG icon (copied to assets/icon.png for packaging)
     --deployment-mode <mode>  Deployment intent (external-server|cloud-api|bundled) [default: external-server]
     --bundle-manifest <path>  Path to bundle.json when deployment-mode=bundled
     --server-type <type>      Server strategy (external|node|static|executable) [default: external]
@@ -602,7 +621,7 @@ CONFIGURATION FILE FORMAT:
       "framework": "electron",
       "template_type": "basic",
       "platforms": ["win", "mac", "linux"],
-      "output_path": "./desktop-app"
+      "output_path": ""
     }
 EOF
 }

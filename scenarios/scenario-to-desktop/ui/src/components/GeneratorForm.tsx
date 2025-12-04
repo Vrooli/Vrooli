@@ -33,8 +33,15 @@ type EndpointResolution = {
   apiEndpoint: string;
 };
 
+function deriveDefaultOutputPath(scenarioName?: string) {
+  return scenarioName ? `scenarios/${scenarioName}/platforms/electron` : "";
+}
+
 interface BuildDesktopConfigOptions {
   scenarioName: string;
+  appDisplayName: string;
+  appDescription: string;
+  iconPath: string;
   selectedTemplate: string;
   framework: string;
   serverType: ServerType;
@@ -62,9 +69,19 @@ function validateGeneratorInputs(options: {
   decision: ConnectionDecision;
   bundleManifestPath: string;
   proxyUrl: string;
+  appDisplayName: string;
+  appDescription: string;
 }): string | null {
   if (options.selectedPlatforms.length === 0) {
     return "Please select at least one target platform";
+  }
+
+  if (!options.appDisplayName.trim()) {
+    return "Provide an app display name so installers and windows are branded correctly.";
+  }
+
+  if (!options.appDescription.trim()) {
+    return "Provide a short description for the generated desktop app.";
   }
 
   if (options.decision.requiresBundleManifest && !options.bundleManifestPath) {
@@ -96,12 +113,13 @@ function resolveEndpoints(input: {
 function buildDesktopConfig(options: BuildDesktopConfigOptions): DesktopConfig {
   return {
     app_name: options.scenarioName,
-    app_display_name: `${options.scenarioName} Desktop`,
-    app_description: `Desktop application for ${options.scenarioName} scenario`,
+    app_display_name: options.appDisplayName || `${options.scenarioName} Desktop`,
+    app_description: options.appDescription || `Desktop application for ${options.scenarioName} scenario`,
     version: "1.0.0",
     author: "Vrooli Platform",
     license: "MIT",
     app_id: `com.vrooli.${options.scenarioName.replace(/-/g, ".")}`,
+    icon: options.iconPath || undefined,
     server_type: options.serverType,
     server_port: options.serverPort,
     server_path: options.resolvedEndpoints.serverPath,
@@ -587,11 +605,11 @@ function OutputPathField({ outputPath, onOutputPathChange }: OutputPathFieldProp
         id="outputPath"
         value={outputPath}
         onChange={(e) => onOutputPathChange(e.target.value)}
-        placeholder="./desktop-app"
+        placeholder="scenarios/<scenario>/platforms/electron"
         className="mt-1.5"
       />
       <p className="mt-1 text-xs text-slate-400">
-        scenario-to-desktop will place the Electron wrapper here. For analyzer-generated builds we still recommend using the scenario's `platforms/electron` folder.
+        Defaults to the scenario&apos;s `platforms/electron` folder. Override only if you need a custom location; leave empty to let the generator pick the standard path.
       </p>
     </div>
   );
@@ -615,6 +633,15 @@ export function GeneratorForm({
   selectionSource
 }: GeneratorFormProps) {
   const [useDropdown, setUseDropdown] = useState(true);
+  const [appDisplayName, setAppDisplayName] = useState(
+    scenarioName ? `${scenarioName} Desktop` : ""
+  );
+  const [appDescription, setAppDescription] = useState(
+    scenarioName ? `Desktop application for ${scenarioName} scenario` : ""
+  );
+  const [iconPath, setIconPath] = useState("");
+  const [displayNameEdited, setDisplayNameEdited] = useState(false);
+  const [descriptionEdited, setDescriptionEdited] = useState(false);
   const [framework, setFramework] = useState("electron");
   const [serverType, setServerType] = useState<ServerType>(DEFAULT_SERVER_TYPE);
   const [deploymentMode, setDeploymentMode] = useState<DeploymentMode>(DEFAULT_DEPLOYMENT_MODE);
@@ -623,7 +650,9 @@ export function GeneratorForm({
     mac: true,
     linux: true
   });
-  const [outputPath, setOutputPath] = useState("./desktop-app");
+  const [outputPath, setOutputPath] = useState(deriveDefaultOutputPath(scenarioName));
+  const [outputEdited, setOutputEdited] = useState(false);
+  const [lastScenarioForOutput, setLastScenarioForOutput] = useState<string | null>(scenarioName || null);
   const [proxyUrl, setProxyUrl] = useState("");
   const [bundleManifestPath, setBundleManifestPath] = useState("");
   const [serverPort, setServerPort] = useState(3000);
@@ -664,6 +693,37 @@ export function GeneratorForm({
     () => findServerTypeOption(serverType),
     [serverType]
   );
+
+  useEffect(() => {
+    if (!scenarioName) {
+      return;
+    }
+    const derivedName = `${scenarioName} Desktop`;
+    const derivedDescription = `Desktop application for ${scenarioName} scenario`;
+
+    if (!displayNameEdited) {
+      setAppDisplayName(derivedName);
+    }
+
+    if (!descriptionEdited) {
+      setAppDescription(derivedDescription);
+    }
+  }, [scenarioName, displayNameEdited, descriptionEdited]);
+
+  useEffect(() => {
+    if (!scenarioName) {
+      return;
+    }
+    const defaultOutput = deriveDefaultOutputPath(scenarioName);
+    const previousDefault = deriveDefaultOutputPath(lastScenarioForOutput || undefined);
+    const usingDefault = !outputEdited || outputPath === "" || outputPath === previousDefault;
+
+    if (usingDefault) {
+      setOutputPath(defaultOutput);
+      setOutputEdited(false);
+    }
+    setLastScenarioForOutput(scenarioName);
+  }, [scenarioName, outputEdited, outputPath, lastScenarioForOutput]);
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
@@ -719,6 +779,17 @@ export function GeneratorForm({
     setAutoManageTier1(config.auto_manage_vrooli ?? false);
     setVrooliBinaryPath(config.vrooli_binary_path ?? "vrooli");
     setBundleManifestPath(config.bundle_manifest_path ?? "");
+    if (config.app_display_name) {
+      setAppDisplayName(config.app_display_name);
+      setDisplayNameEdited(true);
+    }
+    if (config.app_description) {
+      setAppDescription(config.app_description);
+      setDescriptionEdited(true);
+    }
+    if (config.icon) {
+      setIconPath(config.icon);
+    }
     if (config.server_type) {
       setServerType((config.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
     }
@@ -763,7 +834,9 @@ export function GeneratorForm({
       selectedPlatforms: selectedPlatformsList,
       decision: connectionDecision,
       bundleManifestPath,
-      proxyUrl
+      proxyUrl,
+      appDisplayName,
+      appDescription
     });
 
     if (validationMessage) {
@@ -771,13 +844,15 @@ export function GeneratorForm({
       return;
     }
 
+    const resolvedOutputPath = outputPath || deriveDefaultOutputPath(scenarioName);
+
     const config = buildDesktopConfig({
       scenarioName,
       selectedTemplate,
       framework,
       serverType: connectionDecision.effectiveServerType,
       serverPort,
-      outputPath,
+      outputPath: resolvedOutputPath,
       selectedPlatforms: selectedPlatformsList,
       deploymentMode,
       autoManageTier1,
@@ -786,7 +861,10 @@ export function GeneratorForm({
       bundleManifestPath,
       isBundled,
       requiresRemoteConfig,
-      resolvedEndpoints
+      resolvedEndpoints,
+      appDisplayName,
+      appDescription,
+      iconPath
     });
 
     generateMutation.mutate(config);
@@ -857,6 +935,57 @@ export function GeneratorForm({
             }
           />
 
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="appDisplayName">App display name</Label>
+                <Input
+                  id="appDisplayName"
+                  value={appDisplayName}
+                  onChange={(e) => {
+                    setAppDisplayName(e.target.value);
+                    setDisplayNameEdited(true);
+                  }}
+                  placeholder={`${scenarioName || "scenario"} Desktop`}
+                  className="mt-1.5"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Controls window titles, installer product name, and tray labels.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="iconPath">Icon path (PNG)</Label>
+                <Input
+                  id="iconPath"
+                  value={iconPath}
+                  onChange={(e) => setIconPath(e.target.value)}
+                  placeholder="/home/you/Vrooli/scenarios/picker-wheel/icon.png"
+                  className="mt-1.5"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Optional 256px+ PNG; it will be copied into <code>assets/icon.png</code> for the build.
+                </p>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="appDescription">App description</Label>
+              <textarea
+                id="appDescription"
+                value={appDescription}
+                onChange={(e) => {
+                  setAppDescription(e.target.value);
+                  setDescriptionEdited(true);
+                }}
+                className="mt-1.5 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-blue-600 focus:outline-none"
+                rows={3}
+                placeholder={`Desktop application for ${scenarioName || "your scenario"} scenario`}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Shown in generated README and metadata.
+              </p>
+            </div>
+          </div>
+
           <FrameworkTemplateSection
             framework={framework}
             onFrameworkChange={setFramework}
@@ -877,7 +1006,13 @@ export function GeneratorForm({
 
           <PlatformSelector platforms={platforms} onPlatformChange={handlePlatformChange} />
 
-          <OutputPathField outputPath={outputPath} onOutputPathChange={setOutputPath} />
+          <OutputPathField
+            outputPath={outputPath}
+            onOutputPathChange={(value) => {
+              setOutputPath(value);
+              setOutputEdited(true);
+            }}
+          />
 
           <Button
             type="submit"

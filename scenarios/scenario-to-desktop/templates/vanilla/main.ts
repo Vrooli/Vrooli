@@ -75,6 +75,83 @@ let mainWindow: BrowserWindow | null = null;
 let splashWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
+// ===== APP STORAGE CONFIGURATION =====
+// Storage root is within userData directory for security and proper app isolation
+let appStorageRoot: string | null = null;
+
+/**
+ * Get the app storage root directory, creating it if needed.
+ * All storage operations are sandboxed within this directory.
+ */
+async function getAppStorageRoot(): Promise<string> {
+    if (appStorageRoot) return appStorageRoot;
+
+    if (!app.isReady()) {
+        await app.whenReady();
+    }
+
+    appStorageRoot = path.join(app.getPath("userData"), "app-storage");
+    await fs.mkdir(appStorageRoot, { recursive: true });
+    return appStorageRoot;
+}
+
+/**
+ * Resolve and validate a relative path to ensure it stays within storage root.
+ * Prevents directory traversal attacks (e.g., "../../../etc/passwd").
+ * @returns Absolute path within storage root, or null if invalid
+ */
+async function resolveStoragePath(relativePath: string): Promise<string | null> {
+    const storageRoot = await getAppStorageRoot();
+
+    // Normalize the path to resolve any ".." or "." segments
+    const normalizedRelative = path.normalize(relativePath);
+
+    // Prevent absolute paths or paths that escape the storage root
+    if (path.isAbsolute(normalizedRelative)) {
+        console.warn(`[Storage] Rejected absolute path: ${relativePath}`);
+        return null;
+    }
+
+    const resolved = path.resolve(storageRoot, normalizedRelative);
+
+    // Ensure the resolved path is still within the storage root
+    if (!resolved.startsWith(storageRoot + path.sep) && resolved !== storageRoot) {
+        console.warn(`[Storage] Path traversal attempt blocked: ${relativePath} -> ${resolved}`);
+        return null;
+    }
+
+    return resolved;
+}
+
+/**
+ * Calculate total size of a directory recursively.
+ */
+async function calculateDirectorySize(dirPath: string): Promise<{ size: number; count: number }> {
+    let totalSize = 0;
+    let fileCount = 0;
+
+    async function walk(currentPath: string): Promise<void> {
+        try {
+            const entries = await fs.readdir(currentPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const entryPath = path.join(currentPath, entry.name);
+                if (entry.isDirectory()) {
+                    await walk(entryPath);
+                } else if (entry.isFile()) {
+                    const stats = await fs.stat(entryPath);
+                    totalSize += stats.size;
+                    fileCount++;
+                }
+            }
+        } catch {
+            // Ignore errors (permission issues, etc.)
+        }
+    }
+
+    await walk(dirPath);
+    return { size: totalSize, count: fileCount };
+}
+
 const SERVER_URL = APP_CONFIG.SERVER_TYPE === 'external' 
     ? APP_CONFIG.SERVER_PATH 
     : `http://localhost:${APP_CONFIG.SERVER_PORT}`;
@@ -1978,6 +2055,203 @@ ipcMain.handle("app:close", () => {
     if (mainWindow) {
         mainWindow.close();
     }
+});
+
+// ===== STORAGE IPC HANDLERS =====
+// These handlers provide secure, sandboxed file system access within the app's userData directory
+
+// Get the base storage path
+ipcMain.handle("storage:get-path", async () => {
+    return getAppStorageRoot();
+});
+
+// Ensure a directory exists
+ipcMain.handle("storage:ensure-dir", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        throw new Error("Invalid storage path");
+    }
+    await fs.mkdir(fullPath, { recursive: true });
+});
+
+// Write file (string or binary)
+ipcMain.handle("storage:write-file", async (_event, data: { path: string; data: string | number[]; isBinary: boolean }) => {
+    const fullPath = await resolveStoragePath(data.path);
+    if (!fullPath) {
+        throw new Error("Invalid storage path");
+    }
+
+    // Ensure parent directory exists
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+    if (data.isBinary && Array.isArray(data.data)) {
+        // Binary data comes as number array, convert to Buffer
+        await fs.writeFile(fullPath, Buffer.from(data.data));
+    } else {
+        // String data
+        await fs.writeFile(fullPath, data.data as string, "utf-8");
+    }
+});
+
+// Read file as binary (returns number array for IPC serialization)
+ipcMain.handle("storage:read-file", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        return null;
+    }
+
+    try {
+        const buffer = await fs.readFile(fullPath);
+        // Convert Buffer to number array for IPC serialization
+        return Array.from(buffer);
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return null;
+        }
+        throw error;
+    }
+});
+
+// Read file as UTF-8 text
+ipcMain.handle("storage:read-text-file", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        return null;
+    }
+
+    try {
+        return await fs.readFile(fullPath, "utf-8");
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return null;
+        }
+        throw error;
+    }
+});
+
+// Delete a file
+ipcMain.handle("storage:delete-file", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        return false;
+    }
+
+    try {
+        await fs.unlink(fullPath);
+        return true;
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return false;
+        }
+        throw error;
+    }
+});
+
+// Delete a directory recursively
+ipcMain.handle("storage:delete-dir", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        return false;
+    }
+
+    try {
+        await fs.rm(fullPath, { recursive: true, force: true });
+        return true;
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return false;
+        }
+        throw error;
+    }
+});
+
+// List directory contents
+ipcMain.handle("storage:list-dir", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        return null;
+    }
+
+    try {
+        const entries = await fs.readdir(fullPath, { withFileTypes: true });
+        const results = await Promise.all(
+            entries.map(async (entry) => {
+                const entryPath = path.join(fullPath, entry.name);
+                const stats = await fs.stat(entryPath);
+                return {
+                    name: entry.name,
+                    path: path.relative(await getAppStorageRoot(), entryPath),
+                    isDirectory: entry.isDirectory(),
+                    isFile: entry.isFile(),
+                    size: stats.size,
+                    createdAt: Math.floor(stats.birthtimeMs),
+                    modifiedAt: Math.floor(stats.mtimeMs),
+                };
+            })
+        );
+        return results;
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return null;
+        }
+        throw error;
+    }
+});
+
+// Check if path exists
+ipcMain.handle("storage:exists", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        return false;
+    }
+
+    try {
+        await fs.access(fullPath);
+        return true;
+    } catch {
+        return false;
+    }
+});
+
+// Get file/directory stats
+ipcMain.handle("storage:stat", async (_event, relativePath: string) => {
+    const fullPath = await resolveStoragePath(relativePath);
+    if (!fullPath) {
+        return null;
+    }
+
+    try {
+        const stats = await fs.stat(fullPath);
+        return {
+            size: stats.size,
+            createdAt: Math.floor(stats.birthtimeMs),
+            modifiedAt: Math.floor(stats.mtimeMs),
+            isDirectory: stats.isDirectory(),
+            isFile: stats.isFile(),
+        };
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return null;
+        }
+        throw error;
+    }
+});
+
+// Get storage info (usage statistics)
+ipcMain.handle("storage:get-info", async () => {
+    const storageRoot = await getAppStorageRoot();
+    const { size, count } = await calculateDirectorySize(storageRoot);
+
+    // Note: Node.js doesn't have a built-in cross-platform disk space API.
+    // For accurate available space, consider using a package like 'diskusage'.
+    // For now, we return a reasonable default estimate.
+    const available = 10 * 1024 * 1024 * 1024; // 10GB estimate
+
+    return {
+        used: size,
+        available,
+        count,
+    };
 });
 
 // ===== APP EVENT HANDLERS =====

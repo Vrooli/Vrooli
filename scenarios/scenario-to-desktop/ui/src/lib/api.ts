@@ -81,6 +81,7 @@ export interface DesktopConfig {
   template_type: string;
   platforms: string[];
   output_path: string;
+  icon?: string;
   features: Record<string, boolean>;
   window: Record<string, unknown>;
   deployment_mode?: string;
