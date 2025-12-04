@@ -3,24 +3,9 @@ import clsx from 'clsx';
 import { ChevronDown, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 
 // Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
-const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
-
-const withReplayBasePath = (value: string) => {
-  if (!value || ABSOLUTE_URL_PATTERN.test(value)) {
-    return value;
-  }
-  const base = import.meta.env.BASE_URL || '/';
-  if (base === '/' || value.startsWith(base)) {
-    return value;
-  }
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-  const normalizedValue = value.startsWith('/') ? value.slice(1) : value;
-  return `${normalizedBase}${normalizedValue}`;
-};
-
+// Using .href directly is the correct approach for Vite asset resolution
 const resolveReplayAsset = (relativePath: string) => {
-  const url = new URL(relativePath, import.meta.url);
-  return withReplayBasePath(url.pathname || url.href);
+  return new URL(relativePath, import.meta.url).href;
 };
 
 const geometricPrismUrl = resolveReplayAsset('../assets/replay-backgrounds/geometric-prism.jpg');
@@ -1094,33 +1079,48 @@ const buildChromeDecor = (theme: ReplayChromeTheme, title: string): ChromeDecor 
   switch (theme) {
     case 'chromium':
       return {
-        frameClass: 'border border-[#d0d4dc] bg-[#e9ecef] shadow-[0_24px_70px_rgba(15,23,42,0.4)]',
+        frameClass: 'border border-[#c4c8ce] bg-[#dee1e6] shadow-[0_24px_70px_rgba(15,23,42,0.4)] rounded-lg',
         contentClass: 'bg-white',
         header: (
-          <div className="bg-[#dee1e6] border-b border-[#c4c8ce]">
-            <div className="flex items-end gap-2 px-4 pt-3">
-              <div className="h-7 w-32 rounded-t-lg border border-[#c4c8ce] bg-white px-3 text-[11px] font-medium text-slate-700 shadow-sm">
-                New Tab
+          <div className="bg-[#dee1e6]">
+            {/* Tab bar */}
+            <div className="flex items-end gap-1 px-3 pt-2">
+              <div className="flex h-8 w-36 items-center rounded-t-lg border border-b-0 border-[#c4c8ce] bg-white px-3 text-[11px] font-medium text-slate-700 shadow-sm">
+                <span className="truncate">New Tab</span>
               </div>
-              <div className="ml-auto flex gap-2 pb-1 text-slate-500/70">
-                <span className="h-2 w-2 rounded-full bg-slate-500/50" />
-                <span className="h-2 w-2 rounded-full bg-slate-500/50" />
-                <span className="h-2 w-2 rounded-full bg-slate-500/50" />
+              <div className="ml-auto flex items-center gap-2 pb-2 pr-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-slate-400/60 hover:bg-slate-400" />
+                <span className="h-2.5 w-2.5 rounded-full bg-slate-400/60 hover:bg-slate-400" />
+                <span className="h-2.5 w-2.5 rounded-full bg-slate-400/60 hover:bg-slate-400" />
               </div>
             </div>
-            <div className="flex items-center gap-3 px-4 pb-3">
-              <div className="flex items-center gap-1 text-slate-600">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-lg leading-none">‹</span>
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-lg leading-none">›</span>
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-base leading-none">↻</span>
+            {/* Toolbar */}
+            <div className="flex items-center gap-2 border-b border-[#c4c8ce] bg-white px-3 py-2">
+              <div className="flex items-center gap-1">
+                <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="Back">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100" aria-label="Forward">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+                <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="Reload">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
               </div>
-              <div className="flex-1 ml-2 rounded-full border border-[#c4c8ce] bg-white px-4 py-1 text-[11px] text-slate-600 shadow-inner">
-                {title}
+              <div className="flex-1 flex items-center rounded-full border border-[#c4c8ce] bg-[#f1f3f4] px-4 py-1.5">
+                <svg className="h-3.5 w-3.5 text-slate-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg>
+                <span className="text-[12px] text-slate-600 truncate">{title}</span>
               </div>
-              <div className="flex items-center gap-3 text-slate-600">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-base leading-none">☆</span>
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#c4c8ce] bg-white text-sm leading-none font-medium">•••</span>
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-slate-100 text-[10px] font-semibold text-slate-700">J</span>
+              <div className="flex items-center gap-1">
+                <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="Bookmark">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                </button>
+                <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="More">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+                </button>
+                <div className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-500 text-[11px] font-semibold text-white">
+                  U
+                </div>
               </div>
             </div>
           </div>

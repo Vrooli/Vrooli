@@ -152,14 +152,14 @@ const DEMO_FRAME_3_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1
   <text x="960" y="510" font-family="system-ui" font-size="18" fill="#94a3b8" text-anchor="middle">Welcome to AutoFlow</text>
 </svg>`;
 
-const createDemoFrames = (): ReplayFrame[] => [
+const createDemoFrames = (frameDuration: number): ReplayFrame[] => [
   {
     id: 'demo-1',
     stepIndex: 0,
     stepType: 'navigate',
     status: 'completed',
     success: true,
-    durationMs: 1200,
+    durationMs: frameDuration,
     finalUrl: 'https://autoflow.app',
     screenshot: {
       artifactId: 'demo-screenshot-1',
@@ -175,7 +175,7 @@ const createDemoFrames = (): ReplayFrame[] => [
     stepType: 'click',
     status: 'completed',
     success: true,
-    durationMs: 800,
+    durationMs: frameDuration,
     finalUrl: 'https://autoflow.app/signup',
     screenshot: {
       artifactId: 'demo-screenshot-2',
@@ -191,7 +191,7 @@ const createDemoFrames = (): ReplayFrame[] => [
     stepType: 'type',
     status: 'completed',
     success: true,
-    durationMs: 1500,
+    durationMs: frameDuration,
     finalUrl: 'https://autoflow.app/welcome',
     screenshot: {
       artifactId: 'demo-screenshot-3',
@@ -323,7 +323,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
     customApiEndpoint: false,
   });
 
-  const demoFrames = useMemo(() => createDemoFrames(), []);
+  const demoFrames = useMemo(() => createDemoFrames(replay.frameDuration), [replay.frameDuration]);
   const allPresets = useMemo(() => getAllPresets(), [getAllPresets, userPresets]);
 
   const activePreset = useMemo(() => {
@@ -1357,31 +1357,29 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 {isPreviewPlaying ? 'Pause' : 'Play'}
               </button>
             </div>
-            <div className="flex-1 min-h-0 p-4 flex items-center justify-center overflow-hidden">
-              <div className="w-full h-full max-w-4xl flex items-center justify-center">
-                <div className="w-full max-h-full aspect-video overflow-hidden">
-                  <Suspense
-                    fallback={
-                      <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg">
-                        <span className="text-gray-400">Loading preview...</span>
-                      </div>
-                    }
-                  >
-                    <ReplayPlayer
-                      frames={demoFrames}
-                      autoPlay={isPreviewPlaying}
-                      loop={replay.loop}
-                      chromeTheme={replay.chromeTheme}
-                      backgroundTheme={replay.backgroundTheme}
-                      cursorTheme={replay.cursorTheme}
-                      cursorInitialPosition={replay.cursorInitialPosition}
-                      cursorScale={replay.cursorScale}
-                      cursorClickAnimation={replay.cursorClickAnimation}
-                      cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
-                      cursorDefaultPathStyle={replay.cursorPathStyle}
-                    />
-                  </Suspense>
-                </div>
+            <div className="flex-1 min-h-0 p-4 overflow-y-auto">
+              <div className="w-full max-w-4xl mx-auto">
+                <Suspense
+                  fallback={
+                    <div className="w-full aspect-video flex items-center justify-center bg-gray-800 rounded-lg">
+                      <span className="text-gray-400">Loading preview...</span>
+                    </div>
+                  }
+                >
+                  <ReplayPlayer
+                    frames={demoFrames}
+                    autoPlay={isPreviewPlaying}
+                    loop={replay.loop}
+                    chromeTheme={replay.chromeTheme}
+                    backgroundTheme={replay.backgroundTheme}
+                    cursorTheme={replay.cursorTheme}
+                    cursorInitialPosition={replay.cursorInitialPosition}
+                    cursorScale={replay.cursorScale}
+                    cursorClickAnimation={replay.cursorClickAnimation}
+                    cursorDefaultSpeedProfile={replay.cursorSpeedProfile}
+                    cursorDefaultPathStyle={replay.cursorPathStyle}
+                  />
+                </Suspense>
               </div>
             </div>
             <div className="flex-shrink-0 px-4 py-3 border-t border-gray-800 text-center">

@@ -17,20 +17,9 @@ import type {
 } from "../ReplayPlayer";
 
 // Background image URLs (resolved at module load)
+// Using .href directly is the correct approach for Vite asset resolution
 const resolveBackgroundAsset = (relativePath: string) => {
-  const url = new URL(relativePath, import.meta.url);
-  const base = import.meta.env.BASE_URL || "/";
-  const absolutePattern = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
-  const value = url.pathname || url.href;
-  if (!value || absolutePattern.test(value)) {
-    return value;
-  }
-  if (base === "/" || value.startsWith(base)) {
-    return value;
-  }
-  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
-  const normalizedValue = value.startsWith("/") ? value.slice(1) : value;
-  return `${normalizedBase}${normalizedValue}`;
+  return new URL(relativePath, import.meta.url).href;
 };
 
 const geometricPrismUrl = resolveBackgroundAsset(
