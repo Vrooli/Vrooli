@@ -37,7 +37,7 @@ UI smoke testing is **enabled by default** for scenarios with a `ui/` directory.
 test-genie execute my-scenario --phases structure
 
 # Check test artifacts
-ls coverage/my-scenario/ui-smoke/
+ls coverage/ui-smoke/
 ```
 
 ## Configuration Reference
@@ -183,7 +183,7 @@ The UI smoke test follows this sequence:
 
 ### Result JSON
 
-Results are stored in `coverage/<scenario>/ui-smoke/latest.json`:
+Results are stored in `coverage/ui-smoke/latest.json`:
 
 ```json
 {
@@ -199,18 +199,18 @@ Results are stored in `coverage/<scenario>/ui-smoke/latest.json`:
     "duration_ms": 1200
   },
   "artifacts": {
-    "screenshot": "coverage/my-scenario/ui-smoke/screenshot.png",
-    "console": "coverage/my-scenario/ui-smoke/console.json",
-    "network": "coverage/my-scenario/ui-smoke/network.json",
-    "html": "coverage/my-scenario/ui-smoke/dom.html",
-    "raw": "coverage/my-scenario/ui-smoke/raw.json"
+    "screenshot": "coverage/ui-smoke/screenshot.png",
+    "console": "coverage/ui-smoke/console.json",
+    "network": "coverage/ui-smoke/network.json",
+    "html": "coverage/ui-smoke/dom.html",
+    "raw": "coverage/ui-smoke/raw.json"
   }
 }
 ```
 
 ## Artifacts
 
-All artifacts are stored in `coverage/<scenario>/ui-smoke/`:
+All artifacts are stored in `coverage/ui-smoke/`:
 
 | File | Format | Content |
 |------|--------|---------|
@@ -285,7 +285,7 @@ If the handshake times out, it indicates a fundamental integration problem that 
 
 3. **Check console.json artifact** for JavaScript errors:
    ```bash
-   cat coverage/<scenario>/ui-smoke/console.json | jq '.[] | select(.type == "error")'
+   cat coverage/ui-smoke/console.json | jq '.[] | select(.type == "error")'
    ```
 
 4. **Use custom handshake signals** if your app uses different readiness indicators:

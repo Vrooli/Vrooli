@@ -77,6 +77,7 @@ type mockArtifactWriter struct {
 	writeErr   error
 	resultErr  error
 	readmeErr  error
+	readmePath string
 }
 
 func (m *mockArtifactWriter) WriteAll(ctx context.Context, scenarioDir, scenarioName string, response *BrowserResponse) (*ArtifactPaths, error) {
@@ -87,8 +88,8 @@ func (m *mockArtifactWriter) WriteResultJSON(ctx context.Context, scenarioDir, s
 	return m.resultErr
 }
 
-func (m *mockArtifactWriter) WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *Result) error {
-	return m.readmeErr
+func (m *mockArtifactWriter) WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *Result) (string, error) {
+	return m.readmePath, m.readmeErr
 }
 
 // mockPayloadGenerator implements PayloadGenerator for testing.
@@ -263,7 +264,7 @@ func TestOrchestrator_Run_Success(t *testing.T) {
 
 	artifacts := &mockArtifactWriter{
 		paths: &ArtifactPaths{
-			Screenshot: "coverage/test-scenario/ui-smoke/screenshot.png",
+			Screenshot: "coverage/ui-smoke/screenshot.png",
 		},
 	}
 

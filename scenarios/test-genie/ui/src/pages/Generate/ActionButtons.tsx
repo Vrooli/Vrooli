@@ -5,19 +5,45 @@ import { selectors } from "../../consts/selectors";
 
 interface ActionButtonsProps {
   prompt: string;
+  allPrompts: string[];
   disabled: boolean;
+  spawnDisabled?: boolean;
+  spawnBusy?: boolean;
+  onSpawnAll?: () => void;
 }
 
-export function ActionButtons({ prompt, disabled }: ActionButtonsProps) {
-  const [copied, setCopied] = useState(false);
+export function ActionButtons({
+  prompt,
+  allPrompts,
+  disabled,
+  spawnDisabled = true,
+  spawnBusy = false,
+  onSpawnAll
+}: ActionButtonsProps) {
+  const [copied, setCopied] = useState<"one" | "all" | null>(null);
 
   const handleCopy = async () => {
     if (!prompt || disabled) return;
 
     try {
       await navigator.clipboard.writeText(prompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopied("one");
+      setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleCopyAll = async () => {
+    if (!allPrompts || allPrompts.length === 0 || disabled) return;
+    const serialized = allPrompts
+      .map((p, idx) => `# Prompt ${idx + 1}\n\n${p}`)
+      .join("\n\n---\n\n");
+
+    try {
+      await navigator.clipboard.writeText(serialized);
+      setCopied("all");
+      setTimeout(() => setCopied(null), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -31,7 +57,7 @@ export function ActionButtons({ prompt, disabled }: ActionButtonsProps) {
         className="flex-1 sm:flex-none"
         data-testid={selectors.generate.copyButton}
       >
-        {copied ? (
+        {copied === "one" ? (
           <>
             <Check className="mr-2 h-4 w-4" />
             Copied!
@@ -45,14 +71,35 @@ export function ActionButtons({ prompt, disabled }: ActionButtonsProps) {
       </Button>
 
       <Button
+        onClick={handleCopyAll}
+        disabled={disabled || !allPrompts || allPrompts.length === 0}
+        className="flex-1 sm:flex-none"
         variant="outline"
-        disabled
-        className="flex-1 sm:flex-none opacity-50"
+        data-testid={selectors.generate.copyAllButton}
+      >
+        {copied === "all" ? (
+          <>
+            <Check className="mr-2 h-4 w-4" />
+            Copied all
+          </>
+        ) : (
+          <>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy all prompts
+          </>
+        )}
+      </Button>
+
+      <Button
+        variant="outline"
+        disabled={spawnDisabled}
+        className="flex-1 sm:flex-none"
         data-testid={selectors.generate.spawnButton}
-        title="Coming soon: Spawn AI agent to generate tests"
+        title={spawnDisabled ? "Configure a model to spawn agents" : "Spawn agents for these prompts"}
+        onClick={() => onSpawnAll?.()}
       >
         <Sparkles className="mr-2 h-4 w-4" />
-        Spawn agent
+        {spawnBusy ? "Spawning…" : "Spawn agents"}
       </Button>
     </div>
   );

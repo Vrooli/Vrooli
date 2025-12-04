@@ -99,7 +99,7 @@ func (v *validator) Validate(ctx context.Context) types.Result {
 			Success:      false,
 			Error:        pr.ToError(),
 			FailureClass: types.FailureClassSystem,
-			Remediation:  "Investigate the UI smoke failure (see artifacts in coverage/<scenario>/ui-smoke/) and fix the underlying issue.",
+			Remediation:  "Investigate the UI smoke failure (see artifacts in coverage/ui-smoke/) and fix the underlying issue.",
 			Observations: []types.Observation{
 				types.NewErrorObservation(pr.Message),
 			},

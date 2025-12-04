@@ -68,15 +68,16 @@ func listAgentModels(ctx context.Context, provider string) ([]agentModel, error)
 	args := []string{"models", "--provider", provider, "--json"}
 	cmd := exec.CommandContext(ctx, path, args...)
 	output, err := cmd.CombinedOutput()
+	cleaned := trimToJSON(output)
 
 	// Attempt to parse as a plain array first.
 	var plain []agentModel
-	if err := json.Unmarshal(output, &plain); err == nil && len(plain) > 0 {
+	if err := json.Unmarshal(cleaned, &plain); err == nil && len(plain) > 0 {
 		return normalizeAgentModels(plain), nil
 	}
 
 	var envelope listAgentModelsResponse
-	if err := json.Unmarshal(output, &envelope); err == nil {
+	if err := json.Unmarshal(cleaned, &envelope); err == nil {
 		switch {
 		case len(envelope.Models) > 0:
 			return normalizeAgentModels(envelope.Models), nil
@@ -89,7 +90,7 @@ func listAgentModels(ctx context.Context, provider string) ([]agentModel, error)
 
 	// Last resort: attempt to parse slice of generic objects.
 	var generic []map[string]interface{}
-	if err := json.Unmarshal(output, &generic); err == nil && len(generic) > 0 {
+	if err := json.Unmarshal(cleaned, &generic); err == nil && len(generic) > 0 {
 		mapped := make([]agentModel, 0, len(generic))
 		for _, item := range generic {
 			id, _ := item["id"].(string)
@@ -115,6 +116,35 @@ func listAgentModels(ctx context.Context, provider string) ([]agentModel, error)
 	}
 
 	return nil, fmt.Errorf("could not parse models response")
+}
+
+// trimToJSON removes leading non-JSON lines (warnings/logs) to allow parsing.
+func trimToJSON(raw []byte) []byte {
+	data := strings.TrimSpace(string(raw))
+	if data == "" {
+		return raw
+	}
+
+	// Find the first '{' or '[' which should start the JSON payload.
+	idxObj := strings.IndexRune(data, '{')
+	idxArr := strings.IndexRune(data, '[')
+
+	start := -1
+	if idxObj >= 0 && idxArr >= 0 {
+		start = idxObj
+		if idxArr < idxObj {
+			start = idxArr
+		}
+	} else if idxObj >= 0 {
+		start = idxObj
+	} else if idxArr >= 0 {
+		start = idxArr
+	}
+
+	if start > 0 {
+		return []byte(data[start:])
+	}
+	return []byte(data)
 }
 
 func normalizeAgentModels(models []agentModel) []agentModel {

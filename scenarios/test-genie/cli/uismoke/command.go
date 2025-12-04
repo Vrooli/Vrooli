@@ -124,12 +124,18 @@ func printResult(resp Response) {
 			Console    string `json:"console"`
 			Network    string `json:"network"`
 			HTML       string `json:"html"`
+			Raw        string `json:"raw"`
+			Readme     string `json:"readme"`
 		}
 		if err := json.Unmarshal(resp.Artifacts, &artifacts); err == nil {
 			hasArtifacts := artifacts.Screenshot != "" || artifacts.Console != "" ||
-				artifacts.Network != "" || artifacts.HTML != ""
+				artifacts.Network != "" || artifacts.HTML != "" || artifacts.Raw != "" ||
+				artifacts.Readme != ""
 			if hasArtifacts {
 				fmt.Println("\n  Artifacts:")
+				if artifacts.Readme != "" {
+					fmt.Printf("    📖 %s\n", artifacts.Readme)
+				}
 				if artifacts.Screenshot != "" {
 					fmt.Printf("    📷 %s\n", artifacts.Screenshot)
 				}
@@ -141,6 +147,9 @@ func printResult(resp Response) {
 				}
 				if artifacts.HTML != "" {
 					fmt.Printf("    📄 %s\n", artifacts.HTML)
+				}
+				if artifacts.Raw != "" {
+					fmt.Printf("    🔧 %s\n", artifacts.Raw)
 				}
 			}
 		}

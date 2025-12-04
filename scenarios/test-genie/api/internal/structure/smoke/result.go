@@ -134,6 +134,9 @@ type ArtifactPaths struct {
 
 	// Raw is the path to the raw response JSON.
 	Raw string `json:"raw,omitempty"`
+
+	// Readme is the path to the generated README.md summary.
+	Readme string `json:"readme,omitempty"`
 }
 
 // BundleStatus describes UI bundle freshness.

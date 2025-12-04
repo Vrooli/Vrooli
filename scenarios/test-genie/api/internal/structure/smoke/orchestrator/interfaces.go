@@ -263,6 +263,9 @@ type ArtifactPaths struct {
 
 	// Raw is the path to the raw response JSON.
 	Raw string `json:"raw,omitempty"`
+
+	// Readme is the path to the generated README.md summary.
+	Readme string `json:"readme,omitempty"`
 }
 
 // HandshakeResult describes the iframe-bridge handshake outcome.
@@ -504,7 +507,8 @@ type ArtifactWriter interface {
 	WriteResultJSON(ctx context.Context, scenarioDir, scenarioName string, result interface{}) error
 
 	// WriteReadme generates a README.md summarizing the test results.
-	WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *Result) error
+	// Returns the absolute path to the written README.
+	WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *Result) (string, error)
 }
 
 // HandshakeDetector evaluates handshake results from the browser.

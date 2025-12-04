@@ -194,6 +194,7 @@ func convertResult(or *orchestrator.Result) *Result {
 			Network:    or.Artifacts.Network,
 			HTML:       or.Artifacts.HTML,
 			Raw:        or.Artifacts.Raw,
+			Readme:     or.Artifacts.Readme,
 		},
 		StorageShim: convertStorageShim(or.StorageShim),
 		Raw:         or.Raw,

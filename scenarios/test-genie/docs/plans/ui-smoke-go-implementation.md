@@ -49,7 +49,7 @@ The current implementation (~1000 lines in `scripts/scenarios/testing/shell/ui-s
    - DOM snapshot (HTML)
 
 5. **Result Persistence**
-   - Writes `coverage/<scenario>/ui-smoke/latest.json`
+   - Writes `coverage/ui-smoke/latest.json`
    - Structured summary with status, timing, artifacts
 
 ### How test-genie Currently Consumes Results
@@ -57,7 +57,7 @@ The current implementation (~1000 lines in `scripts/scenarios/testing/shell/ui-s
 phase_structure.go:enforceUISmokeTelemetry()
   → fetchScenarioStatus()
     → vrooli scenario status --json
-      → reads coverage/<scenario>/ui-smoke/latest.json
+      → reads coverage/ui-smoke/latest.json
 ```
 
 test-genie validates cached results but never executes the smoke test.

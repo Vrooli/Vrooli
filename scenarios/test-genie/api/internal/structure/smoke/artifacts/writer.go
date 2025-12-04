@@ -58,8 +58,8 @@ func WithFileSystem(fs FileSystem) WriterOption {
 }
 
 // coverageDir returns the coverage directory path for UI smoke artifacts.
-func coverageDir(scenarioDir, scenarioName string) string {
-	return filepath.Join(scenarioDir, "coverage", scenarioName, "ui-smoke")
+func coverageDir(scenarioDir string) string {
+	return filepath.Join(scenarioDir, "coverage", "ui-smoke")
 }
 
 // Ensure Writer implements orchestrator.ArtifactWriter.
@@ -67,7 +67,7 @@ var _ orchestrator.ArtifactWriter = (*Writer)(nil)
 
 // WriteAll writes all artifacts and returns their paths.
 func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string, response *orchestrator.BrowserResponse) (*orchestrator.ArtifactPaths, error) {
-	dir := coverageDir(scenarioDir, scenarioName)
+	dir := coverageDir(scenarioDir)
 	if err := w.fs.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create coverage directory: %w", err)
 	}
@@ -84,7 +84,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		if err := w.fs.WriteFile(screenshotPath, decoded, 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write screenshot: %w", err)
 		}
-		paths.Screenshot = relPath(scenarioDir, screenshotPath)
+		paths.Screenshot = absPath(screenshotPath)
 	}
 
 	// Write console logs
@@ -97,7 +97,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		if err := w.fs.WriteFile(consolePath, data, 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write console: %w", err)
 		}
-		paths.Console = relPath(scenarioDir, consolePath)
+		paths.Console = absPath(consolePath)
 	}
 
 	// Write network failures
@@ -110,7 +110,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		if err := w.fs.WriteFile(networkPath, data, 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write network: %w", err)
 		}
-		paths.Network = relPath(scenarioDir, networkPath)
+		paths.Network = absPath(networkPath)
 	}
 
 	// Write DOM snapshot
@@ -119,7 +119,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		if err := w.fs.WriteFile(htmlPath, []byte(response.HTML), 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write html: %w", err)
 		}
-		paths.HTML = relPath(scenarioDir, htmlPath)
+		paths.HTML = absPath(htmlPath)
 	}
 
 	// Write raw response (without screenshot)
@@ -137,7 +137,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 				return nil, fmt.Errorf("failed to write raw: %w", err)
 			}
 		}
-		paths.Raw = relPath(scenarioDir, rawPath)
+		paths.Raw = absPath(rawPath)
 	}
 
 	return paths, nil
@@ -145,7 +145,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 
 // WriteResultJSON writes a result object as JSON.
 func (w *Writer) WriteResultJSON(ctx context.Context, scenarioDir, scenarioName string, result interface{}) error {
-	dir := coverageDir(scenarioDir, scenarioName)
+	dir := coverageDir(scenarioDir)
 	if err := w.fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create coverage directory: %w", err)
 	}
@@ -164,19 +164,20 @@ func (w *Writer) WriteResultJSON(ctx context.Context, scenarioDir, scenarioName 
 }
 
 // WriteReadme generates a README.md summarizing the test results.
-func (w *Writer) WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *orchestrator.Result) error {
-	dir := coverageDir(scenarioDir, scenarioName)
+// Returns the absolute path to the written README.
+func (w *Writer) WriteReadme(ctx context.Context, scenarioDir, scenarioName string, result *orchestrator.Result) (string, error) {
+	dir := coverageDir(scenarioDir)
 	if err := w.fs.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("failed to create coverage directory: %w", err)
+		return "", fmt.Errorf("failed to create coverage directory: %w", err)
 	}
 
 	readmePath := filepath.Join(dir, "README.md")
 	content := generateReadme(result)
 	if err := w.fs.WriteFile(readmePath, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("failed to write README: %w", err)
+		return "", fmt.Errorf("failed to write README: %w", err)
 	}
 
-	return nil
+	return absPath(readmePath), nil
 }
 
 // generateReadme creates the README.md content for a UI smoke test result.
@@ -324,12 +325,11 @@ func generateReadme(result *orchestrator.Result) string {
 	return b.String()
 }
 
-// relPath returns a relative path from baseDir to path.
-// If relativization fails, returns the absolute path.
-func relPath(baseDir, path string) string {
-	rel, err := filepath.Rel(baseDir, path)
+// absPath returns the absolute path, cleaning up any relative components.
+func absPath(path string) string {
+	abs, err := filepath.Abs(path)
 	if err != nil {
 		return path
 	}
-	return filepath.ToSlash(rel)
+	return abs
 }

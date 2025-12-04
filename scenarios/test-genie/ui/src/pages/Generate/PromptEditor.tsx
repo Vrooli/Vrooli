@@ -8,9 +8,11 @@ interface PromptEditorProps {
   prompt: string;
   onPromptChange: (prompt: string) => void;
   defaultPrompt: string;
+  titleSuffix?: string;
+  summary?: string;
 }
 
-export function PromptEditor({ prompt, onPromptChange, defaultPrompt }: PromptEditorProps) {
+export function PromptEditor({ prompt, onPromptChange, defaultPrompt, titleSuffix, summary }: PromptEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   const handleReset = () => {
@@ -23,7 +25,10 @@ export function PromptEditor({ prompt, onPromptChange, defaultPrompt }: PromptEd
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Prompt</p>
-          <h3 className="mt-2 text-lg font-semibold">Generated prompt</h3>
+          <h3 className="mt-2 text-lg font-semibold">
+            Generated prompt{titleSuffix ? ` • ${titleSuffix}` : ""}
+          </h3>
+          {summary && <p className="mt-1 text-xs text-slate-400">{summary}</p>}
         </div>
         <div className="flex gap-2">
           {!isEditing ? (

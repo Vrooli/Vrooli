@@ -329,8 +329,11 @@ func (o *Orchestrator) persistResult(ctx context.Context, result *Result) {
 		if err := o.artifacts.WriteResultJSON(ctx, o.config.ScenarioDir, o.config.ScenarioName, result); err != nil {
 			o.log("Failed to persist result: %v", err)
 		}
-		if err := o.artifacts.WriteReadme(ctx, o.config.ScenarioDir, o.config.ScenarioName, result); err != nil {
+		readmePath, err := o.artifacts.WriteReadme(ctx, o.config.ScenarioDir, o.config.ScenarioName, result)
+		if err != nil {
 			o.log("Failed to write README: %v", err)
+		} else {
+			result.Artifacts.Readme = readmePath
 		}
 	}
 }

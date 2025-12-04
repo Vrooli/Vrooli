@@ -85,7 +85,7 @@ func TestWriter_WriteAll(t *testing.T) {
 	}
 
 	// Check directory was created
-	expectedDir := "/scenarios/test/coverage/test/ui-smoke"
+	expectedDir := "/scenarios/test/coverage/ui-smoke"
 	if !fs.dirs[expectedDir] {
 		t.Errorf("expected directory %s to be created", expectedDir)
 	}
@@ -144,7 +144,7 @@ func TestWriter_WriteResultJSON(t *testing.T) {
 		t.Fatalf("WriteResultJSON() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/test/ui-smoke/latest.json"
+	expectedPath := "/scenarios/test/coverage/ui-smoke/latest.json"
 	if _, exists := fs.files[expectedPath]; !exists {
 		t.Errorf("expected file %s to be written", expectedPath)
 	}
@@ -163,28 +163,25 @@ func TestWriter_WriteResultJSON(t *testing.T) {
 	}
 }
 
-func TestRelPath(t *testing.T) {
+func TestAbsPath(t *testing.T) {
 	tests := []struct {
-		baseDir string
-		path    string
-		want    string
+		path string
+		want string
 	}{
 		{
-			baseDir: "/scenarios/test",
-			path:    "/scenarios/test/coverage/test/ui-smoke/screenshot.png",
-			want:    "coverage/test/ui-smoke/screenshot.png",
+			path: "/scenarios/test/coverage/ui-smoke/screenshot.png",
+			want: "/scenarios/test/coverage/ui-smoke/screenshot.png",
 		},
 		{
-			baseDir: "/a/b/c",
-			path:    "/a/b/c/d/e.txt",
-			want:    "d/e.txt",
+			path: "/a/b/c/d/e.txt",
+			want: "/a/b/c/d/e.txt",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			if got := relPath(tt.baseDir, tt.path); got != tt.want {
-				t.Errorf("relPath() = %q, want %q", got, tt.want)
+			if got := absPath(tt.path); got != tt.want {
+				t.Errorf("absPath() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -360,8 +357,8 @@ func TestWriter_WriteAll_InvalidRawJSON(t *testing.T) {
 }
 
 func TestCoverageDir(t *testing.T) {
-	dir := coverageDir("/scenarios/test", "test-scenario")
-	expected := "/scenarios/test/coverage/test-scenario/ui-smoke"
+	dir := coverageDir("/scenarios/test")
+	expected := "/scenarios/test/coverage/ui-smoke"
 	if dir != expected {
 		t.Errorf("coverageDir() = %q, want %q", dir, expected)
 	}
@@ -411,19 +408,22 @@ func TestWriter_WriteReadme_Success(t *testing.T) {
 			DurationMs: 500,
 		},
 		Artifacts: orchestrator.ArtifactPaths{
-			Screenshot: "coverage/test-scenario/ui-smoke/screenshot.png",
-			Console:    "coverage/test-scenario/ui-smoke/console.json",
+			Screenshot: "coverage/ui-smoke/screenshot.png",
+			Console:    "coverage/ui-smoke/console.json",
 		},
 	}
 
-	err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
+	readmePath, err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
 	if err != nil {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/test-scenario/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
 	if _, exists := fs.files[expectedPath]; !exists {
 		t.Errorf("expected file %s to be written", expectedPath)
+	}
+	if readmePath != expectedPath {
+		t.Errorf("WriteReadme() returned path = %q, want %q", readmePath, expectedPath)
 	}
 
 	content := string(fs.files[expectedPath])
@@ -450,12 +450,12 @@ func TestWriter_WriteReadme_FailedStatus(t *testing.T) {
 		},
 	}
 
-	err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
+	_, err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
 	if err != nil {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/test-scenario/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
 	content := string(fs.files[expectedPath])
 	if !containsSubstring(content, "❌") {
 		t.Error("README should contain failure emoji for failed status")
@@ -475,12 +475,12 @@ func TestWriter_WriteReadme_SkippedStatus(t *testing.T) {
 		Message:  "No UI port detected",
 	}
 
-	err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
+	_, err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
 	if err != nil {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/test-scenario/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
 	content := string(fs.files[expectedPath])
 	if !containsSubstring(content, "⏭️") {
 		t.Error("README should contain skip emoji for skipped status")
@@ -497,12 +497,12 @@ func TestWriter_WriteReadme_BlockedStatus(t *testing.T) {
 		Message:  "Browserless resource is offline",
 	}
 
-	err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
+	_, err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
 	if err != nil {
 		t.Fatalf("WriteReadme() error = %v", err)
 	}
 
-	expectedPath := "/scenarios/test/coverage/test-scenario/ui-smoke/README.md"
+	expectedPath := "/scenarios/test/coverage/ui-smoke/README.md"
 	content := string(fs.files[expectedPath])
 	if !containsSubstring(content, "🚫") {
 		t.Error("README should contain blocked emoji for blocked status")
@@ -519,7 +519,7 @@ func TestWriter_WriteReadme_MkdirError(t *testing.T) {
 
 	result := &orchestrator.Result{Status: orchestrator.StatusPassed}
 
-	err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
+	_, err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
 	if err == nil {
 		t.Error("WriteReadme() should return error when mkdir fails")
 	}
@@ -534,7 +534,7 @@ func TestWriter_WriteReadme_WriteError(t *testing.T) {
 
 	result := &orchestrator.Result{Status: orchestrator.StatusPassed}
 
-	err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
+	_, err := w.WriteReadme(context.Background(), "/scenarios/test", "test-scenario", result)
 	if err == nil {
 		t.Error("WriteReadme() should return error when write fails")
 	}
