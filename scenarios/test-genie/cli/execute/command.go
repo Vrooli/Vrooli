@@ -28,6 +28,8 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		Skip:           parsed.Skip,
 		FailFast:       parsed.FailFast,
 		SuiteRequestID: parsed.RequestID,
+		UIURL:          parsed.UIURL,
+		BrowserlessURL: parsed.BrowserlessURL,
 	}
 
 	var phaseDescriptors []phases.Descriptor
@@ -142,7 +144,7 @@ func isInteractiveTTY() bool {
 // ParseArgs parses command line arguments for the execute command.
 func ParseArgs(args []string) (Args, error) {
 	if len(args) == 0 {
-		return Args{}, usageError("usage: execute <scenario> [phases...] [--preset quick] [--skip performance] [--request-id id] [--fail-fast] [--no-stream] [--json]")
+		return Args{}, usageError("usage: execute <scenario> [phases...] [--preset quick] [--skip performance] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]")
 	}
 	out := Args{Scenario: args[0]}
 	fs := flag.NewFlagSet("execute", flag.ContinueOnError)
@@ -153,6 +155,8 @@ func ParseArgs(args []string) (Args, error) {
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
 	fs.BoolVar(&out.Stream, "stream", false, "Force streaming mode (default for TTY)")
 	fs.BoolVar(&out.NoStream, "no-stream", false, "Disable streaming, use progress spinner instead")
+	fs.StringVar(&out.UIURL, "ui-url", "", "UI URL for Lighthouse audits (e.g., http://localhost:3000)")
+	fs.StringVar(&out.BrowserlessURL, "browserless-url", "", "Browserless URL (default: BROWSERLESS_URL env or http://localhost:4110)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
 	if err := fs.Parse(args[1:]); err != nil {

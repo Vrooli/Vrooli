@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"test-genie/internal/performance/golang"
+	"test-genie/internal/performance/lighthouse"
 	"test-genie/internal/performance/nodejs"
 )
 
@@ -31,6 +32,14 @@ func (m *mockNodejsValidator) Benchmark(ctx context.Context, maxDuration time.Du
 	return m.result
 }
 
+type mockLighthouseValidator struct {
+	result *lighthouse.AuditResult
+}
+
+func (m *mockLighthouseValidator) Audit(ctx context.Context) *lighthouse.AuditResult {
+	return m.result
+}
+
 // =============================================================================
 // Helper to create a runner with all mocks
 // =============================================================================
@@ -38,6 +47,7 @@ func (m *mockNodejsValidator) Benchmark(ctx context.Context, maxDuration time.Du
 func newMockedRunner(
 	goVal *mockGolangValidator,
 	nodeVal *mockNodejsValidator,
+	lhVal *mockLighthouseValidator,
 ) *Runner {
 	return New(
 		Config{
@@ -48,7 +58,18 @@ func newMockedRunner(
 		WithLogger(io.Discard),
 		WithGolangValidator(goVal),
 		WithNodejsValidator(nodeVal),
+		WithLighthouseValidator(lhVal),
 	)
+}
+
+// defaultLighthouseMock returns a mock that simulates Lighthouse being skipped (no UI URL).
+func defaultLighthouseMock() *mockLighthouseValidator {
+	return &mockLighthouseValidator{
+		result: &lighthouse.AuditResult{
+			Result:  lighthouse.OK().WithObservations(lighthouse.NewSkipObservation("no UI URL configured")),
+			Skipped: true,
+		},
+	}
 }
 
 // =============================================================================
@@ -70,6 +91,7 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 				PackageManager: "pnpm",
 			},
 		},
+		defaultLighthouseMock(),
 	)
 
 	result := runner.Run(context.Background())
@@ -105,6 +127,7 @@ func TestRunner_GoBuildFails(t *testing.T) {
 		&mockNodejsValidator{
 			result: nodejs.BenchmarkResult{Result: nodejs.OK()},
 		},
+		defaultLighthouseMock(),
 	)
 
 	result := runner.Run(context.Background())
@@ -137,6 +160,7 @@ func TestRunner_UIBuildFails(t *testing.T) {
 				Duration: 60 * time.Second,
 			},
 		},
+		defaultLighthouseMock(),
 	)
 
 	result := runner.Run(context.Background())
@@ -163,6 +187,7 @@ func TestRunner_UIBuildSkipped(t *testing.T) {
 				Skipped: true,
 			},
 		},
+		defaultLighthouseMock(),
 	)
 
 	result := runner.Run(context.Background())
@@ -185,6 +210,7 @@ func TestRunner_ContextCancelled(t *testing.T) {
 	runner := newMockedRunner(
 		&mockGolangValidator{result: golang.BenchmarkResult{Result: golang.OK()}},
 		&mockNodejsValidator{result: nodejs.BenchmarkResult{Result: nodejs.OK()}},
+		defaultLighthouseMock(),
 	)
 
 	result := runner.Run(ctx)
@@ -211,6 +237,7 @@ func TestRunner_UsesDefaultExpectations(t *testing.T) {
 		WithNodejsValidator(&mockNodejsValidator{
 			result: nodejs.BenchmarkResult{Result: nodejs.OK(), Skipped: true},
 		}),
+		WithLighthouseValidator(defaultLighthouseMock()),
 	)
 
 	result := runner.Run(context.Background())
@@ -233,6 +260,7 @@ func TestRunner_MissingDependencyFailureClass(t *testing.T) {
 		&mockNodejsValidator{
 			result: nodejs.BenchmarkResult{Result: nodejs.OK()},
 		},
+		defaultLighthouseMock(),
 	)
 
 	result := runner.Run(context.Background())
@@ -242,6 +270,148 @@ func TestRunner_MissingDependencyFailureClass(t *testing.T) {
 	}
 	if result.FailureClass != FailureClassMissingDependency {
 		t.Errorf("expected missing_dependency failure class, got %s", result.FailureClass)
+	}
+}
+
+// =============================================================================
+// Lighthouse Integration Tests
+// =============================================================================
+
+func TestRunner_LighthousePasses(t *testing.T) {
+	runner := newMockedRunner(
+		&mockGolangValidator{
+			result: golang.BenchmarkResult{
+				Result:   golang.OK(),
+				Duration: 5 * time.Second,
+			},
+		},
+		&mockNodejsValidator{
+			result: nodejs.BenchmarkResult{
+				Result:   nodejs.OK(),
+				Duration: 30 * time.Second,
+				Skipped:  true, // No UI
+			},
+		},
+		&mockLighthouseValidator{
+			result: &lighthouse.AuditResult{
+				Result: lighthouse.OK().WithObservations(
+					lighthouse.NewSuccessObservation("page \"home\": performance: 90%, accessibility: 95%"),
+				),
+				PageResults: []lighthouse.PageResult{
+					{
+						PageID:  "home",
+						URL:     "http://localhost:3000/",
+						Success: true,
+						Scores: map[string]float64{
+							"performance":   0.90,
+							"accessibility": 0.95,
+						},
+					},
+				},
+			},
+		},
+	)
+
+	result := runner.Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %v", result.Error)
+	}
+	if !result.Summary.LighthousePassed {
+		t.Error("expected LighthousePassed to be true")
+	}
+	if result.Summary.LighthouseSkipped {
+		t.Error("expected LighthouseSkipped to be false")
+	}
+	if result.Summary.LighthousePages != 1 {
+		t.Errorf("expected 1 page audited, got %d", result.Summary.LighthousePages)
+	}
+}
+
+func TestRunner_LighthouseFails(t *testing.T) {
+	runner := newMockedRunner(
+		&mockGolangValidator{
+			result: golang.BenchmarkResult{
+				Result:   golang.OK(),
+				Duration: 5 * time.Second,
+			},
+		},
+		&mockNodejsValidator{
+			result: nodejs.BenchmarkResult{
+				Result:   nodejs.OK(),
+				Duration: 30 * time.Second,
+				Skipped:  true,
+			},
+		},
+		&mockLighthouseValidator{
+			result: &lighthouse.AuditResult{
+				Result: lighthouse.FailSystem(
+					errors.New("page \"home\": performance below threshold"),
+					"Improve Lighthouse scores to meet configured thresholds.",
+				),
+				PageResults: []lighthouse.PageResult{
+					{
+						PageID:  "home",
+						URL:     "http://localhost:3000/",
+						Success: false,
+						Scores: map[string]float64{
+							"performance": 0.50,
+						},
+						Violations: []lighthouse.CategoryViolation{
+							{Category: "performance", Score: 0.50, Threshold: 0.75, Level: "error"},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	result := runner.Run(context.Background())
+
+	if result.Success {
+		t.Fatal("expected failure when Lighthouse fails")
+	}
+	if !result.Summary.LighthousePassed {
+		// LighthousePassed is only set to false when we reach the lighthouse section
+		// but since it failed, it should be false
+	}
+}
+
+func TestRunner_LighthouseSkipped(t *testing.T) {
+	runner := newMockedRunner(
+		&mockGolangValidator{
+			result: golang.BenchmarkResult{
+				Result:   golang.OK(),
+				Duration: 5 * time.Second,
+			},
+		},
+		&mockNodejsValidator{
+			result: nodejs.BenchmarkResult{
+				Result:  nodejs.OK(),
+				Skipped: true,
+			},
+		},
+		&mockLighthouseValidator{
+			result: &lighthouse.AuditResult{
+				Result: lighthouse.OK().WithObservations(
+					lighthouse.NewSkipObservation("no UI URL configured"),
+					lighthouse.NewInfoObservation("To enable Lighthouse: ensure scenario UI is running and UIURL is passed to the performance phase"),
+				),
+				Skipped: true,
+			},
+		},
+	)
+
+	result := runner.Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success when Lighthouse skipped, got error: %v", result.Error)
+	}
+	if !result.Summary.LighthouseSkipped {
+		t.Error("expected LighthouseSkipped to be true")
+	}
+	if !result.Summary.LighthousePassed {
+		t.Error("expected LighthousePassed to be true when skipped")
 	}
 }
 
@@ -310,6 +480,7 @@ func BenchmarkRunnerAllPass(b *testing.B) {
 				Duration: 30 * time.Second,
 			},
 		},
+		defaultLighthouseMock(),
 	)
 
 	b.ResetTimer()
@@ -328,6 +499,7 @@ func BenchmarkRunnerEarlyFailure(b *testing.B) {
 		&mockNodejsValidator{
 			result: nodejs.BenchmarkResult{Result: nodejs.OK()},
 		},
+		defaultLighthouseMock(),
 	)
 
 	b.ResetTimer()
@@ -341,6 +513,7 @@ func BenchmarkRunnerEarlyFailure(b *testing.B) {
 // =============================================================================
 
 var (
-	_ golang.Validator = (*mockGolangValidator)(nil)
-	_ nodejs.Validator = (*mockNodejsValidator)(nil)
+	_ golang.Validator     = (*mockGolangValidator)(nil)
+	_ nodejs.Validator     = (*mockNodejsValidator)(nil)
+	_ lighthouse.Validator = (*mockLighthouseValidator)(nil)
 )

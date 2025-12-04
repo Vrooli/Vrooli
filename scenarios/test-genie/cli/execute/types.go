@@ -27,4 +27,8 @@ type Args struct {
 	NoStream    bool // Explicitly disable streaming (use spinner instead)
 	JSON        bool
 	ExtraPhases []string
+
+	// Runtime URLs for Lighthouse and integration testing
+	UIURL          string
+	BrowserlessURL string
 }

@@ -225,6 +225,62 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	})
 }
 
+func TestDetectRuntimeURLsFromServiceConfigAndEnv(t *testing.T) {
+	tmp := t.TempDir()
+	// minimal scenario dir
+	if err := os.MkdirAll(filepath.Join(tmp, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("failed to make .vrooli: %v", err)
+	}
+	service := `{
+  "ports": {
+    "ui": { "env_var": "CUSTOM_UI_PORT" },
+    "api": { "env_var": "CUSTOM_API_PORT" }
+  }
+}`
+	if err := os.WriteFile(filepath.Join(tmp, ".vrooli", "service.json"), []byte(service), 0o644); err != nil {
+		t.Fatalf("failed to write service.json: %v", err)
+	}
+	t.Setenv("CUSTOM_UI_PORT", "12345")
+	t.Setenv("CUSTOM_API_PORT", "22345")
+
+	ui, api := detectRuntimeURLs(tmp)
+	if ui != "http://localhost:12345" {
+		t.Fatalf("expected ui url http://localhost:12345, got %q", ui)
+	}
+	if api != "http://localhost:22345" {
+		t.Fatalf("expected api url http://localhost:22345, got %q", api)
+	}
+}
+
+func TestDetectRuntimeURLsUsesProcessMetadata(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	scenarioDir := filepath.Join(tmp, "scenarios", "demo")
+	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("failed to make scenario .vrooli: %v", err)
+	}
+	procDir := filepath.Join(tmp, ".vrooli", "processes", "scenarios", "demo")
+	if err := os.MkdirAll(procDir, 0o755); err != nil {
+		t.Fatalf("failed to make process dir: %v", err)
+	}
+	uiMeta := `{"port": 3001}`
+	apiMeta := `{"port": 4001}`
+	if err := os.WriteFile(filepath.Join(procDir, "start-ui.json"), []byte(uiMeta), 0o644); err != nil {
+		t.Fatalf("failed to write ui meta: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(procDir, "start-api.json"), []byte(apiMeta), 0o644); err != nil {
+		t.Fatalf("failed to write api meta: %v", err)
+	}
+
+	ui, api := detectRuntimeURLs(scenarioDir)
+	if ui != "http://localhost:3001" {
+		t.Fatalf("expected ui url http://localhost:3001, got %q", ui)
+	}
+	if api != "http://localhost:4001" {
+		t.Fatalf("expected api url http://localhost:4001, got %q", api)
+	}
+}
+
 func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] fail-fast halts remaining phases", func(t *testing.T) {
 		skipPlaybooksForTests(t)

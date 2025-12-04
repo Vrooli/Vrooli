@@ -58,6 +58,94 @@ const (
 
 const MaxExecutionHistory = 50
 
+// Default Browserless URL and environment variable name.
+const (
+	defaultBrowserlessURL = "http://localhost:4110"
+	browserlessURLEnvVar  = "BROWSERLESS_URL"
+)
+
+// minimal service config to detect runtime ports for auto UI/API URL resolution
+type serviceConfig struct {
+	Ports struct {
+		UI struct {
+			EnvVar string `json:"env_var"`
+		} `json:"ui"`
+		API struct {
+			EnvVar string `json:"env_var"`
+		} `json:"api"`
+	} `json:"ports"`
+}
+
+// resolveBrowserlessURL returns the Browserless URL to use, checking in order:
+// 1. Explicit value from request
+// 2. BROWSERLESS_URL environment variable
+// 3. Default localhost URL
+func resolveBrowserlessURL(explicit string) string {
+	if explicit != "" {
+		return explicit
+	}
+	if url := os.Getenv(browserlessURLEnvVar); url != "" {
+		return url
+	}
+	return defaultBrowserlessURL
+}
+
+// detectRuntimeURLs attempts to infer UI/API URLs from the scenario's service config and environment.
+// If ports are defined in .vrooli/service.json and corresponding env vars are set, it returns
+// http://localhost:<port> for each. Missing values are returned as empty strings.
+func detectRuntimeURLs(scenarioDir string) (uiURL, apiURL string) {
+	// Default env var names
+	uiEnv := "UI_PORT"
+	apiEnv := "API_PORT"
+
+	// Try process metadata from vrooli lifecycle (captures assigned ports)
+	if home, err := os.UserHomeDir(); err == nil {
+		scenario := filepath.Base(scenarioDir)
+		processDir := filepath.Join(home, ".vrooli", "processes", "scenarios", scenario)
+		type procMeta struct {
+			Port int `json:"port"`
+		}
+		if data, err := os.ReadFile(filepath.Join(processDir, "start-ui.json")); err == nil {
+			var meta procMeta
+			if json.Unmarshal(data, &meta) == nil && meta.Port > 0 {
+				uiURL = fmt.Sprintf("http://localhost:%d", meta.Port)
+			}
+		}
+		if data, err := os.ReadFile(filepath.Join(processDir, "start-api.json")); err == nil {
+			var meta procMeta
+			if json.Unmarshal(data, &meta) == nil && meta.Port > 0 {
+				apiURL = fmt.Sprintf("http://localhost:%d", meta.Port)
+			}
+		}
+		if uiURL != "" && apiURL != "" {
+			return uiURL, apiURL
+		}
+	}
+
+	// Load service.json if present to discover custom env var names
+	servicePath := filepath.Join(scenarioDir, ".vrooli", "service.json")
+	data, err := os.ReadFile(servicePath)
+	if err == nil {
+		var svc serviceConfig
+		if json.Unmarshal(data, &svc) == nil {
+			if strings.TrimSpace(svc.Ports.UI.EnvVar) != "" {
+				uiEnv = svc.Ports.UI.EnvVar
+			}
+			if strings.TrimSpace(svc.Ports.API.EnvVar) != "" {
+				apiEnv = svc.Ports.API.EnvVar
+			}
+		}
+	}
+
+	if port := strings.TrimSpace(os.Getenv(uiEnv)); port != "" {
+		uiURL = fmt.Sprintf("http://localhost:%s", port)
+	}
+	if port := strings.TrimSpace(os.Getenv(apiEnv)); port != "" {
+		apiURL = fmt.Sprintf("http://localhost:%s", port)
+	}
+	return uiURL, apiURL
+}
+
 // SuiteOrchestrator runs scenario-local test phases without relying on external bash runners.
 type SuiteOrchestrator struct {
 	scenariosRoot string
@@ -74,6 +162,13 @@ type SuiteExecutionRequest struct {
 	Phases       []string `json:"phases,omitempty"`
 	Skip         []string `json:"skip,omitempty"`
 	FailFast     bool     `json:"failFast"`
+
+	// Runtime URLs for phases that need to connect to running services.
+	// If not provided, BrowserlessURL falls back to BROWSERLESS_URL env var or default.
+	// UIURL is required for Lighthouse audits; if empty, Lighthouse is skipped.
+	UIURL          string `json:"uiUrl,omitempty"`
+	APIURL         string `json:"apiUrl,omitempty"`
+	BrowserlessURL string `json:"browserlessUrl,omitempty"`
 }
 
 // SuiteExecutionResult captures the outcome of a run.
@@ -104,11 +199,11 @@ type PhaseSummary struct {
 type ExecutionEventType string
 
 const (
-	EventPhaseStart   ExecutionEventType = "phase_start"
-	EventPhaseEnd     ExecutionEventType = "phase_end"
-	EventObservation  ExecutionEventType = "observation"
-	EventProgress     ExecutionEventType = "progress"
-	EventComplete     ExecutionEventType = "complete"
+	EventPhaseStart  ExecutionEventType = "phase_start"
+	EventPhaseEnd    ExecutionEventType = "phase_end"
+	EventObservation ExecutionEventType = "observation"
+	EventProgress    ExecutionEventType = "progress"
+	EventComplete    ExecutionEventType = "complete"
 )
 
 // ExecutionEvent represents a streaming event during suite execution.
@@ -171,6 +266,18 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 	if err != nil {
 		return nil, err
 	}
+
+	// Configure runtime URLs for phases that connect to running services
+	autoUI, autoAPI := detectRuntimeURLs(ws.ScenarioDir)
+	uiURL := req.UIURL
+	if uiURL == "" {
+		uiURL = autoUI
+	}
+	apiURL := req.APIURL
+	if apiURL == "" {
+		apiURL = autoAPI
+	}
+	ws.SetRuntimeURLs(uiURL, apiURL, resolveBrowserlessURL(req.BrowserlessURL))
 	env := ws.Environment()
 
 	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)
@@ -218,6 +325,18 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 	if err != nil {
 		return nil, err
 	}
+
+	// Configure runtime URLs for phases that connect to running services
+	autoUI, autoAPI := detectRuntimeURLs(ws.ScenarioDir)
+	uiURL := req.UIURL
+	if uiURL == "" {
+		uiURL = autoUI
+	}
+	apiURL := req.APIURL
+	if apiURL == "" {
+		apiURL = autoAPI
+	}
+	ws.SetRuntimeURLs(uiURL, apiURL, resolveBrowserlessURL(req.BrowserlessURL))
 	env := ws.Environment()
 
 	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)

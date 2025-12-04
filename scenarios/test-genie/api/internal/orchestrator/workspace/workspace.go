@@ -12,12 +12,19 @@ import (
 
 var validScenarioName = regexp.MustCompile(`^[a-zA-Z0-9\-_]+$`)
 
-// Environment exposes scenario paths so phase runners can inspect files without shell scripts.
+// Environment exposes scenario paths and runtime URLs so phase runners can inspect files
+// and connect to running services without shell scripts.
 type Environment struct {
 	ScenarioName string
 	ScenarioDir  string
 	TestDir      string
 	AppRoot      string
+
+	// Runtime URLs for phases that need to connect to running services.
+	// These are optional and may be empty if the scenario isn't running.
+	UIURL          string // Base URL for the scenario UI (e.g., "http://localhost:3000")
+	APIURL         string // Base URL for the scenario API (e.g., "http://localhost:8080")
+	BrowserlessURL string // URL for Browserless service (e.g., "http://localhost:4110")
 }
 
 // ScenarioWorkspace captures the canonical paths for a scenario so the orchestrator
@@ -30,6 +37,11 @@ type ScenarioWorkspace struct {
 	AppRoot     string
 
 	artifactDir string
+
+	// Runtime URLs (set via SetRuntimeURLs)
+	uiURL          string
+	apiURL         string
+	browserlessURL string
 }
 
 // New loads and validates the file-system layout for a scenario.
@@ -76,11 +88,25 @@ func (w *ScenarioWorkspace) Environment() Environment {
 		return Environment{}
 	}
 	return Environment{
-		ScenarioName: w.Name,
-		ScenarioDir:  w.ScenarioDir,
-		TestDir:      w.TestDir,
-		AppRoot:      w.AppRoot,
+		ScenarioName:   w.Name,
+		ScenarioDir:    w.ScenarioDir,
+		TestDir:        w.TestDir,
+		AppRoot:        w.AppRoot,
+		UIURL:          w.uiURL,
+		APIURL:         w.apiURL,
+		BrowserlessURL: w.browserlessURL,
 	}
+}
+
+// SetRuntimeURLs configures the runtime service URLs for phases that need to connect
+// to running services (e.g., Lighthouse audits, integration tests).
+func (w *ScenarioWorkspace) SetRuntimeURLs(uiURL, apiURL, browserlessURL string) {
+	if w == nil {
+		return
+	}
+	w.uiURL = uiURL
+	w.apiURL = apiURL
+	w.browserlessURL = browserlessURL
 }
 
 // EnsureArtifactDir lazily creates the artifact directory and returns its path.

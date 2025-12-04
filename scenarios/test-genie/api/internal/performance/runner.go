@@ -6,16 +6,21 @@ import (
 	"io"
 
 	"test-genie/internal/performance/golang"
+	"test-genie/internal/performance/lighthouse"
+	"test-genie/internal/performance/lighthouse/artifacts"
 	"test-genie/internal/performance/nodejs"
 )
 
-// Runner orchestrates performance validation across Go and Node.js builds.
+
+// Runner orchestrates performance validation across Go and Node.js builds,
+// and Lighthouse audits.
 type Runner struct {
 	config Config
 
 	// Validators (injectable for testing)
-	golangValidator golang.Validator
-	nodejsValidator nodejs.Validator
+	golangValidator     golang.Validator
+	nodejsValidator     nodejs.Validator
+	lighthouseValidator lighthouse.Validator
 
 	logWriter io.Writer
 }
@@ -41,8 +46,33 @@ func New(config Config, opts ...Option) *Runner {
 	if r.nodejsValidator == nil {
 		r.nodejsValidator = nodejs.New(config.ScenarioDir, nodejs.WithLogger(r.logWriter))
 	}
+	if r.lighthouseValidator == nil {
+		r.lighthouseValidator = r.createLighthouseValidator()
+	}
 
 	return r
+}
+
+// createLighthouseValidator creates the default lighthouse validator based on config.
+func (r *Runner) createLighthouseValidator() lighthouse.Validator {
+	// Load lighthouse config from .vrooli/lighthouse.json
+	lhConfig, err := lighthouse.LoadConfig(r.config.ScenarioDir)
+	if err != nil {
+		// If config can't be loaded, return a validator that will report the error
+		lhConfig = lighthouse.DefaultConfig()
+	}
+
+	// Create artifact writer for report generation
+	artifactWriter := artifacts.NewWriter(r.config.ScenarioDir, r.config.ScenarioName)
+
+	// Lighthouse uses CLI directly (Google's official Lighthouse CLI)
+	return lighthouse.New(lighthouse.ValidatorConfig{
+		BaseURL: r.config.UIURL,
+		Config:  lhConfig,
+	},
+		lighthouse.WithLogger(r.logWriter),
+		lighthouse.WithArtifactWriter(artifactWriter),
+	)
 }
 
 // WithLogger sets the log writer for the runner.
@@ -63,6 +93,13 @@ func WithGolangValidator(v golang.Validator) Option {
 func WithNodejsValidator(v nodejs.Validator) Option {
 	return func(r *Runner) {
 		r.nodejsValidator = v
+	}
+}
+
+// WithLighthouseValidator sets a custom Lighthouse validator (for testing).
+func WithLighthouseValidator(v lighthouse.Validator) Option {
+	return func(r *Runner) {
+		r.lighthouseValidator = v
 	}
 }
 
@@ -127,6 +164,27 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 	summary.UIBuildPassed = uiResult.Success || uiResult.Skipped
+
+	// Section: Lighthouse Audits
+	observations = append(observations, NewSectionObservation("🔦", "Running Lighthouse audits..."))
+
+	lhResult := r.lighthouseValidator.Audit(ctx)
+	summary.LighthouseSkipped = lhResult.Skipped
+	summary.LighthousePages = len(lhResult.PageResults)
+	observations = append(observations, lhResult.Observations...)
+
+	if !lhResult.Success && !lhResult.Skipped {
+		summary.LighthousePassed = false
+		return &RunResult{
+			Success:      false,
+			Error:        lhResult.Error,
+			FailureClass: lhResult.FailureClass,
+			Remediation:  lhResult.Remediation,
+			Observations: observations,
+			Summary:      summary,
+		}
+	}
+	summary.LighthousePassed = lhResult.Success || lhResult.Skipped
 
 	// Final summary
 	observations = append(observations, Observation{

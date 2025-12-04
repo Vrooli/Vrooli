@@ -28,10 +28,12 @@ func runPerformancePhase(ctx context.Context, env workspace.Environment, logWrit
 	}
 
 	// Run performance validation using the dedicated package
+	// Note: Lighthouse now uses CLI directly, not Browserless
 	runner := performance.New(performance.Config{
 		ScenarioDir:  env.ScenarioDir,
 		ScenarioName: env.ScenarioName,
 		Expectations: expectations,
+		UIURL:        env.UIURL,
 	}, performance.WithLogger(logWriter))
 
 	result := runner.Run(ctx)

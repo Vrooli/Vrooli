@@ -13,6 +13,13 @@ type Request struct {
 	Skip           []string `json:"skip,omitempty"`
 	FailFast       bool     `json:"failFast"`
 	SuiteRequestID string   `json:"suiteRequestId,omitempty"`
+
+	// Runtime URLs for phases that need to connect to running services.
+	// UIURL is required for Lighthouse audits; if empty, Lighthouse is skipped.
+	// BrowserlessURL falls back to BROWSERLESS_URL env var or default if not specified.
+	UIURL          string `json:"uiUrl,omitempty"`
+	APIURL         string `json:"apiUrl,omitempty"`
+	BrowserlessURL string `json:"browserlessUrl,omitempty"`
 }
 
 // Response represents the execution response.

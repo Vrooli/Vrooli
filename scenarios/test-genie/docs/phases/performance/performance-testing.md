@@ -59,7 +59,7 @@ test-genie execute my-scenario --preset comprehensive
 cat coverage/phase-results/performance.json | jq .
 
 # View Lighthouse HTML reports (if configured)
-open test/artifacts/lighthouse/*.html
+open coverage/lighthouse/*.html
 ```
 
 ## Build Benchmarks
@@ -178,7 +178,6 @@ Create `.vrooli/lighthouse.json` in your scenario:
   },
   "reporting": {
     "formats": ["json", "html"],
-    "output_dir": "test/artifacts/lighthouse",
     "fail_on_error": true
   }
 }
@@ -329,7 +328,7 @@ test-genie execute my-scenario --phases performance --verbose
 Open the HTML report to see specific recommendations:
 
 ```bash
-open test/artifacts/lighthouse/home_desktop_*.html
+open coverage/lighthouse/home.html
 ```
 
 ### Step 4: Optimize
@@ -421,7 +420,7 @@ jobs:
         if: always()
         with:
           name: lighthouse-reports
-          path: scenarios/my-scenario/test/artifacts/lighthouse/
+          path: scenarios/my-scenario/coverage/lighthouse/
 ```
 
 ### Fail-Fast for PRs

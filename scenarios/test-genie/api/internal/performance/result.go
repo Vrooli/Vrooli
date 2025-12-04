@@ -80,6 +80,11 @@ type BenchmarkSummary struct {
 	UIBuildDuration time.Duration
 	UIBuildPassed   bool
 	UIBuildSkipped  bool
+
+	// Lighthouse audit results
+	LighthousePassed  bool
+	LighthouseSkipped bool
+	LighthousePages   int // Number of pages audited
 }
 
 // String returns a human-readable summary.
@@ -94,7 +99,22 @@ func (s BenchmarkSummary) String() string {
 	} else if !s.UIBuildPassed {
 		uiStatus = "failed"
 	}
-	return fmt.Sprintf("Go build: %s (%s), UI build: %s (%s)",
+
+	// Base summary
+	summary := fmt.Sprintf("Go build: %s (%s), UI build: %s (%s)",
 		s.GoBuildDuration.Round(time.Second), goStatus,
 		s.UIBuildDuration.Round(time.Second), uiStatus)
+
+	// Add Lighthouse summary if applicable
+	if s.LighthouseSkipped {
+		summary += ", Lighthouse: skipped"
+	} else if s.LighthousePages > 0 {
+		lhStatus := "passed"
+		if !s.LighthousePassed {
+			lhStatus = "failed"
+		}
+		summary += fmt.Sprintf(", Lighthouse: %s (%d pages)", lhStatus, s.LighthousePages)
+	}
+
+	return summary
 }

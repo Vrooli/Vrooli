@@ -1,13 +1,17 @@
 # Lighthouse Integration Guide
 
 **Status**: Active
-**Last Updated**: 2025-12-02
+**Last Updated**: 2025-12-04
 
 ---
 
 Complete guide to integrating Lighthouse performance and accessibility testing into Vrooli scenarios.
 
-> **Note**: Lighthouse testing is executed through the Go-native test-genie orchestrator during the performance phase. Configuration is done via `.vrooli/lighthouse.json` in your scenario.
+> **Note**: Lighthouse testing is executed through the Go-native test-genie orchestrator during the performance phase using Google's official Lighthouse CLI. Configuration is done via `.vrooli/lighthouse.json` in your scenario.
+
+**Config location and schema**
+- Place your config at `.vrooli/lighthouse.json` inside the scenario root.
+- Validate against `scenarios/test-genie/schemas/lighthouse.schema.json` (repo-relative path).
 
 ## Overview
 
@@ -18,12 +22,14 @@ Lighthouse testing provides automated auditing of:
 - **SEO**: Meta tags, structured data, crawlability
 
 **Key Features**:
+- Uses Google's official Lighthouse CLI (most reliable and up-to-date)
 - Integrated with phase-based testing system
 - Automatic requirements tracking and evidence collection
 - Per-page thresholds (error/warn levels)
 - Desktop and mobile viewport testing
-- HTML and JSON report generation
-- Configurable Chrome flags and Lighthouse settings
+- JSON report generation to `coverage/lighthouse/`
+- Retry support for flaky network conditions
+- Configurable Lighthouse settings
 
 ---
 
@@ -31,9 +37,10 @@ Lighthouse testing provides automated auditing of:
 
 ### Prerequisites
 
-1. **Node.js 16+** installed
-2. **Chrome/Chromium** browser installed
-3. **Scenario with UI** component
+1. **Node.js** installed (for Lighthouse CLI)
+2. **Lighthouse CLI** installed: `npm install -g lighthouse` (or will use npx)
+3. **Chrome/Chromium** installed on the system
+4. **Scenario with UI** component running
 
 ### Step 1: Create Lighthouse Configuration
 
@@ -59,17 +66,17 @@ Create `.vrooli/lighthouse.json` in your scenario directory:
     }
   ],
   "global_options": {
-    "chrome_flags": ["--headless", "--no-sandbox"],
-    "timeout_ms": 60000
+    "timeout_ms": 60000,
+    "retries": 2
   },
   "reporting": {
-    "formats": ["json", "html"],
+    "formats": ["json"],
     "fail_on_error": true
   }
 }
 ```
 
-### Step 4: Run Tests
+### Step 2: Run Tests
 
 ```bash
 # Ensure scenario is running
@@ -79,13 +86,16 @@ vrooli scenario start your-scenario
 test-genie execute your-scenario --phases performance
 ```
 
-### Step 5: View Results
+### Step 3: View Results
 
 ```bash
-# Open HTML report
-open test/artifacts/lighthouse/home_*.html
+# View per-page reports
+cat coverage/lighthouse/home.json
 
-# View phase results
+# View summary
+cat coverage/lighthouse/summary.json
+
+# View phase results (for requirements integration)
 cat coverage/phase-results/lighthouse.json
 ```
 
@@ -101,12 +111,21 @@ cat coverage/phase-results/lighthouse.json
   "path": "/relative/path",
   "label": "Human Label",
   "viewport": "desktop",
-  "waitForSelector": "CSS selector",
   "waitForMs": 2000,
   "thresholds": { ... },
   "requirements": ["REQ-ID"]
 }
 ```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique identifier for the page |
+| `path` | string | Yes | URL path relative to base URL |
+| `label` | string | No | Human-readable name |
+| `viewport` | string | No | `"desktop"` or `"mobile"` |
+| `waitForMs` | int | No | Milliseconds to wait before audit (adds to timeout) |
+| `thresholds` | object | Yes | Category thresholds |
+| `requirements` | array | No | Requirement IDs for evidence tracking |
 
 ### Threshold Configuration
 
@@ -122,7 +141,7 @@ cat coverage/phase-results/lighthouse.json
 ```
 
 - **error**: Score below this fails the test
-- **warn**: Score below this generates warning
+- **warn**: Score below this generates warning (test still passes)
 - Scores are 0.0-1.0 (displayed as 0-100%)
 
 **Recommended Values by Page Type:**
@@ -141,15 +160,39 @@ cat coverage/phase-results/lighthouse.json
     "lighthouse": {
       "settings": {
         "onlyCategories": ["performance", "accessibility"],
-        "throttlingMethod": "simulate"
+        "throttlingMethod": "simulate",
+        "formFactor": "desktop"
       }
     },
-    "chrome_flags": ["--headless", "--no-sandbox"],
-    "timeout_ms": 60000,
+    "timeout_ms": 90000,
     "retries": 2
   }
 }
 ```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `lighthouse.settings.onlyCategories` | array | All 4 | Categories to audit |
+| `lighthouse.settings.throttlingMethod` | string | - | `"simulate"` or `"devtools"` |
+| `lighthouse.settings.formFactor` | string | - | `"desktop"` or `"mobile"` (overrides page viewport) |
+| `timeout_ms` | int | 90000 | Max audit time in milliseconds |
+| `retries` | int | 0 | Retry count for transient failures |
+
+### Reporting Options
+
+```json
+{
+  "reporting": {
+    "formats": ["json"],
+    "fail_on_error": true
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `formats` | array | [] | Report formats: `"json"` |
+| `fail_on_error` | bool | true | Whether threshold violations fail the phase |
 
 ---
 
@@ -231,9 +274,10 @@ cd .. && test-genie execute my-scenario --phases performance
 
 ### 5. Wait for Dynamic Content
 
+Use `waitForMs` to add a delay before the Lighthouse audit begins:
+
 ```json
 {
-  "waitForSelector": "[data-testid='content-loaded']",
   "waitForMs": 2000
 }
 ```
@@ -242,14 +286,28 @@ cd .. && test-genie execute my-scenario --phases performance
 
 ## Troubleshooting
 
+### Lighthouse CLI Not Found
+
+Ensure Lighthouse is installed:
+
+```bash
+# Install globally
+npm install -g lighthouse
+
+# Or verify npx can find it
+npx lighthouse --version
+```
+
 ### Chrome Not Found
+
+Lighthouse requires Chrome or Chromium. Install one of:
 
 ```bash
 # Ubuntu/Debian
-sudo apt-get install chromium-browser
+sudo apt install chromium-browser
 
-# macOS
-brew install chromium
+# Or set CHROME_PATH to your Chrome installation
+export CHROME_PATH=/path/to/chrome
 ```
 
 ### Scenario Not Running
@@ -261,11 +319,13 @@ vrooli scenario start your-scenario
 
 ### Low Scores
 
-1. Open HTML report and review suggestions
+1. Review the JSON report at `coverage/lighthouse/<page-id>.json`
 2. Check if using dev build instead of production
 3. Verify assets are optimized
 
 ### Flaky Scores
+
+Enable retries to handle transient network issues:
 
 ```json
 {
@@ -280,13 +340,30 @@ vrooli scenario start your-scenario
 }
 ```
 
+### No UI URL Configured
+
+If you see "no UI URL configured", the scenario's UI isn't running or the port wasn't detected. Ensure:
+1. The scenario has a UI component
+2. The UI is running (`make start` or `vrooli scenario start`)
+3. The port is correctly configured in `.vrooli/service.json`
+
+---
+
+## Output Files
+
+When `reporting.formats` includes `"json"`, the following files are generated:
+
+| File | Description |
+|------|-------------|
+| `coverage/lighthouse/<page-id>.json` | Full Lighthouse report per page |
+| `coverage/lighthouse/summary.json` | Aggregated results across all pages |
+| `coverage/phase-results/lighthouse.json` | Requirements integration data |
+
 ---
 
 ## See Also
 
 - [Performance Phase](README.md) - Performance phase overview
-- [Performance Testing](performance-testing.md) - Build benchmarks and audits
-- [Phases Overview](../README.md) - 7-phase architecture
-- [UI Smoke Testing](../structure/ui-smoke.md) - Fast UI validation
-- [Requirements Sync](../business/requirements-sync.md) - Evidence collection
-- [Troubleshooting](../../guides/troubleshooting.md) - Debug common issues
+- [Phases Overview](../README.md) - 8-phase architecture
+- [UI Smoke Testing](../smoke/README.md) - Fast UI validation
+- [Requirements Sync](../business/README.md) - Evidence collection

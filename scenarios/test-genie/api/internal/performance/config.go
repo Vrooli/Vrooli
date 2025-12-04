@@ -19,6 +19,10 @@ type Config struct {
 
 	// Expectations holds custom validation expectations from .vrooli/testing.json.
 	Expectations *Expectations
+
+	// UIURL is the base URL for the scenario UI (for Lighthouse audits).
+	// If empty, Lighthouse audits are skipped.
+	UIURL string
 }
 
 // Expectations holds the configuration for performance validation, loaded from

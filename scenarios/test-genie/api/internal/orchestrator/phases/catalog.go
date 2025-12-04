@@ -73,7 +73,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Name:        Performance,
 		Runner:      runPerformancePhase,
 		Optional:    true,
-		Description: "Builds the Go API and enforces baseline duration budgets to catch regressions.",
+		Description: "Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.",
 	})
 	return catalog
 }
