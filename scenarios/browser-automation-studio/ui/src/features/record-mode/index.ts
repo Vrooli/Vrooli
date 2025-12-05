@@ -8,6 +8,7 @@
 // Components
 export { RecordModePage } from './RecordModePage';
 export { ActionTimeline } from './ActionTimeline';
+export { SelectorEditor } from './SelectorEditor';
 
 // Hooks
 export { useRecordMode } from './hooks/useRecordMode';

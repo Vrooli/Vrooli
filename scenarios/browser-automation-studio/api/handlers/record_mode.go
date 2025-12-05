@@ -121,6 +121,8 @@ type GenerateWorkflowRequest struct {
 		Start int `json:"start"`
 		End   int `json:"end"`
 	} `json:"action_range,omitempty"`
+	// Actions can be provided directly (with edits) instead of fetching from driver
+	Actions []RecordedAction `json:"actions,omitempty"`
 }
 
 // GenerateWorkflowResponse is the response after generating a workflow.
@@ -440,46 +442,53 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		req.Name = fmt.Sprintf("Recorded Workflow %s", time.Now().Format("2006-01-02 15:04"))
 	}
 
-	// First, get the recorded actions from driver
-	actionsURL := fmt.Sprintf("%s/session/%s/record/actions", getPlaywrightDriverURL(), sessionID)
+	var actions []RecordedAction
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, actionsURL, nil)
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create request to driver",
-		}))
-		return
+	// Use actions from request if provided (these contain user edits)
+	if len(req.Actions) > 0 {
+		actions = req.Actions
+	} else {
+		// Fall back to fetching from driver
+		actionsURL := fmt.Sprintf("%s/session/%s/record/actions", getPlaywrightDriverURL(), sessionID)
+
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, actionsURL, nil)
+		if err != nil {
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error": "Failed to create request to driver",
+			}))
+			return
+		}
+
+		client := &http.Client{Timeout: recordModeTimeout}
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			h.log.WithError(err).Error("Failed to get recorded actions from driver")
+			h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+				"error": "Playwright driver unavailable",
+			}))
+			return
+		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error": "Failed to get recorded actions",
+			}))
+			return
+		}
+
+		var actionsResp GetActionsResponse
+		if err := json.Unmarshal(body, &actionsResp); err != nil {
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"error": "Failed to parse actions response",
+			}))
+			return
+		}
+
+		actions = actionsResp.Actions
 	}
-
-	client := &http.Client{Timeout: recordModeTimeout}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to get recorded actions from driver")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-			"error": "Playwright driver unavailable",
-		}))
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to get recorded actions",
-		}))
-		return
-	}
-
-	var actionsResp GetActionsResponse
-	if err := json.Unmarshal(body, &actionsResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse actions response",
-		}))
-		return
-	}
-
-	actions := actionsResp.Actions
 
 	// Apply action range filter if specified
 	if req.ActionRange != nil {
@@ -523,9 +532,14 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	var projectID uuid.UUID
+	if workflow.ProjectID != nil {
+		projectID = *workflow.ProjectID
+	}
+
 	h.respondSuccess(w, http.StatusCreated, GenerateWorkflowResponse{
 		WorkflowID:  workflow.ID,
-		ProjectID:   workflow.ProjectID,
+		ProjectID:   projectID,
 		Name:        workflow.Name,
 		NodeCount:   len(flowDefinition["nodes"].([]map[string]interface{})),
 		ActionCount: len(actions),

@@ -2,10 +2,16 @@
  * useRecordMode Hook
  *
  * Manages recording state and API interactions for Record Mode.
+ * Supports:
+ * - Starting/stopping recording
+ * - Polling for new actions
+ * - Editing actions (selector and payload)
+ * - Generating workflows
+ * - Validating selectors
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { getApiBaseUrl } from '@/lib/api';
+import { getApiBase } from '@/config';
 import type {
   RecordedAction,
   StartRecordingResponse,
@@ -13,6 +19,7 @@ import type {
   GetActionsResponse,
   GenerateWorkflowResponse,
   SelectorValidation,
+  SelectorSet,
 } from '../types';
 
 interface UseRecordModeOptions {
@@ -43,13 +50,27 @@ interface UseRecordModeReturn {
   clearActions: () => void;
   /** Delete an action by index */
   deleteAction: (index: number) => void;
+  /** Update an action's selector */
+  updateSelector: (index: number, newSelector: string) => void;
+  /** Update an action's payload */
+  updatePayload: (index: number, payload: Record<string, unknown>) => void;
   /** Generate workflow from current actions */
   generateWorkflow: (name: string, projectId?: string) => Promise<GenerateWorkflowResponse>;
   /** Validate a selector */
   validateSelector: (selector: string) => Promise<SelectorValidation>;
   /** Refresh actions from server */
   refreshActions: () => Promise<void>;
+  /** Count of actions with low confidence */
+  lowConfidenceCount: number;
+  /** Count of actions with medium confidence */
+  mediumConfidenceCount: number;
 }
+
+/** Confidence thresholds */
+const CONFIDENCE = {
+  HIGH: 0.8,
+  MEDIUM: 0.5,
+};
 
 export function useRecordMode({
   sessionId,
@@ -62,10 +83,18 @@ export function useRecordMode({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActionCountRef = useRef(0);
 
-  const apiUrl = getApiBaseUrl();
+  const apiUrl = getApiBase();
+
+  // Calculate confidence counts
+  const lowConfidenceCount = actions.filter(
+    (a) => a.selector && a.confidence < CONFIDENCE.MEDIUM
+  ).length;
+  const mediumConfidenceCount = actions.filter(
+    (a) => a.selector && a.confidence >= CONFIDENCE.MEDIUM && a.confidence < CONFIDENCE.HIGH
+  ).length;
 
   // Fetch actions from server
   const refreshActions = useCallback(async () => {
@@ -185,16 +214,70 @@ export function useRecordMode({
     setActions((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  const updateSelector = useCallback((index: number, newSelector: string) => {
+    setActions((prev) =>
+      prev.map((action, i) => {
+        if (i !== index) return action;
+
+        // Update the primary selector and recalculate confidence
+        const updatedSelector: SelectorSet = action.selector
+          ? {
+              ...action.selector,
+              primary: newSelector,
+            }
+          : {
+              primary: newSelector,
+              candidates: [],
+            };
+
+        // Find confidence from candidates or default to medium
+        const matchingCandidate = action.selector?.candidates.find(
+          (c) => c.value === newSelector
+        );
+        const newConfidence = matchingCandidate?.confidence ?? 0.7;
+
+        return {
+          ...action,
+          selector: updatedSelector,
+          confidence: newConfidence,
+        };
+      })
+    );
+  }, []);
+
+  const updatePayload = useCallback(
+    (index: number, payload: Record<string, unknown>) => {
+      setActions((prev) =>
+        prev.map((action, i) => {
+          if (i !== index) return action;
+          return {
+            ...action,
+            payload: {
+              ...action.payload,
+              ...payload,
+            } as RecordedAction['payload'],
+          };
+        })
+      );
+    },
+    []
+  );
+
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string): Promise<GenerateWorkflowResponse> => {
       if (!sessionId) {
         throw new Error('No session ID provided');
       }
 
+      if (actions.length === 0) {
+        throw new Error('No actions to generate workflow from');
+      }
+
       setIsLoading(true);
       setError(null);
 
       try {
+        // Send local actions (with edits) to the API
         const response = await fetch(
           `${apiUrl}/api/v1/recordings/live/${sessionId}/generate-workflow`,
           {
@@ -203,6 +286,8 @@ export function useRecordMode({
             body: JSON.stringify({
               name,
               project_id: projectId,
+              // Include edited actions in the request
+              actions: actions,
             }),
           }
         );
@@ -224,7 +309,7 @@ export function useRecordMode({
         setIsLoading(false);
       }
     },
-    [sessionId, apiUrl]
+    [sessionId, apiUrl, actions]
   );
 
   const validateSelector = useCallback(
@@ -261,8 +346,12 @@ export function useRecordMode({
     stopRecording,
     clearActions,
     deleteAction,
+    updateSelector,
+    updatePayload,
     generateWorkflow,
     validateSelector,
     refreshActions,
+    lowConfidenceCount,
+    mediumConfidenceCount,
   };
 }
