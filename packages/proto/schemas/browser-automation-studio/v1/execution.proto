@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "browser-automation-studio/v1/workflow.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+
+// Execution is returned by GET /api/v1/executions/{id}` and list APIs.
+message Execution {
+  // Unique execution ID (UUID).
+  string id = 1;
+  // Workflow ID associated with the execution (UUID).
+  string workflow_id = 2;
+  // Version of the workflow used for this execution.
+  int32 workflow_version = 3;
+  // Current status string (pending, running, completed, failed, cancelled).
+  string status = 4;
+  // How the execution was triggered (manual, scheduled, api, webhook).
+  string trigger_type = 5;
+  // Trigger metadata payload.
+  map<string, google.protobuf.Value> trigger_metadata = 6;
+  // Runtime parameters passed to the execution.
+  map<string, google.protobuf.Value> parameters = 7;
+  // When the execution started.
+  google.protobuf.Timestamp started_at = 8;
+  // When the execution completed (null if still running).
+  google.protobuf.Timestamp completed_at = 9;
+  // Last heartbeat received from the executor.
+  google.protobuf.Timestamp last_heartbeat = 10;
+  // Error message if the execution failed.
+  optional string error = 11;
+  // Structured result payload reported by the executor.
+  map<string, google.protobuf.Value> result = 12;
+  // Progress percentage (0-100).
+  int32 progress = 13;
+  // Human-readable description of the current step.
+  string current_step = 14;
+  // Creation timestamp for the execution record.
+  google.protobuf.Timestamp created_at = 15;
+  // Last update timestamp for the execution record.
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+// ExecuteAdhocRequest represents POST /api/v1/workflows/execute-adhoc.
+message ExecuteAdhocRequest {
+  // Workflow definition to execute without persisting.
+  WorkflowDefinition flow_definition = 1;
+  // Runtime parameters for the adhoc execution.
+  map<string, google.protobuf.Value> parameters = 2;
+  // Whether to wait for completion before responding.
+  bool wait_for_completion = 3;
+  // Optional metadata for labeling the execution.
+  ExecutionMetadata metadata = 4;
+}
+
+// ExecutionMetadata captures optional labels for adhoc runs.
+message ExecutionMetadata {
+  // Human-readable name for the adhoc execution.
+  string name = 1;
+  // Optional description for the adhoc execution.
+  string description = 2;
+}
+
+// ExecuteAdhocResponse mirrors the adhoc execution response payload.
+message ExecuteAdhocResponse {
+  // The created execution ID.
+  string execution_id = 1;
+  // Initial execution status.
+  string status = 2;
+  // Workflow ID if persisted (null for adhoc).
+  optional string workflow_id = 3;
+  // Human-readable status message.
+  string message = 4;
+  // Completion timestamp when wait_for_completion is true.
+  google.protobuf.Timestamp completed_at = 5;
+  // Error message when execution fails.
+  optional string error = 6;
+}

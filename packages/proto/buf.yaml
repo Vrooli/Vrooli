@@ -1,0 +1,15 @@
+version: v2
+modules:
+  - path: schemas
+    name: buf.build/vrooli/schemas
+deps:
+  - buf.build/google/protobuf
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_VERSION_SUFFIX
+    - PACKAGE_DIRECTORY_MATCH
+breaking:
+  use:
+    - FILE

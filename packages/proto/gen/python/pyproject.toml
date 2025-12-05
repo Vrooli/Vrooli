@@ -1,0 +1,18 @@
+[project]
+name = "vrooli-proto-types"
+version = "0.0.0"
+requires-python = ">=3.10"
+dependencies = [
+  "protobuf>=6.33.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["browser_automation_studio*", "common*"]
+
+[tool.setuptools.package-data]
+"browser_automation_studio" = ["py.typed"]
+"common" = ["py.typed"]

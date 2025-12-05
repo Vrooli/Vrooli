@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// PaginationRequest represents limit/offset pagination inputs.
+message PaginationRequest {
+  // Maximum number of items to return.
+  int32 limit = 1;
+  // Zero-based offset for pagination.
+  int32 offset = 2;
+}
+
+// PaginationResponse captures list pagination metadata.
+message PaginationResponse {
+  // Total number of matching records.
+  int32 total = 1;
+  // Page size used in the response.
+  int32 limit = 2;
+  // Zero-based offset used to fetch this page.
+  int32 offset = 3;
+  // True when additional pages are available.
+  bool has_more = 4;
+}
+
+// ErrorResponse is the standard error envelope for HTTP responses.
+message ErrorResponse {
+  // Stable machine-readable error code.
+  string code = 1;
+  // Human-readable error message.
+  string message = 2;
+  // Additional structured context about the error.
+  map<string, string> details = 3;
+}
+
+// HealthResponse mirrors the BAS health response contract.
+message HealthResponse {
+  // Service status: healthy, degraded, or unhealthy.
+  string status = 1;
+  // Identifier for the service reporting health.
+  string service = 2;
+  // RFC3339 timestamp when the check was produced.
+  string timestamp = 3;
+  // Readiness indicator for load balancers.
+  bool readiness = 4;
+  // Optional service version string.
+  string version = 5;
+  // Status of downstream dependencies.
+  map<string, google.protobuf.Value> dependencies = 6;
+  // Additional health metrics.
+  map<string, google.protobuf.Value> metrics = 7;
+}

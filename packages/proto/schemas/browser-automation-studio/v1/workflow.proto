@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+
+// WorkflowDefinition mirrors the JSON workflow definitions used by BAS.
+message WorkflowDefinition {
+  // Workflow nodes representing graph steps.
+  repeated WorkflowNode nodes = 1;
+  // Edges connecting workflow nodes.
+  repeated WorkflowEdge edges = 2;
+  // Arbitrary metadata associated with the workflow.
+  map<string, google.protobuf.Value> metadata = 3;
+  // Execution settings for the workflow (e.g., viewport).
+  map<string, google.protobuf.Value> settings = 4;
+}
+
+// WorkflowNode captures a single node in a workflow graph.
+message WorkflowNode {
+  // Unique node identifier.
+  string id = 1;
+  // Node type (navigate, click, assert, subflow, etc.).
+  string type = 2;
+  // Node-specific configuration payload.
+  google.protobuf.Struct data = 3;
+}
+
+// WorkflowEdge connects nodes within a workflow graph.
+message WorkflowEdge {
+  // Unique edge identifier.
+  string id = 1;
+  // Source node ID.
+  string source = 2;
+  // Target node ID.
+  string target = 3;
+  // Edge type (e.g., smoothstep) when provided.
+  string type = 4;
+  // Provider-specific edge metadata.
+  google.protobuf.Struct data = 5;
+}

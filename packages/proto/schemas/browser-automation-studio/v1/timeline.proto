@@ -1,0 +1,237 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+
+// ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
+// It mirrors the existing BAS timeline JSON contract.
+message ExecutionTimeline {
+  // Unique identifier for this execution (UUID).
+  string execution_id = 1;
+  // Workflow ID associated with the execution (UUID).
+  string workflow_id = 2;
+  // Current execution status (pending, running, completed, failed, cancelled).
+  string status = 3;
+  // Overall execution progress percentage (0-100).
+  int32 progress = 4;
+  // When the execution started.
+  google.protobuf.Timestamp started_at = 5;
+  // When the execution completed (null if still running).
+  google.protobuf.Timestamp completed_at = 6;
+  // Ordered list of execution frames (one per workflow step).
+  repeated TimelineFrame frames = 7;
+  // Console and execution logs captured during the run.
+  repeated TimelineLog logs = 8;
+}
+
+// TimelineFrame captures a single workflow step in the execution timeline.
+message TimelineFrame {
+  // Zero-based index of this step in the execution.
+  int32 step_index = 1;
+  // Node ID from the workflow definition.
+  string node_id = 2;
+  // Node type (navigate, click, assert, etc.).
+  string step_type = 3;
+  // Step execution status.
+  string status = 4;
+  // Whether this step succeeded.
+  bool success = 5;
+  // Execution duration in milliseconds for this attempt.
+  int32 duration_ms = 6;
+  // Total time for the step including retries.
+  int32 total_duration_ms = 7;
+  // Progress percentage at this step (0-100).
+  int32 progress = 8;
+  // When the step started.
+  google.protobuf.Timestamp started_at = 9;
+  // When the step finished.
+  google.protobuf.Timestamp completed_at = 10;
+  // Final URL after step execution (for navigation steps).
+  string final_url = 11;
+  // Error message if the step failed.
+  string error = 12;
+  // Number of console log entries captured for this step.
+  int32 console_log_count = 13;
+  // Number of network events captured for this step.
+  int32 network_event_count = 14;
+  // Preview of extracted data (shape depends on workflow).
+  google.protobuf.Value extracted_data_preview = 15;
+  // Highlight overlays applied to the screenshot.
+  repeated HighlightRegion highlight_regions = 16;
+  // Masked regions applied during capture.
+  repeated MaskRegion mask_regions = 17;
+  // Focused element metadata for the step.
+  ElementFocus focused_element = 18;
+  // Bounding box for the primary element interacted with.
+  BoundingBox element_bounding_box = 19;
+  // Actual click coordinates used.
+  Point click_position = 20;
+  // Cursor trail captured during the step.
+  repeated Point cursor_trail = 21;
+  // Applied zoom factor during capture.
+  double zoom_factor = 22;
+  // Screenshot captured during/after this step.
+  TimelineScreenshot screenshot = 23;
+  // Related artifacts (console logs, network traces, etc.).
+  repeated TimelineArtifact artifacts = 24;
+  // Assertion outcome for assert steps.
+  AssertionOutcome assertion = 25;
+  // Current retry attempt number (0 for first attempt).
+  int32 retry_attempt = 26;
+  // Max retries configured for this step.
+  int32 retry_max_attempts = 27;
+  // Whether retries were configured for this step (0 = false).
+  int32 retry_configured = 28;
+  // Delay applied before retrying (milliseconds).
+  int32 retry_delay_ms = 29;
+  // Exponential backoff factor used for retries.
+  double retry_backoff_factor = 30;
+  // History of previous retry attempts.
+  repeated RetryHistoryEntry retry_history = 31;
+  // Truncated DOM snapshot preview text.
+  string dom_snapshot_preview = 32;
+  // Artifact reference for the stored DOM snapshot.
+  TimelineArtifact dom_snapshot = 33;
+}
+
+// TimelineScreenshot describes screenshot metadata associated with a frame.
+message TimelineScreenshot {
+  // Unique artifact ID for the screenshot.
+  string artifact_id = 1;
+  // URL to download the full screenshot.
+  string url = 2;
+  // URL to download a thumbnail.
+  string thumbnail_url = 3;
+  // Image width in pixels.
+  int32 width = 4;
+  // Image height in pixels.
+  int32 height = 5;
+  // Image MIME type (e.g., image/png).
+  string content_type = 6;
+  // Optional size in bytes for the screenshot.
+  int64 size_bytes = 7;
+}
+
+// TimelineArtifact exposes related artifacts such as console or network logs.
+message TimelineArtifact {
+  // Unique artifact ID.
+  string id = 1;
+  // Artifact type (timeline_frame, console_log, network_event, etc.).
+  string type = 2;
+  // Optional human-readable label.
+  string label = 3;
+  // URL to download the artifact content.
+  string storage_url = 4;
+  // URL to download an artifact thumbnail if available.
+  string thumbnail_url = 5;
+  // MIME type for the artifact.
+  string content_type = 6;
+  // Optional size in bytes for the artifact.
+  int64 size_bytes = 7;
+  // Step index associated with this artifact, if any.
+  optional int32 step_index = 8;
+  // Provider-specific payload describing the artifact.
+  map<string, google.protobuf.Value> payload = 9;
+}
+
+// RetryHistoryEntry captures the outcome of a retry attempt.
+message RetryHistoryEntry {
+  // Retry attempt number starting at 1.
+  int32 attempt = 1;
+  // True if the attempt succeeded.
+  bool success = 2;
+  // Duration in milliseconds for the attempt.
+  int32 duration_ms = 3;
+  // Duration of the call that triggered the attempt.
+  int32 call_duration_ms = 4;
+  // Error message for the attempt, if any.
+  string error = 5;
+}
+
+// HighlightRegion describes an overlay applied to the screenshot for emphasis.
+message HighlightRegion {
+  // CSS selector for the region.
+  string selector = 1;
+  // Bounding box for the highlighted area.
+  BoundingBox bounding_box = 2;
+  // Padding in pixels around the region.
+  int32 padding = 3;
+  // Highlight color (CSS string).
+  string color = 4;
+}
+
+// MaskRegion describes areas that were dimmed or masked during capture.
+message MaskRegion {
+  // CSS selector for the region to mask.
+  string selector = 1;
+  // Bounding box for the masked area.
+  BoundingBox bounding_box = 2;
+  // Mask opacity value (0-1).
+  double opacity = 3;
+}
+
+// ElementFocus captures focus metadata for screenshot framing.
+message ElementFocus {
+  // CSS selector of the focused element.
+  string selector = 1;
+  // Bounding box for the focused element.
+  BoundingBox bounding_box = 2;
+}
+
+// BoundingBox captures the position of an element within the viewport.
+message BoundingBox {
+  // X coordinate in viewport pixels.
+  double x = 1;
+  // Y coordinate in viewport pixels.
+  double y = 2;
+  // Width in viewport pixels.
+  double width = 3;
+  // Height in viewport pixels.
+  double height = 4;
+}
+
+// Point represents a 2D coordinate used for pointer highlights.
+message Point {
+  // X coordinate in viewport pixels.
+  double x = 1;
+  // Y coordinate in viewport pixels.
+  double y = 2;
+}
+
+// AssertionOutcome captures the outcome of an assert step.
+message AssertionOutcome {
+  // Assertion mode (exists, visible, text_equals, etc.).
+  string mode = 1;
+  // CSS selector being asserted on.
+  string selector = 2;
+  // Expected value for the assertion.
+  google.protobuf.Value expected = 3;
+  // Actual value observed.
+  google.protobuf.Value actual = 4;
+  // True if the assertion succeeded.
+  bool success = 5;
+  // True if the assertion was negated.
+  bool negated = 6;
+  // True if the assertion was case sensitive.
+  bool case_sensitive = 7;
+  // Optional custom message for the assertion.
+  string message = 8;
+}
+
+// TimelineLog captures execution log output for replay consumers.
+message TimelineLog {
+  // Unique log entry ID.
+  string id = 1;
+  // Log level (debug, info, warn, error).
+  string level = 2;
+  // Log message content.
+  string message = 3;
+  // Associated step name, if any.
+  string step_name = 4;
+  // Timestamp when the log was recorded.
+  google.protobuf.Timestamp timestamp = 5;
+}
