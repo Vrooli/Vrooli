@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { RefreshCcw } from "lucide-react";
 import { Header } from "./sections/Header";
 import { OrientationHub } from "./sections/OrientationHub";
-import { DeploymentReadinessPanel, TierReadiness } from "./sections/TierReadiness";
+import { TierReadiness } from "./sections/TierReadiness";
+import { ManifestWorkspace } from "./features/manifest-editor";
 import { ComplianceOverview } from "./sections/ComplianceOverview";
 import { SecurityTables } from "./sections/SecurityTables";
 import { ResourcePanel } from "./features/resource-panel/ResourcePanel";
@@ -17,7 +18,6 @@ import { TabTip } from "./components/ui/TabTip";
 import { SnapshotPanel } from "./sections/SnapshotPanel";
 import { ResourceTable } from "./sections/ResourceTable";
 import { CampaignsPanel } from "./sections/CampaignsPanel";
-import { DeploymentStepper } from "./sections/DeploymentStepper";
 import type { JourneyId } from "./features/journeys/journeySteps";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 
@@ -26,10 +26,11 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<ExperienceTab>("dashboard");
   const [resourceTab, setResourceTab] = useState<"tier" | "resource">("tier");
-  const [campaignStep, setCampaignStep] = useState(0);
   const [showTutorialOverlay, setShowTutorialOverlay] = useState(false);
   const [tutorialAnchor, setTutorialAnchor] = useState<string | undefined>(undefined);
   const [selectedScenario, setSelectedScenario] = useState<string>("secrets-manager");
+  const [campaignsCollapsed, setCampaignsCollapsed] = useState(false);
+  const [workspaceCollapsed, setWorkspaceCollapsed] = useState(false);
   const {
     healthQuery,
     vaultQuery,
@@ -160,8 +161,7 @@ export default function App() {
     handleJourneyNext,
     handleJourneyBack,
     setJourneyStep,
-    journeyNextDisabled,
-    deploymentFlow
+    journeyNextDisabled
   } = useJourneys({
     selectedScenario,
     onDeploymentScenarioChange: setSelectedScenario,
@@ -202,12 +202,6 @@ export default function App() {
     closeTutorialOverlay();
     setActiveTab("dashboard");
     handleJourneySelect(journeyId);
-  };
-
-  const startPrepDeploymentJourney = () => {
-    setActiveTab("dashboard");
-    closeTutorialOverlay();
-    handleJourneySelectTyped("prep-deployment");
   };
 
   const closeTutorialOverlay = () => {
@@ -269,17 +263,6 @@ export default function App() {
     }
   ];
 
-  const handleCampaignStepChange = (index: number) => {
-    setCampaignStep(index);
-    const anchorMap: Record<number, string | undefined> = {
-      0: "anchor-campaigns",
-      1: "anchor-deployment",
-      2: "anchor-resources",
-      3: "anchor-manifest"
-    };
-    scrollToAnchor(anchorMap[index]);
-  };
-
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_50%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.15),_transparent_60%)]" />
@@ -335,9 +318,9 @@ export default function App() {
         {activeTab === "deployment" && readinessCount > 0 ? (
           <TabTip
             title="Deployment prep needs strategies"
-            description="Clear blocked tiers, then generate and export a manifest for the selected campaign."
-            actionLabel="Run readiness"
-            onAction={() => handleCampaignStepChange(1)}
+            description="Clear blocked tiers in the Resources tab, then select a scenario below to generate and export a manifest."
+            actionLabel="Go to Resources"
+            onAction={() => setActiveTab("resources")}
           />
         ) : null}
 
@@ -405,7 +388,7 @@ export default function App() {
           )}
 
           {activeTab === "deployment" && (
-            <>
+            <div className="space-y-6">
               <CampaignsPanel
                 campaigns={filteredCampaigns}
                 isLoading={campaignQuery.isLoading || campaignReadinessQuery.isLoading}
@@ -414,25 +397,24 @@ export default function App() {
                 selectedScenario={selectedScenario}
                 onSelectScenario={(scenario) => {
                   setSelectedScenario(scenario);
-                  handleCampaignStepChange(1);
+                  setCampaignsCollapsed(true);
+                  setWorkspaceCollapsed(false);
                 }}
                 defaultBlockedTiers={readinessCount}
+                isCollapsed={campaignsCollapsed}
+                onToggleCollapse={() => setCampaignsCollapsed(!campaignsCollapsed)}
               />
 
-              <DeploymentStepper
-                activeStep={campaignStep}
-                onStepChange={handleCampaignStepChange}
-                hasManifest={!!deploymentFlow.manifestData}
-              />
-
-              <DeploymentReadinessPanel
-                tierReadiness={tierReadiness}
-                resourceInsights={resourceInsights}
-                manifestState={deploymentFlow}
+              <ManifestWorkspace
+                initialScenario={selectedScenario}
+                initialTier="tier-2-desktop"
+                availableScenarios={scenarios.map(s => ({ name: s.name }))}
+                onScenarioChange={setSelectedScenario}
                 onOpenResource={openResourcePanel}
-                onStartJourney={startPrepDeploymentJourney}
+                isCollapsed={workspaceCollapsed}
+                onToggleCollapse={() => setWorkspaceCollapsed(!workspaceCollapsed)}
               />
-            </>
+            </div>
           )}
 
           {activeTab === "compliance" && (

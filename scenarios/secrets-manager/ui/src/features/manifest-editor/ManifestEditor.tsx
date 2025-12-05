@@ -88,6 +88,7 @@ export function ManifestEditor({
         currentTier={tier}
         availableTiers={availableTiers}
         isCopying={editor.isCopying}
+        copyError={editor.copyError}
         onSearchChange={editor.setSearchQuery}
         onFilterChange={editor.setFilter}
         onSaveAll={editor.saveAllPending}

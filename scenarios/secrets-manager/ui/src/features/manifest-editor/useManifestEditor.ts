@@ -378,6 +378,7 @@ export function useManifestEditor({ scenario, tier, initialManifest }: UseManife
     // Copy from tier
     copyFromTier,
     isCopying: copyFromTierMutation.isPending,
+    copyError: copyFromTierMutation.error?.message ?? null,
 
     // Export
     exportManifest,

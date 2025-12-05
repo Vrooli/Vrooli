@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, Filter, Copy, Save, Download, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Filter, Copy, Save, Download, X, AlertTriangle } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import type { FilterMode } from "./types";
 
@@ -11,12 +11,13 @@ interface ManifestToolbarProps {
   currentTier: string;
   availableTiers: string[];
   isCopying?: boolean;
+  copyError?: string | null;
   onSearchChange: (query: string) => void;
   onFilterChange: (filter: FilterMode) => void;
   onSaveAll: () => void;
   onExport: () => void;
   onClose: () => void;
-  onCopyFromTier?: (sourceTier: string) => void;
+  onCopyFromTier?: (sourceTier: string) => Promise<void>;
 }
 
 const FILTER_OPTIONS: { value: FilterMode; label: string }[] = [
@@ -34,6 +35,7 @@ export function ManifestToolbar({
   currentTier,
   availableTiers,
   isCopying,
+  copyError,
   onSearchChange,
   onFilterChange,
   onSaveAll,
@@ -42,12 +44,32 @@ export function ManifestToolbar({
   onCopyFromTier
 }: ManifestToolbarProps) {
   const [showCopyDropdown, setShowCopyDropdown] = useState(false);
+  const [localCopyError, setLocalCopyError] = useState<string | null>(null);
   const otherTiers = availableTiers.filter((t) => t !== currentTier);
 
-  const handleCopyFromTier = (sourceTier: string) => {
-    onCopyFromTier?.(sourceTier);
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    const displayError = copyError || localCopyError;
+    if (displayError) {
+      const timer = setTimeout(() => {
+        setLocalCopyError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [copyError, localCopyError]);
+
+  const handleCopyFromTier = async (sourceTier: string) => {
     setShowCopyDropdown(false);
+    setLocalCopyError(null);
+    try {
+      await onCopyFromTier?.(sourceTier);
+    } catch (err) {
+      // Show local error if parent doesn't provide one
+      setLocalCopyError(err instanceof Error ? err.message : "Copy failed");
+    }
   };
+
+  const displayError = copyError || localCopyError;
 
   return (
     <div className="flex items-center gap-3 border-b border-white/10 bg-black/30 px-4 py-3">
@@ -104,6 +126,12 @@ export function ManifestToolbar({
                     {tier}
                   </button>
                 ))}
+              </div>
+            )}
+            {displayError && (
+              <div className="absolute right-0 top-full mt-1 z-50 flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-200">
+                <AlertTriangle className="h-3 w-3" />
+                {displayError}
               </div>
             )}
           </div>

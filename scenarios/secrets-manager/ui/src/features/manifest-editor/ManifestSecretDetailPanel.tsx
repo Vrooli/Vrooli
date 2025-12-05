@@ -1,4 +1,4 @@
-import { Key, AlertTriangle, CircleDot } from "lucide-react";
+import { Key, AlertTriangle, CircleDot, ExternalLink } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { HelpDialog } from "../../components/ui/HelpDialog";
 import type { DeploymentManifestSecret } from "../../lib/api";
@@ -16,6 +16,7 @@ interface ManifestSecretDetailPanelProps {
   onSave: () => void;
   onReset: () => void;
   onToggleExclude: () => void;
+  onOpenInResourcePanel?: () => void;
 }
 
 const STRATEGY_OPTIONS = [
@@ -35,7 +36,8 @@ export function ManifestSecretDetailPanel({
   onUpdatePendingChange,
   onSave,
   onReset,
-  onToggleExclude
+  onToggleExclude,
+  onOpenInResourcePanel
 }: ManifestSecretDetailPanelProps) {
   if (!secret) {
     return (
@@ -92,9 +94,17 @@ export function ManifestSecretDetailPanel({
           </div>
           <p className="mt-1 text-xs text-white/60">{secret.resource_name}</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={onToggleExclude} className="text-xs">
-          {isExcluded ? "Include" : "Exclude"}
-        </Button>
+        <div className="flex gap-1">
+          {onOpenInResourcePanel && (
+            <Button variant="ghost" size="sm" onClick={onOpenInResourcePanel} className="text-xs gap-1">
+              <ExternalLink className="h-3 w-3" />
+              Open
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onToggleExclude} className="text-xs">
+            {isExcluded ? "Include" : "Exclude"}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
