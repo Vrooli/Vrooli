@@ -317,7 +317,8 @@ cmd_generate() {
 	local template="$DEFAULT_TEMPLATE"
 	local platforms="$DEFAULT_PLATFORMS"
 	local default_output_path="${SCENARIOS_DIR}/${scenario_name}/platforms/electron"
-	local output="$default_output_path"
+	local output=""
+	local location_mode="proper" # proper | temp | custom
 	local features=""
 	local config_file=""
 	local deployment_mode="external-server"
@@ -350,6 +351,10 @@ cmd_generate() {
                 output="$2"
                 shift 2
                 ;;
+			--location)
+				location_mode="$2"
+				shift 2
+				;;
             --features)
                 features="$2"
                 shift 2
@@ -460,6 +465,23 @@ cmd_generate() {
 		proxy_url="$server_url"
 	fi
 
+	case "$location_mode" in
+		proper|temp|staging|custom)
+			;;
+		*)
+			error "Invalid location: $location_mode (use proper|temp|custom)"
+			exit 1
+			;;
+	esac
+	if [ "$location_mode" = "custom" ] && [ -z "$output" ]; then
+		error "Custom location requires --output <path>"
+		exit 1
+	fi
+	if [ "$location_mode" != "custom" ]; then
+		# Let the API choose the canonical destination or staging path.
+		output=""
+	fi
+
 	check_api_health
 
 	if [ "$deployment_mode" = "bundled" ]; then
@@ -519,6 +541,7 @@ cmd_generate() {
   "template_type": "$template",
   "platforms": $platform_array,
   "output_path": "$output",
+  "location_mode": "$location_mode",
   "features": {
     "splash": true,
     "autoUpdater": true,
@@ -536,16 +559,36 @@ cmd_generate() {
   "vrooli_binary_path": "${vrooli_binary_path}",
   "external_server_url": "${server_url}",
   "external_api_url": "${api_url}"
-}
+	}
 EOF
 )
     fi
+    config=$(echo "$config" | jq --arg mode "$location_mode" --arg output "$output" '
+      .location_mode = ($mode // "proper") |
+      (if $mode != "custom" then
+         .output_path = ""
+       elif ($output | length) > 0 then
+         .output_path = $output
+       else
+         .
+       end)
+    ')
     
+	local output_preview="$output"
+	if [ -z "$output_preview" ]; then
+		if [ "$location_mode" = "temp" ] || [ "$location_mode" = "staging" ]; then
+			output_preview="${REPO_ROOT}/scenarios/scenario-to-desktop/data/staging/${scenario_name}/<build-id>"
+		else
+			output_preview="$default_output_path"
+		fi
+	fi
+
 	log "Generating desktop application for $scenario_name..."
 	log "Framework: $framework"
 	log "Template: $template"
 	log "Platforms: $platforms"
-	log "Output: $output"
+	log "Location: $location_mode"
+	log "Output (planned): $output_preview"
 	log "Server type: $server_type"
 	log "Deployment mode: $deployment_mode"
     
@@ -581,7 +624,8 @@ OPTIONS:
     --framework <framework>    Desktop framework (electron, tauri, neutralino) [default: electron]
     --template <template>      Application template (basic, advanced, multi_window, kiosk) [default: basic]
     --platforms <platforms>    Target platforms, comma-separated (win,mac,linux) [default: win,mac,linux]
-    --output <path>           Output directory for generated application [default: scenarios/<scenario>/platforms/electron]
+    --location <mode>         Output location: proper (canonical), temp (gitignored staging), custom [default: proper]
+    --output <path>           Output directory (required when --location=custom; otherwise auto-selected)
     --features <features>     Comma-separated list of features (tray,updater,menus)
     --config <file>           Use JSON configuration file instead of command-line options
     --app-display-name <name> Override the desktop product name (window titles, installers)

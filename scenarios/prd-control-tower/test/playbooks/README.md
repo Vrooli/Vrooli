@@ -85,7 +85,7 @@ Maps to:
 2. Reference selectors from manifest using `@selector/` prefix
 3. Link requirements in metadata: `"requirements": ["PCT-FUNC-XXX"]`
 4. Update this README with test description
-5. Rebuild registry: `node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario /home/matthalloran8/Vrooli/scenarios/prd-control-tower`
+5. Rebuild registry: `test-genie registry build` (run from scenario directory)
 
 ## Requirements Linkage
 

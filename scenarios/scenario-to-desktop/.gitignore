@@ -22,3 +22,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Runtime data/staging for generated desktop wrappers
+data/

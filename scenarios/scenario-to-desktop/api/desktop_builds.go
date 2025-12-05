@@ -18,6 +18,19 @@ func (s *Server) standardOutputPath(appName string) string {
 	)
 }
 
+// stagingOutputPath returns the gitignored staging area for temporary desktop outputs.
+func (s *Server) stagingOutputPath(appName, buildID string) string {
+	return filepath.Join(
+		detectVrooliRoot(),
+		"scenarios",
+		"scenario-to-desktop",
+		"data",
+		"staging",
+		appName,
+		buildID,
+	)
+}
+
 // scenarioRoot returns the absolute path to a scenario directory.
 func (s *Server) scenarioRoot(appName string) string {
 	return filepath.Join(detectVrooliRoot(), "scenarios", appName)
@@ -27,14 +40,10 @@ func (s *Server) scenarioRoot(appName string) string {
 // Handlers own HTTP concerns; this keeps the domain flow (status setup, metadata,
 // background launch) in one place so we don't duplicate it across entrypoints.
 func (s *Server) queueDesktopBuild(config *DesktopConfig, metadata *ScenarioMetadata, autoDetected bool) *BuildStatus {
-	if config.OutputPath == "" {
-		config.OutputPath = s.standardOutputPath(config.AppName)
-		s.logger.Info("using standard output path",
-			"scenario", config.AppName,
-			"path", config.OutputPath)
-	}
-
 	buildID := uuid.New().String()
+
+	outputPath, destinationPath := s.resolveOutputPath(config, buildID)
+	config.OutputPath = outputPath
 
 	buildStatus := &BuildStatus{
 		BuildID:      buildID,
@@ -60,9 +69,63 @@ func (s *Server) queueDesktopBuild(config *DesktopConfig, metadata *ScenarioMeta
 	} else if autoDetected {
 		buildStatus.Metadata["auto_detected"] = true
 	}
+	if config.LocationMode != "" {
+		buildStatus.Metadata["location_mode"] = config.LocationMode
+	}
+	buildStatus.Metadata["destination_path"] = destinationPath
+	buildStatus.Metadata["destination_path"] = destinationPath
 
 	s.builds.Save(buildStatus)
+	if s.records != nil {
+		record := &DesktopAppRecord{
+			ID:              buildID,
+			BuildID:         buildID,
+			ScenarioName:    config.AppName,
+			AppDisplayName:  config.AppDisplayName,
+			TemplateType:    config.TemplateType,
+			Framework:       config.Framework,
+			LocationMode:    config.LocationMode,
+			OutputPath:      outputPath,
+			DestinationPath: destinationPath,
+			DeploymentMode:  config.DeploymentMode,
+			Icon:            config.Icon,
+		}
+		// Only set staging/custom hints when applicable to keep records clean.
+		switch config.LocationMode {
+		case "temp", "staging":
+			record.StagingPath = outputPath
+		case "custom":
+			record.CustomPath = outputPath
+		}
+		if err := s.records.Upsert(record); err != nil {
+			s.logger.Warn("failed to persist desktop record", "error", err)
+		}
+	}
 	go s.performDesktopGeneration(buildID, config)
 
 	return buildStatus
+}
+
+func (s *Server) resolveOutputPath(config *DesktopConfig, buildID string) (string, string) {
+	destinationPath := s.standardOutputPath(config.AppName)
+	mode := config.LocationMode
+	if mode == "" {
+		mode = "proper"
+	}
+
+	switch mode {
+	case "temp", "staging":
+		return s.stagingOutputPath(config.AppName, buildID), destinationPath
+	case "custom":
+		if config.OutputPath != "" {
+			return config.OutputPath, destinationPath
+		}
+		// Fall back to the destination to avoid nil paths even if caller forgot output.
+		return destinationPath, destinationPath
+	default: // "proper"
+		if config.OutputPath != "" {
+			return config.OutputPath, destinationPath
+		}
+		return destinationPath, destinationPath
+	}
 }

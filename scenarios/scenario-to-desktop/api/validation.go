@@ -111,6 +111,16 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 			return fmt.Errorf("server_path is required when server_type is '%s'", config.ServerType)
 		}
 	}
+	switch strings.ToLower(config.LocationMode) {
+	case "", "proper":
+		config.LocationMode = "proper"
+	case "temp", "staging", "custom":
+	default:
+		return fmt.Errorf("invalid location_mode: %s", config.LocationMode)
+	}
+	if config.LocationMode == "custom" && config.OutputPath == "" {
+		return fmt.Errorf("output_path is required when location_mode is 'custom'")
+	}
 	if config.ScenarioName == "" {
 		config.ScenarioName = config.AppName
 	}

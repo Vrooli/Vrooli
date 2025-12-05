@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Book, List, Monitor, Zap } from "lucide-react";
+import { Book, List, Monitor, Zap, Folder, Info } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { BuildStatus } from "./components/BuildStatus";
 import { GeneratorForm } from "./components/GeneratorForm";
@@ -13,6 +13,7 @@ import { TemplateGrid } from "./components/TemplateGrid";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { fetchScenarioDesktopStatus } from "./lib/api";
 import { cn } from "./lib/utils";
+import { RecordsManager } from "./components/RecordsManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,7 +24,7 @@ const queryClient = new QueryClient({
   }
 });
 
-type ViewMode = "generator" | "inventory" | "docs";
+type ViewMode = "generator" | "inventory" | "docs" | "records";
 
 function AppContent() {
   const [selectedTemplate, setSelectedTemplate] = useState("basic");
@@ -152,6 +153,19 @@ function AppContent() {
               type="button"
               className={cn(
                 "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                viewMode === "records"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
+                  : "text-slate-300 hover:text-white"
+              )}
+              onClick={() => setViewMode("records")}
+            >
+              <Folder className="h-4 w-4" />
+              Generated Apps
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
                 viewMode === "docs"
                   ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
                   : "text-slate-300 hover:text-white"
@@ -169,6 +183,17 @@ function AppContent() {
           <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
         ) : viewMode === "docs" ? (
           <DocsPanel />
+        ) : viewMode === "records" ? (
+          <RecordsManager
+            onSwitchTemplate={(scenarioName, templateType) => {
+              setSelectedScenarioName(scenarioName);
+              setSelectedTemplate(templateType || "basic");
+              setSelectionSource("inventory");
+              setViewMode("generator");
+              setUserPinnedStep(false);
+              setActiveStep(2);
+            }}
+          />
         ) : (
           <>
             <Stepper steps={steps} activeStep={activeStep} onStepSelect={handleStepSelect} />
@@ -240,6 +265,16 @@ function AppContent() {
                     <CardTitle>Available Templates</CardTitle>
                   </CardHeader>
                   <CardContent>
+                    <div className="mb-4 flex items-start gap-3 rounded-lg border border-slate-800/80 bg-slate-950/50 p-3 text-sm text-slate-200">
+                      <Info className="mt-0.5 h-5 w-5 text-blue-300" />
+                      <div className="space-y-1">
+                        <p className="font-semibold text-slate-100">All templates share the same Electron base.</p>
+                        <p className="text-slate-300">
+                          Pick the wrapper that matches today&apos;s needs; you can switch templates later from this form
+                          or from the Generated Apps tab. Your scenario logic stays the same.
+                        </p>
+                      </div>
+                    </div>
                     <TemplateGrid
                       selectedTemplate={selectedTemplate}
                       onSelect={setSelectedTemplate}

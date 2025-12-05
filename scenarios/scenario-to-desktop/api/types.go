@@ -46,6 +46,9 @@ type DesktopConfig struct {
 
 	// Output configuration
 	OutputPath string `json:"output_path"`
+	// LocationMode indicates whether the generator should place output in the canonical
+	// scenario folder, a gitignored staging area, or a custom path provided by the caller.
+	LocationMode string `json:"location_mode,omitempty"`
 
 	// Styling
 	Styling map[string]interface{} `json:"styling"`

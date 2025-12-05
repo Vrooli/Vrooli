@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -32,6 +33,7 @@ type Server struct {
 	router         *mux.Router
 	port           int
 	builds         *BuildStore
+	records        *DesktopRecordStore
 	wineInstalls   map[string]*WineInstallStatus
 	wineInstallMux sync.RWMutex
 	templateDir    string
@@ -41,6 +43,17 @@ type Server struct {
 
 // NewServer creates a new server instance
 func NewServer(port int) *Server {
+	recordStore, err := NewDesktopRecordStore(filepath.Join(
+		detectVrooliRoot(),
+		"scenarios",
+		"scenario-to-desktop",
+		"data",
+		"desktop_records.json",
+	))
+	if err != nil {
+		log.Printf("⚠️  desktop record store unavailable: %v", err)
+	}
+
 	// Initialize structured logger with JSON output
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -50,6 +63,7 @@ func NewServer(port int) *Server {
 		router:       mux.NewRouter(),
 		port:         port,
 		builds:       NewBuildStore(),
+		records:      recordStore,
 		wineInstalls: make(map[string]*WineInstallStatus),
 		templateDir:  "../templates", // Templates are in parent directory when running from api/
 		logger:       logger,
@@ -98,6 +112,14 @@ func (s *Server) setupRoutes() {
 
 	// Delete desktop application
 	s.router.HandleFunc("/api/v1/desktop/delete/{scenario_name}", s.deleteDesktopHandler).Methods("DELETE")
+
+	// Desktop records
+	s.router.HandleFunc("/api/v1/desktop/records", s.listDesktopRecordsHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/desktop/records/{record_id}/move", s.moveDesktopRecordHandler).Methods("POST")
+
+	// Test artifact cleanup (legacy CI outputs in /tmp)
+	s.router.HandleFunc("/api/v1/desktop/test-artifacts", s.listTestArtifactsHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/desktop/test-artifacts/cleanup", s.cleanupTestArtifactsHandler).Methods("POST")
 
 	// Webhook endpoints
 	s.router.HandleFunc("/api/v1/desktop/webhook/build-complete", s.buildCompleteWebhookHandler).Methods("POST")

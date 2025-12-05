@@ -81,6 +81,7 @@ export interface DesktopConfig {
   template_type: string;
   platforms: string[];
   output_path: string;
+  location_mode?: "proper" | "temp" | "custom";
   icon?: string;
   features: Record<string, boolean>;
   window: Record<string, unknown>;
@@ -142,6 +143,44 @@ export interface ProxyHintsResponse {
     confidence: string;
     message: string;
   }>;
+}
+
+export interface DesktopRecord {
+  id: string;
+  build_id: string;
+  scenario_name: string;
+  app_display_name?: string;
+  template_type?: string;
+  framework?: string;
+  location_mode?: "proper" | "temp" | "custom" | string;
+  output_path: string;
+  destination_path?: string;
+  staging_path?: string;
+  custom_path?: string;
+  deployment_mode?: string;
+  icon?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DesktopRecordResponse {
+  records: Array<{
+    record: DesktopRecord;
+    build_status?: BuildStatus;
+    has_build: boolean;
+    build_state?: string;
+  }>;
+}
+
+export interface TestArtifactSummary {
+  count: number;
+  total_bytes: number;
+  paths?: string[];
+}
+
+export interface TestArtifactCleanupResult {
+  removed_count: number;
+  freed_bytes: number;
 }
 
 export interface WineInstallMethod {
@@ -254,6 +293,49 @@ export async function fetchBuildStatus(buildId: string): Promise<BuildStatus> {
   const response = await fetch(buildUrl(`/desktop/status/${buildId}`));
   if (!response.ok) {
     throw new Error(`Failed to fetch build status: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchDesktopRecords(): Promise<DesktopRecordResponse> {
+  const response = await fetch(buildUrl("/desktop/records"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch desktop records: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchTestArtifacts(): Promise<TestArtifactSummary> {
+  const response = await fetch(buildUrl("/desktop/test-artifacts"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch test artifact summary: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function cleanupTestArtifacts(): Promise<TestArtifactCleanupResult> {
+  const response = await fetch(buildUrl("/desktop/test-artifacts/cleanup"), {
+    method: "POST"
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || response.statusText);
+  }
+  return response.json();
+}
+
+export async function moveDesktopRecord(
+  recordId: string,
+  payload: { target?: "destination" | "custom"; destination_path?: string } = {}
+): Promise<{ record_id: string; from: string; to: string; status: string }> {
+  const response = await fetch(buildUrl(`/desktop/records/${recordId}/move`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || error.message || response.statusText);
   }
   return response.json();
 }

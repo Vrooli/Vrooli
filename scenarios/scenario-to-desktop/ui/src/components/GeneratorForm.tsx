@@ -33,9 +33,7 @@ type EndpointResolution = {
   apiEndpoint: string;
 };
 
-function deriveDefaultOutputPath(scenarioName?: string) {
-  return scenarioName ? `scenarios/${scenarioName}/platforms/electron` : "";
-}
+type OutputLocation = "proper" | "temp" | "custom";
 
 interface BuildDesktopConfigOptions {
   scenarioName: string;
@@ -56,6 +54,8 @@ interface BuildDesktopConfigOptions {
   isBundled: boolean;
   requiresRemoteConfig: boolean;
   resolvedEndpoints: EndpointResolution;
+  locationMode: OutputLocation;
+  outputPath: string;
 }
 
 function getSelectedPlatforms(platforms: PlatformSelection): string[] {
@@ -71,6 +71,8 @@ function validateGeneratorInputs(options: {
   proxyUrl: string;
   appDisplayName: string;
   appDescription: string;
+  locationMode: OutputLocation;
+  outputPath: string;
 }): string | null {
   if (options.selectedPlatforms.length === 0) {
     return "Please select at least one target platform";
@@ -90,6 +92,10 @@ function validateGeneratorInputs(options: {
 
   if (options.decision.requiresProxyUrl && !options.proxyUrl) {
     return "Provide the proxy URL you use in the browser (for example https://app-monitor.example.com/apps/<scenario>/proxy/).";
+  }
+
+  if (options.locationMode === "custom" && !options.outputPath.trim()) {
+    return "Provide an output path when choosing a custom location.";
   }
 
   return null;
@@ -128,6 +134,7 @@ function buildDesktopConfig(options: BuildDesktopConfigOptions): DesktopConfig {
     template_type: options.selectedTemplate,
     platforms: options.selectedPlatforms,
     output_path: options.outputPath,
+    location_mode: options.locationMode,
     features: {
       splash: true,
       autoUpdater: true,
@@ -157,6 +164,8 @@ interface ScenarioSelectorProps {
   onScenarioChange: (name: string) => void;
   onToggleInput: () => void;
   onLoadSaved?: () => void;
+  locked?: boolean;
+  onUnlock?: () => void;
 }
 
 function ScenarioSelector({
@@ -167,8 +176,30 @@ function ScenarioSelector({
   selectedScenario,
   onScenarioChange,
   onToggleInput,
-  onLoadSaved
+  onLoadSaved,
+  locked = false,
+  onUnlock
 }: ScenarioSelectorProps) {
+  if (locked && scenarioName) {
+    return (
+      <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-400">Scenario</p>
+          <p className="text-sm font-semibold text-slate-100">{scenarioName}</p>
+        </div>
+        {onUnlock && (
+          <button
+            type="button"
+            onClick={onUnlock}
+            className="text-xs text-blue-300 underline hover:text-blue-200"
+          >
+            Change scenario
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5 gap-3">
@@ -198,7 +229,6 @@ function ScenarioSelector({
           id="scenarioName"
           value={scenarioName}
           onChange={(e) => onScenarioChange(e.target.value)}
-          required
           className="mt-1.5"
           disabled={loadingScenarios}
         >
@@ -276,6 +306,10 @@ function FrameworkTemplateSection({
           <option value="multi_window">Multi-Window</option>
           <option value="kiosk">Kiosk Mode</option>
         </Select>
+        <p className="mt-1.5 text-xs text-slate-400">
+          All templates share the same codebase. If you change your mind later, switch templates here or from the
+          Generated Apps tab - your scenario stays intact.
+        </p>
       </div>
     </div>
   );
@@ -597,6 +631,61 @@ interface OutputPathFieldProps {
   onOutputPathChange: (value: string) => void;
 }
 
+interface OutputLocationSelectorProps {
+  locationMode: OutputLocation;
+  standardPath: string;
+  stagingPreview: string;
+  onChange: (value: OutputLocation) => void;
+}
+
+function OutputLocationSelector({ locationMode, onChange, standardPath, stagingPreview }: OutputLocationSelectorProps) {
+  return (
+    <div className="space-y-2">
+      <Label>Output location</Label>
+      <div className="space-y-1.5">
+        <label className="flex gap-3 text-sm text-slate-200">
+          <input
+            type="radio"
+            name="outputLocation"
+            value="proper"
+            checked={locationMode === "proper"}
+            onChange={() => onChange("proper")}
+          />
+          <span>
+            Proper (recommended): <code className="text-xs">{standardPath}</code>
+          </span>
+        </label>
+        <label className="flex gap-3 text-sm text-slate-200">
+          <input
+            type="radio"
+            name="outputLocation"
+            value="temp"
+            checked={locationMode === "temp"}
+            onChange={() => onChange("temp")}
+          />
+          <span>
+            Temporary (gitignored staging): <code className="text-xs">{stagingPreview}</code>
+          </span>
+        </label>
+        <label className="flex gap-3 text-sm text-slate-200">
+          <input
+            type="radio"
+            name="outputLocation"
+            value="custom"
+            checked={locationMode === "custom"}
+            onChange={() => onChange("custom")}
+          />
+          <span>Custom path</span>
+        </label>
+      </div>
+      <p className="text-xs text-slate-400">
+        Proper keeps wrappers beside their scenarios. Temporary routes output to a gitignored staging area so you can
+        review before moving. Custom is for one-off locations.
+      </p>
+    </div>
+  );
+}
+
 function OutputPathField({ outputPath, onOutputPathChange }: OutputPathFieldProps) {
   return (
     <div>
@@ -605,11 +694,11 @@ function OutputPathField({ outputPath, onOutputPathChange }: OutputPathFieldProp
         id="outputPath"
         value={outputPath}
         onChange={(e) => onOutputPathChange(e.target.value)}
-        placeholder="scenarios/<scenario>/platforms/electron"
+        placeholder="/absolute/or/relative/path"
         className="mt-1.5"
       />
       <p className="mt-1 text-xs text-slate-400">
-        Defaults to the scenario&apos;s `platforms/electron` folder. Override only if you need a custom location; leave empty to let the generator pick the standard path.
+        Used only when choosing a custom location. Leave blank to fall back to the selected mode&apos;s default.
       </p>
     </div>
   );
@@ -632,6 +721,7 @@ export function GeneratorForm({
   onScenarioNameChange,
   selectionSource
 }: GeneratorFormProps) {
+  const [scenarioLocked, setScenarioLocked] = useState(selectionSource === "inventory");
   const [useDropdown, setUseDropdown] = useState(true);
   const [appDisplayName, setAppDisplayName] = useState(
     scenarioName ? `${scenarioName} Desktop` : ""
@@ -650,9 +740,8 @@ export function GeneratorForm({
     mac: true,
     linux: true
   });
-  const [outputPath, setOutputPath] = useState(deriveDefaultOutputPath(scenarioName));
-  const [outputEdited, setOutputEdited] = useState(false);
-  const [lastScenarioForOutput, setLastScenarioForOutput] = useState<string | null>(scenarioName || null);
+  const [locationMode, setLocationMode] = useState<OutputLocation>("proper");
+  const [outputPath, setOutputPath] = useState("");
   const [proxyUrl, setProxyUrl] = useState("");
   const [bundleManifestPath, setBundleManifestPath] = useState("");
   const [serverPort, setServerPort] = useState(3000);
@@ -663,6 +752,7 @@ export function GeneratorForm({
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
+  const isUpdateMode = selectionSource === "inventory";
 
   const connectionDecision = useMemo(
     () => decideConnection(deploymentMode, serverType),
@@ -670,6 +760,17 @@ export function GeneratorForm({
   );
   const isBundled = connectionDecision.kind === "bundled-runtime";
   const requiresRemoteConfig = connectionDecision.requiresProxyUrl;
+  const standardOutputPath = useMemo(
+    () => (scenarioName ? `scenarios/${scenarioName}/platforms/electron` : "scenarios/<scenario>/platforms/electron"),
+    [scenarioName]
+  );
+  const stagingPreviewPath = useMemo(
+    () =>
+      scenarioName
+        ? `scenarios/scenario-to-desktop/data/staging/${scenarioName}/<build-id>`
+        : "scenarios/scenario-to-desktop/data/staging/<scenario>/<build-id>",
+    [scenarioName]
+  );
   const selectedPlatformsList = useMemo(
     () => getSelectedPlatforms(platforms),
     [platforms]
@@ -693,6 +794,11 @@ export function GeneratorForm({
     () => findServerTypeOption(serverType),
     [serverType]
   );
+  const isCustomLocation = locationMode === "custom";
+
+  useEffect(() => {
+    setScenarioLocked(selectionSource === "inventory");
+  }, [selectionSource]);
 
   useEffect(() => {
     if (!scenarioName) {
@@ -709,21 +815,6 @@ export function GeneratorForm({
       setAppDescription(derivedDescription);
     }
   }, [scenarioName, displayNameEdited, descriptionEdited]);
-
-  useEffect(() => {
-    if (!scenarioName) {
-      return;
-    }
-    const defaultOutput = deriveDefaultOutputPath(scenarioName);
-    const previousDefault = deriveDefaultOutputPath(lastScenarioForOutput || undefined);
-    const usingDefault = !outputEdited || outputPath === "" || outputPath === previousDefault;
-
-    if (usingDefault) {
-      setOutputPath(defaultOutput);
-      setOutputEdited(false);
-    }
-    setLastScenarioForOutput(scenarioName);
-  }, [scenarioName, outputEdited, outputPath, lastScenarioForOutput]);
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
@@ -830,13 +921,17 @@ export function GeneratorForm({
       return;
     }
 
+    const outputPathForRequest = locationMode === "custom" ? outputPath : "";
+
     const validationMessage = validateGeneratorInputs({
       selectedPlatforms: selectedPlatformsList,
       decision: connectionDecision,
       bundleManifestPath,
       proxyUrl,
       appDisplayName,
-      appDescription
+      appDescription,
+      locationMode,
+      outputPath: outputPathForRequest
     });
 
     if (validationMessage) {
@@ -844,15 +939,13 @@ export function GeneratorForm({
       return;
     }
 
-    const resolvedOutputPath = outputPath || deriveDefaultOutputPath(scenarioName);
-
     const config = buildDesktopConfig({
       scenarioName,
       selectedTemplate,
       framework,
       serverType: connectionDecision.effectiveServerType,
       serverPort,
-      outputPath: resolvedOutputPath,
+      outputPath: outputPathForRequest,
       selectedPlatforms: selectedPlatformsList,
       deploymentMode,
       autoManageTier1,
@@ -862,6 +955,7 @@ export function GeneratorForm({
       isBundled,
       requiresRemoteConfig,
       resolvedEndpoints,
+      locationMode,
       appDisplayName,
       appDescription,
       iconPath
@@ -917,7 +1011,12 @@ export function GeneratorForm({
       <form onSubmit={handleSubmit} className="space-y-4">
           {selectionSource === "inventory" && scenarioName && (
             <div className="rounded-lg border border-blue-800/60 bg-blue-950/30 px-3 py-2 text-sm text-blue-100">
-              Loaded from Scenario Inventory: <span className="font-semibold">{scenarioName}</span>. Feel free to tweak settings before generating.
+              <div className="font-semibold text-blue-50">
+                Loaded from Scenario Inventory: <span className="font-semibold">{scenarioName}</span>.
+              </div>
+              <p className="text-blue-100/90">
+                We&apos;ll regenerate the desktop wrapper with the settings below—your scenario code stays the same.
+              </p>
             </div>
           )}
           <ScenarioSelector
@@ -933,6 +1032,8 @@ export function GeneratorForm({
                 ? () => applySavedConnection(selectedScenario.connection_config)
                 : undefined
             }
+            locked={scenarioLocked}
+            onUnlock={() => setScenarioLocked(false)}
           />
 
           <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 space-y-3">
@@ -1006,20 +1107,38 @@ export function GeneratorForm({
 
           <PlatformSelector platforms={platforms} onPlatformChange={handlePlatformChange} />
 
-          <OutputPathField
-            outputPath={outputPath}
-            onOutputPathChange={(value) => {
-              setOutputPath(value);
-              setOutputEdited(true);
+          <OutputLocationSelector
+            locationMode={locationMode}
+            onChange={(mode) => {
+              setLocationMode(mode);
+              if (mode !== "custom") {
+                setOutputPath("");
+              }
             }}
+            standardPath={standardOutputPath}
+            stagingPreview={stagingPreviewPath}
           />
 
+          {isCustomLocation && (
+            <OutputPathField
+              outputPath={outputPath}
+              onOutputPathChange={(value) => {
+                setOutputPath(value);
+              }}
+            />
+          )}
+
+          <input type="hidden" name="scenarioName" value={scenarioName} />
           <Button
             type="submit"
             className="w-full"
             disabled={generateMutation.isPending}
           >
-            {generateMutation.isPending ? "Generating..." : "Generate Desktop Application"}
+            {generateMutation.isPending
+              ? "Generating..."
+              : isUpdateMode
+                ? "Update Desktop Application"
+                : "Generate Desktop Application"}
           </Button>
 
           {generateMutation.isError && (
