@@ -257,3 +257,66 @@ export const DEFAULT_SELECTOR_OPTIONS: Required<SelectorGeneratorOptions> = {
   ],
   minConfidence: 0.3,
 };
+
+/**
+ * Result of replaying a single action.
+ */
+export interface ActionReplayResult {
+  /** The action that was replayed */
+  actionId: string;
+  /** Index in the action sequence */
+  sequenceNum: number;
+  /** Action type that was executed */
+  actionType: ActionType;
+  /** Whether the action succeeded */
+  success: boolean;
+  /** Time taken to execute in ms */
+  durationMs: number;
+  /** Error details if failed */
+  error?: {
+    /** Error message */
+    message: string;
+    /** Error code for categorization */
+    code: 'SELECTOR_NOT_FOUND' | 'SELECTOR_AMBIGUOUS' | 'ELEMENT_NOT_VISIBLE' | 'ELEMENT_NOT_ENABLED' | 'TIMEOUT' | 'NAVIGATION_FAILED' | 'UNKNOWN';
+    /** Number of elements found for selector (0 = not found, >1 = ambiguous) */
+    matchCount?: number;
+    /** The selector that failed */
+    selector?: string;
+  };
+  /** Screenshot after action (base64, only on failure) */
+  screenshotOnError?: string;
+}
+
+/**
+ * Request for replay preview.
+ */
+export interface ReplayPreviewRequest {
+  /** Actions to replay */
+  actions: RecordedAction[];
+  /** Maximum number of actions to replay (default: all) */
+  limit?: number;
+  /** Whether to stop on first failure (default: true) */
+  stopOnFailure?: boolean;
+  /** Action timeout in ms (default: 10000) */
+  actionTimeout?: number;
+}
+
+/**
+ * Response from replay preview.
+ */
+export interface ReplayPreviewResponse {
+  /** Overall success (all actions passed) */
+  success: boolean;
+  /** Total actions attempted */
+  totalActions: number;
+  /** Number of actions that passed */
+  passedActions: number;
+  /** Number of actions that failed */
+  failedActions: number;
+  /** Per-action results */
+  results: ActionReplayResult[];
+  /** Total duration in ms */
+  totalDurationMs: number;
+  /** Whether replay was stopped early due to failure */
+  stoppedEarly: boolean;
+}

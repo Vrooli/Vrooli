@@ -211,8 +211,10 @@ func main() {
 		r.Post("/recordings/live/{sessionId}/stop", handler.StopLiveRecording)
 		r.Get("/recordings/live/{sessionId}/status", handler.GetRecordingStatus)
 		r.Get("/recordings/live/{sessionId}/actions", handler.GetRecordedActions)
+		r.Post("/recordings/live/{sessionId}/action", handler.ReceiveRecordingAction) // Callback for driver action streaming
 		r.Post("/recordings/live/{sessionId}/generate-workflow", handler.GenerateWorkflowFromRecording)
 		r.Post("/recordings/live/{sessionId}/validate-selector", handler.ValidateSelector)
+		r.Post("/recordings/live/{sessionId}/replay-preview", handler.ReplayRecordingPreview)
 
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)

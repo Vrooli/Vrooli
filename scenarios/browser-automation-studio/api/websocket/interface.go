@@ -15,6 +15,9 @@ type HubInterface interface {
 	// BroadcastEnvelope sends a normalized automation event envelope to all connected clients.
 	BroadcastEnvelope(event any)
 
+	// BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
+	BroadcastRecordingAction(sessionID string, action any)
+
 	// GetClientCount returns the number of currently connected clients
 	GetClientCount() int
 

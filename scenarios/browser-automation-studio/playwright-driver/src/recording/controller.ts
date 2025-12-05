@@ -17,6 +17,9 @@ import type {
   RawBrowserEvent,
   RecordingState,
   SelectorValidation,
+  ActionReplayResult,
+  ReplayPreviewRequest,
+  ReplayPreviewResponse,
 } from './types';
 
 /**
@@ -188,6 +191,439 @@ export class RecordModeController {
     }
 
     return result;
+  }
+
+  /**
+   * Replay recorded actions for preview/testing.
+   *
+   * Executes actions one by one and returns detailed results for each.
+   * This allows users to test their recording before generating a workflow.
+   *
+   * @param request - Replay request with actions and options
+   * @returns Detailed results for each action
+   */
+  async replayPreview(request: ReplayPreviewRequest): Promise<ReplayPreviewResponse> {
+    const {
+      actions,
+      limit,
+      stopOnFailure = true,
+      actionTimeout = 10000,
+    } = request;
+
+    // Determine how many actions to replay
+    const actionsToReplay = limit ? actions.slice(0, limit) : actions;
+
+    const results: ActionReplayResult[] = [];
+    let stoppedEarly = false;
+    const startTime = Date.now();
+
+    for (const action of actionsToReplay) {
+      const actionStart = Date.now();
+      const result = await this.executeAction(action, actionTimeout);
+      result.durationMs = Date.now() - actionStart;
+
+      results.push(result);
+
+      if (!result.success && stopOnFailure) {
+        stoppedEarly = true;
+        break;
+      }
+    }
+
+    const passedActions = results.filter((r) => r.success).length;
+    const failedActions = results.filter((r) => !r.success).length;
+
+    return {
+      success: failedActions === 0,
+      totalActions: results.length,
+      passedActions,
+      failedActions,
+      results,
+      totalDurationMs: Date.now() - startTime,
+      stoppedEarly,
+    };
+  }
+
+  /**
+   * Execute a single recorded action.
+   *
+   * @param action - The action to execute
+   * @param timeout - Timeout in ms
+   * @returns Result of the action execution
+   */
+  private async executeAction(action: RecordedAction, timeout: number): Promise<ActionReplayResult> {
+    const baseResult: ActionReplayResult = {
+      actionId: action.id,
+      sequenceNum: action.sequenceNum,
+      actionType: action.actionType,
+      success: false,
+      durationMs: 0,
+    };
+
+    try {
+      switch (action.actionType) {
+        case 'click':
+          return await this.executeClick(action, timeout, baseResult);
+
+        case 'type':
+          return await this.executeType(action, timeout, baseResult);
+
+        case 'navigate':
+          return await this.executeNavigate(action, timeout, baseResult);
+
+        case 'scroll':
+          return await this.executeScroll(action, timeout, baseResult);
+
+        case 'select':
+          return await this.executeSelect(action, timeout, baseResult);
+
+        case 'keypress':
+          return await this.executeKeypress(action, timeout, baseResult);
+
+        case 'focus':
+          return await this.executeFocus(action, timeout, baseResult);
+
+        case 'hover':
+          return await this.executeHover(action, timeout, baseResult);
+
+        case 'blur':
+          // Blur doesn't need special handling, just skip
+          return { ...baseResult, success: true };
+
+        default:
+          return {
+            ...baseResult,
+            error: {
+              message: `Unsupported action type: ${action.actionType}`,
+              code: 'UNKNOWN',
+            },
+          };
+      }
+    } catch (error) {
+      const errorResult = this.handleActionError(error, action, baseResult);
+      // Capture screenshot on error
+      try {
+        const screenshot = await this.page.screenshot({ type: 'png' });
+        errorResult.screenshotOnError = screenshot.toString('base64');
+      } catch {
+        // Ignore screenshot errors
+      }
+      return errorResult;
+    }
+  }
+
+  /**
+   * Execute a click action.
+   */
+  private async executeClick(
+    action: RecordedAction,
+    timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    if (!action.selector?.primary) {
+      return {
+        ...baseResult,
+        error: { message: 'Click action missing selector', code: 'UNKNOWN' },
+      };
+    }
+
+    const selector = action.selector.primary;
+    const validation = await this.validateSelector(selector);
+
+    if (!validation.valid) {
+      return {
+        ...baseResult,
+        error: {
+          message: validation.matchCount === 0
+            ? `Element not found: ${selector}`
+            : `Multiple elements found (${validation.matchCount}): ${selector}`,
+          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
+          matchCount: validation.matchCount,
+          selector,
+        },
+      };
+    }
+
+    await this.page.click(selector, { timeout });
+    return { ...baseResult, success: true };
+  }
+
+  /**
+   * Execute a type action.
+   */
+  private async executeType(
+    action: RecordedAction,
+    timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    if (!action.selector?.primary) {
+      return {
+        ...baseResult,
+        error: { message: 'Type action missing selector', code: 'UNKNOWN' },
+      };
+    }
+
+    const selector = action.selector.primary;
+    const text = action.payload?.text || '';
+
+    const validation = await this.validateSelector(selector);
+    if (!validation.valid) {
+      return {
+        ...baseResult,
+        error: {
+          message: validation.matchCount === 0
+            ? `Element not found: ${selector}`
+            : `Multiple elements found (${validation.matchCount}): ${selector}`,
+          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
+          matchCount: validation.matchCount,
+          selector,
+        },
+      };
+    }
+
+    await this.page.fill(selector, text, { timeout });
+    return { ...baseResult, success: true };
+  }
+
+  /**
+   * Execute a navigate action.
+   */
+  private async executeNavigate(
+    action: RecordedAction,
+    timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    const url = action.payload?.targetUrl || action.url;
+
+    if (!url) {
+      return {
+        ...baseResult,
+        error: { message: 'Navigate action missing URL', code: 'UNKNOWN' },
+      };
+    }
+
+    try {
+      await this.page.goto(url, { timeout, waitUntil: 'networkidle' });
+      return { ...baseResult, success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        ...baseResult,
+        error: {
+          message: `Navigation failed: ${message}`,
+          code: 'NAVIGATION_FAILED',
+        },
+      };
+    }
+  }
+
+  /**
+   * Execute a scroll action.
+   */
+  private async executeScroll(
+    action: RecordedAction,
+    _timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    const scrollY = action.payload?.scrollY ?? 0;
+    const scrollX = action.payload?.scrollX ?? 0;
+
+    if (action.selector?.primary) {
+      // Scroll within element
+      const selector = action.selector.primary;
+      const validation = await this.validateSelector(selector);
+
+      if (!validation.valid) {
+        return {
+          ...baseResult,
+          error: {
+            message: validation.matchCount === 0
+              ? `Element not found: ${selector}`
+              : `Multiple elements found (${validation.matchCount}): ${selector}`,
+            code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
+            matchCount: validation.matchCount,
+            selector,
+          },
+        };
+      }
+
+      // Scroll within element - uses browser context
+      await this.page.evaluate(`
+        (function() {
+          const element = document.querySelector(${JSON.stringify(selector)});
+          if (element) {
+            element.scrollTo(${scrollX}, ${scrollY});
+          }
+        })()
+      `);
+    } else {
+      // Scroll window - uses browser context
+      await this.page.evaluate(`window.scrollTo(${scrollX}, ${scrollY})`);
+    }
+
+    return { ...baseResult, success: true };
+  }
+
+  /**
+   * Execute a select action.
+   */
+  private async executeSelect(
+    action: RecordedAction,
+    timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    if (!action.selector?.primary) {
+      return {
+        ...baseResult,
+        error: { message: 'Select action missing selector', code: 'UNKNOWN' },
+      };
+    }
+
+    const selector = action.selector.primary;
+    const value = action.payload?.value || '';
+
+    const validation = await this.validateSelector(selector);
+    if (!validation.valid) {
+      return {
+        ...baseResult,
+        error: {
+          message: validation.matchCount === 0
+            ? `Element not found: ${selector}`
+            : `Multiple elements found (${validation.matchCount}): ${selector}`,
+          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
+          matchCount: validation.matchCount,
+          selector,
+        },
+      };
+    }
+
+    await this.page.selectOption(selector, value, { timeout });
+    return { ...baseResult, success: true };
+  }
+
+  /**
+   * Execute a keypress action.
+   */
+  private async executeKeypress(
+    action: RecordedAction,
+    _timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    const key = action.payload?.key;
+
+    if (!key) {
+      return {
+        ...baseResult,
+        error: { message: 'Keypress action missing key', code: 'UNKNOWN' },
+      };
+    }
+
+    await this.page.keyboard.press(key);
+    return { ...baseResult, success: true };
+  }
+
+  /**
+   * Execute a focus action.
+   */
+  private async executeFocus(
+    action: RecordedAction,
+    timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    if (!action.selector?.primary) {
+      return {
+        ...baseResult,
+        error: { message: 'Focus action missing selector', code: 'UNKNOWN' },
+      };
+    }
+
+    const selector = action.selector.primary;
+    const validation = await this.validateSelector(selector);
+
+    if (!validation.valid) {
+      return {
+        ...baseResult,
+        error: {
+          message: validation.matchCount === 0
+            ? `Element not found: ${selector}`
+            : `Multiple elements found (${validation.matchCount}): ${selector}`,
+          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
+          matchCount: validation.matchCount,
+          selector,
+        },
+      };
+    }
+
+    await this.page.focus(selector, { timeout });
+    return { ...baseResult, success: true };
+  }
+
+  /**
+   * Execute a hover action.
+   */
+  private async executeHover(
+    action: RecordedAction,
+    timeout: number,
+    baseResult: ActionReplayResult
+  ): Promise<ActionReplayResult> {
+    if (!action.selector?.primary) {
+      return {
+        ...baseResult,
+        error: { message: 'Hover action missing selector', code: 'UNKNOWN' },
+      };
+    }
+
+    const selector = action.selector.primary;
+    const validation = await this.validateSelector(selector);
+
+    if (!validation.valid) {
+      return {
+        ...baseResult,
+        error: {
+          message: validation.matchCount === 0
+            ? `Element not found: ${selector}`
+            : `Multiple elements found (${validation.matchCount}): ${selector}`,
+          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
+          matchCount: validation.matchCount,
+          selector,
+        },
+      };
+    }
+
+    await this.page.hover(selector, { timeout });
+    return { ...baseResult, success: true };
+  }
+
+  /**
+   * Handle action execution errors.
+   */
+  private handleActionError(
+    error: unknown,
+    action: RecordedAction,
+    baseResult: ActionReplayResult
+  ): ActionReplayResult {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // Categorize the error
+    type ErrorCode = 'SELECTOR_NOT_FOUND' | 'SELECTOR_AMBIGUOUS' | 'ELEMENT_NOT_VISIBLE' | 'ELEMENT_NOT_ENABLED' | 'TIMEOUT' | 'NAVIGATION_FAILED' | 'UNKNOWN';
+    let code: ErrorCode = 'UNKNOWN';
+
+    if (message.includes('waiting for selector') || message.includes('Timeout')) {
+      code = 'TIMEOUT';
+    } else if (message.includes('not visible')) {
+      code = 'ELEMENT_NOT_VISIBLE';
+    } else if (message.includes('disabled')) {
+      code = 'ELEMENT_NOT_ENABLED';
+    }
+
+    return {
+      ...baseResult,
+      error: {
+        message,
+        code,
+        selector: action.selector?.primary,
+      },
+    };
   }
 
   /**

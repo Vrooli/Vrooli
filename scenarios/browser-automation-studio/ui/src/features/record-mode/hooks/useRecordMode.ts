@@ -4,7 +4,8 @@
  * Manages recording state and API interactions for Record Mode.
  * Supports:
  * - Starting/stopping recording
- * - Polling for new actions
+ * - Real-time WebSocket updates for actions (<100ms latency)
+ * - Fallback polling for resilience
  * - Editing actions (selector and payload)
  * - Generating workflows
  * - Validating selectors
@@ -12,6 +13,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { getApiBase } from '@/config';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 import type {
   RecordedAction,
   StartRecordingResponse,
@@ -20,15 +22,18 @@ import type {
   GenerateWorkflowResponse,
   SelectorValidation,
   SelectorSet,
+  ReplayPreviewResponse,
 } from '../types';
 
 interface UseRecordModeOptions {
   /** Session ID for the browser session */
   sessionId: string;
-  /** Polling interval for actions in ms (0 to disable) */
+  /** Polling interval for actions in ms (0 to disable). Used as fallback when WebSocket is unavailable. */
   pollInterval?: number;
   /** Callback when new actions are received */
   onActionsReceived?: (actions: RecordedAction[]) => void;
+  /** Whether to use WebSocket for real-time updates (default: true) */
+  useWebSocketUpdates?: boolean;
 }
 
 interface UseRecordModeReturn {
@@ -60,6 +65,10 @@ interface UseRecordModeReturn {
   validateSelector: (selector: string) => Promise<SelectorValidation>;
   /** Refresh actions from server */
   refreshActions: () => Promise<void>;
+  /** Replay recorded actions for preview testing */
+  replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }) => Promise<ReplayPreviewResponse>;
+  /** Whether replay is currently in progress */
+  isReplaying: boolean;
   /** Count of actions with low confidence */
   lowConfidenceCount: number;
   /** Count of actions with medium confidence */
@@ -74,19 +83,23 @@ const CONFIDENCE = {
 
 export function useRecordMode({
   sessionId,
-  pollInterval = 1000,
+  pollInterval = 5000, // Reduced frequency - WebSocket is primary, polling is fallback
   onActionsReceived,
+  useWebSocketUpdates = true,
 }: UseRecordModeOptions): UseRecordModeReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [actions, setActions] = useState<RecordedAction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isReplaying, setIsReplaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActionCountRef = useRef(0);
+  const wsSubscribedRef = useRef(false);
 
   const apiUrl = getApiBase();
+  const { isConnected, lastMessage, send } = useWebSocket();
 
   // Calculate confidence counts
   const lowConfidenceCount = actions.filter(
@@ -120,12 +133,68 @@ export function useRecordMode({
     }
   }, [sessionId, apiUrl, onActionsReceived]);
 
-  // Start polling when recording is active
+  // Subscribe to WebSocket updates when recording starts
   useEffect(() => {
-    if (isRecording && pollInterval > 0) {
+    if (isRecording && useWebSocketUpdates && isConnected && sessionId && !wsSubscribedRef.current) {
+      send({ type: 'subscribe_recording', session_id: sessionId });
+      wsSubscribedRef.current = true;
+      console.log('[useRecordMode] Subscribed to recording WebSocket updates');
+    }
+
+    // Unsubscribe when recording stops
+    if (!isRecording && wsSubscribedRef.current) {
+      send({ type: 'unsubscribe_recording' });
+      wsSubscribedRef.current = false;
+      console.log('[useRecordMode] Unsubscribed from recording WebSocket updates');
+    }
+
+    return () => {
+      if (wsSubscribedRef.current) {
+        send({ type: 'unsubscribe_recording' });
+        wsSubscribedRef.current = false;
+      }
+    };
+  }, [isRecording, useWebSocketUpdates, isConnected, sessionId, send]);
+
+  // Handle incoming WebSocket messages
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    // Type guard for recording action messages
+    const msg = lastMessage as { type: string; action?: unknown; session_id?: string };
+    if (msg.type === 'recording_action' && msg.action) {
+      const action = msg.action as RecordedAction;
+
+      // Deduplicate - check if action already exists by ID
+      setActions((prev) => {
+        const exists = prev.some((a) => a.id === action.id);
+        if (exists) return prev;
+
+        const newActions = [...prev, action];
+
+        // Notify callback
+        if (onActionsReceived) {
+          onActionsReceived([action]);
+        }
+
+        lastActionCountRef.current = newActions.length;
+        return newActions;
+      });
+
+      console.log('[useRecordMode] Received action via WebSocket:', action.actionType);
+    }
+  }, [lastMessage, onActionsReceived]);
+
+  // Fallback polling when WebSocket is not available or as periodic sync
+  // Uses longer interval since WebSocket provides real-time updates
+  useEffect(() => {
+    const shouldPoll = isRecording && pollInterval > 0 && (!useWebSocketUpdates || !isConnected);
+
+    if (shouldPoll) {
       pollTimerRef.current = setInterval(() => {
         void refreshActions();
       }, pollInterval);
+      console.log('[useRecordMode] Started fallback polling');
     }
 
     return () => {
@@ -134,7 +203,7 @@ export function useRecordMode({
         pollTimerRef.current = null;
       }
     };
-  }, [isRecording, pollInterval, refreshActions]);
+  }, [isRecording, pollInterval, refreshActions, useWebSocketUpdates, isConnected]);
 
   const startRecording = useCallback(async () => {
     if (!sessionId) {
@@ -336,6 +405,53 @@ export function useRecordMode({
     [sessionId, apiUrl]
   );
 
+  const replayPreview = useCallback(
+    async (options?: { limit?: number; stopOnFailure?: boolean }): Promise<ReplayPreviewResponse> => {
+      if (!sessionId) {
+        throw new Error('No session ID provided');
+      }
+
+      if (actions.length === 0) {
+        throw new Error('No actions to replay');
+      }
+
+      setIsReplaying(true);
+      setError(null);
+
+      try {
+        const response = await fetch(
+          `${apiUrl}/api/v1/recordings/live/${sessionId}/replay-preview`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              actions,
+              limit: options?.limit,
+              stop_on_failure: options?.stopOnFailure ?? true,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to replay recording: ${response.statusText}`
+          );
+        }
+
+        const data: ReplayPreviewResponse = await response.json();
+        return data;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to replay recording';
+        setError(message);
+        throw err;
+      } finally {
+        setIsReplaying(false);
+      }
+    },
+    [sessionId, apiUrl, actions]
+  );
+
   return {
     isRecording,
     recordingId,
@@ -351,6 +467,8 @@ export function useRecordMode({
     generateWorkflow,
     validateSelector,
     refreshActions,
+    replayPreview,
+    isReplaying,
     lowConfidenceCount,
     mediumConfidenceCount,
   };

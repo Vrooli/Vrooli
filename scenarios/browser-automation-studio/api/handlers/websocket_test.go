@@ -57,6 +57,10 @@ func (m *mockWebSocketHub) CloseExecution(id uuid.UUID) {
 	}
 }
 
+func (m *mockWebSocketHub) BroadcastRecordingAction(sessionID string, action any) {
+	// No-op for existing tests
+}
+
 func setupWebSocketTestHandler(t *testing.T, hub wsHub.HubInterface) *Handler {
 	t.Helper()
 

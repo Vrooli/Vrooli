@@ -134,10 +134,49 @@ type GenerateWorkflowResponse struct {
 	ActionCount int       `json:"action_count"`
 }
 
+// ReplayPreviewRequest is the request body for testing recorded actions.
+type ReplayPreviewRequest struct {
+	SessionID     string           `json:"session_id"`
+	Actions       []RecordedAction `json:"actions"`
+	Limit         *int             `json:"limit,omitempty"`
+	StopOnFailure *bool            `json:"stop_on_failure,omitempty"`
+	ActionTimeout *int             `json:"action_timeout,omitempty"`
+}
+
+// ActionReplayError contains error details for a failed action.
+type ActionReplayError struct {
+	Message    string `json:"message"`
+	Code       string `json:"code"`
+	MatchCount *int   `json:"match_count,omitempty"`
+	Selector   string `json:"selector,omitempty"`
+}
+
+// ActionReplayResult is the result of replaying a single action.
+type ActionReplayResult struct {
+	ActionID          string             `json:"action_id"`
+	SequenceNum       int                `json:"sequence_num"`
+	ActionType        string             `json:"action_type"`
+	Success           bool               `json:"success"`
+	DurationMs        int                `json:"duration_ms"`
+	Error             *ActionReplayError `json:"error,omitempty"`
+	ScreenshotOnError string             `json:"screenshot_on_error,omitempty"`
+}
+
+// ReplayPreviewResponse is the response from replay preview.
+type ReplayPreviewResponse struct {
+	Success         bool                 `json:"success"`
+	TotalActions    int                  `json:"total_actions"`
+	PassedActions   int                  `json:"passed_actions"`
+	FailedActions   int                  `json:"failed_actions"`
+	Results         []ActionReplayResult `json:"results"`
+	TotalDurationMs int                  `json:"total_duration_ms"`
+	StoppedEarly    bool                 `json:"stopped_early"`
+}
+
 const (
-	recordModeTimeout     = 30 * time.Second
-	playwrightDriverEnv   = "PLAYWRIGHT_DRIVER_URL"
-	defaultPlaywrightURL  = "http://127.0.0.1:39400"
+	recordModeTimeout    = 30 * time.Second
+	playwrightDriverEnv  = "PLAYWRIGHT_DRIVER_URL"
+	defaultPlaywrightURL = "http://127.0.0.1:39400"
 )
 
 func getPlaywrightDriverURL() string {
@@ -172,7 +211,22 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 	// Call playwright-driver to start recording
 	driverURL := fmt.Sprintf("%s/session/%s/record/start", getPlaywrightDriverURL(), req.SessionID)
 
-	reqBody := map[string]string{}
+	// Construct callback URL for real-time action streaming
+	// The driver will POST each action to this URL for WebSocket broadcasting
+	apiHost := os.Getenv("API_HOST")
+	if apiHost == "" {
+		apiHost = "127.0.0.1"
+	}
+	apiPort := os.Getenv("API_PORT")
+	if apiPort == "" {
+		apiPort = "8080"
+	}
+	callbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, req.SessionID)
+
+	reqBody := map[string]string{
+		"callback_url": callbackURL,
+	}
+	// Allow override from request if provided
 	if req.CallbackURL != "" {
 		reqBody["callback_url"] = req.CallbackURL
 	}
@@ -546,30 +600,114 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 	})
 }
 
-// convertActionsToWorkflow converts recorded actions to a workflow flow definition.
-func convertActionsToWorkflow(actions []RecordedAction) map[string]interface{} {
-	nodes := make([]map[string]interface{}, 0, len(actions))
-	edges := make([]map[string]interface{}, 0, len(actions)-1)
+// mergeConsecutiveActions optimizes recorded actions by merging:
+// - Consecutive type actions on the same selector (text is concatenated)
+// - Consecutive scroll actions (uses final scroll position)
+// - Removes focus events that precede type events on the same element
+func mergeConsecutiveActions(actions []RecordedAction) []RecordedAction {
+	if len(actions) <= 1 {
+		return actions
+	}
 
-	var prevNodeID string
+	merged := make([]RecordedAction, 0, len(actions))
 
-	for i, action := range actions {
-		nodeID := fmt.Sprintf("node_%d", i+1)
+	for i := 0; i < len(actions); i++ {
+		action := actions[i]
 
-		node := mapActionToNode(action, nodeID, i)
-		nodes = append(nodes, node)
-
-		// Chain nodes sequentially
-		if prevNodeID != "" {
-			edges = append(edges, map[string]interface{}{
-				"id":     fmt.Sprintf("edge_%d", i),
-				"source": prevNodeID,
-				"target": nodeID,
-			})
+		// Skip focus events that are immediately followed by type on the same element
+		if action.ActionType == "focus" && i+1 < len(actions) {
+			next := actions[i+1]
+			if next.ActionType == "type" && selectorsMatch(action.Selector, next.Selector) {
+				continue // Skip this focus event
+			}
 		}
 
-		prevNodeID = nodeID
+		// Merge consecutive type actions on same selector
+		if action.ActionType == "type" && action.Selector != nil {
+			mergedText := ""
+			if action.Payload != nil {
+				if text, ok := action.Payload["text"].(string); ok {
+					mergedText = text
+				}
+			}
+
+			// Look ahead for more type actions on same element
+			for i+1 < len(actions) {
+				next := actions[i+1]
+				if next.ActionType != "type" || !selectorsMatch(action.Selector, next.Selector) {
+					break
+				}
+				// Merge the text
+				if next.Payload != nil {
+					if text, ok := next.Payload["text"].(string); ok {
+						mergedText += text
+					}
+				}
+				i++ // Skip this action, we've merged it
+			}
+
+			// Update the action with merged text
+			if mergedText != "" {
+				if action.Payload == nil {
+					action.Payload = make(map[string]interface{})
+				}
+				action.Payload["text"] = mergedText
+			}
+		}
+
+		// Merge consecutive scroll actions
+		if action.ActionType == "scroll" {
+			var finalScrollY float64
+			if action.Payload != nil {
+				if y, ok := action.Payload["scrollY"].(float64); ok {
+					finalScrollY = y
+				}
+			}
+
+			// Look ahead for more scroll actions
+			for i+1 < len(actions) {
+				next := actions[i+1]
+				if next.ActionType != "scroll" {
+					break
+				}
+				// Use the final scroll position
+				if next.Payload != nil {
+					if y, ok := next.Payload["scrollY"].(float64); ok {
+						finalScrollY = y
+					}
+				}
+				i++ // Skip this action, we've merged it
+			}
+
+			// Update the action with final scroll position
+			if action.Payload == nil {
+				action.Payload = make(map[string]interface{})
+			}
+			action.Payload["scrollY"] = finalScrollY
+		}
+
+		merged = append(merged, action)
 	}
+
+	return merged
+}
+
+// selectorsMatch checks if two SelectorSets refer to the same element
+func selectorsMatch(a, b *SelectorSet) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Primary == b.Primary
+}
+
+// convertActionsToWorkflow converts recorded actions to a workflow flow definition.
+// It applies action merging and inserts smart wait nodes to improve reliability.
+func convertActionsToWorkflow(actions []RecordedAction) map[string]interface{} {
+	// First, merge consecutive actions for cleaner workflows
+	mergedActions := mergeConsecutiveActions(actions)
+
+	// Insert smart wait nodes between actions that need them
+	nodes, edges := insertSmartWaits(mergedActions)
 
 	return map[string]interface{}{
 		"nodes": nodes,
@@ -682,6 +820,195 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 	return node
 }
 
+// WaitTemplate describes a wait node to be inserted between actions.
+type WaitTemplate struct {
+	WaitType  string // "selector" or "timeout"
+	Selector  string // For selector waits
+	TimeoutMs int    // Timeout for selector waits, or duration for timeout waits
+	Label     string // Human-readable label
+}
+
+// analyzeTransitionForWait examines two consecutive actions and determines
+// if a wait node should be inserted between them.
+// Returns nil if no wait is needed.
+func analyzeTransitionForWait(current, next RecordedAction) *WaitTemplate {
+	// Actions that need the element to exist before interaction
+	needsSelectorWait := map[string]bool{
+		"click":    true,
+		"type":     true,
+		"select":   true,
+		"focus":    true,
+		"hover":    true,
+		"scroll":   true,
+		"dragDrop": true,
+	}
+
+	// Check if the next action needs its selector to exist
+	if needsSelectorWait[next.ActionType] && next.Selector != nil && next.Selector.Primary != "" {
+		// If current action might trigger DOM changes, add a wait
+		triggersChanges := current.ActionType == "click" ||
+			current.ActionType == "type" ||
+			current.ActionType == "select" ||
+			current.ActionType == "navigate" ||
+			current.ActionType == "keypress"
+
+		// Check for URL change (indicates navigation happened)
+		urlChanged := current.URL != next.URL
+
+		// Check for significant time gap (>500ms suggests async activity)
+		var timeDiff int64
+		if current.Timestamp != "" && next.Timestamp != "" {
+			currentTime, err1 := time.Parse(time.RFC3339Nano, current.Timestamp)
+			nextTime, err2 := time.Parse(time.RFC3339Nano, next.Timestamp)
+			if err1 == nil && err2 == nil {
+				timeDiff = nextTime.Sub(currentTime).Milliseconds()
+			}
+		}
+		significantGap := timeDiff > 500
+
+		// Insert wait if any condition is met
+		if triggersChanges || urlChanged || significantGap {
+			label := fmt.Sprintf("Wait for %s", describeElement(next))
+			return &WaitTemplate{
+				WaitType:  "selector",
+				Selector:  next.Selector.Primary,
+				TimeoutMs: 10000, // 10 second default timeout
+				Label:     label,
+			}
+		}
+	}
+
+	// Check for large time gaps that suggest async operations even without selector needs
+	if current.Timestamp != "" && next.Timestamp != "" {
+		currentTime, err1 := time.Parse(time.RFC3339Nano, current.Timestamp)
+		nextTime, err2 := time.Parse(time.RFC3339Nano, next.Timestamp)
+		if err1 == nil && err2 == nil {
+			timeDiff := nextTime.Sub(currentTime).Milliseconds()
+			// If gap > 2 seconds, insert a proportional wait (capped at 5 seconds)
+			if timeDiff > 2000 {
+				waitDuration := timeDiff / 2 // Wait for half the observed gap
+				if waitDuration > 5000 {
+					waitDuration = 5000
+				}
+				return &WaitTemplate{
+					WaitType:  "timeout",
+					TimeoutMs: int(waitDuration),
+					Label:     "Wait for page to stabilize",
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// describeElement creates a human-readable description of an element for labels.
+func describeElement(action RecordedAction) string {
+	if action.ElementMeta != nil {
+		if action.ElementMeta.InnerText != "" {
+			text := truncateString(action.ElementMeta.InnerText, 15)
+			return fmt.Sprintf("\"%s\"", text)
+		}
+		if action.ElementMeta.AriaLabel != "" {
+			return action.ElementMeta.AriaLabel
+		}
+		if action.ElementMeta.TagName != "" {
+			return action.ElementMeta.TagName
+		}
+	}
+	return "element"
+}
+
+// createWaitNode generates a workflow wait node from a WaitTemplate.
+func createWaitNode(template *WaitTemplate, nodeID string, posY float64) map[string]interface{} {
+	data := map[string]interface{}{
+		"label":     template.Label,
+		"timeoutMs": template.TimeoutMs,
+	}
+
+	if template.WaitType == "selector" && template.Selector != "" {
+		data["selector"] = template.Selector
+	}
+
+	return map[string]interface{}{
+		"id":   nodeID,
+		"type": "wait",
+		"position": map[string]interface{}{
+			"x": 250.0,
+			"y": posY,
+		},
+		"data": data,
+	}
+}
+
+// insertSmartWaits analyzes action transitions and inserts wait nodes where needed.
+// This improves reliability of recorded workflows by ensuring elements exist before interaction.
+func insertSmartWaits(actions []RecordedAction) ([]map[string]interface{}, []map[string]interface{}) {
+	if len(actions) == 0 {
+		return nil, nil
+	}
+
+	nodes := make([]map[string]interface{}, 0, len(actions)*2)
+	edges := make([]map[string]interface{}, 0, len(actions)*2)
+
+	var prevNodeID string
+	nodeIndex := 0
+	edgeIndex := 0
+	posY := 100.0
+	posYIncrement := 120.0
+
+	for i, action := range actions {
+		// Create the action node
+		nodeID := fmt.Sprintf("node_%d", nodeIndex+1)
+		node := mapActionToNode(action, nodeID, nodeIndex)
+		// Override position to account for inserted wait nodes
+		node["position"] = map[string]interface{}{
+			"x": 250.0,
+			"y": posY,
+		}
+		nodes = append(nodes, node)
+		posY += posYIncrement
+		nodeIndex++
+
+		// Create edge from previous node
+		if prevNodeID != "" {
+			edges = append(edges, map[string]interface{}{
+				"id":     fmt.Sprintf("edge_%d", edgeIndex+1),
+				"source": prevNodeID,
+				"target": nodeID,
+			})
+			edgeIndex++
+		}
+		prevNodeID = nodeID
+
+		// Check if we need a wait before the next action
+		if i < len(actions)-1 {
+			nextAction := actions[i+1]
+			waitTemplate := analyzeTransitionForWait(action, nextAction)
+
+			if waitTemplate != nil {
+				// Create wait node
+				waitNodeID := fmt.Sprintf("wait_%d", nodeIndex+1)
+				waitNode := createWaitNode(waitTemplate, waitNodeID, posY)
+				nodes = append(nodes, waitNode)
+				posY += posYIncrement
+				nodeIndex++
+
+				// Create edge from action to wait
+				edges = append(edges, map[string]interface{}{
+					"id":     fmt.Sprintf("edge_%d", edgeIndex+1),
+					"source": prevNodeID,
+					"target": waitNodeID,
+				})
+				edgeIndex++
+				prevNodeID = waitNodeID
+			}
+		}
+	}
+
+	return nodes, edges
+}
+
 // generateClickLabel creates a readable label for a click action.
 func generateClickLabel(action RecordedAction) string {
 	if action.ElementMeta != nil {
@@ -711,6 +1038,39 @@ func extractHostname(urlStr string) string {
 		return urlStr[:50] + "..."
 	}
 	return urlStr
+}
+
+// ReceiveRecordingAction handles POST /api/v1/recordings/live/{sessionId}/action
+// Receives a streamed action from the playwright-driver and broadcasts it via WebSocket.
+func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request) {
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var action RecordedAction
+	if err := json.NewDecoder(r.Body).Decode(&action); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Broadcast the action to WebSocket clients subscribed to this session
+	h.wsHub.BroadcastRecordingAction(sessionID, action)
+
+	h.log.WithFields(map[string]interface{}{
+		"session_id":   sessionID,
+		"action_type":  action.ActionType,
+		"sequence_num": action.SequenceNum,
+	}).Debug("Received and broadcast recording action")
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status": "ok",
+	})
 }
 
 // ValidateSelector handles POST /api/v1/recordings/live/{sessionId}/validate-selector
@@ -792,4 +1152,109 @@ func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// ReplayRecordingPreview handles POST /api/v1/recordings/live/{sessionId}/replay-preview
+// Tests recorded actions by replaying them in the browser.
+func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request) {
+	// Longer timeout for replay operations - may need to execute multiple actions
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var req ReplayPreviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	if len(req.Actions) == 0 {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "No actions to replay",
+		}))
+		return
+	}
+
+	// Build request for playwright-driver
+	driverReq := map[string]interface{}{
+		"actions": req.Actions,
+	}
+	if req.Limit != nil {
+		driverReq["limit"] = *req.Limit
+	}
+	if req.StopOnFailure != nil {
+		driverReq["stop_on_failure"] = *req.StopOnFailure
+	}
+	if req.ActionTimeout != nil {
+		driverReq["action_timeout"] = *req.ActionTimeout
+	}
+
+	jsonBody, err := json.Marshal(driverReq)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to marshal request",
+		}))
+		return
+	}
+
+	// Call playwright-driver to replay actions
+	driverURL := fmt.Sprintf("%s/session/%s/record/replay-preview", getPlaywrightDriverURL(), sessionID)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 2 * time.Minute}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for replay preview")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(body),
+		}))
+		return
+	}
+
+	var replayResp ReplayPreviewResponse
+	if err := json.Unmarshal(body, &replayResp); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse driver response",
+		}))
+		return
+	}
+
+	h.log.WithFields(map[string]interface{}{
+		"session_id":     sessionID,
+		"success":        replayResp.Success,
+		"passed_actions": replayResp.PassedActions,
+		"failed_actions": replayResp.FailedActions,
+		"total_duration": replayResp.TotalDurationMs,
+	}).Info("Replay preview complete")
+
+	h.respondSuccess(w, http.StatusOK, replayResp)
 }

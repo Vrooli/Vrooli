@@ -12,11 +12,12 @@ import (
 
 // Client represents a WebSocket client
 type Client struct {
-	ID          uuid.UUID
-	Conn        *websocket.Conn
-	Send        chan any
-	Hub         *Hub
-	ExecutionID *uuid.UUID // Optional: client can subscribe to specific execution
+	ID                 uuid.UUID
+	Conn               *websocket.Conn
+	Send               chan any
+	Hub                *Hub
+	ExecutionID        *uuid.UUID // Optional: client can subscribe to specific execution
+	RecordingSessionID *string    // Optional: client can subscribe to recording session updates
 }
 
 // Hub maintains the set of active clients and broadcasts messages to them
@@ -101,6 +102,30 @@ func (h *Hub) BroadcastEnvelope(event any) {
 	h.broadcast <- event
 }
 
+// BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
+func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
+	message := map[string]any{
+		"type":       "recording_action",
+		"session_id": sessionID,
+		"action":     action,
+		"timestamp":  getCurrentTimestamp(),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this recording session
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip
+			}
+		}
+	}
+}
+
 // GetClientCount returns the number of connected clients.
 func (h *Hub) GetClientCount() int {
 	h.mu.RLock()
@@ -170,6 +195,26 @@ func (c *Client) readPump() {
 			case "unsubscribe":
 				c.ExecutionID = nil
 				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from execution updates")
+			case "subscribe_recording":
+				if sessionID, ok := msg["session_id"].(string); ok && sessionID != "" {
+					c.RecordingSessionID = &sessionID
+					c.Hub.log.WithFields(logrus.Fields{
+						"client_id":  c.ID,
+						"session_id": sessionID,
+					}).Info("Client subscribed to recording updates")
+					// Send confirmation
+					select {
+					case c.Send <- map[string]any{
+						"type":       "recording_subscribed",
+						"session_id": sessionID,
+						"timestamp":  getCurrentTimestamp(),
+					}:
+					default:
+					}
+				}
+			case "unsubscribe_recording":
+				c.RecordingSessionID = nil
+				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from recording updates")
 			}
 		}
 	}

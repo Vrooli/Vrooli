@@ -184,3 +184,39 @@ export interface SelectorValidation {
   selector: string;
   error?: string;
 }
+
+/**
+ * Error details for a failed action replay.
+ */
+export interface ActionReplayError {
+  message: string;
+  code: 'SELECTOR_NOT_FOUND' | 'SELECTOR_AMBIGUOUS' | 'ELEMENT_NOT_VISIBLE' | 'ELEMENT_NOT_ENABLED' | 'TIMEOUT' | 'NAVIGATION_FAILED' | 'UNKNOWN';
+  match_count?: number;
+  selector?: string;
+}
+
+/**
+ * Result of replaying a single action.
+ */
+export interface ActionReplayResult {
+  action_id: string;
+  sequence_num: number;
+  action_type: ActionType;
+  success: boolean;
+  duration_ms: number;
+  error?: ActionReplayError;
+  screenshot_on_error?: string;
+}
+
+/**
+ * Response from replay preview.
+ */
+export interface ReplayPreviewResponse {
+  success: boolean;
+  total_actions: number;
+  passed_actions: number;
+  failed_actions: number;
+  results: ActionReplayResult[];
+  total_duration_ms: number;
+  stopped_early: boolean;
+}

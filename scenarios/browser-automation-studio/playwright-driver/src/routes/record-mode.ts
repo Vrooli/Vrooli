@@ -46,6 +46,36 @@ interface ValidateSelectorResponse {
   error?: string;
 }
 
+interface ReplayPreviewRequest {
+  actions: RecordedAction[];
+  limit?: number;
+  stop_on_failure?: boolean;
+  action_timeout?: number;
+}
+
+interface ReplayPreviewResponse {
+  success: boolean;
+  total_actions: number;
+  passed_actions: number;
+  failed_actions: number;
+  results: Array<{
+    action_id: string;
+    sequence_num: number;
+    action_type: string;
+    success: boolean;
+    duration_ms: number;
+    error?: {
+      message: string;
+      code: string;
+      match_count?: number;
+      selector?: string;
+    };
+    screenshot_on_error?: string;
+  }>;
+  total_duration_ms: number;
+  stopped_early: boolean;
+}
+
 /** Collected actions waiting to be fetched */
 const actionBuffers: Map<string, RecordedAction[]> = new Map();
 
@@ -311,6 +341,91 @@ export async function handleValidateSelector(
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/validate-selector`);
+  }
+}
+
+/**
+ * Replay preview endpoint
+ *
+ * POST /session/:id/record/replay-preview
+ *
+ * Replays recorded actions to test if they work before generating a workflow.
+ */
+export async function handleReplayPreview(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const request = body as unknown as ReplayPreviewRequest;
+
+    if (!request.actions || !Array.isArray(request.actions) || request.actions.length === 0) {
+      sendJson(res, 400, {
+        error: 'MISSING_ACTIONS',
+        message: 'actions field is required and must be a non-empty array',
+      });
+      return;
+    }
+
+    // Create controller if needed
+    if (!session.recordingController) {
+      session.recordingController = createRecordModeController(session.page, sessionId);
+    }
+
+    logger.info('Starting replay preview', {
+      sessionId,
+      actionCount: request.actions.length,
+      limit: request.limit,
+      stopOnFailure: request.stop_on_failure ?? true,
+    });
+
+    // Execute replay
+    const result = await session.recordingController.replayPreview({
+      actions: request.actions,
+      limit: request.limit,
+      stopOnFailure: request.stop_on_failure ?? true,
+      actionTimeout: request.action_timeout ?? 10000,
+    });
+
+    logger.info('Replay preview complete', {
+      sessionId,
+      success: result.success,
+      passed: result.passedActions,
+      failed: result.failedActions,
+      totalDurationMs: result.totalDurationMs,
+    });
+
+    // Convert to API response format (snake_case)
+    const response: ReplayPreviewResponse = {
+      success: result.success,
+      total_actions: result.totalActions,
+      passed_actions: result.passedActions,
+      failed_actions: result.failedActions,
+      results: result.results.map((r) => ({
+        action_id: r.actionId,
+        sequence_num: r.sequenceNum,
+        action_type: r.actionType,
+        success: r.success,
+        duration_ms: r.durationMs,
+        error: r.error ? {
+          message: r.error.message,
+          code: r.error.code,
+          match_count: r.error.matchCount,
+          selector: r.error.selector,
+        } : undefined,
+        screenshot_on_error: r.screenshotOnError,
+      })),
+      total_duration_ms: result.totalDurationMs,
+      stopped_early: result.stoppedEarly,
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/replay-preview`);
   }
 }
 
