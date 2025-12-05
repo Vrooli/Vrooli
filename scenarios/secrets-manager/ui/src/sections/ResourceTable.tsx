@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Search } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/LoadingStates";
+import { HelpDialog } from "../components/ui/HelpDialog";
 
 interface ResourceStatus {
   resource_name: string;
@@ -70,7 +71,21 @@ export const ResourceTable = ({ resourceStatuses, isLoading, onOpenResource }: R
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Per Resource</p>
-          <p className="text-2xl font-semibold text-white">All resources, searchable and sortable</p>
+          <div className="flex items-center gap-2">
+            <p className="text-2xl font-semibold text-white">All resources, searchable and sortable</p>
+            <HelpDialog title="How resource secrets are defined">
+              <p>
+                Each resource owns a <code>config/secrets.yaml</code> file that declares its secrets and the Vault paths
+                they live at. The Vault CLI (<code>resource-vault secrets ...</code>) and this dashboard read that file
+                to know what to validate and where to store values.
+              </p>
+              <p>
+                To add secrets for a resource: <code>resource-vault secrets create-template &lt;resource&gt;</code>, edit
+                the generated <code>config/secrets.yaml</code>, then run <code>resource-vault secrets init</code> to set
+                them. secrets-manager will pick them up automatically via the Vault check/fallback scan.
+              </p>
+            </HelpDialog>
+          </div>
           <p className="text-sm text-white/60">Includes healthy resources so you can confirm full coverage.</p>
         </div>
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">

@@ -23,7 +23,7 @@ interface ResourceInsight {
 interface TierReadinessProps {
   tierReadiness: TierReadinessData[];
   isLoading: boolean;
-  onOpenResource: (resourceName: string, secretKey?: string) => void;
+  onOpenResource: (resourceName: string, secretKey?: string, tier?: string) => void;
   resourceInsights: ResourceInsight[];
   resourceStatuses: Array<{
     resource_name: string;
@@ -59,7 +59,7 @@ interface DeploymentReadinessPanelProps {
   tierReadiness: TierReadinessData[];
   resourceInsights: ResourceInsight[];
   manifestState: DeploymentFlowState;
-  onOpenResource: (resourceName: string, secretKey?: string) => void;
+  onOpenResource: (resourceName: string, secretKey?: string, tier?: string) => void;
   onStartJourney?: () => void;
 }
 
@@ -202,7 +202,7 @@ export const DeploymentReadinessPanel = ({
               <select
                 value={manifestState.tier}
                 onChange={(event) => manifestState.onSetTier(event.target.value)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                className="rounded-2xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
               >
                 {tierReadiness.map((tier) => (
                   <option key={tier.tier} value={tier.tier}>
@@ -391,10 +391,10 @@ export const TierReadiness = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onOpenResource(firstResourceNeedingAttention)}
+                        onClick={() => onOpenResource(firstResourceNeedingAttention, undefined, tier.tier)}
                         className="w-full text-xs"
                       >
-                        Configure Strategies →
+                        Configure for {tier.label} →
                       </Button>
                     )}
                   </div>

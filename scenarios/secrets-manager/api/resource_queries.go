@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (*ResourceDetail, error) {
@@ -14,7 +16,7 @@ func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (
 		return nil, fmt.Errorf("resource name is required")
 	}
 	if db == nil {
-		return &ResourceDetail{ResourceName: resourceName, Secrets: []ResourceSecretDetail{}}, nil
+		return buildDetailFromConfig(resourceName)
 	}
 	detail := &ResourceDetail{ResourceName: resourceName, Secrets: []ResourceSecretDetail{}}
 	var (
@@ -104,6 +106,15 @@ func fetchResourceDetail(ctx context.Context, db *sql.DB, resourceName string) (
 	if err := secretRows.Err(); err != nil {
 		return nil, err
 	}
+
+	// If nothing is stored yet, seed from the resource's secrets.yaml and try again so the UI isn't empty.
+	if len(detail.Secrets) == 0 {
+		if err := seedResourceSecretsFromConfig(ctx, db, resourceName); err != nil && logger != nil {
+			logger.Warning("Failed to seed secrets for %s from config: %v", resourceName, err)
+		}
+		return fetchResourceDetail(ctx, db, resourceName)
+	}
+
 	vulnRows, err := db.QueryContext(ctx, `
 		SELECT id, fingerprint, file_path, line_number, severity, vulnerability_type,
 		       title, description, recommendation, code_snippet, can_auto_fix,
@@ -175,6 +186,157 @@ func nullBytes(value []byte) interface{} {
 		return nil
 	}
 	return value
+}
+
+// buildDetailFromConfig constructs a ResourceDetail from secrets.yaml when no database is available.
+func buildDetailFromConfig(resourceName string) (*ResourceDetail, error) {
+	config, err := loadResourceSecrets(resourceName)
+	if err != nil {
+		return &ResourceDetail{ResourceName: resourceName, Secrets: []ResourceSecretDetail{}}, nil
+	}
+
+	secrets := make([]ResourceSecretDetail, 0)
+	for _, group := range config.Secrets {
+		for _, def := range group {
+			key := strings.TrimSpace(def.DefaultEnv)
+			if key == "" {
+				key = strings.TrimSpace(def.Name)
+			}
+			if key == "" {
+				continue
+			}
+			secret := ResourceSecretDetail{
+				ID:             uuid.New().String(),
+				SecretKey:      key,
+				SecretType:     inferSecretType(def),
+				Description:    strings.TrimSpace(def.Description),
+				Classification: "service",
+				Required:       def.Required,
+				TierStrategies: map[string]string{},
+				ValidationState: func() string {
+					if def.Required {
+						return "missing"
+					}
+					return "unknown"
+				}(),
+			}
+			secrets = append(secrets, secret)
+		}
+	}
+
+	return &ResourceDetail{
+		ResourceName:   resourceName,
+		Secrets:        secrets,
+		TotalSecrets:   len(secrets),
+		MissingSecrets: countMissingRequired(secrets),
+		ValidSecrets:   0,
+	}, nil
+}
+
+// seedResourceSecretsFromConfig persists secrets.yaml declarations into the DB when none exist.
+func seedResourceSecretsFromConfig(ctx context.Context, db *sql.DB, resourceName string) error {
+	if db == nil {
+		return nil
+	}
+
+	var existing int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM resource_secrets WHERE resource_name = $1`, resourceName).Scan(&existing); err != nil {
+		return err
+	}
+	if existing > 0 {
+		return nil
+	}
+
+	config, err := loadResourceSecrets(resourceName)
+	if err != nil {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO resource_secrets (
+			id, resource_name, secret_key, secret_type, required, description, classification, created_at, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+		ON CONFLICT (resource_name, secret_key) DO UPDATE SET
+			secret_type = EXCLUDED.secret_type,
+			required = EXCLUDED.required,
+			description = EXCLUDED.description,
+			classification = EXCLUDED.classification,
+			updated_at = CURRENT_TIMESTAMP
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, group := range config.Secrets {
+		for _, def := range group {
+			key := strings.TrimSpace(def.DefaultEnv)
+			if key == "" {
+				key = strings.TrimSpace(def.Name)
+			}
+			if key == "" {
+				continue
+			}
+
+			classification := "service"
+			lowerName := strings.ToLower(def.Name)
+			if strings.Contains(lowerName, "password") || strings.Contains(lowerName, "db") {
+				classification = "infrastructure"
+			}
+
+			if _, err := stmt.ExecContext(
+				ctx,
+				uuid.New().String(),
+				resourceName,
+				key,
+				inferSecretType(def),
+				def.Required,
+				strings.TrimSpace(def.Description),
+				classification,
+			); err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
+func inferSecretType(def SecretDefinition) string {
+	name := strings.ToLower(def.Name)
+	format := strings.ToLower(strings.TrimSpace(def.Format))
+	switch {
+	case strings.Contains(name, "password"):
+		return "password"
+	case strings.Contains(name, "token"):
+		return "token"
+	case strings.Contains(name, "key"):
+		return "api_key"
+	case strings.Contains(format, "cert"):
+		return "certificate"
+	case strings.Contains(format, "token"):
+		return "token"
+	case strings.Contains(format, "key"):
+		return "api_key"
+	default:
+		return "env_var"
+	}
+}
+
+func countMissingRequired(secrets []ResourceSecretDetail) int {
+	count := 0
+	for _, s := range secrets {
+		if s.Required {
+			count++
+		}
+	}
+	return count
 }
 
 func fetchSingleSecretDetail(ctx context.Context, db *sql.DB, resourceName, secretKey string) (*ResourceSecretDetail, error) {

@@ -84,7 +84,7 @@ export const SecurityTables = ({
             </label>
             <select
               id="componentType"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
               value={componentType}
               onChange={(event) => onComponentTypeChange(event.target.value)}
             >
@@ -99,7 +99,7 @@ export const SecurityTables = ({
             </label>
             <select
               id="component"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
               value={componentFilter}
               onChange={(event) => onComponentFilterChange(event.target.value)}
             >
@@ -117,7 +117,7 @@ export const SecurityTables = ({
             </label>
             <select
               id="severity"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
               value={severityFilter}
               onChange={(event) => onSeverityFilterChange(event.target.value)}
             >

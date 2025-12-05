@@ -1,4 +1,5 @@
 import { Button } from "../../components/ui/button";
+import { HelpDialog } from "../../components/ui/HelpDialog";
 import type { ResourceSecretDetail, UpdateResourceSecretPayload } from "../../lib/api";
 
 interface SecretDetailProps {
@@ -38,18 +39,34 @@ export const SecretDetail = ({
           <p className="font-mono text-sm text-white">{selectedSecret.secret_key}</p>
           <p className="text-xs text-white/60">{selectedSecret.description || selectedSecret.secret_type}</p>
         </div>
-        <label className="text-xs uppercase tracking-[0.2em] text-white/60">
-          Classification
+        <div>
+          <div className="flex items-center gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
+            <span>Classification</span>
+            <HelpDialog title="Secret Classification">
+              <p>Classification determines how a secret should be handled across deployment tiers:</p>
+              <ul className="mt-2 space-y-2">
+                <li>
+                  <strong className="text-sky-200">Infrastructure:</strong> Critical secrets like database passwords, API keys for core services. These should <em>never</em> be included in desktop/mobile bundles - they stay on server infrastructure only.
+                </li>
+                <li>
+                  <strong className="text-purple-200">Service:</strong> App-level secrets like JWT signing keys, encryption keys. These can be auto-generated at build/install time for each deployment.
+                </li>
+                <li>
+                  <strong className="text-amber-200">User:</strong> Secrets provided by end-users, like third-party API keys or personal credentials. Users will be prompted for these during app installation.
+                </li>
+              </ul>
+            </HelpDialog>
+          </div>
           <select
             value={selectedSecret.classification}
             onChange={(event) => onUpdateSecret(selectedSecret.secret_key, { classification: event.target.value })}
-            className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            className="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
           >
             <option value="infrastructure">Infrastructure</option>
             <option value="service">Service</option>
             <option value="user">User</option>
           </select>
-        </label>
+        </div>
         <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white">
           <span>Required secret</span>
           <Button
@@ -61,7 +78,39 @@ export const SecretDetail = ({
           </Button>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-white/60">Tier strategies</p>
+          <div className="flex items-center gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
+            <span>Tier strategies</span>
+            <HelpDialog title="Tier Strategies">
+              <p>
+                Each secret needs a <strong className="text-white">handling strategy</strong> for every deployment tier
+                you plan to support. This tells the build system what to do with the secret when packaging your app.
+              </p>
+              <div className="mt-3 space-y-2">
+                <p><strong className="text-white">Handling Strategies:</strong></p>
+                <ul className="ml-4 space-y-2">
+                  <li>
+                    <strong className="text-emerald-200">Prompt:</strong> Ask the user to provide this value during app installation.
+                    Best for user-specific credentials or API keys.
+                  </li>
+                  <li>
+                    <strong className="text-cyan-200">Generate:</strong> Auto-create a secure random value at build/install time.
+                    Best for encryption keys, JWT secrets, and session tokens.
+                  </li>
+                  <li>
+                    <strong className="text-amber-200">Strip:</strong> Exclude this secret from the bundle entirely.
+                    Use when a feature isn't available in that tier (e.g., no database in desktop app).
+                  </li>
+                  <li>
+                    <strong className="text-purple-200">Delegate:</strong> Let the cloud provider manage this secret (AWS Secrets Manager, Vault, etc.).
+                    Best for SaaS/enterprise deployments.
+                  </li>
+                </ul>
+              </div>
+              <p className="mt-3 text-white/60">
+                The list below shows which strategies are already configured for this secret.
+              </p>
+            </HelpDialog>
+          </div>
           {Object.entries(selectedSecret.tier_strategies || {}).length ? (
             <ul className="mt-2 space-y-1 text-xs text-white/70">
               {Object.entries(selectedSecret.tier_strategies || {}).map(([tier, strategy]) => (
@@ -80,7 +129,7 @@ export const SecretDetail = ({
               <select
                 value={strategyTier}
                 onChange={(event) => onSetStrategyTier(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
               >
                 {tierReadiness.map((tier) => (
                   <option key={tier.tier} value={tier.tier}>
@@ -94,7 +143,7 @@ export const SecretDetail = ({
               <select
                 value={strategyHandling}
                 onChange={(event) => onSetStrategyHandling(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white [&_option]:bg-slate-800 [&_option]:text-white"
               >
                 <option value="prompt">Prompt (ask user for value)</option>
                 <option value="generate">Generate (auto-create at build time)</option>

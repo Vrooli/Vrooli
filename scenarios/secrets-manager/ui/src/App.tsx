@@ -441,10 +441,7 @@ export default function App() {
                 securityScore={complianceQuery.data?.remediation_progress?.security_score}
                 vaultHealth={complianceQuery.data?.vault_secrets_health}
                 vulnerabilitySummary={vulnerabilitySummary}
-                missingSecrets={missingSecrets}
                 isComplianceLoading={complianceQuery.isLoading}
-                isVaultLoading={vaultQuery.isLoading}
-                onOpenResource={openResourcePanel}
               />
 
               <SecurityTables
@@ -485,7 +482,9 @@ export default function App() {
           strategyPrompt={strategyPrompt}
           strategyDescription={strategyDescription}
           tierReadiness={tierReadiness}
+          allResources={resourceStatuses}
           onClose={closeResourcePanel}
+          onSwitchResource={(resourceName) => openResourcePanel(resourceName, undefined, strategyTier)}
           onSelectSecret={setSelectedSecretKey}
           onUpdateSecret={handleSecretUpdate}
           onApplyStrategy={handleStrategyApply}
