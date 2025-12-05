@@ -11,7 +11,9 @@ import (
 
 // runLintPhase performs static analysis (linting and type checking) for Go, Node.js, and Python.
 func runLintPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return RunPhase(ctx, logWriter, "lint",
+	var summary string
+
+	report := RunPhase(ctx, logWriter, "lint",
 		func() (*lint.RunResult, error) {
 			// Load lint settings from testing.json
 			settings, err := lint.LoadSettings(env.ScenarioDir)
@@ -30,6 +32,9 @@ func runLintPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 			return runner.Run(ctx), nil
 		},
 		func(r *lint.RunResult) PhaseResult[lint.Observation] {
+			if r != nil {
+				summary = fmt.Sprintf("%d languages, %d issues", r.Summary.TotalChecks(), r.Summary.TotalIssues())
+			}
 			return ExtractWithSummary(
 				r.Success,
 				r.Error,
@@ -41,4 +46,7 @@ func runLintPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 			)
 		},
 	)
+
+	writePhasePointer(env, "lint", report, map[string]any{"summary": summary}, logWriter)
+	return report
 }

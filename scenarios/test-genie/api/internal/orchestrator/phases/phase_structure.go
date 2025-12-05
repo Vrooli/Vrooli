@@ -16,7 +16,9 @@ import (
 // This includes existence checks (directories, files, CLI), content validation (JSON, manifest),
 // and UI smoke testing.
 func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return RunPhaseWithExpectations(ctx, env, logWriter, "structure",
+	var summary string
+
+	report := RunPhaseWithExpectations(ctx, env, logWriter, "structure",
 		structure.LoadExpectations,
 		func(expectations *structure.Expectations) (*structure.RunResult, error) {
 			// Determine schemas directory
@@ -34,6 +36,9 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 			return runner.Run(ctx), nil
 		},
 		func(r *structure.RunResult) PhaseResult[structure.Observation] {
+			if r != nil {
+				summary = r.Summary.String()
+			}
 			return ExtractWithSummary(
 				r.Success,
 				r.Error,
@@ -45,6 +50,9 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 			)
 		},
 	)
+
+	writePhasePointer(env, "structure", report, map[string]any{"summary": summary}, logWriter)
+	return report
 }
 
 // GetCLIApproach returns the CLI approach for the given scenario.

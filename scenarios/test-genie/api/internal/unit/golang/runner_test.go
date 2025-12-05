@@ -235,7 +235,8 @@ func TestRunner_Run_CommandArgs(t *testing.T) {
 	if capturedName != "go" {
 		t.Errorf("command name = %q, want %q", capturedName, "go")
 	}
-	expectedArgs := []string{"test", "./..."}
+	coveragePath := filepath.Join(dir, "coverage", "go-coverage.out")
+	expectedArgs := []string{"test", "-coverprofile=" + coveragePath, "-covermode=atomic", "./..."}
 	if len(capturedArgs) != len(expectedArgs) {
 		t.Errorf("command args = %v, want %v", capturedArgs, expectedArgs)
 	} else {

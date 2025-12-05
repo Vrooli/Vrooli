@@ -44,6 +44,9 @@ type RunResult struct {
 
 	// AdditionalSuitesRun is the number of additional suites executed.
 	AdditionalSuitesRun int
+
+	// Skipped indicates BATS validation was skipped (e.g., no .bats files found).
+	Skipped bool
 }
 
 // Config holds configuration for BATS execution.
@@ -133,17 +136,18 @@ func (r *runner) Run(ctx context.Context) RunResult {
 
 	cliDir := filepath.Join(r.config.ScenarioDir, "cli")
 
-	// Step 2: Find primary BATS suite
+	// Step 2: Find primary BATS suite (optional - skip gracefully if none found)
 	primarySuite, err := r.findPrimarySuite(cliDir)
 	if err != nil {
+		// No .bats files is not an error - just skip BATS validation
+		observations = append(observations, types.NewSkipObservation("no .bats suites found (BATS validation skipped)"))
+		r.logStep("no .bats suites found, skipping BATS validation")
 		return RunResult{
 			Result: types.Result{
-				Success:      false,
-				Error:        err,
-				FailureClass: types.FailureClassMisconfiguration,
-				Remediation:  "Add a .bats suite under cli/ to exercise CLI workflows.",
+				Success:      true,
 				Observations: observations,
 			},
+			Skipped: true,
 		}
 	}
 

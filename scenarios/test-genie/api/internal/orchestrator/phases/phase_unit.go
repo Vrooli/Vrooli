@@ -12,7 +12,9 @@ import (
 // This is a thin orchestrator that delegates to specialized sub-packages
 // for each language (Go, Node.js, Python, Shell).
 func runUnitPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return RunPhase(ctx, logWriter, "unit",
+	var summary string
+
+	report := RunPhase(ctx, logWriter, "unit",
 		func() (*unit.RunResult, error) {
 			runner := unit.New(unit.Config{
 				ScenarioDir:  env.ScenarioDir,
@@ -21,6 +23,9 @@ func runUnitPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 			return runner.Run(ctx), nil
 		},
 		func(r *unit.RunResult) PhaseResult[unit.Observation] {
+			if r != nil {
+				summary = r.Summary.String()
+			}
 			return ExtractSimple(
 				r.Success,
 				r.Error,
@@ -30,4 +35,7 @@ func runUnitPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 			)
 		},
 	)
+
+	writePhasePointer(env, "unit", report, map[string]any{"summary": summary}, logWriter)
+	return report
 }

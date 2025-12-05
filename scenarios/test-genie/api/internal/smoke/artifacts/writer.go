@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"test-genie/internal/smoke/orchestrator"
 	sharedartifacts "test-genie/internal/shared/artifacts"
+	"test-genie/internal/smoke/orchestrator"
 )
 
 // Writer persists test artifacts to the filesystem.
@@ -143,7 +144,7 @@ func (w *Writer) WriteResultJSON(ctx context.Context, scenarioDir, scenarioName 
 		return fmt.Errorf("failed to write result: %w", err)
 	}
 
-	return nil
+	return w.writePhasePointer(scenarioDir, scenarioName, result)
 }
 
 // WriteReadme generates a README.md summarizing the test results.
@@ -161,6 +162,55 @@ func (w *Writer) WriteReadme(ctx context.Context, scenarioDir, scenarioName stri
 	}
 
 	return sharedartifacts.AbsPath(readmePath), nil
+}
+
+// writePhasePointer drops a concise summary into coverage/phase-results so the
+// business phase and operators can quickly locate smoke artifacts.
+func (w *Writer) writePhasePointer(scenarioDir, scenarioName string, result interface{}) error {
+	// Only write pointer when we have a structured smoke result.
+	smokeResult, ok := result.(*orchestrator.Result)
+	if !ok {
+		if r, okValue := result.(orchestrator.Result); okValue {
+			smokeResult = &r
+		} else {
+			return nil
+		}
+	}
+
+	phaseDir := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir)
+	if err := w.fs.MkdirAll(phaseDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create phase results directory: %w", err)
+	}
+
+	payload := map[string]any{
+		"phase":      "smoke",
+		"scenario":   scenarioName,
+		"status":     smokeResult.Status,
+		"message":    smokeResult.Message,
+		"updated_at": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if smokeResult.DurationMs > 0 {
+		payload["duration_ms"] = smokeResult.DurationMs
+	}
+	if smokeResult.UIURL != "" {
+		payload["ui_url"] = smokeResult.UIURL
+	}
+	if smokeResult.Artifacts != (orchestrator.ArtifactPaths{}) {
+		payload["artifacts"] = smokeResult.Artifacts
+	}
+
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal smoke phase pointer: %w", err)
+	}
+
+	path := filepath.Join(phaseDir, "smoke.json")
+	if err := w.fs.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write smoke phase pointer: %w", err)
+	}
+
+	return nil
 }
 
 // generateReadme creates the README.md content for a UI smoke test result.
@@ -307,4 +357,3 @@ func generateReadme(result *orchestrator.Result) string {
 
 	return b.String()
 }
-

@@ -12,7 +12,9 @@ import (
 // runBusinessPhase validates the requirements registry using the business package.
 // This includes discovery, parsing, and structural validation of requirement modules.
 func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return RunPhaseWithExpectations(ctx, env, logWriter, "business",
+	var summary string
+
+	report := RunPhaseWithExpectations(ctx, env, logWriter, "business",
 		business.LoadExpectations,
 		func(expectations *business.Expectations) (*business.RunResult, error) {
 			runner := business.New(business.Config{
@@ -23,6 +25,9 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 			return runner.Run(ctx), nil
 		},
 		func(r *business.RunResult) PhaseResult[business.Observation] {
+			if r != nil {
+				summary = r.Summary.String()
+			}
 			return ExtractWithSummary(
 				r.Success,
 				r.Error,
@@ -34,4 +39,7 @@ func runBusinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 			)
 		},
 	)
+
+	writePhasePointer(env, "business", report, map[string]any{"summary": summary}, logWriter)
+	return report
 }

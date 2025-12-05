@@ -183,6 +183,7 @@ func WithCommandLookup(lookup bats.CommandLookup) Option {
 }
 
 // Run executes all integration validations and returns the aggregated result.
+// All checks are run even if some fail - failures are collected and reported together.
 func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := ctx.Err(); err != nil {
 		return &RunResult{
@@ -194,6 +195,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	var observations []Observation
 	var summary ValidationSummary
+	var failures []validationFailure
 
 	shared.LogInfo(r.logWriter, "Starting integration validation for %s", r.config.ScenarioName)
 
@@ -205,17 +207,17 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		apiResult := r.apiValidator.Validate(ctx)
 		observations = append(observations, apiResult.Observations...)
 		if !apiResult.Success {
-			return &RunResult{
-				Success:      false,
-				Error:        apiResult.Error,
-				FailureClass: FailureClass(apiResult.FailureClass),
-				Remediation:  apiResult.Remediation,
-				Observations: observations,
-				Summary:      summary,
-			}
+			failures = append(failures, validationFailure{
+				component:    "API health",
+				err:          apiResult.Error,
+				failureClass: FailureClass(apiResult.FailureClass),
+				remediation:  apiResult.Remediation,
+			})
+			shared.LogError(r.logWriter, "API health check failed: %v", apiResult.Error)
+		} else {
+			summary.APIHealthChecked = true
+			shared.LogSuccess(r.logWriter, "API health check passed (status %d, %dms)", apiResult.StatusCode, apiResult.ResponseTimeMs)
 		}
-		summary.APIHealthChecked = true
-		shared.LogSuccess(r.logWriter, "API health check passed (status %d, %dms)", apiResult.StatusCode, apiResult.ResponseTimeMs)
 	} else {
 		observations = append(observations, NewSkipObservation("API health check skipped (no API URL configured)"))
 		shared.LogInfo(r.logWriter, "Skipping API health check (no URL configured)")
@@ -226,30 +228,30 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	shared.LogInfo(r.logWriter, "Validating CLI...")
 
 	if r.cliValidator == nil {
-		return &RunResult{
-			Success:      false,
-			Error:        fmt.Errorf("CLI validator not configured (missing command executor/capture)"),
-			FailureClass: FailureClassSystem,
-			Remediation:  "Ensure command executor and capture functions are provided.",
-			Observations: observations,
-			Summary:      summary,
+		failures = append(failures, validationFailure{
+			component:    "CLI",
+			err:          fmt.Errorf("CLI validator not configured (missing command executor/capture)"),
+			failureClass: FailureClassSystem,
+			remediation:  "Ensure command executor and capture functions are provided.",
+		})
+		observations = append(observations, NewErrorObservation("CLI validator not configured"))
+		shared.LogError(r.logWriter, "CLI validator not configured")
+	} else {
+		cliResult := r.cliValidator.Validate(ctx)
+		observations = append(observations, cliResult.Observations...)
+		if !cliResult.Success {
+			failures = append(failures, validationFailure{
+				component:    "CLI",
+				err:          cliResult.Error,
+				failureClass: FailureClass(cliResult.FailureClass),
+				remediation:  cliResult.Remediation,
+			})
+			shared.LogError(r.logWriter, "CLI validation failed: %v", cliResult.Error)
+		} else {
+			summary.CLIValidated = true
+			shared.LogSuccess(r.logWriter, "CLI validation complete")
 		}
 	}
-
-	cliResult := r.cliValidator.Validate(ctx)
-	observations = append(observations, cliResult.Observations...)
-	if !cliResult.Success {
-		return &RunResult{
-			Success:      false,
-			Error:        cliResult.Error,
-			FailureClass: FailureClass(cliResult.FailureClass),
-			Remediation:  cliResult.Remediation,
-			Observations: observations,
-			Summary:      summary,
-		}
-	}
-	summary.CLIValidated = true
-	shared.LogSuccess(r.logWriter, "CLI validation complete")
 
 	// Note about Go-native phases
 	observations = append(observations, NewInfoObservation("go-native phase execution"))
@@ -260,31 +262,33 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	shared.LogInfo(r.logWriter, "Running BATS acceptance tests...")
 
 	if r.batsRunner == nil {
-		return &RunResult{
-			Success:      false,
-			Error:        fmt.Errorf("BATS runner not configured (missing command executor)"),
-			FailureClass: FailureClassSystem,
-			Remediation:  "Ensure command executor function is provided.",
-			Observations: observations,
-			Summary:      summary,
+		failures = append(failures, validationFailure{
+			component:    "BATS",
+			err:          fmt.Errorf("BATS runner not configured (missing command executor)"),
+			failureClass: FailureClassSystem,
+			remediation:  "Ensure command executor function is provided.",
+		})
+		observations = append(observations, NewErrorObservation("BATS runner not configured"))
+		shared.LogError(r.logWriter, "BATS runner not configured")
+	} else {
+		batsResult := r.batsRunner.Run(ctx)
+		observations = append(observations, batsResult.Observations...)
+		if !batsResult.Success {
+			failures = append(failures, validationFailure{
+				component:    "BATS",
+				err:          batsResult.Error,
+				failureClass: FailureClass(batsResult.FailureClass),
+				remediation:  batsResult.Remediation,
+			})
+			shared.LogError(r.logWriter, "BATS validation failed: %v", batsResult.Error)
+		} else if !batsResult.Skipped {
+			summary.PrimaryBatsRan = true
+			summary.AdditionalBatsSuites = batsResult.AdditionalSuitesRun
+			shared.LogSuccess(r.logWriter, "BATS validation complete")
+		} else {
+			shared.LogInfo(r.logWriter, "BATS validation skipped (no .bats files)")
 		}
 	}
-
-	batsResult := r.batsRunner.Run(ctx)
-	observations = append(observations, batsResult.Observations...)
-	if !batsResult.Success {
-		return &RunResult{
-			Success:      false,
-			Error:        batsResult.Error,
-			FailureClass: FailureClass(batsResult.FailureClass),
-			Remediation:  batsResult.Remediation,
-			Observations: observations,
-			Summary:      summary,
-		}
-	}
-	summary.PrimaryBatsRan = true
-	summary.AdditionalBatsSuites = batsResult.AdditionalSuitesRun
-	shared.LogSuccess(r.logWriter, "BATS validation complete")
 
 	// Section: WebSocket Validation (if configured)
 	if r.websocketValidator != nil {
@@ -294,23 +298,69 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		wsResult := r.websocketValidator.Validate(ctx)
 		observations = append(observations, wsResult.Observations...)
 		if !wsResult.Success {
-			return &RunResult{
-				Success:      false,
-				Error:        wsResult.Error,
-				FailureClass: FailureClass(wsResult.FailureClass),
-				Remediation:  wsResult.Remediation,
-				Observations: observations,
-				Summary:      summary,
-			}
+			failures = append(failures, validationFailure{
+				component:    "WebSocket",
+				err:          wsResult.Error,
+				failureClass: FailureClass(wsResult.FailureClass),
+				remediation:  wsResult.Remediation,
+			})
+			shared.LogError(r.logWriter, "WebSocket validation failed: %v", wsResult.Error)
+		} else {
+			summary.WebSocketValidated = true
+			shared.LogSuccess(r.logWriter, "WebSocket validation complete (%dms connection)", wsResult.ConnectionTimeMs)
 		}
-		summary.WebSocketValidated = true
-		shared.LogSuccess(r.logWriter, "WebSocket validation complete (%dms connection)", wsResult.ConnectionTimeMs)
 	} else {
 		observations = append(observations, NewSkipObservation("WebSocket validation skipped (no WebSocket URL configured)"))
 		shared.LogInfo(r.logWriter, "Skipping WebSocket validation (no URL configured)")
 	}
 
-	// Final summary
+	// Build final result
+	if len(failures) > 0 {
+		// Aggregate failures into a combined error message
+		var errMsg string
+		var remediations []string
+		worstClass := FailureClassNone
+		for _, f := range failures {
+			if errMsg != "" {
+				errMsg += "; "
+			}
+			errMsg += fmt.Sprintf("%s: %v", f.component, f.err)
+			if f.remediation != "" {
+				remediations = append(remediations, fmt.Sprintf("[%s] %s", f.component, f.remediation))
+			}
+			// Use the most severe failure class
+			if worstClass == FailureClassNone || f.failureClass == FailureClassSystem {
+				worstClass = f.failureClass
+			}
+		}
+
+		observations = append(observations, Observation{
+			Type:    ObservationError,
+			Icon:    "❌",
+			Message: fmt.Sprintf("Integration validation failed (%d/%d checks failed)", len(failures), len(failures)+summary.TotalChecks()),
+		})
+
+		combinedRemediation := ""
+		for i, rem := range remediations {
+			if i > 0 {
+				combinedRemediation += "\n"
+			}
+			combinedRemediation += rem
+		}
+
+		shared.LogError(r.logWriter, "Integration validation failed: %d check(s) failed", len(failures))
+
+		return &RunResult{
+			Success:      false,
+			Error:        fmt.Errorf("%s", errMsg),
+			FailureClass: worstClass,
+			Remediation:  combinedRemediation,
+			Observations: observations,
+			Summary:      summary,
+		}
+	}
+
+	// Final summary - all checks passed
 	totalChecks := summary.TotalChecks()
 	observations = append(observations, Observation{
 		Type:    ObservationSuccess,
@@ -325,4 +375,12 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Observations: observations,
 		Summary:      summary,
 	}
+}
+
+// validationFailure tracks a single validation failure for aggregation.
+type validationFailure struct {
+	component    string
+	err          error
+	failureClass FailureClass
+	remediation  string
 }

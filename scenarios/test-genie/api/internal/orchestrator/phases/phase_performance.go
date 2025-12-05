@@ -12,7 +12,9 @@ import (
 // runPerformancePhase benchmarks build times using the performance package.
 // This includes Go API builds and Node.js UI builds.
 func runPerformancePhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return RunPhaseWithExpectations(ctx, env, logWriter, "performance",
+	var summary string
+
+	report := RunPhaseWithExpectations(ctx, env, logWriter, "performance",
 		performance.LoadExpectations,
 		func(expectations *performance.Expectations) (*performance.RunResult, error) {
 			runner := performance.New(performance.Config{
@@ -24,6 +26,9 @@ func runPerformancePhase(ctx context.Context, env workspace.Environment, logWrit
 			return runner.Run(ctx), nil
 		},
 		func(r *performance.RunResult) PhaseResult[performance.Observation] {
+			if r != nil {
+				summary = r.Summary.String()
+			}
 			return ExtractWithSummary(
 				r.Success,
 				r.Error,
@@ -35,4 +40,7 @@ func runPerformancePhase(ctx context.Context, env workspace.Environment, logWrit
 			)
 		},
 	)
+
+	writePhasePointer(env, "performance", report, map[string]any{"summary": summary}, logWriter)
+	return report
 }

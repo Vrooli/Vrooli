@@ -470,9 +470,13 @@ func TestRunner_APIValidationFails(t *testing.T) {
 	if result.FailureClass != FailureClassSystem {
 		t.Errorf("expected system failure, got %s", result.FailureClass)
 	}
-	// CLI and BATS should NOT have run
-	if result.Summary.CLIValidated {
-		t.Error("CLI should not have been validated after API failure")
+	// CLI and BATS SHOULD still run (continue after failure behavior)
+	if !result.Summary.CLIValidated {
+		t.Error("CLI should have been validated even after API failure (continue after failure)")
+	}
+	// Error message should mention API health
+	if result.Error == nil || !containsStr(result.Error.Error(), "API health") {
+		t.Errorf("expected error to mention API health, got: %v", result.Error)
 	}
 }
 

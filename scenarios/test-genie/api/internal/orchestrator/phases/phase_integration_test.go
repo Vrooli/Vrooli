@@ -432,3 +432,63 @@ func TestRunIntegrationPhaseNoExecutableCLI(t *testing.T) {
 		}
 	})
 }
+
+// TestDeriveWebSocketURL tests the WebSocket URL derivation logic.
+// This follows the @vrooli/api-base convention where WebSocket connections
+// use the same host:port as the API but with ws:// or wss:// protocol.
+// See: packages/api-base/docs/concepts/websocket-support.md
+func TestDeriveWebSocketURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		apiURL   string
+		wsPath   string
+		expected string
+	}{
+		{
+			name:     "http to ws with path",
+			apiURL:   "http://localhost:8080",
+			wsPath:   "/api/v1/ws",
+			expected: "ws://localhost:8080/api/v1/ws",
+		},
+		{
+			name:     "https to wss with path",
+			apiURL:   "https://example.com",
+			wsPath:   "/ws",
+			expected: "wss://example.com/ws",
+		},
+		{
+			name:     "path without leading slash",
+			apiURL:   "http://localhost:8080",
+			wsPath:   "ws",
+			expected: "ws://localhost:8080/ws",
+		},
+		{
+			name:     "api url with trailing slash",
+			apiURL:   "http://localhost:8080/",
+			wsPath:   "/api/v1/ws",
+			expected: "ws://localhost:8080/api/v1/ws",
+		},
+		{
+			name:     "https with port",
+			apiURL:   "https://example.com:8443",
+			wsPath:   "/events",
+			expected: "wss://example.com:8443/events",
+		},
+		{
+			name:     "api url with path component",
+			apiURL:   "http://localhost:8080/api",
+			wsPath:   "/ws",
+			expected: "ws://localhost:8080/api/ws",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := deriveWebSocketURL(tt.apiURL, tt.wsPath)
+			if result != tt.expected {
+				t.Errorf("deriveWebSocketURL(%q, %q) = %q, want %q",
+					tt.apiURL, tt.wsPath, result, tt.expected)
+			}
+		})
+	}
+}

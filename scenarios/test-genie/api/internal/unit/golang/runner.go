@@ -68,6 +68,12 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		return types.FailMisconfiguration(err, "Ensure the api/ directory exists so Go unit tests can run.")
 	}
 
+	// Prepare coverage output location
+	coveragePath := filepath.Join(r.scenarioDir, "coverage", "go-coverage.out")
+	if err := os.MkdirAll(filepath.Dir(coveragePath), 0o755); err != nil {
+		return types.FailSystem(err, "Create coverage directory before running Go unit tests.")
+	}
+
 	// Check Go is available
 	if err := types.EnsureCommand(r.executor, "go"); err != nil {
 		return types.FailMissingDependency(err, "Install the Go toolchain to execute API unit tests.")
@@ -76,7 +82,11 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 	shared.LogStep(r.logWriter, "executing go test ./... inside %s", apiDir)
 
 	// Run go test
-	if err := r.executor.Run(ctx, apiDir, r.logWriter, "go", "test", "./..."); err != nil {
+	if err := r.executor.Run(ctx, apiDir, r.logWriter, "go", "test",
+		"-coverprofile="+coveragePath,
+		"-covermode=atomic",
+		"./...",
+	); err != nil {
 		return types.FailTestFailure(
 			fmt.Errorf("go test ./... failed: %w", err),
 			"Fix failing Go tests under api/ before re-running the suite.",
@@ -85,7 +95,7 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 
 	return types.NewResultBuilder().
 		Success().
-		AddSuccess("go test ./... passed").
+		AddSuccess("go test ./... passed (coverage recorded)").
 		Build()
 }
 
@@ -100,4 +110,3 @@ func ensureDir(path string) error {
 	}
 	return nil
 }
-

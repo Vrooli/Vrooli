@@ -154,6 +154,12 @@ func TestWriter_WriteResultJSON(t *testing.T) {
 		t.Errorf("expected file %s to be written", expectedPath)
 	}
 
+	// Phase pointer should be written for quick discovery.
+	phasePath := "/scenarios/test/coverage/phase-results/smoke.json"
+	if _, exists := fs.files[phasePath]; !exists {
+		t.Errorf("expected file %s to be written", phasePath)
+	}
+
 	// Verify the content
 	var written orchestrator.Result
 	if err := json.Unmarshal(fs.files[expectedPath], &written); err != nil {
@@ -165,6 +171,15 @@ func TestWriter_WriteResultJSON(t *testing.T) {
 	}
 	if written.Message != "UI loaded successfully" {
 		t.Errorf("Message = %q, want %q", written.Message, "UI loaded successfully")
+	}
+
+	// Verify the pointer content references the same status.
+	var pointer map[string]any
+	if err := json.Unmarshal(fs.files[phasePath], &pointer); err != nil {
+		t.Fatalf("failed to unmarshal pointer: %v", err)
+	}
+	if pointer["status"] != string(orchestrator.StatusPassed) {
+		t.Errorf("pointer status = %v, want %v", pointer["status"], orchestrator.StatusPassed)
 	}
 }
 

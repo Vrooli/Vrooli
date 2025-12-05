@@ -14,7 +14,9 @@ import (
 // runDependenciesPhase validates runtime/tool requirements using the dependencies package.
 // This includes baseline commands, language runtimes, package managers, and resources.
 func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return RunPhase(ctx, logWriter, "dependencies",
+	var summary string
+
+	report := RunPhase(ctx, logWriter, "dependencies",
 		func() (*dependencies.RunResult, error) {
 			config := dependencies.Config{
 				ScenarioDir:   env.ScenarioDir,
@@ -37,6 +39,9 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 			return runner.Run(ctx), nil
 		},
 		func(r *dependencies.RunResult) PhaseResult[dependencies.Observation] {
+			if r != nil {
+				summary = fmt.Sprintf("%d checks", r.Summary.TotalChecks())
+			}
 			return ExtractWithSummary(
 				r.Success,
 				r.Error,
@@ -48,6 +53,9 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 			)
 		},
 	)
+
+	writePhasePointer(env, "dependencies", report, map[string]any{"summary": summary}, logWriter)
+	return report
 }
 
 // createResourceChecker creates a resource health checker if the vrooli CLI is available.

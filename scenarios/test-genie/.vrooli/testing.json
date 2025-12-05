@@ -35,6 +35,18 @@
       "node": {}
     }
   },
+  "integration": {
+    "_comment": "Integration phase configuration. WebSocket URL is derived from API URL following @vrooli/api-base conventions. See: packages/api-base/docs/concepts/websocket-support.md",
+    "api": {
+      "health_endpoint": "/health",
+      "max_response_ms": 1000
+    },
+    "websocket": {
+      "enabled": true,
+      "path": "/api/v1/ws",
+      "max_connection_ms": 2000
+    }
+  },
   "business": {
     "checks": {
       "endpoints": {

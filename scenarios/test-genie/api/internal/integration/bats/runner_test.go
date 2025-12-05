@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"test-genie/internal/structure/types"
 )
 
 func TestRunner_Success(t *testing.T) {
@@ -81,11 +83,23 @@ func TestRunner_NoPrimarySuiteFound(t *testing.T) {
 
 	result := r.Run(context.Background())
 
-	if result.Success {
-		t.Fatal("expected failure when no primary suite found")
+	// Should succeed with skip (graceful handling of no .bats files)
+	if !result.Success {
+		t.Fatalf("expected success (skip) when no primary suite found, got error: %v", result.Error)
 	}
-	if result.FailureClass != "misconfiguration" {
-		t.Errorf("expected misconfiguration, got: %s", result.FailureClass)
+	if !result.Skipped {
+		t.Error("expected Skipped=true when no .bats files found")
+	}
+	// Should have skip observation
+	foundSkip := false
+	for _, obs := range result.Observations {
+		if obs.Type == types.ObservationSkip {
+			foundSkip = true
+			break
+		}
+	}
+	if !foundSkip {
+		t.Error("expected skip observation when no .bats files found")
 	}
 }
 
