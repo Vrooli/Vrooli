@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Vrooli Autoheal Launch Agent
+  Version-controlled template for macOS deployments
+
+  IMPORTANT: Build the Go binary before installation:
+    cd $VROOLI_ROOT/scenarios/vrooli-autoheal/cli/loop
+    go build -o ../vrooli-autoheal-loop .
+
+  Installation (User Agent):
+    cp com.vrooli.autoheal.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.vrooli.autoheal.plist
+
+  Installation (System Daemon - requires root):
+    sudo cp com.vrooli.autoheal.plist /Library/LaunchDaemons/
+    sudo launchctl load /Library/LaunchDaemons/com.vrooli.autoheal.plist
+
+  To unload:
+    launchctl unload ~/Library/LaunchAgents/com.vrooli.autoheal.plist
+
+  NOTE: Update paths below before installation!
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vrooli.autoheal</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- UPDATE THIS PATH to match your Vrooli installation -->
+        <!-- Uses the Go binary for cross-platform consistency -->
+        <string>/Users/USERNAME/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop</string>
+    </array>
+
+    <!-- Start at login/boot -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep running (restart on exit) -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Environment variables -->
+    <!-- Note: API_PORT is auto-detected from vrooli process registry -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VROOLI_LIFECYCLE_MANAGED</key>
+        <string>true</string>
+        <!-- UPDATE THESE PATHS -->
+        <key>VROOLI_ROOT</key>
+        <string>/Users/USERNAME/Vrooli</string>
+        <key>HOME</key>
+        <string>/Users/USERNAME</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/Users/USERNAME/.vrooli/bin</string>
+    </dict>
+
+    <!-- Working directory -->
+    <!-- UPDATE THIS PATH -->
+    <key>WorkingDirectory</key>
+    <string>/Users/USERNAME/Vrooli/scenarios/vrooli-autoheal</string>
+
+    <!-- Logging -->
+    <!-- UPDATE THESE PATHS -->
+    <key>StandardOutPath</key>
+    <string>/Users/USERNAME/Library/Logs/vrooli-autoheal.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/USERNAME/Library/Logs/vrooli-autoheal.error.log</string>
+
+    <!-- Restart throttling (wait 15 seconds between restarts) -->
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+
+    <!-- Nice priority (lower = higher priority) -->
+    <key>Nice</key>
+    <integer>0</integer>
+</dict>
+</plist>

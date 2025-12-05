@@ -71,16 +71,13 @@ func run() error {
 	}
 	log.Printf("user config loaded from %s", configMgr.GetConfigPath())
 
-	// Connect to database
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	// Connect to database with retry logic for boot scenarios
+	// Database may not be ready immediately after system boot
+	db, err := connectWithRetry(cfg.DatabaseURL, 120*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		return fmt.Errorf("failed to connect to database after retries: %w", err)
 	}
 	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
 
 	// Initialize components
 	store := persistence.NewStore(db)
@@ -142,9 +139,13 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	// Incidents endpoint [REQ:PERSIST-HISTORY-001]
 	router.HandleFunc("/api/v1/incidents", h.Incidents).Methods("GET")
 
-	// Watchdog endpoints [REQ:WATCH-DETECT-001]
+	// Watchdog endpoints [REQ:WATCH-DETECT-001] [REQ:WATCH-INSTALL-001]
 	router.HandleFunc("/api/v1/watchdog", h.Watchdog).Methods("GET")
 	router.HandleFunc("/api/v1/watchdog/template", h.WatchdogTemplate).Methods("GET")
+	router.HandleFunc("/api/v1/watchdog/install", h.WatchdogInstall).Methods("POST")
+	router.HandleFunc("/api/v1/watchdog/uninstall", h.WatchdogUninstall).Methods("POST")
+	router.HandleFunc("/api/v1/watchdog/linger", h.WatchdogEnableLinger).Methods("POST")
+	router.HandleFunc("/api/v1/watchdog/status", h.WatchdogStatus).Methods("GET")
 
 	// Recovery action endpoints [REQ:HEAL-ACTION-001]
 	router.HandleFunc("/api/v1/checks/{checkId}/actions", h.GetCheckActions).Methods("GET")
@@ -221,4 +222,55 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
+}
+
+// connectWithRetry attempts to connect to the database with exponential backoff.
+// This is critical for boot scenarios where postgres may not be ready immediately.
+func connectWithRetry(databaseURL string, maxWait time.Duration) (*sql.DB, error) {
+	db, err := sql.Open("postgres", databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Configure connection pool
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	startTime := time.Now()
+	backoff := 1 * time.Second
+	maxBackoff := 10 * time.Second
+	attempt := 0
+
+	for {
+		attempt++
+		err := db.Ping()
+		if err == nil {
+			if attempt > 1 {
+				log.Printf("database connected after %d attempts (%.1fs)", attempt, time.Since(startTime).Seconds())
+			}
+			return db, nil
+		}
+
+		elapsed := time.Since(startTime)
+		if elapsed >= maxWait {
+			db.Close()
+			return nil, fmt.Errorf("database not available after %v: %w", maxWait, err)
+		}
+
+		remaining := maxWait - elapsed
+		sleepDuration := backoff
+		if sleepDuration > remaining {
+			sleepDuration = remaining
+		}
+
+		log.Printf("database not ready (attempt %d), retrying in %v... (error: %v)", attempt, sleepDuration, err)
+		time.Sleep(sleepDuration)
+
+		// Exponential backoff with cap
+		backoff = backoff * 2
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
 }

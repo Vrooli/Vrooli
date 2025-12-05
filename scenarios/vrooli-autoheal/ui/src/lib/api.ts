@@ -383,6 +383,75 @@ export async function fetchWatchdogTemplate(): Promise<WatchdogTemplateResponse>
 }
 
 // ============================================================================
+// Watchdog Installation API
+// [REQ:WATCH-INSTALL-001]
+// ============================================================================
+
+export interface InstallOptions {
+  /** Install as system-wide service (requires root/admin) */
+  useSystemService?: boolean;
+  /** Automatically enable lingering for user services on Linux */
+  enableLingering?: boolean;
+}
+
+export interface InstallResult {
+  success: boolean;
+  message: string;
+  servicePath?: string;
+  needsLinger?: boolean;
+  lingerCommand?: string;
+  error?: string;
+}
+
+export interface UninstallResult {
+  success: boolean;
+  message: string;
+  error?: string;
+}
+
+export interface InstallStatus {
+  installed: boolean;
+  enabled: boolean;
+  running: boolean;
+  bootProtected: boolean;
+  servicePath?: string;
+  watchdogType: string;
+  canInstall: boolean;
+  needsLinger: boolean;
+  lingerCommand?: string;
+  protectionLevel: string;
+  lastChecked: string;
+  recommendedSetup: string;
+}
+
+/** Install the watchdog service */
+export async function installWatchdog(opts: InstallOptions = {}): Promise<InstallResult> {
+  return apiRequest<InstallResult>("/watchdog/install", {
+    method: "POST",
+    body: JSON.stringify(opts),
+  });
+}
+
+/** Uninstall the watchdog service */
+export async function uninstallWatchdog(): Promise<UninstallResult> {
+  return apiRequest<UninstallResult>("/watchdog/uninstall", {
+    method: "POST",
+  });
+}
+
+/** Enable lingering for user services (Linux only) */
+export async function enableLingering(): Promise<InstallResult> {
+  return apiRequest<InstallResult>("/watchdog/linger", {
+    method: "POST",
+  });
+}
+
+/** Get detailed installation status */
+export async function fetchInstallStatus(): Promise<InstallStatus> {
+  return apiRequest<InstallStatus>("/watchdog/status");
+}
+
+// ============================================================================
 // Status Classification Helpers
 // These provide a central place for status-based decisions in the UI
 // ============================================================================

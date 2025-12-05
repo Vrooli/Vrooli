@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!--
+  Vrooli Autoheal Windows Task Scheduler XML
+  Version-controlled template for Windows deployments
+
+  IMPORTANT: Build the Go binary before installation:
+    cd %VROOLI_ROOT%\scenarios\vrooli-autoheal\cli\loop
+    go build -o ..\vrooli-autoheal-loop.exe .
+
+  Installation (PowerShell as Administrator):
+    schtasks /Create /TN VrooliAutoheal /XML VrooliAutoheal.xml
+
+  To remove:
+    schtasks /Delete /TN VrooliAutoheal /F
+
+  NOTE: Update paths below before installation!
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Vrooli Autoheal - Self-healing infrastructure supervisor</Description>
+    <Author>Vrooli</Author>
+    <URI>\VrooliAutoheal</URI>
+  </RegistrationInfo>
+
+  <Triggers>
+    <!-- Start at system boot -->
+    <BootTrigger>
+      <Enabled>true</Enabled>
+    </BootTrigger>
+    <!-- Also start at user logon as backup -->
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+    </LogonTrigger>
+  </Triggers>
+
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+
+    <!-- Restart on failure configuration -->
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>999</Count>
+    </RestartOnFailure>
+
+    <!-- No execution time limit -->
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+    <Hidden>false</Hidden>
+
+    <!-- Run even if user is not logged in -->
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+  </Settings>
+
+  <Actions Context="Author">
+    <Exec>
+      <!-- UPDATE THIS PATH to match your Vrooli installation -->
+      <!-- Uses the Go binary directly for Windows -->
+      <Command>C:\Users\USERNAME\Vrooli\scenarios\vrooli-autoheal\cli\vrooli-autoheal-loop.exe</Command>
+      <!-- UPDATE THIS PATH -->
+      <WorkingDirectory>C:\Users\USERNAME\Vrooli\scenarios\vrooli-autoheal</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

@@ -140,8 +140,9 @@ func TestDefaultCheckFactory_CreateSystemChecks(t *testing.T) {
 // TestDefaultCheckFactory_CreateVrooliChecks verifies Vrooli check creation
 func TestDefaultCheckFactory_CreateVrooliChecks(t *testing.T) {
 	factory := NewDefaultCheckFactory()
+	caps := &platform.Capabilities{Platform: platform.Linux}
 
-	vrooliChecks := factory.CreateVrooliChecks()
+	vrooliChecks := factory.CreateVrooliChecks(caps)
 
 	if len(vrooliChecks) == 0 {
 		t.Fatal("expected Vrooli checks to be created")
@@ -184,7 +185,7 @@ func TestDefaultCheckFactory_ChecksImplementInterface(t *testing.T) {
 	allChecks := []checks.Check{}
 	allChecks = append(allChecks, factory.CreateInfrastructureChecks(caps)...)
 	allChecks = append(allChecks, factory.CreateSystemChecks()...)
-	allChecks = append(allChecks, factory.CreateVrooliChecks()...)
+	allChecks = append(allChecks, factory.CreateVrooliChecks(caps)...)
 
 	for _, check := range allChecks {
 		// Verify interface methods don't panic
@@ -243,7 +244,7 @@ func (f *mockCheckFactory) CreateSystemChecks() []checks.Check {
 	return f.systemChecks
 }
 
-func (f *mockCheckFactory) CreateVrooliChecks() []checks.Check {
+func (f *mockCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []checks.Check {
 	f.callCounts["vrooli"]++
 	return f.vrooliChecks
 }

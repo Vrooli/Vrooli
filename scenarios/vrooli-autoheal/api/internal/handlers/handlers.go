@@ -514,6 +514,74 @@ func getOneLinerInstall(platformStr, apiBaseURL string) string {
 	}
 }
 
+// WatchdogInstall handles installation of the OS watchdog service
+// [REQ:WATCH-INSTALL-001]
+func (h *Handlers) WatchdogInstall(w http.ResponseWriter, r *http.Request) {
+	// Parse installation options from request body
+	var opts watchdog.InstallOptions
+	if r.Body != nil && r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+			apierrors.LogAndRespond(w, apierrors.NewValidationError("watchdog", "invalid request body", err))
+			return
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+
+	result := h.watchdogDetector.Install(ctx, opts)
+
+	w.Header().Set("Content-Type", "application/json")
+	if !result.Success {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		apierrors.LogError("watchdog_install", "encode_response", err)
+	}
+}
+
+// WatchdogUninstall handles removal of the OS watchdog service
+func (h *Handlers) WatchdogUninstall(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Minute)
+	defer cancel()
+
+	result := h.watchdogDetector.Uninstall(ctx)
+
+	w.Header().Set("Content-Type", "application/json")
+	if !result.Success {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		apierrors.LogError("watchdog_uninstall", "encode_response", err)
+	}
+}
+
+// WatchdogEnableLinger enables systemd lingering for user services (Linux only)
+func (h *Handlers) WatchdogEnableLinger(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	result := h.watchdogDetector.EnableLingering(ctx)
+
+	w.Header().Set("Content-Type", "application/json")
+	if !result.Success {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		apierrors.LogError("watchdog_linger", "encode_response", err)
+	}
+}
+
+// WatchdogStatus returns detailed installation status
+func (h *Handlers) WatchdogStatus(w http.ResponseWriter, r *http.Request) {
+	status := h.watchdogDetector.GetInstallStatus()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(status); err != nil {
+		apierrors.LogError("watchdog_status", "encode_response", err)
+	}
+}
+
 // GetCheckActions returns available recovery actions for a check
 // [REQ:HEAL-ACTION-001]
 func (h *Handlers) GetCheckActions(w http.ResponseWriter, r *http.Request) {

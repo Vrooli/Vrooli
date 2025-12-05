@@ -139,11 +139,56 @@ func (d *Detector) GetCached() *Status {
 }
 
 // isLoopRunning checks if the autoheal loop is currently running
+// by looking for the vrooli-autoheal CLI process running with the "loop" argument
 func (d *Detector) isLoopRunning() bool {
-	// The API itself being up indicates the loop is running
-	// In production, this would check for the specific loop process
-	// For now, if we're being called, the API is up which means the scenario is running
-	return true
+	// Look for vrooli-autoheal loop process
+	// This checks if the CLI loop is actually running (not just the API)
+
+	switch runtime.GOOS {
+	case "windows":
+		// On Windows, use tasklist
+		cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq vrooli-autoheal*")
+		output, err := cmd.Output()
+		if err != nil {
+			return false
+		}
+		return strings.Contains(string(output), "vrooli-autoheal")
+
+	default:
+		// On Unix-like systems, use pgrep
+		// Look for processes matching "vrooli-autoheal" with "loop" argument
+		cmd := exec.Command("pgrep", "-f", "vrooli-autoheal.*loop")
+		if err := cmd.Run(); err == nil {
+			return true
+		}
+
+		// Fallback: check /proc directly on Linux
+		if runtime.GOOS == "linux" {
+			entries, err := os.ReadDir("/proc")
+			if err != nil {
+				return false
+			}
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				// Skip non-numeric directories
+				pid := entry.Name()
+				if len(pid) == 0 || pid[0] < '0' || pid[0] > '9' {
+					continue
+				}
+				cmdline, err := os.ReadFile(filepath.Join("/proc", pid, "cmdline"))
+				if err != nil {
+					continue
+				}
+				cmdStr := string(cmdline)
+				if strings.Contains(cmdStr, "vrooli-autoheal") && strings.Contains(cmdStr, "loop") {
+					return true
+				}
+			}
+		}
+		return false
+	}
 }
 
 // canInstall checks if the platform supports watchdog installation
@@ -268,6 +313,7 @@ func (d *Detector) detectMacOS(status *Status) {
 		if _, err := os.Stat(path); err == nil {
 			status.WatchdogInstalled = true
 			status.ServicePath = path
+			status.IsUserService = strings.Contains(path, "LaunchAgents")
 			break
 		}
 	}
@@ -276,12 +322,30 @@ func (d *Detector) detectMacOS(status *Status) {
 		return
 	}
 
-	// Check if loaded (enabled and potentially running)
+	// Check if loaded and running via launchctl list
+	// Output format: "PID\tStatus\tLabel" where PID is "-" if not running
 	cmd := exec.Command("launchctl", "list", "com.vrooli.autoheal")
-	if err := cmd.Run(); err == nil {
+	output, err := cmd.Output()
+	if err == nil {
+		// Service is loaded (enabled)
 		status.WatchdogEnabled = true
-		status.WatchdogRunning = true
+
+		// Parse output to determine if actually running
+		// Format: "PID\tStatus\tLabel" - if PID is a number, service is running
+		outputStr := strings.TrimSpace(string(output))
+		fields := strings.Fields(outputStr)
+		if len(fields) >= 1 {
+			// First field is PID - if it's a number (not "-"), service is running
+			pid := fields[0]
+			if pid != "-" && pid != "" {
+				// Try to parse as number to confirm it's a valid PID
+				if _, parseErr := fmt.Sscanf(pid, "%d", new(int)); parseErr == nil {
+					status.WatchdogRunning = true
+				}
+			}
+		}
 	}
+	// If launchctl list fails, service is not loaded (not enabled)
 }
 
 // detectWindows checks Windows Task Scheduler
@@ -336,31 +400,70 @@ func (d *Detector) GetServiceTemplate() (string, error) {
 }
 
 func (d *Detector) getSystemdTemplate() string {
-	// Note: This is a template for documentation/reference.
-	// The CLI install command generates the actual service file with proper paths.
-	// For system-wide installs, the path should be updated by the installer.
-	return `[Unit]
+	// Resolve VROOLI_ROOT at runtime for a working template
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		homeDir, _ := os.UserHomeDir()
+		vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	}
+
+	// Use the Go loop binary for cross-platform consistency
+	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
+	workDir := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal")
+	homeDir, _ := os.UserHomeDir()
+	currentUser, _ := user.Current()
+	username := "root"
+	if currentUser != nil {
+		username = currentUser.Username
+	}
+
+	return fmt.Sprintf(`[Unit]
 Description=Vrooli Autoheal - Self-healing infrastructure supervisor
-After=network-online.target docker.service
+# Wait for network and Docker to be ready before starting
+# This prevents race conditions with docker-dependent scenarios
+After=network-online.target docker.service docker.socket
 Wants=network-online.target
+# Optional dependency on Docker - don't fail if Docker isn't installed
+Wants=docker.service
+# Rate limiting to prevent crash loops
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
-# Update ExecStart path to match your VROOLI_ROOT installation
-ExecStart=${VROOLI_ROOT}/scenarios/vrooli-autoheal/cli/vrooli-autoheal loop
+ExecStart=%s
 Restart=always
-RestartSec=10
-User=root
+# Wait a bit before restarting to allow dependencies to recover
+RestartSec=15
+User=%s
 Environment=VROOLI_LIFECYCLE_MANAGED=true
-WorkingDirectory=${VROOLI_ROOT}/scenarios/vrooli-autoheal
+Environment=HOME=%s
+Environment=VROOLI_ROOT=%s
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.vrooli/bin
+WorkingDirectory=%s
+# Graceful shutdown timeout
+TimeoutStopSec=30
 
 [Install]
-WantedBy=multi-user.target
-`
+WantedBy=default.target
+`, loopBinaryPath, username, homeDir, vrooliRoot, homeDir, workDir)
 }
 
 func (d *Detector) getLaunchdTemplate() string {
-	return `<?xml version="1.0" encoding="UTF-8"?>
+	// Resolve paths at runtime for a working template
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		homeDir, _ := os.UserHomeDir()
+		vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	}
+	homeDir, _ := os.UserHomeDir()
+
+	// Use the Go loop binary for cross-platform consistency
+	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
+	logPath := filepath.Join(homeDir, "Library/Logs/vrooli-autoheal.log")
+	errPath := filepath.Join(homeDir, "Library/Logs/vrooli-autoheal.error.log")
+
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -368,52 +471,104 @@ func (d *Detector) getLaunchdTemplate() string {
     <string>com.vrooli.autoheal</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/vrooli</string>
-        <string>autoheal</string>
-        <string>loop</string>
+        <string>%s</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VROOLI_LIFECYCLE_MANAGED</key>
+        <string>true</string>
+        <key>VROOLI_ROOT</key>
+        <string>%s</string>
+        <key>HOME</key>
+        <string>%s</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:%s/.vrooli/bin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>%s/scenarios/vrooli-autoheal</string>
     <key>StandardOutPath</key>
-    <string>/var/log/vrooli-autoheal.log</string>
+    <string>%s</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/vrooli-autoheal.error.log</string>
+    <string>%s</string>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
 </dict>
 </plist>
-`
+`, loopBinaryPath, vrooliRoot, homeDir, homeDir, vrooliRoot, logPath, errPath)
 }
 
 func (d *Detector) getWindowsTaskTemplate() string {
-	return `<?xml version="1.0" encoding="UTF-16"?>
+	// Resolve paths at runtime for a working template
+	// On Windows, VROOLI_ROOT would typically be in user's home directory
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		homeDir, _ := os.UserHomeDir()
+		vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	}
+
+	// Use the Go loop binary - must have .exe extension on Windows
+	cliPath := filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal", "cli", "vrooli-autoheal-loop.exe")
+	workDir := filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal")
+
+	// Get current user for the task principal
+	currentUser, _ := user.Current()
+	username := ""
+	if currentUser != nil {
+		username = currentUser.Username
+	}
+
+	// Use S4U (Service for User) logon type which allows running at boot without
+	// an active user session and without storing credentials. This is the correct
+	// approach for a watchdog that needs to start at system boot.
+	// Note: S4U requires "Log on as a batch job" privilege for the user.
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
     <Description>Vrooli Autoheal - Self-healing infrastructure supervisor</Description>
+    <Author>Vrooli</Author>
   </RegistrationInfo>
   <Triggers>
     <BootTrigger>
       <Enabled>true</Enabled>
+      <Delay>PT30S</Delay>
     </BootTrigger>
   </Triggers>
   <Principals>
     <Principal id="Author">
+      <UserId>%s</UserId>
+      <LogonType>S4U</LogonType>
       <RunLevel>HighestAvailable</RunLevel>
     </Principal>
   </Principals>
   <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
     <RestartOnFailure>
       <Interval>PT1M</Interval>
       <Count>999</Count>
     </RestartOnFailure>
-    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
   </Settings>
-  <Actions>
+  <Actions Context="Author">
     <Exec>
-      <Command>vrooli</Command>
-      <Arguments>autoheal loop</Arguments>
+      <Command>%s</Command>
+      <WorkingDirectory>%s</WorkingDirectory>
     </Exec>
   </Actions>
 </Task>
-`
+`, username, cliPath, workDir)
 }

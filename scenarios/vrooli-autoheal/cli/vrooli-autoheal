@@ -729,7 +729,7 @@ cmd_install() {
             install_linux_watchdog "$template" "$system_wide"
             ;;
         macos)
-            install_macos_watchdog "$template"
+            install_macos_watchdog "$template" "$system_wide"
             ;;
         windows)
             install_windows_watchdog "$template"
@@ -751,36 +751,51 @@ install_linux_watchdog() {
     local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
     local linger_enabled=false
 
-    # Note: We do NOT hardcode API_PORT - let the CLI auto-detect via vrooli scenario port
-    # This ensures the loop works even if ports are reallocated
+    # Use the Go loop binary for consistency across platforms
+    local loop_binary="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop"
+
+    # Verify the Go loop binary exists
+    if [[ ! -x "$loop_binary" ]]; then
+        echo -e "${RED}Error: Loop binary not found at $loop_binary${NC}"
+        echo ""
+        echo "The Go loop binary must be built before installing the watchdog."
+        echo "Run the following commands:"
+        echo ""
+        echo "  cd $vrooli_root/scenarios/vrooli-autoheal/cli/loop"
+        echo "  go build -o ../vrooli-autoheal-loop ."
+        echo ""
+        echo "Or run the scenario setup:"
+        echo "  vrooli scenario setup vrooli-autoheal"
+        return 1
+    fi
 
     if [[ "$system_wide" == "true" ]]; then
         service_path="/etc/systemd/system/vrooli-autoheal.service"
         use_sudo="sudo"
         echo -e "${CYAN}Installing system-wide service (requires sudo)${NC}"
 
-        # System-wide template with User specification
-        local cli_path="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal"
+        # System-wide template using the Go loop binary
         template="[Unit]
 Description=Vrooli Autoheal - Self-healing infrastructure supervisor
-After=network-online.target
+After=network-online.target docker.service docker.socket
 Wants=network-online.target
+Wants=docker.service
 # Rate limiting to prevent crash loops (must be in Unit section for systemd 230+)
 StartLimitIntervalSec=300
 StartLimitBurst=5
 
 [Service]
 Type=simple
-ExecStart=$cli_path loop
+ExecStart=$loop_binary
 Restart=always
-RestartSec=10
-# Environment configuration - API_PORT omitted to allow dynamic detection via vrooli
+RestartSec=15
 Environment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=$HOME
 Environment=VROOLI_ROOT=$vrooli_root
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
 WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
 User=$USER
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target"
@@ -790,27 +805,27 @@ WantedBy=multi-user.target"
         mkdir -p "$(dirname "$service_path")"
         echo -e "${CYAN}Installing user service${NC}"
 
-        # Generate user-specific template with improved configuration
-        local cli_path="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal"
+        # User service template using the Go loop binary
         template="[Unit]
 Description=Vrooli Autoheal - Self-healing infrastructure supervisor
-After=network-online.target
+After=network-online.target docker.service docker.socket
 Wants=network-online.target
+Wants=docker.service
 # Rate limiting to prevent crash loops (must be in Unit section for systemd 230+)
 StartLimitIntervalSec=300
 StartLimitBurst=5
 
 [Service]
 Type=simple
-ExecStart=$cli_path loop
+ExecStart=$loop_binary
 Restart=always
-RestartSec=10
-# Environment configuration - API_PORT omitted to allow dynamic detection via vrooli
+RestartSec=15
 Environment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=$HOME
 Environment=VROOLI_ROOT=$vrooli_root
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
 WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
+TimeoutStopSec=30
 
 [Install]
 WantedBy=default.target"
@@ -880,18 +895,35 @@ WantedBy=default.target"
     fi
 
     echo ""
-    echo -e "${GREEN}Watchdog installation complete!${NC}"
-    echo ""
 
     # Boot persistence message depends on service type and lingering
     if [[ -n "$use_sudo" ]]; then
-        echo "The autoheal service will start automatically on system boot."
+        echo -e "${GREEN}Watchdog installation complete!${NC}"
+        echo ""
+        echo -e "${GREEN}✓ FULL BOOT PROTECTION ACTIVE${NC}"
+        echo "  The autoheal service will start automatically on system boot."
     elif [[ "$linger_enabled" == true ]]; then
-        echo "The autoheal service will start automatically on system boot"
-        echo "(lingering enabled for headless boot support)."
+        echo -e "${GREEN}Watchdog installation complete!${NC}"
+        echo ""
+        echo -e "${GREEN}✓ FULL BOOT PROTECTION ACTIVE${NC}"
+        echo "  The autoheal service will start automatically on system boot"
+        echo "  (lingering enabled for headless boot support)."
     else
-        echo -e "${YELLOW}NOTE: Service will start on user login, but NOT on headless boot.${NC}"
-        echo -e "${YELLOW}For headless boot support, run: sudo loginctl enable-linger $USER${NC}"
+        echo -e "${YELLOW}Watchdog installation PARTIALLY complete${NC}"
+        echo ""
+        echo -e "${RED}⚠ BOOT PROTECTION NOT FULLY CONFIGURED${NC}"
+        echo ""
+        echo -e "  The service is installed and will start on ${YELLOW}user login${NC},"
+        echo -e "  but will ${RED}NOT${NC} start automatically on headless boot/reboot."
+        echo ""
+        echo -e "  ${CYAN}To enable full boot protection:${NC}"
+        echo -e "    sudo loginctl enable-linger $USER"
+        echo ""
+        echo -e "  ${CYAN}Or use system-wide installation:${NC}"
+        echo -e "    $CLI_NAME uninstall && $CLI_NAME install --system"
+        echo ""
+        echo -e "  ${YELLOW}Without this, the server must be manually started after reboot${NC}"
+        echo -e "  ${YELLOW}unless a user logs in first.${NC}"
     fi
 
     echo ""
@@ -912,54 +944,258 @@ WantedBy=default.target"
 
 install_macos_watchdog() {
     local template="$1"
+    local system_wide="$2"
 
-    local plist_path="$HOME/Library/LaunchAgents/com.vrooli.autoheal.plist"
-    mkdir -p "$(dirname "$plist_path")"
+    local plist_path
+    local use_sudo=""
+    local service_type
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
 
-    echo -e "${CYAN}Installing LaunchAgent${NC}"
+    # Use the Go loop binary for consistency across platforms
+    local loop_binary="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop"
+
+    # Verify the Go loop binary exists
+    if [[ ! -x "$loop_binary" ]]; then
+        echo -e "${RED}Error: Loop binary not found at $loop_binary${NC}"
+        echo ""
+        echo "The Go loop binary must be built before installing the watchdog."
+        echo "Run the following commands:"
+        echo ""
+        echo "  cd $vrooli_root/scenarios/vrooli-autoheal/cli/loop"
+        echo "  go build -o ../vrooli-autoheal-loop ."
+        echo ""
+        echo "Or run the scenario setup:"
+        echo "  vrooli scenario setup vrooli-autoheal"
+        return 1
+    fi
+
+    if [[ "$system_wide" == "true" ]]; then
+        # System-wide LaunchDaemon - runs at boot without user login
+        plist_path="/Library/LaunchDaemons/com.vrooli.autoheal.plist"
+        use_sudo="sudo"
+        service_type="LaunchDaemon"
+        echo -e "${CYAN}Installing system-wide $service_type (requires sudo)${NC}"
+
+        # Generate system-wide plist using the Go loop binary
+        template="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+    <key>Label</key>
+    <string>com.vrooli.autoheal</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$loop_binary</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VROOLI_LIFECYCLE_MANAGED</key>
+        <string>true</string>
+        <key>VROOLI_ROOT</key>
+        <string>$vrooli_root</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>$vrooli_root/scenarios/vrooli-autoheal</string>
+    <key>StandardOutPath</key>
+    <string>/var/log/vrooli-autoheal.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/vrooli-autoheal.error.log</string>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+</dict>
+</plist>"
+    else
+        # User-level LaunchAgent - runs on user login
+        plist_path="$HOME/Library/LaunchAgents/com.vrooli.autoheal.plist"
+        service_type="LaunchAgent"
+        mkdir -p "$(dirname "$plist_path")"
+        echo -e "${CYAN}Installing user-level $service_type${NC}"
+
+        # Generate user-level plist using the Go loop binary
+        local log_path="$HOME/Library/Logs/vrooli-autoheal.log"
+        local err_path="$HOME/Library/Logs/vrooli-autoheal.error.log"
+
+        template="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+    <key>Label</key>
+    <string>com.vrooli.autoheal</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$loop_binary</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>VROOLI_LIFECYCLE_MANAGED</key>
+        <string>true</string>
+        <key>VROOLI_ROOT</key>
+        <string>$vrooli_root</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>$vrooli_root/scenarios/vrooli-autoheal</string>
+    <key>StandardOutPath</key>
+    <string>$log_path</string>
+    <key>StandardErrorPath</key>
+    <string>$err_path</string>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+</dict>
+</plist>"
+    fi
+
     echo "  Plist path: $plist_path"
     echo ""
 
     # Unload if already loaded
-    launchctl unload "$plist_path" 2>/dev/null || true
+    if [[ "$system_wide" == "true" ]]; then
+        $use_sudo launchctl unload "$plist_path" 2>/dev/null || true
+    else
+        launchctl unload "$plist_path" 2>/dev/null || true
+    fi
 
     # Write plist file
-    echo "$template" > "$plist_path"
+    if [[ -n "$use_sudo" ]]; then
+        echo "$template" | $use_sudo tee "$plist_path" > /dev/null
+    else
+        echo "$template" > "$plist_path"
+    fi
     if [[ $? -ne 0 ]]; then
         echo -e "${RED}Failed to write plist file${NC}"
         return 1
     fi
     echo -e "  ${GREEN}✓${NC} Plist file written"
 
-    # Load the agent
-    launchctl load "$plist_path"
+    # Set proper ownership for LaunchDaemons
+    if [[ "$system_wide" == "true" ]]; then
+        $use_sudo chown root:wheel "$plist_path"
+        $use_sudo chmod 644 "$plist_path"
+        echo -e "  ${GREEN}✓${NC} Permissions set"
+    fi
+
+    # Load the service
+    if [[ "$system_wide" == "true" ]]; then
+        $use_sudo launchctl load "$plist_path"
+    else
+        launchctl load "$plist_path"
+    fi
     if [[ $? -ne 0 ]]; then
-        echo -e "${RED}Failed to load LaunchAgent${NC}"
+        echo -e "${RED}Failed to load $service_type${NC}"
         return 1
     fi
-    echo -e "  ${GREEN}✓${NC} LaunchAgent loaded"
+    echo -e "  ${GREEN}✓${NC} $service_type loaded"
 
     echo ""
-    echo -e "${GREEN}Watchdog installation complete!${NC}"
-    echo ""
-    echo "The autoheal service will now start automatically on login."
-    echo ""
-    echo "Useful commands:"
-    echo "  launchctl list | grep vrooli       # Check if loaded"
-    echo "  launchctl unload '$plist_path'     # Stop service"
-    echo "  tail -f /var/log/vrooli-autoheal.log   # View logs"
+
+    if [[ "$system_wide" == "true" ]]; then
+        echo -e "${GREEN}Watchdog installation complete!${NC}"
+        echo ""
+        echo -e "${GREEN}✓ FULL BOOT PROTECTION ACTIVE${NC}"
+        echo "  The autoheal service will start automatically at system boot."
+        echo "  (No user login required)"
+        echo ""
+        echo "Useful commands:"
+        echo "  sudo launchctl list | grep vrooli              # Check if loaded"
+        echo "  sudo launchctl unload '$plist_path'            # Stop service"
+        echo "  tail -f /var/log/vrooli-autoheal.log           # View logs"
+    else
+        echo -e "${YELLOW}Watchdog installation PARTIALLY complete${NC}"
+        echo ""
+        echo -e "${RED}⚠ BOOT PROTECTION NOT FULLY CONFIGURED${NC}"
+        echo ""
+        echo -e "  The service is installed as a LaunchAgent and will start on ${YELLOW}user login${NC},"
+        echo -e "  but will ${RED}NOT${NC} start automatically on headless boot/reboot."
+        echo ""
+        echo -e "  ${CYAN}To enable full boot protection (requires sudo):${NC}"
+        echo -e "    $CLI_NAME uninstall && $CLI_NAME install --system"
+        echo ""
+        echo -e "  ${YELLOW}Without this, the server must be manually started after reboot${NC}"
+        echo -e "  ${YELLOW}unless a user logs in first.${NC}"
+        echo ""
+        echo "Useful commands:"
+        echo "  launchctl list | grep vrooli       # Check if loaded"
+        echo "  launchctl unload '$plist_path'     # Stop service"
+        echo "  tail -f ~/Library/Logs/vrooli-autoheal.log   # View logs"
+    fi
 }
 
 install_windows_watchdog() {
     local template="$1"
+    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+    local loop_binary="$vrooli_root/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop.exe"
+    local work_dir="$vrooli_root/scenarios/vrooli-autoheal"
 
     local task_xml="$TEMP/vrooli-autoheal-task.xml"
 
     echo -e "${CYAN}Installing Windows Scheduled Task${NC}"
     echo ""
 
-    # Write task XML
-    echo "$template" > "$task_xml"
+    # Generate improved task XML with S4U logon for boot-time execution
+    # S4U (Service for User) allows running at boot without an active session
+    cat > "$task_xml" <<EOF
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Vrooli Autoheal - Self-healing infrastructure supervisor</Description>
+    <Author>Vrooli</Author>
+  </RegistrationInfo>
+  <Triggers>
+    <BootTrigger>
+      <Enabled>true</Enabled>
+      <Delay>PT30S</Delay>
+    </BootTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>$USERNAME</UserId>
+      <LogonType>S4U</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>999</Count>
+    </RestartOnFailure>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>$loop_binary</Command>
+      <WorkingDirectory>$work_dir</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
+EOF
+
     if [[ $? -ne 0 ]]; then
         echo -e "${RED}Failed to write task XML${NC}"
         return 1
@@ -973,6 +1209,7 @@ install_windows_watchdog() {
     schtasks /Create /TN "VrooliAutoheal" /XML "$task_xml"
     if [[ $? -ne 0 ]]; then
         echo -e "${RED}Failed to create scheduled task${NC}"
+        echo -e "${YELLOW}Note: S4U logon requires 'Log on as a batch job' privilege${NC}"
         rm -f "$task_xml"
         return 1
     fi
@@ -984,7 +1221,8 @@ install_windows_watchdog() {
     echo ""
     echo -e "${GREEN}Watchdog installation complete!${NC}"
     echo ""
-    echo "The autoheal service will now start automatically on boot."
+    echo "The autoheal service will start automatically 30 seconds after boot."
+    echo "(Uses S4U logon - no interactive session required)"
     echo ""
     echo "Useful commands:"
     echo "  schtasks /Query /TN VrooliAutoheal    # Check status"
@@ -1129,12 +1367,28 @@ uninstall_linux_watchdog() {
 uninstall_macos_watchdog() {
     local plist_path="$1"
 
-    # Unload the agent
-    launchctl unload "$plist_path" 2>/dev/null || true
-    echo -e "  ${GREEN}✓${NC} LaunchAgent unloaded"
+    # Determine if this is a system LaunchDaemon or user LaunchAgent
+    local use_sudo=""
+    local service_type="LaunchAgent"
+    if [[ "$plist_path" == /Library/LaunchDaemons/* ]]; then
+        use_sudo="sudo"
+        service_type="LaunchDaemon"
+    fi
+
+    # Unload the service
+    if [[ -n "$use_sudo" ]]; then
+        $use_sudo launchctl unload "$plist_path" 2>/dev/null || true
+    else
+        launchctl unload "$plist_path" 2>/dev/null || true
+    fi
+    echo -e "  ${GREEN}✓${NC} $service_type unloaded"
 
     # Remove the plist file
-    rm -f "$plist_path"
+    if [[ -n "$use_sudo" ]]; then
+        $use_sudo rm -f "$plist_path"
+    else
+        rm -f "$plist_path"
+    fi
     echo -e "  ${GREEN}✓${NC} Plist file removed"
 
     echo ""

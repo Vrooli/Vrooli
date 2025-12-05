@@ -23,7 +23,8 @@ type CheckFactory interface {
 	CreateSystemChecks() []checks.Check
 
 	// CreateVrooliChecks creates all Vrooli-specific checks
-	CreateVrooliChecks() []checks.Check
+	// Accepts platform capabilities for checks that need them (e.g., watchdog check)
+	CreateVrooliChecks(caps *platform.Capabilities) []checks.Check
 }
 
 // DefaultCheckFactory is the production implementation of CheckFactory.
@@ -140,9 +141,10 @@ func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 }
 
 // CreateVrooliChecks creates all Vrooli-specific checks
-func (f *DefaultCheckFactory) CreateVrooliChecks() []checks.Check {
+func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []checks.Check {
 	vrooliChecks := []checks.Check{
 		vrooli.NewAPICheck(),
+		vrooli.NewWatchdogCheck(caps), // OS watchdog boot recovery check
 	}
 
 	// Resource checks

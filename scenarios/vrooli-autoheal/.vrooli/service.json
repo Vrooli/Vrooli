@@ -94,6 +94,11 @@
           "description": "Compile Go API server"
         },
         {
+          "name": "build-loop",
+          "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop .",
+          "description": "Compile cross-platform Go loop binary for watchdog"
+        },
+        {
           "name": "install-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"

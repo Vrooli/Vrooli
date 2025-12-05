@@ -52,8 +52,8 @@ func RegisterChecksWithFactory(registry *checks.Registry, caps *platform.Capabil
 		registry.Register(check)
 	}
 
-	// Vrooli checks (API, resources, scenarios)
-	for _, check := range factory.CreateVrooliChecks() {
+	// Vrooli checks (API, resources, scenarios, watchdog)
+	for _, check := range factory.CreateVrooliChecks(caps) {
 		registry.Register(check)
 	}
 }

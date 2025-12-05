@@ -1,9 +1,9 @@
 // System Protection status component
-// [REQ:WATCH-DETECT-001] [REQ:UI-HEALTH-001]
-import { useQuery } from "@tanstack/react-query";
+// [REQ:WATCH-DETECT-001] [REQ:WATCH-INSTALL-001] [REQ:UI-HEALTH-001]
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Shield, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, ChevronRight, Copy, Check, RefreshCw, ExternalLink, Terminal } from "lucide-react";
-import { fetchWatchdogStatus, fetchWatchdogTemplate, ProtectionLevel, WatchdogStatus } from "../lib/api";
+import { Shield, CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, ChevronRight, Copy, Check, RefreshCw, ExternalLink, Terminal, Download, Trash2, Loader2 } from "lucide-react";
+import { fetchWatchdogStatus, fetchWatchdogTemplate, installWatchdog, uninstallWatchdog, enableLingering, ProtectionLevel, WatchdogStatus, InstallOptions } from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { selectors } from "../consts/selectors";
 import { getDocsPath } from "../lib/docs";
@@ -87,100 +87,174 @@ function LingeringWarning({ username }: { username: string }) {
   );
 }
 
-// Installation instructions modal/accordion
-function InstallationGuide({ onClose }: { onClose: () => void }) {
+// One-click install panel
+function OneClickInstall({ onClose, onInstalled }: { onClose: () => void; onInstalled: () => void }) {
   const [copiedOneLiner, setCopiedOneLiner] = useState(false);
   const [copiedTemplate, setCopiedTemplate] = useState(false);
-  const [showTemplate, setShowTemplate] = useState(false);
+  const [showManual, setShowManual] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
+  const [installSuccess, setInstallSuccess] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: templateData, isLoading: templateLoading } = useQuery({
     queryKey: ["watchdog-template"],
     queryFn: fetchWatchdogTemplate,
   });
 
+  const installMutation = useMutation({
+    mutationFn: (opts: InstallOptions) => installWatchdog(opts),
+    onSuccess: (result) => {
+      if (result.success) {
+        setInstallSuccess(result.message);
+        setInstallError(null);
+        queryClient.invalidateQueries({ queryKey: ["watchdog"] });
+        onInstalled();
+      } else {
+        setInstallError(result.error || result.message);
+        setInstallSuccess(null);
+      }
+    },
+    onError: (error: Error) => {
+      setInstallError(error.message);
+      setInstallSuccess(null);
+    },
+  });
+
+  const handleOneClickInstall = (useSystemService: boolean) => {
+    setInstallError(null);
+    setInstallSuccess(null);
+    installMutation.mutate({
+      useSystemService,
+      enableLingering: true, // Try to enable lingering automatically
+    });
+  };
+
   const handleCopyOneLiner = async () => {
-    if (data?.oneLiner) {
-      await navigator.clipboard.writeText(data.oneLiner);
+    if (templateData?.oneLiner) {
+      await navigator.clipboard.writeText(templateData.oneLiner);
       setCopiedOneLiner(true);
       setTimeout(() => setCopiedOneLiner(false), 2000);
     }
   };
 
   const handleCopyTemplate = async () => {
-    if (data?.template) {
-      await navigator.clipboard.writeText(data.template);
+    if (templateData?.template) {
+      await navigator.clipboard.writeText(templateData.template);
       setCopiedTemplate(true);
       setTimeout(() => setCopiedTemplate(false), 2000);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="mt-3 pt-3 border-t border-white/10">
-        <p className="text-sm text-slate-500">Loading installation guide...</p>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="mt-3 pt-3 border-t border-white/10">
-        <ErrorDisplay error={error} compact />
-      </div>
-    );
-  }
+  const isInstalling = installMutation.isPending;
 
   return (
     <div className="mt-3 pt-3 border-t border-white/10 space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-slate-200">Quick Install</h4>
+        <h4 className="text-sm font-medium text-slate-200">Install Watchdog</h4>
         <button
           onClick={onClose}
           className="text-xs text-slate-500 hover:text-slate-300"
+          disabled={isInstalling}
         >
           Close
         </button>
       </div>
 
-      {/* One-liner install command */}
-      {data.oneLiner && (
-        <div className="space-y-1">
-          <p className="text-xs text-slate-400">
-            Run this command in your terminal (requires <code className="text-blue-400">jq</code>):
-          </p>
-          <div className="relative group">
-            <pre className="text-xs bg-slate-900 rounded p-2 pr-10 overflow-x-auto text-emerald-400 font-mono whitespace-pre-wrap break-all">
-              {data.oneLiner}
-            </pre>
-            <button
-              onClick={handleCopyOneLiner}
-              className="absolute top-2 right-2 p-1.5 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
-              title="Copy command"
-            >
-              {copiedOneLiner ? (
-                <Check size={14} className="text-emerald-400" />
-              ) : (
-                <Copy size={14} className="text-slate-400" />
-              )}
-            </button>
+      {/* Success message */}
+      {installSuccess && (
+        <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
+          <div className="flex items-center gap-2">
+            <CheckCircle size={14} className="text-emerald-400" />
+            <p className="text-sm text-emerald-400">{installSuccess}</p>
           </div>
         </div>
       )}
 
-      {/* Manual instructions toggle */}
+      {/* Error message */}
+      {installError && (
+        <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
+          <p className="text-sm text-red-400">{installError}</p>
+        </div>
+      )}
+
+      {/* One-click install buttons */}
+      <div className="space-y-2">
+        <p className="text-xs text-slate-400">
+          Choose installation type:
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleOneClickInstall(false)}
+            disabled={isInstalling}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isInstalling ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Download size={14} />
+            )}
+            User Service
+          </button>
+          <button
+            onClick={() => handleOneClickInstall(true)}
+            disabled={isInstalling}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg transition-colors disabled:opacity-50"
+            title="Requires sudo/admin"
+          >
+            {isInstalling ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Download size={14} />
+            )}
+            System Service
+          </button>
+        </div>
+        <p className="text-xs text-slate-500">
+          User service is recommended. System service requires sudo/admin.
+        </p>
+      </div>
+
+      {/* Manual installation toggle */}
       <button
-        onClick={() => setShowTemplate(!showTemplate)}
+        onClick={() => setShowManual(!showManual)}
         className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1"
       >
-        {showTemplate ? "Hide" : "Show"} manual instructions
-        <ChevronRight size={12} className={`transition-transform ${showTemplate ? "rotate-90" : ""}`} />
+        {showManual ? "Hide" : "Show"} manual installation
+        <ChevronRight size={12} className={`transition-transform ${showManual ? "rotate-90" : ""}`} />
       </button>
 
       {/* Manual instructions (collapsed by default) */}
-      {showTemplate && (
-        <div className="space-y-2 pl-2 border-l-2 border-slate-700">
+      {showManual && templateData && (
+        <div className="space-y-3 pl-2 border-l-2 border-slate-700">
+          {/* One-liner */}
+          {templateData.oneLiner && (
+            <div className="space-y-1">
+              <p className="text-xs text-slate-400">
+                Or run this command (requires <code className="text-blue-400">jq</code>):
+              </p>
+              <div className="relative group">
+                <pre className="text-xs bg-slate-900 rounded p-2 pr-10 overflow-x-auto text-emerald-400 font-mono whitespace-pre-wrap break-all">
+                  {templateData.oneLiner}
+                </pre>
+                <button
+                  onClick={handleCopyOneLiner}
+                  className="absolute top-2 right-2 p-1.5 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
+                  title="Copy command"
+                >
+                  {copiedOneLiner ? (
+                    <Check size={14} className="text-emerald-400" />
+                  ) : (
+                    <Copy size={14} className="text-slate-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step-by-step instructions */}
           <div className="text-xs text-slate-400 space-y-1">
-            {data.instructions.split("\n").map((line, i) => (
+            {templateData.instructions.split("\n").map((line, i) => (
               <p key={i}>{line}</p>
             ))}
           </div>
@@ -188,7 +262,7 @@ function InstallationGuide({ onClose }: { onClose: () => void }) {
           {/* Template with copy button */}
           <div className="relative">
             <pre className="text-xs bg-slate-900 rounded p-2 overflow-x-auto max-h-32 text-slate-300 font-mono">
-              {data.template.slice(0, 500)}{data.template.length > 500 ? "..." : ""}
+              {templateData.template.slice(0, 500)}{templateData.template.length > 500 ? "..." : ""}
             </pre>
             <button
               onClick={handleCopyTemplate}
@@ -204,6 +278,71 @@ function InstallationGuide({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       )}
+
+      {templateLoading && (
+        <p className="text-xs text-slate-500">Loading template...</p>
+      )}
+    </div>
+  );
+}
+
+// Uninstall confirmation panel
+function UninstallPanel({ onClose, onUninstalled }: { onClose: () => void; onUninstalled: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const uninstallMutation = useMutation({
+    mutationFn: uninstallWatchdog,
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["watchdog"] });
+        onUninstalled();
+        onClose();
+      } else {
+        setError(result.error || result.message);
+      }
+    },
+    onError: (err: Error) => {
+      setError(err.message);
+    },
+  });
+
+  return (
+    <div className="mt-3 pt-3 border-t border-white/10 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium text-red-400">Uninstall Watchdog</h4>
+        <button
+          onClick={onClose}
+          className="text-xs text-slate-500 hover:text-slate-300"
+          disabled={uninstallMutation.isPending}
+        >
+          Cancel
+        </button>
+      </div>
+
+      <p className="text-xs text-slate-400">
+        This will remove boot protection. The autoheal loop will continue running
+        but won&apos;t auto-start after a reboot.
+      </p>
+
+      {error && (
+        <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
+      )}
+
+      <button
+        onClick={() => uninstallMutation.mutate()}
+        disabled={uninstallMutation.isPending}
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors disabled:opacity-50"
+      >
+        {uninstallMutation.isPending ? (
+          <Loader2 size={14} className="animate-spin" />
+        ) : (
+          <Trash2 size={14} />
+        )}
+        Confirm Uninstall
+      </button>
     </div>
   );
 }
@@ -213,7 +352,8 @@ interface SystemProtectionProps {
 }
 
 export function SystemProtection({ compact = false }: SystemProtectionProps) {
-  const [showGuide, setShowGuide] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
+  const [showUninstall, setShowUninstall] = useState(false);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["watchdog"],
@@ -224,6 +364,16 @@ export function SystemProtection({ compact = false }: SystemProtectionProps) {
 
   const handleRefresh = () => {
     refetch();
+  };
+
+  const handleInstalled = () => {
+    // Refresh status after installation
+    setTimeout(() => refetch(), 1000);
+  };
+
+  const handleUninstalled = () => {
+    setShowUninstall(false);
+    setTimeout(() => refetch(), 1000);
   };
 
   if (isLoading) {
@@ -332,22 +482,65 @@ export function SystemProtection({ compact = false }: SystemProtectionProps) {
         <p className="text-xs text-amber-400 mt-2">{data.lastError}</p>
       )}
 
-      {/* Install Button / Guide Toggle */}
-      {!data.watchdogInstalled && data.canInstall && (
-        <button
-          onClick={() => setShowGuide(!showGuide)}
-          className="mt-3 w-full flex items-center justify-between px-3 py-2 text-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
-        >
-          <span>Set up OS Watchdog</span>
-          {showGuide ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
+      {/* Install/Uninstall Buttons */}
+      {data.canInstall && (
+        <div className="mt-3 flex gap-2">
+          {!data.watchdogInstalled ? (
+            <button
+              onClick={() => {
+                setShowInstall(!showInstall);
+                setShowUninstall(false);
+              }}
+              className="flex-1 flex items-center justify-between px-3 py-2 text-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors"
+            >
+              <span>Install Watchdog</span>
+              {showInstall ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setShowInstall(!showInstall);
+                  setShowUninstall(false);
+                }}
+                className="flex-1 flex items-center justify-between px-3 py-2 text-sm bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-colors"
+              >
+                <span>Reinstall</span>
+                {showInstall ? <ChevronUp size={16} /> : <Download size={16} />}
+              </button>
+              <button
+                onClick={() => {
+                  setShowUninstall(!showUninstall);
+                  setShowInstall(false);
+                }}
+                className="px-3 py-2 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                title="Uninstall watchdog"
+              >
+                <Trash2 size={16} />
+              </button>
+            </>
+          )}
+        </div>
       )}
 
-      {/* Installation Guide */}
-      {showGuide && <InstallationGuide onClose={() => setShowGuide(false)} />}
+      {/* Installation Panel */}
+      {showInstall && (
+        <OneClickInstall
+          onClose={() => setShowInstall(false)}
+          onInstalled={handleInstalled}
+        />
+      )}
+
+      {/* Uninstall Panel */}
+      {showUninstall && (
+        <UninstallPanel
+          onClose={() => setShowUninstall(false)}
+          onUninstalled={handleUninstalled}
+        />
+      )}
 
       {/* Cannot Install Warning */}
-      {!data.watchdogInstalled && !data.canInstall && (
+      {!data.canInstall && (
         <p className="text-xs text-slate-500 mt-3">
           OS watchdog not available on this platform
         </p>
