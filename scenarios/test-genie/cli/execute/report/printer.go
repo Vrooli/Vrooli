@@ -65,7 +65,7 @@ func (p *Printer) Print(resp execTypes.Response) {
 	p.printQuickFixGuide(resp.Phases)
 	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
-	p.printDocs()
+	p.printDocs(resp.Phases)
 }
 
 // PrintPreExecution prints the header and test plan BEFORE the API call starts.
@@ -91,7 +91,7 @@ func (p *Printer) PrintResults(resp execTypes.Response) {
 	p.printQuickFixGuide(resp.Phases)
 	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
-	p.printDocs()
+	p.printDocs(resp.Phases)
 }
 
 func (p *Printer) printPreHeader(phaseNames []string) {
@@ -631,13 +631,58 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 	}
 }
 
-func (p *Printer) printDocs() {
+// phaseDocMapping maps phase names to relevant documentation files.
+var phaseDocMapping = map[string][]string{
+	"structure":    {"docs/testing/architecture/PHASED_TESTING.md"},
+	"dependencies": {"docs/testing/architecture/PHASED_TESTING.md"},
+	"smoke":        {"docs/testing/guides/writing-testable-uis.md", "docs/testing/guides/ui-automation-with-bas.md"},
+	"unit":         {"docs/testing/guides/writing-testable-uis.md"},
+	"integration":  {"docs/testing/guides/ui-automation-with-bas.md", "docs/testing/guides/writing-testable-uis.md"},
+	"playbooks":    {"docs/testing/guides/ui-automation-with-bas.md"},
+	"business":     {"docs/testing/guides/requirement-tracking-quick-start.md"},
+	"performance":  {"docs/testing/architecture/PHASED_TESTING.md"},
+}
+
+func (p *Printer) printDocs(phases []execTypes.Phase) {
+	// Collect failed phases
+	var failedPhases []string
+	for _, phase := range phases {
+		if phase.Status == "failed" {
+			failedPhases = append(failedPhases, strings.ToLower(phase.Name))
+		}
+	}
+
+	// Only show docs if there are failures
+	if len(failedPhases) == 0 {
+		return
+	}
+
+	// Collect unique docs relevant to failed phases
+	docsSet := make(map[string]struct{})
+	for _, phaseName := range failedPhases {
+		if docs, ok := phaseDocMapping[phaseName]; ok {
+			for _, doc := range docs {
+				docsSet[doc] = struct{}{}
+			}
+		}
+	}
+
+	// Convert to sorted slice
+	var docs []string
+	for doc := range docsSet {
+		docs = append(docs, doc)
+	}
+	sort.Strings(docs)
+
+	if len(docs) == 0 {
+		return
+	}
+
 	fmt.Fprintln(p.w)
 	fmt.Fprintln(p.w, p.color.Bold("📚 DOCUMENTATION:"))
-	fmt.Fprintf(p.w, "   • %s\n", p.color.Cyan("docs/testing/architecture/PHASED_TESTING.md"))
-	fmt.Fprintf(p.w, "   • %s\n", p.color.Cyan("docs/testing/guides/requirement-tracking-quick-start.md"))
-	fmt.Fprintf(p.w, "   • %s\n", p.color.Cyan("docs/testing/guides/ui-automation-with-bas.md"))
-	fmt.Fprintf(p.w, "   • %s\n", p.color.Cyan("docs/testing/guides/writing-testable-uis.md"))
+	for _, doc := range docs {
+		fmt.Fprintf(p.w, "   • %s\n", p.color.Cyan(doc))
+	}
 	if paths := repo.DiscoverScenarioPaths(p.scenario); paths.TestDir != "" {
 		fmt.Fprintf(p.w, "   • Test files in: %s\n", p.color.Cyan(paths.TestDir))
 	}
