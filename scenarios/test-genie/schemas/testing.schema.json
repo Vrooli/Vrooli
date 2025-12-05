@@ -157,6 +157,139 @@
               "description": "Validate that .vrooli/service.json name field matches scenario directory name"
             }
           }
+        },
+        "playbooks": {
+          "type": "object",
+          "description": "Playbooks structure validation configuration. Validates test/playbooks/ follows canonical layout.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable playbooks structure validation. When true, validates registry.json exists, directories use NN- prefixes, and fixtures declare fixture_id."
+            },
+            "strict": {
+              "type": "boolean",
+              "default": false,
+              "description": "When true, playbooks issues block the structure phase. When false (default), issues are reported as informational warnings."
+            }
+          }
+        }
+      }
+    },
+    "playbooks": {
+      "type": "object",
+      "description": "Playbooks (E2E) phase configuration. Executes Browser Automation Studio workflows for end-to-end UI testing.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the playbooks phase"
+        },
+        "browserless": {
+          "type": "object",
+          "description": "Browserless/BAS connection settings",
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "default": "http://localhost:3000",
+              "description": "Browserless WebSocket endpoint URL"
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 30000,
+              "description": "Connection timeout in milliseconds"
+            },
+            "launch_timeout_ms": {
+              "type": "integer",
+              "minimum": 5000,
+              "default": 60000,
+              "description": "Browser launch timeout in milliseconds"
+            }
+          }
+        },
+        "seeds": {
+          "type": "object",
+          "description": "Seed script execution settings",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Run __seeds/apply.sh before workflows"
+            },
+            "cleanup": {
+              "type": "boolean",
+              "default": true,
+              "description": "Run __seeds/cleanup.sh after workflows complete"
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 30000,
+              "description": "Seed script execution timeout in milliseconds"
+            }
+          }
+        },
+        "artifacts": {
+          "type": "object",
+          "description": "Artifact collection settings",
+          "properties": {
+            "screenshots": {
+              "type": "boolean",
+              "default": true,
+              "description": "Capture screenshots on workflow failure"
+            },
+            "dom_snapshots": {
+              "type": "boolean",
+              "default": true,
+              "description": "Capture DOM snapshots on workflow failure"
+            },
+            "output_dir": {
+              "type": "string",
+              "default": "test/artifacts/playbooks",
+              "description": "Directory for artifact output (relative to scenario root)"
+            },
+            "retain_on_success": {
+              "type": "boolean",
+              "default": false,
+              "description": "Keep artifacts even when workflows pass"
+            }
+          }
+        },
+        "execution": {
+          "type": "object",
+          "description": "Workflow execution settings",
+          "properties": {
+            "stop_on_first_failure": {
+              "type": "boolean",
+              "default": false,
+              "description": "Stop executing workflows after first failure"
+            },
+            "default_step_timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 30000,
+              "description": "Default timeout for individual workflow steps"
+            },
+            "viewport": {
+              "type": "object",
+              "description": "Default browser viewport settings",
+              "properties": {
+                "width": {
+                  "type": "integer",
+                  "minimum": 320,
+                  "default": 1440,
+                  "description": "Viewport width in pixels"
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 240,
+                  "default": 900,
+                  "description": "Viewport height in pixels"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -323,8 +456,10 @@
       "properties": {
         "structure": { "$ref": "#/definitions/phase_options" },
         "dependencies": { "$ref": "#/definitions/phase_options" },
+        "smoke": { "$ref": "#/definitions/phase_options" },
         "unit": { "$ref": "#/definitions/phase_options" },
         "integration": { "$ref": "#/definitions/phase_options" },
+        "playbooks": { "$ref": "#/definitions/phase_options" },
         "business": { "$ref": "#/definitions/phase_options" },
         "performance": { "$ref": "#/definitions/phase_options" }
       },

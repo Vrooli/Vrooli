@@ -27,6 +27,15 @@ type Expectations struct {
 
 	// ValidateServiceName controls whether service.json name must match the scenario directory.
 	ValidateServiceName bool
+
+	// ValidatePlaybooks controls whether playbooks structure is validated.
+	// When true (default), test/playbooks/ is checked for proper structure.
+	ValidatePlaybooks bool
+
+	// PlaybooksStrict controls whether playbooks issues block the structure phase.
+	// When false (default), issues are reported as informational warnings.
+	// When true, issues cause the structure phase to fail.
+	PlaybooksStrict bool
 }
 
 // configSection represents the structure section of .vrooli/testing.json.
@@ -36,10 +45,16 @@ type configSection struct {
 	ExcludeDirs     []pathEntry     `json:"exclude_dirs"`
 	ExcludeFiles    []pathEntry     `json:"exclude_files"`
 	Validations     validationFlags `json:"validations"`
+	Playbooks       playbooksConfig `json:"playbooks"`
 }
 
 type validationFlags struct {
 	ServiceNameMatchesDirectory *bool `json:"service_json_name_matches_directory"`
+}
+
+type playbooksConfig struct {
+	Enabled *bool `json:"enabled"`
+	Strict  *bool `json:"strict"`
 }
 
 // pathEntry supports both string and object forms in JSON:
@@ -87,6 +102,13 @@ func LoadExpectations(scenarioDir string) (*Expectations, error) {
 		exp.ValidateServiceName = *section.Validations.ServiceNameMatchesDirectory
 	}
 
+	if section.Playbooks.Enabled != nil {
+		exp.ValidatePlaybooks = *section.Playbooks.Enabled
+	}
+	if section.Playbooks.Strict != nil {
+		exp.PlaybooksStrict = *section.Playbooks.Strict
+	}
+
 	return exp, nil
 }
 
@@ -94,6 +116,8 @@ func LoadExpectations(scenarioDir string) (*Expectations, error) {
 func DefaultExpectations() *Expectations {
 	return &Expectations{
 		ValidateServiceName: true,
+		ValidatePlaybooks:   true,
+		PlaybooksStrict:     false,
 	}
 }
 

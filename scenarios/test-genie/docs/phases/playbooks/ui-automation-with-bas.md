@@ -333,9 +333,19 @@ Nodes can include a `resilience` object for retries and readiness checks:
 
 ## Storage Location
 
-- Each scenario owns automation assets under `scenarios/<name>/test/playbooks/`
-- Use canonical layout: `capabilities/<operational-target>/<surface>/`
-- Keep `test/playbooks/README.md` describing how folders tie back to requirements
+Each scenario owns automation assets under `test/playbooks/` following the [canonical directory structure](directory-structure.md):
+
+```
+test/playbooks/
+├── registry.json       # Auto-generated manifest
+├── capabilities/       # Feature tests (mirrors PRD)
+│   └── 01-foundation/  # Two-digit prefix for ordering
+├── journeys/           # Multi-surface user flows
+├── __subflows/         # Reusable fixtures (@fixture/<slug>)
+└── __seeds/            # Setup/cleanup scripts
+```
+
+See [Directory Structure](directory-structure.md) for naming conventions, fixture metadata, and authoring checklist.
 
 ## Execution
 
@@ -422,9 +432,12 @@ For `@selector/` references, the error message will tell you:
 - **Seed Data**: Keep in `test/playbooks/__seeds/` with `apply.sh` and `cleanup.sh`
 - **Canonical fixtures**: Use `open-demo-project`, `open-builder-from-demo`, `open-demo-workflow`
 
+See [Directory Structure](directory-structure.md) for complete fixture metadata reference, parameter syntax, and token types (`@fixture/`, `@seed/`, `@store/`).
+
 ## See Also
 
 - [Playbooks Phase](README.md) - Playbooks phase overview
+- [Directory Structure](directory-structure.md) - Canonical layout, fixtures, seeds
 - [Writing Testable UIs](../../guides/ui-testability.md) - Design UIs for automation
 - [End-to-End Example](../../guides/end-to-end-example.md) - Complete flow from PRD to BAS workflow
 - [Requirements Sync](../business/requirements-sync.md) - Understanding `automation` validation type

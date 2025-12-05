@@ -19,10 +19,12 @@ Each workflow JSON must include:
 }
 ```
 
-Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run:
+Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
 
 ```bash
-node ../../scripts/scenarios/testing/playbooks/build-registry.mjs --scenario scenarios/<your-scenario-id>
+test-genie registry build
 ```
 
 This regenerates `test/playbooks/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.
+
+See [Directory Structure](../../docs/phases/playbooks/directory-structure.md) for complete documentation on playbooks layout, fixtures, and naming conventions.

@@ -132,6 +132,29 @@ Schema validation catches:
 - Unknown properties
 - Constraint violations (min/max values, patterns, etc.)
 
+## Playbooks Structure
+
+When a scenario includes UI automation playbooks (`test/playbooks/`), it should follow the canonical layout:
+
+```
+test/playbooks/
+├── registry.json       # Auto-generated manifest (required)
+├── capabilities/       # Feature tests with NN- prefixes
+│   └── 01-foundation/
+├── journeys/           # Multi-surface user flows
+├── __subflows/         # Reusable fixtures
+└── __seeds/            # Setup/cleanup scripts
+```
+
+Key conventions:
+- **Two-digit prefixes** (`01-`, `02-`) ensure deterministic execution order
+- **`__subflows/`** fixtures must declare `fixture_id` in metadata
+- **`registry.json`** must be regenerated after adding/moving playbooks
+
+See [Playbooks Directory Structure](../playbooks/directory-structure.md) for complete documentation.
+
+> **Note**: Playbooks structure validation is currently informational. Future versions may enforce these conventions during structure phase.
+
 ## Configuration
 
 Customize structure validation in `.vrooli/testing.json`:
@@ -178,6 +201,8 @@ Customize structure validation in `.vrooli/testing.json`:
 ## Related Documentation
 
 - [CLI Approaches](cli-approaches.md) - Legacy vs cross-platform CLI patterns
+- [UI Smoke Tests](ui-smoke.md) - Browserless-based UI validation
+- [Playbooks Directory Structure](../playbooks/directory-structure.md) - Canonical playbooks layout
 
 ## See Also
 

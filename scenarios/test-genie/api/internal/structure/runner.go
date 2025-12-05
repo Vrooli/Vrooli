@@ -8,6 +8,7 @@ import (
 	"test-genie/internal/shared"
 	"test-genie/internal/structure/content"
 	"test-genie/internal/structure/existence"
+	"test-genie/internal/structure/playbooks"
 )
 
 // Config holds configuration for structure validation.
@@ -35,6 +36,7 @@ type Runner struct {
 	cliValidator       existence.CLIValidator
 	schemaValidator    content.SchemaValidatorInterface
 	manifestValidator  content.ManifestValidator
+	playbooksValidator playbooks.Validator
 
 	logWriter io.Writer
 }
@@ -75,6 +77,19 @@ func New(config Config, opts ...Option) *Runner {
 			content.WithNameValidation(validateName),
 		)
 	}
+	if r.playbooksValidator == nil {
+		playbooksEnabled := true
+		playbooksStrict := false
+		if config.Expectations != nil {
+			playbooksEnabled = config.Expectations.ValidatePlaybooks
+			playbooksStrict = config.Expectations.PlaybooksStrict
+		}
+		r.playbooksValidator = playbooks.New(playbooks.Config{
+			ScenarioDir: config.ScenarioDir,
+			Enabled:     playbooksEnabled,
+			Strict:      playbooksStrict,
+		}, r.logWriter)
+	}
 
 	return r
 }
@@ -111,6 +126,13 @@ func WithSchemaValidator(v content.SchemaValidatorInterface) Option {
 func WithManifestValidator(v content.ManifestValidator) Option {
 	return func(r *Runner) {
 		r.manifestValidator = v
+	}
+}
+
+// WithPlaybooksValidator sets a custom playbooks validator (for testing).
+func WithPlaybooksValidator(v playbooks.Validator) Option {
+	return func(r *Runner) {
+		r.playbooksValidator = v
 	}
 }
 
@@ -202,6 +224,19 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		summary.JSONFilesValid = schemaResult.ItemsChecked
 		shared.LogSuccess(r.logWriter, "All config files valid (%d)", schemaResult.ItemsChecked)
 		observations = append(observations, schemaResult.Observations...)
+	}
+
+	// Section: Playbooks Structure (informational by default)
+	if r.playbooksValidator != nil {
+		observations = append(observations, NewSectionObservation("🎭", "Validating playbooks structure..."))
+		shared.LogInfo(r.logWriter, "Validating playbooks structure...")
+
+		playbooksResult := r.playbooksValidator.Validate()
+		if !playbooksResult.Success {
+			// In strict mode, playbooks issues block the phase
+			return r.failFromResult(playbooksResult, observations)
+		}
+		observations = append(observations, playbooksResult.Observations...)
 	}
 
 	// Final summary

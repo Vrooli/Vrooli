@@ -76,20 +76,54 @@ Workflows are JSON files defining browser automation steps:
 }
 ```
 
+## Directory Structure
+
+Playbooks follow a canonical directory layout:
+
+```
+test/playbooks/
+├── registry.json       # Auto-generated manifest
+├── capabilities/       # Feature tests (mirrors PRD)
+│   ├── 01-foundation/  # Two-digit prefix for ordering
+│   └── 02-builder/
+├── journeys/           # Multi-surface user flows
+├── __subflows/         # Reusable fixtures
+└── __seeds/            # Setup/cleanup scripts
+```
+
+Key conventions:
+- **Two-digit prefixes** (`01-`, `02-`) ensure deterministic execution order
+- **`__subflows/`** contains fixtures referenced via `@fixture/<slug>`
+- **`__seeds/`** contains `apply.sh` and `cleanup.sh` for test data
+
+See [Directory Structure](directory-structure.md) for complete documentation including fixture metadata, token types, and authoring checklist.
+
 ## Workflow Registry
 
-Workflows are registered in `test/playbooks/registry.json`:
+The registry (`test/playbooks/registry.json`) is **auto-generated** and tracks all playbooks:
 
 ```json
 {
-  "workflows": [
+  "_note": "AUTO-GENERATED — run 'test-genie registry build' to refresh",
+  "scenario": "my-scenario",
+  "generated_at": "2025-12-05T10:00:00Z",
+  "playbooks": [
     {
-      "id": "create-project",
-      "path": "ui/projects/create.json",
-      "requirements": ["MY-PROJECT-CREATE"]
+      "file": "test/playbooks/capabilities/01-foundation/create-project.json",
+      "description": "Creates a new project",
+      "order": "01.01",
+      "requirements": ["MY-PROJECT-CREATE"],
+      "fixtures": [],
+      "reset": "full"
     }
   ]
 }
+```
+
+Regenerate after adding or moving playbooks:
+
+```bash
+test-genie registry build
 ```
 
 ## Browserless Integration
@@ -133,7 +167,8 @@ vrooli resource start browserless
 
 ## Related Documentation
 
-- [UI Automation with BAS](ui-automation-with-bas.md) - Writing BAS workflows
+- [Directory Structure](directory-structure.md) - Canonical layout, fixtures, seeds, naming conventions
+- [UI Automation with BAS](ui-automation-with-bas.md) - Writing workflow JSON, node types, selectors
 
 ## See Also
 
