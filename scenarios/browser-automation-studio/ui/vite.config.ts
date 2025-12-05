@@ -12,10 +12,8 @@ import { defineProject } from 'vitest/config';
 // Vite requires build-time values; undefined is used to signal missing config.
 const UI_PORT = process.env.UI_PORT || '3000';
 const API_PORT = process.env.API_PORT || '8080';
-const WS_PORT = process.env.WS_PORT || '8081';
 
 const API_HOST = process.env.API_HOST || 'localhost';
-const WS_HOST = process.env.WS_HOST || 'localhost';
 
 const bootstrapEntry = path.resolve(__dirname, 'src/bootstrap.tsx');
 const mainEntry = path.resolve(__dirname, 'index.html');
@@ -317,8 +315,9 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // WebSocket is served by the main API server on the same port
       '/ws': {
-        target: `ws://${WS_HOST}:${WS_PORT}`,
+        target: `ws://${API_HOST}:${API_PORT}`,
         ws: true,
         changeOrigin: true,
       },
