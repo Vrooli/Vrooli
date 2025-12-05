@@ -206,6 +206,14 @@ func main() {
 		r.Post("/recordings/import", handler.ImportRecording)
 		r.Get("/recordings/assets/{executionID}/*", handler.ServeRecordingAsset)
 
+		// Live recording routes (Record Mode)
+		r.Post("/recordings/live/start", handler.StartLiveRecording)
+		r.Post("/recordings/live/{sessionId}/stop", handler.StopLiveRecording)
+		r.Get("/recordings/live/{sessionId}/status", handler.GetRecordingStatus)
+		r.Get("/recordings/live/{sessionId}/actions", handler.GetRecordedActions)
+		r.Post("/recordings/live/{sessionId}/generate-workflow", handler.GenerateWorkflowFromRecording)
+		r.Post("/recordings/live/{sessionId}/validate-selector", handler.ValidateSelector)
+
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
 	})

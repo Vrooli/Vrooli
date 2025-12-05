@@ -4,6 +4,7 @@ import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError } from '../utils';
 import { buildContext } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
+import { cleanupSessionRecording } from '../routes/record-mode';
 
 /**
  * SessionManager - Manages browser session lifecycle
@@ -297,6 +298,17 @@ export class SessionManager {
     const startTime = Date.now();
 
     try {
+      // Stop recording if active
+      if (session.recordingController?.isRecording()) {
+        await session.recordingController.stopRecording().catch((err) => {
+          logger.warn('Failed to stop recording during session close', { sessionId, error: err.message });
+          metrics.cleanupFailures.inc({ operation: 'recording_stop' });
+        });
+      }
+
+      // Clean up recording action buffer
+      cleanupSessionRecording(sessionId);
+
       // Stop tracing if enabled
       if (session.tracing && session.tracePath) {
         await session.context.tracing.stop({ path: session.tracePath }).catch((err) => {
