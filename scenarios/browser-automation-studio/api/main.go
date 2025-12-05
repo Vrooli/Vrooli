@@ -207,6 +207,8 @@ func main() {
 		r.Get("/recordings/assets/{executionID}/*", handler.ServeRecordingAsset)
 
 		// Live recording routes (Record Mode)
+		r.Post("/recordings/live/session", handler.CreateRecordingSession)
+		r.Post("/recordings/live/session/{sessionId}/close", handler.CloseRecordingSession)
 		r.Post("/recordings/live/start", handler.StartLiveRecording)
 		r.Post("/recordings/live/{sessionId}/stop", handler.StopLiveRecording)
 		r.Get("/recordings/live/{sessionId}/status", handler.GetRecordingStatus)

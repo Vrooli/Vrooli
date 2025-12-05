@@ -1,0 +1,61 @@
+{
+  "metadata": {
+    "description": "Verifies browser-automation-studio dashboard loads correctly",
+    "version": 1,
+    "reset": "none"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-bas",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "wait-render",
+      "type": "wait",
+      "data": {
+        "label": "Wait for initial render",
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "assert-page-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Dashboard content visible",
+        "selector": "body",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "BAS dashboard body should be present"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-bas",
+      "target": "wait-render",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-render",
+      "target": "assert-page-loaded",
+      "type": "smoothstep"
+    }
+  ]
+}

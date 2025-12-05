@@ -25,6 +25,7 @@ import {
   Info,
   MoreVertical,
   Search,
+  Circle,
 } from "lucide-react";
 import { Project, useProjectStore } from "@stores/projectStore";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
@@ -55,6 +56,7 @@ interface ProjectDetailProps {
   onWorkflowSelect: (workflow: Workflow) => Promise<void>;
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
+  onStartRecording?: () => void;
 }
 
 interface FolderItem {
@@ -71,6 +73,7 @@ function ProjectDetail({
   onWorkflowSelect,
   onCreateWorkflow,
   onCreateWorkflowDirect,
+  onStartRecording,
 }: ProjectDetailProps) {
   const [workflows, setWorkflows] = useState<WorkflowWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -1060,6 +1063,18 @@ function ProjectDetail({
                             <ListChecks size={16} />
                             <span className="text-sm">Manage Workflows</span>
                           </button>
+                          {onStartRecording && (
+                            <button
+                              onClick={() => {
+                                onStartRecording();
+                                setShowMoreMenu(false);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-flow-node-hover hover:text-white transition-colors text-left"
+                            >
+                              <Circle size={16} className="text-red-500 fill-red-500" />
+                              <span className="text-sm">Record Actions</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               handleRecordingImportClick();

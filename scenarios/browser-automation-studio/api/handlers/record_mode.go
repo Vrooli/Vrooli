@@ -74,6 +74,26 @@ type Point struct {
 	Y float64 `json:"y"`
 }
 
+// CreateRecordingSessionRequest is the request body for creating a browser session for recording.
+type CreateRecordingSessionRequest struct {
+	// Viewport dimensions (optional, defaults to 1280x720)
+	ViewportWidth  int `json:"viewport_width,omitempty"`
+	ViewportHeight int `json:"viewport_height,omitempty"`
+	// Initial URL to navigate to (optional)
+	InitialURL string `json:"initial_url,omitempty"`
+}
+
+// CreateRecordingSessionResponse is the response after creating a recording session.
+type CreateRecordingSessionResponse struct {
+	SessionID string `json:"session_id"`
+	CreatedAt string `json:"created_at"`
+}
+
+// CloseRecordingSessionRequest is the request body for closing a recording session.
+type CloseRecordingSessionRequest struct {
+	SessionID string `json:"session_id"`
+}
+
 // StartRecordingRequest is the request body for starting a live recording.
 type StartRecordingRequest struct {
 	SessionID   string `json:"session_id"`
@@ -185,6 +205,184 @@ func getPlaywrightDriverURL() string {
 		return defaultPlaywrightURL
 	}
 	return url
+}
+
+// CreateRecordingSession handles POST /api/v1/recordings/live/session
+// Creates a new browser session for recording user actions.
+func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	var req CreateRecordingSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Set default viewport if not provided
+	viewportWidth := req.ViewportWidth
+	viewportHeight := req.ViewportHeight
+	if viewportWidth <= 0 {
+		viewportWidth = 1280
+	}
+	if viewportHeight <= 0 {
+		viewportHeight = 720
+	}
+
+	// Build request to playwright-driver
+	driverURL := fmt.Sprintf("%s/session/start", getPlaywrightDriverURL())
+
+	driverReq := map[string]interface{}{
+		"viewport": map[string]int{
+			"width":  viewportWidth,
+			"height": viewportHeight,
+		},
+		"reuse_mode": "fresh",
+		"labels": map[string]string{
+			"purpose": "record-mode",
+		},
+	}
+
+	jsonBody, err := json.Marshal(driverReq)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to marshal request",
+		}))
+		return
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for create session")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		h.log.WithFields(map[string]interface{}{
+			"status": resp.StatusCode,
+			"body":   string(body),
+		}).Error("Driver returned error for create session")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(body),
+		}))
+		return
+	}
+
+	var driverResp struct {
+		SessionID string `json:"session_id"`
+	}
+	if err := json.Unmarshal(body, &driverResp); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse driver response",
+		}))
+		return
+	}
+
+	// If initial URL provided, navigate to it
+	if req.InitialURL != "" {
+		navURL := fmt.Sprintf("%s/session/%s/run", getPlaywrightDriverURL(), driverResp.SessionID)
+		navReq := map[string]interface{}{
+			"instructions": []map[string]interface{}{
+				{
+					"op":  "navigate",
+					"url": req.InitialURL,
+				},
+			},
+		}
+		navBody, _ := json.Marshal(navReq)
+		navHTTPReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, navURL, bytes.NewReader(navBody))
+		navHTTPReq.Header.Set("Content-Type", "application/json")
+		navResp, err := client.Do(navHTTPReq)
+		if err != nil {
+			h.log.WithError(err).Warn("Failed to navigate to initial URL")
+		} else {
+			navResp.Body.Close()
+		}
+	}
+
+	response := CreateRecordingSessionResponse{
+		SessionID: driverResp.SessionID,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+
+	h.respondSuccess(w, http.StatusOK, response)
+}
+
+// CloseRecordingSession handles POST /api/v1/recordings/live/session/{sessionId}/close
+// Closes a recording session and cleans up resources.
+func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	// Call playwright-driver to close the session
+	driverURL := fmt.Sprintf("%s/session/%s/close", getPlaywrightDriverURL(), sessionID)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, nil)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for close session")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		h.respondError(w, ErrExecutionNotFound.WithMessage("Session not found"))
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(body),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"session_id": sessionID,
+		"status":     "closed",
+	})
 }
 
 // StartLiveRecording handles POST /api/v1/recordings/live/start

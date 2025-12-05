@@ -3,7 +3,7 @@ import type { SessionManager } from '../session';
 import type { HandlerRegistry } from '../handlers';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
-import type { CompiledInstruction, StepOutcome } from '../types';
+import type { CompiledInstruction, StepOutcome, DriverOutcome } from '../types';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { captureScreenshot, captureDOMSnapshot, ConsoleLogCollector, NetworkCollector } from '../telemetry';
 import { logger } from '../utils';
@@ -133,7 +133,23 @@ export async function handleSessionRun(
       duration: outcome.duration_ms,
     });
 
-    sendJson(res, 200, outcome);
+    // Convert to driver wire format (flat fields for screenshot/dom)
+    // Note: screenshot is ScreenshotCapture from telemetry which has base64
+    const screenshotData = screenshot as { base64?: string; media_type?: string; width?: number; height?: number } | undefined;
+    const driverOutcome: DriverOutcome = {
+      ...outcome,
+      screenshot_base64: screenshotData?.base64,
+      screenshot_media_type: screenshotData?.media_type,
+      screenshot_width: screenshotData?.width,
+      screenshot_height: screenshotData?.height,
+      dom_html: domSnapshot?.html,
+      dom_preview: domSnapshot?.preview,
+    };
+    // Remove nested objects that are replaced by flat fields
+    delete (driverOutcome as any).screenshot;
+    delete (driverOutcome as any).dom_snapshot;
+
+    sendJson(res, 200, driverOutcome);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/run`);
 

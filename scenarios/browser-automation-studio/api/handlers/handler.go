@@ -122,15 +122,9 @@ type HandlerDeps struct {
 // This function is responsible for infrastructure wiring, keeping it separate
 // from handler construction for clearer responsibility boundaries.
 func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger) HandlerDeps {
-	// Initialize storage client
-	var storageClient storage.StorageInterface
-	minioClient, err := storage.NewMinIOClient(log)
-	if err != nil {
-		log.WithError(err).Warn("Failed to initialize MinIO client for handlers - screenshot serving will be disabled")
-		storageClient = nil
-	} else {
-		storageClient = minioClient
-	}
+	// Initialize screenshot storage (defaults to local filesystem, optionally MinIO)
+	screenshotRoot := paths.ResolveScreenshotsRoot(log)
+	storageClient := storage.NewScreenshotStorage(log, screenshotRoot)
 
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
