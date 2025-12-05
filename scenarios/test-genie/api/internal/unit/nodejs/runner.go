@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"test-genie/internal/shared"
 	"test-genie/internal/unit/types"
@@ -73,6 +74,12 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		Success().
 		AddSection("📂", fmt.Sprintf("node workspaces (%d)", len(workspaces)))
 
+	var rels []string
+	for _, ws := range workspaces {
+		rels = append(rels, r.relativePath(ws))
+	}
+	builder.AddInfof("workspaces: %s", strings.Join(rels, ", "))
+
 	// Check Node.js is available
 	if err := types.EnsureCommand(r.executor, "node"); err != nil {
 		return types.FailMissingDependency(err, "Install Node.js so UI/unit suites can execute.")
@@ -123,10 +130,12 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		shared.LogStep(r.logWriter, "running Node unit tests with %s in %s", packageManager, nodeDir)
 		output, err := r.executor.Capture(ctx, nodeDir, r.logWriter, packageManager, "test")
 		if err != nil {
-			return types.FailTestFailure(
+			result := types.FailTestFailure(
 				fmt.Errorf("Node unit tests failed in %s: %w", rel, err),
 				"Inspect the UI/unit test output above, fix failures, and rerun the suite.",
 			)
+			result.Observations = append(builder.Build().Observations, result.Observations...)
+			return result
 		}
 
 		// Extract coverage and build result

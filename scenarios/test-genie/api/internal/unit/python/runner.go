@@ -76,6 +76,12 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		Success().
 		AddSection("📂", fmt.Sprintf("python workspaces (%d)", len(workspaces)))
 
+	var rels []string
+	for _, ws := range workspaces {
+		rels = append(rels, r.relativePath(ws))
+	}
+	builder.AddInfof("workspaces: %s", strings.Join(rels, ", "))
+
 	// Find Python command
 	pythonCmd, err := r.resolvePythonCommand()
 	if err != nil {
@@ -98,6 +104,7 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		// Try pytest first, fall back to unittest
 		if r.supportsPytest(ctx, pythonCmd) {
 			if res := r.runPytest(ctx, pythonDir, pythonCmd); !res.Success {
+				res.Observations = append(builder.Build().Observations, res.Observations...)
 				return res
 			} else {
 				for _, obs := range res.Observations {
@@ -106,6 +113,7 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 			}
 		} else {
 			if res := r.runUnittest(ctx, pythonDir, pythonCmd); !res.Success {
+				res.Observations = append(builder.Build().Observations, res.Observations...)
 				return res
 			} else {
 				for _, obs := range res.Observations {

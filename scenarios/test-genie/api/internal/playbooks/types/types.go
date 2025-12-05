@@ -10,6 +10,7 @@ import (
 
 // Registry represents the playbook registry file structure.
 type Registry struct {
+	Note       string  `json:"_note,omitempty"`
 	Scenario   string  `json:"scenario"`
 	Generated  string  `json:"generated_at"`
 	Playbooks  []Entry `json:"playbooks"`

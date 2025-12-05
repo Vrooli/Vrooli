@@ -106,6 +106,7 @@ def test_create_project():
 - The unit phase now **enumerates every unit-testable workspace** across the scenario (e.g., extra Playwright drivers, helpers outside `api/`/`ui/`).
 - Before running, it emits a workspace list showing the command it will use (per language).
 - Languages that aren't detected are no longer noisy in the output; missing test scripts or missing test files show up as warnings under that language instead.
+- The runner continues through all languages/workspaces even if one fails, then reports the first failure alongside the full summary.
 
 ## Configuration
 

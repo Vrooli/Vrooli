@@ -254,8 +254,11 @@ func TestRunner_Run_StopsOnFirstFailure(t *testing.T) {
 	if goRunner.runCalled != true {
 		t.Error("go runner should have been called")
 	}
-	if nodeRunner.runCalled {
-		t.Error("node runner should NOT have been called after go failure")
+	if !nodeRunner.runCalled {
+		t.Error("node runner should still run even after go failure")
+	}
+	if result.Summary.LanguagesFailed != 1 {
+		t.Errorf("LanguagesFailed = %d, want 1", result.Summary.LanguagesFailed)
 	}
 }
 

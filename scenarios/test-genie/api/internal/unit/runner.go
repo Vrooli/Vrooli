@@ -127,6 +127,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	var observations []Observation
 	var summary RunSummary
+	var firstFailure *Result
 
 	shared.LogInfo(r.logWriter, "Starting unit test execution for %s", r.config.ScenarioName)
 
@@ -161,14 +162,12 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 		if !result.Success {
 			summary.LanguagesFailed++
-			return &RunResult{
-				Success:      false,
-				Error:        result.Error,
-				FailureClass: result.FailureClass,
-				Remediation:  result.Remediation,
-				Observations: observations,
-				Summary:      summary,
+			// Record first failure but continue running remaining languages
+			if firstFailure == nil {
+				r := result
+				firstFailure = &r
 			}
+			continue
 		}
 
 		summary.LanguagesPassed++
@@ -187,6 +186,18 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	})
 
 	shared.LogSuccess(r.logWriter, "Unit test execution complete")
+
+	// If any failures occurred, surface the first while still reporting full summary.
+	if firstFailure != nil {
+		return &RunResult{
+			Success:      false,
+			Error:        firstFailure.Error,
+			FailureClass: firstFailure.FailureClass,
+			Remediation:  firstFailure.Remediation,
+			Observations: observations,
+			Summary:      summary,
+		}
+	}
 
 	return &RunResult{
 		Success:      true,

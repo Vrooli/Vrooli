@@ -74,6 +74,12 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		Success().
 		AddSection("📂", fmt.Sprintf("go workspaces (%d)", len(workspaces)))
 
+	var rels []string
+	for _, ws := range workspaces {
+		rels = append(rels, r.relativePath(ws))
+	}
+	builder.AddInfof("workspaces: %s", strings.Join(rels, ", "))
+
 	for _, workspace := range workspaces {
 		relPath := r.relativePath(workspace)
 		builder.AddInfof("go test ./... in %s", relPath)
@@ -102,10 +108,12 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 			"-covermode=atomic",
 			"./...",
 		); err != nil {
-			return types.FailTestFailure(
+			result := types.FailTestFailure(
 				fmt.Errorf("go test ./... failed in %s: %w", relPath, err),
 				fmt.Sprintf("Fix failing Go tests under %s before re-running the suite.", relPath),
 			)
+			result.Observations = append(builder.Build().Observations, result.Observations...)
+			return result
 		}
 		builder.AddSuccessf("go test passed in %s (coverage recorded)", relPath)
 	}

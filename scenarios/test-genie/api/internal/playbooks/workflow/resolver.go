@@ -21,22 +21,35 @@ type Resolver interface {
 	Resolve(ctx context.Context, workflowPath string) (map[string]any, error)
 }
 
-// FileResolver resolves workflows from the filesystem, optionally using a Python resolver.
+// FileResolver resolves workflows from the filesystem.
 type FileResolver struct {
-	appRoot     string
-	scenarioDir string
+	appRoot        string
+	scenarioDir    string
+	nativeResolver *NativeResolver
+	usePython      bool // Set to true to force Python resolver
 }
 
 // NewResolver creates a new workflow resolver.
+// By default, it uses the native Go resolver. Set usePython=true to use Python.
 func NewResolver(appRoot, scenarioDir string) *FileResolver {
 	return &FileResolver{
-		appRoot:     appRoot,
-		scenarioDir: scenarioDir,
+		appRoot:        appRoot,
+		scenarioDir:    scenarioDir,
+		nativeResolver: NewNativeResolver(scenarioDir),
+		usePython:      false, // Default to native Go resolver
 	}
 }
 
+// NewResolverWithPython creates a resolver that uses the Python script.
+// Use this only when the Python resolver has features not yet ported to Go.
+func NewResolverWithPython(appRoot, scenarioDir string) *FileResolver {
+	r := NewResolver(appRoot, scenarioDir)
+	r.usePython = true
+	return r
+}
+
 // Resolve loads and resolves a workflow definition.
-// It first tries the Python resolver script if available, then falls back to direct file read.
+// By default uses the native Go resolver. Falls back to Python or direct read if needed.
 func (r *FileResolver) Resolve(ctx context.Context, workflowPath string) (map[string]any, error) {
 	// Ensure absolute path
 	if !filepath.IsAbs(workflowPath) {
@@ -48,19 +61,27 @@ func (r *FileResolver) Resolve(ctx context.Context, workflowPath string) (map[st
 		return nil, fmt.Errorf("workflow file not found: %s", workflowPath)
 	}
 
-	// Try Python resolver first
-	output, err := r.tryPythonResolver(ctx, workflowPath)
-	if err == nil && len(output) > 0 {
-		return parseWorkflow(output)
+	// Use Python resolver if explicitly requested
+	if r.usePython {
+		output, err := r.tryPythonResolver(ctx, workflowPath)
+		if err == nil && len(output) > 0 {
+			return parseWorkflow(output)
+		}
+		// Fall through to native resolver if Python fails
 	}
 
-	// Fall back to direct file read
-	data, err := os.ReadFile(workflowPath)
+	// Use native Go resolver (default)
+	result, err := r.nativeResolver.ResolveWorkflow(workflowPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read workflow: %w", err)
+		// As a last resort, try direct file read (no fixture/selector resolution)
+		data, readErr := os.ReadFile(workflowPath)
+		if readErr != nil {
+			return nil, fmt.Errorf("native resolver failed: %w", err)
+		}
+		return parseWorkflow(data)
 	}
 
-	return parseWorkflow(data)
+	return result, nil
 }
 
 // tryPythonResolver attempts to use the Python resolver script.

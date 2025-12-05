@@ -6,6 +6,7 @@ import (
 
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
+	"test-genie/cli/registry"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
 	"test-genie/cli/uismoke"
@@ -115,6 +116,12 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Run UI smoke test for a scenario",
 				Run:         func(args []string) error { return uismoke.Run(a.uismokeClient, args) },
+			},
+			{
+				Name:        "registry",
+				NeedsAPI:    false,
+				Description: "Manage playbook registries",
+				Run:         func(args []string) error { return registry.Run(args) },
 			},
 		},
 	}
