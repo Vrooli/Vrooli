@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 // NativeResolver resolves workflows using pure Go (no Python dependency).
@@ -205,7 +207,7 @@ func (r *NativeResolver) parseFixture(doc map[string]any, source string) (*Fixtu
 
 // loadSeedState loads the seed state file if it exists.
 func (r *NativeResolver) loadSeedState() (map[string]any, error) {
-	seedPath := filepath.Join(r.scenarioDir, "test", "artifacts", "runtime", "seed-state.json")
+	seedPath := sharedartifacts.SeedStatePath(r.scenarioDir)
 	data, err := os.ReadFile(seedPath)
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -27,7 +27,7 @@ type Printer struct {
 	failFast            bool
 	descriptorMap       map[string]phases.Descriptor
 	targetDurationByKey map[string]time.Duration
-	streamedObservations bool // true if observations were already streamed via SSE
+	streamedObservations bool // true if observations were already streamed via SSE (live output shown)
 }
 
 // New builds a printer instance.
@@ -58,7 +58,9 @@ func New(
 func (p *Printer) Print(resp execTypes.Response) {
 	p.printHeader(resp)
 	p.printPlan(resp.Phases)
-	p.printPhaseProgress(resp.Phases)
+	if !p.streamedObservations {
+		p.printPhaseProgress(resp.Phases)
+	}
 	p.printPhaseResults(resp.Phases)
 	p.printSummary(resp)
 	p.printFailureDigest(resp.Phases)
@@ -84,7 +86,11 @@ func (p *Printer) SetStreamedObservations(streamed bool) {
 // PrintResults prints only the results portion (after API call completes).
 // Used in conjunction with PrintPreExecution for streaming-style output.
 func (p *Printer) PrintResults(resp execTypes.Response) {
-	p.printPhaseProgress(resp.Phases)
+	// If we already streamed observations via SSE, skip the detailed phase replay
+	// and go straight to the condensed results.
+	if !p.streamedObservations {
+		p.printPhaseProgress(resp.Phases)
+	}
 	p.printPhaseResults(resp.Phases)
 	p.printSummary(resp)
 	p.printFailureDigest(resp.Phases)
@@ -359,43 +365,26 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 		icon := StatusIcon(phase.Status)
 		status := strings.ToUpper(DefaultValue(phase.Status, "unknown"))
 		durationText := FormatPhaseDuration(phase.DurationSeconds)
+		headline := p.phaseHeadline(phase)
 
-		// Format: ✅ phase-structure      •   8s
-		phaseLine := fmt.Sprintf("  %s phase-%-14s •  %6s", icon, phase.Name, durationText)
+		phaseLine := fmt.Sprintf("  %s phase-%-14s •  %-6s", icon, phase.Name, durationText)
+		if !strings.EqualFold(status, "PASSED") && headline != "" {
+			phaseLine = fmt.Sprintf("%s — %s", phaseLine, headline)
+		}
 		fmt.Fprintln(p.w, p.color.StatusColor(phase.Status, phaseLine))
 
-		// Show log path if present
+		// Always show the log path for quick navigation
 		if phase.LogPath != "" {
-			exists, empty := repo.FileState(phase.LogPath)
-			logLine := fmt.Sprintf("     log: %s", phase.LogPath)
-			switch {
-			case !exists:
-				logLine = fmt.Sprintf("%s (missing)", logLine)
-			case empty:
-				logLine = fmt.Sprintf("%s (empty)", logLine)
-			}
-			fmt.Fprintln(p.w, logLine)
+			fmt.Fprintf(p.w, "     log: %s\n", DescribeLogPath(phase.LogPath))
 		}
 
-		// For failed phases, show error details
+		// Failed/error phases get a single-line fix hint and doc pointer
 		if !strings.EqualFold(status, "PASSED") {
-			if phase.Error != "" {
-				fmt.Fprintf(p.w, "     %s %s\n", p.color.Red("error:"), phase.Error)
+			if fix := p.phaseFixHint(phase); fix != "" {
+				fmt.Fprintf(p.w, "     fix: %s\n", fix)
 			}
-			if phase.Classification != "" {
-				fmt.Fprintf(p.w, "     classification: %s\n", phase.Classification)
-			}
-			if phase.Remediation != "" {
-				fmt.Fprintf(p.w, "     %s %s\n", p.color.Yellow("remediation:"), phase.Remediation)
-			}
-			// Show log snippet for failed phases
-			if phase.LogPath != "" {
-				if snippet := ReadLogSnippet(phase.LogPath, 2000); snippet != "" {
-					fmt.Fprintln(p.w, "     log snippet:")
-					for _, line := range TailLines(snippet, 8) {
-						fmt.Fprintf(p.w, "       %s\n", line)
-					}
-				}
+			if doc := p.phaseDocHint(phase.Name); doc != "" {
+				fmt.Fprintf(p.w, "     docs: %s\n", doc)
 			}
 		}
 	}
@@ -687,6 +676,82 @@ func (p *Printer) printDocs(phases []execTypes.Phase) {
 		fmt.Fprintf(p.w, "   • Test files in: %s\n", p.color.Cyan(paths.TestDir))
 	}
 	fmt.Fprintln(p.w)
+}
+
+// phaseHeadline selects a single-line headline for a phase, prioritizing explicit
+// errors, then the first interesting line from the log, then classification/remediation.
+func (p *Printer) phaseHeadline(phase execTypes.Phase) string {
+	if text := strings.TrimSpace(phase.Error); text != "" {
+		return firstLine(text)
+	}
+	if content := ReadLogSnippet(phase.LogPath, 4000); content != "" {
+		if line := firstInterestingLine(content); line != "" {
+			return line
+		}
+	}
+	if phase.Classification != "" {
+		return phase.Classification
+	}
+	if phase.Remediation != "" {
+		return phase.Remediation
+	}
+	return ""
+}
+
+// phaseFixHint returns a concise fix hint for the phase.
+func (p *Printer) phaseFixHint(phase execTypes.Phase) string {
+	if fix := strings.TrimSpace(phase.Remediation); fix != "" {
+		return fix
+	}
+	if strings.TrimSpace(phase.Error) != "" {
+		return "Fix the errors shown above, then rerun execute"
+	}
+	if phase.Classification != "" {
+		return fmt.Sprintf("Resolve %s issue, then rerun execute", phase.Classification)
+	}
+	return ""
+}
+
+// phaseDocHint returns the first doc link for the phase, if any.
+func (p *Printer) phaseDocHint(name string) string {
+	if docs, ok := phaseDocMapping[NormalizeName(name)]; ok && len(docs) > 0 {
+		return docs[0]
+	}
+	return ""
+}
+
+// firstInterestingLine finds the first error-like line in content, falling back to
+// the first non-empty line.
+func firstInterestingLine(content string) string {
+	lines := strings.Split(content, "\n")
+	var fallback string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if fallback == "" {
+			fallback = trimmed
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.Contains(lower, "error") ||
+			strings.Contains(lower, "fail") ||
+			strings.Contains(lower, "missing") ||
+			strings.Contains(trimmed, "❌") {
+			return trimmed
+		}
+	}
+	return fallback
+}
+
+// firstLine returns the first non-empty line from a multi-line string.
+func firstLine(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (p *Printer) lookupPhaseDescription(name string) string {

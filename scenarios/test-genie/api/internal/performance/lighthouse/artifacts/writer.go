@@ -10,12 +10,7 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
-const (
-	// LighthouseDir is the directory for Lighthouse artifacts.
-	LighthouseDir = "coverage/lighthouse"
-	// PhaseResultsFile is the filename for lighthouse phase results.
-	PhaseResultsFile = "lighthouse.json"
-)
+// Note: LighthouseDir and PhaseResultsLighthouse are defined in sharedartifacts.paths.go
 
 // Writer defines the interface for writing Lighthouse artifacts.
 type Writer interface {
@@ -43,7 +38,7 @@ func NewWriter(scenarioDir, scenarioName string, opts ...sharedartifacts.BaseWri
 
 // lighthouseDir returns the lighthouse artifacts directory path.
 func (w *FileWriter) lighthouseDir() string {
-	return filepath.Join(w.ScenarioDir, LighthouseDir)
+	return filepath.Join(w.ScenarioDir, sharedartifacts.LighthouseDir)
 }
 
 // WritePageReport writes the raw Lighthouse JSON report for a single page.
@@ -68,7 +63,7 @@ func (w *FileWriter) WritePageReport(pageID string, rawResponse []byte) (string,
 		return "", fmt.Errorf("failed to write page report: %w", err)
 	}
 
-	return filepath.Join(LighthouseDir, filename), nil
+	return sharedartifacts.RelativeLighthouseArtifactPath(filename), nil
 }
 
 // WriteHTMLReport writes the Lighthouse HTML report for a single page.
@@ -91,7 +86,7 @@ func (w *FileWriter) WriteHTMLReport(pageID string, htmlContent []byte) (string,
 		return "", fmt.Errorf("failed to write HTML report: %w", err)
 	}
 
-	return filepath.Join(LighthouseDir, filename), nil
+	return sharedartifacts.RelativeLighthouseArtifactPath(filename), nil
 }
 
 // WritePhaseResults writes the phase results JSON for integration with the business phase.
@@ -99,7 +94,7 @@ func (w *FileWriter) WritePhaseResults(result *lighthouse.AuditResult) error {
 	if result == nil || result.Skipped {
 		return nil // Nothing to write
 	}
-	return sharedartifacts.WritePhaseResults(w.BaseWriter, PhaseResultsFile, result, buildPhaseOutput)
+	return sharedartifacts.WritePhaseResults(w.BaseWriter, sharedartifacts.PhaseResultsLighthouse, result, buildPhaseOutput)
 }
 
 // WriteSummary writes a summary JSON containing all page results.
@@ -116,12 +111,12 @@ func (w *FileWriter) WriteSummary(result *lighthouse.AuditResult) (string, error
 
 	summary := buildSummary(w.ScenarioName, result)
 
-	path := filepath.Join(targetDir, "summary.json")
+	path := filepath.Join(targetDir, sharedartifacts.LighthouseSummary)
 	if err := w.WriteJSON(path, summary); err != nil {
 		return "", fmt.Errorf("failed to write summary: %w", err)
 	}
 
-	return filepath.Join(LighthouseDir, "summary.json"), nil
+	return sharedartifacts.RelativeLighthouseArtifactPath(sharedartifacts.LighthouseSummary), nil
 }
 
 // buildPhaseOutput constructs the phase results structure for requirements integration.

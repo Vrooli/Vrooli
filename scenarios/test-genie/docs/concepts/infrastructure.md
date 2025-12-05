@@ -57,22 +57,46 @@ scenario/
 
 ### Coverage Output
 
+All test artifacts are written under the `coverage/` directory. Paths are centralized
+in `internal/shared/artifacts/paths.go` to ensure consistency across phases.
+
 ```
 coverage/
-├── phase-results/           # Phase execution results
-│   ├── structure.json
-│   ├── dependencies.json
-│   ├── unit.json
-│   ├── integration.json
-│   ├── business.json
-│   └── performance.json
+├── phase-results/           # Per-phase JSON summaries
+│   ├── smoke.json           # UI smoke test results
+│   ├── unit.json            # Unit test results
+│   ├── playbooks.json       # Playbook execution results
+│   ├── lighthouse.json      # Lighthouse audit results
+│   └── performance.json     # Performance test results
+├── ui-smoke/                # UI smoke test artifacts
+│   ├── latest.json          # Structured result
+│   ├── screenshot.png       # Page screenshot
+│   ├── console.json         # Browser console logs
+│   ├── network.json         # Failed network requests
+│   ├── dom.html             # DOM snapshot
+│   └── README.md            # Human-readable summary
+├── automation/              # Playbook execution timelines
+│   └── *.timeline.json
+├── lighthouse/              # Lighthouse performance reports
+│   ├── <page-id>.json       # Raw Lighthouse JSON
+│   ├── <page-id>.html       # Visual HTML report
+│   └── summary.json         # Aggregated results
+├── unit/                    # Unit test failure artifacts
+│   └── <test-name>/README.md
 ├── sync/                    # Requirements sync metadata
-│   └── *.json
+│   └── latest.json
+├── manual-validations/      # Manual validation logs
+│   └── log.jsonl
 ├── go-coverage.out          # Go coverage data
-├── vitest-requirements.json # Vitest requirement evidence
-└── lighthouse/              # Lighthouse reports
-    └── *.html
+└── vitest-requirements.json # Vitest requirement evidence
+
+test/artifacts/
+└── runtime/                 # Runtime state (seeds)
+    └── seed-state.json      # Dynamic IDs for @seed/ tokens
 ```
+
+**Note:** Legacy artifact locations (`test/coverage/`, `test/artifacts/phase-results/`)
+are still supported for reading but all new artifacts are written to canonical paths.
 
 ## Environment Variables
 

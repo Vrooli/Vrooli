@@ -28,7 +28,7 @@ func TestWriterWriteTimeline(t *testing.T) {
 	}
 
 	// Verify file was created
-	fullPath := filepath.Join(scenarioDir, TimelineDir, "test-playbooks-login.timeline.json")
+	fullPath := filepath.Join(scenarioDir, sharedartifacts.AutomationDir, "test-playbooks-login.timeline.json")
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		t.Fatalf("failed to read timeline file: %v", err)
@@ -55,7 +55,7 @@ func TestWriterWriteTimelineCreatesDirectory(t *testing.T) {
 	}
 
 	// Verify directory was created
-	timelineDirPath := filepath.Join(scenarioDir, TimelineDir)
+	timelineDirPath := filepath.Join(scenarioDir, sharedartifacts.AutomationDir)
 	if _, err := os.Stat(timelineDirPath); err != nil {
 		t.Error("expected timeline directory to be created")
 	}
@@ -91,7 +91,7 @@ func TestWriterWritePhaseResults(t *testing.T) {
 	}
 
 	// Verify file was created
-	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, PhaseResultsFile)
+	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, sharedartifacts.PhaseResultsPlaybooks)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read phase results: %v", err)
@@ -145,7 +145,7 @@ func TestWriterWritePhaseResultsWithErrors(t *testing.T) {
 		t.Fatalf("expected success, got error: %v", err)
 	}
 
-	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, PhaseResultsFile)
+	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, sharedartifacts.PhaseResultsPlaybooks)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read phase results: %v", err)

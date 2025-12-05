@@ -9,13 +9,6 @@ import (
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
-const (
-	// TimelineDir is the directory for timeline artifacts.
-	TimelineDir = "coverage/automation"
-	// PhaseResultsFile is the filename for playbooks phase results.
-	PhaseResultsFile = "playbooks.json"
-)
-
 // Writer defines the interface for writing playbook artifacts.
 type Writer interface {
 	// WriteTimeline writes a timeline dump for a workflow execution.
@@ -41,7 +34,7 @@ func NewWriter(scenarioDir, scenarioName, appRoot string, opts ...sharedartifact
 // WriteTimeline writes a timeline dump for a workflow execution.
 // Returns the relative path to the artifact.
 func (w *FileWriter) WriteTimeline(workflowFile string, timelineData []byte) (string, error) {
-	targetDir := filepath.Join(w.ScenarioDir, TimelineDir)
+	targetDir := filepath.Join(w.ScenarioDir, sharedartifacts.AutomationDir)
 	if err := w.EnsureDir(targetDir); err != nil {
 		return "", fmt.Errorf("failed to create timeline dir: %w", err)
 	}
@@ -61,7 +54,7 @@ func (w *FileWriter) WritePhaseResults(results []types.Result) error {
 	if len(results) == 0 {
 		return nil
 	}
-	return sharedartifacts.WritePhaseResults(w.BaseWriter, PhaseResultsFile, results, buildPhaseOutput)
+	return sharedartifacts.WritePhaseResults(w.BaseWriter, sharedartifacts.PhaseResultsPlaybooks, results, buildPhaseOutput)
 }
 
 // buildPhaseOutput constructs the phase results structure.

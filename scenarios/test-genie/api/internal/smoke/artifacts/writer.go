@@ -41,7 +41,7 @@ func WithFileSystem(fs sharedartifacts.FileSystem) WriterOption {
 
 // coverageDir returns the coverage directory path for UI smoke artifacts.
 func coverageDir(scenarioDir string) string {
-	return filepath.Join(scenarioDir, "coverage", "ui-smoke")
+	return filepath.Join(scenarioDir, sharedartifacts.UISmokeDir)
 }
 
 // Ensure Writer implements orchestrator.ArtifactWriter.
@@ -205,7 +205,7 @@ func (w *Writer) writePhasePointer(scenarioDir, scenarioName string, result inte
 		return fmt.Errorf("failed to marshal smoke phase pointer: %w", err)
 	}
 
-	path := filepath.Join(phaseDir, "smoke.json")
+	path := filepath.Join(phaseDir, sharedartifacts.PhaseResultsSmoke)
 	if err := w.fs.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write smoke phase pointer: %w", err)
 	}

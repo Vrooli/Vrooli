@@ -10,6 +10,7 @@ import (
 
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 // Reader abstracts file reading operations.
@@ -250,8 +251,8 @@ func (s *syncer) writeSyncMetadata(ctx context.Context, scenarioRoot string, res
 	default:
 	}
 
-	// Create coverage/sync directory
-	syncDir := filepath.Join(scenarioRoot, "coverage", "sync")
+	// Create sync directory
+	syncDir := filepath.Join(scenarioRoot, sharedartifacts.SyncDir)
 	if err := s.writer.MkdirAll(syncDir, 0755); err != nil {
 		return err
 	}
@@ -267,7 +268,7 @@ func (s *syncer) writeSyncMetadata(ctx context.Context, scenarioRoot string, res
 		ErrorCount:         len(result.Errors),
 	}
 
-	return s.fileWriter.WriteJSON(filepath.Join(syncDir, "latest.json"), metadata)
+	return s.fileWriter.WriteJSON(sharedartifacts.SyncMetadataPath(scenarioRoot), metadata)
 }
 
 // SyncMetadata contains information about a sync operation.

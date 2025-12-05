@@ -5,10 +5,10 @@ import (
 	"context"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"time"
 
 	"test-genie/internal/requirements/types"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 // Reader abstracts file reading for evidence loading.
@@ -91,12 +91,8 @@ func (l *loader) LoadPhaseResults(ctx context.Context, scenarioRoot string) (typ
 
 	evidenceMap := make(types.EvidenceMap)
 
-	// Check multiple possible locations for phase results
-	possibleDirs := []string{
-		filepath.Join(scenarioRoot, "coverage", "phase-results"),
-		filepath.Join(scenarioRoot, "test", "coverage", "phase-results"),
-		filepath.Join(scenarioRoot, "test", "artifacts", "phase-results"),
-	}
+	// Check multiple possible locations for phase results (canonical + legacy)
+	possibleDirs := sharedartifacts.LegacyPhaseResultsPaths(scenarioRoot)
 
 	for _, dir := range possibleDirs {
 		if !l.reader.Exists(dir) {
@@ -124,12 +120,8 @@ func (l *loader) LoadVitestEvidence(ctx context.Context, scenarioRoot string) (m
 
 	evidenceMap := make(map[string][]types.VitestResult)
 
-	// Check multiple possible locations
-	possiblePaths := []string{
-		filepath.Join(scenarioRoot, "ui", "coverage", "vitest-requirements.json"),
-		filepath.Join(scenarioRoot, "coverage", "vitest-requirements.json"),
-		filepath.Join(scenarioRoot, "test", "coverage", "vitest.json"),
-	}
+	// Check multiple possible locations (canonical + legacy)
+	possiblePaths := sharedartifacts.VitestRequirementsPaths(scenarioRoot)
 
 	for _, path := range possiblePaths {
 		if !l.reader.Exists(path) {
@@ -158,12 +150,8 @@ func (l *loader) LoadManualValidations(ctx context.Context, scenarioRoot string)
 	default:
 	}
 
-	// Check multiple possible locations
-	possiblePaths := []string{
-		filepath.Join(scenarioRoot, "coverage", "manual-validations", "log.jsonl"),
-		filepath.Join(scenarioRoot, "test", "coverage", "manual-validations", "log.jsonl"),
-		filepath.Join(scenarioRoot, "coverage", "manual", "log.jsonl"),
-	}
+	// Check multiple possible locations (canonical + legacy)
+	possiblePaths := sharedartifacts.LegacyManualValidationsPaths(scenarioRoot)
 
 	for _, path := range possiblePaths {
 		if !l.reader.Exists(path) {

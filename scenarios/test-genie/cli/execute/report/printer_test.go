@@ -54,3 +54,50 @@ func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 		}
 	}
 }
+
+func TestPrintResultsCondensedReplay(t *testing.T) {
+	tmp := t.TempDir()
+	logPath := filepath.Join(tmp, "structure.log")
+	if err := os.WriteFile(logPath, []byte("ERROR: lighthouse.json missing property 'version'\n"), 0o644); err != nil {
+		t.Fatalf("write log: %v", err)
+	}
+
+	resp := execTypes.Response{
+		PhaseSummary: execTypes.PhaseSummary{
+			Total:           1,
+			Failed:          1,
+			DurationSeconds: 2,
+		},
+		Phases: []execTypes.Phase{
+			{
+				Name:            "structure",
+				Status:          "failed",
+				DurationSeconds: 2,
+				LogPath:         logPath,
+				Remediation:     "Add the missing version to .vrooli/lighthouse.json",
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := New(&buf, "demo", "", nil, nil, false, nil)
+	pr.SetStreamedObservations(true)
+	pr.PrintResults(resp)
+
+	out := buf.String()
+	if strings.Contains(out, "[PHASE_START") {
+		t.Fatalf("expected condensed replay without phase banners, got:\n%s", out)
+	}
+	if !strings.Contains(out, "structure") || !strings.Contains(out, "ERROR: lighthouse.json missing property 'version'") {
+		t.Fatalf("expected headline from log to be included:\n%s", out)
+	}
+	if !strings.Contains(out, "log: "+logPath) {
+		t.Fatalf("expected log path to be included:\n%s", out)
+	}
+	if !strings.Contains(out, "fix: Add the missing version") {
+		t.Fatalf("expected remediation hint to be included:\n%s", out)
+	}
+	if !strings.Contains(out, "docs/testing/architecture/PHASED_TESTING.md") {
+		t.Fatalf("expected structure doc hint to be included:\n%s", out)
+	}
+}

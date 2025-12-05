@@ -6,10 +6,7 @@ import (
 	"path/filepath"
 )
 
-const (
-	// PhaseResultsDir is the standard directory for phase results.
-	PhaseResultsDir = "coverage/phase-results"
-)
+// Note: PhaseResultsDir and other path constants are defined in paths.go
 
 // BaseWriter provides common artifact writing functionality.
 type BaseWriter struct {
