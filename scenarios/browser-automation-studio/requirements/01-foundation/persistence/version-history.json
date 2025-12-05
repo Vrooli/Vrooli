@@ -12,20 +12,20 @@
       "prd_ref": "Autosave & Version History",
       "title": "Autosave prevents data loss and manages conflicts",
       "description": "Debounced autosave writes workflow drafts, prevents overwrites when conflicts exist, and surfaces state to the UI header.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covers autosave, debounce saves, conflict suppression, and history refresh logic."
         },
         {
           "type": "test",
           "ref": "api/services/workflow/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestAutosaveDefaultsExpectedVersion validates autosave functionality"
         },
         {
@@ -43,27 +43,27 @@
       "prd_ref": "Autosave & Version History",
       "title": "Version history exposes restore flows across API, UI, and CLI",
       "description": "Ensures version listing, diffing, and restore endpoints are available and parity exists between CLI and UI flows.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
           "ref": "api/handlers/handlers_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestListWorkflowVersionsHandlerSuccess, TestGetWorkflowVersionHandlerSuccess, TestRestoreWorkflowVersionConflict validate API endpoints."
         },
         {
           "type": "test",
           "ref": "api/services/workflow/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestListWorkflowVersionsSummaries, TestRestoreWorkflowVersionAppliesHistoricDefinition validate service layer."
         },
         {
           "type": "test",
           "ref": "api/database/repository_extended_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestWorkflowVersionOperations validates version CRUD operations at repository layer."
         },
         {

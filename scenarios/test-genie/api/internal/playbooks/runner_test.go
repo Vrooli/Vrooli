@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"test-genie/internal/playbooks/artifacts"
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/playbooks/registry"
@@ -39,9 +40,10 @@ type mockBASClient struct {
 	healthErr       error
 	executeID       string
 	executeErr      error
-	status          ExecutionStatus
+	status          *ExecutionStatus
 	statusErr       error
 	waitErr         error
+	timelineProto   *basv1.ExecutionTimeline
 	timeline        []byte
 	timelineErr     error
 	healthCallCount int
@@ -50,7 +52,7 @@ type mockBASClient struct {
 
 func (m *mockBASClient) WaitForCompletionWithProgress(ctx context.Context, executionID string, callback execution.ProgressCallback) error {
 	m.waitCallCount++
-	if callback != nil && m.status.Status != "" {
+	if callback != nil && m.status != nil && m.status.GetStatus() != "" {
 		_ = callback(m.status, 0)
 	}
 	return m.waitErr
@@ -69,7 +71,7 @@ func (m *mockBASClient) ExecuteWorkflow(ctx context.Context, definition map[stri
 	return m.executeID, m.executeErr
 }
 
-func (m *mockBASClient) GetStatus(ctx context.Context, executionID string) (ExecutionStatus, error) {
+func (m *mockBASClient) GetStatus(ctx context.Context, executionID string) (*ExecutionStatus, error) {
 	return m.status, m.statusErr
 }
 
@@ -78,8 +80,8 @@ func (m *mockBASClient) WaitForCompletion(ctx context.Context, executionID strin
 	return m.waitErr
 }
 
-func (m *mockBASClient) GetTimeline(ctx context.Context, executionID string) ([]byte, error) {
-	return m.timeline, m.timelineErr
+func (m *mockBASClient) GetTimeline(ctx context.Context, executionID string) (*basv1.ExecutionTimeline, []byte, error) {
+	return m.timelineProto, m.timeline, m.timelineErr
 }
 
 func (m *mockBASClient) GetScreenshots(ctx context.Context, executionID string) ([]execution.Screenshot, error) {

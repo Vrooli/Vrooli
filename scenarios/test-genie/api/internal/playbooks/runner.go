@@ -366,17 +366,17 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 	// Create progress callback for verbose mode
 	var progressCallback execution.ProgressCallback
 	if r.config.Verbose {
-		progressCallback = func(status ExecutionStatus, elapsed time.Duration) error {
+		progressCallback = func(status *ExecutionStatus, elapsed time.Duration) error {
+			if status == nil {
+				return nil
+			}
 			// BAS returns Progress as 0-100 percentage directly
-			progress := float64(status.Progress) / 100.0
+			progress := float64(status.GetProgress()) / 100.0
 
 			// CurrentStep is the step name/label from BAS
-			currentStep := status.CurrentStep
+			currentStep := status.GetCurrentStep()
 			if currentStep == "" {
-				currentStep = status.CurrentNodeLabel // Fallback to extended field if available
-			}
-			if currentStep == "" {
-				currentStep = status.Status // Final fallback to status
+				currentStep = status.GetStatus() // Fallback to status text
 			}
 
 			shared.LogStep(r.logWriter, "[%s] progress: %.0f%% (%s) - %s",
@@ -423,7 +423,7 @@ func (r *Runner) collectWorkflowArtifacts(
 	execErr error,
 ) *artifacts.WorkflowArtifacts {
 	// Fetch timeline data
-	timelineData, fetchErr := r.basClient.GetTimeline(ctx, executionID)
+	timeline, timelineData, fetchErr := r.basClient.GetTimeline(ctx, executionID)
 	if fetchErr != nil {
 		shared.LogWarn(r.logWriter, "failed to fetch timeline for %s: %v", entry.File, fetchErr)
 		return &artifacts.WorkflowArtifacts{}
@@ -434,6 +434,9 @@ func (r *Runner) collectWorkflowArtifacts(
 	if parseErr != nil {
 		shared.LogWarn(r.logWriter, "failed to parse timeline for %s: %v", entry.File, parseErr)
 		// Continue with nil parsed - will still write raw timeline
+	} else if parsed != nil && timeline != nil {
+		// Reuse the already-fetched proto timeline to avoid duplicate parsing work downstream.
+		parsed.Proto = timeline
 	}
 
 	// Update outcome stats from parsed timeline
@@ -571,4 +574,3 @@ func (r *Runner) ensureBAS(ctx context.Context) error {
 
 	return r.basClient.WaitForHealth(ctx)
 }
-

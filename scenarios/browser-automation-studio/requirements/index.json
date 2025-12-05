@@ -39,7 +39,7 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Persist visual workflows with nodes/edges and folder hierarchy",
       "description": "Tracks the complete experience for creating and managing projects and workflows. Child implementation requirements cover dialog affordances, validation, and persistence.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-PROJECT-DIALOG-OPEN",
         "BAS-PROJECT-DIALOG-CLOSE",
@@ -53,14 +53,14 @@
           "type": "test",
           "ref": "api/handlers/projects_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API tests for project CRUD operations and validation"
         },
         {
           "type": "test",
           "ref": "api/handlers/workflows_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API tests for workflow persistence and retrieval - child requirements provide E2E coverage"
         }
       ]
@@ -71,7 +71,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Stream execution telemetry (screenshots, progress, logs) while runs are active",
       "description": "Aggregates execution runtime behaviours, including websocket telemetry, CLI observability, and automation coverage.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-EXEC-TELEMETRY-STREAM",
         "BAS-EXEC-TELEMETRY-AUTOMATION",
@@ -83,14 +83,14 @@
           "type": "test",
           "ref": "api/handlers/executions_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API tests for execution telemetry and status tracking"
         },
         {
           "type": "test",
           "ref": "api/services/workflow/execution_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Service tests for execution lifecycle and telemetry streaming - child requirements provide E2E coverage"
         }
       ]
@@ -101,7 +101,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
         "BAS-REPLAY-EXPORT-BUNDLE"
@@ -111,14 +111,14 @@
           "type": "test",
           "ref": "api/services/workflow/timeline_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests for timeline artifact persistence and retrieval"
         },
         {
           "type": "test",
           "ref": "api/services/replay/renderer_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests for replay rendering and export bundle generation - child requirements provide E2E coverage"
         }
       ]
@@ -129,7 +129,7 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI-generated workflows validated against the execution plan",
       "description": "Validates that AI prompts produce executable workflows with deterministic smoke coverage.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-AI-GENERATION-SMOKE",
         "BAS-AI-GENERATION-VALIDATION"
@@ -139,7 +139,7 @@
           "type": "test",
           "ref": "api/handlers/ai/element_analysis_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API tests for AI workflow generation and validation - child requirements provide E2E coverage"
         }
       ]
@@ -150,7 +150,7 @@
       "prd_ref": "Autosave & Version History",
       "title": "Conflict-aware autosave with auditable version history",
       "description": "Captures autosave behaviour, version history presentation, and restore flows across UI and API.",
-      "status": "complete",
+      "status": "in_progress",
       "children": [
         "BAS-VERSION-AUTOSAVE",
         "BAS-VERSION-RESTORE"
@@ -160,7 +160,7 @@
           "type": "test",
           "ref": "api/services/workflow/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API tests for workflow versioning and autosave - child requirements provide E2E coverage"
         }
       ]

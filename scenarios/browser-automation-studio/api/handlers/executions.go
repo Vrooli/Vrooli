@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/services/replay"
 )
 
@@ -55,7 +56,19 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, timeline)
+	pbTimeline, err := protoconv.TimelineToProto(timeline)
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to convert execution timeline to proto")
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"operation": "timeline_to_proto",
+			"error":     err.Error(),
+		}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pbTimeline)
 }
 
 // PostExecutionExport handles POST /api/v1/executions/{id}/export
@@ -218,7 +231,19 @@ func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, execution)
+	pbExecution, err := protoconv.ExecutionToProto(execution)
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).WithField("execution_id", id).Error("Failed to convert execution to proto")
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"operation": "execution_to_proto",
+			"error":     err.Error(),
+		}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pbExecution)
 }
 
 // ListExecutions handles GET /api/v1/executions

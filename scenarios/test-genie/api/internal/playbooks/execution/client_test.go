@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestClientHealth(t *testing.T) {
@@ -122,14 +125,17 @@ func TestClientGetStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
-	if status.Status != "running" {
-		t.Errorf("expected running, got %s", status.Status)
+	if status == nil {
+		t.Fatalf("expected status, got nil")
 	}
-	if status.Progress != 50 {
-		t.Errorf("expected 50 progress, got %d", status.Progress)
+	if status.GetStatus() != "running" {
+		t.Errorf("expected running, got %s", status.GetStatus())
 	}
-	if status.CurrentStep != "Navigate to homepage" {
-		t.Errorf("expected current_step 'Navigate to homepage', got %s", status.CurrentStep)
+	if status.GetProgress() != 50 {
+		t.Errorf("expected 50 progress, got %d", status.GetProgress())
+	}
+	if status.GetCurrentStep() != "Navigate to homepage" {
+		t.Errorf("expected current_step 'Navigate to homepage', got %s", status.GetCurrentStep())
 	}
 }
 
@@ -177,8 +183,8 @@ func TestClientWaitForCompletionFailed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
-			"status":         "failed",
-			"failure_reason": "element not found",
+			"status": "failed",
+			"error":  "element not found",
 		})
 	}))
 	defer server.Close()
@@ -214,7 +220,15 @@ func TestClientWaitForCompletionCanceled(t *testing.T) {
 }
 
 func TestClientGetTimeline(t *testing.T) {
-	expectedData := `{"frames": [{"step_type": "navigate"}]}`
+	expectedTimeline := &basv1.ExecutionTimeline{
+		Frames: []*basv1.TimelineFrame{
+			{StepType: "navigate"},
+		},
+	}
+	expectedData, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(expectedTimeline)
+	if err != nil {
+		t.Fatalf("failed to marshal expected timeline: %v", err)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/timeline") {
 			t.Errorf("expected timeline path, got %s", r.URL.Path)
@@ -225,12 +239,18 @@ func TestClientGetTimeline(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL)
-	data, err := client.GetTimeline(context.Background(), "exec-123")
+	timeline, raw, err := client.GetTimeline(context.Background(), "exec-123")
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
-	if string(data) != expectedData {
-		t.Errorf("expected %s, got %s", expectedData, string(data))
+	if timeline == nil {
+		t.Fatalf("expected parsed timeline, got nil")
+	}
+	if len(timeline.GetFrames()) != 1 || timeline.GetFrames()[0].GetStepType() != "navigate" {
+		t.Errorf("unexpected timeline contents: %+v", timeline.GetFrames())
+	}
+	if string(raw) != string(expectedData) {
+		t.Errorf("expected %s, got %s", string(expectedData), string(raw))
 	}
 }
 
@@ -241,53 +261,62 @@ func TestClientGetTimelineError(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL)
-	_, err := client.GetTimeline(context.Background(), "exec-123")
+	_, _, err := client.GetTimeline(context.Background(), "exec-123")
 	if err == nil {
 		t.Fatal("expected error for server error")
 	}
 }
 
 func TestSummarizeTimeline(t *testing.T) {
+	marshalTimeline := func(frames ...*basv1.TimelineFrame) []byte {
+		tl := &basv1.ExecutionTimeline{Frames: frames}
+		data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(tl)
+		if err != nil {
+			t.Fatalf("failed to marshal timeline: %v", err)
+		}
+		return data
+	}
+
 	tests := []struct {
 		name     string
-		input    string
+		input    []byte
 		expected string
 	}{
 		{
 			name:     "empty data",
-			input:    "",
+			input:    nil,
 			expected: "",
 		},
 		{
 			name:     "no frames",
-			input:    `{"frames": []}`,
+			input:    marshalTimeline(),
 			expected: "",
 		},
 		{
 			name:     "steps only",
-			input:    `{"frames": [{"step_type": "navigate"}, {"step_type": "click"}]}`,
+			input:    marshalTimeline(&basv1.TimelineFrame{StepType: "navigate"}, &basv1.TimelineFrame{StepType: "click"}),
 			expected: " (2 steps)",
 		},
 		{
 			name: "with assertions",
-			input: `{"frames": [
-				{"step_type": "navigate", "status": "completed"},
-				{"step_type": "assert", "status": "completed"},
-				{"step_type": "assert", "status": "completed"},
-				{"step_type": "assert", "status": "failed"}
-			]}`,
+			input: marshalTimeline(
+				&basv1.TimelineFrame{StepType: "navigate", Status: "completed", Success: true},
+				&basv1.TimelineFrame{StepType: "assert", Status: "completed", Success: true},
+				&basv1.TimelineFrame{StepType: "assert", Status: "completed", Success: true},
+				&basv1.TimelineFrame{StepType: "assert", Status: "failed", Success: false},
+			),
 			expected: " (4 steps, 2/3 assertions passed)",
 		},
 		{
 			name:     "invalid json",
-			input:    `{invalid}`,
+			input:    []byte(`{invalid}`),
 			expected: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SummarizeTimeline([]byte(tt.input))
+			result := SummarizeTimeline(tt.input)
 			if result != tt.expected {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
@@ -459,7 +488,7 @@ func TestClientGetTimelineConnectionError(t *testing.T) {
 	server.Close()
 
 	client := NewClient(server.URL)
-	_, err := client.GetTimeline(context.Background(), "exec-123")
+	_, _, err := client.GetTimeline(context.Background(), "exec-123")
 	if err == nil {
 		t.Fatal("expected error for connection failure")
 	}

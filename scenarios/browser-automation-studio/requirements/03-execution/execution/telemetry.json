@@ -12,27 +12,27 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Telemetry stream includes screenshots, console, and network events",
       "description": "Confirms the execution service emits complete telemetry payloads within latency targets and the UI processors consume heartbeat and assertion events correctly.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
           "ref": "api/automation/executor/integration_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Exercises telemetry persistence, retries, and artifact metadata."
         },
         {
           "type": "test",
           "ref": "ui/src/stores/executionStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests heartbeat events and execution state management"
         },
         {
           "type": "test",
           "ref": "ui/src/components/__tests__/ExecutionViewer.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
@@ -60,7 +60,7 @@
           "type": "test",
           "ref": "ui/src/features/execution/ExecutionViewer.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -71,7 +71,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Telemetry smoke automation validates live streaming",
       "description": "Runs an end-to-end workflow that asserts screenshots, highlight metadata, console, and network events are captured and export packages are generated.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
@@ -84,14 +84,14 @@
           "type": "test",
           "ref": "ui/src/components/ProjectDetail.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/features/projects/ProjectDetail.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -102,7 +102,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Heartbeat stalls trigger operator alerts",
       "description": "Ensures the CLI and automation surface stalled heartbeat warnings when telemetry pauses beyond the configured threshold.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
@@ -115,7 +115,7 @@
           "type": "test",
           "ref": "ui/src/stores/executionStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]

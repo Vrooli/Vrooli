@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"test-genie/internal/shared"
 )
 
@@ -27,21 +28,8 @@ type Entry struct {
 	Reset        string   `json:"reset"`
 }
 
-// ExecutionStatus represents the status response from BAS API.
-// Fields are aligned with browser-automation-studio/api/database/models.go Execution struct.
-type ExecutionStatus struct {
-	Status      string `json:"status"`
-	Progress    int    `json:"progress"`               // 0-100 percentage
-	CurrentStep string `json:"current_step,omitempty"` // Step name/label (not index)
-	Error       string `json:"error,omitempty"`
-
-	// Extended fields - may not be present in all BAS responses.
-	// These are populated from execution_steps when available.
-	TotalSteps       int    `json:"total_steps,omitempty"`        // From step count
-	CurrentNodeID    string `json:"current_node_id,omitempty"`    // From current step
-	CurrentNodeLabel string `json:"current_node_label,omitempty"` // From current step
-	FailureReason    string `json:"failure_reason,omitempty"`     // From error or result
-}
+// ExecutionStatus mirrors the BAS proto Execution message for status polling.
+type ExecutionStatus = basv1.Execution
 
 // Outcome represents the result of executing a single playbook.
 type Outcome struct {

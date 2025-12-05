@@ -12,7 +12,7 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog opens from primary entry points",
       "description": "Verifies the modal opens via the \"Create Project\" button, keyboard shortcuts, and toolbar menu so operators can begin authoring without page reloads.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
@@ -25,28 +25,28 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/features/projects/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/shared/layout/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -57,7 +57,7 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog closes through all affordances",
       "description": "Ensures the modal dismisses through the X button, cancel button, backdrop click, and Escape key, restoring the underlying canvas state.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
@@ -70,28 +70,28 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/features/projects/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/shared/layout/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -115,21 +115,21 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/features/projects/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -140,7 +140,7 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Project creation enforces inline validation rules",
       "description": "Covers empty name, duplicate detection, and invalid characters with accessible error messaging surfaced inside the dialog.",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
@@ -153,21 +153,21 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/features/projects/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]

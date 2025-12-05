@@ -294,7 +294,8 @@ scenarios/*/api/*-api
 vendor/
 
 # Go workspace file
-go.work
+# We keep go.work since it's required to start scenarios successfully
+# go.work
 go.work.sum
 
 # Air live reload (tmp/ already covered above)
@@ -422,3 +423,4 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+/scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring

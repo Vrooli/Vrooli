@@ -1,12 +1,19 @@
 package execution
 
 import (
-	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
+
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ParsedTimeline contains all extracted data from a BAS timeline response.
 type ParsedTimeline struct {
+	// Proto contains the parsed proto timeline for callers needing raw access.
+	Proto *basv1.ExecutionTimeline `json:"-"`
 	// ExecutionID is the BAS execution ID.
 	ExecutionID string `json:"execution_id"`
 	// WorkflowID is the BAS workflow ID (if saved).
@@ -40,18 +47,18 @@ type ParsedTimeline struct {
 
 // ParsedFrame contains data for a single execution step.
 type ParsedFrame struct {
-	StepIndex   int    `json:"step_index"`
-	NodeID      string `json:"node_id"`
-	StepType    string `json:"step_type"`
-	Status      string `json:"status"`
-	Success     bool   `json:"success"`
-	DurationMs  int    `json:"duration_ms,omitempty"`
-	Error       string `json:"error,omitempty"`
-	FinalURL    string `json:"final_url,omitempty"`
-	Progress    int    `json:"progress,omitempty"`
-	Screenshot  *FrameScreenshot `json:"screenshot,omitempty"`
+	StepIndex   int               `json:"step_index"`
+	NodeID      string            `json:"node_id"`
+	StepType    string            `json:"step_type"`
+	Status      string            `json:"status"`
+	Success     bool              `json:"success"`
+	DurationMs  int               `json:"duration_ms,omitempty"`
+	Error       string            `json:"error,omitempty"`
+	FinalURL    string            `json:"final_url,omitempty"`
+	Progress    int               `json:"progress,omitempty"`
+	Screenshot  *FrameScreenshot  `json:"screenshot,omitempty"`
 	DOMSnapshot *FrameDOMSnapshot `json:"dom_snapshot,omitempty"`
-	Assertion   *ParsedAssertion `json:"assertion,omitempty"`
+	Assertion   *ParsedAssertion  `json:"assertion,omitempty"`
 }
 
 // FrameScreenshot contains screenshot info embedded in a frame.
@@ -99,9 +106,8 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 		return &ParsedTimeline{}, nil
 	}
 
-	// First, parse into a flexible structure
-	var raw rawTimeline
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var timeline basv1.ExecutionTimeline
+	if err := protoJSONUnmarshal.Unmarshal(data, &timeline); err != nil {
 		return nil, &TimelineParseError{
 			RawData: data,
 			Cause:   err,
@@ -109,82 +115,88 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 	}
 
 	parsed := &ParsedTimeline{
-		ExecutionID: raw.ExecutionID,
-		WorkflowID:  raw.WorkflowID,
-		Status:      raw.Status,
-		Progress:    raw.Progress,
-		StartedAt:   raw.StartedAt,
-		CompletedAt: raw.CompletedAt,
-		Frames:      make([]ParsedFrame, 0, len(raw.Frames)),
-		Logs:        make([]ParsedLog, 0, len(raw.Logs)),
+		Proto:       &timeline,
+		ExecutionID: timeline.GetExecutionId(),
+		WorkflowID:  timeline.GetWorkflowId(),
+		Status:      timeline.GetStatus(),
+		Progress:    int(timeline.GetProgress()),
+		StartedAt:   timestampToTime(timeline.GetStartedAt()),
+		CompletedAt: timestampToTime(timeline.GetCompletedAt()),
+		Frames:      make([]ParsedFrame, 0, len(timeline.GetFrames())),
+		Logs:        make([]ParsedLog, 0, len(timeline.GetLogs())),
 		Assertions:  make([]ParsedAssertion, 0),
 	}
 
 	// Parse frames and extract assertions/DOM
 	var lastDOMPreview string
 	var lastDOMFull string
-	for _, rf := range raw.Frames {
+	for _, rf := range timeline.GetFrames() {
 		frame := ParsedFrame{
-			StepIndex:  rf.StepIndex,
-			NodeID:     rf.NodeID,
-			StepType:   rf.StepType,
-			Status:     rf.Status,
-			Success:    rf.Success,
-			DurationMs: rf.DurationMs,
-			Error:      rf.Error,
-			FinalURL:   rf.FinalURL,
-			Progress:   rf.Progress,
+			StepIndex: int(rf.GetStepIndex()),
+			NodeID:    rf.GetNodeId(),
+			StepType:  rf.GetStepType(),
+			Status:    rf.GetStatus(),
+			Success:   rf.GetSuccess(),
+			DurationMs: func() int {
+				if rf.GetTotalDurationMs() > 0 {
+					return int(rf.GetTotalDurationMs())
+				}
+				return int(rf.GetDurationMs())
+			}(),
+			Error:    rf.GetError(),
+			FinalURL: rf.GetFinalUrl(),
+			Progress: int(rf.GetProgress()),
 		}
 
 		// Extract screenshot info
-		if rf.Screenshot != nil {
+		if rf.GetScreenshot() != nil {
 			frame.Screenshot = &FrameScreenshot{
-				ArtifactID:   rf.Screenshot.ArtifactID,
-				URL:          rf.Screenshot.URL,
-				ThumbnailURL: rf.Screenshot.ThumbnailURL,
-				Width:        rf.Screenshot.Width,
-				Height:       rf.Screenshot.Height,
+				ArtifactID:   rf.Screenshot.GetArtifactId(),
+				URL:          rf.Screenshot.GetUrl(),
+				ThumbnailURL: rf.Screenshot.GetThumbnailUrl(),
+				Width:        int(rf.Screenshot.GetWidth()),
+				Height:       int(rf.Screenshot.GetHeight()),
 			}
 		}
 
 		// Extract DOM snapshot info
-		if rf.DOMSnapshot != nil || rf.DOMSnapshotPreview != "" {
+		if rf.GetDomSnapshot() != nil || rf.GetDomSnapshotPreview() != "" {
 			frame.DOMSnapshot = &FrameDOMSnapshot{}
-			if rf.DOMSnapshot != nil {
-				frame.DOMSnapshot.ArtifactID = rf.DOMSnapshot.ID
-				frame.DOMSnapshot.StorageURL = rf.DOMSnapshot.StorageURL
-				if payload, ok := rf.DOMSnapshot.Payload["html"].(string); ok {
-					lastDOMFull = payload
+			if rf.GetDomSnapshot() != nil {
+				frame.DOMSnapshot.ArtifactID = rf.DomSnapshot.GetId()
+				frame.DOMSnapshot.StorageURL = rf.DomSnapshot.GetStorageUrl()
+				if html := extractHTML(rf.DomSnapshot.GetPayload()); html != "" {
+					lastDOMFull = html
 				}
 			}
-			if rf.DOMSnapshotPreview != "" {
-				frame.DOMSnapshot.Preview = rf.DOMSnapshotPreview
-				lastDOMPreview = rf.DOMSnapshotPreview
+			if rf.GetDomSnapshotPreview() != "" {
+				frame.DOMSnapshot.Preview = rf.GetDomSnapshotPreview()
+				lastDOMPreview = rf.GetDomSnapshotPreview()
 			}
 		}
 
 		// Extract assertion info
-		if rf.StepType == "assert" || rf.Assertion != nil {
+		if rf.GetStepType() == "assert" || rf.Assertion != nil {
 			assertion := ParsedAssertion{
-				StepIndex: rf.StepIndex,
-				NodeID:    rf.NodeID,
-				Passed:    rf.Success,
-				Error:     rf.Error,
+				StepIndex: int(rf.GetStepIndex()),
+				NodeID:    rf.GetNodeId(),
+				Passed:    rf.GetSuccess(),
+				Error:     rf.GetError(),
 			}
 			if rf.Assertion != nil {
-				assertion.AssertionType = rf.Assertion.Type
-				assertion.Selector = rf.Assertion.Selector
-				assertion.Expected = rf.Assertion.Expected
-				assertion.Actual = rf.Assertion.Actual
-				assertion.Message = rf.Assertion.Message
-				assertion.Passed = rf.Assertion.Passed
+				assertion.AssertionType = rf.Assertion.GetMode()
+				assertion.Selector = rf.Assertion.GetSelector()
+				assertion.Expected = valueToString(rf.Assertion.GetExpected())
+				assertion.Actual = valueToString(rf.Assertion.GetActual())
+				assertion.Message = rf.Assertion.GetMessage()
+				assertion.Passed = rf.Assertion.GetSuccess()
 			}
 			frame.Assertion = &assertion
 			parsed.Assertions = append(parsed.Assertions, assertion)
 		}
 
 		// Track failed frame
-		if rf.Status == "failed" || rf.Error != "" {
+		if strings.EqualFold(frame.Status, "failed") || frame.Error != "" {
 			frameCopy := frame
 			parsed.FailedFrame = &frameCopy
 		}
@@ -197,13 +209,13 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 	parsed.FinalDOM = lastDOMFull
 
 	// Parse logs
-	for _, rl := range raw.Logs {
+	for _, rl := range timeline.GetLogs() {
 		parsed.Logs = append(parsed.Logs, ParsedLog{
-			ID:        rl.ID,
-			Level:     rl.Level,
-			Message:   rl.Message,
-			StepName:  rl.StepName,
-			Timestamp: rl.Timestamp,
+			ID:        rl.GetId(),
+			Level:     rl.GetLevel(),
+			Message:   rl.GetMessage(),
+			StepName:  rl.GetStepName(),
+			Timestamp: timestampValue(rl.GetTimestamp()),
 		})
 	}
 
@@ -231,66 +243,47 @@ func calculateSummary(parsed *ParsedTimeline) TimelineSummary {
 	return summary
 }
 
-// Raw types for flexible JSON parsing
-
-type rawTimeline struct {
-	ExecutionID string           `json:"execution_id"`
-	WorkflowID  string           `json:"workflow_id"`
-	Status      string           `json:"status"`
-	Progress    int              `json:"progress"`
-	StartedAt   *time.Time       `json:"started_at"`
-	CompletedAt *time.Time       `json:"completed_at"`
-	Frames      []rawFrame       `json:"frames"`
-	Logs        []rawLog         `json:"logs"`
+func timestampToTime(ts *timestamppb.Timestamp) *time.Time {
+	if ts == nil {
+		return nil
+	}
+	t := ts.AsTime()
+	return &t
 }
 
-type rawFrame struct {
-	StepIndex          int           `json:"step_index"`
-	NodeID             string        `json:"node_id"`
-	StepType           string        `json:"step_type"`
-	Status             string        `json:"status"`
-	Success            bool          `json:"success"`
-	DurationMs         int           `json:"duration_ms"`
-	Error              string        `json:"error"`
-	FinalURL           string        `json:"final_url"`
-	Progress           int           `json:"progress"`
-	DOMSnapshotPreview string        `json:"dom_snapshot_preview"`
-	Screenshot         *rawScreenshot `json:"screenshot"`
-	DOMSnapshot        *rawArtifact   `json:"dom_snapshot"`
-	Assertion          *rawAssertion  `json:"assertion"`
+func timestampValue(ts *timestamppb.Timestamp) time.Time {
+	if ts == nil {
+		return time.Time{}
+	}
+	return ts.AsTime()
 }
 
-type rawScreenshot struct {
-	ArtifactID   string `json:"artifact_id"`
-	URL          string `json:"url"`
-	ThumbnailURL string `json:"thumbnail_url"`
-	Width        int    `json:"width"`
-	Height       int    `json:"height"`
+func extractHTML(payload map[string]*structpb.Value) string {
+	if payload == nil {
+		return ""
+	}
+	if val, ok := payload["html"]; ok {
+		if s := val.GetStringValue(); s != "" {
+			return s
+		}
+		if str, ok := val.AsInterface().(string); ok {
+			return str
+		}
+	}
+	return ""
 }
 
-type rawArtifact struct {
-	ID           string         `json:"id"`
-	Type         string         `json:"type"`
-	StorageURL   string         `json:"storage_url"`
-	ThumbnailURL string         `json:"thumbnail_url"`
-	ContentType  string         `json:"content_type"`
-	StepIndex    *int           `json:"step_index"`
-	Payload      map[string]any `json:"payload"`
-}
-
-type rawAssertion struct {
-	Type     string `json:"type"`
-	Selector string `json:"selector"`
-	Expected string `json:"expected"`
-	Actual   string `json:"actual"`
-	Message  string `json:"message"`
-	Passed   bool   `json:"passed"`
-}
-
-type rawLog struct {
-	ID        string    `json:"id"`
-	Level     string    `json:"level"`
-	Message   string    `json:"message"`
-	StepName  string    `json:"step_name"`
-	Timestamp time.Time `json:"timestamp"`
+func valueToString(v *structpb.Value) string {
+	if v == nil {
+		return ""
+	}
+	if s := v.GetStringValue(); s != "" {
+		return s
+	}
+	switch val := v.AsInterface().(type) {
+	case string:
+		return val
+	default:
+		return fmt.Sprint(val)
+	}
 }

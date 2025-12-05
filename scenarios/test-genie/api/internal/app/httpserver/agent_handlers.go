@@ -125,6 +125,37 @@ func trimToJSON(raw []byte) []byte {
 		return raw
 	}
 
+	// Drop any leading log/warning lines so JSON parsing is resilient to noisy CLIs.
+	lines := strings.Split(data, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "[WARNING]") ||
+			strings.HasPrefix(trimmed, "[INFO]") ||
+			strings.HasPrefix(trimmed, "[ERROR]") ||
+			strings.HasPrefix(trimmed, "[SUCCESS]") ||
+			strings.HasPrefix(trimmed, "[HEADER]") ||
+			strings.HasPrefix(trimmed, "[SECTION]") ||
+			strings.HasPrefix(trimmed, "[PROMPT]") ||
+			strings.HasPrefix(trimmed, "[DEBUG]") {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+			return []byte(strings.Join(lines[i:], "\n"))
+		}
+
+		if idx := strings.IndexAny(trimmed, "{["); idx >= 0 {
+			payload := trimmed[idx:]
+			if i+1 < len(lines) {
+				payload = payload + "\n" + strings.Join(lines[i+1:], "\n")
+			}
+			return []byte(payload)
+		}
+	}
+
 	// Find the first '{' or '[' which should start the JSON payload.
 	idxObj := strings.IndexRune(data, '{')
 	idxArr := strings.IndexRune(data, '[')

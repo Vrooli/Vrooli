@@ -121,7 +121,7 @@ func TestContractExecuteWorkflowMinimal(t *testing.T) {
 	t.Logf("Execution status: %+v", status)
 
 	// Status should have a non-empty status field
-	if status.Status == "" {
+	if status == nil || status.GetStatus() == "" {
 		t.Error("GetStatus() returned empty status")
 	}
 }
@@ -156,9 +156,12 @@ func TestContractExecuteAndWait(t *testing.T) {
 
 	// Wait for completion with progress tracking
 	progressCount := 0
-	err = client.WaitForCompletionWithProgress(ctx, executionID, func(status types.ExecutionStatus, elapsed time.Duration) error {
+	err = client.WaitForCompletionWithProgress(ctx, executionID, func(status *types.ExecutionStatus, elapsed time.Duration) error {
+		if status == nil {
+			return nil
+		}
 		progressCount++
-		t.Logf("Progress update %d: status=%s, elapsed=%s", progressCount, status.Status, elapsed)
+		t.Logf("Progress update %d: status=%s, elapsed=%s", progressCount, status.GetStatus(), elapsed)
 		return nil
 	})
 
@@ -207,7 +210,7 @@ func TestContractGetTimeline(t *testing.T) {
 	}
 
 	// Get timeline
-	timelineData, err := client.GetTimeline(ctx, executionID)
+	timeline, timelineData, err := client.GetTimeline(ctx, executionID)
 	if err != nil {
 		t.Fatalf("GetTimeline() error = %v", err)
 	}
@@ -217,11 +220,15 @@ func TestContractGetTimeline(t *testing.T) {
 		return
 	}
 
+	if timeline == nil {
+		t.Log("warning: parsed proto timeline is nil")
+	}
+
 	t.Logf("Timeline data length: %d bytes", len(timelineData))
 
 	// Verify timeline is valid JSON
-	var timeline map[string]any
-	if err := json.Unmarshal(timelineData, &timeline); err != nil {
+	var timelineJSON map[string]any
+	if err := json.Unmarshal(timelineData, &timelineJSON); err != nil {
 		t.Errorf("Timeline is not valid JSON: %v", err)
 		t.Logf("Raw timeline (first 500 bytes): %s", truncate(string(timelineData), 500))
 		return
@@ -266,18 +273,23 @@ func TestContractStatusFields(t *testing.T) {
 		t.Fatalf("GetStatus() error = %v", err)
 	}
 
+	if status == nil {
+		t.Fatal("GetStatus() returned nil status")
+	}
+
 	t.Logf("Raw status: %+v", status)
 
 	// Document which fields are actually populated by BAS
 	t.Logf("Field availability:")
-	t.Logf("  Status: %q", status.Status)
-	t.Logf("  Progress: %v", status.Progress)
-	t.Logf("  CurrentStep: %v", status.CurrentStep)
-	t.Logf("  TotalSteps: %v", status.TotalSteps)
-	t.Logf("  CurrentNodeID: %q", status.CurrentNodeID)
-	t.Logf("  CurrentNodeLabel: %q", status.CurrentNodeLabel)
-	t.Logf("  FailureReason: %q", status.FailureReason)
-	t.Logf("  Error: %q", status.Error)
+	t.Logf("  Status: %q", status.GetStatus())
+	t.Logf("  Progress: %v", status.GetProgress())
+	t.Logf("  CurrentStep: %q", status.GetCurrentStep())
+	t.Logf("  TriggerType: %q", status.GetTriggerType())
+	t.Logf("  WorkflowId: %q", status.GetWorkflowId())
+	t.Logf("  WorkflowVersion: %d", status.GetWorkflowVersion())
+	if status.Error != nil {
+		t.Logf("  Error: %q", status.GetError())
+	}
 
 	// Wait for completion
 	_ = client.WaitForCompletion(ctx, executionID)

@@ -1,10 +1,25 @@
 package execution
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
+
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var timelineMarshalOpts = protojson.MarshalOptions{UseProtoNames: true}
+
+func marshalTimeline(t *testing.T, tl *basv1.ExecutionTimeline) []byte {
+	t.Helper()
+	data, err := timelineMarshalOpts.Marshal(tl)
+	if err != nil {
+		t.Fatalf("failed to marshal timeline: %v", err)
+	}
+	return data
+}
 
 func TestParseFullTimeline_Empty(t *testing.T) {
 	parsed, err := ParseFullTimeline(nil)
@@ -30,39 +45,40 @@ func TestParseFullTimeline_InvalidJSON(t *testing.T) {
 }
 
 func TestParseFullTimeline_BasicTimeline(t *testing.T) {
-	timeline := map[string]any{
-		"execution_id": "exec-123",
-		"workflow_id":  "wf-456",
-		"status":       "completed",
-		"progress":     100,
-		"frames": []map[string]any{
+	timeline := &basv1.ExecutionTimeline{
+		ExecutionId: "exec-123",
+		WorkflowId:  "wf-456",
+		Status:      "completed",
+		Progress:    100,
+		Frames: []*basv1.TimelineFrame{
 			{
-				"step_index": 0,
-				"node_id":    "navigate-1",
-				"step_type":  "navigate",
-				"status":     "completed",
-				"success":    true,
-				"duration_ms": 1500,
+				StepIndex:  0,
+				NodeId:     "navigate-1",
+				StepType:   "navigate",
+				Status:     "completed",
+				Success:    true,
+				DurationMs: 1500,
 			},
 			{
-				"step_index": 1,
-				"node_id":    "assert-1",
-				"step_type":  "assert",
-				"status":     "completed",
-				"success":    true,
+				StepIndex: 1,
+				NodeId:    "assert-1",
+				StepType:  "assert",
+				Status:    "completed",
+				Success:   true,
 			},
 		},
-		"logs": []map[string]any{
+		Logs: []*basv1.TimelineLog{
 			{
-				"id":        "log-1",
-				"level":     "info",
-				"message":   "Test message",
-				"step_name": "navigate-1",
+				Id:        "log-1",
+				Level:     "info",
+				Message:   "Test message",
+				StepName:  "navigate-1",
+				Timestamp: timestamppb.Now(),
 			},
 		},
 	}
 
-	data, _ := json.Marshal(timeline)
+	data := marshalTimeline(t, timeline)
 	parsed, err := ParseFullTimeline(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -95,29 +111,29 @@ func TestParseFullTimeline_BasicTimeline(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithFailedFrame(t *testing.T) {
-	timeline := map[string]any{
-		"execution_id": "exec-123",
-		"status":       "failed",
-		"frames": []map[string]any{
+	timeline := &basv1.ExecutionTimeline{
+		ExecutionId: "exec-123",
+		Status:      "failed",
+		Frames: []*basv1.TimelineFrame{
 			{
-				"step_index": 0,
-				"node_id":    "navigate-1",
-				"step_type":  "navigate",
-				"status":     "completed",
-				"success":    true,
+				StepIndex: 0,
+				NodeId:    "navigate-1",
+				StepType:  "navigate",
+				Status:    "completed",
+				Success:   true,
 			},
 			{
-				"step_index": 1,
-				"node_id":    "click-1",
-				"step_type":  "click",
-				"status":     "failed",
-				"success":    false,
-				"error":      "element not found",
+				StepIndex: 1,
+				NodeId:    "click-1",
+				StepType:  "click",
+				Status:    "failed",
+				Success:   false,
+				Error:     "element not found",
 			},
 		},
 	}
 
-	data, _ := json.Marshal(timeline)
+	data := marshalTimeline(t, timeline)
 	parsed, err := ParseFullTimeline(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -135,26 +151,26 @@ func TestParseFullTimeline_WithFailedFrame(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithScreenshots(t *testing.T) {
-	timeline := map[string]any{
-		"execution_id": "exec-123",
-		"status":       "completed",
-		"frames": []map[string]any{
+	timeline := &basv1.ExecutionTimeline{
+		ExecutionId: "exec-123",
+		Status:      "completed",
+		Frames: []*basv1.TimelineFrame{
 			{
-				"step_index": 0,
-				"step_type":  "navigate",
-				"status":     "completed",
-				"success":    true,
-				"screenshot": map[string]any{
-					"artifact_id": "ss-123",
-					"url":         "/api/v1/screenshots/ss-123",
-					"width":       1920,
-					"height":      1080,
+				StepIndex: 0,
+				StepType:  "navigate",
+				Status:    "completed",
+				Success:   true,
+				Screenshot: &basv1.TimelineScreenshot{
+					ArtifactId: "ss-123",
+					Url:        "/api/v1/screenshots/ss-123",
+					Width:      1920,
+					Height:     1080,
 				},
 			},
 		},
 	}
 
-	data, _ := json.Marshal(timeline)
+	data := marshalTimeline(t, timeline)
 	parsed, err := ParseFullTimeline(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -175,41 +191,41 @@ func TestParseFullTimeline_WithScreenshots(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithAssertions(t *testing.T) {
-	timeline := map[string]any{
-		"execution_id": "exec-123",
-		"status":       "failed",
-		"frames": []map[string]any{
+	timeline := &basv1.ExecutionTimeline{
+		ExecutionId: "exec-123",
+		Status:      "failed",
+		Frames: []*basv1.TimelineFrame{
 			{
-				"step_index": 0,
-				"node_id":    "assert-1",
-				"step_type":  "assert",
-				"status":     "completed",
-				"success":    true,
-				"assertion": map[string]any{
-					"type":     "visible",
-					"selector": "[data-testid='header']",
-					"passed":   true,
+				StepIndex: 0,
+				NodeId:    "assert-1",
+				StepType:  "assert",
+				Status:    "completed",
+				Success:   true,
+				Assertion: &basv1.AssertionOutcome{
+					Mode:     "visible",
+					Selector: "[data-testid='header']",
+					Success:  true,
 				},
 			},
 			{
-				"step_index": 1,
-				"node_id":    "assert-2",
-				"step_type":  "assert",
-				"status":     "failed",
-				"success":    false,
-				"assertion": map[string]any{
-					"type":     "text",
-					"selector": "[data-testid='title']",
-					"expected": "Welcome",
-					"actual":   "Loading...",
-					"passed":   false,
-					"message":  "Text mismatch",
+				StepIndex: 1,
+				NodeId:    "assert-2",
+				StepType:  "assert",
+				Status:    "failed",
+				Success:   false,
+				Assertion: &basv1.AssertionOutcome{
+					Mode:     "text",
+					Selector: "[data-testid='title']",
+					Expected: structpb.NewStringValue("Welcome"),
+					Actual:   structpb.NewStringValue("Loading..."),
+					Success:  false,
+					Message:  "Text mismatch",
 				},
 			},
 		},
 	}
 
-	data, _ := json.Marshal(timeline)
+	data := marshalTimeline(t, timeline)
 	parsed, err := ParseFullTimeline(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -241,28 +257,28 @@ func TestParseFullTimeline_WithAssertions(t *testing.T) {
 
 func TestParseFullTimeline_WithLogs(t *testing.T) {
 	now := time.Now().UTC()
-	timeline := map[string]any{
-		"execution_id": "exec-123",
-		"status":       "completed",
-		"frames":       []map[string]any{},
-		"logs": []map[string]any{
+	timeline := &basv1.ExecutionTimeline{
+		ExecutionId: "exec-123",
+		Status:      "completed",
+		Frames:      []*basv1.TimelineFrame{},
+		Logs: []*basv1.TimelineLog{
 			{
-				"id":        "log-1",
-				"level":     "error",
-				"message":   "Failed to load resource",
-				"step_name": "navigate-1",
-				"timestamp": now.Format(time.RFC3339),
+				Id:        "log-1",
+				Level:     "error",
+				Message:   "Failed to load resource",
+				StepName:  "navigate-1",
+				Timestamp: timestamppb.New(now),
 			},
 			{
-				"id":        "log-2",
-				"level":     "warn",
-				"message":   "Deprecated API usage",
-				"timestamp": now.Format(time.RFC3339),
+				Id:        "log-2",
+				Level:     "warn",
+				Message:   "Deprecated API usage",
+				Timestamp: timestamppb.New(now),
 			},
 		},
 	}
 
-	data, _ := json.Marshal(timeline)
+	data := marshalTimeline(t, timeline)
 	parsed, err := ParseFullTimeline(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -283,28 +299,28 @@ func TestParseFullTimeline_WithLogs(t *testing.T) {
 }
 
 func TestParseFullTimeline_WithDOMSnapshot(t *testing.T) {
-	timeline := map[string]any{
-		"execution_id": "exec-123",
-		"status":       "completed",
-		"frames": []map[string]any{
+	timeline := &basv1.ExecutionTimeline{
+		ExecutionId: "exec-123",
+		Status:      "completed",
+		Frames: []*basv1.TimelineFrame{
 			{
-				"step_index":           0,
-				"step_type":            "navigate",
-				"status":               "completed",
-				"success":              true,
-				"dom_snapshot_preview": "<html>...</html>",
-				"dom_snapshot": map[string]any{
-					"id":          "dom-123",
-					"storage_url": "/api/v1/artifacts/dom-123",
-					"payload": map[string]any{
-						"html": "<html><body>Full DOM</body></html>",
+				StepIndex:          0,
+				StepType:           "navigate",
+				Status:             "completed",
+				Success:            true,
+				DomSnapshotPreview: "<html>...</html>",
+				DomSnapshot: &basv1.TimelineArtifact{
+					Id:         "dom-123",
+					StorageUrl: "/api/v1/artifacts/dom-123",
+					Payload: map[string]*structpb.Value{
+						"html": structpb.NewStringValue("<html><body>Full DOM</body></html>"),
 					},
 				},
 			},
 		},
 	}
 
-	data, _ := json.Marshal(timeline)
+	data := marshalTimeline(t, timeline)
 	parsed, err := ParseFullTimeline(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

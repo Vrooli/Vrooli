@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -42,7 +42,7 @@
           "type": "test",
           "ref": "api/handlers/ai/ai_analysis_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit tests exist for AI handlers (element analysis and workflow generation) validating AI-generated workflow structure."
         },
         {
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]

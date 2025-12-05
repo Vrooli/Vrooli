@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/playbooks/types"
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -24,10 +25,16 @@ const (
 	WorkflowExecutionTimeout = 3 * time.Minute
 )
 
+var (
+	protoJSONUnmarshal = protojson.UnmarshalOptions{
+		DiscardUnknown: true,
+	}
+)
+
 // ProgressCallback is called periodically during workflow execution with status updates.
 // It receives the current status and elapsed time. Return an error to abort waiting.
-// Use types.ExecutionStatus as the status parameter type.
-type ProgressCallback func(status types.ExecutionStatus, elapsed time.Duration) error
+// Status is the proto Execution message returned by BAS.
+type ProgressCallback func(status *basv1.Execution, elapsed time.Duration) error
 
 // Client defines the interface for BAS API operations.
 type Client interface {
@@ -38,13 +45,13 @@ type Client interface {
 	// ExecuteWorkflow starts a workflow execution and returns the execution ID.
 	ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error)
 	// GetStatus retrieves the status of an execution.
-	GetStatus(ctx context.Context, executionID string) (types.ExecutionStatus, error)
+	GetStatus(ctx context.Context, executionID string) (*basv1.Execution, error)
 	// WaitForCompletion waits for a workflow to complete.
 	WaitForCompletion(ctx context.Context, executionID string) error
 	// WaitForCompletionWithProgress waits for completion and calls the progress callback periodically.
 	WaitForCompletionWithProgress(ctx context.Context, executionID string, callback ProgressCallback) error
 	// GetTimeline retrieves the timeline data for an execution.
-	GetTimeline(ctx context.Context, executionID string) ([]byte, error)
+	GetTimeline(ctx context.Context, executionID string) (*basv1.ExecutionTimeline, []byte, error)
 	// GetScreenshots retrieves screenshot metadata for an execution.
 	GetScreenshots(ctx context.Context, executionID string) ([]Screenshot, error)
 	// DownloadAsset downloads an asset (screenshot, artifact) by URL.
@@ -166,45 +173,42 @@ func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]
 		return "", fmt.Errorf("workflow execution failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
 	}
 
-	var result struct {
-		ExecutionID string `json:"execution_id"`
-	}
-	if err := json.Unmarshal(data, &result); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
+	var result basv1.ExecuteAdhocResponse
+	if err := protoJSONUnmarshal.Unmarshal(data, &result); err != nil {
+		return "", fmt.Errorf("failed to decode response (proto violation): %w", err)
 	}
 
-	if result.ExecutionID == "" {
+	if strings.TrimSpace(result.GetExecutionId()) == "" {
 		return "", fmt.Errorf("execution_id missing in response: %s", strings.TrimSpace(string(data)))
 	}
 
-	return result.ExecutionID, nil
+	return result.GetExecutionId(), nil
 }
 
 // GetStatus retrieves the status of an execution.
-func (c *HTTPClient) GetStatus(ctx context.Context, executionID string) (types.ExecutionStatus, error) {
-	var status types.ExecutionStatus
-
+func (c *HTTPClient) GetStatus(ctx context.Context, executionID string) (*basv1.Execution, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/executions/%s", c.baseURL, executionID), nil)
 	if err != nil {
-		return status, err
+		return nil, err
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return status, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	data, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		return status, fmt.Errorf("status lookup failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
+		return nil, fmt.Errorf("status lookup failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
 	}
 
-	if err := json.Unmarshal(data, &status); err != nil {
-		return status, fmt.Errorf("failed to decode status: %w", err)
+	var status basv1.Execution
+	if err := protoJSONUnmarshal.Unmarshal(data, &status); err != nil {
+		return nil, fmt.Errorf("failed to decode status (proto violation): %w", err)
 	}
 
-	return status, nil
+	return &status, nil
 }
 
 // WaitForCompletion waits for a workflow to complete.
@@ -218,24 +222,23 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 	start := time.Now()
 
 	// Helper to check status and return appropriate result
-	checkStatus := func() (done bool, status types.ExecutionStatus, err error) {
+	checkStatus := func() (done bool, status *basv1.Execution, err error) {
 		status, err = c.GetStatus(ctx, executionID)
 		if err != nil {
 			return true, status, err
 		}
 
-		normalized := strings.ToLower(status.Status)
+		normalized := strings.ToLower(status.GetStatus())
 		switch normalized {
 		case "completed", "success":
 			return true, status, nil
 		case "failed", "error", "errored":
-			if status.FailureReason != "" {
-				return true, status, fmt.Errorf("workflow failed: %s", status.FailureReason)
+			if status != nil && status.Error != nil {
+				if msg := strings.TrimSpace(status.GetError()); msg != "" {
+					return true, status, fmt.Errorf("workflow failed: %s", msg)
+				}
 			}
-			if status.Error != "" {
-				return true, status, fmt.Errorf("workflow failed: %s", status.Error)
-			}
-			return true, status, fmt.Errorf("workflow failed with status %s", status.Status)
+			return true, status, fmt.Errorf("workflow failed with status %s", status.GetStatus())
 		}
 		return false, status, nil
 	}
@@ -286,29 +289,35 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 	}
 }
 
-// GetTimeline retrieves the timeline data for an execution.
-func (c *HTTPClient) GetTimeline(ctx context.Context, executionID string) ([]byte, error) {
+// GetTimeline retrieves the timeline data for an execution and validates it against the proto contract.
+// It returns the parsed proto message alongside the raw JSON for artifact persistence.
+func (c *HTTPClient) GetTimeline(ctx context.Context, executionID string) (*basv1.ExecutionTimeline, []byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/executions/%s/timeline", c.baseURL, executionID), nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("timeline fetch failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
+		return nil, data, fmt.Errorf("timeline fetch failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
 	}
 
-	return data, nil
+	var timeline basv1.ExecutionTimeline
+	if err := protoJSONUnmarshal.Unmarshal(data, &timeline); err != nil {
+		return nil, data, fmt.Errorf("failed to decode timeline (proto violation): %w", err)
+	}
+
+	return &timeline, data, nil
 }
 
 // TimelineSummary contains parsed timeline statistics.
@@ -350,42 +359,18 @@ func SummarizeTimeline(data []byte) string {
 	return summary.String()
 }
 
-// ParseTimeline parses timeline data and returns a summary.
+// ParseTimeline parses timeline data and returns a summary using the proto contract.
 // Returns a TimelineParseError if the data cannot be parsed, allowing callers
 // to save the raw data for debugging.
 func ParseTimeline(data []byte) (TimelineSummary, error) {
-	var summary TimelineSummary
-
-	if len(data) == 0 {
-		return summary, nil
+	parsed, err := ParseFullTimeline(data)
+	if err != nil {
+		return TimelineSummary{}, err
 	}
-
-	var doc struct {
-		Frames []struct {
-			StepType string `json:"step_type"`
-			Status   string `json:"status"`
-		} `json:"frames"`
+	if parsed == nil {
+		return TimelineSummary{}, nil
 	}
-
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return summary, &TimelineParseError{
-			RawData: data,
-			Cause:   err,
-		}
-	}
-
-	summary.TotalSteps = len(doc.Frames)
-
-	for _, frame := range doc.Frames {
-		if frame.StepType == "assert" {
-			summary.TotalAsserts++
-			if strings.EqualFold(frame.Status, "completed") {
-				summary.AssertsPassed++
-			}
-		}
-	}
-
-	return summary, nil
+	return parsed.Summary, nil
 }
 
 // BaseURL returns the base URL of the BAS API.
