@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"test-genie/internal/shared"
 	"test-genie/internal/unit/types"
 )
 
@@ -35,14 +36,10 @@ func New(cfg Config) *Runner {
 	if executor == nil {
 		executor = types.NewDefaultExecutor()
 	}
-	logWriter := cfg.LogWriter
-	if logWriter == nil {
-		logWriter = io.Discard
-	}
 	return &Runner{
 		scenarioDir: cfg.ScenarioDir,
 		executor:    executor,
-		logWriter:   logWriter,
+		logWriter:   shared.DefaultLogWriter(cfg.LogWriter),
 	}
 }
 
@@ -76,7 +73,7 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		return types.FailMissingDependency(err, "Install the Go toolchain to execute API unit tests.")
 	}
 
-	logStep(r.logWriter, "executing go test ./... inside %s", apiDir)
+	shared.LogStep(r.logWriter, "executing go test ./... inside %s", apiDir)
 
 	// Run go test
 	if err := r.executor.Run(ctx, apiDir, r.logWriter, "go", "test", "./..."); err != nil {
@@ -86,7 +83,10 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		)
 	}
 
-	return types.OK().WithObservations(types.NewSuccessObservation("go test ./... passed"))
+	return types.NewResultBuilder().
+		Success().
+		AddSuccess("go test ./... passed").
+		Build()
 }
 
 // ensureDir checks that a directory exists.
@@ -101,10 +101,3 @@ func ensureDir(path string) error {
 	return nil
 }
 
-// logStep writes a step message to the log.
-func logStep(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	fmt.Fprintf(w, format+"\n", args...)
-}

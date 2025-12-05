@@ -5,6 +5,15 @@ import (
 	"io"
 )
 
+// DefaultLogWriter returns a safe io.Writer, defaulting to io.Discard if w is nil.
+// This eliminates the repetitive nil-check pattern found in runner constructors.
+func DefaultLogWriter(w io.Writer) io.Writer {
+	if w == nil {
+		return io.Discard
+	}
+	return w
+}
+
 // LogStep writes a structured step message to the log.
 // Uses consistent formatting that can be parsed for observation streaming.
 func LogStep(w io.Writer, format string, args ...interface{}) {

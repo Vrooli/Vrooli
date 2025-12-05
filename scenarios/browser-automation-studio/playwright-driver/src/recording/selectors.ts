@@ -1,23 +1,40 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-redundant-type-constituents, @typescript-eslint/no-unsafe-return, @typescript-eslint/restrict-template-expressions */
+// @ts-nocheck - This file uses DOM types (Element, document, window) but is meant
+// for BROWSER CONTEXT execution. The actual runtime code is in injector.ts as a
+// stringified script. This file serves as documentation and algorithm reference.
+/* eslint-enable @typescript-eslint/ban-ts-comment */
+
 /**
- * Selector Generator
+ * Selector Generator - Reference Implementation
  *
- * Multi-strategy selector generation for Record Mode.
- * Generates robust, reliable selectors that survive page changes.
+ * @fileoverview
+ * This file contains the REFERENCE IMPLEMENTATION of selector generation for Record Mode.
+ * It uses DOM types (Element, document, window) and is meant to run in BROWSER CONTEXT.
+ *
+ * IMPORTANT: This code is NOT executed directly from Node.js.
+ * The actual runtime code is in `injector.ts` as a stringified script that gets
+ * injected into pages via page.evaluate().
+ *
+ * This file exists for:
+ * 1. Documentation - TypeScript code is easier to read than stringified JS
+ * 2. Algorithm reference - Changes here should be synced to injector.ts
+ * 3. Type definitions - Exports types used by the recording module
  *
  * Strategy priority (highest confidence first):
  * 1. data-testid - Explicitly stable test IDs
  * 2. Unique ID - DOM IDs (if not dynamic)
  * 3. ARIA attributes - Semantic accessibility attributes
- * 4. Role + text - Playwright locator patterns
+ * 4. Tag + text - Playwright :has-text() patterns
  * 5. Data attributes - Other data-* attributes
  * 6. Stable CSS path - Filtered CSS classes
  * 7. XPath fallback - Text-based XPath
+ *
+ * @see injector.ts for the actual runtime implementation
  */
 
 import type {
   SelectorCandidate,
   SelectorSet,
-  SelectorType,
   SelectorGeneratorOptions,
   ElementMeta,
 } from './types';

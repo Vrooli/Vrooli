@@ -8,7 +8,7 @@
  * The script is designed to be stringified and injected via page.evaluate().
  */
 
-import type { RawBrowserEvent, SelectorSet, ElementMeta, Point, BoundingBox } from './types';
+import type { RawBrowserEvent } from './types';
 
 /**
  * Generate the recording script that will be injected into pages.
@@ -260,7 +260,8 @@ export function getRecordingScript(): string {
     const text = getVisibleText(element);
 
     if (text && text.length > 0 && text.length <= 50) {
-      const xpath = '//' + tag + '[contains(text(), "' + text.replace(/"/g, '\\"') + '")]';
+      const escapedText = escapeXPathString(text);
+      const xpath = '//' + tag + '[contains(text(), ' + escapedText + ')]';
       if (isUniqueXPath(xpath)) {
         return { type: 'xpath', value: xpath, confidence: 0.55, specificity: 35 };
       }
@@ -273,6 +274,33 @@ export function getRecordingScript(): string {
       confidence: 0.4,
       specificity: 25,
     };
+  }
+
+  /**
+   * Escape string for use in XPath expressions.
+   * Handles strings containing single quotes, double quotes, or both.
+   */
+  function escapeXPathString(str) {
+    var sq = "'";
+    var dq = '"';
+    // If string contains both quotes, use concat()
+    if (str.indexOf(sq) !== -1 && str.indexOf(dq) !== -1) {
+      // Split on single quotes and rejoin with concat
+      var parts = str.split(sq);
+      var result = 'concat(';
+      for (var i = 0; i < parts.length; i++) {
+        if (i > 0) result += ', ' + dq + sq + dq + ', ';
+        result += sq + parts[i] + sq;
+      }
+      result += ')';
+      return result;
+    }
+    // If string contains single quotes, use double quotes
+    if (str.indexOf(sq) !== -1) {
+      return dq + str + dq;
+    }
+    // Default to single quotes
+    return sq + str + sq;
   }
 
   function generatePositionalXPath(element) {
@@ -618,6 +646,9 @@ export function getRecordingScript(): string {
     flushInput();
   });
 
+  // Expose generateSelectors for testing/debugging
+  window.__generateSelectors = generateSelectors;
+
   console.log('[Recording] Event listeners attached');
 })();
 `;
@@ -636,6 +667,8 @@ export function getCleanupScript(): string {
 }
 
 /**
- * Type definition for the exposed record action function.
+ * Type definition for the raw record action function exposed to browser context.
+ * This receives raw browser events before normalization.
+ * @internal
  */
-export type RecordActionCallback = (action: RawBrowserEvent) => void;
+export type RawRecordActionCallback = (action: RawBrowserEvent) => void;

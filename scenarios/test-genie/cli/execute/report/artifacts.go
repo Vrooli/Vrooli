@@ -66,38 +66,62 @@ func DescribeArtifacts(phases []execTypes.Phase) []string {
 	return lines
 }
 
-// DescribeCoverage finds and describes coverage artifacts.
-func DescribeCoverage(scenario string) []string {
+// phaseRan checks if a phase name was executed.
+func phaseRan(phases []execTypes.Phase, name string) bool {
+	for _, p := range phases {
+		if strings.EqualFold(p.Name, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// DescribeCoverage finds and describes coverage artifacts for phases that ran.
+// Only shows artifacts relevant to the phases that were actually executed.
+func DescribeCoverage(scenario string, phases []execTypes.Phase) []string {
 	paths := repo.DiscoverScenarioPaths(scenario)
 	if paths.ScenarioDir == "" {
 		return nil
 	}
 	var lines []string
-	coverageDirs := []string{
-		filepath.Join(paths.ScenarioDir, "coverage", "unit", "go"),
-		filepath.Join(paths.ScenarioDir, "coverage", "integration"),
-		filepath.Join(paths.ScenarioDir, "coverage", "test-genie"),
-	}
-	for _, dir := range coverageDirs {
-		if repo.Exists(dir) {
-			lines = append(lines, fmt.Sprintf("coverage: %s", dir))
+
+	// Unit coverage - only show if unit phase ran
+	if phaseRan(phases, "unit") {
+		coverageDirs := []string{
+			filepath.Join(paths.ScenarioDir, "coverage", "unit", "go"),
+			filepath.Join(paths.ScenarioDir, "coverage", "integration"),
+			filepath.Join(paths.ScenarioDir, "coverage", "test-genie"),
+		}
+		for _, dir := range coverageDirs {
+			if repo.Exists(dir) {
+				lines = append(lines, fmt.Sprintf("coverage: %s", dir))
+			}
+		}
+		goHTML := filepath.Join(paths.ScenarioDir, "coverage", "unit", "go", "coverage.html")
+		if repo.Exists(goHTML) {
+			lines = append(lines, fmt.Sprintf("go coverage html: %s", goHTML))
+		}
+		nodeHTML := filepath.Join(paths.ScenarioDir, "ui", "coverage", "lcov-report", "index.html")
+		if repo.Exists(nodeHTML) {
+			lines = append(lines, fmt.Sprintf("node coverage html: %s", nodeHTML))
 		}
 	}
-	lighthouse := filepath.Join(paths.ScenarioDir, "test", "artifacts", "lighthouse")
-	if repo.Exists(lighthouse) {
-		lines = append(lines, fmt.Sprintf("lighthouse: %s", lighthouse))
+
+	// Lighthouse - only show if performance phase ran
+	if phaseRan(phases, "performance") {
+		lighthouse := filepath.Join(paths.ScenarioDir, "test", "artifacts", "lighthouse")
+		if repo.Exists(lighthouse) {
+			lines = append(lines, fmt.Sprintf("lighthouse: %s", lighthouse))
+		}
 	}
-	reqIndex := filepath.Join(paths.ScenarioDir, "requirements", "index.json")
-	if repo.Exists(reqIndex) {
-		lines = append(lines, fmt.Sprintf("requirements index: %s", reqIndex))
+
+	// Requirements index - always relevant (used by business phase but useful context)
+	if phaseRan(phases, "business") || phaseRan(phases, "structure") {
+		reqIndex := filepath.Join(paths.ScenarioDir, "requirements", "index.json")
+		if repo.Exists(reqIndex) {
+			lines = append(lines, fmt.Sprintf("requirements index: %s", reqIndex))
+		}
 	}
-	goHTML := filepath.Join(paths.ScenarioDir, "coverage", "unit", "go", "coverage.html")
-	if repo.Exists(goHTML) {
-		lines = append(lines, fmt.Sprintf("go coverage html: %s", goHTML))
-	}
-	nodeHTML := filepath.Join(paths.ScenarioDir, "ui", "coverage", "lcov-report", "index.html")
-	if repo.Exists(nodeHTML) {
-		lines = append(lines, fmt.Sprintf("node coverage html: %s", nodeHTML))
-	}
+
 	return lines
 }

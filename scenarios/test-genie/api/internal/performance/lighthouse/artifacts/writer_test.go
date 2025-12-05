@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"test-genie/internal/performance/lighthouse"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 // mockFileSystem is a test double for FileSystem.
@@ -44,17 +45,17 @@ func TestNewWriter(t *testing.T) {
 	if w == nil {
 		t.Fatal("expected non-nil writer")
 	}
-	if w.scenarioDir != "/scenario/dir" {
-		t.Errorf("expected scenarioDir '/scenario/dir', got %q", w.scenarioDir)
+	if w.ScenarioDir != "/scenario/dir" {
+		t.Errorf("expected ScenarioDir '/scenario/dir', got %q", w.ScenarioDir)
 	}
-	if w.scenarioName != "test-scenario" {
-		t.Errorf("expected scenarioName 'test-scenario', got %q", w.scenarioName)
+	if w.ScenarioName != "test-scenario" {
+		t.Errorf("expected ScenarioName 'test-scenario', got %q", w.ScenarioName)
 	}
 }
 
 func TestFileWriter_WritePageReport(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	rawResponse := []byte(`{"categories": {"performance": {"score": 0.85}}}`)
 	path, err := w.WritePageReport("home", rawResponse)
@@ -86,7 +87,7 @@ func TestFileWriter_WritePageReport(t *testing.T) {
 
 func TestFileWriter_WritePageReport_EmptyResponse(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	path, err := w.WritePageReport("home", nil)
 
@@ -100,7 +101,7 @@ func TestFileWriter_WritePageReport_EmptyResponse(t *testing.T) {
 
 func TestFileWriter_WritePageReport_SanitizesFilename(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	rawResponse := []byte(`{}`)
 	path, err := w.WritePageReport("home/with spaces & special!", rawResponse)
@@ -118,7 +119,7 @@ func TestFileWriter_WritePageReport_SanitizesFilename(t *testing.T) {
 
 func TestFileWriter_WritePhaseResults(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{
 		PageResults: []lighthouse.PageResult{
@@ -168,7 +169,7 @@ func TestFileWriter_WritePhaseResults(t *testing.T) {
 
 func TestFileWriter_WritePhaseResults_Skipped(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{Skipped: true}
 
@@ -185,7 +186,7 @@ func TestFileWriter_WritePhaseResults_Skipped(t *testing.T) {
 
 func TestFileWriter_WriteSummary(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{
 		PageResults: []lighthouse.PageResult{
@@ -239,7 +240,7 @@ func TestFileWriter_WriteSummary(t *testing.T) {
 
 func TestFileWriter_WriteSummary_Skipped(t *testing.T) {
 	fs := newMockFileSystem()
-	w := NewWriter("/scenario/dir", "test-scenario", WithFileSystem(fs))
+	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	result := &lighthouse.AuditResult{Skipped: true}
 
@@ -271,9 +272,9 @@ func TestSanitizeFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := sanitizeFilename(tt.input)
+			got := sharedartifacts.SanitizeFilename(tt.input)
 			if got != tt.expected {
-				t.Errorf("sanitizeFilename(%q) = %q, want %q", tt.input, got, tt.expected)
+				t.Errorf("SanitizeFilename(%q) = %q, want %q", tt.input, got, tt.expected)
 			}
 		})
 	}

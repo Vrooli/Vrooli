@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"test-genie/internal/shared"
 	"test-genie/internal/unit/types"
 )
 
@@ -35,14 +36,10 @@ func New(cfg Config) *Runner {
 	if executor == nil {
 		executor = types.NewDefaultExecutor()
 	}
-	logWriter := cfg.LogWriter
-	if logWriter == nil {
-		logWriter = io.Discard
-	}
 	return &Runner{
 		scenarioDir: cfg.ScenarioDir,
 		executor:    executor,
-		logWriter:   logWriter,
+		logWriter:   shared.DefaultLogWriter(cfg.LogWriter),
 	}
 }
 
@@ -105,7 +102,7 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 
 	// Install dependencies if needed
 	if !dirExists(filepath.Join(nodeDir, "node_modules")) {
-		logStep(r.logWriter, "installing Node dependencies via %s", packageManager)
+		shared.LogStep(r.logWriter, "installing Node dependencies via %s", packageManager)
 		if err := r.installDependencies(ctx, nodeDir, packageManager); err != nil {
 			return types.FailSystem(
 				fmt.Errorf("%s install failed: %w", packageManager, err),
@@ -115,7 +112,7 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 	}
 
 	// Run tests
-	logStep(r.logWriter, "running Node unit tests with %s", packageManager)
+	shared.LogStep(r.logWriter, "running Node unit tests with %s", packageManager)
 	output, err := r.executor.Capture(ctx, nodeDir, r.logWriter, packageManager, "test")
 	if err != nil {
 		return types.FailTestFailure(
@@ -124,18 +121,18 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		)
 	}
 
-	// Extract coverage
+	// Extract coverage and build result
 	coverage := DetectCoverage(nodeDir, output)
-	result := types.OKWithCoverage(coverage)
-
-	successMsg := fmt.Sprintf("node unit tests passed via %s", packageManager)
-	result = result.WithObservations(types.NewSuccessObservation(successMsg))
+	builder := types.NewResultBuilder().
+		Success().
+		WithCoverage(coverage).
+		AddSuccessf("node unit tests passed via %s", packageManager)
 
 	if coverage != "" {
-		result = result.WithObservations(types.NewInfoObservation(fmt.Sprintf("node coverage: %s%% statements", coverage)))
+		builder.AddInfof("node coverage: %s%% statements", coverage)
 	}
 
-	return result
+	return builder.Build()
 }
 
 // installDependencies installs Node.js dependencies using the appropriate package manager.
@@ -156,10 +153,3 @@ func dirExists(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-// logStep writes a step message to the log.
-func logStep(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	fmt.Fprintf(w, format+"\n", args...)
-}

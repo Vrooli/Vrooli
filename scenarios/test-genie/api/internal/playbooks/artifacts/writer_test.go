@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"test-genie/internal/playbooks/types"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 func TestWriterWriteTimeline(t *testing.T) {
@@ -90,7 +91,7 @@ func TestWriterWritePhaseResults(t *testing.T) {
 	}
 
 	// Verify file was created
-	path := filepath.Join(scenarioDir, PhaseResultsDir, PhaseResultsFile)
+	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, PhaseResultsFile)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read phase results: %v", err)
@@ -144,7 +145,7 @@ func TestWriterWritePhaseResultsWithErrors(t *testing.T) {
 		t.Fatalf("expected success, got error: %v", err)
 	}
 
-	path := filepath.Join(scenarioDir, PhaseResultsDir, PhaseResultsFile)
+	path := filepath.Join(scenarioDir, sharedartifacts.PhaseResultsDir, PhaseResultsFile)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read phase results: %v", err)
@@ -178,7 +179,7 @@ func TestWriterWritePhaseResultsEmpty(t *testing.T) {
 	}
 }
 
-func TestSanitizeArtifactName(t *testing.T) {
+func TestSanitizeFilenameWithoutExtension(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
@@ -193,7 +194,7 @@ func TestSanitizeArtifactName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := sanitizeArtifactName(tt.input)
+			result := sharedartifacts.SanitizeFilenameWithoutExtension(tt.input)
 			if result != tt.expected {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}

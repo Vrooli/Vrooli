@@ -7,3 +7,4 @@
 export * from './types';
 export * from './selectors';
 export * from './injector';
+export * from './controller';

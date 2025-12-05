@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	sharedartifacts "test-genie/internal/shared/artifacts"
 	"test-genie/internal/smoke/orchestrator"
 )
 
@@ -184,8 +185,8 @@ func TestAbsPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			if got := absPath(tt.path); got != tt.want {
-				t.Errorf("absPath() = %q, want %q", got, tt.want)
+			if got := sharedartifacts.AbsPath(tt.path); got != tt.want {
+				t.Errorf("AbsPath() = %q, want %q", got, tt.want)
 			}
 		})
 	}

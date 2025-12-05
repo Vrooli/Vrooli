@@ -3,11 +3,10 @@ package structure
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"test-genie/internal/shared"
 )
 
 // Expectations holds the configuration for structure validation, loaded from
@@ -30,11 +29,7 @@ type Expectations struct {
 	ValidateServiceName bool
 }
 
-// configDocument represents the structure of .vrooli/testing.json.
-type configDocument struct {
-	Structure configSection `json:"structure"`
-}
-
+// configSection represents the structure section of .vrooli/testing.json.
 type configSection struct {
 	AdditionalDirs  []pathEntry     `json:"additional_dirs"`
 	AdditionalFiles []pathEntry     `json:"additional_files"`
@@ -77,28 +72,19 @@ func (e *pathEntry) UnmarshalJSON(data []byte) error {
 // If the file doesn't exist, default expectations are returned.
 func LoadExpectations(scenarioDir string) (*Expectations, error) {
 	exp := DefaultExpectations()
-	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
 
-	data, err := os.ReadFile(configPath)
+	section, err := shared.LoadPhaseConfig(scenarioDir, "structure", configSection{})
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return exp, nil
-		}
-		return nil, fmt.Errorf("failed to read %s: %w", configPath, err)
+		return nil, err
 	}
 
-	var doc configDocument
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", configPath, err)
-	}
+	exp.AdditionalDirs = entriesToPaths(section.AdditionalDirs)
+	exp.AdditionalFiles = entriesToPaths(section.AdditionalFiles)
+	exp.ExcludedDirs = entriesToPaths(section.ExcludeDirs)
+	exp.ExcludedFiles = entriesToPaths(section.ExcludeFiles)
 
-	exp.AdditionalDirs = entriesToPaths(doc.Structure.AdditionalDirs)
-	exp.AdditionalFiles = entriesToPaths(doc.Structure.AdditionalFiles)
-	exp.ExcludedDirs = entriesToPaths(doc.Structure.ExcludeDirs)
-	exp.ExcludedFiles = entriesToPaths(doc.Structure.ExcludeFiles)
-
-	if doc.Structure.Validations.ServiceNameMatchesDirectory != nil {
-		exp.ValidateServiceName = *doc.Structure.Validations.ServiceNameMatchesDirectory
+	if section.Validations.ServiceNameMatchesDirectory != nil {
+		exp.ValidateServiceName = *section.Validations.ServiceNameMatchesDirectory
 	}
 
 	return exp, nil

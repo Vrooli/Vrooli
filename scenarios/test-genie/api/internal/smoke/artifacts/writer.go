@@ -5,41 +5,22 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"test-genie/internal/smoke/orchestrator"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 // Writer persists test artifacts to the filesystem.
 type Writer struct {
-	fs FileSystem
-}
-
-// FileSystem abstracts filesystem operations for testing.
-type FileSystem interface {
-	WriteFile(path string, data []byte, perm os.FileMode) error
-	MkdirAll(path string, perm os.FileMode) error
-}
-
-// OSFileSystem is the default filesystem implementation using os package.
-type OSFileSystem struct{}
-
-// WriteFile writes data to a file.
-func (OSFileSystem) WriteFile(path string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-// MkdirAll creates a directory and all parents.
-func (OSFileSystem) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
+	fs sharedartifacts.FileSystem
 }
 
 // NewWriter creates a new artifact Writer.
 func NewWriter(opts ...WriterOption) *Writer {
 	w := &Writer{
-		fs: OSFileSystem{},
+		fs: sharedartifacts.OSFileSystem{},
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -51,7 +32,7 @@ func NewWriter(opts ...WriterOption) *Writer {
 type WriterOption func(*Writer)
 
 // WithFileSystem sets a custom filesystem implementation.
-func WithFileSystem(fs FileSystem) WriterOption {
+func WithFileSystem(fs sharedartifacts.FileSystem) WriterOption {
 	return func(w *Writer) {
 		w.fs = fs
 	}
@@ -84,7 +65,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		if err := w.fs.WriteFile(screenshotPath, decoded, 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write screenshot: %w", err)
 		}
-		paths.Screenshot = absPath(screenshotPath)
+		paths.Screenshot = sharedartifacts.AbsPath(screenshotPath)
 	}
 
 	// Write console logs
@@ -97,7 +78,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		if err := w.fs.WriteFile(consolePath, data, 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write console: %w", err)
 		}
-		paths.Console = absPath(consolePath)
+		paths.Console = sharedartifacts.AbsPath(consolePath)
 	}
 
 	// Write network failures (always write, even if empty, for visibility)
@@ -113,7 +94,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 	if err := w.fs.WriteFile(networkPath, data, 0o644); err != nil {
 		return nil, fmt.Errorf("failed to write network: %w", err)
 	}
-	paths.Network = absPath(networkPath)
+	paths.Network = sharedartifacts.AbsPath(networkPath)
 
 	// Write DOM snapshot
 	if response.HTML != "" {
@@ -121,7 +102,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 		if err := w.fs.WriteFile(htmlPath, []byte(response.HTML), 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write html: %w", err)
 		}
-		paths.HTML = absPath(htmlPath)
+		paths.HTML = sharedartifacts.AbsPath(htmlPath)
 	}
 
 	// Write raw response (without screenshot)
@@ -139,7 +120,7 @@ func (w *Writer) WriteAll(ctx context.Context, scenarioDir, scenarioName string,
 				return nil, fmt.Errorf("failed to write raw: %w", err)
 			}
 		}
-		paths.Raw = absPath(rawPath)
+		paths.Raw = sharedartifacts.AbsPath(rawPath)
 	}
 
 	return paths, nil
@@ -179,7 +160,7 @@ func (w *Writer) WriteReadme(ctx context.Context, scenarioDir, scenarioName stri
 		return "", fmt.Errorf("failed to write README: %w", err)
 	}
 
-	return absPath(readmePath), nil
+	return sharedartifacts.AbsPath(readmePath), nil
 }
 
 // generateReadme creates the README.md content for a UI smoke test result.
@@ -327,11 +308,3 @@ func generateReadme(result *orchestrator.Result) string {
 	return b.String()
 }
 
-// absPath returns the absolute path, cleaning up any relative components.
-func absPath(path string) string {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return path
-	}
-	return abs
-}

@@ -1,4 +1,5 @@
 import { Page, BrowserContext, Browser, Frame } from 'playwright';
+import type { RecordModeController } from '../recording/controller';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -48,6 +49,10 @@ export interface SessionState {
 
   // Network mocking state
   activeMocks: Map<string, MockRoute>;
+
+  // Recording state (Record Mode)
+  recordingController?: RecordModeController;
+  recordingId?: string;
 }
 
 export interface MockRoute {

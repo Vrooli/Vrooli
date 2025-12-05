@@ -1,11 +1,7 @@
 package business
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
+	"test-genie/internal/shared"
 )
 
 // Config holds configuration for business validation.
@@ -40,12 +36,8 @@ type Expectations struct {
 	ErrorCoveragePercent int
 }
 
-// configDocument represents the structure of .vrooli/testing.json.
-type configDocument struct {
-	Business businessConfigSection `json:"business"`
-}
-
-type businessConfigSection struct {
+// configSection represents the business section of .vrooli/testing.json.
+type configSection struct {
 	RequireModules       *bool `json:"require_modules"`
 	RequireIndex         *bool `json:"require_index"`
 	MinCoveragePercent   *int  `json:"min_coverage_percent"`
@@ -56,32 +48,23 @@ type businessConfigSection struct {
 // If the file doesn't exist or has no business section, default expectations are returned.
 func LoadExpectations(scenarioDir string) (*Expectations, error) {
 	exp := DefaultExpectations()
-	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
 
-	data, err := os.ReadFile(configPath)
+	section, err := shared.LoadPhaseConfig(scenarioDir, "business", configSection{})
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return exp, nil
-		}
-		return nil, fmt.Errorf("failed to read %s: %w", configPath, err)
+		return nil, err
 	}
 
-	var doc configDocument
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", configPath, err)
+	if section.RequireModules != nil {
+		exp.RequireModules = *section.RequireModules
 	}
-
-	if doc.Business.RequireModules != nil {
-		exp.RequireModules = *doc.Business.RequireModules
+	if section.RequireIndex != nil {
+		exp.RequireIndex = *section.RequireIndex
 	}
-	if doc.Business.RequireIndex != nil {
-		exp.RequireIndex = *doc.Business.RequireIndex
+	if section.MinCoveragePercent != nil {
+		exp.MinCoveragePercent = *section.MinCoveragePercent
 	}
-	if doc.Business.MinCoveragePercent != nil {
-		exp.MinCoveragePercent = *doc.Business.MinCoveragePercent
-	}
-	if doc.Business.ErrorCoveragePercent != nil {
-		exp.ErrorCoveragePercent = *doc.Business.ErrorCoveragePercent
+	if section.ErrorCoveragePercent != nil {
+		exp.ErrorCoveragePercent = *section.ErrorCoveragePercent
 	}
 
 	return exp, nil

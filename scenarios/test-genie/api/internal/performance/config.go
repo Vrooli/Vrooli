@@ -1,12 +1,9 @@
 package performance
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
 	"time"
+
+	"test-genie/internal/shared"
 )
 
 // Config holds configuration for performance validation.
@@ -45,12 +42,8 @@ type Expectations struct {
 	RequireUIBuild bool
 }
 
-// configDocument represents the structure of .vrooli/testing.json.
-type configDocument struct {
-	Performance performanceConfigSection `json:"performance"`
-}
-
-type performanceConfigSection struct {
+// configSection represents the performance section of .vrooli/testing.json.
+type configSection struct {
 	GoBuildMaxSeconds *int  `json:"go_build_max_seconds"`
 	UIBuildMaxSeconds *int  `json:"ui_build_max_seconds"`
 	RequireGoBuild    *bool `json:"require_go_build"`
@@ -61,32 +54,23 @@ type performanceConfigSection struct {
 // If the file doesn't exist or has no performance section, default expectations are returned.
 func LoadExpectations(scenarioDir string) (*Expectations, error) {
 	exp := DefaultExpectations()
-	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
 
-	data, err := os.ReadFile(configPath)
+	section, err := shared.LoadPhaseConfig(scenarioDir, "performance", configSection{})
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return exp, nil
-		}
-		return nil, fmt.Errorf("failed to read %s: %w", configPath, err)
+		return nil, err
 	}
 
-	var doc configDocument
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", configPath, err)
+	if section.GoBuildMaxSeconds != nil {
+		exp.GoBuildMaxDuration = time.Duration(*section.GoBuildMaxSeconds) * time.Second
 	}
-
-	if doc.Performance.GoBuildMaxSeconds != nil {
-		exp.GoBuildMaxDuration = time.Duration(*doc.Performance.GoBuildMaxSeconds) * time.Second
+	if section.UIBuildMaxSeconds != nil {
+		exp.UIBuildMaxDuration = time.Duration(*section.UIBuildMaxSeconds) * time.Second
 	}
-	if doc.Performance.UIBuildMaxSeconds != nil {
-		exp.UIBuildMaxDuration = time.Duration(*doc.Performance.UIBuildMaxSeconds) * time.Second
+	if section.RequireGoBuild != nil {
+		exp.RequireGoBuild = *section.RequireGoBuild
 	}
-	if doc.Performance.RequireGoBuild != nil {
-		exp.RequireGoBuild = *doc.Performance.RequireGoBuild
-	}
-	if doc.Performance.RequireUIBuild != nil {
-		exp.RequireUIBuild = *doc.Performance.RequireUIBuild
+	if section.RequireUIBuild != nil {
+		exp.RequireUIBuild = *section.RequireUIBuild
 	}
 
 	return exp, nil

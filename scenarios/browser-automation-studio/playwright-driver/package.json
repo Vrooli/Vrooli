@@ -10,6 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:selectors": "playwright test src/recording/selectors.test.ts",
+    "test:selectors:headed": "playwright test src/recording/selectors.test.ts --headed",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
@@ -25,6 +27,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
     "@types/node": "^20.10.0",
     "@types/uuid": "^9.0.7",
     "typescript": "^5.3.0",

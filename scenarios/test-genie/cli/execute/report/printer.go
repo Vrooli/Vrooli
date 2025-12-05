@@ -576,7 +576,7 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 			fmt.Fprintf(p.w, "  • %s\n", line)
 		}
 	}
-	for _, line := range DescribeCoverage(p.scenario) {
+	for _, line := range DescribeCoverage(p.scenario, resp.Phases) {
 		fmt.Fprintf(p.w, "  • %s\n", line)
 	}
 

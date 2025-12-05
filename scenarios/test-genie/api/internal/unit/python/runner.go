@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"test-genie/internal/shared"
 	"test-genie/internal/unit/types"
 )
 
@@ -38,14 +39,10 @@ func New(cfg Config) *Runner {
 	if executor == nil {
 		executor = types.NewDefaultExecutor()
 	}
-	logWriter := cfg.LogWriter
-	if logWriter == nil {
-		logWriter = io.Discard
-	}
 	return &Runner{
 		scenarioDir: cfg.ScenarioDir,
 		executor:    executor,
-		logWriter:   logWriter,
+		logWriter:   shared.DefaultLogWriter(cfg.LogWriter),
 	}
 }
 
@@ -124,26 +121,32 @@ func (r *Runner) supportsPytest(ctx context.Context, pythonCmd string) bool {
 
 // runPytest executes tests using pytest.
 func (r *Runner) runPytest(ctx context.Context, dir, pythonCmd string) types.Result {
-	logStep(r.logWriter, "running pytest under %s", dir)
+	shared.LogStep(r.logWriter, "running pytest under %s", dir)
 	if err := r.executor.Run(ctx, dir, r.logWriter, pythonCmd, "-m", "pytest", "-q"); err != nil {
 		return types.FailTestFailure(
 			fmt.Errorf("pytest failed: %w", err),
 			"Inspect pytest output above, fix failing tests, and rerun the suite.",
 		)
 	}
-	return types.OK().WithObservations(types.NewSuccessObservation("python unit tests passed via pytest"))
+	return types.NewResultBuilder().
+		Success().
+		AddSuccess("python unit tests passed via pytest").
+		Build()
 }
 
 // runUnittest executes tests using unittest.
 func (r *Runner) runUnittest(ctx context.Context, dir, pythonCmd string) types.Result {
-	logStep(r.logWriter, "running unittest discover under %s", dir)
+	shared.LogStep(r.logWriter, "running unittest discover under %s", dir)
 	if err := r.executor.Run(ctx, dir, r.logWriter, pythonCmd, "-m", "unittest", "discover"); err != nil {
 		return types.FailTestFailure(
 			fmt.Errorf("python -m unittest discover failed: %w", err),
 			"Ensure the default unittest suites pass or install pytest for richer reporting.",
 		)
 	}
-	return types.OK().WithObservations(types.NewSuccessObservation("python unit tests passed via unittest"))
+	return types.NewResultBuilder().
+		Success().
+		AddSuccess("python unit tests passed via unittest").
+		Build()
 }
 
 // hasIndicators checks if common Python project indicators are present.
@@ -215,10 +218,3 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// logStep writes a step message to the log.
-func logStep(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	fmt.Fprintf(w, format+"\n", args...)
-}

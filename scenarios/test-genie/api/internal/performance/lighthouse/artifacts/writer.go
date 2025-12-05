@@ -1,21 +1,18 @@
 package artifacts
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"test-genie/internal/performance/lighthouse"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 const (
 	// LighthouseDir is the directory for Lighthouse artifacts.
 	LighthouseDir = "coverage/lighthouse"
-	// PhaseResultsDir is the directory for phase results.
-	PhaseResultsDir = "coverage/phase-results"
 	// PhaseResultsFile is the filename for lighthouse phase results.
 	PhaseResultsFile = "lighthouse.json"
 )
@@ -32,63 +29,21 @@ type Writer interface {
 	WriteSummary(result *lighthouse.AuditResult) (string, error)
 }
 
-// FileSystem abstracts filesystem operations for testing.
-type FileSystem interface {
-	WriteFile(path string, data []byte, perm os.FileMode) error
-	MkdirAll(path string, perm os.FileMode) error
-}
-
-// OSFileSystem is the default filesystem implementation using os package.
-type OSFileSystem struct{}
-
-// WriteFile writes data to a file.
-func (OSFileSystem) WriteFile(path string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-// MkdirAll creates a directory and all parents.
-func (OSFileSystem) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
 // FileWriter writes artifacts to the filesystem.
 type FileWriter struct {
-	scenarioDir  string
-	scenarioName string
-	fs           FileSystem
+	*sharedartifacts.BaseWriter
 }
-
-// WriterOption configures a FileWriter.
-type WriterOption func(*FileWriter)
 
 // NewWriter creates a new artifact writer.
-func NewWriter(scenarioDir, scenarioName string, opts ...WriterOption) *FileWriter {
-	w := &FileWriter{
-		scenarioDir:  scenarioDir,
-		scenarioName: scenarioName,
-		fs:           OSFileSystem{},
-	}
-	for _, opt := range opts {
-		opt(w)
-	}
-	return w
-}
-
-// WithFileSystem sets a custom filesystem implementation.
-func WithFileSystem(fs FileSystem) WriterOption {
-	return func(w *FileWriter) {
-		w.fs = fs
+func NewWriter(scenarioDir, scenarioName string, opts ...sharedartifacts.BaseWriterOption) *FileWriter {
+	return &FileWriter{
+		BaseWriter: sharedartifacts.NewBaseWriter(scenarioDir, scenarioName, opts...),
 	}
 }
 
 // lighthouseDir returns the lighthouse artifacts directory path.
 func (w *FileWriter) lighthouseDir() string {
-	return filepath.Join(w.scenarioDir, LighthouseDir)
-}
-
-// phaseResultsDir returns the phase results directory path.
-func (w *FileWriter) phaseResultsDir() string {
-	return filepath.Join(w.scenarioDir, PhaseResultsDir)
+	return filepath.Join(w.ScenarioDir, LighthouseDir)
 }
 
 // WritePageReport writes the raw Lighthouse JSON report for a single page.
@@ -99,26 +54,18 @@ func (w *FileWriter) WritePageReport(pageID string, rawResponse []byte) (string,
 	}
 
 	targetDir := w.lighthouseDir()
-	if err := w.fs.MkdirAll(targetDir, 0o755); err != nil {
+	if err := w.EnsureDir(targetDir); err != nil {
 		return "", fmt.Errorf("failed to create lighthouse dir: %w", err)
 	}
 
 	// Sanitize page ID for filename
-	filename := sanitizeFilename(pageID) + ".json"
+	filename := sharedartifacts.SanitizeFilename(pageID) + ".json"
 	path := filepath.Join(targetDir, filename)
 
 	// Pretty-print the JSON if it's valid
-	var obj interface{}
-	if err := json.Unmarshal(rawResponse, &obj); err == nil {
-		prettyData, _ := json.MarshalIndent(obj, "", "  ")
-		if err := w.fs.WriteFile(path, prettyData, 0o644); err != nil {
-			return "", fmt.Errorf("failed to write page report: %w", err)
-		}
-	} else {
-		// Write raw if not valid JSON
-		if err := w.fs.WriteFile(path, rawResponse, 0o644); err != nil {
-			return "", fmt.Errorf("failed to write page report: %w", err)
-		}
+	prettyData := sharedartifacts.PrettyPrintJSON(rawResponse)
+	if err := w.WriteFile(path, prettyData); err != nil {
+		return "", fmt.Errorf("failed to write page report: %w", err)
 	}
 
 	return filepath.Join(LighthouseDir, filename), nil
@@ -132,15 +79,15 @@ func (w *FileWriter) WriteHTMLReport(pageID string, htmlContent []byte) (string,
 	}
 
 	targetDir := w.lighthouseDir()
-	if err := w.fs.MkdirAll(targetDir, 0o755); err != nil {
+	if err := w.EnsureDir(targetDir); err != nil {
 		return "", fmt.Errorf("failed to create lighthouse dir: %w", err)
 	}
 
 	// Sanitize page ID for filename
-	filename := sanitizeFilename(pageID) + ".html"
+	filename := sharedartifacts.SanitizeFilename(pageID) + ".html"
 	path := filepath.Join(targetDir, filename)
 
-	if err := w.fs.WriteFile(path, htmlContent, 0o644); err != nil {
+	if err := w.WriteFile(path, htmlContent); err != nil {
 		return "", fmt.Errorf("failed to write HTML report: %w", err)
 	}
 
@@ -152,25 +99,7 @@ func (w *FileWriter) WritePhaseResults(result *lighthouse.AuditResult) error {
 	if result == nil || result.Skipped {
 		return nil // Nothing to write
 	}
-
-	phaseDir := w.phaseResultsDir()
-	if err := w.fs.MkdirAll(phaseDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create phase results dir: %w", err)
-	}
-
-	output := buildPhaseOutput(w.scenarioName, result)
-
-	data, err := json.MarshalIndent(output, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal phase results: %w", err)
-	}
-
-	path := filepath.Join(phaseDir, PhaseResultsFile)
-	if err := w.fs.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write phase results: %w", err)
-	}
-
-	return nil
+	return sharedartifacts.WritePhaseResults(w.BaseWriter, PhaseResultsFile, result, buildPhaseOutput)
 }
 
 // WriteSummary writes a summary JSON containing all page results.
@@ -181,19 +110,14 @@ func (w *FileWriter) WriteSummary(result *lighthouse.AuditResult) (string, error
 	}
 
 	targetDir := w.lighthouseDir()
-	if err := w.fs.MkdirAll(targetDir, 0o755); err != nil {
+	if err := w.EnsureDir(targetDir); err != nil {
 		return "", fmt.Errorf("failed to create lighthouse dir: %w", err)
 	}
 
-	summary := buildSummary(w.scenarioName, result)
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal summary: %w", err)
-	}
+	summary := buildSummary(w.ScenarioName, result)
 
 	path := filepath.Join(targetDir, "summary.json")
-	if err := w.fs.WriteFile(path, data, 0o644); err != nil {
+	if err := w.WriteJSON(path, summary); err != nil {
 		return "", fmt.Errorf("failed to write summary: %w", err)
 	}
 
@@ -361,29 +285,6 @@ func formatViolationsDetail(violations []lighthouse.CategoryViolation) []map[str
 		}
 	}
 	return result
-}
-
-// sanitizeFilename converts a string to a safe filename.
-func sanitizeFilename(name string) string {
-	// Replace path separators and spaces with dashes
-	name = strings.ReplaceAll(name, string(filepath.Separator), "-")
-	name = strings.ReplaceAll(name, "/", "-")
-	name = strings.ReplaceAll(name, " ", "-")
-
-	// Keep only alphanumeric, dash, and underscore
-	name = strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			return r
-		}
-		return '-'
-	}, name)
-
-	// Collapse multiple dashes
-	for strings.Contains(name, "--") {
-		name = strings.ReplaceAll(name, "--", "-")
-	}
-
-	return strings.Trim(name, "-")
 }
 
 // Ensure FileWriter implements Writer.
