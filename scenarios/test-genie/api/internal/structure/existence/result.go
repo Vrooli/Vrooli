@@ -34,9 +34,9 @@ var (
 	NewInfoObservation    = types.NewInfoObservation
 	NewSkipObservation    = types.NewSkipObservation
 
-	OK                  = types.OK
-	OKWithCount         = types.OKWithCount
-	Fail                = types.Fail
+	OK                   = types.OK
+	OKWithCount          = types.OKWithCount
+	Fail                 = types.Fail
 	FailMisconfiguration = types.FailMisconfiguration
-	FailSystem          = types.FailSystem
+	FailSystem           = types.FailSystem
 )

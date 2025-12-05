@@ -13,11 +13,18 @@ import (
 	"strings"
 
 	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/shared"
 )
 
 var commandLookup = exec.LookPath
 var phaseCommandExecutor = runCommand
 var phaseCommandCapture = runCommandCapture
+
+// ParseJSON parses JSON from a string into a target value.
+// This is the standard helper for parsing JSON across phases.
+func ParseJSON(data string, v interface{}) error {
+	return json.Unmarshal([]byte(data), v)
+}
 
 func ensureDir(path string) error {
 	info, err := os.Stat(path)
@@ -66,51 +73,15 @@ func ensureExecutable(path string) error {
 	return nil
 }
 
-// logPhaseStep writes a structured step message to the log.
-// Uses consistent formatting that can be parsed for observation streaming.
-func logPhaseStep(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	fmt.Fprintf(w, format+"\n", args...)
-}
-
-// logPhaseSuccess writes a success message with a consistent marker.
-func logPhaseSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
-}
-
-// logPhaseInfo writes an info/progress message with a consistent marker.
-func logPhaseInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
-// logPhaseWarn writes a warning message with a structured marker.
-// The format includes the phase name and warning type for easy parsing.
-func logPhaseWarn(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[WARNING] ⚠️ %s\n", msg)
-}
-
-// logPhaseError writes an error message with a structured marker.
-func logPhaseError(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[ERROR] ❌ %s\n", msg)
-}
+// Logging functions - aliases to shared package for backwards compatibility.
+// New code should use shared.Log* directly.
+var (
+	logPhaseStep    = shared.LogStep
+	logPhaseSuccess = shared.LogSuccess
+	logPhaseInfo    = shared.LogInfo
+	logPhaseWarn    = shared.LogWarn
+	logPhaseError   = shared.LogError
+)
 
 func runCommand(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 	if err := ctx.Err(); err != nil {
@@ -321,6 +292,54 @@ func installNodeDependencies(ctx context.Context, dir, manager string, logWriter
 	default:
 		return phaseCommandExecutor(ctx, dir, logWriter, "npm", "install")
 	}
+}
+
+// Scenario interaction utilities - used by playbooks, smoke, and other runtime phases.
+
+// ResolveScenarioPort resolves a port for a scenario using vrooli CLI.
+// Returns the port number as a string.
+func ResolveScenarioPort(ctx context.Context, logWriter io.Writer, scenarioName, portName string) (string, error) {
+	output, err := phaseCommandCapture(ctx, "", logWriter, "vrooli", "scenario", "port", scenarioName, portName)
+	if err != nil {
+		return "", fmt.Errorf("vrooli port lookup failed: %w", err)
+	}
+	value := strings.TrimSpace(output)
+	if value == "" {
+		return "", fmt.Errorf("port lookup returned empty output")
+	}
+	// Parse output which may contain "PORT_NAME=value" format
+	for _, line := range strings.Split(value, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "=") {
+			parts := strings.SplitN(line, "=", 2)
+			if strings.TrimSpace(parts[0]) == portName {
+				value = strings.TrimSpace(parts[1])
+				break
+			}
+		}
+	}
+	value = strings.TrimSpace(value)
+	value = strings.TrimSuffix(value, "\r")
+	// Validate it's a number
+	if _, err := fmt.Sscanf(value, "%d", new(int)); err != nil {
+		return "", fmt.Errorf("invalid port value %q", value)
+	}
+	return value, nil
+}
+
+// ResolveScenarioBaseURL resolves the UI base URL for a scenario.
+func ResolveScenarioBaseURL(ctx context.Context, logWriter io.Writer, scenarioName string) (string, error) {
+	port, err := ResolveScenarioPort(ctx, logWriter, scenarioName, "UI_PORT")
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("http://127.0.0.1:%s", port), nil
+}
+
+// StartScenario starts a scenario using vrooli CLI.
+func StartScenario(ctx context.Context, scenarioName string, logWriter io.Writer) error {
+	shared.LogStep(logWriter, "starting scenario %s", scenarioName)
+	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "start", scenarioName, "--clean-stale")
 }
 
 func findPrimaryBatsSuite(cliDir, scenarioName string) (string, error) {

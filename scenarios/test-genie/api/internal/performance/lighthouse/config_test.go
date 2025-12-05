@@ -1,9 +1,13 @@
 package lighthouse
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 func TestLoadConfig_FileNotExists(t *testing.T) {
@@ -248,9 +252,9 @@ func TestConfig_Validate_InvalidViewport(t *testing.T) {
 		Enabled: true,
 		Pages: []PageConfig{
 			{
-				ID:        "home",
-				Path:      "/",
-				Viewport:  "tablet", // invalid
+				ID:         "home",
+				Path:       "/",
+				Viewport:   "tablet", // invalid
 				Thresholds: CategoryThresholds{"performance": {Error: 0.5, Warn: 0.7}},
 			},
 		},
@@ -268,9 +272,9 @@ func TestConfig_Validate_ValidViewport(t *testing.T) {
 				Enabled: true,
 				Pages: []PageConfig{
 					{
-						ID:        "home",
-						Path:      "/",
-						Viewport:  viewport,
+						ID:         "home",
+						Path:       "/",
+						Viewport:   viewport,
 						Thresholds: CategoryThresholds{"performance": {Error: 0.5, Warn: 0.7}},
 					},
 				},
@@ -453,9 +457,9 @@ func TestConfig_BuildPageLighthouseConfig_Viewport(t *testing.T) {
 
 	// Test mobile viewport
 	mobilePage := PageConfig{
-		ID:        "mobile",
-		Path:      "/",
-		Viewport:  "mobile",
+		ID:         "mobile",
+		Path:       "/",
+		Viewport:   "mobile",
 		Thresholds: CategoryThresholds{"performance": {Error: 0.5, Warn: 0.7}},
 	}
 
@@ -483,9 +487,9 @@ func TestConfig_BuildPageLighthouseConfig_Desktop(t *testing.T) {
 	cfg := &Config{}
 
 	desktopPage := PageConfig{
-		ID:        "desktop",
-		Path:      "/",
-		Viewport:  "desktop",
+		ID:         "desktop",
+		Path:       "/",
+		Viewport:   "desktop",
 		Thresholds: CategoryThresholds{"performance": {Error: 0.5, Warn: 0.7}},
 	}
 
@@ -518,9 +522,9 @@ func TestConfig_BuildPageLighthouseConfig_GlobalFormFactorNotOverridden(t *testi
 	}
 
 	mobilePage := PageConfig{
-		ID:        "mobile",
-		Path:      "/",
-		Viewport:  "mobile",
+		ID:         "mobile",
+		Path:       "/",
+		Viewport:   "mobile",
 		Thresholds: CategoryThresholds{"performance": {Error: 0.5, Warn: 0.7}},
 	}
 
@@ -548,3 +552,164 @@ func TestPageConfig_WithRequirements(t *testing.T) {
 		t.Errorf("expected PERF-001, got %s", page.Requirements[0])
 	}
 }
+
+func TestDocExampleConfig_MatchesSchemaAndRuntime(t *testing.T) {
+	schema := loadLighthouseSchema(t)
+
+	validateJSONAgainstSchema(t, schema, []byte(docExampleConfig))
+
+	var cfg Config
+	if err := json.Unmarshal([]byte(docExampleConfig), &cfg); err != nil {
+		t.Fatalf("doc example should unmarshal into Config: %v", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("doc example should satisfy runtime validation: %v", err)
+	}
+}
+
+func TestSchemaRoundTripWithRuntimeConfig(t *testing.T) {
+	schema := loadLighthouseSchema(t)
+
+	cfg := Config{
+		Version: "1.0.0",
+		Enabled: true,
+		GlobalOptions: &GlobalOptions{
+			Lighthouse: &LighthouseSettings{
+				Extends: "lighthouse:default",
+				Settings: &LighthouseRunnerSettings{
+					OnlyCategories: []string{"performance", "accessibility", "best-practices", "seo"},
+				},
+			},
+			TimeoutMs: 60000,
+			Retries:   1,
+		},
+		Reporting: &ReportingConfig{
+			Formats:     []string{"json"},
+			FailOnError: ptrBool(true),
+		},
+		Pages: []PageConfig{
+			{
+				ID:       "home-desktop",
+				Path:     "/",
+				Label:    "Home page",
+				Viewport: "desktop",
+				Thresholds: CategoryThresholds{
+					"performance":    {Error: 0.8, Warn: 0.9},
+					"accessibility":  {Error: 0.9, Warn: 0.95},
+					"best-practices": {Error: 0.85, Warn: 0.9},
+					"seo":            {Error: 0.8, Warn: 0.9},
+				},
+				Requirements: []string{"PERF-HOME"},
+			},
+		},
+	}
+
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+
+	validateJSONAgainstSchema(t, schema, data)
+
+	var decoded Config
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("failed to unmarshal round-trip config: %v", err)
+	}
+	if err := decoded.Validate(); err != nil {
+		t.Fatalf("round-tripped config should satisfy runtime validation: %v", err)
+	}
+
+	origThreshold := cfg.Pages[0].Thresholds["performance"]
+	decodedThreshold := decoded.Pages[0].Thresholds["performance"]
+	if origThreshold != decodedThreshold {
+		t.Fatalf("thresholds changed after round trip: want %+v got %+v", origThreshold, decodedThreshold)
+	}
+}
+
+func loadLighthouseSchema(t *testing.T) *jsonschema.Schema {
+	t.Helper()
+
+	schemaPath := resolveSchemaPath(t)
+	file, err := os.Open(schemaPath)
+	if err != nil {
+		t.Fatalf("failed to open schema: %v", err)
+	}
+	defer file.Close()
+
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource(schemaPath, file); err != nil {
+		t.Fatalf("failed to add schema resource: %v", err)
+	}
+
+	schema, err := compiler.Compile(schemaPath)
+	if err != nil {
+		t.Fatalf("failed to compile schema: %v", err)
+	}
+
+	return schema
+}
+
+func validateJSONAgainstSchema(t *testing.T, schema *jsonschema.Schema, data []byte) {
+	t.Helper()
+
+	var payload interface{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("failed to unmarshal JSON payload: %v", err)
+	}
+
+	if err := schema.Validate(payload); err != nil {
+		t.Fatalf("schema validation failed: %v", err)
+	}
+}
+
+func resolveSchemaPath(t *testing.T) string {
+	t.Helper()
+
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("unable to resolve caller info for schema path")
+	}
+
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "schemas", "lighthouse.schema.json"))
+}
+
+func ptrBool(v bool) *bool {
+	return &v
+}
+
+const docExampleConfig = `{
+  "_metadata": {
+    "description": "Lighthouse testing configuration"
+  },
+  "version": "1.0.0",
+  "enabled": true,
+  "pages": [
+    {
+      "id": "home",
+      "path": "/",
+      "label": "Home Page",
+      "viewport": "desktop",
+      "waitForMs": 2000,
+      "thresholds": {
+        "performance": { "error": 0.85, "warn": 0.90 },
+        "accessibility": { "error": 0.90, "warn": 0.95 }
+      },
+      "requirements": ["YOUR-PERF-HOME-LOAD"]
+    }
+  ],
+  "global_options": {
+    "timeout_ms": 60000,
+    "retries": 2,
+    "lighthouse": {
+      "settings": {
+        "onlyCategories": ["performance", "accessibility"],
+        "throttlingMethod": "simulate",
+        "formFactor": "desktop"
+      }
+    }
+  },
+  "reporting": {
+    "formats": ["json"],
+    "fail_on_error": true
+  }
+}`

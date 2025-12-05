@@ -64,12 +64,12 @@ type SnapshotSummary struct {
 
 // OperationalTarget represents a high-level business objective.
 type OperationalTarget struct {
-	ID              string   `json:"id"`
-	Title           string   `json:"title"`
-	Priority        string   `json:"priority"`
-	Status          string   `json:"status"`
-	RequirementIDs  []string `json:"requirement_ids"`
-	CompletionRate  float64  `json:"completion_rate"`
+	ID             string   `json:"id"`
+	Title          string   `json:"title"`
+	Priority       string   `json:"priority"`
+	Status         string   `json:"status"`
+	RequirementIDs []string `json:"requirement_ids"`
+	CompletionRate float64  `json:"completion_rate"`
 }
 
 // ModuleSnapshot contains module-level snapshot data.

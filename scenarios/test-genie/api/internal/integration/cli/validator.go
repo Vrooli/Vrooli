@@ -57,10 +57,10 @@ type Config struct {
 
 // validator implements the Validator interface.
 type validator struct {
-	config     Config
-	executor   CommandExecutor
-	capture    CommandCapture
-	logWriter  io.Writer
+	config    Config
+	executor  CommandExecutor
+	capture   CommandCapture
+	logWriter io.Writer
 }
 
 // Option configures a validator.

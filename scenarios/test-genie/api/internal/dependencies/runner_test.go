@@ -81,11 +81,11 @@ func (m *mockResourceChecker) Check(ctx context.Context) resources.HealthResult 
 
 // Ensure mock types satisfy interfaces at compile time.
 var (
-	_ commands.Checker            = (*mockCommandChecker)(nil)
-	_ runtime.Detector            = (*mockRuntimeDetector)(nil)
-	_ packages.Detector           = (*mockPackageDetector)(nil)
+	_ commands.Checker             = (*mockCommandChecker)(nil)
+	_ runtime.Detector             = (*mockRuntimeDetector)(nil)
+	_ packages.Detector            = (*mockPackageDetector)(nil)
 	_ resources.ExpectationsLoader = (*mockResourceLoader)(nil)
-	_ resources.HealthChecker     = (*mockResourceChecker)(nil)
+	_ resources.HealthChecker      = (*mockResourceChecker)(nil)
 )
 
 func TestRunnerRunSuccess(t *testing.T) {
@@ -331,9 +331,9 @@ func TestValidationSummary_TotalChecks(t *testing.T) {
 
 func TestValidationSummary_String(t *testing.T) {
 	tests := []struct {
-		name        string
-		summary     ValidationSummary
-		wantParts   []string
+		name         string
+		summary      ValidationSummary
+		wantParts    []string
 		notWantParts []string
 	}{
 		{
@@ -474,7 +474,7 @@ func TestRunnerRunWithNodeWorkspaceButNoManager(t *testing.T) {
 		WithCommandChecker(&mockCommandChecker{}),
 		WithRuntimeDetector(&mockRuntimeDetector{}),
 		WithPackageDetector(&mockPackageDetector{
-			managers:      nil, // No managers detected
+			managers:      nil,  // No managers detected
 			nodeWorkspace: true, // But has node workspace
 		}),
 		WithResourceLoader(&mockResourceLoader{}),

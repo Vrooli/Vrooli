@@ -9,6 +9,7 @@ import (
 	"test-genie/internal/business/existence"
 	"test-genie/internal/business/parsing"
 	"test-genie/internal/business/validation"
+	"test-genie/internal/shared"
 )
 
 // Runner orchestrates business validation across existence, discovery, parsing, and validation.
@@ -103,7 +104,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	var observations []Observation
 	var summary ValidationSummary
 
-	logInfo(r.logWriter, "Starting business validation for %s", r.config.ScenarioName)
+	shared.LogInfo(r.logWriter, "Starting business validation for %s", r.config.ScenarioName)
 
 	// Section: Requirements Directory
 	observations = append(observations, NewSectionObservation("📋", "Validating requirements registry..."))
@@ -181,7 +182,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Message: fmt.Sprintf("Business validation completed (%s)", summary.String()),
 	})
 
-	logSuccess(r.logWriter, "Business validation complete")
+	shared.LogSuccess(r.logWriter, "Business validation complete")
 
 	return &RunResult{
 		Success:      true,
@@ -201,20 +202,3 @@ func (r *Runner) failFromResult(result Result, observations []Observation) *RunR
 	}
 }
 
-// Logging helpers
-
-func logInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
-func logSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
-}

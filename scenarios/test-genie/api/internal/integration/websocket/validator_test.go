@@ -39,13 +39,13 @@ func (m *mockDialer) DialContext(ctx context.Context, url string, header http.He
 
 // mockConn tracks mock WebSocket operations.
 type mockConn struct {
-	writeErr      error
-	readErr       error
-	readMessage   []byte
-	readDelay     time.Duration
-	closeErr      error
-	writtenMsgs   [][]byte
-	deadlinesSet  int
+	writeErr     error
+	readErr      error
+	readMessage  []byte
+	readDelay    time.Duration
+	closeErr     error
+	writtenMsgs  [][]byte
+	deadlinesSet int
 }
 
 func (m *mockConn) WriteMessage(messageType int, data []byte) error {

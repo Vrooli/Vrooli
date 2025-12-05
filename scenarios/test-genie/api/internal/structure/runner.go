@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"test-genie/internal/shared"
 	"test-genie/internal/structure/content"
 	"test-genie/internal/structure/existence"
 )
@@ -126,7 +127,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	var observations []Observation
 	var summary ValidationSummary
 
-	logInfo(r.logWriter, "Starting structure validation for %s", r.config.ScenarioName)
+	shared.LogInfo(r.logWriter, "Starting structure validation for %s", r.config.ScenarioName)
 
 	// Resolve requirements based on expectations
 	var additionalDirs, additionalFiles, excludedDirs, excludedFiles []string
@@ -145,61 +146,61 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	// Section: Directories
 	observations = append(observations, NewSectionObservation("🔍", "Checking required directories..."))
-	logInfo(r.logWriter, "Checking required directories...")
+	shared.LogInfo(r.logWriter, "Checking required directories...")
 
 	dirsResult := r.existenceValidator.ValidateDirs(requiredDirs)
 	if !dirsResult.Success {
 		return r.failFromResult(dirsResult, observations)
 	}
 	summary.DirsChecked = dirsResult.ItemsChecked
-	logSuccess(r.logWriter, "All required directories present (%d)", len(requiredDirs))
+	shared.LogSuccess(r.logWriter, "All required directories present (%d)", len(requiredDirs))
 	observations = append(observations, NewSuccessObservation(fmt.Sprintf("All required directories present (%d checked)", len(requiredDirs))))
 
 	// Section: Files
 	observations = append(observations, NewSectionObservation("🔍", "Checking required files..."))
-	logInfo(r.logWriter, "Checking required files...")
+	shared.LogInfo(r.logWriter, "Checking required files...")
 
 	filesResult := r.existenceValidator.ValidateFiles(requiredFiles)
 	if !filesResult.Success {
 		return r.failFromResult(filesResult, observations)
 	}
 	summary.FilesChecked = filesResult.ItemsChecked
-	logSuccess(r.logWriter, "All required files present (%d)", len(requiredFiles))
+	shared.LogSuccess(r.logWriter, "All required files present (%d)", len(requiredFiles))
 	observations = append(observations, NewSuccessObservation(fmt.Sprintf("All required files present (%d checked)", len(requiredFiles))))
 
 	// Section: CLI Structure
 	observations = append(observations, NewSectionObservation("🖥️", "Validating CLI structure..."))
-	logInfo(r.logWriter, "Validating CLI structure...")
+	shared.LogInfo(r.logWriter, "Validating CLI structure...")
 
 	cliResult := r.cliValidator.Validate()
 	if !cliResult.Result.Success {
 		return r.failFromResult(cliResult.Result, observations)
 	}
-	logSuccess(r.logWriter, "CLI structure valid (%s approach)", cliResult.Approach)
+	shared.LogSuccess(r.logWriter, "CLI structure valid (%s approach)", cliResult.Approach)
 	observations = append(observations, cliResult.Result.Observations...)
 
 	// Section: Service Manifest
 	observations = append(observations, NewSectionObservation("📋", "Validating service manifest..."))
-	logInfo(r.logWriter, "Validating service manifest...")
+	shared.LogInfo(r.logWriter, "Validating service manifest...")
 
 	manifestResult := r.manifestValidator.Validate()
 	if !manifestResult.Success {
 		return r.failFromResult(manifestResult, observations)
 	}
-	logSuccess(r.logWriter, "service.json validated")
+	shared.LogSuccess(r.logWriter, "service.json validated")
 	observations = append(observations, manifestResult.Observations...)
 
 	// Section: Schema Validation (if schemas directory is configured)
 	if r.schemaValidator != nil {
 		observations = append(observations, NewSectionObservation("📋", "Validating .vrooli config files against schemas..."))
-		logInfo(r.logWriter, "Validating .vrooli config files against schemas...")
+		shared.LogInfo(r.logWriter, "Validating .vrooli config files against schemas...")
 
 		schemaResult := r.schemaValidator.Validate()
 		if !schemaResult.Success {
 			return r.failFromResult(schemaResult, observations)
 		}
 		summary.JSONFilesValid = schemaResult.ItemsChecked
-		logSuccess(r.logWriter, "All config files valid (%d)", schemaResult.ItemsChecked)
+		shared.LogSuccess(r.logWriter, "All config files valid (%d)", schemaResult.ItemsChecked)
 		observations = append(observations, schemaResult.Observations...)
 	}
 
@@ -211,7 +212,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Message: fmt.Sprintf("Structure validation completed (%d checks)", totalChecks),
 	})
 
-	logSuccess(r.logWriter, "Structure validation complete")
+	shared.LogSuccess(r.logWriter, "Structure validation complete")
 
 	return &RunResult{
 		Success:      true,
@@ -230,22 +231,4 @@ func (r *Runner) failFromResult(result Result, observations []Observation) *RunR
 		Remediation:  result.Remediation,
 		Observations: append(observations, result.Observations...),
 	}
-}
-
-// logInfo writes an info message.
-func logInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
-// logSuccess writes a success message.
-func logSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
 }

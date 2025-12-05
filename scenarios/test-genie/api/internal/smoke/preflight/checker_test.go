@@ -1112,9 +1112,9 @@ func TestChecker_CheckUIPort_Method3WithValidation(t *testing.T) {
 
 func TestChecker_CheckUIPort_DiscoveryMethodInError(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupExecutor  func(*mockCommandExecutor)
-		wantMethod     string
+		name          string
+		setupExecutor func(*mockCommandExecutor)
+		wantMethod    string
 	}{
 		{
 			name: "method1_direct",

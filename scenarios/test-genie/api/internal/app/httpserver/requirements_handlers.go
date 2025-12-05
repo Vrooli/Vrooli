@@ -13,46 +13,46 @@ import (
 
 // RequirementsSnapshot represents the data returned by the requirements endpoint.
 type RequirementsSnapshot struct {
-	ScenarioName string                `json:"scenarioName"`
-	GeneratedAt  time.Time             `json:"generatedAt"`
-	Summary      RequirementsSummary   `json:"summary"`
-	Modules      []ModuleSnapshot      `json:"modules"`
-	SyncStatus   *SyncStatus           `json:"syncStatus,omitempty"`
+	ScenarioName string              `json:"scenarioName"`
+	GeneratedAt  time.Time           `json:"generatedAt"`
+	Summary      RequirementsSummary `json:"summary"`
+	Modules      []ModuleSnapshot    `json:"modules"`
+	SyncStatus   *SyncStatus         `json:"syncStatus,omitempty"`
 }
 
 // RequirementsSummary contains aggregate statistics.
 type RequirementsSummary struct {
-	TotalRequirements int     `json:"totalRequirements"`
-	TotalValidations  int     `json:"totalValidations"`
-	CompletionRate    float64 `json:"completionRate"`
-	PassRate          float64 `json:"passRate"`
-	CriticalGap       int     `json:"criticalGap"`
+	TotalRequirements int            `json:"totalRequirements"`
+	TotalValidations  int            `json:"totalValidations"`
+	CompletionRate    float64        `json:"completionRate"`
+	PassRate          float64        `json:"passRate"`
+	CriticalGap       int            `json:"criticalGap"`
 	ByLiveStatus      map[string]int `json:"byLiveStatus"`
 	ByDeclaredStatus  map[string]int `json:"byDeclaredStatus"`
 }
 
 // ModuleSnapshot contains module-level data.
 type ModuleSnapshot struct {
-	Name           string              `json:"name"`
-	FilePath       string              `json:"filePath"`
-	Total          int                 `json:"total"`
-	Complete       int                 `json:"complete"`
-	InProgress     int                 `json:"inProgress"`
-	Pending        int                 `json:"pending"`
-	CompletionRate float64             `json:"completionRate"`
-	Requirements   []RequirementItem   `json:"requirements,omitempty"`
+	Name           string            `json:"name"`
+	FilePath       string            `json:"filePath"`
+	Total          int               `json:"total"`
+	Complete       int               `json:"complete"`
+	InProgress     int               `json:"inProgress"`
+	Pending        int               `json:"pending"`
+	CompletionRate float64           `json:"completionRate"`
+	Requirements   []RequirementItem `json:"requirements,omitempty"`
 }
 
 // RequirementItem represents a single requirement.
 type RequirementItem struct {
-	ID           string           `json:"id"`
-	Title        string           `json:"title"`
-	Status       string           `json:"status"`
-	LiveStatus   string           `json:"liveStatus"`
-	PRDRef       string           `json:"prdRef,omitempty"`
-	Criticality  string           `json:"criticality,omitempty"`
-	Description  string           `json:"description,omitempty"`
-	Validations  []ValidationItem `json:"validations,omitempty"`
+	ID          string           `json:"id"`
+	Title       string           `json:"title"`
+	Status      string           `json:"status"`
+	LiveStatus  string           `json:"liveStatus"`
+	PRDRef      string           `json:"prdRef,omitempty"`
+	Criticality string           `json:"criticality,omitempty"`
+	Description string           `json:"description,omitempty"`
+	Validations []ValidationItem `json:"validations,omitempty"`
 }
 
 // ValidationItem represents a test/automation validation.
@@ -80,9 +80,9 @@ type SyncPreviewResponse struct {
 	ScenarioName string       `json:"scenarioName"`
 	Changes      []SyncChange `json:"changes"`
 	Summary      struct {
-		FilesAffected      int `json:"filesAffected"`
-		StatusesWouldChange int `json:"statusesWouldChange"`
-		ValidationsWouldAdd int `json:"validationsWouldAdd"`
+		FilesAffected          int `json:"filesAffected"`
+		StatusesWouldChange    int `json:"statusesWouldChange"`
+		ValidationsWouldAdd    int `json:"validationsWouldAdd"`
 		ValidationsWouldRemove int `json:"validationsWouldRemove"`
 	} `json:"summary"`
 }
@@ -225,10 +225,10 @@ func (s *Server) loadRequirementsSnapshot(path string, scenarioName string) (*Re
 
 	// The snapshot format from snapshot/builder.go
 	var rawSnapshot struct {
-		GeneratedAt        time.Time `json:"generated_at"`
-		ScenarioName       string    `json:"scenario_name"`
-		Version            string    `json:"version"`
-		Summary            struct {
+		GeneratedAt  time.Time `json:"generated_at"`
+		ScenarioName string    `json:"scenario_name"`
+		Version      string    `json:"version"`
+		Summary      struct {
 			TotalRequirements int     `json:"total_requirements"`
 			TotalValidations  int     `json:"total_validations"`
 			CompletionRate    float64 `json:"completion_rate"`
@@ -300,13 +300,13 @@ type requirementsFile struct {
 	} `json:"meta"`
 	Imports      []string `json:"imports"`
 	Requirements []struct {
-		ID          string `json:"id"`
-		Category    string `json:"category"`
-		PRDRef      string `json:"prd_ref"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Status      string `json:"status"`
-		Criticality string `json:"criticality"`
+		ID          string   `json:"id"`
+		Category    string   `json:"category"`
+		PRDRef      string   `json:"prd_ref"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Status      string   `json:"status"`
+		Criticality string   `json:"criticality"`
 		Children    []string `json:"children"`
 		Validation  []struct {
 			Type   string `json:"type"`
@@ -463,13 +463,13 @@ func (s *Server) loadRequirementsFromFiles(scenarioDir, scenarioName string) *Re
 
 // convertRequirement converts a raw requirement from JSON to RequirementItem.
 func (s *Server) convertRequirement(req struct {
-	ID          string `json:"id"`
-	Category    string `json:"category"`
-	PRDRef      string `json:"prd_ref"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
-	Criticality string `json:"criticality"`
+	ID          string   `json:"id"`
+	Category    string   `json:"category"`
+	PRDRef      string   `json:"prd_ref"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Status      string   `json:"status"`
+	Criticality string   `json:"criticality"`
 	Children    []string `json:"children"`
 	Validation  []struct {
 		Type   string `json:"type"`

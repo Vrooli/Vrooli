@@ -203,7 +203,6 @@ func TestRunner_ManifestValidationFails(t *testing.T) {
 				"Update service.name to match scenario directory",
 			),
 		},
-		
 	)
 
 	result := runner.Run(context.Background())
@@ -232,7 +231,6 @@ func TestRunner_JSONValidationFails(t *testing.T) {
 			),
 		},
 		&mockManifestValidator{result: types.OK()},
-		
 	)
 
 	result := runner.Run(context.Background())
@@ -286,7 +284,6 @@ func TestRunner_ContextCancelled(t *testing.T) {
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
 		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
-		
 	)
 
 	result := runner.Run(ctx)
@@ -370,7 +367,6 @@ func BenchmarkRunnerAllPass(b *testing.B) {
 		},
 		&mockSchemaValidator{result: types.OKWithCount(10)},
 		&mockManifestValidator{result: types.OK()},
-		
 	)
 
 	b.ResetTimer()
@@ -419,7 +415,6 @@ func BenchmarkRunnerEarlyFailure(b *testing.B) {
 		&mockCLIValidator{result: existence.CLIResult{Result: types.OK()}},
 		&mockSchemaValidator{result: types.OK()},
 		&mockManifestValidator{result: types.OK()},
-		
 	)
 
 	b.ResetTimer()
@@ -577,7 +572,6 @@ func TestRunner_LoggingWithNilWriter(t *testing.T) {
 		},
 		&mockSchemaValidator{result: types.OKWithCount(10)},
 		&mockManifestValidator{result: types.OK()},
-		
 	)
 
 	// Set logger to nil explicitly

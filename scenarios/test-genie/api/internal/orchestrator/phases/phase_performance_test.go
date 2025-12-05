@@ -9,6 +9,7 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/performance"
+	"test-genie/internal/shared"
 )
 
 func TestRunPerformancePhaseValidatesBuilds(t *testing.T) {
@@ -115,7 +116,7 @@ func TestConvertPerformanceObservations(t *testing.T) {
 		{Type: performance.ObservationSkip, Message: "skip"},
 	}
 
-	result := convertPerformanceObservations(obs)
+	result := ConvertObservationsGeneric(obs, ExtractStandardObservation[performance.Observation])
 
 	if len(result) != len(obs) {
 		t.Fatalf("expected %d observations, got %d", len(obs), len(result))
@@ -176,7 +177,11 @@ func TestConvertPerformanceObservation_AllTypes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := convertPerformanceObservation(tc.input)
+			results := ConvertObservationsGeneric([]performance.Observation{tc.input}, ExtractStandardObservation[performance.Observation])
+			if len(results) != 1 {
+				t.Fatalf("expected 1 result, got %d", len(results))
+			}
+			result := results[0]
 			if tc.wantSection != "" {
 				if result.Section != tc.wantSection {
 					t.Errorf("expected Section=%q, got %q", tc.wantSection, result.Section)
@@ -190,19 +195,19 @@ func TestConvertPerformanceObservation_AllTypes(t *testing.T) {
 
 func TestConvertPerformanceFailureClass(t *testing.T) {
 	tests := []struct {
-		input    performance.FailureClass
-		expected string
+		input    shared.FailureClass
+		expected shared.FailureClass
 	}{
-		{performance.FailureClassMisconfiguration, FailureClassMisconfiguration},
-		{performance.FailureClassMissingDependency, FailureClassMissingDependency},
-		{performance.FailureClassSystem, FailureClassSystem},
-		{performance.FailureClassNone, FailureClassSystem}, // default
-		{"unknown", FailureClassSystem},                    // default
+		{shared.FailureClassMisconfiguration, shared.FailureClassMisconfiguration},
+		{shared.FailureClassMissingDependency, shared.FailureClassMissingDependency},
+		{shared.FailureClassSystem, shared.FailureClassSystem},
+		{shared.FailureClassNone, shared.FailureClassSystem}, // default
+		{"unknown", shared.FailureClassSystem},               // default
 	}
 
 	for _, tc := range tests {
 		t.Run(string(tc.input), func(t *testing.T) {
-			result := convertPerformanceFailureClass(tc.input)
+			result := shared.StandardizeFailureClass(tc.input)
 			if result != tc.expected {
 				t.Errorf("expected %q, got %q", tc.expected, result)
 			}

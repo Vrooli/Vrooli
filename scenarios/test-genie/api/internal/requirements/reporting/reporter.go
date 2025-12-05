@@ -101,15 +101,15 @@ type ReportData struct {
 
 // SummaryData contains high-level summary information.
 type SummaryData struct {
-	Total            int     `json:"total"`
-	Complete         int     `json:"complete"`
-	InProgress       int     `json:"in_progress"`
-	Pending          int     `json:"pending"`
-	CompletionRate   float64 `json:"completion_rate"`
-	CriticalGap      int     `json:"critical_gap"`
-	LivePassed       int     `json:"live_passed"`
-	LiveFailed       int     `json:"live_failed"`
-	PassRate         float64 `json:"pass_rate"`
+	Total          int     `json:"total"`
+	Complete       int     `json:"complete"`
+	InProgress     int     `json:"in_progress"`
+	Pending        int     `json:"pending"`
+	CompletionRate float64 `json:"completion_rate"`
+	CriticalGap    int     `json:"critical_gap"`
+	LivePassed     int     `json:"live_passed"`
+	LiveFailed     int     `json:"live_failed"`
+	PassRate       float64 `json:"pass_rate"`
 }
 
 // ModuleData contains module-level information.
@@ -141,9 +141,9 @@ type ValidationData struct {
 
 // StatisticsData contains detailed statistics.
 type StatisticsData struct {
-	ByStatus      map[string]int `json:"by_status"`
-	ByCriticality map[string]int `json:"by_criticality"`
-	ByPhase       map[string]int `json:"by_phase"`
+	ByStatus      map[string]int  `json:"by_status"`
+	ByCriticality map[string]int  `json:"by_criticality"`
+	ByPhase       map[string]int  `json:"by_phase"`
 	Validations   ValidationStats `json:"validations"`
 }
 

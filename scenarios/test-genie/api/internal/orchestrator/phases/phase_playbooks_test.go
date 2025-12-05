@@ -10,6 +10,7 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
+	"test-genie/internal/shared"
 )
 
 // playbooksTestHarness provides a consistent test setup for playbooks phase tests.
@@ -99,7 +100,10 @@ func TestRunPlaybooksPhaseNoUIDirectory(t *testing.T) {
 	// Should have an info observation about missing UI
 	hasSkipObs := false
 	for _, obs := range report.Observations {
-		if strings.Contains(obs.Text, "ui/") || strings.Contains(obs.Text, "missing") {
+		// Check both Text field and the observation's String() representation
+		obsStr := obs.String()
+		if strings.Contains(obs.Text, "ui/") || strings.Contains(obs.Text, "missing") ||
+			strings.Contains(obsStr, "ui/") || strings.Contains(obsStr, "missing") {
 			hasSkipObs = true
 			break
 		}
@@ -214,7 +218,11 @@ func TestConvertPlaybooksObservations(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := convertPlaybooksObservation(tc.input)
+			results := ConvertObservationsGeneric([]playbooks.Observation{tc.input}, ExtractStandardObservation[playbooks.Observation])
+			if len(results) != 1 {
+				t.Fatalf("expected 1 result, got %d", len(results))
+			}
+			result := results[0]
 			if result.Text != tc.wantText {
 				t.Errorf("expected text %q, got %q", tc.wantText, result.Text)
 			}
@@ -224,7 +232,11 @@ func TestConvertPlaybooksObservations(t *testing.T) {
 
 func TestConvertPlaybooksObservationSection(t *testing.T) {
 	input := playbooks.NewSectionObservation("🏗️", "Building phase")
-	result := convertPlaybooksObservation(input)
+	results := ConvertObservationsGeneric([]playbooks.Observation{input}, ExtractStandardObservation[playbooks.Observation])
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	result := results[0]
 
 	if result.Section != "Building phase" {
 		t.Errorf("expected section %q, got %q", "Building phase", result.Section)
@@ -236,18 +248,18 @@ func TestConvertPlaybooksObservationSection(t *testing.T) {
 
 func TestConvertPlaybooksFailureClass(t *testing.T) {
 	tests := []struct {
-		input playbooks.FailureClass
-		want  string
+		input shared.FailureClass
+		want  shared.FailureClass
 	}{
-		{playbooks.FailureClassMisconfiguration, FailureClassMisconfiguration},
-		{playbooks.FailureClassMissingDependency, FailureClassMissingDependency},
-		{playbooks.FailureClassSystem, FailureClassSystem},
-		{playbooks.FailureClassExecution, FailureClassSystem}, // execution maps to system
+		{shared.FailureClassMisconfiguration, shared.FailureClassMisconfiguration},
+		{shared.FailureClassMissingDependency, shared.FailureClassMissingDependency},
+		{shared.FailureClassSystem, shared.FailureClassSystem},
+		{shared.FailureClassExecution, shared.FailureClassSystem}, // execution maps to system
 	}
 
 	for _, tc := range tests {
 		t.Run(string(tc.input), func(t *testing.T) {
-			result := convertPlaybooksFailureClass(tc.input)
+			result := shared.StandardizeFailureClass(tc.input)
 			if result != tc.want {
 				t.Errorf("expected %q, got %q", tc.want, result)
 			}
@@ -256,13 +268,13 @@ func TestConvertPlaybooksFailureClass(t *testing.T) {
 }
 
 func TestResolveScenarioPort(t *testing.T) {
-	// This test validates the parsing logic of resolveScenarioPort
+	// This test validates the parsing logic of ResolveScenarioPort
 	// The actual vrooli CLI call is mocked in integration tests
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Will cause command to fail
 
-	_, err := resolveScenarioPort(ctx, "test-scenario", "API_PORT")
+	_, err := ResolveScenarioPort(ctx, io.Discard, "test-scenario", "API_PORT")
 	if err == nil {
 		t.Error("expected error when context is cancelled")
 	}
@@ -272,7 +284,7 @@ func TestResolveScenarioBaseURL(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := resolveScenarioBaseURL(ctx, "test-scenario")
+	_, err := ResolveScenarioBaseURL(ctx, io.Discard, "test-scenario")
 	if err == nil {
 		t.Error("expected error when port resolution fails")
 	}
@@ -282,7 +294,7 @@ func TestStartScenario(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := startScenario(ctx, "test-scenario", io.Discard)
+	err := StartScenario(ctx, "test-scenario", io.Discard)
 	if err == nil {
 		t.Error("expected error when context is cancelled")
 	}

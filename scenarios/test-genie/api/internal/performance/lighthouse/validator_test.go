@@ -58,7 +58,7 @@ func TestValidator_Audit_NoUIURL(t *testing.T) {
 	// but no UI URL is provided. Previously this would silently fallback to localhost:3000.
 	// Now it should explicitly skip with a helpful message.
 	v := New(ValidatorConfig{
-		BaseURL:        "", // Empty - no UI URL configured
+		BaseURL: "", // Empty - no UI URL configured
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{
@@ -102,7 +102,7 @@ func TestValidator_Audit_NoUIURL(t *testing.T) {
 
 func TestValidator_Audit_InvalidConfig(t *testing.T) {
 	v := New(ValidatorConfig{
-		BaseURL:        "http://localhost:3000", // Must provide BaseURL to reach config validation
+		BaseURL: "http://localhost:3000", // Must provide BaseURL to reach config validation
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{
@@ -127,7 +127,7 @@ func TestValidator_Audit_LighthouseUnavailable(t *testing.T) {
 	}
 
 	v := New(ValidatorConfig{
-		BaseURL:        "http://localhost:3000",
+		BaseURL: "http://localhost:3000",
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{
@@ -157,7 +157,7 @@ func TestValidator_Audit_Success(t *testing.T) {
 	}
 
 	v := New(ValidatorConfig{
-		BaseURL:        "http://localhost:3000",
+		BaseURL: "http://localhost:3000",
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{
@@ -193,7 +193,7 @@ func TestValidator_Audit_ThresholdViolation(t *testing.T) {
 	}
 
 	v := New(ValidatorConfig{
-		BaseURL:        "http://localhost:3000",
+		BaseURL: "http://localhost:3000",
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{
@@ -236,7 +236,7 @@ func TestValidator_Audit_Warning(t *testing.T) {
 	}
 
 	v := New(ValidatorConfig{
-		BaseURL:        "http://localhost:3000",
+		BaseURL: "http://localhost:3000",
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{
@@ -261,7 +261,7 @@ func TestValidator_Audit_AuditError(t *testing.T) {
 	}
 
 	v := New(ValidatorConfig{
-		BaseURL:        "http://localhost:3000",
+		BaseURL: "http://localhost:3000",
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{
@@ -291,7 +291,7 @@ func TestValidator_Audit_MultiplePages(t *testing.T) {
 	_ = origAudit // Avoid unused variable
 
 	v := New(ValidatorConfig{
-		BaseURL:        "http://localhost:3000",
+		BaseURL: "http://localhost:3000",
 		Config: &Config{
 			Enabled: true,
 			Pages: []PageConfig{

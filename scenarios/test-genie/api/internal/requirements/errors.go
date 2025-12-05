@@ -33,13 +33,13 @@ const (
 
 // Function re-exports
 var (
-	NewParseError          = types.NewParseError
-	NewParseErrorAt        = types.NewParseErrorAt
-	NewValidationResult    = types.NewValidationResult
-	NewDiscoveryError      = types.NewDiscoveryError
-	NewSyncError           = types.NewSyncError
-	NewSyncErrorWithPhase  = types.NewSyncErrorWithPhase
-	IsNotFound             = types.IsNotFound
-	IsValidationError      = types.IsValidationError
-	IsParseError           = types.IsParseError
+	NewParseError         = types.NewParseError
+	NewParseErrorAt       = types.NewParseErrorAt
+	NewValidationResult   = types.NewValidationResult
+	NewDiscoveryError     = types.NewDiscoveryError
+	NewSyncError          = types.NewSyncError
+	NewSyncErrorWithPhase = types.NewSyncErrorWithPhase
+	IsNotFound            = types.IsNotFound
+	IsValidationError     = types.IsValidationError
+	IsParseError          = types.IsParseError
 )

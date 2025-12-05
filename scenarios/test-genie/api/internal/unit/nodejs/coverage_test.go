@@ -251,9 +251,9 @@ func TestExtractPercentage_PercentInMiddle(t *testing.T) {
 		line string
 		want string
 	}{
-		{"file%name.txt 100", ""},   // % in middle of word, no valid percentage token
+		{"file%name.txt 100", ""},      // % in middle of word, no valid percentage token
 		{"85.5% coverage 90%", "85.5"}, // Multiple percentages, takes first
-		{"test: 0% (empty)", "0"},   // Zero percent
+		{"test: 0% (empty)", "0"},      // Zero percent
 	}
 
 	for _, tt := range tests {

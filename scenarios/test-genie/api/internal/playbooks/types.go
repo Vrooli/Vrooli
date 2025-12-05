@@ -20,13 +20,14 @@ type (
 )
 
 // Re-export constants
+// NOTE: The ordering matches shared.ObservationType for ExtractStandardObservation compatibility.
 const (
-	ObservationInfo    = types.ObservationInfo
+	ObservationSection = types.ObservationSection
 	ObservationSuccess = types.ObservationSuccess
 	ObservationWarning = types.ObservationWarning
 	ObservationError   = types.ObservationError
+	ObservationInfo    = types.ObservationInfo
 	ObservationSkip    = types.ObservationSkip
-	ObservationSection = types.ObservationSection
 
 	FailureClassMisconfiguration  = types.FailureClassMisconfiguration
 	FailureClassMissingDependency = types.FailureClassMissingDependency

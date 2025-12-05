@@ -9,8 +9,8 @@ import (
 	"test-genie/internal/performance/lighthouse"
 	"test-genie/internal/performance/lighthouse/artifacts"
 	"test-genie/internal/performance/nodejs"
+	"test-genie/internal/shared"
 )
-
 
 // Runner orchestrates performance validation across Go and Node.js builds,
 // and Lighthouse audits.
@@ -116,7 +116,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	var observations []Observation
 	var summary BenchmarkSummary
 
-	logInfo(r.logWriter, "Starting performance validation for %s", r.config.ScenarioName)
+	shared.LogInfo(r.logWriter, "Starting performance validation for %s", r.config.ScenarioName)
 
 	// Get expectations (with defaults)
 	expectations := r.config.Expectations
@@ -193,7 +193,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Message: fmt.Sprintf("Performance validation completed (%s)", summary.String()),
 	})
 
-	logSuccess(r.logWriter, "Performance validation complete")
+	shared.LogSuccess(r.logWriter, "Performance validation complete")
 
 	return &RunResult{
 		Success:      true,
@@ -202,20 +202,3 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 }
 
-// Logging helpers
-
-func logInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
-func logSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
-}

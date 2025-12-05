@@ -79,9 +79,11 @@ type syncReaderAdapter struct {
 	reader Reader
 }
 
-func (a *syncReaderAdapter) ReadFile(path string) ([]byte, error)       { return a.reader.ReadFile(path) }
-func (a *syncReaderAdapter) ReadDir(path string) ([]fs.DirEntry, error) { return a.reader.ReadDir(path) }
-func (a *syncReaderAdapter) Exists(path string) bool                    { return a.reader.Exists(path) }
+func (a *syncReaderAdapter) ReadFile(path string) ([]byte, error) { return a.reader.ReadFile(path) }
+func (a *syncReaderAdapter) ReadDir(path string) ([]fs.DirEntry, error) {
+	return a.reader.ReadDir(path)
+}
+func (a *syncReaderAdapter) Exists(path string) bool { return a.reader.Exists(path) }
 
 // syncWriterAdapter adapts Writer to syncpkg.Writer
 type syncWriterAdapter struct {

@@ -693,10 +693,10 @@ func TestServer_handleUISmoke_Success(t *testing.T) {
 func TestServer_handleUISmoke_WithCustomURL(t *testing.T) {
 	scenarioSvc := &stubScenarioDirectory{
 		uiSmokeResp: &scenarios.UISmokeResult{
-			Scenario:   "demo",
-			Status:     "passed",
-			Message:    "UI loaded successfully",
-			UIURL:      "http://custom.example.com:8080",
+			Scenario: "demo",
+			Status:   "passed",
+			Message:  "UI loaded successfully",
+			UIURL:    "http://custom.example.com:8080",
 		},
 	}
 	server := &Server{

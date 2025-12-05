@@ -4,78 +4,51 @@ import (
 	"fmt"
 	"strings"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
-// Re-export shared types from structure/types for consistency across packages.
-// This allows the dependencies package to use the same observation and result
-// types as the structure package.
+// Re-export shared types for consistency across packages.
 type (
-	FailureClass    = types.FailureClass
-	ObservationType = types.ObservationType
-	Observation     = types.Observation
-	Result          = types.Result
+	FailureClass    = shared.FailureClass
+	ObservationType = shared.ObservationType
+	Observation     = shared.Observation
+	Result          = shared.Result
 )
 
 // Re-export constants.
 const (
-	FailureClassNone             = types.FailureClassNone
-	FailureClassMisconfiguration = types.FailureClassMisconfiguration
-	FailureClassSystem           = types.FailureClassSystem
+	FailureClassNone              = shared.FailureClassNone
+	FailureClassMisconfiguration  = shared.FailureClassMisconfiguration
+	FailureClassSystem            = shared.FailureClassSystem
+	FailureClassMissingDependency = shared.FailureClassMissingDependency
 
-	ObservationSection = types.ObservationSection
-	ObservationSuccess = types.ObservationSuccess
-	ObservationWarning = types.ObservationWarning
-	ObservationError   = types.ObservationError
-	ObservationInfo    = types.ObservationInfo
-	ObservationSkip    = types.ObservationSkip
+	ObservationSection = shared.ObservationSection
+	ObservationSuccess = shared.ObservationSuccess
+	ObservationWarning = shared.ObservationWarning
+	ObservationError   = shared.ObservationError
+	ObservationInfo    = shared.ObservationInfo
+	ObservationSkip    = shared.ObservationSkip
 )
-
-// FailureClassMissingDependency indicates a required dependency is missing.
-// This is specific to the dependencies package.
-const FailureClassMissingDependency FailureClass = "missing_dependency"
 
 // Re-export constructor functions.
 var (
-	NewSectionObservation = types.NewSectionObservation
-	NewSuccessObservation = types.NewSuccessObservation
-	NewWarningObservation = types.NewWarningObservation
-	NewErrorObservation   = types.NewErrorObservation
-	NewInfoObservation    = types.NewInfoObservation
-	NewSkipObservation    = types.NewSkipObservation
+	NewSectionObservation = shared.NewSectionObservation
+	NewSuccessObservation = shared.NewSuccessObservation
+	NewWarningObservation = shared.NewWarningObservation
+	NewErrorObservation   = shared.NewErrorObservation
+	NewInfoObservation    = shared.NewInfoObservation
+	NewSkipObservation    = shared.NewSkipObservation
 
-	OK                   = types.OK
-	OKWithCount          = types.OKWithCount
-	Fail                 = types.Fail
-	FailMisconfiguration = types.FailMisconfiguration
-	FailSystem           = types.FailSystem
+	OK                    = shared.OK
+	OKWithCount           = shared.OKWithCount
+	Fail                  = shared.Fail
+	FailMisconfiguration  = shared.FailMisconfiguration
+	FailMissingDependency = shared.FailMissingDependency
+	FailSystem            = shared.FailSystem
 )
 
-// FailMissingDependency creates a missing dependency failure.
-func FailMissingDependency(err error, remediation string) Result {
-	return Fail(err, FailureClassMissingDependency, remediation)
-}
-
-// RunResult represents the complete outcome of running all dependency validations.
-type RunResult struct {
-	// Success indicates whether all validations passed.
-	Success bool
-
-	// Error contains the first validation error encountered.
-	Error error
-
-	// FailureClass categorizes the type of failure.
-	FailureClass FailureClass
-
-	// Remediation provides guidance on how to fix the issue.
-	Remediation string
-
-	// Observations contains all validation observations.
-	Observations []Observation
-
-	// Summary provides counts of items checked per category.
-	Summary ValidationSummary
-}
+// RunResult is an alias for the generic shared.RunResult with ValidationSummary.
+type RunResult = shared.RunResult[ValidationSummary]
 
 // ValidationSummary tracks validation counts by category.
 type ValidationSummary struct {

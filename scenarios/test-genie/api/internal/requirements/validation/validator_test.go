@@ -298,7 +298,7 @@ func TestMissingIDRule_Check_MissingID(t *testing.T) {
 		FilePath: "/test/module.json",
 		Requirements: []types.Requirement{
 			{ID: "REQ-001"},
-			{ID: ""},     // Missing ID
+			{ID: ""},    // Missing ID
 			{ID: "   "}, // Whitespace only
 		},
 	}
@@ -357,7 +357,7 @@ func TestMissingTitleRule_Check_MissingTitle(t *testing.T) {
 		FilePath: "/test/module.json",
 		Requirements: []types.Requirement{
 			{ID: "REQ-001", Title: "Has Title"},
-			{ID: "REQ-002", Title: ""},     // Missing title
+			{ID: "REQ-002", Title: ""},    // Missing title
 			{ID: "REQ-003", Title: "   "}, // Whitespace only
 		},
 	}
@@ -736,8 +736,8 @@ func TestInvalidStatusRule_Check_InvalidStatus(t *testing.T) {
 		FilePath: "/test/module.json",
 		Requirements: []types.Requirement{
 			{ID: "REQ-001", Status: "invalid_status"},
-			{ID: "REQ-002", Status: "done"},  // Not valid
-			{ID: "REQ-003", Status: "todo"},  // Not valid
+			{ID: "REQ-002", Status: "done"}, // Not valid
+			{ID: "REQ-003", Status: "todo"}, // Not valid
 		},
 	}
 	index.AddModule(module)
@@ -786,8 +786,8 @@ func TestValidator_IntegrationTest(t *testing.T) {
 			// Add issues to verify detection
 			{
 				ID:     "REQ-003",
-				Title:  "",                           // Missing title
-				Status: "invalid",                    // Invalid status
+				Title:  "",        // Missing title
+				Status: "invalid", // Invalid status
 				Validations: []types.Validation{
 					{Type: types.ValTypeTest, Ref: "nonexistent.ts"}, // Invalid reference
 				},
@@ -827,10 +827,10 @@ func TestValidator_AllRulesRun(t *testing.T) {
 	module2 := &types.RequirementModule{
 		FilePath: "/test/module2.json",
 		Requirements: []types.Requirement{
-			{ID: "REQ-001", Title: "Duplicate"}, // Duplicate ID
-			{ID: "", Title: "Missing ID"},        // Missing ID
-			{ID: "REQ-002", Title: ""},           // Missing title
-			{ID: "REQ-003", Status: "bad"},       // Invalid status
+			{ID: "REQ-001", Title: "Duplicate"},                    // Duplicate ID
+			{ID: "", Title: "Missing ID"},                          // Missing ID
+			{ID: "REQ-002", Title: ""},                             // Missing title
+			{ID: "REQ-003", Status: "bad"},                         // Invalid status
 			{ID: "REQ-004", Children: []string{"REQ-NONEXISTENT"}}, // Orphaned child
 		},
 	}

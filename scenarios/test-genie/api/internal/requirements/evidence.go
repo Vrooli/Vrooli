@@ -15,6 +15,6 @@ type ManualManifest = types.ManualManifest
 
 // Function re-exports
 var (
-	NewEvidenceBundle  = types.NewEvidenceBundle
-	NewManualManifest  = types.NewManualManifest
+	NewEvidenceBundle = types.NewEvidenceBundle
+	NewManualManifest = types.NewManualManifest
 )

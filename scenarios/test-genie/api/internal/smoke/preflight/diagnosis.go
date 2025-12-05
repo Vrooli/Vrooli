@@ -294,7 +294,6 @@ func (r *DefaultRecoveryExecutor) CleanupProcesses(ctx context.Context) error {
 	return nil
 }
 
-
 // EnsureHealthy checks browserless health and attempts auto-recovery if unhealthy.
 // Returns the recovery result and any error.
 func (c *Checker) EnsureHealthy(ctx context.Context, opts orchestrator.AutoRecoveryOptions) (*orchestrator.RecoveryResult, error) {

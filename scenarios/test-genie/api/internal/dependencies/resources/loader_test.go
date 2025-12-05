@@ -189,7 +189,7 @@ func TestLoaderLoadWithNilLogWriter(t *testing.T) {
 
 // Ensure mock types satisfy interfaces at compile time.
 var (
-	_ ManifestLoader      = (*mockManifestLoader)(nil)
+	_ ManifestLoader     = (*mockManifestLoader)(nil)
 	_ ExpectationsLoader = (*loader)(nil)
 )
 

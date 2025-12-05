@@ -9,6 +9,7 @@ import (
 	"test-genie/internal/integration/bats"
 	"test-genie/internal/integration/cli"
 	"test-genie/internal/integration/websocket"
+	"test-genie/internal/shared"
 )
 
 // Config holds configuration for integration validation.
@@ -194,12 +195,12 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	var observations []Observation
 	var summary ValidationSummary
 
-	logInfo(r.logWriter, "Starting integration validation for %s", r.config.ScenarioName)
+	shared.LogInfo(r.logWriter, "Starting integration validation for %s", r.config.ScenarioName)
 
 	// Section: API Health Checks (if configured)
 	if r.apiValidator != nil {
 		observations = append(observations, NewSectionObservation("🌐", "Validating API health..."))
-		logInfo(r.logWriter, "Validating API health...")
+		shared.LogInfo(r.logWriter, "Validating API health...")
 
 		apiResult := r.apiValidator.Validate(ctx)
 		observations = append(observations, apiResult.Observations...)
@@ -214,15 +215,15 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			}
 		}
 		summary.APIHealthChecked = true
-		logSuccess(r.logWriter, "API health check passed (status %d, %dms)", apiResult.StatusCode, apiResult.ResponseTimeMs)
+		shared.LogSuccess(r.logWriter, "API health check passed (status %d, %dms)", apiResult.StatusCode, apiResult.ResponseTimeMs)
 	} else {
 		observations = append(observations, NewSkipObservation("API health check skipped (no API URL configured)"))
-		logInfo(r.logWriter, "Skipping API health check (no URL configured)")
+		shared.LogInfo(r.logWriter, "Skipping API health check (no URL configured)")
 	}
 
 	// Section: CLI Validation
 	observations = append(observations, NewSectionObservation("🖥️", "Validating CLI..."))
-	logInfo(r.logWriter, "Validating CLI...")
+	shared.LogInfo(r.logWriter, "Validating CLI...")
 
 	if r.cliValidator == nil {
 		return &RunResult{
@@ -248,15 +249,15 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 	summary.CLIValidated = true
-	logSuccess(r.logWriter, "CLI validation complete")
+	shared.LogSuccess(r.logWriter, "CLI validation complete")
 
 	// Note about Go-native phases
 	observations = append(observations, NewInfoObservation("go-native phase execution"))
-	logInfo(r.logWriter, "skipping bash orchestrator validation (Go-native phases)")
+	shared.LogInfo(r.logWriter, "skipping bash orchestrator validation (Go-native phases)")
 
 	// Section: BATS Validation
 	observations = append(observations, NewSectionObservation("🧪", "Running BATS acceptance tests..."))
-	logInfo(r.logWriter, "Running BATS acceptance tests...")
+	shared.LogInfo(r.logWriter, "Running BATS acceptance tests...")
 
 	if r.batsRunner == nil {
 		return &RunResult{
@@ -283,12 +284,12 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 	summary.PrimaryBatsRan = true
 	summary.AdditionalBatsSuites = batsResult.AdditionalSuitesRun
-	logSuccess(r.logWriter, "BATS validation complete")
+	shared.LogSuccess(r.logWriter, "BATS validation complete")
 
 	// Section: WebSocket Validation (if configured)
 	if r.websocketValidator != nil {
 		observations = append(observations, NewSectionObservation("🔌", "Validating WebSocket connection..."))
-		logInfo(r.logWriter, "Validating WebSocket connection...")
+		shared.LogInfo(r.logWriter, "Validating WebSocket connection...")
 
 		wsResult := r.websocketValidator.Validate(ctx)
 		observations = append(observations, wsResult.Observations...)
@@ -303,10 +304,10 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			}
 		}
 		summary.WebSocketValidated = true
-		logSuccess(r.logWriter, "WebSocket validation complete (%dms connection)", wsResult.ConnectionTimeMs)
+		shared.LogSuccess(r.logWriter, "WebSocket validation complete (%dms connection)", wsResult.ConnectionTimeMs)
 	} else {
 		observations = append(observations, NewSkipObservation("WebSocket validation skipped (no WebSocket URL configured)"))
-		logInfo(r.logWriter, "Skipping WebSocket validation (no URL configured)")
+		shared.LogInfo(r.logWriter, "Skipping WebSocket validation (no URL configured)")
 	}
 
 	// Final summary
@@ -317,29 +318,11 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Message: fmt.Sprintf("Integration validation completed (%d checks)", totalChecks),
 	})
 
-	logSuccess(r.logWriter, "Integration validation complete")
+	shared.LogSuccess(r.logWriter, "Integration validation complete")
 
 	return &RunResult{
 		Success:      true,
 		Observations: observations,
 		Summary:      summary,
 	}
-}
-
-// logInfo writes an info message.
-func logInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
-// logSuccess writes a success message.
-func logSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
 }

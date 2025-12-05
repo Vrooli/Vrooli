@@ -371,10 +371,10 @@ func TestHasTestFiles_SkipsVirtualEnv(t *testing.T) {
 
 func TestHasIndicators(t *testing.T) {
 	tests := []struct {
-		name      string
-		files     []string
-		dirs      []string
-		expected  bool
+		name     string
+		files    []string
+		dirs     []string
+		expected bool
 	}{
 		{
 			name:     "requirements.txt",

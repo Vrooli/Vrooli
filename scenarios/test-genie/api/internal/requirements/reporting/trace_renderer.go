@@ -27,10 +27,10 @@ type TraceReport struct {
 
 // TraceSummary contains high-level trace information.
 type TraceSummary struct {
-	Total             int     `json:"total"`
-	WithValidations   int     `json:"with_validations"`
-	WithoutValidations int    `json:"without_validations"`
-	TraceCoverage     float64 `json:"trace_coverage"`
+	Total              int     `json:"total"`
+	WithValidations    int     `json:"with_validations"`
+	WithoutValidations int     `json:"without_validations"`
+	TraceCoverage      float64 `json:"trace_coverage"`
 }
 
 // TraceRequirement contains full requirement trace.
@@ -77,19 +77,19 @@ type TraceCoverage struct {
 
 // PhaseCoverage contains coverage for a single phase.
 type PhaseCoverage struct {
-	Total      int     `json:"total"`
-	Covered    int     `json:"covered"`
-	Coverage   float64 `json:"coverage"`
-	Passing    int     `json:"passing"`
-	Failing    int     `json:"failing"`
+	Total    int     `json:"total"`
+	Covered  int     `json:"covered"`
+	Coverage float64 `json:"coverage"`
+	Passing  int     `json:"passing"`
+	Failing  int     `json:"failing"`
 }
 
 // CriticalityCoverage contains coverage for a criticality level.
 type CriticalityCoverage struct {
-	Total      int     `json:"total"`
-	Complete   int     `json:"complete"`
-	Coverage   float64 `json:"coverage"`
-	Gap        int     `json:"gap"`
+	Total    int     `json:"total"`
+	Complete int     `json:"complete"`
+	Coverage float64 `json:"coverage"`
+	Gap      int     `json:"gap"`
 }
 
 // Render writes a trace report.

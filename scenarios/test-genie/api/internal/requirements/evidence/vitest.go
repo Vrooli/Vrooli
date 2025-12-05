@@ -27,11 +27,11 @@ type vitestFileEntry struct {
 
 // vitestTestEntry represents a test file and its results.
 type vitestTestEntry struct {
-	Path          string           `json:"path"`
-	RequirementID string           `json:"requirementId,omitempty"`
-	Tests         []vitestTest     `json:"tests,omitempty"`
-	Status        string           `json:"status,omitempty"`
-	Duration      float64          `json:"duration,omitempty"`
+	Path          string       `json:"path"`
+	RequirementID string       `json:"requirementId,omitempty"`
+	Tests         []vitestTest `json:"tests,omitempty"`
+	Status        string       `json:"status,omitempty"`
+	Duration      float64      `json:"duration,omitempty"`
 }
 
 // vitestTest represents a single test within a file.
@@ -45,10 +45,10 @@ type vitestTest struct {
 
 // vitestSummary contains aggregate statistics.
 type vitestSummary struct {
-	Total   int     `json:"total"`
-	Passed  int     `json:"passed"`
-	Failed  int     `json:"failed"`
-	Skipped int     `json:"skipped"`
+	Total    int     `json:"total"`
+	Passed   int     `json:"passed"`
+	Failed   int     `json:"failed"`
+	Skipped  int     `json:"skipped"`
 	Coverage float64 `json:"coverage,omitempty"`
 }
 

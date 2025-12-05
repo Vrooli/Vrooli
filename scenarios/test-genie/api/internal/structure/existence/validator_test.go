@@ -163,7 +163,7 @@ func TestValidator_Interface(t *testing.T) {
 
 func TestResolveRequirementsWithOverrides_AdditionalPaths(t *testing.T) {
 	dirs, files := ResolveRequirementsWithOverrides(
-		[]string{"extensions"},       // additional dirs
+		[]string{"extensions"},        // additional dirs
 		[]string{"config/extra.json"}, // additional files
 		nil,                           // excluded dirs
 		nil,                           // excluded files
@@ -182,9 +182,9 @@ func TestResolveRequirementsWithOverrides_AdditionalPaths(t *testing.T) {
 
 func TestResolveRequirementsWithOverrides_Exclusions(t *testing.T) {
 	dirs, files := ResolveRequirementsWithOverrides(
-		nil,             // additional dirs
-		nil,             // additional files
-		[]string{"cli"}, // excluded dirs
+		nil,                // additional dirs
+		nil,                // additional files
+		[]string{"cli"},    // excluded dirs
 		[]string{"PRD.md"}, // excluded files
 	)
 

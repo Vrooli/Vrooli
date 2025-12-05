@@ -12,13 +12,13 @@ import (
 
 // phaseResultFile represents the structure of a phase result JSON file.
 type phaseResultFile struct {
-	Phase           string                 `json:"phase"`
-	Status          string                 `json:"status"`
-	ExecutedAt      string                 `json:"executed_at,omitempty"`
-	DurationSeconds float64                `json:"duration_seconds,omitempty"`
-	Results         []phaseTestResult      `json:"results,omitempty"`
-	Summary         phaseResultSummary     `json:"summary,omitempty"`
-	Metadata        map[string]any         `json:"metadata,omitempty"`
+	Phase           string             `json:"phase"`
+	Status          string             `json:"status"`
+	ExecutedAt      string             `json:"executed_at,omitempty"`
+	DurationSeconds float64            `json:"duration_seconds,omitempty"`
+	Results         []phaseTestResult  `json:"results,omitempty"`
+	Summary         phaseResultSummary `json:"summary,omitempty"`
+	Metadata        map[string]any     `json:"metadata,omitempty"`
 }
 
 // phaseTestResult represents a single test result within a phase.

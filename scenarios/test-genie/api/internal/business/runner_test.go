@@ -20,8 +20,8 @@ import (
 // =============================================================================
 
 type mockExistenceValidator struct {
-	reqDirResult   structtypes.Result
-	indexResult    structtypes.Result
+	reqDirResult structtypes.Result
+	indexResult  structtypes.Result
 }
 
 func (m *mockExistenceValidator) ValidateRequirementsDir() structtypes.Result {

@@ -89,7 +89,7 @@ func TestDiagnoseBrowserlessFailure_MemoryExhaustion(t *testing.T) {
 	checker := NewChecker(server.URL)
 	checker.cmdExecutor = &mockCmdExecutor{
 		responses: map[string][]byte{
-			"pgrep":  []byte("10\n"), // Normal process count
+			"pgrep":  []byte("10\n"),     // Normal process count
 			"docker": []byte("95.50%\n"), // High memory
 		},
 	}
@@ -116,7 +116,7 @@ func TestDiagnoseBrowserlessFailure_Healthy(t *testing.T) {
 	checker := NewChecker(server.URL)
 	checker.cmdExecutor = &mockCmdExecutor{
 		responses: map[string][]byte{
-			"pgrep":  []byte("5\n"),  // Low process count
+			"pgrep":  []byte("5\n"),      // Low process count
 			"docker": []byte("30.00%\n"), // Low memory
 		},
 	}
@@ -175,9 +175,9 @@ func TestGetHealthDiagnostics_PressureEndpoint(t *testing.T) {
 
 func TestIsHealthy(t *testing.T) {
 	tests := []struct {
-		name           string
-		chromeCount    string
-		memoryPercent  string
+		name            string
+		chromeCount     string
+		memoryPercent   string
 		expectedHealthy bool
 	}{
 		{"healthy", "10\n", "30.00%\n", true},
@@ -366,8 +366,8 @@ func TestDiagnoseBrowserlessFailure_ChromeCrashes(t *testing.T) {
 	checker := NewChecker(server.URL)
 	checker.cmdExecutor = &mockCmdExecutor{
 		responses: map[string][]byte{
-			"pgrep":  []byte("10\n"),     // Normal process count
-			"docker": []byte("40.00%\n"), // Normal memory
+			"pgrep":  []byte("10\n"),                                                       // Normal process count
+			"docker": []byte("40.00%\n"),                                                   // Normal memory
 			"logs":   []byte("Some log output\nPage crashed!\nMore logs\nPage crashed!\n"), // 2 crashes
 		},
 	}

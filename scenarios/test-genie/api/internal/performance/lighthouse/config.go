@@ -10,6 +10,9 @@ import (
 
 // Config holds the Lighthouse audit configuration loaded from .vrooli/lighthouse.json.
 type Config struct {
+	// Version is the schema version for the configuration.
+	Version string `json:"version,omitempty"`
+
 	// Enabled controls whether Lighthouse audits run.
 	Enabled bool `json:"enabled"`
 
@@ -289,7 +292,6 @@ func (c *Config) BuildLighthouseConfig() map[string]interface{} {
 	return config
 }
 
-
 // BuildPageLighthouseConfig constructs the config object for a specific page,
 // including page-specific settings like viewport and wait options.
 func (c *Config) BuildPageLighthouseConfig(page PageConfig) map[string]interface{} {
@@ -323,4 +325,3 @@ func (c *Config) BuildPageLighthouseConfig(page PageConfig) map[string]interface
 
 	return config
 }
-

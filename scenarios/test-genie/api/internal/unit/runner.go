@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"test-genie/internal/shared"
 	"test-genie/internal/unit/golang"
 	"test-genie/internal/unit/nodejs"
 	"test-genie/internal/unit/python"
@@ -127,7 +128,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	var observations []Observation
 	var summary RunSummary
 
-	logInfo(r.logWriter, "Starting unit test execution for %s", r.config.ScenarioName)
+	shared.LogInfo(r.logWriter, "Starting unit test execution for %s", r.config.ScenarioName)
 
 	// Get runners (use injected runners or create defaults)
 	runners := r.runners
@@ -141,12 +142,12 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		if !runner.Detect() {
 			summary.LanguagesSkipped++
 			observations = append(observations, NewSkipObservation(fmt.Sprintf("%s: not detected in scenario", runner.Name())))
-			logInfo(r.logWriter, "%s not detected, skipping", runner.Name())
+			shared.LogInfo(r.logWriter, "%s not detected, skipping", runner.Name())
 			continue
 		}
 
 		summary.LanguagesDetected++
-		logInfo(r.logWriter, "Running %s tests...", runner.Name())
+		shared.LogInfo(r.logWriter, "Running %s tests...", runner.Name())
 
 		result := runner.Run(ctx)
 
@@ -177,7 +178,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			successMsg += fmt.Sprintf(" (coverage: %s%%)", result.Coverage)
 		}
 		observations = append(observations, NewSuccessObservation(successMsg))
-		logSuccess(r.logWriter, "%s tests passed", runner.Name())
+		shared.LogSuccess(r.logWriter, "%s tests passed", runner.Name())
 	}
 
 	observations = append(observations, Observation{
@@ -186,7 +187,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Message: fmt.Sprintf("Unit tests completed (%d languages passed)", summary.LanguagesPassed),
 	})
 
-	logSuccess(r.logWriter, "Unit test execution complete")
+	shared.LogSuccess(r.logWriter, "Unit test execution complete")
 
 	return &RunResult{
 		Success:      true,
@@ -221,31 +222,4 @@ func (r *Runner) createDefaultRunners() []LanguageRunner {
 			LogWriter:    r.logWriter,
 		}),
 	}
-}
-
-// logInfo writes an info message.
-func logInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
-// logSuccess writes a success message.
-func logSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
-}
-
-// logWarn writes a warning message.
-func logWarn(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[WARNING] ⚠️ %s\n", msg)
 }

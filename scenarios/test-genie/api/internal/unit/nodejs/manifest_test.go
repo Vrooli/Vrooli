@@ -122,9 +122,9 @@ func TestManifest_HasTestScript(t *testing.T) {
 
 func TestDetectPackageManager_FromField(t *testing.T) {
 	tests := []struct {
-		name    string
-		field   string
-		want    string
+		name  string
+		field string
+		want  string
 	}{
 		{"pnpm with version", "pnpm@8.0.0", "pnpm"},
 		{"yarn with version", "yarn@3.5.0", "yarn"},

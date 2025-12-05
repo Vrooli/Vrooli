@@ -109,8 +109,8 @@ func (s *DefaultScenarioStarter) isPortListening(ctx context.Context, port int) 
 
 // MockScenarioStarter is a test double for ScenarioStarter.
 type MockScenarioStarter struct {
-	StartFunc func(ctx context.Context, scenarioName string) (int, error)
-	StopFunc  func(ctx context.Context, scenarioName string) error
+	StartFunc        func(ctx context.Context, scenarioName string) (int, error)
+	StopFunc         func(ctx context.Context, scenarioName string) error
 	StartedScenarios []string
 	StoppedScenarios []string
 }

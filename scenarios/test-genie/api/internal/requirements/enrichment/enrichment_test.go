@@ -695,9 +695,9 @@ func TestAggregator_AggregateAll_PassRate(t *testing.T) {
 
 func TestOverallSummary_IsHealthy(t *testing.T) {
 	tests := []struct {
-		name        string
-		summary     OverallSummary
-		expected    bool
+		name     string
+		summary  OverallSummary
+		expected bool
 	}{
 		{
 			name:     "healthy - no failures, no critical gap",

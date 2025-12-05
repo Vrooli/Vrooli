@@ -100,7 +100,7 @@ type Result struct {
 	Errors  []error
 
 	// Metadata
-	SyncedAt    time.Time
+	SyncedAt     time.Time
 	TestCommands []string
 }
 

@@ -53,9 +53,9 @@ type Diagnostics struct {
 
 // HealthCheckDiagnostics contains health check status for a component.
 type HealthCheckDiagnostics struct {
-	Status       string                          `json:"status"`
-	Available    bool                            `json:"available"`
-	Dependencies map[string]DependencyStatus     `json:"dependencies"`
+	Status       string                      `json:"status"`
+	Available    bool                        `json:"available"`
+	Dependencies map[string]DependencyStatus `json:"dependencies"`
 }
 
 // DependencyStatus represents a dependency's connection status.
@@ -172,10 +172,10 @@ func (c *checker) logWarn(format string, args ...interface{}) {
 
 // CLIStatusFetcher fetches status by executing vrooli CLI.
 type CLIStatusFetcher struct {
-	ScenarioName string
-	AppRoot      string
+	ScenarioName  string
+	AppRoot       string
 	CommandRunner CommandRunner
-	LogWriter    io.Writer
+	LogWriter     io.Writer
 }
 
 // CommandRunner abstracts command execution for testing.

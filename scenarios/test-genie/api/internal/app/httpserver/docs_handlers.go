@@ -9,10 +9,10 @@ import (
 
 // DocsManifest represents the structure of the docs manifest.json file
 type DocsManifest struct {
-	Version         string          `json:"version"`
-	Title           string          `json:"title"`
-	DefaultDocument string          `json:"defaultDocument"`
-	Sections        []DocsSection   `json:"sections"`
+	Version         string        `json:"version"`
+	Title           string        `json:"title"`
+	DefaultDocument string        `json:"defaultDocument"`
+	Sections        []DocsSection `json:"sections"`
 }
 
 // DocsSection represents a section in the docs manifest

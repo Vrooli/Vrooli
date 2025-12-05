@@ -4,6 +4,8 @@ package types
 import (
 	"fmt"
 	"time"
+
+	"test-genie/internal/shared"
 )
 
 // Registry represents the playbook registry file structure.
@@ -48,63 +50,37 @@ type Result struct {
 	ArtifactPath string
 }
 
-// Observation represents a single observation during playbook execution.
-type Observation struct {
-	Type    ObservationType
-	Icon    string
-	Message string
-}
-
-// ObservationType categorizes observations.
-type ObservationType int
-
-const (
-	ObservationInfo ObservationType = iota
-	ObservationSuccess
-	ObservationWarning
-	ObservationError
-	ObservationSkip
-	ObservationSection
+// Re-export shared types for consistency across packages.
+type (
+	FailureClass    = shared.FailureClass
+	ObservationType = shared.ObservationType
+	Observation     = shared.Observation
 )
 
-// NewSuccessObservation creates a success observation.
-func NewSuccessObservation(message string) Observation {
-	return Observation{Type: ObservationSuccess, Icon: "✅", Message: message}
-}
-
-// NewWarningObservation creates a warning observation.
-func NewWarningObservation(message string) Observation {
-	return Observation{Type: ObservationWarning, Icon: "⚠️", Message: message}
-}
-
-// NewErrorObservation creates an error observation.
-func NewErrorObservation(message string) Observation {
-	return Observation{Type: ObservationError, Icon: "❌", Message: message}
-}
-
-// NewInfoObservation creates an info observation.
-func NewInfoObservation(message string) Observation {
-	return Observation{Type: ObservationInfo, Icon: "ℹ️", Message: message}
-}
-
-// NewSkipObservation creates a skip observation.
-func NewSkipObservation(message string) Observation {
-	return Observation{Type: ObservationSkip, Icon: "⏭️", Message: message}
-}
-
-// NewSectionObservation creates a section header observation.
-func NewSectionObservation(icon, message string) Observation {
-	return Observation{Type: ObservationSection, Icon: icon, Message: message}
-}
-
-// FailureClass categorizes playbook failures.
-type FailureClass string
-
+// Re-export constants.
 const (
-	FailureClassMisconfiguration  FailureClass = "misconfiguration"
-	FailureClassMissingDependency FailureClass = "missing_dependency"
-	FailureClassSystem            FailureClass = "system"
-	FailureClassExecution         FailureClass = "execution"
+	FailureClassNone              = shared.FailureClassNone
+	FailureClassMisconfiguration  = shared.FailureClassMisconfiguration
+	FailureClassMissingDependency = shared.FailureClassMissingDependency
+	FailureClassSystem            = shared.FailureClassSystem
+	FailureClassExecution         = shared.FailureClassExecution
+
+	ObservationSection = shared.ObservationSection
+	ObservationSuccess = shared.ObservationSuccess
+	ObservationWarning = shared.ObservationWarning
+	ObservationError   = shared.ObservationError
+	ObservationInfo    = shared.ObservationInfo
+	ObservationSkip    = shared.ObservationSkip
+)
+
+// Re-export constructor functions.
+var (
+	NewSectionObservation = shared.NewSectionObservation
+	NewSuccessObservation = shared.NewSuccessObservation
+	NewWarningObservation = shared.NewWarningObservation
+	NewErrorObservation   = shared.NewErrorObservation
+	NewInfoObservation    = shared.NewInfoObservation
+	NewSkipObservation    = shared.NewSkipObservation
 )
 
 // ExecutionSummary tracks playbook execution statistics.
@@ -138,13 +114,14 @@ func (s ExecutionSummary) String() string {
 }
 
 // RunResult represents the overall result of the playbooks phase.
+// This extends the base shared.RunResult with playbook-specific Results field.
 type RunResult struct {
 	Success      bool
 	Error        error
 	FailureClass FailureClass
 	Remediation  string
 	Observations []Observation
-	Results      []Result
+	Results      []Result // Playbook-specific: execution results for each playbook
 	Summary      ExecutionSummary
 }
 

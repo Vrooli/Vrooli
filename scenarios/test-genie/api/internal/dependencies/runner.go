@@ -9,6 +9,7 @@ import (
 	"test-genie/internal/dependencies/packages"
 	"test-genie/internal/dependencies/resources"
 	"test-genie/internal/dependencies/runtime"
+	"test-genie/internal/shared"
 )
 
 // Config holds configuration for dependency validation.
@@ -32,11 +33,11 @@ type Runner struct {
 	config Config
 
 	// Validators (injectable for testing)
-	commandChecker    commands.Checker
-	runtimeDetector   runtime.Detector
-	packageDetector   packages.Detector
-	resourceLoader    resources.ExpectationsLoader
-	resourceChecker   resources.HealthChecker
+	commandChecker  commands.Checker
+	runtimeDetector runtime.Detector
+	packageDetector packages.Detector
+	resourceLoader  resources.ExpectationsLoader
+	resourceChecker resources.HealthChecker
 
 	logWriter io.Writer
 }
@@ -133,35 +134,33 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	var observations []Observation
 	var summary ValidationSummary
 
-	logInfo(r.logWriter, "Starting dependency validation for %s", r.config.ScenarioName)
+	shared.LogInfo(r.logWriter, "Starting dependency validation for %s", r.config.ScenarioName)
 
 	// Section: Baseline Commands
 	observations = append(observations, NewSectionObservation("🔧", "Checking baseline commands..."))
-	logInfo(r.logWriter, "Checking baseline commands...")
+	shared.LogInfo(r.logWriter, "Checking baseline commands...")
 
 	baselineReqs := commands.BaselineRequirements()
 	cmdResult := r.commandChecker.CheckAll(baselineReqs)
 	summary.CommandsChecked += len(baselineReqs)
 
-	// Convert command observations
-	for _, obs := range cmdResult.Observations {
-		observations = append(observations, convertObservation(obs))
-	}
+	// Append observations directly (types are compatible via type alias)
+	observations = append(observations, cmdResult.Observations...)
 
 	if !cmdResult.Success {
 		return r.failFromCommandResult(cmdResult, observations)
 	}
-	logSuccess(r.logWriter, "All baseline commands available (%d)", len(baselineReqs))
+	shared.LogSuccess(r.logWriter, "All baseline commands available (%d)", len(baselineReqs))
 
 	// Section: Language Runtimes
 	observations = append(observations, NewSectionObservation("🏃", "Detecting language runtimes..."))
-	logInfo(r.logWriter, "Detecting language runtimes...")
+	shared.LogInfo(r.logWriter, "Detecting language runtimes...")
 
 	runtimes := r.runtimeDetector.Detect()
 	summary.RuntimesDetected = len(runtimes)
 
 	if len(runtimes) == 0 {
-		logWarn(r.logWriter, "no language runtimes detected for this scenario")
+		shared.LogWarn(r.logWriter, "no language runtimes detected for this scenario")
 		observations = append(observations, NewInfoObservation("no runtime-specific checks detected"))
 	} else {
 		// Check runtime commands
@@ -169,19 +168,17 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		runtimeResult := r.commandChecker.CheckAll(runtimeReqs)
 		summary.CommandsChecked += len(runtimeReqs)
 
-		for _, obs := range runtimeResult.Observations {
-			observations = append(observations, convertObservation(obs))
-		}
+		observations = append(observations, runtimeResult.Observations...)
 
 		if !runtimeResult.Success {
 			return r.failFromCommandResult(runtimeResult, observations)
 		}
-		logSuccess(r.logWriter, "All required runtimes available (%d)", len(runtimes))
+		shared.LogSuccess(r.logWriter, "All required runtimes available (%d)", len(runtimes))
 	}
 
 	// Section: Package Managers
 	observations = append(observations, NewSectionObservation("📦", "Detecting package managers..."))
-	logInfo(r.logWriter, "Detecting package managers...")
+	shared.LogInfo(r.logWriter, "Detecting package managers...")
 
 	managers := r.packageDetector.Detect()
 	summary.ManagersDetected = len(managers)
@@ -200,19 +197,17 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		managerResult := r.commandChecker.CheckAll(managerReqs)
 		summary.CommandsChecked += len(managerReqs)
 
-		for _, obs := range managerResult.Observations {
-			observations = append(observations, convertObservation(obs))
-		}
+		observations = append(observations, managerResult.Observations...)
 
 		if !managerResult.Success {
 			return r.failFromCommandResult(managerResult, observations)
 		}
-		logSuccess(r.logWriter, "All required package managers available (%d)", len(managers))
+		shared.LogSuccess(r.logWriter, "All required package managers available (%d)", len(managers))
 	}
 
 	// Section: Resource Expectations
 	observations = append(observations, NewSectionObservation("🔗", "Loading resource expectations..."))
-	logInfo(r.logWriter, "Loading resource expectations...")
+	shared.LogInfo(r.logWriter, "Loading resource expectations...")
 
 	requiredResources, err := r.resourceLoader.Load()
 	if err != nil {
@@ -240,12 +235,10 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	// Section: Resource Health (if checker is configured)
 	if r.resourceChecker != nil {
 		observations = append(observations, NewSectionObservation("💚", "Checking resource health..."))
-		logInfo(r.logWriter, "Checking resource health...")
+		shared.LogInfo(r.logWriter, "Checking resource health...")
 
 		healthResult := r.resourceChecker.Check(ctx)
-		for _, obs := range healthResult.Observations {
-			observations = append(observations, convertObservation(obs))
-		}
+		observations = append(observations, healthResult.Observations...)
 
 		if !healthResult.Success {
 			return &RunResult{
@@ -266,7 +259,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		Message: fmt.Sprintf("Dependency validation completed (%d checks)", totalChecks),
 	})
 
-	logSuccess(r.logWriter, "Dependency validation complete")
+	shared.LogSuccess(r.logWriter, "Dependency validation complete")
 
 	return &RunResult{
 		Success:      true,
@@ -284,44 +277,4 @@ func (r *Runner) failFromCommandResult(result commands.Result, observations []Ob
 		Remediation:  result.Remediation,
 		Observations: observations,
 	}
-}
-
-// convertObservation converts a types.Observation to dependencies.Observation.
-func convertObservation(obs interface{}) Observation {
-	// Handle both structure/types.Observation and local Observation
-	switch o := obs.(type) {
-	case Observation:
-		return o
-	default:
-		// For structure/types.Observation, we need to convert
-		// Since we're using type aliases, we can just create a new one
-		return NewInfoObservation(fmt.Sprintf("%v", obs))
-	}
-}
-
-// logInfo writes an info message.
-func logInfo(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "🔍 %s\n", msg)
-}
-
-// logSuccess writes a success message.
-func logSuccess(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[SUCCESS] ✅ %s\n", msg)
-}
-
-// logWarn writes a warning message.
-func logWarn(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[WARNING] ⚠️ %s\n", msg)
 }

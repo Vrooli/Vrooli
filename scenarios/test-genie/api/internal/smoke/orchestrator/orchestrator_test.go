@@ -10,16 +10,16 @@ import (
 
 // mockPreflightChecker implements PreflightChecker for testing.
 type mockPreflightChecker struct {
-	browserlessErr    error
-	bundleStatus      *BundleStatus
-	bundleErr         error
-	bridgeStatus      *BridgeStatus
-	bridgeErr         error
-	uiPort            int
-	uiPortErr         error
-	hasUIDir          bool
-	uiPortDefinition  *UIPortDefinition
-	uiPortDefinedErr  error
+	browserlessErr   error
+	bundleStatus     *BundleStatus
+	bundleErr        error
+	bridgeStatus     *BridgeStatus
+	bridgeErr        error
+	uiPort           int
+	uiPortErr        error
+	hasUIDir         bool
+	uiPortDefinition *UIPortDefinition
+	uiPortDefinedErr error
 }
 
 func (m *mockPreflightChecker) CheckBrowserless(ctx context.Context) error {
@@ -204,7 +204,7 @@ func TestOrchestrator_Run_UIPortDefinedButNotDetected(t *testing.T) {
 	preflight := &mockPreflightChecker{
 		hasUIDir:         true,
 		bundleStatus:     &BundleStatus{Fresh: true},
-		uiPort:           0, // Not detected
+		uiPort:           0,                                                   // Not detected
 		uiPortDefinition: &UIPortDefinition{Defined: true, EnvVar: "UI_PORT"}, // But defined
 	}
 
@@ -1118,9 +1118,9 @@ func TestOrchestrator_Run_PersistResultError(t *testing.T) {
 	}
 
 	artifacts := &mockArtifactWriter{
-		resultErr:  context.DeadlineExceeded,
-		readmeErr:  context.DeadlineExceeded,
-		paths:      &ArtifactPaths{Screenshot: "test.png"},
+		resultErr: context.DeadlineExceeded,
+		readmeErr: context.DeadlineExceeded,
+		paths:     &ArtifactPaths{Screenshot: "test.png"},
 	}
 
 	payloadGen := &mockPayloadGenerator{}

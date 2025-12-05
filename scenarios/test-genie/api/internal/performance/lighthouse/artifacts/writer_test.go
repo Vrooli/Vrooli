@@ -10,8 +10,8 @@ import (
 
 // mockFileSystem is a test double for FileSystem.
 type mockFileSystem struct {
-	files   map[string][]byte
-	dirs    map[string]bool
+	files    map[string][]byte
+	dirs     map[string]bool
 	writeErr error
 	mkdirErr error
 }

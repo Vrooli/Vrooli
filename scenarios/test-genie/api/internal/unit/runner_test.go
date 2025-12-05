@@ -10,10 +10,10 @@ import (
 
 // mockRunner is a test double for LanguageRunner.
 type mockRunner struct {
-	name       string
-	detected   bool
-	result     types.Result
-	runCalled  bool
+	name      string
+	detected  bool
+	result    types.Result
+	runCalled bool
 }
 
 func (m *mockRunner) Name() string {

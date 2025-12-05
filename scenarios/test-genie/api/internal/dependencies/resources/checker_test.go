@@ -427,10 +427,10 @@ func (m *mockCommandRunner) Run(ctx context.Context, dir string, name string, ar
 
 // Ensure mock types satisfy interfaces at compile time.
 var (
-	_ StatusFetcher  = (*mockStatusFetcher)(nil)
-	_ StatusFetcher  = (*CLIStatusFetcher)(nil)
-	_ HealthChecker  = (*checker)(nil)
-	_ CommandRunner  = (*mockCommandRunner)(nil)
+	_ StatusFetcher = (*mockStatusFetcher)(nil)
+	_ StatusFetcher = (*CLIStatusFetcher)(nil)
+	_ HealthChecker = (*checker)(nil)
+	_ CommandRunner = (*mockCommandRunner)(nil)
 )
 
 type mockFetchError struct {

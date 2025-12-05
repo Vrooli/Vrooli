@@ -31,7 +31,7 @@ func NewRunner(browserlessURL string, opts ...RunnerOption) *Runner {
 	r := &Runner{
 		browserlessURL:      browserlessURL,
 		logger:              io.Discard,
-		autoRecoveryEnabled: true,  // Enable auto-recovery by default
+		autoRecoveryEnabled: true,                  // Enable auto-recovery by default
 		sharedMode:          isSharedModeFromEnv(), // Read from BAS_BROWSERLESS_SHARED env var
 	}
 	for _, opt := range opts {
@@ -175,13 +175,13 @@ func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir string) (*Re
 // convertResult converts an orchestrator.Result to a smoke.Result.
 func convertResult(or *orchestrator.Result) *Result {
 	r := &Result{
-		Scenario:            or.Scenario,
-		Status:              Status(or.Status),
-		BlockedReason:       BlockedReason(or.BlockedReason),
-		Message:             or.Message,
-		Timestamp:           or.Timestamp,
-		DurationMs:          or.DurationMs,
-		UIURL:               or.UIURL,
+		Scenario:      or.Scenario,
+		Status:        Status(or.Status),
+		BlockedReason: BlockedReason(or.BlockedReason),
+		Message:       or.Message,
+		Timestamp:     or.Timestamp,
+		DurationMs:    or.DurationMs,
+		UIURL:         or.UIURL,
 		Handshake: HandshakeResult{
 			Signaled:   or.Handshake.Signaled,
 			TimedOut:   or.Handshake.TimedOut,

@@ -55,8 +55,8 @@ func (w *FileWriter) WriteJSON(path string, v any) error {
 
 // serializableModule is the output format for requirement files.
 type serializableModule struct {
-	Metadata     map[string]any          `json:"_metadata,omitempty"`
-	Imports      []string                `json:"imports,omitempty"`
+	Metadata     map[string]any            `json:"_metadata,omitempty"`
+	Imports      []string                  `json:"imports,omitempty"`
 	Requirements []serializableRequirement `json:"requirements"`
 }
 

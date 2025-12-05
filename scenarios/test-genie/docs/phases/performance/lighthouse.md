@@ -51,6 +51,7 @@ Create `.vrooli/lighthouse.json` in your scenario directory:
   "_metadata": {
     "description": "Lighthouse testing configuration"
   },
+  "version": "1.0.0",
   "enabled": true,
   "pages": [
     {

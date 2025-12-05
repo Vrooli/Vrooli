@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/shared"
 	"test-genie/internal/unit"
 )
 
@@ -165,7 +166,12 @@ func TestConvertUnitObservation_AllTypes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := convertUnitObservation(tc.input)
+			// Use the generic converter with the standard extractor
+			results := ConvertObservationsGeneric([]unit.Observation{tc.input}, ExtractStandardObservation[unit.Observation])
+			if len(results) != 1 {
+				t.Fatalf("expected 1 result, got %d", len(results))
+			}
+			result := results[0]
 
 			// For section observations, check Section and Icon fields
 			if tc.wantSection != "" {
@@ -189,14 +195,14 @@ func TestConvertUnitObservation_AllTypes(t *testing.T) {
 }
 
 func TestConvertUnitObservations_Empty(t *testing.T) {
-	result := convertUnitObservations(nil)
+	result := ConvertObservationsGeneric([]unit.Observation(nil), ExtractStandardObservation[unit.Observation])
 	if len(result) != 0 {
-		t.Errorf("convertUnitObservations(nil) = %d observations, want 0", len(result))
+		t.Errorf("ConvertObservationsGeneric(nil) = %d observations, want 0", len(result))
 	}
 
-	result = convertUnitObservations([]unit.Observation{})
+	result = ConvertObservationsGeneric([]unit.Observation{}, ExtractStandardObservation[unit.Observation])
 	if len(result) != 0 {
-		t.Errorf("convertUnitObservations([]) = %d observations, want 0", len(result))
+		t.Errorf("ConvertObservationsGeneric([]) = %d observations, want 0", len(result))
 	}
 }
 
@@ -207,7 +213,7 @@ func TestConvertUnitObservations_Multiple(t *testing.T) {
 		unit.NewWarningObservation("Warning 1"),
 	}
 
-	result := convertUnitObservations(input)
+	result := ConvertObservationsGeneric(input, ExtractStandardObservation[unit.Observation])
 
 	if len(result) != 3 {
 		t.Fatalf("len(result) = %d, want 3", len(result))
@@ -231,21 +237,21 @@ func TestConvertUnitObservations_Multiple(t *testing.T) {
 
 func TestConvertUnitFailureClass_AllTypes(t *testing.T) {
 	tests := []struct {
-		input    unit.FailureClass
-		expected string
+		input    shared.FailureClass
+		expected shared.FailureClass
 	}{
-		{unit.FailureClassMisconfiguration, FailureClassMisconfiguration},
-		{unit.FailureClassMissingDependency, FailureClassMissingDependency},
-		{unit.FailureClassTestFailure, FailureClassSystem}, // Maps to system
-		{unit.FailureClassSystem, FailureClassSystem},
-		{unit.FailureClass("unknown"), FailureClassSystem}, // Default to system
+		{shared.FailureClassMisconfiguration, shared.FailureClassMisconfiguration},
+		{shared.FailureClassMissingDependency, shared.FailureClassMissingDependency},
+		{shared.FailureClassTestFailure, shared.FailureClassSystem}, // Maps to system
+		{shared.FailureClassSystem, shared.FailureClassSystem},
+		{shared.FailureClass("unknown"), shared.FailureClassSystem}, // Default to system
 	}
 
 	for _, tc := range tests {
 		t.Run(string(tc.input), func(t *testing.T) {
-			result := convertUnitFailureClass(tc.input)
+			result := shared.StandardizeFailureClass(tc.input)
 			if result != tc.expected {
-				t.Errorf("convertUnitFailureClass(%q) = %q, want %q", tc.input, result, tc.expected)
+				t.Errorf("StandardizeFailureClass(%q) = %q, want %q", tc.input, result, tc.expected)
 			}
 		})
 	}

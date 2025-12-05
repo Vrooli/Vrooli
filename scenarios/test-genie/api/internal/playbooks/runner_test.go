@@ -597,4 +597,3 @@ var (
 	_ seeds.Manager     = (*mockSeedManager)(nil)
 	_ artifacts.Writer  = (*mockArtifactWriter)(nil)
 )
-

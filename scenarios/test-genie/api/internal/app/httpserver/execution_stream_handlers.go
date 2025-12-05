@@ -16,13 +16,13 @@ import (
 
 // SSE event types for streaming execution progress
 const (
-	SSEEventPhaseStart    = "phase_start"
-	SSEEventPhaseEnd      = "phase_end"
-	SSEEventProgress      = "progress"
-	SSEEventObservation   = "observation"
-	SSEEventComplete      = "complete"
-	SSEEventError         = "error"
-	SSEEventHeartbeat     = "heartbeat"
+	SSEEventPhaseStart  = "phase_start"
+	SSEEventPhaseEnd    = "phase_end"
+	SSEEventProgress    = "progress"
+	SSEEventObservation = "observation"
+	SSEEventComplete    = "complete"
+	SSEEventError       = "error"
+	SSEEventHeartbeat   = "heartbeat"
 )
 
 // SSEEvent represents a Server-Sent Event

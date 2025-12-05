@@ -171,11 +171,11 @@ func TestWithScenarioStarter(t *testing.T) {
 // mockHealthChecker implements HealthChecker for testing.
 type mockHealthChecker struct {
 	mockPreflightChecker
-	healthy       bool
-	healthErr     error
-	diagnostics   *HealthDiagnostics
+	healthy        bool
+	healthErr      error
+	diagnostics    *HealthDiagnostics
 	recoveryResult *RecoveryResult
-	diagnosis     *Diagnosis
+	diagnosis      *Diagnosis
 }
 
 func (m *mockHealthChecker) IsHealthy(ctx context.Context) (bool, *HealthDiagnostics, error) {

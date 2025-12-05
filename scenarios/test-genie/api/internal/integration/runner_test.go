@@ -682,9 +682,9 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 func TestRunner_CreatesAPIValidatorFromConfig(t *testing.T) {
 	runner := New(
 		Config{
-			ScenarioDir:      "/tmp/test",
-			ScenarioName:     "test",
-			APIBaseURL:       "http://localhost:8080",
+			ScenarioDir:       "/tmp/test",
+			ScenarioName:      "test",
+			APIBaseURL:        "http://localhost:8080",
 			APIHealthEndpoint: "/health",
 			APIMaxResponseMs:  500,
 		},
@@ -701,9 +701,9 @@ func TestRunner_CreatesAPIValidatorFromConfig(t *testing.T) {
 func TestRunner_CreatesWebSocketValidatorFromConfig(t *testing.T) {
 	runner := New(
 		Config{
-			ScenarioDir:             "/tmp/test",
-			ScenarioName:            "test",
-			WebSocketURL:            "ws://localhost:8080/ws",
+			ScenarioDir:              "/tmp/test",
+			ScenarioName:             "test",
+			WebSocketURL:             "ws://localhost:8080/ws",
 			WebSocketMaxConnectionMs: 1000,
 		},
 		WithLogger(io.Discard),

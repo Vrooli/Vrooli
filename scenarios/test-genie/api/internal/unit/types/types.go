@@ -7,74 +7,45 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+
+	"test-genie/internal/shared"
 )
 
-// ObservationType categorizes the kind of observation.
-type ObservationType int
-
-const (
-	ObservationSection ObservationType = iota
-	ObservationSuccess
-	ObservationWarning
-	ObservationError
-	ObservationInfo
-	ObservationSkip
+// Re-export shared types for consistency across packages.
+type (
+	FailureClass    = shared.FailureClass
+	ObservationType = shared.ObservationType
+	Observation     = shared.Observation
 )
 
-// Observation represents a single validation observation with formatting hints.
-type Observation struct {
-	Type    ObservationType
-	Icon    string
-	Message string
-}
-
-// NewSectionObservation creates a section header observation.
-func NewSectionObservation(icon, message string) Observation {
-	return Observation{Type: ObservationSection, Icon: icon, Message: message}
-}
-
-// NewSuccessObservation creates a success observation.
-func NewSuccessObservation(message string) Observation {
-	return Observation{Type: ObservationSuccess, Message: message}
-}
-
-// NewWarningObservation creates a warning observation.
-func NewWarningObservation(message string) Observation {
-	return Observation{Type: ObservationWarning, Message: message}
-}
-
-// NewErrorObservation creates an error observation.
-func NewErrorObservation(message string) Observation {
-	return Observation{Type: ObservationError, Message: message}
-}
-
-// NewInfoObservation creates an informational observation.
-func NewInfoObservation(message string) Observation {
-	return Observation{Type: ObservationInfo, Message: message}
-}
-
-// NewSkipObservation creates a skip observation.
-func NewSkipObservation(message string) Observation {
-	return Observation{Type: ObservationSkip, Message: message}
-}
-
-// FailureClass categorizes the type of unit test failure.
-type FailureClass string
-
+// Re-export constants.
 const (
-	// FailureClassNone indicates no failure occurred.
-	FailureClassNone FailureClass = ""
-	// FailureClassMisconfiguration indicates the scenario is misconfigured.
-	FailureClassMisconfiguration FailureClass = "misconfiguration"
-	// FailureClassMissingDependency indicates a required tool is missing.
-	FailureClassMissingDependency FailureClass = "missing_dependency"
-	// FailureClassTestFailure indicates unit tests failed.
-	FailureClassTestFailure FailureClass = "test_failure"
-	// FailureClassSystem indicates a system-level error.
-	FailureClassSystem FailureClass = "system"
+	FailureClassNone              = shared.FailureClassNone
+	FailureClassMisconfiguration  = shared.FailureClassMisconfiguration
+	FailureClassMissingDependency = shared.FailureClassMissingDependency
+	FailureClassTestFailure       = shared.FailureClassTestFailure
+	FailureClassSystem            = shared.FailureClassSystem
+
+	ObservationSection = shared.ObservationSection
+	ObservationSuccess = shared.ObservationSuccess
+	ObservationWarning = shared.ObservationWarning
+	ObservationError   = shared.ObservationError
+	ObservationInfo    = shared.ObservationInfo
+	ObservationSkip    = shared.ObservationSkip
+)
+
+// Re-export constructor functions.
+var (
+	NewSectionObservation = shared.NewSectionObservation
+	NewSuccessObservation = shared.NewSuccessObservation
+	NewWarningObservation = shared.NewWarningObservation
+	NewErrorObservation   = shared.NewErrorObservation
+	NewInfoObservation    = shared.NewInfoObservation
+	NewSkipObservation    = shared.NewSkipObservation
 )
 
 // Result represents the outcome of running a language's unit tests.
+// This extends the base shared.Result with unit-test-specific fields.
 type Result struct {
 	// Success indicates whether tests passed.
 	Success bool
