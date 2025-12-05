@@ -17,6 +17,18 @@
       "api/main.go"
     ]
   },
+  "lint": {
+    "languages": {
+      "go": {
+        "enabled": true,
+        "strict": false
+      },
+      "node": {
+        "enabled": true,
+        "strict": false
+      }
+    }
+  },
   "unit": {
     "languages": {
       "go": {},

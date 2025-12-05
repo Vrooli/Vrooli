@@ -24,7 +24,10 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	weight := 0
 	const phaseSourceNative = "native"
 	register := func(spec Spec) {
-		spec.DefaultTimeout = defaultTimeout
+		// Only set default timeout if not explicitly specified
+		if spec.DefaultTimeout <= 0 {
+			spec.DefaultTimeout = defaultTimeout
+		}
 		spec.Weight = weight
 		if spec.Source == "" {
 			spec.Source = phaseSourceNative
@@ -42,6 +45,12 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Name:        Dependencies,
 		Runner:      runDependenciesPhase,
 		Description: "Confirms required commands, runtimes, and declared resources are available.",
+	})
+	register(Spec{
+		Name:           Lint,
+		Runner:         runLintPhase,
+		DefaultTimeout: 30 * time.Second,
+		Description:    "Runs static analysis including linting and type checking for Go, TypeScript, and Python.",
 	})
 	register(Spec{
 		Name:        Smoke,

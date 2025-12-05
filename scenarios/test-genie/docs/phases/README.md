@@ -1,6 +1,6 @@
 # Test Genie Phases
 
-Test Genie uses an **8-phase progressive testing architecture** where each phase has specific responsibilities, timeouts, and dependencies. Phases execute sequentially, with earlier phases providing the foundation for later ones.
+Test Genie uses a **9-phase progressive testing architecture** where each phase has specific responsibilities, timeouts, and dependencies. Phases execute sequentially, with earlier phases providing the foundation for later ones.
 
 ## Phase Overview
 
@@ -9,30 +9,32 @@ graph TB
     subgraph "Static Phases (No Runtime Required)"
         P1[1. Structure<br/>15s timeout<br/>Files, config, CLI]
         P2[2. Dependencies<br/>30s timeout<br/>Tools, resources]
+        P3[3. Lint<br/>30s timeout<br/>Type checking, linters]
     end
 
     subgraph "Runtime Phases (Scenario Running)"
-        P3[3. Smoke<br/>90s timeout<br/>UI load, iframe-bridge]
-        P4[4. Unit<br/>60s timeout<br/>Go, Node, Python]
-        P5[5. Integration<br/>120s timeout<br/>API, CLI, BATS]
-        P6[6. Playbooks<br/>120s timeout<br/>BAS browser automation]
-        P7[7. Business<br/>180s timeout<br/>Requirements validation]
-        P8[8. Performance<br/>60s timeout<br/>Build benchmarks, Lighthouse]
+        P4[4. Smoke<br/>90s timeout<br/>UI load, iframe-bridge]
+        P5[5. Unit<br/>60s timeout<br/>Go, Node, Python]
+        P6[6. Integration<br/>120s timeout<br/>API, CLI, BATS]
+        P7[7. Playbooks<br/>120s timeout<br/>BAS browser automation]
+        P8[8. Business<br/>180s timeout<br/>Requirements validation]
+        P9[9. Performance<br/>60s timeout<br/>Build benchmarks, Lighthouse]
     end
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9
 
-    P4 -.->|fail-fast| ABORT[Abort]
-    P8 --> SYNC[Requirements Sync]
+    P5 -.->|fail-fast| ABORT[Abort]
+    P9 --> SYNC[Requirements Sync]
 
     style P1 fill:#e8f5e9
     style P2 fill:#e8f5e9
-    style P3 fill:#fff9c4
-    style P4 fill:#fff3e0
+    style P3 fill:#e8f5e9
+    style P4 fill:#fff9c4
     style P5 fill:#fff3e0
     style P6 fill:#fff3e0
     style P7 fill:#fff3e0
     style P8 fill:#fff3e0
+    style P9 fill:#fff3e0
 ```
 
 ## Phase Summary
@@ -41,6 +43,7 @@ graph TB
 |-------|---------|----------|------------------|---------|
 | [Structure](structure/README.md) | 15s | No | No | Validate files, config, CLI setup |
 | [Dependencies](dependencies/README.md) | 30s | No | No | Verify tools and resources |
+| [Lint](lint/README.md) | 30s | No | No | Type checking and linting (Go, TS, Python) |
 | [Smoke](smoke/README.md) | 90s | Yes | Yes | UI load and iframe-bridge validation |
 | [Unit](unit/README.md) | 60s | No | No | Run unit tests (Go, Node, Python) |
 | [Integration](integration/README.md) | 120s | Yes | Yes | Test API, CLI, component interactions |
@@ -50,11 +53,12 @@ graph TB
 
 ## Static vs Runtime Phases
 
-**Static phases** (1-2) can run without the scenario being started:
+**Static phases** (1-3) can run without the scenario being started:
 - Validate files exist and are well-formed
 - Check dependencies are installed
+- Run type checking and linting
 
-**Runtime phases** (3-8) require the scenario to be running:
+**Runtime phases** (4-9) require the scenario to be running:
 - Smoke tests need UI server running
 - Unit tests may need scenario context
 - Integration tests need API endpoints accessible
@@ -128,8 +132,8 @@ Presets bundle phases for common use cases:
 | Preset | Phases | Duration | Use Case |
 |--------|--------|----------|----------|
 | **quick** | structure, unit | ~1 min | Fast feedback during development |
-| **smoke** | structure, dependencies, unit, integration | ~4 min | Pre-push validation |
-| **comprehensive** | All 8 phases | ~10 min | Full validation before release |
+| **smoke** | structure, lint, integration | ~4 min | Pre-push validation |
+| **comprehensive** | All 9 phases | ~10 min | Full validation before release |
 
 See [Presets Reference](../reference/presets.md) for custom preset configuration.
 
@@ -139,6 +143,7 @@ Each phase has its own documentation folder with detailed guides:
 
 - **[Structure](structure/README.md)** - File validation, CLI approaches
 - **[Dependencies](dependencies/README.md)** - Tool and resource verification
+- **[Lint](lint/README.md)** - Type checking and linting (Go, TypeScript, Python)
 - **[Smoke](smoke/README.md)** - UI load validation and iframe-bridge testing
 - **[Unit](unit/README.md)** - Test runners, coverage, requirement tagging
 - **[Integration](integration/README.md)** - CLI testing with BATS, API health checks

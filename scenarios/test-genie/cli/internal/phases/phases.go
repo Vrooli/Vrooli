@@ -20,6 +20,7 @@ type Descriptor struct {
 var AllowedPhases = []string{
 	"structure",
 	"dependencies",
+	"lint",
 	"smoke",
 	"unit",
 	"integration",
@@ -109,6 +110,7 @@ func DefaultTargetDurations() map[string]time.Duration {
 	return map[string]time.Duration{
 		"structure":    120 * time.Second,
 		"dependencies": 60 * time.Second,
+		"lint":         30 * time.Second,
 		"smoke":        90 * time.Second,
 		"unit":         120 * time.Second,
 		"integration":  600 * time.Second,

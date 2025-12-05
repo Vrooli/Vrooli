@@ -127,4 +127,4 @@ Override dependency checks in `.vrooli/testing.json`:
 
 - [Phases Overview](../README.md) - All phases
 - [Structure Phase](../structure/README.md) - Previous phase
-- [Unit Phase](../unit/README.md) - Next phase
+- [Lint Phase](../lint/README.md) - Next phase

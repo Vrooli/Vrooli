@@ -16,6 +16,7 @@ type Name string
 const (
 	Structure    Name = "structure"
 	Dependencies Name = "dependencies"
+	Lint         Name = "lint"
 	Smoke        Name = "smoke"
 	Unit         Name = "unit"
 	Integration  Name = "integration"

@@ -59,3 +59,32 @@ func TestPhaseCatalogDescriptors(t *testing.T) {
 		}
 	}
 }
+
+func TestLintPhaseTimeout(t *testing.T) {
+	catalog := NewDefaultCatalog(15 * time.Minute) // Default is 15 minutes
+	lint, ok := catalog.Lookup("lint")
+	if !ok {
+		t.Fatalf("expected lint phase to be registered")
+	}
+	expected := 30 * time.Second
+	if lint.DefaultTimeout != expected {
+		t.Errorf("lint phase timeout = %v, want %v", lint.DefaultTimeout, expected)
+	}
+}
+
+func TestLintPhaseIsRegistered(t *testing.T) {
+	catalog := NewDefaultCatalog(time.Minute)
+	lint, ok := catalog.Lookup("lint")
+	if !ok {
+		t.Fatalf("expected lint phase to be registered")
+	}
+	if lint.Runner == nil {
+		t.Fatalf("lint phase should have a runner")
+	}
+	if lint.Optional {
+		t.Fatalf("lint phase should not be optional")
+	}
+	if !strings.Contains(lint.Description, "linting") && !strings.Contains(lint.Description, "static analysis") {
+		t.Errorf("lint phase description should mention linting or static analysis, got: %s", lint.Description)
+	}
+}

@@ -5,7 +5,7 @@
 **Optional**: Yes
 **Requires Runtime**: Yes
 
-The smoke phase validates that a scenario's UI loads correctly, establishes communication with the host via iframe-bridge, and produces no critical JavaScript errors. It runs after dependencies and before unit tests as a quick sanity check.
+The smoke phase validates that a scenario's UI loads correctly, establishes communication with the host via iframe-bridge, and produces no critical JavaScript errors. It runs after the lint phase and before unit tests as a quick sanity check.
 
 ## What Gets Validated
 
@@ -326,7 +326,7 @@ Unhandled JavaScript errors will cause the test to fail. Ensure your app has pro
 
 ## See Also
 
-- [Structure Phase](../structure/README.md) - File and config validation
-- [Dependencies Phase](../dependencies/README.md) - Tool and resource checks
-- [UI Automation with BAS](../playbooks/ui-automation-with-bas.md) - Full UI testing
 - [Phases Overview](../README.md) - Phase architecture
+- [Lint Phase](../lint/README.md) - Previous phase
+- [Unit Phase](../unit/README.md) - Next phase
+- [UI Automation with BAS](../playbooks/ui-automation-with-bas.md) - Full UI testing

@@ -25,7 +25,16 @@
     },
     "description": {
       "type": "string",
-      "description": "Description of this Lighthouse configuration"
+    "description": "Description of this Lighthouse configuration"
+    },
+    "_metadata": {
+      "type": "object",
+      "description": "Informational metadata for documentation purposes"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether Lighthouse audits are enabled"
     },
     "lighthouse": {
       "type": "object",
@@ -78,15 +87,48 @@
         "$ref": "#/definitions/page"
       }
     },
+    "reporting": {
+      "type": "object",
+      "description": "Report generation options",
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["json", "html"]
+          },
+          "description": "Report formats to generate"
+        },
+        "fail_on_error": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether threshold failures should fail the phase"
+        }
+      }
+    },
     "global_options": {
       "type": "object",
       "description": "Global Chrome/Lighthouse options",
       "properties": {
+        "lighthouse": {
+          "$ref": "#/definitions/lighthouse_config",
+          "description": "Lighthouse runner configuration overrides"
+        },
         "chrome_flags": {
           "type": "array",
           "items": {
             "type": "string"
           }
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum time for each audit in milliseconds"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of retries for failed audits"
         }
       }
     },
@@ -118,47 +160,30 @@
   "definitions": {
     "thresholds": {
       "type": "object",
-      "description": "Score thresholds (0-100 or 0-1 scale)",
+      "description": "Score thresholds (0-1 scale) with error/warn levels",
+      "patternProperties": {
+        "^[a-z0-9\\-]+$": {
+          "$ref": "#/definitions/category_threshold"
+        }
+      },
+      "additionalProperties": false
+    },
+    "category_threshold": {
+      "type": "object",
+      "description": "Error and warning thresholds for a Lighthouse category",
+      "required": ["error", "warn"],
       "properties": {
-        "performance": {
+        "error": {
           "type": "number",
           "minimum": 0,
-          "description": "Performance score threshold"
+          "maximum": 1,
+          "description": "Minimum score to pass (fail below this)"
         },
-        "accessibility": {
+        "warn": {
           "type": "number",
           "minimum": 0,
-          "description": "Accessibility score threshold"
-        },
-        "best-practices": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Best practices score threshold"
-        },
-        "seo": {
-          "type": "number",
-          "minimum": 0,
-          "description": "SEO score threshold"
-        },
-        "first-contentful-paint": {
-          "type": "number",
-          "description": "FCP threshold in milliseconds"
-        },
-        "largest-contentful-paint": {
-          "type": "number",
-          "description": "LCP threshold in milliseconds"
-        },
-        "time-to-interactive": {
-          "type": "number",
-          "description": "TTI threshold in milliseconds"
-        },
-        "cumulative-layout-shift": {
-          "type": "number",
-          "description": "CLS threshold (0-1 scale)"
-        },
-        "total-blocking-time": {
-          "type": "number",
-          "description": "TBT threshold in milliseconds"
+          "maximum": 1,
+          "description": "Warning threshold (between error and warn)"
         }
       }
     },
@@ -221,7 +246,7 @@
     },
     "page": {
       "type": "object",
-      "required": ["id", "path"],
+      "required": ["id", "path", "thresholds"],
       "properties": {
         "id": {
           "type": "string"
@@ -237,6 +262,25 @@
         },
         "thresholds": {
           "$ref": "#/definitions/thresholds"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "viewport": {
+          "type": "string",
+          "enum": ["desktop", "mobile"]
+        },
+        "waitForSelector": {
+          "type": "string",
+          "description": "CSS selector to wait for before auditing"
+        },
+        "waitForMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time in milliseconds to wait before running the audit"
         }
       }
     },
