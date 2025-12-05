@@ -27,6 +27,7 @@ type Config struct {
 	ScenarioName string
 	TestDir      string
 	AppRoot      string
+	Verbose      bool // Enable detailed progress logging
 }
 
 // Runner orchestrates playbook execution using injected dependencies.
@@ -39,6 +40,7 @@ type Runner struct {
 	basClient        execution.Client
 	seedManager      seeds.Manager
 	artifactWriter   artifacts.Writer
+	traceWriter      artifacts.TraceWriter
 
 	// Hooks for scenario management (injected for testing)
 	resolvePort      func(ctx context.Context, scenario, portName string) (string, error)
@@ -121,6 +123,13 @@ func WithArtifactWriter(w artifacts.Writer) Option {
 	}
 }
 
+// WithTraceWriter sets a custom trace writer (for testing).
+func WithTraceWriter(w artifacts.TraceWriter) Option {
+	return func(r *Runner) {
+		r.traceWriter = w
+	}
+}
+
 // WithPortResolver sets a custom port resolver (for testing).
 func WithPortResolver(f func(ctx context.Context, scenario, portName string) (string, error)) Option {
 	return func(r *Runner) {
@@ -161,14 +170,9 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
-	// Check if scenario has UI
-	if !r.hasUI() {
-		shared.LogWarn(r.logWriter, "ui/ directory missing; skipping UI workflow validation")
-		return &RunResult{
-			Success:      true,
-			Observations: []Observation{NewInfoObservation("ui/ directory missing; skipping UI workflow validation")},
-		}
-	}
+	// Note: We don't check for a local ui/ directory because playbooks can target
+	// any scenario using destinationType: "scenario" in navigate nodes. The presence
+	// of playbooks in the registry is the gate, not whether this scenario has a UI.
 
 	// Load registry
 	reg, err := r.registryLoader.Load()
@@ -189,8 +193,24 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
+	// Initialize trace writer if not injected
+	if r.traceWriter == nil {
+		tw, err := artifacts.NewTraceWriter(r.config.ScenarioDir, r.config.ScenarioName)
+		if err != nil {
+			shared.LogWarn(r.logWriter, "failed to create trace writer: %v", err)
+			r.traceWriter = &artifacts.NullTraceWriter{}
+		} else {
+			r.traceWriter = tw
+			defer r.traceWriter.Close()
+		}
+	}
+
+	// Log phase start
+	_ = r.traceWriter.Write(artifacts.TracePhaseStartEvent(len(reg.Playbooks)))
+
 	// Ensure BAS is available
 	if err := r.ensureBAS(ctx); err != nil {
+		_ = r.traceWriter.Write(artifacts.TraceBASHealthEvent(false, ""))
 		return &RunResult{
 			Success:      false,
 			Error:        err,
@@ -198,6 +218,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Remediation:  "Start the browser-automation-studio scenario so workflows can execute.",
 		}
 	}
+	_ = r.traceWriter.Write(artifacts.TraceBASHealthEvent(true, ""))
 
 	// Apply seeds
 	cleanup, err := r.seedManager.Apply(ctx)
@@ -275,6 +296,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	// Write final results
 	if err := r.artifactWriter.WritePhaseResults(results); err != nil {
+		_ = r.traceWriter.Write(artifacts.TracePhaseFailedEvent(err, summary.TotalDuration))
 		return &RunResult{
 			Success:      false,
 			Error:        err,
@@ -285,6 +307,9 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Summary:      summary,
 		}
 	}
+
+	// Log phase complete
+	_ = r.traceWriter.Write(artifacts.TracePhaseCompleteEvent(summary.WorkflowsPassed, summary.WorkflowsFailed, summary.TotalDuration))
 
 	// Add summary observation
 	observations = append(observations, NewSuccessObservation(summary.String()))
@@ -299,6 +324,9 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 // executeWorkflow executes a single playbook workflow.
 func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL string) Result {
+	// Trace workflow start
+	_ = r.traceWriter.Write(artifacts.TraceWorkflowStartEvent(entry.File))
+
 	// Resolve workflow path
 	workflowPath := entry.File
 	if !filepath.IsAbs(workflowPath) {
@@ -308,7 +336,9 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 	// Resolve workflow definition
 	definition, err := r.workflowResolver.Resolve(ctx, workflowPath)
 	if err != nil {
-		return Result{Entry: entry, Err: fmt.Errorf("failed to resolve workflow: %w", err)}
+		execErr := NewResolveError(entry.File, err)
+		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
+		return Result{Entry: entry, Err: execErr}
 	}
 
 	// Substitute placeholders
@@ -322,67 +352,214 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 	// Execute workflow
 	executionID, err := r.basClient.ExecuteWorkflow(ctx, cleanDef, entry.Description)
 	if err != nil {
-		return Result{Entry: entry, Err: fmt.Errorf("failed to execute workflow: %w", err)}
+		execErr := NewExecuteError(entry.File, err)
+		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
+		return Result{Entry: entry, Err: execErr}
 	}
 
 	shared.LogStep(r.logWriter, "workflow %s queued with execution id %s", entry.File, executionID)
+	_ = r.traceWriter.Write(artifacts.TraceWorkflowQueuedEvent(entry.File, executionID))
 
 	outcome := &Outcome{ExecutionID: executionID}
 	start := time.Now()
 
-	// Wait for completion
-	if err := r.basClient.WaitForCompletion(ctx, executionID); err != nil {
-		outcome.Duration = time.Since(start)
+	// Create progress callback for verbose mode
+	var progressCallback execution.ProgressCallback
+	if r.config.Verbose {
+		progressCallback = func(status ExecutionStatus, elapsed time.Duration) error {
+			// BAS returns Progress as 0-100 percentage directly
+			progress := float64(status.Progress) / 100.0
 
-		// Try to dump timeline for debugging
-		artifactPath := ""
-		if timelineData, fetchErr := r.basClient.GetTimeline(ctx, executionID); fetchErr == nil {
-			artifactPath, _ = r.artifactWriter.WriteTimeline(entry.File, timelineData)
+			// CurrentStep is the step name/label from BAS
+			currentStep := status.CurrentStep
+			if currentStep == "" {
+				currentStep = status.CurrentNodeLabel // Fallback to extended field if available
+			}
+			if currentStep == "" {
+				currentStep = status.Status // Final fallback to status
+			}
+
+			shared.LogStep(r.logWriter, "[%s] progress: %.0f%% (%s) - %s",
+				entry.File, progress*100, elapsed.Round(time.Second), currentStep)
+			_ = r.traceWriter.Write(artifacts.TraceWorkflowProgressEvent(entry.File, executionID, progress, currentStep))
+			return nil
 		}
+	}
+
+	// Wait for completion with optional progress reporting
+	execErr := r.basClient.WaitForCompletionWithProgress(ctx, executionID, progressCallback)
+	outcome.Duration = time.Since(start)
+
+	// Collect artifacts (both on success and failure for debugging)
+	artifactResult := r.collectWorkflowArtifacts(ctx, entry, executionID, outcome, execErr)
+
+	if execErr != nil {
+		playErr := NewWaitError(entry.File, executionID, execErr)
+		playErr.Artifacts = ExecutionArtifacts{
+			Timeline: artifactResult.Timeline,
+			Trace:    r.traceWriter.Path(),
+		}
+		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, executionID, execErr, outcome.Duration))
 
 		return Result{
 			Entry:        entry,
 			Outcome:      outcome,
-			Err:          err,
-			ArtifactPath: artifactPath,
+			Err:          playErr,
+			ArtifactPath: artifactResult.Dir,
 		}
 	}
 
-	outcome.Duration = time.Since(start)
+	_ = r.traceWriter.Write(artifacts.TraceWorkflowCompleteEvent(entry.File, executionID, outcome.Duration, outcome.Stats))
 
-	// Get timeline for stats
-	if timelineData, err := r.basClient.GetTimeline(ctx, executionID); err == nil {
-		outcome.Stats = execution.SummarizeTimeline(timelineData)
+	return Result{Entry: entry, Outcome: outcome, ArtifactPath: artifactResult.Dir}
+}
+
+// collectWorkflowArtifacts fetches and writes all artifacts for a workflow execution.
+func (r *Runner) collectWorkflowArtifacts(
+	ctx context.Context,
+	entry Entry,
+	executionID string,
+	outcome *Outcome,
+	execErr error,
+) *artifacts.WorkflowArtifacts {
+	// Fetch timeline data
+	timelineData, fetchErr := r.basClient.GetTimeline(ctx, executionID)
+	if fetchErr != nil {
+		shared.LogWarn(r.logWriter, "failed to fetch timeline for %s: %v", entry.File, fetchErr)
+		return &artifacts.WorkflowArtifacts{}
 	}
 
-	return Result{Entry: entry, Outcome: outcome}
+	// Parse timeline for structured data
+	parsed, parseErr := execution.ParseFullTimeline(timelineData)
+	if parseErr != nil {
+		shared.LogWarn(r.logWriter, "failed to parse timeline for %s: %v", entry.File, parseErr)
+		// Continue with nil parsed - will still write raw timeline
+	}
+
+	// Update outcome stats from parsed timeline
+	if parsed != nil {
+		outcome.Stats = parsed.Summary.String()
+	}
+
+	// Download screenshots
+	var screenshots []artifacts.ScreenshotData
+	if parsed != nil {
+		screenshots = r.downloadScreenshots(ctx, entry.File, parsed)
+	}
+
+	// Build result for README generation
+	status := "passed"
+	errMsg := ""
+	if execErr != nil {
+		status = "failed"
+		errMsg = execErr.Error()
+	}
+
+	result := &artifacts.WorkflowResult{
+		WorkflowFile:  entry.File,
+		Description:   entry.Description,
+		Requirements:  entry.Requirements,
+		ExecutionID:   executionID,
+		Success:       execErr == nil,
+		Status:        status,
+		Error:         errMsg,
+		DurationMs:    outcome.Duration.Milliseconds(),
+		Timestamp:     time.Now().UTC(),
+		Summary:       getSummaryFromParsed(parsed),
+		ParsedSummary: parsed,
+	}
+
+	// Get the FileWriter from the interface (if available)
+	fileWriter, ok := r.artifactWriter.(*artifacts.FileWriter)
+	if !ok {
+		// Fallback to legacy timeline-only writing
+		shared.LogWarn(r.logWriter, "artifact writer does not support full artifact collection, using legacy mode")
+		timelinePath, _ := r.artifactWriter.WriteTimeline(entry.File, timelineData)
+		return &artifacts.WorkflowArtifacts{Dir: timelinePath, Timeline: timelinePath}
+	}
+
+	// Write all artifacts
+	workflowArtifacts, writeErr := fileWriter.WriteWorkflowArtifacts(
+		entry.File,
+		timelineData,
+		parsed,
+		screenshots,
+		result,
+	)
+	if writeErr != nil {
+		shared.LogWarn(r.logWriter, "failed to write artifacts for %s: %v", entry.File, writeErr)
+	}
+
+	if workflowArtifacts != nil {
+		shared.LogStep(r.logWriter, "artifacts written to %s", workflowArtifacts.Dir)
+	}
+
+	return workflowArtifacts
+}
+
+// downloadScreenshots downloads screenshot images from BAS.
+func (r *Runner) downloadScreenshots(ctx context.Context, workflowFile string, parsed *execution.ParsedTimeline) []artifacts.ScreenshotData {
+	var screenshots []artifacts.ScreenshotData
+
+	// Extract screenshot references from parsed timeline
+	refs := artifacts.ExtractScreenshotsFromTimeline(parsed)
+	if len(refs) == 0 {
+		return screenshots
+	}
+
+	shared.LogStep(r.logWriter, "downloading %d screenshots for %s", len(refs), workflowFile)
+
+	for _, ref := range refs {
+		if ref.URL == "" {
+			continue
+		}
+
+		data, err := r.basClient.DownloadAsset(ctx, ref.URL)
+		if err != nil {
+			shared.LogWarn(r.logWriter, "failed to download screenshot for step %d: %v", ref.StepIndex, err)
+			continue
+		}
+
+		screenshots = append(screenshots, artifacts.ScreenshotData{
+			StepIndex: ref.StepIndex,
+			StepName:  ref.StepType,
+			Filename:  artifacts.GenerateScreenshotFilename(ref),
+			Data:      data,
+		})
+	}
+
+	return screenshots
+}
+
+// getSummaryFromParsed extracts TimelineSummary from parsed timeline.
+func getSummaryFromParsed(parsed *execution.ParsedTimeline) execution.TimelineSummary {
+	if parsed == nil {
+		return execution.TimelineSummary{}
+	}
+	return parsed.Summary
 }
 
 // ensureBAS ensures the BAS API is available.
+// It always attempts to start BAS to ensure it's running, then waits for health.
 func (r *Runner) ensureBAS(ctx context.Context) error {
 	if r.basClient != nil {
 		// Client already configured (likely in tests)
 		return r.basClient.WaitForHealth(ctx)
 	}
 
-	// Try to resolve BAS port
+	// Always start BAS first - vrooli scenario start is idempotent (safe if already running)
+	if r.startScenario != nil {
+		shared.LogStep(r.logWriter, "ensuring browser-automation-studio is running")
+		if startErr := r.startScenario(ctx, BASScenarioName); startErr != nil {
+			return fmt.Errorf("failed to start browser-automation-studio: %w", startErr)
+		}
+	}
+
+	// Resolve BAS port
 	var apiPort string
 	var err error
 	if r.resolvePort != nil {
 		apiPort, err = r.resolvePort(ctx, BASScenarioName, "API_PORT")
-	}
-
-	if err != nil || apiPort == "" {
-		// Try to start BAS
-		if r.startScenario != nil {
-			shared.LogWarn(r.logWriter, "browser-automation-studio port lookup failed, attempting to start")
-			if startErr := r.startScenario(ctx, BASScenarioName); startErr != nil {
-				return fmt.Errorf("failed to start browser-automation-studio: %w", startErr)
-			}
-			if r.resolvePort != nil {
-				apiPort, err = r.resolvePort(ctx, BASScenarioName, "API_PORT")
-			}
-		}
 	}
 
 	if err != nil || apiPort == "" {
@@ -395,8 +572,3 @@ func (r *Runner) ensureBAS(ctx context.Context) error {
 	return r.basClient.WaitForHealth(ctx)
 }
 
-// hasUI checks if the scenario has a UI directory.
-func (r *Runner) hasUI() bool {
-	info, err := os.Stat(filepath.Join(r.config.ScenarioDir, "ui"))
-	return err == nil && info.IsDir()
-}

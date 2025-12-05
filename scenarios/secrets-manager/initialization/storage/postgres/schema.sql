@@ -88,6 +88,31 @@ CREATE TABLE IF NOT EXISTS secret_deployment_strategies (
     UNIQUE(resource_secret_id, tier)
 );
 
+-- Table storing scenario-specific overrides for secret handling strategies
+-- Only stores DIFFERENCES from the resource default - null fields mean "inherit"
+CREATE TABLE IF NOT EXISTS scenario_secret_strategy_overrides (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    scenario_name VARCHAR(200) NOT NULL,
+    resource_secret_id UUID NOT NULL REFERENCES resource_secrets(id) ON DELETE CASCADE,
+    tier VARCHAR(50) NOT NULL,
+
+    -- Override fields (null = inherit from resource default)
+    handling_strategy VARCHAR(20) CHECK (handling_strategy IS NULL OR handling_strategy IN ('strip', 'generate', 'prompt', 'delegate')),
+    fallback_strategy VARCHAR(20),
+    requires_user_input BOOLEAN,
+    prompt_label TEXT,
+    prompt_description TEXT,
+    generator_template JSONB,
+    bundle_hints JSONB,
+
+    -- Metadata
+    override_reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(scenario_name, resource_secret_id, tier)
+);
+
 -- Table storing generated bundle manifests for auditing / telemetry
 CREATE TABLE IF NOT EXISTS deployment_manifests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -217,8 +242,14 @@ $$ language 'plpgsql';
 
 -- Trigger to automatically update updated_at on resource_secrets
 DROP TRIGGER IF EXISTS update_resource_secrets_updated_at ON resource_secrets;
-CREATE TRIGGER update_resource_secrets_updated_at 
-BEFORE UPDATE ON resource_secrets 
+CREATE TRIGGER update_resource_secrets_updated_at
+BEFORE UPDATE ON resource_secrets
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger to automatically update updated_at on scenario_secret_strategy_overrides
+DROP TRIGGER IF EXISTS update_scenario_overrides_updated_at ON scenario_secret_strategy_overrides;
+CREATE TRIGGER update_scenario_overrides_updated_at
+BEFORE UPDATE ON scenario_secret_strategy_overrides
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to clean up old validation records (keep last 100 per secret)
@@ -250,6 +281,9 @@ CREATE INDEX IF NOT EXISTS idx_secret_validations_timestamp ON secret_validation
 CREATE INDEX IF NOT EXISTS idx_secret_deploy_strat_tier ON secret_deployment_strategies(tier);
 CREATE INDEX IF NOT EXISTS idx_secret_deploy_strat_secret ON secret_deployment_strategies(resource_secret_id);
 CREATE INDEX IF NOT EXISTS idx_deployment_manifests_tier ON deployment_manifests(tier);
+CREATE INDEX IF NOT EXISTS idx_scenario_overrides_scenario ON scenario_secret_strategy_overrides(scenario_name);
+CREATE INDEX IF NOT EXISTS idx_scenario_overrides_secret ON scenario_secret_strategy_overrides(resource_secret_id);
+CREATE INDEX IF NOT EXISTS idx_scenario_overrides_tier ON scenario_secret_strategy_overrides(tier);
 CREATE INDEX IF NOT EXISTS idx_security_scans_completed_at ON security_scan_runs(completed_at);
 CREATE INDEX IF NOT EXISTS idx_security_vuln_component ON security_vulnerabilities(component_type, component_name);
 CREATE INDEX IF NOT EXISTS idx_security_vuln_status ON security_vulnerabilities(status);
@@ -266,6 +300,7 @@ COMMENT ON VIEW secret_health_summary IS 'Summary view of secret validation stat
 COMMENT ON VIEW missing_secrets_report IS 'Report of missing required secrets that need attention';
 COMMENT ON TABLE security_scan_runs IS 'Tracks filesystem security scans, filters, and performance metrics';
 COMMENT ON TABLE security_vulnerabilities IS 'Stores actionable vulnerability findings with lifecycle metadata';
+COMMENT ON TABLE scenario_secret_strategy_overrides IS 'Stores scenario-specific overrides for secret handling strategies. Null fields inherit from resource defaults.';
 
 -- Grant permissions (adjust as needed for your setup)
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO secrets_manager_api;

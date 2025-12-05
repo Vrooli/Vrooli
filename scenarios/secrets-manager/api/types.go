@@ -85,6 +85,78 @@ type SecretDeploymentStrategy struct {
 	BundleHints       json.RawMessage `json:"bundle_hints,omitempty"`
 }
 
+// ScenarioSecretOverride represents a scenario-specific strategy override.
+type ScenarioSecretOverride struct {
+	ID                string          `json:"id"`
+	ScenarioName      string          `json:"scenario_name"`
+	ResourceSecretID  string          `json:"resource_secret_id"`
+	ResourceName      string          `json:"resource_name"`       // Joined from resource_secrets
+	SecretKey         string          `json:"secret_key"`          // Joined from resource_secrets
+	Tier              string          `json:"tier"`
+	HandlingStrategy  *string         `json:"handling_strategy,omitempty"`
+	FallbackStrategy  *string         `json:"fallback_strategy,omitempty"`
+	RequiresUserInput *bool           `json:"requires_user_input,omitempty"`
+	PromptLabel       *string         `json:"prompt_label,omitempty"`
+	PromptDescription *string         `json:"prompt_description,omitempty"`
+	GeneratorTemplate json.RawMessage `json:"generator_template,omitempty"`
+	BundleHints       json.RawMessage `json:"bundle_hints,omitempty"`
+	OverrideReason    *string         `json:"override_reason,omitempty"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+}
+
+// EffectiveSecretStrategy represents the merged strategy (resource default + scenario override).
+type EffectiveSecretStrategy struct {
+	ResourceName      string   `json:"resource_name"`
+	SecretKey         string   `json:"secret_key"`
+	Tier              string   `json:"tier"`
+	HandlingStrategy  string   `json:"handling_strategy"`
+	FallbackStrategy  string   `json:"fallback_strategy,omitempty"`
+	RequiresUserInput bool     `json:"requires_user_input"`
+	PromptLabel       string   `json:"prompt_label,omitempty"`
+	PromptDescription string   `json:"prompt_description,omitempty"`
+	IsOverridden      bool     `json:"is_overridden"`
+	OverriddenFields  []string `json:"overridden_fields,omitempty"`
+	OverrideReason    string   `json:"override_reason,omitempty"`
+}
+
+// OrphanOverride represents an override that no longer has a valid scenario or dependency.
+type OrphanOverride struct {
+	Override ScenarioSecretOverride `json:"override"`
+	Reason   string                 `json:"reason"`
+}
+
+// SetOverrideRequest is the request body for creating/updating a scenario override.
+type SetOverrideRequest struct {
+	HandlingStrategy  *string                `json:"handling_strategy,omitempty"`
+	FallbackStrategy  *string                `json:"fallback_strategy,omitempty"`
+	RequiresUserInput *bool                  `json:"requires_user_input,omitempty"`
+	PromptLabel       *string                `json:"prompt_label,omitempty"`
+	PromptDescription *string                `json:"prompt_description,omitempty"`
+	GeneratorTemplate map[string]interface{} `json:"generator_template,omitempty"`
+	BundleHints       map[string]interface{} `json:"bundle_hints,omitempty"`
+	OverrideReason    *string                `json:"override_reason,omitempty"`
+}
+
+// CopyFromTierRequest is the request body for copying overrides between tiers.
+type CopyFromTierRequest struct {
+	SourceTier string `json:"source_tier"`
+	TargetTier string `json:"target_tier"`
+	Overwrite  bool   `json:"overwrite"`
+}
+
+// CopyFromScenarioRequest is the request body for copying overrides from another scenario.
+type CopyFromScenarioRequest struct {
+	SourceScenario string `json:"source_scenario"`
+	Tier           string `json:"tier"`
+	Overwrite      bool   `json:"overwrite"`
+}
+
+// CleanupOrphansRequest is the request body for cleaning up orphan overrides.
+type CleanupOrphansRequest struct {
+	DryRun bool `json:"dry_run"`
+}
+
 type DeploymentManifest struct {
 	Scenario            string                       `json:"scenario"`
 	Tier                string                       `json:"tier"`

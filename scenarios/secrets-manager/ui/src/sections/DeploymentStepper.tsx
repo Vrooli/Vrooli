@@ -1,11 +1,8 @@
 import { CheckCircle2, Dot, FileOutput, Info, Map, Rocket } from "lucide-react";
-import { Button } from "../components/ui/button";
 
 interface DeploymentStepperProps {
   activeStep: number;
   onStepChange: (index: number) => void;
-  onOpenResource?: () => void;
-  onGenerateManifest?: () => void;
   hasManifest?: boolean;
 }
 
@@ -19,8 +16,6 @@ const steps = [
 export const DeploymentStepper = ({
   activeStep,
   onStepChange,
-  onOpenResource,
-  onGenerateManifest,
   hasManifest
 }: DeploymentStepperProps) => {
   return (
@@ -64,20 +59,6 @@ export const DeploymentStepper = ({
             </button>
           );
         })}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2 text-sm text-white/70">
-        <Button size="sm" variant="outline" onClick={() => onStepChange(0)}>
-          Primer
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => onStepChange(1)}>
-          Jump to readiness
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => onOpenResource?.()}>
-          Open blocker
-        </Button>
-        <Button size="sm" variant="secondary" onClick={() => onGenerateManifest?.()}>
-          Generate manifest
-        </Button>
       </div>
     </section>
   );

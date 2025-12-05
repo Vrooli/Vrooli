@@ -58,6 +58,9 @@ export default function App() {
     strategyHandling,
     strategyPrompt,
     strategyDescription,
+    overrideReason,
+    isOverrideMode,
+    currentOverride,
     resourceDetailQuery,
     openResourcePanel,
     closeResourcePanel,
@@ -66,10 +69,13 @@ export default function App() {
     setStrategyHandling,
     setStrategyPrompt,
     setStrategyDescription,
+    setOverrideReason,
+    setIsOverrideMode,
     handleSecretUpdate,
     handleStrategyApply,
+    handleDeleteOverride,
     handleVulnerabilityStatus
-  } = useResourcePanel();
+  } = useResourcePanel({ selectedScenario });
 
   const orientationData = orientationQuery.data;
   const heroStats = orientationData?.hero_stats;
@@ -416,10 +422,6 @@ export default function App() {
               <DeploymentStepper
                 activeStep={campaignStep}
                 onStepChange={handleCampaignStepChange}
-                onOpenResource={
-                  topResourceNeedingAttention ? () => openResourcePanel(topResourceNeedingAttention) : undefined
-                }
-                onGenerateManifest={deploymentFlow.onGenerateManifest}
                 hasManifest={!!deploymentFlow.manifestData}
               />
 
@@ -481,6 +483,10 @@ export default function App() {
           strategyHandling={strategyHandling}
           strategyPrompt={strategyPrompt}
           strategyDescription={strategyDescription}
+          overrideReason={overrideReason}
+          isOverrideMode={isOverrideMode}
+          currentOverride={currentOverride}
+          selectedScenario={selectedScenario}
           tierReadiness={tierReadiness}
           allResources={resourceStatuses}
           onClose={closeResourcePanel}
@@ -488,11 +494,14 @@ export default function App() {
           onSelectSecret={setSelectedSecretKey}
           onUpdateSecret={handleSecretUpdate}
           onApplyStrategy={handleStrategyApply}
+          onDeleteOverride={handleDeleteOverride}
           onUpdateVulnerabilityStatus={handleVulnerabilityStatus}
           onSetStrategyTier={setStrategyTier}
           onSetStrategyHandling={setStrategyHandling}
           onSetStrategyPrompt={setStrategyPrompt}
           onSetStrategyDescription={setStrategyDescription}
+          onSetOverrideReason={setOverrideReason}
+          onSetIsOverrideMode={setIsOverrideMode}
         />
       )}
 
@@ -516,7 +525,7 @@ export default function App() {
           disableNext={overlayNextDisabled}
           tutorials={journeyCards.filter((card) => card.id !== "orientation").map((card) => ({ id: card.id as JourneyId, label: card.title }))}
           activeTutorialId={activeJourney}
-          onSelectTutorial={(journeyId) => startTutorial(journeyId)}
+          onSelectTutorial={(journeyId) => startTutorial(journeyId as JourneyId)}
         />
         );
       })() : null}

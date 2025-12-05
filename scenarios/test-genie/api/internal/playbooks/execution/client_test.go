@@ -106,10 +106,13 @@ func TestClientGetStatus(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
+		// Response matches BAS database.Execution model:
+		// - progress is int (0-100)
+		// - current_step is string (step name/label)
 		json.NewEncoder(w).Encode(map[string]any{
 			"status":       "running",
-			"progress":     0.5,
-			"current_step": "navigate",
+			"progress":     50,
+			"current_step": "Navigate to homepage",
 		})
 	}))
 	defer server.Close()
@@ -122,8 +125,11 @@ func TestClientGetStatus(t *testing.T) {
 	if status.Status != "running" {
 		t.Errorf("expected running, got %s", status.Status)
 	}
-	if status.Progress != 0.5 {
-		t.Errorf("expected 0.5 progress, got %f", status.Progress)
+	if status.Progress != 50 {
+		t.Errorf("expected 50 progress, got %d", status.Progress)
+	}
+	if status.CurrentStep != "Navigate to homepage" {
+		t.Errorf("expected current_step 'Navigate to homepage', got %s", status.CurrentStep)
 	}
 }
 

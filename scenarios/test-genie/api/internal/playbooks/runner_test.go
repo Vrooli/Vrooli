@@ -48,6 +48,14 @@ type mockBASClient struct {
 	waitCallCount   int
 }
 
+func (m *mockBASClient) WaitForCompletionWithProgress(ctx context.Context, executionID string, callback execution.ProgressCallback) error {
+	m.waitCallCount++
+	if callback != nil && m.status.Status != "" {
+		_ = callback(m.status, 0)
+	}
+	return m.waitErr
+}
+
 func (m *mockBASClient) Health(ctx context.Context) error {
 	m.healthCallCount++
 	return m.healthErr
@@ -72,6 +80,18 @@ func (m *mockBASClient) WaitForCompletion(ctx context.Context, executionID strin
 
 func (m *mockBASClient) GetTimeline(ctx context.Context, executionID string) ([]byte, error) {
 	return m.timeline, m.timelineErr
+}
+
+func (m *mockBASClient) GetScreenshots(ctx context.Context, executionID string) ([]execution.Screenshot, error) {
+	return nil, nil
+}
+
+func (m *mockBASClient) DownloadAsset(ctx context.Context, assetURL string) ([]byte, error) {
+	return nil, nil
+}
+
+func (m *mockBASClient) BaseURL() string {
+	return "http://localhost:8080/api/v1"
 }
 
 type mockSeedManager struct {
@@ -121,15 +141,19 @@ func TestRunnerRunSkippedViaEnv(t *testing.T) {
 	}
 }
 
-func TestRunnerRunNoUI(t *testing.T) {
+func TestRunnerRunNoUIButEmptyRegistry(t *testing.T) {
+	// Even without a ui/ directory, the runner should proceed to load the registry.
+	// Playbooks can target any scenario (not just ones with local UI).
 	tempDir := t.TempDir()
-	// Don't create ui/ directory
+	// Don't create ui/ directory - but provide an empty registry
 
-	runner := New(Config{ScenarioDir: tempDir})
+	runner := New(Config{ScenarioDir: tempDir},
+		WithRegistryLoader(&mockRegistryLoader{registry: Registry{Playbooks: []Entry{}}}),
+	)
 	result := runner.Run(context.Background())
 
 	if !result.Success {
-		t.Error("expected success when no UI")
+		t.Error("expected success with empty registry (no playbooks to run)")
 	}
 }
 
@@ -427,7 +451,9 @@ func TestRunnerWorkflowResolverError(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure for resolver error")
 	}
-	if !strings.Contains(result.Error.Error(), "failed to resolve") {
+	// New error format includes phase indicator
+	errStr := result.Error.Error()
+	if !strings.Contains(errStr, "phase=resolve") && !strings.Contains(errStr, "failed to resolve") {
 		t.Errorf("expected resolve error, got: %v", result.Error)
 	}
 }
@@ -505,7 +531,9 @@ func TestRunnerExecutionOutcomeFields(t *testing.T) {
 	}
 }
 
-func TestRunnerEnsureBASWithPortResolver(t *testing.T) {
+func TestRunnerEnsureBASStarterCalledFirst(t *testing.T) {
+	// Verifies that scenario starter is called first (unconditionally),
+	// and port resolver is called after starter succeeds.
 	tempDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
@@ -528,7 +556,52 @@ func TestRunnerEnsureBASWithPortResolver(t *testing.T) {
 			if scenario != BASScenarioName {
 				t.Errorf("expected %s, got %s", BASScenarioName, scenario)
 			}
-			return "", errors.New("not found")
+			return "", errors.New("port not found")
+		}),
+		WithScenarioStarter(func(ctx context.Context, scenario string) error {
+			startCalled = true
+			if scenario != BASScenarioName {
+				t.Errorf("expected %s, got %s", BASScenarioName, scenario)
+			}
+			return nil // Starter succeeds
+		}),
+	)
+
+	result := runner.Run(context.Background())
+	// Should fail because port resolution failed
+	if result.Success {
+		t.Error("expected failure when port unavailable")
+	}
+	if !startCalled {
+		t.Error("expected scenario starter to be called first")
+	}
+	if !portResolverCalled {
+		t.Error("expected port resolver to be called after starter succeeds")
+	}
+}
+
+func TestRunnerEnsureBASStarterFailsEarly(t *testing.T) {
+	// Verifies that if scenario starter fails, port resolver is NOT called.
+	tempDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
+		t.Fatalf("failed to create ui dir: %v", err)
+	}
+
+	portResolverCalled := false
+	startCalled := false
+
+	runner := New(Config{ScenarioDir: tempDir},
+		WithRegistryLoader(&mockRegistryLoader{
+			registry: Registry{Playbooks: []Entry{{File: "test.json"}}},
+		}),
+		WithWorkflowResolver(&mockWorkflowResolver{
+			definition: map[string]any{"nodes": []any{}},
+		}),
+		WithSeedManager(&mockSeedManager{}),
+		WithArtifactWriter(&mockArtifactWriter{}),
+		WithPortResolver(func(ctx context.Context, scenario, portName string) (string, error) {
+			portResolverCalled = true
+			return "8080", nil
 		}),
 		WithScenarioStarter(func(ctx context.Context, scenario string) error {
 			startCalled = true
@@ -537,15 +610,15 @@ func TestRunnerEnsureBASWithPortResolver(t *testing.T) {
 	)
 
 	result := runner.Run(context.Background())
-	// Should fail because BAS couldn't be started
+	// Should fail because starter failed
 	if result.Success {
-		t.Error("expected failure when BAS unavailable")
-	}
-	if !portResolverCalled {
-		t.Error("expected port resolver to be called")
+		t.Error("expected failure when BAS couldn't start")
 	}
 	if !startCalled {
 		t.Error("expected scenario starter to be called")
+	}
+	if portResolverCalled {
+		t.Error("port resolver should NOT be called when starter fails")
 	}
 }
 

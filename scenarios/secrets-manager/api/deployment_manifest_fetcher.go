@@ -31,7 +31,8 @@ import (
 // SecretStore abstracts database access for deployment secrets.
 type SecretStore interface {
 	// FetchSecrets retrieves secrets for the given resources and tier.
-	FetchSecrets(ctx context.Context, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error)
+	// If scenario is non-empty, applies scenario-specific overrides.
+	FetchSecrets(ctx context.Context, scenario, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error)
 
 	// PersistManifest stores manifest telemetry for audit and debugging.
 	PersistManifest(ctx context.Context, scenario, tier string, manifest *DeploymentManifest) error
@@ -62,7 +63,10 @@ func NewPostgresSecretStore(db *sql.DB, logger *Logger) *PostgresSecretStore {
 // FetchSecrets retrieves deployment secrets from the database for the specified
 // tier and resources. It joins resource_secrets with secret_deployment_strategies
 // to include tier-specific handling information.
-func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error) {
+// If scenario is non-empty, applies scenario-specific overrides from scenario_secret_strategy_overrides.
+func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error) {
+	// Build query with optional scenario override support
+	// COALESCE precedence: scenario override > resource default > fallback
 	query := `
 		SELECT
 			rs.id,
@@ -75,17 +79,21 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, tier string, res
 			COALESCE(rs.classification, 'service') as classification,
 			COALESCE(rs.owner_team, '') as owner_team,
 			COALESCE(rs.owner_contact, '') as owner_contact,
-			COALESCE(sds.handling_strategy, '') as handling_strategy,
-			COALESCE(sds.fallback_strategy, '') as fallback_strategy,
-			COALESCE(sds.requires_user_input, false) as requires_user_input,
-			COALESCE(sds.prompt_label, '') as prompt_label,
-			COALESCE(sds.prompt_description, '') as prompt_description,
-			sds.generator_template,
-			sds.bundle_hints,
+			COALESCE(sso.handling_strategy, sds.handling_strategy, '') as handling_strategy,
+			COALESCE(sso.fallback_strategy, sds.fallback_strategy, '') as fallback_strategy,
+			COALESCE(sso.requires_user_input, sds.requires_user_input, false) as requires_user_input,
+			COALESCE(sso.prompt_label, sds.prompt_label, '') as prompt_label,
+			COALESCE(sso.prompt_description, sds.prompt_description, '') as prompt_description,
+			COALESCE(sso.generator_template, sds.generator_template) as generator_template,
+			COALESCE(sso.bundle_hints, sds.bundle_hints) as bundle_hints,
 			COALESCE(tiers.tier_map, '{}'::jsonb) as tier_map
 		FROM resource_secrets rs
 		LEFT JOIN secret_deployment_strategies sds
 			ON sds.resource_secret_id = rs.id AND sds.tier = $1
+		LEFT JOIN scenario_secret_strategy_overrides sso
+			ON sso.resource_secret_id = rs.id
+			AND sso.tier = $1
+			AND sso.scenario_name = $2
 		LEFT JOIN (
 			SELECT resource_secret_id, jsonb_object_agg(tier, handling_strategy) AS tier_map
 			FROM secret_deployment_strategies
@@ -93,9 +101,9 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, tier string, res
 		) tiers ON tiers.resource_secret_id = rs.id
 	`
 
-	args := []interface{}{tier}
+	args := []interface{}{tier, scenario}
 	var filters []string
-	argPos := 2
+	argPos := 3
 
 	if len(resources) > 0 {
 		filters = append(filters, fmt.Sprintf("rs.resource_name = ANY($%d)", argPos))

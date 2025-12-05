@@ -1,7 +1,9 @@
-import { Layers, AlertCircle, Rocket, PlayCircle, FileOutput, Download, Search } from "lucide-react";
+import { useState } from "react";
+import { Layers, AlertCircle, Rocket, PlayCircle, FileOutput, Download, Search, FileEdit, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { LoadingStatCard } from "../components/ui/LoadingStates";
 import { HelpDialog } from "../components/ui/HelpDialog";
+import { ManifestEditor } from "../features/manifest-editor";
 import type { DeploymentManifestResponse } from "../lib/api";
 
 interface TierReadinessData {
@@ -82,6 +84,7 @@ export const DeploymentReadinessPanel = ({
   onOpenResource,
   onStartJourney
 }: DeploymentReadinessPanelProps) => {
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const blockedTiers = tierReadiness.filter((tier) => tier.ready_percent < 100 || tier.strategized < tier.total);
   const topBlockedTier = blockedTiers.sort((a, b) => a.ready_percent - b.ready_percent)[0];
   const firstResourceNeedingAttention = getFirstResourceNeedingAttention(resourceInsights);
@@ -234,10 +237,20 @@ export const DeploymentReadinessPanel = ({
               <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-100">
                 {manifestState.manifestError?.message || "Manifest generation failed"}
               </div>
+            ) : manifestState.manifestData && !manifestState.manifestIsLoading ? (
+              <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                <div className="flex items-center gap-2 font-medium">
+                  <span>Manifest ready</span>
+                </div>
+                <p className="mt-1 text-emerald-100/70">
+                  Contains {manifestState.manifestData.resources?.length ?? 0} resource(s).
+                  Export from the status panel, then use with deployment-manager or scenario-to-desktop.
+                </p>
+              </div>
             ) : null}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-4 min-h-[280px]">
           <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Manifest status</p>
           {manifestState.manifestData ? (
             <p className="mt-1 text-xs text-white/60">
@@ -269,13 +282,22 @@ export const DeploymentReadinessPanel = ({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setIsEditorOpen(true)}
+                >
+                  <FileEdit className="h-4 w-4" />
+                  Edit manifest
+                </Button>
+                <Button
                   variant="outline"
                   size="sm"
                   className="gap-2"
                   onClick={handleExportManifest}
                 >
                   <Download className="h-4 w-4" />
-                  Export manifest (json)
+                  Export (json)
                 </Button>
                 <p className="text-[11px] text-white/50">Hand off to deployment-manager or scenario-to-*</p>
               </div>
@@ -303,6 +325,27 @@ export const DeploymentReadinessPanel = ({
           )}
         </div>
       </div>
+
+      {/* Manifest Editor Modal */}
+      {isEditorOpen && manifestState.manifestData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="relative h-[85vh] w-[90vw] max-w-5xl">
+            <button
+              onClick={() => setIsEditorOpen(false)}
+              className="absolute -top-10 right-0 flex items-center gap-1 text-sm text-white/60 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+              Close editor
+            </button>
+            <ManifestEditor
+              scenario={manifestState.scenario}
+              tier={manifestState.tier}
+              initialManifest={manifestState.manifestData}
+              onClose={() => setIsEditorOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 };

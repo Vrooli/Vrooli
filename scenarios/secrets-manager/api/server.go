@@ -14,14 +14,16 @@ type APIServer struct {
 }
 
 type handlerSet struct {
-	health      *HealthHandlers
-	vault       *VaultHandlers
-	security    *SecurityHandlers
-	resources   *ResourceHandlers
-	deployment  *DeploymentHandlers
-	scenarios   *ScenarioHandlers
-	orientation *OrientationHandlers
-	campaigns   *CampaignHandlers
+	health           *HealthHandlers
+	vault            *VaultHandlers
+	security         *SecurityHandlers
+	resources        *ResourceHandlers
+	deployment       *DeploymentHandlers
+	scenarios        *ScenarioHandlers
+	orientation      *OrientationHandlers
+	campaigns        *CampaignHandlers
+	overrides        *ScenarioOverrideHandlers
+	adminOverrides   *AdminOverrideHandlers
 }
 
 func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
@@ -43,14 +45,16 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 	return &APIServer{
 		db: db,
 		handlers: handlerSet{
-			health:      NewHealthHandlers(db),
-			vault:       NewVaultHandlers(db, logger, validator),
-			security:    NewSecurityHandlers(db, logger),
-			resources:   NewResourceHandlers(db),
-			deployment:  NewDeploymentHandlers(manifestBuilder),
-			scenarios:   NewScenarioHandlers(),
-			orientation: NewOrientationHandlers(orientationBuilder),
-			campaigns:   NewCampaignHandlers(manifestBuilder, campaignStore),
+			health:         NewHealthHandlers(db),
+			vault:          NewVaultHandlers(db, logger, validator),
+			security:       NewSecurityHandlers(db, logger),
+			resources:      NewResourceHandlers(db),
+			deployment:     NewDeploymentHandlers(manifestBuilder),
+			scenarios:      NewScenarioHandlers(),
+			orientation:    NewOrientationHandlers(orientationBuilder),
+			campaigns:      NewCampaignHandlers(manifestBuilder, campaignStore),
+			overrides:      NewScenarioOverrideHandlers(db, logger),
+			adminOverrides: NewAdminOverrideHandlers(db, logger),
 		},
 	}
 }
@@ -96,6 +100,14 @@ func (s *APIServer) routes() *mux.Router {
 	// Deployment readiness campaigns
 	campaigns := api.PathPrefix("/campaigns").Subrouter()
 	s.handlers.campaigns.RegisterRoutes(campaigns)
+
+	// Scenario secret strategy overrides
+	overrides := api.PathPrefix("/scenarios").Subrouter()
+	s.handlers.overrides.RegisterRoutes(overrides)
+
+	// Admin override management
+	admin := api.PathPrefix("/admin").Subrouter()
+	s.handlers.adminOverrides.RegisterRoutes(admin)
 
 	return r
 }

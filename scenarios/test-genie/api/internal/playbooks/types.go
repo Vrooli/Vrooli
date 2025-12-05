@@ -7,16 +7,19 @@ import "test-genie/internal/playbooks/types"
 
 // Type aliases for convenient access
 type (
-	Registry         = types.Registry
-	Entry            = types.Entry
-	ExecutionStatus  = types.ExecutionStatus
-	Outcome          = types.Outcome
-	Result           = types.Result
-	Observation      = types.Observation
-	ObservationType  = types.ObservationType
-	FailureClass     = types.FailureClass
-	RunResult        = types.RunResult
-	ExecutionSummary = types.ExecutionSummary
+	Registry               = types.Registry
+	Entry                  = types.Entry
+	ExecutionStatus        = types.ExecutionStatus
+	Outcome                = types.Outcome
+	Result                 = types.Result
+	Observation            = types.Observation
+	ObservationType        = types.ObservationType
+	FailureClass           = types.FailureClass
+	RunResult              = types.RunResult
+	ExecutionSummary       = types.ExecutionSummary
+	PlaybookExecutionError = types.PlaybookExecutionError
+	ExecutionArtifacts     = types.ExecutionArtifacts
+	ExecutionPhase         = types.ExecutionPhase
 )
 
 // Re-export constants
@@ -33,6 +36,11 @@ const (
 	FailureClassMissingDependency = types.FailureClassMissingDependency
 	FailureClassSystem            = types.FailureClassSystem
 	FailureClassExecution         = types.FailureClassExecution
+
+	PhaseResolve  = types.PhaseResolve
+	PhaseExecute  = types.PhaseExecute
+	PhaseWait     = types.PhaseWait
+	PhaseArtifact = types.PhaseArtifact
 )
 
 // Re-export observation constructors
@@ -54,4 +62,12 @@ var (
 	FailMissingDependency = types.FailMissingDependency
 	FailSystem            = types.FailSystem
 	FailExecution         = types.FailExecution
+)
+
+// Re-export error constructors
+var (
+	NewResolveError  = types.NewResolveError
+	NewExecuteError  = types.NewExecuteError
+	NewWaitError     = types.NewWaitError
+	NewArtifactError = types.NewArtifactError
 )

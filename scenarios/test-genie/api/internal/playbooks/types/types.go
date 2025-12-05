@@ -28,12 +28,19 @@ type Entry struct {
 }
 
 // ExecutionStatus represents the status response from BAS API.
+// Fields are aligned with browser-automation-studio/api/database/models.go Execution struct.
 type ExecutionStatus struct {
-	Status        string  `json:"status"`
-	Progress      float64 `json:"progress"`
-	CurrentStep   string  `json:"current_step"`
-	FailureReason string  `json:"failure_reason"`
-	Error         string  `json:"error"`
+	Status      string `json:"status"`
+	Progress    int    `json:"progress"`               // 0-100 percentage
+	CurrentStep string `json:"current_step,omitempty"` // Step name/label (not index)
+	Error       string `json:"error,omitempty"`
+
+	// Extended fields - may not be present in all BAS responses.
+	// These are populated from execution_steps when available.
+	TotalSteps       int    `json:"total_steps,omitempty"`        // From step count
+	CurrentNodeID    string `json:"current_node_id,omitempty"`    // From current step
+	CurrentNodeLabel string `json:"current_node_label,omitempty"` // From current step
+	FailureReason    string `json:"failure_reason,omitempty"`     // From error or result
 }
 
 // Outcome represents the result of executing a single playbook.

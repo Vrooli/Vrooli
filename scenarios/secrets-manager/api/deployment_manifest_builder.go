@@ -103,8 +103,8 @@ func (b *ManifestBuilder) Build(ctx context.Context, req DeploymentManifestReque
 		return b.buildFallbackManifest(scenario, tier, resolved.Effective), nil
 	}
 
-	// Fetch secrets from database
-	entries, err := b.secretStore.FetchSecrets(ctx, tier, resolved.Effective, req.IncludeOptional)
+	// Fetch secrets from database (with scenario-specific overrides if any)
+	entries, err := b.secretStore.FetchSecrets(ctx, scenario, tier, resolved.Effective, req.IncludeOptional)
 	if err != nil {
 		return nil, fmt.Errorf("fetch secrets: %w", err)
 	}

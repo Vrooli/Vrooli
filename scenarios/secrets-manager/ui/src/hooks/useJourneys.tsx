@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   fetchDeploymentReadiness,
@@ -82,6 +82,34 @@ export const useJourneys = (options: UseJourneysOptions) => {
   >({});
   const selectedTierSnapshot = tierSnapshots[deploymentTier];
 
+  // Debounced values for auto-refresh to prevent flickering on every keystroke
+  const [debouncedScenario, setDebouncedScenario] = useState(deploymentScenario);
+  const [debouncedResourceInput, setDebouncedResourceInput] = useState(resourceInput);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce scenario input
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedScenario(deploymentScenario);
+    }, 400);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [deploymentScenario]);
+
+  // Debounce resource input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedResourceInput(resourceInput);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [resourceInput]);
+
   const manifestMutation = useMutation<DeploymentManifestResponse, Error, DeploymentManifestRequest>({
     mutationFn: (payload) => generateDeploymentManifest(payload)
   });
@@ -114,12 +142,18 @@ export const useJourneys = (options: UseJourneysOptions) => {
     });
   }, [manifestMutation.mutate, deploymentScenario, deploymentTier, parseResources, resourceInput]);
 
-  // Auto-refresh manifest whenever scenario/tier/resources change (skip if user-facing errors disable it)
+  // Auto-refresh manifest using debounced values to prevent flickering on every keystroke
   useEffect(() => {
-    if (!deploymentScenario || autoManifestDisabled) return;
-    handleManifestRequest();
+    if (!debouncedScenario || autoManifestDisabled) return;
+    const resources = parseResources(debouncedResourceInput);
+    manifestMutation.mutate({
+      scenario: debouncedScenario,
+      tier: deploymentTier,
+      resources,
+      include_optional: false
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deploymentScenario, deploymentTier, resourceInput, autoManifestDisabled]);
+  }, [debouncedScenario, deploymentTier, debouncedResourceInput, autoManifestDisabled]);
 
   // If manifest fetch fails, stop auto-loop and let the user click regenerate manually.
   useEffect(() => {
@@ -128,10 +162,10 @@ export const useJourneys = (options: UseJourneysOptions) => {
     }
   }, [manifestMutation.isError]);
 
-  // Re-enable auto manifest when inputs change or a success occurs.
+  // Re-enable auto manifest when debounced inputs change or a success occurs.
   useEffect(() => {
     setAutoManifestDisabled(false);
-  }, [deploymentScenario, deploymentTier]);
+  }, [debouncedScenario, deploymentTier]);
 
   useEffect(() => {
     if (manifestMutation.isSuccess) {
@@ -139,9 +173,9 @@ export const useJourneys = (options: UseJourneysOptions) => {
     }
   }, [manifestMutation.isSuccess]);
 
-  // Fetch readiness snapshots for all tiers for this scenario
+  // Fetch readiness snapshots for all tiers using debounced values to prevent excessive API calls
   useEffect(() => {
-    if (!deploymentScenario || options.tierReadiness.length === 0) return;
+    if (!debouncedScenario || options.tierReadiness.length === 0) return;
     const tiers = options.tierReadiness.map((tier) => tier.tier);
     setTierSnapshots((prev) => {
       const next = { ...prev };
@@ -152,13 +186,13 @@ export const useJourneys = (options: UseJourneysOptions) => {
     });
 
     let cancelled = false;
-    const resources = parseResources(resourceInput);
+    const resources = parseResources(debouncedResourceInput);
 
     const fetchTiers = async () => {
       for (const tier of tiers) {
         try {
           const data = await fetchDeploymentReadiness({
-            scenario: deploymentScenario,
+            scenario: debouncedScenario,
             tier,
             resources,
             include_optional: false
@@ -188,7 +222,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
     return () => {
       cancelled = true;
     };
-  }, [deploymentScenario, resourceInput, options.tierReadiness, parseResources, readinessRefreshKey]);
+  }, [debouncedScenario, debouncedResourceInput, options.tierReadiness, parseResources, readinessRefreshKey]);
 
   const handleProvisionSubmit = useCallback(() => {
     provisionMutation.mutate({

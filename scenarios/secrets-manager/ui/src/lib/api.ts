@@ -471,3 +471,138 @@ export const fetchCampaigns = (options?: { includeReadiness?: boolean; scenario?
   const suffix = params.toString();
   return jsonFetch<CampaignListResponse>(`/campaigns${suffix ? `?${suffix}` : ""}`);
 };
+
+// =============================================================================
+// Scenario Secret Strategy Overrides
+// =============================================================================
+
+export interface ScenarioSecretOverride {
+  id: string;
+  scenario_name: string;
+  resource_secret_id: string;
+  resource_name: string;
+  secret_key: string;
+  tier: string;
+  handling_strategy?: string;
+  fallback_strategy?: string;
+  requires_user_input?: boolean;
+  prompt_label?: string;
+  prompt_description?: string;
+  generator_template?: Record<string, unknown>;
+  bundle_hints?: Record<string, unknown>;
+  override_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EffectiveSecretStrategy {
+  resource_name: string;
+  secret_key: string;
+  tier: string;
+  handling_strategy: string;
+  fallback_strategy?: string;
+  requires_user_input: boolean;
+  prompt_label?: string;
+  prompt_description?: string;
+  is_overridden: boolean;
+  overridden_fields?: string[];
+  override_reason?: string;
+}
+
+export interface OverridesListResponse {
+  scenario: string;
+  tier?: string;
+  overrides: ScenarioSecretOverride[];
+  count: number;
+}
+
+export interface EffectiveStrategiesResponse {
+  scenario: string;
+  tier: string;
+  strategies: EffectiveSecretStrategy[];
+  count: number;
+}
+
+export interface SetOverridePayload {
+  handling_strategy?: string;
+  fallback_strategy?: string;
+  requires_user_input?: boolean;
+  prompt_label?: string;
+  prompt_description?: string;
+  generator_template?: Record<string, unknown>;
+  bundle_hints?: Record<string, unknown>;
+  override_reason?: string;
+}
+
+export interface CopyFromTierPayload {
+  source_tier: string;
+  target_tier: string;
+  overwrite?: boolean;
+}
+
+export interface CopyFromScenarioPayload {
+  source_scenario: string;
+  tier: string;
+  overwrite?: boolean;
+}
+
+// Fetch all overrides for a scenario (all tiers)
+export const fetchScenarioOverrides = (scenario: string) =>
+  jsonFetch<OverridesListResponse>(`/scenarios/${encodeURIComponent(scenario)}/overrides`);
+
+// Fetch overrides for a scenario and tier
+export const fetchScenarioTierOverrides = (scenario: string, tier: string) =>
+  jsonFetch<OverridesListResponse>(`/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}`);
+
+// Fetch a specific override
+export const fetchScenarioOverride = (scenario: string, tier: string, resource: string, secret: string) =>
+  jsonFetch<ScenarioSecretOverride>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}/${encodeURIComponent(resource)}/${encodeURIComponent(secret)}`
+  );
+
+// Create or update a scenario override
+export const setScenarioOverride = (scenario: string, tier: string, resource: string, secret: string, payload: SetOverridePayload) =>
+  jsonFetch<ScenarioSecretOverride>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}/${encodeURIComponent(resource)}/${encodeURIComponent(secret)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );
+
+// Delete a scenario override (revert to resource default)
+export const deleteScenarioOverride = (scenario: string, tier: string, resource: string, secret: string) =>
+  jsonFetch<{ success: boolean; message: string }>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/${encodeURIComponent(tier)}/${encodeURIComponent(resource)}/${encodeURIComponent(secret)}`,
+    { method: "DELETE" }
+  );
+
+// Fetch effective strategies for a scenario and tier (merged resource defaults + overrides)
+export const fetchEffectiveStrategies = (scenario: string, tier: string, resources?: string[]) => {
+  const params = new URLSearchParams();
+  if (resources?.length) params.set("resources", resources.join(","));
+  const suffix = params.toString();
+  return jsonFetch<EffectiveStrategiesResponse>(
+    `/scenarios/${encodeURIComponent(scenario)}/effective/${encodeURIComponent(tier)}${suffix ? `?${suffix}` : ""}`
+  );
+};
+
+// Copy overrides from one tier to another within the same scenario
+export const copyOverridesFromTier = (scenario: string, payload: CopyFromTierPayload) =>
+  jsonFetch<{ success: boolean; copied: number }>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/copy-from-tier`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );
+
+// Copy overrides from another scenario
+export const copyOverridesFromScenario = (scenario: string, payload: CopyFromScenarioPayload) =>
+  jsonFetch<{ success: boolean; copied: number }>(
+    `/scenarios/${encodeURIComponent(scenario)}/overrides/copy-from-scenario`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }
+  );

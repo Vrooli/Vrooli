@@ -1,6 +1,6 @@
 import { Button } from "../../components/ui/button";
 import { HelpDialog } from "../../components/ui/HelpDialog";
-import type { ResourceSecretDetail, UpdateResourceSecretPayload } from "../../lib/api";
+import type { ResourceSecretDetail, UpdateResourceSecretPayload, ScenarioSecretOverride } from "../../lib/api";
 
 interface SecretDetailProps {
   selectedSecret?: ResourceSecretDetail;
@@ -9,12 +9,19 @@ interface SecretDetailProps {
   strategyHandling: string;
   strategyPrompt: string;
   strategyDescription: string;
+  overrideReason?: string;
+  isOverrideMode?: boolean;
+  currentOverride?: ScenarioSecretOverride;
+  selectedScenario?: string;
   onUpdateSecret: (secretKey: string, payload: UpdateResourceSecretPayload) => void;
   onApplyStrategy: () => void;
+  onDeleteOverride?: () => void;
   onSetStrategyTier: (value: string) => void;
   onSetStrategyHandling: (value: string) => void;
   onSetStrategyPrompt: (value: string) => void;
   onSetStrategyDescription: (value: string) => void;
+  onSetOverrideReason?: (value: string) => void;
+  onSetIsOverrideMode?: (value: boolean) => void;
 }
 
 export const SecretDetail = ({
@@ -24,12 +31,19 @@ export const SecretDetail = ({
   strategyHandling,
   strategyPrompt,
   strategyDescription,
+  overrideReason = "",
+  isOverrideMode = false,
+  currentOverride,
+  selectedScenario,
   onUpdateSecret,
   onApplyStrategy,
+  onDeleteOverride,
   onSetStrategyTier,
   onSetStrategyHandling,
   onSetStrategyPrompt,
-  onSetStrategyDescription
+  onSetStrategyDescription,
+  onSetOverrideReason,
+  onSetIsOverrideMode
 }: SecretDetailProps) => (
   <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
     <h4 className="text-sm uppercase tracking-[0.3em] text-white/60">Secret Detail</h4>
@@ -123,6 +137,46 @@ export const SecretDetail = ({
         </div>
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.2em] text-white/60">Add / update strategy</p>
+
+          {/* Override mode toggle - only show when a scenario is selected */}
+          {selectedScenario && onSetIsOverrideMode && (
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-white/80">
+                <input
+                  type="checkbox"
+                  checked={isOverrideMode}
+                  onChange={(e) => onSetIsOverrideMode(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/20 bg-slate-800 text-emerald-500 focus:ring-emerald-500/50"
+                />
+                <span>Override for scenario: <strong className="text-emerald-300">{selectedScenario}</strong></span>
+              </label>
+              <HelpDialog title="Scenario Overrides">
+                <p>When enabled, the strategy you set will only apply to this specific scenario, not to the resource globally.</p>
+                <p className="mt-2">This is useful when a scenario has special requirements that differ from the resource&apos;s default handling.</p>
+              </HelpDialog>
+            </div>
+          )}
+
+          {/* Current override indicator */}
+          {currentOverride && (
+            <div className="rounded-xl border border-purple-400/30 bg-purple-400/5 px-3 py-2 text-xs text-purple-100">
+              <div className="flex items-center justify-between">
+                <span>This secret has an override for <strong>{currentOverride.scenario_name}</strong></span>
+                {onDeleteOverride && (
+                  <Button variant="ghost" size="sm" onClick={onDeleteOverride} className="text-red-300 hover:text-red-200">
+                    Remove override
+                  </Button>
+                )}
+              </div>
+              {currentOverride.override_reason && (
+                <p className="mt-1 text-purple-200/70">Reason: {currentOverride.override_reason}</p>
+              )}
+              {currentOverride.handling_strategy && (
+                <p className="mt-1 text-purple-200/70">Strategy: {currentOverride.handling_strategy}</p>
+              )}
+            </div>
+          )}
+
           <div className="grid gap-2">
             <label className="text-xs text-white/60">
               Deployment Tier
@@ -191,12 +245,24 @@ export const SecretDetail = ({
                 ☁️ This secret will be managed by the cloud provider (e.g., AWS Secrets Manager, Vault).
               </div>
             )}
+            {isOverrideMode && onSetOverrideReason && (
+              <label className="text-xs text-white/60">
+                Override Reason (optional)
+                <textarea
+                  value={overrideReason}
+                  onChange={(event) => onSetOverrideReason(event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                  placeholder="Why does this scenario need different handling?"
+                  rows={2}
+                />
+              </label>
+            )}
             <Button
               size="sm"
               onClick={onApplyStrategy}
               disabled={strategyHandling === "prompt" && (!strategyPrompt.trim() || !strategyDescription.trim())}
             >
-              Apply strategy
+              {isOverrideMode ? "Apply scenario override" : "Apply strategy"}
             </Button>
           </div>
         </div>

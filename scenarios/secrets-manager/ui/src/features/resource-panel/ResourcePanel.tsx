@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { SecretDetail } from "./SecretDetail";
 import { VulnerabilityList } from "./VulnerabilityList";
-import type { ResourceDetail, UpdateResourceSecretPayload, UpdateSecretStrategyPayload } from "../../lib/api";
+import type { ResourceDetail, UpdateResourceSecretPayload, ScenarioSecretOverride } from "../../lib/api";
 
 interface ResourceStatus {
   resource_name: string;
@@ -22,6 +22,10 @@ interface ResourcePanelProps {
   strategyHandling: string;
   strategyPrompt: string;
   strategyDescription: string;
+  overrideReason: string;
+  isOverrideMode: boolean;
+  currentOverride?: ScenarioSecretOverride;
+  selectedScenario?: string;
   tierReadiness: Array<{ tier: string; label: string }>;
   allResources: ResourceStatus[];
   onClose: () => void;
@@ -29,11 +33,14 @@ interface ResourcePanelProps {
   onSelectSecret: (secretKey: string) => void;
   onUpdateSecret: (secretKey: string, payload: UpdateResourceSecretPayload) => void;
   onApplyStrategy: () => void;
+  onDeleteOverride: () => void;
   onUpdateVulnerabilityStatus: (id: string, status: string) => void;
   onSetStrategyTier: (value: string) => void;
   onSetStrategyHandling: (value: string) => void;
   onSetStrategyPrompt: (value: string) => void;
   onSetStrategyDescription: (value: string) => void;
+  onSetOverrideReason: (value: string) => void;
+  onSetIsOverrideMode: (value: boolean) => void;
 }
 
 export const ResourcePanel = ({
@@ -46,6 +53,10 @@ export const ResourcePanel = ({
   strategyHandling,
   strategyPrompt,
   strategyDescription,
+  overrideReason,
+  isOverrideMode,
+  currentOverride,
+  selectedScenario,
   tierReadiness,
   allResources,
   onClose,
@@ -53,11 +64,14 @@ export const ResourcePanel = ({
   onSelectSecret,
   onUpdateSecret,
   onApplyStrategy,
+  onDeleteOverride,
   onUpdateVulnerabilityStatus,
   onSetStrategyTier,
   onSetStrategyHandling,
   onSetStrategyPrompt,
-  onSetStrategyDescription
+  onSetStrategyDescription,
+  onSetOverrideReason,
+  onSetIsOverrideMode
 }: ResourcePanelProps) => {
   const selectedSecret = resourceDetail?.secrets.find((secret) => secret.secret_key === selectedSecretKey) ??
     resourceDetail?.secrets[0];
@@ -163,12 +177,19 @@ export const ResourcePanel = ({
               strategyHandling={strategyHandling}
               strategyPrompt={strategyPrompt}
               strategyDescription={strategyDescription}
+              overrideReason={overrideReason}
+              isOverrideMode={isOverrideMode}
+              currentOverride={currentOverride}
+              selectedScenario={selectedScenario}
               onUpdateSecret={onUpdateSecret}
               onApplyStrategy={onApplyStrategy}
+              onDeleteOverride={onDeleteOverride}
               onSetStrategyTier={onSetStrategyTier}
               onSetStrategyHandling={onSetStrategyHandling}
               onSetStrategyPrompt={onSetStrategyPrompt}
               onSetStrategyDescription={onSetStrategyDescription}
+              onSetOverrideReason={onSetOverrideReason}
+              onSetIsOverrideMode={onSetIsOverrideMode}
             />
             <VulnerabilityList
               vulnerabilities={resourceDetail?.open_vulnerabilities ?? []}

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Search, ListChecks } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { HelpDialog } from "../components/ui/HelpDialog";
 import type { CampaignSummary } from "../lib/api";
 
 interface CampaignsPanelProps {
@@ -56,7 +57,33 @@ export const CampaignsPanel = ({
             <ListChecks className="h-5 w-5 text-emerald-200" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Campaigns</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Campaigns</p>
+              <HelpDialog title="What are Campaigns?">
+                <p>
+                  A <strong className="text-white">campaign</strong> represents a deployment-readiness workflow for a specific scenario.
+                  Each campaign tracks progress toward making a scenario ready for deployment across different tiers.
+                </p>
+                <ul className="mt-3 space-y-2">
+                  <li>
+                    <strong className="text-white">Status:</strong> Shows how many deployment tiers are currently blocked
+                    (e.g., "2 tiers blocked" means 2 tiers lack required secret strategies)
+                  </li>
+                  <li>
+                    <strong className="text-white">Coverage:</strong> Ratio of secrets with defined strategies vs total required secrets
+                  </li>
+                  <li>
+                    <strong className="text-white">Requires action:</strong> Number of secrets that still need attention before deployment
+                  </li>
+                  <li>
+                    <strong className="text-white">Next action:</strong> Suggested next step to unblock the scenario
+                  </li>
+                </ul>
+                <p className="mt-3">
+                  Select a campaign to view its readiness details and generate deployment manifests.
+                </p>
+              </HelpDialog>
+            </div>
             <p className="text-lg font-semibold text-white">Deployment readiness campaigns</p>
             <p className="text-sm text-white/60">Search, sort, and resume work per scenario.</p>
           </div>
@@ -93,7 +120,7 @@ export const CampaignsPanel = ({
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
+      <div className="mt-4 max-h-[400px] overflow-y-auto rounded-2xl border border-white/10">
         <table className="min-w-full divide-y divide-white/10 text-sm">
           <thead className="bg-black/30 text-white/60">
             <tr>

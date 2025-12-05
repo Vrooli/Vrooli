@@ -76,7 +76,7 @@ type mockSecretStore struct {
 	persistedAt []string // tracks scenario+tier combinations persisted
 }
 
-func (m *mockSecretStore) FetchSecrets(ctx context.Context, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error) {
+func (m *mockSecretStore) FetchSecrets(ctx context.Context, scenario, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error) {
 	if m.fetchErr != nil {
 		return nil, m.fetchErr
 	}
@@ -1002,5 +1002,311 @@ func TestSummaryBuilder_StrategyBreakdown(t *testing.T) {
 	// unspecified should NOT be in breakdown
 	if _, found := summary.StrategyBreakdown["unspecified"]; found {
 		t.Error("unspecified should not appear in StrategyBreakdown")
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Scenario Override Integration Tests
+// -----------------------------------------------------------------------------
+
+// mockSecretStoreWithOverrides is a mock that simulates override behavior.
+type mockSecretStoreWithOverrides struct {
+	secrets          []DeploymentSecretEntry
+	overrideScenario string
+	overriddenEntry  DeploymentSecretEntry
+	fetchErr         error
+	persistErr       error
+	persistedAt      []string
+}
+
+func (m *mockSecretStoreWithOverrides) FetchSecrets(ctx context.Context, scenario, tier string, resources []string, includeOptional bool) ([]DeploymentSecretEntry, error) {
+	if m.fetchErr != nil {
+		return nil, m.fetchErr
+	}
+
+	// If scenario matches, apply the override
+	if scenario == m.overrideScenario && m.overriddenEntry.SecretKey != "" {
+		result := make([]DeploymentSecretEntry, len(m.secrets))
+		copy(result, m.secrets)
+		for i := range result {
+			if result[i].SecretKey == m.overriddenEntry.SecretKey {
+				result[i].HandlingStrategy = m.overriddenEntry.HandlingStrategy
+				if m.overriddenEntry.Prompt != nil {
+					result[i].Prompt = m.overriddenEntry.Prompt
+				}
+				result[i].RequiresUserInput = m.overriddenEntry.RequiresUserInput
+			}
+		}
+		return result, nil
+	}
+
+	return m.secrets, nil
+}
+
+func (m *mockSecretStoreWithOverrides) PersistManifest(ctx context.Context, scenario, tier string, manifest *DeploymentManifest) error {
+	if m.persistedAt == nil {
+		m.persistedAt = []string{}
+	}
+	m.persistedAt = append(m.persistedAt, scenario+":"+tier)
+	return m.persistErr
+}
+
+// TestManifestBuilder_WithScenarioOverrides verifies that scenario-specific
+// overrides correctly change the handling strategy in the manifest.
+func TestManifestBuilder_WithScenarioOverrides(t *testing.T) {
+	// Base secrets with default handling
+	secrets := []DeploymentSecretEntry{
+		{
+			ID:               "secret-1",
+			ResourceName:     "postgres",
+			SecretKey:        "POSTGRES_PASSWORD",
+			SecretType:       "password",
+			Required:         true,
+			Classification:   "service",
+			HandlingStrategy: "generate", // Default strategy
+		},
+		{
+			ID:               "secret-2",
+			ResourceName:     "postgres",
+			SecretKey:        "POSTGRES_USER",
+			SecretType:       "string",
+			Required:         true,
+			Classification:   "service",
+			HandlingStrategy: "prompt", // Default strategy
+		},
+	}
+
+	// Override: scenario "desktop-app" changes POSTGRES_PASSWORD from "generate" to "strip"
+	store := &mockSecretStoreWithOverrides{
+		secrets:          secrets,
+		overrideScenario: "desktop-app",
+		overriddenEntry: DeploymentSecretEntry{
+			SecretKey:        "POSTGRES_PASSWORD",
+			HandlingStrategy: "strip", // Override
+		},
+	}
+
+	analyzer := &mockAnalyzerClient{report: nil}
+	resolver := &mockResourceResolver{
+		resolved: ResolvedResources{
+			Effective:       []string{"postgres"},
+			FromServiceJSON: []string{"postgres"},
+		},
+	}
+
+	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
+
+	// Test WITH override scenario
+	req := DeploymentManifestRequest{
+		Scenario: "desktop-app",
+		Tier:     "tier-2-desktop",
+	}
+
+	manifest, err := builder.Build(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Build() error = %v, want nil", err)
+	}
+
+	// Find the POSTGRES_PASSWORD secret and verify it was overridden
+	var passwordSecret *DeploymentSecretEntry
+	for i := range manifest.Secrets {
+		if manifest.Secrets[i].SecretKey == "POSTGRES_PASSWORD" {
+			passwordSecret = &manifest.Secrets[i]
+			break
+		}
+	}
+
+	if passwordSecret == nil {
+		t.Fatal("POSTGRES_PASSWORD not found in manifest")
+	}
+
+	if passwordSecret.HandlingStrategy != "strip" {
+		t.Errorf("POSTGRES_PASSWORD strategy = %q, want %q (should be overridden)", passwordSecret.HandlingStrategy, "strip")
+	}
+}
+
+// TestManifestBuilder_WithoutScenarioOverrides verifies that non-overridden
+// scenarios use the default resource strategies.
+func TestManifestBuilder_WithoutScenarioOverrides(t *testing.T) {
+	secrets := []DeploymentSecretEntry{
+		{
+			ID:               "secret-1",
+			ResourceName:     "postgres",
+			SecretKey:        "POSTGRES_PASSWORD",
+			SecretType:       "password",
+			Required:         true,
+			Classification:   "service",
+			HandlingStrategy: "generate", // Default
+		},
+	}
+
+	// Override only applies to "desktop-app" scenario
+	store := &mockSecretStoreWithOverrides{
+		secrets:          secrets,
+		overrideScenario: "desktop-app",
+		overriddenEntry: DeploymentSecretEntry{
+			SecretKey:        "POSTGRES_PASSWORD",
+			HandlingStrategy: "strip",
+		},
+	}
+
+	analyzer := &mockAnalyzerClient{report: nil}
+	resolver := &mockResourceResolver{
+		resolved: ResolvedResources{Effective: []string{"postgres"}},
+	}
+
+	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
+
+	// Test with a DIFFERENT scenario (no override)
+	req := DeploymentManifestRequest{
+		Scenario: "web-app", // Different scenario - no override
+		Tier:     "tier-1-local",
+	}
+
+	manifest, err := builder.Build(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Build() error = %v, want nil", err)
+	}
+
+	var passwordSecret *DeploymentSecretEntry
+	for i := range manifest.Secrets {
+		if manifest.Secrets[i].SecretKey == "POSTGRES_PASSWORD" {
+			passwordSecret = &manifest.Secrets[i]
+			break
+		}
+	}
+
+	if passwordSecret == nil {
+		t.Fatal("POSTGRES_PASSWORD not found in manifest")
+	}
+
+	// Should use the DEFAULT strategy, not the override
+	if passwordSecret.HandlingStrategy != "generate" {
+		t.Errorf("POSTGRES_PASSWORD strategy = %q, want %q (should use default)", passwordSecret.HandlingStrategy, "generate")
+	}
+}
+
+// TestManifestBuilder_OverridePrecedence verifies that scenario overrides
+// take precedence over resource defaults in the COALESCE order.
+func TestManifestBuilder_OverridePrecedence(t *testing.T) {
+	// Secret with both a resource default and a scenario override
+	secrets := []DeploymentSecretEntry{
+		{
+			ID:               "secret-1",
+			ResourceName:     "redis",
+			SecretKey:        "REDIS_PASSWORD",
+			SecretType:       "password",
+			Required:         true,
+			Classification:   "service",
+			HandlingStrategy: "delegate", // Resource default
+			Prompt: &PromptMetadata{
+				Label:       "Default Label",
+				Description: "Default description from resource",
+			},
+		},
+	}
+
+	store := &mockSecretStoreWithOverrides{
+		secrets:          secrets,
+		overrideScenario: "offline-app",
+		overriddenEntry: DeploymentSecretEntry{
+			SecretKey:         "REDIS_PASSWORD",
+			HandlingStrategy:  "prompt", // Override for offline use
+			RequiresUserInput: true,
+			Prompt: &PromptMetadata{
+				Label:       "Override Label",
+				Description: "Offline apps need user to provide Redis password",
+			},
+		},
+	}
+
+	analyzer := &mockAnalyzerClient{}
+	resolver := &mockResourceResolver{
+		resolved: ResolvedResources{Effective: []string{"redis"}},
+	}
+
+	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
+
+	req := DeploymentManifestRequest{
+		Scenario: "offline-app",
+		Tier:     "tier-2-desktop",
+	}
+
+	manifest, err := builder.Build(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
+	var redisSecret *DeploymentSecretEntry
+	for i := range manifest.Secrets {
+		if manifest.Secrets[i].SecretKey == "REDIS_PASSWORD" {
+			redisSecret = &manifest.Secrets[i]
+			break
+		}
+	}
+
+	if redisSecret == nil {
+		t.Fatal("REDIS_PASSWORD not found in manifest")
+	}
+
+	// Verify override took precedence
+	if redisSecret.HandlingStrategy != "prompt" {
+		t.Errorf("HandlingStrategy = %q, want %q (override)", redisSecret.HandlingStrategy, "prompt")
+	}
+	if !redisSecret.RequiresUserInput {
+		t.Error("RequiresUserInput should be true (from override)")
+	}
+	if redisSecret.Prompt == nil || redisSecret.Prompt.Label != "Override Label" {
+		t.Error("Prompt should use override values")
+	}
+}
+
+// TestManifestBuilder_BundleSecretsWithOverride verifies that bundle secret
+// plans correctly reflect overridden strategies.
+func TestManifestBuilder_BundleSecretsWithOverride(t *testing.T) {
+	secrets := []DeploymentSecretEntry{
+		{
+			ID:               "secret-1",
+			ResourceName:     "api",
+			SecretKey:        "API_KEY",
+			SecretType:       "string",
+			Required:         true,
+			Classification:   "service",
+			HandlingStrategy: "generate",
+		},
+	}
+
+	store := &mockSecretStoreWithOverrides{
+		secrets:          secrets,
+		overrideScenario: "demo-app",
+		overriddenEntry: DeploymentSecretEntry{
+			SecretKey:        "API_KEY",
+			HandlingStrategy: "strip", // Exclude from bundle for demo
+		},
+	}
+
+	analyzer := &mockAnalyzerClient{}
+	resolver := &mockResourceResolver{
+		resolved: ResolvedResources{Effective: []string{"api"}},
+	}
+
+	builder := NewManifestBuilderWithDeps(store, analyzer, resolver, nil)
+
+	req := DeploymentManifestRequest{
+		Scenario: "demo-app",
+		Tier:     "tier-2-desktop",
+	}
+
+	manifest, err := builder.Build(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
+	// With "strip" strategy, the secret should be excluded from bundle plans
+	// (BundlePlanBuilder excludes infrastructure/strip)
+	for _, plan := range manifest.BundleSecrets {
+		if plan.ID == "API_KEY" || plan.ID == "api_api_key" {
+			t.Error("Strip strategy secret should be excluded from bundle plans")
+		}
 	}
 }
