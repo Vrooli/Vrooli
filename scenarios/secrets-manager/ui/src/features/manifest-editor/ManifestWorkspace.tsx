@@ -1,6 +1,7 @@
 import { FileEdit, RefreshCw, Loader2, AlertCircle, HelpCircle, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { JsonCodePreview } from "../../components/ui/JsonCodePreview";
 import { useManifestWorkspace } from "./useManifestWorkspace";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import { ResourceTree } from "./ResourceTree";
@@ -206,11 +207,50 @@ export function ManifestWorkspace({
               />
             </div>
 
-            {/* Detail + JSON split (right panel) */}
-            <div className="flex flex-1 flex-col">
-              <div className="flex flex-1 min-h-0">
-                {/* Secret detail panel */}
-                <div className={`flex-1 overflow-y-auto ${workspace.jsonPanelOpen ? "border-r border-white/10" : ""}`}>
+            {/* Right panel - shows either Detail or JSON (not both) */}
+            <div className="flex flex-1 flex-col min-h-0">
+              {/* View toggle header */}
+              <div className="flex items-center justify-between border-b border-white/10 bg-black/20 px-3 py-2">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => workspace.setJsonPanelOpen(false)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                      !workspace.jsonPanelOpen
+                        ? "bg-white/10 text-white"
+                        : "text-white/50 hover:text-white/70"
+                    }`}
+                  >
+                    Details
+                  </button>
+                  <button
+                    onClick={() => workspace.setJsonPanelOpen(true)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                      workspace.jsonPanelOpen
+                        ? "bg-white/10 text-white"
+                        : "text-white/50 hover:text-white/70"
+                    }`}
+                  >
+                    JSON Preview
+                  </button>
+                </div>
+                {workspace.jsonPanelOpen && (
+                  <Tooltip content="This shows what will be exported, with any exclusions already applied. Use the Export button to download this JSON." />
+                )}
+              </div>
+
+              {/* Content area */}
+              <div className="flex-1 overflow-y-auto">
+                {workspace.jsonPanelOpen ? (
+                  /* JSON preview panel */
+                  exportPreview ? (
+                    <JsonCodePreview data={exportPreview} className="rounded-b-lg" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-white/50">
+                      <p className="text-sm">No preview available</p>
+                    </div>
+                  )
+                ) : (
+                  /* Secret detail panel */
                   <ManifestSecretDetailPanel
                     secret={workspace.selectedSecret}
                     isOverridden={
@@ -236,41 +276,6 @@ export function ManifestWorkspace({
                       }
                     } : undefined}
                   />
-                </div>
-
-                {/* JSON preview panel (always visible, collapsible) */}
-                {workspace.jsonPanelOpen && exportPreview && (
-                  <div className="w-[45%] min-w-[300px] max-w-[500px] flex flex-col bg-black/20">
-                    <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-white/60">JSON Preview</span>
-                        <Tooltip content="This shows what will be exported, with any exclusions already applied. Use the Export button to download this JSON." />
-                      </div>
-                      <button
-                        onClick={() => workspace.setJsonPanelOpen(false)}
-                        className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-white"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="flex-1 overflow-auto p-3">
-                      <pre className="text-[11px] leading-relaxed text-white/70 font-mono whitespace-pre-wrap">
-                        {JSON.stringify(exportPreview, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-                {/* Collapsed JSON panel toggle */}
-                {!workspace.jsonPanelOpen && (
-                  <button
-                    onClick={() => workspace.setJsonPanelOpen(true)}
-                    className="flex items-center gap-1 border-l border-white/10 bg-black/20 px-2 py-1 text-xs text-white/40 hover:bg-white/5 hover:text-white/60 writing-mode-vertical"
-                    style={{ writingMode: "vertical-rl" }}
-                  >
-                    <ChevronDown className="h-3 w-3 rotate-90" />
-                    JSON Preview
-                  </button>
                 )}
               </div>
             </div>

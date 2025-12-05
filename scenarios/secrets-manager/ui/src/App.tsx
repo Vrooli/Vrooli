@@ -13,6 +13,7 @@ import { useResourcePanel } from "./hooks/useResourcePanel";
 import { useJourneys } from "./hooks/useJourneys";
 import { useScenarios } from "./hooks/useScenarios";
 import { useCampaigns } from "./hooks/useCampaigns";
+import { useTabRouting, type ExperienceTab } from "./hooks/useTabRouting";
 import { TabNav } from "./components/ui/TabNav";
 import { TabTip } from "./components/ui/TabTip";
 import { SnapshotPanel } from "./sections/SnapshotPanel";
@@ -22,10 +23,7 @@ import type { JourneyId } from "./features/journeys/journeySteps";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
 
 export default function App() {
-  type ExperienceTab = "dashboard" | "resources" | "compliance" | "deployment";
-
-  const [activeTab, setActiveTab] = useState<ExperienceTab>("dashboard");
-  const [resourceTab, setResourceTab] = useState<"tier" | "resource">("tier");
+  const { activeTab, resourceTab, setActiveTab, setResourceTab } = useTabRouting();
   const [showTutorialOverlay, setShowTutorialOverlay] = useState(false);
   const [tutorialAnchor, setTutorialAnchor] = useState<string | undefined>(undefined);
   const [selectedScenario, setSelectedScenario] = useState<string>("secrets-manager");
@@ -290,7 +288,7 @@ export default function App() {
         />
 
         <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-          <TabNav tabs={tabs} activeTab={activeTab} onChange={(id) => setActiveTab(id as ExperienceTab)} />
+          <TabNav tabs={tabs} activeTab={activeTab} onChange={(id) => setActiveTab(id as ExperienceTab)} basePath="" />
         </div>
 
         {activeTab === "dashboard" && missingSecretsCount > 0 ? (
@@ -368,6 +366,7 @@ export default function App() {
                 ]}
                 activeTab={resourceTab}
                 onChange={(id) => setResourceTab(id as "tier" | "resource")}
+                basePath="resources"
               />
               {resourceTab === "tier" ? (
                 <TierReadiness

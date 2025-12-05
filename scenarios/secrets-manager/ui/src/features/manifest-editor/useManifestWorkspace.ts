@@ -256,6 +256,7 @@ export function useManifestWorkspace({
 
   const selectSecret = useCallback((resource: string, key: string) => {
     setSelectedSecret({ resource, key });
+    setJsonPanelOpen(false); // Switch to details view when selecting a secret
     setExpandedResources((prev) => {
       if (prev.has(resource)) return prev;
       return new Set([...prev, resource]);
