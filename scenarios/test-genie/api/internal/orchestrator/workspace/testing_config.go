@@ -48,6 +48,42 @@ type IntegrationSettings struct {
 	// WebSocket configures WebSocket connection validation.
 	// The URL is derived from the API URL + WebSocketPath following api-base conventions.
 	WebSocket WebSocketSettings
+
+	// CLI configures CLI binary validation behavior.
+	CLI CLISettings
+}
+
+// CLISettings configures CLI validation behavior.
+// This allows scenarios to customize how their CLI is validated, accommodating
+// different CLI frameworks (cli-core subcommands vs standard flag-based CLIs).
+type CLISettings struct {
+	// HelpArgs specifies argument patterns to try for help command, in order of preference.
+	// The validator tries each pattern until one succeeds.
+	// Default: ["help", "--help", "-h"]
+	HelpArgs []string
+
+	// VersionArgs specifies argument patterns to try for version command, in order of preference.
+	// Default: ["version", "--version", "-v"]
+	VersionArgs []string
+
+	// RequireVersionKeyword controls whether version output must contain the word "version".
+	// Set to false for CLIs that output just the version number (e.g., "1.2.3").
+	// Default: false (relaxed check - any non-empty output passes)
+	RequireVersionKeyword *bool
+
+	// CheckUnknownCommand controls whether to verify the CLI handles unknown commands gracefully.
+	// When true, runs the CLI with a nonsense argument and expects non-zero exit.
+	// Default: true
+	CheckUnknownCommand *bool
+
+	// CheckNoArgs controls whether to verify the CLI handles no arguments gracefully.
+	// When true, runs the CLI with no arguments and expects it to not hang and exit 0.
+	// Default: true
+	CheckNoArgs *bool
+
+	// NoArgsTimeoutMs is the maximum time to wait for the no-args check in milliseconds.
+	// Default: 5000 (5 seconds)
+	NoArgsTimeoutMs int64
 }
 
 // APISettings configures API health check behavior.
@@ -98,6 +134,16 @@ type rawRequirementSettings struct {
 type rawIntegrationSettings struct {
 	API       rawAPISettings       `json:"api"`
 	WebSocket rawWebSocketSettings `json:"websocket"`
+	CLI       rawCLISettings       `json:"cli"`
+}
+
+type rawCLISettings struct {
+	HelpArgs              []string `json:"help_args"`
+	VersionArgs           []string `json:"version_args"`
+	RequireVersionKeyword *bool    `json:"require_version_keyword"`
+	CheckUnknownCommand   *bool    `json:"check_unknown_command"`
+	CheckNoArgs           *bool    `json:"check_no_args"`
+	NoArgsTimeoutMs       int64    `json:"no_args_timeout_ms"`
 }
 
 type rawAPISettings struct {
@@ -165,7 +211,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 		Sync:    raw.Requirements.Sync,
 	}
 
-	// Parse integration settings for API health checks and WebSocket validation.
+	// Parse integration settings for API health checks, WebSocket validation, and CLI validation.
 	// WebSocket URL is derived from API URL + path, following @vrooli/api-base conventions.
 	// See: packages/api-base/docs/concepts/websocket-support.md
 	cfg.Integration = IntegrationSettings{
@@ -178,13 +224,29 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 			Path:            raw.Integration.WebSocket.Path,
 			MaxConnectionMs: raw.Integration.WebSocket.MaxConnectionMs,
 		},
+		CLI: CLISettings{
+			HelpArgs:              raw.Integration.CLI.HelpArgs,
+			VersionArgs:           raw.Integration.CLI.VersionArgs,
+			RequireVersionKeyword: raw.Integration.CLI.RequireVersionKeyword,
+			CheckUnknownCommand:   raw.Integration.CLI.CheckUnknownCommand,
+			CheckNoArgs:           raw.Integration.CLI.CheckNoArgs,
+			NoArgsTimeoutMs:       raw.Integration.CLI.NoArgsTimeoutMs,
+		},
 	}
 
 	// Check if any meaningful configuration was provided
+	hasCLIConfig := len(cfg.Integration.CLI.HelpArgs) > 0 ||
+		len(cfg.Integration.CLI.VersionArgs) > 0 ||
+		cfg.Integration.CLI.RequireVersionKeyword != nil ||
+		cfg.Integration.CLI.CheckUnknownCommand != nil ||
+		cfg.Integration.CLI.CheckNoArgs != nil ||
+		cfg.Integration.CLI.NoArgsTimeoutMs != 0
+
 	hasIntegration := cfg.Integration.API.HealthEndpoint != "" ||
 		cfg.Integration.API.MaxResponseMs != 0 ||
 		cfg.Integration.WebSocket.Path != "" ||
-		cfg.Integration.WebSocket.Enabled != nil
+		cfg.Integration.WebSocket.Enabled != nil ||
+		hasCLIConfig
 
 	if len(cfg.Phases) == 0 && len(cfg.Presets) == 0 &&
 		cfg.Requirements.Enforce == nil && cfg.Requirements.Sync == nil &&

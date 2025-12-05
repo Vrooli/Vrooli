@@ -91,6 +91,9 @@ func TestRunner_Run_Success(t *testing.T) {
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api dir: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module test\n"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
 
 	executor := &mockExecutor{}
 	r := New(Config{
@@ -117,11 +120,8 @@ func TestRunner_Run_MissingApiDir(t *testing.T) {
 	})
 
 	result := r.Run(context.Background())
-	if result.Success {
-		t.Error("Run() success = true, want false when api/ is missing")
-	}
-	if result.FailureClass != types.FailureClassMisconfiguration {
-		t.Errorf("FailureClass = %q, want %q", result.FailureClass, types.FailureClassMisconfiguration)
+	if !result.Skipped {
+		t.Error("Run() should skip when no Go workspaces are detected")
 	}
 }
 
@@ -130,6 +130,9 @@ func TestRunner_Run_GoCommandMissing(t *testing.T) {
 	apiDir := filepath.Join(dir, "api")
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module test\n"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
 	executor := &mockExecutor{
@@ -159,6 +162,9 @@ func TestRunner_Run_TestFailure(t *testing.T) {
 	apiDir := filepath.Join(dir, "api")
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module test\n"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
 	executor := &mockExecutor{
@@ -209,6 +215,9 @@ func TestRunner_Run_CommandArgs(t *testing.T) {
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api dir: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module test\n"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
 
 	var capturedDir string
 	var capturedName string
@@ -235,7 +244,7 @@ func TestRunner_Run_CommandArgs(t *testing.T) {
 	if capturedName != "go" {
 		t.Errorf("command name = %q, want %q", capturedName, "go")
 	}
-	coveragePath := filepath.Join(dir, "coverage", "go-coverage.out")
+	coveragePath := filepath.Join(dir, "coverage", "go", "go-api.coverage.out")
 	expectedArgs := []string{"test", "-coverprofile=" + coveragePath, "-covermode=atomic", "./..."}
 	if len(capturedArgs) != len(expectedArgs) {
 		t.Errorf("command args = %v, want %v", capturedArgs, expectedArgs)

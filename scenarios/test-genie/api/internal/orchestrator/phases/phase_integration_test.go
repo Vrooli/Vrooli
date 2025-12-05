@@ -32,6 +32,10 @@ func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
 		var executed []string
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 			executed = append(executed, fmt.Sprintf("%s %s", filepath.Base(name), strings.Join(args, " ")))
+			// Reject unknown commands (for the unknown command check)
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return errors.New("unknown command")
+			}
 			return nil
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
@@ -112,7 +116,8 @@ func TestRunIntegrationPhaseCLIHelpFails(t *testing.T) {
 		})
 
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
-			if len(args) > 0 && args[0] == "help" {
+			// Fail all help command variants (help, --help, -h)
+			if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
 				return errors.New("CLI help command failed")
 			}
 			return nil
@@ -281,6 +286,10 @@ func TestRunIntegrationPhaseObservationsRecorded(t *testing.T) {
 			return "/tmp/" + name, nil
 		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			// Reject unknown commands (for the unknown command check)
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return errors.New("unknown command")
+			}
 			return nil
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
@@ -316,7 +325,7 @@ func TestRunIntegrationPhaseObservationsRecorded(t *testing.T) {
 }
 
 func TestRunIntegrationPhaseCLIVersionMalformed(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-INT-P8] malformed version output is reported", func(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-INT-P8] empty version output is reported as malformed", func(t *testing.T) {
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 
@@ -324,11 +333,15 @@ func TestRunIntegrationPhaseCLIVersionMalformed(t *testing.T) {
 			return "/tmp/" + name, nil
 		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			// Reject unknown commands (for the unknown command check)
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return errors.New("unknown command")
+			}
 			return nil
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-			// Return output without "version" keyword
-			return "demo 1.0.0", nil
+			// Return empty output - this is malformed regardless of keyword setting
+			return "", nil
 		})
 
 		env := workspace.Environment{
@@ -340,7 +353,7 @@ func TestRunIntegrationPhaseCLIVersionMalformed(t *testing.T) {
 		report := runIntegrationPhase(context.Background(), env, io.Discard)
 
 		if report.Err == nil {
-			t.Fatal("expected error for malformed version output")
+			t.Fatal("expected error for empty version output")
 		}
 		if report.FailureClassification != FailureClassMisconfiguration {
 			t.Errorf("expected misconfiguration failure class, got %s", report.FailureClassification)
@@ -372,6 +385,10 @@ func TestRunIntegrationPhaseWithAdditionalBatsSuites(t *testing.T) {
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 			if strings.HasSuffix(name, "bats") || (len(args) > 1 && strings.HasSuffix(args[1], ".bats")) {
 				batsRuns = append(batsRuns, strings.Join(args, " "))
+			}
+			// Reject unknown commands (for the unknown command check)
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return errors.New("unknown command")
 			}
 			return nil
 		})

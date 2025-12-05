@@ -54,16 +54,28 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	}
 	cliScript := func(name string) []byte {
 		return []byte(fmt.Sprintf(`#!/usr/bin/env bash
-if [ "$1" = "version" ]; then
-  echo "%s version 1.0.0"
-  exit 0
-fi
-if [ "$1" = "help" ]; then
+# Handle no arguments - print help
+if [ -z "$1" ]; then
   echo "usage: %s <cmd>"
   exit 0
 fi
-exit 0
-`, name, name))
+# Handle known commands
+case "$1" in
+  version|--version|-v)
+    echo "%s version 1.0.0"
+    exit 0
+    ;;
+  help|--help|-h)
+    echo "usage: %s <cmd>"
+    exit 0
+    ;;
+  *)
+    # Unknown command - return error
+    echo "error: unknown command '$1'" >&2
+    exit 1
+    ;;
+esac
+`, name, name, name))
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name), cliScript(name), 0o755); err != nil {
 		t.Fatalf("failed to seed scenario cli binary: %v", err)

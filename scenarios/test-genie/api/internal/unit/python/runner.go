@@ -19,6 +19,7 @@ type Runner struct {
 	scenarioDir string
 	executor    types.CommandExecutor
 	logWriter   io.Writer
+	workspaces  []string
 }
 
 // Config holds configuration for the Python runner.
@@ -53,21 +54,8 @@ func (r *Runner) Name() string {
 
 // Detect returns true if a Python project exists in the scenario.
 func (r *Runner) Detect() bool {
-	return r.detectWorkspaceDir() != ""
-}
-
-// detectWorkspaceDir finds the Python workspace directory.
-func (r *Runner) detectWorkspaceDir() string {
-	candidates := []string{
-		filepath.Join(r.scenarioDir, "python"),
-		r.scenarioDir,
-	}
-	for _, candidate := range candidates {
-		if dirExists(candidate) && hasIndicators(candidate) {
-			return candidate
-		}
-	}
-	return ""
+	r.workspaces = r.discoverWorkspaces()
+	return len(r.workspaces) > 0
 }
 
 // Run executes Python unit tests and returns the result.
@@ -76,10 +64,17 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		return types.FailSystem(err, "Context cancelled")
 	}
 
-	pythonDir := r.detectWorkspaceDir()
-	if pythonDir == "" {
+	workspaces := r.workspaces
+	if len(workspaces) == 0 {
+		workspaces = r.discoverWorkspaces()
+	}
+	if len(workspaces) == 0 {
 		return types.Skip("No Python workspace detected")
 	}
+
+	builder := types.NewResultBuilder().
+		Success().
+		AddSection("📂", fmt.Sprintf("python workspaces (%d)", len(workspaces)))
 
 	// Find Python command
 	pythonCmd, err := r.resolvePythonCommand()
@@ -87,16 +82,47 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		return types.FailMissingDependency(err, "Install python3 so scenario-specific Python suites can run.")
 	}
 
-	// Check for test files
-	if !HasTestFiles(pythonDir) {
-		return types.Skip("Python workspace detected but no test_*.py files found")
+	runnedAny := false
+
+	for _, pythonDir := range workspaces {
+		rel := r.relativePath(pythonDir)
+
+		// Check for test files
+		if !HasTestFiles(pythonDir) {
+			builder.AddWarningf("%s: python workspace detected but no test_*.py files found", rel)
+			continue
+		}
+
+		builder.AddInfof("python tests in %s", rel)
+
+		// Try pytest first, fall back to unittest
+		if r.supportsPytest(ctx, pythonCmd) {
+			if res := r.runPytest(ctx, pythonDir, pythonCmd); !res.Success {
+				return res
+			} else {
+				for _, obs := range res.Observations {
+					builder.AddObservation(obs)
+				}
+			}
+		} else {
+			if res := r.runUnittest(ctx, pythonDir, pythonCmd); !res.Success {
+				return res
+			} else {
+				for _, obs := range res.Observations {
+					builder.AddObservation(obs)
+				}
+			}
+		}
+
+		runnedAny = true
 	}
 
-	// Try pytest first, fall back to unittest
-	if r.supportsPytest(ctx, pythonCmd) {
-		return r.runPytest(ctx, pythonDir, pythonCmd)
+	if !runnedAny {
+		builder.AddWarning("No runnable Python workspaces found (no test files).")
+		return builder.Skip("No runnable Python workspaces").Build()
 	}
-	return r.runUnittest(ctx, pythonDir, pythonCmd)
+
+	return builder.Build()
 }
 
 // resolvePythonCommand finds the available Python command.
@@ -166,6 +192,9 @@ func hasIndicators(dir string) bool {
 	if dirExists(filepath.Join(dir, "tests")) {
 		return true
 	}
+	if HasTestFiles(dir) {
+		return true
+	}
 	return false
 }
 
@@ -218,3 +247,54 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
+// discoverWorkspaces finds all Python workspaces that have indicators.
+func (r *Runner) discoverWorkspaces() []string {
+	var workspaces []string
+	seen := map[string]struct{}{}
+	skipDirs := map[string]struct{}{
+		".git":              {},
+		"node_modules":      {},
+		"dist":              {},
+		"build":             {},
+		"coverage":          {},
+		".next":             {},
+		".pnpm-store":       {},
+		"playwright-report": {},
+		"test-results":      {},
+		"__pycache__":       {},
+		".venv":             {},
+		"venv":              {},
+	}
+
+	filepath.WalkDir(r.scenarioDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if _, skip := skipDirs[d.Name()]; skip {
+				return filepath.SkipDir
+			}
+			if _, ok := seen[path]; ok {
+				return nil
+			}
+			if hasIndicators(path) {
+				seen[path] = struct{}{}
+				workspaces = append(workspaces, path)
+			}
+			return nil
+		}
+
+		return nil
+	})
+
+	return workspaces
+}
+
+// relativePath returns a scenario-relative path for display.
+func (r *Runner) relativePath(path string) string {
+	rel, err := filepath.Rel(r.scenarioDir, path)
+	if err != nil || rel == "." {
+		return "."
+	}
+	return rel
+}

@@ -36,6 +36,36 @@ type Config struct {
 
 	// WebSocketMaxConnectionMs is the maximum acceptable connection time in milliseconds (default: 2000).
 	WebSocketMaxConnectionMs int64
+
+	// CLI holds CLI validation configuration.
+	CLI CLIConfig
+}
+
+// CLIConfig holds configuration for CLI validation.
+type CLIConfig struct {
+	// HelpArgs specifies argument patterns to try for help command, in order of preference.
+	// Default: ["help", "--help", "-h"]
+	HelpArgs []string
+
+	// VersionArgs specifies argument patterns to try for version command, in order of preference.
+	// Default: ["version", "--version", "-v"]
+	VersionArgs []string
+
+	// RequireVersionKeyword controls whether version output must contain the word "version".
+	// Default: false
+	RequireVersionKeyword bool
+
+	// CheckUnknownCommand controls whether to verify the CLI handles unknown commands gracefully.
+	// Default: true
+	CheckUnknownCommand bool
+
+	// CheckNoArgs controls whether to verify the CLI handles no arguments gracefully.
+	// Default: true
+	CheckNoArgs bool
+
+	// NoArgsTimeoutMs is the maximum time to wait for the no-args check in milliseconds.
+	// Default: 5000
+	NoArgsTimeoutMs int64
 }
 
 // Runner orchestrates integration validation across API, CLI, BATS, and WebSocket checks.
@@ -86,8 +116,14 @@ func New(config Config, opts ...Option) *Runner {
 	if r.cliValidator == nil && r.commandExecutor != nil && r.commandCapture != nil {
 		r.cliValidator = cli.New(
 			cli.Config{
-				ScenarioDir:  config.ScenarioDir,
-				ScenarioName: config.ScenarioName,
+				ScenarioDir:          config.ScenarioDir,
+				ScenarioName:         config.ScenarioName,
+				HelpArgs:             config.CLI.HelpArgs,
+				VersionArgs:          config.CLI.VersionArgs,
+				RequireVersionKeyword: config.CLI.RequireVersionKeyword,
+				CheckUnknownCommand:  config.CLI.CheckUnknownCommand,
+				CheckNoArgs:          config.CLI.CheckNoArgs,
+				NoArgsTimeoutMs:      config.CLI.NoArgsTimeoutMs,
 			},
 			cli.WithLogger(r.logWriter),
 			cli.WithExecutor(cli.AdaptExecutor(r.commandExecutor)),

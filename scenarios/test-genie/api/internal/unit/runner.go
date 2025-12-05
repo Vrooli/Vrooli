@@ -141,7 +141,6 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 		if !runner.Detect() {
 			summary.LanguagesSkipped++
-			observations = append(observations, NewSkipObservation(fmt.Sprintf("%s: not detected in scenario", runner.Name())))
 			shared.LogInfo(r.logWriter, "%s not detected, skipping", runner.Name())
 			continue
 		}
@@ -152,8 +151,8 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		result := runner.Run(ctx)
 
 		if result.Skipped {
+			observations = append(observations, result.Observations...)
 			summary.LanguagesSkipped++
-			observations = append(observations, NewSkipObservation(fmt.Sprintf("%s: %s", runner.Name(), result.SkipReason)))
 			continue
 		}
 

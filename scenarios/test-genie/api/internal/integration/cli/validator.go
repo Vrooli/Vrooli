@@ -8,8 +8,21 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"test-genie/internal/structure/types"
+)
+
+// Default argument patterns for help and version commands.
+// These accommodate both cli-core style subcommands and standard flag-based CLIs.
+var (
+	DefaultHelpArgs    = []string{"help", "--help", "-h"}
+	DefaultVersionArgs = []string{"version", "--version", "-v"}
+)
+
+// Default timeouts and settings.
+const (
+	DefaultNoArgsTimeoutMs = 5000
 )
 
 // Validator validates CLI functionality.
@@ -53,6 +66,30 @@ type Config struct {
 
 	// ScenarioName is the name of the scenario.
 	ScenarioName string
+
+	// HelpArgs specifies argument patterns to try for help command, in order of preference.
+	// Default: ["help", "--help", "-h"]
+	HelpArgs []string
+
+	// VersionArgs specifies argument patterns to try for version command, in order of preference.
+	// Default: ["version", "--version", "-v"]
+	VersionArgs []string
+
+	// RequireVersionKeyword controls whether version output must contain the word "version".
+	// Default: false (relaxed - any non-empty output passes)
+	RequireVersionKeyword bool
+
+	// CheckUnknownCommand controls whether to verify the CLI handles unknown commands gracefully.
+	// Default: true
+	CheckUnknownCommand bool
+
+	// CheckNoArgs controls whether to verify the CLI handles no arguments gracefully.
+	// Default: true
+	CheckNoArgs bool
+
+	// NoArgsTimeoutMs is the maximum time to wait for the no-args check in milliseconds.
+	// Default: 5000
+	NoArgsTimeoutMs int64
 }
 
 // validator implements the Validator interface.
@@ -66,11 +103,23 @@ type validator struct {
 // Option configures a validator.
 type Option func(*validator)
 
-// New creates a new CLI validator.
+// New creates a new CLI validator with the given config and options.
+// Applies sensible defaults for any unset configuration values.
 func New(config Config, opts ...Option) Validator {
 	v := &validator{
 		config:    config,
 		logWriter: io.Discard,
+	}
+
+	// Apply defaults
+	if len(v.config.HelpArgs) == 0 {
+		v.config.HelpArgs = DefaultHelpArgs
+	}
+	if len(v.config.VersionArgs) == 0 {
+		v.config.VersionArgs = DefaultVersionArgs
+	}
+	if v.config.NoArgsTimeoutMs == 0 {
+		v.config.NoArgsTimeoutMs = DefaultNoArgsTimeoutMs
 	}
 
 	for _, opt := range opts {
@@ -122,51 +171,93 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	v.logStep("CLI binary verified: %s", binaryPath)
 	observations = append(observations, types.NewSuccessObservation("CLI binary executable"))
 
-	// Step 2: Validate help command
-	if err := v.validateHelp(ctx, binaryPath); err != nil {
+	// Step 2: Validate no-args behavior (if enabled)
+	// Run this early since it can detect hangs
+	if v.config.CheckNoArgs {
+		if err := v.validateNoArgs(ctx, binaryPath); err != nil {
+			return ValidationResult{
+				Result: types.Result{
+					Success:      false,
+					Error:        fmt.Errorf("CLI no-args check failed: %w", err),
+					FailureClass: types.FailureClassSystem,
+					Remediation:  fmt.Sprintf("Ensure %s handles being called with no arguments gracefully (should print help and exit 0).", filepath.Base(binaryPath)),
+					Observations: observations,
+				},
+				BinaryPath: binaryPath,
+			}
+		}
+		v.logStep("CLI handles no-args gracefully")
+		observations = append(observations, types.NewSuccessObservation("CLI no-args behavior verified"))
+	}
+
+	// Step 3: Validate help command
+	helpArg, err := v.validateHelp(ctx, binaryPath)
+	if err != nil {
 		return ValidationResult{
 			Result: types.Result{
 				Success:      false,
 				Error:        fmt.Errorf("CLI help command failed: %w", err),
 				FailureClass: types.FailureClassSystem,
-				Remediation:  fmt.Sprintf("Run `%s help` manually to inspect the error output.", binaryPath),
+				Remediation:  fmt.Sprintf("Run `%s %s` manually to inspect the error output. Tried: %v", filepath.Base(binaryPath), v.config.HelpArgs[0], v.config.HelpArgs),
 				Observations: observations,
 			},
 			BinaryPath: binaryPath,
 		}
 	}
-	v.logStep("CLI help command succeeded")
-	observations = append(observations, types.NewSuccessObservation("CLI help verified"))
+	v.logStep("CLI help command succeeded (using '%s')", helpArg)
+	observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("CLI help verified (%s)", helpArg)))
 
-	// Step 3: Validate version command
-	versionOutput, err := v.validateVersion(ctx, binaryPath)
+	// Step 4: Validate version command
+	versionOutput, versionArg, err := v.validateVersion(ctx, binaryPath)
 	if err != nil {
 		return ValidationResult{
 			Result: types.Result{
 				Success:      false,
 				Error:        fmt.Errorf("CLI version command failed: %w", err),
 				FailureClass: types.FailureClassSystem,
-				Remediation:  fmt.Sprintf("Ensure %s version works without interactive prompts.", binaryPath),
+				Remediation:  fmt.Sprintf("Ensure %s supports a version command. Tried: %v", filepath.Base(binaryPath), v.config.VersionArgs),
 				Observations: observations,
 			},
 			BinaryPath: binaryPath,
 		}
 	}
-	if !strings.Contains(strings.ToLower(versionOutput), "version") {
+
+	// Validate version output content
+	if err := v.validateVersionOutput(versionOutput); err != nil {
 		return ValidationResult{
 			Result: types.Result{
 				Success:      false,
-				Error:        fmt.Errorf("CLI version output malformed: %s", strings.TrimSpace(versionOutput)),
+				Error:        fmt.Errorf("CLI version output invalid: %w", err),
 				FailureClass: types.FailureClassMisconfiguration,
-				Remediation:  fmt.Sprintf("Update %s to print the version string used by operator tooling.", binaryPath),
+				Remediation:  fmt.Sprintf("Update %s to print a valid version string (got: %q).", filepath.Base(binaryPath), strings.TrimSpace(versionOutput)),
 				Observations: observations,
 			},
 			BinaryPath:    binaryPath,
 			VersionOutput: versionOutput,
 		}
 	}
-	v.logStep("CLI version output: %s", strings.TrimSpace(versionOutput))
-	observations = append(observations, types.NewSuccessObservation("CLI version reported"))
+
+	v.logStep("CLI version output: %s (using '%s')", strings.TrimSpace(versionOutput), versionArg)
+	observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("CLI version reported (%s)", versionArg)))
+
+	// Step 5: Validate unknown command handling (if enabled)
+	if v.config.CheckUnknownCommand {
+		if err := v.validateUnknownCommand(ctx, binaryPath); err != nil {
+			return ValidationResult{
+				Result: types.Result{
+					Success:      false,
+					Error:        fmt.Errorf("CLI unknown command check failed: %w", err),
+					FailureClass: types.FailureClassMisconfiguration,
+					Remediation:  fmt.Sprintf("Update %s to return non-zero exit code for unknown commands.", filepath.Base(binaryPath)),
+					Observations: observations,
+				},
+				BinaryPath:    binaryPath,
+				VersionOutput: versionOutput,
+			}
+		}
+		v.logStep("CLI handles unknown commands correctly")
+		observations = append(observations, types.NewSuccessObservation("CLI unknown command handling verified"))
+	}
 
 	return ValidationResult{
 		Result: types.Result{
@@ -246,20 +337,103 @@ func (v *validator) isExecutable(path string) bool {
 	return info.Mode()&0o111 != 0
 }
 
-// validateHelp runs the help command.
-func (v *validator) validateHelp(ctx context.Context, binaryPath string) error {
+// validateNoArgs runs the CLI with no arguments and verifies it doesn't hang and exits cleanly.
+func (v *validator) validateNoArgs(ctx context.Context, binaryPath string) error {
 	if v.executor == nil {
 		return fmt.Errorf("command executor not configured")
 	}
-	return v.executor(ctx, "", v.logWriter, binaryPath, "help")
+
+	// Create a context with timeout
+	timeout := time.Duration(v.config.NoArgsTimeoutMs) * time.Millisecond
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	err := v.executor(timeoutCtx, "", v.logWriter, binaryPath)
+	if timeoutCtx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("CLI hung when called with no arguments (timeout after %v)", timeout)
+	}
+	// Note: We accept any exit code here - some CLIs exit 0 (print help), some exit 1 (error: no command)
+	// The important thing is that it doesn't hang
+	if err != nil {
+		// Log but don't fail - the key test is that it doesn't hang
+		v.logStep("CLI no-args returned error (acceptable): %v", err)
+	}
+	return nil
 }
 
-// validateVersion runs the version command and captures output.
-func (v *validator) validateVersion(ctx context.Context, binaryPath string) (string, error) {
-	if v.capture == nil {
-		return "", fmt.Errorf("command capture not configured")
+// validateHelp tries each help argument pattern until one succeeds.
+// Returns the successful argument and any error.
+func (v *validator) validateHelp(ctx context.Context, binaryPath string) (string, error) {
+	if v.executor == nil {
+		return "", fmt.Errorf("command executor not configured")
 	}
-	return v.capture(ctx, "", v.logWriter, binaryPath, "version")
+
+	var lastErr error
+	for _, arg := range v.config.HelpArgs {
+		err := v.executor(ctx, "", v.logWriter, binaryPath, arg)
+		if err == nil {
+			return arg, nil
+		}
+		lastErr = err
+	}
+
+	return "", fmt.Errorf("all help arguments failed (tried %v): %w", v.config.HelpArgs, lastErr)
+}
+
+// validateVersion tries each version argument pattern until one succeeds.
+// Returns the output, successful argument, and any error.
+func (v *validator) validateVersion(ctx context.Context, binaryPath string) (string, string, error) {
+	if v.capture == nil {
+		return "", "", fmt.Errorf("command capture not configured")
+	}
+
+	var lastErr error
+	for _, arg := range v.config.VersionArgs {
+		output, err := v.capture(ctx, "", v.logWriter, binaryPath, arg)
+		if err == nil {
+			return output, arg, nil
+		}
+		lastErr = err
+	}
+
+	return "", "", fmt.Errorf("all version arguments failed (tried %v): %w", v.config.VersionArgs, lastErr)
+}
+
+// validateVersionOutput checks if the version output is valid.
+func (v *validator) validateVersionOutput(output string) error {
+	trimmed := strings.TrimSpace(output)
+
+	// Must have some output
+	if trimmed == "" {
+		return fmt.Errorf("version output is empty")
+	}
+
+	// Optionally require "version" keyword
+	if v.config.RequireVersionKeyword {
+		if !strings.Contains(strings.ToLower(trimmed), "version") {
+			return fmt.Errorf("version output missing 'version' keyword: %s", trimmed)
+		}
+	}
+
+	return nil
+}
+
+// validateUnknownCommand verifies the CLI returns non-zero for unknown commands.
+func (v *validator) validateUnknownCommand(ctx context.Context, binaryPath string) error {
+	if v.executor == nil {
+		return fmt.Errorf("command executor not configured")
+	}
+
+	// Use a clearly nonsensical command that no CLI should recognize
+	nonsenseCmd := "__test_genie_nonexistent_command_12345__"
+
+	err := v.executor(ctx, "", v.logWriter, binaryPath, nonsenseCmd)
+	if err == nil {
+		return fmt.Errorf("CLI returned success (exit 0) for unknown command %q - should return non-zero", nonsenseCmd)
+	}
+
+	// Error is expected - CLI correctly rejected unknown command
+	return nil
 }
 
 // logStep writes a step message to the log.

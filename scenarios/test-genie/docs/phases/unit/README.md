@@ -53,11 +53,11 @@ graph TB
 
 ## Language Detection
 
-| Language | Detection | Directory |
-|----------|-----------|-----------|
-| Go | `go.mod` exists | `api/` |
-| Node.js | `package.json` exists | `ui/` |
-| Python | `pytest.ini` or `test_*.py` | `scripts/` or root |
+| Language | Detection (walks entire scenario) | What Runs |
+|----------|-----------------------------------|------------|
+| Go | Any `go.mod` (e.g., `api/`, extra libs) | `go test ./...` per workspace |
+| Node.js | Any `package.json` **with** `test` script | `<pkg-manager> test` per workspace |
+| Python | Dir with `pyproject.toml` / `requirements.txt` **and** `test_*.py` | `pytest` (fallback `python -m unittest discover`) per workspace |
 
 ## Coverage Thresholds
 
@@ -100,6 +100,12 @@ def test_create_project():
 |------|---------|
 | 0 | All tests pass, coverage met |
 | 1 | Test failures or coverage below error threshold |
+
+## Workspace Discovery & Reporting
+
+- The unit phase now **enumerates every unit-testable workspace** across the scenario (e.g., extra Playwright drivers, helpers outside `api/`/`ui/`).
+- Before running, it emits a workspace list showing the command it will use (per language).
+- Languages that aren't detected are no longer noisy in the output; missing test scripts or missing test files show up as warnings under that language instead.
 
 ## Configuration
 

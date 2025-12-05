@@ -82,7 +82,30 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 		t.Fatalf("failed to seed module.json: %v", err)
 	}
 	scenarioCLI := filepath.Join(scenarioDir, "cli", name)
-	if err := os.WriteFile(scenarioCLI, []byte("#!/usr/bin/env bash\necho scenario cli\n"), 0o755); err != nil {
+	cliScript := fmt.Sprintf(`#!/usr/bin/env bash
+# Handle no arguments - print help
+if [ -z "$1" ]; then
+  echo "usage: %s <cmd>"
+  exit 0
+fi
+# Handle known commands
+case "$1" in
+  version|--version|-v)
+    echo "%s version 1.0.0"
+    exit 0
+    ;;
+  help|--help|-h)
+    echo "usage: %s <cmd>"
+    exit 0
+    ;;
+  *)
+    # Unknown command - return error
+    echo "error: unknown command '$1'" >&2
+    exit 1
+    ;;
+esac
+`, name, name, name)
+	if err := os.WriteFile(scenarioCLI, []byte(cliScript), 0o755); err != nil {
 		t.Fatalf("failed to seed scenario cli: %v", err)
 	}
 	installScript := filepath.Join(scenarioDir, "cli", "install.sh")
@@ -128,6 +151,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 			return "/tmp/" + name, nil
 		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			// Unknown command check expects failure for unknown commands
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return fmt.Errorf("unknown command: %s", args[0])
+			}
 			return nil
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
@@ -155,10 +182,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 8 {
-			t.Fatalf("expected eight phases, got %d", len(result.Phases))
+		if len(result.Phases) != 9 {
+			t.Fatalf("expected nine phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "dependencies", "smoke", "unit", "integration", "playbooks", "business", "performance"}
+		expected := []string{"structure", "dependencies", "lint", "smoke", "unit", "integration", "playbooks", "business", "performance"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -184,6 +211,10 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 			return "/tmp/" + name, nil
 		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			// Unknown command check expects failure for unknown commands
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return fmt.Errorf("unknown command: %s", args[0])
+			}
 			return nil
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
@@ -332,6 +363,10 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 			return "/tmp/" + name, nil
 		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			// Unknown command check expects failure for unknown commands
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return fmt.Errorf("unknown command: %s", args[0])
+			}
 			return nil
 		})
 
@@ -384,6 +419,10 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 			return "/tmp/" + name, nil
 		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			// Unknown command check expects failure for unknown commands
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return fmt.Errorf("unknown command: %s", args[0])
+			}
 			return nil
 		})
 
@@ -403,8 +442,8 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 7 {
-			t.Fatalf("expected seven phases after disabling integration, got %d", len(result.Phases))
+		if len(result.Phases) != 8 {
+			t.Fatalf("expected eight phases after disabling integration, got %d", len(result.Phases))
 		}
 	})
 }
@@ -422,6 +461,10 @@ func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 			return "/tmp/" + name, nil
 		})
 		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
+			// Unknown command check expects failure for unknown commands
+			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
+				return fmt.Errorf("unknown command: %s", args[0])
+			}
 			return nil
 		})
 

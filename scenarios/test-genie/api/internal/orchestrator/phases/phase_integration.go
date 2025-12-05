@@ -88,6 +88,10 @@ func buildIntegrationConfig(env workspace.Environment, testConfig *workspace.Con
 		cfg.WebSocketMaxConnectionMs = 2000
 	}
 
+	// Apply CLI defaults (new checks enabled by default)
+	cfg.CLI.CheckUnknownCommand = true
+	cfg.CLI.CheckNoArgs = true
+
 	// Override with testing.json settings if available
 	if testConfig != nil {
 		intSettings := testConfig.Integration
@@ -118,6 +122,27 @@ func buildIntegrationConfig(env workspace.Environment, testConfig *workspace.Con
 
 		if intSettings.WebSocket.MaxConnectionMs > 0 {
 			cfg.WebSocketMaxConnectionMs = intSettings.WebSocket.MaxConnectionMs
+		}
+
+		// CLI settings - override defaults with testing.json values
+		cliSettings := intSettings.CLI
+		if len(cliSettings.HelpArgs) > 0 {
+			cfg.CLI.HelpArgs = cliSettings.HelpArgs
+		}
+		if len(cliSettings.VersionArgs) > 0 {
+			cfg.CLI.VersionArgs = cliSettings.VersionArgs
+		}
+		if cliSettings.RequireVersionKeyword != nil {
+			cfg.CLI.RequireVersionKeyword = *cliSettings.RequireVersionKeyword
+		}
+		if cliSettings.CheckUnknownCommand != nil {
+			cfg.CLI.CheckUnknownCommand = *cliSettings.CheckUnknownCommand
+		}
+		if cliSettings.CheckNoArgs != nil {
+			cfg.CLI.CheckNoArgs = *cliSettings.CheckNoArgs
+		}
+		if cliSettings.NoArgsTimeoutMs > 0 {
+			cfg.CLI.NoArgsTimeoutMs = cliSettings.NoArgsTimeoutMs
 		}
 	}
 

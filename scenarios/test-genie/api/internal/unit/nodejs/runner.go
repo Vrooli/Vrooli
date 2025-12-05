@@ -16,6 +16,7 @@ type Runner struct {
 	scenarioDir string
 	executor    types.CommandExecutor
 	logWriter   io.Writer
+	workspaces  []string
 }
 
 // Config holds configuration for the Node.js runner.
@@ -50,21 +51,8 @@ func (r *Runner) Name() string {
 
 // Detect returns true if a Node.js project exists in the scenario.
 func (r *Runner) Detect() bool {
-	return r.detectWorkspaceDir() != ""
-}
-
-// detectWorkspaceDir finds the Node.js workspace directory.
-func (r *Runner) detectWorkspaceDir() string {
-	candidates := []string{
-		filepath.Join(r.scenarioDir, "ui"),
-		r.scenarioDir,
-	}
-	for _, candidate := range candidates {
-		if fileExists(filepath.Join(candidate, "package.json")) {
-			return candidate
-		}
-	}
-	return ""
+	r.workspaces = r.discoverWorkspaces()
+	return len(r.workspaces) > 0
 }
 
 // Run executes Node.js unit tests and returns the result.
@@ -73,63 +61,86 @@ func (r *Runner) Run(ctx context.Context) types.Result {
 		return types.FailSystem(err, "Context cancelled")
 	}
 
-	nodeDir := r.detectWorkspaceDir()
-	if nodeDir == "" {
+	workspaces := r.workspaces
+	if len(workspaces) == 0 {
+		workspaces = r.discoverWorkspaces()
+	}
+	if len(workspaces) == 0 {
 		return types.Skip("No package.json found")
 	}
+
+	builder := types.NewResultBuilder().
+		Success().
+		AddSection("📂", fmt.Sprintf("node workspaces (%d)", len(workspaces)))
 
 	// Check Node.js is available
 	if err := types.EnsureCommand(r.executor, "node"); err != nil {
 		return types.FailMissingDependency(err, "Install Node.js so UI/unit suites can execute.")
 	}
 
-	// Load package.json
-	manifest, err := LoadManifest(filepath.Join(nodeDir, "package.json"))
-	if err != nil {
-		return types.FailMisconfiguration(err, "Fix package.json so the Node workspace can be parsed.")
-	}
+	runnedAny := false
 
-	// Check for test script
-	if manifest == nil || !manifest.HasTestScript() {
-		return types.Skip("package.json exists but lacks a test script")
-	}
+	for _, nodeDir := range workspaces {
+		rel := r.relativePath(nodeDir)
 
-	// Detect package manager
-	packageManager := DetectPackageManager(manifest, nodeDir)
-	if err := types.EnsureCommand(r.executor, packageManager); err != nil {
-		return types.FailMissingDependency(err, fmt.Sprintf("Install %s to run Node test suites.", packageManager))
-	}
+		// Load package.json
+		manifest, err := LoadManifest(filepath.Join(nodeDir, "package.json"))
+		if err != nil {
+			return types.FailMisconfiguration(err, fmt.Sprintf("Fix package.json in %s so the Node workspace can be parsed.", rel))
+		}
 
-	// Install dependencies if needed
-	if !dirExists(filepath.Join(nodeDir, "node_modules")) {
-		shared.LogStep(r.logWriter, "installing Node dependencies via %s", packageManager)
-		if err := r.installDependencies(ctx, nodeDir, packageManager); err != nil {
-			return types.FailSystem(
-				fmt.Errorf("%s install failed: %w", packageManager, err),
-				"Resolve dependency installation issues before re-running unit tests.",
+		if manifest == nil {
+			builder.AddWarningf("package.json missing at %s; skipping", rel)
+			continue
+		}
+
+		// Check for test script
+		if !manifest.HasTestScript() {
+			builder.AddWarningf("%s: package.json has no test script; skipping", rel)
+			continue
+		}
+
+		// Detect package manager
+		packageManager := DetectPackageManager(manifest, nodeDir)
+		if err := types.EnsureCommand(r.executor, packageManager); err != nil {
+			return types.FailMissingDependency(err, fmt.Sprintf("Install %s to run Node test suites.", packageManager))
+		}
+
+		builder.AddInfof("node test via %s in %s", packageManager, rel)
+
+		// Install dependencies if needed
+		if !dirExists(filepath.Join(nodeDir, "node_modules")) {
+			shared.LogStep(r.logWriter, "installing Node dependencies via %s in %s", packageManager, nodeDir)
+			if err := r.installDependencies(ctx, nodeDir, packageManager); err != nil {
+				return types.FailSystem(
+					fmt.Errorf("%s install failed in %s: %w", packageManager, rel, err),
+					"Resolve dependency installation issues before re-running unit tests.",
+				)
+			}
+		}
+
+		// Run tests
+		shared.LogStep(r.logWriter, "running Node unit tests with %s in %s", packageManager, nodeDir)
+		output, err := r.executor.Capture(ctx, nodeDir, r.logWriter, packageManager, "test")
+		if err != nil {
+			return types.FailTestFailure(
+				fmt.Errorf("Node unit tests failed in %s: %w", rel, err),
+				"Inspect the UI/unit test output above, fix failures, and rerun the suite.",
 			)
 		}
+
+		// Extract coverage and build result
+		coverage := DetectCoverage(nodeDir, output)
+		if coverage != "" {
+			builder.AddInfof("%s coverage: %s%% statements", rel, coverage)
+		}
+		builder.AddSuccessf("node unit tests passed in %s via %s", rel, packageManager)
+		runnedAny = true
 	}
 
-	// Run tests
-	shared.LogStep(r.logWriter, "running Node unit tests with %s", packageManager)
-	output, err := r.executor.Capture(ctx, nodeDir, r.logWriter, packageManager, "test")
-	if err != nil {
-		return types.FailTestFailure(
-			fmt.Errorf("Node unit tests failed: %w", err),
-			"Inspect the UI/unit test output above, fix failures, and rerun the suite.",
-		)
-	}
-
-	// Extract coverage and build result
-	coverage := DetectCoverage(nodeDir, output)
-	builder := types.NewResultBuilder().
-		Success().
-		WithCoverage(coverage).
-		AddSuccessf("node unit tests passed via %s", packageManager)
-
-	if coverage != "" {
-		builder.AddInfof("node coverage: %s%% statements", coverage)
+	if !runnedAny {
+		builder.AddWarning("No runnable Node workspaces found (missing test scripts).")
+		return builder.Skip("No runnable Node workspaces").Build()
 	}
 
 	return builder.Build()
@@ -153,3 +164,52 @@ func dirExists(path string) bool {
 	return err == nil && info.IsDir()
 }
 
+// discoverWorkspaces finds all Node.js workspaces with a package.json.
+func (r *Runner) discoverWorkspaces() []string {
+	var workspaces []string
+	seen := map[string]struct{}{}
+	skipDirs := map[string]struct{}{
+		".git":              {},
+		"node_modules":      {},
+		"dist":              {},
+		"build":             {},
+		"coverage":          {},
+		".next":             {},
+		".pnpm-store":       {},
+		"playwright-report": {},
+		"test-results":      {},
+	}
+
+	filepath.WalkDir(r.scenarioDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if _, skip := skipDirs[d.Name()]; skip {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() != "package.json" {
+			return nil
+		}
+		dir := filepath.Dir(path)
+		if _, ok := seen[dir]; ok {
+			return nil
+		}
+		seen[dir] = struct{}{}
+		workspaces = append(workspaces, dir)
+		return nil
+	})
+
+	return workspaces
+}
+
+// relativePath returns a scenario-relative path for display.
+func (r *Runner) relativePath(path string) string {
+	rel, err := filepath.Rel(r.scenarioDir, path)
+	if err != nil || rel == "." {
+		return "."
+	}
+	return rel
+}
