@@ -12,6 +12,7 @@ import { AgentCustomization } from './surfaces/admin-portal/routes/AgentCustomiz
 import { BillingSettings } from './surfaces/admin-portal/routes/BillingSettings';
 import { DownloadSettings } from './surfaces/admin-portal/routes/DownloadSettings';
 import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSettings';
+import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 
 export default function App() {
@@ -80,6 +81,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <BrandingSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/docs"
+              element={
+                <ProtectedRoute>
+                  <DocsViewer />
                 </ProtectedRoute>
               }
             />

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
-import { Search, Loader2, AlertCircle, CheckCircle2, AlertTriangle, HelpCircle, Maximize2 } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { Search, Loader2, AlertCircle, CheckCircle2, AlertTriangle, HelpCircle, Maximize2, Rocket, Package } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -80,6 +80,11 @@ export function Analyze() {
     setScenario(name);
     setQueryScenario(name);
   };
+
+  const matchingProfile = useMemo(
+    () => (profiles ?? []).find((p) => p.scenario === data?.scenario) ?? null,
+    [profiles, data?.scenario],
+  );
 
   const iframeUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -184,6 +189,76 @@ export function Analyze() {
             <Badge variant="outline">Dependencies: {Object.keys(data.dependencies || {}).length}</Badge>
             <Badge variant="outline">Tiers scored: {Object.keys(data.tiers || {}).length}</Badge>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Next steps</CardTitle>
+              <CardDescription>
+                Lift fitness, prep a bundle, then hand off to a scenario-to-* packager (deploy is stubbed today).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Package className="h-4 w-4 text-cyan-300" />
+                  Profiles & swaps
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Apply swaps and secrets in a profile to raise the score, then re-run analysis.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {matchingProfile ? (
+                    <Link to={`/profiles/${matchingProfile.id}`}>
+                      <Button size="sm" variant="secondary">Open profile</Button>
+                    </Link>
+                  ) : (
+                    <Link to="/profiles/new">
+                      <Button size="sm" variant="secondary">Create profile</Button>
+                    </Link>
+                  )}
+                  <Link to="/profiles">
+                    <Button size="sm" variant="outline">All profiles</Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Rocket className="h-4 w-4 text-amber-300" />
+                  Bundle & packager
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Export a bundle for your target tier and run the scenario-to-* packager (desktop/mobile/saas).
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Link to="/deployments">
+                    <Button size="sm">Open deployments</Button>
+                  </Link>
+                  <Button size="sm" variant="ghost" disabled title="Packager hand-off is stubbed here; use scenario-to-* manually.">
+                    Send to packager
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <AlertTriangle className="h-4 w-4 text-yellow-300" />
+                  Validate & monitor
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Keep fitness ≥ target, capture secrets, and plan telemetry upload after the packaged app runs.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Link to="/telemetry">
+                    <Button size="sm" variant="outline">Telemetry</Button>
+                  </Link>
+                  <Button size="sm" variant="ghost" onClick={() => setShowHelp((v) => !v)}>
+                    How scoring works
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Circular Dependencies Warning */}
           {data.circular_dependencies.length > 0 && (

@@ -105,7 +105,7 @@ See `/docs/deployment/README.md` for full tier documentation.
 4. See `requirements/README.md` for full implementation priority and critical path
 
 **Progress Tracking**: All progress logs go in `docs/PROGRESS.md` (not PRD.md). PRD checkboxes auto-flip via requirement sync.
-- Artifacts live under `coverage/<scenario>/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/<scenario>/ui-smoke/latest.json`.
+- Artifacts live under `coverage/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/ui-smoke/latest.json`.
 - Structure tests invoke the harness automatically. Disable it temporarily by toggling `structure.ui_smoke.enabled` in `.vrooli/testing.json` or extend the default timeouts via `timeout_ms` / `handshake_timeout_ms`.
 - Browserless must be running (`resource-browserless status --format json`). If it is offline the harness fails early so issues surface before release.
 

@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Rocket, Loader2, Focus } from "lucide-react";
+import { ArrowLeft, Rocket, Loader2, Focus, Package, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -89,17 +89,24 @@ export function ProfileDetail() {
               Analyze (focus tier)
             </Button>
           </Link>
+          <Link to="/deployments">
+            <Button variant="secondary" className="gap-2">
+              <Package className="h-4 w-4" />
+              Open deployments
+            </Button>
+          </Link>
           <Button
             onClick={() => deployMutation.mutate(profile.id)}
             disabled={deployMutation.isPending}
             className="gap-2"
+            title="Deploy hand-off is stubbed here; use the packager CLI after exporting a bundle."
           >
             {deployMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Rocket className="h-4 w-4" />
             )}
-            Deploy
+            Deploy (stub)
           </Button>
         </div>
       </div>
@@ -111,6 +118,19 @@ export function ProfileDetail() {
           </p>
         </div>
       )}
+
+      <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100 flex gap-3 items-start">
+        <AlertCircle className="h-4 w-4 mt-0.5" />
+        <div className="space-y-1">
+          <p className="font-semibold">How to finish deployment</p>
+          <p className="text-amber-50/90">
+            Export a bundle for your target tier and run the matching scenario-to-* packager (desktop/mobile/saas). The Deploy button here is a stub and does not call a packager yet.
+          </p>
+          <p className="text-amber-50/80">
+            After running the packager, come back to Deployments to track status and upload telemetry.
+          </p>
+        </div>
+      </div>
 
       {/* Basic Info */}
       <Card>

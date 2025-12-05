@@ -244,6 +244,117 @@ func TestApplyBundleSecrets_PreservesExistingFields(t *testing.T) {
 	}
 }
 
+func TestApplyBundleSecrets_FiltersInfrastructureSecrets(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read sample manifest: %v", err)
+	}
+
+	var manifest Manifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("failed to unmarshal manifest: %v", err)
+	}
+
+	// Include infrastructure secret (should be filtered out) and bundle-safe secrets
+	bundleSecrets := []secrets.BundleSecret{
+		{
+			ID:          "database_admin_password",
+			Class:       "infrastructure", // Should be FILTERED OUT
+			Required:    true,
+			Description: "Admin database password - should never be bundled",
+			Target:      secrets.Target{Type: "env", Name: "DB_ADMIN_PASSWORD"},
+		},
+		{
+			ID:          "session_secret",
+			Class:       "per_install_generated", // Should be included
+			Required:    true,
+			Description: "Session signing key",
+			Target:      secrets.Target{Type: "env", Name: "SESSION_SECRET"},
+		},
+		{
+			ID:          "api_key",
+			Class:       "user_prompt", // Should be included
+			Required:    true,
+			Description: "User API key",
+			Target:      secrets.Target{Type: "env", Name: "API_KEY"},
+		},
+	}
+
+	if err := ApplyBundleSecrets(&manifest, bundleSecrets); err != nil {
+		t.Fatalf("ApplyBundleSecrets returned error: %v", err)
+	}
+
+	// Should only have 2 secrets (infrastructure filtered out)
+	if len(manifest.Secrets) != 2 {
+		t.Fatalf("expected 2 secrets (infrastructure filtered), got %d", len(manifest.Secrets))
+	}
+
+	// Verify infrastructure secret was filtered
+	for _, s := range manifest.Secrets {
+		if s.ID == "database_admin_password" {
+			t.Error("infrastructure secret should have been filtered out")
+		}
+		if s.Class == "infrastructure" {
+			t.Error("no infrastructure class secrets should be in the manifest")
+		}
+	}
+
+	// Verify bundle-safe secrets were included
+	foundSession := false
+	foundAPIKey := false
+	for _, s := range manifest.Secrets {
+		if s.ID == "session_secret" {
+			foundSession = true
+		}
+		if s.ID == "api_key" {
+			foundAPIKey = true
+		}
+	}
+	if !foundSession {
+		t.Error("expected session_secret to be in manifest")
+	}
+	if !foundAPIKey {
+		t.Error("expected api_key to be in manifest")
+	}
+}
+
+func TestApplyBundleSecrets_AllInfrastructureSecretsFiltered(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read sample manifest: %v", err)
+	}
+
+	var manifest Manifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("failed to unmarshal manifest: %v", err)
+	}
+
+	// Only infrastructure secrets - all should be filtered
+	bundleSecrets := []secrets.BundleSecret{
+		{
+			ID:     "db_password",
+			Class:  "infrastructure",
+			Target: secrets.Target{Type: "env", Name: "DB_PASSWORD"},
+		},
+		{
+			ID:     "cloud_api_key",
+			Class:  "infrastructure",
+			Target: secrets.Target{Type: "env", Name: "CLOUD_API_KEY"},
+		},
+	}
+
+	if err := ApplyBundleSecrets(&manifest, bundleSecrets); err != nil {
+		t.Fatalf("ApplyBundleSecrets returned error: %v", err)
+	}
+
+	// Should have 0 secrets (all infrastructure filtered out)
+	if len(manifest.Secrets) != 0 {
+		t.Errorf("expected 0 secrets (all infrastructure filtered), got %d", len(manifest.Secrets))
+	}
+}
+
 func TestApplyBundleSecrets_RequiredFlag(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(path)

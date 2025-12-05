@@ -200,6 +200,10 @@ func (s *Server) setupRoutes() {
 	// Sitemap and robots.txt
 	s.router.HandleFunc("/sitemap.xml", handleSitemapXML(s.brandingService, s.variantService)).Methods("GET")
 	s.router.HandleFunc("/robots.txt", handleRobotsTXT(s.brandingService)).Methods("GET")
+
+	// Documentation endpoints (admin-only for viewing docs)
+	s.router.HandleFunc("/api/v1/admin/docs/tree", s.requireAdmin(handleDocsTree())).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/docs/content", s.requireAdmin(handleDocsContent())).Methods("GET")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {

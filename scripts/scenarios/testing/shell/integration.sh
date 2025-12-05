@@ -30,16 +30,21 @@ testing::integration::resolve_workflow_definition() {
 testing::integration::build_playbook_registry() {
     local scenario_dir="${1:-${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}}"
     local playbook_root="$scenario_dir/test/playbooks"
-    local registry_builder="${APP_ROOT}/scripts/scenarios/testing/playbooks/build-registry.mjs"
 
-    if [ ! -d "$playbook_root" ] || [ ! -f "$registry_builder" ]; then
+    if [ ! -d "$playbook_root" ]; then
         return 0
     fi
 
-    if command -v node >/dev/null 2>&1; then
-        node "$registry_builder" --scenario "$scenario_dir" >/dev/null || true
-    else
-        echo "⚠️  Node.js not available; skipping playbook registry generation"
+    # Prefer test-genie CLI (cross-platform, no runtime dependency)
+    if command -v test-genie >/dev/null 2>&1; then
+        test-genie registry build --scenario "$scenario_dir" >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    # Fallback to legacy Node.js script (deprecated)
+    local registry_builder="${APP_ROOT}/scripts/scenarios/testing/playbooks/build-registry.mjs"
+    if [ -f "$registry_builder" ] && command -v node >/dev/null 2>&1; then
+        node "$registry_builder" --scenario "$scenario_dir" >/dev/null 2>&1 || true
     fi
 }
 

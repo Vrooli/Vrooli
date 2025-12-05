@@ -76,6 +76,8 @@ source "${var_LIB_DIR}/runtimes/helm.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_DIR}/runtimes/sqlite.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_TOOLS_DIR}/buf.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/firewall.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_DEPS_DIR}/bats.sh"
@@ -269,6 +271,10 @@ setup::generic_main() {
         export GO_INSTALL_DEV_TOOLS=true
     fi
     go::ensure_installed || log::warning "Go installation failed (not critical)"
+
+    # Buf (protobuf CLI for contracts/codegen)
+    log::info "Installing Buf (proto CLI)..."
+    buf::ensure_installed || log::warning "Buf installation failed (not critical)"
     
     # Helm (for Kubernetes deployments)
     log::info "Installing Helm..."

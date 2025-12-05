@@ -41,10 +41,11 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/secrets/validate", s.SecretsHandler.ValidateSecret).Methods("POST")
 	s.Router.HandleFunc("/api/v1/secrets/test", s.SecretsHandler.TestSecret).Methods("GET", "POST")
 
-	// Bundle validation and assembly
+	// Bundle validation, assembly, and export
 	s.Router.HandleFunc("/api/v1/bundles/validate", s.BundlesHandler.ValidateBundle).Methods("POST")
 	s.Router.HandleFunc("/api/v1/bundles/merge-secrets", s.BundlesHandler.MergeBundleSecrets).Methods("POST")
 	s.Router.HandleFunc("/api/v1/bundles/assemble", s.BundlesHandler.AssembleBundle).Methods("POST")
+	s.Router.HandleFunc("/api/v1/bundles/export", s.BundlesHandler.ExportBundle).Methods("POST")
 
 	// Telemetry ingestion and summaries
 	s.Router.HandleFunc("/api/v1/telemetry", s.TelemetryHandler.List).Methods("GET")

@@ -6,6 +6,7 @@ import { NewProfile } from "./pages/NewProfile";
 import { ProfileDetail } from "./pages/ProfileDetail";
 import { Analyze } from "./pages/Analyze";
 import { Deployments } from "./pages/Deployments";
+import { BundleTelemetry } from "./pages/BundleTelemetry";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/profiles/new" element={<NewProfile />} />
           <Route path="/profiles/:id" element={<ProfileDetail />} />
           <Route path="/analyze" element={<Analyze />} />
+          <Route path="/telemetry" element={<BundleTelemetry />} />
           <Route path="/deployments" element={<Deployments />} />
           <Route path="/deployments/:id" element={<Deployments />} />
           <Route path="*" element={<Navigate to="/" replace />} />

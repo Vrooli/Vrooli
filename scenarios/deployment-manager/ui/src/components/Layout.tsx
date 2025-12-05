@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
   FolderTree,
+  Monitor,
   Rocket,
   Settings,
   Package,
@@ -24,6 +25,7 @@ export function Layout({ children }: LayoutProps) {
     { path: "/profiles", label: "Profiles", icon: Package },
     { path: "/analyze", label: "Analyze", icon: FolderTree },
     { path: "/deployments", label: "Deployments", icon: Rocket },
+    { path: "/telemetry", label: "Telemetry", icon: Monitor },
   ];
 
   return (

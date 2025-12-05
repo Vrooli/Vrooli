@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Package, HelpCircle, Rocket, Plus, Upload, Workflow, RefreshCw, FileText } from "lucide-react";
+import { Package, HelpCircle, Rocket, Plus, Upload, Workflow, RefreshCw, FileText, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { GuidedFlow } from "../components/GuidedFlow";
@@ -89,6 +89,45 @@ export function Deployments() {
           <p>Deployments come from profiles. If you see nothing here, create a profile and run a deployment.</p>
           <p className="text-slate-300">Use the guided flow to pick a scenario + tier, plan swaps/secrets, then export or trigger a deploy.</p>
         </Tip>
+      )}
+
+      {!id && (
+        <Card>
+          <CardHeader>
+            <CardTitle>How to deploy</CardTitle>
+            <CardDescription>Bundle, run scenario-to-*, then monitor here</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 p-3 text-sm text-cyan-50 flex gap-2">
+              <AlertCircle className="h-4 w-4 mt-0.5" />
+              <div>
+                <p className="font-semibold">Packager hand-off is manual right now</p>
+                <p className="text-cyan-50/80">
+                  Export a bundle for your profile and run the matching scenario-to-* packager (e.g., scenario-to-desktop). The in-app deploy action is stubbed.
+                </p>
+              </div>
+            </div>
+            <ol className="list-decimal list-inside space-y-1 text-sm text-slate-200">
+              <li>Open a profile and finalize swaps/secrets for your target tier.</li>
+              <li>Export a bundle (desktop/mobile/saas) and run the scenario-to-* packager CLI.</li>
+              <li>Return here to track status and upload telemetry from the packaged app.</li>
+            </ol>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/profiles">
+                <Button size="sm" variant="secondary" className="gap-2">
+                  <Package className="h-4 w-4" />
+                  Go to profiles
+                </Button>
+              </Link>
+              <Link to="/telemetry">
+                <Button size="sm" variant="outline" className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  Upload telemetry
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Deployment detail or empty state */}

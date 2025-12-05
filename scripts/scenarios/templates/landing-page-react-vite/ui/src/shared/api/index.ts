@@ -13,3 +13,4 @@ export * from './billing';
 export * from './admin';
 export * from './branding';
 export * from './assets';
+export * from './docs';

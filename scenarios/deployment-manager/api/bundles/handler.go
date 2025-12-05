@@ -2,6 +2,8 @@ package bundles
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,6 +27,24 @@ type AssembleBundleRequest struct {
 	Scenario       string `json:"scenario"`
 	Tier           string `json:"tier"`
 	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
+}
+
+// ExportBundleRequest is the request body for bundle export endpoint.
+type ExportBundleRequest struct {
+	Scenario       string `json:"scenario"`
+	Tier           string `json:"tier"`
+	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
+}
+
+// ExportBundleResponse is the response for bundle export endpoint.
+type ExportBundleResponse struct {
+	Status      string   `json:"status"`
+	Schema      string   `json:"schema"`
+	Scenario    string   `json:"scenario"`
+	Tier        string   `json:"tier"`
+	Manifest    Manifest `json:"manifest"`
+	Checksum    string   `json:"checksum"`
+	GeneratedAt string   `json:"generated_at"`
 }
 
 // Handler handles bundle-related requests.
@@ -157,4 +177,76 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 		"schema":   "desktop.v0.1",
 		"manifest": manifest,
 	})
+}
+
+// ExportBundle assembles and exports a signed bundle manifest with checksum.
+// This is the endpoint for generating production-ready bundle.json files.
+func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
+	var req ExportBundleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"invalid JSON: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.Scenario) == "" {
+		http.Error(w, `{"error":"scenario is required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Tier == "" {
+		req.Tier = "tier-2-desktop"
+	}
+	includeSecrets := true
+	if req.IncludeSecrets != nil {
+		includeSecrets = *req.IncludeSecrets
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	manifest, err := FetchSkeletonBundle(ctx, req.Scenario)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to build bundle","details":"%s"}`, err.Error()), http.StatusBadGateway)
+		return
+	}
+
+	if includeSecrets {
+		secretPlans, err := h.secretsClient.FetchBundleSecrets(ctx, req.Scenario, req.Tier)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to load secret plans: %v"}`, err), http.StatusBadGateway)
+			return
+		}
+		if err := ApplyBundleSecrets(manifest, secretPlans); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to merge secrets: %v"}`, err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate assembled manifest before export.
+	payload, err := json.Marshal(manifest)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to serialize manifest: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	if err := ValidateManifestBytes(payload); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"assembled manifest failed validation","details":"%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	// Calculate SHA256 checksum of the manifest content.
+	hash := sha256.Sum256(payload)
+	checksum := hex.EncodeToString(hash[:])
+
+	generatedAt := time.Now().UTC().Format(time.RFC3339)
+
+	response := ExportBundleResponse{
+		Status:      "exported",
+		Schema:      "desktop.v0.1",
+		Scenario:    req.Scenario,
+		Tier:        req.Tier,
+		Manifest:    *manifest,
+		Checksum:    checksum,
+		GeneratedAt: generatedAt,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
 }

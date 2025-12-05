@@ -1,7 +1,24 @@
 #!/usr/bin/env node
+/**
+ * @deprecated This Node.js script is deprecated. Use the Go-based test-genie CLI instead:
+ *
+ *   test-genie registry build
+ *
+ * The test-genie CLI provides cross-platform support without requiring Node.js.
+ * This script will be removed in a future release.
+ *
+ * Migration:
+ *   OLD: node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario scenarios/my-scenario
+ *   NEW: cd scenarios/my-scenario && test-genie registry build
+ *        OR: test-genie registry build --scenario /path/to/scenario
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+console.warn('\x1b[33m⚠️  DEPRECATION WARNING: This script is deprecated.\x1b[0m');
+console.warn('\x1b[33m   Use "test-genie registry build" instead (cross-platform, no Node.js required).\x1b[0m');
+console.warn('');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

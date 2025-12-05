@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"deployment-manager/secrets"
+	"deployment-manager/shared"
 )
 
 // ApplyBundleSecrets copies bundle secret plans into the bundle manifest and re-validates it.
@@ -15,6 +16,10 @@ func ApplyBundleSecrets(manifest *Manifest, bundleSecrets []secrets.BundleSecret
 
 	converted := make([]ManifestSecret, 0, len(bundleSecrets))
 	for _, s := range bundleSecrets {
+		// Skip infrastructure secrets - they should NEVER be bundled for security
+		if !shared.IsBundleSafeSecretClass(s.Class) {
+			continue
+		}
 		if s.Target.Type != "env" && s.Target.Type != "file" {
 			return fmt.Errorf("secret %s has unsupported target type %s", s.ID, s.Target.Type)
 		}
