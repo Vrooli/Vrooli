@@ -1,0 +1,29 @@
+{
+  "name": "@vrooli/proto-types",
+  "version": "0.1.0",
+  "description": "Generated Protocol Buffer types for Vrooli scenarios (TypeScript/ESM).",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    "./browser-automation-studio/v1/*": "./browser-automation-studio/v1/*.ts",
+    "./common/v1/*": "./common/v1/*.ts"
+  },
+  "files": [
+    "browser-automation-studio",
+    "common"
+  ],
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.10.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vrooli/vrooli.git",
+    "directory": "packages/proto/gen/typescript"
+  },
+  "packageManager": "pnpm@10.14.0"
+}

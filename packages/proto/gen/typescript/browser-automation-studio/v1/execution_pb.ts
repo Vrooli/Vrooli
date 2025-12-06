@@ -8,13 +8,13 @@ import type { Timestamp, Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { WorkflowDefinition } from "./workflow_pb";
 import { file_browser_automation_studio_v1_workflow } from "./workflow_pb";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/execution.proto.
  */
 export const file_browser_automation_studio_v1_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSL0BgoJRXhlY3V0aW9uEgoKAmlkGAEgASgJEhMKC3dvcmtmbG93X2lkGAIgASgJEhgKEHdvcmtmbG93X3ZlcnNpb24YAyABKAUSDgoGc3RhdHVzGAQgASgJEhQKDHRyaWdnZXJfdHlwZRgFIAEoCRJWChB0cmlnZ2VyX21ldGFkYXRhGAYgAygLMjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24uVHJpZ2dlck1ldGFkYXRhRW50cnkSSwoKcGFyYW1ldGVycxgHIAMoCzI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlBhcmFtZXRlcnNFbnRyeRIuCgpzdGFydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21wbGV0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDmxhc3RfaGVhcnRiZWF0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgVlcnJvchgLIAEoCUgAiAEBEkMKBnJlc3VsdBgMIAMoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlJlc3VsdEVudHJ5EhAKCHByb2dyZXNzGA0gASgFEhQKDGN1cnJlbnRfc3RlcBgOIAEoCRIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBpOChRUcmlnZ2VyTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkUKC1Jlc3VsdEVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCCAoGX2Vycm9yIuICChNFeGVjdXRlQWRob2NSZXF1ZXN0EkkKD2Zsb3dfZGVmaW5pdGlvbhgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uElUKCnBhcmFtZXRlcnMYAiADKAsyQS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVBZGhvY1JlcXVlc3QuUGFyYW1ldGVyc0VudHJ5EhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAyABKAgSQQoIbWV0YWRhdGEYBCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbk1ldGFkYXRhGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIjYKEUV4ZWN1dGlvbk1ldGFkYXRhEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkixwEKFEV4ZWN1dGVBZGhvY1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoLd29ya2Zsb3dfaWQYAyABKAlIAIgBARIPCgdtZXNzYWdlGAQgASgJEjAKDGNvbXBsZXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYBiABKAlIAYgBAUIOCgxfd29ya2Zsb3dfaWRCCAoGX2Vycm9yIscBCgpTY3JlZW5zaG90EgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIRCglzdGVwX25hbWUYAyABKAkSEgoKc3RlcF9pbmRleBgEIAEoBRIRCgl0aW1lc3RhbXAYBSABKAkSEwoLc3RvcmFnZV91cmwYBiABKAkSFQoNdGh1bWJuYWlsX3VybBgHIAEoCRINCgV3aWR0aBgIIAEoBRIOCgZoZWlnaHQYCSABKAUSEgoKc2l6ZV9ieXRlcxgKIAEoAyJXChZHZXRTY3JlZW5zaG90c1Jlc3BvbnNlEj0KC3NjcmVlbnNob3RzGAEgAygLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TY3JlZW5zaG90QqQCCiBjb20uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MUIORXhlY3V0aW9uUHJvdG9QAVpnZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW92MaICA0JYWKoCGkJyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvLlYxygIaQnJvd3NlckF1dG9tYXRpb25TdHVkaW9cVjHiAiZCcm93c2VyQXV0b21hdGlvblN0dWRpb1xWMVxHUEJNZXRhZGF0YeoCG0Jyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvOjpWMWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_browser_automation_studio_v1_workflow]);
+  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSL0BgoJRXhlY3V0aW9uEgoKAmlkGAEgASgJEhMKC3dvcmtmbG93X2lkGAIgASgJEhgKEHdvcmtmbG93X3ZlcnNpb24YAyABKAUSDgoGc3RhdHVzGAQgASgJEhQKDHRyaWdnZXJfdHlwZRgFIAEoCRJWChB0cmlnZ2VyX21ldGFkYXRhGAYgAygLMjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24uVHJpZ2dlck1ldGFkYXRhRW50cnkSSwoKcGFyYW1ldGVycxgHIAMoCzI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlBhcmFtZXRlcnNFbnRyeRIuCgpzdGFydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21wbGV0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDmxhc3RfaGVhcnRiZWF0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgVlcnJvchgLIAEoCUgAiAEBEkMKBnJlc3VsdBgMIAMoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlJlc3VsdEVudHJ5EhAKCHByb2dyZXNzGA0gASgFEhQKDGN1cnJlbnRfc3RlcBgOIAEoCRIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBpOChRUcmlnZ2VyTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkUKC1Jlc3VsdEVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCCAoGX2Vycm9yIuICChNFeGVjdXRlQWRob2NSZXF1ZXN0EkkKD2Zsb3dfZGVmaW5pdGlvbhgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uElUKCnBhcmFtZXRlcnMYAiADKAsyQS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVBZGhvY1JlcXVlc3QuUGFyYW1ldGVyc0VudHJ5EhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAyABKAgSQQoIbWV0YWRhdGEYBCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbk1ldGFkYXRhGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIjYKEUV4ZWN1dGlvbk1ldGFkYXRhEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkixwEKFEV4ZWN1dGVBZGhvY1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoLd29ya2Zsb3dfaWQYAyABKAlIAIgBARIPCgdtZXNzYWdlGAQgASgJEjAKDGNvbXBsZXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYBiABKAlIAYgBAUIOCgxfd29ya2Zsb3dfaWRCCAoGX2Vycm9yIscBCgpTY3JlZW5zaG90EgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIRCglzdGVwX25hbWUYAyABKAkSEgoKc3RlcF9pbmRleBgEIAEoBRIRCgl0aW1lc3RhbXAYBSABKAkSEwoLc3RvcmFnZV91cmwYBiABKAkSFQoNdGh1bWJuYWlsX3VybBgHIAEoCRINCgV3aWR0aBgIIAEoBRIOCgZoZWlnaHQYCSABKAUSEgoKc2l6ZV9ieXRlcxgKIAEoAyJXChZHZXRTY3JlZW5zaG90c1Jlc3BvbnNlEj0KC3NjcmVlbnNob3RzGAEgAygLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TY3JlZW5zaG90Iq0CChZFeGVjdXRpb25FdmVudEVudmVsb3BlEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEhcKD3BheWxvYWRfdmVyc2lvbhgCIAEoCRIMCgRraW5kGAMgASgJEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRITCgt3b3JrZmxvd19pZBgFIAEoCRIXCgpzdGVwX2luZGV4GAYgASgFSACIAQESFAoHYXR0ZW1wdBgHIAEoBUgBiAEBEhUKCHNlcXVlbmNlGAggASgDSAKIAQESEQoJdGltZXN0YW1wGAkgASgJEigKB3BheWxvYWQYCiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Qg0KC19zdGVwX2luZGV4QgoKCF9hdHRlbXB0QgsKCV9zZXF1ZW5jZSLiAQoWRXhlY3V0aW9uRXhwb3J0UHJldmlldxIUCgxleGVjdXRpb25faWQYASABKAkSDwoHc3BlY19pZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIcChRjYXB0dXJlZF9mcmFtZV9jb3VudBgFIAEoBRIdChVhdmFpbGFibGVfYXNzZXRfY291bnQYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSKAoHcGFja2FnZRgIIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCpAIKIGNvbS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxQg5FeGVjdXRpb25Qcm90b1ABWmdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb3YxogIDQlhYqgIaQnJvd3NlckF1dG9tYXRpb25TdHVkaW8uVjHKAhpCcm93c2VyQXV0b21hdGlvblN0dWRpb1xWMeICJkJyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvXFYxXEdQQk1ldGFkYXRh6gIbQnJvd3NlckF1dG9tYXRpb25TdHVkaW86OlYxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_browser_automation_studio_v1_workflow]);
 
 /**
  * Execution is returned by GET /api/v1/executions/{id}` and list APIs.
@@ -372,4 +372,158 @@ export type GetScreenshotsResponse = Message<"browser_automation_studio.v1.GetSc
  */
 export const GetScreenshotsResponseSchema: GenMessage<GetScreenshotsResponse> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_execution, 5);
+
+/**
+ * ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
+ *
+ * @generated from message browser_automation_studio.v1.ExecutionEventEnvelope
+ */
+export type ExecutionEventEnvelope = Message<"browser_automation_studio.v1.ExecutionEventEnvelope"> & {
+  /**
+   * Schema version for the envelope.
+   *
+   * @generated from field: string schema_version = 1;
+   */
+  schemaVersion: string;
+
+  /**
+   * Payload version for downstream consumers.
+   *
+   * @generated from field: string payload_version = 2;
+   */
+  payloadVersion: string;
+
+  /**
+   * Event kind (status_update, timeline_frame, log, heartbeat, telemetry, etc.).
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * Execution ID the event belongs to.
+   *
+   * @generated from field: string execution_id = 4;
+   */
+  executionId: string;
+
+  /**
+   * Workflow ID the execution belongs to.
+   *
+   * @generated from field: string workflow_id = 5;
+   */
+  workflowId: string;
+
+  /**
+   * Zero-based step index if applicable.
+   *
+   * @generated from field: optional int32 step_index = 6;
+   */
+  stepIndex?: number;
+
+  /**
+   * Attempt number for retries.
+   *
+   * @generated from field: optional int32 attempt = 7;
+   */
+  attempt?: number;
+
+  /**
+   * Monotonic sequence number for ordering.
+   *
+   * @generated from field: optional int64 sequence = 8;
+   */
+  sequence?: bigint;
+
+  /**
+   * RFC3339 timestamp for the event.
+   *
+   * @generated from field: string timestamp = 9;
+   */
+  timestamp: string;
+
+  /**
+   * Event payload as a generic structure; consumers should map to concrete types.
+   *
+   * @generated from field: google.protobuf.Struct payload = 10;
+   */
+  payload?: JsonObject;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ExecutionEventEnvelope.
+ * Use `create(ExecutionEventEnvelopeSchema)` to create a new message.
+ */
+export const ExecutionEventEnvelopeSchema: GenMessage<ExecutionEventEnvelope> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 6);
+
+/**
+ * ExecutionExportPreview summarizes export readiness and metadata.
+ *
+ * @generated from message browser_automation_studio.v1.ExecutionExportPreview
+ */
+export type ExecutionExportPreview = Message<"browser_automation_studio.v1.ExecutionExportPreview"> & {
+  /**
+   * Execution ID being exported.
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Identifier for the generated export spec (replay movie).
+   *
+   * @generated from field: string spec_id = 2;
+   */
+  specId: string;
+
+  /**
+   * Status: ready, pending, error, unavailable.
+   *
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * Human-readable message about readiness or errors.
+   *
+   * @generated from field: string message = 4;
+   */
+  message: string;
+
+  /**
+   * Number of captured frames available for export.
+   *
+   * @generated from field: int32 captured_frame_count = 5;
+   */
+  capturedFrameCount: number;
+
+  /**
+   * Number of assets available for export (images, etc.).
+   *
+   * @generated from field: int32 available_asset_count = 6;
+   */
+  availableAssetCount: number;
+
+  /**
+   * Total duration in milliseconds of the replay.
+   *
+   * @generated from field: int32 total_duration_ms = 7;
+   */
+  totalDurationMs: number;
+
+  /**
+   * Replay movie package encoded as JSON (movie spec).
+   *
+   * @generated from field: google.protobuf.Struct package = 8;
+   */
+  package?: JsonObject;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ExecutionExportPreview.
+ * Use `create(ExecutionExportPreviewSchema)` to create a new message.
+ */
+export const ExecutionExportPreviewSchema: GenMessage<ExecutionExportPreview> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 7);
 

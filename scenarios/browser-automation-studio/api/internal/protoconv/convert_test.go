@@ -169,6 +169,53 @@ func TestTimelineToProto(t *testing.T) {
 	}
 }
 
+func TestScreenshotsToProto(t *testing.T) {
+	execID := uuid.New()
+	shots := []*database.Screenshot{
+		{
+			ID:           uuid.New(),
+			ExecutionID:  execID,
+			StepName:     "navigate",
+			Timestamp:    time.Date(2024, 12, 1, 12, 0, 0, 0, time.UTC),
+			StorageURL:   "https://example.com/full.png",
+			ThumbnailURL: "",
+			Width:        800,
+			Height:       600,
+			SizeBytes:    1024,
+			Metadata: database.JSONMap{
+				"step_index":    1,
+				"thumbnail_url": "https://example.com/thumb.png",
+			},
+		},
+	}
+
+	pb, err := ScreenshotsToProto(shots)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(pb.Screenshots) != 1 {
+		t.Fatalf("expected 1 screenshot, got %d", len(pb.Screenshots))
+	}
+	shot := pb.Screenshots[0]
+	if shot.GetExecutionId() != execID.String() {
+		t.Fatalf("unexpected execution_id: %s", shot.GetExecutionId())
+	}
+	if shot.GetStepIndex() != 1 {
+		t.Fatalf("expected step_index 1, got %d", shot.GetStepIndex())
+	}
+	if shot.GetThumbnailUrl() != "https://example.com/thumb.png" {
+		t.Fatalf("expected thumbnail_url override, got %s", shot.GetThumbnailUrl())
+	}
+
+	data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(pb)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	if !containsJSONField(data, "storage_url") || !containsJSONField(data, "thumbnail_url") {
+		t.Fatalf("expected protojson to use proto names: %s", string(data))
+	}
+}
+
 func containsJSONField(data []byte, field string) bool {
 	return bytes.Contains(data, []byte(`"`+field+`"`))
 }

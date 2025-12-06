@@ -1,5 +1,18 @@
 import { fromJson } from '@bufbuild/protobuf';
-import { ExecutionTimelineSchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import {
+  ExecutionSchema,
+  GetScreenshotsResponseSchema,
+  type GetScreenshotsResponse as ProtoGetScreenshotsResponse,
+  ExecutionEventEnvelopeSchema,
+  type ExecutionEventEnvelope,
+} from '@vrooli/proto-types/browser-automation-studio/v1/execution_pb';
+import {
+  ExecutionTimelineSchema,
+  type ExecutionTimeline as ProtoExecutionTimeline,
+  type TimelineFrame as ProtoTimelineFrame,
+  type TimelineLog as ProtoTimelineLog,
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
@@ -17,6 +30,27 @@ import {
 const WS_RETRY_LIMIT = 5;
 const WS_RETRY_BASE_DELAY_MS = 1500;
 
+const timestampToDate = (value?: Timestamp | null): Date | undefined => {
+  if (!value) return undefined;
+  const millis = Number(value.seconds ?? 0) * 1000 + Math.floor(Number(value.nanos ?? 0) / 1_000_000);
+  const result = new Date(millis);
+  return Number.isNaN(result.valueOf()) ? undefined : result;
+};
+
+const coerceDate = (value: unknown): Date | undefined => {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.valueOf()) ? undefined : d;
+  }
+  return undefined;
+};
+
+const toNumber = (value?: number | bigint | null): number | undefined => {
+  if (value == null) return undefined;
+  return typeof value === 'bigint' ? Number(value) : value;
+};
+
 interface ExecutionUpdateMessage {
   type: string;
   execution_id?: string;
@@ -26,20 +60,6 @@ interface ExecutionUpdateMessage {
   message?: string;
   data?: ExecutionEventMessage | null;
   timestamp?: string;
-}
-
-interface EventEnvelopeMessage {
-  schema_version?: string;
-  payload_version?: string;
-  kind?: string;
-  execution_id?: string;
-  workflow_id?: string;
-  step_index?: number;
-  stepIndex?: number;
-  attempt?: number;
-  sequence?: number;
-  timestamp?: string;
-  payload?: Record<string, unknown> | null;
 }
 
 export interface TimelineBoundingBox {
@@ -217,36 +237,252 @@ interface ExecutionStore {
   clearCurrentExecution: () => void;
 }
 
-const normalizeExecution = (raw: unknown): Execution => {
-  const rawData = raw as Record<string, unknown>;
-  const startedAt = rawData.started_at ?? rawData.startedAt;
-  const completedAt = rawData.completed_at ?? rawData.completedAt;
-  const statusValue = rawData.status;
-  const currentStepValue = rawData.current_step ?? rawData.currentStep;
-  const errorValue = rawData.error;
+const mapExecutionStatus = (status?: string): Execution['status'] => {
+  switch ((status ?? '').toLowerCase()) {
+    case 'pending':
+    case 'queued':
+      return 'pending';
+    case 'running':
+    case 'in_progress':
+      return 'running';
+    case 'completed':
+    case 'success':
+    case 'succeeded':
+      return 'completed';
+    case 'failed':
+    case 'error':
+    case 'cancelled':
+      return 'failed';
+    default:
+      return 'pending';
+  }
+};
+
+const parseExecutionProto = (raw: unknown): Execution => {
+  const proto = fromJson(ExecutionSchema, raw as any, { ignoreUnknownFields: true });
+  const startedAt = timestampToDate(proto.startedAt) ?? coerceDate((raw as Record<string, unknown>)?.started_at) ?? new Date();
+  const completedAt = timestampToDate(proto.completedAt) ?? coerceDate((raw as Record<string, unknown>)?.completed_at);
+  const lastHeartbeat = proto.lastHeartbeat ? timestampToDate(proto.lastHeartbeat) : coerceDate((raw as Record<string, unknown>)?.last_heartbeat);
 
   return {
-    id: String(rawData.id ?? rawData.execution_id ?? ''),
-    workflowId: String(rawData.workflow_id ?? rawData.workflowId ?? ''),
-    status: (typeof statusValue === 'string' && ['pending', 'running', 'completed', 'failed', 'cancelled'].includes(statusValue))
-      ? statusValue as 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
-      : 'pending',
-    startedAt: (typeof startedAt === 'string' || typeof startedAt === 'number' || startedAt instanceof Date) ? new Date(startedAt) : new Date(),
-    completedAt: (typeof completedAt === 'string' || typeof completedAt === 'number' || completedAt instanceof Date) ? new Date(completedAt) : undefined,
-    screenshots: Array.isArray(rawData.screenshots) ? rawData.screenshots : [],
-    timeline: Array.isArray(rawData.timeline) ? (rawData.timeline as TimelineFrame[]) : [],
-    logs: Array.isArray(rawData.logs) ? rawData.logs : [],
-    currentStep: typeof currentStepValue === 'string' ? currentStepValue : undefined,
-    progress: typeof rawData.progress === 'number' ? rawData.progress : 0,
-    error: typeof errorValue === 'string' ? errorValue : undefined,
-    lastHeartbeat: undefined,
+    id: proto.id || String((raw as Record<string, unknown>)?.execution_id ?? ''),
+    workflowId: proto.workflowId || String((raw as Record<string, unknown>)?.workflow_id ?? ''),
+    status: mapExecutionStatus(proto.status),
+    startedAt,
+    completedAt: completedAt || undefined,
+    screenshots: [],
+    timeline: [],
+    logs: [],
+    currentStep: proto.currentStep || undefined,
+    progress: typeof proto.progress === 'number' ? proto.progress : 0,
+    error: proto.error ?? undefined,
+    lastHeartbeat: lastHeartbeat
+      ? {
+          timestamp: lastHeartbeat,
+        }
+      : undefined,
   };
 };
 
-const isEventEnvelope = (value: unknown): value is EventEnvelopeMessage => {
-  if (!value || typeof value !== 'object') return false;
-  const obj = value as Record<string, unknown>;
-  return typeof obj.schema_version === 'string' && typeof obj.kind === 'string';
+const mapBoundingBoxFromProto = (bbox?: { x?: number; y?: number; width?: number; height?: number } | null) => {
+  if (!bbox) return undefined;
+  const { x, y, width, height } = bbox;
+  if ([x, y, width, height].every((v) => v == null)) return undefined;
+  return { x, y, width, height };
+};
+
+const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineFrame['artifacts'][number]) => {
+  if (!artifact) return undefined;
+  const stepIndex = artifact.stepIndex ?? undefined;
+  return {
+    id: artifact.id,
+    type: artifact.type,
+    label: artifact.label || undefined,
+    storage_url: artifact.storageUrl || undefined,
+    thumbnail_url: artifact.thumbnailUrl || undefined,
+    content_type: artifact.contentType || undefined,
+    size_bytes: toNumber(artifact.sizeBytes),
+    step_index: stepIndex,
+    payload: artifact.payload ?? undefined,
+  } satisfies TimelineArtifact;
+};
+
+const mapTimelineFrameFromProto = (frame: ProtoTimelineFrame): TimelineFrame => {
+  const screenshot = frame.screenshot
+    ? {
+        artifact_id: frame.screenshot.artifactId,
+        url: frame.screenshot.url,
+        thumbnail_url: frame.screenshot.thumbnailUrl,
+        width: frame.screenshot.width,
+        height: frame.screenshot.height,
+        content_type: frame.screenshot.contentType,
+        size_bytes: toNumber(frame.screenshot.sizeBytes),
+      }
+    : undefined;
+
+  const focusBox = frame.focusedElement?.boundingBox ? mapBoundingBoxFromProto(frame.focusedElement.boundingBox) : undefined;
+  const elementBox = mapBoundingBoxFromProto(frame.elementBoundingBox);
+
+  const domSnapshot = frame.domSnapshot ? mapTimelineArtifactFromProto(frame.domSnapshot) : undefined;
+
+  return {
+    step_index: frame.stepIndex,
+    stepIndex: frame.stepIndex,
+    node_id: frame.nodeId,
+    nodeId: frame.nodeId,
+    step_type: frame.stepType,
+    stepType: frame.stepType,
+    status: frame.status,
+    success: frame.success,
+    duration_ms: frame.durationMs,
+    durationMs: frame.durationMs,
+    total_duration_ms: frame.totalDurationMs,
+    totalDurationMs: frame.totalDurationMs,
+    progress: frame.progress,
+    started_at: timestampToDate(frame.startedAt)?.toISOString(),
+    startedAt: timestampToDate(frame.startedAt)?.toISOString(),
+    completed_at: timestampToDate(frame.completedAt)?.toISOString(),
+    completedAt: timestampToDate(frame.completedAt)?.toISOString(),
+    final_url: frame.finalUrl || undefined,
+    finalUrl: frame.finalUrl || undefined,
+    error: frame.error || undefined,
+    console_log_count: frame.consoleLogCount,
+    consoleLogCount: frame.consoleLogCount,
+    network_event_count: frame.networkEventCount,
+    networkEventCount: frame.networkEventCount,
+    extracted_data_preview: frame.extractedDataPreview,
+    extractedDataPreview: frame.extractedDataPreview,
+    highlight_regions: frame.highlightRegions?.map((region) => ({
+      selector: region.selector,
+      bounding_box: mapBoundingBoxFromProto(region.boundingBox),
+      padding: region.padding,
+      color: region.color,
+    })),
+    highlightRegions: frame.highlightRegions?.map((region) => ({
+      selector: region.selector,
+      boundingBox: mapBoundingBoxFromProto(region.boundingBox),
+      padding: region.padding,
+      color: region.color,
+    })),
+    mask_regions: frame.maskRegions?.map((region) => ({
+      selector: region.selector,
+      bounding_box: mapBoundingBoxFromProto(region.boundingBox),
+      opacity: region.opacity,
+    })),
+    maskRegions: frame.maskRegions?.map((region) => ({
+      selector: region.selector,
+      boundingBox: mapBoundingBoxFromProto(region.boundingBox),
+      opacity: region.opacity,
+    })),
+    focused_element: frame.focusedElement
+      ? { selector: frame.focusedElement.selector, bounding_box: focusBox }
+      : undefined,
+    focusedElement: frame.focusedElement
+      ? { selector: frame.focusedElement.selector, boundingBox: focusBox }
+      : undefined,
+    element_bounding_box: elementBox,
+    elementBoundingBox: elementBox,
+    click_position: frame.clickPosition ? { x: frame.clickPosition.x, y: frame.clickPosition.y } : undefined,
+    clickPosition: frame.clickPosition ? { x: frame.clickPosition.x, y: frame.clickPosition.y } : undefined,
+    cursor_trail: frame.cursorTrail?.map((pt) => ({ x: pt.x, y: pt.y })),
+    cursorTrail: frame.cursorTrail?.map((pt) => ({ x: pt.x, y: pt.y })),
+    zoom_factor: frame.zoomFactor,
+    zoomFactor: frame.zoomFactor,
+    screenshot: screenshot ?? null,
+    artifacts: frame.artifacts?.map((artifact) => mapTimelineArtifactFromProto(artifact)!).filter(Boolean) ?? [],
+    assertion: frame.assertion
+      ? {
+          mode: frame.assertion.mode,
+          selector: frame.assertion.selector,
+          expected: frame.assertion.expected,
+          actual: frame.assertion.actual,
+          success: frame.assertion.success,
+          message: frame.assertion.message || undefined,
+          negated: frame.assertion.negated,
+          caseSensitive: frame.assertion.caseSensitive,
+        }
+      : null,
+    retry_attempt: frame.retryAttempt,
+    retryAttempt: frame.retryAttempt,
+    retry_max_attempts: frame.retryMaxAttempts,
+    retryMaxAttempts: frame.retryMaxAttempts,
+    retry_configured: frame.retryConfigured,
+    retryConfigured: frame.retryConfigured,
+    retry_delay_ms: frame.retryDelayMs,
+    retryDelayMs: frame.retryDelayMs,
+    retry_backoff_factor: frame.retryBackoffFactor,
+    retryBackoffFactor: frame.retryBackoffFactor,
+    retry_history: frame.retryHistory?.map((entry) => ({
+      attempt: entry.attempt,
+      success: entry.success,
+      duration_ms: entry.durationMs,
+      call_duration_ms: entry.callDurationMs,
+      error: entry.error || undefined,
+    })) ?? [],
+    retryHistory: frame.retryHistory?.map((entry) => ({
+      attempt: entry.attempt,
+      success: entry.success,
+      duration_ms: entry.durationMs,
+      call_duration_ms: entry.callDurationMs,
+      error: entry.error || undefined,
+    })) ?? [],
+    dom_snapshot_preview: frame.domSnapshotPreview || undefined,
+    domSnapshotPreview: frame.domSnapshotPreview || undefined,
+    dom_snapshot_artifact_id: domSnapshot?.id,
+    domSnapshotArtifactId: domSnapshot?.id,
+    dom_snapshot: domSnapshot ?? null,
+    timeline_artifact_id: undefined,
+    timelineArtifactId: undefined,
+  };
+};
+
+const mapTimelineLogFromProto = (log: ProtoTimelineLog): LogEntry | null => {
+  const baseMessage = typeof log.message === 'string' ? log.message.trim() : '';
+  const stepName = typeof log.stepName === 'string' ? log.stepName : '';
+  const composedMessage = stepName && baseMessage ? `${stepName}: ${baseMessage}` : baseMessage || stepName;
+  if (!composedMessage) {
+    return null;
+  }
+
+  const rawTimestamp = timestampToDate(log.timestamp) ?? coerceDate(log.timestamp ?? undefined);
+  const id = log.id && log.id.trim().length > 0 ? log.id.trim() : `${stepName}|${composedMessage}|${rawTimestamp?.toISOString() ?? ''}`;
+
+  return {
+    id,
+    level: (log.level ?? 'info') as LogEntry['level'],
+    message: composedMessage,
+    timestamp: rawTimestamp ?? new Date(),
+  };
+};
+
+const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
+  const proto = fromJson(GetScreenshotsResponseSchema, raw as any, { ignoreUnknownFields: true }) as ProtoGetScreenshotsResponse;
+  if (!proto.screenshots || proto.screenshots.length === 0) {
+    return [];
+  }
+  return proto.screenshots
+    .map((shot) => {
+      const ts = coerceDate(shot.timestamp) ?? parseTimestamp(shot.timestamp);
+      const url = shot.storageUrl || shot.thumbnailUrl || '';
+      if (!url) {
+        return null;
+      }
+      return {
+        id: shot.id || createId(),
+        timestamp: ts,
+        url,
+        stepName: shot.stepName || `Step ${shot.stepIndex}`,
+      } satisfies Screenshot;
+    })
+    .filter((screenshot): screenshot is Screenshot => screenshot !== null);
+};
+
+const parseEventEnvelope = (value: unknown): ExecutionEventEnvelope | null => {
+  try {
+    return fromJson(ExecutionEventEnvelopeSchema, value as any, { ignoreUnknownFields: true });
+  } catch {
+    return null;
+  }
 };
 
 const extractProgressFromPayload = (payload: Record<string, unknown> | null | undefined): number | undefined => {
@@ -264,24 +500,22 @@ const extractProgressFromPayload = (payload: Record<string, unknown> | null | un
   return undefined;
 };
 
-const envelopeToExecutionEvent = (envelope: EventEnvelopeMessage | null | undefined): ExecutionEventMessage | null => {
+const envelopeToExecutionEvent = (envelope: ExecutionEventEnvelope | null | undefined): ExecutionEventMessage | null => {
   if (!envelope || typeof envelope !== 'object' || typeof envelope.kind !== 'string') {
     return null;
   }
   const payload = (typeof envelope.payload === 'object' && envelope.payload !== null)
     ? (envelope.payload as Record<string, unknown>)
     : undefined;
-  const stepIndex = typeof envelope.step_index === 'number'
-    ? envelope.step_index
-    : typeof envelope.stepIndex === 'number'
-      ? envelope.stepIndex
-      : undefined;
+  const stepIndex = typeof envelope.stepIndex === 'number'
+    ? envelope.stepIndex
+    : undefined;
 
   const progress = extractProgressFromPayload(payload);
 
   const toStringOrEmpty = (value: unknown) => (typeof value === 'string' && value.trim().length > 0 ? value : '');
-  const executionId = toStringOrEmpty((envelope as Record<string, unknown>).execution_id ?? (envelope as Record<string, unknown>).executionId);
-  const workflowId = toStringOrEmpty((envelope as Record<string, unknown>).workflow_id ?? (envelope as Record<string, unknown>).workflowId);
+  const executionId = toStringOrEmpty(envelope.executionId);
+  const workflowId = toStringOrEmpty(envelope.workflowId);
 
   const stepNodeId = (() => {
     if (typeof payload?.node_id === 'string') return payload.node_id;
@@ -437,7 +671,18 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
 
       const data = await response.json();
-      set({ executions: data.executions });
+      const executions = Array.isArray(data?.executions) ? data.executions : [];
+      const normalizedExecutions = executions
+        .map((item: unknown) => {
+          try {
+            return parseExecutionProto(item);
+          } catch (err) {
+            logger.error('Failed to parse execution proto', { component: 'ExecutionStore', action: 'loadExecutions' }, err);
+            return null;
+          }
+        })
+        .filter((entry: Execution | null): entry is Execution => entry !== null);
+      set({ executions: normalizedExecutions });
     } catch (error) {
       logger.error('Failed to load executions', { component: 'ExecutionStore', action: 'loadExecutions', workflowId }, error);
     }
@@ -453,8 +698,19 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
 
       const data = await response.json();
-      const execution = normalizeExecution(data);
-      set({ currentExecution: execution, viewerWorkflowId: execution.workflowId });
+      const execution = parseExecutionProto(data);
+      let screenshots: Screenshot[] = [];
+      try {
+        const shotsResponse = await fetch(`${config.API_URL}/executions/${executionId}/screenshots`);
+        if (shotsResponse.ok) {
+          const shotsJson = await shotsResponse.json();
+          screenshots = mapScreenshotsFromProto(shotsJson);
+        }
+      } catch (shotsErr) {
+        logger.error('Failed to load execution screenshots', { component: 'ExecutionStore', action: 'loadExecution', executionId }, shotsErr);
+      }
+
+      set({ currentExecution: { ...execution, screenshots }, viewerWorkflowId: execution.workflowId });
       void get().refreshTimeline(executionId);
     } catch (error) {
       logger.error('Failed to load execution', { component: 'ExecutionStore', action: 'loadExecution', executionId }, error);
@@ -471,8 +727,9 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
 
       const data = await response.json();
+      let protoTimeline: ProtoExecutionTimeline;
       try {
-        fromJson(ExecutionTimelineSchema, data, { ignoreUnknownFields: true });
+        protoTimeline = fromJson(ExecutionTimelineSchema, data, { ignoreUnknownFields: true });
       } catch (schemaError) {
         logger.error(
           'Timeline response failed proto validation',
@@ -481,82 +738,18 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         );
         throw schemaError;
       }
-      const frames = Array.isArray(data?.frames)
-        ? (data.frames as TimelineFrame[])
-        : [];
-      const rawLogs = Array.isArray(data?.logs)
-        ? (data.logs as TimelineLog[])
-        : [];
 
-      const normalizeLogLevel = (value?: string): LogEntry['level'] => {
-        switch ((value ?? '').toLowerCase()) {
-          case 'error':
-          case 'err':
-            return 'error';
-          case 'warning':
-          case 'warn':
-            return 'warning';
-          case 'success':
-          case 'ok':
-          case 'passed':
-            return 'success';
-          default:
-            return 'info';
-        }
-      };
-
-      const normalizedLogs: LogEntry[] = rawLogs
-        .map((log) => {
-          const baseMessage = typeof log?.message === 'string' ? log.message.trim() : '';
-          const stepName = typeof log?.step_name === 'string' ? log.step_name : typeof log?.stepName === 'string' ? log.stepName : '';
-          const composedMessage = stepName && baseMessage
-            ? `${stepName}: ${baseMessage}`
-            : baseMessage || stepName;
-          if (!composedMessage) {
-            return null;
-          }
-          const rawTimestamp = typeof log?.timestamp === 'string' || typeof log?.timestamp === 'number'
-            ? String(log.timestamp)
-            : '';
-          const timestamp = parseTimestamp(log?.timestamp);
-          const fallbackId = `${stepName}|${composedMessage}|${rawTimestamp}`;
-          const id = typeof log?.id === 'string' && log.id.trim().length > 0
-            ? log.id.trim()
-            : fallbackId || createId();
-          return {
-            id,
-            level: normalizeLogLevel(log?.level),
-            message: composedMessage,
-            timestamp,
-          } satisfies LogEntry;
-        })
+      const frames: TimelineFrame[] = (protoTimeline.frames ?? []).map((frame) => mapTimelineFrameFromProto(frame));
+      const normalizedLogs: LogEntry[] = (protoTimeline.logs ?? [])
+        .map((log) => mapTimelineLogFromProto(log))
         .filter((entry): entry is LogEntry => Boolean(entry));
 
-      const normalizeStatus = (value?: string): Execution['status'] | undefined => {
-        switch ((value ?? '').toLowerCase()) {
-          case 'pending':
-          case 'queued':
-            return 'pending';
-          case 'running':
-          case 'in_progress':
-            return 'running';
-          case 'completed':
-          case 'success':
-          case 'succeeded':
-            return 'completed';
-          case 'failed':
-          case 'error':
-          case 'cancelled':
-            return 'failed';
-          default:
-            return undefined;
-        }
-      };
-
-      const mappedStatus = normalizeStatus(data?.status);
-      const progressValue = typeof data?.progress === 'number' ? data.progress : undefined;
-      const completedAtRaw = data?.completed_at ?? data?.completedAt;
-      const errorMessage = typeof data?.error === 'string' ? data.error : undefined;
+      const mappedStatus = mapExecutionStatus(protoTimeline.status);
+      const progressValue = typeof protoTimeline.progress === 'number' ? protoTimeline.progress : undefined;
+      const completedAt = timestampToDate(protoTimeline.completedAt);
+      const errorMessage = typeof protoTimeline.status === 'string' && protoTimeline.status.toLowerCase() === 'failed'
+        ? protoTimeline.status
+        : undefined;
 
       set((state) => {
         if (!state.currentExecution || state.currentExecution.id !== executionId) {
@@ -590,15 +783,12 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           updated.progress = progressValue;
         }
 
-        if (errorMessage && errorMessage.trim().length > 0) {
-          updated.error = errorMessage.trim();
+        if (errorMessage && errorMessage.length > 0) {
+          updated.error = errorMessage;
         }
 
-        if (completedAtRaw && (updated.status === 'completed' || updated.status === 'failed')) {
-          const completedDate = new Date(completedAtRaw);
-          if (!Number.isNaN(completedDate.valueOf())) {
-            updated.completedAt = completedDate;
-          }
+        if (completedAt && (updated.status === 'completed' || updated.status === 'failed')) {
+          updated.completedAt = completedAt;
         }
 
         if (frames.length > 0) {
@@ -733,7 +923,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       });
     };
 
-    const handleEnvelopeMessage = (envelope: EventEnvelopeMessage) => {
+const handleEnvelopeMessage = (envelope: ExecutionEventEnvelope) => {
       const event = envelopeToExecutionEvent(envelope);
       if (!event) return;
       const progress = extractProgressFromPayload(
@@ -785,19 +975,23 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
     const messageListener: EventListener = (event) => {
       try {
-        const data = JSON.parse((event as MessageEvent).data) as Record<string, unknown>;
+    const data = JSON.parse((event as MessageEvent).data) as unknown;
 
-        if (isEventEnvelope(data)) {
-          handleEnvelopeMessage(data);
-          return;
-        }
+    const envelope = parseEventEnvelope(data);
+    if (envelope) {
+      handleEnvelopeMessage(envelope);
+      return;
+    }
 
-        if (data && typeof data === 'object' && isEventEnvelope((data as Record<string, unknown>).data)) {
-          handleEnvelopeMessage((data as { data: EventEnvelopeMessage }).data);
-          return;
-        }
+    if (data && typeof data === 'object') {
+      const nestedEnvelope = parseEventEnvelope((data as Record<string, unknown>).data);
+      if (nestedEnvelope) {
+        handleEnvelopeMessage(nestedEnvelope);
+        return;
+      }
+    }
 
-        handleLegacyUpdate(data as ExecutionUpdateMessage);
+    handleLegacyUpdate(data as unknown as ExecutionUpdateMessage);
       } catch (err) {
         logger.error('Failed to parse execution update', { component: 'ExecutionStore', action: 'handleWebSocketMessage', executionId }, err);
       }

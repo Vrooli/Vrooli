@@ -158,7 +158,7 @@ export interface LandingSection {
 }
 
 export type HeaderBrandingMode = 'none' | 'logo' | 'name' | 'logo_and_name';
-export type HeaderNavLinkType = 'section' | 'downloads' | 'custom';
+export type HeaderNavLinkType = 'section' | 'downloads' | 'custom' | 'menu';
 export type HeaderCTAMode = 'inherit_hero' | 'downloads' | 'custom' | 'hidden';
 
 export interface LandingHeaderConfig {
@@ -173,6 +173,8 @@ export interface HeaderBrandingConfig {
   label?: string;
   subtitle?: string;
   mobile_preference?: 'auto' | 'logo' | 'name' | 'stacked';
+  logo_url?: string | null;
+  logo_icon_url?: string | null;
 }
 
 export interface HeaderNavConfig {
@@ -188,6 +190,7 @@ export interface LandingHeaderNavLink {
   anchor?: string;
   href?: string;
   visible_on?: HeaderVisibilityConfig;
+  children?: LandingHeaderNavLink[];
 }
 
 export interface HeaderVisibilityConfig {

@@ -140,3 +140,47 @@ class GetScreenshotsResponse(_message.Message):
     SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
     screenshots: _containers.RepeatedCompositeFieldContainer[Screenshot]
     def __init__(self, screenshots: _Optional[_Iterable[_Union[Screenshot, _Mapping]]] = ...) -> None: ...
+
+class ExecutionEventEnvelope(_message.Message):
+    __slots__ = ()
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_VERSION_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    schema_version: str
+    payload_version: str
+    kind: str
+    execution_id: str
+    workflow_id: str
+    step_index: int
+    attempt: int
+    sequence: int
+    timestamp: str
+    payload: _struct_pb2.Struct
+    def __init__(self, schema_version: _Optional[str] = ..., payload_version: _Optional[str] = ..., kind: _Optional[str] = ..., execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., step_index: _Optional[int] = ..., attempt: _Optional[int] = ..., sequence: _Optional[int] = ..., timestamp: _Optional[str] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
+class ExecutionExportPreview(_message.Message):
+    __slots__ = ()
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SPEC_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_FRAME_COUNT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_ASSET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    spec_id: str
+    status: str
+    message: str
+    captured_frame_count: int
+    available_asset_count: int
+    total_duration_ms: int
+    package: _struct_pb2.Struct
+    def __init__(self, execution_id: _Optional[str] = ..., spec_id: _Optional[str] = ..., status: _Optional[str] = ..., message: _Optional[str] = ..., captured_frame_count: _Optional[int] = ..., available_asset_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., package: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...

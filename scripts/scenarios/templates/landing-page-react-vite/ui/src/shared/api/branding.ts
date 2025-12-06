@@ -24,5 +24,5 @@ export function clearBrandingField(field: string) {
 // Public endpoints (no auth required)
 
 export function getPublicBranding() {
-  return apiCall<PublicBranding>('/public/branding');
+  return apiCall<PublicBranding>('/branding');
 }

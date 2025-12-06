@@ -501,6 +501,60 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
     });
   };
 
+  const handleMenuChildChange = (
+    linkIndex: number,
+    childIndex: number,
+    field: 'label' | 'href',
+    value: string,
+  ) => {
+    updateConfig((draft) => {
+      const link = draft.nav.links[linkIndex];
+      if (!link || link.type !== 'menu') return;
+      if (!Array.isArray(link.children)) {
+        link.children = [];
+      }
+      if (!link.children[childIndex]) {
+        link.children[childIndex] = {
+          id: generateNavLinkId('child'),
+          type: 'custom',
+          label: '',
+          href: '',
+          visible_on: { desktop: true, mobile: true },
+        };
+      }
+      if (field === 'label') {
+        link.children[childIndex].label = value;
+      } else {
+        link.children[childIndex].href = value;
+      }
+    });
+  };
+
+  const handleAddMenuChild = (linkIndex: number) => {
+    updateConfig((draft) => {
+      const link = draft.nav.links[linkIndex];
+      if (!link || link.type !== 'menu') return;
+      if (!Array.isArray(link.children)) {
+        link.children = [];
+      }
+      link.children.push({
+        id: generateNavLinkId('child'),
+        type: 'custom',
+        label: 'Menu item',
+        href: '#',
+        visible_on: { desktop: true, mobile: true },
+      });
+    });
+  };
+
+  const handleRemoveMenuChild = (linkIndex: number, childIndex: number) => {
+    updateConfig((draft) => {
+      const link = draft.nav.links[linkIndex];
+      if (!link || link.type !== 'menu' || !Array.isArray(link.children)) return;
+      link.children.splice(childIndex, 1);
+    });
+  };
+
   const handleVisibilityToggle = (index: number, key: 'desktop' | 'mobile', value: boolean) => {
     updateConfig((draft) => {
       draft.nav.links[index].visible_on = {
@@ -513,6 +567,33 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
   const handleRemoveLink = (index: number) => {
     updateConfig((draft) => {
       draft.nav.links.splice(index, 1);
+    });
+  };
+
+  const handleAddMenu = () => {
+    updateConfig((draft) => {
+      draft.nav.links.push({
+        id: generateNavLinkId('menu'),
+        type: 'menu',
+        label: 'Menu',
+        visible_on: { desktop: true, mobile: true },
+        children: [
+          {
+            id: generateNavLinkId('menu-item'),
+            type: 'custom',
+            label: 'First link',
+            href: '#',
+            visible_on: { desktop: true, mobile: true },
+          },
+          {
+            id: generateNavLinkId('menu-item'),
+            type: 'custom',
+            label: 'Second link',
+            href: '#',
+            visible_on: { desktop: true, mobile: true },
+          },
+        ],
+      });
     });
   };
 
@@ -649,6 +730,9 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
               <Button variant="secondary" size="sm" onClick={handleAddLink}>
                 Add link
               </Button>
+              <Button variant="outline" size="sm" onClick={handleAddMenu}>
+                Add menu
+              </Button>
             </div>
           </div>
           {config.nav.links.length === 0 ? (
@@ -705,8 +789,50 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
                     </div>
                   </div>
                   <p className="text-xs text-slate-500">
-                    {link.type === 'downloads' ? 'Downloads anchor' : `Link to ${link.section_type ?? 'custom target'}`}
+                    {link.type === 'downloads'
+                      ? 'Downloads anchor'
+                      : link.type === 'menu'
+                        ? 'Dropdown menu'
+                        : `Link to ${link.section_type ?? 'custom target'}`}
                   </p>
+                  {link.type === 'menu' && (
+                    <div className="space-y-2 rounded-md border border-white/10 bg-slate-900/60 p-3">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span>Menu items</span>
+                        <Button size="sm" variant="secondary" onClick={() => handleAddMenuChild(index)}>
+                          Add item
+                        </Button>
+                      </div>
+                      {(!link.children || link.children.length === 0) && (
+                        <p className="text-xs text-slate-500">No items yet.</p>
+                      )}
+                      {link.children?.map((child, childIndex) => (
+                        <div key={child.id} className="flex flex-col gap-2 rounded border border-white/5 bg-slate-900/50 p-2 md:flex-row md:items-center md:gap-3">
+                          <div className="flex-1">
+                            <label className="text-[11px] text-slate-400 block mb-1">Item label</label>
+                            <input
+                              type="text"
+                              value={child.label}
+                              onChange={(e) => handleMenuChildChange(index, childIndex, 'label', e.target.value)}
+                              className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 text-white"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[11px] text-slate-400 block mb-1">URL or anchor</label>
+                            <input
+                              type="text"
+                              value={child.href ?? ''}
+                              onChange={(e) => handleMenuChildChange(index, childIndex, 'href', e.target.value)}
+                              className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 text-white"
+                            />
+                          </div>
+                          <Button variant="destructive" size="sm" onClick={() => handleRemoveMenuChild(index, childIndex)}>
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

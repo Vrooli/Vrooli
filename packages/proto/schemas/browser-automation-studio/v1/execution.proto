@@ -109,3 +109,47 @@ message GetScreenshotsResponse {
   // List of screenshots for the execution.
   repeated Screenshot screenshots = 1;
 }
+
+// ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
+message ExecutionEventEnvelope {
+  // Schema version for the envelope.
+  string schema_version = 1;
+  // Payload version for downstream consumers.
+  string payload_version = 2;
+  // Event kind (status_update, timeline_frame, log, heartbeat, telemetry, etc.).
+  string kind = 3;
+  // Execution ID the event belongs to.
+  string execution_id = 4;
+  // Workflow ID the execution belongs to.
+  string workflow_id = 5;
+  // Zero-based step index if applicable.
+  optional int32 step_index = 6;
+  // Attempt number for retries.
+  optional int32 attempt = 7;
+  // Monotonic sequence number for ordering.
+  optional int64 sequence = 8;
+  // RFC3339 timestamp for the event.
+  string timestamp = 9;
+  // Event payload as a generic structure; consumers should map to concrete types.
+  google.protobuf.Struct payload = 10;
+}
+
+// ExecutionExportPreview summarizes export readiness and metadata.
+message ExecutionExportPreview {
+  // Execution ID being exported.
+  string execution_id = 1;
+  // Identifier for the generated export spec (replay movie).
+  string spec_id = 2;
+  // Status: ready, pending, error, unavailable.
+  string status = 3;
+  // Human-readable message about readiness or errors.
+  string message = 4;
+  // Number of captured frames available for export.
+  int32 captured_frame_count = 5;
+  // Number of assets available for export (images, etc.).
+  int32 available_asset_count = 6;
+  // Total duration in milliseconds of the replay.
+  int32 total_duration_ms = 7;
+  // Replay movie package encoded as JSON (movie spec).
+  google.protobuf.Struct package = 8;
+}

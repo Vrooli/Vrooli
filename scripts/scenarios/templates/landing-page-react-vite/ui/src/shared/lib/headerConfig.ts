@@ -10,6 +10,8 @@ export function buildDefaultHeaderConfig(name?: string): LandingHeaderConfig {
       mode: 'logo_and_name',
       label: name ?? 'Landing',
       mobile_preference: 'auto',
+      logo_url: undefined,
+      logo_icon_url: undefined,
     },
     nav: {
       links: [],
@@ -43,6 +45,8 @@ export function normalizeHeaderConfig(config?: LandingHeaderConfig | null, name?
       label: config.branding?.label ?? base.branding.label,
       subtitle: config.branding?.subtitle,
       mobile_preference: config.branding?.mobile_preference ?? base.branding.mobile_preference,
+      logo_url: config.branding?.logo_url ?? base.branding.logo_url,
+      logo_icon_url: config.branding?.logo_icon_url ?? base.branding.logo_icon_url,
     },
     nav: {
       links: (config.nav?.links ?? []).map((link, index) => normalizeNavLink(link, index)),
@@ -60,6 +64,9 @@ export function normalizeHeaderConfig(config?: LandingHeaderConfig | null, name?
 
 function normalizeNavLink(link: LandingHeaderNavLink, index: number): LandingHeaderNavLink {
   const visibility = ensureVisibility(link.visible_on);
+  const children = Array.isArray(link.children)
+    ? link.children.map((child, childIdx) => normalizeNavLink(child, childIdx))
+    : undefined;
   return {
     id: link.id || `nav-${link.type}-${index}`,
     type: link.type ?? 'section',
@@ -69,6 +76,7 @@ function normalizeNavLink(link: LandingHeaderNavLink, index: number): LandingHea
     anchor: link.anchor,
     href: link.href,
     visible_on: visibility,
+    children,
   };
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/services/replay"
+	"google.golang.org/protobuf/proto"
 )
 
 // GetExecutionScreenshots handles GET /api/v1/executions/{id}/screenshots
@@ -34,9 +35,17 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"screenshots": screenshots,
-	})
+	pbScreenshots, err := protoconv.ScreenshotsToProto(screenshots)
+	if err != nil {
+		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to convert screenshots to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"operation": "screenshots_to_proto",
+			"error":     err.Error(),
+		}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pbScreenshots)
 }
 
 // GetExecutionTimeline handles GET /api/v1/executions/{id}/timeline
@@ -144,7 +153,11 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(specErr, errMovieSpecUnavailable) {
 			if format == "json" {
 				applyExportOverrides(preview.Package, body.Overrides)
-				h.respondSuccess(w, http.StatusOK, preview)
+				if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
+					h.respondProto(w, http.StatusOK, pbPreview)
+				} else {
+					h.respondSuccess(w, http.StatusOK, preview)
+				}
 			} else {
 				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": "export package unavailable"}))
 			}
@@ -158,7 +171,11 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 
 	if format == "json" {
 		applyExportOverrides(spec, body.Overrides)
-		h.respondSuccess(w, http.StatusOK, preview)
+		if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
+			h.respondProto(w, http.StatusOK, pbPreview)
+		} else {
+			h.respondSuccess(w, http.StatusOK, preview)
+		}
 		return
 	}
 
@@ -268,9 +285,26 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"executions": executions,
-	})
+	protoExecutions := make([]proto.Message, 0, len(executions))
+	for idx := range executions {
+		if executions[idx] == nil {
+			continue
+		}
+		pbExec, convErr := protoconv.ExecutionToProto(executions[idx])
+		if convErr != nil {
+			if h.log != nil {
+				h.log.WithError(convErr).WithField("execution_id", executions[idx].ID).Error("Failed to convert execution to proto")
+			}
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+				"operation": fmt.Sprintf("execution_to_proto[%d]", idx),
+				"error":     convErr.Error(),
+			}))
+			return
+		}
+		protoExecutions = append(protoExecutions, pbExec)
+	}
+
+	h.respondProtoList(w, http.StatusOK, "executions", protoExecutions)
 }
 
 // StopExecution handles POST /api/v1/executions/{id}/stop

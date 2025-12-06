@@ -3,7 +3,13 @@ import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { SEOHead } from '../../../shared/ui/SEOHead';
 import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
-import type { DownloadApp, LandingConfigResponse, LandingHeaderConfig, LandingSection } from '../../../shared/api';
+import type {
+  DownloadApp,
+  LandingBranding,
+  LandingConfigResponse,
+  LandingHeaderConfig,
+  LandingSection,
+} from '../../../shared/api';
 import { HeroSection } from '../sections/HeroSection';
 import { FeaturesSection } from '../sections/FeaturesSection';
 import { PricingSection } from '../sections/PricingSection';
@@ -31,9 +37,19 @@ interface NavItem {
 interface HeaderNavRenderItem {
   id: string;
   label: string;
-  href: string;
+  href?: string;
   desktop: boolean;
   mobile: boolean;
+  type: 'link' | 'menu';
+  children?: HeaderNavRenderChild[];
+}
+
+interface HeaderNavRenderChild {
+  id: string;
+  label: string;
+  href: string;
+  desktop?: boolean;
+  mobile?: boolean;
 }
 
 interface HeaderCTAResolved {
@@ -146,6 +162,10 @@ export function PublicLanding() {
   } = useLandingVariant();
   const fallbackActive = Boolean(config?.fallback);
   const variantPinnedViaParam = resolution === 'url_param';
+  const isDebugMode = useMemo(
+    () => new URLSearchParams(window.location.search).get('debug') === '1',
+    [],
+  );
 
   const sections = useMemo(() => {
     const incoming = config?.sections ?? [];
@@ -188,8 +208,8 @@ export function PublicLanding() {
     return 'View downloads';
   }, [downloadApps, hasDownloads]);
   const headerConfig = useMemo(
-    () => normalizeHeaderConfig(config?.header, variantLabel),
-    [config?.header, variantLabel],
+    () => normalizeHeaderConfig(config?.header, config?.branding?.site_name ?? variantLabel),
+    [config?.branding?.site_name, config?.header, variantLabel],
   );
   const navLinks = useMemo(
     () => resolveNavLinks(headerConfig, sections, hasDownloads, downloadAnchorId),
@@ -293,9 +313,11 @@ export function PublicLanding() {
 
       <LandingExperienceHeader
         headerConfig={headerConfig}
+        branding={config?.branding}
         navLinks={navLinks}
         runtimeMeta={runtimeMeta}
         ctas={ctas}
+        showMeta={isDebugMode}
       />
       {variantPinnedViaParam && (
         <div className="border border-[#38BDF8]/30 bg-[#38BDF8]/10 py-3 px-4 text-center text-sm text-[#d3f2ff]" data-testid="variant-source-banner">
@@ -314,7 +336,7 @@ export function PublicLanding() {
       )}
 
       {/* Debug info in dev mode (only visible with ?debug=1) */}
-      {new URLSearchParams(window.location.search).get('debug') === '1' && (
+      {isDebugMode && (
         <div className="fixed top-4 right-4 z-50 max-w-xs rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-xs backdrop-blur">
           <div className="font-semibold text-yellow-400 mb-2">Debug Info</div>
           <div className="space-y-1 text-yellow-200">
@@ -360,12 +382,21 @@ export function PublicLanding() {
 
 interface LandingExperienceHeaderProps {
   headerConfig: LandingHeaderConfig;
+  branding?: LandingBranding | null;
   navLinks: HeaderNavRenderItem[];
   runtimeMeta: HeaderRuntimeMeta;
   ctas: HeaderCTASet;
+  showMeta: boolean;
 }
 
-function LandingExperienceHeader({ headerConfig, navLinks, runtimeMeta, ctas }: LandingExperienceHeaderProps) {
+function LandingExperienceHeader({
+  headerConfig,
+  branding,
+  navLinks,
+  runtimeMeta,
+  ctas,
+  showMeta,
+}: LandingExperienceHeaderProps) {
   const sticky = headerConfig.behavior?.sticky ?? true;
   const hideOnScroll = sticky && headerConfig.behavior?.hide_on_scroll;
   const isHidden = useHideOnScroll(hideOnScroll);
@@ -380,20 +411,57 @@ function LandingExperienceHeader({ headerConfig, navLinks, runtimeMeta, ctas }: 
   return (
     <div className={containerClasses} data-testid="landing-experience-header">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
-        <BrandingBlock header={headerConfig} runtime={runtimeMeta} />
+        <BrandingBlock
+          header={headerConfig}
+          branding={branding}
+          runtime={runtimeMeta}
+          showMeta={showMeta}
+        />
         {hasDesktopNav && (
           <nav className="hidden items-center gap-4 text-sm text-slate-300 md:flex">
             {navLinks
               .filter((link) => link.desktop)
-              .map((link) => (
-                <a key={link.id} href={link.href} className="transition-colors hover:text-white">
-                  {link.label}
-                </a>
-              ))}
+              .map((link) =>
+                link.type === 'menu' && link.children && link.children.length > 0 ? (
+                  <div key={link.id} className="relative group">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 transition-colors hover:text-white"
+                    >
+                      {link.label}
+                      <svg
+                        className="h-3 w-3 opacity-70"
+                        viewBox="0 0 10 6"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <div className="invisible absolute left-0 top-full z-40 mt-2 min-w-[180px] rounded-lg border border-white/10 bg-[#0B1020] py-2 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100">
+                      {link.children
+                        .filter((child) => child.desktop ?? true)
+                        .map((child) => (
+                          <a
+                            key={child.id}
+                            href={child.href}
+                            className="block px-4 py-2 text-sm text-slate-200 hover:bg-white/5"
+                          >
+                            {child.label}
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                ) : (
+                  <a key={link.id} href={link.href} className="transition-colors hover:text-white">
+                    {link.label}
+                  </a>
+                ),
+              )}
           </nav>
         )}
         {(ctas.primary || ctas.secondary) && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:items-center">
             {ctas.primary && (
               <Button asChild size="sm" className="gap-1 whitespace-nowrap" data-testid={ctas.primary.testId}>
                 <a href={ctas.primary.href}>
@@ -423,21 +491,51 @@ function LandingExperienceHeader({ headerConfig, navLinks, runtimeMeta, ctas }: 
         <div className="flex gap-3 overflow-x-auto px-6 pb-3 text-xs text-slate-400 md:hidden" data-testid="landing-nav-mobile">
           {navLinks
             .filter((link) => link.mobile)
-            .map((link) => (
-              <a key={link.id} href={link.href} className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1">
-                {link.label}
-              </a>
-            ))}
+            .map((link) => {
+              if (link.type === 'menu' && link.children?.length) {
+                return link.children
+                  .filter((child) => child.mobile ?? true)
+                  .map((child) => (
+                    <a
+                      key={`${link.id}-${child.id}`}
+                      href={child.href}
+                      className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1"
+                    >
+                      {link.label} · {child.label}
+                    </a>
+                  ));
+              }
+              return (
+                <a key={link.id} href={link.href} className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1">
+                  {link.label}
+                </a>
+              );
+            })}
         </div>
       )}
     </div>
   );
 }
 
-function BrandingBlock({ header, runtime }: { header: LandingHeaderConfig; runtime: HeaderRuntimeMeta }) {
+function BrandingBlock({
+  header,
+  branding,
+  runtime,
+  showMeta,
+}: {
+  header: LandingHeaderConfig;
+  branding?: LandingBranding | null;
+  runtime: HeaderRuntimeMeta;
+  showMeta: boolean;
+}) {
   const mode = header.branding?.mode ?? 'logo_and_name';
-  const label = header.branding?.label ?? runtime.variantLabel;
-  const subtitle = header.branding?.subtitle;
+  const label = header.branding?.label ?? branding?.site_name ?? runtime.variantLabel;
+  const subtitle = header.branding?.subtitle ?? branding?.tagline ?? null;
+  const logoUrl =
+    header.branding?.logo_icon_url ??
+    header.branding?.logo_url ??
+    branding?.logo_icon_url ??
+    branding?.logo_url;
   const mobilePref = header.branding?.mobile_preference ?? 'auto';
   const showLogo = mode === 'logo' || mode === 'logo_and_name';
   const showName = mode === 'name' || mode === 'logo_and_name';
@@ -446,7 +544,7 @@ function BrandingBlock({ header, runtime }: { header: LandingHeaderConfig; runti
     return (
       <div className="flex flex-col gap-1">
         <p className="text-sm font-semibold text-white">{runtime.variantLabel}</p>
-        <RuntimeMeta runtime={runtime} />
+        {showMeta && <RuntimeMeta runtime={runtime} />}
       </div>
     );
   }
@@ -454,17 +552,26 @@ function BrandingBlock({ header, runtime }: { header: LandingHeaderConfig; runti
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-3">
-        {showLogo && <BrandPlaceholder label={label} mobilePreference={mobilePref} hideOnMobile={mobilePref === 'name'} />}
+        {showLogo && (
+          logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={`${label} logo`}
+              className={`${mobilePref === 'name' ? 'hidden sm:flex' : ''} h-10 w-10 rounded-xl object-contain bg-white/5`}
+              data-testid="branding-logo"
+            />
+          ) : (
+            <BrandPlaceholder label={label} mobilePreference={mobilePref} hideOnMobile={mobilePref === 'name'} />
+          )
+        )}
         {showName && (
           <div className={mobilePref === 'logo' ? 'hidden sm:block' : ''}>
             <p className="text-lg font-semibold text-white">{label}</p>
-            {(subtitle || runtime.resolutionLabel) && (
-              <p className="text-xs text-slate-400">{subtitle ?? runtime.resolutionLabel}</p>
-            )}
+            {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
           </div>
         )}
       </div>
-      <RuntimeMeta runtime={runtime} />
+      {showMeta && <RuntimeMeta runtime={runtime} />}
     </div>
   );
 }
@@ -547,6 +654,7 @@ function resolveNavLinks(
     href: `#${item.id}`,
     desktop: true,
     mobile: true,
+    type: 'link',
   }));
 
   const configuredLinks = headerConfig.nav?.links ?? [];
@@ -575,6 +683,7 @@ function resolveNavLinks(
           href: `#${downloadAnchorId}`,
           desktop: visibility.desktop,
           mobile: visibility.mobile,
+          type: 'link',
         },
       ];
     }
@@ -587,6 +696,47 @@ function resolveNavLinks(
           href: link.href,
           desktop: visibility.desktop,
           mobile: visibility.mobile,
+          type: 'link',
+        },
+      ];
+    }
+
+    if (link.type === 'menu' && Array.isArray(link.children) && link.children.length > 0) {
+      const children: HeaderNavRenderChild[] = link.children.map((child, childIdx) => {
+        const childVisibility = ensureVisibilityFlags(child.visible_on);
+        // child visibility influences only child; parent visibility still used for desktop render
+        const childLabel = child.label || SECTION_NAV_LABELS[child.section_type ?? ''] || 'Item';
+        const childAnchor =
+          child.anchor ||
+          (typeof child.section_id === 'number'
+            ? anchors.find((entry) => entry.id === child.section_id)?.anchor
+            : undefined) ||
+          (child.section_type ? anchors.find((entry) => entry.type === child.section_type)?.anchor : undefined);
+        const childHref =
+          child.type === 'downloads'
+            ? `#${downloadAnchorId}`
+            : childAnchor
+              ? childAnchor.startsWith('#')
+                ? childAnchor
+                : `#${childAnchor}`
+              : child.href || '#';
+
+        return {
+          id: child.id || `${link.id || 'menu'}-child-${childIdx}`,
+          label: childLabel,
+          href: childHref,
+          desktop: childVisibility.desktop,
+          mobile: childVisibility.mobile,
+        };
+      });
+      return [
+        {
+          id: link.id || `nav-menu-${index}`,
+          label,
+          type: 'menu',
+          desktop: visibility.desktop,
+          mobile: visibility.mobile,
+          children,
         },
       ];
     }
@@ -609,6 +759,7 @@ function resolveNavLinks(
         href: `#${anchor}`,
         desktop: visibility.desktop,
         mobile: visibility.mobile,
+        type: 'link',
       },
     ];
   });

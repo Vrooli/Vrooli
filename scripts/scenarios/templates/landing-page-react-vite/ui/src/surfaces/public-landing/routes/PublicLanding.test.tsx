@@ -7,6 +7,12 @@ import { PublicLanding } from './PublicLanding';
 vi.mock('../../../app/providers/LandingVariantProvider', () => {
   const mockConfig = {
     variant: { id: 1, slug: 'control', name: 'Control' },
+    branding: {
+      site_name: 'Acme Launchpad',
+      tagline: 'Automation that ships',
+      logo_url: 'https://cdn.example.com/logo.svg',
+      logo_icon_url: 'https://cdn.example.com/icon.png',
+    },
     sections: [
       {
         id: 1,
@@ -48,7 +54,7 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => {
     fallback: false,
     pricing: null,
     header: {
-      branding: { mode: 'logo_and_name', label: 'Control', mobile_preference: 'auto' },
+      branding: { mode: 'logo_and_name', label: '', mobile_preference: 'auto' },
       nav: { links: [] },
       ctas: {
         primary: { mode: 'inherit_hero', variant: 'solid' },
@@ -86,5 +92,18 @@ describe('PublicLanding header rails', () => {
     const downloadButton = screen.getByTestId('landing-nav-download');
     expect(downloadButton).toBeInTheDocument();
     expect(within(downloadButton).getByText(/Download macOS/i)).toBeInTheDocument();
+  });
+
+  it('shows site branding name and logo when provided', () => {
+    render(
+      <BrowserRouter>
+        <PublicLanding />
+      </BrowserRouter>
+    );
+
+    expect(screen.getByText('Acme Launchpad')).toBeInTheDocument();
+    expect(screen.getByText(/Automation that ships/)).toBeInTheDocument();
+    expect(screen.getByTestId('branding-logo')).toBeInTheDocument();
+    expect(screen.getByAltText(/Acme Launchpad logo/i)).toBeInTheDocument();
   });
 });

@@ -1,12 +1,15 @@
 package protoconv
 
 import (
+	"encoding/json"
 	"fmt"
+	"time"
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
 	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -67,6 +70,94 @@ func ExecutionToProto(execution *database.Execution) (*basv1.Execution, error) {
 	}
 
 	return pb, nil
+}
+
+// ExecutionExportPreviewToProto converts the workflow.ExecutionExportPreview to the proto message.
+func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*basv1.ExecutionExportPreview, error) {
+	if preview == nil {
+		return nil, fmt.Errorf("preview is nil")
+	}
+
+	var pkg *structpb.Struct
+	if preview.Package != nil {
+		raw, err := json.Marshal(preview.Package)
+		if err != nil {
+			return nil, fmt.Errorf("package marshal: %w", err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return nil, fmt.Errorf("package unmarshal: %w", err)
+		}
+		pkg, err = structpb.NewStruct(m)
+		if err != nil {
+			return nil, fmt.Errorf("package: %w", err)
+		}
+	}
+
+	return &basv1.ExecutionExportPreview{
+		ExecutionId:         preview.ExecutionID.String(),
+		SpecId:              preview.SpecID,
+		Status:              preview.Status,
+		Message:             preview.Message,
+		CapturedFrameCount:  int32(preview.CapturedFrameCount),
+		AvailableAssetCount: int32(preview.AvailableAssetCount),
+		TotalDurationMs:     int32(preview.TotalDurationMs),
+		Package:             pkg,
+	}, nil
+}
+
+// ScreenshotsToProto converts database screenshots to the proto response.
+func ScreenshotsToProto(screenshots []*database.Screenshot) (*basv1.GetScreenshotsResponse, error) {
+	if len(screenshots) == 0 {
+		return &basv1.GetScreenshotsResponse{}, nil
+	}
+
+	result := make([]*basv1.Screenshot, 0, len(screenshots))
+	for idx, shot := range screenshots {
+		if shot == nil {
+			return nil, fmt.Errorf("screenshots[%d] is nil", idx)
+		}
+
+		var stepIndex int32
+		if shot.Metadata != nil {
+			if v, ok := shot.Metadata["step_index"]; ok {
+				switch t := v.(type) {
+				case int:
+					stepIndex = int32(t)
+				case int32:
+					stepIndex = t
+				case int64:
+					stepIndex = int32(t)
+				case float64:
+					stepIndex = int32(t)
+				case float32:
+					stepIndex = int32(t)
+				}
+			}
+		}
+
+		thumbURL := shot.ThumbnailURL
+		if thumbURL == "" && shot.Metadata != nil {
+			if v, ok := shot.Metadata["thumbnail_url"].(string); ok {
+				thumbURL = v
+			}
+		}
+
+		result = append(result, &basv1.Screenshot{
+			Id:           shot.ID.String(),
+			ExecutionId:  shot.ExecutionID.String(),
+			StepName:     shot.StepName,
+			StepIndex:    stepIndex,
+			Timestamp:    shot.Timestamp.Format(time.RFC3339),
+			StorageUrl:   shot.StorageURL,
+			ThumbnailUrl: thumbURL,
+			Width:        int32(shot.Width),
+			Height:       int32(shot.Height),
+			SizeBytes:    shot.SizeBytes,
+		})
+	}
+
+	return &basv1.GetScreenshotsResponse{Screenshots: result}, nil
 }
 
 // TimelineToProto converts the replay-focused ExecutionTimeline into the proto message.

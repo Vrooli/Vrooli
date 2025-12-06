@@ -27,13 +27,14 @@ type HeaderNavConfig struct {
 
 type HeaderNavLink struct {
 	ID          string                 `json:"id"`
-	Type        string                 `json:"type"` // section | downloads | custom
+	Type        string                 `json:"type"` // section | downloads | custom | menu
 	Label       string                 `json:"label"`
 	SectionType string                 `json:"section_type,omitempty"`
 	SectionID   *int                   `json:"section_id,omitempty"`
 	Anchor      string                 `json:"anchor,omitempty"`
 	Href        string                 `json:"href,omitempty"`
 	VisibleOn   HeaderVisibilityConfig `json:"visible_on"`
+	Children    []HeaderNavLink        `json:"children,omitempty"`
 }
 
 type HeaderVisibilityConfig struct {
@@ -148,6 +149,12 @@ func normalizeHeaderNavLink(link HeaderNavLink, index int) HeaderNavLink {
 			Desktop: true,
 			Mobile:  true,
 		},
+	}
+	if len(link.Children) > 0 {
+		normalized.Children = make([]HeaderNavLink, len(link.Children))
+		for idx, child := range link.Children {
+			normalized.Children[idx] = normalizeHeaderNavLink(child, idx)
+		}
 	}
 	if normalized.Label == "" {
 		normalized.Label = "Section"
