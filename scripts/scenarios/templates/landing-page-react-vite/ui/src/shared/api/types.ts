@@ -44,6 +44,22 @@ export interface Variant {
   header_config?: LandingHeaderConfig;
 }
 
+export interface VariantSnapshotMeta {
+  slug: string;
+  name: string;
+  description?: string;
+  weight: number;
+  status: 'active' | 'archived' | 'deleted';
+  axes: VariantAxes;
+  header_config: LandingHeaderConfig;
+  seo_config?: Record<string, unknown>;
+}
+
+export interface VariantSnapshot {
+  variant: VariantSnapshotMeta;
+  sections: LandingSection[];
+}
+
 export interface BundleProduct {
   bundle_key: string;
   name: string;

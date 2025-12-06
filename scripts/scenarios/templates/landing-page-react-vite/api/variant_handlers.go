@@ -217,10 +217,10 @@ func handleVariantUpdate(vs *VariantService) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name        *string           `json:"name,omitempty"`
-			Description *string           `json:"description,omitempty"`
-			Weight      *int              `json:"weight,omitempty"`
-			Axes        map[string]string `json:"axes,omitempty"`
+			Name         *string              `json:"name,omitempty"`
+			Description  *string              `json:"description,omitempty"`
+			Weight       *int                 `json:"weight,omitempty"`
+			Axes         map[string]string    `json:"axes,omitempty"`
 			HeaderConfig *LandingHeaderConfig `json:"header_config,omitempty"`
 		}
 
@@ -293,5 +293,65 @@ func handleVariantDelete(vs *VariantService) http.HandlerFunc {
 			"message": "Variant deleted successfully",
 			"slug":    slug,
 		})
+	}
+}
+
+// handleVariantExport handles GET /api/v1/admin/variants/{slug}/export
+// Returns the full variant snapshot (metadata + sections) for bulk edits.
+func handleVariantExport(vs *VariantService, cs *ContentService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		slug := r.URL.Path[len("/api/v1/admin/variants/"):]
+		slug = slug[:len(slug)-len("/export")]
+		if slug == "" {
+			http.Error(w, "Variant slug required", http.StatusBadRequest)
+			return
+		}
+
+		snapshot, err := vs.ExportVariantSnapshot(slug, cs)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(snapshot)
+	}
+}
+
+// handleVariantImport handles PUT /api/v1/admin/variants/{slug}/import
+// Accepts a full variant snapshot and applies it transactionally.
+func handleVariantImport(vs *VariantService, cs *ContentService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		slug := r.URL.Path[len("/api/v1/admin/variants/"):]
+		slug = slug[:len(slug)-len("/import")]
+		if slug == "" {
+			http.Error(w, "Variant slug required", http.StatusBadRequest)
+			return
+		}
+
+		var payload VariantSnapshotInput
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		snapshot, err := vs.ImportVariantSnapshot(slug, payload, cs)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(snapshot)
 	}
 }

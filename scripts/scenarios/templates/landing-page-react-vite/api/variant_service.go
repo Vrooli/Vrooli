@@ -13,24 +13,76 @@ import (
 
 // Variant represents an A/B testing variant
 type Variant struct {
-	ID           int               `json:"id"`
-	Slug         string            `json:"slug"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	Weight       int               `json:"weight"`
-	Status       string            `json:"status"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
-	ArchivedAt   *time.Time        `json:"archived_at,omitempty"`
-	Axes         map[string]string `json:"axes,omitempty"`
+	ID           int                 `json:"id"`
+	Slug         string              `json:"slug"`
+	Name         string              `json:"name"`
+	Description  string              `json:"description"`
+	Weight       int                 `json:"weight"`
+	Status       string              `json:"status"`
+	CreatedAt    time.Time           `json:"created_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+	ArchivedAt   *time.Time          `json:"archived_at,omitempty"`
+	Axes         map[string]string   `json:"axes,omitempty"`
 	HeaderConfig LandingHeaderConfig `json:"header_config"`
-	SEOConfig    *json.RawMessage  `json:"seo_config,omitempty"`
+	SEOConfig    *json.RawMessage    `json:"seo_config,omitempty"`
+}
+
+// VariantSnapshot captures a full variant + sections payload for import/export.
+type VariantSnapshot struct {
+	Variant  VariantSnapshotMeta `json:"variant"`
+	Sections []VariantSection    `json:"sections"`
+}
+
+type VariantSnapshotMeta struct {
+	Slug         string              `json:"slug"`
+	Name         string              `json:"name"`
+	Description  string              `json:"description,omitempty"`
+	Weight       int                 `json:"weight"`
+	Status       string              `json:"status"`
+	Axes         map[string]string   `json:"axes"`
+	HeaderConfig LandingHeaderConfig `json:"header_config"`
+	SEOConfig    json.RawMessage     `json:"seo_config,omitempty"`
+}
+
+type VariantSnapshotInput struct {
+	Variant  VariantSnapshotMetaInput `json:"variant"`
+	Sections []VariantSectionInput    `json:"sections"`
+}
+
+type VariantSnapshotMetaInput struct {
+	Slug         string               `json:"slug"`
+	Name         string               `json:"name"`
+	Description  string               `json:"description,omitempty"`
+	Weight       int                  `json:"weight"`
+	Status       string               `json:"status"`
+	Axes         map[string]string    `json:"axes"`
+	HeaderConfig *LandingHeaderConfig `json:"header_config"`
+	SEOConfig    json.RawMessage      `json:"seo_config,omitempty"`
+}
+
+type VariantSection struct {
+	SectionType string                 `json:"section_type"`
+	Content     map[string]interface{} `json:"content"`
+	Order       int                    `json:"order"`
+	Enabled     bool                   `json:"enabled"`
+}
+
+type VariantSectionInput struct {
+	SectionType string                 `json:"section_type"`
+	Content     map[string]interface{} `json:"content"`
+	Order       int                    `json:"order,omitempty"`
+	Enabled     *bool                  `json:"enabled,omitempty"`
 }
 
 // VariantService handles A/B testing variant operations
 type VariantService struct {
 	db    *sql.DB
 	space *VariantSpace
+}
+
+var allowedVariantStatuses = map[string]bool{
+	"active":   true,
+	"archived": true,
 }
 
 // NewVariantService creates a new variant service
@@ -447,6 +499,131 @@ func (vs *VariantService) saveVariantAxesTx(tx *sql.Tx, variantID int, axes map[
 	}
 
 	return nil
+}
+
+// ExportVariantSnapshot returns a full variant payload (metadata + sections) for admin editing.
+func (vs *VariantService) ExportVariantSnapshot(slug string, cs *ContentService) (*VariantSnapshot, error) {
+	variant, err := vs.GetVariantBySlug(slug)
+	if err != nil {
+		return nil, err
+	}
+
+	sections, err := cs.GetSections(int64(variant.ID))
+	if err != nil {
+		return nil, fmt.Errorf("load sections: %w", err)
+	}
+
+	sectionPayloads := make([]VariantSection, 0, len(sections))
+	for _, section := range sections {
+		sectionPayloads = append(sectionPayloads, VariantSection{
+			SectionType: section.SectionType,
+			Content:     section.Content,
+			Order:       section.Order,
+			Enabled:     section.Enabled,
+		})
+	}
+
+	var seoRaw json.RawMessage
+	if variant.SEOConfig != nil {
+		seoRaw = *variant.SEOConfig
+	}
+
+	payload := &VariantSnapshot{
+		Variant: VariantSnapshotMeta{
+			Slug:         variant.Slug,
+			Name:         variant.Name,
+			Description:  variant.Description,
+			Weight:       variant.Weight,
+			Status:       variant.Status,
+			Axes:         variant.Axes,
+			HeaderConfig: variant.HeaderConfig,
+			SEOConfig:    seoRaw,
+		},
+		Sections: sectionPayloads,
+	}
+
+	return payload, nil
+}
+
+// ImportVariantSnapshot applies a full variant payload (metadata + sections) in a single transaction.
+func (vs *VariantService) ImportVariantSnapshot(slug string, snapshot VariantSnapshotInput, cs *ContentService) (*VariantSnapshot, error) {
+	if strings.TrimSpace(slug) == "" {
+		return nil, errors.New("variant slug required")
+	}
+
+	if strings.TrimSpace(snapshot.Variant.Slug) != slug {
+		return nil, fmt.Errorf("payload slug %q does not match route slug %q", snapshot.Variant.Slug, slug)
+	}
+
+	status := strings.TrimSpace(snapshot.Variant.Status)
+	if status == "" {
+		status = "active"
+	}
+	if !allowedVariantStatuses[status] {
+		return nil, fmt.Errorf("status %q is not allowed", status)
+	}
+
+	if snapshot.Variant.Weight < 0 || snapshot.Variant.Weight > 100 {
+		return nil, errors.New("weight must be between 0 and 100")
+	}
+
+	if len(snapshot.Variant.Axes) == 0 {
+		return nil, errors.New("axes selection is required")
+	}
+	if err := vs.space.ValidateSelection(snapshot.Variant.Axes); err != nil {
+		return nil, err
+	}
+
+	// Normalize header config (ensures defaults + stable IDs)
+	headerCfg := normalizeLandingHeaderConfig(snapshot.Variant.HeaderConfig, snapshot.Variant.Name)
+	headerJSON, err := marshalHeaderConfig(headerCfg)
+	if err != nil {
+		return nil, fmt.Errorf("marshal header config: %w", err)
+	}
+
+	seoJSON := []byte(`{}`)
+	if len(snapshot.Variant.SEOConfig) > 0 {
+		seoJSON = snapshot.Variant.SEOConfig
+	}
+
+	variant, err := vs.GetVariantBySlug(slug)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := vs.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+		UPDATE variants
+		SET name = $1,
+			description = $2,
+			weight = $3,
+			status = $4,
+			header_config = $5,
+			seo_config = $6,
+			updated_at = NOW()
+		WHERE slug = $7
+	`, snapshot.Variant.Name, snapshot.Variant.Description, snapshot.Variant.Weight, status, headerJSON, seoJSON, slug); err != nil {
+		return nil, fmt.Errorf("update variant: %w", err)
+	}
+
+	if err := vs.saveVariantAxesTx(tx, variant.ID, snapshot.Variant.Axes); err != nil {
+		return nil, err
+	}
+
+	if err := cs.ReplaceSectionsTx(tx, int64(variant.ID), snapshot.Sections); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit variant import: %w", err)
+	}
+
+	return vs.ExportVariantSnapshot(slug, cs)
 }
 
 func decodeHeaderConfig(raw []byte, variantName, slug string) LandingHeaderConfig {

@@ -3,8 +3,11 @@ import {
   getAdminSections,
   getVariant,
   getVariantSpace,
+  exportVariantSnapshot,
+  importVariantSnapshot,
   updateVariant,
   type ContentSection,
+  type VariantSnapshot,
   type Variant,
   type VariantAxes,
   type VariantSpace,
@@ -15,6 +18,8 @@ export interface VariantEditorData {
   variant: Variant;
   sections: ContentSection[];
 }
+
+export type VariantSnapshotPayload = VariantSnapshot;
 
 export interface VariantFormState {
   name: string;
@@ -130,4 +135,12 @@ export async function persistVariant(params: {
   });
 
   return undefined;
+}
+
+export function loadVariantSnapshot(slug: string) {
+  return exportVariantSnapshot(slug);
+}
+
+export function persistVariantSnapshot(slug: string, payload: VariantSnapshotPayload) {
+  return importVariantSnapshot(slug, payload);
 }

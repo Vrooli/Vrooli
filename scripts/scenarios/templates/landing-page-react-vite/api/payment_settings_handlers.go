@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
@@ -18,18 +17,9 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 		}
 
 		snapshot := stripeService.ConfigSnapshot()
-		resp := lprvv1.GetStripeSettingsResponse{
+		resp := &lprvv1.GetStripeSettingsResponse{
 			Snapshot: snapshot,
-		}
-
-		if record != nil {
-			resp.Settings = &lprvv1.StripeSettings{
-				PublishableKey: record.PublishableKey,
-				SecretKey:      record.SecretKey,
-				WebhookSecret:  record.WebhookSecret,
-				DashboardUrl:   record.DashboardURL,
-				UpdatedAt:      timestamppb.New(record.UpdatedAt),
-			}
+			Settings: record,
 		}
 
 		writeJSON(w, resp)
@@ -105,20 +95,9 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		}
 
 		snapshot := stripeService.ConfigSnapshot()
-		resp := lprvv1.UpdateStripeSettingsResponse{
+		resp := &lprvv1.UpdateStripeSettingsResponse{
 			Snapshot: snapshot,
-		}
-
-		if record != nil {
-			resp.Settings = &lprvv1.StripeSettings{
-				PublishableKey: record.PublishableKey,
-				SecretKey:      record.SecretKey,
-				WebhookSecret:  record.WebhookSecret,
-				DashboardUrl:   record.DashboardURL,
-			}
-			if !record.UpdatedAt.IsZero() {
-				resp.Settings.UpdatedAt = timestamppb.New(record.UpdatedAt)
-			}
+			Settings: record,
 		}
 
 		writeJSON(w, resp)

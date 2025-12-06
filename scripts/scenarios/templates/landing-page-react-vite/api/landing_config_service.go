@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var (
@@ -643,7 +645,7 @@ func loadFallbackLandingFromFile(path string) (LandingConfigPayload, error) {
 type fallbackLandingPayload struct {
 	Variant   LandingVariantSummary `json:"variant"`
 	Sections  []fallbackSection     `json:"sections"`
-	Pricing   *PricingOverview      `json:"pricing"`
+	Pricing   json.RawMessage       `json:"pricing"`
 	Downloads json.RawMessage       `json:"downloads"`
 	Axes      map[string]string     `json:"axes"`
 	Header    LandingHeaderConfig   `json:"header"`
@@ -671,8 +673,12 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 		return LandingConfigPayload{}, fmt.Errorf("fallback config missing variant slug")
 	}
 
-	if raw.Pricing == nil {
+	if len(raw.Pricing) == 0 {
 		return LandingConfigPayload{}, fmt.Errorf("fallback config missing pricing")
+	}
+	var pricing PricingOverview
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw.Pricing, &pricing); err != nil {
+		return LandingConfigPayload{}, fmt.Errorf("parse fallback pricing: %w", err)
 	}
 
 	sections := normalizeFallbackSections(raw.Sections)
@@ -688,7 +694,7 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 	payload := LandingConfigPayload{
 		Variant:   raw.Variant,
 		Sections:  sections,
-		Pricing:   *raw.Pricing,
+		Pricing:   pricing,
 		Downloads: normalizeDownloads(downloadApps),
 		Header:    normalizeLandingHeaderConfig(&raw.Header, raw.Variant.Name),
 	}

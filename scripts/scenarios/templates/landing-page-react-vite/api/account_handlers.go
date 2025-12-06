@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -30,7 +31,7 @@ func handlePlans(service *PlanService) http.HandlerFunc {
 			http.Error(w, "Failed to load plans", http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, overview)
+		writeJSON(w, &lprvv1.GetPricingResponse{Pricing: overview})
 	}
 }
 
@@ -42,7 +43,7 @@ func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, subscription)
+		writeJSON(w, &lprvv1.VerifySubscriptionResponse{Status: subscription})
 	}
 }
 
@@ -54,7 +55,18 @@ func handleMeCredits(accountService *AccountService) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, credits)
+		balance := map[string]interface{}{}
+		if credits.Balance != nil {
+			if data, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(credits.Balance); err == nil {
+				_ = json.Unmarshal(data, &balance)
+			}
+		}
+
+		writeJSON(w, map[string]interface{}{
+			"balance":                    balance,
+			"display_credits_label":      credits.DisplayCreditsLabel,
+			"display_credits_multiplier": credits.DisplayCreditsMultiplier,
+		})
 	}
 }
 

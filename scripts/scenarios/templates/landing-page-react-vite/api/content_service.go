@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -22,6 +24,18 @@ type ContentSection struct {
 // ContentService handles CRUD operations for landing page content
 type ContentService struct {
 	db *sql.DB
+}
+
+var allowedSectionTypes = map[string]bool{
+	"hero":         true,
+	"features":     true,
+	"pricing":      true,
+	"cta":          true,
+	"testimonials": true,
+	"faq":          true,
+	"footer":       true,
+	"video":        true,
+	"downloads":    true,
 }
 
 // NewContentService creates a new content service
@@ -225,6 +239,61 @@ func (s *ContentService) CopySectionsFromVariant(sourceVariantID, targetVariantI
 		}
 		if _, err := s.CreateSection(newSection); err != nil {
 			return fmt.Errorf("copy section %s: %w", section.SectionType, err)
+		}
+	}
+
+	return nil
+}
+
+// ReplaceSectionsTx replaces all sections for a variant inside a transaction.
+// It validates section types before writing and re-numbers any zero/negative order values.
+func (s *ContentService) ReplaceSectionsTx(tx *sql.Tx, variantID int64, sections []VariantSectionInput) error {
+	if tx == nil {
+		return fmt.Errorf("transaction required")
+	}
+
+	for _, section := range sections {
+		sectionType := strings.TrimSpace(section.SectionType)
+		if sectionType == "" {
+			return fmt.Errorf("section_type is required")
+		}
+		if !allowedSectionTypes[sectionType] {
+			return fmt.Errorf("section_type %q is not supported", sectionType)
+		}
+		if section.Content == nil {
+			return fmt.Errorf("content is required for section %q", sectionType)
+		}
+	}
+
+	if _, err := tx.Exec(`DELETE FROM content_sections WHERE variant_id = $1`, variantID); err != nil {
+		return fmt.Errorf("clear existing sections: %w", err)
+	}
+
+	// Stable ordering by provided order; fall back to index.
+	sort.SliceStable(sections, func(i, j int) bool {
+		return sections[i].Order < sections[j].Order
+	})
+
+	for idx, section := range sections {
+		order := section.Order
+		if order <= 0 {
+			order = idx + 1
+		}
+		enabled := true
+		if section.Enabled != nil {
+			enabled = *section.Enabled
+		}
+
+		contentJSON, err := json.Marshal(section.Content)
+		if err != nil {
+			return fmt.Errorf("marshal section %s content: %w", section.SectionType, err)
+		}
+
+		if _, err := tx.Exec(`
+			INSERT INTO content_sections (variant_id, section_type, content, "order", enabled, created_at, updated_at)
+			VALUES ($1, $2, $3::jsonb, $4, $5, NOW(), NOW())
+		`, variantID, section.SectionType, contentJSON, order, enabled); err != nil {
+			return fmt.Errorf("insert section %s: %w", section.SectionType, err)
 		}
 	}
 

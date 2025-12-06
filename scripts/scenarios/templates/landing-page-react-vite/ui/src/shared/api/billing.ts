@@ -1,5 +1,11 @@
 import { fromJson } from '@bufbuild/protobuf';
-import { GetStripeSettingsResponseSchema, UpdateStripeSettingsResponseSchema, type StripeConfigSnapshot, type StripeSettings } from '@proto-lprv/settings_pb';
+import {
+  ConfigSource,
+  GetStripeSettingsResponseSchema,
+  UpdateStripeSettingsResponseSchema,
+  type StripeConfigSnapshot,
+  type StripeSettings,
+} from '@proto-lprv/settings_pb';
 import { apiCall } from './common';
 import type { BundleCatalogEntry } from './types';
 
@@ -36,6 +42,17 @@ export interface UpdateBundlePricePayload {
 }
 
 function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: StripeSettings): StripeSettingsResponse {
+  const normalizeSource = (source?: ConfigSource | string | number): 'env' | 'database' | string => {
+    switch (source) {
+      case ConfigSource.CONFIG_SOURCE_DATABASE:
+        return 'database';
+      case ConfigSource.CONFIG_SOURCE_ENV:
+        return 'env';
+      default:
+        return typeof source === 'number' ? String(source) : source ?? 'env';
+    }
+  };
+
   return {
     publishable_key_preview: snapshot?.publishableKeyPreview,
     publishable_key_set: Boolean(snapshot?.publishableKeySet),
@@ -43,7 +60,7 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
     webhook_secret_set: Boolean(snapshot?.webhookSecretSet),
     dashboard_url: settings?.dashboardUrl,
     updated_at: settings?.updatedAt?.toJsonString(),
-    source: snapshot?.source ?? 'env',
+    source: normalizeSource(snapshot?.source),
   };
 }
 

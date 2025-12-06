@@ -9,6 +9,12 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 // PlanService exposes helper utilities for pricing/plan metadata.
@@ -18,50 +24,17 @@ type PlanService struct {
 	displayEnv    string
 }
 
-// BundleProduct captures Stripe product metadata.
-type BundleProduct struct {
-	ID                       int64                  `json:"id"`
-	BundleKey                string                 `json:"bundle_key"`
-	Name                     string                 `json:"name"`
-	StripeProductID          string                 `json:"stripe_product_id"`
-	CreditsPerUSD            int64                  `json:"credits_per_usd"`
-	DisplayCreditsMultiplier float64                `json:"display_credits_multiplier"`
-	DisplayCreditsLabel      string                 `json:"display_credits_label"`
-	Environment              string                 `json:"environment"`
-	Metadata                 map[string]interface{} `json:"metadata,omitempty"`
-}
+type (
+	// BundleProduct is a thin alias to the shared protobuf bundle for readability.
+	BundleProduct   = lprvv1.Bundle
+	PlanOption      = lprvv1.PlanOption
+	PricingOverview = lprvv1.PricingOverview
+)
 
-// PlanOption conveys a specific price entry.
-type PlanOption struct {
-	PlanName               string                 `json:"plan_name"`
-	PlanTier               string                 `json:"plan_tier"`
-	BillingInterval        string                 `json:"billing_interval"`
-	AmountCents            int64                  `json:"amount_cents"`
-	Currency               string                 `json:"currency"`
-	IntroEnabled           bool                   `json:"intro_enabled"`
-	IntroType              string                 `json:"intro_type,omitempty"`
-	IntroAmountCents       *int64                 `json:"intro_amount_cents,omitempty"`
-	IntroPeriods           int                    `json:"intro_periods,omitempty"`
-	IntroPriceLookupKey    string                 `json:"intro_price_lookup_key,omitempty"`
-	StripePriceID          string                 `json:"stripe_price_id"`
-	MonthlyIncludedCredits int64                  `json:"monthly_included_credits"`
-	OneTimeBonusCredits    int64                  `json:"one_time_bonus_credits"`
-	PlanRank               int                    `json:"plan_rank"`
-	BonusType              string                 `json:"bonus_type,omitempty"`
-	Kind                   string                 `json:"kind,omitempty"`
-	IsVariableAmount       bool                   `json:"is_variable_amount,omitempty"`
-	DisplayEnabled         bool                   `json:"display_enabled"`
-	BundleKey              string                 `json:"bundle_key,omitempty"`
-	DisplayWeight          int                    `json:"display_weight"`
-	Metadata               map[string]interface{} `json:"metadata,omitempty"`
-}
-
-// PricingOverview groups monthly/yearly options plus bundle metadata.
-type PricingOverview struct {
-	Bundle  BundleProduct `json:"bundle"`
-	Monthly []PlanOption  `json:"monthly"`
-	Yearly  []PlanOption  `json:"yearly"`
-	Updated time.Time     `json:"updated_at"`
+type bundleProductRecord struct {
+	ID      int64
+	Bundle  *BundleProduct
+	Updated time.Time
 }
 
 func NewPlanService(db *sql.DB) *PlanService {
@@ -94,15 +67,16 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 		return nil, err
 	}
 
-	var monthly, yearly []PlanOption
+	var monthly, yearly []*PlanOption
 	for _, price := range prices {
-		if !price.DisplayEnabled {
+		if !price.GetDisplayEnabled() {
 			continue
 		}
-		if price.BillingInterval == "month" {
-			monthly = append(monthly, price)
-		} else {
-			yearly = append(yearly, price)
+		switch price.BillingInterval {
+		case "month":
+			monthly = append(monthly, proto.Clone(price).(*PlanOption))
+		case "year":
+			yearly = append(yearly, proto.Clone(price).(*PlanOption))
 		}
 	}
 
@@ -120,10 +94,10 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 	})
 
 	return &PricingOverview{
-		Bundle:  *product,
-		Monthly: monthly,
-		Yearly:  yearly,
-		Updated: time.Now().UTC(),
+		Bundle:    product.Bundle,
+		Monthly:   monthly,
+		Yearly:    yearly,
+		UpdatedAt: timestamppb.Now(),
 	}, nil
 }
 
@@ -146,11 +120,12 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	`
 
 	row := s.db.QueryRow(query, priceID)
-	var option PlanOption
+	option := &PlanOption{}
 	var metadataBytes []byte
+	var rawKind string
 	var introAmount sql.NullInt64
 	err := row.Scan(
-		&option.StripePriceID,
+		&option.StripePriceId,
 		&option.PlanName,
 		&option.PlanTier,
 		&option.BillingInterval,
@@ -165,7 +140,7 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		&option.OneTimeBonusCredits,
 		&option.PlanRank,
 		&option.BonusType,
-		&option.Kind,
+		&rawKind,
 		&option.IsVariableAmount,
 		&option.DisplayEnabled,
 		&option.BundleKey,
@@ -181,20 +156,21 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 
 	if introAmount.Valid {
 		val := introAmount.Int64
-		option.IntroAmountCents = &val
+		option.IntroAmountCents = proto.Int64(val)
 	}
 
 	if len(metadataBytes) > 0 {
-		var meta map[string]interface{}
-		if err := json.Unmarshal(metadataBytes, &meta); err == nil {
+		if meta := parseMetadata(metadataBytes); meta != nil {
 			option.Metadata = meta
 		}
 	}
 
-	return &option, nil
+	option.Kind = mapPlanKind(rawKind)
+
+	return option, nil
 }
 
-func (s *PlanService) loadBundleProduct(bundleKey string) (*BundleProduct, error) {
+func (s *PlanService) loadBundleProduct(bundleKey string) (*bundleProductRecord, error) {
 	query := `
 		SELECT id, bundle_key, bundle_name, stripe_product_id, credits_per_usd,
 		       display_credits_multiplier, display_credits_label, environment, metadata
@@ -204,14 +180,15 @@ func (s *PlanService) loadBundleProduct(bundleKey string) (*BundleProduct, error
 	`
 	row := s.db.QueryRow(query, bundleKey, s.displayEnv)
 
-	var product BundleProduct
+	var id int64
+	product := &BundleProduct{}
 	var metadataBytes []byte
 	if err := row.Scan(
-		&product.ID,
+		&id,
 		&product.BundleKey,
 		&product.Name,
-		&product.StripeProductID,
-		&product.CreditsPerUSD,
+		&product.StripeProductId,
+		&product.CreditsPerUsd,
 		&product.DisplayCreditsMultiplier,
 		&product.DisplayCreditsLabel,
 		&product.Environment,
@@ -221,16 +198,15 @@ func (s *PlanService) loadBundleProduct(bundleKey string) (*BundleProduct, error
 	}
 
 	if len(metadataBytes) > 0 {
-		var meta map[string]interface{}
-		if err := json.Unmarshal(metadataBytes, &meta); err == nil {
+		if meta := parseMetadata(metadataBytes); meta != nil {
 			product.Metadata = meta
 		}
 	}
 
-	return &product, nil
+	return &bundleProductRecord{ID: id, Bundle: product}, nil
 }
 
-func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
+func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 	query := `
 		SELECT bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
 		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type, bp.intro_amount_cents,
@@ -249,13 +225,14 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 	}
 	defer rows.Close()
 
-	var options []PlanOption
+	var options []*PlanOption
 	for rows.Next() {
 		var option PlanOption
 		var metadataBytes []byte
 		var introAmount sql.NullInt64
+		var rawKind string
 		if err := rows.Scan(
-			&option.StripePriceID,
+			&option.StripePriceId,
 			&option.PlanName,
 			&option.PlanTier,
 			&option.BillingInterval,
@@ -270,7 +247,7 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 			&option.OneTimeBonusCredits,
 			&option.PlanRank,
 			&option.BonusType,
-			&option.Kind,
+			&rawKind,
 			&option.IsVariableAmount,
 			&option.DisplayEnabled,
 			&option.BundleKey,
@@ -282,17 +259,19 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 
 		if introAmount.Valid {
 			val := introAmount.Int64
-			option.IntroAmountCents = &val
+			option.IntroAmountCents = proto.Int64(val)
 		}
 
 		if len(metadataBytes) > 0 {
-			var meta map[string]interface{}
-			if err := json.Unmarshal(metadataBytes, &meta); err == nil {
+			if meta := parseMetadata(metadataBytes); meta != nil {
 				option.Metadata = meta
 			}
 		}
 
-		options = append(options, option)
+		option.Kind = mapPlanKind(rawKind)
+
+		copied := option
+		options = append(options, &copied)
 	}
 
 	return options, nil
@@ -300,13 +279,17 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]PlanOption, error) {
 
 // GetBundleProduct returns the configured bundle product metadata.
 func (s *PlanService) GetBundleProduct() (*BundleProduct, error) {
-	return s.loadBundleProduct(s.defaultBundle)
+	rec, err := s.loadBundleProduct(s.defaultBundle)
+	if err != nil {
+		return nil, err
+	}
+	return rec.Bundle, nil
 }
 
 // BundleCatalogEntry groups a bundle with all of its prices (visible + hidden).
 type BundleCatalogEntry struct {
-	Bundle BundleProduct `json:"bundle"`
-	Prices []PlanOption  `json:"prices"`
+	Bundle *BundleProduct `json:"bundle"`
+	Prices []*PlanOption  `json:"prices"`
 }
 
 // ListBundleCatalog returns bundles for the configured environment so the admin UI
@@ -326,14 +309,15 @@ func (s *PlanService) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEnt
 
 	var entries []BundleCatalogEntry
 	for rows.Next() {
-		var product BundleProduct
+		var id int64
+		product := &BundleProduct{}
 		var metadataBytes []byte
 		if err := rows.Scan(
-			&product.ID,
+			&id,
 			&product.BundleKey,
 			&product.Name,
-			&product.StripeProductID,
-			&product.CreditsPerUSD,
+			&product.StripeProductId,
+			&product.CreditsPerUsd,
 			&product.DisplayCreditsMultiplier,
 			&product.DisplayCreditsLabel,
 			&product.Environment,
@@ -343,13 +327,12 @@ func (s *PlanService) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEnt
 		}
 
 		if len(metadataBytes) > 0 {
-			var meta map[string]interface{}
-			if err := json.Unmarshal(metadataBytes, &meta); err == nil {
+			if meta := parseMetadata(metadataBytes); meta != nil {
 				product.Metadata = meta
 			}
 		}
 
-		prices, err := s.loadBundlePrices(product.ID)
+		prices, err := s.loadBundlePrices(id)
 		if err != nil {
 			return nil, err
 		}
@@ -396,15 +379,9 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 		return nil, err
 	}
 
-	metadata := map[string]interface{}{}
-	if len(metadataBytes) > 0 {
-		if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
-			logStructured("plan metadata unmarshal failed", map[string]interface{}{
-				"level": "warn",
-				"error": err.Error(),
-			})
-			metadata = map[string]interface{}{}
-		}
+	metadata := parseMetadata(metadataBytes)
+	if metadata == nil {
+		metadata = map[string]*structpb.Value{}
 	}
 
 	setMetadataString := func(key string, value *string) {
@@ -416,7 +393,7 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 			delete(metadata, key)
 			return
 		}
-		metadata[key] = trimmed
+		metadata[key] = structpb.NewStringValue(trimmed)
 	}
 
 	if input.Features != nil {
@@ -430,7 +407,11 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 		if len(sanitized) == 0 {
 			delete(metadata, "features")
 		} else {
-			metadata["features"] = sanitized
+			listValues := make([]*structpb.Value, 0, len(sanitized))
+			for _, feature := range sanitized {
+				listValues = append(listValues, structpb.NewStringValue(feature))
+			}
+			metadata["features"] = structpb.NewListValue(&structpb.ListValue{Values: listValues})
 		}
 	}
 
@@ -439,13 +420,13 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 	setMetadataString("cta_label", input.CtaLabel)
 	if input.Highlight != nil {
 		if *input.Highlight {
-			metadata["highlight"] = true
+			metadata["highlight"] = structpb.NewBoolValue(true)
 		} else {
 			delete(metadata, "highlight")
 		}
 	}
 
-	metadataJSON, err := json.Marshal(metadata)
+	metadataJSON, err := json.Marshal((&structpb.Struct{Fields: metadata}).AsMap())
 	if err != nil {
 		return nil, fmt.Errorf("marshal price metadata: %w", err)
 	}
@@ -464,4 +445,56 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 	}
 
 	return s.GetPlanByPriceID(priceID)
+}
+
+func parseMetadata(metadataBytes []byte) map[string]*structpb.Value {
+	if len(metadataBytes) == 0 {
+		return nil
+	}
+
+	var meta map[string]interface{}
+	if err := json.Unmarshal(metadataBytes, &meta); err != nil {
+		logStructured("plan metadata unmarshal failed", map[string]interface{}{
+			"level": "warn",
+			"error": err.Error(),
+		})
+		return nil
+	}
+
+	structVal, err := structpb.NewStruct(meta)
+	if err != nil {
+		logStructured("plan metadata structpb conversion failed", map[string]interface{}{
+			"level": "warn",
+			"error": err.Error(),
+		})
+		return nil
+	}
+
+	return structVal.Fields
+}
+
+func mapPlanKind(kind string) lprvv1.PlanKind {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "subscription":
+		return lprvv1.PlanKind_PLAN_KIND_SUBSCRIPTION
+	case "credits_topup", "credits-topup", "credits":
+		return lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP
+	case "supporter_contribution", "supporter-contribution", "supporter":
+		return lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
+	default:
+		return lprvv1.PlanKind_PLAN_KIND_UNSPECIFIED
+	}
+}
+
+func planKindString(kind lprvv1.PlanKind) string {
+	switch kind {
+	case lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+		return "credits_topup"
+	case lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
+		return "supporter_contribution"
+	case lprvv1.PlanKind_PLAN_KIND_SUBSCRIPTION:
+		return "subscription"
+	default:
+		return "subscription"
+	}
 }

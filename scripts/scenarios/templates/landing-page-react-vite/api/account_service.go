@@ -7,6 +7,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // AccountService exposes subscription, credits, and entitlement helpers.
@@ -19,38 +24,24 @@ type AccountService struct {
 	cache       map[string]subscriptionCacheEntry
 }
 
-// SubscriptionInfo describes the user's plan/subscription status.
-type SubscriptionInfo struct {
-	Status         string    `json:"status"`
-	SubscriptionID string    `json:"subscription_id,omitempty"`
-	CustomerEmail  string    `json:"customer_email,omitempty"`
-	PlanTier       string    `json:"plan_tier,omitempty"`
-	PriceID        string    `json:"price_id,omitempty"`
-	BundleKey      string    `json:"bundle_key,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at"`
-}
-
-// CreditInfo captures wallet balances plus included credits.
-type CreditInfo struct {
-	CustomerEmail            string  `json:"customer_email"`
-	BalanceCredits           int64   `json:"balance_credits"`
-	BonusCredits             int64   `json:"bonus_credits"`
-	DisplayCreditsLabel      string  `json:"display_credits_label"`
-	DisplayCreditsMultiplier float64 `json:"display_credits_multiplier"`
-}
-
 // EntitlementPayload is used by bundled apps to unlock features.
 type EntitlementPayload struct {
-	Status       string            `json:"status"`
-	PlanTier     string            `json:"plan_tier,omitempty"`
-	PriceID      string            `json:"price_id,omitempty"`
-	Features     []string          `json:"features,omitempty"`
-	Credits      *CreditInfo       `json:"credits,omitempty"`
-	Subscription *SubscriptionInfo `json:"subscription,omitempty"`
+	Status       string                     `json:"status"`
+	PlanTier     string                     `json:"plan_tier,omitempty"`
+	PriceID      string                     `json:"price_id,omitempty"`
+	Features     []string                   `json:"features,omitempty"`
+	Credits      *lprvv1.CreditsBalance     `json:"credits,omitempty"`
+	Subscription *lprvv1.SubscriptionStatus `json:"subscription,omitempty"`
+}
+
+type CreditsEnvelope struct {
+	Balance                  *lprvv1.CreditsBalance `json:"balance"`
+	DisplayCreditsLabel      string                 `json:"display_credits_label"`
+	DisplayCreditsMultiplier float64                `json:"display_credits_multiplier"`
 }
 
 type subscriptionCacheEntry struct {
-	info      *SubscriptionInfo
+	status    *lprvv1.SubscriptionStatus
 	expiresAt time.Time
 }
 
@@ -79,10 +70,10 @@ func loadCacheTTL() time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
-func (s *AccountService) GetSubscription(userIdentity string) (*SubscriptionInfo, error) {
+func (s *AccountService) GetSubscription(userIdentity string) (*lprvv1.SubscriptionStatus, error) {
 	user := strings.TrimSpace(userIdentity)
 	if user == "" {
-		return &SubscriptionInfo{Status: "inactive"}, nil
+		return &lprvv1.SubscriptionStatus{State: lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, Message: "user not provided"}, nil
 	}
 
 	if cached, ok := s.getCachedSubscription(user); ok {
@@ -90,7 +81,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*SubscriptionInfo
 	}
 
 	query := `
-		SELECT subscription_id, status, customer_email, plan_tier, price_id, bundle_key, updated_at
+		SELECT subscription_id, status, customer_email, plan_tier, price_id, bundle_key, canceled_at, updated_at
 		FROM subscriptions
 		WHERE (customer_email = $1 OR customer_id = $1)
 		ORDER BY updated_at DESC
@@ -98,40 +89,61 @@ func (s *AccountService) GetSubscription(userIdentity string) (*SubscriptionInfo
 	`
 
 	row := s.db.QueryRow(query, user)
-	var info SubscriptionInfo
+	var subID, status, customerEmail, planTier, priceID, bundleKey string
+	var canceledAt sql.NullTime
+	var updatedAt time.Time
 	if err := row.Scan(
-		&info.SubscriptionID,
-		&info.Status,
-		&info.CustomerEmail,
-		&info.PlanTier,
-		&info.PriceID,
-		&info.BundleKey,
-		&info.UpdatedAt,
+		&subID,
+		&status,
+		&customerEmail,
+		&planTier,
+		&priceID,
+		&bundleKey,
+		&canceledAt,
+		&updatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			return &SubscriptionInfo{Status: "inactive"}, nil
+			return &lprvv1.SubscriptionStatus{State: lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, UserIdentity: user}, nil
 		}
 		return nil, err
 	}
 
-	if info.PlanTier == "" && info.PriceID != "" {
-		if plan, err := s.planService.GetPlanByPriceID(info.PriceID); err == nil {
-			info.PlanTier = plan.PlanTier
+	if planTier == "" && priceID != "" {
+		if plan, err := s.planService.GetPlanByPriceID(priceID); err == nil {
+			planTier = plan.PlanTier
 		}
 	}
 
-	info.CustomerEmail = user
-	s.cacheSubscription(user, &info)
+	state := mapSubscriptionState(status)
+	cacheAge := time.Since(updatedAt)
+	result := &lprvv1.SubscriptionStatus{
+		State:          state,
+		SubscriptionId: subID,
+		UserIdentity:   user,
+		PlanTier:       planTier,
+		StripePriceId:  priceID,
+		BundleKey:      bundleKey,
+		CachedAt:       timestamppb.New(updatedAt),
+		CacheAgeMs:     cacheAge.Milliseconds(),
+	}
+	if canceledAt.Valid {
+		result.CanceledAt = timestamppb.New(canceledAt.Time)
+	}
 
-	return &info, nil
+	s.cacheSubscription(user, result)
+
+	return result, nil
 }
 
-func (s *AccountService) GetCredits(userIdentity string) (*CreditInfo, error) {
+func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, error) {
 	if strings.TrimSpace(userIdentity) == "" {
-		return &CreditInfo{
-			CustomerEmail:            "",
-			BalanceCredits:           0,
-			BonusCredits:             0,
+		return &CreditsEnvelope{
+			Balance: &lprvv1.CreditsBalance{
+				CustomerEmail:  "",
+				BalanceCredits: 0,
+				BundleKey:      s.bundleKey,
+				UpdatedAt:      timestamppb.Now(),
+			},
 			DisplayCreditsLabel:      "credits",
 			DisplayCreditsMultiplier: 1.0,
 		}, nil
@@ -145,32 +157,45 @@ func (s *AccountService) GetCredits(userIdentity string) (*CreditInfo, error) {
 	`
 
 	row := s.db.QueryRow(query, userIdentity)
-	var info CreditInfo
+	var balance lprvv1.CreditsBalance
 	var updatedAt time.Time
 	if err := row.Scan(
-		&info.CustomerEmail,
-		&info.BalanceCredits,
-		&info.BonusCredits,
+		&balance.CustomerEmail,
+		&balance.BalanceCredits,
+		new(int64), // bonus credits (unused placeholder)
 		&updatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			// No wallet yet; return zero values
-			info.CustomerEmail = userIdentity
+			balance.CustomerEmail = userIdentity
 		} else {
 			return nil, err
 		}
 	}
 
+	label := "credits"
+	multiplier := 1.0
+
 	pOverview, err := s.planService.GetPricingOverview()
 	if err == nil {
-		info.DisplayCreditsLabel = pOverview.Bundle.DisplayCreditsLabel
-		info.DisplayCreditsMultiplier = pOverview.Bundle.DisplayCreditsMultiplier
+		label = pOverview.Bundle.DisplayCreditsLabel
+		multiplier = pOverview.Bundle.DisplayCreditsMultiplier
+		balance.BundleKey = pOverview.Bundle.BundleKey
 	} else {
-		info.DisplayCreditsLabel = "credits"
-		info.DisplayCreditsMultiplier = 1.0
+		balance.BundleKey = s.bundleKey
 	}
 
-	return &info, nil
+	if updatedAt.IsZero() {
+		balance.UpdatedAt = timestamppb.Now()
+	} else {
+		balance.UpdatedAt = timestamppb.New(updatedAt)
+	}
+
+	return &CreditsEnvelope{
+		Balance:                  &balance,
+		DisplayCreditsLabel:      label,
+		DisplayCreditsMultiplier: multiplier,
+	}, nil
 }
 
 func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPayload, error) {
@@ -185,31 +210,23 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 	}
 
 	payload := &EntitlementPayload{
-		Status:       subscription.Status,
+		Status:       legacyStateLabel(subscription.State),
 		PlanTier:     subscription.PlanTier,
-		PriceID:      subscription.PriceID,
-		Credits:      credits,
+		PriceID:      subscription.StripePriceId,
+		Credits:      flattenCredits(credits),
 		Subscription: subscription,
 	}
 
-	if subscription.PriceID != "" {
-		if plan, err := s.planService.GetPlanByPriceID(subscription.PriceID); err == nil {
-			if features, ok := plan.Metadata["features"]; ok {
-				if arr, ok := features.([]interface{}); ok {
-					for _, feature := range arr {
-						if str, ok := feature.(string); ok {
-							payload.Features = append(payload.Features, str)
-						}
-					}
-				}
-			}
+	if subscription.StripePriceId != "" {
+		if plan, err := s.planService.GetPlanByPriceID(subscription.StripePriceId); err == nil {
+			payload.Features = extractFeatureFlags(plan.Metadata)
 		}
 	}
 
 	return payload, nil
 }
 
-func (s *AccountService) getCachedSubscription(user string) (*SubscriptionInfo, bool) {
+func (s *AccountService) getCachedSubscription(user string) (*lprvv1.SubscriptionStatus, bool) {
 	s.cacheMutex.RLock()
 	entry, ok := s.cache[user]
 	if !ok {
@@ -225,23 +242,84 @@ func (s *AccountService) getCachedSubscription(user string) (*SubscriptionInfo, 
 		return nil, false
 	}
 
-	cached := *entry.info
+	cached := proto.Clone(entry.status).(*lprvv1.SubscriptionStatus)
 	s.cacheMutex.RUnlock()
-	return &cached, true
+	return cached, true
 }
 
-func (s *AccountService) cacheSubscription(user string, info *SubscriptionInfo) {
-	if info == nil || s.cacheTTL <= 0 {
+func (s *AccountService) cacheSubscription(user string, status *lprvv1.SubscriptionStatus) {
+	if status == nil || s.cacheTTL <= 0 {
 		return
 	}
 
 	entry := subscriptionCacheEntry{
-		info:      &SubscriptionInfo{},
+		status:    &lprvv1.SubscriptionStatus{},
 		expiresAt: time.Now().Add(s.cacheTTL),
 	}
-	*entry.info = *info
+	*entry.status = *status
 
 	s.cacheMutex.Lock()
 	s.cache[user] = entry
 	s.cacheMutex.Unlock()
+}
+
+func mapSubscriptionState(state string) lprvv1.SubscriptionState {
+	switch strings.ToLower(strings.TrimSpace(state)) {
+	case "active":
+		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
+	case "trialing":
+		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
+	case "past_due", "past-due":
+		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
+	case "canceled", "cancelled":
+		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
+	default:
+		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
+	}
+}
+
+func extractFeatureFlags(metadata map[string]*structpb.Value) []string {
+	if metadata == nil {
+		return nil
+	}
+
+	value, ok := metadata["features"]
+	if !ok || value == nil || value.Kind == nil {
+		return nil
+	}
+
+	list := value.GetListValue()
+	if list == nil {
+		return nil
+	}
+
+	var features []string
+	for _, v := range list.Values {
+		if str := v.GetStringValue(); str != "" {
+			features = append(features, str)
+		}
+	}
+	return features
+}
+
+func flattenCredits(resp *CreditsEnvelope) *lprvv1.CreditsBalance {
+	if resp == nil {
+		return nil
+	}
+	return resp.Balance
+}
+
+func legacyStateLabel(state lprvv1.SubscriptionState) string {
+	switch state {
+	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE:
+		return "active"
+	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING:
+		return "trialing"
+	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE:
+		return "past_due"
+	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED:
+		return "canceled"
+	default:
+		return "inactive"
+	}
 }

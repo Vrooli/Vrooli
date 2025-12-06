@@ -7,20 +7,14 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // PaymentSettingsService manages Stripe configuration stored by admins.
 type PaymentSettingsService struct {
 	db *sql.DB
-}
-
-// StripeSettingsRecord stores persisted Stripe credentials.
-type StripeSettingsRecord struct {
-	PublishableKey string
-	SecretKey      string
-	WebhookSecret  string
-	DashboardURL   string
-	UpdatedAt      time.Time
 }
 
 // StripeSettingsInput captures optional fields for upserts.
@@ -36,16 +30,17 @@ func NewPaymentSettingsService(db *sql.DB) *PaymentSettingsService {
 }
 
 // GetStripeSettings returns the latest persisted Stripe configuration.
-func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*StripeSettingsRecord, error) {
+func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*lprvv1.StripeSettings, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT publishable_key, secret_key, webhook_secret, dashboard_url, updated_at
 		FROM payment_settings
 		WHERE id = 1
 	`)
 
-	var record StripeSettingsRecord
+	record := &lprvv1.StripeSettings{}
 	var publishable, secret, webhook, dashboard sql.NullString
-	if err := row.Scan(&publishable, &secret, &webhook, &dashboard, &record.UpdatedAt); err != nil {
+	var updatedAt time.Time
+	if err := row.Scan(&publishable, &secret, &webhook, &dashboard, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -62,14 +57,18 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*Stripe
 		record.WebhookSecret = webhook.String
 	}
 	if dashboard.Valid {
-		record.DashboardURL = dashboard.String
+		record.DashboardUrl = dashboard.String
 	}
 
-	return &record, nil
+	if !updatedAt.IsZero() {
+		record.UpdatedAt = timestamppb.New(updatedAt)
+	}
+
+	return record, nil
 }
 
 // SaveStripeSettings persists the provided fields and returns the resulting record.
-func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input StripeSettingsInput) (*StripeSettingsRecord, error) {
+func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input StripeSettingsInput) (*lprvv1.StripeSettings, error) {
 	current, err := s.GetStripeSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load current stripe settings: %w", err)
@@ -96,13 +95,13 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 	dashboard := normalize(input.DashboardURL)
 
 	if current == nil {
-		current = &StripeSettingsRecord{}
+		current = &lprvv1.StripeSettings{}
 	}
 
 	nextPublishable := updateField(current.PublishableKey, pub)
 	nextSecret := updateField(current.SecretKey, sec)
 	nextWebhook := updateField(current.WebhookSecret, webhook)
-	nextDashboard := updateField(current.DashboardURL, dashboard)
+	nextDashboard := updateField(current.DashboardUrl, dashboard)
 
 	row := s.db.QueryRowContext(ctx, `
 		INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url, updated_at)
@@ -116,10 +115,13 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 		RETURNING publishable_key, secret_key, webhook_secret, dashboard_url, updated_at
 	`, nextPublishable, nextSecret, nextWebhook, nextDashboard)
 
-	var record StripeSettingsRecord
-	if err := row.Scan(&record.PublishableKey, &record.SecretKey, &record.WebhookSecret, &record.DashboardURL, &record.UpdatedAt); err != nil {
+	record := &lprvv1.StripeSettings{}
+	var updatedAt time.Time
+	if err := row.Scan(&record.PublishableKey, &record.SecretKey, &record.WebhookSecret, &record.DashboardUrl, &updatedAt); err != nil {
 		return nil, fmt.Errorf("save stripe settings: %w", err)
 	}
 
-	return &record, nil
+	record.UpdatedAt = timestamppb.New(updatedAt)
+
+	return record, nil
 }

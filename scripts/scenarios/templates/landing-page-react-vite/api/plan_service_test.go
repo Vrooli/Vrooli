@@ -95,8 +95,8 @@ func TestPlanServicePricingOverview(t *testing.T) {
 	}
 
 	monthly := overview.Monthly[0]
-	if monthly.StripePriceID != "price_pricing_monthly" {
-		t.Fatalf("unexpected monthly price id %s", monthly.StripePriceID)
+	if monthly.StripePriceId != "price_pricing_monthly" {
+		t.Fatalf("unexpected monthly price id %s", monthly.StripePriceId)
 	}
 	if !monthly.IntroEnabled {
 		t.Fatal("expected monthly intro to be enabled")

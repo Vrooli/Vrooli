@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Config holds minimal runtime configuration
@@ -156,6 +157,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantUpdate(s.variantService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/variants/{slug}/archive", s.requireAdmin(handleVariantArchive(s.variantService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantDelete(s.variantService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/variants/{slug}/export", s.requireAdmin(handleVariantExport(s.variantService, s.contentService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/variants/{slug}/import", s.requireAdmin(handleVariantImport(s.variantService, s.contentService))).Methods("PUT")
 
 	// Metrics & Analytics endpoints (OT-P0-019 through OT-P0-024)
 	s.router.HandleFunc("/api/v1/metrics/track", handleMetricsTrack(s.metricsService)).Methods("POST")
@@ -437,10 +440,10 @@ func defaultSectionSeeds() []LandingSection {
 			Order:       1,
 			Enabled:     true,
 			Content: map[string]interface{}{
-				"headline": "Build Landing Pages in Minutes",
+				"headline":    "Build Landing Pages in Minutes",
 				"subheadline": "Create beautiful, conversion-optimized landing pages with A/B testing and analytics built-in",
-				"cta_text":  "Get Started Free",
-				"cta_url":   "/signup",
+				"cta_text":    "Get Started Free",
+				"cta_url":     "/signup",
 			},
 		},
 		{
@@ -473,10 +476,10 @@ func defaultSectionSeeds() []LandingSection {
 			Order:       4,
 			Enabled:     true,
 			Content: map[string]interface{}{
-				"headline": "Ready to Launch Your Landing Page?",
+				"headline":    "Ready to Launch Your Landing Page?",
 				"subheadline": "Join thousands of marketers using Landing Manager",
-				"cta_text":  "Start Building Now",
-				"cta_url":   "/signup",
+				"cta_text":    "Start Building Now",
+				"cta_url":     "/signup",
 			},
 		},
 	}
@@ -529,7 +532,7 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 	}
 
 	bundle := pricing.Bundle
-	bundleMetadata, err := json.Marshal(bundle.Metadata)
+	bundleMetadata, err := json.Marshal((&structpb.Struct{Fields: bundle.Metadata}).AsMap())
 	if err != nil {
 		return fmt.Errorf("marshal bundle metadata: %w", err)
 	}
@@ -553,8 +556,8 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 	if err := db.QueryRow(insertProduct,
 		bundle.BundleKey,
 		bundle.Name,
-		bundle.StripeProductID,
-		bundle.CreditsPerUSD,
+		bundle.StripeProductId,
+		bundle.CreditsPerUsd,
 		bundle.DisplayCreditsMultiplier,
 		bundle.DisplayCreditsLabel,
 		bundle.Environment,
@@ -563,15 +566,15 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 		return fmt.Errorf("seed bundle product: %w", err)
 	}
 
-	plans := append([]PlanOption{}, pricing.Monthly...)
+	plans := append([]*PlanOption{}, pricing.Monthly...)
 	plans = append(plans, pricing.Yearly...)
 	for _, option := range plans {
-		priceID := strings.TrimSpace(option.StripePriceID)
+		priceID := strings.TrimSpace(option.StripePriceId)
 		if priceID == "" {
 			continue
 		}
 
-		planMetadata, err := json.Marshal(option.Metadata)
+		planMetadataJSON, err := json.Marshal((&structpb.Struct{Fields: option.Metadata}).AsMap())
 		if err != nil {
 			return fmt.Errorf("marshal plan metadata %s: %w", option.PlanName, err)
 		}
@@ -638,10 +641,10 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 			option.OneTimeBonusCredits,
 			option.PlanRank,
 			option.BonusType,
-			valueOrDefault(option.Kind, "subscription"),
+			planKindString(option.Kind),
 			option.IsVariableAmount,
 			displayEnabled,
-			planMetadata,
+			planMetadataJSON,
 			option.DisplayWeight,
 		); err != nil {
 			return fmt.Errorf("seed bundle price %s: %w", option.PlanName, err)

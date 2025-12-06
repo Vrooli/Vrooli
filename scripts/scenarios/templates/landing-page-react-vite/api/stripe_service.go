@@ -353,11 +353,11 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}) erro
 	amountCents := s.extractAmount(obj, sessionRec)
 
 	switch {
-	case plan != nil && plan.Kind == sessionTypeCreditsTopup:
+	case plan != nil && plan.Kind == lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
 		return s.handleCreditTopup(customerEmail, amountCents, plan, map[string]interface{}{
 			"session_id": sessionID,
 		})
-	case plan != nil && plan.Kind == sessionTypeSupporterContribution:
+	case plan != nil && plan.Kind == lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		logStructured("supporter contribution received", map[string]interface{}{
 			"session_id": sessionID,
 			"email":      customerEmail,
@@ -449,7 +449,7 @@ func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerEma
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (subscription_id) DO UPDATE
 		SET status = $3, customer_email = $2, plan_tier = $4, price_id = $5, bundle_key = $6, updated_at = $8
-	`, subscriptionID, customerEmail, "active", plan.PlanTier, plan.StripePriceID, plan.BundleKey, now, now)
+	`, subscriptionID, customerEmail, "active", plan.PlanTier, plan.StripePriceId, plan.BundleKey, now, now)
 	if err != nil {
 		return err
 	}
@@ -475,7 +475,7 @@ func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerEma
 		"customer_email":  customerEmail,
 		"subscription_id": subscriptionID,
 		"plan_tier":       plan.PlanTier,
-		"price_id":        plan.StripePriceID,
+		"price_id":        plan.StripePriceId,
 		"session_type":    sessionTypeSubscription,
 	})
 
@@ -521,7 +521,7 @@ func (s *StripeService) createSubscriptionSchedule(subscriptionID string, plan *
 			status = 'active',
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
-	`, scheduleID, subscriptionID, plan.StripePriceID, plan.BillingInterval,
+	`, scheduleID, subscriptionID, plan.StripePriceId, plan.BillingInterval,
 		plan.IntroEnabled, plan.IntroAmountCents, plan.IntroPeriods, amountCents,
 		nextBilling, string(metaBytes))
 	if err != nil {
@@ -560,7 +560,7 @@ func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int6
 		return nil
 	}
 
-	credits := (bundle.CreditsPerUSD * amountCents) / 100
+	credits := (bundle.CreditsPerUsd * amountCents) / 100
 	if credits <= 0 {
 		return nil
 	}
@@ -568,7 +568,7 @@ func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int6
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
-	metadata["price_id"] = plan.StripePriceID
+	metadata["price_id"] = plan.StripePriceId
 	metadata["session_type"] = sessionTypeCreditsTopup
 
 	return s.addCredits(customerEmail, credits, "credit_topup", metadata)

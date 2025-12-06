@@ -75,8 +75,8 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 	if credits.DisplayCreditsMultiplier != 0.0025 {
 		t.Fatalf("expected multiplier 0.0025, got %f", credits.DisplayCreditsMultiplier)
 	}
-	if credits.BalanceCredits != 1_000_000 {
-		t.Fatalf("unexpected balance credits: %d", credits.BalanceCredits)
+	if credits.Balance.BalanceCredits != 1_000_000 {
+		t.Fatalf("unexpected balance credits: %d", credits.Balance.BalanceCredits)
 	}
 }
 

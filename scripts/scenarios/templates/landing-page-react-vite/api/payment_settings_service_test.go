@@ -25,15 +25,15 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 		t.Fatalf("save failed: %v", err)
 	}
 
-	if record.PublishableKey != "pk_live_123" {
-		t.Fatalf("unexpected publishable key %s", record.PublishableKey)
+	if record.GetPublishableKey() != "pk_live_123" {
+		t.Fatalf("unexpected publishable key %s", record.GetPublishableKey())
 	}
 
 	reloaded, err := service.GetStripeSettings(ctx)
 	if err != nil {
 		t.Fatalf("reload failed: %v", err)
 	}
-	if reloaded == nil || reloaded.SecretKey != "sk_live_123" {
+	if reloaded == nil || reloaded.GetSecretKey() != "sk_live_123" {
 		t.Fatalf("expected secret key to persist")
 	}
 
@@ -48,10 +48,10 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("final reload failed: %v", err)
 	}
-	if finalRecord.DashboardURL != "https://dashboard.stripe.com/alt" {
+	if finalRecord.GetDashboardUrl() != "https://dashboard.stripe.com/alt" {
 		t.Fatalf("dashboard url not updated")
 	}
-	if finalRecord.PublishableKey != "pk_live_123" {
+	if finalRecord.GetPublishableKey() != "pk_live_123" {
 		t.Fatalf("publishable key should remain unchanged")
 	}
 }

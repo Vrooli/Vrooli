@@ -1,5 +1,5 @@
 import { apiCall } from './common';
-import type { LandingHeaderConfig, Variant, VariantAxes, VariantSpace } from './types';
+import type { LandingHeaderConfig, Variant, VariantAxes, VariantSpace, VariantSnapshot } from './types';
 
 export interface VariantCreatePayload {
   name: string;
@@ -41,6 +41,17 @@ export function updateVariant(slug: string, data: VariantUpdatePayload) {
   return apiCall<Variant>(`/variants/${slug}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+  });
+}
+
+export function exportVariantSnapshot(slug: string) {
+  return apiCall<VariantSnapshot>(`/admin/variants/${slug}/export`);
+}
+
+export function importVariantSnapshot(slug: string, snapshot: VariantSnapshot) {
+  return apiCall<VariantSnapshot>(`/admin/variants/${slug}/import`, {
+    method: 'PUT',
+    body: JSON.stringify(snapshot),
   });
 }
 
