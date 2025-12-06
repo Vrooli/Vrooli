@@ -110,7 +110,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o {{SCENARIO_ID}}-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o {{SCENARIO_ID}}-api .",
           "description": "Build Go API binary ({{SCENARIO_ID}}-api) in api/ directory for reuse by start-api step"
         },
         {

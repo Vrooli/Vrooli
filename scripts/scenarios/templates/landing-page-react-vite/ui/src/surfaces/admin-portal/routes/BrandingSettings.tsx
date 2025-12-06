@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import { getBranding, updateBranding, clearBrandingField, type SiteBranding } from '../../../shared/api';
+import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type Asset } from '../../../shared/api';
 import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface BrandingFormState {
@@ -98,6 +98,57 @@ export function BrandingSettings() {
 
   const handleImageChange = (field: keyof BrandingFormState) => (url: string | null) => {
     setForm((prev) => ({ ...prev, [field]: url ?? '' }));
+    setSuccessMessage(null);
+  };
+
+  const applyLogoDerivatives = (asset: Asset) => {
+    const primaryLogo =
+      asset.derivatives?.logo_512 || asset.derivatives?.logo_256 || asset.url || form.logo_url;
+    const iconLogo =
+      asset.derivatives?.logo_icon ||
+      asset.derivatives?.logo_256 ||
+      asset.derivatives?.logo_128 ||
+      form.logo_icon_url ||
+      primaryLogo;
+    const favicon =
+      asset.derivatives?.favicon_32 ||
+      asset.derivatives?.favicon_64 ||
+      asset.derivatives?.favicon ||
+      form.favicon_url;
+    const touch = asset.derivatives?.apple_touch_180 || form.apple_touch_icon_url || favicon;
+
+    setForm((prev) => ({
+      ...prev,
+      logo_url: primaryLogo,
+      logo_icon_url: iconLogo,
+      favicon_url: favicon ?? prev.favicon_url,
+      apple_touch_icon_url: touch ?? prev.apple_touch_icon_url,
+    }));
+    setSuccessMessage(null);
+  };
+
+  const applyFaviconDerivatives = (asset: Asset) => {
+    const favicon =
+      asset.derivatives?.favicon ||
+      asset.derivatives?.favicon_32 ||
+      asset.derivatives?.favicon_64 ||
+      asset.url ||
+      form.favicon_url;
+    const touch = asset.derivatives?.apple_touch_180 || form.apple_touch_icon_url || favicon;
+    setForm((prev) => ({
+      ...prev,
+      favicon_url: favicon,
+      apple_touch_icon_url: touch,
+    }));
+    setSuccessMessage(null);
+  };
+
+  const applyOgDerivatives = (asset: Asset) => {
+    const og = asset.derivatives?.og_image_1200x630 || asset.url;
+    setForm((prev) => ({
+      ...prev,
+      default_og_image_url: og ?? '',
+    }));
     setSuccessMessage(null);
   };
 
@@ -294,12 +345,16 @@ export function BrandingSettings() {
                     <ImageUploader
                       value={form.logo_url}
                       onChange={handleImageChange('logo_url')}
+                      onUploadComplete={applyLogoDerivatives}
                       category="logo"
                       placeholder="Upload your logo"
                       uploadLabel="Upload Logo"
                       previewSize="lg"
                       alt="Site logo"
                     />
+                    <p className="mt-1 text-xs text-slate-500">
+                      Upload a high-quality logo (any size). We auto-generate multiple sizes and a square icon.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
@@ -308,6 +363,7 @@ export function BrandingSettings() {
                     <ImageUploader
                       value={form.logo_icon_url}
                       onChange={handleImageChange('logo_icon_url')}
+                      onUploadComplete={applyLogoDerivatives}
                       category="logo"
                       placeholder="Upload square icon"
                       uploadLabel="Upload Icon"
@@ -326,6 +382,7 @@ export function BrandingSettings() {
                     <ImageUploader
                       value={form.favicon_url}
                       onChange={handleImageChange('favicon_url')}
+                      onUploadComplete={applyFaviconDerivatives}
                       category="favicon"
                       placeholder="Upload favicon"
                       uploadLabel="Upload Favicon"
@@ -344,6 +401,7 @@ export function BrandingSettings() {
                     <ImageUploader
                       value={form.apple_touch_icon_url}
                       onChange={handleImageChange('apple_touch_icon_url')}
+                      onUploadComplete={applyFaviconDerivatives}
                       category="favicon"
                       placeholder="Upload touch icon"
                       uploadLabel="Upload Icon"
@@ -351,7 +409,7 @@ export function BrandingSettings() {
                       alt="Apple touch icon"
                     />
                     <p className="mt-1 text-xs text-slate-500">
-                      Recommended: 180x180 pixels for iOS
+                      Upload any size; we generate 180px touch icon plus small favicon sizes automatically.
                     </p>
                   </div>
                 </div>
@@ -488,20 +546,21 @@ export function BrandingSettings() {
                       <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
                         Default OG Image (Social Preview)
                       </label>
-                      <ImageUploader
-                        value={form.default_og_image_url}
-                        onChange={handleImageChange('default_og_image_url')}
-                        category="og_image"
-                        placeholder="Upload social preview image"
-                        uploadLabel="Upload OG Image"
-                        previewSize="xl"
-                        alt="Social preview image"
-                      />
-                      <p className="mt-1 text-xs text-slate-500">
-                        Recommended: 1200x630 pixels for optimal social media display
-                      </p>
-                    </div>
+                    <ImageUploader
+                      value={form.default_og_image_url}
+                      onChange={handleImageChange('default_og_image_url')}
+                      onUploadComplete={applyOgDerivatives}
+                      category="og_image"
+                      placeholder="Upload social preview image"
+                      uploadLabel="Upload OG Image"
+                      previewSize="xl"
+                      alt="Social preview image"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      We resize to 1200x630 for you so social shares look crisp.
+                    </p>
                   </div>
+                </div>
 
                   {/* Live Preview */}
                   <div className="space-y-4">

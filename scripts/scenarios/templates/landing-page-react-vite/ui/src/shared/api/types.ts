@@ -362,6 +362,7 @@ export interface Asset {
   uploaded_by?: string | null;
   created_at: string;
   url: string;
+  derivatives?: Record<string, string>;
 }
 
 export type AssetCategory = 'logo' | 'favicon' | 'og_image' | 'general';

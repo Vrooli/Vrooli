@@ -6,6 +6,7 @@ import { BrandingSettings } from './BrandingSettings';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
 import * as brandingApi from '../../../shared/api/branding';
 import * as commonApi from '../../../shared/api/common';
+import * as assetsApi from '../../../shared/api/assets';
 
 vi.mock('../../../shared/api/branding', () => ({
   getBranding: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock('../../../shared/api', async () => {
 
 const mockedGetBranding = vi.mocked(brandingApi.getBranding);
 const mockedUpdateBranding = vi.mocked(brandingApi.updateBranding);
+const mockedUploadAsset = vi.spyOn(assetsApi, 'uploadAsset');
 
 const mockBranding = {
   id: 1,
@@ -193,5 +195,146 @@ describe('BrandingSettings', () => {
 
     // Should have robots.txt textarea
     expect(screen.getByLabelText(/robots\.txt/i)).toBeInTheDocument();
+  });
+
+  it('uses generated derivatives from a single upload to populate related branding fields', async () => {
+    const user = userEvent.setup();
+    mockedUploadAsset.mockResolvedValue({
+      id: 10,
+      filename: 'logo.png',
+      original_filename: 'logo.png',
+      mime_type: 'image/png',
+      size_bytes: 1024,
+      storage_path: 'logos/logo.png',
+      url: '/api/v1/uploads/logos/logo.png',
+      category: 'logo',
+      uploaded_by: null,
+      created_at: new Date().toISOString(),
+      derivatives: {
+        logo_512: 'logos/logo-logo_512.png',
+        logo_icon: 'logos/logo-logo_icon.png',
+        favicon_32: 'logos/logo-favicon_32.png',
+        apple_touch_180: 'logos/logo-apple_touch_180.png',
+      },
+    });
+    mockedUpdateBranding.mockResolvedValue({
+      ...mockBranding,
+      logo_url: 'logos/logo-logo_512.png',
+      logo_icon_url: 'logos/logo-logo_icon.png',
+      favicon_url: 'logos/logo-favicon_32.png',
+      apple_touch_icon_url: 'logos/logo-apple_touch_180.png',
+    });
+
+    const { container } = renderWithProviders(<BrandingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Branding & SEO')).toBeInTheDocument();
+    });
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const logoInput = fileInputs.item(0);
+    const file = new File(['dummy'], 'logo.png', { type: 'image/png' });
+    await user.upload(logoInput, file);
+
+    const saveButton = screen.getByRole('button', { name: /save/i });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockedUpdateBranding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logo_url: 'logos/logo-logo_512.png',
+          logo_icon_url: 'logos/logo-logo_icon.png',
+          favicon_url: 'logos/logo-favicon_32.png',
+          apple_touch_icon_url: 'logos/logo-apple_touch_180.png',
+        })
+      );
+    });
+  });
+
+  it('applies favicon upload to favicon and touch icon fields', async () => {
+    const user = userEvent.setup();
+    mockedUploadAsset.mockResolvedValue({
+      id: 11,
+      filename: 'favicon.png',
+      original_filename: 'favicon.png',
+      mime_type: 'image/png',
+      size_bytes: 512,
+      storage_path: 'favicons/favicon.png',
+      url: '/api/v1/uploads/favicons/favicon.png',
+      category: 'favicon',
+      uploaded_by: null,
+      created_at: new Date().toISOString(),
+      derivatives: {
+        favicon_32: 'favicons/favicon-favicon_32.png',
+        apple_touch_180: 'favicons/favicon-apple_touch_180.png',
+      },
+    });
+    mockedUpdateBranding.mockResolvedValue({
+      ...mockBranding,
+      favicon_url: 'favicons/favicon-favicon_32.png',
+      apple_touch_icon_url: 'favicons/favicon-apple_touch_180.png',
+    });
+
+    const { container } = renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByText('Branding & SEO')).toBeInTheDocument());
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const faviconInput = fileInputs.item(2);
+    const file = new File(['dummy'], 'favicon.png', { type: 'image/png' });
+    await user.upload(faviconInput, file);
+
+    const saveButton = screen.getByRole('button', { name: /save/i });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockedUpdateBranding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          favicon_url: 'favicons/favicon-favicon_32.png',
+          apple_touch_icon_url: 'favicons/favicon-apple_touch_180.png',
+        })
+      );
+    });
+  });
+
+  it('applies og upload to default og image field', async () => {
+    const user = userEvent.setup();
+    mockedUploadAsset.mockResolvedValue({
+      id: 12,
+      filename: 'og.png',
+      original_filename: 'og.png',
+      mime_type: 'image/png',
+      size_bytes: 512,
+      storage_path: 'og-images/og.png',
+      url: '/api/v1/uploads/og-images/og.png',
+      category: 'og_image',
+      uploaded_by: null,
+      created_at: new Date().toISOString(),
+      derivatives: {
+        og_image_1200x630: 'og-images/og-og_image_1200x630.png',
+      },
+    });
+    mockedUpdateBranding.mockResolvedValue({
+      ...mockBranding,
+      default_og_image_url: 'og-images/og-og_image_1200x630.png',
+    });
+
+    const { container } = renderWithProviders(<BrandingSettings />);
+    await waitFor(() => expect(screen.getByText('Branding & SEO')).toBeInTheDocument());
+
+    const fileInputs = container.querySelectorAll('input[type="file"]');
+    const ogInput = fileInputs.item(4);
+    const file = new File(['dummy'], 'og.png', { type: 'image/png' });
+    await user.upload(ogInput, file);
+
+    const saveButton = screen.getByRole('button', { name: /save/i });
+    await user.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockedUpdateBranding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          default_og_image_url: 'og-images/og-og_image_1200x630.png',
+        })
+      );
+    });
   });
 });

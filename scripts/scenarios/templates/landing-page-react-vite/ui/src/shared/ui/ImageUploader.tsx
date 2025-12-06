@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, X, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { Button } from './button';
-import { uploadAsset, getAssetUrl, type AssetCategory } from '../api';
+import { uploadAsset, getAssetUrl, type AssetCategory, type Asset } from '../api';
 
 export interface ImageUploaderProps {
   /** Current image URL (can be external URL or uploaded asset URL) */
@@ -30,6 +30,8 @@ export interface ImageUploaderProps {
   className?: string;
   /** Disabled state */
   disabled?: boolean;
+  /** Callback with full asset response (derivatives, metadata) */
+  onUploadComplete?: (asset: Asset) => void;
 }
 
 const sizeClasses = {
@@ -53,6 +55,7 @@ export function ImageUploader({
   alt = 'Uploaded image',
   className = '',
   disabled = false,
+  onUploadComplete,
 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +80,7 @@ export function ImageUploader({
     try {
       const asset = await uploadAsset(file, { category });
       onChange(asset.url);
+      onUploadComplete?.(asset);
       setImageError(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');

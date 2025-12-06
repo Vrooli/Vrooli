@@ -70,7 +70,7 @@ clean: ## Clean build artifacts
 
 build: ## Build API and UI
 	@echo "$(BLUE)🔨 Building $(SCENARIO_NAME)...$(RESET)"
-	@cd api && go build -o $(SCENARIO_NAME)-api .
+	@cd api && GOWORK=off go build -o $(SCENARIO_NAME)-api .
 	@if [ -d ui ]; then cd ui && pnpm run build; fi
 	@echo "$(GREEN)✓ Build complete$(RESET)"
 
