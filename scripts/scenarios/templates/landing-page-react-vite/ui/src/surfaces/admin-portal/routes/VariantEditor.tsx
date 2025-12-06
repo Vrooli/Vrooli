@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Plus } from 'lucide-react';
+import { Save, ArrowLeft, Plus, Clipboard } from 'lucide-react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import type { IDisposable } from 'monaco-editor';
 import { AdminLayout } from '../components/AdminLayout';
@@ -454,6 +454,28 @@ export function VariantEditor() {
                   <p className="text-xs text-slate-500">
                     Must include <code>variant</code> and <code>sections</code>. The <code>variant.slug</code> must match this page.
                   </p>
+                  <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(JSON.stringify(variantSchema, null, 2));
+                          setCopyStatus('Schema copied');
+                        } catch (err) {
+                          setCopyStatus('Copy failed');
+                          console.error('Schema copy failed', err);
+                        } finally {
+                          setTimeout(() => setCopyStatus(null), 2000);
+                        }
+                      }}
+                    >
+                      <Clipboard className="h-4 w-4" />
+                      Copy variant schema
+                    </Button>
+                    {copyStatus && <span>{copyStatus}</span>}
+                  </div>
                   {schemaIssues.length > 0 && (
                     <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100 space-y-2" data-testid="variant-json-schema-issues">
                       <div className="flex items-center justify-between">

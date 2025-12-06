@@ -53,13 +53,30 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
     }
   };
 
+  const normalizeTimestamp = (value: unknown): string | undefined => {
+    if (!value) return undefined;
+    // Buf Timestamp with toJsonString
+    if (typeof (value as { toJsonString?: () => string }).toJsonString === 'function') {
+      return (value as { toJsonString: () => string }).toJsonString();
+    }
+    if (typeof value === 'string') return value;
+    if (value instanceof Date) return value.toISOString();
+    // Fallback for plain objects with seconds/nanos
+    const maybe = value as { seconds?: number; nanos?: number };
+    if (typeof maybe.seconds === 'number') {
+      const ms = maybe.seconds * 1000 + (maybe.nanos ? maybe.nanos / 1_000_000 : 0);
+      return new Date(ms).toISOString();
+    }
+    return undefined;
+  };
+
   return {
     publishable_key_preview: snapshot?.publishableKeyPreview,
     publishable_key_set: Boolean(snapshot?.publishableKeySet),
     secret_key_set: Boolean(snapshot?.secretKeySet),
     webhook_secret_set: Boolean(snapshot?.webhookSecretSet),
     dashboard_url: settings?.dashboardUrl,
-    updated_at: settings?.updatedAt?.toJsonString(),
+    updated_at: normalizeTimestamp(settings?.updatedAt),
     source: normalizeSource(snapshot?.source),
   };
 }
