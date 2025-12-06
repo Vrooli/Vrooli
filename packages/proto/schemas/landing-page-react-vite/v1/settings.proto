@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package landing_page_react_vite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;lprvv1";
+
+// ConfigSource indicates where active Stripe credentials were loaded from.
+enum ConfigSource {
+  CONFIG_SOURCE_UNSPECIFIED = 0;
+  CONFIG_SOURCE_ENV = 1;
+  CONFIG_SOURCE_DATABASE = 2;
+}
+
+// StripeConfigSnapshot exposes a redacted view of runtime Stripe credentials.
+message StripeConfigSnapshot {
+  // Masked preview of the publishable key (e.g., "pk_live...42").
+  string publishable_key_preview = 1;
+  // True when a publishable key is available.
+  bool publishable_key_set = 2;
+  // True when a secret key is available.
+  bool secret_key_set = 3;
+  // True when a webhook signing secret is available.
+  bool webhook_secret_set = 4;
+  // Source of the active configuration.
+  ConfigSource source = 5;
+}
+
+// StripeSettings contains persisted admin-provided Stripe credentials.
+message StripeSettings {
+  // Full publishable key.
+  string publishable_key = 1;
+  // Full secret key.
+  string secret_key = 2;
+  // Webhook signing secret.
+  string webhook_secret = 3;
+  // Optional dashboard URL for UI linking.
+  string dashboard_url = 4;
+  // Last update timestamp.
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// GetStripeSettingsRequest requests current Stripe settings and snapshot.
+message GetStripeSettingsRequest {}
+
+// GetStripeSettingsResponse returns persisted settings and runtime snapshot.
+message GetStripeSettingsResponse {
+  // Persisted admin-configured settings (may be empty if unset).
+  StripeSettings settings = 1;
+  // Runtime configuration snapshot used by the API.
+  StripeConfigSnapshot snapshot = 2;
+}
+
+// UpdateStripeSettingsRequest partially updates Stripe credentials.
+message UpdateStripeSettingsRequest {
+  // Publishable key to set; omitted to leave unchanged.
+  optional string publishable_key = 1;
+  // Secret key to set; omitted to leave unchanged.
+  optional string secret_key = 2;
+  // Webhook signing secret to set; omitted to leave unchanged.
+  optional string webhook_secret = 3;
+  // Dashboard URL to set; omitted to leave unchanged.
+  optional string dashboard_url = 4;
+}
+
+// UpdateStripeSettingsResponse returns the resulting settings and snapshot.
+message UpdateStripeSettingsResponse {
+  // Persisted admin-configured settings.
+  StripeSettings settings = 1;
+  // Updated runtime configuration snapshot.
+  StripeConfigSnapshot snapshot = 2;
+}

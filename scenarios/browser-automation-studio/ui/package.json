@@ -36,7 +36,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "@vrooli/vitest-requirement-reporter": "workspace:*",
+    "@vrooli/vitest-requirement-reporter": "file:../../../packages/vitest-requirement-reporter",
     "clsx": "^2.1.0",
     "date-fns": "^3.2.0",
     "express": "^5.1.0",

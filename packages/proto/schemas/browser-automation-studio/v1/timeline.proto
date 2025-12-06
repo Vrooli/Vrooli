@@ -4,6 +4,7 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
 
@@ -15,7 +16,7 @@ message ExecutionTimeline {
   // Workflow ID associated with the execution (UUID).
   string workflow_id = 2;
   // Current execution status (pending, running, completed, failed, cancelled).
-  string status = 3;
+  ExecutionStatus status = 3;
   // Overall execution progress percentage (0-100).
   int32 progress = 4;
   // When the execution started.
@@ -35,9 +36,9 @@ message TimelineFrame {
   // Node ID from the workflow definition.
   string node_id = 2;
   // Node type (navigate, click, assert, etc.).
-  string step_type = 3;
+  StepType step_type = 3;
   // Step execution status.
-  string status = 4;
+  StepStatus status = 4;
   // Whether this step succeeded.
   bool success = 5;
   // Execution duration in milliseconds for this attempt.
@@ -121,7 +122,7 @@ message TimelineArtifact {
   // Unique artifact ID.
   string id = 1;
   // Artifact type (timeline_frame, console_log, network_event, etc.).
-  string type = 2;
+  ArtifactType type = 2;
   // Optional human-readable label.
   string label = 3;
   // URL to download the artifact content.
@@ -227,7 +228,7 @@ message TimelineLog {
   // Unique log entry ID.
   string id = 1;
   // Log level (debug, info, warn, error).
-  string level = 2;
+  LogLevel level = 2;
   // Log message content.
   string message = 3;
   // Associated step name, if any.

@@ -66,15 +66,15 @@ export function useExecutionUpdates() {
       default:
         // Unknown message type - check if it's an envelope event
         if (lastMessage.data && typeof lastMessage.data === 'object') {
-          const data = lastMessage.data as { kind?: string };
-          if (data.kind) {
+          const data = lastMessage.data as { kind?: string | number };
+          if (data.kind !== undefined) {
             // This is an event envelope, handle based on kind
             handleEnvelopeEvent(data.kind, executionId);
           }
         }
     }
 
-    function handleEnvelopeEvent(kind: string, execId?: string) {
+    function handleEnvelopeEvent(kind: string | number, execId?: string) {
       switch (kind) {
         case 'execution.started':
         case 'execution.running':
@@ -94,6 +94,16 @@ export function useExecutionUpdates() {
         case 'step.completed':
         case 'step.failed':
         case 'step.progress':
+        case 2: // timeline_frame
+        case 3: // log
+        case 4: // heartbeat
+        case 5: // telemetry
+          if (execId && currentExecution?.id === execId) {
+            void refreshTimeline(execId);
+          }
+          break;
+        case 1: // status_update
+          refreshDashboard();
           if (execId && currentExecution?.id === execId) {
             void refreshTimeline(execId);
           }

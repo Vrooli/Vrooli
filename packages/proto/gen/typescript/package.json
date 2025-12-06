@@ -6,12 +6,29 @@
   "sideEffects": false,
   "exports": {
     "./package.json": "./package.json",
-    "./browser-automation-studio/v1/*": "./browser-automation-studio/v1/*.ts",
-    "./common/v1/*": "./common/v1/*.ts"
+    "./browser-automation-studio/v1/*": {
+      "types": "./browser-automation-studio/v1/*.ts",
+      "import": "./js/browser-automation-studio/v1/*.js"
+    },
+    "./common/v1/*": {
+      "types": "./common/v1/*.ts",
+      "import": "./js/common/v1/*.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "browser-automation-studio/v1/*": [
+        "browser-automation-studio/v1/*.ts"
+      ],
+      "common/v1/*": [
+        "common/v1/*.ts"
+      ]
+    }
   },
   "files": [
     "browser-automation-studio",
-    "common"
+    "common",
+    "js"
   ],
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1"

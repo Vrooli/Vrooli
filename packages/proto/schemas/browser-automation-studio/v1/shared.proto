@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+
+// ExecutionStatus enumerates high-level execution states.
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNSPECIFIED = 0;
+  EXECUTION_STATUS_PENDING = 1;
+  EXECUTION_STATUS_RUNNING = 2;
+  EXECUTION_STATUS_COMPLETED = 3;
+  EXECUTION_STATUS_FAILED = 4;
+  EXECUTION_STATUS_CANCELLED = 5;
+}
+
+// TriggerType indicates how an execution was initiated.
+enum TriggerType {
+  TRIGGER_TYPE_UNSPECIFIED = 0;
+  TRIGGER_TYPE_MANUAL = 1;
+  TRIGGER_TYPE_SCHEDULED = 2;
+  TRIGGER_TYPE_API = 3;
+  TRIGGER_TYPE_WEBHOOK = 4;
+}
+
+// StepType categorizes workflow nodes/steps.
+enum StepType {
+  STEP_TYPE_UNSPECIFIED = 0;
+  STEP_TYPE_NAVIGATE = 1;
+  STEP_TYPE_CLICK = 2;
+  STEP_TYPE_ASSERT = 3;
+  STEP_TYPE_SUBFLOW = 4;
+  STEP_TYPE_INPUT = 5;
+  STEP_TYPE_CUSTOM = 6;
+}
+
+// StepStatus captures the lifecycle of an individual step.
+enum StepStatus {
+  STEP_STATUS_UNSPECIFIED = 0;
+  STEP_STATUS_PENDING = 1;
+  STEP_STATUS_RUNNING = 2;
+  STEP_STATUS_COMPLETED = 3;
+  STEP_STATUS_FAILED = 4;
+  STEP_STATUS_CANCELLED = 5;
+  STEP_STATUS_SKIPPED = 6;
+  STEP_STATUS_RETRYING = 7;
+}
+
+// LogLevel is used for execution timeline logging.
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+}
+
+// ArtifactType categorizes stored artifacts emitted during execution.
+enum ArtifactType {
+  ARTIFACT_TYPE_UNSPECIFIED = 0;
+  ARTIFACT_TYPE_TIMELINE_FRAME = 1;
+  ARTIFACT_TYPE_CONSOLE_LOG = 2;
+  ARTIFACT_TYPE_NETWORK_EVENT = 3;
+  ARTIFACT_TYPE_SCREENSHOT = 4;
+  ARTIFACT_TYPE_DOM_SNAPSHOT = 5;
+  ARTIFACT_TYPE_TRACE = 6;
+  ARTIFACT_TYPE_CUSTOM = 7;
+}
+
+// EventKind enumerates WebSocket event types.
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_STATUS_UPDATE = 1;
+  EVENT_KIND_TIMELINE_FRAME = 2;
+  EVENT_KIND_LOG = 3;
+  EVENT_KIND_HEARTBEAT = 4;
+  EVENT_KIND_TELEMETRY = 5;
+}
+
+// ExportStatus indicates readiness for execution export.
+enum ExportStatus {
+  EXPORT_STATUS_UNSPECIFIED = 0;
+  EXPORT_STATUS_READY = 1;
+  EXPORT_STATUS_PENDING = 2;
+  EXPORT_STATUS_ERROR = 3;
+  EXPORT_STATUS_UNAVAILABLE = 4;
+}

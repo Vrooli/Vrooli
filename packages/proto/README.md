@@ -14,5 +14,5 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 ## Workspace usage
 
 - Go: use the repo `go.work` so scenarios can import `github.com/vrooli/vrooli/packages/proto/gen/go/...`.
-- TypeScript: `@vrooli/proto-types` is published from `gen/typescript` and linked via the pnpm workspace.
+- TypeScript/JavaScript: `@vrooli/proto-types` is published from `gen/typescript` (ESM JS lives under `js/`) and linked via the pnpm workspace.
 - Python: install `packages/proto/gen/python` in editable mode for local development.

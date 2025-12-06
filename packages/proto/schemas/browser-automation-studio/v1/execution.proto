@@ -4,6 +4,8 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "browser-automation-studio/v1/shared.proto";
+import "browser-automation-studio/v1/timeline.proto";
 import "browser-automation-studio/v1/workflow.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
@@ -16,10 +18,10 @@ message Execution {
   string workflow_id = 2;
   // Version of the workflow used for this execution.
   int32 workflow_version = 3;
-  // Current status string (pending, running, completed, failed, cancelled).
-  string status = 4;
+  // Current execution status.
+  ExecutionStatus status = 4;
   // How the execution was triggered (manual, scheduled, api, webhook).
-  string trigger_type = 5;
+  TriggerType trigger_type = 5;
   // Trigger metadata payload.
   map<string, google.protobuf.Value> trigger_metadata = 6;
   // Runtime parameters passed to the execution.
@@ -69,7 +71,7 @@ message ExecuteAdhocResponse {
   // The created execution ID.
   string execution_id = 1;
   // Initial execution status.
-  string status = 2;
+  ExecutionStatus status = 2;
   // Workflow ID if persisted (null for adhoc).
   optional string workflow_id = 3;
   // Human-readable status message.
@@ -90,8 +92,8 @@ message Screenshot {
   string step_name = 3;
   // Zero-based step index in the execution.
   int32 step_index = 4;
-  // RFC3339 timestamp when the screenshot was captured.
-  string timestamp = 5;
+  // When the screenshot was captured.
+  google.protobuf.Timestamp timestamp = 5;
   // URL to download the full screenshot.
   string storage_url = 6;
   // URL to download a thumbnail.
@@ -117,7 +119,7 @@ message ExecutionEventEnvelope {
   // Payload version for downstream consumers.
   string payload_version = 2;
   // Event kind (status_update, timeline_frame, log, heartbeat, telemetry, etc.).
-  string kind = 3;
+  EventKind kind = 3;
   // Execution ID the event belongs to.
   string execution_id = 4;
   // Workflow ID the execution belongs to.
@@ -129,9 +131,15 @@ message ExecutionEventEnvelope {
   // Monotonic sequence number for ordering.
   optional int64 sequence = 8;
   // RFC3339 timestamp for the event.
-  string timestamp = 9;
-  // Event payload as a generic structure; consumers should map to concrete types.
-  google.protobuf.Struct payload = 10;
+  google.protobuf.Timestamp timestamp = 9;
+  // Event payload typed by kind.
+  oneof payload {
+    StatusUpdateEvent status_update = 11;
+    TimelineFrameEvent timeline_frame = 12;
+    LogEvent log = 13;
+    HeartbeatEvent heartbeat = 14;
+    TelemetryEvent telemetry = 15;
+  }
 }
 
 // ExecutionExportPreview summarizes export readiness and metadata.
@@ -141,7 +149,7 @@ message ExecutionExportPreview {
   // Identifier for the generated export spec (replay movie).
   string spec_id = 2;
   // Status: ready, pending, error, unavailable.
-  string status = 3;
+  ExportStatus status = 3;
   // Human-readable message about readiness or errors.
   string message = 4;
   // Number of captured frames available for export.
@@ -152,4 +160,44 @@ message ExecutionExportPreview {
   int32 total_duration_ms = 7;
   // Replay movie package encoded as JSON (movie spec).
   google.protobuf.Struct package = 8;
+}
+
+// StatusUpdateEvent carries execution-level status changes.
+message StatusUpdateEvent {
+  ExecutionStatus status = 1;
+  int32 progress = 2;
+  // Current step description when available.
+  optional string current_step = 3;
+  // Error details when status is failed.
+  optional string error = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+}
+
+// TimelineFrameEvent transports timeline frame updates.
+message TimelineFrameEvent {
+  TimelineFrame frame = 1;
+}
+
+// LogEvent captures execution log events.
+message LogEvent {
+  LogLevel level = 1;
+  string message = 2;
+  // Optional step context for the log.
+  optional int32 step_index = 3;
+  google.protobuf.Timestamp occurred_at = 4;
+  map<string, google.protobuf.Value> metadata = 5;
+}
+
+// HeartbeatEvent reports liveness/progress signals.
+message HeartbeatEvent {
+  google.protobuf.Timestamp received_at = 1;
+  int32 progress = 2;
+  // Executor supplied metrics.
+  map<string, google.protobuf.Value> metrics = 3;
+}
+
+// TelemetryEvent emits structured telemetry metrics.
+message TelemetryEvent {
+  map<string, google.protobuf.Value> metrics = 1;
+  google.protobuf.Timestamp recorded_at = 2;
 }

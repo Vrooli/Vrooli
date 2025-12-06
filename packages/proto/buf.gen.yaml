@@ -13,6 +13,12 @@ plugins:
     out: gen/typescript
     opt:
       - target=ts
+      - import_extension=none
+  - remote: buf.build/bufbuild/es
+    out: gen/typescript/js
+    opt:
+      - target=js
+      - import_extension=js
   - remote: buf.build/protocolbuffers/python
     out: gen/python
   - remote: buf.build/protocolbuffers/pyi

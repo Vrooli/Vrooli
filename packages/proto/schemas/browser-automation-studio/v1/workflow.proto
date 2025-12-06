@@ -3,6 +3,7 @@ syntax = "proto3";
 package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
+import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
 
@@ -23,7 +24,7 @@ message WorkflowNode {
   // Unique node identifier.
   string id = 1;
   // Node type (navigate, click, assert, subflow, etc.).
-  string type = 2;
+  StepType type = 2;
   // Node-specific configuration payload.
   google.protobuf.Struct data = 3;
 }

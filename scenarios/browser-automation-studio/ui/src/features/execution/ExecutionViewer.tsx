@@ -2358,7 +2358,7 @@ function ActiveExecutionViewer({
         url: resolved,
         stepName:
           frame?.node_id ||
-          frame?.step_type ||
+          (typeof frame?.step_type === "string" ? frame.step_type : undefined) ||
           (typeof frame?.step_index === "number"
             ? `Step ${frame.step_index + 1}`
             : "Step"),

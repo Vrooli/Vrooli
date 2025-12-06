@@ -1,4 +1,5 @@
 from google.protobuf import struct_pb2 as _struct_pb2
+from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -39,9 +40,9 @@ class WorkflowNode(_message.Message):
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
     id: str
-    type: str
+    type: _shared_pb2.StepType
     data: _struct_pb2.Struct
-    def __init__(self, id: _Optional[str] = ..., type: _Optional[str] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.StepType, str]] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class WorkflowEdge(_message.Message):
     __slots__ = ()

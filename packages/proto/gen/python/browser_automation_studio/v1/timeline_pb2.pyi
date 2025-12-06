@@ -2,6 +2,7 @@ import datetime
 
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -22,13 +23,13 @@ class ExecutionTimeline(_message.Message):
     LOGS_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     workflow_id: str
-    status: str
+    status: _shared_pb2.ExecutionStatus
     progress: int
     started_at: _timestamp_pb2.Timestamp
     completed_at: _timestamp_pb2.Timestamp
     frames: _containers.RepeatedCompositeFieldContainer[TimelineFrame]
     logs: _containers.RepeatedCompositeFieldContainer[TimelineLog]
-    def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., status: _Optional[str] = ..., progress: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., frames: _Optional[_Iterable[_Union[TimelineFrame, _Mapping]]] = ..., logs: _Optional[_Iterable[_Union[TimelineLog, _Mapping]]] = ...) -> None: ...
+    def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., progress: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., frames: _Optional[_Iterable[_Union[TimelineFrame, _Mapping]]] = ..., logs: _Optional[_Iterable[_Union[TimelineLog, _Mapping]]] = ...) -> None: ...
 
 class TimelineFrame(_message.Message):
     __slots__ = ()
@@ -67,8 +68,8 @@ class TimelineFrame(_message.Message):
     DOM_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     step_index: int
     node_id: str
-    step_type: str
-    status: str
+    step_type: _shared_pb2.StepType
+    status: _shared_pb2.StepStatus
     success: bool
     duration_ms: int
     total_duration_ms: int
@@ -98,7 +99,7 @@ class TimelineFrame(_message.Message):
     retry_history: _containers.RepeatedCompositeFieldContainer[RetryHistoryEntry]
     dom_snapshot_preview: str
     dom_snapshot: TimelineArtifact
-    def __init__(self, step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., step_type: _Optional[str] = ..., status: _Optional[str] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., progress: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., final_url: _Optional[str] = ..., error: _Optional[str] = ..., console_log_count: _Optional[int] = ..., network_event_count: _Optional[int] = ..., extracted_data_preview: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., highlight_regions: _Optional[_Iterable[_Union[HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[MaskRegion, _Mapping]]] = ..., focused_element: _Optional[_Union[ElementFocus, _Mapping]] = ..., element_bounding_box: _Optional[_Union[BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[Point, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[TimelineArtifact, _Mapping]]] = ..., assertion: _Optional[_Union[AssertionOutcome, _Mapping]] = ..., retry_attempt: _Optional[int] = ..., retry_max_attempts: _Optional[int] = ..., retry_configured: _Optional[int] = ..., retry_delay_ms: _Optional[int] = ..., retry_backoff_factor: _Optional[float] = ..., retry_history: _Optional[_Iterable[_Union[RetryHistoryEntry, _Mapping]]] = ..., dom_snapshot_preview: _Optional[str] = ..., dom_snapshot: _Optional[_Union[TimelineArtifact, _Mapping]] = ...) -> None: ...
+    def __init__(self, step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., step_type: _Optional[_Union[_shared_pb2.StepType, str]] = ..., status: _Optional[_Union[_shared_pb2.StepStatus, str]] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., progress: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., final_url: _Optional[str] = ..., error: _Optional[str] = ..., console_log_count: _Optional[int] = ..., network_event_count: _Optional[int] = ..., extracted_data_preview: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., highlight_regions: _Optional[_Iterable[_Union[HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[MaskRegion, _Mapping]]] = ..., focused_element: _Optional[_Union[ElementFocus, _Mapping]] = ..., element_bounding_box: _Optional[_Union[BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[Point, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[TimelineArtifact, _Mapping]]] = ..., assertion: _Optional[_Union[AssertionOutcome, _Mapping]] = ..., retry_attempt: _Optional[int] = ..., retry_max_attempts: _Optional[int] = ..., retry_configured: _Optional[int] = ..., retry_delay_ms: _Optional[int] = ..., retry_backoff_factor: _Optional[float] = ..., retry_history: _Optional[_Iterable[_Union[RetryHistoryEntry, _Mapping]]] = ..., dom_snapshot_preview: _Optional[str] = ..., dom_snapshot: _Optional[_Union[TimelineArtifact, _Mapping]] = ...) -> None: ...
 
 class TimelineScreenshot(_message.Message):
     __slots__ = ()
@@ -137,7 +138,7 @@ class TimelineArtifact(_message.Message):
     STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     id: str
-    type: str
+    type: _shared_pb2.ArtifactType
     label: str
     storage_url: str
     thumbnail_url: str
@@ -145,7 +146,7 @@ class TimelineArtifact(_message.Message):
     size_bytes: int
     step_index: int
     payload: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, id: _Optional[str] = ..., type: _Optional[str] = ..., label: _Optional[str] = ..., storage_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., step_index: _Optional[int] = ..., payload: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.ArtifactType, str]] = ..., label: _Optional[str] = ..., storage_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., step_index: _Optional[int] = ..., payload: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class RetryHistoryEntry(_message.Message):
     __slots__ = ()
@@ -239,8 +240,8 @@ class TimelineLog(_message.Message):
     STEP_NAME_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     id: str
-    level: str
+    level: _shared_pb2.LogLevel
     message: str
     step_name: str
     timestamp: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., level: _Optional[str] = ..., message: _Optional[str] = ..., step_name: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., level: _Optional[_Union[_shared_pb2.LogLevel, str]] = ..., message: _Optional[str] = ..., step_name: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...

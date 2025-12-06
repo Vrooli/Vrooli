@@ -15,7 +15,7 @@ func TestTimelineSerialization(t *testing.T) {
 	timeline := &basv1.ExecutionTimeline{
 		ExecutionId: "abc-123",
 		WorkflowId:  "00000000-0000-0000-0000-000000000000",
-		Status:      "completed",
+		Status:      basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 		Progress:    100,
 		StartedAt:   started,
 		CompletedAt: started,
@@ -23,8 +23,8 @@ func TestTimelineSerialization(t *testing.T) {
 			{
 				StepIndex:  0,
 				NodeId:     "navigate-1",
-				StepType:   "navigate",
-				Status:     "completed",
+				StepType:   basv1.StepType_STEP_TYPE_NAVIGATE,
+				Status:     basv1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:    true,
 				DurationMs: 1200,
 			},
@@ -48,7 +48,7 @@ func TestTimelineSerialization(t *testing.T) {
 		t.Errorf("execution_id mismatch")
 	}
 
-	if len(parsed.Frames) != 1 || parsed.Frames[0].Status != "completed" {
+	if len(parsed.Frames) != 1 || parsed.Frames[0].Status != basv1.StepStatus_STEP_STATUS_COMPLETED {
 		t.Fatalf("unexpected frame data after round-trip: %+v", parsed.Frames)
 	}
 }
