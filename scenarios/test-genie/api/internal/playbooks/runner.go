@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"test-genie/internal/playbooks/artifacts"
@@ -48,6 +49,9 @@ type Runner struct {
 	resolveUIBaseURL func(ctx context.Context, scenario string) (string, error)
 
 	logWriter io.Writer
+
+	// Runtime state
+	requiredScenarios []string // Scenarios detected in navigate nodes with destinationType=scenario
 }
 
 // Option configures a Runner.
@@ -193,6 +197,11 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
+	// Preflight validation: check that fixtures and selectors exist before resolution
+	if preflightResult := r.runPreflightValidation(reg); preflightResult != nil {
+		return preflightResult
+	}
+
 	// Initialize trace writer if not injected
 	if r.traceWriter == nil {
 		tw, err := artifacts.NewTraceWriter(r.config.ScenarioDir, r.config.ScenarioName)
@@ -212,22 +221,40 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := r.ensureBAS(ctx); err != nil {
 		_ = r.traceWriter.Write(artifacts.TraceBASHealthEvent(false, ""))
 		return &RunResult{
-			Success:      false,
-			Error:        err,
-			FailureClass: FailureClassMissingDependency,
-			Remediation:  "Start the browser-automation-studio scenario so workflows can execute.",
+			Success:       false,
+			Error:         err,
+			FailureClass:  FailureClassMissingDependency,
+			Remediation:   "Start the browser-automation-studio scenario so workflows can execute.",
+			TracePath:     r.traceWriter.Path(),
+			ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
 		}
 	}
 	_ = r.traceWriter.Write(artifacts.TraceBASHealthEvent(true, ""))
+
+	// Ensure required scenarios are running (detected during preflight validation)
+	if len(r.requiredScenarios) > 0 {
+		if err := r.ensureRequiredScenarios(ctx); err != nil {
+			return &RunResult{
+				Success:       false,
+				Error:         err,
+				FailureClass:  FailureClassMissingDependency,
+				Remediation:   fmt.Sprintf("Start the required scenario(s): %s", strings.Join(r.requiredScenarios, ", ")),
+				TracePath:     r.traceWriter.Path(),
+				ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
+			}
+		}
+	}
 
 	// Apply seeds
 	cleanup, err := r.seedManager.Apply(ctx)
 	if err != nil {
 		return &RunResult{
-			Success:      false,
-			Error:        err,
-			FailureClass: FailureClassMisconfiguration,
-			Remediation:  "Fix playbook seeds under test/playbooks/__seeds.",
+			Success:       false,
+			Error:         err,
+			FailureClass:  FailureClassMisconfiguration,
+			Remediation:   "Fix playbook seeds under test/playbooks/__seeds.",
+			TracePath:     r.traceWriter.Path(),
+			ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
 		}
 	}
 	if cleanup != nil {
@@ -251,11 +278,13 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		case <-ctx.Done():
 			summary.TotalDuration = time.Since(phaseStart)
 			return &RunResult{
-				Success:      false,
-				Error:        ctx.Err(),
-				FailureClass: FailureClassSystem,
-				Results:      results,
-				Summary:      summary,
+				Success:       false,
+				Error:         ctx.Err(),
+				FailureClass:  FailureClassSystem,
+				Results:       results,
+				Summary:       summary,
+				TracePath:     r.traceWriter.Path(),
+				ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
 			}
 		default:
 		}
@@ -271,16 +300,36 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			// Write results so far
 			_ = r.artifactWriter.WritePhaseResults(results)
 
-			classification := FailureClassExecution
-			return &RunResult{
+			// Build result with diagnostic information
+			runResult := &RunResult{
 				Success:      false,
 				Error:        result.Err,
-				FailureClass: classification,
+				FailureClass: FailureClassExecution,
 				Remediation:  "Inspect the workflow definition and Browser Automation Studio logs.",
 				Observations: observations,
 				Results:      results,
 				Summary:      summary,
+				TracePath:    r.traceWriter.Path(),
 			}
+
+			// Extract rich diagnostic output if error is a PlaybookExecutionError
+			if playErr, ok := result.Err.(*PlaybookExecutionError); ok {
+				runResult.DiagnosticOutput = playErr.DiagnosticString()
+				// Add artifact observation for visibility
+				if playErr.Artifacts.Timeline != "" {
+					observations = append(observations, NewInfoObservation(
+						fmt.Sprintf("Timeline artifact: %s", playErr.Artifacts.Timeline)))
+				}
+				runResult.Observations = observations
+			}
+
+			// Set artifact paths
+			runResult.ArtifactPaths.Trace = r.traceWriter.Path()
+			if result.ArtifactPath != "" {
+				runResult.AddWorkflowArtifact(entry.File, result.ArtifactPath)
+			}
+
+			return runResult
 		}
 
 		summary.WorkflowsPassed++
@@ -298,13 +347,15 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := r.artifactWriter.WritePhaseResults(results); err != nil {
 		_ = r.traceWriter.Write(artifacts.TracePhaseFailedEvent(err, summary.TotalDuration))
 		return &RunResult{
-			Success:      false,
-			Error:        err,
-			FailureClass: FailureClassSystem,
-			Remediation:  "Ensure coverage/phase-results directory is writable.",
-			Observations: observations,
-			Results:      results,
-			Summary:      summary,
+			Success:       false,
+			Error:         err,
+			FailureClass:  FailureClassSystem,
+			Remediation:   "Ensure coverage/phase-results directory is writable.",
+			Observations:  observations,
+			Results:       results,
+			Summary:       summary,
+			TracePath:     r.traceWriter.Path(),
+			ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
 		}
 	}
 
@@ -314,11 +365,25 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	// Add summary observation
 	observations = append(observations, NewSuccessObservation(summary.String()))
 	shared.LogStep(r.logWriter, "playbook workflows executed: %d", len(reg.Playbooks))
+
+	// Build artifact paths from results
+	artifactPaths := ArtifactPaths{
+		Trace:             r.traceWriter.Path(),
+		WorkflowArtifacts: make(map[string]string),
+	}
+	for _, res := range results {
+		if res.ArtifactPath != "" {
+			artifactPaths.WorkflowArtifacts[res.Entry.File] = res.ArtifactPath
+		}
+	}
+
 	return &RunResult{
-		Success:      true,
-		Observations: observations,
-		Results:      results,
-		Summary:      summary,
+		Success:       true,
+		Observations:  observations,
+		Results:       results,
+		Summary:       summary,
+		TracePath:     r.traceWriter.Path(),
+		ArtifactPaths: artifactPaths,
 	}
 }
 
@@ -348,6 +413,22 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 
 	// Clean definition for BAS
 	cleanDef := workflow.CleanDefinition(definition)
+
+	// Validate resolved workflow before execution (catches unresolved tokens)
+	validationResult, err := r.basClient.ValidateResolved(ctx, cleanDef)
+	if err != nil {
+		shared.LogWarn(r.logWriter, "validation request failed for %s: %v", entry.File, err)
+		// Non-fatal: continue with execution if validation service unavailable
+	} else if !validationResult.Valid {
+		// Collect error messages
+		var errMsgs []string
+		for _, issue := range validationResult.Errors {
+			errMsgs = append(errMsgs, issue.Message)
+		}
+		execErr := NewResolveError(entry.File, fmt.Errorf("resolved workflow validation failed: %s", strings.Join(errMsgs, "; ")))
+		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
+		return Result{Entry: entry, Err: execErr}
+	}
 
 	// Execute workflow
 	executionID, err := r.basClient.ExecuteWorkflow(ctx, cleanDef, entry.Description)
@@ -418,136 +499,6 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 	return Result{Entry: entry, Outcome: outcome, ArtifactPath: artifactResult.Dir}
 }
 
-// collectWorkflowArtifacts fetches and writes all artifacts for a workflow execution.
-func (r *Runner) collectWorkflowArtifacts(
-	ctx context.Context,
-	entry Entry,
-	executionID string,
-	outcome *Outcome,
-	execErr error,
-) *artifacts.WorkflowArtifacts {
-	// Fetch timeline data
-	timeline, timelineData, fetchErr := r.basClient.GetTimeline(ctx, executionID)
-	if fetchErr != nil {
-		shared.LogWarn(r.logWriter, "failed to fetch timeline for %s: %v", entry.File, fetchErr)
-		return &artifacts.WorkflowArtifacts{}
-	}
-
-	// Parse timeline for structured data
-	parsed, parseErr := execution.ParseFullTimeline(timelineData)
-	if parseErr != nil {
-		shared.LogWarn(r.logWriter, "failed to parse timeline for %s: %v", entry.File, parseErr)
-		// Continue with nil parsed - will still write raw timeline
-	} else if parsed != nil && timeline != nil {
-		// Reuse the already-fetched proto timeline to avoid duplicate parsing work downstream.
-		parsed.Proto = timeline
-	}
-
-	// Update outcome stats from parsed timeline
-	if parsed != nil {
-		outcome.Stats = parsed.Summary.String()
-	}
-
-	// Download screenshots
-	var screenshots []artifacts.ScreenshotData
-	if parsed != nil {
-		screenshots = r.downloadScreenshots(ctx, entry.File, parsed)
-	}
-
-	// Build result for README generation
-	status := "passed"
-	errMsg := ""
-	if execErr != nil {
-		status = "failed"
-		errMsg = execErr.Error()
-	}
-
-	result := &artifacts.WorkflowResult{
-		WorkflowFile:  entry.File,
-		Description:   entry.Description,
-		Requirements:  entry.Requirements,
-		ExecutionID:   executionID,
-		Success:       execErr == nil,
-		Status:        status,
-		Error:         errMsg,
-		DurationMs:    outcome.Duration.Milliseconds(),
-		Timestamp:     time.Now().UTC(),
-		Summary:       getSummaryFromParsed(parsed),
-		ParsedSummary: parsed,
-	}
-
-	// Get the FileWriter from the interface (if available)
-	fileWriter, ok := r.artifactWriter.(*artifacts.FileWriter)
-	if !ok {
-		// Fallback to legacy timeline-only writing
-		shared.LogWarn(r.logWriter, "artifact writer does not support full artifact collection, using legacy mode")
-		timelinePath, _ := r.artifactWriter.WriteTimeline(entry.File, timelineData)
-		return &artifacts.WorkflowArtifacts{Dir: timelinePath, Timeline: timelinePath}
-	}
-
-	// Write all artifacts
-	workflowArtifacts, writeErr := fileWriter.WriteWorkflowArtifacts(
-		entry.File,
-		timelineData,
-		parsed,
-		screenshots,
-		result,
-	)
-	if writeErr != nil {
-		shared.LogWarn(r.logWriter, "failed to write artifacts for %s: %v", entry.File, writeErr)
-	}
-
-	if workflowArtifacts != nil {
-		shared.LogStep(r.logWriter, "artifacts written to %s", workflowArtifacts.Dir)
-		// Attach proto timeline for error diagnostics
-		workflowArtifacts.Proto = timeline
-	}
-
-	return workflowArtifacts
-}
-
-// downloadScreenshots downloads screenshot images from BAS.
-func (r *Runner) downloadScreenshots(ctx context.Context, workflowFile string, parsed *execution.ParsedTimeline) []artifacts.ScreenshotData {
-	var screenshots []artifacts.ScreenshotData
-
-	// Extract screenshot references from parsed timeline
-	refs := artifacts.ExtractScreenshotsFromTimeline(parsed)
-	if len(refs) == 0 {
-		return screenshots
-	}
-
-	shared.LogStep(r.logWriter, "downloading %d screenshots for %s", len(refs), workflowFile)
-
-	for _, ref := range refs {
-		if ref.URL == "" {
-			continue
-		}
-
-		data, err := r.basClient.DownloadAsset(ctx, ref.URL)
-		if err != nil {
-			shared.LogWarn(r.logWriter, "failed to download screenshot for step %d: %v", ref.StepIndex, err)
-			continue
-		}
-
-		screenshots = append(screenshots, artifacts.ScreenshotData{
-			StepIndex: ref.StepIndex,
-			StepName:  ref.StepType,
-			Filename:  artifacts.GenerateScreenshotFilename(ref),
-			Data:      data,
-		})
-	}
-
-	return screenshots
-}
-
-// getSummaryFromParsed extracts TimelineSummary from parsed timeline.
-func getSummaryFromParsed(parsed *execution.ParsedTimeline) execution.TimelineSummary {
-	if parsed == nil {
-		return execution.TimelineSummary{}
-	}
-	return parsed.Summary
-}
-
 // ensureBAS ensures the BAS API is available.
 // It always attempts to start BAS to ensure it's running, then waits for health.
 func (r *Runner) ensureBAS(ctx context.Context) error {
@@ -579,4 +530,159 @@ func (r *Runner) ensureBAS(ctx context.Context) error {
 	r.basClient = execution.NewClient(apiBase)
 
 	return r.basClient.WaitForHealth(ctx)
+}
+
+// ensureRequiredScenarios ensures all scenarios referenced via destinationType=scenario are running.
+// For each required scenario, it attempts to start the scenario (idempotent) and verify its UI port.
+func (r *Runner) ensureRequiredScenarios(ctx context.Context) error {
+	var failed []string
+
+	for _, scenario := range r.requiredScenarios {
+		shared.LogStep(r.logWriter, "ensuring scenario %s is running", scenario)
+
+		// Start scenario if we have a starter hook
+		if r.startScenario != nil {
+			if err := r.startScenario(ctx, scenario); err != nil {
+				shared.LogWarn(r.logWriter, "failed to start scenario %s: %v", scenario, err)
+				failed = append(failed, fmt.Sprintf("%s (start failed: %v)", scenario, err))
+				continue
+			}
+		}
+
+		// Verify UI port is available
+		if r.resolvePort != nil {
+			uiPort, err := r.resolvePort(ctx, scenario, "UI_PORT")
+			if err != nil || uiPort == "" {
+				shared.LogWarn(r.logWriter, "scenario %s UI port unavailable: %v", scenario, err)
+				failed = append(failed, fmt.Sprintf("%s (UI_PORT unavailable)", scenario))
+				continue
+			}
+			shared.LogStep(r.logWriter, "scenario %s available at port %s", scenario, uiPort)
+		}
+	}
+
+	if len(failed) > 0 {
+		return fmt.Errorf("required scenarios unavailable: %s", strings.Join(failed, "; "))
+	}
+
+	return nil
+}
+
+// runPreflightValidation checks that all referenced fixtures and selectors exist
+// before attempting resolution. This catches issues early with clear error messages.
+// Returns nil if validation passes, or a RunResult with errors if it fails.
+func (r *Runner) runPreflightValidation(reg Registry) *RunResult {
+	validator := workflow.NewPreflightValidator(r.config.ScenarioDir)
+
+	// Collect workflow paths
+	var workflowPaths []string
+	for _, entry := range reg.Playbooks {
+		workflowPath := entry.File
+		if !filepath.IsAbs(workflowPath) {
+			workflowPath = filepath.Join(r.config.ScenarioDir, filepath.FromSlash(workflowPath))
+		}
+		workflowPaths = append(workflowPaths, workflowPath)
+	}
+
+	result, err := validator.ValidateAll(workflowPaths)
+	if err != nil {
+		shared.LogWarn(r.logWriter, "preflight validation failed: %v", err)
+		return &RunResult{
+			Success:      false,
+			Error:        fmt.Errorf("preflight validation failed: %w", err),
+			FailureClass: FailureClassMisconfiguration,
+			Remediation:  "Fix the workflow files before running playbooks.",
+		}
+	}
+
+	if !result.Valid {
+		// Build diagnostic message from errors
+		var diagnostics []string
+		for _, issue := range result.Errors {
+			msg := issue.Message
+			if issue.Hint != "" {
+				msg += " (" + issue.Hint + ")"
+			}
+			diagnostics = append(diagnostics, msg)
+		}
+
+		shared.LogWarn(r.logWriter, "preflight validation found %d error(s):", len(result.Errors))
+		for _, d := range diagnostics {
+			shared.LogWarn(r.logWriter, "  - %s", d)
+		}
+
+		return &RunResult{
+			Success:          false,
+			Error:            fmt.Errorf("preflight validation failed: %d error(s)", len(result.Errors)),
+			FailureClass:     FailureClassMisconfiguration,
+			Remediation:      "Fix missing fixtures/selectors before running playbooks.",
+			DiagnosticOutput: fmt.Sprintf("Preflight Validation Errors:\n%s", formatPreflightDiagnostics(result)),
+			Observations:     convertPreflightToObservations(result),
+		}
+	}
+
+	// Log preflight success with token counts
+	if result.TokenCounts.Fixtures > 0 || result.TokenCounts.Selectors > 0 || result.TokenCounts.Seeds > 0 {
+		shared.LogStep(r.logWriter, "preflight validation passed: %d fixtures, %d selectors, %d seeds",
+			result.TokenCounts.Fixtures, result.TokenCounts.Selectors, result.TokenCounts.Seeds)
+	}
+
+	// Log required scenarios
+	if len(result.RequiredScenarios) > 0 {
+		shared.LogStep(r.logWriter, "playbooks require scenarios: %s", strings.Join(result.RequiredScenarios, ", "))
+		// Store required scenarios for later health check
+		r.requiredScenarios = result.RequiredScenarios
+	}
+
+	// Add warnings as observations (don't fail on warnings)
+	if len(result.Warnings) > 0 {
+		for _, w := range result.Warnings {
+			shared.LogWarn(r.logWriter, "preflight warning: %s", w.Message)
+		}
+	}
+
+	return nil
+}
+
+// formatPreflightDiagnostics formats preflight issues for diagnostic output.
+func formatPreflightDiagnostics(result *workflow.PreflightResult) string {
+	var lines []string
+
+	for _, issue := range result.Errors {
+		line := fmt.Sprintf("[%s] %s", issue.Code, issue.Message)
+		if issue.NodeID != "" {
+			line += fmt.Sprintf(" (node: %s)", issue.NodeID)
+		}
+		if issue.Pointer != "" {
+			line += fmt.Sprintf(" at %s", issue.Pointer)
+		}
+		if issue.Hint != "" {
+			line += fmt.Sprintf("\n    Hint: %s", issue.Hint)
+		}
+		lines = append(lines, line)
+	}
+
+	for _, issue := range result.Warnings {
+		line := fmt.Sprintf("[WARNING] %s", issue.Message)
+		if issue.Hint != "" {
+			line += fmt.Sprintf("\n    Hint: %s", issue.Hint)
+		}
+		lines = append(lines, line)
+	}
+
+	return strings.Join(lines, "\n\n")
+}
+
+// convertPreflightToObservations converts preflight issues to observations.
+func convertPreflightToObservations(result *workflow.PreflightResult) []Observation {
+	var obs []Observation
+
+	for _, issue := range result.Errors {
+		obs = append(obs, NewErrorObservation(issue.Message))
+	}
+	for _, issue := range result.Warnings {
+		obs = append(obs, NewWarningObservation(issue.Message))
+	}
+
+	return obs
 }

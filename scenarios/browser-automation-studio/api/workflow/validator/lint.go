@@ -15,7 +15,22 @@ var (
 	selectorValues    map[string]struct{}
 	selectorSource    string
 	dataTestIDPattern = regexp.MustCompile(`(?i)data-testid\s*=\s*(?:"([^"]+)"|'([^']+)')`)
+
+	// Patterns for detecting unresolved tokens that should have been substituted
+	unresolvedTokenPatterns = []*unresolvedPattern{
+		{regexp.MustCompile(`@fixture/[A-Za-z0-9_.-]+`), "fixture reference", "WF_UNRESOLVED_FIXTURE"},
+		{regexp.MustCompile(`@selector/[A-Za-z0-9_.-]+`), "selector reference", "WF_UNRESOLVED_SELECTOR"},
+		{regexp.MustCompile(`@seed/[A-Za-z0-9_.-]+`), "seed reference", "WF_UNRESOLVED_SEED"},
+		{regexp.MustCompile(`\$\{[A-Za-z0-9_]+\}`), "placeholder", "WF_UNRESOLVED_PLACEHOLDER"},
+		{regexp.MustCompile(`\{\{[A-Za-z0-9_]+\}\}`), "template variable", "WF_UNRESOLVED_TEMPLATE"},
+	}
 )
+
+type unresolvedPattern struct {
+	pattern *regexp.Regexp
+	name    string
+	code    string
+}
 
 type nodeRule struct {
 	requiredData []string
@@ -475,4 +490,73 @@ func SortIssues(issues []Issue) {
 		}
 		return issues[i].Message < issues[j].Message
 	})
+}
+
+// runResolvedLint checks for unresolved tokens that should have been substituted.
+// This is used by the validate-resolved endpoint to catch resolution failures.
+func runResolvedLint(definition map[string]any) []Issue {
+	var issues []Issue
+	nodes := toSlice(definition["nodes"])
+
+	for idx, rawNode := range nodes {
+		nodeMap, ok := toMap(rawNode)
+		if !ok {
+			continue
+		}
+
+		nodeID := getString(nodeMap["id"])
+		nodeType := getString(nodeMap["type"])
+
+		dataMap := map[string]any{}
+		if rawData, ok := nodeMap["data"]; ok {
+			if coerced, ok := toMap(rawData); ok {
+				dataMap = coerced
+			}
+		}
+
+		// Check all string fields in data for unresolved tokens
+		for field, value := range dataMap {
+			strValue := getString(value)
+			if strValue == "" {
+				continue
+			}
+
+			for _, up := range unresolvedTokenPatterns {
+				matches := up.pattern.FindAllString(strValue, -1)
+				for _, match := range matches {
+					issues = append(issues, Issue{
+						Severity: SeverityError,
+						Code:     up.code,
+						Message:  fmt.Sprintf("Unresolved %s '%s' in field '%s'", up.name, match, field),
+						NodeID:   nodeID,
+						NodeType: nodeType,
+						Field:    field,
+						Pointer:  fmt.Sprintf("/nodes/%d/data/%s", idx, field),
+						Hint:     fmt.Sprintf("Ensure the %s is resolved before execution", up.name),
+					})
+				}
+			}
+		}
+
+		// Special check for navigate nodes with destinationType=scenario
+		// After resolution, the URL should be set and destinationType should be 'url'
+		if nodeType == "navigate" {
+			destType := strings.ToLower(strings.TrimSpace(getString(dataMap["destinationType"])))
+			if destType == "scenario" {
+				scenario := getString(dataMap["scenario"])
+				issues = append(issues, Issue{
+					Severity: SeverityError,
+					Code:     "WF_UNRESOLVED_SCENARIO_URL",
+					Message:  fmt.Sprintf("Navigate node still has destinationType=scenario (scenario: %s); URL should be resolved", scenario),
+					NodeID:   nodeID,
+					NodeType: nodeType,
+					Field:    "destinationType",
+					Pointer:  fmt.Sprintf("/nodes/%d/data/destinationType", idx),
+					Hint:     "Scenario URL resolution should convert destinationType to 'url' with the resolved URL",
+				})
+			}
+		}
+	}
+
+	return issues
 }

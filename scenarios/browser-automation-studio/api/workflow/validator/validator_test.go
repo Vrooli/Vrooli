@@ -1842,3 +1842,282 @@ func TestSortIssues(t *testing.T) {
 		t.Errorf("expected fourth issue to be warning WF_B, got %+v", issues[3])
 	}
 }
+
+// ============================================================================
+// ValidateResolved Tests - Token resolution validation
+// ============================================================================
+
+func TestValidateResolvedCleanWorkflow(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	// A fully resolved workflow should pass
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "url",
+					"url":             "https://example.com",
+				},
+			},
+			map[string]any{
+				"id":   "click",
+				"type": "click",
+				"data": map[string]any{
+					"selector": "#button",
+				},
+			},
+		},
+		"edges": []any{
+			map[string]any{"id": "e1", "source": "nav", "target": "click"},
+		},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if !res.Valid {
+		t.Fatalf("expected resolved workflow to be valid, got errors: %+v", res.Errors)
+	}
+}
+
+func TestValidateResolvedUnresolvedFixture(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "subflow",
+				"type": "subflow",
+				"data": map[string]any{
+					"workflowId": "@fixture/login-flow",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected unresolved fixture to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_FIXTURE")
+}
+
+func TestValidateResolvedUnresolvedSelector(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "click",
+				"type": "click",
+				"data": map[string]any{
+					"selector": "@selector/button.submit",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected unresolved selector to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_SELECTOR")
+}
+
+func TestValidateResolvedUnresolvedSeed(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "type",
+				"type": "type",
+				"data": map[string]any{
+					"selector": "#email",
+					"text":     "@seed/user.email",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected unresolved seed to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_SEED")
+}
+
+func TestValidateResolvedUnresolvedPlaceholder(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "url",
+					"url":             "${BASE_URL}/dashboard",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected unresolved placeholder to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_PLACEHOLDER")
+}
+
+func TestValidateResolvedUnresolvedTemplate(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "type",
+				"type": "type",
+				"data": map[string]any{
+					"selector": "#name",
+					"text":     "{{userName}}",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected unresolved template to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_TEMPLATE")
+}
+
+func TestValidateResolvedScenarioDestination(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	// Navigate with destinationType=scenario should flag unresolved scenario reference
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "scenario",
+					"scenario":        "test-app",
+					"scenarioPath":    "/dashboard",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected unresolved scenario navigation to fail validation")
+	}
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_SCENARIO_URL")
+}
+
+func TestValidateResolvedMultipleIssues(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "url",
+					"url":             "${BASE_URL}/page",
+				},
+			},
+			map[string]any{
+				"id":   "click",
+				"type": "click",
+				"data": map[string]any{
+					"selector": "@selector/button.main",
+				},
+			},
+			map[string]any{
+				"id":   "type",
+				"type": "type",
+				"data": map[string]any{
+					"selector": "#input",
+					"text":     "@seed/test.value",
+				},
+			},
+		},
+		"edges": []any{
+			map[string]any{"id": "e1", "source": "nav", "target": "click"},
+			map[string]any{"id": "e2", "source": "click", "target": "type"},
+		},
+	}
+
+	res, err := v.ValidateResolved(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected multiple unresolved tokens to fail validation")
+	}
+
+	// Should have at least 3 errors
+	if len(res.Errors) < 3 {
+		t.Errorf("expected at least 3 errors, got %d: %+v", len(res.Errors), res.Errors)
+	}
+
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_PLACEHOLDER")
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_SELECTOR")
+	assertIssue(t, res.Errors, "WF_UNRESOLVED_SEED")
+}

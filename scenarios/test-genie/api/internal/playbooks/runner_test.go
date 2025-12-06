@@ -16,6 +16,17 @@ import (
 	"test-genie/internal/playbooks/workflow"
 )
 
+// createTestWorkflow creates a minimal workflow file for testing.
+// The preflight validation requires actual workflow files to exist.
+func createTestWorkflow(t *testing.T, dir, filename string) {
+	t.Helper()
+	workflowJSON := `{"nodes": [], "edges": []}`
+	path := filepath.Join(dir, filename)
+	if err := os.WriteFile(path, []byte(workflowJSON), 0644); err != nil {
+		t.Fatalf("failed to create workflow file %s: %v", path, err)
+	}
+}
+
 // Mock implementations for testing
 
 type mockRegistryLoader struct {
@@ -65,6 +76,11 @@ func (m *mockBASClient) Health(ctx context.Context) error {
 
 func (m *mockBASClient) WaitForHealth(ctx context.Context) error {
 	return m.healthErr
+}
+
+func (m *mockBASClient) ValidateResolved(ctx context.Context, definition map[string]any) (*execution.ValidationResult, error) {
+	// Return valid result by default
+	return &execution.ValidationResult{Valid: true}, nil
 }
 
 func (m *mockBASClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error) {
@@ -199,6 +215,7 @@ func TestRunnerRunBASUnavailable(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -221,6 +238,7 @@ func TestRunnerRunSeedError(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -244,6 +262,7 @@ func TestRunnerRunWorkflowSuccess(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir, ScenarioName: "test"},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -287,6 +306,7 @@ func TestRunnerRunWorkflowFailure(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir, ScenarioName: "test"},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -324,6 +344,9 @@ func TestRunnerRunMultipleWorkflows(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "workflow1.json")
+	createTestWorkflow(t, tempDir, "workflow2.json")
+	createTestWorkflow(t, tempDir, "workflow3.json")
 
 	runner := New(Config{ScenarioDir: tempDir, ScenarioName: "test"},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -375,6 +398,7 @@ func TestRunnerRunWithUIBaseURL(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir, ScenarioName: "test"},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -410,6 +434,7 @@ func TestRunnerSeedCleanupCalled(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	cleanupCalled := false
 	runner := New(Config{ScenarioDir: tempDir},
@@ -438,10 +463,11 @@ func TestRunnerWorkflowResolverError(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir},
 		WithRegistryLoader(&mockRegistryLoader{
-			registry: Registry{Playbooks: []Entry{{File: "missing.json"}}},
+			registry: Registry{Playbooks: []Entry{{File: "test.json"}}},
 		}),
 		WithWorkflowResolver(&mockWorkflowResolver{err: errors.New("file not found")}),
 		WithBASClient(&mockBASClient{}),
@@ -460,11 +486,42 @@ func TestRunnerWorkflowResolverError(t *testing.T) {
 	}
 }
 
+// TestRunnerPreflightMissingFile tests that preflight validation fails when workflow file doesn't exist.
+func TestRunnerPreflightMissingFile(t *testing.T) {
+	tempDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
+		t.Fatalf("failed to create ui dir: %v", err)
+	}
+	// Don't create the workflow file - it should fail at preflight
+
+	runner := New(Config{ScenarioDir: tempDir},
+		WithRegistryLoader(&mockRegistryLoader{
+			registry: Registry{Playbooks: []Entry{{File: "missing.json"}}},
+		}),
+		WithBASClient(&mockBASClient{}),
+		WithSeedManager(&mockSeedManager{}),
+		WithArtifactWriter(&mockArtifactWriter{}),
+	)
+
+	result := runner.Run(context.Background())
+	if result.Success {
+		t.Error("expected failure for missing workflow file")
+	}
+	if result.FailureClass != FailureClassMisconfiguration {
+		t.Errorf("expected misconfiguration failure, got %v", result.FailureClass)
+	}
+	errStr := result.Error.Error()
+	if !strings.Contains(errStr, "preflight") {
+		t.Errorf("expected preflight error, got: %v", result.Error)
+	}
+}
+
 func TestRunnerPhaseResultWriteError(t *testing.T) {
 	tempDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -492,6 +549,7 @@ func TestRunnerExecutionOutcomeFields(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	runner := New(Config{ScenarioDir: tempDir},
 		WithRegistryLoader(&mockRegistryLoader{
@@ -540,6 +598,7 @@ func TestRunnerEnsureBASStarterCalledFirst(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
+	createTestWorkflow(t, tempDir, "test.json")
 
 	portResolverCalled := false
 	startCalled := false
@@ -587,6 +646,10 @@ func TestRunnerEnsureBASStarterFailsEarly(t *testing.T) {
 	tempDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755); err != nil {
 		t.Fatalf("failed to create ui dir: %v", err)
+	}
+	workflowJSON := `{"nodes": [], "edges": []}`
+	if err := os.WriteFile(filepath.Join(tempDir, "test.json"), []byte(workflowJSON), 0644); err != nil {
+		t.Fatalf("failed to create workflow file: %v", err)
 	}
 
 	portResolverCalled := false
@@ -644,6 +707,8 @@ func BenchmarkRunnerRunNoWorkflows(b *testing.B) {
 func BenchmarkRunnerRunSingleWorkflow(b *testing.B) {
 	tempDir := b.TempDir()
 	os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755)
+	workflowJSON := `{"nodes": [], "edges": []}`
+	os.WriteFile(filepath.Join(tempDir, "test.json"), []byte(workflowJSON), 0644)
 
 	runner := New(Config{ScenarioDir: tempDir, ScenarioName: "bench"},
 		WithRegistryLoader(&mockRegistryLoader{

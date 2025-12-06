@@ -46,6 +46,9 @@ type Client interface {
 	Health(ctx context.Context) error
 	// WaitForHealth waits until BAS becomes healthy or timeout.
 	WaitForHealth(ctx context.Context) error
+	// ValidateResolved validates a resolved workflow before execution.
+	// Returns validation issues or nil if the workflow is valid.
+	ValidateResolved(ctx context.Context, definition map[string]any) (*ValidationResult, error)
 	// ExecuteWorkflow starts a workflow execution and returns the execution ID.
 	ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error)
 	// GetStatus retrieves the status of an execution.
@@ -62,6 +65,26 @@ type Client interface {
 	DownloadAsset(ctx context.Context, assetURL string) ([]byte, error)
 	// BaseURL returns the base URL of the BAS API (for constructing asset URLs).
 	BaseURL() string
+}
+
+// ValidationResult represents the result of BAS workflow validation.
+type ValidationResult struct {
+	Valid         bool              `json:"valid"`
+	Errors        []ValidationIssue `json:"errors,omitempty"`
+	Warnings      []ValidationIssue `json:"warnings,omitempty"`
+	SchemaVersion string            `json:"schema_version,omitempty"`
+}
+
+// ValidationIssue represents a single validation issue.
+type ValidationIssue struct {
+	Severity string `json:"severity"`
+	Code     string `json:"code"`
+	Message  string `json:"message"`
+	NodeID   string `json:"node_id,omitempty"`
+	NodeType string `json:"node_type,omitempty"`
+	Field    string `json:"field,omitempty"`
+	Pointer  string `json:"pointer,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // Screenshot represents screenshot metadata from BAS.
@@ -142,6 +165,44 @@ func (c *HTTPClient) WaitForHealth(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// ValidateResolved validates a resolved workflow before execution.
+// This is the pre-flight check that catches unresolved tokens and schema errors.
+func (c *HTTPClient) ValidateResolved(ctx context.Context, definition map[string]any) (*ValidationResult, error) {
+	payload := map[string]any{
+		"workflow": definition,
+		"strict":   true, // Use strict mode to catch all issues
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal validation request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/workflows/validate-resolved", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("validation request failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
+	}
+
+	var result ValidationResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to decode validation response: %w", err)
+	}
+
+	return &result, nil
 }
 
 // ExecuteWorkflow starts a workflow execution and returns the execution ID.

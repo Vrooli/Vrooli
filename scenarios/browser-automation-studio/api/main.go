@@ -155,6 +155,7 @@ func main() {
 		// Workflow routes
 		r.Post("/workflows/create", handler.CreateWorkflow)
 		r.Post("/workflows/validate", handler.ValidateWorkflow)
+		r.Post("/workflows/validate-resolved", handler.ValidateResolvedWorkflow)
 		r.Post("/workflows/execute-adhoc", handler.ExecuteAdhocWorkflow)
 		r.Get("/workflows", handler.ListWorkflows)
 		r.Get("/workflows/{id}", handler.GetWorkflow)

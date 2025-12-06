@@ -119,6 +119,32 @@ type RunResult struct {
 	Observations []Observation
 	Results      []Result // Playbook-specific: execution results for each playbook
 	Summary      ExecutionSummary
+
+	// DiagnosticOutput contains detailed diagnostic information when a playbook fails.
+	// This is populated from PlaybookExecutionError.DiagnosticString() and provides
+	// rich context including timeline details, failed step info, assertion outcomes,
+	// and artifact paths for debugging.
+	DiagnosticOutput string
+
+	// TracePath is the path to the execution trace JSONL file.
+	// This file contains a chronological record of all phase events including
+	// workflow starts, progress updates, completions, and failures.
+	// Format: One JSON object per line (JSONL), see artifacts.TraceEvent for schema.
+	TracePath string
+
+	// ArtifactPaths contains paths to key artifacts generated during the phase.
+	// This makes it easy for consumers to locate debug materials.
+	ArtifactPaths ArtifactPaths
+}
+
+// ArtifactPaths contains paths to artifacts generated during playbook execution.
+type ArtifactPaths struct {
+	// Trace is the path to the execution trace JSONL file.
+	Trace string `json:"trace,omitempty"`
+	// PhaseResults is the path to the phase results JSON file.
+	PhaseResults string `json:"phase_results,omitempty"`
+	// WorkflowArtifacts maps workflow files to their artifact directories.
+	WorkflowArtifacts map[string]string `json:"workflow_artifacts,omitempty"`
 }
 
 // OK creates a successful RunResult.
@@ -170,5 +196,33 @@ func (r *RunResult) WithObservations(obs ...Observation) *RunResult {
 // WithResults adds execution results.
 func (r *RunResult) WithResults(results []Result) *RunResult {
 	r.Results = results
+	return r
+}
+
+// WithTracePath sets the trace file path.
+func (r *RunResult) WithTracePath(path string) *RunResult {
+	r.TracePath = path
+	r.ArtifactPaths.Trace = path
+	return r
+}
+
+// WithDiagnosticOutput sets the diagnostic output string.
+func (r *RunResult) WithDiagnosticOutput(output string) *RunResult {
+	r.DiagnosticOutput = output
+	return r
+}
+
+// WithArtifactPaths sets the artifact paths.
+func (r *RunResult) WithArtifactPaths(paths ArtifactPaths) *RunResult {
+	r.ArtifactPaths = paths
+	return r
+}
+
+// AddWorkflowArtifact records the artifact directory for a workflow.
+func (r *RunResult) AddWorkflowArtifact(workflowFile, artifactDir string) *RunResult {
+	if r.ArtifactPaths.WorkflowArtifacts == nil {
+		r.ArtifactPaths.WorkflowArtifacts = make(map[string]string)
+	}
+	r.ArtifactPaths.WorkflowArtifacts[workflowFile] = artifactDir
 	return r
 }

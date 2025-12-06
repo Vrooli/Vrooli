@@ -20,6 +20,7 @@ type (
 	PlaybookExecutionError = types.PlaybookExecutionError
 	ExecutionArtifacts     = types.ExecutionArtifacts
 	ExecutionPhase         = types.ExecutionPhase
+	ArtifactPaths          = types.ArtifactPaths
 )
 
 // Re-export constants

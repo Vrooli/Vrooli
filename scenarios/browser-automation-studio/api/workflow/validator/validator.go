@@ -120,3 +120,23 @@ func (v *Validator) Validate(ctx context.Context, definition map[string]any, opt
 	result.DurationMs = time.Since(start).Milliseconds()
 	return result, nil
 }
+
+// ValidateResolved validates a workflow that has already been resolved.
+// In addition to standard validation, it checks for unresolved tokens
+// that should have been substituted (e.g., @fixture/, @selector/, @seed/, ${}, {{}}).
+// This is the pre-flight check for test-genie before sending to BAS for execution.
+func (v *Validator) ValidateResolved(ctx context.Context, definition map[string]any, opts Options) (*Result, error) {
+	// First run standard validation
+	result, err := v.Validate(ctx, definition, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Then check for unresolved tokens
+	unresolvedIssues := runResolvedLint(definition)
+	result.Errors = append(result.Errors, unresolvedIssues...)
+
+	// Recalculate validity
+	result.Valid = len(result.Errors) == 0
+	return result, nil
+}
