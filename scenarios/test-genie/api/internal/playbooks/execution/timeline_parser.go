@@ -11,8 +11,17 @@ import (
 )
 
 // ParsedTimeline contains all extracted data from a BAS timeline response.
+// It provides an ergonomic Go interface over the proto timeline.
+//
+// The Proto field contains the canonical proto timeline for callers needing:
+// - Full access to all proto fields (some are not exposed in ParsedTimeline)
+// - Type-safe access to nested proto messages
+// - Rich error diagnostics via types.PlaybookExecutionError.WithTimeline()
+//
+// Use FromProtoTimeline() when you already have a parsed proto to avoid re-parsing.
 type ParsedTimeline struct {
 	// Proto contains the parsed proto timeline for callers needing raw access.
+	// This is the canonical source of truth - all other fields are derived from it.
 	Proto *basv1.ExecutionTimeline `json:"-"`
 	// ExecutionID is the BAS execution ID.
 	ExecutionID string `json:"execution_id"`
@@ -223,6 +232,167 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 	parsed.Summary = calculateSummary(parsed)
 
 	return parsed, nil
+}
+
+// FromProtoTimeline creates a ParsedTimeline from an already-parsed proto timeline.
+// Use this when you have a *basv1.ExecutionTimeline to avoid re-parsing JSON.
+func FromProtoTimeline(timeline *basv1.ExecutionTimeline) *ParsedTimeline {
+	if timeline == nil {
+		return &ParsedTimeline{}
+	}
+
+	parsed := &ParsedTimeline{
+		Proto:       timeline,
+		ExecutionID: timeline.GetExecutionId(),
+		WorkflowID:  timeline.GetWorkflowId(),
+		Status:      timeline.GetStatus(),
+		Progress:    int(timeline.GetProgress()),
+		StartedAt:   timestampToTime(timeline.GetStartedAt()),
+		CompletedAt: timestampToTime(timeline.GetCompletedAt()),
+		Frames:      make([]ParsedFrame, 0, len(timeline.GetFrames())),
+		Logs:        make([]ParsedLog, 0, len(timeline.GetLogs())),
+		Assertions:  make([]ParsedAssertion, 0),
+	}
+
+	// Convert frames
+	var lastDOMPreview string
+	var lastDOMFull string
+	for _, rf := range timeline.GetFrames() {
+		frame := frameFromProto(rf)
+
+		// Track DOM snapshots
+		if rf.GetDomSnapshot() != nil {
+			if html := extractHTML(rf.DomSnapshot.GetPayload()); html != "" {
+				lastDOMFull = html
+			}
+		}
+		if rf.GetDomSnapshotPreview() != "" {
+			lastDOMPreview = rf.GetDomSnapshotPreview()
+		}
+
+		// Extract assertions
+		if rf.GetStepType() == "assert" || rf.Assertion != nil {
+			if frame.Assertion != nil {
+				parsed.Assertions = append(parsed.Assertions, *frame.Assertion)
+			}
+		}
+
+		// Track failed frame
+		if strings.EqualFold(frame.Status, "failed") || frame.Error != "" {
+			frameCopy := frame
+			parsed.FailedFrame = &frameCopy
+		}
+
+		parsed.Frames = append(parsed.Frames, frame)
+	}
+
+	parsed.FinalDOMPreview = lastDOMPreview
+	parsed.FinalDOM = lastDOMFull
+
+	// Convert logs
+	for _, rl := range timeline.GetLogs() {
+		parsed.Logs = append(parsed.Logs, ParsedLog{
+			ID:        rl.GetId(),
+			Level:     rl.GetLevel(),
+			Message:   rl.GetMessage(),
+			StepName:  rl.GetStepName(),
+			Timestamp: timestampValue(rl.GetTimestamp()),
+		})
+	}
+
+	parsed.Summary = calculateSummary(parsed)
+	return parsed
+}
+
+// frameFromProto converts a proto TimelineFrame to ParsedFrame.
+func frameFromProto(rf *basv1.TimelineFrame) ParsedFrame {
+	frame := ParsedFrame{
+		StepIndex: int(rf.GetStepIndex()),
+		NodeID:    rf.GetNodeId(),
+		StepType:  rf.GetStepType(),
+		Status:    rf.GetStatus(),
+		Success:   rf.GetSuccess(),
+		DurationMs: func() int {
+			if rf.GetTotalDurationMs() > 0 {
+				return int(rf.GetTotalDurationMs())
+			}
+			return int(rf.GetDurationMs())
+		}(),
+		Error:    rf.GetError(),
+		FinalURL: rf.GetFinalUrl(),
+		Progress: int(rf.GetProgress()),
+	}
+
+	// Extract screenshot info
+	if rf.GetScreenshot() != nil {
+		frame.Screenshot = &FrameScreenshot{
+			ArtifactID:   rf.Screenshot.GetArtifactId(),
+			URL:          rf.Screenshot.GetUrl(),
+			ThumbnailURL: rf.Screenshot.GetThumbnailUrl(),
+			Width:        int(rf.Screenshot.GetWidth()),
+			Height:       int(rf.Screenshot.GetHeight()),
+		}
+	}
+
+	// Extract DOM snapshot info
+	if rf.GetDomSnapshot() != nil || rf.GetDomSnapshotPreview() != "" {
+		frame.DOMSnapshot = &FrameDOMSnapshot{}
+		if rf.GetDomSnapshot() != nil {
+			frame.DOMSnapshot.ArtifactID = rf.DomSnapshot.GetId()
+			frame.DOMSnapshot.StorageURL = rf.DomSnapshot.GetStorageUrl()
+		}
+		if rf.GetDomSnapshotPreview() != "" {
+			frame.DOMSnapshot.Preview = rf.GetDomSnapshotPreview()
+		}
+	}
+
+	// Extract assertion info
+	if rf.GetStepType() == "assert" || rf.Assertion != nil {
+		assertion := ParsedAssertion{
+			StepIndex: int(rf.GetStepIndex()),
+			NodeID:    rf.GetNodeId(),
+			Passed:    rf.GetSuccess(),
+			Error:     rf.GetError(),
+		}
+		if rf.Assertion != nil {
+			assertion.AssertionType = rf.Assertion.GetMode()
+			assertion.Selector = rf.Assertion.GetSelector()
+			assertion.Expected = valueToString(rf.Assertion.GetExpected())
+			assertion.Actual = valueToString(rf.Assertion.GetActual())
+			assertion.Message = rf.Assertion.GetMessage()
+			assertion.Passed = rf.Assertion.GetSuccess()
+		}
+		frame.Assertion = &assertion
+	}
+
+	return frame
+}
+
+// ProtoFrameAt returns the proto frame at the given index for direct proto access.
+// Returns nil if index is out of bounds.
+func (p *ParsedTimeline) ProtoFrameAt(index int) *basv1.TimelineFrame {
+	if p.Proto == nil {
+		return nil
+	}
+	frames := p.Proto.GetFrames()
+	if index < 0 || index >= len(frames) {
+		return nil
+	}
+	return frames[index]
+}
+
+// FailedProtoFrame returns the first failed proto frame for rich error diagnostics.
+// Returns nil if no frame failed.
+func (p *ParsedTimeline) FailedProtoFrame() *basv1.TimelineFrame {
+	if p.Proto == nil {
+		return nil
+	}
+	for _, frame := range p.Proto.GetFrames() {
+		if !frame.GetSuccess() || frame.GetError() != "" {
+			return frame
+		}
+	}
+	return nil
 }
 
 // calculateSummary computes aggregate statistics from parsed timeline.

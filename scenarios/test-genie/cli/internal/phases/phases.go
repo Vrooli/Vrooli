@@ -24,7 +24,8 @@ var AllowedPhases = []string{
 	"smoke",
 	"unit",
 	"integration",
-	"e2e",
+	"playbooks",
+	"e2e", // alias for playbooks
 	"business",
 	"performance",
 }
@@ -77,7 +78,7 @@ func NormalizeName(name string) string {
 func NormalizeAlias(name string) string {
 	switch name {
 	case "e2e":
-		return "integration"
+		return "playbooks"
 	default:
 		return name
 	}
@@ -114,6 +115,7 @@ func DefaultTargetDurations() map[string]time.Duration {
 		"smoke":        90 * time.Second,
 		"unit":         120 * time.Second,
 		"integration":  600 * time.Second,
+		"playbooks":    900 * time.Second, // BAS workflow execution can be slow
 		"business":     120 * time.Second,
 		"performance":  60 * time.Second,
 	}

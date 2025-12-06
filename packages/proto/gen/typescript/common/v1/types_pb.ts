@@ -6,13 +6,13 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file common/v1/types.proto.
  */
 export const file_common_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSIyChFQYWdpbmF0aW9uUmVxdWVzdBINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUiVAoSUGFnaW5hdGlvblJlc3BvbnNlEg0KBXRvdGFsGAEgASgFEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBRIQCghoYXNfbW9yZRgEIAEoCCKWAQoNRXJyb3JSZXNwb25zZRIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSNgoHZGV0YWlscxgDIAMoCzIlLmNvbW1vbi52MS5FcnJvclJlc3BvbnNlLkRldGFpbHNFbnRyeRouCgxEZXRhaWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASL5AgoOSGVhbHRoUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEkEKDGRlcGVuZGVuY2llcxgGIAMoCzIrLmNvbW1vbi52MS5IZWFsdGhSZXNwb25zZS5EZXBlbmRlbmNpZXNFbnRyeRI3CgdtZXRyaWNzGAcgAygLMiYuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLk1ldHJpY3NFbnRyeRpLChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkYKDE1ldHJpY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBQqMBCg1jb20uY29tbW9uLnYxQgpUeXBlc1Byb3RvUAFaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxogIDQ1hYqgIJQ29tbW9uLlYxygIJQ29tbW9uXFYx4gIVQ29tbW9uXFYxXEdQQk1ldGFkYXRh6gIKQ29tbW9uOjpWMWIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSIyChFQYWdpbmF0aW9uUmVxdWVzdBINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUiVAoSUGFnaW5hdGlvblJlc3BvbnNlEg0KBXRvdGFsGAEgASgFEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBRIQCghoYXNfbW9yZRgEIAEoCCJYCg1FcnJvclJlc3BvbnNlEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIoCgdkZXRhaWxzGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCL5AgoOSGVhbHRoUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEkEKDGRlcGVuZGVuY2llcxgGIAMoCzIrLmNvbW1vbi52MS5IZWFsdGhSZXNwb25zZS5EZXBlbmRlbmNpZXNFbnRyeRI3CgdtZXRyaWNzGAcgAygLMiYuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLk1ldHJpY3NFbnRyeRpLChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkYKDE1ldHJpY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBQqMBCg1jb20uY29tbW9uLnYxQgpUeXBlc1Byb3RvUAFaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxogIDQ1hYqgIJQ29tbW9uLlYxygIJQ29tbW9uXFYx4gIVQ29tbW9uXFYxXEdQQk1ldGFkYXRh6gIKQ29tbW9uOjpWMWIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * PaginationRequest represents limit/offset pagination inputs.
@@ -91,7 +91,7 @@ export const PaginationResponseSchema: GenMessage<PaginationResponse> = /*@__PUR
  */
 export type ErrorResponse = Message<"common.v1.ErrorResponse"> & {
   /**
-   * Stable machine-readable error code.
+   * Stable machine-readable error code (e.g., WORKFLOW_VALIDATION_FAILED).
    *
    * @generated from field: string code = 1;
    */
@@ -106,10 +106,11 @@ export type ErrorResponse = Message<"common.v1.ErrorResponse"> & {
 
   /**
    * Additional structured context about the error.
+   * Uses Struct to support rich nested details (e.g., validation errors, stats).
    *
-   * @generated from field: map<string, string> details = 3;
+   * @generated from field: google.protobuf.Struct details = 3;
    */
-  details: { [key: string]: string };
+  details?: JsonObject;
 };
 
 /**

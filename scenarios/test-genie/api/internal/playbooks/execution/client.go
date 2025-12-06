@@ -29,6 +29,10 @@ var (
 	protoJSONUnmarshal = protojson.UnmarshalOptions{
 		DiscardUnknown: true,
 	}
+	protoJSONMarshal = protojson.MarshalOptions{
+		UseProtoNames:   true, // Use snake_case field names to match BAS expectations
+		EmitUnpopulated: true, // Emit empty arrays (e.g., edges:[]) required by BAS schema
+	}
 )
 
 // ProgressCallback is called periodically during workflow execution with status updates.
@@ -141,19 +145,18 @@ func (c *HTTPClient) WaitForHealth(ctx context.Context) error {
 }
 
 // ExecuteWorkflow starts a workflow execution and returns the execution ID.
+// It uses proto serialization for type-safe request formatting.
 func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error) {
-	payload := map[string]any{
-		"flow_definition":     definition,
-		"parameters":          map[string]any{},
-		"wait_for_completion": false,
-		"metadata": map[string]any{
-			"name": name,
-		},
+	// Build proto request for type safety
+	protoReq, err := BuildAdhocRequest(definition, name)
+	if err != nil {
+		return "", fmt.Errorf("failed to build proto request: %w", err)
 	}
 
-	body, err := json.Marshal(payload)
+	// Marshal using protojson for consistent field naming
+	body, err := protoJSONMarshal.Marshal(protoReq)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal payload: %w", err)
+		return "", fmt.Errorf("failed to marshal proto request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/workflows/execute-adhoc", bytes.NewReader(body))

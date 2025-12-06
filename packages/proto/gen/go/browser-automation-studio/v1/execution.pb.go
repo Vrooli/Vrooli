@@ -423,6 +423,179 @@ func (x *ExecuteAdhocResponse) GetError() string {
 	return ""
 }
 
+// Screenshot represents metadata for a captured screenshot.
+type Screenshot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique screenshot artifact ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Execution ID this screenshot belongs to.
+	ExecutionId string `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	// Human-readable step name when captured.
+	StepName string `protobuf:"bytes,3,opt,name=step_name,json=stepName,proto3" json:"step_name,omitempty"`
+	// Zero-based step index in the execution.
+	StepIndex int32 `protobuf:"varint,4,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
+	// RFC3339 timestamp when the screenshot was captured.
+	Timestamp string `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// URL to download the full screenshot.
+	StorageUrl string `protobuf:"bytes,6,opt,name=storage_url,json=storageUrl,proto3" json:"storage_url,omitempty"`
+	// URL to download a thumbnail.
+	ThumbnailUrl string `protobuf:"bytes,7,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`
+	// Image width in pixels.
+	Width int32 `protobuf:"varint,8,opt,name=width,proto3" json:"width,omitempty"`
+	// Image height in pixels.
+	Height int32 `protobuf:"varint,9,opt,name=height,proto3" json:"height,omitempty"`
+	// File size in bytes.
+	SizeBytes     int64 `protobuf:"varint,10,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Screenshot) Reset() {
+	*x = Screenshot{}
+	mi := &file_browser_automation_studio_v1_execution_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Screenshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Screenshot) ProtoMessage() {}
+
+func (x *Screenshot) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_execution_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Screenshot.ProtoReflect.Descriptor instead.
+func (*Screenshot) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_execution_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Screenshot) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Screenshot) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *Screenshot) GetStepName() string {
+	if x != nil {
+		return x.StepName
+	}
+	return ""
+}
+
+func (x *Screenshot) GetStepIndex() int32 {
+	if x != nil {
+		return x.StepIndex
+	}
+	return 0
+}
+
+func (x *Screenshot) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+func (x *Screenshot) GetStorageUrl() string {
+	if x != nil {
+		return x.StorageUrl
+	}
+	return ""
+}
+
+func (x *Screenshot) GetThumbnailUrl() string {
+	if x != nil {
+		return x.ThumbnailUrl
+	}
+	return ""
+}
+
+func (x *Screenshot) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *Screenshot) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *Screenshot) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+// GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
+type GetScreenshotsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// List of screenshots for the execution.
+	Screenshots   []*Screenshot `protobuf:"bytes,1,rep,name=screenshots,proto3" json:"screenshots,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScreenshotsResponse) Reset() {
+	*x = GetScreenshotsResponse{}
+	mi := &file_browser_automation_studio_v1_execution_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScreenshotsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScreenshotsResponse) ProtoMessage() {}
+
+func (x *GetScreenshotsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_execution_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScreenshotsResponse.ProtoReflect.Descriptor instead.
+func (*GetScreenshotsResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_execution_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetScreenshotsResponse) GetScreenshots() []*Screenshot {
+	if x != nil {
+		return x.Screenshots
+	}
+	return nil
+}
+
 var File_browser_automation_studio_v1_execution_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
@@ -484,7 +657,25 @@ const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
 	"\fcompleted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x19\n" +
 	"\x05error\x18\x06 \x01(\tH\x01R\x05error\x88\x01\x01B\x0e\n" +
 	"\f_workflow_idB\b\n" +
-	"\x06_errorB\xa4\x02\n" +
+	"\x06_error\"\xac\x02\n" +
+	"\n" +
+	"Screenshot\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x1b\n" +
+	"\tstep_name\x18\x03 \x01(\tR\bstepName\x12\x1d\n" +
+	"\n" +
+	"step_index\x18\x04 \x01(\x05R\tstepIndex\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\tR\ttimestamp\x12\x1f\n" +
+	"\vstorage_url\x18\x06 \x01(\tR\n" +
+	"storageUrl\x12#\n" +
+	"\rthumbnail_url\x18\a \x01(\tR\fthumbnailUrl\x12\x14\n" +
+	"\x05width\x18\b \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\t \x01(\x05R\x06height\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\n" +
+	" \x01(\x03R\tsizeBytes\"d\n" +
+	"\x16GetScreenshotsResponse\x12J\n" +
+	"\vscreenshots\x18\x01 \x03(\v2(.browser_automation_studio.v1.ScreenshotR\vscreenshotsB\xa4\x02\n" +
 	" com.browser_automation_studio.v1B\x0eExecutionProtoP\x01Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studiov1\xa2\x02\x03BXX\xaa\x02\x1aBrowserAutomationStudio.V1\xca\x02\x1aBrowserAutomationStudio\\V1\xe2\x02&BrowserAutomationStudio\\V1\\GPBMetadata\xea\x02\x1bBrowserAutomationStudio::V1b\x06proto3"
 
 var (
@@ -499,42 +690,45 @@ func file_browser_automation_studio_v1_execution_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_execution_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_browser_automation_studio_v1_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_browser_automation_studio_v1_execution_proto_goTypes = []any{
-	(*Execution)(nil),             // 0: browser_automation_studio.v1.Execution
-	(*ExecuteAdhocRequest)(nil),   // 1: browser_automation_studio.v1.ExecuteAdhocRequest
-	(*ExecutionMetadata)(nil),     // 2: browser_automation_studio.v1.ExecutionMetadata
-	(*ExecuteAdhocResponse)(nil),  // 3: browser_automation_studio.v1.ExecuteAdhocResponse
-	nil,                           // 4: browser_automation_studio.v1.Execution.TriggerMetadataEntry
-	nil,                           // 5: browser_automation_studio.v1.Execution.ParametersEntry
-	nil,                           // 6: browser_automation_studio.v1.Execution.ResultEntry
-	nil,                           // 7: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
-	(*WorkflowDefinition)(nil),    // 9: browser_automation_studio.v1.WorkflowDefinition
-	(*structpb.Value)(nil),        // 10: google.protobuf.Value
+	(*Execution)(nil),              // 0: browser_automation_studio.v1.Execution
+	(*ExecuteAdhocRequest)(nil),    // 1: browser_automation_studio.v1.ExecuteAdhocRequest
+	(*ExecutionMetadata)(nil),      // 2: browser_automation_studio.v1.ExecutionMetadata
+	(*ExecuteAdhocResponse)(nil),   // 3: browser_automation_studio.v1.ExecuteAdhocResponse
+	(*Screenshot)(nil),             // 4: browser_automation_studio.v1.Screenshot
+	(*GetScreenshotsResponse)(nil), // 5: browser_automation_studio.v1.GetScreenshotsResponse
+	nil,                            // 6: browser_automation_studio.v1.Execution.TriggerMetadataEntry
+	nil,                            // 7: browser_automation_studio.v1.Execution.ParametersEntry
+	nil,                            // 8: browser_automation_studio.v1.Execution.ResultEntry
+	nil,                            // 9: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
+	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
+	(*WorkflowDefinition)(nil),     // 11: browser_automation_studio.v1.WorkflowDefinition
+	(*structpb.Value)(nil),         // 12: google.protobuf.Value
 }
 var file_browser_automation_studio_v1_execution_proto_depIdxs = []int32{
-	4,  // 0: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.Execution.TriggerMetadataEntry
-	5,  // 1: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.Execution.ParametersEntry
-	8,  // 2: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
-	8,  // 3: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
-	8,  // 4: browser_automation_studio.v1.Execution.last_heartbeat:type_name -> google.protobuf.Timestamp
-	6,  // 5: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.Execution.ResultEntry
-	8,  // 6: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 7: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
-	9,  // 8: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
-	7,  // 9: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
+	6,  // 0: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.Execution.TriggerMetadataEntry
+	7,  // 1: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.Execution.ParametersEntry
+	10, // 2: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
+	10, // 3: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
+	10, // 4: browser_automation_studio.v1.Execution.last_heartbeat:type_name -> google.protobuf.Timestamp
+	8,  // 5: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.Execution.ResultEntry
+	10, // 6: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
+	10, // 7: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 8: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
+	9,  // 9: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
 	2,  // 10: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
-	8,  // 11: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
-	10, // 12: browser_automation_studio.v1.Execution.TriggerMetadataEntry.value:type_name -> google.protobuf.Value
-	10, // 13: browser_automation_studio.v1.Execution.ParametersEntry.value:type_name -> google.protobuf.Value
-	10, // 14: browser_automation_studio.v1.Execution.ResultEntry.value:type_name -> google.protobuf.Value
-	10, // 15: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry.value:type_name -> google.protobuf.Value
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	10, // 11: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
+	4,  // 12: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.Screenshot
+	12, // 13: browser_automation_studio.v1.Execution.TriggerMetadataEntry.value:type_name -> google.protobuf.Value
+	12, // 14: browser_automation_studio.v1.Execution.ParametersEntry.value:type_name -> google.protobuf.Value
+	12, // 15: browser_automation_studio.v1.Execution.ResultEntry.value:type_name -> google.protobuf.Value
+	12, // 16: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry.value:type_name -> google.protobuf.Value
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_proto_init() }
@@ -551,7 +745,7 @@ func file_browser_automation_studio_v1_execution_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_execution_proto_rawDesc), len(file_browser_automation_studio_v1_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

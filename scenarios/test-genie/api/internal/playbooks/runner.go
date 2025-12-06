@@ -399,6 +399,10 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 			Timeline: artifactResult.Timeline,
 			Trace:    r.traceWriter.Path(),
 		}
+		// Attach proto timeline for rich error diagnostics
+		if artifactResult.Proto != nil {
+			playErr.WithTimeline(artifactResult.Proto)
+		}
 		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, executionID, execErr, outcome.Duration))
 
 		return Result{
@@ -495,6 +499,8 @@ func (r *Runner) collectWorkflowArtifacts(
 
 	if workflowArtifacts != nil {
 		shared.LogStep(r.logWriter, "artifacts written to %s", workflowArtifacts.Dir)
+		// Attach proto timeline for error diagnostics
+		workflowArtifacts.Proto = timeline
 	}
 
 	return workflowArtifacts

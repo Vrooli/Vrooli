@@ -140,6 +140,7 @@ func TestContractExecuteAndWait(t *testing.T) {
 				"type": "wait",
 				"data": map[string]any{
 					"label":      "Wait briefly",
+					"waitType":   "duration",
 					"durationMs": 100,
 				},
 			},
@@ -192,6 +193,7 @@ func TestContractGetTimeline(t *testing.T) {
 				"type": "wait",
 				"data": map[string]any{
 					"label":      "Wait",
+					"waitType":   "duration",
 					"durationMs": 100,
 				},
 			},
@@ -255,7 +257,11 @@ func TestContractStatusFields(t *testing.T) {
 			map[string]any{
 				"id":   "wait",
 				"type": "wait",
-				"data": map[string]any{"durationMs": 500},
+				"data": map[string]any{
+					"label":      "Wait for status test",
+					"waitType":   "duration",
+					"durationMs": 500,
+				},
 			},
 		},
 		"edges": []any{},

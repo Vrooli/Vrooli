@@ -6,7 +6,7 @@ from browser_automation_studio.v1 import workflow_pb2 as _workflow_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -110,3 +110,33 @@ class ExecuteAdhocResponse(_message.Message):
     completed_at: _timestamp_pb2.Timestamp
     error: str
     def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[str] = ..., workflow_id: _Optional[str] = ..., message: _Optional[str] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ...) -> None: ...
+
+class Screenshot(_message.Message):
+    __slots__ = ()
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STEP_NAME_FIELD_NUMBER: _ClassVar[int]
+    STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_URL_FIELD_NUMBER: _ClassVar[int]
+    THUMBNAIL_URL_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    execution_id: str
+    step_name: str
+    step_index: int
+    timestamp: str
+    storage_url: str
+    thumbnail_url: str
+    width: int
+    height: int
+    size_bytes: int
+    def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., step_name: _Optional[str] = ..., step_index: _Optional[int] = ..., timestamp: _Optional[str] = ..., storage_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., size_bytes: _Optional[int] = ...) -> None: ...
+
+class GetScreenshotsResponse(_message.Message):
+    __slots__ = ()
+    SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
+    screenshots: _containers.RepeatedCompositeFieldContainer[Screenshot]
+    def __init__(self, screenshots: _Optional[_Iterable[_Union[Screenshot, _Mapping]]] = ...) -> None: ...

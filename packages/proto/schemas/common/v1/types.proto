@@ -28,12 +28,13 @@ message PaginationResponse {
 
 // ErrorResponse is the standard error envelope for HTTP responses.
 message ErrorResponse {
-  // Stable machine-readable error code.
+  // Stable machine-readable error code (e.g., WORKFLOW_VALIDATION_FAILED).
   string code = 1;
   // Human-readable error message.
   string message = 2;
   // Additional structured context about the error.
-  map<string, string> details = 3;
+  // Uses Struct to support rich nested details (e.g., validation errors, stats).
+  google.protobuf.Struct details = 3;
 }
 
 // HealthResponse mirrors the BAS health response contract.

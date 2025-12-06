@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/execution.proto.
  */
 export const file_browser_automation_studio_v1_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSL0BgoJRXhlY3V0aW9uEgoKAmlkGAEgASgJEhMKC3dvcmtmbG93X2lkGAIgASgJEhgKEHdvcmtmbG93X3ZlcnNpb24YAyABKAUSDgoGc3RhdHVzGAQgASgJEhQKDHRyaWdnZXJfdHlwZRgFIAEoCRJWChB0cmlnZ2VyX21ldGFkYXRhGAYgAygLMjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24uVHJpZ2dlck1ldGFkYXRhRW50cnkSSwoKcGFyYW1ldGVycxgHIAMoCzI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlBhcmFtZXRlcnNFbnRyeRIuCgpzdGFydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21wbGV0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDmxhc3RfaGVhcnRiZWF0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgVlcnJvchgLIAEoCUgAiAEBEkMKBnJlc3VsdBgMIAMoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlJlc3VsdEVudHJ5EhAKCHByb2dyZXNzGA0gASgFEhQKDGN1cnJlbnRfc3RlcBgOIAEoCRIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBpOChRUcmlnZ2VyTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkUKC1Jlc3VsdEVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCCAoGX2Vycm9yIuICChNFeGVjdXRlQWRob2NSZXF1ZXN0EkkKD2Zsb3dfZGVmaW5pdGlvbhgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uElUKCnBhcmFtZXRlcnMYAiADKAsyQS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVBZGhvY1JlcXVlc3QuUGFyYW1ldGVyc0VudHJ5EhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAyABKAgSQQoIbWV0YWRhdGEYBCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbk1ldGFkYXRhGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIjYKEUV4ZWN1dGlvbk1ldGFkYXRhEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkixwEKFEV4ZWN1dGVBZGhvY1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoLd29ya2Zsb3dfaWQYAyABKAlIAIgBARIPCgdtZXNzYWdlGAQgASgJEjAKDGNvbXBsZXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYBiABKAlIAYgBAUIOCgxfd29ya2Zsb3dfaWRCCAoGX2Vycm9yQqQCCiBjb20uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MUIORXhlY3V0aW9uUHJvdG9QAVpnZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW92MaICA0JYWKoCGkJyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvLlYxygIaQnJvd3NlckF1dG9tYXRpb25TdHVkaW9cVjHiAiZCcm93c2VyQXV0b21hdGlvblN0dWRpb1xWMVxHUEJNZXRhZGF0YeoCG0Jyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvOjpWMWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_browser_automation_studio_v1_workflow]);
+  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSL0BgoJRXhlY3V0aW9uEgoKAmlkGAEgASgJEhMKC3dvcmtmbG93X2lkGAIgASgJEhgKEHdvcmtmbG93X3ZlcnNpb24YAyABKAUSDgoGc3RhdHVzGAQgASgJEhQKDHRyaWdnZXJfdHlwZRgFIAEoCRJWChB0cmlnZ2VyX21ldGFkYXRhGAYgAygLMjwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24uVHJpZ2dlck1ldGFkYXRhRW50cnkSSwoKcGFyYW1ldGVycxgHIAMoCzI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlBhcmFtZXRlcnNFbnRyeRIuCgpzdGFydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21wbGV0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDmxhc3RfaGVhcnRiZWF0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgVlcnJvchgLIAEoCUgAiAEBEkMKBnJlc3VsdBgMIAMoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlJlc3VsdEVudHJ5EhAKCHByb2dyZXNzGA0gASgFEhQKDGN1cnJlbnRfc3RlcBgOIAEoCRIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBpOChRUcmlnZ2VyTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkUKC1Jlc3VsdEVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCCAoGX2Vycm9yIuICChNFeGVjdXRlQWRob2NSZXF1ZXN0EkkKD2Zsb3dfZGVmaW5pdGlvbhgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uElUKCnBhcmFtZXRlcnMYAiADKAsyQS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVBZGhvY1JlcXVlc3QuUGFyYW1ldGVyc0VudHJ5EhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAyABKAgSQQoIbWV0YWRhdGEYBCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbk1ldGFkYXRhGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIjYKEUV4ZWN1dGlvbk1ldGFkYXRhEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkixwEKFEV4ZWN1dGVBZGhvY1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoLd29ya2Zsb3dfaWQYAyABKAlIAIgBARIPCgdtZXNzYWdlGAQgASgJEjAKDGNvbXBsZXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYBiABKAlIAYgBAUIOCgxfd29ya2Zsb3dfaWRCCAoGX2Vycm9yIscBCgpTY3JlZW5zaG90EgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIRCglzdGVwX25hbWUYAyABKAkSEgoKc3RlcF9pbmRleBgEIAEoBRIRCgl0aW1lc3RhbXAYBSABKAkSEwoLc3RvcmFnZV91cmwYBiABKAkSFQoNdGh1bWJuYWlsX3VybBgHIAEoCRINCgV3aWR0aBgIIAEoBRIOCgZoZWlnaHQYCSABKAUSEgoKc2l6ZV9ieXRlcxgKIAEoAyJXChZHZXRTY3JlZW5zaG90c1Jlc3BvbnNlEj0KC3NjcmVlbnNob3RzGAEgAygLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TY3JlZW5zaG90QqQCCiBjb20uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MUIORXhlY3V0aW9uUHJvdG9QAVpnZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW92MaICA0JYWKoCGkJyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvLlYxygIaQnJvd3NlckF1dG9tYXRpb25TdHVkaW9cVjHiAiZCcm93c2VyQXV0b21hdGlvblN0dWRpb1xWMVxHUEJNZXRhZGF0YeoCG0Jyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvOjpWMWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_browser_automation_studio_v1_workflow]);
 
 /**
  * Execution is returned by GET /api/v1/executions/{id}` and list APIs.
@@ -267,4 +267,109 @@ export type ExecuteAdhocResponse = Message<"browser_automation_studio.v1.Execute
  */
 export const ExecuteAdhocResponseSchema: GenMessage<ExecuteAdhocResponse> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_execution, 3);
+
+/**
+ * Screenshot represents metadata for a captured screenshot.
+ *
+ * @generated from message browser_automation_studio.v1.Screenshot
+ */
+export type Screenshot = Message<"browser_automation_studio.v1.Screenshot"> & {
+  /**
+   * Unique screenshot artifact ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Execution ID this screenshot belongs to.
+   *
+   * @generated from field: string execution_id = 2;
+   */
+  executionId: string;
+
+  /**
+   * Human-readable step name when captured.
+   *
+   * @generated from field: string step_name = 3;
+   */
+  stepName: string;
+
+  /**
+   * Zero-based step index in the execution.
+   *
+   * @generated from field: int32 step_index = 4;
+   */
+  stepIndex: number;
+
+  /**
+   * RFC3339 timestamp when the screenshot was captured.
+   *
+   * @generated from field: string timestamp = 5;
+   */
+  timestamp: string;
+
+  /**
+   * URL to download the full screenshot.
+   *
+   * @generated from field: string storage_url = 6;
+   */
+  storageUrl: string;
+
+  /**
+   * URL to download a thumbnail.
+   *
+   * @generated from field: string thumbnail_url = 7;
+   */
+  thumbnailUrl: string;
+
+  /**
+   * Image width in pixels.
+   *
+   * @generated from field: int32 width = 8;
+   */
+  width: number;
+
+  /**
+   * Image height in pixels.
+   *
+   * @generated from field: int32 height = 9;
+   */
+  height: number;
+
+  /**
+   * File size in bytes.
+   *
+   * @generated from field: int64 size_bytes = 10;
+   */
+  sizeBytes: bigint;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.Screenshot.
+ * Use `create(ScreenshotSchema)` to create a new message.
+ */
+export const ScreenshotSchema: GenMessage<Screenshot> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 4);
+
+/**
+ * GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
+ *
+ * @generated from message browser_automation_studio.v1.GetScreenshotsResponse
+ */
+export type GetScreenshotsResponse = Message<"browser_automation_studio.v1.GetScreenshotsResponse"> & {
+  /**
+   * List of screenshots for the execution.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.Screenshot screenshots = 1;
+   */
+  screenshots: Screenshot[];
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetScreenshotsResponse.
+ * Use `create(GetScreenshotsResponseSchema)` to create a new message.
+ */
+export const GetScreenshotsResponseSchema: GenMessage<GetScreenshotsResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 5);
 

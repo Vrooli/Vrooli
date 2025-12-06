@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15\x63ommon/v1/types.proto\x12\tcommon.v1\x1a\x1cgoogle/protobuf/struct.proto\"A\n\x11PaginationRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x02 \x01(\x05R\x06offset\"s\n\x12PaginationResponse\x12\x14\n\x05total\x18\x01 \x01(\x05R\x05total\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x03 \x01(\x05R\x06offset\x12\x19\n\x08has_more\x18\x04 \x01(\x08R\x07hasMore\"\xba\x01\n\rErrorResponse\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12?\n\x07\x64\x65tails\x18\x03 \x03(\x0b\x32%.common.v1.ErrorResponse.DetailsEntryR\x07\x64\x65tails\x1a:\n\x0c\x44\x65tailsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xd8\x03\n\x0eHealthResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n\x07service\x18\x02 \x01(\tR\x07service\x12\x1c\n\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n\treadiness\x18\x04 \x01(\x08R\treadiness\x12\x18\n\x07version\x18\x05 \x01(\tR\x07version\x12O\n\x0c\x64\x65pendencies\x18\x06 \x03(\x0b\x32+.common.v1.HealthResponse.DependenciesEntryR\x0c\x64\x65pendencies\x12@\n\x07metrics\x18\x07 \x03(\x0b\x32&.common.v1.HealthResponse.MetricsEntryR\x07metrics\x1aW\n\x11\x44\x65pendenciesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aR\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x42\xa3\x01\n\rcom.common.v1B\nTypesProtoP\x01ZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1\xa2\x02\x03\x43XX\xaa\x02\tCommon.V1\xca\x02\tCommon\\V1\xe2\x02\x15\x43ommon\\V1\\GPBMetadata\xea\x02\nCommon::V1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15\x63ommon/v1/types.proto\x12\tcommon.v1\x1a\x1cgoogle/protobuf/struct.proto\"A\n\x11PaginationRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x02 \x01(\x05R\x06offset\"s\n\x12PaginationResponse\x12\x14\n\x05total\x18\x01 \x01(\x05R\x05total\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x03 \x01(\x05R\x06offset\x12\x19\n\x08has_more\x18\x04 \x01(\x08R\x07hasMore\"p\n\rErrorResponse\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x31\n\x07\x64\x65tails\x18\x03 \x01(\x0b\x32\x17.google.protobuf.StructR\x07\x64\x65tails\"\xd8\x03\n\x0eHealthResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n\x07service\x18\x02 \x01(\tR\x07service\x12\x1c\n\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n\treadiness\x18\x04 \x01(\x08R\treadiness\x12\x18\n\x07version\x18\x05 \x01(\tR\x07version\x12O\n\x0c\x64\x65pendencies\x18\x06 \x03(\x0b\x32+.common.v1.HealthResponse.DependenciesEntryR\x0c\x64\x65pendencies\x12@\n\x07metrics\x18\x07 \x03(\x0b\x32&.common.v1.HealthResponse.MetricsEntryR\x07metrics\x1aW\n\x11\x44\x65pendenciesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aR\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x42\xa3\x01\n\rcom.common.v1B\nTypesProtoP\x01ZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1\xa2\x02\x03\x43XX\xaa\x02\tCommon.V1\xca\x02\tCommon\\V1\xe2\x02\x15\x43ommon\\V1\\GPBMetadata\xea\x02\nCommon::V1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,8 +33,6 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'common.v1.types_pb2', _glob
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\rcom.common.v1B\nTypesProtoP\001ZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1\242\002\003CXX\252\002\tCommon.V1\312\002\tCommon\\V1\342\002\025Common\\V1\\GPBMetadata\352\002\nCommon::V1'
-  _globals['_ERRORRESPONSE_DETAILSENTRY']._loaded_options = None
-  _globals['_ERRORRESPONSE_DETAILSENTRY']._serialized_options = b'8\001'
   _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._loaded_options = None
   _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_options = b'8\001'
   _globals['_HEALTHRESPONSE_METRICSENTRY']._loaded_options = None
@@ -43,14 +41,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PAGINATIONREQUEST']._serialized_end=131
   _globals['_PAGINATIONRESPONSE']._serialized_start=133
   _globals['_PAGINATIONRESPONSE']._serialized_end=248
-  _globals['_ERRORRESPONSE']._serialized_start=251
-  _globals['_ERRORRESPONSE']._serialized_end=437
-  _globals['_ERRORRESPONSE_DETAILSENTRY']._serialized_start=379
-  _globals['_ERRORRESPONSE_DETAILSENTRY']._serialized_end=437
-  _globals['_HEALTHRESPONSE']._serialized_start=440
-  _globals['_HEALTHRESPONSE']._serialized_end=912
-  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_start=741
-  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_end=828
-  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_start=830
-  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_end=912
+  _globals['_ERRORRESPONSE']._serialized_start=250
+  _globals['_ERRORRESPONSE']._serialized_end=362
+  _globals['_HEALTHRESPONSE']._serialized_start=365
+  _globals['_HEALTHRESPONSE']._serialized_end=837
+  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_start=666
+  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_end=753
+  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_start=755
+  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_end=837
 # @@protoc_insertion_point(module_scope)

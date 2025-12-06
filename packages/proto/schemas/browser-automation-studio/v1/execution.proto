@@ -79,3 +79,33 @@ message ExecuteAdhocResponse {
   // Error message when execution fails.
   optional string error = 6;
 }
+
+// Screenshot represents metadata for a captured screenshot.
+message Screenshot {
+  // Unique screenshot artifact ID.
+  string id = 1;
+  // Execution ID this screenshot belongs to.
+  string execution_id = 2;
+  // Human-readable step name when captured.
+  string step_name = 3;
+  // Zero-based step index in the execution.
+  int32 step_index = 4;
+  // RFC3339 timestamp when the screenshot was captured.
+  string timestamp = 5;
+  // URL to download the full screenshot.
+  string storage_url = 6;
+  // URL to download a thumbnail.
+  string thumbnail_url = 7;
+  // Image width in pixels.
+  int32 width = 8;
+  // Image height in pixels.
+  int32 height = 9;
+  // File size in bytes.
+  int64 size_bytes = 10;
+}
+
+// GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
+message GetScreenshotsResponse {
+  // List of screenshots for the execution.
+  repeated Screenshot screenshots = 1;
+}

@@ -4,6 +4,8 @@ package types
 import (
 	"fmt"
 	"strings"
+
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 )
 
 // ExecutionPhase indicates which phase of playbook execution failed.
@@ -50,6 +52,10 @@ type PlaybookExecutionError struct {
 
 	// BASResponse contains the raw response from BAS (if available).
 	BASResponse string
+
+	// Timeline contains the parsed proto timeline for rich diagnostics.
+	// This provides structured access to execution frames, assertions, and errors.
+	Timeline *basv1.ExecutionTimeline
 }
 
 // ExecutionArtifacts holds paths to debug artifacts collected during execution.
@@ -123,6 +129,32 @@ func (e *PlaybookExecutionError) WithBASResponse(response string) *PlaybookExecu
 	return e
 }
 
+// WithTimeline attaches the parsed proto timeline for rich diagnostics.
+func (e *PlaybookExecutionError) WithTimeline(timeline *basv1.ExecutionTimeline) *PlaybookExecutionError {
+	e.Timeline = timeline
+	// Also extract node/step info from the failed frame if not already set
+	if timeline != nil && e.NodeID == "" {
+		if failed := findFailedFrame(timeline); failed != nil {
+			e.NodeID = failed.GetNodeId()
+			e.StepIndex = int(failed.GetStepIndex())
+			if e.CurrentStepDescription == "" {
+				e.CurrentStepDescription = failed.GetStepType()
+			}
+		}
+	}
+	return e
+}
+
+// findFailedFrame locates the first failed frame in the timeline.
+func findFailedFrame(timeline *basv1.ExecutionTimeline) *basv1.TimelineFrame {
+	for _, frame := range timeline.GetFrames() {
+		if !frame.GetSuccess() || frame.GetError() != "" {
+			return frame
+		}
+	}
+	return nil
+}
+
 // DiagnosticString returns a detailed multi-line diagnostic message.
 func (e *PlaybookExecutionError) DiagnosticString() string {
 	var b strings.Builder
@@ -151,20 +183,90 @@ func (e *PlaybookExecutionError) DiagnosticString() string {
 		b.WriteString(fmt.Sprintf("Error:        %v\n", e.Cause))
 	}
 
-	if e.Artifacts.Timeline != "" {
-		b.WriteString(fmt.Sprintf("Timeline:     %s\n", e.Artifacts.Timeline))
+	// Include rich timeline diagnostics if available
+	if e.Timeline != nil {
+		b.WriteString("\n--- Timeline Details ---\n")
+		b.WriteString(fmt.Sprintf("Status:       %s\n", e.Timeline.GetStatus()))
+		b.WriteString(fmt.Sprintf("Progress:     %d%%\n", e.Timeline.GetProgress()))
+
+		frames := e.Timeline.GetFrames()
+		b.WriteString(fmt.Sprintf("Total Steps:  %d\n", len(frames)))
+
+		// Find and display failed frame details
+		if failed := findFailedFrame(e.Timeline); failed != nil {
+			b.WriteString("\n--- Failed Step ---\n")
+			b.WriteString(fmt.Sprintf("  Index:      %d\n", failed.GetStepIndex()))
+			b.WriteString(fmt.Sprintf("  Node ID:    %s\n", failed.GetNodeId()))
+			b.WriteString(fmt.Sprintf("  Type:       %s\n", failed.GetStepType()))
+			b.WriteString(fmt.Sprintf("  Status:     %s\n", failed.GetStatus()))
+			if failed.GetError() != "" {
+				b.WriteString(fmt.Sprintf("  Error:      %s\n", failed.GetError()))
+			}
+			if failed.GetFinalUrl() != "" {
+				b.WriteString(fmt.Sprintf("  URL:        %s\n", failed.GetFinalUrl()))
+			}
+			if failed.GetDurationMs() > 0 {
+				b.WriteString(fmt.Sprintf("  Duration:   %dms\n", failed.GetDurationMs()))
+			}
+
+			// Display assertion details if this was an assert step
+			if assertion := failed.GetAssertion(); assertion != nil {
+				b.WriteString("\n--- Assertion Details ---\n")
+				b.WriteString(fmt.Sprintf("  Mode:       %s\n", assertion.GetMode()))
+				b.WriteString(fmt.Sprintf("  Selector:   %s\n", assertion.GetSelector()))
+				if expected := assertion.GetExpected(); expected != nil {
+					b.WriteString(fmt.Sprintf("  Expected:   %v\n", expected.AsInterface()))
+				}
+				if actual := assertion.GetActual(); actual != nil {
+					b.WriteString(fmt.Sprintf("  Actual:     %v\n", actual.AsInterface()))
+				}
+				if assertion.GetMessage() != "" {
+					b.WriteString(fmt.Sprintf("  Message:    %s\n", assertion.GetMessage()))
+				}
+			}
+
+			// Display retry info if retries were attempted
+			if failed.GetRetryAttempt() > 0 {
+				b.WriteString(fmt.Sprintf("\n  Retry:      attempt %d of %d\n",
+					failed.GetRetryAttempt(), failed.GetRetryMaxAttempts()))
+			}
+		}
+
+		// Summarize all failed assertions
+		var failedAssertions []*basv1.TimelineFrame
+		for _, frame := range frames {
+			if frame.GetStepType() == "assert" && !frame.GetSuccess() {
+				failedAssertions = append(failedAssertions, frame)
+			}
+		}
+		if len(failedAssertions) > 0 {
+			b.WriteString(fmt.Sprintf("\n--- Failed Assertions (%d) ---\n", len(failedAssertions)))
+			for _, frame := range failedAssertions {
+				assertion := frame.GetAssertion()
+				if assertion != nil {
+					b.WriteString(fmt.Sprintf("  [%d] %s on '%s'\n",
+						frame.GetStepIndex(), assertion.GetMode(), assertion.GetSelector()))
+				}
+			}
+		}
 	}
 
-	if e.Artifacts.RawTimeline != "" {
-		b.WriteString(fmt.Sprintf("Raw Timeline: %s\n", e.Artifacts.RawTimeline))
-	}
-
-	if e.Artifacts.Trace != "" {
-		b.WriteString(fmt.Sprintf("Trace:        %s\n", e.Artifacts.Trace))
+	// Artifact paths for further investigation
+	if e.Artifacts.Timeline != "" || e.Artifacts.RawTimeline != "" || e.Artifacts.Trace != "" {
+		b.WriteString("\n--- Artifact Paths ---\n")
+		if e.Artifacts.Timeline != "" {
+			b.WriteString(fmt.Sprintf("Timeline:     %s\n", e.Artifacts.Timeline))
+		}
+		if e.Artifacts.RawTimeline != "" {
+			b.WriteString(fmt.Sprintf("Raw Timeline: %s\n", e.Artifacts.RawTimeline))
+		}
+		if e.Artifacts.Trace != "" {
+			b.WriteString(fmt.Sprintf("Trace:        %s\n", e.Artifacts.Trace))
+		}
 	}
 
 	if e.BASResponse != "" {
-		b.WriteString(fmt.Sprintf("BAS Response: %s\n", truncate(e.BASResponse, 500)))
+		b.WriteString(fmt.Sprintf("\nBAS Response: %s\n", truncate(e.BASResponse, 500)))
 	}
 
 	b.WriteString("================================\n")

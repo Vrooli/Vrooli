@@ -153,12 +153,13 @@ func (x *PaginationResponse) GetHasMore() bool {
 // ErrorResponse is the standard error envelope for HTTP responses.
 type ErrorResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable machine-readable error code.
+	// Stable machine-readable error code (e.g., WORKFLOW_VALIDATION_FAILED).
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	// Human-readable error message.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// Additional structured context about the error.
-	Details       map[string]string `protobuf:"bytes,3,rep,name=details,proto3" json:"details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Uses Struct to support rich nested details (e.g., validation errors, stats).
+	Details       *structpb.Struct `protobuf:"bytes,3,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -207,7 +208,7 @@ func (x *ErrorResponse) GetMessage() string {
 	return ""
 }
 
-func (x *ErrorResponse) GetDetails() map[string]string {
+func (x *ErrorResponse) GetDetails() *structpb.Struct {
 	if x != nil {
 		return x.Details
 	}
@@ -326,14 +327,11 @@ const file_common_v1_types_proto_rawDesc = "" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\x12\x19\n" +
-	"\bhas_more\x18\x04 \x01(\bR\ahasMore\"\xba\x01\n" +
+	"\bhas_more\x18\x04 \x01(\bR\ahasMore\"p\n" +
 	"\rErrorResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x12?\n" +
-	"\adetails\x18\x03 \x03(\v2%.common.v1.ErrorResponse.DetailsEntryR\adetails\x1a:\n" +
-	"\fDetailsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd8\x03\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x121\n" +
+	"\adetails\x18\x03 \x01(\v2\x17.google.protobuf.StructR\adetails\"\xd8\x03\n" +
 	"\x0eHealthResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
@@ -364,21 +362,21 @@ func file_common_v1_types_proto_rawDescGZIP() []byte {
 	return file_common_v1_types_proto_rawDescData
 }
 
-var file_common_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_common_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_common_v1_types_proto_goTypes = []any{
 	(*PaginationRequest)(nil),  // 0: common.v1.PaginationRequest
 	(*PaginationResponse)(nil), // 1: common.v1.PaginationResponse
 	(*ErrorResponse)(nil),      // 2: common.v1.ErrorResponse
 	(*HealthResponse)(nil),     // 3: common.v1.HealthResponse
-	nil,                        // 4: common.v1.ErrorResponse.DetailsEntry
-	nil,                        // 5: common.v1.HealthResponse.DependenciesEntry
-	nil,                        // 6: common.v1.HealthResponse.MetricsEntry
+	nil,                        // 4: common.v1.HealthResponse.DependenciesEntry
+	nil,                        // 5: common.v1.HealthResponse.MetricsEntry
+	(*structpb.Struct)(nil),    // 6: google.protobuf.Struct
 	(*structpb.Value)(nil),     // 7: google.protobuf.Value
 }
 var file_common_v1_types_proto_depIdxs = []int32{
-	4, // 0: common.v1.ErrorResponse.details:type_name -> common.v1.ErrorResponse.DetailsEntry
-	5, // 1: common.v1.HealthResponse.dependencies:type_name -> common.v1.HealthResponse.DependenciesEntry
-	6, // 2: common.v1.HealthResponse.metrics:type_name -> common.v1.HealthResponse.MetricsEntry
+	6, // 0: common.v1.ErrorResponse.details:type_name -> google.protobuf.Struct
+	4, // 1: common.v1.HealthResponse.dependencies:type_name -> common.v1.HealthResponse.DependenciesEntry
+	5, // 2: common.v1.HealthResponse.metrics:type_name -> common.v1.HealthResponse.MetricsEntry
 	7, // 3: common.v1.HealthResponse.DependenciesEntry.value:type_name -> google.protobuf.Value
 	7, // 4: common.v1.HealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
 	5, // [5:5] is the sub-list for method output_type
@@ -399,7 +397,7 @@ func file_common_v1_types_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_types_proto_rawDesc), len(file_common_v1_types_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
