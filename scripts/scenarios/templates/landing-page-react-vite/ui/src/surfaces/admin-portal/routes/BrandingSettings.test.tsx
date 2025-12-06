@@ -1,35 +1,52 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { BrandingSettings } from './BrandingSettings';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
-import * as brandingApi from '../../../shared/api/branding';
-import * as commonApi from '../../../shared/api/common';
-import * as assetsApi from '../../../shared/api/assets';
+import { LandingVariantProvider } from '../../../app/providers/LandingVariantProvider';
 
-vi.mock('../../../shared/api/branding', () => ({
-  getBranding: vi.fn(),
-  updateBranding: vi.fn(),
-  clearBrandingField: vi.fn(),
+vi.mock('../components/AdminLayout', () => ({
+  AdminLayout: ({ children }: { children: React.ReactNode }) => <div data-testid="admin-layout">{children}</div>,
+}));
+vi.mock('../../../app/providers/LandingVariantProvider', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control' },
+    config: null,
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: null,
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+  LandingVariantProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('../../../shared/api/common', () => ({
-  apiCall: vi.fn(),
+const { mockGetBranding, mockUpdateBranding, mockClearBrandingField, mockUploadAsset } = vi.hoisted(() => ({
+  mockGetBranding: vi.fn(),
+  mockUpdateBranding: vi.fn(),
+  mockClearBrandingField: vi.fn(),
+  mockUploadAsset: vi.fn(),
 }));
 
 vi.mock('../../../shared/api', async () => {
-  const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
+  const { getFallbackLandingConfig } = await import('../../../shared/lib/fallbackLandingConfig');
+  const fallbackConfig = getFallbackLandingConfig();
   return {
-    ...actual,
-    checkAdminSession: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com' }),
+    getBranding: mockGetBranding,
+    updateBranding: mockUpdateBranding,
+    clearBrandingField: mockClearBrandingField,
+    uploadAsset: mockUploadAsset,
+    getAssetUrl: (path: string) => path,
+    checkAdminSession: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true }),
     listVariants: vi.fn().mockResolvedValue({ variants: [] }),
+    getLandingConfig: vi.fn().mockResolvedValue(fallbackConfig),
+    adminLogout: vi.fn(),
+    adminLogin: vi.fn().mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true }),
   };
 });
-
-const mockedGetBranding = vi.mocked(brandingApi.getBranding);
-const mockedUpdateBranding = vi.mocked(brandingApi.updateBranding);
-const mockedUploadAsset = vi.spyOn(assetsApi, 'uploadAsset');
 
 const mockBranding = {
   id: 1,
@@ -54,9 +71,11 @@ const mockBranding = {
 const renderWithProviders = (component: React.ReactElement) => {
   return render(
     <BrowserRouter>
-      <AdminAuthProvider>
-        {component}
-      </AdminAuthProvider>
+      <LandingVariantProvider>
+        <AdminAuthProvider>
+          {component}
+        </AdminAuthProvider>
+      </LandingVariantProvider>
     </BrowserRouter>
   );
 };
@@ -64,8 +83,9 @@ const renderWithProviders = (component: React.ReactElement) => {
 describe('BrandingSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetBranding.mockResolvedValue(mockBranding);
-    mockedUpdateBranding.mockResolvedValue(mockBranding);
+    mockGetBranding.mockResolvedValue(mockBranding);
+    mockUpdateBranding.mockResolvedValue(mockBranding);
+    mockUploadAsset.mockReset();
   });
 
   afterEach(() => {
@@ -76,27 +96,26 @@ describe('BrandingSettings', () => {
     renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(screen.getByText('Branding & SEO')).toBeInTheDocument();
+      expect(screen.getByTestId('branding-header')).toBeInTheDocument();
     });
 
     // Check for main sections
     expect(screen.getByText('Site Identity')).toBeInTheDocument();
     expect(screen.getByText('Default SEO')).toBeInTheDocument();
     expect(screen.getByText('Theme Colors')).toBeInTheDocument();
-    expect(screen.getByText('Advanced')).toBeInTheDocument();
+    expect(screen.getByText('Technical Settings')).toBeInTheDocument();
   });
 
   it('loads and displays branding data', async () => {
     renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(mockedGetBranding).toHaveBeenCalled();
+      expect(mockGetBranding).toHaveBeenCalled();
     });
 
     // Check that form fields are populated
     await waitFor(() => {
-      const siteNameInput = screen.getByLabelText(/site name/i);
-      expect(siteNameInput).toHaveValue('Test Site');
+      expect(screen.getByDisplayValue('Test Site')).toBeInTheDocument();
     });
   });
 
@@ -105,10 +124,10 @@ describe('BrandingSettings', () => {
     renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/site name/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/my landing page/i)).toBeInTheDocument();
     });
 
-    const siteNameInput = screen.getByLabelText(/site name/i);
+    const siteNameInput = screen.getByPlaceholderText(/my landing page/i);
     await user.clear(siteNameInput);
     await user.type(siteNameInput, 'Updated Site Name');
 
@@ -117,7 +136,7 @@ describe('BrandingSettings', () => {
 
   it('saves branding changes when save button is clicked', async () => {
     const user = userEvent.setup();
-    mockedUpdateBranding.mockResolvedValue({
+    mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
       site_name: 'Updated Site Name',
     });
@@ -125,18 +144,18 @@ describe('BrandingSettings', () => {
     renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/site name/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/my landing page/i)).toBeInTheDocument();
     });
 
-    const siteNameInput = screen.getByLabelText(/site name/i);
+    const siteNameInput = screen.getByPlaceholderText(/my landing page/i);
     await user.clear(siteNameInput);
     await user.type(siteNameInput, 'Updated Site Name');
 
-    const saveButton = screen.getByRole('button', { name: /save/i });
+    const saveButton = await screen.findByRole('button', { name: /save changes/i });
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(mockedUpdateBranding).toHaveBeenCalledWith(
+      expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
           site_name: 'Updated Site Name',
         })
@@ -145,7 +164,7 @@ describe('BrandingSettings', () => {
   });
 
   it('displays error message when loading fails', async () => {
-    mockedGetBranding.mockRejectedValue(new Error('Failed to load'));
+    mockGetBranding.mockRejectedValue(new Error('Failed to load'));
 
     renderWithProviders(<BrandingSettings />);
 
@@ -159,14 +178,18 @@ describe('BrandingSettings', () => {
     renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/site name/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/my landing page/i)).toBeInTheDocument();
     });
 
-    const saveButton = screen.getByRole('button', { name: /save/i });
+    const siteNameInput = screen.getByPlaceholderText(/my landing page/i);
+    await user.clear(siteNameInput);
+    await user.type(siteNameInput, 'Updated Site Name');
+
+    const saveButton = await screen.findByRole('button', { name: /save changes/i });
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/saved/i)).toBeInTheDocument();
+      expect(screen.getByText(/updated successfully/i)).toBeInTheDocument();
     });
   });
 
@@ -190,16 +213,16 @@ describe('BrandingSettings', () => {
     renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(screen.getByText('Advanced')).toBeInTheDocument();
+      expect(screen.getByText('Technical Settings')).toBeInTheDocument();
     });
 
     // Should have robots.txt textarea
-    expect(screen.getByLabelText(/robots\.txt/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/User-agent/i)).toBeInTheDocument();
   });
 
   it('uses generated derivatives from a single upload to populate related branding fields', async () => {
     const user = userEvent.setup();
-    mockedUploadAsset.mockResolvedValue({
+    mockUploadAsset.mockResolvedValue({
       id: 10,
       filename: 'logo.png',
       original_filename: 'logo.png',
@@ -217,7 +240,7 @@ describe('BrandingSettings', () => {
         apple_touch_180: 'logos/logo-apple_touch_180.png',
       },
     });
-    mockedUpdateBranding.mockResolvedValue({
+    mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
       logo_url: 'logos/logo-logo_512.png',
       logo_icon_url: 'logos/logo-logo_icon.png',
@@ -228,7 +251,7 @@ describe('BrandingSettings', () => {
     const { container } = renderWithProviders(<BrandingSettings />);
 
     await waitFor(() => {
-      expect(screen.getByText('Branding & SEO')).toBeInTheDocument();
+      expect(screen.getByTestId('branding-header')).toBeInTheDocument();
     });
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
@@ -240,7 +263,7 @@ describe('BrandingSettings', () => {
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(mockedUpdateBranding).toHaveBeenCalledWith(
+      expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
           logo_url: 'logos/logo-logo_512.png',
           logo_icon_url: 'logos/logo-logo_icon.png',
@@ -253,7 +276,7 @@ describe('BrandingSettings', () => {
 
   it('applies favicon upload to favicon and touch icon fields', async () => {
     const user = userEvent.setup();
-    mockedUploadAsset.mockResolvedValue({
+    mockUploadAsset.mockResolvedValue({
       id: 11,
       filename: 'favicon.png',
       original_filename: 'favicon.png',
@@ -269,14 +292,14 @@ describe('BrandingSettings', () => {
         apple_touch_180: 'favicons/favicon-apple_touch_180.png',
       },
     });
-    mockedUpdateBranding.mockResolvedValue({
+    mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
       favicon_url: 'favicons/favicon-favicon_32.png',
       apple_touch_icon_url: 'favicons/favicon-apple_touch_180.png',
     });
 
     const { container } = renderWithProviders(<BrandingSettings />);
-    await waitFor(() => expect(screen.getByText('Branding & SEO')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
     const faviconInput = fileInputs.item(2);
@@ -287,7 +310,7 @@ describe('BrandingSettings', () => {
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(mockedUpdateBranding).toHaveBeenCalledWith(
+      expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
           favicon_url: 'favicons/favicon-favicon_32.png',
           apple_touch_icon_url: 'favicons/favicon-apple_touch_180.png',
@@ -298,7 +321,7 @@ describe('BrandingSettings', () => {
 
   it('applies og upload to default og image field', async () => {
     const user = userEvent.setup();
-    mockedUploadAsset.mockResolvedValue({
+    mockUploadAsset.mockResolvedValue({
       id: 12,
       filename: 'og.png',
       original_filename: 'og.png',
@@ -313,13 +336,13 @@ describe('BrandingSettings', () => {
         og_image_1200x630: 'og-images/og-og_image_1200x630.png',
       },
     });
-    mockedUpdateBranding.mockResolvedValue({
+    mockUpdateBranding.mockResolvedValue({
       ...mockBranding,
       default_og_image_url: 'og-images/og-og_image_1200x630.png',
     });
 
     const { container } = renderWithProviders(<BrandingSettings />);
-    await waitFor(() => expect(screen.getByText('Branding & SEO')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('branding-header')).toBeInTheDocument());
 
     const fileInputs = container.querySelectorAll('input[type="file"]');
     const ogInput = fileInputs.item(4);
@@ -330,7 +353,7 @@ describe('BrandingSettings', () => {
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(mockedUpdateBranding).toHaveBeenCalledWith(
+      expect(mockUpdateBranding).toHaveBeenCalledWith(
         expect.objectContaining({
           default_og_image_url: 'og-images/og-og_image_1200x630.png',
         })

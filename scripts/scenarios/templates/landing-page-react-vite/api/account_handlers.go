@@ -5,6 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func handleLandingConfig(service *LandingConfigService) http.HandlerFunc {
@@ -119,6 +122,15 @@ func resolveUserIdentity(r *http.Request) string {
 
 func writeJSON(w http.ResponseWriter, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	if msg, ok := payload.(proto.Message); ok {
+		data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(msg)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(data)
+		return
+	}
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

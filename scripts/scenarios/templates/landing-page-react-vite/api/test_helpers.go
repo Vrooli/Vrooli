@@ -1,32 +1,45 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	_ "github.com/lib/pq"
+	tc "github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // setupTestDB creates a test database connection
 // This is the canonical setup function used across all test files
 func setupTestDB(t *testing.T) *sql.DB {
-	// Use the same database as main tests
-	dbURL, err := resolveDatabaseURL()
-	if err != nil {
-		// Fallback to default test database URL if env vars not set
-		// This allows tests to run in CI/CD or local environments without full lifecycle setup
-		dbURL = os.Getenv("TEST_DATABASE_URL")
-		if dbURL == "" {
-			dbURL = "postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/landing-manager?sslmode=disable"
-		}
-		t.Logf("Using fallback database URL (lifecycle env vars not detected)")
+	dbURL := ""
+	if resolved, err := resolveDatabaseURL(); err == nil {
+		dbURL = resolved
+	}
+	if dbURL == "" {
+		dbURL = strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
+	}
+	if dbURL == "" {
+		dbURL = startTestContainerDB(t)
 	}
 
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		t.Fatalf("Failed to connect to test database: %v", err)
+		// Retry with container if an external URL is misconfigured
+		if dbURL != "" {
+			t.Logf("Failed to connect using %s, retrying with container: %v", dbURL, err)
+			dbURL = startTestContainerDB(t)
+			db, err = sql.Open("postgres", dbURL)
+		}
+		if err != nil {
+			t.Fatalf("Failed to connect to test database: %v", err)
+		}
 	}
 
 	if err := db.Ping(); err != nil {
@@ -42,6 +55,72 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	return db
+}
+
+var (
+	testContainerOnce    sync.Once
+	testContainerURL     string
+	testContainerCleanup func()
+	testContainerInitErr error
+)
+
+func startTestContainerDB(t *testing.T) string {
+	t.Helper()
+
+	testContainerOnce.Do(func() {
+		if strings.EqualFold(os.Getenv("TESTCONTAINERS_DISABLED"), "true") {
+			testContainerInitErr = fmt.Errorf("testcontainers explicitly disabled")
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		user := "testuser"
+		pass := "testpass"
+		dbName := "landing_manager_test"
+
+		req := tc.ContainerRequest{
+			Image:        "postgres:15-alpine",
+			Env:          map[string]string{"POSTGRES_USER": user, "POSTGRES_PASSWORD": pass, "POSTGRES_DB": dbName},
+			ExposedPorts: []string{"5432/tcp"},
+			WaitingFor:   wait.ForListeningPort("5432/tcp").WithStartupTimeout(90 * time.Second),
+		}
+
+		container, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
+		if err != nil {
+			testContainerInitErr = fmt.Errorf("start postgres container: %w", err)
+			return
+		}
+
+		host, err := container.Host(ctx)
+		if err != nil {
+			testContainerInitErr = fmt.Errorf("container host: %w", err)
+			return
+		}
+
+		port, err := container.MappedPort(ctx, "5432/tcp")
+		if err != nil {
+			testContainerInitErr = fmt.Errorf("container port: %w", err)
+			return
+		}
+
+		testContainerURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port.Port(), dbName)
+		testContainerCleanup = func() {
+			_ = container.Terminate(context.Background())
+		}
+	})
+
+	if testContainerInitErr != nil {
+		t.Fatalf("Failed to initialize test container: %v", testContainerInitErr)
+	}
+	if testContainerURL == "" {
+		t.Fatalf("Test container URL was not set")
+	}
+	return testContainerURL
 }
 
 // setupTestServer creates a complete test server instance with all services initialized
@@ -87,6 +166,29 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	}
 
 	return server, cleanup
+}
+
+func resetStripeTestData(t *testing.T, db *sql.DB) {
+	t.Helper()
+	tables := []string{
+		"subscription_schedules",
+		"subscriptions",
+		"checkout_sessions",
+		"credit_transactions",
+		"credit_wallets",
+		"payment_settings",
+		"bundle_prices",
+		"bundle_products",
+	}
+	for _, table := range tables {
+		if _, err := db.Exec("DELETE FROM " + table); err != nil {
+			t.Fatalf("failed to clean %s: %v", table, err)
+		}
+	}
+
+	if err := seedDefaultData(db); err != nil {
+		t.Fatalf("failed to reseed defaults: %v", err)
+	}
 }
 
 // createTestVariant is a helper to create a test variant for content tests

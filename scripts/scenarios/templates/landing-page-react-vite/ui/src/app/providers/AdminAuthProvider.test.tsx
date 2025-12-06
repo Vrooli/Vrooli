@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { AdminAuthProvider, useAdminAuth } from './AdminAuthProvider';
+import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
+
+const { mockAdminLogin, mockAdminLogout, mockCheckAdminSession } = vi.hoisted(() => ({
+  mockAdminLogin: vi.fn(),
+  mockAdminLogout: vi.fn(),
+  mockCheckAdminSession: vi.fn(),
+}));
+
+vi.mock('../../shared/api', () => ({
+  adminLogin: mockAdminLogin,
+  adminLogout: mockAdminLogout,
+  checkAdminSession: mockCheckAdminSession,
+}));
 
 // Test component that uses the auth context
 function TestComponent() {
@@ -22,29 +35,28 @@ function TestComponent() {
 }
 
 describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
-  const originalFetch = global.fetch;
   const originalLocation = window.location;
 
   beforeEach(() => {
-    // Mock fetch
-    global.fetch = vi.fn();
-
     // Mock window.location
     delete (window as { location?: Location }).location;
     window.location = { ...originalLocation, pathname: '/admin/home' };
+
+    mockCheckAdminSession.mockResolvedValue({
+      authenticated: false,
+      email: undefined,
+      reset_enabled: false,
+    });
+    mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'test@example.com', reset_enabled: true });
+    mockAdminLogout.mockResolvedValue({});
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
     window.location = originalLocation;
+    vi.clearAllMocks();
   });
 
   it('[REQ:ADMIN-AUTH] should provide authentication context to children', () => {
-    // Mock successful session check
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: false,
-    } as Response);
-
     render(
       <AdminAuthProvider>
         <TestComponent />
@@ -59,10 +71,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   it('[REQ:ADMIN-AUTH] should check session on mount for admin routes', async () => {
     const mockSessionData = { authenticated: true, email: 'admin@example.com', reset_enabled: true };
 
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: async () => mockSessionData,
-    } as Response);
+    mockCheckAdminSession.mockResolvedValue(mockSessionData);
 
     render(
       <AdminAuthProvider>
@@ -71,13 +80,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     );
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/session'),
-        expect.objectContaining({
-          credentials: 'include',
-          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-        })
-      );
+      expect(mockCheckAdminSession).toHaveBeenCalled();
     });
 
     await waitFor(() => {
@@ -91,21 +94,16 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     // Change to public route
     window.location.pathname = '/';
 
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({ email: 'admin@example.com' }),
-    } as Response);
-
     render(
       <AdminAuthProvider>
         <TestComponent />
       </AdminAuthProvider>
     );
 
-    // Wait a bit to ensure fetch is not called
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait a bit to ensure the effect would have run if eligible
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockCheckAdminSession).not.toHaveBeenCalled();
     expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
     expect(screen.getByTestId('reset-flag')).toHaveTextContent('reset-disabled');
   });
@@ -113,16 +111,8 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   it('[REQ:ADMIN-AUTH] should handle login successfully', async () => {
     const mockUserData = { email: 'test@example.com', reset_enabled: true };
 
-    // Mock initial session check (fail)
-    vi.mocked(global.fetch)
-      .mockResolvedValueOnce({
-        ok: false,
-      } as Response)
-      // Mock login success
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUserData,
-      } as Response);
+    mockCheckAdminSession.mockResolvedValue({ authenticated: false, reset_enabled: false });
+    mockAdminLogin.mockResolvedValue({ authenticated: true, ...mockUserData });
 
     render(
       <AdminAuthProvider>
@@ -134,15 +124,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     loginBtn.click();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/login'),
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
-          credentials: 'include',
-        })
-      );
+      expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password');
     });
 
     await waitFor(() => {
@@ -153,15 +135,8 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   });
 
   it('[REQ:ADMIN-AUTH] should handle login failure', async () => {
-    // Mock initial session check (fail)
-    vi.mocked(global.fetch)
-      .mockResolvedValueOnce({
-        ok: false,
-      } as Response)
-      // Mock login failure
-      .mockResolvedValueOnce({
-        ok: false,
-      } as Response);
+    mockCheckAdminSession.mockResolvedValue({ authenticated: false, reset_enabled: false });
+    mockAdminLogin.mockRejectedValue(new Error('login failed'));
 
     // Create a component that catches the login error
     function TestComponentWithErrorHandling() {
@@ -202,15 +177,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
 
     // Wait for fetch to be called with login endpoint
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/login'),
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
-          credentials: 'include',
-        })
-      );
+      expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password');
     });
 
     // Should remain unauthenticated after failed login
@@ -220,16 +187,8 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   it('[REQ:ADMIN-AUTH] should handle logout successfully', async () => {
     const mockUserData = { email: 'test@example.com', reset_enabled: true };
 
-    // Mock successful session check
-    vi.mocked(global.fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockUserData,
-      } as Response)
-      // Mock logout success
-      .mockResolvedValueOnce({
-        ok: true,
-      } as Response);
+    mockCheckAdminSession.mockResolvedValue({ authenticated: true, ...mockUserData });
+    mockAdminLogout.mockResolvedValue({});
 
     render(
       <AdminAuthProvider>
@@ -246,14 +205,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     logoutBtn.click();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/logout'),
-        expect.objectContaining({
-          method: 'POST',
-          credentials: 'include',
-          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-        })
-      );
+      expect(mockAdminLogout).toHaveBeenCalled();
     });
 
     await waitFor(() => {

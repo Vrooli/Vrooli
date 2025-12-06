@@ -1,3 +1,5 @@
+import { fromJson } from '@bufbuild/protobuf';
+import { GetStripeSettingsResponseSchema, UpdateStripeSettingsResponseSchema, type StripeConfigSnapshot, type StripeSettings } from '@proto-lprv/settings_pb';
 import { apiCall } from './common';
 import type { BundleCatalogEntry } from './types';
 
@@ -33,14 +35,38 @@ export interface UpdateBundlePricePayload {
   features?: string[];
 }
 
+function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: StripeSettings): StripeSettingsResponse {
+  return {
+    publishable_key_preview: snapshot?.publishableKeyPreview,
+    publishable_key_set: Boolean(snapshot?.publishableKeySet),
+    secret_key_set: Boolean(snapshot?.secretKeySet),
+    webhook_secret_set: Boolean(snapshot?.webhookSecretSet),
+    dashboard_url: settings?.dashboardUrl,
+    updated_at: settings?.updatedAt?.toJsonString(),
+    source: snapshot?.source ?? 'env',
+  };
+}
+
 export function getStripeSettings() {
-  return apiCall<StripeSettingsResponse>('/admin/settings/stripe');
+  return apiCall('/admin/settings/stripe').then((resp) => {
+    const message = fromJson(GetStripeSettingsResponseSchema, resp, {
+      ignoreUnknownFields: true,
+      protoFieldName: true,
+    });
+    return flattenStripeSettings(message.snapshot, message.settings);
+  });
 }
 
 export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
-  return apiCall<StripeSettingsResponse>('/admin/settings/stripe', {
+  return apiCall('/admin/settings/stripe', {
     method: 'PUT',
     body: JSON.stringify(payload),
+  }).then((resp) => {
+    const message = fromJson(UpdateStripeSettingsResponseSchema, resp, {
+      ignoreUnknownFields: true,
+      protoFieldName: true,
+    });
+    return flattenStripeSettings(message.snapshot, message.settings);
   });
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"os"
 	"path/filepath"

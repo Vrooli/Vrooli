@@ -4,39 +4,48 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 // handleCheckoutCreate creates a new Stripe checkout session
 // [REQ:STRIPE-ROUTES] POST /api/v1/checkout/create
 func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
+		var body struct {
 			PriceID       string `json:"price_id"`
 			CustomerEmail string `json:"customer_email"`
 			SuccessURL    string `json:"success_url"`
 			CancelURL     string `json:"cancel_url"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		// Validate required fields
-		if req.PriceID == "" || req.CustomerEmail == "" {
+		if body.PriceID == "" || body.CustomerEmail == "" {
 			http.Error(w, "Missing required fields: price_id, customer_email", http.StatusBadRequest)
 			return
 		}
 
 		// Set default URLs if not provided
-		if req.SuccessURL == "" {
-			req.SuccessURL = "/success"
+		if body.SuccessURL == "" {
+			body.SuccessURL = "/success"
 		}
-		if req.CancelURL == "" {
-			req.CancelURL = "/cancel"
+		if body.CancelURL == "" {
+			body.CancelURL = "/cancel"
 		}
 
-		session, err := service.CreateCheckoutSession(req.PriceID, req.SuccessURL, req.CancelURL, req.CustomerEmail)
+		req := lprvv1.CreateCheckoutSessionRequest{
+			PriceId:       body.PriceID,
+			CustomerEmail: body.CustomerEmail,
+			SuccessUrl:    body.SuccessURL,
+			CancelUrl:     body.CancelURL,
+		}
+
+		session, err := service.CreateCheckoutSession(req.PriceId, req.SuccessUrl, req.CancelUrl, req.CustomerEmail)
 		if err != nil {
 			logStructured("Failed to create checkout session", map[string]interface{}{
 				"error": err.Error(),
@@ -45,8 +54,7 @@ func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(session)
+		writeJSON(w, &lprvv1.CreateCheckoutSessionResponse{Session: session})
 	}
 }
 
@@ -108,8 +116,7 @@ func handleSubscriptionVerify(service *StripeService) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		writeJSON(w, &lprvv1.VerifySubscriptionResponse{Status: result})
 	}
 }
 
@@ -117,19 +124,21 @@ func handleSubscriptionVerify(service *StripeService) http.HandlerFunc {
 // [REQ:SUB-CANCEL] POST /api/v1/subscription/cancel
 func handleSubscriptionCancel(service *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
+		var body struct {
 			UserIdentity string `json:"user_identity"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		if req.UserIdentity == "" {
+		if body.UserIdentity == "" {
 			http.Error(w, "Missing required field: user_identity", http.StatusBadRequest)
 			return
 		}
+
+		req := lprvv1.CancelSubscriptionRequest{UserIdentity: body.UserIdentity}
 
 		result, err := service.CancelSubscription(req.UserIdentity)
 		if err != nil {
@@ -141,7 +150,6 @@ func handleSubscriptionCancel(service *StripeService) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		writeJSON(w, result)
 	}
 }

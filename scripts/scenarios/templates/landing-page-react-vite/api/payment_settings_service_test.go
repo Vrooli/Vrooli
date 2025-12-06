@@ -16,10 +16,10 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 	ctx := context.Background()
 
 	record, err := service.SaveStripeSettings(ctx, StripeSettingsInput{
-		PublishableKey: strPtr("pk_live_123"),
-		SecretKey:      strPtr("sk_live_123"),
-		WebhookSecret:  strPtr("whsec_live_456"),
-		DashboardURL:   strPtr("https://dashboard.stripe.com/test"),
+		PublishableKey: ptrStripe("pk_live_123"),
+		SecretKey:      ptrStripe("sk_live_123"),
+		WebhookSecret:  ptrStripe("whsec_live_456"),
+		DashboardURL:   ptrStripe("https://dashboard.stripe.com/test"),
 	})
 	if err != nil {
 		t.Fatalf("save failed: %v", err)
@@ -38,7 +38,7 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 	}
 
 	_, err = service.SaveStripeSettings(ctx, StripeSettingsInput{
-		DashboardURL: strPtr("https://dashboard.stripe.com/alt"),
+		DashboardURL: ptrStripe("https://dashboard.stripe.com/alt"),
 	})
 	if err != nil {
 		t.Fatalf("partial save failed: %v", err)
@@ -56,6 +56,6 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 	}
 }
 
-func strPtr(value string) *string {
+func ptrStripe(value string) *string {
 	return &value
 }

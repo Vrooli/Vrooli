@@ -15,6 +15,7 @@ func TestLandingConfigServiceReturnsFallbackWhenVariantMissing(t *testing.T) {
 		NewContentService(db),
 		NewPlanService(db),
 		NewDownloadService(db),
+		NewBrandingService(db),
 	)
 
 	// [REQ:AB-FALLBACK] Backend should return baked fallback config when variant lookup fails
@@ -46,6 +47,7 @@ func TestLandingConfigServiceFallsBackWhenVariantHasNoSections(t *testing.T) {
 		NewContentService(db),
 		NewPlanService(db),
 		NewDownloadService(db),
+		NewBrandingService(db),
 	)
 
 	resp, err := service.GetLandingConfig(context.Background(), "test-variant")
@@ -71,6 +73,7 @@ func TestLandingConfigServiceFallsBackWhenHeroMissing(t *testing.T) {
 		NewContentService(db),
 		NewPlanService(db),
 		NewDownloadService(db),
+		NewBrandingService(db),
 	)
 
 	resp, err := service.GetLandingConfig(context.Background(), "test-variant")
@@ -97,6 +100,7 @@ func TestLandingConfigServiceAllowsVariantsWithHero(t *testing.T) {
 		NewContentService(db),
 		NewPlanService(db),
 		NewDownloadService(db),
+		NewBrandingService(db),
 	)
 
 	resp, err := service.GetLandingConfig(context.Background(), "test-variant")

@@ -54,7 +54,7 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => {
     fallback: false,
     pricing: null,
     header: {
-      branding: { mode: 'logo_and_name', label: '', mobile_preference: 'auto' },
+      branding: { mode: 'logo_and_name', label: 'Acme Launchpad', mobile_preference: 'auto' },
       nav: { links: [] },
       ctas: {
         primary: { mode: 'inherit_hero', variant: 'solid' },

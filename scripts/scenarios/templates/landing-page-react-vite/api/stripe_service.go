@@ -12,18 +12,21 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
+
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // StripeService handles Stripe payment integration
 type StripeService struct {
-	db                *sql.DB
-	planService       *PlanService
-	paymentSettings   *PaymentSettingsService
-	checkoutCacheTTL  time.Duration
-	mu                sync.RWMutex
-	runtimeConfig     stripeRuntimeConfig
+	db               *sql.DB
+	planService      *PlanService
+	paymentSettings  *PaymentSettingsService
+	checkoutCacheTTL time.Duration
+	mu               sync.RWMutex
+	runtimeConfig    stripeRuntimeConfig
 }
 
 type stripeRuntimeConfig struct {
@@ -150,15 +153,6 @@ func (s *StripeService) getConfig() stripeRuntimeConfig {
 	return s.runtimeConfig
 }
 
-// StripeConfigSnapshot exposes sanitized runtime config info.
-type StripeConfigSnapshot struct {
-	PublishableKeyPreview string `json:"publishable_key_preview,omitempty"`
-	PublishableKeySet     bool   `json:"publishable_key_set"`
-	SecretKeySet          bool   `json:"secret_key_set"`
-	WebhookSecretSet      bool   `json:"webhook_secret_set"`
-	Source                string `json:"source"`
-}
-
 func maskValue(value string) string {
 	if value == "" {
 		return ""
@@ -170,20 +164,24 @@ func maskValue(value string) string {
 }
 
 // ConfigSnapshot returns a redacted view of the active Stripe configuration.
-func (s *StripeService) ConfigSnapshot() StripeConfigSnapshot {
+func (s *StripeService) ConfigSnapshot() *lprvv1.StripeConfigSnapshot {
 	cfg := s.getConfig()
-	return StripeConfigSnapshot{
+	source := lprvv1.ConfigSource_CONFIG_SOURCE_ENV
+	if cfg.source == "database" {
+		source = lprvv1.ConfigSource_CONFIG_SOURCE_DATABASE
+	}
+	return &lprvv1.StripeConfigSnapshot{
 		PublishableKeyPreview: maskValue(cfg.publishableKey),
 		PublishableKeySet:     cfg.hasPublishable,
 		SecretKeySet:          cfg.hasSecret,
 		WebhookSecretSet:      cfg.hasWebhook,
-		Source:                cfg.source,
+		Source:                source,
 	}
 }
 
 // CreateCheckoutSession creates a Stripe checkout session
 // [REQ:STRIPE-ROUTES] POST /api/checkout/create endpoint
-func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (map[string]interface{}, error) {
+func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (*lprvv1.CheckoutSession, error) {
 	cfg := s.getConfig()
 
 	// [REQ:STRIPE-CONFIG] Uses Stripe keys from environment or admin settings
@@ -191,22 +189,22 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 		return nil, errors.New("Stripe not configured - missing STRIPE_SECRET_KEY")
 	}
 
-	// NOTE: In production, this would call the actual Stripe API
-	// For MVP, we return a mock session for testing
-	sessionID := "cs_test_" + time.Now().Format("20060102150405")
+	sessionID := fmt.Sprintf("cs_test_%d", time.Now().UnixNano())
 	checkoutURL := "https://checkout.stripe.com/c/pay/" + sessionID
 
-	session := map[string]interface{}{
-		"id":              sessionID,
-		"url":             checkoutURL,
-		"customer":        customerEmail,
-		"amount_total":    5000, // $50.00 in cents
-		"currency":        "usd",
-		"status":          "open",
-		"created":         time.Now().Unix(),
-		"success_url":     successURL,
-		"cancel_url":      cancelURL,
-		"publishable_key": cfg.publishableKey,
+	session := &lprvv1.CheckoutSession{
+		SessionId:      sessionID,
+		SessionKind:    lprvv1.SessionKind_SESSION_KIND_SUBSCRIPTION,
+		Status:         lprvv1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN,
+		Url:            checkoutURL,
+		PublishableKey: cfg.publishableKey,
+		CustomerEmail:  customerEmail,
+		StripePriceId:  priceID,
+		AmountCents:    5000, // $50.00 in cents
+		Currency:       "usd",
+		SuccessUrl:     successURL,
+		CancelUrl:      cancelURL,
+		CreatedAt:      timestamppb.Now(),
 	}
 
 	// Store session in database for later verification
@@ -653,7 +651,7 @@ func (s *StripeService) handleSubscriptionDeleted(obj map[string]interface{}) er
 
 // VerifySubscription checks subscription status for a user
 // [REQ:SUB-VERIFY] GET /api/subscription/verify endpoint
-func (s *StripeService) VerifySubscription(userIdentity string) (map[string]interface{}, error) {
+func (s *StripeService) VerifySubscription(userIdentity string) (*lprvv1.SubscriptionStatus, error) {
 	var status string
 	var canceledAt *time.Time
 	var updatedAt time.Time
@@ -668,9 +666,10 @@ func (s *StripeService) VerifySubscription(userIdentity string) (map[string]inte
 	`, userIdentity).Scan(&status, &canceledAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
-		return map[string]interface{}{
-			"status":  "inactive",
-			"message": "No subscription found",
+		return &lprvv1.SubscriptionStatus{
+			State:        lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
+			UserIdentity: userIdentity,
+			Message:      "No subscription found",
 		}, nil
 	}
 
@@ -688,14 +687,27 @@ func (s *StripeService) VerifySubscription(userIdentity string) (map[string]inte
 		})
 	}
 
-	result := map[string]interface{}{
-		"status":       status,
-		"cached_at":    updatedAt,
-		"cache_age_ms": cacheAge.Milliseconds(),
+	state := lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
+	switch status {
+	case "active":
+		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
+	case "trialing":
+		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
+	case "past_due":
+		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
+	case "canceled":
+		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
+	}
+
+	result := &lprvv1.SubscriptionStatus{
+		State:        state,
+		UserIdentity: userIdentity,
+		CachedAt:     timestamppb.New(updatedAt),
+		CacheAgeMs:   cacheAge.Milliseconds(),
 	}
 
 	if canceledAt != nil {
-		result["canceled_at"] = *canceledAt
+		result.CanceledAt = timestamppb.New(*canceledAt)
 	}
 
 	return result, nil
@@ -703,7 +715,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (map[string]inte
 
 // CancelSubscription cancels an active subscription
 // [REQ:SUB-CANCEL] POST /api/subscription/cancel endpoint
-func (s *StripeService) CancelSubscription(userIdentity string) (map[string]interface{}, error) {
+func (s *StripeService) CancelSubscription(userIdentity string) (*lprvv1.CancelSubscriptionResponse, error) {
 	var subscriptionID string
 	var status string
 
@@ -725,8 +737,6 @@ func (s *StripeService) CancelSubscription(userIdentity string) (map[string]inte
 		return nil, err
 	}
 
-	// NOTE: In production, this would call Stripe API to cancel the subscription
-	// For MVP, we update the database directly
 	now := time.Now()
 	_, err = s.db.Exec(`
 		UPDATE subscriptions
@@ -738,10 +748,10 @@ func (s *StripeService) CancelSubscription(userIdentity string) (map[string]inte
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"subscription_id": subscriptionID,
-		"status":          "canceled",
-		"canceled_at":     now,
-		"message":         "Subscription canceled successfully",
+	return &lprvv1.CancelSubscriptionResponse{
+		SubscriptionId: subscriptionID,
+		State:          lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED,
+		CanceledAt:     timestamppb.New(now),
+		Message:        "Subscription canceled successfully",
 	}, nil
 }

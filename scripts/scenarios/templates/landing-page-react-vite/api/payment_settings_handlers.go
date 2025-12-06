@@ -4,25 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
+
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-type stripeSettingsResponse struct {
-	PublishableKeyPreview string `json:"publishable_key_preview,omitempty"`
-	PublishableKeySet     bool   `json:"publishable_key_set"`
-	SecretKeySet          bool   `json:"secret_key_set"`
-	WebhookSecretSet      bool   `json:"webhook_secret_set"`
-	DashboardURL          string `json:"dashboard_url,omitempty"`
-	UpdatedAt             string `json:"updated_at,omitempty"`
-	Source                string `json:"source"`
-}
-
-type stripeSettingsRequest struct {
-	PublishableKey *string `json:"publishable_key"`
-	SecretKey      *string `json:"secret_key"`
-	WebhookSecret  *string `json:"webhook_secret"`
-	DashboardURL   *string `json:"dashboard_url"`
-}
 
 func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -33,18 +18,17 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 		}
 
 		snapshot := stripeService.ConfigSnapshot()
-		resp := stripeSettingsResponse{
-			PublishableKeyPreview: snapshot.PublishableKeyPreview,
-			PublishableKeySet:     snapshot.PublishableKeySet,
-			SecretKeySet:          snapshot.SecretKeySet,
-			WebhookSecretSet:      snapshot.WebhookSecretSet,
-			Source:                snapshot.Source,
+		resp := lprvv1.GetStripeSettingsResponse{
+			Snapshot: snapshot,
 		}
 
 		if record != nil {
-			resp.DashboardURL = record.DashboardURL
-			if !record.UpdatedAt.IsZero() {
-				resp.UpdatedAt = record.UpdatedAt.UTC().Format(time.RFC3339)
+			resp.Settings = &lprvv1.StripeSettings{
+				PublishableKey: record.PublishableKey,
+				SecretKey:      record.SecretKey,
+				WebhookSecret:  record.WebhookSecret,
+				DashboardUrl:   record.DashboardURL,
+				UpdatedAt:      timestamppb.New(record.UpdatedAt),
 			}
 		}
 
@@ -54,10 +38,23 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 
 func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req stripeSettingsRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		var body struct {
+			PublishableKey *string `json:"publishable_key"`
+			SecretKey      *string `json:"secret_key"`
+			WebhookSecret  *string `json:"webhook_secret"`
+			DashboardURL   *string `json:"dashboard_url"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
+		}
+
+		req := lprvv1.UpdateStripeSettingsRequest{
+			PublishableKey: body.PublishableKey,
+			SecretKey:      body.SecretKey,
+			WebhookSecret:  body.WebhookSecret,
+			DashboardUrl:   body.DashboardURL,
 		}
 
 		normalize := func(value *string) *string {
@@ -71,7 +68,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		req.PublishableKey = normalize(req.PublishableKey)
 		req.SecretKey = normalize(req.SecretKey)
 		req.WebhookSecret = normalize(req.WebhookSecret)
-		req.DashboardURL = normalize(req.DashboardURL)
+		req.DashboardUrl = normalize(req.DashboardUrl)
 
 		current, err := paymentService.GetStripeSettings(r.Context())
 		if err != nil {
@@ -95,7 +92,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			PublishableKey: req.PublishableKey,
 			SecretKey:      req.SecretKey,
 			WebhookSecret:  req.WebhookSecret,
-			DashboardURL:   req.DashboardURL,
+			DashboardURL:   req.DashboardUrl,
 		})
 		if err != nil {
 			http.Error(w, "Failed to save Stripe settings", http.StatusInternalServerError)
@@ -108,17 +105,20 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		}
 
 		snapshot := stripeService.ConfigSnapshot()
-		resp := stripeSettingsResponse{
-			PublishableKeyPreview: snapshot.PublishableKeyPreview,
-			PublishableKeySet:     snapshot.PublishableKeySet,
-			SecretKeySet:          snapshot.SecretKeySet,
-			WebhookSecretSet:      snapshot.WebhookSecretSet,
-			Source:                snapshot.Source,
+		resp := lprvv1.UpdateStripeSettingsResponse{
+			Snapshot: snapshot,
 		}
 
-		if record != nil && !record.UpdatedAt.IsZero() {
-			resp.DashboardURL = record.DashboardURL
-			resp.UpdatedAt = record.UpdatedAt.UTC().Format(time.RFC3339)
+		if record != nil {
+			resp.Settings = &lprvv1.StripeSettings{
+				PublishableKey: record.PublishableKey,
+				SecretKey:      record.SecretKey,
+				WebhookSecret:  record.WebhookSecret,
+				DashboardUrl:   record.DashboardURL,
+			}
+			if !record.UpdatedAt.IsZero() {
+				resp.Settings.UpdatedAt = timestamppb.New(record.UpdatedAt)
+			}
 		}
 
 		writeJSON(w, resp)

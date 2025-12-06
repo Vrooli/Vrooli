@@ -84,9 +84,9 @@ func TestUpdateBranding(t *testing.T) {
 	service := NewBrandingService(db)
 	handler := handleUpdateBranding(service)
 
-	update := SiteBrandingUpdate{
-		SiteName: stringPtr("Updated Site Name"),
-		Tagline:  stringPtr("New tagline"),
+	update := BrandingUpdateRequest{
+		SiteName: strPtr("Updated Site Name"),
+		Tagline:  strPtr("New tagline"),
 	}
 	body, _ := json.Marshal(update)
 
@@ -131,12 +131,12 @@ func TestGetPublicBranding(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var branding PublicBranding
+	var branding map[string]interface{}
 	if err := json.NewDecoder(rec.Body).Decode(&branding); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if branding.SiteName == "" {
+	if branding["site_name"] == "" {
 		t.Error("expected non-empty site name in public branding")
 	}
 }
@@ -148,8 +148,8 @@ func TestClearBrandingField(t *testing.T) {
 	service := NewBrandingService(db)
 
 	// First set a value
-	update := SiteBrandingUpdate{Tagline: stringPtr("Test tagline")}
-	if err := service.Update(&update); err != nil {
+	update := BrandingUpdateRequest{Tagline: strPtr("Test tagline")}
+	if _, err := service.Update(&update); err != nil {
 		t.Fatalf("failed to update branding: %v", err)
 	}
 
@@ -177,6 +177,6 @@ func TestClearBrandingField(t *testing.T) {
 	}
 }
 
-func stringPtr(s string) *string {
+func strPtr(s string) *string {
 	return &s
 }

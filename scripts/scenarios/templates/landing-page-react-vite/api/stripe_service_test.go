@@ -9,6 +9,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 // [REQ:STRIPE-CONFIG] Test Stripe environment configuration
@@ -122,12 +124,12 @@ func TestCreateCheckoutSession(t *testing.T) {
 		t.Fatalf("CreateCheckoutSession failed: %v", err)
 	}
 
-	if session["customer"] != "test@example.com" {
-		t.Errorf("Expected customer test@example.com, got %v", session["customer"])
+	if session.CustomerEmail != "test@example.com" {
+		t.Errorf("Expected customer test@example.com, got %v", session.CustomerEmail)
 	}
 
-	if session["status"] != "open" {
-		t.Errorf("Expected status open, got %v", session["status"])
+	if session.Status != lprvv1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN {
+		t.Errorf("Expected status open, got %v", session.Status)
 	}
 
 	// Verify session was stored in database
@@ -139,6 +141,23 @@ func TestCreateCheckoutSession(t *testing.T) {
 
 	if count != 1 {
 		t.Errorf("Expected 1 checkout session in database, got %d", count)
+	}
+}
+
+func TestCreateCheckoutSessionRequiresSecret(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	os.Unsetenv("STRIPE_SECRET_KEY")
+	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_missing_secret")
+	defer func() {
+		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
+	}()
+
+	service := NewStripeService(db)
+	_, err := service.CreateCheckoutSession("price_missing_secret", "/ok", "/cancel", "no-secret@example.com")
+	if err == nil {
+		t.Fatalf("expected error when secret key is missing")
 	}
 }
 
@@ -378,16 +397,16 @@ func TestVerifySubscription(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	if result["status"] != "active" {
-		t.Errorf("Expected status active, got %v", result["status"])
+	if result.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+		t.Errorf("Expected status active, got %v", result.State)
 	}
 
 	// [REQ:SUB-CACHE] Verify cache metadata is present
-	if _, ok := result["cached_at"]; !ok {
+	if result.CachedAt == nil {
 		t.Error("Expected cached_at in result")
 	}
 
-	if _, ok := result["cache_age_ms"]; !ok {
+	if result.CacheAgeMs == 0 {
 		t.Error("Expected cache_age_ms in result")
 	}
 
@@ -397,8 +416,8 @@ func TestVerifySubscription(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	if result["status"] != "inactive" {
-		t.Errorf("Expected status inactive, got %v", result["status"])
+	if result.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
+		t.Errorf("Expected status inactive, got %v", result.State)
 	}
 }
 
@@ -450,12 +469,12 @@ func TestCancelSubscription(t *testing.T) {
 		t.Fatalf("CancelSubscription failed: %v", err)
 	}
 
-	if result["subscription_id"] != "sub_cancel_test" {
-		t.Errorf("Expected subscription_id sub_cancel_test, got %v", result["subscription_id"])
+	if result.SubscriptionId != "sub_cancel_test" {
+		t.Errorf("Expected subscription_id sub_cancel_test, got %v", result.SubscriptionId)
 	}
 
-	if result["status"] != "canceled" {
-		t.Errorf("Expected status canceled, got %v", result["status"])
+	if result.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
+		t.Errorf("Expected status canceled, got %v", result.State)
 	}
 
 	// Verify database was updated
@@ -531,8 +550,7 @@ func TestVerifySubscription_CacheWarning(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	cacheAgeMs := result["cache_age_ms"].(int64)
-	if cacheAgeMs < 60000 {
-		t.Errorf("Expected cache_age_ms > 60000, got %d", cacheAgeMs)
+	if result.CacheAgeMs < 60000 {
+		t.Errorf("Expected cache_age_ms > 60000, got %d", result.CacheAgeMs)
 	}
 }

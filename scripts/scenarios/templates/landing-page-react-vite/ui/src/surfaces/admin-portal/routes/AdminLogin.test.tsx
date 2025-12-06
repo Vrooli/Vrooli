@@ -4,6 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminLogin } from './AdminLogin';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
+import { adminLogin, checkAdminSession } from '../../../shared/api';
+
+const { mockAdminLogin, mockCheckAdminSession } = vi.hoisted(() => ({
+  mockAdminLogin: vi.fn(),
+  mockCheckAdminSession: vi.fn(),
+}));
+
+vi.mock('../../../shared/api', () => ({
+  adminLogin: mockAdminLogin,
+  checkAdminSession: mockCheckAdminSession,
+}));
 
 const mockNavigate = vi.fn();
 
@@ -26,17 +37,13 @@ const renderWithRouter = (component: React.ReactElement) => {
 };
 
 describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
-  const originalFetch = global.fetch;
   const originalLocation = window.location;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock fetch for session checks
-    global.fetch = vi.fn();
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: false,
-    } as Response);
+    mockCheckAdminSession.mockResolvedValue({ authenticated: false, reset_enabled: false });
+    mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
     // Mock location to avoid session check trigger
     delete (window as { location?: Location }).location;
@@ -44,7 +51,6 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
     window.location = originalLocation;
   });
 
@@ -58,13 +64,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
   it('[REQ:ADMIN-AUTH] should call login API with email and password on form submit', async () => {
     const user = userEvent.setup();
-    const mockLoginFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ email: 'admin@test.com' }),
-    } as Response);
-
-    global.fetch = mockLoginFetch;
-
+    mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
     renderWithRouter(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
@@ -76,24 +76,13 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
-      expect(mockLoginFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/login'),
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'admin@test.com', password: 'password123' }),
-          credentials: 'include',
-        })
-      );
+      expect(mockAdminLogin).toHaveBeenCalledWith('admin@test.com', 'password123');
     });
   });
 
   it('[REQ:ADMIN-AUTH] should navigate to admin home on successful login', async () => {
     const user = userEvent.setup();
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ email: 'admin@test.com' }),
-    } as Response);
+    mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
     renderWithRouter(<AdminLogin />);
 
@@ -112,9 +101,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
   it('[REQ:ADMIN-AUTH] should display error message on login failure', async () => {
     const user = userEvent.setup();
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-    } as Response);
+    mockAdminLogin.mockRejectedValue(new Error('Invalid'));
 
     renderWithRouter(<AdminLogin />);
 
@@ -134,7 +121,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
   it('should show loading state while logging in', async () => {
     const user = userEvent.setup();
-    global.fetch = vi.fn().mockImplementation(() => new Promise(() => {})); // Never resolves
+    mockAdminLogin.mockImplementation(() => new Promise(() => {})); // Never resolves
 
     renderWithRouter(<AdminLogin />);
 
@@ -154,15 +141,9 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
   it('should clear error message on form resubmit', async () => {
     const user = userEvent.setup();
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce({ ok: false } as Response) // Session check (from AdminAuthProvider useEffect)
-      .mockResolvedValueOnce({ ok: false } as Response) // First login attempt fails
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ email: 'admin@test.com' }),
-      } as Response); // Second login attempt succeeds
-
-    global.fetch = mockFetch;
+    mockAdminLogin
+      .mockRejectedValueOnce(new Error('Invalid'))
+      .mockResolvedValueOnce({ authenticated: true, email: 'admin@test.com' });
 
     renderWithRouter(<AdminLogin />);
 
