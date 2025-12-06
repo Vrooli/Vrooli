@@ -113,8 +113,11 @@ ${hasTargets ? `**Targeted scope:**\n${absoluteTargets.map((p) => `- ${p}`).join
 **Validation (run after generation):**
 - Execute via test-genie with the selected phases:
   /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie execute ${scenarioName} --phases ${selectedPhases.join(",")} --sync
+- Fast local check (phased runner):
+  /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie run-tests ${scenarioName} --type phased
 - If preset implies broader coverage, also run:
   /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie execute ${scenarioName} --preset comprehensive --sync
+- When targets are set, re-run unit commands focused on those files (e.g., pnpm/vitest or go test) after generation to confirm determinism.
 - If any failures occur, include logs/output snippets and suggested fixes.
 
 **Return (concise):**
@@ -577,37 +580,86 @@ export function GeneratePage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Concurrency</label>
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={spawnConcurrency}
-                onChange={(e) => setSpawnConcurrency(Number(e.target.value))}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">Max parallel agent runs (cap 10).</p>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={spawnConcurrency}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setSpawnConcurrency(Number.isFinite(next) ? next : 1);
+                  }}
+                  className="w-full accent-cyan-400"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={spawnConcurrency}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setSpawnConcurrency(Number.isFinite(next) ? next : 1);
+                  }}
+                  className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Max parallel agent runs (cap 10). Effective: {safeDisplayConcurrency}.</p>
             </div>
             <div>
               <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Max turns</label>
-              <input
-                type="number"
-                min={0}
-                value={maxTurns}
-                onChange={(e) => setMaxTurns(Number(e.target.value))}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">0 = unlimited (not recommended).</p>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={24}
+                  value={maxTurns}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setMaxTurns(Number.isFinite(next) ? next : 0);
+                  }}
+                  className="w-full accent-cyan-400"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  value={maxTurns}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setMaxTurns(Number.isFinite(next) ? next : 0);
+                  }}
+                  className="w-20 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">0 = unlimited (not recommended). Higher turns improve reliability but cost more.</p>
             </div>
             <div>
               <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Timeout (sec)</label>
-              <input
-                type="number"
-                min={0}
-                value={timeoutSeconds}
-                onChange={(e) => setTimeoutSeconds(Number(e.target.value))}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">Abort if a request exceeds this duration.</p>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  type="range"
+                  min={60}
+                  max={900}
+                  step={15}
+                  value={timeoutSeconds}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setTimeoutSeconds(Number.isFinite(next) ? next : 60);
+                  }}
+                  className="w-full accent-cyan-400"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  value={timeoutSeconds}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    setTimeoutSeconds(Number.isFinite(next) ? next : 0);
+                  }}
+                  className="w-24 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Abort if a request exceeds this duration. Set 0 to rely on model defaults.</p>
             </div>
             <div>
               <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Allowed tools</label>

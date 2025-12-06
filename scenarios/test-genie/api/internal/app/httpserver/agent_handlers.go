@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -267,6 +268,10 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "model is required")
 		return
 	}
+	if _, err := exec.LookPath("resource-opencode"); err != nil {
+		s.writeError(w, http.StatusBadRequest, "resource-opencode is not installed or not on PATH")
+		return
+	}
 
 	concurrency := payload.Concurrency
 	if concurrency <= 0 {
@@ -337,6 +342,9 @@ func runAgentPrompt(ctx context.Context, payload agentSpawnRequest, prompt strin
 	}
 
 	cmd := exec.CommandContext(runCtx, "resource-opencode", args...)
+	if repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); repoRoot != "" {
+		cmd.Dir = repoRoot
+	}
 	output, err := cmd.CombinedOutput()
 	text := strings.TrimSpace(string(output))
 
@@ -355,7 +363,7 @@ func runAgentPrompt(ctx context.Context, payload agentSpawnRequest, prompt strin
 		if text != "" {
 			res.Error = text
 		} else {
-			res.Error = err.Error()
+			res.Error = fmt.Sprintf("resource-opencode failed: %v", err)
 		}
 		return res
 	}

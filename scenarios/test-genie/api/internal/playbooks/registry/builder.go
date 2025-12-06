@@ -24,8 +24,8 @@ func NewBuilder(scenarioDir string) *Builder {
 
 // BuildResult contains the result of building a registry.
 type BuildResult struct {
-	Registry     types.Registry
-	RegistryPath string
+	Registry      types.Registry
+	RegistryPath  string
 	PlaybookCount int
 }
 

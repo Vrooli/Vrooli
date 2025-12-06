@@ -193,6 +193,7 @@ function OverviewTab({ scenario, scenarioOptions, datalistId, onExecutionSuccess
       <ExecutionForm
         scenarioOptions={scenarioOptions}
         datalistId={datalistId}
+        scenarioName={scenario?.scenarioName}
         onSuccess={onExecutionSuccess}
       />
     </div>

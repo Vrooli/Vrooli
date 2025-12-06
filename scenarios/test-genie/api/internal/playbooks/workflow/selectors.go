@@ -14,10 +14,10 @@ const (
 )
 
 var (
-	selectorPattern      = regexp.MustCompile(`@selector/([A-Za-z0-9_.-]+)(\([^)]*\))?`)
-	dataTestIDPattern    = regexp.MustCompile(`\[data-testid[^\]]*\]`)
-	selectorDupPattern   = regexp.MustCompile(`\s*/\*dup-\d+\*/`)
-	templateVarPattern   = regexp.MustCompile(`\$\{([^}]+)\}`)
+	selectorPattern    = regexp.MustCompile(`@selector/([A-Za-z0-9_.-]+)(\([^)]*\))?`)
+	dataTestIDPattern  = regexp.MustCompile(`\[data-testid[^\]]*\]`)
+	selectorDupPattern = regexp.MustCompile(`\s*/\*dup-\d+\*/`)
+	templateVarPattern = regexp.MustCompile(`\$\{([^}]+)\}`)
 )
 
 // SelectorManifest represents the structure of selectors.manifest.json.
@@ -33,8 +33,8 @@ type SelectorEntry struct {
 
 // DynamicSelector represents a parameterized selector.
 type DynamicSelector struct {
-	SelectorPattern string           `json:"selectorPattern"`
-	Params          []SelectorParam  `json:"params"`
+	SelectorPattern string          `json:"selectorPattern"`
+	Params          []SelectorParam `json:"params"`
 }
 
 // SelectorParam represents a dynamic selector parameter.

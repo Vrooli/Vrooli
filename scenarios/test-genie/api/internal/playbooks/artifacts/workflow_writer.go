@@ -197,11 +197,11 @@ func (w *FileWriter) writeJSON(path string, data any) error {
 // buildLatestJSON constructs the latest.json content.
 func buildLatestJSON(result *WorkflowResult, artifacts *WorkflowArtifacts) map[string]any {
 	data := map[string]any{
-		"workflow":     result.WorkflowFile,
-		"status":       result.Status,
-		"success":      result.Success,
-		"timestamp":    result.Timestamp.Format(time.RFC3339),
-		"updated_at":   time.Now().UTC().Format(time.RFC3339),
+		"workflow":   result.WorkflowFile,
+		"status":     result.Status,
+		"success":    result.Success,
+		"timestamp":  result.Timestamp.Format(time.RFC3339),
+		"updated_at": time.Now().UTC().Format(time.RFC3339),
 	}
 
 	if result.Description != "" {
@@ -222,9 +222,9 @@ func buildLatestJSON(result *WorkflowResult, artifacts *WorkflowArtifacts) map[s
 
 	// Add summary stats
 	summary := map[string]int{
-		"total_steps":     result.Summary.TotalSteps,
-		"total_asserts":   result.Summary.TotalAsserts,
-		"asserts_passed":  result.Summary.AssertsPassed,
+		"total_steps":    result.Summary.TotalSteps,
+		"total_asserts":  result.Summary.TotalAsserts,
+		"asserts_passed": result.Summary.AssertsPassed,
 	}
 	data["summary"] = summary
 

@@ -101,17 +101,54 @@ type Screenshot struct {
 	SizeBytes    int64  `json:"size_bytes,omitempty"`
 }
 
+// ClientConfig holds configurable timeouts for the BAS client.
+type ClientConfig struct {
+	// Timeout is the HTTP client timeout for individual requests.
+	Timeout time.Duration
+	// HealthCheckWaitTimeout is how long to wait for BAS to become healthy.
+	HealthCheckWaitTimeout time.Duration
+	// WorkflowExecutionTimeout is how long to wait for a workflow to complete.
+	WorkflowExecutionTimeout time.Duration
+}
+
+// DefaultClientConfig returns a ClientConfig with default values.
+func DefaultClientConfig() ClientConfig {
+	return ClientConfig{
+		Timeout:                  DefaultTimeout,
+		HealthCheckWaitTimeout:   HealthCheckWaitTimeout,
+		WorkflowExecutionTimeout: WorkflowExecutionTimeout,
+	}
+}
+
 // HTTPClient is the HTTP-based BAS client implementation.
 type HTTPClient struct {
 	baseURL    string
 	httpClient *http.Client
+	config     ClientConfig
 }
 
-// NewClient creates a new BAS HTTP client.
+// NewClient creates a new BAS HTTP client with default timeouts.
 func NewClient(baseURL string) *HTTPClient {
+	return NewClientWithConfig(baseURL, DefaultClientConfig())
+}
+
+// NewClientWithConfig creates a new BAS HTTP client with custom timeouts.
+func NewClientWithConfig(baseURL string, cfg ClientConfig) *HTTPClient {
+	// Apply defaults for zero values
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = DefaultTimeout
+	}
+	if cfg.HealthCheckWaitTimeout <= 0 {
+		cfg.HealthCheckWaitTimeout = HealthCheckWaitTimeout
+	}
+	if cfg.WorkflowExecutionTimeout <= 0 {
+		cfg.WorkflowExecutionTimeout = WorkflowExecutionTimeout
+	}
+
 	return &HTTPClient{
 		baseURL:    baseURL,
-		httpClient: &http.Client{Timeout: DefaultTimeout},
+		httpClient: &http.Client{Timeout: cfg.Timeout},
+		config:     cfg,
 	}
 }
 
@@ -147,13 +184,13 @@ func (c *HTTPClient) WaitForHealth(ctx context.Context) error {
 		return nil
 	}
 
-	deadline := time.Now().Add(HealthCheckWaitTimeout)
+	deadline := time.Now().Add(c.config.HealthCheckWaitTimeout)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		if time.Now().After(deadline) {
-			return fmt.Errorf("health check timeout after %s", HealthCheckWaitTimeout)
+			return fmt.Errorf("health check timeout after %s", c.config.HealthCheckWaitTimeout)
 		}
 
 		select {
@@ -315,7 +352,7 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 		return err
 	}
 
-	deadline := time.Now().Add(WorkflowExecutionTimeout)
+	deadline := time.Now().Add(c.config.WorkflowExecutionTimeout)
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
@@ -325,7 +362,7 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 
 	for {
 		if time.Now().After(deadline) {
-			return fmt.Errorf("workflow execution timed out after %s", WorkflowExecutionTimeout)
+			return fmt.Errorf("workflow execution timed out after %s", c.config.WorkflowExecutionTimeout)
 		}
 
 		select {

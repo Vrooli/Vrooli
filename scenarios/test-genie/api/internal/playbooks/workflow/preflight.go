@@ -12,14 +12,14 @@ import (
 
 // PreflightIssue represents a validation issue found during preflight checks.
 type PreflightIssue struct {
-	Severity  string `json:"severity"` // "error" or "warning"
-	Code      string `json:"code"`
-	Message   string `json:"message"`
-	NodeID    string `json:"node_id,omitempty"`
-	NodeType  string `json:"node_type,omitempty"`
-	Field     string `json:"field,omitempty"`
-	Pointer   string `json:"pointer,omitempty"`
-	Hint      string `json:"hint,omitempty"`
+	Severity string `json:"severity"` // "error" or "warning"
+	Code     string `json:"code"`
+	Message  string `json:"message"`
+	NodeID   string `json:"node_id,omitempty"`
+	NodeType string `json:"node_type,omitempty"`
+	Field    string `json:"field,omitempty"`
+	Pointer  string `json:"pointer,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // PreflightResult contains the results of preflight validation.

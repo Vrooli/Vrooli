@@ -87,7 +87,7 @@ type FixtureDefinition struct {
 // FixtureParameter defines a fixture parameter.
 type FixtureParameter struct {
 	Name        string
-	Type        string   // string, number, boolean, enum
+	Type        string // string, number, boolean, enum
 	Required    bool
 	Default     any
 	EnumValues  []string

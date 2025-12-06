@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import { Button } from "../ui/button";
@@ -12,10 +12,11 @@ import { cn } from "../../lib/utils";
 interface ExecutionFormProps {
   scenarioOptions: string[];
   datalistId: string;
+  scenarioName?: string;
   onSuccess?: () => void;
 }
 
-export function ExecutionForm({ scenarioOptions, datalistId, onSuccess }: ExecutionFormProps) {
+export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuccess }: ExecutionFormProps) {
   const queryClient = useQueryClient();
   const {
     executionForm,
@@ -24,21 +25,38 @@ export function ExecutionForm({ scenarioOptions, datalistId, onSuccess }: Execut
     executionFeedback,
     setExecutionFeedback
   } = useUIStore();
+  const [feedbackStatus, setFeedbackStatus] = useState<"success" | "error" | null>(null);
+
+  // When a scenario is provided by the parent (e.g., scenario detail page), sync it and clear stale suite request links.
+  useEffect(() => {
+    if (scenarioName) {
+      setExecutionForm({ scenarioName, suiteRequestId: "" });
+    }
+  }, [scenarioName, setExecutionForm]);
 
   const executionMutation = useMutation({
     mutationFn: triggerSuiteExecution,
-    onMutate: () => setExecutionFeedback(null),
+    onMutate: () => {
+      setExecutionFeedback(null);
+      setFeedbackStatus(null);
+    },
     onSuccess: (result) => {
+      const mins = ((result.phaseSummary?.durationSeconds ?? 0) / 60).toFixed(1);
+      const failing = (result.phases || []).filter((p) => p.status && p.status !== "passed");
+      const firstError = failing.find((p) => p.error)?.error;
       const resultLabel = result.success ? "completed" : "failed";
-      setExecutionFeedback(
-        `Tests ${resultLabel} in ${(result.phaseSummary.durationSeconds / 60).toFixed(1)} min`
-      );
+      const errorNote = !result.success
+        ? ` · ${failing.length} phase${failing.length === 1 ? "" : "s"} failed${firstError ? `: ${firstError}` : ""}`
+        : "";
+      setExecutionFeedback(`Tests ${resultLabel} in ${mins} min${errorNote}`);
+      setFeedbackStatus(result.success ? "success" : "error");
       queryClient.invalidateQueries({ queryKey: ["executions"] });
       queryClient.invalidateQueries({ queryKey: ["health"] });
       onSuccess?.();
     },
     onError: (err: Error) => {
       setExecutionFeedback(err.message);
+      setFeedbackStatus("error");
     }
   });
 
@@ -46,6 +64,7 @@ export function ExecutionForm({ scenarioOptions, datalistId, onSuccess }: Execut
     evt.preventDefault();
     if (!executionForm.scenarioName.trim()) {
       setExecutionFeedback("Scenario name is required");
+      setFeedbackStatus("error");
       return;
     }
     executionMutation.mutate({
@@ -89,37 +108,25 @@ export function ExecutionForm({ scenarioOptions, datalistId, onSuccess }: Execut
         </Button>
       </div>
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-        <label className="block text-sm">
-          <span className="text-slate-300">Scenario name</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            value={executionForm.scenarioName}
-            onChange={(evt) => setExecutionForm({ scenarioName: evt.target.value })}
-            placeholder="scenario-under-test"
-            list={datalistId}
-          />
-        </label>
-
-        <label className="block text-sm">
-          <span className="text-slate-300">Preset</span>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {EXECUTION_PRESETS.map((preset) => (
-              <button
-                type="button"
-                key={preset}
-                onClick={() => setExecutionForm({ preset })}
-                className={cn(
-                  "rounded-full border px-4 py-2 text-sm capitalize transition",
-                  executionForm.preset === preset
-                    ? "border-emerald-400 bg-emerald-400/20 text-white"
-                    : "border-white/20 text-slate-300 hover:border-white/50"
-                )}
-              >
-                {preset}
-              </button>
-            ))}
+        {!scenarioName && (
+          <label className="block text-sm">
+            <span className="text-slate-300">Scenario name</span>
+            <input
+              className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              value={executionForm.scenarioName}
+              onChange={(evt) => setExecutionForm({ scenarioName: evt.target.value })}
+              placeholder="scenario-under-test"
+              list={datalistId}
+            />
+          </label>
+        )}
+        {scenarioName && (
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-emerald-100">
+              Scenario: {scenarioName}
+            </span>
           </div>
-        </label>
+        )}
 
         <label className="inline-flex items-center gap-3 text-sm text-slate-300">
           <input
@@ -131,30 +138,29 @@ export function ExecutionForm({ scenarioOptions, datalistId, onSuccess }: Execut
           Stop on first failed phase
         </label>
 
-        <label className="block text-sm">
-          <span className="text-slate-300">Link to request (optional)</span>
-          <input
-            className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            value={executionForm.suiteRequestId}
-            onChange={(evt) => setExecutionForm({ suiteRequestId: evt.target.value })}
-            placeholder="Link to queue row for status updates"
-          />
-        </label>
-
         <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
           <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Preset phases</p>
           <p className="mt-1 text-sm text-slate-300">
-            Each preset runs different test phases.
+            Each preset runs different test phases. Click a card to select.
           </p>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
             {presetEntries.map(([presetKey, detail]) => (
               <div
                 key={presetKey}
+                role="button"
+                tabIndex={0}
+                onClick={() => setExecutionForm({ preset: presetKey })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExecutionForm({ preset: presetKey });
+                  }
+                }}
                 className={cn(
-                  "rounded-xl border bg-white/5 p-3 text-sm",
+                  "rounded-xl border bg-white/5 p-3 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400",
                   executionForm.preset === presetKey
                     ? "border-emerald-400/60 bg-emerald-400/10"
-                    : "border-white/10 bg-black/30"
+                    : "border-white/10 bg-black/30 hover:border-white/40"
                 )}
               >
                 <p className="font-semibold capitalize">{detail.label}</p>
@@ -183,18 +189,18 @@ export function ExecutionForm({ scenarioOptions, datalistId, onSuccess }: Execut
         </Button>
         {executionFeedback && (
           <p
-            className={cn(
-              "text-sm",
-              executionMutation.isError
-                ? "text-red-400"
-                : executionMutation.isSuccess
-                  ? "text-emerald-300"
-                  : "text-slate-300"
-            )}
-          >
-            {executionFeedback}
-          </p>
-        )}
+          className={cn(
+            "text-sm",
+            feedbackStatus === "error"
+              ? "text-red-400"
+              : feedbackStatus === "success"
+                ? "text-emerald-300"
+                : "text-slate-300"
+          )}
+        >
+          {executionFeedback}
+        </p>
+      )}
       </form>
     </section>
   );

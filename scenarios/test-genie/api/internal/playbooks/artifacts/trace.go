@@ -46,18 +46,18 @@ const (
 
 // TraceEvent represents a single trace event in the execution log.
 type TraceEvent struct {
-	Timestamp   time.Time      `json:"ts"`
-	Event       TraceEventType `json:"event"`
-	WorkflowFile string        `json:"workflow,omitempty"`
-	ExecutionID string         `json:"execution_id,omitempty"`
-	StepIndex   int            `json:"step,omitempty"`
-	NodeID      string         `json:"node_id,omitempty"`
-	Status      string         `json:"status,omitempty"`
-	Progress    float64        `json:"progress,omitempty"`
-	Duration    string         `json:"duration,omitempty"`
-	Error       string         `json:"error,omitempty"`
-	Message     string         `json:"message,omitempty"`
-	Details     map[string]any `json:"details,omitempty"`
+	Timestamp    time.Time      `json:"ts"`
+	Event        TraceEventType `json:"event"`
+	WorkflowFile string         `json:"workflow,omitempty"`
+	ExecutionID  string         `json:"execution_id,omitempty"`
+	StepIndex    int            `json:"step,omitempty"`
+	NodeID       string         `json:"node_id,omitempty"`
+	Status       string         `json:"status,omitempty"`
+	Progress     float64        `json:"progress,omitempty"`
+	Duration     string         `json:"duration,omitempty"`
+	Error        string         `json:"error,omitempty"`
+	Message      string         `json:"message,omitempty"`
+	Details      map[string]any `json:"details,omitempty"`
 }
 
 // TraceWriter writes execution trace events to a JSONL file.
@@ -72,11 +72,11 @@ type TraceWriter interface {
 
 // FileTraceWriter writes trace events to a JSONL file on disk.
 type FileTraceWriter struct {
-	mu       sync.Mutex
-	file     *os.File
-	path     string
-	encoder  *json.Encoder
-	closed   bool
+	mu      sync.Mutex
+	file    *os.File
+	path    string
+	encoder *json.Encoder
+	closed  bool
 }
 
 // NewTraceWriter creates a new trace writer for a scenario.

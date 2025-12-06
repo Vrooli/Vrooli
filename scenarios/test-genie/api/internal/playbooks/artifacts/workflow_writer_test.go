@@ -21,8 +21,8 @@ func TestWriteWorkflowArtifacts_Basic(t *testing.T) {
 		ExecutionID: "exec-123",
 		Status:      "completed",
 		Summary: execution.TimelineSummary{
-			TotalSteps:   2,
-			TotalAsserts: 1,
+			TotalSteps:    2,
+			TotalAsserts:  1,
 			AssertsPassed: 1,
 		},
 	}

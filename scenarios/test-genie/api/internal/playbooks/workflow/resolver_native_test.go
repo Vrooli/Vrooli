@@ -267,11 +267,11 @@ func TestNativeResolverUnknownFixture(t *testing.T) {
 
 func TestParseFixtureReference(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
+		name         string
+		input        string
 		expectedSlug string
 		expectedArgs map[string]string
-		expectError bool
+		expectError  bool
 	}{
 		{
 			name:         "simple",

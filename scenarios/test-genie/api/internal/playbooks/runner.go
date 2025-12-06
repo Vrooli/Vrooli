@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"test-genie/internal/playbooks/artifacts"
+	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/playbooks/registry"
 	"test-genie/internal/playbooks/seeds"
@@ -33,7 +34,8 @@ type Config struct {
 
 // Runner orchestrates playbook execution using injected dependencies.
 type Runner struct {
-	config Config
+	config          Config
+	playbooksConfig *config.Config // Configuration from testing.json
 
 	// Injected dependencies (interfaces for testing)
 	registryLoader   registry.Loader
@@ -58,10 +60,11 @@ type Runner struct {
 type Option func(*Runner)
 
 // New creates a new playbooks runner.
-func New(config Config, opts ...Option) *Runner {
+func New(cfg Config, opts ...Option) *Runner {
 	r := &Runner{
-		config:    config,
-		logWriter: io.Discard,
+		config:          cfg,
+		playbooksConfig: config.Default(), // Use defaults initially
+		logWriter:       io.Discard,
 	}
 
 	for _, opt := range opts {
@@ -70,16 +73,16 @@ func New(config Config, opts ...Option) *Runner {
 
 	// Set defaults for validators if not provided via options
 	if r.registryLoader == nil {
-		r.registryLoader = registry.NewLoader(config.TestDir)
+		r.registryLoader = registry.NewLoader(cfg.TestDir)
 	}
 	if r.workflowResolver == nil {
-		r.workflowResolver = workflow.NewResolver(config.AppRoot, config.ScenarioDir)
+		r.workflowResolver = workflow.NewResolver(cfg.AppRoot, cfg.ScenarioDir)
 	}
 	if r.seedManager == nil {
-		r.seedManager = seeds.NewManager(config.ScenarioDir, config.AppRoot, config.TestDir, r.logWriter)
+		r.seedManager = seeds.NewManager(cfg.ScenarioDir, cfg.AppRoot, cfg.TestDir, r.logWriter)
 	}
 	if r.artifactWriter == nil {
-		r.artifactWriter = artifacts.NewWriter(config.ScenarioDir, config.ScenarioName, config.AppRoot)
+		r.artifactWriter = artifacts.NewWriter(cfg.ScenarioDir, cfg.ScenarioName, cfg.AppRoot)
 	}
 
 	return r
@@ -155,6 +158,15 @@ func WithUIBaseURLResolver(f func(ctx context.Context, scenario string) (string,
 	}
 }
 
+// WithPlaybooksConfig sets the playbooks configuration from testing.json.
+func WithPlaybooksConfig(cfg *config.Config) Option {
+	return func(r *Runner) {
+		if cfg != nil {
+			r.playbooksConfig = cfg
+		}
+	}
+}
+
 // Run executes all playbook workflows and returns the result.
 func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := ctx.Err(); err != nil {
@@ -172,6 +184,11 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Success:      true,
 			Observations: []Observation{NewInfoObservation("playbooks phase disabled via TEST_GENIE_SKIP_PLAYBOOKS")},
 		}
+	}
+
+	// Log dry-run mode if active
+	if r.playbooksConfig.Execution.DryRun {
+		shared.LogStep(r.logWriter, "[dry-run] validating workflows without execution")
 	}
 
 	// Note: We don't check for a local ui/ directory because playbooks can target
@@ -232,7 +249,8 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	_ = r.traceWriter.Write(artifacts.TraceBASHealthEvent(true, ""))
 
 	// Ensure required scenarios are running (detected during preflight validation)
-	if len(r.requiredScenarios) > 0 {
+	// Skip in dry-run mode since we won't actually navigate to them
+	if len(r.requiredScenarios) > 0 && !r.playbooksConfig.Execution.DryRun {
 		if err := r.ensureRequiredScenarios(ctx); err != nil {
 			return &RunResult{
 				Success:       false,
@@ -245,16 +263,20 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
-	// Apply seeds
-	cleanup, err := r.seedManager.Apply(ctx)
-	if err != nil {
-		return &RunResult{
-			Success:       false,
-			Error:         err,
-			FailureClass:  FailureClassMisconfiguration,
-			Remediation:   "Fix playbook seeds under test/playbooks/__seeds.",
-			TracePath:     r.traceWriter.Path(),
-			ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
+	// Apply seeds - skip in dry-run mode since seeds can have side effects
+	var cleanup func()
+	if !r.playbooksConfig.Execution.DryRun {
+		var err error
+		cleanup, err = r.seedManager.Apply(ctx)
+		if err != nil {
+			return &RunResult{
+				Success:       false,
+				Error:         err,
+				FailureClass:  FailureClassMisconfiguration,
+				Remediation:   "Fix playbook seeds under test/playbooks/__seeds.",
+				TracePath:     r.traceWriter.Path(),
+				ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
+			}
 		}
 	}
 	if cleanup != nil {
@@ -417,8 +439,14 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 	// Validate resolved workflow before execution (catches unresolved tokens)
 	validationResult, err := r.basClient.ValidateResolved(ctx, cleanDef)
 	if err != nil {
-		shared.LogWarn(r.logWriter, "validation request failed for %s: %v", entry.File, err)
-		// Non-fatal: continue with execution if validation service unavailable
+		// Validation request failed - fatal by default, unless ignore_validation_errors is set
+		if r.playbooksConfig.Execution.IgnoreValidationErrors {
+			shared.LogWarn(r.logWriter, "validation request failed for %s (continuing due to ignore_validation_errors): %v", entry.File, err)
+		} else {
+			execErr := NewResolveError(entry.File, fmt.Errorf("validation request failed: %w (set ignore_validation_errors: true in testing.json to bypass)", err))
+			_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
+			return Result{Entry: entry, Err: execErr}
+		}
 	} else if !validationResult.Valid {
 		// Collect error messages
 		var errMsgs []string
@@ -428,6 +456,16 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 		execErr := NewResolveError(entry.File, fmt.Errorf("resolved workflow validation failed: %s", strings.Join(errMsgs, "; ")))
 		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
 		return Result{Entry: entry, Err: execErr}
+	}
+
+	// Dry-run mode: validate without executing
+	if r.playbooksConfig.Execution.DryRun {
+		shared.LogStep(r.logWriter, "[dry-run] workflow %s validated successfully (skipping execution)", entry.File)
+		_ = r.traceWriter.Write(artifacts.TraceWorkflowCompleteEvent(entry.File, "dry-run", 0, ""))
+		return Result{
+			Entry:   entry,
+			Outcome: &Outcome{ExecutionID: "dry-run", Stats: " (dry-run: validated only)"},
+		}
 	}
 
 	// Execute workflow
@@ -527,7 +565,14 @@ func (r *Runner) ensureBAS(ctx context.Context) error {
 	}
 
 	apiBase := fmt.Sprintf("http://127.0.0.1:%s/api/v1", apiPort)
-	r.basClient = execution.NewClient(apiBase)
+
+	// Create client with configured timeouts
+	clientCfg := execution.ClientConfig{
+		Timeout:                  r.playbooksConfig.BAS.Timeout(),
+		HealthCheckWaitTimeout:   r.playbooksConfig.BAS.HealthCheckWaitTimeout(),
+		WorkflowExecutionTimeout: r.playbooksConfig.BAS.WorkflowTimeout(),
+	}
+	r.basClient = execution.NewClientWithConfig(apiBase, clientCfg)
 
 	return r.basClient.WaitForHealth(ctx)
 }

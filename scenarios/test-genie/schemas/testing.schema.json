@@ -185,14 +185,14 @@
           "default": true,
           "description": "Enable or disable the playbooks phase"
         },
-        "browserless": {
+        "bas": {
           "type": "object",
-          "description": "Browserless/BAS connection settings",
+          "description": "Browser Automation Studio connection settings",
           "properties": {
             "endpoint": {
               "type": "string",
-              "default": "http://localhost:3000",
-              "description": "Browserless WebSocket endpoint URL"
+              "default": "http://localhost:8080/api/v1",
+              "description": "BAS API endpoint URL"
             },
             "timeout_ms": {
               "type": "integer",

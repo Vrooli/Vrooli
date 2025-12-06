@@ -6,12 +6,20 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
+	"test-genie/internal/playbooks/config"
 )
 
 // runPlaybooksPhase executes BAS playbook workflows using the playbooks package.
 // This includes loading the registry, executing workflows via BAS API, and
 // writing results for requirements coverage tracking.
 func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
+	// Load playbooks configuration from testing.json
+	playbooksCfg, err := config.Load(env.ScenarioDir)
+	if err != nil {
+		logPhaseStep(logWriter, "failed to load playbooks config: %v", err)
+		playbooksCfg = config.Default()
+	}
+
 	return RunPhase(ctx, logWriter, "playbooks",
 		func() (*playbooks.RunResult, error) {
 			runner := playbooks.New(playbooks.Config{
@@ -21,6 +29,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 				AppRoot:      env.AppRoot,
 			},
 				playbooks.WithLogger(logWriter),
+				playbooks.WithPlaybooksConfig(playbooksCfg),
 				playbooks.WithPortResolver(func(ctx context.Context, scenarioName, portName string) (string, error) {
 					return ResolveScenarioPort(ctx, logWriter, scenarioName, portName)
 				}),

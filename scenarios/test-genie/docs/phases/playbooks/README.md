@@ -14,7 +14,7 @@ graph TB
     subgraph "Playbooks Phase"
         DISCOVER[Discover Workflows<br/>test/playbooks/**/*.json]
         REGISTRY[Load Registry<br/>test/playbooks/registry.json]
-        BROWSERLESS[Connect Browserless<br/>Headless Chrome]
+        BAS[Connect BAS<br/>Browser Automation Studio]
         EXECUTE[Execute Workflows<br/>Navigate, Click, Assert]
         ARTIFACTS[Collect Artifacts<br/>Screenshots, DOM snapshots]
     end
@@ -24,17 +24,17 @@ graph TB
     RUNTIME -->|No| SKIP[Skip Phase]
 
     DISCOVER --> REGISTRY
-    REGISTRY --> BROWSERLESS
-    BROWSERLESS --> EXECUTE
+    REGISTRY --> BAS
+    BAS --> EXECUTE
     EXECUTE --> ARTIFACTS
     ARTIFACTS --> DONE[Complete]
 
     EXECUTE -.->|assertion fails| FAIL[Fail]
-    BROWSERLESS -.->|unavailable| SKIP
+    BAS -.->|unavailable| SKIP
 
     style DISCOVER fill:#e8f5e9
     style REGISTRY fill:#fff3e0
-    style BROWSERLESS fill:#e3f2fd
+    style BAS fill:#e3f2fd
     style EXECUTE fill:#f3e5f5
     style ARTIFACTS fill:#fff9c4
 ```
@@ -126,16 +126,16 @@ Regenerate after adding or moving playbooks:
 test-genie registry build
 ```
 
-## Browserless Integration
+## Browser Automation Studio Integration
 
-The phase uses Browserless for headless browser automation:
+The phase uses Browser Automation Studio (BAS) for workflow execution. BAS is a separate Vrooli scenario that provides a Playwright-based browser automation engine.
 
 ```bash
-# Ensure Browserless is running
-vrooli resource status browserless
+# Ensure BAS is running
+vrooli scenario status browser-automation-studio
 
 # Start if needed
-vrooli resource start browserless
+vrooli scenario start browser-automation-studio
 ```
 
 ## Exit Codes
@@ -144,26 +144,69 @@ vrooli resource start browserless
 |------|---------|
 | 0 | All workflows pass |
 | 1 | Workflow assertions failed |
-| 2 | Skipped (runtime/browserless unavailable) |
+| 2 | Skipped (runtime/BAS unavailable) |
 
 ## Configuration
 
+Configure the playbooks phase in `.vrooli/testing.json`:
+
 ```json
 {
+  "playbooks": {
+    "enabled": true,
+    "bas": {
+      "endpoint": "http://localhost:8080/api/v1",
+      "timeout_ms": 30000,
+      "launch_timeout_ms": 60000
+    },
+    "execution": {
+      "stop_on_first_failure": false,
+      "default_step_timeout_ms": 30000,
+      "ignore_validation_errors": false,
+      "dry_run": false
+    },
+    "artifacts": {
+      "screenshots": true,
+      "dom_snapshots": true
+    }
+  },
   "phases": {
     "playbooks": {
-      "timeout": 180,
-      "browserless": {
-        "endpoint": "http://localhost:3000"
-      },
-      "artifacts": {
-        "screenshots": true,
-        "domSnapshots": true
-      }
+      "timeout": "3m"
     }
   }
 }
 ```
+
+### Execution Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `ignore_validation_errors` | `false` | When BAS validation request fails (e.g., BAS unavailable), continue with execution instead of failing. **Not recommended for production.** |
+| `dry_run` | `false` | Validate all workflows without executing them. Useful for CI pre-checks or debugging workflow syntax. Skips seed scripts and scenario startup. |
+
+### Dry-Run Mode
+
+Dry-run mode validates workflows through BAS without executing browser automation:
+
+```bash
+# Enable via testing.json or environment
+# In testing.json:
+{
+  "playbooks": {
+    "execution": {
+      "dry_run": true
+    }
+  }
+}
+```
+
+In dry-run mode:
+- Workflows are loaded, resolved, and validated via BAS
+- Seed scripts (`__seeds/apply.sh`) are **not** run
+- Required scenarios (referenced via `destinationType: scenario`) are **not** started
+- Execution is skipped after successful validation
+- Each workflow returns with `(dry-run: validated only)` in its stats
 
 ## Related Documentation
 

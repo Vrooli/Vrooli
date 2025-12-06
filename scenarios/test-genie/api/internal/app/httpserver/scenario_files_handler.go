@@ -32,12 +32,14 @@ func (s *Server) handleListScenarioFiles(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	includeHidden := strings.TrimSpace(query.Get("includeHidden")) == "1"
+	includeCoverage := strings.TrimSpace(query.Get("includeCoverage")) == "1"
 
 	result, err := s.scenarios.ListFilesWithMeta(r.Context(), name, scenarios.FileListOptions{
-		Path:          path,
-		Search:        search,
-		Limit:         limit,
-		IncludeHidden: includeHidden,
+		Path:            path,
+		Search:          search,
+		Limit:           limit,
+		IncludeHidden:   includeHidden,
+		IncludeCoverage: includeCoverage,
 	})
 	if err != nil {
 		s.writeError(w, http.StatusBadRequest, err.Error())

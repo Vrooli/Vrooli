@@ -344,6 +344,7 @@ export interface ScenarioFileNode {
   path: string;
   name: string;
   isDir: boolean;
+  coveragePct?: number;
 }
 
 export interface ScenarioFileResult {
@@ -353,7 +354,7 @@ export interface ScenarioFileResult {
 
 export async function fetchScenarioFiles(
   name: string,
-  params?: { path?: string; search?: string; limit?: number; includeHidden?: boolean }
+  params?: { path?: string; search?: string; limit?: number; includeHidden?: boolean; includeCoverage?: boolean }
 ): Promise<ScenarioFileResult> {
   const trimmed = name.trim();
   if (!trimmed) return { items: [], hiddenCount: 0 };
@@ -363,6 +364,7 @@ export async function fetchScenarioFiles(
   if (params?.search) query.set("search", params.search);
   if (params?.limit) query.set("limit", String(params.limit));
   if (params?.includeHidden) query.set("includeHidden", "1");
+  if (params?.includeCoverage) query.set("includeCoverage", "1");
 
   const baseUrl = buildApiUrl(`/scenarios/${encodeURIComponent(trimmed)}/files`, { baseUrl: API_BASE });
   const url = query.toString() ? `${baseUrl}?${query.toString()}` : baseUrl;

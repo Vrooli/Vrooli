@@ -53,14 +53,16 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
   const [currentPath, setCurrentPath] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [includeHidden, setIncludeHidden] = useState(false);
+  const [showLowCoverageOnly, setShowLowCoverageOnly] = useState(false);
+  const [showUntestedOnly, setShowUntestedOnly] = useState(false);
   const { data: fileResult, isLoading, error, refetch } = useQuery({
     queryKey: ["scenario-files", scenarioName, currentPath, searchTerm, includeHidden],
     queryFn: () =>
       fetchScenarioFiles(
         scenarioName,
         searchTerm
-          ? { search: searchTerm, limit: 200, includeHidden }
-          : { path: currentPath, includeHidden }
+          ? { search: searchTerm, limit: 200, includeHidden, includeCoverage: true }
+          : { path: currentPath, includeHidden, includeCoverage: true }
       ),
     enabled: Boolean(scenarioName),
     staleTime: 10_000
@@ -114,10 +116,32 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
       });
   }, [nodes]);
 
+  const visibleNodes = useMemo(() => {
+    if (!displayNodes) return [];
+    return displayNodes.filter((node) => {
+      const pct = typeof node.coveragePct === "number" ? node.coveragePct : -1;
+      if (showLowCoverageOnly) {
+        if (pct < 0 || pct >= 85) {
+          return false;
+        }
+      }
+      if (showUntestedOnly) {
+        const hasCoverage = pct >= 0;
+        const hasTests = Boolean(node.hasTestSibling) || Boolean(node.isTestOnly);
+        if (hasCoverage || hasTests) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [displayNodes, showLowCoverageOnly, showUntestedOnly]);
+
   useEffect(() => {
     setCurrentPath("");
     setSearchTerm("");
     setIncludeHidden(false);
+    setShowLowCoverageOnly(false);
+    setShowUntestedOnly(false);
     refetch();
   }, [scenarioName, refetch]);
 
@@ -181,11 +205,15 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
       return <p className="text-sm text-slate-400">No paths found.</p>;
     }
     const isSearch = Boolean(searchTerm.trim());
+    const totalCount = displayNodes.length;
+    const filteredCount = visibleNodes.length;
+    const filtersActive = showLowCoverageOnly || showUntestedOnly;
     return (
       <div className="rounded-xl border border-white/10 bg-black/20">
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            Showing {displayNodes.length} {isSearch ? "matches" : "items"}{" "}
+            Showing {filteredCount} {isSearch ? "matches" : "items"}{" "}
+            {filtersActive ? `(filtered from ${totalCount})` : ""}
             {hiddenCount > 0 && !includeHidden ? `(hiding ${hiddenCount} items)` : ""}
           </div>
           {!isRoot && !isSearch && (
@@ -193,16 +221,40 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
               <CornerUpLeft className="h-4 w-4" />
             </Button>
           )}
-          {hiddenCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={toggleHidden} aria-label={includeHidden ? "Hide filtered items" : "Show hidden items"}>
-              {includeHidden ? "Hide filtered" : "Show hidden"}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showLowCoverageOnly ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => setShowLowCoverageOnly((prev) => !prev)}
+            >
+              Low coverage
             </Button>
-          )}
+            <Button
+              variant={showUntestedOnly ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => setShowUntestedOnly((prev) => !prev)}
+            >
+              Untested
+            </Button>
+            {hiddenCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={toggleHidden} aria-label={includeHidden ? "Hide filtered items" : "Show hidden items"}>
+                {includeHidden ? "Hide filtered" : "Show hidden"}
+              </Button>
+            )}
+          </div>
         </div>
         <div className="divide-y divide-white/5">
-          {displayNodes.map((node) => {
+          {visibleNodes.map((node) => {
             const normalized = normalizePath(node.path);
             const isSelected = selectedPaths.includes(normalized);
+            const coverage = typeof node.coveragePct === "number" ? node.coveragePct : null;
+            const coverageClass = coverage === null
+              ? "border-white/15 bg-white/[0.04] text-slate-200"
+              : coverage >= 90
+                ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100"
+                : coverage >= 75
+                  ? "border-amber-400/50 bg-amber-400/10 text-amber-100"
+                  : "border-rose-400/50 bg-rose-400/10 text-rose-100";
             return (
               <div
                 key={node.path}
@@ -239,6 +291,9 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
                         Test file
                       </span>
                     )}
+                    <span className={cn("mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]", coverageClass)}>
+                      {coverage === null ? "No coverage data" : `${coverage.toFixed(1)}% coverage${node.isDir ? " (avg)" : ""}`}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

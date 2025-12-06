@@ -113,4 +113,3 @@ func buildPhaseOutput(scenarioName string, results []types.Result) map[string]an
 
 	return output
 }
-
