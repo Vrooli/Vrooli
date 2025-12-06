@@ -13,10 +13,10 @@ import (
 
 // DocEntry represents a documentation file or directory
 type DocEntry struct {
-	Name     string      `json:"name"`
-	Path     string      `json:"path"`
-	IsDir    bool        `json:"isDir"`
-	Children []DocEntry  `json:"children,omitempty"`
+	Name     string     `json:"name"`
+	Path     string     `json:"path"`
+	IsDir    bool       `json:"isDir"`
+	Children []DocEntry `json:"children,omitempty"`
 }
 
 // DocContent represents the content of a documentation file
@@ -49,14 +49,14 @@ func handleDocsTree() http.HandlerFunc {
 
 		// Resolve to absolute path for logging
 		absPath, _ := filepath.Abs(docsRoot)
-		logStructured("docs_tree_request", map[string]interface{}{
+		util.LogStructured("docs_tree_request", map[string]interface{}{
 			"docs_root":     docsRoot,
 			"absolute_path": absPath,
 		})
 
 		// Check if docs directory exists
 		if _, err := os.Stat(docsRoot); os.IsNotExist(err) {
-			logStructured("docs_directory_not_found", map[string]interface{}{
+			util.LogStructured("docs_directory_not_found", map[string]interface{}{
 				"path":  docsRoot,
 				"error": err.Error(),
 			})
@@ -67,7 +67,7 @@ func handleDocsTree() http.HandlerFunc {
 
 		entries, err := buildDocsTree(docsRoot, "")
 		if err != nil {
-			logStructuredError("docs_tree_build_failed", map[string]interface{}{
+			util.LogStructuredError("docs_tree_build_failed", map[string]interface{}{
 				"path":  docsRoot,
 				"error": err.Error(),
 			})
@@ -75,7 +75,7 @@ func handleDocsTree() http.HandlerFunc {
 			return
 		}
 
-		logStructured("docs_tree_success", map[string]interface{}{
+		util.LogStructured("docs_tree_success", map[string]interface{}{
 			"path":        docsRoot,
 			"entry_count": len(entries),
 		})

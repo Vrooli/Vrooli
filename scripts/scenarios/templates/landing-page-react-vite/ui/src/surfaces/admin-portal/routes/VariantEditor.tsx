@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Plus } from 'lucide-react';
 import Editor, { type OnMount } from '@monaco-editor/react';
+import type { IDisposable } from 'monaco-editor';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
@@ -86,6 +87,8 @@ export function VariantEditor() {
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(!isNew);
   const [snapshotSaving, setSnapshotSaving] = useState(false);
+  const [schemaIssues, setSchemaIssues] = useState<string[]>([]);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const isJsonTab = activeTab === 'json';
   const currentSaving = isJsonTab ? snapshotSaving : saving;
   const savingLabel = isJsonTab
@@ -96,6 +99,7 @@ export function VariantEditor() {
     ? 'Saving...'
     : 'Save';
   const editorModelPath = 'inmemory://model/landing-variant.json';
+  const markersListener = useRef<IDisposable | null>(null);
 
   const handleEditorMount: OnMount = (_editor, monaco) => {
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
@@ -103,10 +107,31 @@ export function VariantEditor() {
       allowComments: false,
       schemas: monacoSchemaCatalog.map(({ uri, schema }) => ({
         uri,
-        fileMatch: uri === variantSchemaUri ? ['*landing-variant*'] : [uri],
+        fileMatch: uri === variantSchemaUri ? [editorModelPath] : [uri],
         schema,
       })),
     });
+
+    const uri = monaco.Uri.parse(editorModelPath);
+    const refreshMarkers = () => {
+      const markers = monaco.editor.getModelMarkers({ resource: uri });
+      setSchemaIssues(
+        markers.map(
+          (marker) =>
+            `${marker.message} (line ${marker.startLineNumber}:${marker.startColumn})`
+        )
+      );
+    };
+
+    markersListener.current?.dispose();
+    markersListener.current = monaco.editor.onDidChangeMarkers((changed) => {
+      const affected = changed.some((change) => change.resource.toString() === uri.toString());
+      if (affected) {
+        refreshMarkers();
+      }
+    });
+
+    refreshMarkers();
   };
 
   const applyAxesSelection = (space: VariantSpace, existing?: VariantAxes) => {
@@ -271,6 +296,44 @@ export function VariantEditor() {
     }
   };
 
+  useEffect(
+    () => () => {
+      markersListener.current?.dispose();
+    },
+    []
+  );
+
+  const handleCopyIssues = async () => {
+    if (schemaIssues.length === 0) {
+      setCopyStatus('No schema issues to copy');
+      setTimeout(() => setCopyStatus(null), 2000);
+      return;
+    }
+    const text = schemaIssues.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus('Copied schema issues');
+    } catch {
+      // Fallback using a temporary textarea
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        setCopyStatus('Copied schema issues');
+      } catch {
+        setCopyStatus('Copy failed (clipboard blocked)');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    } finally {
+      setTimeout(() => setCopyStatus(null), 2000);
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -370,6 +433,14 @@ export function VariantEditor() {
                       value={snapshotDraft}
                       onChange={(value) => setSnapshotDraft(value ?? '')}
                       onMount={handleEditorMount}
+                      onValidate={(markers) => {
+                        setSchemaIssues(
+                          markers.map(
+                            (marker) =>
+                              `${marker.message} (line ${marker.startLineNumber}:${marker.startColumn})`
+                          )
+                        );
+                      }}
                       options={{
                         minimap: { enabled: false },
                         fontSize: 13,
@@ -383,6 +454,24 @@ export function VariantEditor() {
                   <p className="text-xs text-slate-500">
                     Must include <code>variant</code> and <code>sections</code>. The <code>variant.slug</code> must match this page.
                   </p>
+                  {schemaIssues.length > 0 && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100 space-y-2" data-testid="variant-json-schema-issues">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold text-amber-200">Schema validation issues</div>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={handleCopyIssues}>
+                            Copy issues
+                          </Button>
+                          {copyStatus && <span className="text-[11px] text-slate-200">{copyStatus}</span>}
+                        </div>
+                      </div>
+                      <ul className="list-disc list-inside space-y-1">
+                        {schemaIssues.map((issue, idx) => (
+                          <li key={idx}>{issue}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {snapshotError && (
                     <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
                       {snapshotError}

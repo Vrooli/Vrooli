@@ -14,7 +14,15 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "weight": { "type": "integer", "minimum": 0, "maximum": 100 },
-        "status": { "type": "string", "enum": ["active", "archived", "deleted", "fallback"] }
+        "status": { "type": "string", "enum": ["active", "archived", "deleted", "fallback"] },
+        "axes": {
+          "type": "object",
+          "description": "Axis selections; keys must match variant_space.json",
+          "propertyNames": { "pattern": "^[a-zA-Z0-9_-]+$" },
+          "additionalProperties": { "type": "string" }
+        },
+        "header_config": { "type": "object" },
+        "seo_config": { "type": "object" }
       },
       "additionalProperties": false
     },
@@ -40,7 +48,7 @@
         "id": { "type": "integer" },
         "section_type": {
           "type": "string",
-          "enum": ["hero", "features", "pricing", "cta", "testimonials", "faq", "footer", "video"]
+          "enum": ["hero", "features", "pricing", "cta", "testimonials", "faq", "footer", "video", "downloads"]
         },
         "order": { "type": "integer", "minimum": 0 },
         "enabled": { "type": "boolean" },

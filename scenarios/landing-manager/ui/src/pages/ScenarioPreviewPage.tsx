@@ -4,7 +4,14 @@ import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { LandingPreviewView } from '../components/LandingPreviewView';
 import { ErrorDisplay, parseApiError } from '../components/ErrorDisplay';
 import { PromoteDialog } from '../components/PromoteDialog';
-import { type GeneratedScenario, listGeneratedScenarios, promoteScenario } from '../lib/api';
+import { AgentCustomizationDialog } from '../components/AgentCustomizationDialog';
+import {
+  type GeneratedScenario,
+  type CustomizeResult,
+  listGeneratedScenarios,
+  promoteScenario,
+  customizeScenario,
+} from '../lib/api';
 import { useScenarioLifecycle } from '../hooks/useScenarioLifecycle';
 
 export function ScenarioPreviewPage() {
@@ -32,6 +39,8 @@ export function ScenarioPreviewPage() {
   const [promotionSuccess, setPromotionSuccess] = useState<string | null>(null);
   const [promotionError, setPromotionError] = useState<string | null>(null);
   const [promoteInFlight, setPromoteInFlight] = useState(false);
+  const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
+  const [customizeTarget, setCustomizeTarget] = useState<GeneratedScenario | null>(null);
 
   const initialView = searchParams.get('view') === 'admin' ? 'admin' : 'public';
 
@@ -120,6 +129,23 @@ export function ScenarioPreviewPage() {
     }
   }, [promoteDialogScenarioId, promoteInFlight]);
 
+  const handleOpenCustomize = useCallback((target: GeneratedScenario) => {
+    setCustomizeTarget(target);
+    setShowCustomizeDialog(true);
+  }, []);
+
+  const handleCloseCustomize = useCallback(() => {
+    setShowCustomizeDialog(false);
+    setCustomizeTarget(null);
+  }, []);
+
+  const handleCustomize = useCallback(
+    async (slug: string, brief: string, assets: string[]): Promise<CustomizeResult> => {
+      return customizeScenario(slug, brief, assets, true);
+    },
+    [],
+  );
+
   return (
     <div className="h-screen bg-slate-950 text-slate-50 flex flex-col">
       <main className="flex-1 relative flex flex-col min-h-0">
@@ -165,7 +191,7 @@ export function ScenarioPreviewPage() {
               scenario={scenario}
               isRunning={isRunning}
               onClose={handleBack}
-              onCustomize={() => undefined}
+              onCustomize={handleOpenCustomize}
               onStartScenario={startScenario}
               onStopScenario={stopScenario}
               onRestartScenario={restartScenario}
@@ -202,6 +228,12 @@ export function ScenarioPreviewPage() {
           onConfirm={confirmPromote}
         />
       )}
+      <AgentCustomizationDialog
+        isOpen={showCustomizeDialog}
+        scenario={customizeTarget}
+        onClose={handleCloseCustomize}
+        onCustomize={handleCustomize}
+      />
     </div>
   );
 }
