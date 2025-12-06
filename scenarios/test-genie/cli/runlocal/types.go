@@ -3,7 +3,10 @@ package runlocal
 
 // Request represents a local test run request.
 type Request struct {
-	Type string `json:"type,omitempty"`
+	Type      string   `json:"type,omitempty"`
+	Paths     []string `json:"paths,omitempty"`
+	Playbooks []string `json:"playbooks,omitempty"`
+	Filter    string   `json:"filter,omitempty"`
 }
 
 // Response represents the local test run response.
@@ -19,7 +22,10 @@ type Response struct {
 
 // Args holds parsed CLI inputs for the run-tests command.
 type Args struct {
-	Scenario string
-	Type     string
-	JSON     bool
+	Scenario  string
+	Type      string
+	Paths     []string
+	Playbooks []string
+	Filter    string
+	JSON      bool
 }

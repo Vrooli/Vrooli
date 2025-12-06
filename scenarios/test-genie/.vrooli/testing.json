@@ -47,6 +47,22 @@
       "max_connection_ms": 2000
     }
   },
+  "playbooks": {
+    "enabled": true,
+    "bas": {
+      "timeout_ms": 30000,
+      "launch_timeout_ms": 60000
+    },
+    "execution": {
+      "stop_on_first_failure": false,
+      "default_step_timeout_ms": 30000
+    },
+    "artifacts": {
+      "screenshots": true,
+      "dom_snapshots": true,
+      "retain_on_success": false
+    }
+  },
   "business": {
     "checks": {
       "endpoints": {

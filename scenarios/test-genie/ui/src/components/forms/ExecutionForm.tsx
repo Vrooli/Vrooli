@@ -1,12 +1,12 @@
-import { FormEvent, useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import { Button } from "../ui/button";
 import { InfoTip } from "../cards/InfoTip";
 import { selectors } from "../../consts/selectors";
 import { useUIStore } from "../../stores/uiStore";
-import { triggerSuiteExecution } from "../../lib/api";
 import { EXECUTION_PRESETS, PRESET_DETAILS, PHASE_LABELS } from "../../lib/constants";
+import { useExecutionStream } from "../../hooks/useExecutionStream";
 import { cn } from "../../lib/utils";
 
 interface ExecutionFormProps {
@@ -26,6 +26,20 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
     setExecutionFeedback
   } = useUIStore();
   const [feedbackStatus, setFeedbackStatus] = useState<"success" | "error" | null>(null);
+  const { startStream, reset, status: streamStatus, logs, error: streamError } = useExecutionStream({
+    onComplete: (finalResult) => {
+      const mins = ((finalResult.phaseSummary?.durationSeconds ?? 0) / 60).toFixed(1);
+      const failing = (finalResult.phases || []).filter((p) => p.status && p.status !== "passed");
+      const firstError = failing.find((p) => p.error)?.error;
+      const resultLabel = finalResult.success ? "completed" : "failed";
+      const errorNote = !finalResult.success
+        ? ` · ${failing.length} phase${failing.length === 1 ? "" : "s"} failed${firstError ? `: ${firstError}` : ""}`
+        : "";
+      setExecutionFeedback(`Tests ${resultLabel} in ${mins} min${errorNote}`);
+      setFeedbackStatus(finalResult.success ? "success" : "error");
+      onSuccess?.();
+    }
+  });
 
   // When a scenario is provided by the parent (e.g., scenario detail page), sync it and clear stale suite request links.
   useEffect(() => {
@@ -34,31 +48,7 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
     }
   }, [scenarioName, setExecutionForm]);
 
-  const executionMutation = useMutation({
-    mutationFn: triggerSuiteExecution,
-    onMutate: () => {
-      setExecutionFeedback(null);
-      setFeedbackStatus(null);
-    },
-    onSuccess: (result) => {
-      const mins = ((result.phaseSummary?.durationSeconds ?? 0) / 60).toFixed(1);
-      const failing = (result.phases || []).filter((p) => p.status && p.status !== "passed");
-      const firstError = failing.find((p) => p.error)?.error;
-      const resultLabel = result.success ? "completed" : "failed";
-      const errorNote = !result.success
-        ? ` · ${failing.length} phase${failing.length === 1 ? "" : "s"} failed${firstError ? `: ${firstError}` : ""}`
-        : "";
-      setExecutionFeedback(`Tests ${resultLabel} in ${mins} min${errorNote}`);
-      setFeedbackStatus(result.success ? "success" : "error");
-      queryClient.invalidateQueries({ queryKey: ["executions"] });
-      queryClient.invalidateQueries({ queryKey: ["health"] });
-      onSuccess?.();
-    },
-    onError: (err: Error) => {
-      setExecutionFeedback(err.message);
-      setFeedbackStatus("error");
-    }
-  });
+  const isStreaming = streamStatus === "streaming";
 
   const handleSubmit = (evt: FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -67,17 +57,44 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
       setFeedbackStatus("error");
       return;
     }
-    executionMutation.mutate({
+    setExecutionFeedback("Starting test run...");
+    setFeedbackStatus(null);
+    startStream({
       scenarioName: executionForm.scenarioName.trim(),
       preset: executionForm.preset,
       failFast: executionForm.failFast,
       suiteRequestId: executionForm.suiteRequestId.trim() || undefined
+    }).catch((err: Error) => {
+      setExecutionFeedback(err.message);
+      setFeedbackStatus("error");
     });
   };
 
   const presetEntries = Object.entries(PRESET_DETAILS) as Array<
     [string, (typeof PRESET_DETAILS)[keyof typeof PRESET_DETAILS]]
   >;
+
+  const logTitle = useMemo(() => {
+    if (streamStatus === "streaming") return "Live output";
+    if (streamStatus === "completed") return "Run output";
+    if (streamStatus === "error") return "Run error";
+    return null;
+  }, [streamStatus]);
+
+  useEffect(() => {
+    if (streamError) {
+      setExecutionFeedback(streamError);
+      setFeedbackStatus("error");
+    }
+  }, [streamError, setExecutionFeedback]);
+
+  const handleReset = () => {
+    reset();
+    resetExecutionForm();
+    setFeedbackStatus(null);
+    setExecutionFeedback(null);
+    queryClient.invalidateQueries({ queryKey: ["executions"] });
+  };
 
   return (
     <section
@@ -98,12 +115,7 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
             Select a preset to run different test phases.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetExecutionForm}
-          disabled={executionMutation.isPending}
-        >
+        <Button variant="outline" size="sm" onClick={handleReset} disabled={isStreaming}>
           Reset
         </Button>
       </div>
@@ -181,10 +193,10 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
         <Button
           className="w-full"
           type="submit"
-          disabled={executionMutation.isPending}
+          disabled={isStreaming}
           data-testid={selectors.forms.submitExecution}
         >
-          {executionMutation.isPending ? "Running..." : "Run tests"}
+          {isStreaming ? "Streaming..." : "Run tests"}
           <ArrowUpRight className="ml-2 h-4 w-4" />
         </Button>
         {executionFeedback && (
@@ -201,6 +213,38 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
           {executionFeedback}
         </p>
       )}
+
+        {logTitle && (
+          <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+            <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-400">
+              <span>{logTitle}</span>
+              <span className={cn(
+                "font-semibold",
+                streamStatus === "streaming" ? "text-emerald-300" : streamStatus === "error" ? "text-red-300" : "text-slate-300"
+              )}>
+                {streamStatus === "streaming" ? "Streaming" : streamStatus === "error" ? "Error" : "Complete"}
+              </span>
+            </div>
+            <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg bg-black/60 p-3 font-mono text-xs text-slate-100">
+              {logs.length === 0 && (
+                <p className="text-slate-500">{streamStatus === "streaming" ? "Waiting for output..." : "No output"}</p>
+              )}
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className={cn(
+                    "flex gap-2",
+                    log.level === "error" ? "text-red-300" : "text-slate-100"
+                  )}
+                >
+                  {log.timestamp && <span className="text-slate-500">{log.timestamp}</span>}
+                  {log.phase && <span className="text-cyan-300">[{log.phase}]</span>}
+                  <span className="flex-1">{log.message}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </form>
     </section>
   );

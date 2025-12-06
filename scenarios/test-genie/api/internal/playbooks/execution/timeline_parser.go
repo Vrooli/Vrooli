@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/playbooks/types"
+
 	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -127,7 +129,7 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 		Proto:       &timeline,
 		ExecutionID: timeline.GetExecutionId(),
 		WorkflowID:  timeline.GetWorkflowId(),
-		Status:      timeline.GetStatus(),
+		Status:      types.ExecutionStatusToString(timeline.GetStatus()),
 		Progress:    int(timeline.GetProgress()),
 		StartedAt:   timestampToTime(timeline.GetStartedAt()),
 		CompletedAt: timestampToTime(timeline.GetCompletedAt()),
@@ -143,8 +145,8 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 		frame := ParsedFrame{
 			StepIndex: int(rf.GetStepIndex()),
 			NodeID:    rf.GetNodeId(),
-			StepType:  rf.GetStepType(),
-			Status:    rf.GetStatus(),
+			StepType:  types.StepTypeToString(rf.GetStepType()),
+			Status:    types.StepStatusToString(rf.GetStatus()),
 			Success:   rf.GetSuccess(),
 			DurationMs: func() int {
 				if rf.GetTotalDurationMs() > 0 {
@@ -185,7 +187,7 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 		}
 
 		// Extract assertion info
-		if rf.GetStepType() == "assert" || rf.Assertion != nil {
+		if rf.GetStepType() == basv1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
 			assertion := ParsedAssertion{
 				StepIndex: int(rf.GetStepIndex()),
 				NodeID:    rf.GetNodeId(),
@@ -221,7 +223,7 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 	for _, rl := range timeline.GetLogs() {
 		parsed.Logs = append(parsed.Logs, ParsedLog{
 			ID:        rl.GetId(),
-			Level:     rl.GetLevel(),
+			Level:     types.LogLevelToString(rl.GetLevel()),
 			Message:   rl.GetMessage(),
 			StepName:  rl.GetStepName(),
 			Timestamp: timestampValue(rl.GetTimestamp()),
@@ -245,7 +247,7 @@ func FromProtoTimeline(timeline *basv1.ExecutionTimeline) *ParsedTimeline {
 		Proto:       timeline,
 		ExecutionID: timeline.GetExecutionId(),
 		WorkflowID:  timeline.GetWorkflowId(),
-		Status:      timeline.GetStatus(),
+		Status:      types.ExecutionStatusToString(timeline.GetStatus()),
 		Progress:    int(timeline.GetProgress()),
 		StartedAt:   timestampToTime(timeline.GetStartedAt()),
 		CompletedAt: timestampToTime(timeline.GetCompletedAt()),
@@ -271,7 +273,7 @@ func FromProtoTimeline(timeline *basv1.ExecutionTimeline) *ParsedTimeline {
 		}
 
 		// Extract assertions
-		if rf.GetStepType() == "assert" || rf.Assertion != nil {
+		if rf.GetStepType() == basv1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
 			if frame.Assertion != nil {
 				parsed.Assertions = append(parsed.Assertions, *frame.Assertion)
 			}
@@ -293,7 +295,7 @@ func FromProtoTimeline(timeline *basv1.ExecutionTimeline) *ParsedTimeline {
 	for _, rl := range timeline.GetLogs() {
 		parsed.Logs = append(parsed.Logs, ParsedLog{
 			ID:        rl.GetId(),
-			Level:     rl.GetLevel(),
+			Level:     types.LogLevelToString(rl.GetLevel()),
 			Message:   rl.GetMessage(),
 			StepName:  rl.GetStepName(),
 			Timestamp: timestampValue(rl.GetTimestamp()),
@@ -309,8 +311,8 @@ func frameFromProto(rf *basv1.TimelineFrame) ParsedFrame {
 	frame := ParsedFrame{
 		StepIndex: int(rf.GetStepIndex()),
 		NodeID:    rf.GetNodeId(),
-		StepType:  rf.GetStepType(),
-		Status:    rf.GetStatus(),
+		StepType:  types.StepTypeToString(rf.GetStepType()),
+		Status:    types.StepStatusToString(rf.GetStatus()),
 		Success:   rf.GetSuccess(),
 		DurationMs: func() int {
 			if rf.GetTotalDurationMs() > 0 {
@@ -347,7 +349,7 @@ func frameFromProto(rf *basv1.TimelineFrame) ParsedFrame {
 	}
 
 	// Extract assertion info
-	if rf.GetStepType() == "assert" || rf.Assertion != nil {
+	if rf.GetStepType() == basv1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
 		assertion := ParsedAssertion{
 			StepIndex: int(rf.GetStepIndex()),
 			NodeID:    rf.GetNodeId(),

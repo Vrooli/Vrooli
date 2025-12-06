@@ -49,12 +49,16 @@ type DisplayNode = ScenarioFileNode & {
   isTestOnly?: boolean;
 };
 
+type TargetViewMode = "browse" | "coverage";
+
 function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }: FileBrowserProps) {
   const [currentPath, setCurrentPath] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [includeHidden, setIncludeHidden] = useState(false);
   const [showLowCoverageOnly, setShowLowCoverageOnly] = useState(false);
   const [showUntestedOnly, setShowUntestedOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<TargetViewMode>("browse");
+  const [coverageSort, setCoverageSort] = useState<"asc" | "desc">("asc");
   const { data: fileResult, isLoading, error, refetch } = useQuery({
     queryKey: ["scenario-files", scenarioName, currentPath, searchTerm, includeHidden],
     queryFn: () =>
@@ -136,6 +140,27 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
     });
   }, [displayNodes, showLowCoverageOnly, showUntestedOnly]);
 
+  const coverageEntries = useMemo(() => {
+    const entries = (displayNodes ?? [])
+      .filter((node) => !node.isDir)
+      .map((node) => {
+        const pct = typeof node.coveragePct === "number" ? node.coveragePct : null;
+        return { ...node, coveragePct: pct };
+      })
+      .filter((node) => {
+        const pct = node.coveragePct;
+        if (showLowCoverageOnly && (pct === null || pct >= 85)) return false;
+        if (showUntestedOnly && (pct !== null || node.hasTestSibling || node.isTestOnly)) return false;
+        return true;
+      });
+    entries.sort((a, b) => {
+      const aVal = a.coveragePct ?? -1;
+      const bVal = b.coveragePct ?? -1;
+      return coverageSort === "asc" ? aVal - bVal : bVal - aVal;
+    });
+    return entries;
+  }, [coverageSort, displayNodes, showLowCoverageOnly, showUntestedOnly]);
+
   useEffect(() => {
     setCurrentPath("");
     setSearchTerm("");
@@ -203,6 +228,83 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
     }
     if (!nodes || nodes.length === 0) {
       return <p className="text-sm text-slate-400">No paths found.</p>;
+    }
+    if (viewMode === "coverage") {
+      if (coverageEntries.length === 0) {
+        return (
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
+            No coverage data yet. Run tests to produce coverage-summary.json and refresh.
+          </div>
+        );
+      }
+      return (
+        <div className="rounded-xl border border-white/10 bg-black/20">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 text-xs text-slate-400">
+            <span>Listing {coverageEntries.length} file{coverageEntries.length === 1 ? "" : "s"} by coverage</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={showLowCoverageOnly ? "outline" : "ghost"}
+                size="sm"
+                onClick={() => setShowLowCoverageOnly((prev) => !prev)}
+              >
+                Low coverage
+              </Button>
+              <Button
+                variant={showUntestedOnly ? "outline" : "ghost"}
+                size="sm"
+                onClick={() => setShowUntestedOnly((prev) => !prev)}
+              >
+                Untested
+              </Button>
+            </div>
+          </div>
+          <div className="divide-y divide-white/5">
+            {coverageEntries.map((node) => {
+              const normalized = normalizePath(node.path);
+              const isSelected = selectedPaths.includes(normalized);
+              const coverage = node.coveragePct;
+              const coverageClass = coverage === null
+                ? "border-white/15 bg-white/[0.04] text-slate-200"
+                : coverage >= 90
+                  ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100"
+                  : coverage >= 75
+                    ? "border-amber-400/50 bg-amber-400/10 text-amber-100"
+                    : "border-rose-400/50 bg-rose-400/10 text-rose-100";
+              return (
+                <div key={node.path} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded border border-white/20 bg-white/5 text-white text-xs">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{node.name}</p>
+                      <p className="text-xs text-slate-400">{node.path}</p>
+                      <span className={cn("mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]", coverageClass)}>
+                        {coverage === null ? "No coverage data" : `${coverage.toFixed(1)}% coverage`}
+                      </span>
+                      {node.hasTestSibling && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-emerald-400/50 bg-emerald-400/10 px-2 py-0.5 text-[11px] text-emerald-100">
+                          <ShieldCheck className="h-3 w-3" />
+                          Test present
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={isSelected ? "outline" : "default"}
+                    className={isSelected ? "border-cyan-400 text-white bg-cyan-400/10" : ""}
+                    onClick={() => handleAdd(node.path)}
+                    aria-label={isSelected ? `Deselect ${node.path}` : `Add ${node.path}`}
+                  >
+                    {isSelected ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
     }
     const isSearch = Boolean(searchTerm.trim());
     const totalCount = displayNodes.length;
@@ -339,6 +441,54 @@ function FileBrowser({ scenarioName, selectedPaths, onSelectPath, onRemovePath }
 
   return (
     <div className="space-y-4" data-testid={selectors.generate.targetSelector}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={cn(
+              "rounded-lg border px-3 py-1 text-sm transition",
+              viewMode === "browse" ? "border-cyan-400 text-white" : "border-white/10 text-slate-300 hover:border-white/30"
+            )}
+            onClick={() => setViewMode("browse")}
+          >
+            Browse
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "rounded-lg border px-3 py-1 text-sm transition",
+              viewMode === "coverage" ? "border-cyan-400 text-white" : "border-white/10 text-slate-300 hover:border-white/30"
+            )}
+            onClick={() => setViewMode("coverage")}
+          >
+            Coverage view
+          </button>
+        </div>
+        {viewMode === "coverage" && (
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            Sort:
+            <button
+              className={cn(
+                "rounded-full border px-3 py-1",
+                coverageSort === "asc" ? "border-cyan-400 text-white" : "border-white/10 text-slate-400"
+              )}
+              onClick={() => setCoverageSort("asc")}
+            >
+              Low → High
+            </button>
+            <button
+              className={cn(
+                "rounded-full border px-3 py-1",
+                coverageSort === "desc" ? "border-cyan-400 text-white" : "border-white/10 text-slate-400"
+              )}
+              onClick={() => setCoverageSort("desc")}
+            >
+              High → Low
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
           <span className="uppercase tracking-[0.25em] text-slate-500">Path</span>

@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/playbooks/registry"
 	"test-genie/internal/playbooks/seeds"
+	"test-genie/internal/playbooks/types"
 	"test-genie/internal/playbooks/workflow"
 	"test-genie/internal/shared"
 )
@@ -428,9 +429,19 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 		return Result{Entry: entry, Err: execErr}
 	}
 
-	// Substitute placeholders
+	// Substitute placeholders for the current scenario
 	if uiBaseURL != "" {
 		workflow.SubstitutePlaceholders(definition, uiBaseURL)
+	}
+
+	// Resolve scenario URLs for navigate nodes targeting other scenarios
+	// This transforms destinationType=scenario to destinationType=url with resolved URLs
+	if r.resolveUIBaseURL != nil {
+		if err := workflow.ResolveScenarioURLs(ctx, definition, r.resolveUIBaseURL); err != nil {
+			execErr := NewResolveError(entry.File, fmt.Errorf("scenario URL resolution failed: %w", err))
+			_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
+			return Result{Entry: entry, Err: execErr}
+		}
 	}
 
 	// Clean definition for BAS
@@ -495,7 +506,7 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 			// CurrentStep is the step name/label from BAS
 			currentStep := status.GetCurrentStep()
 			if currentStep == "" {
-				currentStep = status.GetStatus() // Fallback to status text
+				currentStep = types.ExecutionStatusToString(status.GetStatus()) // Fallback to status text
 			}
 
 			shared.LogStep(r.logWriter, "[%s] progress: %.0f%% (%s) - %s",

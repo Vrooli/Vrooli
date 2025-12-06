@@ -87,14 +87,6 @@ func TestResolverResolveInvalidJSON(t *testing.T) {
 	}
 }
 
-func TestFindPython(t *testing.T) {
-	// This test verifies findPython returns a non-empty string if Python is installed
-	// or empty if not. Either result is valid depending on the environment.
-	result := findPython()
-	// Just verify it doesn't panic and returns a string
-	_ = result
-}
-
 func TestParseWorkflow(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -262,7 +262,11 @@ func TestServer_handleRunScenarioTests(t *testing.T) {
 		scenarios: scenarioSvc,
 		logger:    log.New(io.Discard, "", 0),
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/run-tests", strings.NewReader(`{"type":"phased"}`))
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/scenarios/demo/run-tests",
+		strings.NewReader(`{"type":"phased","paths":["api/foo.go"],"playbooks":["test/playbooks/login.json"],"filter":"UserTest"}`),
+	)
 	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
 	rec := httptest.NewRecorder()
 
@@ -273,6 +277,9 @@ func TestServer_handleRunScenarioTests(t *testing.T) {
 	}
 	if scenarioSvc.runName != "demo" || scenarioSvc.runPreferred != "phased" {
 		t.Fatalf("expected scenario run invocation, got name=%s type=%s", scenarioSvc.runName, scenarioSvc.runPreferred)
+	}
+	if len(scenarioSvc.runArgs) == 0 || scenarioSvc.runArgs[0] != "--path" {
+		t.Fatalf("expected extra args to be forwarded, got %v", scenarioSvc.runArgs)
 	}
 	var payload map[string]interface{}
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
@@ -567,6 +574,7 @@ type stubScenarioDirectory struct {
 	runErr       error
 	runName      string
 	runPreferred string
+	runArgs      []string
 
 	// UI Smoke fields
 	uiSmokeResp           *scenarios.UISmokeResult
@@ -591,9 +599,12 @@ func (s *stubScenarioDirectory) GetSummary(ctx context.Context, name string) (*s
 	return s.getResp, nil
 }
 
-func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name string, preferred string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error) {
+func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error) {
 	s.runName = name
 	s.runPreferred = preferred
+	if len(extraArgs) > 0 {
+		s.runArgs = append([]string(nil), extraArgs...)
+	}
 	if s.runErr != nil {
 		return nil, nil, s.runErr
 	}

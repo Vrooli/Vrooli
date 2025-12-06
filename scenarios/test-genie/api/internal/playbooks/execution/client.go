@@ -243,18 +243,26 @@ func (c *HTTPClient) ValidateResolved(ctx context.Context, definition map[string
 }
 
 // ExecuteWorkflow starts a workflow execution and returns the execution ID.
-// It uses proto serialization for type-safe request formatting.
+// It sends plain JSON that matches BAS's expected ExecuteAdhocWorkflowRequest format.
+// Note: We intentionally avoid proto serialization here because BAS uses standard JSON
+// decoding, and proto enum serialization would convert node types like "navigate" to
+// "STEP_TYPE_NAVIGATE" which BAS doesn't recognize.
 func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error) {
-	// Build proto request for type safety
-	protoReq, err := BuildAdhocRequest(definition, name)
-	if err != nil {
-		return "", fmt.Errorf("failed to build proto request: %w", err)
+	// Build plain JSON request matching BAS's ExecuteAdhocWorkflowRequest struct
+	reqBody := map[string]any{
+		"flow_definition": definition,
 	}
 
-	// Marshal using protojson for consistent field naming
-	body, err := protoJSONMarshal.Marshal(protoReq)
+	// Add metadata with workflow name if provided
+	if name != "" {
+		reqBody["metadata"] = map[string]any{
+			"name": name,
+		}
+	}
+
+	body, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal proto request: %w", err)
+		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/workflows/execute-adhoc", bytes.NewReader(body))
@@ -274,16 +282,19 @@ func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]
 		return "", fmt.Errorf("workflow execution failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
 	}
 
-	var result basv1.ExecuteAdhocResponse
-	if err := protoJSONUnmarshal.Unmarshal(data, &result); err != nil {
-		return "", fmt.Errorf("failed to decode response (proto violation): %w", err)
+	// Parse response - BAS returns {"execution_id": "...", "status": "...", ...}
+	var result struct {
+		ExecutionID string `json:"execution_id"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w (body=%s)", err, strings.TrimSpace(string(data)))
 	}
 
-	if strings.TrimSpace(result.GetExecutionId()) == "" {
+	if strings.TrimSpace(result.ExecutionID) == "" {
 		return "", fmt.Errorf("execution_id missing in response: %s", strings.TrimSpace(string(data)))
 	}
 
-	return result.GetExecutionId(), nil
+	return result.ExecutionID, nil
 }
 
 // GetStatus retrieves the status of an execution.
@@ -329,17 +340,19 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 			return true, status, err
 		}
 
-		normalized := strings.ToLower(status.GetStatus())
-		switch normalized {
-		case "completed", "success":
+		execStatus := status.GetStatus()
+		switch execStatus {
+		case basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
 			return true, status, nil
-		case "failed", "error", "errored":
+		case basv1.ExecutionStatus_EXECUTION_STATUS_FAILED:
 			if status != nil && status.Error != nil {
 				if msg := strings.TrimSpace(status.GetError()); msg != "" {
 					return true, status, fmt.Errorf("workflow failed: %s", msg)
 				}
 			}
-			return true, status, fmt.Errorf("workflow failed with status %s", status.GetStatus())
+			return true, status, fmt.Errorf("workflow failed with status %s", execStatus.String())
+		case basv1.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
+			return true, status, fmt.Errorf("workflow cancelled")
 		}
 		return false, status, nil
 	}

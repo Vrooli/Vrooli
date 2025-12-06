@@ -58,6 +58,11 @@ function buildPrompt(
   const prdPath = `${scenarioPath}/PRD.md`;
   const requirementsPath = `${scenarioPath}/requirements`;
   const generalTestingDoc = `${REPO_ROOT}/scenarios/test-genie/docs/guides/test-generation.md`;
+  const targetedRun = hasTargets
+    ? `/home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie run-tests ${scenarioName} --type phased ${targetPaths
+        .map((t) => `--path ${t}`)
+        .join(" ")}`
+    : `/home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie run-tests ${scenarioName} --type phased`;
   const phaseDocs = selectedPhases
     .map((phase) => PHASES_FOR_GENERATION.find((p) => p.key === phase))
     .filter(Boolean)
@@ -114,7 +119,7 @@ ${hasTargets ? `**Targeted scope:**\n${absoluteTargets.map((p) => `- ${p}`).join
 - Execute via test-genie with the selected phases:
   /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie execute ${scenarioName} --phases ${selectedPhases.join(",")} --sync
 - Fast local check (phased runner):
-  /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie run-tests ${scenarioName} --type phased
+  ${targetedRun}
 - If preset implies broader coverage, also run:
   /home/matthalloran8/Vrooli/scenarios/test-genie/cli/test-genie execute ${scenarioName} --preset comprehensive --sync
 - When targets are set, re-run unit commands focused on those files (e.g., pnpm/vitest or go test) after generation to confirm determinism.
@@ -148,7 +153,7 @@ export function GeneratePage() {
   const [spawnConcurrency, setSpawnConcurrency] = useState(3);
   const [maxTurns, setMaxTurns] = useState(12);
   const [timeoutSeconds, setTimeoutSeconds] = useState(300);
-  const [allowedTools, setAllowedTools] = useState("edit,write");
+  const [allowedTools, setAllowedTools] = useState("read,edit,write");
   const [skipPermissions, setSkipPermissions] = useState(false);
   const [spawnBusy, setSpawnBusy] = useState(false);
   const [spawnStatus, setSpawnStatus] = useState<string | null>(null);
@@ -327,7 +332,8 @@ export function GeneratePage() {
         maxTurns: safeMaxTurns > 0 ? safeMaxTurns : undefined,
         timeoutSeconds: safeTimeout > 0 ? safeTimeout : undefined,
         allowedTools: allowed.length ? allowed : undefined,
-        skipPermissions
+        skipPermissions,
+        scenario: focusScenario || undefined
       });
       setSpawnResults(res.items ?? []);
       saveRecentModel(agentModel);
@@ -670,6 +676,9 @@ export function GeneratePage() {
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
                 placeholder="edit,write"
               />
+              <p className="mt-1 text-[11px] text-slate-400">
+                Keep <code className="font-mono">read</code> + <code className="font-mono">edit</code> enabled so agents can inspect files; add scoped bash (e.g. <code className="font-mono">bash(pnpm test|go test|vitest *)</code>) when targeting test commands.
+              </p>
               <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
                 <label className="flex items-center gap-2">
                   <input
@@ -690,6 +699,9 @@ export function GeneratePage() {
           <p className="mt-1 text-slate-300">
             {promptCount} prompt{promptCount === 1 ? "" : "s"} • model {agentModel || "not selected"} • concurrency{" "}
             {safeDisplayConcurrency}
+          </p>
+          <p className="text-[11px] text-slate-400">
+            Lower-cost models are fine for exploration; raise max turns/timeout for reliability but expect higher spend.
           </p>
           {spawnStatus && <p className="mt-2 text-xs text-cyan-300">{spawnStatus}</p>}
           {spawnResults && spawnResults.length > 0 && (

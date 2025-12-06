@@ -10,6 +10,8 @@ import (
 
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/playbooks/types"
+
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 )
 
 // These are contract tests that verify the BAS API behaves as expected.
@@ -121,7 +123,7 @@ func TestContractExecuteWorkflowMinimal(t *testing.T) {
 	t.Logf("Execution status: %+v", status)
 
 	// Status should have a non-empty status field
-	if status == nil || status.GetStatus() == "" {
+	if status == nil || status.GetStatus() == basv1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED {
 		t.Error("GetStatus() returned empty status")
 	}
 }

@@ -4,12 +4,21 @@ package execution
 import (
 	"fmt"
 
+	"test-genie/internal/playbooks/types"
+
 	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // WorkflowToProto converts a map[string]any workflow definition to a proto WorkflowDefinition.
-// This provides type safety for workflow submissions to BAS.
+//
+// DEPRECATED: This function is no longer used in the main execution flow because BAS
+// uses standard JSON decoding (not protojson) and expects node types as plain strings
+// like "navigate" rather than proto enum names like "STEP_TYPE_NAVIGATE". The main
+// ExecuteWorkflow function now sends plain JSON instead.
+//
+// This function is kept for backwards compatibility and for cases where proto
+// serialization might be needed (e.g., future WebSocket streaming of workflow definitions).
 func WorkflowToProto(definition map[string]any) (*basv1.WorkflowDefinition, error) {
 	if definition == nil {
 		return nil, fmt.Errorf("workflow definition is nil")
@@ -72,7 +81,7 @@ func convertNodes(nodesRaw any) ([]*basv1.WorkflowNode, error) {
 
 		node := &basv1.WorkflowNode{
 			Id:   getString(nodeMap, "id"),
-			Type: getString(nodeMap, "type"),
+			Type: types.StringToStepType(getString(nodeMap, "type")),
 		}
 
 		// Convert node data to Struct
@@ -152,6 +161,9 @@ func getString(m map[string]any, key string) string {
 }
 
 // BuildAdhocRequest creates an ExecuteAdhocRequest proto from workflow definition and name.
+//
+// DEPRECATED: This function is no longer used in the main execution flow. See WorkflowToProto
+// for the reason. The ExecuteWorkflow function now builds plain JSON requests directly.
 func BuildAdhocRequest(definition map[string]any, name string) (*basv1.ExecuteAdhocRequest, error) {
 	flowDef, err := WorkflowToProto(definition)
 	if err != nil {

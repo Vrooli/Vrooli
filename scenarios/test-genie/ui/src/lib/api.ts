@@ -394,6 +394,7 @@ export interface SpawnAgentsRequest {
   timeoutSeconds?: number;
   allowedTools?: string[];
   skipPermissions?: boolean;
+  scenario?: string;
 }
 
 export interface SpawnAgentsResult {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -221,6 +222,7 @@ type agentSpawnRequest struct {
 	TimeoutSeconds  int      `json:"timeoutSeconds"`
 	AllowedTools    []string `json:"allowedTools"`
 	SkipPermissions bool     `json:"skipPermissions"`
+	Scenario        string   `json:"scenario"`
 }
 
 type agentSpawnResult struct {
@@ -302,6 +304,7 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 				TimeoutSeconds:  payload.TimeoutSeconds,
 				AllowedTools:    payload.AllowedTools,
 				SkipPermissions: payload.SkipPermissions,
+				Scenario:        payload.Scenario,
 			}, text, i)
 			results[i] = res
 		}(idx, prompt)
@@ -344,6 +347,13 @@ func runAgentPrompt(ctx context.Context, payload agentSpawnRequest, prompt strin
 	cmd := exec.CommandContext(runCtx, "resource-opencode", args...)
 	if repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); repoRoot != "" {
 		cmd.Dir = repoRoot
+		if scenario := strings.TrimSpace(payload.Scenario); scenario != "" {
+			// Prefer running inside the scenario root to keep file access scoped.
+			scenarioDir := filepath.Join(repoRoot, "scenarios", scenario)
+			if info, err := os.Stat(scenarioDir); err == nil && info.IsDir() {
+				cmd.Dir = scenarioDir
+			}
+		}
 	}
 	output, err := cmd.CombinedOutput()
 	text := strings.TrimSpace(string(output))

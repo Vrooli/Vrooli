@@ -26,6 +26,11 @@ const defaultTestingTimeout = 10 * time.Minute
 
 // Run executes the preferred testing command (or specific type when provided).
 func (r TestingRunner) Run(ctx context.Context, caps TestingCapabilities, preferred string) (*TestingRunnerResult, error) {
+	return r.RunWithArgs(ctx, caps, preferred, nil)
+}
+
+// RunWithArgs executes the preferred testing command and appends extra args (e.g., path filters).
+func (r TestingRunner) RunWithArgs(ctx context.Context, caps TestingCapabilities, preferred string, extraArgs []string) (*TestingRunnerResult, error) {
 	cmdSpec := caps.SelectCommand(preferred)
 	if cmdSpec == nil {
 		return nil, fmt.Errorf("no testing commands available for scenario")
@@ -43,6 +48,9 @@ func (r TestingRunner) Run(ctx context.Context, caps TestingCapabilities, prefer
 	}
 	name := cmdSpec.Command[0]
 	args := cmdSpec.Command[1:]
+	if len(extraArgs) > 0 {
+		args = append(args, extraArgs...)
+	}
 
 	command := exec.CommandContext(runCtx, name, args...)
 	if cmdSpec.WorkingDir != "" {

@@ -173,14 +173,17 @@ func TestScenarioDirectoryServiceRunScenarioTests(t *testing.T) {
 	}
 	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
 	called := false
-	svc.runTests = func(ctx context.Context, caps TestingCapabilities, preferred string) (*TestingRunnerResult, error) {
+	svc.runTests = func(ctx context.Context, caps TestingCapabilities, opts RunScenarioTestOptions) (*TestingRunnerResult, error) {
 		called = true
-		if preferred != "" {
-			t.Fatalf("expected empty preferred value, got %s", preferred)
+		if opts.Preferred != "" {
+			t.Fatalf("expected empty preferred value, got %s", opts.Preferred)
+		}
+		if len(opts.ExtraArgs) != 0 {
+			t.Fatalf("expected no extra args, got %v", opts.ExtraArgs)
 		}
 		return &TestingRunnerResult{Command: []string{"./test/run-tests.sh"}}, nil
 	}
-	cmd, result, err := svc.RunScenarioTests(context.Background(), "demo", "")
+	cmd, result, err := svc.RunScenarioTests(context.Background(), "demo", "", nil)
 	if err != nil {
 		t.Fatalf("RunScenarioTests returned error: %v", err)
 	}
@@ -198,14 +201,14 @@ func TestScenarioDirectoryServiceRunScenarioTests(t *testing.T) {
 func TestScenarioDirectoryServiceRunScenarioTestsValidation(t *testing.T) {
 	root := t.TempDir()
 	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
-	if _, _, err := svc.RunScenarioTests(context.Background(), "missing", ""); err == nil {
+	if _, _, err := svc.RunScenarioTests(context.Background(), "missing", "", nil); err == nil {
 		t.Fatalf("expected error for missing scenario")
 	}
 	scenarioDir := filepath.Join(root, "demo")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("mkdir scenario dir: %v", err)
 	}
-	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", ""); err == nil {
+	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", "", nil); err == nil {
 		t.Fatalf("expected validation error when no tests defined")
 	}
 }
@@ -220,10 +223,10 @@ func TestScenarioDirectoryServiceRunScenarioTestsRunnerFailure(t *testing.T) {
 		t.Fatalf("write run-tests: %v", err)
 	}
 	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
-	svc.runTests = func(ctx context.Context, caps TestingCapabilities, preferred string) (*TestingRunnerResult, error) {
+	svc.runTests = func(ctx context.Context, caps TestingCapabilities, opts RunScenarioTestOptions) (*TestingRunnerResult, error) {
 		return nil, errors.New("runner failed")
 	}
-	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", ""); err == nil || err.Error() != "runner failed" {
+	if _, _, err := svc.RunScenarioTests(context.Background(), "demo", "", nil); err == nil || err.Error() != "runner failed" {
 		t.Fatalf("expected runner error, got %v", err)
 	}
 }

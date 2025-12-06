@@ -27,10 +27,20 @@ describe("ActionButtons", () => {
     expect(screen.getByText("Spawn agents")).toBeInTheDocument();
   });
 
-  it("spawn agent button is always disabled", () => {
-    render(<ActionButtons prompt="test prompt" allPrompts={["test prompt"]} disabled={false} />);
+  it("spawn agent button respects disabled prop", () => {
+    const onSpawn = vi.fn();
+    const { rerender } = render(
+      <ActionButtons prompt="test prompt" allPrompts={["test prompt"]} disabled={false} spawnDisabled={true} onSpawnAll={onSpawn} />
+    );
     const spawnButton = screen.getByText("Spawn agents").closest("button");
     expect(spawnButton).toBeDisabled();
+
+    rerender(
+      <ActionButtons prompt="test prompt" allPrompts={["test prompt"]} disabled={false} spawnDisabled={false} onSpawnAll={onSpawn} />
+    );
+    expect(spawnButton).not.toBeDisabled();
+    fireEvent.click(spawnButton!);
+    expect(onSpawn).toHaveBeenCalled();
   });
 
   it("disables copy button when disabled prop is true", () => {

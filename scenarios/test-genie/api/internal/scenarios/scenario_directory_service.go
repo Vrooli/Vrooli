@@ -40,7 +40,13 @@ type ScenarioDirectoryService struct {
 	lister        ScenarioLister
 	scenariosRoot string
 	detectTesting func(string) TestingCapabilities
-	runTests      func(context.Context, TestingCapabilities, string) (*TestingRunnerResult, error)
+	runTests      func(context.Context, TestingCapabilities, RunScenarioTestOptions) (*TestingRunnerResult, error)
+}
+
+// RunScenarioTestOptions carries execution preferences and extra args passed to the runner.
+type RunScenarioTestOptions struct {
+	Preferred string
+	ExtraArgs []string
 }
 
 func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioLister, scenariosRoot string) *ScenarioDirectoryService {
@@ -54,8 +60,8 @@ func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioListe
 		lister:        lister,
 		scenariosRoot: strings.TrimSpace(scenariosRoot),
 		detectTesting: DetectTestingCapabilities,
-		runTests: func(ctx context.Context, caps TestingCapabilities, preferred string) (*TestingRunnerResult, error) {
-			return defaultRunner.Run(ctx, caps, preferred)
+		runTests: func(ctx context.Context, caps TestingCapabilities, opts RunScenarioTestOptions) (*TestingRunnerResult, error) {
+			return defaultRunner.RunWithArgs(ctx, caps, opts.Preferred, opts.ExtraArgs)
 		},
 	}
 }
@@ -223,7 +229,7 @@ func (s *ScenarioDirectoryService) decorateScenario(summary *ScenarioSummary) {
 }
 
 // RunScenarioTests executes the preferred testing command for the provided scenario.
-func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenario string, preferred string) (*TestingCommand, *TestingRunnerResult, error) {
+func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenario string, preferred string, extraArgs []string) (*TestingCommand, *TestingRunnerResult, error) {
 	if s == nil || s.runTests == nil {
 		return nil, nil, sql.ErrConnDone
 	}
@@ -253,7 +259,7 @@ func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenari
 	if cmd == nil {
 		return nil, nil, shared.NewValidationError("requested test type is unavailable for this scenario")
 	}
-	result, err := s.runTests(ctx, caps, preferred)
+	result, err := s.runTests(ctx, caps, RunScenarioTestOptions{Preferred: preferred, ExtraArgs: extraArgs})
 	if err != nil {
 		return nil, nil, err
 	}

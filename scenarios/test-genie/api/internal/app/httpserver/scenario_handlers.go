@@ -126,7 +126,10 @@ func (s *Server) handleRunScenarioTests(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var payload struct {
-		Type string `json:"type"`
+		Type      string   `json:"type"`
+		Paths     []string `json:"paths"`
+		Playbooks []string `json:"playbooks"`
+		Filter    string   `json:"filter"`
 	}
 	if r.Body != nil {
 		defer r.Body.Close()
@@ -136,7 +139,30 @@ func (s *Server) handleRunScenarioTests(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	cmd, result, err := s.scenarios.RunScenarioTests(r.Context(), name, payload.Type)
+	extraArgs := make([]string, 0, len(payload.Paths)+len(payload.Playbooks))
+	for _, p := range payload.Paths {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			extraArgs = append(extraArgs, "--path", trimmed)
+		}
+		if len(extraArgs) >= 20 { // prevent unbounded arg growth
+			break
+		}
+	}
+	for _, pb := range payload.Playbooks {
+		trimmed := strings.TrimSpace(pb)
+		if trimmed != "" {
+			extraArgs = append(extraArgs, "--playbook", trimmed)
+		}
+		if len(extraArgs) >= 40 {
+			break
+		}
+	}
+	if filter := strings.TrimSpace(payload.Filter); filter != "" {
+		extraArgs = append(extraArgs, "--filter", filter)
+	}
+
+	cmd, result, err := s.scenarios.RunScenarioTests(r.Context(), name, payload.Type, extraArgs)
 	if err != nil {
 		switch {
 		case errors.Is(err, os.ErrNotExist):

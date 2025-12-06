@@ -48,29 +48,29 @@ func TestParseFullTimeline_BasicTimeline(t *testing.T) {
 	timeline := &basv1.ExecutionTimeline{
 		ExecutionId: "exec-123",
 		WorkflowId:  "wf-456",
-		Status:      "completed",
+		Status:      basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 		Progress:    100,
 		Frames: []*basv1.TimelineFrame{
 			{
 				StepIndex:  0,
 				NodeId:     "navigate-1",
-				StepType:   "navigate",
-				Status:     "completed",
+				StepType:   basv1.StepType_STEP_TYPE_NAVIGATE,
+				Status:     basv1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:    true,
 				DurationMs: 1500,
 			},
 			{
 				StepIndex: 1,
 				NodeId:    "assert-1",
-				StepType:  "assert",
-				Status:    "completed",
+				StepType:  basv1.StepType_STEP_TYPE_ASSERT,
+				Status:    basv1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:   true,
 			},
 		},
 		Logs: []*basv1.TimelineLog{
 			{
 				Id:        "log-1",
-				Level:     "info",
+				Level:     basv1.LogLevel_LOG_LEVEL_INFO,
 				Message:   "Test message",
 				StepName:  "navigate-1",
 				Timestamp: timestamppb.Now(),
@@ -113,20 +113,20 @@ func TestParseFullTimeline_BasicTimeline(t *testing.T) {
 func TestParseFullTimeline_WithFailedFrame(t *testing.T) {
 	timeline := &basv1.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      "failed",
+		Status:      basv1.ExecutionStatus_EXECUTION_STATUS_FAILED,
 		Frames: []*basv1.TimelineFrame{
 			{
 				StepIndex: 0,
 				NodeId:    "navigate-1",
-				StepType:  "navigate",
-				Status:    "completed",
+				StepType:  basv1.StepType_STEP_TYPE_NAVIGATE,
+				Status:    basv1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:   true,
 			},
 			{
 				StepIndex: 1,
 				NodeId:    "click-1",
-				StepType:  "click",
-				Status:    "failed",
+				StepType:  basv1.StepType_STEP_TYPE_CLICK,
+				Status:    basv1.StepStatus_STEP_STATUS_FAILED,
 				Success:   false,
 				Error:     "element not found",
 			},
@@ -153,12 +153,12 @@ func TestParseFullTimeline_WithFailedFrame(t *testing.T) {
 func TestParseFullTimeline_WithScreenshots(t *testing.T) {
 	timeline := &basv1.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      "completed",
+		Status:      basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 		Frames: []*basv1.TimelineFrame{
 			{
 				StepIndex: 0,
-				StepType:  "navigate",
-				Status:    "completed",
+				StepType:  basv1.StepType_STEP_TYPE_NAVIGATE,
+				Status:    basv1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:   true,
 				Screenshot: &basv1.TimelineScreenshot{
 					ArtifactId: "ss-123",
@@ -193,13 +193,13 @@ func TestParseFullTimeline_WithScreenshots(t *testing.T) {
 func TestParseFullTimeline_WithAssertions(t *testing.T) {
 	timeline := &basv1.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      "failed",
+		Status:      basv1.ExecutionStatus_EXECUTION_STATUS_FAILED,
 		Frames: []*basv1.TimelineFrame{
 			{
 				StepIndex: 0,
 				NodeId:    "assert-1",
-				StepType:  "assert",
-				Status:    "completed",
+				StepType:  basv1.StepType_STEP_TYPE_ASSERT,
+				Status:    basv1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:   true,
 				Assertion: &basv1.AssertionOutcome{
 					Mode:     "visible",
@@ -210,8 +210,8 @@ func TestParseFullTimeline_WithAssertions(t *testing.T) {
 			{
 				StepIndex: 1,
 				NodeId:    "assert-2",
-				StepType:  "assert",
-				Status:    "failed",
+				StepType:  basv1.StepType_STEP_TYPE_ASSERT,
+				Status:    basv1.StepStatus_STEP_STATUS_FAILED,
 				Success:   false,
 				Assertion: &basv1.AssertionOutcome{
 					Mode:     "text",
@@ -259,19 +259,19 @@ func TestParseFullTimeline_WithLogs(t *testing.T) {
 	now := time.Now().UTC()
 	timeline := &basv1.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      "completed",
+		Status:      basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 		Frames:      []*basv1.TimelineFrame{},
 		Logs: []*basv1.TimelineLog{
 			{
 				Id:        "log-1",
-				Level:     "error",
+				Level:     basv1.LogLevel_LOG_LEVEL_ERROR,
 				Message:   "Failed to load resource",
 				StepName:  "navigate-1",
 				Timestamp: timestamppb.New(now),
 			},
 			{
 				Id:        "log-2",
-				Level:     "warn",
+				Level:     basv1.LogLevel_LOG_LEVEL_WARN,
 				Message:   "Deprecated API usage",
 				Timestamp: timestamppb.New(now),
 			},
@@ -301,12 +301,12 @@ func TestParseFullTimeline_WithLogs(t *testing.T) {
 func TestParseFullTimeline_WithDOMSnapshot(t *testing.T) {
 	timeline := &basv1.ExecutionTimeline{
 		ExecutionId: "exec-123",
-		Status:      "completed",
+		Status:      basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 		Frames: []*basv1.TimelineFrame{
 			{
 				StepIndex:          0,
-				StepType:           "navigate",
-				Status:             "completed",
+				StepType:           basv1.StepType_STEP_TYPE_NAVIGATE,
+				Status:             basv1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:            true,
 				DomSnapshotPreview: "<html>...</html>",
 				DomSnapshot: &basv1.TimelineArtifact{

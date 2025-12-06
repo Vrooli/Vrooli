@@ -63,7 +63,7 @@ type mockBASClient struct {
 
 func (m *mockBASClient) WaitForCompletionWithProgress(ctx context.Context, executionID string, callback execution.ProgressCallback) error {
 	m.waitCallCount++
-	if callback != nil && m.status != nil && m.status.GetStatus() != "" {
+	if callback != nil && m.status != nil && m.status.GetStatus() != basv1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED {
 		_ = callback(m.status, 0)
 	}
 	return m.waitErr
@@ -560,7 +560,7 @@ func TestRunnerExecutionOutcomeFields(t *testing.T) {
 		}),
 		WithBASClient(&mockBASClient{
 			executeID: "exec-456",
-			timeline:  []byte(`{"frames": [{"step_type": "assert", "status": "completed"}]}`),
+			timeline:  []byte(`{"frames": [{"step_type": "STEP_TYPE_ASSERT", "status": "STEP_STATUS_COMPLETED", "success": true}]}`),
 		}),
 		WithSeedManager(&mockSeedManager{}),
 		WithArtifactWriter(&mockArtifactWriter{}),

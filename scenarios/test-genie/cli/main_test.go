@@ -124,6 +124,15 @@ func TestRunTestsCommandSendsType(t *testing.T) {
 		if !bytes.Contains(body, []byte(`"type":"phased"`)) {
 			t.Fatalf("expected type in payload, got %s", string(body))
 		}
+		if !bytes.Contains(body, []byte(`"paths":["api/foo.go"]`)) {
+			t.Fatalf("expected paths in payload, got %s", string(body))
+		}
+		if !bytes.Contains(body, []byte(`"playbooks":["test/playbooks/run.json"]`)) {
+			t.Fatalf("expected playbooks in payload, got %s", string(body))
+		}
+		if !bytes.Contains(body, []byte(`"filter":"UserTest"`)) {
+			t.Fatalf("expected filter in payload, got %s", string(body))
+		}
 		fmt.Fprintf(w, `{"type":"phased","status":"ok","command":{"command":["echo"],"workingDir":"."}}`)
 	}))
 	defer server.Close()
@@ -131,7 +140,7 @@ func TestRunTestsCommandSendsType(t *testing.T) {
 	t.Setenv("TEST_GENIE_API_BASE", server.URL)
 	app := newTestApp(t)
 
-	if err := app.Run([]string{"run-tests", "demo", "--type", "phased"}); err != nil {
+	if err := app.Run([]string{"run-tests", "demo", "--type", "phased", "--path", "api/foo.go", "--playbook", "test/playbooks/run.json", "--filter", "UserTest"}); err != nil {
 		t.Fatalf("run-tests failed: %v", err)
 	}
 }

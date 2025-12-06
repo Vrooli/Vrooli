@@ -170,8 +170,11 @@ Trigger scenario-local test runners:
 test-genie run-tests <scenario> [options]
 
 Options:
-  --type  Test runner type (e.g., phased)
-  --json  Output as JSON
+  --type       Test runner type (e.g., phased)
+  --path       Limit to one or more files/dirs (repeatable; forwarded to runner)
+  --playbook   Limit to specific playbook(s) (repeatable; forwarded to runner)
+  --filter     Text filter passed to the runner (e.g., test name)
+  --json       Output as JSON
 ```
 
 ### Check Status
