@@ -288,6 +288,12 @@ const literalSelectors = {
     project: "breadcrumb-project",
   },
   dashboard: {
+    tabs: {
+      home: "dashboard-tab-home",
+      projects: "dashboard-tab-projects",
+      executions: "dashboard-tab-executions",
+      exports: "dashboard-tab-exports",
+    },
     newProjectButton: "dashboard-new-project-button",
     settingsButton: "dashboard-settings-button",
     docsButton: "dashboard-docs-button",

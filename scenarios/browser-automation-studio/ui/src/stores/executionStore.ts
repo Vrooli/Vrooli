@@ -1,3 +1,5 @@
+import { fromJson } from '@bufbuild/protobuf';
+import { ExecutionTimelineSchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
@@ -469,6 +471,16 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
 
       const data = await response.json();
+      try {
+        fromJson(ExecutionTimelineSchema, data, { ignoreUnknownFields: true });
+      } catch (schemaError) {
+        logger.error(
+          'Timeline response failed proto validation',
+          { component: 'ExecutionStore', action: 'refreshTimeline', executionId },
+          schemaError,
+        );
+        throw schemaError;
+      }
       const frames = Array.isArray(data?.frames)
         ? (data.frames as TimelineFrame[])
         : [];

@@ -180,6 +180,9 @@ func applySpecialEdges(plan *ExecutionPlan, special map[string][]EdgeRef) {
 func inlineSubflows(steps []ExecutionStep, workflowID uuid.UUID, workflowName string) ([]ExecutionStep, error) {
 	result := make([]ExecutionStep, 0, len(steps))
 
+	// Track subflow node ID -> first nested step ID for edge redirection
+	subflowRedirects := make(map[string]string)
+
 	log.Printf("[SUBFLOW_DEBUG] inlineSubflows called with %d steps", len(steps))
 
 	for _, step := range steps {
@@ -240,6 +243,11 @@ func inlineSubflows(steps []ExecutionStep, workflowID uuid.UUID, workflowName st
 			continue
 		}
 
+		// Track redirect: edges pointing to this subflow should point to first nested step
+		firstNestedID := nestedPlan.Steps[0].NodeID
+		subflowRedirects[step.NodeID] = firstNestedID
+		log.Printf("[SUBFLOW_DEBUG] Registered redirect: %s -> %s", step.NodeID, firstNestedID)
+
 		// Add all nested steps except the last one
 		for i := 0; i < len(nestedPlan.Steps)-1; i++ {
 			result = append(result, nestedPlan.Steps[i])
@@ -249,6 +257,19 @@ func inlineSubflows(steps []ExecutionStep, workflowID uuid.UUID, workflowName st
 		lastStep := nestedPlan.Steps[len(nestedPlan.Steps)-1]
 		lastStep.OutgoingEdges = append(lastStep.OutgoingEdges, step.OutgoingEdges...)
 		result = append(result, lastStep)
+	}
+
+	// Redirect incoming edges: update all OutgoingEdges that point to subflow nodes
+	// to instead point to the first step of the inlined subflow
+	for i := range result {
+		for j := range result[i].OutgoingEdges {
+			oldTarget := result[i].OutgoingEdges[j].TargetNode
+			if newTarget, ok := subflowRedirects[oldTarget]; ok {
+				log.Printf("[SUBFLOW_DEBUG] Redirecting edge from %s: %s -> %s",
+					result[i].NodeID, oldTarget, newTarget)
+				result[i].OutgoingEdges[j].TargetNode = newTarget
+			}
+		}
 	}
 
 	// Reindex all steps to maintain sequential order

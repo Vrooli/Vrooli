@@ -26,6 +26,24 @@
       }
     },
     {
+      "id": "dismiss-tutorial",
+      "type": "subflow",
+      "data": {
+        "label": "Dismiss onboarding tutorial if present",
+        "workflowId": "@fixture/dismiss-tutorial"
+      }
+    },
+    {
+      "id": "click-projects-tab",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Projects tab",
+        "selector": "@selector/dashboard.tabs.projects",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
       "id": "click-new-project",
       "type": "click",
       "data": {
@@ -122,8 +140,20 @@
   ],
   "edges": [
     {
-      "id": "e1",
+      "id": "e0",
       "source": "navigate-dashboard",
+      "target": "dismiss-tutorial",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e1",
+      "source": "dismiss-tutorial",
+      "target": "click-projects-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-projects-tab",
       "target": "click-new-project",
       "type": "smoothstep"
     },

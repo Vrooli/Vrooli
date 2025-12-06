@@ -30,6 +30,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         return (
           <button
             key={tab.id}
+            data-testid={`dashboard-tab-${tab.id}`}
             onClick={() => onTabChange(tab.id)}
             className={`
               relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors

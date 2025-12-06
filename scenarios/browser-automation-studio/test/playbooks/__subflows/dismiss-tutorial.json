@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "description": "Dismisses the onboarding tutorial if present (idempotent - succeeds whether tour is showing or not)",
+    "fixture_id": "dismiss-tutorial",
+    "reset": "none"
+  },
+  "nodes": [
+    {
+      "id": "dismiss-via-escape",
+      "type": "keyboard",
+      "data": {
+        "label": "Press Escape to dismiss tutorial",
+        "key": "Escape"
+      }
+    },
+    {
+      "id": "wait-for-dismiss",
+      "type": "wait",
+      "data": {
+        "label": "Wait for tutorial to dismiss",
+        "waitType": "duration",
+        "durationMs": 300
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "dismiss-via-escape",
+      "target": "wait-for-dismiss",
+      "type": "smoothstep"
+    }
+  ]
+}

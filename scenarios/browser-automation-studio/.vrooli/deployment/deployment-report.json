@@ -1,7 +1,7 @@
 {
   "scenario": "browser-automation-studio",
   "report_version": 1,
-  "generated_at": "2025-12-01T20:18:13.979810116Z",
+  "generated_at": "2025-12-05T22:52:24.195616797Z",
   "dependencies": [
     {
       "name": "minio",
@@ -305,7 +305,7 @@
   },
   "bundle_manifest": {
     "scenario": "browser-automation-studio",
-    "generated_at": "2025-12-01T20:18:13.979810116Z",
+    "generated_at": "2025-12-05T22:52:24.195616797Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -490,7 +490,151 @@
           "in-memory-pubsub"
         ]
       }
-    ]
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "Browser Automation Studio",
+        "version": "1.0.0",
+        "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "swaps": [
+        {
+          "original": "minio",
+          "replacement": "filesystem-store",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        },
+        {
+          "original": "ollama",
+          "replacement": "openrouter",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        },
+        {
+          "original": "postgres",
+          "replacement": "sqlite",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        },
+        {
+          "original": "redis",
+          "replacement": "event-emitter",
+          "reason": "Recommended bundle-safe alternative from dependency metadata"
+        }
+      ],
+      "services": [
+        {
+          "id": "browser-automation-studio-api",
+          "type": "api-binary",
+          "description": "Bundled API process for browser-automation-studio",
+          "binaries": {
+            "darwin-x64": {
+              "path": "api/browser-automation-studio-api"
+            },
+            "linux-x64": {
+              "path": "api/browser-automation-studio-api"
+            },
+            "win-x64": {
+              "path": "api/browser-automation-studio-api.exe"
+            }
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "port_open",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "ui",
+          "type": "ui-bundle",
+          "description": "Production UI bundle served locally",
+          "binaries": {
+            "darwin-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "linux-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "win-x64": {
+              "path": "ui/dist/index.html"
+            }
+          },
+          "log_dir": "logs/ui",
+          "ports": {
+            "requested": [
+              {
+                "name": "ui",
+                "range": {
+                  "min": 24100,
+                  "max": 24200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/",
+            "port_name": "ui",
+            "interval_ms": 2000,
+            "timeout_ms": 10000,
+            "retries": 3
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "ui",
+            "timeout_ms": 20000
+          },
+          "assets": [
+            {
+              "path": "ui/dist",
+              "sha256": "pending"
+            },
+            {
+              "path": "ui/dist/index.html",
+              "sha256": "pending"
+            }
+          ],
+          "critical": true
+        }
+      ]
+    }
   },
   "metadata_gaps": {
     "total_gaps": 0,

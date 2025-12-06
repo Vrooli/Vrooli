@@ -39,6 +39,22 @@
       "testId": "breadcrumb-project",
       "selector": "[data-testid=\"breadcrumb-project\"]"
     },
+    "dashboard.tabs.home": {
+      "testId": "dashboard-tab-home",
+      "selector": "[data-testid=\"dashboard-tab-home\"]"
+    },
+    "dashboard.tabs.projects": {
+      "testId": "dashboard-tab-projects",
+      "selector": "[data-testid=\"dashboard-tab-projects\"]"
+    },
+    "dashboard.tabs.executions": {
+      "testId": "dashboard-tab-executions",
+      "selector": "[data-testid=\"dashboard-tab-executions\"]"
+    },
+    "dashboard.tabs.exports": {
+      "testId": "dashboard-tab-exports",
+      "selector": "[data-testid=\"dashboard-tab-exports\"]"
+    },
     "dashboard.newProjectButton": {
       "testId": "dashboard-new-project-button",
       "selector": "[data-testid=\"dashboard-new-project-button\"]"
