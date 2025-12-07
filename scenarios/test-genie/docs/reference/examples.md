@@ -94,7 +94,7 @@ teardown() {
 
 ---
 
-## Browser Automation Studio - UI Testing Excellence
+## Vrooli Ascension - UI Testing Excellence
 
 **Location**: `/scenarios/browser-automation-studio/`
 
@@ -299,7 +299,7 @@ go test ./... -cover
 
 ### Complete Test Suites
 - [Visited Tracker Tests](/scenarios/visited-tracker/test/)
-- [Browser Automation Studio](/scenarios/browser-automation-studio/test/)
+- [Vrooli Ascension](/scenarios/browser-automation-studio/test/)
 
 ### Specific Test Types
 - [Go Handler Tests](/scenarios/visited-tracker/api/main_test.go)

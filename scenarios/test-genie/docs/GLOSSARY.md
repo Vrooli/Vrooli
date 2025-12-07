@@ -123,7 +123,7 @@ test-genie execute my-scenario --preset comprehensive --fail-on-critical-gap
 
 ## Tools & Systems
 
-### BAS (Browser Automation Studio)
+### BAS (Vrooli Ascension)
 Vrooli's canonical UI automation system. Write UI tests as **declarative JSON workflows**:
 - Author workflows visually in BAS UI
 - Export to JSON for version control

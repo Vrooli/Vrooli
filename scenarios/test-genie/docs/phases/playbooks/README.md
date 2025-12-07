@@ -5,7 +5,7 @@
 **Optional**: Yes (when runtime not available)
 **Requires Runtime**: Yes
 
-The playbooks phase executes Browser Automation Studio (BAS) workflows for end-to-end UI testing. Workflows are declarative JSON files that automate browser interactions.
+The playbooks phase executes Vrooli Ascension (BAS) workflows for end-to-end UI testing. Workflows are declarative JSON files that automate browser interactions.
 
 ## What Gets Tested
 
@@ -14,7 +14,7 @@ graph TB
     subgraph "Playbooks Phase"
         DISCOVER[Discover Workflows<br/>test/playbooks/**/*.json]
         REGISTRY[Load Registry<br/>test/playbooks/registry.json]
-        BAS[Connect BAS<br/>Browser Automation Studio]
+        BAS[Connect BAS<br/>Vrooli Ascension]
         EXECUTE[Execute Workflows<br/>Navigate, Click, Assert]
         ARTIFACTS[Collect Artifacts<br/>Screenshots, DOM snapshots]
     end
@@ -126,9 +126,9 @@ Regenerate after adding or moving playbooks:
 test-genie registry build
 ```
 
-## Browser Automation Studio Integration
+## Vrooli Ascension Integration
 
-The phase uses Browser Automation Studio (BAS) for workflow execution. BAS is a separate Vrooli scenario that provides a Playwright-based browser automation engine.
+The phase uses Vrooli Ascension (BAS) for workflow execution. BAS is a separate Vrooli scenario that provides a Playwright-based browser automation engine.
 
 ```bash
 # Ensure BAS is running

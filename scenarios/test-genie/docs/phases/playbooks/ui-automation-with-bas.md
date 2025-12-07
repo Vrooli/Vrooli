@@ -1,4 +1,4 @@
-# UI Automation with Browser Automation Studio
+# UI Automation with Vrooli Ascension
 
 > **Essential guide for writing UI tests as JSON workflows that integrate with requirement tracking**
 
@@ -17,7 +17,7 @@
 
 ## Overview
 
-Browser Automation Studio (BAS) enables **declarative UI testing** through JSON workflows that execute via API. This eliminates Playwright/Puppeteer code while maintaining version control and requirement tracking integration.
+Vrooli Ascension (BAS) enables **declarative UI testing** through JSON workflows that execute via API. This eliminates Playwright/Puppeteer code while maintaining version control and requirement tracking integration.
 
 **What is BAS workflow testing?**
 - Write UI tests as **declarative JSON workflows** with nodes and edges

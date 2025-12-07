@@ -178,7 +178,7 @@
     },
     "playbooks": {
       "type": "object",
-      "description": "Playbooks (E2E) phase configuration. Executes Browser Automation Studio workflows for end-to-end UI testing.",
+      "description": "Playbooks (E2E) phase configuration. Executes Vrooli Ascension workflows for end-to-end UI testing.",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -187,7 +187,7 @@
         },
         "bas": {
           "type": "object",
-          "description": "Browser Automation Studio connection settings",
+          "description": "Vrooli Ascension connection settings",
           "properties": {
             "endpoint": {
               "type": "string",

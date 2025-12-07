@@ -537,7 +537,7 @@ Returns the Go-native phase catalog with descriptions and configuration.
     {
       "name": "e2e",
       "optional": false,
-      "description": "Executes Browser Automation Studio workflows declared under test/playbooks/ to validate end-to-end UI flows.",
+      "description": "Executes Vrooli Ascension workflows declared under test/playbooks/ to validate end-to-end UI flows.",
       "source": "native",
       "defaultTimeoutSeconds": 900
     },

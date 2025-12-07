@@ -107,7 +107,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests
 - [CLI Testing](phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
-- [UI Automation with BAS](phases/playbooks/ui-automation-with-bas.md) - Browser Automation Studio workflows
+- [UI Automation with BAS](phases/playbooks/ui-automation-with-bas.md) - Vrooli Ascension workflows
 - [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation with Browserless
 - [Lighthouse Integration](phases/performance/lighthouse.md) - Performance and accessibility testing
 - [Performance Testing](phases/performance/performance-testing.md) - Build benchmarks and regression detection

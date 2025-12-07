@@ -2,7 +2,7 @@
  * Test Genie selector registry
  *
  * This file is the single source of truth for every selector used by the UI and
- * by Browser Automation Studio workflows. We deliberately model selectors as two
+ * by Vrooli Ascension workflows. We deliberately model selectors as two
  * declarative maps (one literal, one dynamic) and rely on a small helper to
  * produce the typed `selectors` export plus the manifest consumed by workflow
  * linting. Do not hand-roll selector helpers or change this structure—update the

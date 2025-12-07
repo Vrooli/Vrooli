@@ -41,7 +41,7 @@
         { "path": "phases/integration/README.md", "title": "Integration Phase", "description": "API and CLI connectivity testing" },
         { "path": "phases/integration/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
         { "path": "phases/playbooks/README.md", "title": "Playbooks Phase", "description": "BAS browser automation workflows" },
-        { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Browser Automation Studio workflow testing" },
+        { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Vrooli Ascension workflow testing" },
         { "path": "phases/business/README.md", "title": "Business Phase", "description": "Requirement coverage validation" },
         { "path": "phases/business/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
         { "path": "phases/performance/README.md", "title": "Performance Phase", "description": "Benchmarks and performance testing" },

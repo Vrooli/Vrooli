@@ -507,3 +507,59 @@ export async function fetchDocContent(path: string): Promise<DocsContentResponse
   }
   return response.json();
 }
+
+export interface BundleExportResponse {
+  status: string;
+  schema: string;
+  manifest: unknown;
+  checksum?: string;
+  generated_at?: string;
+}
+
+export async function exportBundleFromDeploymentManager(opts: {
+  baseUrl: string;
+  scenario: string;
+  tier?: string;
+  includeSecrets?: boolean;
+}): Promise<BundleExportResponse> {
+  const tier = opts.tier || "tier-2-desktop";
+  const includeSecrets = opts.includeSecrets ?? true;
+  const base = opts.baseUrl.replace(/\/+$/, "");
+  const response = await fetch(`${base}/api/v1/bundles/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scenario: opts.scenario,
+      tier,
+      include_secrets: includeSecrets
+    })
+  });
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = await response.json();
+      detail = body.details || body.error || body.message || detail;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(`deployment-manager export failed: ${detail}`);
+  }
+  return response.json();
+}
+
+export interface ScenarioPortResponse {
+  scenario: string;
+  port_name: string;
+  host: string;
+  port: number;
+  url: string;
+}
+
+export async function fetchScenarioPort(scenario: string, portName: string): Promise<ScenarioPortResponse> {
+  const response = await fetch(buildUrl(`/ports/${encodeURIComponent(scenario)}/${encodeURIComponent(portName)}`));
+  if (!response.ok) {
+    const text = await response.text().catch(() => response.statusText);
+    throw new Error(text || "Failed to resolve scenario port");
+  }
+  return response.json();
+}

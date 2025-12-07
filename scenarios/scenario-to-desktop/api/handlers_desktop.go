@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -588,11 +589,11 @@ func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response
 	response := map[string]interface{}{
-		"status":        "success",
-		"scenario_name": scenarioName,
-		"deleted_path":  desktopPath,
+		"status":          "success",
+		"scenario_name":   scenarioName,
+		"deleted_path":    desktopPath,
 		"removed_records": removedRecords,
-		"message":       message,
+		"message":         message,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

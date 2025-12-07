@@ -19,7 +19,7 @@
 
 ## Overview
 
-This guide outlines best practices for designing UIs that can be reliably tested using Browser Automation Studio (BAS) workflows. Following these guidelines ensures your scenarios are testable, maintainable, and production-ready.
+This guide outlines best practices for designing UIs that can be reliably tested using Vrooli Ascension (BAS) workflows. Following these guidelines ensures your scenarios are testable, maintainable, and production-ready.
 
 **Key Principle**: Design UIs for automation from the start, not as an afterthought.
 
