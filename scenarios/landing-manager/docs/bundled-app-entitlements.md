@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Bundled App Entitlements & Offline Guidance
 
-This reference helps bundled apps such as **Browser Automation Studio** integrate with the landing-page stack so they can gate downloads, feature flags, and credit balances without sacrificing offline resilience.
+This reference helps bundled apps such as **Vrooli Ascension** integrate with the landing-page stack so they can gate downloads, feature flags, and credit balances without sacrificing offline resilience.
 
 ## 1. Runtime APIs & payloads
 
@@ -51,7 +51,7 @@ All responses respect the default bundle (`BUNDLE_KEY=business_suite`) and use t
 ## 6. Subscription schedules & intro pricing
 
 * When a monthly plan has `intro_enabled`, the API creates a row in `subscription_schedules` with `intro_amount_cents`, `intro_periods`, and `next_billing_at`.
-* Browser Automation Studio can surface this schedule to explain the upcoming renewal and approximate billing date.
+* Vrooli Ascension can surface this schedule to explain the upcoming renewal and approximate billing date.
 * Schedules are stored alongside `subscription_id`, which matches the Stripe subscription identifier returned in the webhook.
 
 ## 7. Debugging tips
@@ -60,4 +60,4 @@ All responses respect the default bundle (`BUNDLE_KEY=business_suite`) and use t
 * Check `/api/v1/entitlements?user=<email>` (the landing template accepts `X-User-Email` headers or `user` query params) when replicating logged-in behavior.
 * Download gating logs appear in the landing-page metrics dashboard; correlate `download` events with `variant_id` + `plan_tier` for analytics.
 
-Following this guidance keeps Browser Automation Studio aligned with the landing page subscriptions, ensures downloads remain protected, and lets the app gracefully degrade when network connectivity wavers.
+Following this guidance keeps Vrooli Ascension aligned with the landing page subscriptions, ensures downloads remain protected, and lets the app gracefully degrade when network connectivity wavers.

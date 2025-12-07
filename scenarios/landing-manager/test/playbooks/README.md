@@ -1,6 +1,6 @@
 # BAS Playbooks for landing-manager
 
-This directory contains Browser Automation Studio (BAS) playbook workflows for end-to-end UI validation of the landing-manager factory.
+This directory contains Vrooli Ascension (BAS) playbook workflows for end-to-end UI validation of the landing-manager factory.
 
 ## Structure
 

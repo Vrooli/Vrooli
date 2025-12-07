@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"test-genie/internal/shared"
 )
 
@@ -29,7 +29,7 @@ type Entry struct {
 }
 
 // ExecutionStatus mirrors the BAS proto Execution message for status polling.
-type ExecutionStatus = basv1.Execution
+type ExecutionStatus = browser_automation_studio_v1.Execution
 
 // Outcome represents the result of executing a single playbook.
 type Outcome struct {

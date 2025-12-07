@@ -1,4 +1,4 @@
-// Package playbooks provides Browser Automation Studio (BAS) workflow execution
+// Package playbooks provides Vrooli Ascension (BAS) workflow execution
 // for end-to-end UI testing. It is organized into sub-packages:
 //
 //   - registry: Loads and parses playbook registry files

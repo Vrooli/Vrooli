@@ -71,7 +71,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	register(Spec{
 		Name:        Playbooks,
 		Runner:      runPlaybooksPhase,
-		Description: "Executes Browser Automation Studio workflows declared under test/playbooks/ to validate end-to-end UI flows.",
+		Description: "Executes Vrooli Ascension workflows declared under test/playbooks/ to validate end-to-end UI flows.",
 	})
 	register(Spec{
 		Name:        Business,

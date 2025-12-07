@@ -438,7 +438,7 @@ Commands:
 
 Spec references:
     Template runtime spec: scripts/scenarios/templates/landing-page-react-vite/PRD.md
-    Browser Automation Studio landing page: scenarios/browser-automation-studio
+    Vrooli Ascension landing page: scenarios/browser-automation-studio
 EOF
 }
 

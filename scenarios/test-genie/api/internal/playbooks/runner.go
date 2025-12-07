@@ -290,6 +290,12 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		uiBaseURL, _ = r.resolveUIBaseURL(ctx, r.config.ScenarioName)
 	}
 
+	// Strict preflight: resolve workflows with seeds + selector expansion, then ask BAS
+	// to validate the resolved definitions in strict mode before executing anything.
+	if validationResult := r.runResolvedValidation(ctx, reg, uiBaseURL); validationResult != nil {
+		return validationResult
+	}
+
 	// Execute workflows
 	var observations []Observation
 	var results []Result
@@ -328,7 +334,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 				Success:      false,
 				Error:        result.Err,
 				FailureClass: FailureClassExecution,
-				Remediation:  "Inspect the workflow definition and Browser Automation Studio logs.",
+				Remediation:  "Inspect the workflow definition and Vrooli Ascension logs.",
 				Observations: observations,
 				Results:      results,
 				Summary:      summary,
@@ -619,6 +625,91 @@ func (r *Runner) ensureRequiredScenarios(ctx context.Context) error {
 
 	if len(failed) > 0 {
 		return fmt.Errorf("required scenarios unavailable: %s", strings.Join(failed, "; "))
+	}
+
+	return nil
+}
+
+// runResolvedValidation resolves each workflow (fixtures, selectors, seeds, placeholders)
+// then asks BAS to validate the resolved definition in strict mode. This catches
+// unresolved tokens, missing waitType, schema issues, etc. before execution.
+func (r *Runner) runResolvedValidation(ctx context.Context, reg Registry, uiBaseURL string) *RunResult {
+	if r.basClient == nil {
+		return &RunResult{
+			Success:      false,
+			Error:        fmt.Errorf("BAS client not initialized for validation"),
+			FailureClass: FailureClassSystem,
+			Remediation:  "Ensure BAS is running before playbook validation.",
+			TracePath:    r.traceWriter.Path(),
+		}
+	}
+
+	for _, entry := range reg.Playbooks {
+		workflowPath := entry.File
+		if !filepath.IsAbs(workflowPath) {
+			workflowPath = filepath.Join(r.config.ScenarioDir, filepath.FromSlash(workflowPath))
+		}
+
+		definition, err := r.workflowResolver.Resolve(ctx, workflowPath)
+		if err != nil {
+			execErr := NewResolveError(entry.File, fmt.Errorf("workflow resolution failed: %w", err))
+			return &RunResult{
+				Success:      false,
+				Error:        execErr,
+				FailureClass: FailureClassExecution,
+				Remediation:  "Fix the workflow definition before execution.",
+				TracePath:    r.traceWriter.Path(),
+			}
+		}
+
+		// Substitute placeholders and scenario URLs to mirror execution-time behavior.
+		if uiBaseURL != "" {
+			workflow.SubstitutePlaceholders(definition, uiBaseURL)
+		}
+		if r.resolveUIBaseURL != nil {
+			if err := workflow.ResolveScenarioURLs(ctx, definition, r.resolveUIBaseURL); err != nil {
+				execErr := NewResolveError(entry.File, fmt.Errorf("scenario URL resolution failed: %w", err))
+				return &RunResult{
+					Success:      false,
+					Error:        execErr,
+					FailureClass: FailureClassExecution,
+					Remediation:  "Ensure destinationType=scenario nodes can be resolved to URLs.",
+					TracePath:    r.traceWriter.Path(),
+				}
+			}
+		}
+
+		cleanDef := workflow.CleanDefinition(definition)
+		validationResult, err := r.basClient.ValidateResolved(ctx, cleanDef)
+		if err != nil {
+			execErr := NewResolveError(entry.File, fmt.Errorf("validation request failed: %w", err))
+			return &RunResult{
+				Success:      false,
+				Error:        execErr,
+				FailureClass: FailureClassExecution,
+				Remediation:  "Fix the workflow definition before execution.",
+				TracePath:    r.traceWriter.Path(),
+			}
+		}
+		if validationResult != nil && !validationResult.Valid {
+			var errMsgs []string
+			for _, issue := range validationResult.Errors {
+				msg := issue.Message
+				if issue.Pointer != "" {
+					msg = fmt.Sprintf("%s at %s", msg, issue.Pointer)
+				}
+				errMsgs = append(errMsgs, msg)
+			}
+			execErr := NewResolveError(entry.File, fmt.Errorf("resolved workflow validation failed: %s", strings.Join(errMsgs, "; ")))
+			return &RunResult{
+				Success:          false,
+				Error:            execErr,
+				FailureClass:     FailureClassExecution,
+				Remediation:      "Fix the workflow definition before execution.",
+				DiagnosticOutput: execErr.Error(),
+				TracePath:        r.traceWriter.Path(),
+			}
+		}
 	}
 
 	return nil

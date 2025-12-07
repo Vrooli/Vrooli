@@ -11,7 +11,7 @@ import (
 
 	"test-genie/internal/playbooks/types"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -131,7 +131,7 @@ func TestClientGetStatus(t *testing.T) {
 	if status == nil {
 		t.Fatalf("expected status, got nil")
 	}
-	if status.GetStatus() != basv1.ExecutionStatus_EXECUTION_STATUS_RUNNING {
+	if status.GetStatus() != browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_RUNNING {
 		t.Errorf("expected running, got %s", types.ExecutionStatusToString(status.GetStatus()))
 	}
 	if status.GetProgress() != 50 {
@@ -223,9 +223,9 @@ func TestClientWaitForCompletionCanceled(t *testing.T) {
 }
 
 func TestClientGetTimeline(t *testing.T) {
-	expectedTimeline := &basv1.ExecutionTimeline{
-		Frames: []*basv1.TimelineFrame{
-			{StepType: basv1.StepType_STEP_TYPE_NAVIGATE},
+	expectedTimeline := &browser_automation_studio_v1.ExecutionTimeline{
+		Frames: []*browser_automation_studio_v1.TimelineFrame{
+			{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE},
 		},
 	}
 	expectedData, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(expectedTimeline)
@@ -249,7 +249,7 @@ func TestClientGetTimeline(t *testing.T) {
 	if timeline == nil {
 		t.Fatalf("expected parsed timeline, got nil")
 	}
-	if len(timeline.GetFrames()) != 1 || timeline.GetFrames()[0].GetStepType() != basv1.StepType_STEP_TYPE_NAVIGATE {
+	if len(timeline.GetFrames()) != 1 || timeline.GetFrames()[0].GetStepType() != browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE {
 		t.Errorf("unexpected timeline contents: %+v", timeline.GetFrames())
 	}
 	if string(raw) != string(expectedData) {
@@ -271,8 +271,8 @@ func TestClientGetTimelineError(t *testing.T) {
 }
 
 func TestSummarizeTimeline(t *testing.T) {
-	marshalTimeline := func(frames ...*basv1.TimelineFrame) []byte {
-		tl := &basv1.ExecutionTimeline{Frames: frames}
+	marshalTimeline := func(frames ...*browser_automation_studio_v1.TimelineFrame) []byte {
+		tl := &browser_automation_studio_v1.ExecutionTimeline{Frames: frames}
 		data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(tl)
 		if err != nil {
 			t.Fatalf("failed to marshal timeline: %v", err)
@@ -297,16 +297,16 @@ func TestSummarizeTimeline(t *testing.T) {
 		},
 		{
 			name:     "steps only",
-			input:    marshalTimeline(&basv1.TimelineFrame{StepType: basv1.StepType_STEP_TYPE_NAVIGATE}, &basv1.TimelineFrame{StepType: basv1.StepType_STEP_TYPE_CLICK}),
+			input:    marshalTimeline(&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE}, &browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_CLICK}),
 			expected: " (2 steps)",
 		},
 		{
 			name: "with assertions",
 			input: marshalTimeline(
-				&basv1.TimelineFrame{StepType: basv1.StepType_STEP_TYPE_NAVIGATE, Status: basv1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
-				&basv1.TimelineFrame{StepType: basv1.StepType_STEP_TYPE_ASSERT, Status: basv1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
-				&basv1.TimelineFrame{StepType: basv1.StepType_STEP_TYPE_ASSERT, Status: basv1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
-				&basv1.TimelineFrame{StepType: basv1.StepType_STEP_TYPE_ASSERT, Status: basv1.StepStatus_STEP_STATUS_FAILED, Success: false},
+				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
+				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
+				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
+				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED, Success: false},
 			),
 			expected: " (4 steps, 2/3 assertions passed)",
 		},

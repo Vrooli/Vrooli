@@ -11,7 +11,7 @@ import (
 	"test-genie/internal/playbooks/types"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 )
 
 // WorkflowArtifacts contains paths to all artifacts for a workflow execution.
@@ -34,7 +34,7 @@ type WorkflowArtifacts struct {
 	Screenshots []string `json:"screenshots,omitempty"`
 	// Proto contains the parsed proto timeline for error diagnostics.
 	// This is not serialized to JSON but available in-memory for error context.
-	Proto *basv1.ExecutionTimeline `json:"-"`
+	Proto *browser_automation_studio_v1.ExecutionTimeline `json:"-"`
 }
 
 // WorkflowResult contains the execution result for README generation.

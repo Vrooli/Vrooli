@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -93,7 +93,7 @@ func TestBASProtoContract(t *testing.T) {
 			validateTimelineProto(t, timeline)
 
 			// Verify raw data can be re-parsed as proto
-			var reparsed basv1.ExecutionTimeline
+			var reparsed browser_automation_studio_v1.ExecutionTimeline
 			opts := protojson.UnmarshalOptions{DiscardUnknown: true}
 			if err := opts.Unmarshal(rawData, &reparsed); err != nil {
 				t.Fatalf("Failed to re-parse raw timeline as proto: %v", err)
@@ -133,7 +133,7 @@ func TestBASProtoContract(t *testing.T) {
 }
 
 // validateExecutionProto checks that an Execution proto has expected fields populated.
-func validateExecutionProto(t *testing.T, exec *basv1.Execution) {
+func validateExecutionProto(t *testing.T, exec *browser_automation_studio_v1.Execution) {
 	t.Helper()
 
 	if exec.GetId() == "" {
@@ -162,7 +162,7 @@ func validateExecutionProto(t *testing.T, exec *basv1.Execution) {
 }
 
 // validateTimelineProto checks that an ExecutionTimeline proto has expected structure.
-func validateTimelineProto(t *testing.T, timeline *basv1.ExecutionTimeline) {
+func validateTimelineProto(t *testing.T, timeline *browser_automation_studio_v1.ExecutionTimeline) {
 	t.Helper()
 
 	if timeline.GetExecutionId() == "" {

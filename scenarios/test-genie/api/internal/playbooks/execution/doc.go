@@ -1,4 +1,4 @@
-// Package execution provides the BAS (Browser Automation Studio) API client
+// Package execution provides the BAS (Vrooli Ascension) API client
 // for executing workflows and polling execution status.
 //
 // It defines interfaces for the BAS client to enable testing without

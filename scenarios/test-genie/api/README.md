@@ -241,7 +241,7 @@ Built-in phases (in execution order):
 | `dependencies` | Confirms required commands/runtimes are available |
 | `unit` | Runs Go tests, Node/Vitest tests, Python tests, shell linting |
 | `integration` | Exercises CLI/Bats suites and orchestrator listings |
-| `playbooks` | Executes Browser Automation Studio workflows |
+| `playbooks` | Executes Vrooli Ascension workflows |
 | `business` | Audits requirements modules for operational targets |
 | `performance` | Builds API binary, enforces duration budgets |
 

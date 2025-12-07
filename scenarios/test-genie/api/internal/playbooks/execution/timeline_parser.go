@@ -7,7 +7,7 @@ import (
 
 	"test-genie/internal/playbooks/types"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -24,7 +24,7 @@ import (
 type ParsedTimeline struct {
 	// Proto contains the parsed proto timeline for callers needing raw access.
 	// This is the canonical source of truth - all other fields are derived from it.
-	Proto *basv1.ExecutionTimeline `json:"-"`
+	Proto *browser_automation_studio_v1.ExecutionTimeline `json:"-"`
 	// ExecutionID is the BAS execution ID.
 	ExecutionID string `json:"execution_id"`
 	// WorkflowID is the BAS workflow ID (if saved).
@@ -117,7 +117,7 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 		return &ParsedTimeline{}, nil
 	}
 
-	var timeline basv1.ExecutionTimeline
+	var timeline browser_automation_studio_v1.ExecutionTimeline
 	if err := protoJSONUnmarshal.Unmarshal(data, &timeline); err != nil {
 		return nil, &TimelineParseError{
 			RawData: data,
@@ -187,7 +187,7 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 		}
 
 		// Extract assertion info
-		if rf.GetStepType() == basv1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
+		if rf.GetStepType() == browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
 			assertion := ParsedAssertion{
 				StepIndex: int(rf.GetStepIndex()),
 				NodeID:    rf.GetNodeId(),
@@ -237,8 +237,8 @@ func ParseFullTimeline(data []byte) (*ParsedTimeline, error) {
 }
 
 // FromProtoTimeline creates a ParsedTimeline from an already-parsed proto timeline.
-// Use this when you have a *basv1.ExecutionTimeline to avoid re-parsing JSON.
-func FromProtoTimeline(timeline *basv1.ExecutionTimeline) *ParsedTimeline {
+// Use this when you have a *browser_automation_studio_v1.ExecutionTimeline to avoid re-parsing JSON.
+func FromProtoTimeline(timeline *browser_automation_studio_v1.ExecutionTimeline) *ParsedTimeline {
 	if timeline == nil {
 		return &ParsedTimeline{}
 	}
@@ -273,7 +273,7 @@ func FromProtoTimeline(timeline *basv1.ExecutionTimeline) *ParsedTimeline {
 		}
 
 		// Extract assertions
-		if rf.GetStepType() == basv1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
+		if rf.GetStepType() == browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
 			if frame.Assertion != nil {
 				parsed.Assertions = append(parsed.Assertions, *frame.Assertion)
 			}
@@ -307,7 +307,7 @@ func FromProtoTimeline(timeline *basv1.ExecutionTimeline) *ParsedTimeline {
 }
 
 // frameFromProto converts a proto TimelineFrame to ParsedFrame.
-func frameFromProto(rf *basv1.TimelineFrame) ParsedFrame {
+func frameFromProto(rf *browser_automation_studio_v1.TimelineFrame) ParsedFrame {
 	frame := ParsedFrame{
 		StepIndex: int(rf.GetStepIndex()),
 		NodeID:    rf.GetNodeId(),
@@ -349,7 +349,7 @@ func frameFromProto(rf *basv1.TimelineFrame) ParsedFrame {
 	}
 
 	// Extract assertion info
-	if rf.GetStepType() == basv1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
+	if rf.GetStepType() == browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT || rf.Assertion != nil {
 		assertion := ParsedAssertion{
 			StepIndex: int(rf.GetStepIndex()),
 			NodeID:    rf.GetNodeId(),
@@ -372,7 +372,7 @@ func frameFromProto(rf *basv1.TimelineFrame) ParsedFrame {
 
 // ProtoFrameAt returns the proto frame at the given index for direct proto access.
 // Returns nil if index is out of bounds.
-func (p *ParsedTimeline) ProtoFrameAt(index int) *basv1.TimelineFrame {
+func (p *ParsedTimeline) ProtoFrameAt(index int) *browser_automation_studio_v1.TimelineFrame {
 	if p.Proto == nil {
 		return nil
 	}
@@ -385,7 +385,7 @@ func (p *ParsedTimeline) ProtoFrameAt(index int) *basv1.TimelineFrame {
 
 // FailedProtoFrame returns the first failed proto frame for rich error diagnostics.
 // Returns nil if no frame failed.
-func (p *ParsedTimeline) FailedProtoFrame() *basv1.TimelineFrame {
+func (p *ParsedTimeline) FailedProtoFrame() *browser_automation_studio_v1.TimelineFrame {
 	if p.Proto == nil {
 		return nil
 	}

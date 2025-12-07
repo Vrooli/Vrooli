@@ -37,7 +37,7 @@ type Config struct {
 	Execution ExecutionConfig `json:"execution"`
 }
 
-// BASConfig holds Browser Automation Studio connection settings.
+// BASConfig holds Vrooli Ascension connection settings.
 type BASConfig struct {
 	Endpoint        string `json:"endpoint"`
 	TimeoutMs       int    `json:"timeout_ms"`

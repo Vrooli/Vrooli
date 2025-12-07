@@ -6,7 +6,7 @@ import (
 
 	"test-genie/internal/playbooks/types"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -19,12 +19,12 @@ import (
 //
 // This function is kept for backwards compatibility and for cases where proto
 // serialization might be needed (e.g., future WebSocket streaming of workflow definitions).
-func WorkflowToProto(definition map[string]any) (*basv1.WorkflowDefinition, error) {
+func WorkflowToProto(definition map[string]any) (*browser_automation_studio_v1.WorkflowDefinition, error) {
 	if definition == nil {
 		return nil, fmt.Errorf("workflow definition is nil")
 	}
 
-	proto := &basv1.WorkflowDefinition{}
+	proto := &browser_automation_studio_v1.WorkflowDefinition{}
 
 	// Convert nodes
 	if nodesRaw, ok := definition["nodes"]; ok {
@@ -66,20 +66,20 @@ func WorkflowToProto(definition map[string]any) (*basv1.WorkflowDefinition, erro
 }
 
 // convertNodes converts a raw nodes array to proto WorkflowNode slice.
-func convertNodes(nodesRaw any) ([]*basv1.WorkflowNode, error) {
+func convertNodes(nodesRaw any) ([]*browser_automation_studio_v1.WorkflowNode, error) {
 	nodesSlice, ok := nodesRaw.([]any)
 	if !ok {
 		return nil, fmt.Errorf("expected array, got %T", nodesRaw)
 	}
 
-	nodes := make([]*basv1.WorkflowNode, 0, len(nodesSlice))
+	nodes := make([]*browser_automation_studio_v1.WorkflowNode, 0, len(nodesSlice))
 	for i, nodeRaw := range nodesSlice {
 		nodeMap, ok := nodeRaw.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("[%d]: expected object, got %T", i, nodeRaw)
 		}
 
-		node := &basv1.WorkflowNode{
+		node := &browser_automation_studio_v1.WorkflowNode{
 			Id:   getString(nodeMap, "id"),
 			Type: types.StringToStepType(getString(nodeMap, "type")),
 		}
@@ -100,20 +100,20 @@ func convertNodes(nodesRaw any) ([]*basv1.WorkflowNode, error) {
 }
 
 // convertEdges converts a raw edges array to proto WorkflowEdge slice.
-func convertEdges(edgesRaw any) ([]*basv1.WorkflowEdge, error) {
+func convertEdges(edgesRaw any) ([]*browser_automation_studio_v1.WorkflowEdge, error) {
 	edgesSlice, ok := edgesRaw.([]any)
 	if !ok {
 		return nil, fmt.Errorf("expected array, got %T", edgesRaw)
 	}
 
-	edges := make([]*basv1.WorkflowEdge, 0, len(edgesSlice))
+	edges := make([]*browser_automation_studio_v1.WorkflowEdge, 0, len(edgesSlice))
 	for i, edgeRaw := range edgesSlice {
 		edgeMap, ok := edgeRaw.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("[%d]: expected object, got %T", i, edgeRaw)
 		}
 
-		edge := &basv1.WorkflowEdge{
+		edge := &browser_automation_studio_v1.WorkflowEdge{
 			Id:     getString(edgeMap, "id"),
 			Source: getString(edgeMap, "source"),
 			Target: getString(edgeMap, "target"),
@@ -164,17 +164,17 @@ func getString(m map[string]any, key string) string {
 //
 // DEPRECATED: This function is no longer used in the main execution flow. See WorkflowToProto
 // for the reason. The ExecuteWorkflow function now builds plain JSON requests directly.
-func BuildAdhocRequest(definition map[string]any, name string) (*basv1.ExecuteAdhocRequest, error) {
+func BuildAdhocRequest(definition map[string]any, name string) (*browser_automation_studio_v1.ExecuteAdhocRequest, error) {
 	flowDef, err := WorkflowToProto(definition)
 	if err != nil {
 		return nil, fmt.Errorf("invalid workflow definition: %w", err)
 	}
 
-	return &basv1.ExecuteAdhocRequest{
+	return &browser_automation_studio_v1.ExecuteAdhocRequest{
 		FlowDefinition:    flowDef,
 		Parameters:        nil, // Empty parameters
 		WaitForCompletion: false,
-		Metadata: &basv1.ExecutionMetadata{
+		Metadata: &browser_automation_studio_v1.ExecutionMetadata{
 			Name: name,
 		},
 	}, nil

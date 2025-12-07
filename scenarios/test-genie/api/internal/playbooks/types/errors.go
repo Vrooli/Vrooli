@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 )
 
 // ExecutionPhase indicates which phase of playbook execution failed.
@@ -55,7 +55,7 @@ type PlaybookExecutionError struct {
 
 	// Timeline contains the parsed proto timeline for rich diagnostics.
 	// This provides structured access to execution frames, assertions, and errors.
-	Timeline *basv1.ExecutionTimeline
+	Timeline *browser_automation_studio_v1.ExecutionTimeline
 }
 
 // ExecutionArtifacts holds paths to debug artifacts collected during execution.
@@ -130,7 +130,7 @@ func (e *PlaybookExecutionError) WithBASResponse(response string) *PlaybookExecu
 }
 
 // WithTimeline attaches the parsed proto timeline for rich diagnostics.
-func (e *PlaybookExecutionError) WithTimeline(timeline *basv1.ExecutionTimeline) *PlaybookExecutionError {
+func (e *PlaybookExecutionError) WithTimeline(timeline *browser_automation_studio_v1.ExecutionTimeline) *PlaybookExecutionError {
 	e.Timeline = timeline
 	// Also extract node/step info from the failed frame if not already set
 	if timeline != nil && e.NodeID == "" {
@@ -146,7 +146,7 @@ func (e *PlaybookExecutionError) WithTimeline(timeline *basv1.ExecutionTimeline)
 }
 
 // findFailedFrame locates the first failed frame in the timeline.
-func findFailedFrame(timeline *basv1.ExecutionTimeline) *basv1.TimelineFrame {
+func findFailedFrame(timeline *browser_automation_studio_v1.ExecutionTimeline) *browser_automation_studio_v1.TimelineFrame {
 	for _, frame := range timeline.GetFrames() {
 		if !frame.GetSuccess() || frame.GetError() != "" {
 			return frame
@@ -233,9 +233,9 @@ func (e *PlaybookExecutionError) DiagnosticString() string {
 		}
 
 		// Summarize all failed assertions
-		var failedAssertions []*basv1.TimelineFrame
+		var failedAssertions []*browser_automation_studio_v1.TimelineFrame
 		for _, frame := range frames {
-			if frame.GetStepType() == basv1.StepType_STEP_TYPE_ASSERT && !frame.GetSuccess() {
+			if frame.GetStepType() == browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT && !frame.GetSuccess() {
 				failedAssertions = append(failedAssertions, frame)
 			}
 		}
@@ -320,19 +320,19 @@ func truncate(s string, maxLen int) string {
 }
 
 // StepTypeToString converts a proto StepType enum to its string representation.
-func StepTypeToString(st basv1.StepType) string {
+func StepTypeToString(st browser_automation_studio_v1.StepType) string {
 	switch st {
-	case basv1.StepType_STEP_TYPE_NAVIGATE:
+	case browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE:
 		return "navigate"
-	case basv1.StepType_STEP_TYPE_CLICK:
+	case browser_automation_studio_v1.StepType_STEP_TYPE_CLICK:
 		return "click"
-	case basv1.StepType_STEP_TYPE_ASSERT:
+	case browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT:
 		return "assert"
-	case basv1.StepType_STEP_TYPE_SUBFLOW:
+	case browser_automation_studio_v1.StepType_STEP_TYPE_SUBFLOW:
 		return "subflow"
-	case basv1.StepType_STEP_TYPE_INPUT:
+	case browser_automation_studio_v1.StepType_STEP_TYPE_INPUT:
 		return "input"
-	case basv1.StepType_STEP_TYPE_CUSTOM:
+	case browser_automation_studio_v1.StepType_STEP_TYPE_CUSTOM:
 		return "custom"
 	default:
 		return "unknown"
@@ -340,21 +340,21 @@ func StepTypeToString(st basv1.StepType) string {
 }
 
 // StepStatusToString converts a proto StepStatus enum to its string representation.
-func StepStatusToString(ss basv1.StepStatus) string {
+func StepStatusToString(ss browser_automation_studio_v1.StepStatus) string {
 	switch ss {
-	case basv1.StepStatus_STEP_STATUS_PENDING:
+	case browser_automation_studio_v1.StepStatus_STEP_STATUS_PENDING:
 		return "pending"
-	case basv1.StepStatus_STEP_STATUS_RUNNING:
+	case browser_automation_studio_v1.StepStatus_STEP_STATUS_RUNNING:
 		return "running"
-	case basv1.StepStatus_STEP_STATUS_COMPLETED:
+	case browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED:
 		return "completed"
-	case basv1.StepStatus_STEP_STATUS_FAILED:
+	case browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED:
 		return "failed"
-	case basv1.StepStatus_STEP_STATUS_CANCELLED:
+	case browser_automation_studio_v1.StepStatus_STEP_STATUS_CANCELLED:
 		return "cancelled"
-	case basv1.StepStatus_STEP_STATUS_SKIPPED:
+	case browser_automation_studio_v1.StepStatus_STEP_STATUS_SKIPPED:
 		return "skipped"
-	case basv1.StepStatus_STEP_STATUS_RETRYING:
+	case browser_automation_studio_v1.StepStatus_STEP_STATUS_RETRYING:
 		return "retrying"
 	default:
 		return "unknown"
@@ -362,17 +362,17 @@ func StepStatusToString(ss basv1.StepStatus) string {
 }
 
 // ExecutionStatusToString converts a proto ExecutionStatus enum to its string representation.
-func ExecutionStatusToString(es basv1.ExecutionStatus) string {
+func ExecutionStatusToString(es browser_automation_studio_v1.ExecutionStatus) string {
 	switch es {
-	case basv1.ExecutionStatus_EXECUTION_STATUS_PENDING:
+	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_PENDING:
 		return "pending"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_RUNNING:
+	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_RUNNING:
 		return "running"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
+	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
 		return "completed"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_FAILED:
+	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED:
 		return "failed"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
+	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
 		return "cancelled"
 	default:
 		return "unknown"
@@ -380,15 +380,15 @@ func ExecutionStatusToString(es basv1.ExecutionStatus) string {
 }
 
 // LogLevelToString converts a proto LogLevel enum to its string representation.
-func LogLevelToString(ll basv1.LogLevel) string {
+func LogLevelToString(ll browser_automation_studio_v1.LogLevel) string {
 	switch ll {
-	case basv1.LogLevel_LOG_LEVEL_DEBUG:
+	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_DEBUG:
 		return "debug"
-	case basv1.LogLevel_LOG_LEVEL_INFO:
+	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_INFO:
 		return "info"
-	case basv1.LogLevel_LOG_LEVEL_WARN:
+	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_WARN:
 		return "warn"
-	case basv1.LogLevel_LOG_LEVEL_ERROR:
+	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_ERROR:
 		return "error"
 	default:
 		return "unknown"
@@ -396,21 +396,21 @@ func LogLevelToString(ll basv1.LogLevel) string {
 }
 
 // StringToStepType converts a string to a proto StepType enum.
-func StringToStepType(s string) basv1.StepType {
+func StringToStepType(s string) browser_automation_studio_v1.StepType {
 	switch s {
 	case "navigate":
-		return basv1.StepType_STEP_TYPE_NAVIGATE
+		return browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE
 	case "click":
-		return basv1.StepType_STEP_TYPE_CLICK
+		return browser_automation_studio_v1.StepType_STEP_TYPE_CLICK
 	case "assert":
-		return basv1.StepType_STEP_TYPE_ASSERT
+		return browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT
 	case "subflow":
-		return basv1.StepType_STEP_TYPE_SUBFLOW
+		return browser_automation_studio_v1.StepType_STEP_TYPE_SUBFLOW
 	case "input":
-		return basv1.StepType_STEP_TYPE_INPUT
+		return browser_automation_studio_v1.StepType_STEP_TYPE_INPUT
 	case "custom":
-		return basv1.StepType_STEP_TYPE_CUSTOM
+		return browser_automation_studio_v1.StepType_STEP_TYPE_CUSTOM
 	default:
-		return basv1.StepType_STEP_TYPE_UNSPECIFIED
+		return browser_automation_studio_v1.StepType_STEP_TYPE_UNSPECIFIED
 	}
 }

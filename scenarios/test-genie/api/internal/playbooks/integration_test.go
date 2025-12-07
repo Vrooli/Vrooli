@@ -19,7 +19,7 @@ import (
 	"test-genie/internal/playbooks/seeds"
 	"test-genie/internal/playbooks/workflow"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -532,25 +532,25 @@ func createMockBASServer(t *testing.T) *httptest.Server {
 
 		case strings.HasPrefix(r.URL.Path, "/executions/") && strings.HasSuffix(r.URL.Path, "/timeline"):
 			// Return timeline with assertion
-			timeline := &basv1.ExecutionTimeline{
+			timeline := &browser_automation_studio_v1.ExecutionTimeline{
 				ExecutionId: "exec-123",
-				Status:      basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+				Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 				Progress:    100,
-				Frames: []*basv1.TimelineFrame{
+				Frames: []*browser_automation_studio_v1.TimelineFrame{
 					{
 						StepIndex: 0,
 						NodeId:    "navigate-1",
-						StepType:  basv1.StepType_STEP_TYPE_NAVIGATE,
-						Status:    basv1.StepStatus_STEP_STATUS_COMPLETED,
+						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
+						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
 						Success:   true,
 					},
 					{
 						StepIndex: 1,
 						NodeId:    "assert-1",
-						StepType:  basv1.StepType_STEP_TYPE_ASSERT,
-						Status:    basv1.StepStatus_STEP_STATUS_COMPLETED,
+						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
+						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
 						Success:   true,
-						Assertion: &basv1.AssertionOutcome{
+						Assertion: &browser_automation_studio_v1.AssertionOutcome{
 							Mode:    "visible",
 							Success: true,
 						},
@@ -624,26 +624,26 @@ func createMockBASServerWithFailedAssertion(t *testing.T) *httptest.Server {
 			json.NewEncoder(w).Encode(map[string]string{"execution_id": "exec-fail-123"})
 
 		case strings.HasPrefix(r.URL.Path, "/executions/") && strings.HasSuffix(r.URL.Path, "/timeline"):
-			timeline := &basv1.ExecutionTimeline{
+			timeline := &browser_automation_studio_v1.ExecutionTimeline{
 				ExecutionId: "exec-fail-123",
-				Status:      basv1.ExecutionStatus_EXECUTION_STATUS_FAILED,
+				Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED,
 				Progress:    50,
-				Frames: []*basv1.TimelineFrame{
+				Frames: []*browser_automation_studio_v1.TimelineFrame{
 					{
 						StepIndex: 0,
 						NodeId:    "navigate-1",
-						StepType:  basv1.StepType_STEP_TYPE_NAVIGATE,
-						Status:    basv1.StepStatus_STEP_STATUS_COMPLETED,
+						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
+						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
 						Success:   true,
 					},
 					{
 						StepIndex: 1,
 						NodeId:    "assert-1",
-						StepType:  basv1.StepType_STEP_TYPE_ASSERT,
-						Status:    basv1.StepStatus_STEP_STATUS_FAILED,
+						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
+						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED,
 						Success:   false,
 						Error:     "Element not visible: [data-testid='dashboard']",
-						Assertion: &basv1.AssertionOutcome{
+						Assertion: &browser_automation_studio_v1.AssertionOutcome{
 							Mode:     "visible",
 							Selector: "[data-testid='dashboard']",
 							Success:  false,

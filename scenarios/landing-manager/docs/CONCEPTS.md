@@ -296,7 +296,7 @@ See [AGENT.md](../api/templates/AGENT.md) for the 3-file process to add new sect
 
 ### Subscription Verification
 
-Bundled apps (like Browser Automation Studio) can verify subscriptions:
+Bundled apps (like Vrooli Ascension) can verify subscriptions:
 
 ```
 GET /api/v1/subscription/verify?user=user@example.com
