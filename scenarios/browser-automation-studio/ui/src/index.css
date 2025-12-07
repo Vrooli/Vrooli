@@ -904,3 +904,176 @@
 .stagger-children > *:nth-child(4) { animation-delay: 300ms; }
 .stagger-children > *:nth-child(5) { animation-delay: 400ms; }
 .stagger-children > *:nth-child(6) { animation-delay: 500ms; }
+
+/* ============================================
+   FEATURE SHOWCASE ANIMATIONS
+   ============================================ */
+
+/* Scale-in animation for generated nodes */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out both;
+}
+
+/* Slide-in from right for recording actions */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out both;
+}
+
+/* Progress bar fill animation for navigation dots */
+@keyframes progress-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-progress-bar {
+  animation: progress-bar linear both;
+}
+
+/* Scale utility for transitions */
+.scale-98 {
+  transform: scale(0.98);
+}
+
+/* Feature card active/highlighted state */
+.feature-card-active {
+  position: relative;
+}
+
+.feature-card-active::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 0.875rem;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--flow-accent)) 0%,
+    rgb(139 92 246) 50%,
+    rgb(var(--flow-accent)) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.feature-card-active.is-active::before {
+  opacity: 1;
+}
+
+.feature-card-active.is-active > div {
+  border-color: transparent;
+  box-shadow:
+    0 0 20px rgb(var(--flow-accent) / 0.15),
+    0 4px 20px rgb(0 0 0 / 0.1);
+}
+
+/* Purple accent for AI-Powered card */
+.feature-card-active.accent-purple.is-active::before {
+  background: linear-gradient(
+    135deg,
+    rgb(168 85 247) 0%,
+    rgb(236 72 153) 50%,
+    rgb(168 85 247) 100%
+  );
+}
+
+.feature-card-active.accent-purple.is-active > div {
+  box-shadow:
+    0 0 20px rgb(168 85 247 / 0.2),
+    0 4px 20px rgb(0 0 0 / 0.1);
+}
+
+/* Red accent for Record Mode card */
+.feature-card-active.accent-red.is-active::before {
+  background: linear-gradient(
+    135deg,
+    rgb(239 68 68) 0%,
+    rgb(249 115 22) 50%,
+    rgb(239 68 68) 100%
+  );
+}
+
+.feature-card-active.accent-red.is-active > div {
+  box-shadow:
+    0 0 20px rgb(239 68 68 / 0.2),
+    0 4px 20px rgb(0 0 0 / 0.1);
+}
+
+/* Blue accent for Visual Builder card */
+.feature-card-active.accent-blue.is-active::before {
+  background: linear-gradient(
+    135deg,
+    rgb(59 130 246) 0%,
+    rgb(6 182 212) 50%,
+    rgb(59 130 246) 100%
+  );
+}
+
+.feature-card-active.accent-blue.is-active > div {
+  box-shadow:
+    0 0 20px rgb(59 130 246 / 0.2),
+    0 4px 20px rgb(0 0 0 / 0.1);
+}
+
+/* Green accent for Test & Monitor card */
+.feature-card-active.accent-green.is-active::before {
+  background: linear-gradient(
+    135deg,
+    rgb(34 197 94) 0%,
+    rgb(16 185 129) 50%,
+    rgb(34 197 94) 100%
+  );
+}
+
+.feature-card-active.accent-green.is-active > div {
+  box-shadow:
+    0 0 20px rgb(34 197 94 / 0.2),
+    0 4px 20px rgb(0 0 0 / 0.1);
+}
+
+/* Typing cursor blink */
+@keyframes cursor-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 1s step-end infinite;
+}

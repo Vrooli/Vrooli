@@ -295,10 +295,12 @@ const literalSelectors = {
       exports: "dashboard-tab-exports",
     },
     newProjectButton: "dashboard-new-project-button",
+    createFirstWorkflowButton: "dashboard-create-first-workflow-button",
     settingsButton: "dashboard-settings-button",
     docsButton: "dashboard-docs-button",
     continueEditingChip: "dashboard-continue-editing-chip",
     tryDemoButton: "dashboard-try-demo-button",
+    startTutorialButton: "dashboard-start-tutorial-button",
   },
   dialogs: {
     base: {

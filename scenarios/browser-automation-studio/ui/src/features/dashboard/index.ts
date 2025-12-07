@@ -14,3 +14,5 @@ export { ExportsTab } from './ExportsTab';
 export { ProjectsTab } from './ProjectsTab';
 export { RunningExecutionsBadge } from './RunningExecutionsBadge';
 export { WelcomeHero } from './WelcomeHero';
+export { FeatureShowcase, FEATURE_CONFIGS } from './FeatureShowcase';
+export type { FeatureConfig } from './FeatureShowcase';

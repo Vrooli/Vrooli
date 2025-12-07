@@ -30,6 +30,7 @@ import { WelcomeHero } from "@features/dashboard/WelcomeHero";
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onCreateProject: () => void;
+  onCreateFirstWorkflow?: () => void;
   onShowKeyboardShortcuts?: () => void;
   onOpenSettings?: () => void;
   onOpenTutorial?: () => void;
@@ -47,6 +48,7 @@ interface DashboardProps {
 function Dashboard({
   onProjectSelect,
   onCreateProject,
+  onCreateFirstWorkflow,
   onShowKeyboardShortcuts,
   onOpenSettings,
   onOpenTutorial,
@@ -402,8 +404,8 @@ function Dashboard({
           </div>
         ) : projects.length === 0 && activeTab === 'home' ? (
           <WelcomeHero
-            onCreateProject={onCreateProject}
-            onTryDemo={onTryDemo}
+            onCreateFirstWorkflow={onCreateFirstWorkflow ?? onCreateProject}
+            onOpenTutorial={onOpenTutorial}
           />
         ) : (
           renderTabContent()

@@ -560,6 +560,40 @@ function App() {
     }
   }, [handleNavigateToWorkflow]);
 
+  // Handler for "Create Your First Workflow" button on welcome screen
+  // Auto-creates a project and workflow, then navigates to the workflow builder
+  const handleCreateFirstWorkflow = useCallback(async () => {
+    try {
+      // Create a default project
+      const project = await useProjectStore.getState().createProject({
+        name: 'My Automations',
+        description: 'Automated browser workflows',
+        folder_path: '/automations',
+      });
+
+      // Create an empty workflow in the project
+      const workflowName = `my-first-workflow`;
+      const workflow = await useWorkflowStore.getState().createWorkflow(
+        workflowName,
+        '/',
+        project.id
+      );
+
+      if (workflow?.id) {
+        // Navigate directly to the workflow builder
+        await openWorkflow(project, workflow.id, {
+          workflowData: workflow as Record<string, unknown>,
+        });
+        toast.success('Welcome! Start building your first automation.');
+      } else {
+        throw new Error('Failed to create workflow');
+      }
+    } catch (error) {
+      logger.error('Failed to create first workflow', { component: 'App', action: 'handleCreateFirstWorkflow' }, error);
+      toast.error('Failed to create workflow. Please try again.');
+    }
+  }, [openWorkflow]);
+
   // Handler for when a workflow is generated from recording
   const handleRecordingWorkflowGenerated = useCallback(async (workflowId: string, projectId: string) => {
     // Close the recording session
@@ -986,6 +1020,7 @@ function App() {
           <Dashboard
             onProjectSelect={handleProjectSelect}
             onCreateProject={handleCreateProject}
+            onCreateFirstWorkflow={handleCreateFirstWorkflow}
             onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
             onOpenSettings={navigateToSettings}
             onOpenTutorial={openTour}
