@@ -252,7 +252,15 @@ function Dashboard({
       <header className="sticky top-0 z-30 border-b border-gray-800 bg-flow-bg/95 backdrop-blur supports-[backdrop-filter]:bg-flow-bg/90">
         <div className="px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-flow-node/60 border border-flow-border/60">
+                <img
+                  src="/manifest-icon-192.maskable.png"
+                  alt="Browser Automation Studio"
+                  className="w-7 h-7"
+                  loading="lazy"
+                />
+              </div>
               <h1 className="text-xl font-bold text-white">
                 Browser Automation Studio
               </h1>

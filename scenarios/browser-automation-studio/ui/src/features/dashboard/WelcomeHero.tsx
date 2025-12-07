@@ -7,7 +7,6 @@ import {
   LayoutGrid,
   BarChart3,
   ArrowRight,
-  Zap,
 } from 'lucide-react';
 import { selectors } from '@constants/selectors';
 import { FeatureShowcase } from './FeatureShowcase';
@@ -160,8 +159,12 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
             <div className="absolute inset-0 w-24 h-24 rounded-2xl bg-purple-500/10 blur-2xl animate-pulse-slower" />
 
             {/* Icon container */}
-            <div className="relative p-5 bg-gradient-to-br from-flow-accent/20 to-purple-500/20 rounded-2xl border border-flow-accent/30 shadow-lg shadow-flow-accent/20">
-              <Zap size={48} className="text-flow-accent drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+            <div className="relative w-20 h-20 flex items-center justify-center bg-gradient-to-br from-flow-accent/20 to-purple-500/20 rounded-2xl border border-flow-accent/30 shadow-lg shadow-flow-accent/20 overflow-hidden">
+              <img
+                src="/manifest-icon-192.maskable.png"
+                alt="Browser Automation Studio logo"
+                className="w-full h-full object-cover drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+              />
             </div>
           </div>
 
