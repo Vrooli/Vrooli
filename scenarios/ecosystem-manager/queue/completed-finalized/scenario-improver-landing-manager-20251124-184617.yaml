@@ -16,18 +16,18 @@ related_resources: []
 status: completed-finalized
 current_phase: completed-finalized
 started_at: ""
-completed_at: "2025-11-28T18:44:07-05:00"
-cooldown_until: "2025-11-28T18:47:17-05:00"
-completion_count: 57
-last_completed_at: "2025-11-28T18:44:07-05:00"
+completed_at: "2025-11-30T21:52:50-05:00"
+cooldown_until: "2025-11-30T21:56:00-05:00"
+completion_count: 62
+last_completed_at: "2025-11-30T21:52:50-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-24T18:46:17-05:00"
-updated_at: "2025-11-28T18:44:07-05:00"
+updated_at: "2025-11-30T21:52:50-05:00"
 tags: []
 notes: If not already, make sure there's a way to open/preview the generated landing pages from the UI. Last time I checked (could be fixed now), I didn't see the ability to do this. I could start it, but that's not too helpful when I can't see it!
 results: {}
 consecutive_completion_claims: 0
 consecutive_failures: 0
 processor_auto_requeue: false
-auto_steer_profile_id: ec725997-ceb7-4f0d-8b13-5f55ca45f336
+steer_mode: decision-boundary-extraction

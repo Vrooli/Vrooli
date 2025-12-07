@@ -371,7 +371,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
         {(hasInstallers || anyStorefronts) && (
           <div className="mx-auto mt-12 max-w-4xl rounded-3xl border border-white/10 bg-[#07090F] p-6 text-center text-sm text-slate-300">
-            Download access inherits your Browser Automation Studio entitlements. Need additional seats or bundle access?
+            Download access inherits your Vrooli Ascension entitlements. Need additional seats or bundle access?
             Contact support before sharing installers so telemetry and gating stay accurate.
           </div>
         )}

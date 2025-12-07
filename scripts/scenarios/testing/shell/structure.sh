@@ -518,7 +518,7 @@ _validate_playbook_requirement_metadata() {
   local scenario_dir="$1"
   local scenario_name="${TESTING_PHASE_SCENARIO_NAME:-$(basename "$scenario_dir")}"
 
-  # Only Browser Automation Studio has fully migrated requirement metadata
+  # Only Vrooli Ascension has fully migrated requirement metadata
   if [ "$scenario_name" != "browser-automation-studio" ]; then
     return 0
   fi

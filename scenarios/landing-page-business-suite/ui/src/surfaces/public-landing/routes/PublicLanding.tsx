@@ -531,11 +531,13 @@ function BrandingBlock({
   const mode = header.branding?.mode ?? 'logo_and_name';
   const label = header.branding?.label ?? branding?.site_name ?? runtime.variantLabel;
   const subtitle = header.branding?.subtitle ?? branding?.tagline ?? null;
+  const defaultLogo = '/logo-mask-512x512.webp';
   const logoUrl =
     header.branding?.logo_icon_url ??
     header.branding?.logo_url ??
     branding?.logo_icon_url ??
-    branding?.logo_url;
+    branding?.logo_url ??
+    defaultLogo;
   const mobilePref = header.branding?.mobile_preference ?? 'auto';
   const showLogo = mode === 'logo' || mode === 'logo_and_name';
   const showName = mode === 'name' || mode === 'logo_and_name';

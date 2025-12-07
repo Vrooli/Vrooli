@@ -2,7 +2,7 @@
  * PRD Control Tower selector registry
  *
  * This file is the single source of truth for every selector used by the UI and
- * by Browser Automation Studio workflows. The manifest is auto-generated from
+ * by Vrooli Ascension workflows. The manifest is auto-generated from
  * this file during testing.
  *
  * ## Auto-Generated Manifest

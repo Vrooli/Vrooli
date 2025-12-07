@@ -1,7 +1,7 @@
 # UI Testing Best Practices for Browserless Automation
 
 ## Overview
-This document outlines best practices for designing UIs that can be reliably and comprehensively tested using Browserless as the browser backend. Author and run automation flows through Browser Automation Studio (BAS); follow these guidelines so BAS+Browserless runs remain stable.
+This document outlines best practices for designing UIs that can be reliably and comprehensively tested using Browserless as the browser backend. Author and run automation flows through Vrooli Ascension (BAS); follow these guidelines so BAS+Browserless runs remain stable.
 
 ## Table of Contents
 1. [Element Identification](#element-identification)
@@ -241,7 +241,7 @@ searchInput.addEventListener('input', (e) => {
 
 ## Building Workflows with BAS
 
-Browserless now serves as the CDP backend while workflow authoring/runs live in Browser Automation Studio. Use these BAS docs to design and execute UI tests:
+Browserless now serves as the CDP backend while workflow authoring/runs live in Vrooli Ascension. Use these BAS docs to design and execute UI tests:
 - `scenarios/browser-automation-studio/README.md` for scenario setup and CLI/API usage
 - `scenarios/browser-automation-studio/docs/nodes/` for node-level capabilities when composing flows
 - `scenarios/browser-automation-studio/docs/PROGRESS.md` for current feature coverage and gaps
@@ -260,7 +260,7 @@ Browserless now serves as the CDP backend while workflow authoring/runs live in 
 - [ ] Content loads without continuous polling
 
 ### Workflow Testing
-- Execute and validate flows via Browser Automation Studio; use the BAS CLI or UI replay tooling to confirm selectors, waits, and artifacts.
+- Execute and validate flows via Vrooli Ascension; use the BAS CLI or UI replay tooling to confirm selectors, waits, and artifacts.
 
 ## Common Pitfalls to Avoid
 

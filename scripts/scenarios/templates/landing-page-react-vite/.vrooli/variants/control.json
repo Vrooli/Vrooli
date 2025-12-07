@@ -2,7 +2,7 @@
   "variant": {
     "slug": "control",
     "name": "Control (Original)",
-    "description": "Baseline Browser Automation Studio positioning",
+    "description": "Baseline Vrooli Ascension positioning",
     "weight": 50,
     "status": "active"
   },
@@ -17,7 +17,7 @@
       "order": 1,
       "enabled": true,
       "content": {
-        "title": "Launch Browser Automation Studio in Minutes",
+        "title": "Launch Vrooli Ascension in Minutes",
         "subtitle": "Bundle Stripe-ready subscriptions, download gating, and analytics in a single landing system.",
         "cta_text": "Book a live demo",
         "cta_url": "/contact",
@@ -61,7 +61,7 @@
           {
             "name": "Solo",
             "price": "$49",
-            "description": "Launch Browser Automation Studio for a single operator",
+            "description": "Launch Vrooli Ascension for a single operator",
             "features": [
               "1 workspace",
               "5M included credits",
@@ -151,7 +151,7 @@
       "order": 6,
       "enabled": true,
       "content": {
-        "title": "Deploy Browser Automation Studio today",
+        "title": "Deploy Vrooli Ascension today",
         "subtitle": "Landing-manager orchestrates content, billing, downloads, and analytics in one repo.",
         "cta_text": "Schedule onboarding",
         "cta_url": "/contact"

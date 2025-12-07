@@ -1,6 +1,6 @@
 # Landing Page Template (React + Vite)
 
-This template is the canonical landing runtime used by landing-manager when generating Browser Automation Studio landing scenarios. Every generated scenario inherits this structure, so agents editing this directory are effectively editing **all future landing pages**.
+This template is the canonical landing runtime used by landing-manager when generating Vrooli Ascension landing scenarios. Every generated scenario inherits this structure, so agents editing this directory are effectively editing **all future landing pages**.
 
 ## Orientation: Where Everything Lives
 

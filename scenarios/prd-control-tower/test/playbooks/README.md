@@ -123,6 +123,6 @@ Example:
 ## Related Documentation
 
 - [Phased Testing Architecture](/docs/testing/architecture/PHASED_TESTING.md)
-- [Browser Automation Studio](/scenarios/browser-automation-studio/README.md)
+- [Vrooli Ascension](/scenarios/browser-automation-studio/README.md)
 - [Selector Manifest Schema](/schemas/selector-manifest.schema.json)
 - [Requirements Tracking](/scenarios/prd-control-tower/requirements/README.md)

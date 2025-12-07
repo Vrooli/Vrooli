@@ -236,7 +236,7 @@ testing::integration::check_runtime_freshness() {
     return 0
 }
 
-# Run Browser Automation Studio workflow validations (or other workflow-based checks)
+# Run Vrooli Ascension workflow validations (or other workflow-based checks)
 # NOTE: We do NOT run explicit linting before workflow execution. The BAS API validates
 # workflows during execution, so separate linting is redundant and adds unnecessary complexity.
 testing::integration::validate_all() {
@@ -311,7 +311,7 @@ testing::integration::validate_all() {
     if ! testing::phase::run_bas_automation_validations --manage-runtime auto; then
         local bas_rc=$?
         if [ "$bas_rc" -ne 0 ] && [ "$bas_rc" -ne 200 ]; then
-            testing::phase::add_error "Browser Automation Studio workflow validations failed"
+            testing::phase::add_error "Vrooli Ascension workflow validations failed"
         fi
     fi
 
