@@ -3581,7 +3581,7 @@ The auto-sync system correctly detects unit and integration test coverage from [
 When a requirement has one passing and one failing validation ref, auto-sync marks `all_tests_passing: false`, preventing the requirement (and its operational target) from being marked complete.
 
 **BAS Workflow Issue (from PROBLEMS.md):**
-The playbook workflows in `test/playbooks/capabilities/` are written in simplified JSON format but Browser Automation Studio expects graph-based nodes/edges format. This format incompatibility is documented as a known issue. The BATS tests provide equivalent coverage but aren't in BAS format.
+The playbook workflows in `test/playbooks/capabilities/` are written in simplified JSON format but Vrooli Ascension expects graph-based nodes/edges format. This format incompatibility is documented as a known issue. The BATS tests provide equivalent coverage but aren't in BAS format.
 
 ### Decision: No Changes Made
 
@@ -4249,7 +4249,7 @@ Added comprehensive test suites for:
 1. Improve remaining low-coverage handlers (<80%): initFileStorage (80%), structureSyncHandler (81.2%), createCampaignHandler (81.5%)
 2. Add error path tests to reach 80%+ coverage target
 3. Fix integration tests (BATS tests failing despite API being accessible)
-4. Add UI integration tests using Browser Automation Studio workflows
+4. Add UI integration tests using Vrooli Ascension workflows
 
 **Technical Debt Resolved**:
 - Build tag confusion preventing test discovery

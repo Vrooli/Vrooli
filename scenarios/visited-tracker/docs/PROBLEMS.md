@@ -8,7 +8,7 @@
 **Status**: Needs Architecture Decision
 
 **Description**:
-The test playbooks in `test/playbooks/` are written in a simplified format with `http_request` actions, but Browser Automation Studio (BAS) expects workflows in a graph-based nodes/edges format.
+The test playbooks in `test/playbooks/` are written in a simplified format with `http_request` actions, but Vrooli Ascension (BAS) expects workflows in a graph-based nodes/edges format.
 
 **Current State**:
 - 5 integration workflows defined in simplified JSON format

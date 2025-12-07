@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "api/campaign_handlers_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests validate HTTP API CRUD operations: TestCreateCampaignHandler, TestGetCampaignHandler, TestUpdateCampaignHandler, TestDeleteCampaignHandler, TestListCampaignsHandler [REQ:VT-REQ-006]"
         },
         {
           "type": "test",
           "ref": "api/http_server_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests validate HTTP server functionality: TestCorsMiddleware, TestHealthHandler, TestOptionsHandler [REQ:VT-REQ-006]"
         },
         {

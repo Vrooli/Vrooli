@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetrics';
-import { useEntitlements } from '../../../shared/hooks/useEntitlements';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { requestDownload } from '../../../shared/api';
 
@@ -24,20 +23,6 @@ const PLATFORM_LABELS: Record<string, string> = {
   mac: 'macOS',
   linux: 'Linux',
 };
-
-function formatCreditDisplay(amount?: number, multiplier?: number, label?: string) {
-  const scaled = Math.round((amount ?? 0) * (multiplier ?? 1));
-  const displayLabel = label || 'credits';
-
-  if (scaled >= 1_000_000) {
-    return `${(scaled / 1_000_000).toFixed(1).replace(/\.0$/, '')}M ${displayLabel}`;
-  }
-  if (scaled >= 1_000) {
-    return `${(scaled / 1_000).toFixed(1).replace(/\.0$/, '')}k ${displayLabel}`;
-  }
-
-  return `${scaled.toLocaleString()} ${displayLabel}`;
-}
 
 export function getDownloadAssetKey(download: DownloadAsset): string {
   if (typeof download.id === 'number') {
@@ -101,28 +86,19 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     content?.subtitle ||
     'Get the first Silent Founder OS app. Automate your browser work and export studio-quality recordings.';
   const { trackDownload } = useMetrics();
-  const { email, setEmail, entitlements, loading: entitlementsLoading, error: entitlementsError, refresh } =
-    useEntitlements();
   const [downloadStatus, setDownloadStatus] = useState<Record<string, DownloadStatus>>({});
 
-  const trimmedEmail = email.trim();
-  const allPlatforms = useMemo(
-    () => filteredApps.flatMap((app) => app.platforms ?? []),
-    [filteredApps],
-  );
-  const entitlementsRequired = allPlatforms.some((asset) => asset.requires_entitlement);
-  const hasInstallers = allPlatforms.length > 0;
+  const hasAnyInstallers = filteredApps.some((app) => (app.platforms?.length ?? 0) > 0);
   const anyStorefronts = filteredApps.some((app) => (app.storefronts?.length ?? 0) > 0);
+  const [activeAppKey, setActiveAppKey] = useState(filteredApps[0]?.app_key ?? '');
 
-  const hasActiveSubscription = entitlements?.status === 'active' || entitlements?.status === 'trialing';
-  const entitlementStatus = entitlements?.status ?? 'unknown';
-  const planTier = entitlements?.plan_tier ?? entitlements?.subscription?.plan_tier ?? 'unknown';
-  const creditsLabel = entitlements?.credits?.display_credits_label;
-  const creditsMultiplier = entitlements?.credits?.display_credits_multiplier;
-  const balanceDisplay = formatCreditDisplay(entitlements?.credits?.balance_credits, creditsMultiplier, creditsLabel);
-  const bonusDisplay = formatCreditDisplay(entitlements?.credits?.bonus_credits, creditsMultiplier, creditsLabel);
+  useEffect(() => {
+    if (!filteredApps.find((app) => app.app_key === activeAppKey)) {
+      setActiveAppKey(filteredApps[0]?.app_key ?? '');
+    }
+  }, [activeAppKey, filteredApps]);
 
-  const showEntitlementSummary = entitlementsRequired && trimmedEmail.length > 0;
+  const activeApp = filteredApps.find((app) => app.app_key === activeAppKey) ?? filteredApps[0];
 
   const handleDownload = async (app: DownloadApp, download: DownloadAsset, assetKey: string) => {
     setDownloadStatus((prev) => ({
@@ -130,34 +106,8 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
       [assetKey]: { loading: true },
     }));
 
-    if (download.requires_entitlement && !trimmedEmail) {
-      setDownloadStatus((prev) => ({
-        ...prev,
-        [assetKey]: {
-          loading: false,
-          message: 'Enter the email tied to your subscription to unlock this download.',
-        },
-      }));
-      return;
-    }
-
-    if (download.requires_entitlement && !hasActiveSubscription) {
-      setDownloadStatus((prev) => ({
-        ...prev,
-        [assetKey]: {
-          loading: false,
-          message: `Subscription status is ${entitlementStatus}. Refresh to verify access before downloading.`,
-        },
-      }));
-      return;
-    }
-
     try {
-      const asset = await requestDownload(
-        download.app_key || app.app_key,
-        download.platform,
-        download.requires_entitlement ? trimmedEmail : undefined,
-      );
+      const asset = await requestDownload(download.app_key || app.app_key, download.platform);
 
       const artifactUrl = sanitizeArtifactUrl(asset?.artifact_url);
       if (!artifactUrl) {
@@ -209,170 +159,161 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   };
 
   return (
-    <section className="border-t border-white/5 bg-[#0F172A] py-24 text-white" data-testid="downloads-section">
-      <div className="container mx-auto px-6">
-        <div className="mb-12 max-w-3xl space-y-3">
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Downloads & installs</p>
-          <h2 className="text-4xl font-semibold">{title}</h2>
-          <p className="text-slate-300">{subtitle}</p>
+    <section
+      className="relative overflow-hidden border-t border-white/5 bg-[#0B1020] py-24 text-white"
+      data-testid="downloads-section"
+    >
+      <div className="pointer-events-none absolute inset-0 opacity-60">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(124,58,237,0.18),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(14,165,233,0.15),transparent_28%),radial-gradient(circle_at_50%_80%,rgba(249,115,22,0.12),transparent_30%)]" />
+      </div>
+      <div className="container relative mx-auto px-6">
+        <div className="mb-12 max-w-4xl space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <h2 className="text-4xl font-semibold leading-tight">{title}</h2>
+              <p className="text-lg text-slate-200">{subtitle}</p>
+            </div>
+          </div>
         </div>
 
-        {entitlementsRequired && (
-          <div className="mx-auto mb-8 max-w-3xl space-y-4 rounded-3xl border border-white/10 bg-[#07090F] p-6 text-left">
-            <p className="text-sm text-slate-300">
-              Entitlement gated downloads require an active subscription. Provide the email tied to your plan and we'll verify your access before allowing the download.
-            </p>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@company.com"
-                className="flex-1 rounded-xl border border-white/10 bg-[#07090F] px-4 py-3 text-white placeholder-slate-500 focus:border-[#F97316] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="whitespace-nowrap bg-white/5 text-white hover:bg-white/10"
-                onClick={refresh}
-                disabled={!trimmedEmail || entitlementsLoading}
-              >
-                {entitlementsLoading ? 'Checking status…' : 'Refresh status'}
-              </Button>
-            </div>
-            <p className="text-xs text-slate-500">Stored locally on this device only.</p>
-            {entitlementsError && <p className="text-xs text-rose-400">{entitlementsError}</p>}
-            {showEntitlementSummary && (
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-                  <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Subscription</p>
-                  <p className="text-lg font-semibold text-white">{entitlementStatus}</p>
-                  <p className="mt-1 text-xs text-slate-500">Plan tier: {planTier}</p>
-                  {entitlements?.subscription?.subscription_id && (
-                    <p className="mt-1 text-xs text-slate-500">ID: {entitlements.subscription.subscription_id}</p>
-                  )}
-                </div>
-                <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-                  <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Credits</p>
-                  <p className="text-lg font-semibold text-white">{balanceDisplay}</p>
-                  <p className="mt-1 text-xs text-slate-500">Bonus: {bonusDisplay}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-                  <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Pricing</p>
-                  <p className="text-lg font-semibold text-white">{entitlements?.price_id ?? 'Unknown price'}</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Updated {entitlements?.subscription?.updated_at ?? 'recently'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="space-y-8">
-          {filteredApps.map((app) => {
-            const installers = app.platforms ?? [];
-            const storefronts = app.storefronts ?? [];
-            return (
-              <div
+        <div className="space-y-6">
+          <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/5 p-3">
+            {filteredApps.map((app) => (
+              <button
                 key={app.app_key}
-                className="rounded-3xl border border-white/10 bg-[#07090F] p-8"
-                data-testid={`download-app-${app.app_key}`}
+                type="button"
+                onClick={() => setActiveAppKey(app.app_key)}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                  activeApp?.app_key === app.app_key
+                    ? 'bg-[#F97316] text-white shadow-lg'
+                    : 'bg-white/5 text-slate-200 hover:bg-white/10'
+                }`}
               >
-                <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-                  <div className="flex-1 space-y-4">
-                    <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Bundle app</p>
-                      <h3 className="text-2xl font-semibold text-white">{app.name}</h3>
-                      <p className="text-sm text-slate-400">
-                        {app.tagline ||
-                          'Offline-safe companion that inherits entitlement checks and telemetry instrumentation.'}
-                      </p>
-                    </div>
-                    {app.description && <p className="text-sm text-slate-300">{app.description}</p>}
-                    {app.install_overview && (
-                      <div className="rounded-2xl border border-white/5 bg-white/5 p-4 text-sm text-slate-200">
-                        {app.install_overview}
-                      </div>
-                    )}
-                    {app.install_steps && app.install_steps.length > 0 && (
-                      <ol className="list-decimal list-inside space-y-1 text-sm text-slate-400" data-testid={`install-steps-${app.app_key}`}>
-                        {app.install_steps.map((step, idx) => (
-                          <li key={`${app.app_key}-step-${idx}`}>{step}</li>
-                        ))}
-                      </ol>
-                    )}
-                    {storefronts.length > 0 && (
-                      <div className="flex flex-wrap gap-3 pt-2">
-                        {storefronts.map((store) => (
-                          <a
-                            key={`${app.app_key}-${store.store}-${store.url}`}
-                            href={store.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
-                            data-testid={`storefront-${app.app_key}-${store.store}`}
-                          >
-                            {store.badge || store.label}
-                          </a>
-                        ))}
-                      </div>
+                {app.name}
+              </button>
+            ))}
+          </div>
+
+          {activeApp && (
+            <div
+              className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#0C1228] via-[#0A0F20] to-[#0B132E] p-8 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.6)]"
+              data-testid={`download-app-${activeApp.app_key}`}
+            >
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#F97316] via-[#7C3AED] to-[#0EA5E9]" />
+              <div className="relative grid gap-8 lg:grid-cols-[1.15fr_1fr]">
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-slate-300">
+                      Bundle app
+                    </span>
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-white">
+                      {(activeApp.platforms?.length ?? 0)} installer{(activeApp.platforms?.length ?? 0) === 1 ? '' : 's'}
+                    </span>
+                    {(activeApp.storefronts?.length ?? 0) > 0 && (
+                      <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200">
+                        {(activeApp.storefronts?.length ?? 0)} storefront link
+                        {(activeApp.storefronts?.length ?? 0) === 1 ? '' : 's'}
+                      </span>
                     )}
                   </div>
-
-                  {installers.length > 0 && (
-                    <div className="flex-1 space-y-4" data-testid={`installer-list-${app.app_key}`}>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Desktop installers</p>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {installers.map((installer) => {
-                          const assetKey = getDownloadAssetKey(installer);
-                          const status = downloadStatus[assetKey];
-                          const buttonLabel = installer.requires_entitlement ? 'Verify & Download' : 'Download';
-                          return (
-                            <div
-                              key={assetKey}
-                              className="space-y-3 rounded-2xl border border-white/10 bg-[#05070E] p-4"
-                              data-testid={`download-card-${assetKey}`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                                  {formatPlatformLabel(installer.platform)}
-                                </span>
-                                <span className="text-xs text-slate-400">{installer.release_version}</span>
-                              </div>
-                              <p className="text-sm text-slate-300">
-                                {installer.release_notes || 'Release notes coming soon.'}
-                              </p>
-                              <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                                <span>{installer.requires_entitlement ? 'Entitlement required' : 'Free download'}</span>
-                                {installer.metadata?.size_mb && <span>{installer.metadata.size_mb} MB</span>}
-                              </div>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleDownload(app, installer, assetKey)}
-                                disabled={status?.loading}
-                                className={`w-full ${installer.requires_entitlement ? '' : 'bg-[#F97316]'}`}
-                              >
-                                {status?.loading ? 'Preparing…' : buttonLabel}
-                              </Button>
-                              {status?.message && <p className="text-xs text-slate-400">{status.message}</p>}
-                            </div>
-                          );
-                        })}
-                      </div>
+                  <div className="space-y-2">
+                    <h3 className="text-3xl font-semibold text-white">{activeApp.name}</h3>
+                    <p className="text-sm text-slate-300">
+                      {activeApp.tagline || 'Offline-safe companion; the app verifies auth and telemetry after install.'}
+                    </p>
+                  </div>
+                  {activeApp.description && <p className="text-sm text-slate-200">{activeApp.description}</p>}
+                  {activeApp.install_overview && (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-100">
+                      {activeApp.install_overview}
+                    </div>
+                  )}
+                  {activeApp.install_steps && activeApp.install_steps.length > 0 && (
+                    <ol
+                      className="list-decimal list-inside space-y-1 text-sm text-slate-300"
+                      data-testid={`install-steps-${activeApp.app_key}`}
+                    >
+                      {activeApp.install_steps.map((step, idx) => (
+                        <li key={`${activeApp.app_key}-step-${idx}`}>{step}</li>
+                      ))}
+                    </ol>
+                  )}
+                  {(activeApp.storefronts?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-3 pt-2">
+                      {activeApp.storefronts?.map((store) => (
+                        <a
+                          key={`${activeApp.app_key}-${store.store}-${store.url}`}
+                          href={store.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10"
+                          data-testid={`storefront-${activeApp.app_key}-${store.store}`}
+                        >
+                          {store.badge || store.label}
+                        </a>
+                      ))}
                     </div>
                   )}
                 </div>
+
+                {(activeApp.platforms?.length ?? 0) > 0 && (
+                  <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5" data-testid={`installer-list-${activeApp.app_key}`}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-[11px] uppercase tracking-[0.3em] text-slate-300">Desktop installers</p>
+                      <span className="rounded-full bg-black/20 px-3 py-1 text-xs text-slate-200">
+                        Downloads are direct; subscription is handled in-app.
+                      </span>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {activeApp.platforms?.map((installer) => {
+                        const assetKey = getDownloadAssetKey(installer);
+                        const status = downloadStatus[assetKey];
+                        return (
+                          <div
+                            key={assetKey}
+                            className="space-y-3 rounded-2xl border border-white/10 bg-[#05070E] p-4 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.7)]"
+                            data-testid={`download-card-${assetKey}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-slate-200">
+                                  {formatPlatformLabel(installer.platform)}
+                                </span>
+                              </div>
+                              <span className="text-xs text-slate-400">{installer.release_version}</span>
+                            </div>
+                            <p className="text-sm text-slate-300">
+                              {installer.release_notes || 'Release notes coming soon.'}
+                            </p>
+                            <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                              <span>{installer.requires_entitlement ? 'Sign-in in app' : 'Free download'}</span>
+                              {installer.metadata?.size_mb && <span>{installer.metadata.size_mb} MB</span>}
+                            </div>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleDownload(activeApp, installer, assetKey)}
+                              disabled={status?.loading}
+                              className={`w-full ${installer.requires_entitlement ? '' : 'bg-[#F97316]'}`}
+                            >
+                              {status?.loading ? 'Preparing…' : 'Download'}
+                            </Button>
+                            {status?.message && <p className="text-xs text-slate-400">{status.message}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
 
-        {(hasInstallers || anyStorefronts) && (
-          <div className="mx-auto mt-12 max-w-4xl rounded-3xl border border-white/10 bg-[#07090F] p-6 text-center text-sm text-slate-300">
-            Download access inherits your Vrooli Ascension entitlements. Need additional seats or bundle access?
-            Contact support before sharing installers so telemetry and gating stay accurate.
+        {(hasAnyInstallers || anyStorefronts) && (
+          <div className="mx-auto mt-12 max-w-4xl rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-sm text-slate-200">
+            Downloads are direct and the apps will prompt for sign-in or subscription once launched. Need additional
+            seats or bundle access? Contact support before sharing installers so telemetry stays accurate.
           </div>
         )}
       </div>
