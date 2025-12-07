@@ -186,4 +186,33 @@ describe('getProxyIndex', () => {
 
     expect(result).toBeNull()
   })
+
+  it('handles proxy info without hosts gracefully', () => {
+    const proxyInfo = mockProxyInfo({
+      hosts: undefined as unknown as string[],
+      ports: [
+        {
+          port: 9090,
+          label: 'API',
+          normalizedLabel: 'api',
+          slug: 'api',
+          source: 'test',
+          priority: 1,
+          kind: 'http',
+          isPrimary: true,
+          path: '/apps/test/proxy',
+          aliases: undefined as unknown as string[],
+        },
+      ],
+    })
+
+    const win = mockWindow({
+      globals: { __VROOLI_PROXY_INFO__: proxyInfo },
+    })
+
+    expect(() => getProxyIndex(win)).not.toThrow()
+    const result = getProxyIndex(win)
+    expect(result).not.toBeNull()
+    expect(result?.hosts.size).toBe(0)
+  })
 })

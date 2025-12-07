@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generic workflow runner for executing Browser Automation Studio workflows from any scenario test.
+# Generic workflow runner for executing Vrooli Ascension workflows from any scenario test.
 set -euo pipefail
 # This runner allows any scenario to define BAS workflow JSONs and have them automatically executed
 # for UI/integration testing via the browser-automation-studio API.
@@ -408,7 +408,7 @@ _testing_playbooks__execute_adhoc_workflow() {
     printf '%s' "$execution_id"
 }
 
-# Run a Browser Automation Studio workflow JSON via adhoc execution endpoint.
+# Run a Vrooli Ascension workflow JSON via adhoc execution endpoint.
 # Options:
 #   --file PATH                 JSON workflow definition (required)
 #   --scenario NAME             Scenario to start/manage (default: browser-automation-studio)

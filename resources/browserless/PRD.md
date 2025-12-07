@@ -64,7 +64,7 @@
 
 - [ ] **Conditional Workflows**: Intelligent branching based on page state
   - Acceptance: Workflows can branch based on URL, element state, text content, errors
-  - Status: REMOVED - Browserless no longer ships its own workflow DSL; author flows via Browser Automation Studio
+  - Status: REMOVED - Browserless no longer ships its own workflow DSL; author flows via Vrooli Ascension
   - Validated: N/A (use BAS executor for branching and loops)
 
 ## Technical Specifications

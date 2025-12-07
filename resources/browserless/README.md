@@ -52,7 +52,7 @@ High-performance headless Chrome automation service for web scraping, screenshot
 - **Visual Testing** - Screenshot comparison and visual regression testing
 - **PDF Generation** - High-quality PDF conversion with browser rendering
 - **Complex Scraping** - Sites with dynamic content or anti-bot measures
-- **As a Backend for BAS** - Headless Chrome/CDP backend for Browser Automation Studio executions
+- **As a Backend for BAS** - Headless Chrome/CDP backend for Vrooli Ascension executions
 
 ### Alternatives to Consider:
 - **Simple HTTP Requests**: Use curl/wget for static content

@@ -9,6 +9,18 @@
       "persona": "qaEngineer",
       "jtbd": "testing",
       "conversionStyle": "technical"
+    },
+    "header_config": {
+      "branding": {
+        "mode": "logo_and_name",
+        "label": "Silent Founder OS"
+      }
+    }
+  },
+  "header": {
+    "branding": {
+      "mode": "logo_and_name",
+      "label": "Silent Founder OS"
     }
   },
   "sections": [

@@ -11,6 +11,8 @@ import {
   Filter,
   Activity,
   Image,
+  Timer,
+  LineChart,
 } from 'lucide-react';
 import { useDashboardStore, type RecentExecution } from '@stores/dashboardStore';
 import { useExecutionStore } from '@stores/executionStore';
@@ -127,6 +129,15 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
   const renderExecutionCard = (execution: RecentExecution, isRunning: boolean) => {
     const config = statusConfig[execution.status];
     const StatusIcon = config.icon;
+    const durationMs = execution.completedAt
+      ? new Date(execution.completedAt).getTime() - new Date(execution.startedAt).getTime()
+      : undefined;
+    const durationLabel = durationMs && durationMs > 0 ? `${Math.round(durationMs / 1000)}s` : undefined;
+    const logSnippet = execution.error
+      ? execution.error.split('\n')[0]
+      : execution.status === 'completed'
+        ? 'Completed successfully'
+        : undefined;
 
     return (
       <div
@@ -164,10 +175,21 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
                       ? `Completed ${formatDistanceToNow(execution.completedAt, { addSuffix: true })}`
                       : formatDistanceToNow(execution.startedAt, { addSuffix: true })}
                 </span>
+                {durationLabel && (
+                  <>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-300">
+                      <Timer size={12} />
+                      {durationLabel}
+                    </span>
+                  </>
+                )}
               </div>
-              {execution.error && (
-                <div className="mt-2 text-xs text-red-400 line-clamp-2">
-                  {execution.error}
+              {logSnippet && (
+                <div className={`mt-2 text-xs line-clamp-2 ${
+                  execution.error ? 'text-red-400' : 'text-gray-300'
+                }`}>
+                  {logSnippet}
                 </div>
               )}
             </div>
@@ -197,6 +219,35 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Pulse strip */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-gradient-to-r from-gray-900/80 via-gray-900 to-blue-900/10 border border-gray-800/80 rounded-2xl p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-100">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            {runningExecutions.length} running
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-100">
+            <XCircle size={14} />
+            {recentExecutions.filter(e => e.status === 'failed' || e.status === 'cancelled').length} failed recently
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-700/50 text-gray-100 border border-gray-700">
+            <LineChart size={14} />
+            {allExecutions.length} total entries
+          </div>
+        </div>
+        {allExecutions.length > 0 && (
+          <button
+            onClick={() => {
+              const latest = allExecutions[0];
+              onViewExecution(latest.id, latest.workflowId);
+            }}
+            className="hero-button-secondary w-full sm:w-auto justify-center"
+          >
+            Open latest run
+          </button>
+        )}
+      </div>
+
       {/* Header with filters */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">

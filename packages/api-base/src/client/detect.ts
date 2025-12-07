@@ -198,25 +198,38 @@ export function getProxyIndex(
  */
 function buildProxyIndexFromInfo(info: ProxyInfo): ProxyIndex {
   const aliasMap = new Map<string, any>()
+  const ports = Array.isArray(info.ports) && info.ports.length > 0 ? info.ports : [info.primary].filter(Boolean)
 
   // Index all ports by their aliases
-  for (const port of info.ports || []) {
-    const aliases = port.aliases || []
+  for (const port of ports) {
+    if (!port) {
+      continue
+    }
+
+    const aliases = Array.isArray(port.aliases) ? port.aliases : []
     for (const alias of aliases) {
       const key = String(alias).toLowerCase()
       if (!aliasMap.has(key)) {
         aliasMap.set(key, port)
       }
     }
-    // Also index by port number
-    aliasMap.set(String(port.port), port)
+    // Also index by port number when available
+    if (typeof port.port !== 'undefined') {
+      aliasMap.set(String(port.port), port)
+    }
   }
+
+  const normalizedHosts = Array.isArray(info.hosts)
+    ? info.hosts
+        .map(host => (typeof host === 'string' ? host.trim().toLowerCase() : ''))
+        .filter(Boolean)
+    : []
 
   return {
     appId: info.appId,
     generatedAt: info.generatedAt,
     aliasMap,
     primary: info.primary,
-    hosts: new Set(info.hosts.map(h => h.toLowerCase())),
+    hosts: new Set(normalizedHosts),
   }
 }

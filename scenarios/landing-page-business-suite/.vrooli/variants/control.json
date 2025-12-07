@@ -9,31 +9,31 @@
       "persona": "silentFounder",
       "jtbd": "entrepreneurship",
       "conversionStyle": "emotional"
-    }
-  },
-  "header": {
-    "branding": {
-      "mode": "logo_and_name",
-      "label": "Silent Founder OS",
-      "subtitle": "Vrooli Ascension inside",
-      "mobile_preference": "logo"
     },
-    "nav": {
-      "links": [
-        { "id": "nav-hero", "type": "section", "label": "Overview", "section_type": "hero", "anchor": "hero-1", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "anchor": "video-2", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "anchor": "features-3", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "anchor": "pricing-5", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-downloads", "type": "downloads", "label": "Downloads", "visible_on": { "desktop": true, "mobile": true } }
-      ]
-    },
-    "ctas": {
-      "primary": { "mode": "inherit_hero", "variant": "solid" },
-      "secondary": { "mode": "downloads", "variant": "ghost" }
-    },
-    "behavior": {
-      "sticky": true,
-      "hide_on_scroll": true
+    "header_config": {
+      "branding": {
+        "mode": "logo_and_name",
+        "label": "Silent Founder OS",
+        "subtitle": "Vrooli Ascension inside",
+        "mobile_preference": "logo"
+      },
+      "nav": {
+        "links": [
+          { "id": "nav-hero", "type": "section", "label": "Overview", "section_type": "hero", "anchor": "hero-1", "visible_on": { "desktop": true, "mobile": true } },
+          { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "anchor": "video-2", "visible_on": { "desktop": true, "mobile": true } },
+          { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "anchor": "features-3", "visible_on": { "desktop": true, "mobile": true } },
+          { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "anchor": "pricing-5", "visible_on": { "desktop": true, "mobile": true } },
+          { "id": "nav-downloads", "type": "downloads", "label": "Downloads", "visible_on": { "desktop": true, "mobile": true } }
+        ]
+      },
+      "ctas": {
+        "primary": { "mode": "inherit_hero", "variant": "solid" },
+        "secondary": { "mode": "downloads", "variant": "ghost" }
+      },
+      "behavior": {
+        "sticky": true,
+        "hide_on_scroll": true
+      }
     }
   },
   "sections": [

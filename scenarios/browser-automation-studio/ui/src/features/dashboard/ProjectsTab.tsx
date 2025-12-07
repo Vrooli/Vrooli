@@ -16,6 +16,7 @@ import {
   Sparkles,
   ShieldCheck,
   Layers,
+  Activity,
 } from 'lucide-react';
 import { useProjectStore, type Project } from '@stores/projectStore';
 import { useDashboardStore, type FavoriteWorkflow } from '@stores/dashboardStore';
@@ -58,7 +59,13 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
     deleteProject,
     executeAllWorkflows,
   } = useProjectStore();
-  const { addFavorite, removeFavorite, isFavorite } = useDashboardStore();
+  const {
+    addFavorite,
+    removeFavorite,
+    isFavorite,
+    favoriteWorkflows,
+    lastEditedWorkflow,
+  } = useDashboardStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [showActionsFor, setShowActionsFor] = useState<string | null>(null);
@@ -157,6 +164,49 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
     return formatDistanceToNow(new Date(dateString), { addSuffix: true });
   };
 
+  const renderHero = () => (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-gradient-to-r from-gray-900/80 via-gray-900 to-blue-900/20 border border-gray-800/80 rounded-2xl p-4">
+      <div className="space-y-2">
+        <div className="text-xs text-gray-400">Projects</div>
+        <div className="text-xl font-semibold text-white">
+          Organize, launch, and share your automations
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs text-gray-300">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-100">
+            <FolderOpen size={12} /> {projects.length} project{projects.length !== 1 ? 's' : ''}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-100">
+            <Star size={12} /> {favoriteWorkflows.length} favorite workflow{favoriteWorkflows.length !== 1 ? 's' : ''}
+          </span>
+          {lastEditedWorkflow && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 text-green-100">
+              <Activity size={12} />
+              Continue: {lastEditedWorkflow.name}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2">
+        {lastEditedWorkflow && (
+          <button
+            onClick={() => onNavigateToWorkflow(lastEditedWorkflow.projectId, lastEditedWorkflow.id)}
+            className="hero-button-secondary w-full sm:w-auto justify-center"
+          >
+            Resume last workflow
+          </button>
+        )}
+        <button
+          onClick={onCreateProject}
+          data-testid={selectors.dashboard.newProjectButton}
+          className="hero-button-primary w-full sm:w-auto justify-center"
+        >
+          New project
+          <div className="hero-button-glow" />
+        </button>
+      </div>
+    </div>
+  );
+
   // Render single-project view (shows workflows directly)
   const renderSingleProjectView = () => {
     const workflows = singleProject ? (projectWorkflows[singleProject.id] ?? []) : [];
@@ -164,6 +214,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
 
     return (
       <div className="space-y-6">
+        {renderHero()}
         {/* Project Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -317,6 +368,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
   const renderMultiProjectView = () => {
     return (
       <div className="space-y-6">
+        {renderHero()}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

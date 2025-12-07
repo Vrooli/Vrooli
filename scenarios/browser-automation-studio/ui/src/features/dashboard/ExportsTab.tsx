@@ -205,6 +205,19 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
     }
   }, []);
 
+  const handleCopyLink = useCallback(async (url?: string) => {
+    if (!url) {
+      toast.error('No link available yet');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied');
+    } catch (error) {
+      toast.error('Failed to copy link');
+    }
+  }, []);
+
   const openRenameDialog = useCallback((export_: Export) => {
     setSelectedExport(export_);
     setNewName(export_.name);
@@ -277,6 +290,13 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
             >
               <Trash2 size={18} />
             </button>
+            <button
+              onClick={() => handleCopyLink(export_.storageUrl)}
+              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              title="Copy link"
+            >
+              <Copy size={18} />
+            </button>
           </div>
         </div>
 
@@ -338,6 +358,55 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Summary band */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-gradient-to-r from-gray-900/80 via-gray-900 to-purple-900/20 border border-gray-800/70 rounded-2xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center">
+            <Film size={18} className="text-purple-200" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-400">Total exports</div>
+            <div className="text-lg font-semibold text-white">{exports.length}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-green-500/15 border border-green-500/40 flex items-center justify-center">
+            <CheckCircle2 size={18} className="text-green-200" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-400">Ready to share</div>
+            <div className="text-lg font-semibold text-white">
+              {exports.filter(e => e.status === 'completed').length}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/40 flex items-center justify-center">
+            <Download size={18} className="text-blue-200" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-400">Last export size</div>
+            <div className="text-lg font-semibold text-white">
+              {exports[0]?.fileSizeBytes ? formatFileSize(exports[0].fileSizeBytes) : '—'}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center">
+            <Sparkles size={18} className="text-amber-200" />
+          </div>
+          <div>
+            <div className="text-xs text-gray-400">Need a new export?</div>
+            <button
+              onClick={onNavigateToExecutions ?? onNavigateToHome}
+              className="hero-button-secondary w-full justify-center mt-1"
+            >
+              Export again
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -420,8 +489,40 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           ]}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {exports.map((export_) => renderExportCard(export_))}
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {exports.map((export_) => renderExportCard(export_))}
+          </div>
+          <div className="space-y-3 bg-gray-800/50 border border-gray-700/70 rounded-xl p-4">
+            <h4 className="text-sm font-semibold text-white">Popular next steps</h4>
+            <p className="text-xs text-gray-400">Keep users moving after exporting.</p>
+            <div className="space-y-2">
+              <button
+                onClick={onNavigateToExecutions}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-white transition-colors"
+              >
+                Schedule export
+                <Clock size={14} />
+              </button>
+              <button
+                onClick={onNavigateToHome}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-white transition-colors"
+              >
+                Send via email/Slack
+                <Share2 size={14} />
+              </button>
+              <button
+                onClick={onNavigateToHome}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-white transition-colors"
+              >
+                Create follow-up workflow
+                <Sparkles size={14} />
+              </button>
+            </div>
+            <div className="text-[11px] text-gray-500">
+              Tip: use exports as inputs to downstream checks or reports.
+            </div>
+          </div>
         </div>
       )}
 

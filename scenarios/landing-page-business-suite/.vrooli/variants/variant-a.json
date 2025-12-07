@@ -9,6 +9,18 @@
       "persona": "silentFounder",
       "jtbd": "entrepreneurship",
       "conversionStyle": "emotional"
+    },
+    "header_config": {
+      "branding": {
+        "mode": "logo_and_name",
+        "label": "Silent Founder OS"
+      }
+    }
+  },
+  "header": {
+    "branding": {
+      "mode": "logo_and_name",
+      "label": "Silent Founder OS"
     }
   },
   "sections": [
