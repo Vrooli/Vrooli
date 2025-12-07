@@ -8,6 +8,29 @@
       "persona": "silentFounder",
       "jtbd": "entrepreneurship",
       "conversionStyle": "emotional"
+    },
+    "header_config": {
+      "branding": {
+        "mode": "logo_and_name",
+        "label": "Silent Founder OS",
+        "subtitle": "Vrooli Ascension today · More tools soon",
+        "mobile_preference": "logo"
+      },
+      "nav": {
+        "links": [
+          { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "visible_on": { "desktop": true, "mobile": true } },
+          { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "visible_on": { "desktop": true, "mobile": true } },
+          { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "visible_on": { "desktop": true, "mobile": true } }
+        ]
+      },
+      "ctas": {
+        "primary": { "mode": "inherit_hero", "variant": "solid" },
+        "secondary": { "mode": "downloads", "variant": "ghost" }
+      },
+      "behavior": {
+        "sticky": true,
+        "hide_on_scroll": true
+      }
     }
   },
   "header": {
@@ -19,11 +42,9 @@
     },
     "nav": {
       "links": [
-        { "id": "nav-hero", "type": "section", "label": "Overview", "section_type": "hero", "anchor": "hero-sf-1", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "anchor": "video-sf-2", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "anchor": "features-sf-3", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "anchor": "pricing-sf-5", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-downloads", "type": "downloads", "label": "Downloads", "visible_on": { "desktop": true, "mobile": true } }
+        { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "visible_on": { "desktop": true, "mobile": true } },
+        { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "visible_on": { "desktop": true, "mobile": true } },
+        { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "visible_on": { "desktop": true, "mobile": true } }
       ]
     },
     "ctas": {
