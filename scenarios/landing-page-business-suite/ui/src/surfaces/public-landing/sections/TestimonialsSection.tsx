@@ -20,24 +20,24 @@ interface TestimonialsSectionProps {
 export function TestimonialsSection({ content }: TestimonialsSectionProps) {
   const testimonials = content.testimonials || [
     {
-      name: 'Sarah Johnson',
-      role: 'Marketing Director',
-      company: 'TechCorp',
-      content: 'This platform transformed how we build landing pages. We launched 5 campaigns in the time it used to take us to launch 1.',
+      name: 'Maya R.',
+      role: 'Solo founder',
+      company: 'AI concierge studio',
+      content: 'BAS runs my client onboarding while I sleep. The same flows spit out perfect reels for ads—zero camera time.',
       rating: 5,
     },
     {
-      name: 'Michael Chen',
-      role: 'Founder',
-      company: 'StartupXYZ',
-      content: 'The A/B testing and analytics are game-changing. We increased our conversion rate by 40% in the first month.',
+      name: 'Chris L.',
+      role: 'Indie hacker',
+      company: 'B2B SaaS',
+      content: 'Recorded three product tours in an afternoon. The automation keeps exporting updates whenever I change the UI.',
       rating: 5,
     },
     {
-      name: 'Emma Davis',
-      role: 'Product Manager',
-      company: 'SaaSCo',
-      content: 'Simple, powerful, and elegant. The agent customization feature saves us countless hours of development time.',
+      name: 'Jess P.',
+      role: 'Agency owner',
+      company: 'Growth studio',
+      content: 'Clients think I have a video team. It’s BAS in the background with guardrails so nothing breaks on launch day.',
       rating: 5,
     },
   ];
@@ -49,7 +49,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Operators on record</p>
           <h2 className="mt-3 text-4xl font-semibold text-white">{content.title || 'Proof from the factory floor'}</h2>
           <p className="mt-3 text-lg text-slate-300">
-            {content.subtitle || 'Teams treat this template like a case-study-ready deliverable. Here is what they highlight in handoffs.'}
+            {content.subtitle || 'Silent Founder OS ships as a business-ready bundle. Here is what founders highlight in handoffs.'}
           </p>
         </div>
         <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">

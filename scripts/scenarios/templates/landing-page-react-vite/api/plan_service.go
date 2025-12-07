@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 // PlanService exposes helper utilities for pricing/plan metadata.
@@ -26,9 +26,9 @@ type PlanService struct {
 
 type (
 	// BundleProduct is a thin alias to the shared protobuf bundle for readability.
-	BundleProduct   = lprvv1.Bundle
-	PlanOption      = lprvv1.PlanOption
-	PricingOverview = lprvv1.PricingOverview
+	BundleProduct   = landing_page_react_vite_v1.Bundle
+	PlanOption      = landing_page_react_vite_v1.PlanOption
+	PricingOverview = landing_page_react_vite_v1.PricingOverview
 )
 
 type bundleProductRecord struct {
@@ -473,26 +473,26 @@ func parseMetadata(metadataBytes []byte) map[string]*structpb.Value {
 	return structVal.Fields
 }
 
-func mapPlanKind(kind string) lprvv1.PlanKind {
+func mapPlanKind(kind string) landing_page_react_vite_v1.PlanKind {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "subscription":
-		return lprvv1.PlanKind_PLAN_KIND_SUBSCRIPTION
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION
 	case "credits_topup", "credits-topup", "credits":
-		return lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP
 	case "supporter_contribution", "supporter-contribution", "supporter":
-		return lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
 	default:
-		return lprvv1.PlanKind_PLAN_KIND_UNSPECIFIED
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED
 	}
 }
 
-func planKindString(kind lprvv1.PlanKind) string {
+func planKindString(kind landing_page_react_vite_v1.PlanKind) string {
 	switch kind {
-	case lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
 		return "credits_topup"
-	case lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
+	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		return "supporter_contribution"
-	case lprvv1.PlanKind_PLAN_KIND_SUBSCRIPTION:
+	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION:
 		return "subscription"
 	default:
 		return "subscription"

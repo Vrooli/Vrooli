@@ -13,6 +13,22 @@
   --color-accent-secondary: 56 189 248; /* #38BDF8 */
   --color-success: 16 185 129;        /* #10B981 */
 
+  /* Flow theme palette for imported BAS showcase */
+  --flow-bg: 7 9 15;
+  --flow-bg-secondary: 15 17 26;
+  --flow-node: 26 29 41;
+  --flow-node-hover: 37 40 55;
+  --flow-edge: 74 85 104;
+  --flow-accent: 59 130 246;
+  --flow-accent-hover: 37 99 235;
+  --flow-text: 243 244 246;
+  --flow-text-secondary: 156 163 175;
+  --flow-text-muted: 107 114 128;
+  --flow-border: 55 65 81;
+  --flow-border-light: 75 85 99;
+  --flow-surface: 31 41 55;
+  --flow-surface-hover: 55 65 81;
+
   --color-bg-base: 7 9 15;            /* #07090F */
   --color-surface-primary: 15 23 42;  /* #0F172A */
   --color-surface-muted: 30 36 51;    /* #1E2433 */
@@ -76,5 +92,97 @@ body {
     opacity: 0.05;
     pointer-events: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='1' height='1' fill='white'/%3E%3C/svg%3E");
+  }
+
+  .animate-showcase {
+    background-size: 200% 200%;
+    animation: showcaseSweep 8s linear infinite;
+  }
+
+  @keyframes showcaseSweep {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+}
+
+@layer utilities {
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes progress-bar {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.3s ease-out both;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out both;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out both;
+  }
+
+  .animate-progress-bar {
+    animation: progress-bar linear both;
+    transform-origin: left;
+  }
+
+  .scale-98 {
+    transform: scale(0.98);
   }
 }

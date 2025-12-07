@@ -10,8 +10,8 @@ ON CONFLICT (email) DO NOTHING;
 
 -- Insert curated Silent Founder OS variants (OT-P0-014 through OT-P0-018)
 INSERT INTO variants (slug, name, description, weight, status) VALUES
-('control', 'Silent Founder (Control)', 'Build a business quietly with Browser Automation Studio today.', 100, 'active'),
-('silent-founder-entrepreneurship-emotional', 'Silent Founder · Entrepreneurship · Emotional', 'Build a business quietly with Browser Automation Studio today.', 25, 'active'),
+('control', 'Silent Founder (Control)', 'Build a business quietly with Vrooli Ascension today.', 100, 'active'),
+('silent-founder-entrepreneurship-emotional', 'Silent Founder · Entrepreneurship · Emotional', 'Build a business quietly with Vrooli Ascension today.', 25, 'active'),
 ('solo-dev-testing-technical', 'Solo Dev · Testing · Technical', 'Replayable e2e tests for solo developers.', 20, 'active'),
 ('qa-engineer-testing-technical', 'QA Engineer · Testing · Technical', 'Replay evidence and stable regressions.', 15, 'active'),
 ('automation-engineer-automation-visionary', 'Automation Engineer · Automation · Visionary', 'Visually program the browser; agents on deck.', 20, 'active'),
@@ -66,7 +66,7 @@ DO $$
 DECLARE
     pricing_json TEXT := '{
       "title": "Simple, transparent pricing",
-      "subtitle": "Browser Automation Studio today. More Silent Founder OS tools added over time.",
+      "subtitle": "Vrooli Ascension today. More Silent Founder OS tools added over time.",
       "tiers": [
         {"name":"Free","price":"$0","description":"50 runs/month, builder, replay viewer (watermarked MP4)","features":["Visual workflow builder","Replay viewer with watermark","50 runs/month","No agents or UX metrics"],"cta_text":"Start free","cta_url":"/checkout?plan=free","badge":"Try it now"},
         {"name":"Solo","price":"$29","description":"200 runs/month, MP4 export with watermark","features":["200 runs/month","MP4 export (watermark)","Workflow builder + replays","Email support"],"cta_text":"Upgrade to Solo","cta_url":"/checkout?plan=solo"},
@@ -76,7 +76,7 @@ DECLARE
       ]
     }';
     features_json TEXT := '{
-      "title": "Browser Automation Studio is live now. The suite keeps growing.",
+      "title": "Vrooli Ascension is live now. The suite keeps growing.",
       "subtitle": "Automate browsers, ship tests, and generate proof-ready replays today. Your subscription includes future Vrooli Business Suite apps at no extra cost.",
       "features": [
         {"title":"Visual workflow builder","description":"Point-and-record or assemble actions to automate admin panels, dashboards, and back-office flows.","icon":"zap"},
@@ -90,13 +90,13 @@ DECLARE
       "title":"Answers for quiet founders",
       "subtitle":"What ships today, what is coming, and how we price it.",
       "faqs":[
-        {"question":"What do I get today?","answer":"Browser Automation Studio: visual workflow builder, CI-friendly tests, replay viewer, and MP4 exports (watermark rules by plan)."},
+        {"question":"What do I get today?","answer":"Vrooli Ascension: visual workflow builder, CI-friendly tests, replay viewer, and MP4 exports (watermark rules by plan)."},
         {"question":"What is coming next?","answer":"UX metrics layer (friction, duration, spatial paths) and agent loops that fix flows via ecosystem-manager + PRD control tower."},
         {"question":"Do I have to talk to sales?","answer":"No. No sales calls, no per-seat pricing. Subscribe, download, and grow quietly. Support is async."},
         {"question":"Can I cancel or switch?","answer":"Yes. Plans are flat, cancellable, and your price is honored as the suite expands."}
       ]
     }';
-    downloads_json TEXT := '{"title":"Download Browser Automation Studio","subtitle":"macOS, Windows, Linux builds respect entitlements. Install, sign in, and start automating."}';
+    downloads_json TEXT := '{"title":"Download Vrooli Ascension","subtitle":"macOS, Windows, Linux builds respect entitlements. Install, sign in, and start automating."}';
 BEGIN
     -- Reset sections for control and curated variants so seeds overwrite stale content
     DELETE FROM content_sections WHERE variant_id IN (
@@ -112,30 +112,30 @@ BEGIN
 
     -- Control variant = Silent Founder OS
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-    ((SELECT id FROM variants WHERE slug='control'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),
-    ((SELECT id FROM variants WHERE slug='control'), 'video', '{"title":"Watch Browser Automation Studio build and replay a flow","videoUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."}', 2, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Vrooli Ascension: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'video', '{"title":"Watch Vrooli Ascension build and replay a flow","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='control'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='control'), 'pricing', pricing_json::json, 4, TRUE),
     ((SELECT id FROM variants WHERE slug='control'), 'faq', faq_json::json, 5, TRUE),
-    ((SELECT id FROM variants WHERE slug='control'), 'cta', '{"title":"See Browser Automation Studio in action","subtitle":"Start free, export a replay, and know more tools are coming to the same subscription.","cta_text":"Get started quietly","cta_url":"/checkout?plan=pro"}', 6, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'cta', '{"title":"See Vrooli Ascension in action","subtitle":"Start free, export a replay, and know more tools are coming to the same subscription.","cta_text":"Get started quietly","cta_url":"/checkout?plan=pro"}', 6, TRUE),
     ((SELECT id FROM variants WHERE slug='control'), 'downloads', downloads_json::json, 7, TRUE)
     ON CONFLICT DO NOTHING;
 
     -- Silent Founder (entrepreneurship · emotional)
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),
-    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'video', '{"title":"Watch Browser Automation Studio build and replay a flow","videoUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."}', 2, TRUE),
+    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Vrooli Ascension: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),
+    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'video', '{"title":"Watch Vrooli Ascension build and replay a flow","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'pricing', pricing_json::json, 4, TRUE),
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'faq', faq_json::json, 5, TRUE),
-    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'cta', '{"title":"See Browser Automation Studio in action","subtitle":"Start free, export a replay, and know more tools are coming to the same subscription.","cta_text":"Get started quietly","cta_url":"/checkout?plan=pro"}', 6, TRUE),
+    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'cta', '{"title":"See Vrooli Ascension in action","subtitle":"Start free, export a replay, and know more tools are coming to the same subscription.","cta_text":"Get started quietly","cta_url":"/checkout?plan=pro"}', 6, TRUE),
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'downloads', downloads_json::json, 7, TRUE)
     ON CONFLICT DO NOTHING;
 
     -- Solo Dev (testing · technical)
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-    ((SELECT id FROM variants WHERE slug='solo-dev-testing-technical'), 'hero', '{"title":"End-to-end tests that replay like a movie.","subtitle":"Your workflows are your tests. Build in Browser Automation Studio, run in CI, and share MP4 evidence without watermark on Pro.","cta_text":"Build a test","cta_url":"/checkout?plan=pro","secondary_cta_text":"Watch a failure replay","secondary_cta_url":"#video-2"}', 1, TRUE),
-    ((SELECT id FROM variants WHERE slug='solo-dev-testing-technical'), 'video', '{"title":"See a CI-friendly replay","videoUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Trigger workflows from CI, capture failures, export the replay for teammates and docs."}', 2, TRUE),
+    ((SELECT id FROM variants WHERE slug='solo-dev-testing-technical'), 'hero', '{"title":"End-to-end tests that replay like a movie.","subtitle":"Your workflows are your tests. Build in Vrooli Ascension, run in CI, and share MP4 evidence without watermark on Pro.","cta_text":"Build a test","cta_url":"/checkout?plan=pro","secondary_cta_text":"Watch a failure replay","secondary_cta_url":"#video-2"}', 1, TRUE),
+    ((SELECT id FROM variants WHERE slug='solo-dev-testing-technical'), 'video', '{"title":"See a CI-friendly replay","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Trigger workflows from CI, capture failures, export the replay for teammates and docs."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='solo-dev-testing-technical'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='solo-dev-testing-technical'), 'pricing', pricing_json::json, 4, TRUE),
     ((SELECT id FROM variants WHERE slug='solo-dev-testing-technical'), 'faq', faq_json::json, 5, TRUE),
@@ -145,8 +145,8 @@ BEGIN
 
     -- QA Engineer (testing · technical)
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-    ((SELECT id FROM variants WHERE slug='qa-engineer-testing-technical'), 'hero', '{"title":"Give QA replay evidence for every regression.","subtitle":"Browser Automation Studio records flows as living tests. Failures replay in a fake browser frame so devs and PMs see exactly what broke.","cta_text":"Start QA-ready","cta_url":"/checkout?plan=pro","secondary_cta_text":"Preview replay evidence","secondary_cta_url":"#video-2"}', 1, TRUE),
-    ((SELECT id FROM variants WHERE slug='qa-engineer-testing-technical'), 'video', '{"title":"Debug with visual proof","videoUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Replay cursor paths, zooms, and highlights for any failing step. Export as MP4 for tickets."}', 2, TRUE),
+    ((SELECT id FROM variants WHERE slug='qa-engineer-testing-technical'), 'hero', '{"title":"Give QA replay evidence for every regression.","subtitle":"Vrooli Ascension records flows as living tests. Failures replay in a fake browser frame so devs and PMs see exactly what broke.","cta_text":"Start QA-ready","cta_url":"/checkout?plan=pro","secondary_cta_text":"Preview replay evidence","secondary_cta_url":"#video-2"}', 1, TRUE),
+    ((SELECT id FROM variants WHERE slug='qa-engineer-testing-technical'), 'video', '{"title":"Debug with visual proof","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Replay cursor paths, zooms, and highlights for any failing step. Export as MP4 for tickets."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='qa-engineer-testing-technical'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='qa-engineer-testing-technical'), 'pricing', pricing_json::json, 4, TRUE),
     ((SELECT id FROM variants WHERE slug='qa-engineer-testing-technical'), 'faq', faq_json::json, 5, TRUE),
@@ -157,7 +157,7 @@ BEGIN
     -- Automation Engineer (automation · visionary)
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
     ((SELECT id FROM variants WHERE slug='automation-engineer-automation-visionary'), 'hero', '{"title":"Visually program the browser. Agents take it from there.","subtitle":"Replace brittle scripts with a visual builder, schedule runs, and get ready for agent loops that fix issues automatically.","cta_text":"Automate a flow","cta_url":"/checkout?plan=pro","secondary_cta_text":"See the builder","secondary_cta_url":"#video-2"}', 1, TRUE),
-    ((SELECT id FROM variants WHERE slug='automation-engineer-automation-visionary'), 'video', '{"title":"From workflow to automation loop","videoUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Capture a workflow, replay it, and visualize where agent loops will plug in next."}', 2, TRUE),
+    ((SELECT id FROM variants WHERE slug='automation-engineer-automation-visionary'), 'video', '{"title":"From workflow to automation loop","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Capture a workflow, replay it, and visualize where agent loops will plug in next."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='automation-engineer-automation-visionary'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='automation-engineer-automation-visionary'), 'pricing', pricing_json::json, 4, TRUE),
     ((SELECT id FROM variants WHERE slug='automation-engineer-automation-visionary'), 'faq', faq_json::json, 5, TRUE),
@@ -168,7 +168,7 @@ BEGIN
     -- Agency (marketing · visionary)
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
     ((SELECT id FROM variants WHERE slug='agency-marketing-visionary'), 'hero', '{"title":"Deliver client-ready demos in hours.","subtitle":"Record flows, export MP4s with fake browser frames, and ship branded replays without custom video work.","cta_text":"Start Studio","cta_url":"/checkout?plan=studio","secondary_cta_text":"See a client-ready replay","secondary_cta_url":"#video-2"}', 1, TRUE),
-    ((SELECT id FROM variants WHERE slug='agency-marketing-visionary'), 'video', '{"title":"Cinematic browser replays","videoUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Cursor animation, zooms, and highlights packaged as MP4 for marketing and tutorials."}', 2, TRUE),
+    ((SELECT id FROM variants WHERE slug='agency-marketing-visionary'), 'video', '{"title":"Cinematic browser replays","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Cursor animation, zooms, and highlights packaged as MP4 for marketing and tutorials."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='agency-marketing-visionary'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='agency-marketing-visionary'), 'pricing', pricing_json::json, 4, TRUE),
     ((SELECT id FROM variants WHERE slug='agency-marketing-visionary'), 'faq', faq_json::json, 5, TRUE),
@@ -180,7 +180,7 @@ END $$;
 -- Bundle products & prices (business suite)
 INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment, metadata)
 VALUES
-('business_suite', 'Vrooli Business Suite (Silent Founder OS)', 'prod_business_suite', 1000000, 0.001, 'credits', 'production', '{"description":"Browser Automation Studio today; expanding suite tomorrow"}')
+('business_suite', 'Vrooli Business Suite (Silent Founder OS)', 'prod_business_suite', 1000000, 0.001, 'credits', 'production', '{"description":"Vrooli Ascension today; expanding suite tomorrow"}')
 ON CONFLICT (bundle_key) DO UPDATE SET
     bundle_name = EXCLUDED.bundle_name,
     stripe_product_id = EXCLUDED.stripe_product_id,
@@ -208,7 +208,7 @@ INSERT INTO bundle_prices (
 ((SELECT id FROM prod), 'price_studio_yearly', 'Studio Yearly', 'studio', 'year', 199000, 'usd', FALSE, NULL, NULL, 0, NULL, 2000000, 0, 3, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["Custom branding in replays","More agent loop concurrency","Multi-seat studio"]}', 30),
 ((SELECT id FROM prod), 'price_business_yearly', 'Business Yearly', 'business', 'year', 499000, 'usd', FALSE, NULL, NULL, 0, NULL, 4000000, 0, 4, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["Unlimited agent loops","API + webhooks","Reliability + SSO prep"]}', 5),
 ((SELECT id FROM prod), 'price_credits_topup', 'Credits Top-Up', 'credits', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'credits_topup', TRUE, TRUE, '{"description":"Add credits via Stripe checkout"}', 5),
-((SELECT id FROM prod), 'price_supporter_contribution', 'Supporter Contribution', 'donation', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'supporter_contribution', TRUE, TRUE, '{"grants_credits": false, "grants_entitlements": false, "description":"Support Browser Automation Studio"}', 1)
+((SELECT id FROM prod), 'price_supporter_contribution', 'Supporter Contribution', 'donation', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'supporter_contribution', TRUE, TRUE, '{"grants_credits": false, "grants_entitlements": false, "description":"Support Vrooli Ascension"}', 1)
 ON CONFLICT (stripe_price_id) DO UPDATE SET
     plan_name = EXCLUDED.plan_name,
     plan_tier = EXCLUDED.plan_tier,
@@ -233,7 +233,7 @@ ON CONFLICT (stripe_price_id) DO UPDATE SET
 -- Download apps + platform installers
 INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)
 VALUES
-('business_suite', 'automation_studio', 'Browser Automation Studio', 'Silent Founder OS · Day-one value', 'Desktop suite for visual browser automation, tests, and cinematic replays.', 'Download the installer for your OS and sign in with the email tied to your active subscription.', '["Download the installer for your OS","Launch the setup wizard","Sign in with your subscription email to unlock downloads"]', '[{"store":"app_store","label":"macOS App Store","url":"https://apps.apple.com/app/id000000","badge":"Download on the App Store"}]', '{"bundle":"business_suite"}', 1)
+('business_suite', 'automation_studio', 'Vrooli Ascension', 'Silent Founder OS · Day-one value', 'Desktop suite for visual browser automation, tests, and cinematic replays.', 'Download the installer for your OS and sign in with the email tied to your active subscription.', '["Download the installer for your OS","Launch the setup wizard","Sign in with your subscription email to unlock downloads"]', '[{"store":"app_store","label":"macOS App Store","url":"https://apps.apple.com/app/id000000","badge":"Download on the App Store"}]', '{"bundle":"business_suite"}', 1)
 ON CONFLICT (bundle_key, app_key) DO UPDATE SET
     name = EXCLUDED.name,
     tagline = EXCLUDED.tagline,
@@ -284,8 +284,12 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO site_branding (id, site_name, tagline, robots_txt)
 VALUES (
     1,
-    'My Landing',
-    NULL,
+    'Silent Founder OS',
+    'Build and market your business quietly with Vrooli Ascension.',
     E'User-agent: *\nAllow: /'
 )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    site_name = EXCLUDED.site_name,
+    tagline = EXCLUDED.tagline,
+    robots_txt = EXCLUDED.robots_txt,
+    updated_at = NOW();

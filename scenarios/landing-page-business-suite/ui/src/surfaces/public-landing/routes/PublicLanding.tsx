@@ -370,7 +370,7 @@ export function PublicLanding() {
           <DownloadSection
             downloads={downloadApps}
             content={{
-              title: 'Download Browser Automation Studio',
+              title: 'Download Vrooli Ascension',
               subtitle: 'Install on Windows, macOS, Linux, or via the stores while we verify entitlements.',
             }}
           />

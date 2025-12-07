@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 // PlanService exposes helper utilities for pricing/plan metadata.
@@ -26,9 +26,9 @@ type PlanService struct {
 
 type (
 	// BundleProduct is a thin alias to the shared protobuf bundle for readability.
-	BundleProduct   = lprvv1.Bundle
-	PlanOption      = lprvv1.PlanOption
-	PricingOverview = lprvv1.PricingOverview
+	BundleProduct   = landing_page_react_vite_v1.Bundle
+	PlanOption      = landing_page_react_vite_v1.PlanOption
+	PricingOverview = landing_page_react_vite_v1.PricingOverview
 )
 
 type bundleProductRecord struct {
@@ -73,9 +73,9 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 			continue
 		}
 		switch price.BillingInterval {
-		case "month":
+		case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH:
 			monthly = append(monthly, proto.Clone(price).(*PlanOption))
-		case "year":
+		case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
 			yearly = append(yearly, proto.Clone(price).(*PlanOption))
 		}
 	}
@@ -123,12 +123,13 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	option := &PlanOption{}
 	var metadataBytes []byte
 	var rawKind string
+	var rawInterval string
 	var introAmount sql.NullInt64
 	err := row.Scan(
 		&option.StripePriceId,
 		&option.PlanName,
 		&option.PlanTier,
-		&option.BillingInterval,
+		&rawInterval,
 		&option.AmountCents,
 		&option.Currency,
 		&option.IntroEnabled,
@@ -166,6 +167,7 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	}
 
 	option.Kind = mapPlanKind(rawKind)
+	option.BillingInterval = mapBillingInterval(rawInterval)
 
 	return option, nil
 }
@@ -231,11 +233,12 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 		var metadataBytes []byte
 		var introAmount sql.NullInt64
 		var rawKind string
+		var rawInterval string
 		if err := rows.Scan(
 			&option.StripePriceId,
 			&option.PlanName,
 			&option.PlanTier,
-			&option.BillingInterval,
+			&rawInterval,
 			&option.AmountCents,
 			&option.Currency,
 			&option.IntroEnabled,
@@ -269,6 +272,7 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 		}
 
 		option.Kind = mapPlanKind(rawKind)
+		option.BillingInterval = mapBillingInterval(rawInterval)
 
 		copied := option
 		options = append(options, &copied)
@@ -473,28 +477,54 @@ func parseMetadata(metadataBytes []byte) map[string]*structpb.Value {
 	return structVal.Fields
 }
 
-func mapPlanKind(kind string) lprvv1.PlanKind {
+func mapPlanKind(kind string) landing_page_react_vite_v1.PlanKind {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "subscription":
-		return lprvv1.PlanKind_PLAN_KIND_SUBSCRIPTION
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION
 	case "credits_topup", "credits-topup", "credits":
-		return lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP
 	case "supporter_contribution", "supporter-contribution", "supporter":
-		return lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION
 	default:
-		return lprvv1.PlanKind_PLAN_KIND_UNSPECIFIED
+		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED
 	}
 }
 
-func planKindString(kind lprvv1.PlanKind) string {
+func planKindString(kind landing_page_react_vite_v1.PlanKind) string {
 	switch kind {
-	case lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
 		return "credits_topup"
-	case lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
+	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		return "supporter_contribution"
-	case lprvv1.PlanKind_PLAN_KIND_SUBSCRIPTION:
+	case landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION:
 		return "subscription"
 	default:
 		return "subscription"
+	}
+}
+
+func mapBillingInterval(raw string) landing_page_react_vite_v1.BillingInterval {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "month", "monthly", "m":
+		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH
+	case "year", "yearly", "y":
+		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR
+	case "one_time", "one-time", "one time", "onetime", "ot":
+		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME
+	default:
+		return landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED
+	}
+}
+
+func billingIntervalLabel(interval landing_page_react_vite_v1.BillingInterval) string {
+	switch interval {
+	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH:
+		return "month"
+	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
+		return "year"
+	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME:
+		return "one_time"
+	default:
+		return "unspecified"
 	}
 }

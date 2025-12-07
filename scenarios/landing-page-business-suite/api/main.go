@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"os"
 	"os/signal"
 	"strings"
@@ -82,6 +83,10 @@ func NewServer() (*Server, error) {
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
 	brandingService := NewBrandingService(db)
 	assetsService := NewAssetsService(db)
+
+	if err := syncVariantSnapshots(variantService, contentService); err != nil {
+		return nil, fmt.Errorf("failed to sync variant snapshots: %w", err)
+	}
 
 	srv := &Server{
 		config:               cfg,
@@ -830,6 +835,110 @@ func upsertVariantAxesBySlug(db *sql.DB, slug string, axes map[string]string) er
 		`, variantID, axisID, value); err != nil {
 			return fmt.Errorf("failed to upsert axis %s for %s: %w", axisID, slug, err)
 		}
+	}
+
+	return nil
+}
+
+// syncVariantSnapshots loads variant snapshot JSON files and ensures the database matches them.
+// This keeps landing variants in sync with the checked-in source of truth when the service starts.
+func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
+	if vs == nil || cs == nil {
+		return fmt.Errorf("variant or content service missing")
+	}
+
+	dir := strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_DIR"))
+	if dir == "" {
+		candidates := []string{
+			filepath.Join("..", ".vrooli", "variants"),
+			filepath.Join(".", ".vrooli", "variants"),
+		}
+		for _, candidate := range candidates {
+			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+				dir = candidate
+				break
+			}
+		}
+	}
+
+	if dir == "" {
+		logStructured("variant_snapshot_sync_skipped", map[string]interface{}{
+			"reason": "no snapshot directory found",
+		})
+		return nil
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logStructured("variant_snapshot_sync_skipped", map[string]interface{}{
+				"reason": "snapshot directory missing",
+				"path":   dir,
+			})
+			return nil
+		}
+		return fmt.Errorf("read snapshot directory %s: %w", dir, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read snapshot %s: %w", path, err)
+		}
+
+		var snapshot VariantSnapshotInput
+		if err := json.Unmarshal(raw, &snapshot); err != nil {
+			return fmt.Errorf("parse snapshot %s: %w", path, err)
+		}
+
+		slug := strings.TrimSpace(snapshot.Variant.Slug)
+		if slug == "" {
+			logStructuredError("variant_snapshot_missing_slug", map[string]interface{}{
+				"file": path,
+			})
+			continue
+		}
+
+		if snapshot.Variant.HeaderConfig == nil {
+			cfg := defaultLandingHeaderConfig(valueOrDefault(snapshot.Variant.Name, slug))
+			snapshot.Variant.HeaderConfig = &cfg
+		}
+
+		if len(snapshot.Variant.Axes) == 0 {
+			return fmt.Errorf("snapshot %s missing axes for variant %s", path, slug)
+		}
+
+		if _, err := vs.GetVariantBySlug(slug); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "not found") {
+				name := valueOrDefault(snapshot.Variant.Name, slug)
+				desc := snapshot.Variant.Description
+				if strings.TrimSpace(desc) == "" {
+					desc = "Imported from snapshot"
+				}
+				weight := snapshot.Variant.Weight
+				if weight < 0 || weight > 100 {
+					weight = 50
+				}
+				if _, err := vs.CreateVariant(slug, name, desc, weight, snapshot.Variant.Axes); err != nil {
+					return fmt.Errorf("create variant %s: %w", slug, err)
+				}
+			} else {
+				return fmt.Errorf("lookup variant %s: %w", slug, err)
+			}
+		}
+
+		if _, err := vs.ImportVariantSnapshot(slug, snapshot, cs); err != nil {
+			return fmt.Errorf("import variant %s: %w", slug, err)
+		}
+
+		logStructured("variant_snapshot_synced", map[string]interface{}{
+			"slug": slug,
+			"file": path,
+		})
 	}
 
 	return nil

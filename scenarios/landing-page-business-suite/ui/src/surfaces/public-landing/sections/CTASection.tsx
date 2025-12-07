@@ -33,29 +33,27 @@ export function CTASection({ content }: CTASectionProps) {
             <div className="space-y-4">
               <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Next step</p>
               <h2 className="text-4xl font-semibold leading-tight">
-                {content.title || 'Book a live review of your variant stack'}
+                {content.title || 'See your ops and marketing run themselves'}
               </h2>
               <p className="text-lg text-slate-300">
                 {content.subtitle ||
-                  'Walk through analytics, styling.json guardrails, and staged downloads with an operator who ships Clause-grade experiences every week.'}
+                  'We’ll set up Vrooli Ascension, record your first promo reel, and connect you to the bundle roadmap so you keep compounding.'}
               </p>
             </div>
-            {content.cta_text && (
-              <div className="flex flex-col gap-3">
-                <Button
-                  size="default"
-                  onClick={handleCTAClick}
-                  className="gap-2 px-10 py-4"
-                  data-testid="cta-button"
-                >
-                  {content.cta_text}
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-                <p className="text-sm text-slate-400">
-                  Includes a full style-pack export, variant audit, and download entitlement verification.
-                </p>
-              </div>
-            )}
+            <div className="flex flex-col gap-3">
+              <Button
+                size="default"
+                onClick={handleCTAClick}
+                className="gap-2 px-10 py-4"
+                data-testid="cta-button"
+              >
+                {content.cta_text || 'Start with Vrooli Ascension'}
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+              <p className="text-sm text-slate-400">
+                Bring a browser tab you dread opening. We’ll automate it, record it, and ship the first asset together.
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -113,6 +113,9 @@ func (s *Server) setupRoutes() {
 	// Delete desktop application
 	s.router.HandleFunc("/api/v1/desktop/delete/{scenario_name}", s.deleteDesktopHandler).Methods("DELETE")
 
+	// Resolve scenario ports via vrooli CLI (dynamic per lifecycle)
+	s.router.HandleFunc("/api/v1/ports/{scenario}/{port_name}", s.getScenarioPortHandler).Methods("GET")
+
 	// Desktop records
 	s.router.HandleFunc("/api/v1/desktop/records", s.listDesktopRecordsHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/records/{record_id}/move", s.moveDesktopRecordHandler).Methods("POST")

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 func TestPlanServicePricingOverview(t *testing.T) {
@@ -103,8 +105,8 @@ func TestPlanServicePricingOverview(t *testing.T) {
 	}
 
 	yearly := overview.Yearly[0]
-	if yearly.BillingInterval != "year" {
-		t.Fatalf("expected yearly billing interval, got %s", yearly.BillingInterval)
+	if yearly.BillingInterval != landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR {
+		t.Fatalf("expected yearly billing interval, got %v", yearly.BillingInterval)
 	}
 	if yearly.IntroEnabled {
 		t.Fatal("expected yearly intro disabled")

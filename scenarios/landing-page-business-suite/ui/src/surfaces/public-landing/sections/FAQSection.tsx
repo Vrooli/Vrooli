@@ -19,24 +19,24 @@ export function FAQSection({ content }: FAQSectionProps) {
 
   const faqs = content.faqs || [
     {
-      question: 'How quickly can I launch a landing page?',
-      answer: 'You can have a fully functional landing page live in minutes. Our templates are pre-built and optimized, so you just need to customize the content and deploy.',
+      question: 'What is Silent Founder OS?',
+      answer: 'It is the Vrooli business bundle built for solo operators. The first app is Vrooli Ascension: it automates browser workflows and exports studio-quality screen recordings for marketing.',
     },
     {
-      question: 'Do I need coding skills?',
-      answer: 'No coding required! Our visual editor and agent customization features allow you to create professional landing pages without writing any code.',
+      question: 'Do I need to code or design?',
+      answer: 'No. BAS is visual and AI-assisted. You point it at your browser tasks, it builds the workflow, retries failures, and records polished walkthroughs with overlays.',
     },
     {
-      question: 'Can I run A/B tests?',
-      answer: 'Yes! A/B testing is built-in. You can create multiple variants, set traffic weights, and track performance metrics to optimize your conversion rates.',
+      question: 'What can BAS automate?',
+      answer: 'Lead research, CRM updates, onboarding checklists, ad dashboard pulls, and product walkthroughs. Anything in a browser with clicks, waits, loops, and extracts.',
     },
     {
-      question: 'What kind of analytics do you provide?',
-      answer: 'We provide comprehensive analytics including visitor counts, conversion rates, click-through rates, scroll depth, and variant performance comparisons.',
+      question: 'How are screen recordings produced?',
+      answer: 'Every automation run can output HD recordings with branded overlays. When your UI changes, re-run the flow and get fresh reels automatically.',
     },
     {
-      question: 'How does pricing work?',
-      answer: 'We offer flexible pricing tiers based on your needs. Start with our free trial, then choose a plan that matches your scale. No hidden fees, cancel anytime.',
+      question: 'What happens as new apps launch?',
+      answer: 'Early adopters keep bundle pricing and gain access as we ship new business apps. Your automations, assets, and analytics stay in the same OS.',
     },
   ];
 

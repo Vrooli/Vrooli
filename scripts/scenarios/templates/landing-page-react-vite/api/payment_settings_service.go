@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -30,14 +30,14 @@ func NewPaymentSettingsService(db *sql.DB) *PaymentSettingsService {
 }
 
 // GetStripeSettings returns the latest persisted Stripe configuration.
-func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*lprvv1.StripeSettings, error) {
+func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landing_page_react_vite_v1.StripeSettings, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT publishable_key, secret_key, webhook_secret, dashboard_url, updated_at
 		FROM payment_settings
 		WHERE id = 1
 	`)
 
-	record := &lprvv1.StripeSettings{}
+	record := &landing_page_react_vite_v1.StripeSettings{}
 	var publishable, secret, webhook, dashboard sql.NullString
 	var updatedAt time.Time
 	if err := row.Scan(&publishable, &secret, &webhook, &dashboard, &updatedAt); err != nil {
@@ -68,7 +68,7 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*lprvv1
 }
 
 // SaveStripeSettings persists the provided fields and returns the resulting record.
-func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input StripeSettingsInput) (*lprvv1.StripeSettings, error) {
+func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input StripeSettingsInput) (*landing_page_react_vite_v1.StripeSettings, error) {
 	current, err := s.GetStripeSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load current stripe settings: %w", err)
@@ -95,7 +95,7 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 	dashboard := normalize(input.DashboardURL)
 
 	if current == nil {
-		current = &lprvv1.StripeSettings{}
+		current = &landing_page_react_vite_v1.StripeSettings{}
 	}
 
 	nextPublishable := updateField(current.PublishableKey, pub)
@@ -115,7 +115,7 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 		RETURNING publishable_key, secret_key, webhook_secret, dashboard_url, updated_at
 	`, nextPublishable, nextSecret, nextWebhook, nextDashboard)
 
-	record := &lprvv1.StripeSettings{}
+	record := &landing_page_react_vite_v1.StripeSettings{}
 	var updatedAt time.Time
 	if err := row.Scan(&record.PublishableKey, &record.SecretKey, &record.WebhookSecret, &record.DashboardUrl, &updatedAt); err != nil {
 		return nil, fmt.Errorf("save stripe settings: %w", err)

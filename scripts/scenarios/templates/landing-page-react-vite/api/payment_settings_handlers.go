@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
@@ -17,7 +17,7 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 		}
 
 		snapshot := stripeService.ConfigSnapshot()
-		resp := &lprvv1.GetStripeSettingsResponse{
+		resp := &landing_page_react_vite_v1.GetStripeSettingsResponse{
 			Snapshot: snapshot,
 			Settings: record,
 		}
@@ -40,7 +40,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			return
 		}
 
-		req := lprvv1.UpdateStripeSettingsRequest{
+		req := landing_page_react_vite_v1.UpdateStripeSettingsRequest{
 			PublishableKey: body.PublishableKey,
 			SecretKey:      body.SecretKey,
 			WebhookSecret:  body.WebhookSecret,
@@ -95,7 +95,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		}
 
 		snapshot := stripeService.ConfigSnapshot()
-		resp := &lprvv1.UpdateStripeSettingsResponse{
+		resp := &landing_page_react_vite_v1.UpdateStripeSettingsResponse{
 			Snapshot: snapshot,
 			Settings: record,
 		}

@@ -27,19 +27,19 @@ interface FeaturesSectionProps {
 export function FeaturesSection({ content }: FeaturesSectionProps) {
   const features = content.features || [
     {
-      title: 'Layered UI primitives',
-      description: 'Hero panels, brand guidelines strip, and download rails share a single design system.',
+      title: 'Automation-first OS',
+      description: 'Vrooli Ascension builds, retries, and heals workflows so founders ship without engineers.',
+      icon: 'zap' as const,
+    },
+    {
+      title: 'Stunning screen recordings',
+      description: 'Generate HD walkthroughs and reels directly from your automations—no webcam, no editing.',
+      icon: 'sparkles' as const,
+    },
+    {
+      title: 'Future-proof bundle',
+      description: 'Silent Founder OS grows into a suite: customer ops, outreach, and analytics plug in as you scale.',
       icon: 'layers' as const,
-    },
-    {
-      title: 'Persona-aware variants',
-      description: 'Variant axes feed copy, CTA priorities, and layout tweaks for every test.',
-      icon: 'target' as const,
-    },
-    {
-      title: 'Entitlement-backed downloads',
-      description: 'Download cards verify plan tier + credit balance before presenting installers.',
-      icon: 'database' as const,
     },
   ];
 
@@ -49,11 +49,11 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
         <div className="max-w-4xl space-y-4">
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">System features</p>
           <h2 className="text-4xl font-semibold">
-            {content.title || 'One landing runtime, multiple Clause-grade building blocks'}
+            {content.title || 'The Silent Founder OS: automate ops, export proof, stay in flow'}
           </h2>
           <p className="text-lg text-slate-300">
             {content.subtitle ||
-              'Every section and CTA is locked to the styling.json contract so agents can swap personas without breaking the artifact-driven layout.'}
+              'Start with Vrooli Ascension, then snap in upcoming business apps. Your assets, automations, and analytics live together.'}
           </p>
         </div>
 
@@ -78,8 +78,8 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
 
         <div className="mt-12 rounded-3xl border border-white/5 bg-white/5 p-6 text-sm text-slate-300">
           <p>
-            Clause-style styling packs live under <code className="text-white">.vrooli/style-packs/</code>. Admins can regenerate
-            them via landing-manager, ensuring every generated scenario inherits the same professional case-study polish.
+            Early adopters lock in bundle pricing as we add new modules. Vrooli Ascension is the first drop—customer ops,
+            outreach, and analytics ship next without breaking your workflow.
           </p>
         </div>
       </div>

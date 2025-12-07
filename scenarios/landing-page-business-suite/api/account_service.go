@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -26,22 +26,22 @@ type AccountService struct {
 
 // EntitlementPayload is used by bundled apps to unlock features.
 type EntitlementPayload struct {
-	Status       string                     `json:"status"`
-	PlanTier     string                     `json:"plan_tier,omitempty"`
-	PriceID      string                     `json:"price_id,omitempty"`
-	Features     []string                   `json:"features,omitempty"`
-	Credits      *lprvv1.CreditsBalance     `json:"credits,omitempty"`
-	Subscription *lprvv1.SubscriptionStatus `json:"subscription,omitempty"`
+	Status       string                                         `json:"status"`
+	PlanTier     string                                         `json:"plan_tier,omitempty"`
+	PriceID      string                                         `json:"price_id,omitempty"`
+	Features     []string                                       `json:"features,omitempty"`
+	Credits      *landing_page_react_vite_v1.CreditsBalance     `json:"credits,omitempty"`
+	Subscription *landing_page_react_vite_v1.SubscriptionStatus `json:"subscription,omitempty"`
 }
 
 type CreditsEnvelope struct {
-	Balance                  *lprvv1.CreditsBalance `json:"balance"`
-	DisplayCreditsLabel      string                 `json:"display_credits_label"`
-	DisplayCreditsMultiplier float64                `json:"display_credits_multiplier"`
+	Balance                  *landing_page_react_vite_v1.CreditsBalance `json:"balance"`
+	DisplayCreditsLabel      string                                     `json:"display_credits_label"`
+	DisplayCreditsMultiplier float64                                    `json:"display_credits_multiplier"`
 }
 
 type subscriptionCacheEntry struct {
-	status    *lprvv1.SubscriptionStatus
+	status    *landing_page_react_vite_v1.SubscriptionStatus
 	expiresAt time.Time
 }
 
@@ -70,10 +70,10 @@ func loadCacheTTL() time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
-func (s *AccountService) GetSubscription(userIdentity string) (*lprvv1.SubscriptionStatus, error) {
+func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
 	user := strings.TrimSpace(userIdentity)
 	if user == "" {
-		return &lprvv1.SubscriptionStatus{State: lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, Message: "user not provided"}, nil
+		return &landing_page_react_vite_v1.SubscriptionStatus{State: landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, Message: "user not provided"}, nil
 	}
 
 	if cached, ok := s.getCachedSubscription(user); ok {
@@ -103,7 +103,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*lprvv1.Subscript
 		&updatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			return &lprvv1.SubscriptionStatus{State: lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, UserIdentity: user}, nil
+			return &landing_page_react_vite_v1.SubscriptionStatus{State: landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, UserIdentity: user}, nil
 		}
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*lprvv1.Subscript
 
 	state := mapSubscriptionState(status)
 	cacheAge := time.Since(updatedAt)
-	result := &lprvv1.SubscriptionStatus{
+	result := &landing_page_react_vite_v1.SubscriptionStatus{
 		State:          state,
 		SubscriptionId: subID,
 		UserIdentity:   user,
@@ -138,7 +138,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*lprvv1.Subscript
 func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, error) {
 	if strings.TrimSpace(userIdentity) == "" {
 		return &CreditsEnvelope{
-			Balance: &lprvv1.CreditsBalance{
+			Balance: &landing_page_react_vite_v1.CreditsBalance{
 				CustomerEmail:  "",
 				BalanceCredits: 0,
 				BundleKey:      s.bundleKey,
@@ -157,7 +157,7 @@ func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, erro
 	`
 
 	row := s.db.QueryRow(query, userIdentity)
-	var balance lprvv1.CreditsBalance
+	var balance landing_page_react_vite_v1.CreditsBalance
 	var updatedAt time.Time
 	if err := row.Scan(
 		&balance.CustomerEmail,
@@ -226,7 +226,7 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 	return payload, nil
 }
 
-func (s *AccountService) getCachedSubscription(user string) (*lprvv1.SubscriptionStatus, bool) {
+func (s *AccountService) getCachedSubscription(user string) (*landing_page_react_vite_v1.SubscriptionStatus, bool) {
 	s.cacheMutex.RLock()
 	entry, ok := s.cache[user]
 	if !ok {
@@ -242,18 +242,18 @@ func (s *AccountService) getCachedSubscription(user string) (*lprvv1.Subscriptio
 		return nil, false
 	}
 
-	cached := proto.Clone(entry.status).(*lprvv1.SubscriptionStatus)
+	cached := proto.Clone(entry.status).(*landing_page_react_vite_v1.SubscriptionStatus)
 	s.cacheMutex.RUnlock()
 	return cached, true
 }
 
-func (s *AccountService) cacheSubscription(user string, status *lprvv1.SubscriptionStatus) {
+func (s *AccountService) cacheSubscription(user string, status *landing_page_react_vite_v1.SubscriptionStatus) {
 	if status == nil || s.cacheTTL <= 0 {
 		return
 	}
 
 	entry := subscriptionCacheEntry{
-		status:    &lprvv1.SubscriptionStatus{},
+		status:    &landing_page_react_vite_v1.SubscriptionStatus{},
 		expiresAt: time.Now().Add(s.cacheTTL),
 	}
 	*entry.status = *status
@@ -263,18 +263,18 @@ func (s *AccountService) cacheSubscription(user string, status *lprvv1.Subscript
 	s.cacheMutex.Unlock()
 }
 
-func mapSubscriptionState(state string) lprvv1.SubscriptionState {
+func mapSubscriptionState(state string) landing_page_react_vite_v1.SubscriptionState {
 	switch strings.ToLower(strings.TrimSpace(state)) {
 	case "active":
-		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
+		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
 	case "trialing":
-		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
+		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
 	case "past_due", "past-due":
-		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
+		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
 	case "canceled", "cancelled":
-		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
+		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
 	default:
-		return lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
+		return landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
 	}
 }
 
@@ -302,22 +302,22 @@ func extractFeatureFlags(metadata map[string]*structpb.Value) []string {
 	return features
 }
 
-func flattenCredits(resp *CreditsEnvelope) *lprvv1.CreditsBalance {
+func flattenCredits(resp *CreditsEnvelope) *landing_page_react_vite_v1.CreditsBalance {
 	if resp == nil {
 		return nil
 	}
 	return resp.Balance
 }
 
-func legacyStateLabel(state lprvv1.SubscriptionState) string {
+func legacyStateLabel(state landing_page_react_vite_v1.SubscriptionState) string {
 	switch state {
-	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE:
+	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE:
 		return "active"
-	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING:
+	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING:
 		return "trialing"
-	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE:
+	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE:
 		return "past_due"
-	case lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED:
+	case landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED:
 		return "canceled"
 	default:
 		return "inactive"

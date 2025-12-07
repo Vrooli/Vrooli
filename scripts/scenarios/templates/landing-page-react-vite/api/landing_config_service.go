@@ -19,7 +19,7 @@ var (
 		"variant": {
 			"id": 0,
 			"slug": "fallback",
-			"name": "Browser Automation Studio",
+			"name": "Vrooli Ascension",
 			"description": "Offline-safe fallback rendered when live APIs fail."
 		},
 		"axes": {
@@ -33,7 +33,7 @@ var (
 				"order": 1,
 				"enabled": true,
 				"content": {
-					"title": "Launch Browser Automation Studio Instantly",
+					"title": "Launch Vrooli Ascension Instantly",
 					"subtitle": "Ship automation workflows with Stripe-ready billing and admin analytics.",
 					"cta_text": "Get Started",
 					"cta_url": "/checkout?plan=pro",
@@ -83,7 +83,7 @@ var (
 				"enabled": true,
 				"content": {
 					"title": "Proof from operators",
-					"subtitle": "How teams describe Browser Automation Studio hand-offs during reviews.",
+					"subtitle": "How teams describe Vrooli Ascension hand-offs during reviews.",
 					"testimonials": [
 						{
 							"name": "Marina Patel",
@@ -115,7 +115,7 @@ var (
 				"enabled": true,
 				"content": {
 					"title": "Simple, transparent pricing",
-					"subtitle": "Bundled credit packs for Browser Automation Studio.",
+					"subtitle": "Bundled credit packs for Vrooli Ascension.",
 					"tiers": [
 						{
 							"name": "Solo",
@@ -162,7 +162,7 @@ var (
 				"order": 6,
 				"enabled": true,
 				"content": {
-					"title": "Download Browser Automation Studio",
+					"title": "Download Vrooli Ascension",
 					"subtitle": "macOS, Windows, Linux, and store links inherit entitlement gating by default."
 				}
 			},
@@ -194,7 +194,7 @@ var (
 				"order": 8,
 				"enabled": true,
 				"content": {
-					"title": "Deploy Browser Automation Studio in under an hour",
+					"title": "Deploy Vrooli Ascension in under an hour",
 					"subtitle": "Vrooli landing system manages subscriptions, download gating, and future upgrades.",
 					"cta_text": "Book a live demo",
 					"cta_url": "/contact"
@@ -288,7 +288,7 @@ var (
 			{
 				"bundle_key": "business_suite",
 				"app_key": "automation_studio",
-				"name": "Browser Automation Studio",
+				"name": "Vrooli Ascension",
 				"tagline": "Clause-grade desktop automations",
 				"description": "Desktop suite that orchestrates automations, download rail governance, and analytics traced per variant.",
 				"install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
@@ -312,7 +312,7 @@ var (
 						"platform": "windows",
 						"artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
 						"release_version": "1.0.0",
-						"release_notes": "Initial GA release with Browser Automation Studio.",
+						"release_notes": "Initial GA release with Vrooli Ascension.",
 						"requires_entitlement": true,
 						"metadata": {
 							"size_mb": 210

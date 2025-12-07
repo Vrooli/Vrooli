@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 // [REQ:STRIPE-CONFIG] Test Stripe environment configuration
@@ -128,7 +128,7 @@ func TestCreateCheckoutSession(t *testing.T) {
 		t.Errorf("Expected customer test@example.com, got %v", session.CustomerEmail)
 	}
 
-	if session.Status != lprvv1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN {
+	if session.Status != landing_page_react_vite_v1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN {
 		t.Errorf("Expected status open, got %v", session.Status)
 	}
 
@@ -397,7 +397,7 @@ func TestVerifySubscription(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	if result.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if result.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Errorf("Expected status active, got %v", result.State)
 	}
 
@@ -416,7 +416,7 @@ func TestVerifySubscription(t *testing.T) {
 		t.Fatalf("VerifySubscription failed: %v", err)
 	}
 
-	if result.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
+	if result.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
 		t.Errorf("Expected status inactive, got %v", result.State)
 	}
 }
@@ -473,7 +473,7 @@ func TestCancelSubscription(t *testing.T) {
 		t.Errorf("Expected subscription_id sub_cancel_test, got %v", result.SubscriptionId)
 	}
 
-	if result.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
+	if result.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
 		t.Errorf("Expected status canceled, got %v", result.State)
 	}
 

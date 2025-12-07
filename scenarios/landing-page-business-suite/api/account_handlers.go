@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -31,7 +31,7 @@ func handlePlans(service *PlanService) http.HandlerFunc {
 			http.Error(w, "Failed to load plans", http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, &lprvv1.GetPricingResponse{Pricing: overview})
+		writeJSON(w, &landing_page_react_vite_v1.GetPricingResponse{Pricing: overview})
 	}
 }
 
@@ -43,7 +43,7 @@ func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, &lprvv1.VerifySubscriptionResponse{Status: subscription})
+		writeJSON(w, &landing_page_react_vite_v1.VerifySubscriptionResponse{Status: subscription})
 	}
 }
 

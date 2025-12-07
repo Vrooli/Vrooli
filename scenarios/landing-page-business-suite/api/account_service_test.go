@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 func TestAccountServiceSubscriptionCache(t *testing.T) {
@@ -34,7 +34,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial GetSubscription failed: %v", err)
 	}
-	if info.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if info.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Fatalf("expected status active, got %s", info.State)
 	}
 
@@ -51,7 +51,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cached GetSubscription failed: %v", err)
 	}
-	if cached.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+	if cached.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
 		t.Fatalf("expected cached status active, got %s", cached.State)
 	}
 
@@ -61,7 +61,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("refresher GetSubscription failed: %v", err)
 	}
-	if refreshed.State != lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
+	if refreshed.State != landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
 		t.Fatalf("expected refreshed status canceled, got %s", refreshed.State)
 	}
 }

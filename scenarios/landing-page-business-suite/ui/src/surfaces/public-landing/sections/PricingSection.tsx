@@ -187,30 +187,47 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
 
   const fallbackTiers = (content.tiers || [
     {
-      name: 'Starter',
-      price: '$29',
-      description: 'Perfect for small projects',
-      features: ['1 Landing Page', 'Basic Analytics', 'A/B Testing', 'Email Support'],
-      cta_text: 'Get Started',
-      cta_url: '/checkout?plan=starter',
+      name: 'Solo',
+      price: '$39',
+      description: 'Ship silently with Vrooli Ascension',
+      features: [
+        'BAS desktop + updates',
+        'Unlimited workflows & retries',
+        'Auto screen-recording exports',
+        'Email support',
+      ],
+      cta_text: 'Start with BAS',
+      cta_url: '/checkout?plan=solo',
       highlighted: false,
+      badge: 'Founder-friendly',
     },
     {
-      name: 'Professional',
-      price: '$99',
-      description: 'For growing businesses',
-      features: ['Unlimited Pages', 'Advanced Analytics', 'A/B Testing', 'Priority Support', 'Custom Domain', 'Agent Customization'],
-      cta_text: 'Start Free Trial',
-      cta_url: '/checkout?plan=professional',
+      name: 'Studio',
+      price: '$119',
+      description: 'Add marketing polish and concierge setup',
+      features: [
+        'Everything in Solo',
+        'Motion presets & branding overlays',
+        'Concierge workflow setup',
+        'Priority support',
+      ],
+      cta_text: 'Book a setup call',
+      cta_url: '/book-setup',
       highlighted: true,
+      badge: 'Most popular',
     },
     {
-      name: 'Enterprise',
+      name: 'Founder OS',
       price: 'Custom',
-      description: 'For large organizations',
-      features: ['Everything in Professional', 'White Label', 'Dedicated Support', 'SLA Guarantee', 'Custom Integrations'],
-      cta_text: 'Contact Sales',
-      cta_url: '/contact',
+      description: 'Bundle future Vrooli business apps as they launch',
+      features: [
+        'Studio benefits',
+        'Early access to new apps',
+        'Shared analytics & credits',
+        'Coaching with the creator',
+      ],
+      cta_text: 'Join the waitlist',
+      cta_url: '/waitlist',
     },
   ]).map((tier) => ({
     ...tier,
@@ -244,7 +261,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           <h2 className="text-4xl font-semibold">{content.title || 'Built to scale from demo to production'}</h2>
           <p className="text-lg text-slate-600">
             {content.subtitle ||
-              'Every plan inherits the Clause-grade styling pack, download governance, and analytics instrumentation. Seats scale, guardrails stay intact.'}
+              'Silent Founder OS starts with Vrooli Ascension. Early adopters lock pricing as we drop new business apps into the same stack.'}
           </p>
         </div>
 

@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	lprvv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -164,13 +164,13 @@ func maskValue(value string) string {
 }
 
 // ConfigSnapshot returns a redacted view of the active Stripe configuration.
-func (s *StripeService) ConfigSnapshot() *lprvv1.StripeConfigSnapshot {
+func (s *StripeService) ConfigSnapshot() *landing_page_react_vite_v1.StripeConfigSnapshot {
 	cfg := s.getConfig()
-	source := lprvv1.ConfigSource_CONFIG_SOURCE_ENV
+	source := landing_page_react_vite_v1.ConfigSource_CONFIG_SOURCE_ENV
 	if cfg.source == "database" {
-		source = lprvv1.ConfigSource_CONFIG_SOURCE_DATABASE
+		source = landing_page_react_vite_v1.ConfigSource_CONFIG_SOURCE_DATABASE
 	}
-	return &lprvv1.StripeConfigSnapshot{
+	return &landing_page_react_vite_v1.StripeConfigSnapshot{
 		PublishableKeyPreview: maskValue(cfg.publishableKey),
 		PublishableKeySet:     cfg.hasPublishable,
 		SecretKeySet:          cfg.hasSecret,
@@ -181,7 +181,7 @@ func (s *StripeService) ConfigSnapshot() *lprvv1.StripeConfigSnapshot {
 
 // CreateCheckoutSession creates a Stripe checkout session
 // [REQ:STRIPE-ROUTES] POST /api/checkout/create endpoint
-func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (*lprvv1.CheckoutSession, error) {
+func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (*landing_page_react_vite_v1.CheckoutSession, error) {
 	cfg := s.getConfig()
 
 	// [REQ:STRIPE-CONFIG] Uses Stripe keys from environment or admin settings
@@ -192,10 +192,10 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 	sessionID := fmt.Sprintf("cs_test_%d", time.Now().UnixNano())
 	checkoutURL := "https://checkout.stripe.com/c/pay/" + sessionID
 
-	session := &lprvv1.CheckoutSession{
+	session := &landing_page_react_vite_v1.CheckoutSession{
 		SessionId:      sessionID,
-		SessionKind:    lprvv1.SessionKind_SESSION_KIND_SUBSCRIPTION,
-		Status:         lprvv1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN,
+		SessionKind:    landing_page_react_vite_v1.SessionKind_SESSION_KIND_SUBSCRIPTION,
+		Status:         landing_page_react_vite_v1.CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN,
 		Url:            checkoutURL,
 		PublishableKey: cfg.publishableKey,
 		CustomerEmail:  customerEmail,
@@ -353,11 +353,11 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}) erro
 	amountCents := s.extractAmount(obj, sessionRec)
 
 	switch {
-	case plan != nil && plan.Kind == lprvv1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
 		return s.handleCreditTopup(customerEmail, amountCents, plan, map[string]interface{}{
 			"session_id": sessionID,
 		})
-	case plan != nil && plan.Kind == lprvv1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
+	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
 		logStructured("supporter contribution received", map[string]interface{}{
 			"session_id": sessionID,
 			"email":      customerEmail,
@@ -454,7 +454,7 @@ func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerEma
 		return err
 	}
 
-	if plan.IntroEnabled && plan.BillingInterval == "month" {
+	if plan.IntroEnabled && plan.BillingInterval == landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH {
 		scheduleID, err := s.createSubscriptionSchedule(subscriptionID, plan, amountCents)
 		if err != nil {
 			return err
@@ -498,7 +498,7 @@ func (s *StripeService) createSubscriptionSchedule(subscriptionID string, plan *
 		"plan_rank":          plan.PlanRank,
 		"intro_enabled":      plan.IntroEnabled,
 		"intro_periods":      plan.IntroPeriods,
-		"billing_interval":   plan.BillingInterval,
+		"billing_interval":   billingIntervalLabel(plan.BillingInterval),
 		"subscription_price": plan.AmountCents,
 	}
 	metaBytes, _ := json.Marshal(meta)
@@ -521,7 +521,7 @@ func (s *StripeService) createSubscriptionSchedule(subscriptionID string, plan *
 			status = 'active',
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
-	`, scheduleID, subscriptionID, plan.StripePriceId, plan.BillingInterval,
+	`, scheduleID, subscriptionID, plan.StripePriceId, billingIntervalLabel(plan.BillingInterval),
 		plan.IntroEnabled, plan.IntroAmountCents, plan.IntroPeriods, amountCents,
 		nextBilling, string(metaBytes))
 	if err != nil {
@@ -531,11 +531,11 @@ func (s *StripeService) createSubscriptionSchedule(subscriptionID string, plan *
 	return scheduleID, nil
 }
 
-func (s *StripeService) billingIntervalDuration(interval string) time.Duration {
+func (s *StripeService) billingIntervalDuration(interval landing_page_react_vite_v1.BillingInterval) time.Duration {
 	switch interval {
-	case "year":
+	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
 		return 365 * 24 * time.Hour
-	case "month":
+	case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH:
 		return 30 * 24 * time.Hour
 	default:
 		return 30 * 24 * time.Hour
@@ -651,7 +651,7 @@ func (s *StripeService) handleSubscriptionDeleted(obj map[string]interface{}) er
 
 // VerifySubscription checks subscription status for a user
 // [REQ:SUB-VERIFY] GET /api/subscription/verify endpoint
-func (s *StripeService) VerifySubscription(userIdentity string) (*lprvv1.SubscriptionStatus, error) {
+func (s *StripeService) VerifySubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
 	var status string
 	var canceledAt *time.Time
 	var updatedAt time.Time
@@ -666,8 +666,8 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*lprvv1.Subscri
 	`, userIdentity).Scan(&status, &canceledAt, &updatedAt)
 
 	if err == sql.ErrNoRows {
-		return &lprvv1.SubscriptionStatus{
-			State:        lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
+		return &landing_page_react_vite_v1.SubscriptionStatus{
+			State:        landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
 			UserIdentity: userIdentity,
 			Message:      "No subscription found",
 		}, nil
@@ -687,19 +687,19 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*lprvv1.Subscri
 		})
 	}
 
-	state := lprvv1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
+	state := landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE
 	switch status {
 	case "active":
-		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
+		state = landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE
 	case "trialing":
-		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
+		state = landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_TRIALING
 	case "past_due":
-		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
+		state = landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE
 	case "canceled":
-		state = lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
+		state = landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED
 	}
 
-	result := &lprvv1.SubscriptionStatus{
+	result := &landing_page_react_vite_v1.SubscriptionStatus{
 		State:        state,
 		UserIdentity: userIdentity,
 		CachedAt:     timestamppb.New(updatedAt),
@@ -715,7 +715,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*lprvv1.Subscri
 
 // CancelSubscription cancels an active subscription
 // [REQ:SUB-CANCEL] POST /api/subscription/cancel endpoint
-func (s *StripeService) CancelSubscription(userIdentity string) (*lprvv1.CancelSubscriptionResponse, error) {
+func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_react_vite_v1.CancelSubscriptionResponse, error) {
 	var subscriptionID string
 	var status string
 
@@ -748,9 +748,9 @@ func (s *StripeService) CancelSubscription(userIdentity string) (*lprvv1.CancelS
 		return nil, err
 	}
 
-	return &lprvv1.CancelSubscriptionResponse{
+	return &landing_page_react_vite_v1.CancelSubscriptionResponse{
 		SubscriptionId: subscriptionID,
-		State:          lprvv1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED,
+		State:          landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED,
 		CanceledAt:     timestamppb.New(now),
 		Message:        "Subscription canceled successfully",
 	}, nil

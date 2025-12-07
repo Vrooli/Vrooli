@@ -96,10 +96,10 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     return null;
   }
 
-  const title = content?.title || 'Download & install the bundle';
+  const title = content?.title || 'Download Vrooli Ascension';
   const subtitle =
     content?.subtitle ||
-    'Entitlement-aware installers, app store links, and install steps keep every runtime consistent.';
+    'Get the first Silent Founder OS app. Automate your browser work and export studio-quality recordings.';
   const { trackDownload } = useMetrics();
   const { email, setEmail, entitlements, loading: entitlementsLoading, error: entitlementsError, refresh } =
     useEntitlements();
@@ -371,7 +371,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
         {(hasInstallers || anyStorefronts) && (
           <div className="mx-auto mt-12 max-w-4xl rounded-3xl border border-white/10 bg-[#07090F] p-6 text-center text-sm text-slate-300">
-            Download access inherits your Browser Automation Studio entitlements. Need additional seats or bundle access?
+            Download access inherits your Vrooli Ascension entitlements. Need additional seats or bundle access?
             Contact support before sharing installers so telemetry and gating stay accurate.
           </div>
         )}
