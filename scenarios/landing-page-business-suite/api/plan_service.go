@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -124,6 +125,8 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	var metadataBytes []byte
 	var rawKind string
 	var rawInterval string
+	var rawIntroType sql.NullString
+	var rawIntroLookup sql.NullString
 	var introAmount sql.NullInt64
 	err := row.Scan(
 		&option.StripePriceId,
@@ -133,10 +136,10 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		&option.AmountCents,
 		&option.Currency,
 		&option.IntroEnabled,
-		&option.IntroType,
+		&rawIntroType,
 		&introAmount,
 		&option.IntroPeriods,
-		&option.IntroPriceLookupKey,
+		&rawIntroLookup,
 		&option.MonthlyIncludedCredits,
 		&option.OneTimeBonusCredits,
 		&option.PlanRank,
@@ -159,6 +162,9 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		val := introAmount.Int64
 		option.IntroAmountCents = proto.Int64(val)
 	}
+	if rawIntroLookup.Valid {
+		option.IntroPriceLookupKey = rawIntroLookup.String
+	}
 
 	if len(metadataBytes) > 0 {
 		if meta := parseMetadata(metadataBytes); meta != nil {
@@ -166,6 +172,7 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 		}
 	}
 
+	option.IntroType = mapIntroPricingType(rawIntroType)
 	option.Kind = mapPlanKind(rawKind)
 	option.BillingInterval = mapBillingInterval(rawInterval)
 
@@ -233,6 +240,8 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 		var metadataBytes []byte
 		var introAmount sql.NullInt64
 		var rawKind string
+		var rawIntroType sql.NullString
+		var rawIntroLookup sql.NullString
 		var rawInterval string
 		if err := rows.Scan(
 			&option.StripePriceId,
@@ -242,10 +251,10 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 			&option.AmountCents,
 			&option.Currency,
 			&option.IntroEnabled,
-			&option.IntroType,
+			&rawIntroType,
 			&introAmount,
 			&option.IntroPeriods,
-			&option.IntroPriceLookupKey,
+			&rawIntroLookup,
 			&option.MonthlyIncludedCredits,
 			&option.OneTimeBonusCredits,
 			&option.PlanRank,
@@ -264,6 +273,9 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 			val := introAmount.Int64
 			option.IntroAmountCents = proto.Int64(val)
 		}
+		if rawIntroLookup.Valid {
+			option.IntroPriceLookupKey = rawIntroLookup.String
+		}
 
 		if len(metadataBytes) > 0 {
 			if meta := parseMetadata(metadataBytes); meta != nil {
@@ -271,6 +283,7 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 			}
 		}
 
+		option.IntroType = mapIntroPricingType(rawIntroType)
 		option.Kind = mapPlanKind(rawKind)
 		option.BillingInterval = mapBillingInterval(rawInterval)
 
@@ -526,5 +539,31 @@ func billingIntervalLabel(interval landing_page_react_vite_v1.BillingInterval) s
 		return "one_time"
 	default:
 		return "unspecified"
+	}
+}
+
+func mapIntroPricingType(raw sql.NullString) landing_page_react_vite_v1.IntroPricingType {
+	if !raw.Valid {
+		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
+	}
+
+	value := strings.TrimSpace(strings.ToLower(raw.String))
+	switch value {
+	case "", "unspecified", "none":
+		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
+	case "percentage", "percent", "pct":
+		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE
+	case "flat_amount", "flat-amount", "flat", "amount":
+		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT
+	default:
+		if parsed, err := strconv.Atoi(value); err == nil {
+			switch landing_page_react_vite_v1.IntroPricingType(parsed) {
+			case landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE:
+				return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE
+			case landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT:
+				return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT
+			}
+		}
+		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
 	}
 }

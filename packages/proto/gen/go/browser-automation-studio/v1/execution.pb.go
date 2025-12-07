@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: browser-automation-studio/v1/execution.proto
 
-package browser_automation_studiov1
+package browser_automation_studio_v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -26,8 +26,8 @@ const (
 // Execution is returned by GET /api/v1/executions/{id}` and list APIs.
 type Execution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique execution ID (UUID).
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Unique execution ID (UUID). JSON name preserved as "id" for backwards compatibility.
+	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=id,proto3" json:"execution_id,omitempty"`
 	// Workflow ID associated with the execution (UUID).
 	WorkflowId string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Version of the workflow used for this execution.
@@ -92,9 +92,9 @@ func (*Execution) Descriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_execution_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Execution) GetId() string {
+func (x *Execution) GetExecutionId() string {
 	if x != nil {
-		return x.Id
+		return x.ExecutionId
 	}
 	return ""
 }
@@ -1240,9 +1240,9 @@ var File_browser_automation_studio_v1_execution_proto protoreflect.FileDescripto
 
 const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
 	"\n" +
-	",browser-automation-studio/v1/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/timeline.proto\x1a+browser-automation-studio/v1/workflow.proto\"\xa8\t\n" +
-	"\tExecution\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	",browser-automation-studio/v1/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/timeline.proto\x1a+browser-automation-studio/v1/workflow.proto\"\xb2\t\n" +
+	"\tExecution\x12\x18\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
 	"workflowId\x12)\n" +
 	"\x10workflow_version\x18\x03 \x01(\x05R\x0fworkflowVersion\x12E\n" +
@@ -1384,8 +1384,7 @@ const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
 	"recordedAt\x1aR\n" +
 	"\fMetricsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01B\xa4\x02\n" +
-	" com.browser_automation_studio.v1B\x0eExecutionProtoP\x01Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studiov1\xa2\x02\x03BXX\xaa\x02\x1aBrowserAutomationStudio.V1\xca\x02\x1aBrowserAutomationStudio\\V1\xe2\x02&BrowserAutomationStudio\\V1\\GPBMetadata\xea\x02\x1bBrowserAutomationStudio::V1b\x06proto3"
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_execution_proto_rawDescOnce sync.Once

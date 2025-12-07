@@ -1,10 +1,10 @@
-# Browser Automation Studio
+# Vrooli Ascension
 
 Visual browser automation workflow builder with AI-powered generation and debugging.
 
 ## 🎯 Overview
 
-Browser Automation Studio transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
+Vrooli Ascension transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
 
 ### Engine selection (Browserless vs Playwright)
 - Default: Browserless (`ENGINE=browserless` or unset).
@@ -130,7 +130,7 @@ browser-automation-studio execution render <execution-id> --output ./replays/dem
 
 ### Importing Chrome Extension Recordings
 
-Browser extension captures (zip archive containing `manifest.json` plus frame assets) can be normalised into Browser Automation Studio via the new import endpoint.
+Browser extension captures (zip archive containing `manifest.json` plus frame assets) can be normalised into Vrooli Ascension via the new import endpoint.
 
 ```bash
 curl -X POST "http://localhost:${API_PORT}/api/v1/recordings/import" \
@@ -232,7 +232,7 @@ Set the `SCENARIO_REGISTRY` environment variable to pin scenario names to explic
 export SCENARIO_REGISTRY='{"browser-automation-studio":{"url":"http://127.0.0.1:4173","ports":{"UI_PORT":4173,"API_PORT":4174}}}'
 ```
 
-When present, Browser Automation Studio resolves `destinationType: "scenario"` navigations and scenario-port API calls using this registry instead of shelling out to `vrooli`, which keeps CI and isolated test runs deterministic.
+When present, Vrooli Ascension resolves `destinationType: "scenario"` navigations and scenario-port API calls using this registry instead of shelling out to `vrooli`, which keeps CI and isolated test runs deterministic.
 
 ## 🤖 AI Integration
 
@@ -280,7 +280,7 @@ Workflows are organized in a folder structure:
 
 > Until richer artifacts (interactions, telemetry, replay schemas) land, treat these APIs as sequential navigation/screenshot scaffolding for future integration experiments.
 
-Browser Automation Studio provides automation capabilities to all Vrooli scenarios (roadmap intent):
+Vrooli Ascension provides automation capabilities to all Vrooli scenarios (roadmap intent):
 
 ```javascript
 // From any scenario

@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: browser-automation-studio/v1/workflow.proto
 
-package browser_automation_studiov1
+package browser_automation_studio_v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -30,9 +30,17 @@ type WorkflowDefinition struct {
 	// Edges connecting workflow nodes.
 	Edges []*WorkflowEdge `protobuf:"bytes,2,rep,name=edges,proto3" json:"edges,omitempty"`
 	// Arbitrary metadata associated with the workflow.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 	Metadata map[string]*structpb.Value `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Execution settings for the workflow (e.g., viewport).
-	Settings      map[string]*structpb.Value `protobuf:"bytes,4,rep,name=settings,proto3" json:"settings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
+	Settings map[string]*structpb.Value `protobuf:"bytes,4,rep,name=settings,proto3" json:"settings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Strongly typed metadata; prefer over the deprecated Struct-backed map.
+	MetadataTyped *WorkflowMetadata `protobuf:"bytes,5,opt,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty"`
+	// Strongly typed execution settings; prefer over the deprecated Struct-backed map.
+	SettingsTyped *WorkflowSettings `protobuf:"bytes,6,opt,name=settings_typed,json=settingsTyped,proto3" json:"settings_typed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,6 +89,7 @@ func (x *WorkflowDefinition) GetEdges() []*WorkflowEdge {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 func (x *WorkflowDefinition) GetMetadata() map[string]*structpb.Value {
 	if x != nil {
 		return x.Metadata
@@ -88,9 +97,24 @@ func (x *WorkflowDefinition) GetMetadata() map[string]*structpb.Value {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 func (x *WorkflowDefinition) GetSettings() map[string]*structpb.Value {
 	if x != nil {
 		return x.Settings
+	}
+	return nil
+}
+
+func (x *WorkflowDefinition) GetMetadataTyped() *WorkflowMetadata {
+	if x != nil {
+		return x.MetadataTyped
+	}
+	return nil
+}
+
+func (x *WorkflowDefinition) GetSettingsTyped() *WorkflowSettings {
+	if x != nil {
+		return x.SettingsTyped
 	}
 	return nil
 }
@@ -241,16 +265,191 @@ func (x *WorkflowEdge) GetData() *structpb.Struct {
 	return nil
 }
 
+// WorkflowMetadata captures the most common workflow descriptors.
+type WorkflowMetadata struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human-readable workflow name.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Optional longer description of what the workflow does.
+	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	// Arbitrary labels for grouping/ownership (e.g., env=prod, team=apps).
+	Labels map[string]string `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Version tag for this definition (e.g., semver or git sha).
+	Version       string `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowMetadata) Reset() {
+	*x = WorkflowMetadata{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowMetadata) ProtoMessage() {}
+
+func (x *WorkflowMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowMetadata.ProtoReflect.Descriptor instead.
+func (*WorkflowMetadata) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *WorkflowMetadata) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WorkflowMetadata) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *WorkflowMetadata) GetLabels() map[string]string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *WorkflowMetadata) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+// WorkflowSettings captures common browser/execution knobs.
+type WorkflowSettings struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Viewport width in pixels.
+	ViewportWidth int32 `protobuf:"varint,1,opt,name=viewport_width,json=viewportWidth,proto3" json:"viewport_width,omitempty"`
+	// Viewport height in pixels.
+	ViewportHeight int32 `protobuf:"varint,2,opt,name=viewport_height,json=viewportHeight,proto3" json:"viewport_height,omitempty"`
+	// User agent string to present during execution.
+	UserAgent string `protobuf:"bytes,3,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	// Preferred locale (e.g., en-US).
+	Locale string `protobuf:"bytes,4,opt,name=locale,proto3" json:"locale,omitempty"`
+	// Overall timeout in seconds for the run.
+	TimeoutSeconds int32 `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	// Whether to run headless.
+	Headless bool `protobuf:"varint,6,opt,name=headless,proto3" json:"headless,omitempty"`
+	// Additional provider-specific settings not yet typed.
+	Extras        map[string]*structpb.Value `protobuf:"bytes,7,rep,name=extras,proto3" json:"extras,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowSettings) Reset() {
+	*x = WorkflowSettings{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowSettings) ProtoMessage() {}
+
+func (x *WorkflowSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowSettings.ProtoReflect.Descriptor instead.
+func (*WorkflowSettings) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *WorkflowSettings) GetViewportWidth() int32 {
+	if x != nil {
+		return x.ViewportWidth
+	}
+	return 0
+}
+
+func (x *WorkflowSettings) GetViewportHeight() int32 {
+	if x != nil {
+		return x.ViewportHeight
+	}
+	return 0
+}
+
+func (x *WorkflowSettings) GetUserAgent() string {
+	if x != nil {
+		return x.UserAgent
+	}
+	return ""
+}
+
+func (x *WorkflowSettings) GetLocale() string {
+	if x != nil {
+		return x.Locale
+	}
+	return ""
+}
+
+func (x *WorkflowSettings) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *WorkflowSettings) GetHeadless() bool {
+	if x != nil {
+		return x.Headless
+	}
+	return false
+}
+
+func (x *WorkflowSettings) GetExtras() map[string]*structpb.Value {
+	if x != nil {
+		return x.Extras
+	}
+	return nil
+}
+
 var File_browser_automation_studio_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\n" +
-	"+browser-automation-studio/v1/workflow.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a)browser-automation-studio/v1/shared.proto\"\xfa\x03\n" +
+	"+browser-automation-studio/v1/workflow.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a)browser-automation-studio/v1/shared.proto\"\xb0\x05\n" +
 	"\x12WorkflowDefinition\x12@\n" +
 	"\x05nodes\x18\x01 \x03(\v2*.browser_automation_studio.v1.WorkflowNodeR\x05nodes\x12@\n" +
-	"\x05edges\x18\x02 \x03(\v2*.browser_automation_studio.v1.WorkflowEdgeR\x05edges\x12Z\n" +
-	"\bmetadata\x18\x03 \x03(\v2>.browser_automation_studio.v1.WorkflowDefinition.MetadataEntryR\bmetadata\x12Z\n" +
-	"\bsettings\x18\x04 \x03(\v2>.browser_automation_studio.v1.WorkflowDefinition.SettingsEntryR\bsettings\x1aS\n" +
+	"\x05edges\x18\x02 \x03(\v2*.browser_automation_studio.v1.WorkflowEdgeR\x05edges\x12^\n" +
+	"\bmetadata\x18\x03 \x03(\v2>.browser_automation_studio.v1.WorkflowDefinition.MetadataEntryB\x02\x18\x01R\bmetadata\x12^\n" +
+	"\bsettings\x18\x04 \x03(\v2>.browser_automation_studio.v1.WorkflowDefinition.SettingsEntryB\x02\x18\x01R\bsettings\x12U\n" +
+	"\x0emetadata_typed\x18\x05 \x01(\v2..browser_automation_studio.v1.WorkflowMetadataR\rmetadataTyped\x12U\n" +
+	"\x0esettings_typed\x18\x06 \x01(\v2..browser_automation_studio.v1.WorkflowSettingsR\rsettingsTyped\x1aS\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aS\n" +
@@ -266,8 +465,27 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n" +
 	"\x06target\x18\x03 \x01(\tR\x06target\x12\x12\n" +
 	"\x04type\x18\x04 \x01(\tR\x04type\x12+\n" +
-	"\x04data\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x04dataB\xa3\x02\n" +
-	" com.browser_automation_studio.v1B\rWorkflowProtoP\x01Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studiov1\xa2\x02\x03BXX\xaa\x02\x1aBrowserAutomationStudio.V1\xca\x02\x1aBrowserAutomationStudio\\V1\xe2\x02&BrowserAutomationStudio\\V1\\GPBMetadata\xea\x02\x1bBrowserAutomationStudio::V1b\x06proto3"
+	"\x04data\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x04data\"\xf1\x01\n" +
+	"\x10WorkflowMetadata\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12R\n" +
+	"\x06labels\x18\x03 \x03(\v2:.browser_automation_studio.v1.WorkflowMetadata.LabelsEntryR\x06labels\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x1a9\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x85\x03\n" +
+	"\x10WorkflowSettings\x12%\n" +
+	"\x0eviewport_width\x18\x01 \x01(\x05R\rviewportWidth\x12'\n" +
+	"\x0fviewport_height\x18\x02 \x01(\x05R\x0eviewportHeight\x12\x1d\n" +
+	"\n" +
+	"user_agent\x18\x03 \x01(\tR\tuserAgent\x12\x16\n" +
+	"\x06locale\x18\x04 \x01(\tR\x06locale\x12'\n" +
+	"\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\x12\x1a\n" +
+	"\bheadless\x18\x06 \x01(\bR\bheadless\x12R\n" +
+	"\x06extras\x18\a \x03(\v2:.browser_automation_studio.v1.WorkflowSettings.ExtrasEntryR\x06extras\x1aQ\n" +
+	"\vExtrasEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_workflow_proto_rawDescOnce sync.Once
@@ -281,32 +499,41 @@ func file_browser_automation_studio_v1_workflow_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_workflow_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_browser_automation_studio_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_browser_automation_studio_v1_workflow_proto_goTypes = []any{
 	(*WorkflowDefinition)(nil), // 0: browser_automation_studio.v1.WorkflowDefinition
 	(*WorkflowNode)(nil),       // 1: browser_automation_studio.v1.WorkflowNode
 	(*WorkflowEdge)(nil),       // 2: browser_automation_studio.v1.WorkflowEdge
-	nil,                        // 3: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
-	nil,                        // 4: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
-	(StepType)(0),              // 5: browser_automation_studio.v1.StepType
-	(*structpb.Struct)(nil),    // 6: google.protobuf.Struct
-	(*structpb.Value)(nil),     // 7: google.protobuf.Value
+	(*WorkflowMetadata)(nil),   // 3: browser_automation_studio.v1.WorkflowMetadata
+	(*WorkflowSettings)(nil),   // 4: browser_automation_studio.v1.WorkflowSettings
+	nil,                        // 5: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
+	nil,                        // 6: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
+	nil,                        // 7: browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
+	nil,                        // 8: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
+	(StepType)(0),              // 9: browser_automation_studio.v1.StepType
+	(*structpb.Struct)(nil),    // 10: google.protobuf.Struct
+	(*structpb.Value)(nil),     // 11: google.protobuf.Value
 }
 var file_browser_automation_studio_v1_workflow_proto_depIdxs = []int32{
-	1, // 0: browser_automation_studio.v1.WorkflowDefinition.nodes:type_name -> browser_automation_studio.v1.WorkflowNode
-	2, // 1: browser_automation_studio.v1.WorkflowDefinition.edges:type_name -> browser_automation_studio.v1.WorkflowEdge
-	3, // 2: browser_automation_studio.v1.WorkflowDefinition.metadata:type_name -> browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
-	4, // 3: browser_automation_studio.v1.WorkflowDefinition.settings:type_name -> browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
-	5, // 4: browser_automation_studio.v1.WorkflowNode.type:type_name -> browser_automation_studio.v1.StepType
-	6, // 5: browser_automation_studio.v1.WorkflowNode.data:type_name -> google.protobuf.Struct
-	6, // 6: browser_automation_studio.v1.WorkflowEdge.data:type_name -> google.protobuf.Struct
-	7, // 7: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry.value:type_name -> google.protobuf.Value
-	7, // 8: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry.value:type_name -> google.protobuf.Value
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	1,  // 0: browser_automation_studio.v1.WorkflowDefinition.nodes:type_name -> browser_automation_studio.v1.WorkflowNode
+	2,  // 1: browser_automation_studio.v1.WorkflowDefinition.edges:type_name -> browser_automation_studio.v1.WorkflowEdge
+	5,  // 2: browser_automation_studio.v1.WorkflowDefinition.metadata:type_name -> browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
+	6,  // 3: browser_automation_studio.v1.WorkflowDefinition.settings:type_name -> browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
+	3,  // 4: browser_automation_studio.v1.WorkflowDefinition.metadata_typed:type_name -> browser_automation_studio.v1.WorkflowMetadata
+	4,  // 5: browser_automation_studio.v1.WorkflowDefinition.settings_typed:type_name -> browser_automation_studio.v1.WorkflowSettings
+	9,  // 6: browser_automation_studio.v1.WorkflowNode.type:type_name -> browser_automation_studio.v1.StepType
+	10, // 7: browser_automation_studio.v1.WorkflowNode.data:type_name -> google.protobuf.Struct
+	10, // 8: browser_automation_studio.v1.WorkflowEdge.data:type_name -> google.protobuf.Struct
+	7,  // 9: browser_automation_studio.v1.WorkflowMetadata.labels:type_name -> browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
+	8,  // 10: browser_automation_studio.v1.WorkflowSettings.extras:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
+	11, // 11: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry.value:type_name -> google.protobuf.Value
+	11, // 12: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry.value:type_name -> google.protobuf.Value
+	11, // 13: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry.value:type_name -> google.protobuf.Value
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflow_proto_init() }
@@ -321,7 +548,7 @@ func file_browser_automation_studio_v1_workflow_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_workflow_proto_rawDesc), len(file_browser_automation_studio_v1_workflow_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

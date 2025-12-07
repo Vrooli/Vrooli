@@ -183,7 +183,7 @@
 ### 3. UI Automation for Dependency Graph
 **Impact**: Cannot fully validate REQ-P0-035 (Interactive Dependency Graph) without browser automation
 **Workaround**: Manual testing during development, document in requirement notes
-**Resolution Plan**: Use Browser Automation Studio (BAS) workflows once available (see `docs/testing/guides/ui-automation-with-bas.md`)
+**Resolution Plan**: Use Vrooli Ascension (BAS) workflows once available (see `docs/testing/guides/ui-automation-with-bas.md`)
 
 ---
 

@@ -14,7 +14,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/workflow.proto.
  */
 export const file_browser_automation_studio_v1_workflow: GenFile = /*@__PURE__*/
-  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIsADChJXb3JrZmxvd0RlZmluaXRpb24SOQoFbm9kZXMYASADKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93Tm9kZRI5CgVlZGdlcxgCIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dFZGdlElAKCG1ldGFkYXRhGAMgAygLMj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb24uTWV0YWRhdGFFbnRyeRJQCghzZXR0aW5ncxgEIAMoCzI+LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uLlNldHRpbmdzRW50cnkaRwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkcKDVNldHRpbmdzRW50cnkSCwoDa2V5GAEgASgJEiUKBXZhbHVlGAIgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlOgI4ASJ3CgxXb3JrZmxvd05vZGUSCgoCaWQYASABKAkSNAoEdHlwZRgCIAEoDjImLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RlcFR5cGUSJQoEZGF0YRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QibwoMV29ya2Zsb3dFZGdlEgoKAmlkGAEgASgJEg4KBnNvdXJjZRgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDAoEdHlwZRgEIAEoCRIlCgRkYXRhGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEKjAgogY29tLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjFCDVdvcmtmbG93UHJvdG9QAVpnZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW92MaICA0JYWKoCGkJyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvLlYxygIaQnJvd3NlckF1dG9tYXRpb25TdHVkaW9cVjHiAiZCcm93c2VyQXV0b21hdGlvblN0dWRpb1xWMVxHUEJNZXRhZGF0YeoCG0Jyb3dzZXJBdXRvbWF0aW9uU3R1ZGlvOjpWMWIGcHJvdG8z", [file_google_protobuf_struct, file_browser_automation_studio_v1_shared]);
+  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxItgEChJXb3JrZmxvd0RlZmluaXRpb24SOQoFbm9kZXMYASADKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93Tm9kZRI5CgVlZGdlcxgCIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dFZGdlElQKCG1ldGFkYXRhGAMgAygLMj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb24uTWV0YWRhdGFFbnRyeUICGAESVAoIc2V0dGluZ3MYBCADKAsyPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvbi5TZXR0aW5nc0VudHJ5QgIYARJGCg5tZXRhZGF0YV90eXBlZBgFIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dNZXRhZGF0YRJGCg5zZXR0aW5nc190eXBlZBgGIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncxpHCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaRwoNU2V0dGluZ3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIncKDFdvcmtmbG93Tm9kZRIKCgJpZBgBIAEoCRI0CgR0eXBlGAIgASgOMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGVwVHlwZRIlCgRkYXRhGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJvCgxXb3JrZmxvd0VkZ2USCgoCaWQYASABKAkSDgoGc291cmNlGAIgASgJEg4KBnRhcmdldBgDIAEoCRIMCgR0eXBlGAQgASgJEiUKBGRhdGEYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IsEBChBXb3JrZmxvd01ldGFkYXRhEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSSgoGbGFiZWxzGAMgAygLMjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd01ldGFkYXRhLkxhYmVsc0VudHJ5Eg8KB3ZlcnNpb24YBCABKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKlAgoQV29ya2Zsb3dTZXR0aW5ncxIWCg52aWV3cG9ydF93aWR0aBgBIAEoBRIXCg92aWV3cG9ydF9oZWlnaHQYAiABKAUSEgoKdXNlcl9hZ2VudBgDIAEoCRIOCgZsb2NhbGUYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFEhAKCGhlYWRsZXNzGAYgASgIEkoKBmV4dHJhcxgHIAMoCzI6LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncy5FeHRyYXNFbnRyeRpFCgtFeHRyYXNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_browser_automation_studio_v1_shared]);
 
 /**
  * WorkflowDefinition mirrors the JSON workflow definitions used by BAS.
@@ -39,16 +39,32 @@ export type WorkflowDefinition = Message<"browser_automation_studio.v1.WorkflowD
   /**
    * Arbitrary metadata associated with the workflow.
    *
-   * @generated from field: map<string, google.protobuf.Value> metadata = 3;
+   * @generated from field: map<string, google.protobuf.Value> metadata = 3 [deprecated = true];
+   * @deprecated
    */
   metadata: { [key: string]: Value };
 
   /**
    * Execution settings for the workflow (e.g., viewport).
    *
-   * @generated from field: map<string, google.protobuf.Value> settings = 4;
+   * @generated from field: map<string, google.protobuf.Value> settings = 4 [deprecated = true];
+   * @deprecated
    */
   settings: { [key: string]: Value };
+
+  /**
+   * Strongly typed metadata; prefer over the deprecated Struct-backed map.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowMetadata metadata_typed = 5;
+   */
+  metadataTyped?: WorkflowMetadata;
+
+  /**
+   * Strongly typed execution settings; prefer over the deprecated Struct-backed map.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowSettings settings_typed = 6;
+   */
+  settingsTyped?: WorkflowSettings;
 };
 
 /**
@@ -141,4 +157,109 @@ export type WorkflowEdge = Message<"browser_automation_studio.v1.WorkflowEdge"> 
  */
 export const WorkflowEdgeSchema: GenMessage<WorkflowEdge> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 2);
+
+/**
+ * WorkflowMetadata captures the most common workflow descriptors.
+ *
+ * @generated from message browser_automation_studio.v1.WorkflowMetadata
+ */
+export type WorkflowMetadata = Message<"browser_automation_studio.v1.WorkflowMetadata"> & {
+  /**
+   * Human-readable workflow name.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Optional longer description of what the workflow does.
+   *
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * Arbitrary labels for grouping/ownership (e.g., env=prod, team=apps).
+   *
+   * @generated from field: map<string, string> labels = 3;
+   */
+  labels: { [key: string]: string };
+
+  /**
+   * Version tag for this definition (e.g., semver or git sha).
+   *
+   * @generated from field: string version = 4;
+   */
+  version: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.WorkflowMetadata.
+ * Use `create(WorkflowMetadataSchema)` to create a new message.
+ */
+export const WorkflowMetadataSchema: GenMessage<WorkflowMetadata> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 3);
+
+/**
+ * WorkflowSettings captures common browser/execution knobs.
+ *
+ * @generated from message browser_automation_studio.v1.WorkflowSettings
+ */
+export type WorkflowSettings = Message<"browser_automation_studio.v1.WorkflowSettings"> & {
+  /**
+   * Viewport width in pixels.
+   *
+   * @generated from field: int32 viewport_width = 1;
+   */
+  viewportWidth: number;
+
+  /**
+   * Viewport height in pixels.
+   *
+   * @generated from field: int32 viewport_height = 2;
+   */
+  viewportHeight: number;
+
+  /**
+   * User agent string to present during execution.
+   *
+   * @generated from field: string user_agent = 3;
+   */
+  userAgent: string;
+
+  /**
+   * Preferred locale (e.g., en-US).
+   *
+   * @generated from field: string locale = 4;
+   */
+  locale: string;
+
+  /**
+   * Overall timeout in seconds for the run.
+   *
+   * @generated from field: int32 timeout_seconds = 5;
+   */
+  timeoutSeconds: number;
+
+  /**
+   * Whether to run headless.
+   *
+   * @generated from field: bool headless = 6;
+   */
+  headless: boolean;
+
+  /**
+   * Additional provider-specific settings not yet typed.
+   *
+   * @generated from field: map<string, google.protobuf.Value> extras = 7;
+   */
+  extras: { [key: string]: Value };
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.WorkflowSettings.
+ * Use `create(WorkflowSettingsSchema)` to create a new message.
+ */
+export const WorkflowSettingsSchema: GenMessage<WorkflowSettings> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 4);
 

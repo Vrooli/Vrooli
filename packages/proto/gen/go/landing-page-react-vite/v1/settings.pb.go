@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: landing-page-react-vite/v1/settings.proto
 
-package landing_page_react_vitev1
+package landing_page_react_vite_v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -164,7 +164,7 @@ type StripeSettings struct {
 	// Webhook signing secret.
 	WebhookSecret string `protobuf:"bytes,3,opt,name=webhook_secret,json=webhookSecret,proto3" json:"webhook_secret,omitempty"`
 	// Optional dashboard URL for UI linking.
-	DashboardUrl string `protobuf:"bytes,4,opt,name=dashboard_url,json=dashboardUrl,proto3" json:"dashboard_url,omitempty"`
+	DashboardUrl *string `protobuf:"bytes,4,opt,name=dashboard_url,json=dashboardUrl,proto3,oneof" json:"dashboard_url,omitempty"`
 	// Last update timestamp.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -223,8 +223,8 @@ func (x *StripeSettings) GetWebhookSecret() string {
 }
 
 func (x *StripeSettings) GetDashboardUrl() string {
-	if x != nil {
-		return x.DashboardUrl
+	if x != nil && x.DashboardUrl != nil {
+		return *x.DashboardUrl
 	}
 	return ""
 }
@@ -466,15 +466,16 @@ const file_landing_page_react_vite_v1_settings_proto_rawDesc = "" +
 	"\x13publishable_key_set\x18\x02 \x01(\bR\x11publishableKeySet\x12$\n" +
 	"\x0esecret_key_set\x18\x03 \x01(\bR\fsecretKeySet\x12,\n" +
 	"\x12webhook_secret_set\x18\x04 \x01(\bR\x10webhookSecretSet\x12@\n" +
-	"\x06source\x18\x05 \x01(\x0e2(.landing_page_react_vite.v1.ConfigSourceR\x06source\"\xdf\x01\n" +
+	"\x06source\x18\x05 \x01(\x0e2(.landing_page_react_vite.v1.ConfigSourceR\x06source\"\xf6\x01\n" +
 	"\x0eStripeSettings\x12'\n" +
 	"\x0fpublishable_key\x18\x01 \x01(\tR\x0epublishableKey\x12\x1d\n" +
 	"\n" +
 	"secret_key\x18\x02 \x01(\tR\tsecretKey\x12%\n" +
-	"\x0ewebhook_secret\x18\x03 \x01(\tR\rwebhookSecret\x12#\n" +
-	"\rdashboard_url\x18\x04 \x01(\tR\fdashboardUrl\x129\n" +
+	"\x0ewebhook_secret\x18\x03 \x01(\tR\rwebhookSecret\x12(\n" +
+	"\rdashboard_url\x18\x04 \x01(\tH\x00R\fdashboardUrl\x88\x01\x01\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x1a\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x10\n" +
+	"\x0e_dashboard_url\"\x1a\n" +
 	"\x18GetStripeSettingsRequest\"\xb1\x01\n" +
 	"\x19GetStripeSettingsResponse\x12F\n" +
 	"\bsettings\x18\x01 \x01(\v2*.landing_page_react_vite.v1.StripeSettingsR\bsettings\x12L\n" +
@@ -495,8 +496,7 @@ const file_landing_page_react_vite_v1_settings_proto_rawDesc = "" +
 	"\fConfigSource\x12\x1d\n" +
 	"\x19CONFIG_SOURCE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CONFIG_SOURCE_ENV\x10\x01\x12\x1a\n" +
-	"\x16CONFIG_SOURCE_DATABASE\x10\x02B\x91\x02\n" +
-	"\x1ecom.landing_page_react_vite.v1B\rSettingsProtoP\x01Zcgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vitev1\xa2\x02\x03LXX\xaa\x02\x17LandingPageReactVite.V1\xca\x02\x17LandingPageReactVite\\V1\xe2\x02#LandingPageReactVite\\V1\\GPBMetadata\xea\x02\x18LandingPageReactVite::V1b\x06proto3"
+	"\x16CONFIG_SOURCE_DATABASE\x10\x02BfZdgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1b\x06proto3"
 
 var (
 	file_landing_page_react_vite_v1_settings_proto_rawDescOnce sync.Once
@@ -541,6 +541,7 @@ func file_landing_page_react_vite_v1_settings_proto_init() {
 	if File_landing_page_react_vite_v1_settings_proto != nil {
 		return
 	}
+	file_landing_page_react_vite_v1_settings_proto_msgTypes[1].OneofWrappers = []any{}
 	file_landing_page_react_vite_v1_settings_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

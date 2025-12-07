@@ -7,7 +7,7 @@ import "google/protobuf/timestamp.proto";
 import "landing-page-react-vite/v1/pricing.proto";
 import "landing-page-react-vite/v1/settings.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;lprvv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
 
 // SubscriptionState enumerates lifecycle states for customer subscriptions.
 enum SubscriptionState {
@@ -53,11 +53,11 @@ message CheckoutSession {
   // Stripe price identifier for the purchase.
   string stripe_price_id = 7;
   // Stripe product identifier, when available.
-  string stripe_product_id = 8;
+  optional string stripe_product_id = 8;
   // Subscription identifier if created (sub_*).
-  string subscription_id = 9;
+  optional string subscription_id = 9;
   // Subscription schedule identifier when an intro price is used.
-  string schedule_id = 10;
+  optional string schedule_id = 10;
   // Amount in cents.
   int64 amount_cents = 11;
   // Currency code (ISO 4217).
@@ -105,7 +105,7 @@ message SubscriptionStatus {
   // Lifecycle state of the subscription.
   SubscriptionState state = 1;
   // Subscription identifier (sub_*).
-  string subscription_id = 2;
+  optional string subscription_id = 2;
   // Identity used for the lookup (email or customer id).
   string user_identity = 3;
   // Plan tier associated with the subscription (e.g., pro, team).
@@ -141,7 +141,7 @@ message CancelSubscriptionRequest {
 // CancelSubscriptionResponse reports the cancellation outcome.
 message CancelSubscriptionResponse {
   // Subscription identifier that was canceled.
-  string subscription_id = 1;
+  optional string subscription_id = 1;
   // Resulting subscription state.
   SubscriptionState state = 2;
   // When the subscription was canceled.

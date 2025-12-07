@@ -5,7 +5,7 @@ package landing_page_react_vite.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;lprvv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
 
 // PlanKind mirrors supported purchase flows for plans.
 enum PlanKind {

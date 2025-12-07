@@ -16,6 +16,7 @@ import (
 	"time"
 
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -749,7 +750,7 @@ func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_r
 	}
 
 	return &landing_page_react_vite_v1.CancelSubscriptionResponse{
-		SubscriptionId: subscriptionID,
+		SubscriptionId: proto.String(subscriptionID),
 		State:          landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_CANCELED,
 		CanceledAt:     timestamppb.New(now),
 		Message:        "Subscription canceled successfully",

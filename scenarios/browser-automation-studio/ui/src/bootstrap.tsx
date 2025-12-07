@@ -11,7 +11,7 @@ export interface BootstrapOptions {
 
 export function bootstrap(container: HTMLElement, options: BootstrapOptions = {}): Root {
   if (!container) {
-    throw new Error('A valid container element is required to bootstrap Browser Automation Studio');
+    throw new Error('A valid container element is required to bootstrap Vrooli Ascension');
   }
 
   return mountApp(container, {

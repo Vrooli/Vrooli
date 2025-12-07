@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: browser-automation-studio/v1/timeline.proto
 
-package browser_automation_studiov1
+package browser_automation_studio_v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -159,7 +159,7 @@ type TimelineFrame struct {
 	// Final URL after step execution (for navigation steps).
 	FinalUrl string `protobuf:"bytes,11,opt,name=final_url,json=finalUrl,proto3" json:"final_url,omitempty"`
 	// Error message if the step failed.
-	Error string `protobuf:"bytes,12,opt,name=error,proto3" json:"error,omitempty"`
+	Error *string `protobuf:"bytes,12,opt,name=error,proto3,oneof" json:"error,omitempty"`
 	// Number of console log entries captured for this step.
 	ConsoleLogCount int32 `protobuf:"varint,13,opt,name=console_log_count,json=consoleLogCount,proto3" json:"console_log_count,omitempty"`
 	// Number of network events captured for this step.
@@ -314,8 +314,8 @@ func (x *TimelineFrame) GetFinalUrl() string {
 }
 
 func (x *TimelineFrame) GetError() string {
-	if x != nil {
-		return x.Error
+	if x != nil && x.Error != nil {
+		return *x.Error
 	}
 	return ""
 }
@@ -483,7 +483,7 @@ type TimelineScreenshot struct {
 	// Image MIME type (e.g., image/png).
 	ContentType string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	// Optional size in bytes for the screenshot.
-	SizeBytes     int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	SizeBytes     *int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -561,8 +561,8 @@ func (x *TimelineScreenshot) GetContentType() string {
 }
 
 func (x *TimelineScreenshot) GetSizeBytes() int64 {
-	if x != nil {
-		return x.SizeBytes
+	if x != nil && x.SizeBytes != nil {
+		return *x.SizeBytes
 	}
 	return 0
 }
@@ -575,15 +575,15 @@ type TimelineArtifact struct {
 	// Artifact type (timeline_frame, console_log, network_event, etc.).
 	Type ArtifactType `protobuf:"varint,2,opt,name=type,proto3,enum=browser_automation_studio.v1.ArtifactType" json:"type,omitempty"`
 	// Optional human-readable label.
-	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	Label *string `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
 	// URL to download the artifact content.
 	StorageUrl string `protobuf:"bytes,4,opt,name=storage_url,json=storageUrl,proto3" json:"storage_url,omitempty"`
 	// URL to download an artifact thumbnail if available.
-	ThumbnailUrl string `protobuf:"bytes,5,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`
+	ThumbnailUrl *string `protobuf:"bytes,5,opt,name=thumbnail_url,json=thumbnailUrl,proto3,oneof" json:"thumbnail_url,omitempty"`
 	// MIME type for the artifact.
 	ContentType string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	// Optional size in bytes for the artifact.
-	SizeBytes int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	SizeBytes *int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
 	// Step index associated with this artifact, if any.
 	StepIndex *int32 `protobuf:"varint,8,opt,name=step_index,json=stepIndex,proto3,oneof" json:"step_index,omitempty"`
 	// Provider-specific payload describing the artifact.
@@ -637,8 +637,8 @@ func (x *TimelineArtifact) GetType() ArtifactType {
 }
 
 func (x *TimelineArtifact) GetLabel() string {
-	if x != nil {
-		return x.Label
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
@@ -651,8 +651,8 @@ func (x *TimelineArtifact) GetStorageUrl() string {
 }
 
 func (x *TimelineArtifact) GetThumbnailUrl() string {
-	if x != nil {
-		return x.ThumbnailUrl
+	if x != nil && x.ThumbnailUrl != nil {
+		return *x.ThumbnailUrl
 	}
 	return ""
 }
@@ -665,8 +665,8 @@ func (x *TimelineArtifact) GetContentType() string {
 }
 
 func (x *TimelineArtifact) GetSizeBytes() int64 {
-	if x != nil {
-		return x.SizeBytes
+	if x != nil && x.SizeBytes != nil {
+		return *x.SizeBytes
 	}
 	return 0
 }
@@ -1206,7 +1206,7 @@ type TimelineLog struct {
 	// Log message content.
 	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	// Associated step name, if any.
-	StepName string `protobuf:"bytes,4,opt,name=step_name,json=stepName,proto3" json:"step_name,omitempty"`
+	StepName *string `protobuf:"bytes,4,opt,name=step_name,json=stepName,proto3,oneof" json:"step_name,omitempty"`
 	// Timestamp when the log was recorded.
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1265,8 +1265,8 @@ func (x *TimelineLog) GetMessage() string {
 }
 
 func (x *TimelineLog) GetStepName() string {
-	if x != nil {
-		return x.StepName
+	if x != nil && x.StepName != nil {
+		return *x.StepName
 	}
 	return ""
 }
@@ -1293,7 +1293,7 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
 	"\fcompleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12C\n" +
 	"\x06frames\x18\a \x03(\v2+.browser_automation_studio.v1.TimelineFrameR\x06frames\x12=\n" +
-	"\x04logs\x18\b \x03(\v2).browser_automation_studio.v1.TimelineLogR\x04logs\"\xd7\x0e\n" +
+	"\x04logs\x18\b \x03(\v2).browser_automation_studio.v1.TimelineLogR\x04logs\"\xe6\x0e\n" +
 	"\rTimelineFrame\x12\x1d\n" +
 	"\n" +
 	"step_index\x18\x01 \x01(\x05R\tstepIndex\x12\x17\n" +
@@ -1309,8 +1309,8 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"started_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
 	"\fcompleted_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x1b\n" +
-	"\tfinal_url\x18\v \x01(\tR\bfinalUrl\x12\x14\n" +
-	"\x05error\x18\f \x01(\tR\x05error\x12*\n" +
+	"\tfinal_url\x18\v \x01(\tR\bfinalUrl\x12\x19\n" +
+	"\x05error\x18\f \x01(\tH\x00R\x05error\x88\x01\x01\x12*\n" +
 	"\x11console_log_count\x18\r \x01(\x05R\x0fconsoleLogCount\x12.\n" +
 	"\x13network_event_count\x18\x0e \x01(\x05R\x11networkEventCount\x12L\n" +
 	"\x16extracted_data_preview\x18\x0f \x01(\v2\x16.google.protobuf.ValueR\x14extractedDataPreview\x12Z\n" +
@@ -1334,7 +1334,8 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\x14retry_backoff_factor\x18\x1e \x01(\x01R\x12retryBackoffFactor\x12T\n" +
 	"\rretry_history\x18\x1f \x03(\v2/.browser_automation_studio.v1.RetryHistoryEntryR\fretryHistory\x120\n" +
 	"\x14dom_snapshot_preview\x18  \x01(\tR\x12domSnapshotPreview\x12Q\n" +
-	"\fdom_snapshot\x18! \x01(\v2..browser_automation_studio.v1.TimelineArtifactR\vdomSnapshot\"\xdc\x01\n" +
+	"\fdom_snapshot\x18! \x01(\v2..browser_automation_studio.v1.TimelineArtifactR\vdomSnapshotB\b\n" +
+	"\x06_error\"\xf0\x01\n" +
 	"\x12TimelineScreenshot\x12\x1f\n" +
 	"\vartifact_id\x18\x01 \x01(\tR\n" +
 	"artifactId\x12\x10\n" +
@@ -1342,25 +1343,29 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\rthumbnail_url\x18\x03 \x01(\tR\fthumbnailUrl\x12\x14\n" +
 	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12!\n" +
-	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\"\n" +
 	"\n" +
-	"size_bytes\x18\a \x01(\x03R\tsizeBytes\"\xde\x03\n" +
+	"size_bytes\x18\a \x01(\x03H\x00R\tsizeBytes\x88\x01\x01B\r\n" +
+	"\v_size_bytes\"\x98\x04\n" +
 	"\x10TimelineArtifact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12>\n" +
-	"\x04type\x18\x02 \x01(\x0e2*.browser_automation_studio.v1.ArtifactTypeR\x04type\x12\x14\n" +
-	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1f\n" +
+	"\x04type\x18\x02 \x01(\x0e2*.browser_automation_studio.v1.ArtifactTypeR\x04type\x12\x19\n" +
+	"\x05label\x18\x03 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x1f\n" +
 	"\vstorage_url\x18\x04 \x01(\tR\n" +
-	"storageUrl\x12#\n" +
-	"\rthumbnail_url\x18\x05 \x01(\tR\fthumbnailUrl\x12!\n" +
-	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\x1d\n" +
+	"storageUrl\x12(\n" +
+	"\rthumbnail_url\x18\x05 \x01(\tH\x01R\fthumbnailUrl\x88\x01\x01\x12!\n" +
+	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\"\n" +
 	"\n" +
-	"size_bytes\x18\a \x01(\x03R\tsizeBytes\x12\"\n" +
+	"size_bytes\x18\a \x01(\x03H\x02R\tsizeBytes\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"step_index\x18\b \x01(\x05H\x00R\tstepIndex\x88\x01\x01\x12U\n" +
+	"step_index\x18\b \x01(\x05H\x03R\tstepIndex\x88\x01\x01\x12U\n" +
 	"\apayload\x18\t \x03(\v2;.browser_automation_studio.v1.TimelineArtifact.PayloadEntryR\apayload\x1aR\n" +
 	"\fPayloadEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01B\r\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01B\b\n" +
+	"\x06_labelB\x10\n" +
+	"\x0e_thumbnail_urlB\r\n" +
+	"\v_size_bytesB\r\n" +
 	"\v_step_index\"\xa8\x01\n" +
 	"\x11RetryHistoryEntry\x12\x18\n" +
 	"\aattempt\x18\x01 \x01(\x05R\aattempt\x12\x18\n" +
@@ -1398,14 +1403,15 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\asuccess\x18\x05 \x01(\bR\asuccess\x12\x18\n" +
 	"\anegated\x18\x06 \x01(\bR\anegated\x12%\n" +
 	"\x0ecase_sensitive\x18\a \x01(\bR\rcaseSensitive\x12\x18\n" +
-	"\amessage\x18\b \x01(\tR\amessage\"\xcc\x01\n" +
+	"\amessage\x18\b \x01(\tR\amessage\"\xdf\x01\n" +
 	"\vTimelineLog\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12<\n" +
 	"\x05level\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.LogLevelR\x05level\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1b\n" +
-	"\tstep_name\x18\x04 \x01(\tR\bstepName\x128\n" +
-	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestampB\xa3\x02\n" +
-	" com.browser_automation_studio.v1B\rTimelineProtoP\x01Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studiov1\xa2\x02\x03BXX\xaa\x02\x1aBrowserAutomationStudio.V1\xca\x02\x1aBrowserAutomationStudio\\V1\xe2\x02&BrowserAutomationStudio\\V1\\GPBMetadata\xea\x02\x1bBrowserAutomationStudio::V1b\x06proto3"
+	"\amessage\x18\x03 \x01(\tR\amessage\x12 \n" +
+	"\tstep_name\x18\x04 \x01(\tH\x00R\bstepName\x88\x01\x01\x128\n" +
+	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestampB\f\n" +
+	"\n" +
+	"_step_nameBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_timeline_proto_rawDescOnce sync.Once
@@ -1487,7 +1493,10 @@ func file_browser_automation_studio_v1_timeline_proto_init() {
 		return
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
+	file_browser_automation_studio_v1_timeline_proto_msgTypes[1].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_timeline_proto_msgTypes[2].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_timeline_proto_msgTypes[3].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_timeline_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

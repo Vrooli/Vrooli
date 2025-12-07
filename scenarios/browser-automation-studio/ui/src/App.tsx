@@ -997,7 +997,7 @@ function App() {
   if (currentView === null) {
     return (
       <div className="h-screen flex items-center justify-center bg-flow-bg">
-        <LoadingSpinner variant="branded" size={32} message="Loading Browser Automation Studio..." />
+        <LoadingSpinner variant="branded" size={32} message="Loading Vrooli Ascension..." />
       </div>
     );
   }

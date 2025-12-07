@@ -48,18 +48,17 @@ func (r *EnvConfigResolver) ResolveAnalyzerURL() (string, error) {
 }
 
 // ResolveSecretsManagerURL returns the URL for the secrets-manager service.
-// It checks multiple environment variables in order of preference.
 func (r *EnvConfigResolver) ResolveSecretsManagerURL() (string, error) {
-	if base := os.Getenv("SECRETS_MANAGER_URL"); base != "" {
-		return strings.TrimSuffix(base, "/"), nil
+	cmd := exec.Command("vrooli", "scenario", "port", "secrets-manager", "API_PORT")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve secrets-manager port via vrooli: %w", err)
 	}
-	if base := os.Getenv("SECRETS_MANAGER_API_URL"); base != "" {
-		return strings.TrimSuffix(base, "/"), nil
+	port := strings.TrimSpace(string(output))
+	if port == "" {
+		return "", fmt.Errorf("vrooli scenario port secrets-manager API_PORT returned empty output")
 	}
-	if port := os.Getenv("SECRETS_MANAGER_API_PORT"); port != "" {
-		return fmt.Sprintf("http://127.0.0.1:%s", port), nil
-	}
-	return "", fmt.Errorf("SECRETS_MANAGER_URL, SECRETS_MANAGER_API_URL, or SECRETS_MANAGER_API_PORT must be set")
+	return fmt.Sprintf("http://127.0.0.1:%s", port), nil
 }
 
 // ResolveTelemetryDir returns the directory for storing telemetry files.

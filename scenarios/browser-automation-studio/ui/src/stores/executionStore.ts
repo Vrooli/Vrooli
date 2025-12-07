@@ -436,7 +436,7 @@ const parseExecutionProto = (raw: unknown): Execution => {
   // Extract fields with comprehensive fallbacks
   // Note: normalized already has camelCase keys (executionId, workflowId, etc.)
   return {
-    id: proto.id || String(normalized?.id ?? normalized?.executionId ?? ''),
+    id: proto.executionId || String(normalized?.id ?? normalized?.executionId ?? ''),
     workflowId: proto.workflowId || String(normalized?.workflowId ?? ''),
     status: mapExecutionStatus(proto.status || (normalized?.status as string | undefined)),
     startedAt,

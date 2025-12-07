@@ -10,12 +10,10 @@ import {
   FileText,
   Globe,
   LayoutGrid,
-  Layers,
   LineChart,
   Loader2,
   MousePointer2,
   Pause,
-  Rocket,
   ShieldCheck,
   Sparkles,
   Terminal,
@@ -40,7 +38,7 @@ interface HeroSectionProps {
 
 export function HeroSection({ content }: HeroSectionProps) {
   const { trackCTAClick } = useMetrics();
-  const primaryCtaText = content.cta_text ?? 'Start with BAS';
+  const primaryCtaText = content.cta_text ?? 'Launch Vrooli Ascension';
   const primaryCtaUrl = content.cta_url ?? '#pricing';
   const secondaryCtaText = content.secondary_cta_text ?? 'Watch the 90-second demo';
   const secondaryCtaUrl = content.secondary_cta_url ?? '#video';
@@ -75,11 +73,11 @@ export function HeroSection({ content }: HeroSectionProps) {
 
           <div className="space-y-5">
             <h1 className="text-5xl leading-tight text-white md:text-6xl">
-              {content.title || 'Build a business without talking to anyone'}
+              {content.title || 'Vrooli Ascension runs your browser for you'}
             </h1>
             <p className="max-w-2xl text-lg text-slate-300">
               {content.subtitle ||
-                'Vrooli Ascension runs your back-office, turns flows into replayable tests, and exports cinematic product recordings for ads—all without sales calls or a team.'}
+                'Record a flow once. Ascension rebuilds it with waits and retries, reruns it on schedule, and exports cinematic MP4 proof for marketing, QA, and clients—no team required.'}
             </p>
           </div>
 
@@ -98,48 +96,48 @@ export function HeroSection({ content }: HeroSectionProps) {
             </Button>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <MetricCard
-              icon={<LineChart className="h-5 w-5 text-[#F97316]" />}
-              label="Hours saved weekly"
-              value="12–20"
-              caption="BAS autopilot clears the busywork and retries failures."
-            />
-            <MetricCard
-              icon={<Video className="h-5 w-5 text-[#38BDF8]" />}
-              label="Launch assets"
-              value="HD reels"
-              caption="Cinematic screen recordings for ads, onboarding, and demos."
-            />
-            <MetricCard
-              icon={<ShieldCheck className="h-5 w-5 text-[#10B981]" />}
-              label="Confidence"
-              value="Zero code"
-              caption="AI guardrails, loops, waits, and entitlements baked in."
-            />
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Silent Founder playbook</p>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <PlaybookStep
-                icon={<Cpu className="h-5 w-5 text-[#F97316]" />}
-                title="Capture once"
-                copy="Point BAS at your tabs; AI builds workflows and shot lists automatically."
-                index={1}
-              />
-              <PlaybookStep
-                icon={<Layers className="h-5 w-5 text-[#38BDF8]" />}
-                title="Automate & replay"
-                copy="Loops, waits, retries, and guardrails keep ops humming while recordings stay fresh."
-                index={2}
-              />
-              <PlaybookStep
-                icon={<Rocket className="h-5 w-5 text-[#10B981]" />}
-                title="Publish everywhere"
-                copy="Export MP4/WEBM reels for ads and onboarding, then bundle in future OS apps."
-                index={3}
-              />
+          <div className="rounded-3xl border border-white/5 bg-white/5 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Silent Founder essentials</p>
+            <div className="mt-4 grid gap-3 text-sm text-slate-200">
+              {[
+                {
+                  icon: <Video className="h-4 w-4 text-[#38BDF8]" />,
+                  title: 'Replay-ready',
+                  copy: 'Records your flow, rebuilds it, and ships HD reels automatically.',
+                },
+                {
+                  icon: <ShieldCheck className="h-4 w-4 text-[#10B981]" />,
+                  title: 'Guardrails built-in',
+                  copy: 'Waits, retries, and entitlement checks keep ops reliable.',
+                },
+                {
+                  icon: <Cpu className="h-4 w-4 text-[#F97316]" />,
+                  title: 'AI that builds',
+                  copy: 'Describe it once; BAS assembles workflows and shot lists for you.',
+                },
+              ].map((item) => (
+                <div key={item.title} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-3 py-3">
+                  <div className="mt-0.5">{item.icon}</div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-white">{item.title}</p>
+                    <p className="text-slate-300">{item.copy}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3 text-xs text-slate-200">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+                <LineChart className="h-4 w-4 text-[#F97316]" />
+                <span>12–20 hours back weekly</span>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+                <ShieldCheck className="h-4 w-4 text-[#10B981]" />
+                <span>Ops-safe guardrails</span>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+                <Sparkles className="h-4 w-4 text-[#38BDF8]" />
+                <span>Ad-ready exports</span>
+              </div>
             </div>
           </div>
         </div>

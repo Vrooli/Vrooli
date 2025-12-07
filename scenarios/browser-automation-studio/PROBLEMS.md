@@ -1,4 +1,4 @@
-# Browser Automation Studio - Known Issues
+# Vrooli Ascension - Known Issues
 
 This document tracks known problems, limitations, and areas requiring investigation.
 
@@ -22,7 +22,7 @@ Added missing closing `</div>` tag after line 890 (ui/src/components/ProjectDeta
 
 **Verification**:
 ✅ UI now renders at http://localhost:37955 with full functionality
-✅ Screenshot evidence shows "Browser Automation Studio" interface with project cards
+✅ Screenshot evidence shows "Vrooli Ascension" interface with project cards
 ✅ Vite dev server compiles without errors
 ✅ All React components render correctly
 

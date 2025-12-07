@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: landing-page-react-vite/v1/billing.proto
 
-package landing_page_react_vitev1
+package landing_page_react_vite_v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -209,11 +209,11 @@ type CheckoutSession struct {
 	// Stripe price identifier for the purchase.
 	StripePriceId string `protobuf:"bytes,7,opt,name=stripe_price_id,json=stripePriceId,proto3" json:"stripe_price_id,omitempty"`
 	// Stripe product identifier, when available.
-	StripeProductId string `protobuf:"bytes,8,opt,name=stripe_product_id,json=stripeProductId,proto3" json:"stripe_product_id,omitempty"`
+	StripeProductId *string `protobuf:"bytes,8,opt,name=stripe_product_id,json=stripeProductId,proto3,oneof" json:"stripe_product_id,omitempty"`
 	// Subscription identifier if created (sub_*).
-	SubscriptionId string `protobuf:"bytes,9,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
+	SubscriptionId *string `protobuf:"bytes,9,opt,name=subscription_id,json=subscriptionId,proto3,oneof" json:"subscription_id,omitempty"`
 	// Subscription schedule identifier when an intro price is used.
-	ScheduleId string `protobuf:"bytes,10,opt,name=schedule_id,json=scheduleId,proto3" json:"schedule_id,omitempty"`
+	ScheduleId *string `protobuf:"bytes,10,opt,name=schedule_id,json=scheduleId,proto3,oneof" json:"schedule_id,omitempty"`
 	// Amount in cents.
 	AmountCents int64 `protobuf:"varint,11,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	// Currency code (ISO 4217).
@@ -310,22 +310,22 @@ func (x *CheckoutSession) GetStripePriceId() string {
 }
 
 func (x *CheckoutSession) GetStripeProductId() string {
-	if x != nil {
-		return x.StripeProductId
+	if x != nil && x.StripeProductId != nil {
+		return *x.StripeProductId
 	}
 	return ""
 }
 
 func (x *CheckoutSession) GetSubscriptionId() string {
-	if x != nil {
-		return x.SubscriptionId
+	if x != nil && x.SubscriptionId != nil {
+		return *x.SubscriptionId
 	}
 	return ""
 }
 
 func (x *CheckoutSession) GetScheduleId() string {
-	if x != nil {
-		return x.ScheduleId
+	if x != nil && x.ScheduleId != nil {
+		return *x.ScheduleId
 	}
 	return ""
 }
@@ -561,7 +561,7 @@ type SubscriptionStatus struct {
 	// Lifecycle state of the subscription.
 	State SubscriptionState `protobuf:"varint,1,opt,name=state,proto3,enum=landing_page_react_vite.v1.SubscriptionState" json:"state,omitempty"`
 	// Subscription identifier (sub_*).
-	SubscriptionId string `protobuf:"bytes,2,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
+	SubscriptionId *string `protobuf:"bytes,2,opt,name=subscription_id,json=subscriptionId,proto3,oneof" json:"subscription_id,omitempty"`
 	// Identity used for the lookup (email or customer id).
 	UserIdentity string `protobuf:"bytes,3,opt,name=user_identity,json=userIdentity,proto3" json:"user_identity,omitempty"`
 	// Plan tier associated with the subscription (e.g., pro, team).
@@ -622,8 +622,8 @@ func (x *SubscriptionStatus) GetState() SubscriptionState {
 }
 
 func (x *SubscriptionStatus) GetSubscriptionId() string {
-	if x != nil {
-		return x.SubscriptionId
+	if x != nil && x.SubscriptionId != nil {
+		return *x.SubscriptionId
 	}
 	return ""
 }
@@ -787,7 +787,7 @@ func (x *CancelSubscriptionRequest) GetUserIdentity() string {
 type CancelSubscriptionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Subscription identifier that was canceled.
-	SubscriptionId string `protobuf:"bytes,1,opt,name=subscription_id,json=subscriptionId,proto3" json:"subscription_id,omitempty"`
+	SubscriptionId *string `protobuf:"bytes,1,opt,name=subscription_id,json=subscriptionId,proto3,oneof" json:"subscription_id,omitempty"`
 	// Resulting subscription state.
 	State SubscriptionState `protobuf:"varint,2,opt,name=state,proto3,enum=landing_page_react_vite.v1.SubscriptionState" json:"state,omitempty"`
 	// When the subscription was canceled.
@@ -829,8 +829,8 @@ func (*CancelSubscriptionResponse) Descriptor() ([]byte, []int) {
 }
 
 func (x *CancelSubscriptionResponse) GetSubscriptionId() string {
-	if x != nil {
-		return x.SubscriptionId
+	if x != nil && x.SubscriptionId != nil {
+		return *x.SubscriptionId
 	}
 	return ""
 }
@@ -1125,7 +1125,7 @@ var File_landing_page_react_vite_v1_billing_proto protoreflect.FileDescriptor
 
 const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\n" +
-	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\xad\x06\n" +
+	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\xf6\x06\n" +
 	"\x0fCheckoutSession\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12J\n" +
@@ -1134,12 +1134,12 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\x03url\x18\x04 \x01(\tR\x03url\x12'\n" +
 	"\x0fpublishable_key\x18\x05 \x01(\tR\x0epublishableKey\x12%\n" +
 	"\x0ecustomer_email\x18\x06 \x01(\tR\rcustomerEmail\x12&\n" +
-	"\x0fstripe_price_id\x18\a \x01(\tR\rstripePriceId\x12*\n" +
-	"\x11stripe_product_id\x18\b \x01(\tR\x0fstripeProductId\x12'\n" +
-	"\x0fsubscription_id\x18\t \x01(\tR\x0esubscriptionId\x12\x1f\n" +
+	"\x0fstripe_price_id\x18\a \x01(\tR\rstripePriceId\x12/\n" +
+	"\x11stripe_product_id\x18\b \x01(\tH\x00R\x0fstripeProductId\x88\x01\x01\x12,\n" +
+	"\x0fsubscription_id\x18\t \x01(\tH\x01R\x0esubscriptionId\x88\x01\x01\x12$\n" +
 	"\vschedule_id\x18\n" +
-	" \x01(\tR\n" +
-	"scheduleId\x12!\n" +
+	" \x01(\tH\x02R\n" +
+	"scheduleId\x88\x01\x01\x12!\n" +
 	"\famount_cents\x18\v \x01(\x03R\vamountCents\x12\x1a\n" +
 	"\bcurrency\x18\f \x01(\tR\bcurrency\x12\x1f\n" +
 	"\vsuccess_url\x18\r \x01(\tR\n" +
@@ -1151,7 +1151,10 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\bmetadata\x18\x10 \x03(\v29.landing_page_react_vite.v1.CheckoutSession.MetadataEntryR\bmetadata\x1aS\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xa5\x03\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01B\x14\n" +
+	"\x12_stripe_product_idB\x12\n" +
+	"\x10_subscription_idB\x0e\n" +
+	"\f_schedule_id\"\xa5\x03\n" +
 	"\x1cCreateCheckoutSessionRequest\x12\x19\n" +
 	"\bprice_id\x18\x01 \x01(\tR\apriceId\x12%\n" +
 	"\x0ecustomer_email\x18\x02 \x01(\tR\rcustomerEmail\x12\x1f\n" +
@@ -1167,10 +1170,10 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\x1dCreateCheckoutSessionResponse\x12E\n" +
 	"\asession\x18\x01 \x01(\v2+.landing_page_react_vite.v1.CheckoutSessionR\asession\"@\n" +
 	"\x19VerifySubscriptionRequest\x12#\n" +
-	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\xec\x04\n" +
+	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\x85\x05\n" +
 	"\x12SubscriptionStatus\x12C\n" +
-	"\x05state\x18\x01 \x01(\x0e2-.landing_page_react_vite.v1.SubscriptionStateR\x05state\x12'\n" +
-	"\x0fsubscription_id\x18\x02 \x01(\tR\x0esubscriptionId\x12#\n" +
+	"\x05state\x18\x01 \x01(\x0e2-.landing_page_react_vite.v1.SubscriptionStateR\x05state\x12,\n" +
+	"\x0fsubscription_id\x18\x02 \x01(\tH\x00R\x0esubscriptionId\x88\x01\x01\x12#\n" +
 	"\ruser_identity\x18\x03 \x01(\tR\fuserIdentity\x12\x1b\n" +
 	"\tplan_tier\x18\x04 \x01(\tR\bplanTier\x12&\n" +
 	"\x0fstripe_price_id\x18\x05 \x01(\tR\rstripePriceId\x12\x1d\n" +
@@ -1186,17 +1189,19 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\bmetadata\x18\v \x03(\v2<.landing_page_react_vite.v1.SubscriptionStatus.MetadataEntryR\bmetadata\x1aS\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"d\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01B\x12\n" +
+	"\x10_subscription_id\"d\n" +
 	"\x1aVerifySubscriptionResponse\x12F\n" +
 	"\x06status\x18\x01 \x01(\v2..landing_page_react_vite.v1.SubscriptionStatusR\x06status\"@\n" +
 	"\x19CancelSubscriptionRequest\x12#\n" +
-	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\xe1\x01\n" +
-	"\x1aCancelSubscriptionResponse\x12'\n" +
-	"\x0fsubscription_id\x18\x01 \x01(\tR\x0esubscriptionId\x12C\n" +
+	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\xfa\x01\n" +
+	"\x1aCancelSubscriptionResponse\x12,\n" +
+	"\x0fsubscription_id\x18\x01 \x01(\tH\x00R\x0esubscriptionId\x88\x01\x01\x12C\n" +
 	"\x05state\x18\x02 \x01(\x0e2-.landing_page_react_vite.v1.SubscriptionStateR\x05state\x12;\n" +
 	"\vcanceled_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"canceledAt\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"\xba\x01\n" +
+	"\amessage\x18\x04 \x01(\tR\amessageB\x12\n" +
+	"\x10_subscription_id\"\xba\x01\n" +
 	"\x0eCreditsBalance\x12%\n" +
 	"\x0ecustomer_email\x18\x01 \x01(\tR\rcustomerEmail\x12\x1d\n" +
 	"\n" +
@@ -1245,8 +1250,7 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\n" +
 	"GetPricing\x12-.landing_page_react_vite.v1.GetPricingRequest\x1a..landing_page_react_vite.v1.GetPricingResponse\x12\x80\x01\n" +
 	"\x11GetStripeSettings\x124.landing_page_react_vite.v1.GetStripeSettingsRequest\x1a5.landing_page_react_vite.v1.GetStripeSettingsResponse\x12\x89\x01\n" +
-	"\x14UpdateStripeSettings\x127.landing_page_react_vite.v1.UpdateStripeSettingsRequest\x1a8.landing_page_react_vite.v1.UpdateStripeSettingsResponseB\x90\x02\n" +
-	"\x1ecom.landing_page_react_vite.v1B\fBillingProtoP\x01Zcgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vitev1\xa2\x02\x03LXX\xaa\x02\x17LandingPageReactVite.V1\xca\x02\x17LandingPageReactVite\\V1\xe2\x02#LandingPageReactVite\\V1\\GPBMetadata\xea\x02\x18LandingPageReactVite::V1b\x06proto3"
+	"\x14UpdateStripeSettings\x127.landing_page_react_vite.v1.UpdateStripeSettingsRequest\x1a8.landing_page_react_vite.v1.UpdateStripeSettingsResponseBfZdgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1b\x06proto3"
 
 var (
 	file_landing_page_react_vite_v1_billing_proto_rawDescOnce sync.Once
@@ -1341,6 +1345,9 @@ func file_landing_page_react_vite_v1_billing_proto_init() {
 	}
 	file_landing_page_react_vite_v1_pricing_proto_init()
 	file_landing_page_react_vite_v1_settings_proto_init()
+	file_landing_page_react_vite_v1_billing_proto_msgTypes[0].OneofWrappers = []any{}
+	file_landing_page_react_vite_v1_billing_proto_msgTypes[4].OneofWrappers = []any{}
+	file_landing_page_react_vite_v1_billing_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

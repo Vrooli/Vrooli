@@ -8,12 +8,12 @@ import "browser-automation-studio/v1/shared.proto";
 import "browser-automation-studio/v1/timeline.proto";
 import "browser-automation-studio/v1/workflow.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
 // Execution is returned by GET /api/v1/executions/{id}` and list APIs.
 message Execution {
-  // Unique execution ID (UUID).
-  string id = 1;
+  // Unique execution ID (UUID). JSON name preserved as "id" for backwards compatibility.
+  string execution_id = 1 [json_name = "id"];
   // Workflow ID associated with the execution (UUID).
   string workflow_id = 2;
   // Version of the workflow used for this execution.

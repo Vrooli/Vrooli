@@ -26,26 +26,42 @@ from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 from browser_automation_studio.v1 import shared_pb2 as browser__automation__studio_dot_v1_dot_shared__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+browser-automation-studio/v1/workflow.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a)browser-automation-studio/v1/shared.proto\"\xfa\x03\n\x12WorkflowDefinition\x12@\n\x05nodes\x18\x01 \x03(\x0b\x32*.browser_automation_studio.v1.WorkflowNodeR\x05nodes\x12@\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32*.browser_automation_studio.v1.WorkflowEdgeR\x05\x65\x64ges\x12Z\n\x08metadata\x18\x03 \x03(\x0b\x32>.browser_automation_studio.v1.WorkflowDefinition.MetadataEntryR\x08metadata\x12Z\n\x08settings\x18\x04 \x03(\x0b\x32>.browser_automation_studio.v1.WorkflowDefinition.SettingsEntryR\x08settings\x1aS\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aS\n\rSettingsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\"\x87\x01\n\x0cWorkflowNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12:\n\x04type\x18\x02 \x01(\x0e\x32&.browser_automation_studio.v1.StepTypeR\x04type\x12+\n\x04\x64\x61ta\x18\x03 \x01(\x0b\x32\x17.google.protobuf.StructR\x04\x64\x61ta\"\x8f\x01\n\x0cWorkflowEdge\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n\x06target\x18\x03 \x01(\tR\x06target\x12\x12\n\x04type\x18\x04 \x01(\tR\x04type\x12+\n\x04\x64\x61ta\x18\x05 \x01(\x0b\x32\x17.google.protobuf.StructR\x04\x64\x61taB\xa3\x02\n com.browser_automation_studio.v1B\rWorkflowProtoP\x01Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studiov1\xa2\x02\x03\x42XX\xaa\x02\x1a\x42rowserAutomationStudio.V1\xca\x02\x1a\x42rowserAutomationStudio\\V1\xe2\x02&BrowserAutomationStudio\\V1\\GPBMetadata\xea\x02\x1b\x42rowserAutomationStudio::V1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+browser-automation-studio/v1/workflow.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a)browser-automation-studio/v1/shared.proto\"\xb0\x05\n\x12WorkflowDefinition\x12@\n\x05nodes\x18\x01 \x03(\x0b\x32*.browser_automation_studio.v1.WorkflowNodeR\x05nodes\x12@\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32*.browser_automation_studio.v1.WorkflowEdgeR\x05\x65\x64ges\x12^\n\x08metadata\x18\x03 \x03(\x0b\x32>.browser_automation_studio.v1.WorkflowDefinition.MetadataEntryB\x02\x18\x01R\x08metadata\x12^\n\x08settings\x18\x04 \x03(\x0b\x32>.browser_automation_studio.v1.WorkflowDefinition.SettingsEntryB\x02\x18\x01R\x08settings\x12U\n\x0emetadata_typed\x18\x05 \x01(\x0b\x32..browser_automation_studio.v1.WorkflowMetadataR\rmetadataTyped\x12U\n\x0esettings_typed\x18\x06 \x01(\x0b\x32..browser_automation_studio.v1.WorkflowSettingsR\rsettingsTyped\x1aS\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aS\n\rSettingsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\"\x87\x01\n\x0cWorkflowNode\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12:\n\x04type\x18\x02 \x01(\x0e\x32&.browser_automation_studio.v1.StepTypeR\x04type\x12+\n\x04\x64\x61ta\x18\x03 \x01(\x0b\x32\x17.google.protobuf.StructR\x04\x64\x61ta\"\x8f\x01\n\x0cWorkflowEdge\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n\x06target\x18\x03 \x01(\tR\x06target\x12\x12\n\x04type\x18\x04 \x01(\tR\x04type\x12+\n\x04\x64\x61ta\x18\x05 \x01(\x0b\x32\x17.google.protobuf.StructR\x04\x64\x61ta\"\xf1\x01\n\x10WorkflowMetadata\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x02 \x01(\tR\x0b\x64\x65scription\x12R\n\x06labels\x18\x03 \x03(\x0b\x32:.browser_automation_studio.v1.WorkflowMetadata.LabelsEntryR\x06labels\x12\x18\n\x07version\x18\x04 \x01(\tR\x07version\x1a\x39\n\x0bLabelsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\x85\x03\n\x10WorkflowSettings\x12%\n\x0eviewport_width\x18\x01 \x01(\x05R\rviewportWidth\x12\'\n\x0fviewport_height\x18\x02 \x01(\x05R\x0eviewportHeight\x12\x1d\n\nuser_agent\x18\x03 \x01(\tR\tuserAgent\x12\x16\n\x06locale\x18\x04 \x01(\tR\x06locale\x12\'\n\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\x12\x1a\n\x08headless\x18\x06 \x01(\x08R\x08headless\x12R\n\x06\x65xtras\x18\x07 \x03(\x0b\x32:.browser_automation_studio.v1.WorkflowSettings.ExtrasEntryR\x06\x65xtras\x1aQ\n\x0b\x45xtrasEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'browser_automation_studio.v1.workflow_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'\n com.browser_automation_studio.v1B\rWorkflowProtoP\001Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studiov1\242\002\003BXX\252\002\032BrowserAutomationStudio.V1\312\002\032BrowserAutomationStudio\\V1\342\002&BrowserAutomationStudio\\V1\\GPBMetadata\352\002\033BrowserAutomationStudio::V1'
+  _globals['DESCRIPTOR']._serialized_options = b'Zhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1'
   _globals['_WORKFLOWDEFINITION_METADATAENTRY']._loaded_options = None
   _globals['_WORKFLOWDEFINITION_METADATAENTRY']._serialized_options = b'8\001'
   _globals['_WORKFLOWDEFINITION_SETTINGSENTRY']._loaded_options = None
   _globals['_WORKFLOWDEFINITION_SETTINGSENTRY']._serialized_options = b'8\001'
+  _globals['_WORKFLOWDEFINITION'].fields_by_name['metadata']._loaded_options = None
+  _globals['_WORKFLOWDEFINITION'].fields_by_name['metadata']._serialized_options = b'\030\001'
+  _globals['_WORKFLOWDEFINITION'].fields_by_name['settings']._loaded_options = None
+  _globals['_WORKFLOWDEFINITION'].fields_by_name['settings']._serialized_options = b'\030\001'
+  _globals['_WORKFLOWMETADATA_LABELSENTRY']._loaded_options = None
+  _globals['_WORKFLOWMETADATA_LABELSENTRY']._serialized_options = b'8\001'
+  _globals['_WORKFLOWSETTINGS_EXTRASENTRY']._loaded_options = None
+  _globals['_WORKFLOWSETTINGS_EXTRASENTRY']._serialized_options = b'8\001'
   _globals['_WORKFLOWDEFINITION']._serialized_start=151
-  _globals['_WORKFLOWDEFINITION']._serialized_end=657
-  _globals['_WORKFLOWDEFINITION_METADATAENTRY']._serialized_start=489
-  _globals['_WORKFLOWDEFINITION_METADATAENTRY']._serialized_end=572
-  _globals['_WORKFLOWDEFINITION_SETTINGSENTRY']._serialized_start=574
-  _globals['_WORKFLOWDEFINITION_SETTINGSENTRY']._serialized_end=657
-  _globals['_WORKFLOWNODE']._serialized_start=660
-  _globals['_WORKFLOWNODE']._serialized_end=795
-  _globals['_WORKFLOWEDGE']._serialized_start=798
-  _globals['_WORKFLOWEDGE']._serialized_end=941
+  _globals['_WORKFLOWDEFINITION']._serialized_end=839
+  _globals['_WORKFLOWDEFINITION_METADATAENTRY']._serialized_start=671
+  _globals['_WORKFLOWDEFINITION_METADATAENTRY']._serialized_end=754
+  _globals['_WORKFLOWDEFINITION_SETTINGSENTRY']._serialized_start=756
+  _globals['_WORKFLOWDEFINITION_SETTINGSENTRY']._serialized_end=839
+  _globals['_WORKFLOWNODE']._serialized_start=842
+  _globals['_WORKFLOWNODE']._serialized_end=977
+  _globals['_WORKFLOWEDGE']._serialized_start=980
+  _globals['_WORKFLOWEDGE']._serialized_end=1123
+  _globals['_WORKFLOWMETADATA']._serialized_start=1126
+  _globals['_WORKFLOWMETADATA']._serialized_end=1367
+  _globals['_WORKFLOWMETADATA_LABELSENTRY']._serialized_start=1310
+  _globals['_WORKFLOWMETADATA_LABELSENTRY']._serialized_end=1367
+  _globals['_WORKFLOWSETTINGS']._serialized_start=1370
+  _globals['_WORKFLOWSETTINGS']._serialized_end=1759
+  _globals['_WORKFLOWSETTINGS_EXTRASENTRY']._serialized_start=1678
+  _globals['_WORKFLOWSETTINGS_EXTRASENTRY']._serialized_end=1759
 # @@protoc_insertion_point(module_scope)

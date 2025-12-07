@@ -118,7 +118,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 	cacheAge := time.Since(updatedAt)
 	result := &landing_page_react_vite_v1.SubscriptionStatus{
 		State:          state,
-		SubscriptionId: subID,
+		SubscriptionId: proto.String(subID),
 		UserIdentity:   user,
 		PlanTier:       planTier,
 		StripePriceId:  priceID,

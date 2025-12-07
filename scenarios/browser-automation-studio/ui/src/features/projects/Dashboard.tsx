@@ -9,8 +9,6 @@ import {
   HelpCircle,
   BookOpen,
   Command,
-  Pencil,
-  ChevronRight,
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
 import { useDashboardStore } from "@stores/dashboardStore";
@@ -72,7 +70,6 @@ function Dashboard({
     fetchRecentExecutions,
     fetchRunningExecutions,
     runningExecutions,
-    lastEditedWorkflow,
   } = useDashboardStore();
   const { checkCapability: checkAICapability } = useAICapabilityStore();
   const { isConnected: isWebSocketConnected } = useWebSocket();
@@ -365,36 +362,9 @@ function Dashboard({
         <TabNavigation
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          runningCount={runningExecutions.length}
-        />
-      </header>
-
-      {/* Persistent Continue Editing Banner - visible on all tabs except home */}
-      {lastEditedWorkflow && activeTab !== 'home' && (
-        <div className="sticky top-[105px] z-20 px-4 sm:px-6 py-2 bg-blue-900/30 border-b border-blue-500/30 backdrop-blur-sm">
-          <button
-            onClick={() => handleNavigateToWorkflow(lastEditedWorkflow.projectId, lastEditedWorkflow.id)}
-            className="w-full flex items-center justify-between gap-3 p-2.5 bg-blue-900/40 hover:bg-blue-900/60 border border-blue-500/40 hover:border-blue-500/60 rounded-lg transition-all group"
-            data-testid={selectors.dashboard.continueEditingChip}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex items-center justify-center w-8 h-8 bg-blue-500/20 rounded-lg flex-shrink-0">
-                <Pencil size={14} className="text-blue-400" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-xs text-blue-300/80">Continue editing</div>
-                <div className="font-medium text-white truncate">{lastEditedWorkflow.name}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="hidden sm:inline text-xs text-blue-300/60">
-                Click to resume
-              </span>
-              <ChevronRight size={16} className="text-blue-400 group-hover:translate-x-0.5 transition-transform" />
-            </div>
-          </button>
-        </div>
-      )}
+      runningCount={runningExecutions.length}
+    />
+  </header>
 
       {/* Status Bar for API errors */}
       <StatusBar />

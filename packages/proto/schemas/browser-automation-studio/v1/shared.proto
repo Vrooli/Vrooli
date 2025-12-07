@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
 // ExecutionStatus enumerates high-level execution states.
 enum ExecutionStatus {

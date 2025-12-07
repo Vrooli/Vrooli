@@ -9,6 +9,7 @@ import (
 	"time"
 
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -57,7 +58,7 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landin
 		record.WebhookSecret = webhook.String
 	}
 	if dashboard.Valid {
-		record.DashboardUrl = dashboard.String
+		record.DashboardUrl = proto.String(dashboard.String)
 	}
 
 	if !updatedAt.IsZero() {
@@ -82,11 +83,18 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 		return &trimmed
 	}
 
-	updateField := func(existing string, incoming *string) string {
+	updateStringField := func(existing string, incoming *string) string {
 		if incoming == nil {
 			return existing
 		}
 		return *incoming
+	}
+
+	updateOptionalField := func(existing *string, incoming *string) *string {
+		if incoming == nil {
+			return existing
+		}
+		return proto.String(*incoming)
 	}
 
 	pub := normalize(input.PublishableKey)
@@ -98,10 +106,10 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 		current = &landing_page_react_vite_v1.StripeSettings{}
 	}
 
-	nextPublishable := updateField(current.PublishableKey, pub)
-	nextSecret := updateField(current.SecretKey, sec)
-	nextWebhook := updateField(current.WebhookSecret, webhook)
-	nextDashboard := updateField(current.DashboardUrl, dashboard)
+	nextPublishable := updateStringField(current.PublishableKey, pub)
+	nextSecret := updateStringField(current.SecretKey, sec)
+	nextWebhook := updateStringField(current.WebhookSecret, webhook)
+	nextDashboard := updateOptionalField(current.DashboardUrl, dashboard)
 
 	row := s.db.QueryRowContext(ctx, `
 		INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url, updated_at)

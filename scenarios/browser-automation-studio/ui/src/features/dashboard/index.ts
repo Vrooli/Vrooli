@@ -1,4 +1,3 @@
-export { ContinueEditingBanner } from './ContinueEditingBanner';
 export { RecentWorkflowsWidget } from './RecentWorkflowsWidget';
 export { RecentExecutionsWidget } from './RecentExecutionsWidget';
 export { QuickStartWidget } from './QuickStartWidget';

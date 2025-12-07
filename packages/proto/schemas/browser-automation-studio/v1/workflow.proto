@@ -5,7 +5,7 @@ package browser_automation_studio.v1;
 import "google/protobuf/struct.proto";
 import "browser-automation-studio/v1/shared.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
 // WorkflowDefinition mirrors the JSON workflow definitions used by BAS.
 message WorkflowDefinition {
@@ -14,9 +14,13 @@ message WorkflowDefinition {
   // Edges connecting workflow nodes.
   repeated WorkflowEdge edges = 2;
   // Arbitrary metadata associated with the workflow.
-  map<string, google.protobuf.Value> metadata = 3;
+  map<string, google.protobuf.Value> metadata = 3 [deprecated = true];
   // Execution settings for the workflow (e.g., viewport).
-  map<string, google.protobuf.Value> settings = 4;
+  map<string, google.protobuf.Value> settings = 4 [deprecated = true];
+  // Strongly typed metadata; prefer over the deprecated Struct-backed map.
+  WorkflowMetadata metadata_typed = 5;
+  // Strongly typed execution settings; prefer over the deprecated Struct-backed map.
+  WorkflowSettings settings_typed = 6;
 }
 
 // WorkflowNode captures a single node in a workflow graph.
@@ -41,4 +45,34 @@ message WorkflowEdge {
   string type = 4;
   // Provider-specific edge metadata.
   google.protobuf.Struct data = 5;
+}
+
+// WorkflowMetadata captures the most common workflow descriptors.
+message WorkflowMetadata {
+  // Human-readable workflow name.
+  string name = 1;
+  // Optional longer description of what the workflow does.
+  string description = 2;
+  // Arbitrary labels for grouping/ownership (e.g., env=prod, team=apps).
+  map<string, string> labels = 3;
+  // Version tag for this definition (e.g., semver or git sha).
+  string version = 4;
+}
+
+// WorkflowSettings captures common browser/execution knobs.
+message WorkflowSettings {
+  // Viewport width in pixels.
+  int32 viewport_width = 1;
+  // Viewport height in pixels.
+  int32 viewport_height = 2;
+  // User agent string to present during execution.
+  string user_agent = 3;
+  // Preferred locale (e.g., en-US).
+  string locale = 4;
+  // Overall timeout in seconds for the run.
+  int32 timeout_seconds = 5;
+  // Whether to run headless.
+  bool headless = 6;
+  // Additional provider-specific settings not yet typed.
+  map<string, google.protobuf.Value> extras = 7;
 }

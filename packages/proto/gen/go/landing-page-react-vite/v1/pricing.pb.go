@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: landing-page-react-vite/v1/pricing.proto
 
-package landing_page_react_vitev1
+package landing_page_react_vite_v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -762,8 +762,7 @@ const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\x10IntroPricingType\x12\"\n" +
 	"\x1eINTRO_PRICING_TYPE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eINTRO_PRICING_TYPE_FLAT_AMOUNT\x10\x01\x12!\n" +
-	"\x1dINTRO_PRICING_TYPE_PERCENTAGE\x10\x02B\x90\x02\n" +
-	"\x1ecom.landing_page_react_vite.v1B\fPricingProtoP\x01Zcgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vitev1\xa2\x02\x03LXX\xaa\x02\x17LandingPageReactVite.V1\xca\x02\x17LandingPageReactVite\\V1\xe2\x02#LandingPageReactVite\\V1\\GPBMetadata\xea\x02\x18LandingPageReactVite::V1b\x06proto3"
+	"\x1dINTRO_PRICING_TYPE_PERCENTAGE\x10\x02BfZdgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1b\x06proto3"
 
 var (
 	file_landing_page_react_vite_v1_pricing_proto_rawDescOnce sync.Once

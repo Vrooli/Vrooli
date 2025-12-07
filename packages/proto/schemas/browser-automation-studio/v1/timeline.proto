@@ -6,7 +6,7 @@ import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "browser-automation-studio/v1/shared.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;basv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
 // It mirrors the existing BAS timeline JSON contract.
@@ -54,7 +54,7 @@ message TimelineFrame {
   // Final URL after step execution (for navigation steps).
   string final_url = 11;
   // Error message if the step failed.
-  string error = 12;
+  optional string error = 12;
   // Number of console log entries captured for this step.
   int32 console_log_count = 13;
   // Number of network events captured for this step.
@@ -114,7 +114,7 @@ message TimelineScreenshot {
   // Image MIME type (e.g., image/png).
   string content_type = 6;
   // Optional size in bytes for the screenshot.
-  int64 size_bytes = 7;
+  optional int64 size_bytes = 7;
 }
 
 // TimelineArtifact exposes related artifacts such as console or network logs.
@@ -124,15 +124,15 @@ message TimelineArtifact {
   // Artifact type (timeline_frame, console_log, network_event, etc.).
   ArtifactType type = 2;
   // Optional human-readable label.
-  string label = 3;
+  optional string label = 3;
   // URL to download the artifact content.
   string storage_url = 4;
   // URL to download an artifact thumbnail if available.
-  string thumbnail_url = 5;
+  optional string thumbnail_url = 5;
   // MIME type for the artifact.
   string content_type = 6;
   // Optional size in bytes for the artifact.
-  int64 size_bytes = 7;
+  optional int64 size_bytes = 7;
   // Step index associated with this artifact, if any.
   optional int32 step_index = 8;
   // Provider-specific payload describing the artifact.
@@ -232,7 +232,7 @@ message TimelineLog {
   // Log message content.
   string message = 3;
   // Associated step name, if any.
-  string step_name = 4;
+  optional string step_name = 4;
   // Timestamp when the log was recorded.
   google.protobuf.Timestamp timestamp = 5;
 }

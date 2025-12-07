@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: browser-automation-studio/v1/shared.proto
 
-package browser_automation_studiov1
+package browser_automation_studio_v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -562,8 +562,7 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\x13EXPORT_STATUS_READY\x10\x01\x12\x19\n" +
 	"\x15EXPORT_STATUS_PENDING\x10\x02\x12\x17\n" +
 	"\x13EXPORT_STATUS_ERROR\x10\x03\x12\x1d\n" +
-	"\x19EXPORT_STATUS_UNAVAILABLE\x10\x04B\xa1\x02\n" +
-	" com.browser_automation_studio.v1B\vSharedProtoP\x01Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studiov1\xa2\x02\x03BXX\xaa\x02\x1aBrowserAutomationStudio.V1\xca\x02\x1aBrowserAutomationStudio\\V1\xe2\x02&BrowserAutomationStudio\\V1\\GPBMetadata\xea\x02\x1bBrowserAutomationStudio::V1b\x06proto3"
+	"\x19EXPORT_STATUS_UNAVAILABLE\x10\x04BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_shared_proto_rawDescOnce sync.Once

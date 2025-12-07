@@ -4,7 +4,7 @@ package landing_page_react_vite.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;lprvv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
 
 // ConfigSource indicates where active Stripe credentials were loaded from.
 enum ConfigSource {
@@ -36,7 +36,7 @@ message StripeSettings {
   // Webhook signing secret.
   string webhook_secret = 3;
   // Optional dashboard URL for UI linking.
-  string dashboard_url = 4;
+  optional string dashboard_url = 4;
   // Last update timestamp.
   google.protobuf.Timestamp updated_at = 5;
 }

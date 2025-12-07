@@ -12,7 +12,7 @@ if (window.top !== window.self) {
 const container = document.getElementById('root');
 
 if (!container) {
-  throw new Error('Failed to locate root element for Browser Automation Studio UI');
+  throw new Error('Failed to locate root element for Vrooli Ascension UI');
 }
 
 const pathname = window.location.pathname || '';

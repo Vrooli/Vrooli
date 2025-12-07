@@ -4,7 +4,7 @@
 
 ### Core Capability
 **What permanent capability does this scenario add to Vrooli?**
-Browser Automation Studio provides a visual workflow builder and execution environment for browser automation tasks. It enables agents and users to create, debug, and schedule browser-based workflows with real-time visual feedback, making UI testing, web scraping, and browser task automation accessible and self-healing through AI integration.
+Vrooli Ascension provides a visual workflow builder and execution environment for browser automation tasks. It enables agents and users to create, debug, and schedule browser-based workflows with real-time visual feedback, making UI testing, web scraping, and browser task automation accessible and self-healing through AI integration.
 
 ### Intelligence Amplification
 **How does this capability make future agents smarter?**
