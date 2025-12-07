@@ -50,6 +50,7 @@ interface ProjectState {
   getOrCreateDefaultProject: () => Promise<Project>;
   getSmartDefaultProject: () => Project | null;
   setLastUsedProject: (projectId: string) => void;
+  deleteAllProjects: () => Promise<{ deleted: number; errors: string[] }>;
 }
 
 // Load last used project from localStorage
@@ -337,5 +338,53 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setLastUsedProject: (projectId: string) => {
     saveLastUsedProjectId(projectId);
     set({ lastUsedProjectId: projectId });
+  },
+
+  deleteAllProjects: async () => {
+    const { projects } = get();
+    const errors: string[] = [];
+    let deleted = 0;
+
+    set({ isLoading: true, error: null });
+
+    for (const project of projects) {
+      try {
+        const config = await getConfig();
+        const response = await fetch(`${config.API_URL}/projects/${project.id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          errors.push(`Failed to delete "${project.name}": ${errorData || response.status}`);
+        } else {
+          deleted++;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        errors.push(`Failed to delete "${project.name}": ${message}`);
+        logger.error('Failed to delete project during bulk delete', { component: 'ProjectStore', action: 'deleteAllProjects', projectId: project.id }, error);
+      }
+    }
+
+    // Clear local state
+    set({
+      projects: [],
+      currentProject: null,
+      selectedProject: null,
+      isLoading: false,
+      lastUsedProjectId: null,
+    });
+
+    // Clear localStorage
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('browserAutomation.lastUsedProjectId');
+      }
+    } catch {
+      // Ignore storage errors
+    }
+
+    return { deleted, errors };
   },
 }));

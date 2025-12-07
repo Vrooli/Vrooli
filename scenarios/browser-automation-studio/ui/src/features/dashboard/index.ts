@@ -13,3 +13,4 @@ export { ExecutionsTab } from './ExecutionsTab';
 export { ExportsTab } from './ExportsTab';
 export { ProjectsTab } from './ProjectsTab';
 export { RunningExecutionsBadge } from './RunningExecutionsBadge';
+export { WelcomeHero } from './WelcomeHero';

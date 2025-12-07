@@ -1,8 +1,8 @@
 {
   "variant": {
     "id": 0,
-    "slug": "fallback",
-    "name": "Silent Founder OS (Fallback)",
+    "slug": "control",
+    "name": "Silent Founder OS (Control Fallback)",
     "description": "Offline-safe fallback for the Silent Founder control experience."
   },
   "axes": {

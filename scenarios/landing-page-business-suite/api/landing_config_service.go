@@ -18,7 +18,7 @@ var (
 	defaultFallbackLandingJSON = []byte(`{
 		"variant": {
 			"id": 0,
-			"slug": "fallback",
+			"slug": "control",
 			"name": "Silent Founder OS",
 			"description": "Offline-safe fallback for the Silent Founder OS landing page."
 		},
@@ -604,6 +604,7 @@ type LandingConfigPayload struct {
 	Downloads []DownloadApp         `json:"downloads"`
 	Header    LandingHeaderConfig   `json:"header"`
 }
+
 
 func NewLandingConfigService(
 	variantService *VariantService,

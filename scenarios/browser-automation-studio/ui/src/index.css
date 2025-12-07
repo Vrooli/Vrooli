@@ -533,3 +533,374 @@
   background-size: 200px 100%;
   animation: skeleton-wave 1.5s ease-in-out infinite;
 }
+
+/* ============================================
+   WELCOME HERO STYLES
+   ============================================ */
+
+/* Hero gradient text */
+.hero-gradient-text {
+  background: linear-gradient(
+    135deg,
+    rgb(96 165 250) 0%,      /* blue-400 */
+    rgb(139 92 246) 50%,     /* violet-500 */
+    rgb(59 130 246) 100%     /* blue-500 */
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Light mode gradient text */
+[data-theme="light"] .hero-gradient-text {
+  background: linear-gradient(
+    135deg,
+    rgb(37 99 235) 0%,       /* blue-600 */
+    rgb(124 58 237) 50%,     /* violet-600 */
+    rgb(79 70 229) 100%      /* indigo-600 */
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Hero animated background - dot grid */
+.hero-background {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgb(59 130 246 / 0.15) 1px,
+    transparent 0
+  );
+  background-size: 40px 40px;
+  mask-image: radial-gradient(
+    ellipse 80% 50% at 50% 0%,
+    black 0%,
+    transparent 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 50% at 50% 0%,
+    black 0%,
+    transparent 100%
+  );
+}
+
+.hero-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 60% 40% at 50% 0%,
+    rgb(59 130 246 / 0.08) 0%,
+    transparent 70%
+  );
+}
+
+/* Light mode hero background */
+[data-theme="light"] .hero-background::before {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgb(99 102 241 / 0.2) 1px,
+    transparent 0
+  );
+}
+
+[data-theme="light"] .hero-background::after {
+  background: radial-gradient(
+    ellipse 60% 40% at 50% 0%,
+    rgb(99 102 241 / 0.1) 0%,
+    transparent 70%
+  );
+}
+
+/* Hero primary button with glow */
+.hero-button-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  font-weight: 600;
+  font-size: 1rem;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    rgb(59 130 246) 0%,
+    rgb(99 102 241) 100%
+  );
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow:
+    0 4px 15px rgb(59 130 246 / 0.3),
+    0 0 0 1px rgb(59 130 246 / 0.1);
+}
+
+.hero-button-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 25px rgb(59 130 246 / 0.4),
+    0 0 0 1px rgb(59 130 246 / 0.2);
+}
+
+.hero-button-primary:active {
+  transform: translateY(0);
+}
+
+.hero-button-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: transform 0.5s ease;
+}
+
+.hero-button-primary:hover .hero-button-glow {
+  transform: translateX(100%);
+}
+
+/* Hero secondary button */
+.hero-button-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  font-weight: 600;
+  font-size: 1rem;
+  color: rgb(var(--flow-text));
+  background: rgb(var(--flow-surface));
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--flow-border));
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.hero-button-secondary:hover {
+  background: rgb(var(--flow-surface-hover));
+  border-color: rgb(var(--flow-accent));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgb(0 0 0 / 0.1);
+}
+
+.hero-button-secondary:active {
+  transform: translateY(0);
+}
+
+/* Radial gradient utility */
+.bg-gradient-radial {
+  background: radial-gradient(var(--tw-gradient-stops));
+}
+
+/* Slow pulse animations */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pulse-slower {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-pulse-slower {
+  animation: pulse-slower 4s ease-in-out infinite;
+}
+
+/* Draw line animation for workflow preview */
+@keyframes draw-line {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-draw-line {
+  animation: draw-line 0.4s ease-out both;
+}
+
+/* Workflow preview node entrance */
+.workflow-preview-node {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+.workflow-connection {
+  animation: draw-line 0.3s ease-out both;
+}
+
+/* Feature card styles */
+.feature-card {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+/* Enhanced fade-in-up with fill mode for staggered animations */
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+/* Stats counter animation */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Floating animation for decorative elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--flow-node)) 0%,
+    rgb(var(--flow-node-hover)) 50%,
+    rgb(var(--flow-node)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* Glow ring animation */
+@keyframes glow-ring {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgb(59 130 246 / 0.3),
+      0 0 40px rgb(59 130 246 / 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgb(59 130 246 / 0.4),
+      0 0 60px rgb(59 130 246 / 0.2);
+  }
+}
+
+.animate-glow-ring {
+  animation: glow-ring 3s ease-in-out infinite;
+}
+
+/* Border gradient animation */
+@keyframes border-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.border-gradient-animated {
+  position: relative;
+  background: rgb(var(--flow-node));
+  border-radius: 0.75rem;
+}
+
+.border-gradient-animated::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(
+    90deg,
+    rgb(59 130 246),
+    rgb(139 92 246),
+    rgb(59 130 246)
+  );
+  background-size: 200% 100%;
+  border-radius: inherit;
+  z-index: -1;
+  animation: border-flow 3s ease-in-out infinite;
+}
+
+/* Scale up animation on hover */
+.hover-scale-up {
+  transition: transform 0.3s ease;
+}
+
+.hover-scale-up:hover {
+  transform: scale(1.02);
+}
+
+/* Staggered children animations */
+.stagger-children > * {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 500ms; }

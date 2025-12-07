@@ -74,6 +74,7 @@ interface ExportState {
   createExport: (input: CreateExportInput) => Promise<Export | null>;
   updateExport: (id: string, input: UpdateExportInput) => Promise<Export | null>;
   deleteExport: (id: string) => Promise<boolean>;
+  deleteAllExports: () => Promise<{ deleted: number; errors: string[] }>;
   setSelectedExport: (export_: Export | null) => void;
   clearError: () => void;
 }
@@ -344,5 +345,42 @@ export const useExportStore = create<ExportState>((set) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  deleteAllExports: async () => {
+    const { exports } = useExportStore.getState();
+    const errors: string[] = [];
+    let deleted = 0;
+
+    set({ isDeleting: true, error: null });
+
+    for (const exportItem of exports) {
+      try {
+        const config = await getConfig();
+        const response = await fetch(`${config.API_URL}/exports/${exportItem.id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          errors.push(`Failed to delete "${exportItem.name}": ${errorData.message ?? response.status}`);
+        } else {
+          deleted++;
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        errors.push(`Failed to delete "${exportItem.name}": ${message}`);
+        logger.error('Failed to delete export during bulk delete', { component: 'ExportStore', action: 'deleteAllExports', id: exportItem.id }, error);
+      }
+    }
+
+    // Clear local state
+    set({
+      exports: [],
+      selectedExport: null,
+      isDeleting: false,
+    });
+
+    return { deleted, errors };
   },
 }));

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import { Button } from "../ui/button";
@@ -80,6 +80,23 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
     if (streamStatus === "error") return "Run error";
     return null;
   }, [streamStatus]);
+
+  const logContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const stickToBottomRef = useRef(true);
+
+  useLayoutEffect(() => {
+    const el = logContainerRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [logs]);
+
+  const handleLogScroll = () => {
+    const el = logContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+    stickToBottomRef.current = distanceFromBottom < 40;
+  };
 
   useEffect(() => {
     if (streamError) {
@@ -225,7 +242,11 @@ export function ExecutionForm({ scenarioOptions, datalistId, scenarioName, onSuc
                 {streamStatus === "streaming" ? "Streaming" : streamStatus === "error" ? "Error" : "Complete"}
               </span>
             </div>
-            <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg bg-black/60 p-3 font-mono text-xs text-slate-100">
+            <div
+              ref={logContainerRef}
+              onScroll={handleLogScroll}
+              className="max-h-64 space-y-1 overflow-y-auto rounded-lg bg-black/60 p-3 font-mono text-xs text-slate-100"
+            >
               {logs.length === 0 && (
                 <p className="text-slate-500">{streamStatus === "streaming" ? "Waiting for output..." : "No output"}</p>
               )}

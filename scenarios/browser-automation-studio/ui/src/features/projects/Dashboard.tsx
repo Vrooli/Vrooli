@@ -5,14 +5,12 @@ import {
   Wifi,
   Search,
   Keyboard,
-  Bot,
   Settings,
   HelpCircle,
   BookOpen,
   Command,
   Pencil,
   ChevronRight,
-  Play,
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
 import { useDashboardStore } from "@stores/dashboardStore";
@@ -27,6 +25,7 @@ import { ExecutionsTab } from "@features/dashboard/ExecutionsTab";
 import { ExportsTab } from "@features/dashboard/ExportsTab";
 import { ProjectsTab } from "@features/dashboard/ProjectsTab";
 import { RunningExecutionsBadge } from "@features/dashboard/RunningExecutionsBadge";
+import { WelcomeHero } from "@features/dashboard/WelcomeHero";
 
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
@@ -187,44 +186,6 @@ function Dashboard({
     );
   };
 
-  // Render empty state for new users
-  const renderWelcomeState = () => (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="max-w-md text-center">
-        <div className="mb-6 flex items-center justify-center">
-          <div className="p-4 bg-flow-accent/20 rounded-2xl">
-            <Bot size={48} className="text-flow-accent" />
-          </div>
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-3">
-          Welcome to Browser Automation Studio
-        </h2>
-        <p className="text-gray-400 mb-6">
-          Create visual workflows to automate browser tasks, test UIs, and extract data from websites with AI assistance.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <button
-            data-testid={selectors.dashboard.newProjectButton}
-            onClick={onCreateProject}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-          >
-            <Plus size={20} />
-            Create Your First Project
-          </button>
-          {onTryDemo && (
-            <button
-              data-testid={selectors.dashboard.tryDemoButton}
-              onClick={onTryDemo}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium border border-gray-600"
-            >
-              <Play size={20} />
-              Try Demo Workflow
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
   // Render tab content based on active tab
   const renderTabContent = () => {
@@ -440,7 +401,10 @@ function Dashboard({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
           </div>
         ) : projects.length === 0 && activeTab === 'home' ? (
-          renderWelcomeState()
+          <WelcomeHero
+            onCreateProject={onCreateProject}
+            onTryDemo={onTryDemo}
+          />
         ) : (
           renderTabContent()
         )}

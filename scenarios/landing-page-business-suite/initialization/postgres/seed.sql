@@ -10,15 +10,22 @@ ON CONFLICT (email) DO NOTHING;
 
 -- Insert curated Silent Founder OS variants (OT-P0-014 through OT-P0-018)
 INSERT INTO variants (slug, name, description, weight, status) VALUES
+('control', 'Silent Founder (Control)', 'Build a business quietly with Browser Automation Studio today.', 100, 'active'),
 ('silent-founder-entrepreneurship-emotional', 'Silent Founder · Entrepreneurship · Emotional', 'Build a business quietly with Browser Automation Studio today.', 25, 'active'),
 ('solo-dev-testing-technical', 'Solo Dev · Testing · Technical', 'Replayable e2e tests for solo developers.', 20, 'active'),
 ('qa-engineer-testing-technical', 'QA Engineer · Testing · Technical', 'Replay evidence and stable regressions.', 15, 'active'),
 ('automation-engineer-automation-visionary', 'Automation Engineer · Automation · Visionary', 'Visually program the browser; agents on deck.', 20, 'active'),
 ('agency-marketing-visionary', 'Agency · Marketing · Visionary', 'Deliver client-ready demos and replays in hours.', 20, 'active')
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    weight = EXCLUDED.weight,
+    status = EXCLUDED.status,
+    updated_at = NOW();
 
--- Axis mappings for curated variants
+-- Axis mappings for curated variants (including control)
 WITH v AS (SELECT slug, id FROM variants WHERE slug IN (
+    'control',
     'silent-founder-entrepreneurship-emotional',
     'solo-dev-testing-technical',
     'qa-engineer-testing-technical',
@@ -30,6 +37,9 @@ SELECT v.id, axis_map.axis_id, axis_map.variant_value
 FROM v
 JOIN (
     VALUES
+        ('control', 'persona', 'silentFounder'),
+        ('control', 'jtbd', 'entrepreneurship'),
+        ('control', 'conversionStyle', 'emotional'),
         ('silent-founder-entrepreneurship-emotional', 'persona', 'silentFounder'),
         ('silent-founder-entrepreneurship-emotional', 'jtbd', 'entrepreneurship'),
         ('silent-founder-entrepreneurship-emotional', 'conversionStyle', 'emotional'),
@@ -88,6 +98,29 @@ DECLARE
     }';
     downloads_json TEXT := '{"title":"Download Browser Automation Studio","subtitle":"macOS, Windows, Linux builds respect entitlements. Install, sign in, and start automating."}';
 BEGIN
+    -- Reset sections for control and curated variants so seeds overwrite stale content
+    DELETE FROM content_sections WHERE variant_id IN (
+        SELECT id FROM variants WHERE slug IN (
+            'control',
+            'silent-founder-entrepreneurship-emotional',
+            'solo-dev-testing-technical',
+            'qa-engineer-testing-technical',
+            'automation-engineer-automation-visionary',
+            'agency-marketing-visionary'
+        )
+    );
+
+    -- Control variant = Silent Founder OS
+    INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
+    ((SELECT id FROM variants WHERE slug='control'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'video', '{"title":"Watch Browser Automation Studio build and replay a flow","videoUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."}', 2, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'features', features_json::json, 3, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'pricing', pricing_json::json, 4, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'faq', faq_json::json, 5, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'cta', '{"title":"See Browser Automation Studio in action","subtitle":"Start free, export a replay, and know more tools are coming to the same subscription.","cta_text":"Get started quietly","cta_url":"/checkout?plan=pro"}', 6, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'downloads', downloads_json::json, 7, TRUE)
+    ON CONFLICT DO NOTHING;
+
     -- Silent Founder (entrepreneurship · emotional)
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),

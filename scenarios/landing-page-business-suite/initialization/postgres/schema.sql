@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS bundle_prices (
     product_id INTEGER REFERENCES bundle_products(id) ON DELETE CASCADE,
     stripe_price_id VARCHAR(255) UNIQUE NOT NULL,
     plan_name VARCHAR(100) NOT NULL,
-    plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('solo','pro','studio','business','credits','donation')),
+    plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('free','solo','pro','studio','business','credits','donation')),
     billing_interval VARCHAR(20) NOT NULL CHECK (billing_interval IN ('month','year','one_time')),
     amount_cents INTEGER NOT NULL,
     currency VARCHAR(10) DEFAULT 'usd',
