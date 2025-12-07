@@ -4,12 +4,12 @@
     "name": "Quiet Founder Alt (archived)",
     "description": "Placeholder variant archived to force all traffic to the control experience",
     "weight": 0,
-    "status": "archived"
-  },
-  "axes": {
-    "persona": "silentFounder",
-    "jtbd": "entrepreneurship",
-    "conversionStyle": "emotional"
+    "status": "archived",
+    "axes": {
+      "persona": "silentFounder",
+      "jtbd": "entrepreneurship",
+      "conversionStyle": "emotional"
+    }
   },
   "sections": [
     {
@@ -29,7 +29,7 @@
       "order": 2,
       "enabled": true,
       "content": {
-        "title": "Why trainers pick Browser Automation Studio",
+        "title": "Why trainers pick Vrooli Ascension",
         "subtitle": "Variant A leans into enablement metrics over pricing copy.",
         "features": [
           {

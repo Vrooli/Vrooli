@@ -112,7 +112,7 @@ BEGIN
 
     -- Control variant = Silent Founder OS
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-    ((SELECT id FROM variants WHERE slug='control'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Vrooli Ascension: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),
+    ((SELECT id FROM variants WHERE slug='control'), 'hero', '{"title":"Record once. Automate forever","subtitle":"And turn every recording into a polished, professional demo video","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"Watch video","secondary_cta_url":"#video-2"}', 1, TRUE),
     ((SELECT id FROM variants WHERE slug='control'), 'video', '{"title":"Watch Vrooli Ascension build and replay a flow","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='control'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='control'), 'pricing', pricing_json::json, 4, TRUE),
@@ -123,7 +123,7 @@ BEGIN
 
     -- Silent Founder (entrepreneurship · emotional)
     INSERT INTO content_sections (variant_id, section_type, content, "order", enabled) VALUES
-    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'hero', '{"title":"Build a business without talking to anyone.","subtitle":"Silent Founder OS starts with Vrooli Ascension: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"See a workflow replay","secondary_cta_url":"#video-2"}', 1, TRUE),
+    ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'hero', '{"title":"Record once. Automate forever","subtitle":"And turn every recording into a polished, professional demo video","cta_text":"Start free","cta_url":"/checkout?plan=pro","secondary_cta_text":"Watch video","secondary_cta_url":"#video-2"}', 1, TRUE),
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'video', '{"title":"Watch Vrooli Ascension build and replay a flow","videoUrl":"https://www.youtube.com/watch?v=ysz5S6PUM-U","thumbnailUrl":"/assets/fallback/video-thumb.png","caption":"Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."}', 2, TRUE),
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'features', features_json::json, 3, TRUE),
     ((SELECT id FROM variants WHERE slug='silent-founder-entrepreneurship-emotional'), 'pricing', pricing_json::json, 4, TRUE),

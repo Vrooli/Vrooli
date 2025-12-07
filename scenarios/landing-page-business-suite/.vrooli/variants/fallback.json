@@ -2,19 +2,19 @@
   "variant": {
     "id": 0,
     "slug": "control",
-    "name": "Silent Founder OS (Control Fallback)",
-    "description": "Offline-safe fallback for the Silent Founder control experience."
-  },
-  "axes": {
-    "persona": "silentFounder",
-    "jtbd": "entrepreneurship",
-    "conversionStyle": "emotional"
+    "name": "Silent Founder OS",
+    "description": "Offline-safe fallback for the Silent Founder control experience.",
+    "axes": {
+      "persona": "silentFounder",
+      "jtbd": "entrepreneurship",
+      "conversionStyle": "emotional"
+    }
   },
   "header": {
     "branding": {
       "mode": "logo_and_name",
       "label": "Silent Founder OS",
-      "subtitle": "Browser Automation Studio today · More tools soon",
+      "subtitle": "Vrooli Ascension today · More tools soon",
       "mobile_preference": "logo"
     },
     "nav": {
@@ -41,11 +41,11 @@
       "order": 1,
       "enabled": true,
       "content": {
-        "title": "Build a business without talking to anyone",
-        "subtitle": "Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn flows into e2e tests, and export cinematic replays for marketing—all without sales calls or a team.",
+        "title": "Record once. Automate forever",
+        "subtitle": "And turn every recording into a polished, professional demo video",
         "cta_text": "Start free",
         "cta_url": "/checkout?price_id=price_free",
-        "secondary_cta_text": "See a workflow replay",
+        "secondary_cta_text": "Watch video",
         "secondary_cta_url": "#video-sf-2",
         "image_url": "/assets/hero/silent-founder.png"
       }
@@ -55,7 +55,7 @@
       "order": 2,
       "enabled": true,
       "content": {
-        "title": "See Browser Automation Studio in action",
+        "title": "See Vrooli Ascension in action",
         "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         "thumbnailUrl": "/assets/fallback/video-thumb.png",
         "caption": "Visual workflows, replay-as-movie exports, and how the suite grows over time."
@@ -67,7 +67,7 @@
       "enabled": true,
       "content": {
         "title": "Your quiet operating system for shipping products",
-        "subtitle": "Browser Automation Studio is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
+        "subtitle": "Vrooli Ascension is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
         "features": [
           { "title": "Visual workflow builder", "description": "Record or point-and-click to build browser flows that automate back-office work and admin panels.", "icon": "mouse-pointer-click" },
           { "title": "Your flows are your tests", "description": "Run the same workflows in CI as end-to-end tests with replay on every failure.", "icon": "shield-check" },
@@ -83,7 +83,7 @@
       "enabled": true,
       "content": {
         "title": "Proof for people who prefer to ship quietly",
-        "subtitle": "Operators and solo founders are already using Browser Automation Studio to run the business in the background.",
+        "subtitle": "Operators and solo founders are already using Vrooli Ascension to run the business in the background.",
         "testimonials": [
           { "name": "Jessie Patel", "role": "Solo founder", "company": "Quiet Systems", "content": "The replay-as-movie exports replaced client calls. I send a video, they pay the invoice. No meetings required.", "rating": 5 },
           { "name": "Marco Lu", "role": "Automation lead", "company": "Northstack", "content": "Workflows double as tests, so QA stopped being a separate job. The browser recordings cut debug time in half.", "rating": 5 },
@@ -102,7 +102,7 @@
           {
             "name": "Free",
             "price": "$0",
-            "description": "Quietly try Browser Automation Studio",
+            "description": "Quietly try Vrooli Ascension",
             "features": ["50 runs/month", "Watermarked MP4 exports", "Replay viewer", "No sales calls ever"],
             "cta_text": "Start free",
             "cta_url": "/checkout?price_id=price_free"
@@ -148,7 +148,7 @@
       "order": 6,
       "enabled": true,
       "content": {
-        "title": "Download Browser Automation Studio",
+        "title": "Download Vrooli Ascension",
         "subtitle": "macOS, Windows, and Linux installers stay entitlement-aware by default."
       }
     },
@@ -161,7 +161,7 @@
         "subtitle": "Everything you need to know before you start the Silent Founder OS journey.",
         "faqs": [
           { "question": "Do I need sales calls to upgrade?", "answer": "No. All plans are self-serve with flat pricing. No per-seat traps or discovery calls." },
-          { "question": "What happens when more apps ship?", "answer": "You keep Browser Automation Studio today. Future Vrooli Business Suite apps are added to your subscription automatically." },
+          { "question": "What happens when more apps ship?", "answer": "You keep Vrooli Ascension today. Future Vrooli Business Suite apps are added to your subscription automatically." },
           { "question": "Are replays watermarked?", "answer": "Free and Solo exports keep a watermark. Pro and above remove it and allow custom branding on Studio+." },
           { "question": "Can I use this for testing?", "answer": "Yes. The same workflows can run in CI. Failures replay like a movie so you can debug in minutes." }
         ]
@@ -173,7 +173,7 @@
       "enabled": true,
       "content": {
         "title": "Start as a silent founder today",
-        "subtitle": "Browser Automation Studio ships now. The rest of the suite arrives automatically as we build it.",
+        "subtitle": "Vrooli Ascension ships now. The rest of the suite arrives automatically as we build it.",
         "cta_text": "Start free",
         "cta_url": "/checkout?price_id=price_free"
       }
@@ -416,7 +416,7 @@
     {
       "bundle_key": "business_suite",
       "app_key": "automation_studio",
-      "name": "Browser Automation Studio",
+      "name": "Vrooli Ascension",
       "tagline": "Desktop workflows, tests, and replay-as-movie exports",
       "description": "Desktop suite for visual workflows, replay-as-movie exports, and back-office automation.",
       "install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
@@ -433,7 +433,7 @@
           "platform": "windows",
           "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
           "release_version": "1.0.0",
-          "release_notes": "Initial GA release with Browser Automation Studio.",
+          "release_notes": "Initial GA release with Vrooli Ascension.",
           "requires_entitlement": true,
           "metadata": { "size_mb": 210 }
         },

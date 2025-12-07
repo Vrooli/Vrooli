@@ -4,12 +4,12 @@
     "name": "QA Engineer · Testing · Technical",
     "description": "Replay evidence and stable regressions.",
     "weight": 15,
-    "status": "active"
-  },
-  "axes": {
-    "persona": "qaEngineer",
-    "jtbd": "testing",
-    "conversionStyle": "technical"
+    "status": "active",
+    "axes": {
+      "persona": "qaEngineer",
+      "jtbd": "testing",
+      "conversionStyle": "technical"
+    }
   },
   "sections": [
     {
@@ -18,7 +18,7 @@
       "enabled": true,
       "content": {
         "title": "Give QA replay evidence for every regression.",
-        "subtitle": "Browser Automation Studio records flows as living tests. Failures replay in a fake browser frame so devs and PMs see exactly what broke.",
+        "subtitle": "Vrooli Ascension records flows as living tests. Failures replay in a fake browser frame so devs and PMs see exactly what broke.",
         "cta_text": "Start QA-ready",
         "cta_url": "/checkout?plan=pro",
         "secondary_cta_text": "Preview replay evidence",
@@ -41,7 +41,7 @@
       "order": 3,
       "enabled": true,
       "content": {
-        "title": "Browser Automation Studio is live now. The suite keeps growing.",
+        "title": "Vrooli Ascension is live now. The suite keeps growing.",
         "subtitle": "Automate browsers, ship tests, and generate proof-ready replays today. Your subscription includes future Vrooli Business Suite apps at no extra cost.",
         "features": [
           { "title": "Visual workflow builder", "description": "Point-and-record or assemble actions to automate admin panels, dashboards, and back-office flows.", "icon": "zap" },
@@ -58,7 +58,7 @@
       "enabled": true,
       "content": {
         "title": "Simple, transparent pricing",
-        "subtitle": "Browser Automation Studio today. More Silent Founder OS tools added over time.",
+        "subtitle": "Vrooli Ascension today. More Silent Founder OS tools added over time.",
         "tiers": [
           { "name": "Free", "price": "$0", "description": "50 runs/month, builder, replay viewer (watermarked MP4)", "features": ["Visual workflow builder", "Replay viewer with watermark", "50 runs/month", "No agents or UX metrics"], "cta_text": "Start free", "cta_url": "/checkout?plan=free", "badge": "Try it now" },
           { "name": "Solo", "price": "$29", "description": "200 runs/month, MP4 export with watermark", "features": ["200 runs/month", "MP4 export (watermark)", "Workflow builder + replays", "Email support"], "cta_text": "Upgrade to Solo", "cta_url": "/checkout?plan=solo" },
@@ -76,7 +76,7 @@
         "title": "Answers for quiet founders",
         "subtitle": "What ships today, what is coming, and how we price it.",
         "faqs": [
-          { "question": "What do I get today?", "answer": "Browser Automation Studio: visual workflow builder, CI-friendly tests, replay viewer, and MP4 exports (watermark rules by plan)." },
+          { "question": "What do I get today?", "answer": "Vrooli Ascension: visual workflow builder, CI-friendly tests, replay viewer, and MP4 exports (watermark rules by plan)." },
           { "question": "What is coming next?", "answer": "UX metrics layer (friction, duration, spatial paths) and agent loops that fix flows via ecosystem-manager + PRD control tower." },
           { "question": "Do I have to talk to sales?", "answer": "No. No sales calls, no per-seat pricing. Subscribe, download, and grow quietly. Support is async." },
           { "question": "Can I cancel or switch?", "answer": "Yes. Plans are flat, cancellable, and your price is honored as the suite expands." }
@@ -99,7 +99,7 @@
       "order": 7,
       "enabled": true,
       "content": {
-        "title": "Download Browser Automation Studio",
+        "title": "Download Vrooli Ascension",
         "subtitle": "macOS, Windows, Linux builds respect entitlements. Install, sign in, and start automating."
       }
     }

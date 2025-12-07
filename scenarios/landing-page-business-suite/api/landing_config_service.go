@@ -33,11 +33,11 @@ var (
 				"order": 1,
 				"enabled": true,
 				"content": {
-					"title": "Build a business without talking to anyone.",
-					"subtitle": "Silent Founder OS starts with Vrooli Ascension: automate back-office work, turn workflows into tests, and export cinematic replays. Your subscription keeps getting more tools—no sales calls, no per-seat traps.",
+					"title": "Record once. Automate forever",
+					"subtitle": "And turn every recording into a polished, professional demo video",
 					"cta_text": "Start free",
 					"cta_url": "/checkout?plan=pro",
-					"secondary_cta_text": "See a workflow replay",
+					"secondary_cta_text": "Watch video",
 					"secondary_cta_url": "#video-2",
 					"image_url": "/assets/fallback/hero.png"
 				}

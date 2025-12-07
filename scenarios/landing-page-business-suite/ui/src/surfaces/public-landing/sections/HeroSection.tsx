@@ -38,9 +38,9 @@ interface HeroSectionProps {
 
 export function HeroSection({ content }: HeroSectionProps) {
   const { trackCTAClick } = useMetrics();
-  const primaryCtaText = content.cta_text ?? 'Launch Vrooli Ascension';
+  const primaryCtaText = content.cta_text ?? 'Start free';
   const primaryCtaUrl = content.cta_url ?? '#pricing';
-  const secondaryCtaText = content.secondary_cta_text ?? 'Watch the 90-second demo';
+  const secondaryCtaText = content.secondary_cta_text ?? 'Watch video';
   const secondaryCtaUrl = content.secondary_cta_url ?? '#video';
 
   const handleCTAClick = () => {
@@ -73,11 +73,11 @@ export function HeroSection({ content }: HeroSectionProps) {
 
           <div className="space-y-5">
             <h1 className="text-5xl leading-tight text-white md:text-6xl">
-              {content.title || 'Vrooli Ascension runs your browser for you'}
+              {content.title || 'Record once. Automate forever'}
             </h1>
             <p className="max-w-2xl text-lg text-slate-300">
               {content.subtitle ||
-                'Record a flow once. Ascension rebuilds it with waits and retries, reruns it on schedule, and exports cinematic MP4 proof for marketing, QA, and clients—no team required.'}
+                'And turn every recording into a polished, professional demo video'}
             </p>
           </div>
 

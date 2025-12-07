@@ -4,12 +4,12 @@
     "name": "Silent Founder (Control)",
     "description": "Silent Founder OS default experience for introverted solo builders",
     "weight": 100,
-    "status": "active"
-  },
-  "axes": {
-    "persona": "silentFounder",
-    "jtbd": "entrepreneurship",
-    "conversionStyle": "emotional"
+    "status": "active",
+    "axes": {
+      "persona": "silentFounder",
+      "jtbd": "entrepreneurship",
+      "conversionStyle": "emotional"
+    }
   },
   "sections": [
     {
@@ -17,10 +17,12 @@
       "order": 1,
       "enabled": true,
       "content": {
-        "title": "Build a business without talking to anyone",
-        "subtitle": "Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn flows into e2e tests, and export cinematic replays for marketing—all without sales calls or a team.",
+        "title": "Record once. Automate forever",
+        "subtitle": "And turn every recording into a polished, professional demo video",
         "cta_text": "Start free",
         "cta_url": "/checkout?price_id=price_free",
+        "secondary_cta_text": "Watch video",
+        "secondary_cta_url": "#video-2",
         "image_url": "/assets/hero/silent-founder.png"
       }
     },
@@ -30,7 +32,7 @@
       "enabled": true,
       "content": {
         "title": "Your quiet operating system for shipping products",
-        "subtitle": "Browser Automation Studio is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
+        "subtitle": "Vrooli Ascension is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
         "features": [
           {
             "title": "Visual workflow builder",
@@ -71,7 +73,7 @@
           {
             "name": "Free",
             "price": "$0",
-            "description": "Quietly try Browser Automation Studio",
+            "description": "Quietly try Vrooli Ascension",
             "features": [
               "50 runs/month",
               "Watermarked MP4 exports",
@@ -144,7 +146,7 @@
       "enabled": true,
       "content": {
         "title": "Proof for people who prefer to ship quietly",
-        "subtitle": "Operators and solo founders are already using Browser Automation Studio to run the business in the background.",
+        "subtitle": "Operators and solo founders are already using Vrooli Ascension to run the business in the background.",
         "testimonials": [
           {
             "name": "Jessie Patel",
@@ -184,7 +186,7 @@
           },
           {
             "question": "What happens when more apps ship?",
-            "answer": "You keep Browser Automation Studio today. Future Vrooli Business Suite apps are added to your subscription automatically."
+            "answer": "You keep Vrooli Ascension today. Future Vrooli Business Suite apps are added to your subscription automatically."
           },
           {
             "question": "Are replays watermarked?",
@@ -203,7 +205,7 @@
       "enabled": true,
       "content": {
         "title": "Start as a silent founder today",
-        "subtitle": "Browser Automation Studio ships now. The rest of the suite arrives automatically as we build it.",
+        "subtitle": "Vrooli Ascension ships now. The rest of the suite arrives automatically as we build it.",
         "cta_text": "Start free",
         "cta_url": "/checkout?price_id=price_free"
       }
