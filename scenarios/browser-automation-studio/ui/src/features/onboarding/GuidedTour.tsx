@@ -42,7 +42,7 @@ export interface TourStep {
 export const defaultTourSteps: TourStep[] = [
   {
     id: "welcome",
-    title: "Welcome to Browser Automation Studio",
+    title: "Welcome to Vrooli Ascension",
     description:
       "Let's take a quick tour to get you started. You can drag this panel anywhere on the screen.",
     icon: <Sparkles size={24} className="text-amber-400" />,

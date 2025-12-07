@@ -1,6 +1,6 @@
 # Environment Variables
 
-This document lists all environment variables used by the Browser Automation Studio scenario.
+This document lists all environment variables used by the Vrooli Ascension scenario.
 
 ## Required Variables
 

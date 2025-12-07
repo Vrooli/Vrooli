@@ -256,13 +256,13 @@ function Dashboard({
               <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-flow-node/60 border border-flow-border/60">
                 <img
                   src="/manifest-icon-192.maskable.png"
-                  alt="Browser Automation Studio"
+                  alt="Vrooli Ascension"
                   className="w-7 h-7"
                   loading="lazy"
                 />
               </div>
               <h1 className="text-xl font-bold text-white">
-                Browser Automation Studio
+                Vrooli Ascension
               </h1>
             </div>
             <div className="flex items-center gap-2">

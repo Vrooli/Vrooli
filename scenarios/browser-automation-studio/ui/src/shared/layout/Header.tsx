@@ -708,7 +708,7 @@ function Header({
                 ) : currentProject ? (
                   currentProject.name
                 ) : (
-                  "Browser Automation Studio"
+                  "Vrooli Ascension"
                 )}
               </h1>
               {(currentProject || displayWorkflow) && (

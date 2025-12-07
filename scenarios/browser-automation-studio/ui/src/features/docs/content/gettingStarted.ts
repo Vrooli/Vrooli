@@ -1,11 +1,11 @@
 /**
- * Getting Started guide content for Browser Automation Studio
+ * Getting Started guide content for Vrooli Ascension
  */
 
 export const GETTING_STARTED_CONTENT = `
-# Getting Started with Browser Automation Studio
+# Getting Started with Vrooli Ascension
 
-Browser Automation Studio (BAS) helps you create visual workflows to automate browser tasks, test UIs, and extract data from websites—all without writing low-level browser automation code.
+Vrooli Ascension (BAS) helps you create visual workflows to automate browser tasks, test UIs, and extract data from websites—all without writing low-level browser automation code.
 
 ## Core Concepts
 
@@ -141,7 +141,7 @@ Press \`Shift + ?\` to see all available shortcuts for your current context.
 export const WORKFLOW_SCHEMA_INTRO = `
 # Workflow Schema Reference
 
-Browser Automation Studio workflows are stored as JSON files following a specific schema. Understanding this schema is essential for:
+Vrooli Ascension workflows are stored as JSON files following a specific schema. Understanding this schema is essential for:
 
 - Creating workflows programmatically
 - Building e2e test suites that generate BAS workflows

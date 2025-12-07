@@ -1,5 +1,5 @@
 /**
- * Configuration types for Browser Automation Studio
+ * Configuration types for Vrooli Ascension
  */
 
 export interface Config {

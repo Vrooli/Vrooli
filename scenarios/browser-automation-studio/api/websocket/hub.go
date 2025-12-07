@@ -56,7 +56,7 @@ func (h *Hub) Run() {
 			select {
 			case client.Send <- map[string]any{
 				"type":      "connected",
-				"message":   "Connected to Browser Automation Studio",
+				"message":   "Connected to Vrooli Ascension",
 				"timestamp": getCurrentTimestamp(),
 			}:
 			default:

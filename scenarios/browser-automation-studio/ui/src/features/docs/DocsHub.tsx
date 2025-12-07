@@ -60,7 +60,7 @@ export function DocsHub({
           <div>
             <h1 className="text-xl font-bold text-white">Documentation</h1>
             <p className="text-sm text-gray-400">
-              Learn how to use Browser Automation Studio
+              Learn how to use Vrooli Ascension
             </p>
           </div>
         </div>

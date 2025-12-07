@@ -1,4 +1,4 @@
-# Requirements Directory (Browser Automation Studio)
+# Requirements Directory (Vrooli Ascension)
 
 This folder mirrors the PRD operational targets so agents can reason about **what** must be true before worrying about **how** to implement it.
 

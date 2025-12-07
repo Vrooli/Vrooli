@@ -112,6 +112,9 @@ export function Deployments() {
               <li>Export a bundle (desktop/mobile/saas) and run the scenario-to-* packager CLI.</li>
               <li>Return here to track status and upload telemetry from the packaged app.</li>
             </ol>
+            <p className="text-xs text-slate-400">
+              Need the desktop packager? Start it with <code className="rounded bg-black/30 px-1 py-0.5 text-[11px]">vrooli scenario start scenario-to-desktop</code> then follow the guide below.
+            </p>
             <div className="flex flex-wrap gap-2">
               <Link to="/profiles">
                 <Button size="sm" variant="secondary" className="gap-2">
@@ -125,6 +128,12 @@ export function Deployments() {
                   Upload telemetry
                 </Button>
               </Link>
+              <Button asChild size="sm" variant="ghost" className="gap-2">
+                <a href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/scenarios/scenario-to-desktop.md" target="_blank" rel="noreferrer">
+                  <FileText className="h-4 w-4" />
+                  Open scenario-to-desktop guide
+                </a>
+              </Button>
             </div>
           </CardContent>
         </Card>

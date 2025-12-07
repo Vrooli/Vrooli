@@ -474,7 +474,7 @@ func TestHubSendsWelcomeMessage(t *testing.T) {
 		if welcome["type"] != "connected" {
 			t.Errorf("expected welcome message type 'connected', got %v", welcome["type"])
 		}
-		if welcome["message"] != "Connected to Browser Automation Studio" {
+		if welcome["message"] != "Connected to Vrooli Ascension" {
 			t.Errorf("expected welcome message, got %v", welcome["message"])
 		}
 	})

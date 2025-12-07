@@ -190,7 +190,7 @@ function buildHtmlDocument(payload) {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Browser Automation Studio Replay</title>
+  <title>Vrooli Ascension Replay</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -849,7 +849,7 @@ async function main() {
 
   await fsp.writeFile(
     path.join(outputDir, 'README.txt'),
-    `Browser Automation Studio Replay\n\nGenerated: ${payload.generatedAt}\nFrames: ${frames.length}\n\nOpen index.html in a browser to view the replay.\n`,
+    `Vrooli Ascension Replay\n\nGenerated: ${payload.generatedAt}\nFrames: ${frames.length}\n\nOpen index.html in a browser to view the replay.\n`,
     'utf8',
   );
 

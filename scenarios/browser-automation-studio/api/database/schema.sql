@@ -1,4 +1,4 @@
--- Browser Automation Studio Database Schema
+-- Vrooli Ascension Database Schema
 -- This schema defines the complete database structure for the browser automation platform.
 -- It includes tables for projects, workflows, executions, artifacts, and related entities.
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Playwright Driver is a TypeScript-based HTTP service that executes browser automation instructions using Playwright. It serves as the execution engine for the Browser Automation Studio, providing a clean abstraction over Playwright's API while maintaining full compatibility with the Go `AutomationEngine` contract.
+The Playwright Driver is a TypeScript-based HTTP service that executes browser automation instructions using Playwright. It serves as the execution engine for the Vrooli Ascension, providing a clean abstraction over Playwright's API while maintaining full compatibility with the Go `AutomationEngine` contract.
 
 **Key Characteristics**:
 - **Type-safe**: 100% TypeScript with strict mode

@@ -1,5 +1,5 @@
 /**
- * Navigation hook for the Browser Automation Studio.
+ * Navigation hook for the Vrooli Ascension.
  * Extracts navigation/routing logic from App.tsx for better separation of concerns.
  */
 import { useCallback, useEffect, useState } from "react";

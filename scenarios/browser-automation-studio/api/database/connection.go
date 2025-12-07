@@ -212,7 +212,7 @@ func (db *DB) seedDemoWorkflow() error {
 
 	const demoWorkflowFolder = "/demo"
 	const demoProjectName = "Demo Browser Automations"
-	const demoProjectDescription = "Seeded workflows that showcase Browser Automation Studio execution, telemetry, and replay features."
+	const demoProjectDescription = "Seeded workflows that showcase Vrooli Ascension execution, telemetry, and replay features."
 	const demoWorkflowName = "Demo: Capture Example.com Hero"
 
 	demoProjectFolder := os.Getenv("BAS_DEMO_PROJECT_PATH")
@@ -277,7 +277,7 @@ func (db *DB) seedDemoWorkflow() error {
 		uuid.New(),
 		folderPath,
 		"Demo Workflows",
-		"Sample browser automation journeys seeded by Browser Automation Studio",
+		"Sample browser automation journeys seeded by Vrooli Ascension",
 	); err != nil {
 		return fmt.Errorf("failed to seed demo workflow folder: %w", err)
 	}

@@ -1,6 +1,6 @@
 # Services
 
-Business logic layer for the Browser Automation Studio API. The services wire repositories, the automation executor stack, and websocket/eventing so handlers stay thin.
+Business logic layer for the Vrooli Ascension API. The services wire repositories, the automation executor stack, and websocket/eventing so handlers stay thin.
 
 ## Execution Flow
 ```mermaid

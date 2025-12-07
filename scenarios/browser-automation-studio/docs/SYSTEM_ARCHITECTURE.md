@@ -1,8 +1,8 @@
-# Browser Automation Studio - Complete System Architecture
+# Vrooli Ascension - Complete System Architecture
 
 ## 🎯 Mental Model: The Big Picture
 
-This document provides a holistic view of how all major components of Browser Automation Studio fit together, from HTTP request to browser automation to database persistence to WebSocket streaming.
+This document provides a holistic view of how all major components of Vrooli Ascension fit together, from HTTP request to browser automation to database persistence to WebSocket streaming.
 
 ---
 

@@ -56,7 +56,7 @@ func BuildThemeFromPreset(baseline *exportservices.ReplayMovieSpec, preset *Them
 		if name := strings.TrimSpace(baseline.Execution.WorkflowName); name != "" {
 			theme.BrowserChrome.Title = name
 		} else {
-			theme.BrowserChrome.Title = "Browser Automation Studio"
+			theme.BrowserChrome.Title = "Vrooli Ascension"
 		}
 	}
 	if theme.AccentColor == "" {

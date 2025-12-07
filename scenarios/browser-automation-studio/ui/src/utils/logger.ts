@@ -1,5 +1,5 @@
 /**
- * Centralized logging utility for Browser Automation Studio
+ * Centralized logging utility for Vrooli Ascension
  * Provides consistent log formatting and future extensibility for remote logging
  */
 

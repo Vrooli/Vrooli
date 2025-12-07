@@ -1,6 +1,6 @@
 # Handlers
 
-Thin HTTP façade for the Browser Automation Studio API. Handlers validate requests, invoke services, and stream execution updates via websockets.
+Thin HTTP façade for the Vrooli Ascension API. Handlers validate requests, invoke services, and stream execution updates via websockets.
 
 ```mermaid
 flowchart LR

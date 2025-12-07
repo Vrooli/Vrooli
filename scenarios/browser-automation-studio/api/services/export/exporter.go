@@ -493,7 +493,7 @@ func BuildReplayMovieSpec(
 func defaultExportTheme(workflowName, accent string) ExportTheme {
 	title := workflowName
 	if strings.TrimSpace(title) == "" {
-		title = "Browser Automation Studio"
+		title = "Vrooli Ascension"
 	}
 
 	return ExportTheme{

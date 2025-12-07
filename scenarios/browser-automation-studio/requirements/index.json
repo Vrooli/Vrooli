@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Browser Automation Studio requirement registry (modular) - Parent-level requirements reference child modules declared under imports",
+    "description": "Vrooli Ascension requirement registry (modular) - Parent-level requirements reference child modules declared under imports",
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0"

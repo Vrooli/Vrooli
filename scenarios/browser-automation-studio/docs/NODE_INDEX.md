@@ -1,6 +1,6 @@
-# Browser Automation Studio Node Index
+# Vrooli Ascension Node Index
 
-> Source of truth for all drag-and-drop nodes exposed in the Browser Automation Studio palette. The list mirrors `WORKFLOW_NODE_DEFINITIONS` in `ui/src/constants/nodeCategories.ts` and the compiler's `supportedStepTypes`, making it easy to confirm parity between UI, runtime, and documentation.
+> Source of truth for all drag-and-drop nodes exposed in the Vrooli Ascension palette. The list mirrors `WORKFLOW_NODE_DEFINITIONS` in `ui/src/constants/nodeCategories.ts` and the compiler's `supportedStepTypes`, making it easy to confirm parity between UI, runtime, and documentation.
 
 | Category | Node | Description | Reference |
 | --- | --- | --- | --- |

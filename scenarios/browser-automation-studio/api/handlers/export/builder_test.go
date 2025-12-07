@@ -123,7 +123,7 @@ func TestBuildThemeFromPreset(t *testing.T) {
 		if result == nil {
 			t.Fatal("expected non-nil result")
 		}
-		if result.BrowserChrome.Title != "Browser Automation Studio" {
+		if result.BrowserChrome.Title != "Vrooli Ascension" {
 			t.Errorf("expected default title, got %s", result.BrowserChrome.Title)
 		}
 	})

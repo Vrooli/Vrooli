@@ -1,7 +1,7 @@
 /**
  * Features module - domain-organized feature components
  *
- * The Browser Automation Studio is organized into these main features:
+ * The Vrooli Ascension is organized into these main features:
  * - projects: Project management (Dashboard, ProjectDetail, ProjectModal)
  * - workflows: Visual workflow builder and node types
  * - execution: Execution viewing, history, and replay

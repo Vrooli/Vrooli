@@ -1,6 +1,6 @@
 # Playwright Driver v2.0
 
-**Production-ready TypeScript browser automation driver for Browser Automation Studio**
+**Production-ready TypeScript browser automation driver for Vrooli Ascension**
 
 ## Overview
 

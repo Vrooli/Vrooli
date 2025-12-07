@@ -1,4 +1,4 @@
-# Browser Automation Studio - Assumption Mapping & Hardening
+# Vrooli Ascension - Assumption Mapping & Hardening
 
 **Generated**: 2025-11-29
 **Last Updated**: 2025-11-29 (Deep verification pass)

@@ -52,7 +52,7 @@ export const ExportSuccessPanel: React.FC<ExportSuccessPanelProps> = ({
 
       if (!response.ok) {
         // If endpoint doesn't exist yet, use a placeholder caption
-        const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Browser Automation Studio.`;
+        const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Vrooli Ascension.`;
         setAiCaption(placeholderCaption);
         await updateExport(export_.id, { aiCaption: placeholderCaption });
         toast.success('Caption generated');
@@ -67,7 +67,7 @@ export const ExportSuccessPanel: React.FC<ExportSuccessPanelProps> = ({
       }
     } catch (error) {
       // Fallback to placeholder
-      const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Browser Automation Studio.`;
+      const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Vrooli Ascension.`;
       setAiCaption(placeholderCaption);
       toast.success('Caption generated');
     } finally {

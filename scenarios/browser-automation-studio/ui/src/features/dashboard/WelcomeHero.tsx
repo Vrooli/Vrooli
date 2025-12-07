@@ -162,7 +162,7 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
             <div className="relative w-20 h-20 flex items-center justify-center bg-gradient-to-br from-flow-accent/20 to-purple-500/20 rounded-2xl border border-flow-accent/30 shadow-lg shadow-flow-accent/20 overflow-hidden">
               <img
                 src="/manifest-icon-192.maskable.png"
-                alt="Browser Automation Studio logo"
+                alt="Vrooli Ascension logo"
                 className="w-full h-full object-cover drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]"
               />
             </div>
@@ -171,7 +171,7 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
           {/* Heading with gradient */}
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
             <span className="hero-gradient-text">
-              Welcome to Browser Automation Studio
+              Welcome to Vrooli Ascension
             </span>
           </h1>
 

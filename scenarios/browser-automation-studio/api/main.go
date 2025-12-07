@@ -85,9 +85,9 @@ func main() {
 
 	// Log current working directory for transparency
 	if cwd, err := os.Getwd(); err == nil {
-		log.WithField("cwd", cwd).Info("Starting Browser Automation Studio API")
+		log.WithField("cwd", cwd).Info("Starting Vrooli Ascension API")
 	} else {
-		log.Info("Starting Browser Automation Studio API")
+		log.Info("Starting Vrooli Ascension API")
 	}
 
 	// Initialize database connection
@@ -248,7 +248,7 @@ func main() {
 		"api_port":    port,
 		"api_host":    apiHost,
 		"cors_policy": corsPolicy,
-	}).Info("🚀 Browser Automation Studio API starting")
+	}).Info("🚀 Vrooli Ascension API starting")
 	log.WithField("endpoint", fmt.Sprintf("http://%s:%s/api/v1", apiHost, port)).Info("📊 API endpoint ready")
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {

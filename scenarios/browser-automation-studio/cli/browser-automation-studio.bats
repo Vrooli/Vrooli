@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Browser Automation Studio CLI Tests
+# Vrooli Ascension CLI Tests
 # Tests for the browser-automation-studio command-line interface
 
 setup() {
@@ -28,7 +28,7 @@ setup() {
 @test "CLI: help command displays usage" {
     run "${CLI_PATH}" help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Browser Automation Studio" ]]
+    [[ "$output" =~ "Vrooli Ascension" ]]
     [[ "$output" =~ "USAGE:" ]]
     [[ "$output" =~ "COMMANDS:" ]]
 }

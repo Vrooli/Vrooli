@@ -1,6 +1,6 @@
 # Tab Switch Node
 
-`[REQ:BAS-NODE-TAB-SWITCH]` lets Browser Automation Studio workflows juggle OAuth popups, report windows, or any multi-tab interaction without brittle scripting.
+`[REQ:BAS-NODE-TAB-SWITCH]` lets Vrooli Ascension workflows juggle OAuth popups, report windows, or any multi-tab interaction without brittle scripting.
 
 ## Configuration
 

@@ -1,4 +1,4 @@
--- Browser Automation Studio Database Schema
+-- Vrooli Ascension Database Schema
 -- PostgreSQL schema for workflow and execution storage
 
 -- Create database if not exists

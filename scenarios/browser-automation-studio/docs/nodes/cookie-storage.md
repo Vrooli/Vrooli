@@ -2,7 +2,7 @@
 
 **Requirement Tag:** `[REQ:BAS-NODE-COOKIE-STORAGE]`
 
-Browser Automation Studio now ships dedicated nodes for browser cookies and web storage so workflows can set up authenticated sessions, capture state between steps, and keep fixtures tidy. This document summarizes the nodes, configuration surfaces, and example usage.
+Vrooli Ascension now ships dedicated nodes for browser cookies and web storage so workflows can set up authenticated sessions, capture state between steps, and keep fixtures tidy. This document summarizes the nodes, configuration surfaces, and example usage.
 
 ## Cookie Nodes
 

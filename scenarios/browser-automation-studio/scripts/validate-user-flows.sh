@@ -21,7 +21,7 @@ TOTAL_CHECKED=0
 TOTAL_VALID=0
 
 echo "====================================================================="
-echo "Browser Automation Studio - User Flow Validation"
+echo "Vrooli Ascension - User Flow Validation"
 echo "====================================================================="
 echo ""
 

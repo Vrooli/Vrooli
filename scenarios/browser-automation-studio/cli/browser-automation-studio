@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Browser Automation Studio CLI
+# Vrooli Ascension CLI
 # Visual browser automation with AI-powered workflow builder
 
 set -e
@@ -84,7 +84,7 @@ JQ
 
 show_help() {
     cat << EOF
-Browser Automation Studio - Visual Workflow Builder CLI
+Vrooli Ascension - Visual Workflow Builder CLI
 
 USAGE:
     browser-automation-studio <command> [arguments] [flags]
@@ -559,7 +559,7 @@ show_status() {
 EOF
     else
         # Human-readable output
-        echo -e "${BLUE}Browser Automation Studio Status${NC}"
+        echo -e "${BLUE}Vrooli Ascension Status${NC}"
         echo "================================"
 
         if [ "$api_running" = true ]; then
@@ -2093,7 +2093,7 @@ NODE
         esac
         ;;
     version)
-        echo "Browser Automation Studio CLI v1.0.0"
+        echo "Vrooli Ascension CLI v1.0.0"
         echo "API Version: 1.0.0"
         ;;
     help|--help|-h)

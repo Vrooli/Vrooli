@@ -18,8 +18,8 @@ interface SchemaReferenceProps {
 const EMBEDDED_SCHEMA = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://schemas.vrooli.com/browser-automation-studio/workflow.schema.json",
-  title: "Browser Automation Studio Workflow",
-  description: "Canonical schema for Browser Automation Studio workflow definitions",
+  title: "Vrooli Ascension Workflow",
+  description: "Canonical schema for Vrooli Ascension workflow definitions",
   type: "object",
   required: ["nodes", "edges"],
   properties: {
