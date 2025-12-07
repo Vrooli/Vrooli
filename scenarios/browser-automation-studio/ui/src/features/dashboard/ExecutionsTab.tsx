@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Play,
-  Plus,
   Square,
   CheckCircle2,
   XCircle,
@@ -11,10 +9,14 @@ import {
   Eye,
   RefreshCw,
   Filter,
+  Activity,
+  Image,
 } from 'lucide-react';
 import { useDashboardStore, type RecentExecution } from '@stores/dashboardStore';
 import { useExecutionStore } from '@stores/executionStore';
 import { formatDistanceToNow } from 'date-fns';
+import { TabEmptyState } from './TabEmptyState';
+import { ExecutionsEmptyPreview } from './ExecutionsEmptyPreview';
 
 interface ExecutionsTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;
@@ -249,48 +251,50 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
             <Loader2 size={24} className="animate-spin text-gray-500" />
           </div>
         ) : filteredExecutions.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
-              <Play size={24} className="text-gray-600" />
-            </div>
-            {/* Contextual empty state based on user progress */}
-            {recentWorkflows.length > 0 ? (
-              // User has workflows - encourage running one
-              <>
-                <h4 className="text-lg font-medium text-white mb-2">No executions yet</h4>
-                <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
-                  You have {recentWorkflows.length} workflow{recentWorkflows.length !== 1 ? 's' : ''} ready to run.
-                  Execute one to see the results here.
-                </p>
-                {onNavigateToHome && (
-                  <button
-                    onClick={onNavigateToHome}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                  >
-                    <Play size={20} />
-                    Run a Workflow
-                  </button>
-                )}
-              </>
-            ) : (
-              // Brand new user - guide them to create first workflow
-              <>
-                <h4 className="text-lg font-medium text-white mb-2">No executions yet</h4>
-                <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
-                  Create a workflow first, then run it to see execution history and results.
-                </p>
-                {onCreateWorkflow && (
-                  <button
-                    onClick={onCreateWorkflow}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                  >
-                    <Plus size={20} />
-                    Create Your First Workflow
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          <TabEmptyState
+            icon={<Activity size={22} />}
+            title="Watch your automations come alive"
+            subtitle={
+              recentWorkflows.length > 0
+                ? `You have ${recentWorkflows.length} workflow${recentWorkflows.length !== 1 ? 's' : ''} ready to run.`
+                : 'Create a workflow, run it, and monitor every step with logs, screenshots, and metrics.'
+            }
+            preview={<ExecutionsEmptyPreview />}
+            primaryCta={{
+              label: recentWorkflows.length > 0 ? 'Run a workflow' : 'Create your first workflow',
+              onClick:
+                (recentWorkflows.length > 0 ? onNavigateToHome : onCreateWorkflow) ??
+                onCreateWorkflow ??
+                (() => {}),
+            }}
+            secondaryCta={
+              recentWorkflows.length > 0 && onCreateWorkflow
+                ? { label: 'Create another workflow', onClick: onCreateWorkflow }
+                : undefined
+            }
+            progressPath={[
+              { label: 'Create workflow', completed: recentWorkflows.length > 0 },
+              { label: 'Run & monitor', active: true },
+              { label: 'Export results' },
+            ]}
+            features={[
+              {
+                title: 'Live monitoring',
+                description: 'Follow each browser action in real time with streaming logs.',
+                icon: <Eye size={16} />,
+              },
+              {
+                title: 'Step-by-step checks',
+                description: 'Progress, retries, and errors are captured automatically.',
+                icon: <CheckCircle2 size={16} />,
+              },
+              {
+                title: 'Visual evidence',
+                description: 'Screenshots attach to every critical step for quick validation.',
+                icon: <Image size={16} />,
+              },
+            ]}
+          />
         ) : (
           <div className="space-y-2">
             {filteredExecutions

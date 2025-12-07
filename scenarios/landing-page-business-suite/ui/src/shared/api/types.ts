@@ -87,6 +87,7 @@ export interface PlanOption {
   amount_cents: number;
   currency: string;
   intro_enabled: boolean;
+  intro_type?: 'flat_amount' | 'percentage';
   intro_amount_cents?: number;
   intro_periods?: number;
   intro_price_lookup_key?: string;

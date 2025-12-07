@@ -1,6 +1,6 @@
 {
   "name": "@vrooli/proto-types",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generated Protocol Buffer types for Vrooli scenarios (TypeScript/ESM).",
   "type": "module",
   "sideEffects": false,
@@ -13,6 +13,10 @@
     "./common/v1/*": {
       "types": "./common/v1/*.ts",
       "import": "./js/common/v1/*.js"
+    },
+    "./landing-page-react-vite/v1/*": {
+      "types": "./landing-page-react-vite/v1/*.ts",
+      "import": "./js/landing-page-react-vite/v1/*.js"
     }
   },
   "typesVersions": {
@@ -22,12 +26,16 @@
       ],
       "common/v1/*": [
         "common/v1/*.ts"
+      ],
+      "landing-page-react-vite/v1/*": [
+        "landing-page-react-vite/v1/*.ts"
       ]
     }
   },
   "files": [
     "browser-automation-studio",
     "common",
+    "landing-page-react-vite",
     "js"
   ],
   "dependencies": {

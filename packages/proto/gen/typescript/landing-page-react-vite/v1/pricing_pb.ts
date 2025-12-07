@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-react-vite/v1/pricing.proto.
  */
 export const file_landing_page_react_vite_v1_pricing: GenFile = /*@__PURE__*/
-  fileDesc("CihsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9wcmljaW5nLnByb3RvEhpsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MSLDAgoGQnVuZGxlEhIKCmJ1bmRsZV9rZXkYASABKAkSDAoEbmFtZRgCIAEoCRIZChFzdHJpcGVfcHJvZHVjdF9pZBgDIAEoCRIXCg9jcmVkaXRzX3Blcl91c2QYBCABKAMSIgoaZGlzcGxheV9jcmVkaXRzX211bHRpcGxpZXIYBSABKAESHQoVZGlzcGxheV9jcmVkaXRzX2xhYmVsGAYgASgJEhMKC2Vudmlyb25tZW50GAcgASgJEkIKCG1ldGFkYXRhGAggAygLMjAubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQnVuZGxlLk1ldGFkYXRhRW50cnkaRwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIrYFCgpQbGFuT3B0aW9uEhEKCXBsYW5fbmFtZRgBIAEoCRIRCglwbGFuX3RpZXIYAiABKAkSGAoQYmlsbGluZ19pbnRlcnZhbBgDIAEoCRIUCgxhbW91bnRfY2VudHMYBCABKAMSEAoIY3VycmVuY3kYBSABKAkSFQoNaW50cm9fZW5hYmxlZBgGIAEoCBISCgppbnRyb190eXBlGAcgASgJEh8KEmludHJvX2Ftb3VudF9jZW50cxgIIAEoA0gAiAEBEhUKDWludHJvX3BlcmlvZHMYCSABKAUSHgoWaW50cm9fcHJpY2VfbG9va3VwX2tleRgKIAEoCRIXCg9zdHJpcGVfcHJpY2VfaWQYCyABKAkSIAoYbW9udGhseV9pbmNsdWRlZF9jcmVkaXRzGAwgASgDEh4KFm9uZV90aW1lX2JvbnVzX2NyZWRpdHMYDSABKAMSEQoJcGxhbl9yYW5rGA4gASgFEhIKCmJvbnVzX3R5cGUYDyABKAkSMgoEa2luZBgQIAEoDjIkLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlBsYW5LaW5kEhoKEmlzX3ZhcmlhYmxlX2Ftb3VudBgRIAEoCBIXCg9kaXNwbGF5X2VuYWJsZWQYEiABKAgSEgoKYnVuZGxlX2tleRgTIAEoCRIWCg5kaXNwbGF5X3dlaWdodBgUIAEoBRJGCghtZXRhZGF0YRgVIAMoCzI0LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlBsYW5PcHRpb24uTWV0YWRhdGFFbnRyeRpHCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCFQoTX2ludHJvX2Ftb3VudF9jZW50cyLmAQoPUHJpY2luZ092ZXJ2aWV3EjIKBmJ1bmRsZRgBIAEoCzIiLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkJ1bmRsZRI3Cgdtb250aGx5GAIgAygLMiYubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbk9wdGlvbhI2CgZ5ZWFybHkYAyADKAsyJi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QbGFuT3B0aW9uEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIj8KEUdldFByaWNpbmdSZXF1ZXN0EhIKCmJ1bmRsZV9rZXkYASABKAkSFgoOaW5jbHVkZV9oaWRkZW4YAiABKAgiUgoSR2V0UHJpY2luZ1Jlc3BvbnNlEjwKB3ByaWNpbmcYASABKAsyKy5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QcmljaW5nT3ZlcnZpZXcqhAEKCFBsYW5LaW5kEhkKFVBMQU5fS0lORF9VTlNQRUNJRklFRBAAEhoKFlBMQU5fS0lORF9TVUJTQ1JJUFRJT04QARIbChdQTEFOX0tJTkRfQ1JFRElUU19UT1BVUBACEiQKIFBMQU5fS0lORF9TVVBQT1JURVJfQ09OVFJJQlVUSU9OEANCkAIKHmNvbS5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MUIMUHJpY2luZ1Byb3RvUAFaY2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLXJlYWN0LXZpdGUvdjE7bGFuZGluZ19wYWdlX3JlYWN0X3ZpdGV2MaICA0xYWKoCF0xhbmRpbmdQYWdlUmVhY3RWaXRlLlYxygIXTGFuZGluZ1BhZ2VSZWFjdFZpdGVcVjHiAiNMYW5kaW5nUGFnZVJlYWN0Vml0ZVxWMVxHUEJNZXRhZGF0YeoCGExhbmRpbmdQYWdlUmVhY3RWaXRlOjpWMWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CihsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9wcmljaW5nLnByb3RvEhpsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MSLDAgoGQnVuZGxlEhIKCmJ1bmRsZV9rZXkYASABKAkSDAoEbmFtZRgCIAEoCRIZChFzdHJpcGVfcHJvZHVjdF9pZBgDIAEoCRIXCg9jcmVkaXRzX3Blcl91c2QYBCABKAMSIgoaZGlzcGxheV9jcmVkaXRzX211bHRpcGxpZXIYBSABKAESHQoVZGlzcGxheV9jcmVkaXRzX2xhYmVsGAYgASgJEhMKC2Vudmlyb25tZW50GAcgASgJEkIKCG1ldGFkYXRhGAggAygLMjAubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQnVuZGxlLk1ldGFkYXRhRW50cnkaRwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIpEGCgpQbGFuT3B0aW9uEhEKCXBsYW5fbmFtZRgBIAEoCRIRCglwbGFuX3RpZXIYAiABKAkSRQoQYmlsbGluZ19pbnRlcnZhbBgDIAEoDjIrLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkJpbGxpbmdJbnRlcnZhbBIUCgxhbW91bnRfY2VudHMYBCABKAMSEAoIY3VycmVuY3kYBSABKAkSFQoNaW50cm9fZW5hYmxlZBgGIAEoCBJACgppbnRyb190eXBlGAcgASgOMiwubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuSW50cm9QcmljaW5nVHlwZRIfChJpbnRyb19hbW91bnRfY2VudHMYCCABKANIAIgBARIVCg1pbnRyb19wZXJpb2RzGAkgASgFEh4KFmludHJvX3ByaWNlX2xvb2t1cF9rZXkYCiABKAkSFwoPc3RyaXBlX3ByaWNlX2lkGAsgASgJEiAKGG1vbnRobHlfaW5jbHVkZWRfY3JlZGl0cxgMIAEoAxIeChZvbmVfdGltZV9ib251c19jcmVkaXRzGA0gASgDEhEKCXBsYW5fcmFuaxgOIAEoBRISCgpib251c190eXBlGA8gASgJEjIKBGtpbmQYECABKA4yJC5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QbGFuS2luZBIaChJpc192YXJpYWJsZV9hbW91bnQYESABKAgSFwoPZGlzcGxheV9lbmFibGVkGBIgASgIEhIKCmJ1bmRsZV9rZXkYEyABKAkSFgoOZGlzcGxheV93ZWlnaHQYFCABKAUSRgoIbWV0YWRhdGEYFSADKAsyNC5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QbGFuT3B0aW9uLk1ldGFkYXRhRW50cnkaRwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBQhUKE19pbnRyb19hbW91bnRfY2VudHMi5gEKD1ByaWNpbmdPdmVydmlldxIyCgZidW5kbGUYASABKAsyIi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5CdW5kbGUSNwoHbW9udGhseRgCIAMoCzImLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlBsYW5PcHRpb24SNgoGeWVhcmx5GAMgAygLMiYubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbk9wdGlvbhIuCgp1cGRhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI/ChFHZXRQcmljaW5nUmVxdWVzdBISCgpidW5kbGVfa2V5GAEgASgJEhYKDmluY2x1ZGVfaGlkZGVuGAIgASgIIlIKEkdldFByaWNpbmdSZXNwb25zZRI8CgdwcmljaW5nGAEgASgLMisubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUHJpY2luZ092ZXJ2aWV3KoQBCghQbGFuS2luZBIZChVQTEFOX0tJTkRfVU5TUEVDSUZJRUQQABIaChZQTEFOX0tJTkRfU1VCU0NSSVBUSU9OEAESGwoXUExBTl9LSU5EX0NSRURJVFNfVE9QVVAQAhIkCiBQTEFOX0tJTkRfU1VQUE9SVEVSX0NPTlRSSUJVVElPThADKokBCg9CaWxsaW5nSW50ZXJ2YWwSIAocQklMTElOR19JTlRFUlZBTF9VTlNQRUNJRklFRBAAEhoKFkJJTExJTkdfSU5URVJWQUxfTU9OVEgQARIZChVCSUxMSU5HX0lOVEVSVkFMX1lFQVIQAhIdChlCSUxMSU5HX0lOVEVSVkFMX09ORV9USU1FEAMqfQoQSW50cm9QcmljaW5nVHlwZRIiCh5JTlRST19QUklDSU5HX1RZUEVfVU5TUEVDSUZJRUQQABIiCh5JTlRST19QUklDSU5HX1RZUEVfRkxBVF9BTU9VTlQQARIhCh1JTlRST19QUklDSU5HX1RZUEVfUEVSQ0VOVEFHRRACQpACCh5jb20ubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjFCDFByaWNpbmdQcm90b1ABWmNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1yZWFjdC12aXRlL3YxO2xhbmRpbmdfcGFnZV9yZWFjdF92aXRldjGiAgNMWFiqAhdMYW5kaW5nUGFnZVJlYWN0Vml0ZS5WMcoCF0xhbmRpbmdQYWdlUmVhY3RWaXRlXFYx4gIjTGFuZGluZ1BhZ2VSZWFjdFZpdGVcVjFcR1BCTWV0YWRhdGHqAhhMYW5kaW5nUGFnZVJlYWN0Vml0ZTo6VjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * Bundle captures Stripe product metadata and credit conversion rules.
@@ -107,9 +107,9 @@ export type PlanOption = Message<"landing_page_react_vite.v1.PlanOption"> & {
   /**
    * Billing cadence ("month" or "year").
    *
-   * @generated from field: string billing_interval = 3;
+   * @generated from field: landing_page_react_vite.v1.BillingInterval billing_interval = 3;
    */
-  billingInterval: string;
+  billingInterval: BillingInterval;
 
   /**
    * Price in cents for the billing interval.
@@ -135,9 +135,9 @@ export type PlanOption = Message<"landing_page_react_vite.v1.PlanOption"> & {
   /**
    * Type of intro pricing ("flat_amount", etc.).
    *
-   * @generated from field: string intro_type = 7;
+   * @generated from field: landing_page_react_vite.v1.IntroPricingType intro_type = 7;
    */
-  introType: string;
+  introType: IntroPricingType;
 
   /**
    * Introductory amount in cents (nullable when not enabled).
@@ -368,4 +368,65 @@ export enum PlanKind {
  */
 export const PlanKindSchema: GenEnum<PlanKind> = /*@__PURE__*/
   enumDesc(file_landing_page_react_vite_v1_pricing, 0);
+
+/**
+ * BillingInterval restricts billing cadence to supported Stripe intervals.
+ *
+ * @generated from enum landing_page_react_vite.v1.BillingInterval
+ */
+export enum BillingInterval {
+  /**
+   * @generated from enum value: BILLING_INTERVAL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: BILLING_INTERVAL_MONTH = 1;
+   */
+  MONTH = 1,
+
+  /**
+   * @generated from enum value: BILLING_INTERVAL_YEAR = 2;
+   */
+  YEAR = 2,
+
+  /**
+   * @generated from enum value: BILLING_INTERVAL_ONE_TIME = 3;
+   */
+  ONE_TIME = 3,
+}
+
+/**
+ * Describes the enum landing_page_react_vite.v1.BillingInterval.
+ */
+export const BillingIntervalSchema: GenEnum<BillingInterval> = /*@__PURE__*/
+  enumDesc(file_landing_page_react_vite_v1_pricing, 1);
+
+/**
+ * IntroPricingType captures the known introductory pricing strategies.
+ *
+ * @generated from enum landing_page_react_vite.v1.IntroPricingType
+ */
+export enum IntroPricingType {
+  /**
+   * @generated from enum value: INTRO_PRICING_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: INTRO_PRICING_TYPE_FLAT_AMOUNT = 1;
+   */
+  FLAT_AMOUNT = 1,
+
+  /**
+   * @generated from enum value: INTRO_PRICING_TYPE_PERCENTAGE = 2;
+   */
+  PERCENTAGE = 2,
+}
+
+/**
+ * Describes the enum landing_page_react_vite.v1.IntroPricingType.
+ */
+export const IntroPricingTypeSchema: GenEnum<IntroPricingType> = /*@__PURE__*/
+  enumDesc(file_landing_page_react_vite_v1_pricing, 2);
 

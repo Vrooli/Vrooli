@@ -17,10 +17,30 @@ class PlanKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PLAN_KIND_SUBSCRIPTION: _ClassVar[PlanKind]
     PLAN_KIND_CREDITS_TOPUP: _ClassVar[PlanKind]
     PLAN_KIND_SUPPORTER_CONTRIBUTION: _ClassVar[PlanKind]
+
+class BillingInterval(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    BILLING_INTERVAL_UNSPECIFIED: _ClassVar[BillingInterval]
+    BILLING_INTERVAL_MONTH: _ClassVar[BillingInterval]
+    BILLING_INTERVAL_YEAR: _ClassVar[BillingInterval]
+    BILLING_INTERVAL_ONE_TIME: _ClassVar[BillingInterval]
+
+class IntroPricingType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    INTRO_PRICING_TYPE_UNSPECIFIED: _ClassVar[IntroPricingType]
+    INTRO_PRICING_TYPE_FLAT_AMOUNT: _ClassVar[IntroPricingType]
+    INTRO_PRICING_TYPE_PERCENTAGE: _ClassVar[IntroPricingType]
 PLAN_KIND_UNSPECIFIED: PlanKind
 PLAN_KIND_SUBSCRIPTION: PlanKind
 PLAN_KIND_CREDITS_TOPUP: PlanKind
 PLAN_KIND_SUPPORTER_CONTRIBUTION: PlanKind
+BILLING_INTERVAL_UNSPECIFIED: BillingInterval
+BILLING_INTERVAL_MONTH: BillingInterval
+BILLING_INTERVAL_YEAR: BillingInterval
+BILLING_INTERVAL_ONE_TIME: BillingInterval
+INTRO_PRICING_TYPE_UNSPECIFIED: IntroPricingType
+INTRO_PRICING_TYPE_FLAT_AMOUNT: IntroPricingType
+INTRO_PRICING_TYPE_PERCENTAGE: IntroPricingType
 
 class Bundle(_message.Message):
     __slots__ = ()
@@ -81,11 +101,11 @@ class PlanOption(_message.Message):
     METADATA_FIELD_NUMBER: _ClassVar[int]
     plan_name: str
     plan_tier: str
-    billing_interval: str
+    billing_interval: BillingInterval
     amount_cents: int
     currency: str
     intro_enabled: bool
-    intro_type: str
+    intro_type: IntroPricingType
     intro_amount_cents: int
     intro_periods: int
     intro_price_lookup_key: str
@@ -100,7 +120,7 @@ class PlanOption(_message.Message):
     bundle_key: str
     display_weight: int
     metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, plan_name: _Optional[str] = ..., plan_tier: _Optional[str] = ..., billing_interval: _Optional[str] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., intro_enabled: _Optional[bool] = ..., intro_type: _Optional[str] = ..., intro_amount_cents: _Optional[int] = ..., intro_periods: _Optional[int] = ..., intro_price_lookup_key: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., monthly_included_credits: _Optional[int] = ..., one_time_bonus_credits: _Optional[int] = ..., plan_rank: _Optional[int] = ..., bonus_type: _Optional[str] = ..., kind: _Optional[_Union[PlanKind, str]] = ..., is_variable_amount: _Optional[bool] = ..., display_enabled: _Optional[bool] = ..., bundle_key: _Optional[str] = ..., display_weight: _Optional[int] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, plan_name: _Optional[str] = ..., plan_tier: _Optional[str] = ..., billing_interval: _Optional[_Union[BillingInterval, str]] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., intro_enabled: _Optional[bool] = ..., intro_type: _Optional[_Union[IntroPricingType, str]] = ..., intro_amount_cents: _Optional[int] = ..., intro_periods: _Optional[int] = ..., intro_price_lookup_key: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., monthly_included_credits: _Optional[int] = ..., one_time_bonus_credits: _Optional[int] = ..., plan_rank: _Optional[int] = ..., bonus_type: _Optional[str] = ..., kind: _Optional[_Union[PlanKind, str]] = ..., is_variable_amount: _Optional[bool] = ..., display_enabled: _Optional[bool] = ..., bundle_key: _Optional[str] = ..., display_weight: _Optional[int] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class PricingOverview(_message.Message):
     __slots__ = ()

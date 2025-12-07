@@ -13,12 +13,17 @@ import {
   Star,
   StarOff,
   Lightbulb,
+  Sparkles,
+  ShieldCheck,
+  Layers,
 } from 'lucide-react';
 import { useProjectStore, type Project } from '@stores/projectStore';
 import { useDashboardStore, type FavoriteWorkflow } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import { selectors } from '@constants/selectors';
+import { TabEmptyState } from './TabEmptyState';
+import { ProjectsEmptyPreview } from './ProjectsEmptyPreview';
 
 interface ProjectsTabProps {
   onProjectSelect: (project: Project) => void;
@@ -214,33 +219,41 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
             <Loader size={24} className="animate-spin text-gray-500" />
           </div>
         ) : workflows.length === 0 ? (
-          <div className="text-center py-12 border-2 border-dashed border-gray-700 rounded-xl">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
-              <FolderOpen size={24} className="text-gray-600" />
-            </div>
-            <h4 className="text-lg font-medium text-white mb-2">No workflows yet</h4>
-            <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
-              Create your first automation to get started with browser recordings and exports.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={onCreateProject}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-              >
-                <Plus size={20} />
-                Create Your First Workflow
-              </button>
-              {onTryDemo && (
-                <button
-                  onClick={onTryDemo}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium border border-gray-600"
-                >
-                  <Play size={20} />
-                  Try Demo Workflow
-                </button>
-              )}
-            </div>
-          </div>
+          <TabEmptyState
+            icon={<FolderOpen size={22} />}
+            title="Organize your automation portfolio"
+            subtitle="Projects group workflows by client, product, or experiment so everything stays tidy."
+            preview={<ProjectsEmptyPreview />}
+            primaryCta={{ label: 'Create your first workflow', onClick: onCreateProject }}
+            secondaryCta={onTryDemo ? { label: 'Try demo workflow', onClick: onTryDemo } : undefined}
+            progressPath={[
+              { label: 'Create project', completed: true },
+              { label: 'Add workflows', active: true },
+              { label: 'Export & share' },
+            ]}
+            features={[
+              {
+                title: 'Structured folders',
+                description: 'Keep tests, scrapers, and monitors separated while sharing resources.',
+                icon: <Layers size={16} />,
+              },
+              {
+                title: 'Versioned history',
+                description: 'Track changes and safely iterate as your automations grow.',
+                icon: <ShieldCheck size={16} />,
+              },
+              {
+                title: 'Guided starts',
+                description: 'Kick off with AI or templates—then refine in the visual builder.',
+                icon: <Sparkles size={16} />,
+              },
+              {
+                title: 'Shareable outputs',
+                description: 'Run, export, and deliver artifacts to stakeholders in minutes.',
+                icon: <Lightbulb size={16} />,
+              },
+            ]}
+          />
         ) : (
           <div className="space-y-2">
             {workflows
@@ -350,10 +363,38 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
             ))}
           </div>
         ) : filteredProjects.length === 0 ? (
-          <div className="text-center py-12">
-            <Search size={32} className="mx-auto mb-4 text-gray-600" />
-            <p className="text-gray-400">No projects match "{searchTerm}"</p>
-          </div>
+          projects.length === 0 && !searchTerm ? (
+            <TabEmptyState
+              icon={<FolderOpen size={22} />}
+              title="Start your automation portfolio"
+              subtitle="Group workflows by customer or use case, then run and export with confidence."
+              preview={<ProjectsEmptyPreview />}
+              primaryCta={{ label: 'Create your first project', onClick: onCreateProject }}
+              secondaryCta={onTryDemo ? { label: 'Try demo workflow', onClick: onTryDemo } : undefined}
+              progressPath={[
+                { label: 'Create project', active: true },
+                { label: 'Add workflows' },
+                { label: 'Run & export' },
+              ]}
+              features={[
+                {
+                  title: 'Templates & AI',
+                  description: 'Launch from guided templates or describe what to automate.',
+                  icon: <Sparkles size={16} />,
+                },
+                {
+                  title: 'Portfolio view',
+                  description: 'See workflows, executions, and exports at a glance per project.',
+                  icon: <Lightbulb size={16} />,
+                },
+              ]}
+            />
+          ) : (
+            <div className="text-center py-12">
+              <Search size={32} className="mx-auto mb-4 text-gray-600" />
+              <p className="text-gray-400">No projects match "{searchTerm}"</p>
+            </div>
+          )
         ) : (
           <div
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"

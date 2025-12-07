@@ -15,14 +15,15 @@ import {
   XCircle,
   Clock,
   Sparkles,
-  Plus,
-  Play,
+  Share2,
 } from 'lucide-react';
 import { useExportStore, type Export } from '@stores/exportStore';
 import { useDashboardStore } from '@stores/dashboardStore';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { ResponsiveDialog } from '@shared/layout';
+import { TabEmptyState } from './TabEmptyState';
+import { ExportsEmptyPreview } from './ExportsEmptyPreview';
 
 interface ExportsTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;
@@ -132,6 +133,9 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
   const [newName, setNewName] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [exportToDelete, setExportToDelete] = useState<Export | null>(null);
+  const hasExecutions = recentExecutions.length > 0 || runningExecutions.length > 0;
+  const totalRuns = recentExecutions.length + runningExecutions.length;
+  const hasWorkflows = recentWorkflows.length > 0;
 
   useEffect(() => {
     void fetchExports();
@@ -358,67 +362,63 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           <Loader2 size={24} className="animate-spin text-gray-500" />
         </div>
       ) : exports.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
-            <Film size={24} className="text-gray-600" />
-          </div>
-          {/* Contextual empty state based on user progress */}
-          {recentExecutions.length > 0 || runningExecutions.length > 0 ? (
-            // User has executions - guide them to export
-            <>
-              <h4 className="text-lg font-medium text-white mb-2">No exports yet</h4>
-              <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
-                You've run {recentExecutions.length + runningExecutions.length} workflow
-                {recentExecutions.length + runningExecutions.length !== 1 ? 's' : ''}.
-                Open an execution to export the replay as a video, GIF, or data package.
-              </p>
-              {onNavigateToExecutions && (
-                <button
-                  onClick={onNavigateToExecutions}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  <Eye size={20} />
-                  View Executions
-                </button>
-              )}
-            </>
-          ) : recentWorkflows.length > 0 ? (
-            // User has workflows but no executions - encourage running one
-            <>
-              <h4 className="text-lg font-medium text-white mb-2">No exports yet</h4>
-              <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
-                Run a workflow to generate video replays and data exports.
-                You have {recentWorkflows.length} workflow{recentWorkflows.length !== 1 ? 's' : ''} ready to go.
-              </p>
-              {onNavigateToHome && (
-                <button
-                  onClick={onNavigateToHome}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  <Play size={20} />
-                  Run a Workflow
-                </button>
-              )}
-            </>
-          ) : (
-            // Brand new user - guide them to create first workflow
-            <>
-              <h4 className="text-lg font-medium text-white mb-2">Start Creating Exports</h4>
-              <p className="text-gray-400 text-sm max-w-md mx-auto mb-6">
-                Create a workflow using AI, run it, then export the recording as a video, GIF, or JSON package.
-              </p>
-              {onCreateWorkflow && (
-                <button
-                  onClick={onCreateWorkflow}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  <Plus size={20} />
-                  Create Your First Workflow
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        <TabEmptyState
+          icon={<Film size={22} />}
+          title="Share your automations with the world"
+          subtitle={
+            hasExecutions
+              ? `You’ve run ${totalRuns} workflow${totalRuns !== 1 ? 's' : ''}. Export recordings as video, GIF, or data packages.`
+              : hasWorkflows
+                ? `Run a workflow to generate replay videos and exportable datasets.`
+                : 'Create your first workflow, run it, then export ready-to-share artifacts.'
+          }
+          preview={<ExportsEmptyPreview />}
+          primaryCta={{
+            label: hasExecutions
+              ? 'Open executions to export'
+              : hasWorkflows
+                ? 'Run a workflow'
+                : 'Create your first workflow',
+            onClick:
+              (hasExecutions ? onNavigateToExecutions : hasWorkflows ? onNavigateToHome : onCreateWorkflow) ??
+              onCreateWorkflow ??
+              (() => {}),
+          }}
+          secondaryCta={
+            hasExecutions && onNavigateToHome
+              ? { label: 'Run another workflow', onClick: onNavigateToHome }
+              : hasWorkflows && onCreateWorkflow
+                ? { label: 'Create another workflow', onClick: onCreateWorkflow }
+                : undefined
+          }
+          progressPath={[
+            { label: 'Create workflow', completed: hasWorkflows || hasExecutions },
+            { label: 'Run & record', active: hasWorkflows && !hasExecutions, completed: hasExecutions },
+            { label: 'Export & share', active: hasExecutions },
+          ]}
+          features={[
+            {
+              title: 'Video replays',
+              description: 'MP4/WebM with full browser context for walkthroughs and demos.',
+              icon: <Film size={16} />,
+            },
+            {
+              title: 'GIF highlights',
+              description: 'Lightweight loops perfect for tickets and docs.',
+              icon: <Image size={16} />,
+            },
+            {
+              title: 'Data packages',
+              description: 'JSON/CSV bundles with logs, timings, and captured values.',
+              icon: <FileJson size={16} />,
+            },
+            {
+              title: 'Share & sync',
+              description: 'Send exports to teams or plug into CI pipelines.',
+              icon: <Share2 size={16} />,
+            },
+          ]}
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {exports.map((export_) => renderExportCard(export_))}

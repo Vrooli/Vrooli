@@ -76,6 +76,109 @@ func (PlanKind) EnumDescriptor() ([]byte, []int) {
 	return file_landing_page_react_vite_v1_pricing_proto_rawDescGZIP(), []int{0}
 }
 
+// BillingInterval restricts billing cadence to supported Stripe intervals.
+type BillingInterval int32
+
+const (
+	BillingInterval_BILLING_INTERVAL_UNSPECIFIED BillingInterval = 0
+	BillingInterval_BILLING_INTERVAL_MONTH       BillingInterval = 1
+	BillingInterval_BILLING_INTERVAL_YEAR        BillingInterval = 2
+	BillingInterval_BILLING_INTERVAL_ONE_TIME    BillingInterval = 3
+)
+
+// Enum value maps for BillingInterval.
+var (
+	BillingInterval_name = map[int32]string{
+		0: "BILLING_INTERVAL_UNSPECIFIED",
+		1: "BILLING_INTERVAL_MONTH",
+		2: "BILLING_INTERVAL_YEAR",
+		3: "BILLING_INTERVAL_ONE_TIME",
+	}
+	BillingInterval_value = map[string]int32{
+		"BILLING_INTERVAL_UNSPECIFIED": 0,
+		"BILLING_INTERVAL_MONTH":       1,
+		"BILLING_INTERVAL_YEAR":        2,
+		"BILLING_INTERVAL_ONE_TIME":    3,
+	}
+)
+
+func (x BillingInterval) Enum() *BillingInterval {
+	p := new(BillingInterval)
+	*p = x
+	return p
+}
+
+func (x BillingInterval) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BillingInterval) Descriptor() protoreflect.EnumDescriptor {
+	return file_landing_page_react_vite_v1_pricing_proto_enumTypes[1].Descriptor()
+}
+
+func (BillingInterval) Type() protoreflect.EnumType {
+	return &file_landing_page_react_vite_v1_pricing_proto_enumTypes[1]
+}
+
+func (x BillingInterval) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BillingInterval.Descriptor instead.
+func (BillingInterval) EnumDescriptor() ([]byte, []int) {
+	return file_landing_page_react_vite_v1_pricing_proto_rawDescGZIP(), []int{1}
+}
+
+// IntroPricingType captures the known introductory pricing strategies.
+type IntroPricingType int32
+
+const (
+	IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED IntroPricingType = 0
+	IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT IntroPricingType = 1
+	IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE  IntroPricingType = 2
+)
+
+// Enum value maps for IntroPricingType.
+var (
+	IntroPricingType_name = map[int32]string{
+		0: "INTRO_PRICING_TYPE_UNSPECIFIED",
+		1: "INTRO_PRICING_TYPE_FLAT_AMOUNT",
+		2: "INTRO_PRICING_TYPE_PERCENTAGE",
+	}
+	IntroPricingType_value = map[string]int32{
+		"INTRO_PRICING_TYPE_UNSPECIFIED": 0,
+		"INTRO_PRICING_TYPE_FLAT_AMOUNT": 1,
+		"INTRO_PRICING_TYPE_PERCENTAGE":  2,
+	}
+)
+
+func (x IntroPricingType) Enum() *IntroPricingType {
+	p := new(IntroPricingType)
+	*p = x
+	return p
+}
+
+func (x IntroPricingType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (IntroPricingType) Descriptor() protoreflect.EnumDescriptor {
+	return file_landing_page_react_vite_v1_pricing_proto_enumTypes[2].Descriptor()
+}
+
+func (IntroPricingType) Type() protoreflect.EnumType {
+	return &file_landing_page_react_vite_v1_pricing_proto_enumTypes[2]
+}
+
+func (x IntroPricingType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use IntroPricingType.Descriptor instead.
+func (IntroPricingType) EnumDescriptor() ([]byte, []int) {
+	return file_landing_page_react_vite_v1_pricing_proto_rawDescGZIP(), []int{2}
+}
+
 // Bundle captures Stripe product metadata and credit conversion rules.
 type Bundle struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -193,7 +296,7 @@ type PlanOption struct {
 	// Tier key used for entitlement checks.
 	PlanTier string `protobuf:"bytes,2,opt,name=plan_tier,json=planTier,proto3" json:"plan_tier,omitempty"`
 	// Billing cadence ("month" or "year").
-	BillingInterval string `protobuf:"bytes,3,opt,name=billing_interval,json=billingInterval,proto3" json:"billing_interval,omitempty"`
+	BillingInterval BillingInterval `protobuf:"varint,3,opt,name=billing_interval,json=billingInterval,proto3,enum=landing_page_react_vite.v1.BillingInterval" json:"billing_interval,omitempty"`
 	// Price in cents for the billing interval.
 	AmountCents int64 `protobuf:"varint,4,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
 	// Currency code (ISO 4217).
@@ -201,7 +304,7 @@ type PlanOption struct {
 	// Whether an introductory price is enabled.
 	IntroEnabled bool `protobuf:"varint,6,opt,name=intro_enabled,json=introEnabled,proto3" json:"intro_enabled,omitempty"`
 	// Type of intro pricing ("flat_amount", etc.).
-	IntroType string `protobuf:"bytes,7,opt,name=intro_type,json=introType,proto3" json:"intro_type,omitempty"`
+	IntroType IntroPricingType `protobuf:"varint,7,opt,name=intro_type,json=introType,proto3,enum=landing_page_react_vite.v1.IntroPricingType" json:"intro_type,omitempty"`
 	// Introductory amount in cents (nullable when not enabled).
 	IntroAmountCents *int64 `protobuf:"varint,8,opt,name=intro_amount_cents,json=introAmountCents,proto3,oneof" json:"intro_amount_cents,omitempty"`
 	// Number of billing periods for the intro price.
@@ -278,11 +381,11 @@ func (x *PlanOption) GetPlanTier() string {
 	return ""
 }
 
-func (x *PlanOption) GetBillingInterval() string {
+func (x *PlanOption) GetBillingInterval() BillingInterval {
 	if x != nil {
 		return x.BillingInterval
 	}
-	return ""
+	return BillingInterval_BILLING_INTERVAL_UNSPECIFIED
 }
 
 func (x *PlanOption) GetAmountCents() int64 {
@@ -306,11 +409,11 @@ func (x *PlanOption) GetIntroEnabled() bool {
 	return false
 }
 
-func (x *PlanOption) GetIntroType() string {
+func (x *PlanOption) GetIntroType() IntroPricingType {
 	if x != nil {
 		return x.IntroType
 	}
-	return ""
+	return IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
 }
 
 func (x *PlanOption) GetIntroAmountCents() int64 {
@@ -602,17 +705,17 @@ const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\bmetadata\x18\b \x03(\v20.landing_page_react_vite.v1.Bundle.MetadataEntryR\bmetadata\x1aS\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xe9\a\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xc4\b\n" +
 	"\n" +
 	"PlanOption\x12\x1b\n" +
 	"\tplan_name\x18\x01 \x01(\tR\bplanName\x12\x1b\n" +
-	"\tplan_tier\x18\x02 \x01(\tR\bplanTier\x12)\n" +
-	"\x10billing_interval\x18\x03 \x01(\tR\x0fbillingInterval\x12!\n" +
+	"\tplan_tier\x18\x02 \x01(\tR\bplanTier\x12V\n" +
+	"\x10billing_interval\x18\x03 \x01(\x0e2+.landing_page_react_vite.v1.BillingIntervalR\x0fbillingInterval\x12!\n" +
 	"\famount_cents\x18\x04 \x01(\x03R\vamountCents\x12\x1a\n" +
 	"\bcurrency\x18\x05 \x01(\tR\bcurrency\x12#\n" +
-	"\rintro_enabled\x18\x06 \x01(\bR\fintroEnabled\x12\x1d\n" +
+	"\rintro_enabled\x18\x06 \x01(\bR\fintroEnabled\x12K\n" +
 	"\n" +
-	"intro_type\x18\a \x01(\tR\tintroType\x121\n" +
+	"intro_type\x18\a \x01(\x0e2,.landing_page_react_vite.v1.IntroPricingTypeR\tintroType\x121\n" +
 	"\x12intro_amount_cents\x18\b \x01(\x03H\x00R\x10introAmountCents\x88\x01\x01\x12#\n" +
 	"\rintro_periods\x18\t \x01(\x05R\fintroPeriods\x123\n" +
 	"\x16intro_price_lookup_key\x18\n" +
@@ -650,7 +753,16 @@ const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\x15PLAN_KIND_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PLAN_KIND_SUBSCRIPTION\x10\x01\x12\x1b\n" +
 	"\x17PLAN_KIND_CREDITS_TOPUP\x10\x02\x12$\n" +
-	" PLAN_KIND_SUPPORTER_CONTRIBUTION\x10\x03B\x90\x02\n" +
+	" PLAN_KIND_SUPPORTER_CONTRIBUTION\x10\x03*\x89\x01\n" +
+	"\x0fBillingInterval\x12 \n" +
+	"\x1cBILLING_INTERVAL_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16BILLING_INTERVAL_MONTH\x10\x01\x12\x19\n" +
+	"\x15BILLING_INTERVAL_YEAR\x10\x02\x12\x1d\n" +
+	"\x19BILLING_INTERVAL_ONE_TIME\x10\x03*}\n" +
+	"\x10IntroPricingType\x12\"\n" +
+	"\x1eINTRO_PRICING_TYPE_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eINTRO_PRICING_TYPE_FLAT_AMOUNT\x10\x01\x12!\n" +
+	"\x1dINTRO_PRICING_TYPE_PERCENTAGE\x10\x02B\x90\x02\n" +
 	"\x1ecom.landing_page_react_vite.v1B\fPricingProtoP\x01Zcgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vitev1\xa2\x02\x03LXX\xaa\x02\x17LandingPageReactVite.V1\xca\x02\x17LandingPageReactVite\\V1\xe2\x02#LandingPageReactVite\\V1\\GPBMetadata\xea\x02\x18LandingPageReactVite::V1b\x06proto3"
 
 var (
@@ -665,36 +777,40 @@ func file_landing_page_react_vite_v1_pricing_proto_rawDescGZIP() []byte {
 	return file_landing_page_react_vite_v1_pricing_proto_rawDescData
 }
 
-var file_landing_page_react_vite_v1_pricing_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_landing_page_react_vite_v1_pricing_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_landing_page_react_vite_v1_pricing_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_landing_page_react_vite_v1_pricing_proto_goTypes = []any{
 	(PlanKind)(0),                 // 0: landing_page_react_vite.v1.PlanKind
-	(*Bundle)(nil),                // 1: landing_page_react_vite.v1.Bundle
-	(*PlanOption)(nil),            // 2: landing_page_react_vite.v1.PlanOption
-	(*PricingOverview)(nil),       // 3: landing_page_react_vite.v1.PricingOverview
-	(*GetPricingRequest)(nil),     // 4: landing_page_react_vite.v1.GetPricingRequest
-	(*GetPricingResponse)(nil),    // 5: landing_page_react_vite.v1.GetPricingResponse
-	nil,                           // 6: landing_page_react_vite.v1.Bundle.MetadataEntry
-	nil,                           // 7: landing_page_react_vite.v1.PlanOption.MetadataEntry
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
-	(*structpb.Value)(nil),        // 9: google.protobuf.Value
+	(BillingInterval)(0),          // 1: landing_page_react_vite.v1.BillingInterval
+	(IntroPricingType)(0),         // 2: landing_page_react_vite.v1.IntroPricingType
+	(*Bundle)(nil),                // 3: landing_page_react_vite.v1.Bundle
+	(*PlanOption)(nil),            // 4: landing_page_react_vite.v1.PlanOption
+	(*PricingOverview)(nil),       // 5: landing_page_react_vite.v1.PricingOverview
+	(*GetPricingRequest)(nil),     // 6: landing_page_react_vite.v1.GetPricingRequest
+	(*GetPricingResponse)(nil),    // 7: landing_page_react_vite.v1.GetPricingResponse
+	nil,                           // 8: landing_page_react_vite.v1.Bundle.MetadataEntry
+	nil,                           // 9: landing_page_react_vite.v1.PlanOption.MetadataEntry
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*structpb.Value)(nil),        // 11: google.protobuf.Value
 }
 var file_landing_page_react_vite_v1_pricing_proto_depIdxs = []int32{
-	6,  // 0: landing_page_react_vite.v1.Bundle.metadata:type_name -> landing_page_react_vite.v1.Bundle.MetadataEntry
-	0,  // 1: landing_page_react_vite.v1.PlanOption.kind:type_name -> landing_page_react_vite.v1.PlanKind
-	7,  // 2: landing_page_react_vite.v1.PlanOption.metadata:type_name -> landing_page_react_vite.v1.PlanOption.MetadataEntry
-	1,  // 3: landing_page_react_vite.v1.PricingOverview.bundle:type_name -> landing_page_react_vite.v1.Bundle
-	2,  // 4: landing_page_react_vite.v1.PricingOverview.monthly:type_name -> landing_page_react_vite.v1.PlanOption
-	2,  // 5: landing_page_react_vite.v1.PricingOverview.yearly:type_name -> landing_page_react_vite.v1.PlanOption
-	8,  // 6: landing_page_react_vite.v1.PricingOverview.updated_at:type_name -> google.protobuf.Timestamp
-	3,  // 7: landing_page_react_vite.v1.GetPricingResponse.pricing:type_name -> landing_page_react_vite.v1.PricingOverview
-	9,  // 8: landing_page_react_vite.v1.Bundle.MetadataEntry.value:type_name -> google.protobuf.Value
-	9,  // 9: landing_page_react_vite.v1.PlanOption.MetadataEntry.value:type_name -> google.protobuf.Value
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	8,  // 0: landing_page_react_vite.v1.Bundle.metadata:type_name -> landing_page_react_vite.v1.Bundle.MetadataEntry
+	1,  // 1: landing_page_react_vite.v1.PlanOption.billing_interval:type_name -> landing_page_react_vite.v1.BillingInterval
+	2,  // 2: landing_page_react_vite.v1.PlanOption.intro_type:type_name -> landing_page_react_vite.v1.IntroPricingType
+	0,  // 3: landing_page_react_vite.v1.PlanOption.kind:type_name -> landing_page_react_vite.v1.PlanKind
+	9,  // 4: landing_page_react_vite.v1.PlanOption.metadata:type_name -> landing_page_react_vite.v1.PlanOption.MetadataEntry
+	3,  // 5: landing_page_react_vite.v1.PricingOverview.bundle:type_name -> landing_page_react_vite.v1.Bundle
+	4,  // 6: landing_page_react_vite.v1.PricingOverview.monthly:type_name -> landing_page_react_vite.v1.PlanOption
+	4,  // 7: landing_page_react_vite.v1.PricingOverview.yearly:type_name -> landing_page_react_vite.v1.PlanOption
+	10, // 8: landing_page_react_vite.v1.PricingOverview.updated_at:type_name -> google.protobuf.Timestamp
+	5,  // 9: landing_page_react_vite.v1.GetPricingResponse.pricing:type_name -> landing_page_react_vite.v1.PricingOverview
+	11, // 10: landing_page_react_vite.v1.Bundle.MetadataEntry.value:type_name -> google.protobuf.Value
+	11, // 11: landing_page_react_vite.v1.PlanOption.MetadataEntry.value:type_name -> google.protobuf.Value
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_react_vite_v1_pricing_proto_init() }
@@ -708,7 +824,7 @@ func file_landing_page_react_vite_v1_pricing_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_react_vite_v1_pricing_proto_rawDesc), len(file_landing_page_react_vite_v1_pricing_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      3,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,

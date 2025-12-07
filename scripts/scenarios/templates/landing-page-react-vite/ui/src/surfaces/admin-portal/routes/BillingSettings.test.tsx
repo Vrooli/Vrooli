@@ -70,7 +70,7 @@ const demoBundle: BundleCatalogEntry = {
       amount_cents: 4900,
       currency: 'usd',
       intro_enabled: false,
-      intro_type: '',
+      intro_type: 'flat_amount',
       intro_amount_cents: undefined,
       intro_periods: 0,
       intro_price_lookup_key: '',

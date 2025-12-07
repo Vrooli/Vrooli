@@ -1,5 +1,10 @@
 import { fromJson } from '@bufbuild/protobuf';
-import { GetPricingResponseSchema, PlanKind } from '@proto-lprv/pricing_pb';
+import {
+  BillingInterval,
+  GetPricingResponseSchema,
+  IntroPricingType,
+  PlanKind,
+} from '@proto-lprv/pricing_pb';
 import { apiCall } from './common';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
 
@@ -35,13 +40,36 @@ export function getPlans() {
       }
     };
 
+    const billingInterval = (interval?: BillingInterval): PlanOption['billing_interval'] => {
+      switch (interval) {
+        case BillingInterval.BILLING_INTERVAL_YEAR:
+          return 'year';
+        case BillingInterval.BILLING_INTERVAL_ONE_TIME:
+          return 'one_time';
+        default:
+          return 'month';
+      }
+    };
+
+    const introType = (type?: IntroPricingType): PlanOption['intro_type'] => {
+      switch (type) {
+        case IntroPricingType.INTRO_PRICING_TYPE_PERCENTAGE:
+          return 'percentage';
+        case IntroPricingType.INTRO_PRICING_TYPE_FLAT_AMOUNT:
+          return 'flat_amount';
+        default:
+          return undefined;
+      }
+    };
+
     const normalizePlan = (plan: any): PlanOption => ({
       plan_name: plan.planName,
       plan_tier: plan.planTier,
-      billing_interval: plan.billingInterval,
+      billing_interval: billingInterval(plan.billingInterval),
       amount_cents: Number(plan.amountCents ?? 0),
       currency: plan.currency,
       intro_enabled: Boolean(plan.introEnabled),
+      intro_type: introType(plan.introType),
       intro_amount_cents: plan.introAmountCents != null ? Number(plan.introAmountCents) : undefined,
       intro_periods: plan.introPeriods != null ? Number(plan.introPeriods) : undefined,
       intro_price_lookup_key: plan.introPriceLookupKey,

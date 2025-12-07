@@ -4,7 +4,7 @@ BUF_BASE_BRANCH ?= master
 
 generate:
 	buf generate
-	touch gen/python/py.typed gen/python/browser_automation_studio/py.typed gen/python/common/py.typed
+	touch gen/python/py.typed gen/python/browser_automation_studio/py.typed gen/python/common/py.typed gen/python/landing_page_react_vite/py.typed
 
 lint:
 	buf lint

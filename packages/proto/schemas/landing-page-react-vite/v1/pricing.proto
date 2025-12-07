@@ -15,6 +15,21 @@ enum PlanKind {
   PLAN_KIND_SUPPORTER_CONTRIBUTION = 3;
 }
 
+// BillingInterval restricts billing cadence to supported Stripe intervals.
+enum BillingInterval {
+  BILLING_INTERVAL_UNSPECIFIED = 0;
+  BILLING_INTERVAL_MONTH = 1;
+  BILLING_INTERVAL_YEAR = 2;
+  BILLING_INTERVAL_ONE_TIME = 3;
+}
+
+// IntroPricingType captures the known introductory pricing strategies.
+enum IntroPricingType {
+  INTRO_PRICING_TYPE_UNSPECIFIED = 0;
+  INTRO_PRICING_TYPE_FLAT_AMOUNT = 1;
+  INTRO_PRICING_TYPE_PERCENTAGE = 2;
+}
+
 // Bundle captures Stripe product metadata and credit conversion rules.
 message Bundle {
   // Stable key used by clients and downstream scenarios.
@@ -42,7 +57,7 @@ message PlanOption {
   // Tier key used for entitlement checks.
   string plan_tier = 2;
   // Billing cadence ("month" or "year").
-  string billing_interval = 3;
+  BillingInterval billing_interval = 3;
   // Price in cents for the billing interval.
   int64 amount_cents = 4;
   // Currency code (ISO 4217).
@@ -50,7 +65,7 @@ message PlanOption {
   // Whether an introductory price is enabled.
   bool intro_enabled = 6;
   // Type of intro pricing ("flat_amount", etc.).
-  string intro_type = 7;
+  IntroPricingType intro_type = 7;
   // Introductory amount in cents (nullable when not enabled).
   optional int64 intro_amount_cents = 8;
   // Number of billing periods for the intro price.
