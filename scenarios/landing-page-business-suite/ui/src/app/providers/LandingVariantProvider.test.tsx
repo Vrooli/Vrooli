@@ -7,37 +7,15 @@ import type { ReactNode } from 'react';
 // Mock fetch globally
 global.fetch = vi.fn();
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value;
-    },
-    clear: () => {
-      store = {};
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-  };
-})();
-
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
-
 // Mock location search
 const setLocationSearch = (search: string) => {
   delete (window as any).location;
   (window as any).location = { search };
 };
 
-describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
+describe('LandingVariantProvider [REQ:AB-URL,AB-API]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorageMock.clear();
     setLocationSearch('');
   });
 
@@ -98,38 +76,9 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     expect(result.current.resolution).toEqual('url_param');
     expect(result.current.statusNote).toContain('URL parameter');
     expect(result.current.lastUpdated).not.toBeNull();
-
-    // Should have stored slug
-    const stored = localStorageMock.getItem('landing_manager_variant_slug');
-    expect(stored).toEqual('test-variant');
   });
 
-  it('[REQ:AB-STORAGE] should use stored variant from localStorage', async () => {
-    localStorageMock.setItem('landing_manager_variant_slug', 'stored-variant');
-
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ ...mockConfig, variant: { ...mockConfig.variant, slug: 'stored-variant' } }),
-    });
-
-    const { result } = renderHook(() => useLandingVariant(), { wrapper });
-
-    // Wait for variant to load
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/landing-config?variant=stored-variant'),
-      expect.any(Object)
-    );
-
-    expect(result.current.variant?.slug).toEqual('stored-variant');
-    expect(result.current.error).toBe(null);
-    expect(result.current.resolution).toEqual('local_storage');
-  });
-
-  it('[REQ:AB-API] should select variant via API when no URL or localStorage', async () => {
+  it('[REQ:AB-API] should select variant via API when no URL param provided', async () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockConfig,
@@ -147,12 +96,9 @@ describe('LandingVariantProvider [REQ:AB-URL,AB-STORAGE,AB-API]', () => {
     expect(result.current.variant?.slug).toEqual('test-variant');
     expect(result.current.error).toBe(null);
     expect(result.current.resolution).toEqual('api_select');
-    expect(localStorageMock.getItem('landing_manager_variant_slug')).toEqual('test-variant');
   });
 
-  it('[REQ:AB-URL] should prioritize URL parameter over localStorage', async () => {
-    localStorageMock.setItem('landing_manager_variant_slug', 'stored-variant');
-
+  it('[REQ:AB-URL] should prioritize URL parameter over default API selection', async () => {
     setLocationSearch('?variant=url-variant');
 
     (global.fetch as any).mockResolvedValueOnce({

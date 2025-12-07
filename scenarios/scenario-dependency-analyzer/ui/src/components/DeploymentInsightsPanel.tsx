@@ -151,6 +151,27 @@ export function DeploymentInsightsPanel({ report }: DeploymentInsightsPanelProps
               </div>
             )}
           </div>
+          <div className="rounded-md border border-border/30 bg-background/70 p-3 text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground">Next step: export a bundle</p>
+            <p className="mt-1">
+              Run deployment-manager to export <code>bundle.json</code> from this analysis. Start it with{" "}
+              <code className="rounded bg-black/30 px-1 py-0.5 text-[11px]">vrooli scenario start deployment-manager</code>, then use the bundle export flow
+              (or <code>/api/v1/bundles/export</code>) to hand off to scenario-to-desktop.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a
+                href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/scenarios/scenario-to-desktop.md"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center rounded border border-border/40 px-2 py-1 text-[11px] font-medium text-foreground hover:border-border"
+              >
+                Hand off to scenario-to-desktop
+              </a>
+              <span className="inline-flex items-center rounded border border-border/40 px-2 py-1 text-[11px] font-medium text-foreground">
+                Run <code className="mx-1 rounded bg-black/30 px-1 py-0.5 text-[11px]">vrooli scenario port deployment-manager UI_PORT</code> and open that URL.
+              </span>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

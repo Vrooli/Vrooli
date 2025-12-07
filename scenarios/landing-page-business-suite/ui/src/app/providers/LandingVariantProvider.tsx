@@ -14,6 +14,9 @@ export interface Variant {
 }
 
 export type VariantResolution = 'unknown' | 'url_param' | 'local_storage' | 'api_select' | 'fallback';
+// Note: local_storage resolution is retained for backward compatibility in consumers,
+// but we no longer persist/read variant assignments locally. Variants are resolved server-side
+// unless explicitly pinned via URL param.
 
 interface LandingVariantContextType {
   variant: Variant | null;
@@ -28,28 +31,9 @@ interface LandingVariantContextType {
 
 const LandingVariantContext = createContext<LandingVariantContextType | undefined>(undefined);
 
-const VARIANT_STORAGE_KEY = 'landing_manager_variant_slug';
-
 function getVariantSlugFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search);
   return params.get('variant') || params.get('variant_slug');
-}
-
-function getStoredVariantSlug(): string | null {
-  try {
-    return localStorage.getItem(VARIANT_STORAGE_KEY);
-  } catch (err) {
-    console.warn('Failed to read stored variant slug:', err);
-    return null;
-  }
-}
-
-function storeVariantSlug(slug: string): void {
-  try {
-    localStorage.setItem(VARIANT_STORAGE_KEY, slug);
-  } catch (err) {
-    console.error('Failed to store variant slug:', err);
-  }
 }
 
 export function LandingVariantProvider({ children }: { children: ReactNode }) {
@@ -74,10 +58,6 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
           description: nextConfig.variant.description,
           status,
         });
-
-        if (!nextConfig.fallback && nextConfig.variant.slug) {
-          storeVariantSlug(nextConfig.variant.slug);
-        }
       } else {
         setVariant(null);
       }
@@ -95,26 +75,19 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       const urlSlug = getVariantSlugFromUrl();
-      const storedSlug = getStoredVariantSlug();
-      const slugToUse = urlSlug || storedSlug || undefined;
+      const slugToUse = urlSlug || undefined;
 
       const landingConfig = await getLandingConfig(slugToUse);
       if (!landingConfig?.variant?.slug) {
         throw new Error('Landing config missing variant');
       }
 
-      const nextResolution: VariantResolution = urlSlug
-        ? 'url_param'
-        : storedSlug
-          ? 'local_storage'
-          : 'api_select';
+      const nextResolution: VariantResolution = urlSlug ? 'url_param' : 'api_select';
 
       const note =
         nextResolution === 'url_param'
           ? 'Variant pinned via URL parameter'
-          : nextResolution === 'local_storage'
-            ? 'Reusing visitor assignment from localStorage'
-            : 'Variant selected via weighted API';
+          : 'Variant selected via weighted API';
 
       applyConfig(landingConfig, landingConfig.fallback ? 'fallback' : nextResolution, note);
     } catch (err) {

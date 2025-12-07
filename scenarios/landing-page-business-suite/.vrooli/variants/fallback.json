@@ -20,7 +20,7 @@
     "nav": {
       "links": [
         { "id": "nav-hero", "type": "section", "label": "Overview", "section_type": "hero", "anchor": "hero-sf-1", "visible_on": { "desktop": true, "mobile": true } },
-        { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "anchor": "video-sf-2", "visible_on": { "desktop": true, "mobile": false } },
+        { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "anchor": "video-sf-2", "visible_on": { "desktop": true, "mobile": true } },
         { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "anchor": "features-sf-3", "visible_on": { "desktop": true, "mobile": true } },
         { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "anchor": "pricing-sf-5", "visible_on": { "desktop": true, "mobile": true } },
         { "id": "nav-downloads", "type": "downloads", "label": "Downloads", "visible_on": { "desktop": true, "mobile": true } }
@@ -32,7 +32,7 @@
     },
     "behavior": {
       "sticky": true,
-      "hide_on_scroll": false
+      "hide_on_scroll": true
     }
   },
   "sections": [

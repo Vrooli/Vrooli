@@ -301,6 +301,31 @@ export const DeploymentReadinessPanel = ({
                 </Button>
                 <p className="text-[11px] text-white/50">Hand off to deployment-manager or scenario-to-*</p>
               </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/70 space-y-1">
+                <p className="font-semibold text-white">Next hops</p>
+                <p>Import this manifest into deployment-manager to export bundle.json, then feed it to scenario-to-desktop.</p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="inline-flex items-center rounded border border-white/20 px-2 py-1 text-[11px] font-medium text-white/80">
+                    Run <code className="mx-1 rounded bg-black/30 px-1 py-0.5 text-[11px]">vrooli scenario port deployment-manager UI_PORT</code> and open that URL.
+                  </span>
+                  <a
+                    href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/scenarios/deployment-manager.md"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded border border-white/20 px-2 py-1 text-[11px] font-medium text-white hover:border-white/40"
+                  >
+                    Open deployment-manager guide
+                  </a>
+                  <a
+                    href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/scenarios/scenario-to-desktop.md"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded border border-white/20 px-2 py-1 text-[11px] font-medium text-white hover:border-white/40"
+                  >
+                    Open scenario-to-desktop guide
+                  </a>
+                </div>
+              </div>
               {manifestSummary.blocking_secrets?.length ? (
                 <div className="rounded-xl border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
                   <p className="font-semibold">Blockers</p>
