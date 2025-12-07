@@ -37,7 +37,8 @@ describe('AssertionHandler', () => {
       const result = await handler.execute(instruction, context);
 
       expect(result.success).toBe(true);
-      expect(result.extracted_data?.assertion_result?.passed).toBe(true);
+      const assertion = result.extracted_data?.assertion as { success: boolean } | undefined;
+      expect(assertion?.success).toBe(true);
     });
 
     it('should fail when element does not exist', async () => {
@@ -47,16 +48,16 @@ describe('AssertionHandler', () => {
         node_id: 'node-1',
       });
 
-      const mockLocator = {
-        count: jest.fn().mockResolvedValue(0),
-      };
-      mockPage.locator.mockReturnValue(mockLocator as any);
+      // The assertion handler uses page.$() not page.locator()
+      mockPage.$.mockResolvedValue(null);
 
       const result = await handler.execute(instruction, context);
 
+      // Assertion failures return success=false with the assertion result,
+      // but no error object (error is only set for exceptions)
       expect(result.success).toBe(false);
-      expect(result.error?.kind).toBe('user');
-      expect(result.extracted_data?.assertion_result?.passed).toBe(false);
+      const assertion = result.extracted_data?.assertion as { success: boolean } | undefined;
+      expect(assertion?.success).toBe(false);
     });
   });
 
@@ -68,15 +69,14 @@ describe('AssertionHandler', () => {
         node_id: 'node-1',
       });
 
-      const mockLocator = {
-        isVisible: jest.fn().mockResolvedValue(true),
-      };
-      mockPage.locator.mockReturnValue(mockLocator as any);
+      // The assertion handler uses page.isVisible() not page.locator().isVisible()
+      mockPage.isVisible = jest.fn().mockResolvedValue(true);
 
       const result = await handler.execute(instruction, context);
 
       expect(result.success).toBe(true);
-      expect(result.extracted_data?.assertion_result?.passed).toBe(true);
+      const assertion = result.extracted_data?.assertion as { success: boolean } | undefined;
+      expect(assertion?.success).toBe(true);
     });
   });
 
@@ -84,37 +84,35 @@ describe('AssertionHandler', () => {
     it('should assert text equals', async () => {
       const instruction = createTestInstruction({
         type: 'assert',
-        params: { selector: '#element', mode: 'equals', expectedText: 'Hello' },
+        params: { selector: '#element', mode: 'equals', expected: 'Hello' },
         node_id: 'node-1',
       });
 
-      const mockLocator = {
-        textContent: jest.fn().mockResolvedValue('Hello'),
-      };
-      mockPage.locator.mockReturnValue(mockLocator as any);
+      // The assertion handler uses page.textContent() not page.locator().textContent()
+      mockPage.textContent = jest.fn().mockResolvedValue('Hello');
 
       const result = await handler.execute(instruction, context);
 
       expect(result.success).toBe(true);
-      expect(result.extracted_data?.assertion_result?.passed).toBe(true);
+      const assertion = result.extracted_data?.assertion as { success: boolean } | undefined;
+      expect(assertion?.success).toBe(true);
     });
 
     it('should assert text contains', async () => {
       const instruction = createTestInstruction({
         type: 'assert',
-        params: { selector: '#element', mode: 'contains', expectedText: 'World' },
+        params: { selector: '#element', mode: 'contains', expected: 'World' },
         node_id: 'node-1',
       });
 
-      const mockLocator = {
-        textContent: jest.fn().mockResolvedValue('Hello World'),
-      };
-      mockPage.locator.mockReturnValue(mockLocator as any);
+      // The assertion handler uses page.textContent() not page.locator().textContent()
+      mockPage.textContent = jest.fn().mockResolvedValue('Hello World');
 
       const result = await handler.execute(instruction, context);
 
       expect(result.success).toBe(true);
-      expect(result.extracted_data?.assertion_result?.passed).toBe(true);
+      const assertion = result.extracted_data?.assertion as { success: boolean } | undefined;
+      expect(assertion?.success).toBe(true);
     });
   });
 });

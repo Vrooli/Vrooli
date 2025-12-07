@@ -238,6 +238,17 @@ export class SessionManager {
   }
 
   /**
+   * Update session activity timestamp without retrieving full session
+   * Silently ignores non-existent sessions
+   */
+  updateActivity(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.lastUsedAt = new Date();
+    }
+  }
+
+  /**
    * Reset session (navigate to about:blank, clear state)
    */
   async resetSession(sessionId: string): Promise<void> {
@@ -248,8 +259,9 @@ export class SessionManager {
     // Navigate to blank page
     await session.page.goto('about:blank');
 
-    // Clear cookies
+    // Clear cookies and permissions
     await session.context.clearCookies();
+    await session.context.clearPermissions();
 
     // Clear storage
     await session.page.evaluate(() => {
@@ -289,8 +301,7 @@ export class SessionManager {
   async closeSession(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      logger.warn('Attempted to close non-existent session', { sessionId });
-      return;
+      throw new SessionNotFoundError(sessionId);
     }
 
     logger.info('Closing session', { sessionId });

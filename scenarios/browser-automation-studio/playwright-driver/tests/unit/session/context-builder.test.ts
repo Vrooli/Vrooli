@@ -100,13 +100,13 @@ describe('ContextBuilder', () => {
       expect(mockBrowser.newContext).toHaveBeenCalledWith(
         expect.objectContaining({
           recordVideo: expect.objectContaining({
-            dir: expect.stringContaining('video-exec-123'),
+            dir: expect.stringContaining('videos-exec-123'),
             size: expect.anything(),
           }),
         })
       );
       expect(result.videoDir).toBeDefined();
-      expect(result.videoDir).toContain('video-exec-123');
+      expect(result.videoDir).toContain('videos-exec-123');
     });
 
     it('should create context with tracing when enabled and required', async () => {

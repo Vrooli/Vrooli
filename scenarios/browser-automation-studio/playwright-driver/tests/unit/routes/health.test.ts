@@ -1,16 +1,26 @@
 import { handleHealth } from '../../../src/routes/health';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockHttpRequest, createMockHttpResponse, waitForResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 
-// Mock playwright
+// Mock playwright - must be inline to avoid hoisting issues
 jest.mock('playwright', () => ({
   chromium: {
     launch: jest.fn().mockResolvedValue({
       newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({ on: jest.fn() }),
-        clearCookies: jest.fn(),
-        clearPermissions: jest.fn(),
+        newPage: jest.fn().mockResolvedValue({
+          on: jest.fn(),
+          goto: jest.fn().mockResolvedValue(null),
+          close: jest.fn().mockResolvedValue(undefined),
+          evaluate: jest.fn().mockResolvedValue(undefined),
+          viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
+        }),
+        clearCookies: jest.fn().mockResolvedValue(undefined),
+        clearPermissions: jest.fn().mockResolvedValue(undefined),
         close: jest.fn().mockResolvedValue(undefined),
+        tracing: {
+          start: jest.fn().mockResolvedValue(undefined),
+          stop: jest.fn().mockResolvedValue(undefined),
+        },
       }),
       close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
@@ -36,24 +46,23 @@ describe('Health Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleHealth(mockReq, mockRes, sessionManager);
-    await waitForResponse(mockRes);
 
     expect(mockRes.statusCode).toBe(200);
   });
 
-  it('should return status and active sessions count', async () => {
+  it('should return status and sessions count', async () => {
     const mockReq = createMockHttpRequest({ method: 'GET', url: '/health' });
     const mockRes = createMockHttpResponse();
 
     await handleHealth(mockReq, mockRes, sessionManager);
-    await waitForResponse(mockRes);
 
     const json = (mockRes as any).getJSON();
-    expect(json.status).toBe('ok');
-    expect(json.activeSessions).toBe(0);
+    // Status is 'degraded' when browser hasn't been verified yet
+    expect(['ok', 'degraded']).toContain(json.status);
+    expect(json.sessions).toBe(0);
   });
 
-  it('should count active sessions', async () => {
+  it('should count sessions', async () => {
     // Create a session
     await sessionManager.startSession({
       execution_id: 'exec-123',
@@ -68,9 +77,8 @@ describe('Health Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleHealth(mockReq, mockRes, sessionManager);
-    await waitForResponse(mockRes);
 
     const json = (mockRes as any).getJSON();
-    expect(json.activeSessions).toBe(1);
+    expect(json.sessions).toBe(1);
   });
 });

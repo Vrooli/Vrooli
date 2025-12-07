@@ -27,6 +27,8 @@ describe('SessionCleanup', () => {
   let manager: SessionManager;
   let cleanup: SessionCleanup;
   let config: ReturnType<typeof createTestConfig>;
+  let setIntervalSpy: jest.SpyInstance;
+  let clearIntervalSpy: jest.SpyInstance;
 
   beforeEach(() => {
     config = createTestConfig({
@@ -41,11 +43,15 @@ describe('SessionCleanup', () => {
     cleanup = new SessionCleanup(manager, config);
 
     jest.useFakeTimers();
+    setIntervalSpy = jest.spyOn(global, 'setInterval');
+    clearIntervalSpy = jest.spyOn(global, 'clearInterval');
   });
 
   afterEach(async () => {
     cleanup.stop();
     await manager.shutdown();
+    setIntervalSpy.mockRestore();
+    clearIntervalSpy.mockRestore();
     jest.useRealTimers();
     jest.clearAllMocks();
   });
@@ -54,14 +60,14 @@ describe('SessionCleanup', () => {
     it('should start cleanup interval', () => {
       cleanup.start();
 
-      expect(setInterval).toHaveBeenCalledWith(expect.any(Function), config.session.cleanupIntervalMs);
+      expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), config.session.cleanupIntervalMs);
     });
 
     it('should not start multiple intervals', () => {
       cleanup.start();
       cleanup.start();
 
-      expect(setInterval).toHaveBeenCalledTimes(1);
+      expect(setIntervalSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -70,7 +76,7 @@ describe('SessionCleanup', () => {
       cleanup.start();
       cleanup.stop();
 
-      expect(clearInterval).toHaveBeenCalled();
+      expect(clearIntervalSpy).toHaveBeenCalled();
     });
 
     it('should handle stop without start', () => {
@@ -138,11 +144,17 @@ describe('SessionCleanup', () => {
 
   describe('integration with SessionManager', () => {
     beforeEach(() => {
+      // Restore spies before switching to real timers to avoid undefined setInterval
+      setIntervalSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
       jest.useRealTimers();
     });
 
     afterEach(() => {
       jest.useFakeTimers();
+      // Re-create spies for subsequent tests
+      setIntervalSpy = jest.spyOn(global, 'setInterval');
+      clearIntervalSpy = jest.spyOn(global, 'clearInterval');
     });
 
     it('should clean up idle sessions automatically', async () => {

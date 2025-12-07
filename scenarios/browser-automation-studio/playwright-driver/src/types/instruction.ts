@@ -96,9 +96,9 @@ export type EvaluateParams = z.infer<typeof EvaluateParamsSchema>;
 // Upload/Download
 export const UploadFileParamsSchema = z.object({
   selector: z.string(),
-  filePath: z.string().optional(),
-  file_path: z.string().optional(),
-  path: z.string().optional(),
+  filePath: z.union([z.string(), z.array(z.string())]).optional(),
+  file_path: z.union([z.string(), z.array(z.string())]).optional(),
+  path: z.union([z.string(), z.array(z.string())]).optional(),
   timeoutMs: z.number().optional(),
 });
 export type UploadFileParams = z.infer<typeof UploadFileParamsSchema>;

@@ -14,6 +14,7 @@ import (
 
 type timelineRepositoryMock struct {
 	execution        *database.Execution
+	workflow         *database.Workflow
 	steps            []*database.ExecutionStep
 	artifacts        []*database.ExecutionArtifact
 	logs             []*database.ExecutionLog
@@ -55,6 +56,9 @@ func (m *timelineRepositoryMock) CreateWorkflow(ctx context.Context, workflow *d
 	return nil
 }
 func (m *timelineRepositoryMock) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
+	if m.workflow != nil && m.workflow.ID == id {
+		return m.workflow, nil
+	}
 	return nil, database.ErrNotFound
 }
 func (m *timelineRepositoryMock) GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error) {

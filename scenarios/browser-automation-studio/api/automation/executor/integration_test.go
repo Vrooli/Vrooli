@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +23,8 @@ import (
 
 var (
 	testDBHandle *testdb.Handle
+	// testDBMu protects concurrent access to the shared test database
+	testDBMu sync.Mutex
 )
 
 func TestMain(m *testing.M) {
@@ -361,21 +364,40 @@ func TestSimpleExecutorLinearGoldenEvents(t *testing.T) {
 func setupRepo(t *testing.T) (database.Repository, *database.DB, func()) {
 	t.Helper()
 
+	// Acquire exclusive access to the test database
+	testDBMu.Lock()
+
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
+	// Save and clear environment variables
 	oldURL := os.Getenv("DATABASE_URL")
 	oldSkip := os.Getenv("BAS_SKIP_DEMO_SEED")
+	oldHost := os.Getenv("POSTGRES_HOST")
+	oldPort := os.Getenv("POSTGRES_PORT")
+	oldUser := os.Getenv("POSTGRES_USER")
+	oldPass := os.Getenv("POSTGRES_PASSWORD")
+	oldDB := os.Getenv("POSTGRES_DB")
+
+	// Clear POSTGRES_* vars to ensure DATABASE_URL is used
+	_ = os.Unsetenv("POSTGRES_HOST")
+	_ = os.Unsetenv("POSTGRES_PORT")
+	_ = os.Unsetenv("POSTGRES_USER")
+	_ = os.Unsetenv("POSTGRES_PASSWORD")
+	_ = os.Unsetenv("POSTGRES_DB")
 
 	_ = os.Setenv("DATABASE_URL", testDBHandle.DSN)
 	_ = os.Setenv("BAS_SKIP_DEMO_SEED", "true")
 
 	db, err := database.NewConnection(log)
 	if err != nil {
+		testDBMu.Unlock()
 		t.Fatalf("failed to connect to test db: %v", err)
 	}
 
-	if err := truncateAll(db); err != nil {
+	if err := truncateAllWithRetry(db, 3); err != nil {
+		_ = db.Close()
+		testDBMu.Unlock()
 		t.Fatalf("truncate test tables: %v", err)
 	}
 
@@ -384,6 +406,8 @@ func setupRepo(t *testing.T) (database.Repository, *database.DB, func()) {
 	cleanup := func() {
 		_ = truncateAll(db)
 		_ = db.Close()
+
+		// Restore environment variables
 		if oldURL != "" {
 			_ = os.Setenv("DATABASE_URL", oldURL)
 		} else {
@@ -394,30 +418,74 @@ func setupRepo(t *testing.T) (database.Repository, *database.DB, func()) {
 		} else {
 			_ = os.Unsetenv("BAS_SKIP_DEMO_SEED")
 		}
+		if oldHost != "" {
+			_ = os.Setenv("POSTGRES_HOST", oldHost)
+		}
+		if oldPort != "" {
+			_ = os.Setenv("POSTGRES_PORT", oldPort)
+		}
+		if oldUser != "" {
+			_ = os.Setenv("POSTGRES_USER", oldUser)
+		}
+		if oldPass != "" {
+			_ = os.Setenv("POSTGRES_PASSWORD", oldPass)
+		}
+		if oldDB != "" {
+			_ = os.Setenv("POSTGRES_DB", oldDB)
+		}
+
+		// Release exclusive access
+		testDBMu.Unlock()
 	}
 
 	return repo, db, cleanup
 }
 
 func truncateAll(db *database.DB) error {
-	queries := []string{
-		"TRUNCATE execution_artifacts CASCADE",
-		"TRUNCATE execution_steps CASCADE",
-		"TRUNCATE execution_logs CASCADE",
-		"TRUNCATE screenshots CASCADE",
-		"TRUNCATE extracted_data CASCADE",
-		"TRUNCATE executions CASCADE",
-		"TRUNCATE workflow_versions CASCADE",
-		"TRUNCATE workflows CASCADE",
-		"TRUNCATE workflow_folders CASCADE",
-		"TRUNCATE projects CASCADE",
+	// Use a single TRUNCATE statement with all tables to avoid deadlock issues
+	// and ensure atomicity of the cleanup operation.
+	// Tables are listed in reverse dependency order (children before parents).
+	query := `TRUNCATE
+		exports,
+		ai_generations,
+		workflow_schedules,
+		workflow_templates,
+		execution_artifacts,
+		execution_steps,
+		execution_logs,
+		screenshots,
+		extracted_data,
+		executions,
+		workflow_versions,
+		workflows,
+		workflow_folders,
+		projects
+	CASCADE`
+
+	ctx := context.Background()
+	if _, err := db.ExecContext(ctx, query); err != nil {
+		return err
 	}
-	for _, q := range queries {
-		if _, err := db.Exec(q); err != nil {
+
+	return nil
+}
+
+// truncateAllWithRetry attempts to truncate all tables with retries for transient errors.
+func truncateAllWithRetry(db *database.DB, maxRetries int) error {
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		if err := truncateAll(db); err != nil {
+			lastErr = err
+			// Check if it's a deadlock error and retry
+			if strings.Contains(err.Error(), "deadlock") {
+				time.Sleep(time.Duration(50*(i+1)) * time.Millisecond)
+				continue
+			}
 			return err
 		}
+		return nil
 	}
-	return nil
+	return lastErr
 }
 
 func createWorkflowFixture(t *testing.T, repo database.Repository, db *database.DB, workflowID, executionID uuid.UUID) {

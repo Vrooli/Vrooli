@@ -1,16 +1,26 @@
 import { handleSessionClose } from '../../../src/routes/session-close';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockHttpRequest, createMockHttpResponse, waitForResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 
-// Mock playwright
+// Mock playwright - must be inline to avoid hoisting issues
 jest.mock('playwright', () => ({
   chromium: {
     launch: jest.fn().mockResolvedValue({
       newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({ on: jest.fn(), close: jest.fn().mockResolvedValue(undefined) }),
-        clearCookies: jest.fn(),
-        clearPermissions: jest.fn(),
+        newPage: jest.fn().mockResolvedValue({
+          on: jest.fn(),
+          goto: jest.fn().mockResolvedValue(null),
+          close: jest.fn().mockResolvedValue(undefined),
+          evaluate: jest.fn().mockResolvedValue(undefined),
+          viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
+        }),
+        clearCookies: jest.fn().mockResolvedValue(undefined),
+        clearPermissions: jest.fn().mockResolvedValue(undefined),
         close: jest.fn().mockResolvedValue(undefined),
+        tracing: {
+          start: jest.fn().mockResolvedValue(undefined),
+          stop: jest.fn().mockResolvedValue(undefined),
+        },
       }),
       close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
@@ -46,7 +56,6 @@ describe('Session Close Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
-    await waitForResponse(mockRes);
 
     expect(mockRes.statusCode).toBe(200);
     const json = (mockRes as any).getJSON();
@@ -58,7 +67,6 @@ describe('Session Close Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, 'non-existent', sessionManager);
-    await waitForResponse(mockRes);
 
     expect(mockRes.statusCode).toBe(404);
   });
@@ -78,7 +86,6 @@ describe('Session Close Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
-    await waitForResponse(mockRes);
 
     // Session should no longer exist
     expect(() => sessionManager.getSession(sessionId)).toThrow();

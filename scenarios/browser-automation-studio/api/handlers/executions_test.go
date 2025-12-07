@@ -244,8 +244,9 @@ func TestPostExecutionExport_ReturnsPreviewWhenNotReady(t *testing.T) {
 	if err := json.Unmarshal(resp.Body.Bytes(), &preview); err != nil {
 		t.Fatalf("failed to decode preview: %v", err)
 	}
-	if preview.Status != "pending" {
-		t.Fatalf("expected status pending, got %q", preview.Status)
+	// Proto enum serializes as its string name
+	if preview.Status != "EXPORT_STATUS_PENDING" {
+		t.Fatalf("expected status EXPORT_STATUS_PENDING, got %q", preview.Status)
 	}
 	if preview.Package != nil {
 		t.Fatalf("expected no package when export is pending")

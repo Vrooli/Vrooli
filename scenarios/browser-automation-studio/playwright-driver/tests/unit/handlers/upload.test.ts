@@ -30,7 +30,7 @@ describe('UploadHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.setInputFiles).toHaveBeenCalledWith('#file-input', '/path/to/file.txt');
+    expect(mockPage.setInputFiles).toHaveBeenCalledWith('#file-input', '/path/to/file.txt', { timeout: 30000 });
     expect(result.success).toBe(true);
   });
 
@@ -43,7 +43,7 @@ describe('UploadHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.setInputFiles).toHaveBeenCalledWith('#file-input', ['/file1.txt', '/file2.txt']);
+    expect(mockPage.setInputFiles).toHaveBeenCalledWith('#file-input', ['/file1.txt', '/file2.txt'], { timeout: 30000 });
     expect(result.success).toBe(true);
   });
 });

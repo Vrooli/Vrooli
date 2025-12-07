@@ -488,6 +488,10 @@ func TestDescribeExecutionExportReadyIncludesMetrics(t *testing.T) {
 				return &s
 			}(),
 		},
+		workflow: &database.Workflow{
+			ID:   workflowID,
+			Name: "test-workflow",
+		},
 		artifacts: []*database.ExecutionArtifact{
 			{
 				ArtifactType: "timeline_frame",

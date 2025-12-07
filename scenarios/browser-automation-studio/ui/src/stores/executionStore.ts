@@ -61,6 +61,30 @@ const toNumber = (value?: number | bigint | null): number | undefined => {
 
 const protoTimestampToDate = (ts?: Timestamp | null): Date | undefined => timestampToDate(ts);
 
+/**
+ * Converts a snake_case string to camelCase.
+ * E.g., "workflow_id" -> "workflowId", "started_at" -> "startedAt"
+ */
+const snakeToCamel = (str: string): string =>
+  str.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+
+/**
+ * Recursively normalizes JSON object keys from snake_case to camelCase.
+ * This ensures compatibility with protobuf JSON parsing which expects camelCase field names.
+ */
+const normalizeJsonKeys = (value: unknown): unknown => {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(normalizeJsonKeys);
+  if (typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      result[snakeToCamel(key)] = normalizeJsonKeys(val);
+    }
+    return result;
+  }
+  return value;
+};
+
 interface ExecutionUpdateMessage {
   type: string;
   execution_id?: string;
@@ -385,26 +409,46 @@ const mapProtoLogLevel = (level?: ProtoLogLevel | string): LogEntry['level'] => 
 };
 
 const parseExecutionProto = (raw: unknown): Execution => {
-  const proto = fromJson(ExecutionSchema, raw as any, { ignoreUnknownFields: true });
+  // Normalize snake_case keys to camelCase for proto compatibility
+  const normalized = normalizeJsonKeys(raw) as Record<string, unknown>;
+
+  // Attempt proto parsing with normalized data, fall back to empty object on failure
+  let proto: ReturnType<typeof fromJson<typeof ExecutionSchema>>;
+  try {
+    proto = fromJson(ExecutionSchema, normalized as any, { ignoreUnknownFields: true });
+  } catch {
+    // Proto parsing failed - use empty proto, fallbacks will handle the data
+    proto = {} as ReturnType<typeof fromJson<typeof ExecutionSchema>>;
+  }
+
+  // Extract dates with fallbacks (normalized uses camelCase)
   const startedAt =
-    protoTimestampToDate(proto.startedAt) ?? coerceDate((raw as Record<string, unknown>)?.started_at) ?? new Date();
-  const completedAt = protoTimestampToDate(proto.completedAt) ?? coerceDate((raw as Record<string, unknown>)?.completed_at);
+    protoTimestampToDate(proto.startedAt) ??
+    coerceDate(normalized?.startedAt) ??
+    new Date();
+  const completedAt =
+    protoTimestampToDate(proto.completedAt) ??
+    coerceDate(normalized?.completedAt);
   const lastHeartbeat = proto.lastHeartbeat
     ? protoTimestampToDate(proto.lastHeartbeat)
-    : coerceDate((raw as Record<string, unknown>)?.last_heartbeat);
+    : coerceDate(normalized?.lastHeartbeat);
 
+  // Extract fields with comprehensive fallbacks
+  // Note: normalized already has camelCase keys (executionId, workflowId, etc.)
   return {
-    id: proto.id || String((raw as Record<string, unknown>)?.execution_id ?? ''),
-    workflowId: proto.workflowId || String((raw as Record<string, unknown>)?.workflow_id ?? ''),
-    status: mapExecutionStatus(proto.status),
+    id: proto.id || String(normalized?.id ?? normalized?.executionId ?? ''),
+    workflowId: proto.workflowId || String(normalized?.workflowId ?? ''),
+    status: mapExecutionStatus(proto.status || (normalized?.status as string | undefined)),
     startedAt,
     completedAt: completedAt || undefined,
     screenshots: [],
     timeline: [],
     logs: [],
-    currentStep: proto.currentStep || undefined,
-    progress: typeof proto.progress === 'number' ? proto.progress : 0,
-    error: proto.error ?? undefined,
+    currentStep: proto.currentStep || (normalized?.currentStep ? String(normalized.currentStep) : undefined),
+    progress: typeof proto.progress === 'number' && proto.progress > 0
+      ? proto.progress
+      : (typeof normalized?.progress === 'number' ? normalized.progress as number : 0),
+    error: proto.error ?? (normalized?.error ? String(normalized.error) : undefined),
     lastHeartbeat: lastHeartbeat
       ? {
           timestamp: lastHeartbeat,
@@ -579,6 +623,77 @@ const mapTimelineLogFromProto = (log: ProtoTimelineLog): LogEntry | null => {
   return {
     id,
     level: mapProtoLogLevel(log.level),
+    message: composedMessage,
+    timestamp: rawTimestamp ?? new Date(),
+  };
+};
+
+/**
+ * Fallback parser for timeline frames from raw (normalized) JSON.
+ * Used when proto parsing fails or returns incomplete data.
+ */
+const mapTimelineFrameFromRaw = (raw: Record<string, unknown>): TimelineFrame => {
+  const stepIndex = typeof raw.stepIndex === 'number' ? raw.stepIndex : 0;
+  const nodeId = raw.nodeId ? String(raw.nodeId) : undefined;
+  const stepType = raw.stepType ? String(raw.stepType) : undefined;
+  const status = raw.status ? String(raw.status) : undefined;
+  const success = raw.success === true;
+  const durationMs = typeof raw.durationMs === 'number' ? raw.durationMs : undefined;
+
+  return {
+    step_index: stepIndex,
+    stepIndex,
+    node_id: nodeId,
+    nodeId,
+    step_type: stepType,
+    stepType,
+    status,
+    success,
+    duration_ms: durationMs,
+    durationMs,
+    total_duration_ms: typeof raw.totalDurationMs === 'number' ? raw.totalDurationMs : undefined,
+    totalDurationMs: typeof raw.totalDurationMs === 'number' ? raw.totalDurationMs : undefined,
+    progress: typeof raw.progress === 'number' ? raw.progress : undefined,
+    started_at: raw.startedAt ? String(raw.startedAt) : undefined,
+    startedAt: raw.startedAt ? String(raw.startedAt) : undefined,
+    completed_at: raw.completedAt ? String(raw.completedAt) : undefined,
+    completedAt: raw.completedAt ? String(raw.completedAt) : undefined,
+    final_url: raw.finalUrl ? String(raw.finalUrl) : undefined,
+    finalUrl: raw.finalUrl ? String(raw.finalUrl) : undefined,
+    error: raw.error ? String(raw.error) : undefined,
+    screenshot: null,
+    artifacts: [],
+    assertion: null,
+    retry_history: [],
+    retryHistory: [],
+  };
+};
+
+/**
+ * Fallback parser for timeline logs from raw (normalized) JSON.
+ * Used when proto parsing fails or returns incomplete data.
+ */
+const mapTimelineLogFromRaw = (raw: Record<string, unknown>): LogEntry | null => {
+  const baseMessage = typeof raw.message === 'string' ? raw.message.trim() : '';
+  const stepName = typeof raw.stepName === 'string' ? raw.stepName : '';
+  const composedMessage = stepName && baseMessage ? `${stepName}: ${baseMessage}` : baseMessage || stepName;
+  if (!composedMessage) {
+    return null;
+  }
+
+  const rawTimestamp = coerceDate(raw.timestamp);
+  const id = raw.id && typeof raw.id === 'string' && raw.id.trim().length > 0
+    ? raw.id.trim()
+    : `${stepName}|${composedMessage}|${rawTimestamp?.toISOString() ?? ''}`;
+
+  const level = typeof raw.level === 'string' ? raw.level.toLowerCase() : 'info';
+  const mappedLevel: LogEntry['level'] =
+    level === 'error' ? 'error' :
+    level === 'warn' || level === 'warning' ? 'warning' : 'info';
+
+  return {
+    id,
+    level: mappedLevel,
     message: composedMessage,
     timestamp: rawTimestamp ?? new Date(),
   };
@@ -911,26 +1026,65 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
 
       const data = await response.json();
+
+      // Normalize snake_case keys to camelCase for proto compatibility
+      const normalizedData = normalizeJsonKeys(data) as Record<string, unknown>;
+
+      // Attempt proto parsing with normalized data, fall back gracefully on failure
       let protoTimeline: ProtoExecutionTimeline;
+      let protoParsingSucceeded = true;
       try {
-        protoTimeline = fromJson(ExecutionTimelineSchema, data, { ignoreUnknownFields: true });
+        protoTimeline = fromJson(ExecutionTimelineSchema, normalizedData as any, { ignoreUnknownFields: true });
       } catch (schemaError) {
         logger.error(
-          'Timeline response failed proto validation',
+          'Timeline response failed proto validation, using fallback parsing',
           { component: 'ExecutionStore', action: 'refreshTimeline', executionId },
           schemaError,
         );
-        throw schemaError;
+        // Create empty proto object - we'll use fallbacks
+        protoTimeline = {} as ProtoExecutionTimeline;
+        protoParsingSucceeded = false;
       }
 
-      const frames: TimelineFrame[] = (protoTimeline.frames ?? []).map((frame) => mapTimelineFrameFromProto(frame));
-      const normalizedLogs: LogEntry[] = (protoTimeline.logs ?? [])
-        .map((log) => mapTimelineLogFromProto(log))
-        .filter((entry): entry is LogEntry => Boolean(entry));
+      // Parse frames: use proto if available, otherwise use raw fallback parser
+      let frames: TimelineFrame[];
+      if (protoParsingSucceeded && protoTimeline.frames && protoTimeline.frames.length > 0) {
+        frames = protoTimeline.frames.map((frame) => mapTimelineFrameFromProto(frame));
+      } else {
+        // Fallback: parse frames from normalized raw data
+        const rawFrames = Array.isArray(normalizedData.frames) ? normalizedData.frames : [];
+        frames = rawFrames.map((frame) => mapTimelineFrameFromRaw(frame as Record<string, unknown>));
+      }
 
-      const mappedStatus = mapExecutionStatus(protoTimeline.status);
-      const progressValue = typeof protoTimeline.progress === 'number' ? protoTimeline.progress : undefined;
-      const completedAt = timestampToDate(protoTimeline.completedAt);
+      // Parse logs: use proto if available, otherwise use raw fallback parser
+      let normalizedLogs: LogEntry[];
+      if (protoParsingSucceeded && protoTimeline.logs && protoTimeline.logs.length > 0) {
+        normalizedLogs = protoTimeline.logs
+          .map((log) => mapTimelineLogFromProto(log))
+          .filter((entry): entry is LogEntry => Boolean(entry));
+      } else {
+        // Fallback: parse logs from normalized raw data
+        const rawLogs = Array.isArray(normalizedData.logs) ? normalizedData.logs : [];
+        normalizedLogs = rawLogs
+          .map((log) => mapTimelineLogFromRaw(log as Record<string, unknown>))
+          .filter((entry): entry is LogEntry => Boolean(entry));
+      }
+
+      // Extract status with fallback to raw data
+      const mappedStatus = mapExecutionStatus(
+        protoTimeline.status || (normalizedData.status as string | undefined)
+      );
+
+      // Extract progress with fallback to raw data
+      const progressValue = typeof protoTimeline.progress === 'number'
+        ? protoTimeline.progress
+        : (typeof normalizedData.progress === 'number' ? normalizedData.progress as number : undefined);
+
+      // Extract completedAt with fallback to raw data
+      const completedAt = timestampToDate(protoTimeline.completedAt) ?? coerceDate(normalizedData.completedAt);
+
+      // Extract error from raw data (ExecutionTimeline proto doesn't have error field)
+      const errorValue = normalizedData.error ? String(normalizedData.error) : undefined;
 
       set((state) => {
         if (!state.currentExecution || state.currentExecution.id !== executionId) {
@@ -966,6 +1120,10 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
         if (completedAt && (updated.status === 'completed' || updated.status === 'failed')) {
           updated.completedAt = completedAt;
+        }
+
+        if (errorValue && updated.status === 'failed') {
+          updated.error = errorValue;
         }
 
         if (frames.length > 0) {

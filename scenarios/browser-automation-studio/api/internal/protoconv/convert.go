@@ -3,7 +3,7 @@ package protoconv
 import (
 	"encoding/json"
 	"fmt"
-	"time"
+	"strings"
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -14,6 +14,141 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// String to enum converters
+
+func stringToExecutionStatus(s string) basv1.ExecutionStatus {
+	normalized := strings.ToUpper(strings.TrimSpace(s))
+	switch normalized {
+	case "PENDING", "EXECUTION_STATUS_PENDING":
+		return basv1.ExecutionStatus_EXECUTION_STATUS_PENDING
+	case "RUNNING", "EXECUTION_STATUS_RUNNING":
+		return basv1.ExecutionStatus_EXECUTION_STATUS_RUNNING
+	case "COMPLETED", "EXECUTION_STATUS_COMPLETED":
+		return basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED
+	case "FAILED", "EXECUTION_STATUS_FAILED":
+		return basv1.ExecutionStatus_EXECUTION_STATUS_FAILED
+	case "CANCELLED", "CANCELED", "EXECUTION_STATUS_CANCELLED":
+		return basv1.ExecutionStatus_EXECUTION_STATUS_CANCELLED
+	default:
+		return basv1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
+	}
+}
+
+func stringToTriggerType(s string) basv1.TriggerType {
+	normalized := strings.ToUpper(strings.TrimSpace(s))
+	switch normalized {
+	case "MANUAL", "TRIGGER_TYPE_MANUAL":
+		return basv1.TriggerType_TRIGGER_TYPE_MANUAL
+	case "SCHEDULED", "TRIGGER_TYPE_SCHEDULED":
+		return basv1.TriggerType_TRIGGER_TYPE_SCHEDULED
+	case "API", "TRIGGER_TYPE_API":
+		return basv1.TriggerType_TRIGGER_TYPE_API
+	case "WEBHOOK", "TRIGGER_TYPE_WEBHOOK":
+		return basv1.TriggerType_TRIGGER_TYPE_WEBHOOK
+	default:
+		return basv1.TriggerType_TRIGGER_TYPE_UNSPECIFIED
+	}
+}
+
+func stringToExportStatus(s string) basv1.ExportStatus {
+	normalized := strings.ToUpper(strings.TrimSpace(s))
+	switch normalized {
+	case "READY", "EXPORT_STATUS_READY":
+		return basv1.ExportStatus_EXPORT_STATUS_READY
+	case "PENDING", "NOT_READY", "EXPORT_STATUS_PENDING":
+		return basv1.ExportStatus_EXPORT_STATUS_PENDING
+	case "ERROR", "EXPORT_STATUS_ERROR":
+		return basv1.ExportStatus_EXPORT_STATUS_ERROR
+	case "UNAVAILABLE", "EXPORT_STATUS_UNAVAILABLE":
+		return basv1.ExportStatus_EXPORT_STATUS_UNAVAILABLE
+	default:
+		return basv1.ExportStatus_EXPORT_STATUS_UNSPECIFIED
+	}
+}
+
+func stringToStepType(s string) basv1.StepType {
+	normalized := strings.ToLower(strings.TrimSpace(s))
+	switch normalized {
+	case "navigate", "step_type_navigate":
+		return basv1.StepType_STEP_TYPE_NAVIGATE
+	case "click", "step_type_click":
+		return basv1.StepType_STEP_TYPE_CLICK
+	case "input", "type", "step_type_input":
+		return basv1.StepType_STEP_TYPE_INPUT
+	case "assert", "step_type_assert":
+		return basv1.StepType_STEP_TYPE_ASSERT
+	case "subflow", "step_type_subflow":
+		return basv1.StepType_STEP_TYPE_SUBFLOW
+	case "custom", "step_type_custom":
+		return basv1.StepType_STEP_TYPE_CUSTOM
+	// Map other step types to CUSTOM since they're not in the proto
+	case "wait", "extract", "screenshot", "scroll", "select", "hover", "keyboard", "condition", "loop":
+		return basv1.StepType_STEP_TYPE_CUSTOM
+	default:
+		return basv1.StepType_STEP_TYPE_UNSPECIFIED
+	}
+}
+
+func stringToStepStatus(s string) basv1.StepStatus {
+	normalized := strings.ToUpper(strings.TrimSpace(s))
+	switch normalized {
+	case "PENDING", "STEP_STATUS_PENDING":
+		return basv1.StepStatus_STEP_STATUS_PENDING
+	case "RUNNING", "STEP_STATUS_RUNNING":
+		return basv1.StepStatus_STEP_STATUS_RUNNING
+	case "COMPLETED", "STEP_STATUS_COMPLETED":
+		return basv1.StepStatus_STEP_STATUS_COMPLETED
+	case "FAILED", "STEP_STATUS_FAILED":
+		return basv1.StepStatus_STEP_STATUS_FAILED
+	case "CANCELLED", "STEP_STATUS_CANCELLED":
+		return basv1.StepStatus_STEP_STATUS_CANCELLED
+	case "SKIPPED", "STEP_STATUS_SKIPPED":
+		return basv1.StepStatus_STEP_STATUS_SKIPPED
+	case "RETRYING", "STEP_STATUS_RETRYING":
+		return basv1.StepStatus_STEP_STATUS_RETRYING
+	default:
+		return basv1.StepStatus_STEP_STATUS_UNSPECIFIED
+	}
+}
+
+func stringToLogLevel(s string) basv1.LogLevel {
+	normalized := strings.ToUpper(strings.TrimSpace(s))
+	switch normalized {
+	case "DEBUG", "LOG_LEVEL_DEBUG":
+		return basv1.LogLevel_LOG_LEVEL_DEBUG
+	case "INFO", "LOG_LEVEL_INFO":
+		return basv1.LogLevel_LOG_LEVEL_INFO
+	case "WARN", "WARNING", "LOG_LEVEL_WARN":
+		return basv1.LogLevel_LOG_LEVEL_WARN
+	case "ERROR", "LOG_LEVEL_ERROR":
+		return basv1.LogLevel_LOG_LEVEL_ERROR
+	default:
+		return basv1.LogLevel_LOG_LEVEL_UNSPECIFIED
+	}
+}
+
+func stringToArtifactType(s string) basv1.ArtifactType {
+	normalized := strings.ToLower(strings.TrimSpace(s))
+	switch normalized {
+	case "screenshot", "artifact_type_screenshot":
+		return basv1.ArtifactType_ARTIFACT_TYPE_SCREENSHOT
+	case "dom", "dom_snapshot", "artifact_type_dom_snapshot":
+		return basv1.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT
+	case "timeline_frame", "artifact_type_timeline_frame":
+		return basv1.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME
+	case "console_log", "artifact_type_console_log":
+		return basv1.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG
+	case "network_event", "artifact_type_network_event":
+		return basv1.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT
+	case "trace", "artifact_type_trace":
+		return basv1.ArtifactType_ARTIFACT_TYPE_TRACE
+	case "custom", "artifact_type_custom", "extracted_data", "video", "har":
+		return basv1.ArtifactType_ARTIFACT_TYPE_CUSTOM
+	default:
+		return basv1.ArtifactType_ARTIFACT_TYPE_UNSPECIFIED
+	}
+}
 
 // ExecutionToProto converts a database.Execution into the generated proto message.
 func ExecutionToProto(execution *database.Execution) (*basv1.Execution, error) {
@@ -40,8 +175,8 @@ func ExecutionToProto(execution *database.Execution) (*basv1.Execution, error) {
 		Id:              execution.ID.String(),
 		WorkflowId:      execution.WorkflowID.String(),
 		WorkflowVersion: int32(execution.WorkflowVersion),
-		Status:          execution.Status,
-		TriggerType:     execution.TriggerType,
+		Status:          stringToExecutionStatus(execution.Status),
+		TriggerType:     stringToTriggerType(execution.TriggerType),
 		Progress:        int32(execution.Progress),
 		CurrentStep:     execution.CurrentStep,
 		StartedAt:       timestamppb.New(execution.StartedAt),
@@ -97,7 +232,7 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 	return &basv1.ExecutionExportPreview{
 		ExecutionId:         preview.ExecutionID.String(),
 		SpecId:              preview.SpecID,
-		Status:              preview.Status,
+		Status:              stringToExportStatus(preview.Status),
 		Message:             preview.Message,
 		CapturedFrameCount:  int32(preview.CapturedFrameCount),
 		AvailableAssetCount: int32(preview.AvailableAssetCount),
@@ -148,7 +283,7 @@ func ScreenshotsToProto(screenshots []*database.Screenshot) (*basv1.GetScreensho
 			ExecutionId:  shot.ExecutionID.String(),
 			StepName:     shot.StepName,
 			StepIndex:    stepIndex,
-			Timestamp:    shot.Timestamp.Format(time.RFC3339),
+			Timestamp:    timestamppb.New(shot.Timestamp),
 			StorageUrl:   shot.StorageURL,
 			ThumbnailUrl: thumbURL,
 			Width:        int32(shot.Width),
@@ -169,7 +304,7 @@ func TimelineToProto(timeline *export.ExecutionTimeline) (*basv1.ExecutionTimeli
 	pb := &basv1.ExecutionTimeline{
 		ExecutionId: timeline.ExecutionID.String(),
 		WorkflowId:  timeline.WorkflowID.String(),
-		Status:      timeline.Status,
+		Status:      stringToExecutionStatus(timeline.Status),
 		Progress:    int32(timeline.Progress),
 		StartedAt:   timestamppb.New(timeline.StartedAt),
 	}
@@ -211,8 +346,8 @@ func timelineFrameToProto(frame export.TimelineFrame) (*basv1.TimelineFrame, err
 	pbFrame := &basv1.TimelineFrame{
 		StepIndex:            int32(frame.StepIndex),
 		NodeId:               frame.NodeID,
-		StepType:             frame.StepType,
-		Status:               frame.Status,
+		StepType:             stringToStepType(frame.StepType),
+		Status:               stringToStepStatus(frame.Status),
 		Success:              frame.Success,
 		DurationMs:           int32(frame.DurationMs),
 		TotalDurationMs:      int32(frame.TotalDurationMs),
@@ -301,7 +436,7 @@ func timelineFrameToProto(frame export.TimelineFrame) (*basv1.TimelineFrame, err
 func timelineLogToProto(log export.TimelineLog) *basv1.TimelineLog {
 	return &basv1.TimelineLog{
 		Id:        log.ID,
-		Level:     log.Level,
+		Level:     stringToLogLevel(log.Level),
 		Message:   log.Message,
 		StepName:  log.StepName,
 		Timestamp: timestamppb.New(log.Timestamp),
@@ -406,7 +541,7 @@ func convertArtifact(artifact typeconv.TimelineArtifact) (*basv1.TimelineArtifac
 
 	pb := &basv1.TimelineArtifact{
 		Id:           artifact.ID,
-		Type:         artifact.Type,
+		Type:         stringToArtifactType(artifact.Type),
 		Label:        artifact.Label,
 		StorageUrl:   artifact.StorageURL,
 		ThumbnailUrl: artifact.ThumbnailURL,

@@ -1605,6 +1605,7 @@ function ProjectDetail({
                                   />
                                   <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-flow-node border border-gray-700 rounded-lg shadow-xl overflow-hidden animate-fade-in">
                                     <button
+                                      data-testid={selectors.workflowBuilder.executeButton}
                                       onClick={(e) => {
                                         setShowWorkflowActionsFor(null);
                                         handleExecuteWorkflow(e, workflow.id);

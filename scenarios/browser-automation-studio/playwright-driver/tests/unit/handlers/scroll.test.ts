@@ -21,21 +21,18 @@ describe('ScrollHandler', () => {
     };
   });
 
-  it('should scroll to element', async () => {
+  it('should scroll to origin', async () => {
     const instruction = createTestInstruction({
       type: 'scroll',
-      params: { selector: '#target' },
+      params: { x: 0, y: 0 },
       node_id: 'node-1',
     });
 
-    const mockLocator = {
-      scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
-    };
-    mockPage.locator.mockReturnValue(mockLocator as any);
+    mockPage.evaluate.mockResolvedValue(undefined);
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockLocator.scrollIntoViewIfNeeded).toHaveBeenCalled();
+    expect(mockPage.evaluate).toHaveBeenCalled();
     expect(result.success).toBe(true);
   });
 

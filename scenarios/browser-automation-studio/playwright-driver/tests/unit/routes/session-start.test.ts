@@ -1,16 +1,26 @@
 import { handleSessionStart } from '../../../src/routes/session-start';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockHttpRequest, createMockHttpResponse, waitForResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 
-// Mock playwright
+// Mock playwright - must be inline to avoid hoisting issues
 jest.mock('playwright', () => ({
   chromium: {
     launch: jest.fn().mockResolvedValue({
       newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({ on: jest.fn() }),
+        newPage: jest.fn().mockResolvedValue({
+          on: jest.fn(),
+          goto: jest.fn().mockResolvedValue(null),
+          close: jest.fn().mockResolvedValue(undefined),
+          evaluate: jest.fn().mockResolvedValue(undefined),
+          viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
+        }),
         clearCookies: jest.fn().mockResolvedValue(undefined),
         clearPermissions: jest.fn().mockResolvedValue(undefined),
         close: jest.fn().mockResolvedValue(undefined),
+        tracing: {
+          start: jest.fn().mockResolvedValue(undefined),
+          stop: jest.fn().mockResolvedValue(undefined),
+        },
       }),
       close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
@@ -46,12 +56,11 @@ describe('Session Start Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleSessionStart(mockReq, mockRes, sessionManager, config);
-    await waitForResponse(mockRes);
 
     expect(mockRes.statusCode).toBe(200);
     const json = (mockRes as any).getJSON();
-    expect(json.sessionId).toBeDefined();
-    expect(typeof json.sessionId).toBe('string');
+    expect(json.session_id).toBeDefined();
+    expect(typeof json.session_id).toBe('string');
   });
 
   it('should return error for invalid body', async () => {
@@ -59,7 +68,6 @@ describe('Session Start Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleSessionStart(mockReq, mockRes, sessionManager, config);
-    await waitForResponse(mockRes);
 
     expect(mockRes.statusCode).toBeGreaterThanOrEqual(400);
   });
@@ -94,7 +102,6 @@ describe('Session Start Route', () => {
     const mockRes = createMockHttpResponse();
 
     await handleSessionStart(mockReq, mockRes, limitedManager, limitedConfig);
-    await waitForResponse(mockRes);
 
     expect(mockRes.statusCode).toBe(429);
 

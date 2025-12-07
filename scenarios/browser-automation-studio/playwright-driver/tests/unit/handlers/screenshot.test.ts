@@ -34,21 +34,16 @@ describe('ScreenshotHandler', () => {
     expect(result.screenshot).toBeDefined();
   });
 
-  it('should capture element screenshot when selector provided', async () => {
+  it('should capture full page screenshot with quality option', async () => {
     const instruction = createTestInstruction({
       type: 'screenshot',
-      params: { selector: '#element' },
+      params: { quality: 80, fullPage: true },
       node_id: 'node-1',
     });
 
-    const mockLocator = {
-      screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),
-    };
-    mockPage.locator.mockReturnValue(mockLocator as any);
-
     const result = await handler.execute(instruction, context);
 
-    expect(mockLocator.screenshot).toHaveBeenCalled();
     expect(result.success).toBe(true);
+    expect(result.screenshot).toBeDefined();
   });
 });

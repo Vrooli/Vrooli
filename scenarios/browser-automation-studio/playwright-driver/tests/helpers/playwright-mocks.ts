@@ -4,6 +4,27 @@ import type { Page, Browser, BrowserContext, Frame, Response, Request } from 'pl
  * Mock Playwright Page
  */
 export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
+  // Create a shared locator that can be reconfigured in tests
+  const mockFirstLocator = {
+    innerHTML: jest.fn().mockResolvedValue('<span>inner content</span>'),
+    textContent: jest.fn().mockResolvedValue('test text'),
+    boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }),
+    scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
+    screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),
+  };
+
+  const mockLocator = {
+    boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }),
+    textContent: jest.fn().mockResolvedValue('test text'),
+    getAttribute: jest.fn().mockResolvedValue('test-value'),
+    isVisible: jest.fn().mockResolvedValue(true),
+    count: jest.fn().mockResolvedValue(1),
+    innerHTML: jest.fn().mockResolvedValue('<span>inner content</span>'),
+    first: jest.fn().mockReturnValue(mockFirstLocator),
+    scrollIntoViewIfNeeded: jest.fn().mockResolvedValue(undefined),
+    screenshot: jest.fn().mockResolvedValue(Buffer.from('element-screenshot')),
+  };
+
   const mockPage = {
     goto: jest.fn().mockResolvedValue(null),
     click: jest.fn().mockResolvedValue(undefined),
@@ -17,20 +38,9 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     waitForTimeout: jest.fn().mockResolvedValue(undefined),
     screenshot: jest.fn().mockResolvedValue(Buffer.from('fake-screenshot')),
     content: jest.fn().mockResolvedValue('<html><body>Test</body></html>'),
-    locator: jest.fn().mockImplementation(() => {
-      const mockLocator = {
-        boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }),
-        textContent: jest.fn().mockResolvedValue('test text'),
-        getAttribute: jest.fn().mockResolvedValue('test-value'),
-        isVisible: jest.fn().mockResolvedValue(true),
-        count: jest.fn().mockResolvedValue(1),
-        innerHTML: jest.fn().mockResolvedValue('<span>inner content</span>'),
-        first: jest.fn().mockReturnValue({
-          innerHTML: jest.fn().mockResolvedValue('<span>inner content</span>'),
-        }),
-      };
-      return mockLocator;
-    }),
+    locator: jest.fn().mockReturnValue(mockLocator),
+    $: jest.fn().mockResolvedValue({ boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 50 }) }),
+    $$: jest.fn().mockResolvedValue([]),
     evaluate: jest.fn().mockResolvedValue({ result: 'test' }),
     setInputFiles: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
@@ -44,6 +54,11 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     context: jest.fn(),
     frames: jest.fn().mockReturnValue([]),
     mainFrame: jest.fn(),
+    isVisible: jest.fn().mockResolvedValue(true),
+    isHidden: jest.fn().mockResolvedValue(false),
+    isEnabled: jest.fn().mockResolvedValue(true),
+    isDisabled: jest.fn().mockResolvedValue(false),
+    getAttribute: jest.fn().mockResolvedValue(''),
     ...overrides,
   } as unknown as jest.Mocked<Page>;
 
@@ -63,6 +78,10 @@ export function createMockContext(overrides?: Partial<BrowserContext>): jest.Moc
     addCookies: jest.fn().mockResolvedValue(undefined),
     cookies: jest.fn().mockResolvedValue([]),
     storageState: jest.fn().mockResolvedValue({ cookies: [], origins: [] }),
+    tracing: {
+      start: jest.fn().mockResolvedValue(undefined),
+      stop: jest.fn().mockResolvedValue(undefined),
+    },
     ...overrides,
   } as unknown as jest.Mocked<BrowserContext>;
 
@@ -78,6 +97,7 @@ export function createMockBrowser(overrides?: Partial<Browser>): jest.Mocked<Bro
     close: jest.fn().mockResolvedValue(undefined),
     isConnected: jest.fn().mockReturnValue(true),
     contexts: jest.fn().mockReturnValue([]),
+    version: jest.fn().mockReturnValue('mock-browser-version'),
     ...overrides,
   } as unknown as jest.Mocked<Browser>;
 

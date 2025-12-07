@@ -33,6 +33,26 @@ export async function buildContext(
     ignoreHTTPSErrors: config.browser.ignoreHTTPSErrors,
   };
 
+  // Browser context configuration from spec
+  if (spec.user_agent) {
+    contextOptions.userAgent = spec.user_agent;
+  }
+  if (spec.locale) {
+    contextOptions.locale = spec.locale;
+  }
+  if (spec.timezone) {
+    contextOptions.timezoneId = spec.timezone;
+  }
+  if (spec.geolocation) {
+    contextOptions.geolocation = spec.geolocation;
+  }
+  if (spec.permissions) {
+    contextOptions.permissions = spec.permissions;
+  }
+  if (spec.storage_state) {
+    contextOptions.storageState = spec.storage_state;
+  }
+
   // HAR recording
   let harPath: string | undefined;
   if (spec.required_capabilities?.har && config.telemetry.har.enabled) {

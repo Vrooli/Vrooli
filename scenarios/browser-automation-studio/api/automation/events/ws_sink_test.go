@@ -49,6 +49,8 @@ func (s *stubHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
+func (s *stubHub) BroadcastRecordingAction(sessionID string, action any) {}
+
 func (c *closingHub) CloseExecution(executionID uuid.UUID) {
 	c.stubHub.mu.Lock()
 	c.closed = append(c.closed, executionID)
@@ -250,6 +252,8 @@ func (b *blockingHub) Updates() []any {
 func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
+
+func (b *blockingHub) BroadcastRecordingAction(sessionID string, action any) {}
 
 func (b *blockingHub) BroadcastEnvelope(event any) {
 	<-b.unblock

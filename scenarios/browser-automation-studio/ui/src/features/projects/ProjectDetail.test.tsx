@@ -10,10 +10,12 @@ const mockDeleteProject = vi.fn();
 const mockBulkDeleteWorkflows = vi.fn();
 const executionStoreState = {
   loadExecution: vi.fn(),
+  loadExecutions: vi.fn(),
   startExecution: vi.fn(),
   closeViewer: vi.fn(),
   currentExecution: null,
   viewerWorkflowId: null,
+  executions: [],
 };
 
 vi.mock("@stores/projectStore", () => ({
@@ -44,16 +46,21 @@ vi.mock("@stores/workflowStore", () => ({
   ),
 }));
 
-vi.mock("@stores/executionStore", () => ({
-  __esModule: true,
-  useExecutionStore: vi.fn(
+vi.mock("@stores/executionStore", () => {
+  const mockUseExecutionStore = vi.fn(
     (selector?: (state: typeof executionStoreState) => unknown) => {
       return typeof selector === "function"
         ? selector(executionStoreState)
         : executionStoreState;
     },
-  ),
-}));
+  );
+  // Add getState method for components that access state outside React hooks
+  mockUseExecutionStore.getState = () => executionStoreState;
+  return {
+    __esModule: true,
+    useExecutionStore: mockUseExecutionStore,
+  };
+});
 
 const getConfigMock = vi.hoisted(() => vi.fn());
 vi.mock("@/config", () => ({
@@ -162,10 +169,18 @@ describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]",
       />,
     );
 
-    const executeButtons = await screen.findAllByTestId(
+    // Wait for workflows to load first (workflow card should appear)
+    await screen.findAllByTestId(selectors.workflows.card);
+
+    // Open the workflow actions dropdown menu first (card view has execute in dropdown)
+    const actionsButton = await screen.findByLabelText("Workflow actions");
+    await user.click(actionsButton);
+
+    // Now find and click the execute button in the dropdown
+    const executeButton = await screen.findByTestId(
       selectors.workflowBuilder.executeButton,
     );
-    await user.click(executeButtons[0]);
+    await user.click(executeButton);
 
     await waitFor(() => {
       expect(executionStoreState.startExecution).toHaveBeenCalledWith(

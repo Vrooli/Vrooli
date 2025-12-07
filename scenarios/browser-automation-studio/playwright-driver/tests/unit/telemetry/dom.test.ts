@@ -112,7 +112,7 @@ describe('DOM Telemetry', () => {
       const mockHTML = '<span>Content</span>';
 
       const mockLocator = mockPage.locator(selector);
-      mockLocator.first().innerHTML.mockResolvedValue(mockHTML);
+      (mockLocator.first().innerHTML as jest.Mock).mockResolvedValue(mockHTML);
 
       const snapshot = await captureElementSnapshot(mockPage, selector, config);
 
@@ -154,7 +154,7 @@ describe('DOM Telemetry', () => {
 
       const largeHTML = 'x'.repeat(100);
       const mockLocator = mockPage.locator('#test');
-      mockLocator.first().innerHTML.mockResolvedValue(largeHTML);
+      (mockLocator.first().innerHTML as jest.Mock).mockResolvedValue(largeHTML);
 
       const snapshot = await captureElementSnapshot(mockPage, '#test', configSmallMax);
 
@@ -165,7 +165,7 @@ describe('DOM Telemetry', () => {
 
     it('should handle element not found gracefully', async () => {
       const mockLocator = mockPage.locator('#nonexistent');
-      mockLocator.first().innerHTML.mockRejectedValue(new Error('Element not found'));
+      (mockLocator.first().innerHTML as jest.Mock).mockRejectedValue(new Error('Element not found'));
 
       const snapshot = await captureElementSnapshot(mockPage, '#nonexistent', config);
 
@@ -175,7 +175,7 @@ describe('DOM Telemetry', () => {
     it('should include collected_at timestamp', async () => {
       const mockHTML = '<span>Content</span>';
       const mockLocator = mockPage.locator('#test');
-      mockLocator.first().innerHTML.mockResolvedValue(mockHTML);
+      (mockLocator.first().innerHTML as jest.Mock).mockResolvedValue(mockHTML);
 
       const snapshot = await captureElementSnapshot(mockPage, '#test', config);
 

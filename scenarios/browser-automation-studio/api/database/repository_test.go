@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 
 var (
 	testDBHandle *testdb.Handle
+	// testDBMu protects concurrent access to the shared test database
+	testDBMu sync.Mutex
 )
 
 func TestMain(m *testing.M) {
@@ -38,14 +41,31 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// setupTestDB creates a test database connection using the testcontainer
+// setupTestDB creates a test database connection using the testcontainer.
+// It acquires a mutex to ensure exclusive access to the shared test database.
 func setupTestDB(t *testing.T) (*DB, func()) {
 	if testDBHandle == nil {
 		t.Fatal("Test database not initialized - TestMain should have set handle")
 	}
 
+	// Acquire exclusive access to the test database
+	testDBMu.Lock()
+
+	// Save and clear environment variables
 	oldURL := os.Getenv("DATABASE_URL")
 	oldSkipDemo := os.Getenv("BAS_SKIP_DEMO_SEED")
+	oldHost := os.Getenv("POSTGRES_HOST")
+	oldPort := os.Getenv("POSTGRES_PORT")
+	oldUser := os.Getenv("POSTGRES_USER")
+	oldPass := os.Getenv("POSTGRES_PASSWORD")
+	oldDB := os.Getenv("POSTGRES_DB")
+
+	// Clear POSTGRES_* vars to ensure DATABASE_URL is used
+	os.Unsetenv("POSTGRES_HOST")
+	os.Unsetenv("POSTGRES_PORT")
+	os.Unsetenv("POSTGRES_USER")
+	os.Unsetenv("POSTGRES_PASSWORD")
+	os.Unsetenv("POSTGRES_DB")
 
 	os.Setenv("DATABASE_URL", testDBHandle.DSN)
 	os.Setenv("BAS_SKIP_DEMO_SEED", "true")
@@ -55,10 +75,13 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 
 	db, err := NewConnection(log)
 	if err != nil {
+		testDBMu.Unlock()
 		t.Fatalf("Failed to connect to test database: %v", err)
 	}
 
-	if err := truncateAll(db); err != nil {
+	if err := truncateAllWithRetry(db, 3); err != nil {
+		db.Close()
+		testDBMu.Unlock()
 		t.Fatalf("failed to truncate test tables: %v", err)
 	}
 
@@ -66,6 +89,7 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 		_ = truncateAll(db)
 		db.Close()
 
+		// Restore environment variables
 		if oldURL != "" {
 			os.Setenv("DATABASE_URL", oldURL)
 		} else {
@@ -77,6 +101,25 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 		} else {
 			os.Unsetenv("BAS_SKIP_DEMO_SEED")
 		}
+
+		if oldHost != "" {
+			os.Setenv("POSTGRES_HOST", oldHost)
+		}
+		if oldPort != "" {
+			os.Setenv("POSTGRES_PORT", oldPort)
+		}
+		if oldUser != "" {
+			os.Setenv("POSTGRES_USER", oldUser)
+		}
+		if oldPass != "" {
+			os.Setenv("POSTGRES_PASSWORD", oldPass)
+		}
+		if oldDB != "" {
+			os.Setenv("POSTGRES_DB", oldDB)
+		}
+
+		// Release exclusive access
+		testDBMu.Unlock()
 	}
 
 	return db, cleanup
@@ -88,7 +131,12 @@ func truncateAll(db *DB) error {
 	}
 	// Use a single TRUNCATE statement with all tables to avoid deadlock issues
 	// when multiple test goroutines attempt concurrent truncation.
+	// Tables are listed in reverse dependency order (children before parents).
 	query := `TRUNCATE
+		exports,
+		ai_generations,
+		workflow_schedules,
+		workflow_templates,
 		execution_artifacts,
 		execution_steps,
 		execution_logs,
@@ -107,6 +155,24 @@ func truncateAll(db *DB) error {
 	}
 
 	return nil
+}
+
+// truncateAllWithRetry attempts to truncate all tables with retries for transient errors.
+func truncateAllWithRetry(db *DB, maxRetries int) error {
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		if err := truncateAll(db); err != nil {
+			lastErr = err
+			// Check if it's a deadlock error and retry
+			if strings.Contains(err.Error(), "deadlock") {
+				time.Sleep(time.Duration(50*(i+1)) * time.Millisecond)
+				continue
+			}
+			return err
+		}
+		return nil
+	}
+	return lastErr
 }
 
 func TestCreateProject(t *testing.T) {

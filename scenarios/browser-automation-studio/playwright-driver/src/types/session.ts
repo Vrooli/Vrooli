@@ -24,6 +24,32 @@ export interface SessionSpec {
     viewport_width?: number;
     viewport_height?: number;
   };
+  // Browser context configuration
+  user_agent?: string;
+  locale?: string;
+  timezone?: string;
+  geolocation?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  };
+  permissions?: string[];
+  storage_state?: {
+    cookies: Array<{
+      name: string;
+      value: string;
+      domain: string;
+      path: string;
+      expires: number;
+      httpOnly: boolean;
+      secure: boolean;
+      sameSite: 'Strict' | 'Lax' | 'None';
+    }>;
+    origins: Array<{
+      origin: string;
+      localStorage: Array<{ name: string; value: string }>;
+    }>;
+  };
 }
 
 export interface SessionState {

@@ -1,9 +1,18 @@
 import type { Config } from '../../src/config';
 
 /**
+ * Recursive partial type for deep object overrides
+ */
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
+
+/**
  * Create a test configuration with sensible defaults
  */
-export function createTestConfig(overrides?: Partial<Config>): Config {
+export function createTestConfig(overrides?: DeepPartial<Config>): Config {
   const defaultConfig: Config = {
     server: {
       port: 39400,
@@ -66,7 +75,11 @@ export function createTestConfig(overrides?: Partial<Config>): Config {
     ...defaultConfig,
     ...overrides,
     server: { ...defaultConfig.server, ...overrides?.server },
-    browser: { ...defaultConfig.browser, ...overrides?.browser },
+    browser: {
+      ...defaultConfig.browser,
+      ...overrides?.browser,
+      args: (overrides?.browser?.args as string[]) ?? defaultConfig.browser.args,
+    },
     session: { ...defaultConfig.session, ...overrides?.session },
     telemetry: {
       screenshot: { ...defaultConfig.telemetry.screenshot, ...overrides?.telemetry?.screenshot },
