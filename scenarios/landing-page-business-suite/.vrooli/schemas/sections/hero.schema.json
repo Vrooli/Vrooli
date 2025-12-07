@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hero Section Content",
+  "type": "object",
+  "required": ["title", "subtitle"],
+  "properties": {
+    "title": { "type": "string", "minLength": 5 },
+    "subtitle": { "type": "string", "minLength": 10 },
+    "cta_text": { "type": "string" },
+    "cta_url": { "type": "string" },
+    "image_url": { "type": "string" },
+    "background_style": {
+      "type": "string",
+      "enum": ["gradient", "solid", "image"]
+    }
+  },
+  "additionalProperties": false
+}

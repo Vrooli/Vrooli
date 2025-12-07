@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Video Section Content",
+  "type": "object",
+  "anyOf": [
+    { "required": ["videoUrl"] },
+    { "required": ["video_url"] }
+  ],
+  "properties": {
+    "title": { "type": "string" },
+    "video_url": { "type": "string" },
+    "videoUrl": { "type": "string" },
+    "thumbnail_url": { "type": "string" },
+    "thumbnailUrl": { "type": "string" },
+    "caption": { "type": "string" }
+  },
+  "additionalProperties": false
+}

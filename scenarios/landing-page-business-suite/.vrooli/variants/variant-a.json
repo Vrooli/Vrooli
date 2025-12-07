@@ -1,0 +1,112 @@
+{
+  "variant": {
+    "slug": "variant-a",
+    "name": "Quiet Founder Alt (archived)",
+    "description": "Placeholder variant archived to force all traffic to the control experience",
+    "weight": 0,
+    "status": "archived"
+  },
+  "axes": {
+    "persona": "silentFounder",
+    "jtbd": "entrepreneurship",
+    "conversionStyle": "emotional"
+  },
+  "sections": [
+    {
+      "section_type": "hero",
+      "order": 1,
+      "enabled": true,
+      "content": {
+        "title": "Teach Browser Automation Faster",
+        "subtitle": "Bundle onboarding lessons, downloadable labs, and live cohorts behind a single landing page.",
+        "cta_text": "Download the starter kit",
+        "cta_url": "/downloads/starter",
+        "image_url": "/assets/hero/education.png"
+      }
+    },
+    {
+      "section_type": "features",
+      "order": 2,
+      "enabled": true,
+      "content": {
+        "title": "Why trainers pick Browser Automation Studio",
+        "subtitle": "Variant A leans into enablement metrics over pricing copy.",
+        "features": [
+          {
+            "title": "Curriculum-ready sections",
+            "description": "Clone FAQ + download sections per cohort without breaking analytics.",
+            "icon": "sparkles"
+          },
+          {
+            "title": "Entitlement-aware downloads",
+            "description": "Mac, Windows, and Linux installers unlock only after enrollment.",
+            "icon": "shield"
+          },
+          {
+            "title": "Agent refresh",
+            "description": "Trigger the customization agent to rewrite modules after each cohort review.",
+            "icon": "zap"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "cta",
+      "order": 3,
+      "enabled": true,
+      "content": {
+        "title": "Spin up a training landing page",
+        "subtitle": "The factory provisions analytics + payments + downloads before class starts.",
+        "cta_text": "Launch training portal",
+        "cta_url": "/contact/training"
+      }
+    },
+    {
+      "section_type": "faq",
+      "order": 4,
+      "enabled": true,
+      "content": {
+        "title": "Program logistics",
+        "subtitle": "Answers tuned for enablement buyers.",
+        "faqs": [
+          {
+            "question": "Can each cohort get its own variant?",
+            "answer": "Yes. Create slugs per cohort and route visitors via ?variant= parameter from your LMS."
+          },
+          {
+            "question": "How do we swap lesson downloads?",
+            "answer": "Upload installers/new labs, then update the download assets table or the CLI helper in scripts/manage.sh."
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "footer",
+      "order": 5,
+      "enabled": true,
+      "content": {
+        "company_name": "Vrooli Enablement",
+        "tagline": "Cohort-ready automation curriculum.",
+        "columns": [
+          {
+            "title": "Enablement",
+            "links": [
+              { "label": "Lesson plans", "url": "/resources/lessons" },
+              { "label": "Certification", "url": "/resources/certification" }
+            ]
+          },
+          {
+            "title": "Contact",
+            "links": [
+              { "label": "Request cohort", "url": "/contact/cohort" },
+              { "label": "Partner", "url": "/partners" }
+            ]
+          }
+        ],
+        "social_links": {
+          "linkedin": "https://www.linkedin.com/company/vrooli"
+        }
+      }
+    }
+  ]
+}

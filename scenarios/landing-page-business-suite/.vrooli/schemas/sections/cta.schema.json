@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CTA Section Content",
+  "type": "object",
+  "required": ["title", "subtitle"],
+  "properties": {
+    "title": { "type": "string" },
+    "subtitle": { "type": "string" },
+    "cta_text": { "type": "string" },
+    "cta_url": { "type": "string" },
+    "background_style": {
+      "type": "string",
+      "enum": ["gradient", "solid"]
+    }
+  },
+  "additionalProperties": false
+}

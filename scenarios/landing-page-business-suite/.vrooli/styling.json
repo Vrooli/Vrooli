@@ -1,0 +1,243 @@
+{
+  "style_id": "clause-case-study-v1",
+  "brand": {
+    "product_name": "Silent Founder OS",
+    "tagline": "Browser Automation Studio today, an expanding suite tomorrow",
+    "logo_usage": "Use the monochrome wordmark on dark panels. Accent lozenges may sit behind it if opacity < 12%."
+  },
+  "influences": [
+    "Clause contract hub case study",
+    "Swiss editorial layout",
+    "Enterprise analytics systems with layered dashboards"
+  ],
+  "mood": ["structured", "assured", "process-driven"],
+  "palette": {
+    "background": "#07090F",
+    "gradients": ["#101828", "#1A2236"],
+    "supporting": ["#F97316", "#22D3EE", "#10B981"],
+    "text_primary": "#F3F4F6",
+    "text_secondary": "#94A3B8",
+    "surface_primary": "#0F172A",
+    "surface_muted": "#1E2433",
+    "surface_alt": "#F6F5F2",
+    "card_border": "rgba(255,255,255,0.08)",
+    "accent_primary": "#F97316",
+    "accent_secondary": "#38BDF8",
+    "accent_alert": "#EF4444",
+    "neutral_scale": ["#090B14", "#111827", "#1F2937", "#374151", "#94A3B8"]
+  },
+  "typography": {
+    "headline": {
+      "font": "Space Grotesk",
+      "weight": 600,
+      "tracking": "-0.02em",
+      "case": "Sentence"
+    },
+    "body": {
+      "font": "Inter",
+      "weight": 400,
+      "size": "17px",
+      "line_height": "1.65"
+    },
+    "cta": {
+      "font": "Space Grotesk",
+      "weight": 600,
+      "transform": "none"
+    },
+    "scale": {
+      "h1": "64px/1.1",
+      "h2": "48px/1.15",
+      "h3": "32px/1.2",
+      "eyebrow": "12px/1 uppercase",
+      "body": "17px/1.65",
+      "caption": "14px/1.5"
+    }
+  },
+  "tone": {
+    "voice": "Measured operator with a product-case-study bias",
+    "keywords": [
+      "process",
+      "case study",
+      "dashboard",
+      "workflow",
+      "handoff",
+      "recurring insight"
+    ],
+    "avoid": [
+      "vague 'AI magic' claims",
+      "body text about inspiration or dreams",
+      "gradient-orb filler copy"
+    ],
+    "sentence_rules": [
+      "State the outcome first, then mention the subsystem enabling it.",
+      "Tie every feature to a concrete workflow (e.g., review → customize → deploy).",
+      "Reference artifacts (dashboards, brand system, timeline) so the page feels like a case-study recap."
+    ]
+  },
+  "layout": {
+    "container_max_width": "1200px",
+    "grid": {
+      "columns": 12,
+      "gutter": "32px"
+    },
+    "section_spacing": "160px",
+    "hero": {
+      "type": "case-study",
+      "columns": 2,
+      "includes_process_diagram": true,
+      "ui_focus": "layered_panels"
+    },
+    "section_sequence": ["hero", "metrics", "full-preview", "wireframes", "features", "pricing", "cta"]
+  },
+  "depth": {
+    "surface_finish": "Matte dark panels with thin border separators",
+    "shadow_tokens": "l1=0px 6px 20px rgba(0,0,0,0.35); l2=0px 18px 40px rgba(0,0,0,0.45)",
+    "border_radius": "24px on hero/panels, 16px on cards"
+  },
+  "motion": {
+    "usage": "Only animate hero panel offsets and hover lifts; keep text and CTA static.",
+    "duration": "200ms",
+    "easing": "cubic-bezier(0.4,0.1,0.2,1)"
+  },
+  "imagery": {
+    "device_frames": ["laptop-floating", "stacked-dashboards"],
+    "screenshot_rules": [
+      "Use real UI captures with believable data, never abstract gradients.",
+      "Layer at least two panels with 12px offset and drop shadow.",
+      "Include one brand-guideline strip showing palette + typography tokens."
+    ],
+    "texture_usage": "Subtle diagonal noise at <8% opacity allowed on hero background."
+  },
+  "components": {
+    "buttons": {
+      "primary": {
+        "style": "Solid accent_primary with 2px outline on dark surfaces",
+        "icon": "ArrowRight",
+        "padding": "px-7 py-4",
+        "corners": "9999px pill"
+      },
+      "secondary": {
+        "style": "Surface_muted background, 1px card_border, text in accent_secondary",
+        "usage": "Preview links or supporting CTAs"
+      },
+      "tertiary": {
+        "style": "Link style with underline on hover",
+        "usage": "Download resources or jump to docs"
+      }
+    },
+    "cards": {
+      "border": "1px solid rgba(255,255,255,0.08)",
+      "hover": "translateY(-4px) and border-color accent_secondary",
+      "background": "surface_muted with 92% opacity"
+    },
+    "panels": {
+      "layers": 3,
+      "offset": "12px/8px diagonal",
+      "shadow": "use l2 token on back layers, l1 on front",
+      "annotations": "Use accent_secondary lines to connect metrics to text"
+    },
+    "icons": {
+      "set": "Lucide",
+      "default_color": "#F97316",
+      "size": 24
+    },
+    "nav": {
+      "style": "Sticky top case-study rail with anchor links",
+      "background": "surface_primary with thin divider",
+      "cta": "Single outline button linking to downloads"
+    },
+    "brand_strip": {
+      "background": "surface_alt",
+      "swatch_size": "48px",
+      "type_sample": "Space Grotesk uppercase sample + Inter paragraph"
+    }
+  },
+  "component_kits": {
+    "hero": {
+      "layout": "two-column",
+      "left": "Headline, supporting copy, CTA pair, secondary metrics row",
+      "right": "Stacked UI panels with annotation tags",
+      "badges": ["case-study", "metrics-certified"]
+    },
+    "process_timeline": {
+      "steps": ["discover", "customize", "launch"],
+      "style": "vertical timeline with accent_primary markers"
+    },
+    "brand_guidelines": {
+      "tokens": ["palette", "typography", "iconography"],
+      "presentation": "strip with swatches + text"
+    }
+  },
+  "imagery_slots": {
+    "ui_panels": {
+      "description": "Primary layered dashboard rendering for hero",
+      "preferred_ratio": "4:3"
+    },
+    "full_page_preview": {
+      "description": "Full page screenshot displayed like a framed poster",
+      "preferred_ratio": "3:5"
+    },
+    "device_macro": {
+      "description": "Crop showing detailed UI micro-interaction",
+      "preferred_ratio": "1:1"
+    }
+  },
+  "section_variants": {
+    "hero": {
+      "background": "surface_primary",
+      "layout": "two-column case-study",
+      "includes_ui_panels": true,
+      "cta_stack": "primary + secondary"
+    },
+    "full-preview": {
+      "background": "surface_alt",
+      "treatment": "framed poster with caption + download note"
+    },
+    "wireframes": {
+      "background": "surface_primary",
+      "treatment": "monochrome wire grid",
+      "copy_focus": "explain decision-making"
+    },
+    "pricing": {
+      "background": "surface_muted",
+      "columns": 3,
+      "highlight": "center card tinted accent_primary at 12%"
+    }
+  },
+  "variant_guidance": {
+    "control": {
+      "promise": "Audit + ship automation bundles",
+      "primary_cta": "Book a live review",
+      "secondary_cta": "Download runbook",
+      "color_story": "Use accent_primary for hero CTA, accent_secondary for metrics annotations.",
+      "recommended_components": ["hero panels", "brand guidelines strip", "process timeline"],
+      "notes": [
+        "Hero headline should read like a case-study title (Outcome + Team).",
+        "Always mention analytics + download gating inside the features grid."
+      ]
+    },
+    "variant-a": {
+      "promise": "Enable internal cohorts",
+      "primary_cta": "Download enablement kit",
+      "secondary_cta": "Plan a working session",
+      "color_story": "Shift focus to surface_alt backgrounds with green success badges.",
+      "recommended_components": ["full preview poster", "wireframe trio", "persona stat cards"],
+      "notes": [
+        "Swap CTA order to emphasize assets first.",
+        "Use quotes from cohort leads in testimonials."
+      ]
+    }
+  },
+  "usage_notes": [
+    "Backgrounds stay in the charcoal family; accents only appear on CTA, metrics tags, or timeline markers.",
+    "Each major section needs at least one real artifact (screenshot, palette strip, wireframe) instead of abstract blobs.",
+    "Alternate dense UI clusters with generous breathing room so the cadence feels editorial rather than template-driven.",
+    "Keep CTA buttons pill-shaped and avoid gradient fills—solid colors with precise shadows only.",
+    "Surface_alt sections should include subtle texture or print-like dividers to sell the case-study vibe."
+  ],
+  "randomization": {
+    "family": "case-study",
+    "pairings": ["Space Grotesk + Inter", "Clash Display + Manrope"],
+    "allowed_styles": ["case-study", "editorial", "swiss"]
+  }
+}

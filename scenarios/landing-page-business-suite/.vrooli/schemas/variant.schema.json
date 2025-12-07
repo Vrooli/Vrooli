@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/variant.json",
+  "title": "Landing Variant Config",
+  "type": "object",
+  "required": ["variant", "sections"],
+  "properties": {
+    "variant": {
+      "type": "object",
+      "required": ["slug", "name"],
+      "properties": {
+        "id": { "type": "integer" },
+        "slug": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "weight": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "status": { "type": "string", "enum": ["active", "archived", "deleted", "fallback"] },
+        "axes": {
+          "type": "object",
+          "description": "Axis selections; keys must match variant_space.json",
+          "propertyNames": { "pattern": "^[a-zA-Z0-9_-]+$" },
+          "additionalProperties": { "type": "string" }
+        },
+        "header_config": { "type": "object" },
+        "seo_config": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/section" }
+    },
+    "axes": {
+      "type": "object",
+      "description": "Axis selections for this variant. Keys must match entries in variant_space.json",
+      "propertyNames": { "pattern": "^[a-zA-Z0-9_-]+$" },
+      "additionalProperties": { "type": "string" }
+    },
+    "pricing": { "$ref": "#/$defs/pricing" },
+    "downloads": { "$ref": "#/$defs/downloads" }
+  },
+  "$defs": {
+    "section": {
+      "type": "object",
+      "required": ["section_type", "order", "content"],
+      "properties": {
+        "id": { "type": "integer" },
+        "section_type": {
+          "type": "string",
+          "enum": ["hero", "features", "pricing", "cta", "testimonials", "faq", "footer", "video", "downloads"]
+        },
+        "order": { "type": "integer", "minimum": 0 },
+        "enabled": { "type": "boolean" },
+        "content": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "section_type": { "const": "hero" } } },
+          "then": { "properties": { "content": { "$ref": "sections/hero.schema.json" } } }
+        },
+        {
+          "if": { "properties": { "section_type": { "const": "features" } } },
+          "then": { "properties": { "content": { "$ref": "sections/features.schema.json" } } }
+        },
+        {
+          "if": { "properties": { "section_type": { "const": "pricing" } } },
+          "then": { "properties": { "content": { "$ref": "sections/pricing.schema.json" } } }
+        },
+        {
+          "if": { "properties": { "section_type": { "const": "cta" } } },
+          "then": { "properties": { "content": { "$ref": "sections/cta.schema.json" } } }
+        },
+        {
+          "if": { "properties": { "section_type": { "const": "testimonials" } } },
+          "then": { "properties": { "content": { "$ref": "sections/testimonials.schema.json" } } }
+        },
+        {
+          "if": { "properties": { "section_type": { "const": "faq" } } },
+          "then": { "properties": { "content": { "$ref": "sections/faq.schema.json" } } }
+        },
+        {
+          "if": { "properties": { "section_type": { "const": "footer" } } },
+          "then": { "properties": { "content": { "$ref": "sections/footer.schema.json" } } }
+        },
+        {
+          "if": { "properties": { "section_type": { "const": "video" } } },
+          "then": { "properties": { "content": { "$ref": "sections/video.schema.json" } } }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "pricing": {
+      "type": "object",
+      "required": ["bundle", "monthly", "yearly"],
+      "properties": {
+        "bundle": {
+          "type": "object",
+          "required": ["bundle_key", "name"],
+          "properties": {
+            "id": { "type": "integer" },
+            "bundle_key": { "type": "string" },
+            "name": { "type": "string" },
+            "stripe_product_id": { "type": "string" },
+            "credits_per_usd": { "type": "integer" },
+            "display_credits_multiplier": { "type": "number" },
+            "display_credits_label": { "type": "string" },
+            "environment": { "type": "string" }
+          }
+        },
+        "monthly": { "$ref": "#/$defs/planList" },
+        "yearly": { "$ref": "#/$defs/planList" },
+        "updated_at": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "downloads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["bundle_key", "platform", "artifact_url", "release_version"],
+        "properties": {
+          "bundle_key": { "type": "string" },
+          "platform": { "type": "string", "enum": ["windows", "mac", "linux"] },
+          "artifact_url": { "type": "string" },
+          "release_version": { "type": "string" },
+          "release_notes": { "type": "string" },
+          "checksum": { "type": "string" },
+          "requires_entitlement": { "type": "boolean" },
+          "metadata": { "type": "object" }
+        }
+      }
+    },
+    "planList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["plan_name", "plan_tier", "billing_interval", "amount_cents", "currency", "stripe_price_id"],
+        "properties": {
+          "plan_name": { "type": "string" },
+          "plan_tier": { "type": "string" },
+          "billing_interval": { "type": "string", "enum": ["month", "year"] },
+          "amount_cents": { "type": "integer" },
+          "currency": { "type": "string" },
+          "intro_enabled": { "type": "boolean" },
+          "intro_type": { "type": "string" },
+          "intro_amount_cents": { "type": "integer" },
+          "intro_periods": { "type": "integer" },
+          "intro_price_lookup_key": { "type": "string" },
+          "stripe_price_id": { "type": "string" },
+          "monthly_included_credits": { "type": "integer" },
+          "one_time_bonus_credits": { "type": "integer" },
+          "plan_rank": { "type": "integer" },
+          "bonus_type": { "type": "string" },
+          "display_weight": { "type": "integer" },
+          "metadata": { "type": "object" }
+        }
+      }
+    }
+  }
+}

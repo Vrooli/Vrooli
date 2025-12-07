@@ -1,0 +1,107 @@
+{
+  "variant": {
+    "slug": "silent-founder-entrepreneurship-emotional",
+    "name": "Silent Founder · Entrepreneurship · Emotional",
+    "description": "Build a business quietly with Browser Automation Studio today.",
+    "weight": 25,
+    "status": "active"
+  },
+  "axes": {
+    "persona": "silentFounder",
+    "jtbd": "entrepreneurship",
+    "conversionStyle": "emotional"
+  },
+  "sections": [
+    {
+      "section_type": "hero",
+      "order": 1,
+      "enabled": true,
+      "content": {
+        "title": "Build a business without talking to anyone.",
+        "subtitle": "Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn workflows into tests, and export cinematic replays for marketing. Your subscription keeps getting more tools—no sales calls, no per-seat traps.",
+        "cta_text": "Start free",
+        "cta_url": "/checkout?plan=pro",
+        "secondary_cta_text": "See a workflow replay",
+        "secondary_cta_url": "#video-2"
+      }
+    },
+    {
+      "section_type": "video",
+      "order": 2,
+      "enabled": true,
+      "content": {
+        "title": "Watch Browser Automation Studio build and replay a flow",
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "thumbnailUrl": "/assets/fallback/video-thumb.png",
+        "caption": "Visual workflow builder → e2e test → replay-as-movie export. Available today; Silent Founder OS keeps adding tools."
+      }
+    },
+    {
+      "section_type": "features",
+      "order": 3,
+      "enabled": true,
+      "content": {
+        "title": "Browser Automation Studio is live now. The suite keeps growing.",
+        "subtitle": "Automate browsers, ship tests, and generate proof-ready replays today. Your subscription includes future Vrooli Business Suite apps at no extra cost.",
+        "features": [
+          { "title": "Visual workflow builder", "description": "Point-and-record or assemble actions to automate admin panels, dashboards, and back-office flows.", "icon": "zap" },
+          { "title": "Workflows = e2e tests", "description": "Run flows in CI, capture failures, and share evidence without rewriting tests.", "icon": "shield" },
+          { "title": "Replay-as-movie exports", "description": "Fake browser frames, smooth cursor animation, zoom/pan highlights, MP4 export with watermark rules by plan.", "icon": "sparkles" },
+          { "title": "Future UX metrics layer", "description": "Coming soon: friction scores, duration, and spatial patterns generated from your workflows.", "icon": "layers" },
+          { "title": "Agent loops on deck", "description": "Next up: ecosystem-manager + PRD control tower so agents can improve flows and enforce requirements.", "icon": "target" }
+        ]
+      }
+    },
+    {
+      "section_type": "pricing",
+      "order": 4,
+      "enabled": true,
+      "content": {
+        "title": "Simple, transparent pricing",
+        "subtitle": "Browser Automation Studio today. More Silent Founder OS tools added over time.",
+        "tiers": [
+          { "name": "Free", "price": "$0", "description": "50 runs/month, builder, replay viewer (watermarked MP4)", "features": ["Visual workflow builder", "Replay viewer with watermark", "50 runs/month", "No agents or UX metrics"], "cta_text": "Start free", "cta_url": "/checkout?plan=free", "badge": "Try it now" },
+          { "name": "Solo", "price": "$29", "description": "200 runs/month, MP4 export with watermark", "features": ["200 runs/month", "MP4 export (watermark)", "Workflow builder + replays", "Email support"], "cta_text": "Upgrade to Solo", "cta_url": "/checkout?plan=solo" },
+          { "name": "Pro", "price": "$79", "description": "Unlimited runs, MP4 without watermark, CI hooks", "features": ["Unlimited runs (fair use)", "MP4 exports without watermark", "CI integrations + advanced workflow tooling", "Early UX metrics access", "Limited agent loops"], "cta_text": "Default for Silent Founders", "cta_url": "/checkout?plan=pro", "highlighted": true, "badge": "Recommended" },
+          { "name": "Studio", "price": "$199", "description": "Agency-ready replays + branding, more agent loops", "features": ["Multi-seat studio", "Custom branding in replays", "More agent loop concurrency", "Priority support"], "cta_text": "Choose Studio", "cta_url": "/checkout?plan=studio" },
+          { "name": "Business", "price": "$499", "description": "For small teams with heavy automation + API needs", "features": ["Unlimited agent loops", "API + webhooks", "Reliability & SSO mode prep", "Best for teams/clients"], "cta_text": "Talk async", "cta_url": "/contact" }
+        ]
+      }
+    },
+    {
+      "section_type": "faq",
+      "order": 5,
+      "enabled": true,
+      "content": {
+        "title": "Answers for quiet founders",
+        "subtitle": "What ships today, what is coming, and how we price it.",
+        "faqs": [
+          { "question": "What do I get today?", "answer": "Browser Automation Studio: visual workflow builder, CI-friendly tests, replay viewer, and MP4 exports (watermark rules by plan)." },
+          { "question": "What is coming next?", "answer": "UX metrics layer (friction, duration, spatial paths) and agent loops that fix flows via ecosystem-manager + PRD control tower." },
+          { "question": "Do I have to talk to sales?", "answer": "No. No sales calls, no per-seat pricing. Subscribe, download, and grow quietly. Support is async." },
+          { "question": "Can I cancel or switch?", "answer": "Yes. Plans are flat, cancellable, and your price is honored as the suite expands." }
+        ]
+      }
+    },
+    {
+      "section_type": "cta",
+      "order": 6,
+      "enabled": true,
+      "content": {
+        "title": "See Browser Automation Studio in action",
+        "subtitle": "Start free, export a replay, and know more tools are coming to the same subscription.",
+        "cta_text": "Get started quietly",
+        "cta_url": "/checkout?plan=pro"
+      }
+    },
+    {
+      "section_type": "downloads",
+      "order": 7,
+      "enabled": true,
+      "content": {
+        "title": "Download Browser Automation Studio",
+        "subtitle": "macOS, Windows, Linux builds respect entitlements. Install, sign in, and start automating."
+      }
+    }
+  ]
+}

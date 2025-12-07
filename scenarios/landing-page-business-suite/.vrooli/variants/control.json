@@ -1,0 +1,248 @@
+{
+  "variant": {
+    "slug": "control",
+    "name": "Silent Founder (Control)",
+    "description": "Silent Founder OS default experience for introverted solo builders",
+    "weight": 100,
+    "status": "active"
+  },
+  "axes": {
+    "persona": "silentFounder",
+    "jtbd": "entrepreneurship",
+    "conversionStyle": "emotional"
+  },
+  "sections": [
+    {
+      "section_type": "hero",
+      "order": 1,
+      "enabled": true,
+      "content": {
+        "title": "Build a business without talking to anyone",
+        "subtitle": "Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn flows into e2e tests, and export cinematic replays for marketing—all without sales calls or a team.",
+        "cta_text": "Start free",
+        "cta_url": "/checkout?price_id=price_free",
+        "image_url": "/assets/hero/silent-founder.png"
+      }
+    },
+    {
+      "section_type": "features",
+      "order": 2,
+      "enabled": true,
+      "content": {
+        "title": "Your quiet operating system for shipping products",
+        "subtitle": "Browser Automation Studio is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
+        "features": [
+          {
+            "title": "Visual workflow builder",
+            "description": "Record or point-and-click to build browser flows that automate back-office work and admin panels.",
+            "icon": "mouse-pointer-click"
+          },
+          {
+            "title": "Your flows are your tests",
+            "description": "Run the same workflows in CI as end-to-end tests with replay on every failure.",
+            "icon": "shield-check"
+          },
+          {
+            "title": "Replay as a movie",
+            "description": "Share fake-browser recordings with smooth cursor motion, zooms, and highlights; export MP4 for docs or marketing.",
+            "icon": "video"
+          },
+          {
+            "title": "UX metrics (coming soon)",
+            "description": "See clicks, duration, and visual zig-zag patterns for every flow to spot friction before users do.",
+            "icon": "activity"
+          },
+          {
+            "title": "Agent upgrades (coming soon)",
+            "description": "Future integrations with ecosystem-manager and PRD control tower to auto-fix regressions.",
+            "icon": "cpu"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "pricing",
+      "order": 3,
+      "enabled": true,
+      "content": {
+        "title": "One subscription that keeps gaining tools",
+        "subtitle": "Start free. Upgrade to remove watermarks, unlock MP4 exports, and get agent power as we ship it.",
+        "tiers": [
+          {
+            "name": "Free",
+            "price": "$0",
+            "description": "Quietly try Browser Automation Studio",
+            "features": [
+              "50 runs/month",
+              "Watermarked MP4 exports",
+              "Replay viewer",
+              "No sales calls ever"
+            ],
+            "cta_text": "Start free",
+            "cta_url": "/checkout?price_id=price_free"
+          },
+          {
+            "name": "Solo",
+            "price": "$29",
+            "description": "For indie builders and hobbyists",
+            "features": [
+              "200 runs/month",
+              "MP4 exports with watermark",
+              "Workflow + test builder",
+              "Replay-as-movie sharing"
+            ],
+            "cta_text": "Upgrade to Solo",
+            "cta_url": "/checkout?price_id=price_solo_monthly"
+          },
+          {
+            "name": "Pro",
+            "price": "$79",
+            "description": "Primary plan for quiet founders",
+            "features": [
+              "Unlimited runs",
+              "MP4 exports without watermark",
+              "CI hooks + failure replays",
+              "UX metrics when released",
+              "Limited agent loops"
+            ],
+            "cta_text": "Go Pro",
+            "cta_url": "/checkout?price_id=price_pro_monthly",
+            "highlighted": true
+          },
+          {
+            "name": "Studio",
+            "price": "$199",
+            "description": "For agencies shipping client deliverables",
+            "features": [
+              "Client-safe branding on replays",
+              "More agent concurrency",
+              "Priority async support",
+              "Multi-seat studios"
+            ],
+            "cta_text": "Get Studio",
+            "cta_url": "/checkout?price_id=price_studio_monthly"
+          },
+          {
+            "name": "Business",
+            "price": "$499",
+            "description": "For teams that want API + webhooks",
+            "features": [
+              "Unlimited agent loops",
+              "API + webhooks",
+              "Higher reliability SLAs",
+              "Async onboarding—no calls required"
+            ],
+            "cta_text": "Choose Business",
+            "cta_url": "/checkout?price_id=price_business_monthly"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "testimonials",
+      "order": 4,
+      "enabled": true,
+      "content": {
+        "title": "Proof for people who prefer to ship quietly",
+        "subtitle": "Operators and solo founders are already using Browser Automation Studio to run the business in the background.",
+        "testimonials": [
+          {
+            "name": "Jessie Patel",
+            "role": "Solo founder",
+            "company": "Quiet Systems",
+            "content": "The replay-as-movie exports replaced client calls. I send a video, they pay the invoice. No meetings required.",
+            "rating": 5
+          },
+          {
+            "name": "Marco Lu",
+            "role": "Automation lead",
+            "company": "Northstack",
+            "content": "Workflows double as tests, so QA stopped being a separate job. The browser recordings cut debug time in half.",
+            "rating": 5
+          },
+          {
+            "name": "Alina Gomez",
+            "role": "Marketing ops",
+            "company": "Brightlab",
+            "content": "Recording the flows in a fake browser frame gives us instant launch videos. It feels like a built-in studio.",
+            "rating": 5
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "faq",
+      "order": 5,
+      "enabled": true,
+      "content": {
+        "title": "Quiet founder FAQs",
+        "subtitle": "Everything you need to know before you start the Silent Founder OS journey.",
+        "faqs": [
+          {
+            "question": "Do I need sales calls to upgrade?",
+            "answer": "No. All plans are self-serve with flat pricing. No per-seat traps or discovery calls."
+          },
+          {
+            "question": "What happens when more apps ship?",
+            "answer": "You keep Browser Automation Studio today. Future Vrooli Business Suite apps are added to your subscription automatically."
+          },
+          {
+            "question": "Are replays watermarked?",
+            "answer": "Free and Solo exports keep a watermark. Pro and above remove it and allow custom branding on Studio+."
+          },
+          {
+            "question": "Can I use this for testing?",
+            "answer": "Yes. The same workflows can run in CI. Failures replay like a movie so you can debug in minutes."
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "cta",
+      "order": 6,
+      "enabled": true,
+      "content": {
+        "title": "Start as a silent founder today",
+        "subtitle": "Browser Automation Studio ships now. The rest of the suite arrives automatically as we build it.",
+        "cta_text": "Start free",
+        "cta_url": "/checkout?price_id=price_free"
+      }
+    },
+    {
+      "section_type": "footer",
+      "order": 7,
+      "enabled": true,
+      "content": {
+        "company_name": "Silent Founder OS · Vrooli Business Suite",
+        "tagline": "Build the business quietly. Your tools and agents do the talking.",
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "Features", "url": "#features" },
+              { "label": "Pricing", "url": "#pricing" },
+              { "label": "Downloads", "url": "#downloads-section" }
+            ]
+          },
+          {
+            "title": "Resources",
+            "links": [
+              { "label": "Docs", "url": "/docs" }
+            ]
+          },
+          {
+            "title": "Support",
+            "links": [
+              { "label": "Status", "url": "/status" },
+              { "label": "Security", "url": "/security" }
+            ]
+          }
+        ],
+        "social_links": {
+          "github": "https://github.com/vrooli",
+          "twitter": "https://x.com/vrooli"
+        }
+      }
+    }
+  ]
+}

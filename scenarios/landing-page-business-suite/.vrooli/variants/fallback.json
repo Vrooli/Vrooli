@@ -1,0 +1,463 @@
+{
+  "variant": {
+    "id": 0,
+    "slug": "fallback",
+    "name": "Silent Founder OS (Fallback)",
+    "description": "Offline-safe fallback for the Silent Founder control experience."
+  },
+  "axes": {
+    "persona": "silentFounder",
+    "jtbd": "entrepreneurship",
+    "conversionStyle": "emotional"
+  },
+  "header": {
+    "branding": {
+      "mode": "logo_and_name",
+      "label": "Silent Founder OS",
+      "subtitle": "Browser Automation Studio today · More tools soon",
+      "mobile_preference": "logo"
+    },
+    "nav": {
+      "links": [
+        { "id": "nav-hero", "type": "section", "label": "Overview", "section_type": "hero", "anchor": "hero-sf-1", "visible_on": { "desktop": true, "mobile": true } },
+        { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "anchor": "video-sf-2", "visible_on": { "desktop": true, "mobile": false } },
+        { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "anchor": "features-sf-3", "visible_on": { "desktop": true, "mobile": true } },
+        { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "anchor": "pricing-sf-5", "visible_on": { "desktop": true, "mobile": true } },
+        { "id": "nav-downloads", "type": "downloads", "label": "Downloads", "visible_on": { "desktop": true, "mobile": true } }
+      ]
+    },
+    "ctas": {
+      "primary": { "mode": "inherit_hero", "variant": "solid" },
+      "secondary": { "mode": "downloads", "variant": "ghost" }
+    },
+    "behavior": {
+      "sticky": true,
+      "hide_on_scroll": false
+    }
+  },
+  "sections": [
+    {
+      "section_type": "hero",
+      "order": 1,
+      "enabled": true,
+      "content": {
+        "title": "Build a business without talking to anyone",
+        "subtitle": "Silent Founder OS starts with Browser Automation Studio: automate back-office work, turn flows into e2e tests, and export cinematic replays for marketing—all without sales calls or a team.",
+        "cta_text": "Start free",
+        "cta_url": "/checkout?price_id=price_free",
+        "secondary_cta_text": "See a workflow replay",
+        "secondary_cta_url": "#video-sf-2",
+        "image_url": "/assets/hero/silent-founder.png"
+      }
+    },
+    {
+      "section_type": "video",
+      "order": 2,
+      "enabled": true,
+      "content": {
+        "title": "See Browser Automation Studio in action",
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "thumbnailUrl": "/assets/fallback/video-thumb.png",
+        "caption": "Visual workflows, replay-as-movie exports, and how the suite grows over time."
+      }
+    },
+    {
+      "section_type": "features",
+      "order": 3,
+      "enabled": true,
+      "content": {
+        "title": "Your quiet operating system for shipping products",
+        "subtitle": "Browser Automation Studio is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
+        "features": [
+          { "title": "Visual workflow builder", "description": "Record or point-and-click to build browser flows that automate back-office work and admin panels.", "icon": "mouse-pointer-click" },
+          { "title": "Your flows are your tests", "description": "Run the same workflows in CI as end-to-end tests with replay on every failure.", "icon": "shield-check" },
+          { "title": "Replay as a movie", "description": "Share fake-browser recordings with smooth cursor motion, zooms, and highlights; export MP4 for docs or marketing.", "icon": "video" },
+          { "title": "UX metrics (coming soon)", "description": "See clicks, duration, and visual zig-zag patterns for every flow to spot friction before users do.", "icon": "activity" },
+          { "title": "Agent upgrades (coming soon)", "description": "Future integrations with ecosystem-manager and PRD control tower to auto-fix regressions.", "icon": "cpu" }
+        ]
+      }
+    },
+    {
+      "section_type": "testimonials",
+      "order": 4,
+      "enabled": true,
+      "content": {
+        "title": "Proof for people who prefer to ship quietly",
+        "subtitle": "Operators and solo founders are already using Browser Automation Studio to run the business in the background.",
+        "testimonials": [
+          { "name": "Jessie Patel", "role": "Solo founder", "company": "Quiet Systems", "content": "The replay-as-movie exports replaced client calls. I send a video, they pay the invoice. No meetings required.", "rating": 5 },
+          { "name": "Marco Lu", "role": "Automation lead", "company": "Northstack", "content": "Workflows double as tests, so QA stopped being a separate job. The browser recordings cut debug time in half.", "rating": 5 },
+          { "name": "Alina Gomez", "role": "Marketing ops", "company": "Brightlab", "content": "Recording the flows in a fake browser frame gives us instant launch videos. It feels like a built-in studio.", "rating": 5 }
+        ]
+      }
+    },
+    {
+      "section_type": "pricing",
+      "order": 5,
+      "enabled": true,
+      "content": {
+        "title": "One subscription that keeps gaining tools",
+        "subtitle": "Start free. Upgrade to remove watermarks, unlock MP4 exports, and get agent power as we ship it.",
+        "tiers": [
+          {
+            "name": "Free",
+            "price": "$0",
+            "description": "Quietly try Browser Automation Studio",
+            "features": ["50 runs/month", "Watermarked MP4 exports", "Replay viewer", "No sales calls ever"],
+            "cta_text": "Start free",
+            "cta_url": "/checkout?price_id=price_free"
+          },
+          {
+            "name": "Solo",
+            "price": "$29",
+            "description": "For indie builders and hobbyists",
+            "features": ["200 runs/month", "MP4 exports with watermark", "Workflow + test builder", "Replay-as-movie sharing"],
+            "cta_text": "Upgrade to Solo",
+            "cta_url": "/checkout?price_id=price_solo_monthly"
+          },
+          {
+            "name": "Pro",
+            "price": "$79",
+            "description": "Primary plan for quiet founders",
+            "features": ["Unlimited runs", "MP4 exports without watermark", "CI hooks + failure replays", "UX metrics when released", "Limited agent loops"],
+            "cta_text": "Go Pro",
+            "cta_url": "/checkout?price_id=price_pro_monthly",
+            "highlighted": true
+          },
+          {
+            "name": "Studio",
+            "price": "$199",
+            "description": "For agencies shipping client deliverables",
+            "features": ["Client-safe branding on replays", "More agent concurrency", "Priority async support", "Multi-seat studios"],
+            "cta_text": "Get Studio",
+            "cta_url": "/checkout?price_id=price_studio_monthly"
+          },
+          {
+            "name": "Business",
+            "price": "$499",
+            "description": "For teams that want API + webhooks",
+            "features": ["Unlimited agent loops", "API + webhooks", "Higher reliability SLAs", "Async onboarding—no calls required"],
+            "cta_text": "Choose Business",
+            "cta_url": "/checkout?price_id=price_business_monthly"
+          }
+        ]
+      }
+    },
+    {
+      "section_type": "downloads",
+      "order": 6,
+      "enabled": true,
+      "content": {
+        "title": "Download Browser Automation Studio",
+        "subtitle": "macOS, Windows, and Linux installers stay entitlement-aware by default."
+      }
+    },
+    {
+      "section_type": "faq",
+      "order": 7,
+      "enabled": true,
+      "content": {
+        "title": "Quiet founder FAQs",
+        "subtitle": "Everything you need to know before you start the Silent Founder OS journey.",
+        "faqs": [
+          { "question": "Do I need sales calls to upgrade?", "answer": "No. All plans are self-serve with flat pricing. No per-seat traps or discovery calls." },
+          { "question": "What happens when more apps ship?", "answer": "You keep Browser Automation Studio today. Future Vrooli Business Suite apps are added to your subscription automatically." },
+          { "question": "Are replays watermarked?", "answer": "Free and Solo exports keep a watermark. Pro and above remove it and allow custom branding on Studio+." },
+          { "question": "Can I use this for testing?", "answer": "Yes. The same workflows can run in CI. Failures replay like a movie so you can debug in minutes." }
+        ]
+      }
+    },
+    {
+      "section_type": "cta",
+      "order": 8,
+      "enabled": true,
+      "content": {
+        "title": "Start as a silent founder today",
+        "subtitle": "Browser Automation Studio ships now. The rest of the suite arrives automatically as we build it.",
+        "cta_text": "Start free",
+        "cta_url": "/checkout?price_id=price_free"
+      }
+    },
+    {
+      "section_type": "footer",
+      "order": 9,
+      "enabled": true,
+      "content": {
+        "company_name": "Silent Founder OS · Vrooli Business Suite",
+        "tagline": "Build the business quietly. Your tools and agents do the talking.",
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "Features", "url": "#features" },
+              { "label": "Pricing", "url": "#pricing" },
+              { "label": "Downloads", "url": "#downloads-section" }
+            ]
+          },
+          {
+            "title": "Company",
+            "links": [
+              { "label": "Docs", "url": "/docs" },
+              { "label": "PRD", "url": "/prd" }
+            ]
+          },
+          {
+            "title": "Legal",
+            "links": [
+              { "label": "Privacy", "url": "/privacy" },
+              { "label": "Terms", "url": "/terms" },
+              { "label": "Security", "url": "/security" }
+            ]
+          }
+        ],
+        "social_links": {
+          "github": "https://github.com/vrooli",
+          "twitter": "https://twitter.com/vrooli",
+          "linkedin": "https://www.linkedin.com/company/vrooli",
+          "email": "hello@vrooli.com"
+        },
+        "copyright": "© 2025 Vrooli. All rights reserved."
+      }
+    }
+  ],
+  "pricing": {
+    "bundle": {
+      "id": 0,
+      "bundle_key": "business_suite",
+      "name": "Silent Founder OS",
+      "stripe_product_id": "prod_business_suite",
+      "credits_per_usd": 1000000,
+      "display_credits_multiplier": 0.001,
+      "display_credits_label": "credits",
+      "environment": "production"
+    },
+    "monthly": [
+      {
+        "plan_name": "Free Plan",
+        "plan_tier": "free",
+        "billing_interval": "month",
+        "amount_cents": 0,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_free",
+        "monthly_included_credits": 50,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 0,
+        "bonus_type": "none",
+        "display_weight": 5,
+        "metadata": {
+          "features": [
+            "50 runs/month",
+            "Watermarked MP4 exports",
+            "Replay viewer"
+          ]
+        }
+      },
+      {
+        "plan_name": "Solo Monthly",
+        "plan_tier": "solo",
+        "billing_interval": "month",
+        "amount_cents": 2900,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_solo_monthly",
+        "monthly_included_credits": 200,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 1,
+        "bonus_type": "none",
+        "display_weight": 20,
+        "metadata": {
+          "features": [
+            "200 runs/month",
+            "MP4 exports with watermark",
+            "Workflow + test builder",
+            "Replay-as-movie sharing"
+          ]
+        }
+      },
+      {
+        "plan_name": "Pro Monthly",
+        "plan_tier": "pro",
+        "billing_interval": "month",
+        "amount_cents": 7900,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_pro_monthly",
+        "monthly_included_credits": 1000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 2,
+        "bonus_type": "none",
+        "display_weight": 40,
+        "metadata": {
+          "features": [
+            "Unlimited runs",
+            "MP4 exports without watermark",
+            "CI hooks + failure replays",
+            "UX metrics when released",
+            "Limited agent loops"
+          ],
+          "highlight": true
+        }
+      },
+      {
+        "plan_name": "Studio Monthly",
+        "plan_tier": "studio",
+        "billing_interval": "month",
+        "amount_cents": 19900,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_studio_monthly",
+        "monthly_included_credits": 2000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 3,
+        "bonus_type": "none",
+        "display_weight": 30,
+        "metadata": {
+          "features": [
+            "Client-safe branding on replays",
+            "More agent concurrency",
+            "Priority async support",
+            "Multi-seat studios"
+          ]
+        }
+      },
+      {
+        "plan_name": "Business Monthly",
+        "plan_tier": "business",
+        "billing_interval": "month",
+        "amount_cents": 49900,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_business_monthly",
+        "monthly_included_credits": 4000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 4,
+        "bonus_type": "none",
+        "display_weight": 25,
+        "metadata": {
+          "features": [
+            "Unlimited agent loops",
+            "API + webhooks",
+            "Higher reliability SLAs",
+            "Async onboarding—no calls required"
+          ],
+          "badge": "API + webhooks"
+        }
+      }
+    ],
+    "yearly": [
+      {
+        "plan_name": "Pro Yearly",
+        "plan_tier": "pro",
+        "billing_interval": "year",
+        "amount_cents": 79000,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_pro_yearly",
+        "monthly_included_credits": 12000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 2,
+        "bonus_type": "yearly_bonus",
+        "display_weight": 15,
+        "metadata": {
+          "features": [
+            "2 months free equivalent",
+            "MP4 exports without watermark",
+            "CI hooks + failure replays"
+          ]
+        }
+      },
+      {
+        "plan_name": "Studio Yearly",
+        "plan_tier": "studio",
+        "billing_interval": "year",
+        "amount_cents": 199000,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_studio_yearly",
+        "monthly_included_credits": 24000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 3,
+        "bonus_type": "yearly_bonus",
+        "display_weight": 20,
+        "metadata": {
+          "features": [
+            "2 months free equivalent",
+            "Client-safe branding on replays",
+            "More agent concurrency"
+          ]
+        }
+      },
+      {
+        "plan_name": "Business Yearly",
+        "plan_tier": "business",
+        "billing_interval": "year",
+        "amount_cents": 499000,
+        "currency": "usd",
+        "intro_enabled": false,
+        "stripe_price_id": "price_business_yearly",
+        "monthly_included_credits": 48000000,
+        "one_time_bonus_credits": 0,
+        "plan_rank": 4,
+        "bonus_type": "yearly_bonus",
+        "display_weight": 10,
+        "metadata": {
+          "features": [
+            "2 months free equivalent",
+            "Unlimited agent loops",
+            "API + webhooks"
+          ]
+        }
+      }
+    ],
+    "updated_at": "2025-01-01T00:00:00Z"
+  },
+  "downloads": [
+    {
+      "bundle_key": "business_suite",
+      "app_key": "automation_studio",
+      "name": "Browser Automation Studio",
+      "tagline": "Desktop workflows, tests, and replay-as-movie exports",
+      "description": "Desktop suite for visual workflows, replay-as-movie exports, and back-office automation.",
+      "install_overview": "Pick your OS, download the installer, and sign in with the email tied to your plan to unlock entitlement-gated downloads.",
+      "install_steps": [
+        "Download the installer for your OS",
+        "Launch the setup wizard and finish the install",
+        "Sign in with your subscription email to unlock the workspace"
+      ],
+      "storefronts": [],
+      "platforms": [
+        {
+          "bundle_key": "business_suite",
+          "app_key": "automation_studio",
+          "platform": "windows",
+          "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
+          "release_version": "1.0.0",
+          "release_notes": "Initial GA release with Browser Automation Studio.",
+          "requires_entitlement": true,
+          "metadata": { "size_mb": 210 }
+        },
+        {
+          "bundle_key": "business_suite",
+          "app_key": "automation_studio",
+          "platform": "mac",
+          "artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
+          "release_version": "1.0.0",
+          "release_notes": "Universal build for Apple Silicon and Intel.",
+          "requires_entitlement": true,
+          "metadata": { "size_mb": 190 }
+        },
+        {
+          "bundle_key": "business_suite",
+          "app_key": "automation_studio",
+          "platform": "linux",
+          "artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
+          "release_version": "1.0.0",
+          "release_notes": "AppImage bundle tested on Ubuntu/Debian.",
+          "requires_entitlement": true,
+          "metadata": { "size_mb": 205 }
+        }
+      ]
+    }
+  ]
+}
