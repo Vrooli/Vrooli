@@ -21,13 +21,13 @@ Run coverage reports with:
 
 ```bash
 # JSON output (for CI/automation)
-node ../../scripts/requirements/report.js --scenario git-control-tower --format json
+vrooli scenario requirements report git-control-tower --format json
 
 # Markdown output (for README badges)
-node ../../scripts/requirements/report.js --scenario git-control-tower --format markdown
+vrooli scenario requirements report git-control-tower --format markdown
 
 # Auto-sync from test results
-node ../../scripts/requirements/report.js --scenario git-control-tower --mode sync
+vrooli scenario requirements sync git-control-tower
 ```
 
 ## Requirement Categories

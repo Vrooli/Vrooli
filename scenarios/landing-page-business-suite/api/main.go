@@ -147,6 +147,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/session", s.handleAdminSession).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleGetStripeSettings(s.paymentSettings, s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdmin(handleAdminVerifyStripePrice(s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/reset-demo-data", s.requireAdmin(s.handleAdminResetDemoData)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdmin(handleAdminListDownloadApps(s.downloadService, s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdmin(handleAdminCreateDownloadApp(s.downloadService, s.planService))).Methods("POST")
@@ -1099,9 +1100,9 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS bundle_prices (
 			id SERIAL PRIMARY KEY,
 			product_id INTEGER REFERENCES bundle_products(id) ON DELETE CASCADE,
-			stripe_price_id VARCHAR(255) UNIQUE NOT NULL,
+			stripe_price_id VARCHAR(255) UNIQUE,
 			plan_name VARCHAR(100) NOT NULL,
-			plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('solo','pro','studio','business','credits','donation')),
+			plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('free','solo','pro','studio','business','credits','donation')),
 			billing_interval VARCHAR(20) NOT NULL CHECK (billing_interval IN ('month','year','one_time')),
 			amount_cents INTEGER NOT NULL,
 			currency VARCHAR(10) DEFAULT 'usd',
@@ -1122,6 +1123,9 @@ func ensureSchema(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);`,
+		`ALTER TABLE bundle_prices ALTER COLUMN stripe_price_id DROP NOT NULL;`,
+		`ALTER TABLE bundle_prices DROP CONSTRAINT IF EXISTS bundle_prices_plan_tier_check;`,
+		`ALTER TABLE bundle_prices ADD CONSTRAINT bundle_prices_plan_tier_check CHECK (plan_tier IN ('free','solo','pro','studio','business','credits','donation'));`,
 		`ALTER TABLE bundle_prices ADD COLUMN IF NOT EXISTS display_enabled BOOLEAN DEFAULT TRUE;`,
 		`CREATE INDEX IF NOT EXISTS idx_bundle_prices_tier ON bundle_prices(plan_tier);`,
 		`CREATE INDEX IF NOT EXISTS idx_bundle_prices_interval ON bundle_prices(billing_interval);`,

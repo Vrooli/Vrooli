@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -12,6 +13,7 @@ type bundleCatalogResponse struct {
 }
 
 type updateBundlePriceRequest struct {
+	StripePriceID  *string  `json:"stripe_price_id"`
 	PlanName       *string   `json:"plan_name"`
 	DisplayWeight  *int      `json:"display_weight"`
 	DisplayEnabled *bool     `json:"display_enabled"`
@@ -51,6 +53,7 @@ func handleAdminUpdateBundlePrice(planService *PlanService) http.HandlerFunc {
 		}
 
 		updated, err := planService.UpdateBundlePrice(r.Context(), bundleKey, priceID, UpdateBundlePriceInput{
+			StripePriceID:  req.StripePriceID,
 			PlanName:       req.PlanName,
 			DisplayWeight:  req.DisplayWeight,
 			DisplayEnabled: req.DisplayEnabled,
@@ -66,5 +69,23 @@ func handleAdminUpdateBundlePrice(planService *PlanService) http.HandlerFunc {
 		}
 
 		writeJSON(w, updated)
+	}
+}
+
+func handleAdminVerifyStripePrice(stripe *StripeService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := strings.TrimSpace(r.URL.Query().Get("key"))
+		if key == "" {
+			http.Error(w, "price key required", http.StatusBadRequest)
+			return
+		}
+
+		info, err := stripe.VerifyStripePrice(key)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		writeJSON(w, info)
 	}
 }

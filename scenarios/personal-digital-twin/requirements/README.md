@@ -15,13 +15,13 @@ Run coverage reports with:
 
 ```bash
 # JSON output (for CI/automation)
-node ../../scripts/requirements/report.js --scenario personal-digital-twin --format json
+vrooli scenario requirements report personal-digital-twin --format json
 
 # Markdown output (for README badges)
-node ../../scripts/requirements/report.js --scenario personal-digital-twin --format markdown
+vrooli scenario requirements report personal-digital-twin --format markdown
 
 # Auto-sync from test results
-node ../../scripts/requirements/report.js --scenario personal-digital-twin --mode sync
+vrooli scenario requirements sync personal-digital-twin
 ```
 
 ## Requirement Categories

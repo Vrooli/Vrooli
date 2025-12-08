@@ -38,13 +38,13 @@ To generate coverage reports:
 
 ```bash
 # JSON output (for CI/automation)
-node ../../scripts/requirements/report.js --scenario image-tools --format json
+vrooli scenario requirements report image-tools --format json
 
 # Markdown output (for README badges)
-node ../../scripts/requirements/report.js --scenario image-tools --format markdown
+vrooli scenario requirements report image-tools --format markdown
 
 # Auto-sync from test results
-node ../../scripts/requirements/report.js --scenario image-tools --mode sync
+vrooli scenario requirements sync image-tools
 ```
 
 To view quality status:

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetrics';
-import type { PlanOption, PricingOverview } from '../../../shared/api';
+import { createCheckoutSession, type PlanOption, type PricingOverview } from '../../../shared/api';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 import { normalizeInterval } from '../../../shared/lib/pricingIntervals';
 
@@ -48,7 +48,8 @@ function formatCredits(amount: number, multiplier: number, label: string) {
 
 function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean, interval: 'month' | 'year') {
   const hasAmount = typeof option.amount_cents === 'number' && option.amount_cents > 0;
-  const priceLabel = hasAmount ? formatCurrency(option.amount_cents, option.currency) : 'Custom';
+  const isFree = option.amount_cents === 0;
+  const priceLabel = hasAmount ? formatCurrency(option.amount_cents, option.currency) : isFree ? 'Free' : 'Custom';
   const introAmount = option.intro_amount_cents;
   const metadata = option.metadata || {};
   const metaFeatures = Array.isArray(metadata.features) ? (metadata.features as string[]) : [];
@@ -86,16 +87,20 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
         : 'Choose plan';
 
   const highlighted = metadata.highlight === true ? true : fallbackHighlight;
+  const directDownloadCTA = isFree || option.kind === 'supporter_contribution';
+  const downloadHref = '#downloads-section';
 
   return {
     name: option.plan_name,
     description: option.plan_tier.charAt(0).toUpperCase() + option.plan_tier.slice(1),
     price: hasAmount
       ? `${priceLabel} / ${interval === 'month' ? 'month' : 'year'}`
-      : 'Contact sales',
+      : isFree
+        ? 'Free'
+        : 'Contact sales',
     features,
-    cta_text: ctaText,
-    cta_url: `/checkout?price_id=${option.stripe_price_id}`,
+    cta_text: directDownloadCTA ? 'Download' : ctaText,
+    cta_url: directDownloadCTA ? downloadHref : option.stripe_price_id ? `/checkout?price_id=${option.stripe_price_id}` : undefined,
     highlighted,
     badge,
     subtitle,
@@ -113,15 +118,60 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   const { trackCTAClick } = useMetrics();
   const [activeInterval, setActiveInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [stickyDismissed, setStickyDismissed] = useState(false);
+  const [redirectingPrice, setRedirectingPrice] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  const buildDefaultURLs = useMemo(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return {
+      success: origin ? `${origin}/?checkout=success` : '/?checkout=success',
+      cancel: typeof window !== 'undefined' ? window.location.href : '/checkout',
+    };
+  }, []);
+
+  const resolvePriceId = (ctaUrl?: string) => {
+    if (!ctaUrl) return null;
+    try {
+      const url = new URL(ctaUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      return url.searchParams.get('price_id');
+    } catch (err) {
+      return null;
+    }
+  };
 
   const renderTier = (tier: PricingTier, index: number) => {
-    const handleClick = () => {
+    const handleClick = async () => {
       if (!tier.cta_url) return;
-      trackCTAClick(`pricing-${tier.name.toLowerCase().replace(/\s+/g, '-')}-cta`, {
+      const priceId = resolvePriceId(tier.cta_url);
+      const metricKey = `pricing-${tier.name.toLowerCase().replace(/\s+/g, '-')}-cta`;
+      trackCTAClick(metricKey, {
         tier: tier.name,
         price: tier.price,
       });
-      window.location.href = tier.cta_url;
+
+      if (!priceId) {
+        window.location.href = tier.cta_url;
+        return;
+      }
+
+      setSessionError(null);
+      setRedirectingPrice(priceId);
+      try {
+        const session = await createCheckoutSession({
+          price_id: priceId,
+          success_url: buildDefaultURLs.success,
+          cancel_url: buildDefaultURLs.cancel,
+        });
+        if (session?.url) {
+          window.location.href = session.url;
+          return;
+        }
+        setSessionError('Stripe did not return a checkout URL. Try again.');
+      } catch (err) {
+        setSessionError(err instanceof Error ? err.message : 'Failed to start checkout.');
+      } finally {
+        setRedirectingPrice(null);
+      }
     };
 
     const highlight = tier.highlighted;
@@ -167,9 +217,10 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
             className={`w-full ${highlight ? '' : 'bg-slate-900/5 text-slate-900 hover:bg-slate-900/10'}`}
             size="lg"
             onClick={handleClick}
+            disabled={redirectingPrice === resolvePriceId(tier.cta_url)}
             data-testid={`pricing-cta-${tier.name.toLowerCase().replace(/\s+/g, '-')}`}
           >
-            {tier.cta_text || 'Get Started'}
+            {redirectingPrice === resolvePriceId(tier.cta_url) ? 'Redirecting…' : tier.cta_text || 'Get Started'}
           </Button>
 
           <ul className="space-y-3">
@@ -194,7 +245,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           !isDemoPlanOption(plan) &&
           normalizeInterval(plan.billing_interval) === 'month' &&
           typeof plan.amount_cents === 'number' &&
-          plan.amount_cents > 0,
+          plan.amount_cents >= 0,
       )
     : [];
   const yearlyPlans = bundle
@@ -203,7 +254,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           !isDemoPlanOption(plan) &&
           normalizeInterval(plan.billing_interval) === 'year' &&
           typeof plan.amount_cents === 'number' &&
-          plan.amount_cents > 0,
+          plan.amount_cents >= 0,
       )
     : [];
 
@@ -370,6 +421,12 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           ))}
         </div>
 
+        {sessionError && (
+          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {sessionError}
+          </div>
+        )}
+
         {hasYearly && (
           <div className="mt-12 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
             Yearly billing available on request — includes white-glove promotion support and export of the entire style
@@ -390,11 +447,35 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
                 size="sm"
                 onClick={() => {
                   if (!featuredTier.cta_url) return;
+                  const priceId = resolvePriceId(featuredTier.cta_url);
                   trackCTAClick('pricing-featured-sticky', { tier: featuredTier.name, price: featuredTier.price });
-                  window.location.href = featuredTier.cta_url;
+                  if (!priceId) {
+                    window.location.href = featuredTier.cta_url;
+                    return;
+                  }
+
+                  setSessionError(null);
+                  setRedirectingPrice(priceId);
+                  createCheckoutSession({
+                    price_id: priceId,
+                    success_url: buildDefaultURLs.success,
+                    cancel_url: buildDefaultURLs.cancel,
+                  })
+                    .then((session) => {
+                      if (session?.url) {
+                        window.location.href = session.url;
+                        return;
+                      }
+                      setSessionError('Stripe did not return a checkout URL. Try again.');
+                    })
+                    .catch((err) => {
+                      setSessionError(err instanceof Error ? err.message : 'Failed to start checkout.');
+                    })
+                    .finally(() => setRedirectingPrice(null));
                 }}
+                disabled={redirectingPrice === resolvePriceId(featuredTier.cta_url)}
               >
-                {featuredTier.cta_text || 'Choose'}
+                {redirectingPrice === resolvePriceId(featuredTier.cta_url) ? 'Redirecting…' : featuredTier.cta_text || 'Choose'}
               </Button>
               <button
                 type="button"

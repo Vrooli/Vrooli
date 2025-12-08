@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
@@ -35,9 +35,10 @@ export function CheckoutPage() {
   const [pricing, setPricing] = useState<PricingOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [attemptKey, setAttemptKey] = useState(0);
+  const startedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -70,39 +71,47 @@ export function CheckoutPage() {
     return candidates[0];
   }, [pricing, priceParam]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedPlan) {
-      setSessionError('No plan selected.');
-      return;
-    }
-    if (!email.trim()) {
-      setSessionError('Enter your email so we can attach the subscription.');
-      return;
-    }
+  useEffect(() => {
+    let cancelled = false;
+    const startCheckout = async () => {
+      if (!selectedPlan || startedRef.current) return;
+      startedRef.current = true;
+      setSubmitting(true);
+      setSessionError(null);
+      try {
+        const urls = buildDefaultURLs();
+        const session = await createCheckoutSession({
+          price_id: selectedPlan.stripe_price_id,
+          success_url: urls.success,
+          cancel_url: urls.cancel,
+        });
 
-    setSubmitting(true);
-    setSessionError(null);
-    try {
-      const urls = buildDefaultURLs();
-      const session = await createCheckoutSession({
-        price_id: selectedPlan.stripe_price_id,
-        customer_email: email.trim(),
-        success_url: urls.success,
-        cancel_url: urls.cancel,
-      });
-
-      if (session?.url) {
-        window.location.href = session.url;
-        return;
+        if (!cancelled && session?.url) {
+          window.location.href = session.url;
+          return;
+        }
+        if (!cancelled) {
+          setSessionError('Stripe did not return a checkout URL. Try again or contact support.');
+          startedRef.current = false;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setSessionError(err instanceof Error ? err.message : 'Failed to start checkout.');
+          startedRef.current = false;
+        }
+      } finally {
+        if (!cancelled) {
+          setSubmitting(false);
+        }
       }
-      setSessionError('Stripe did not return a checkout URL. Try again or contact support.');
-    } catch (err) {
-      setSessionError(err instanceof Error ? err.message : 'Failed to start checkout.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    };
+
+    startCheckout();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPlan, attemptKey]);
 
   if (loading) {
     return (
@@ -143,7 +152,7 @@ export function CheckoutPage() {
           </button>
           <h1 className="text-4xl font-semibold leading-tight">Secure checkout</h1>
           <p className="text-lg text-slate-300">
-            Choose your plan, confirm your email, and we&apos;ll hand you to Stripe to finish payment.
+            We&apos;re sending you to Stripe to finish payment. Stripe will collect your email during checkout.
           </p>
         </div>
 
@@ -197,27 +206,33 @@ export function CheckoutPage() {
 
           <Card className="bg-slate-900 border-slate-800 shadow-2xl shadow-indigo-900/30">
             <CardHeader>
-              <CardTitle>Complete your details</CardTitle>
-              <CardDescription className="text-slate-300">We&apos;ll attach your subscription to this email.</CardDescription>
+              <CardTitle>Redirecting to Stripe</CardTitle>
+              <CardDescription className="text-slate-300">Sit tight — we&apos;re creating your checkout session.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                <label className="block space-y-2">
-                  <span className="text-sm text-slate-200">Email</span>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
-                  />
-                </label>
-                {sessionError && <p className="text-sm text-rose-300">{sessionError}</p>}
-                <Button type="submit" disabled={submitting || !selectedPlan} className="w-full">
-                  {submitting ? 'Redirecting…' : 'Go to Stripe'}
-                </Button>
-              </form>
+              <div className="space-y-4">
+                {sessionError ? (
+                  <>
+                    <p className="text-sm text-rose-300">{sessionError}</p>
+                    <Button
+                      onClick={() => {
+                        startedRef.current = false;
+                        setSessionError(null);
+                        setAttemptKey((key) => key + 1);
+                      }}
+                      className="w-full"
+                      variant="default"
+                    >
+                      Retry checkout
+                    </Button>
+                  </>
+                ) : (
+                  <Button disabled className="w-full">
+                    {submitting ? 'Redirecting…' : 'Preparing checkout…'}
+                  </Button>
+                )}
+                <Button variant="ghost" onClick={() => navigate('/')}>Back to landing</Button>
+              </div>
               <p className="pt-4 text-xs text-slate-500">
                 By continuing you agree to the terms and acknowledge this subscription powers the Silent Founder OS suite.
               </p>

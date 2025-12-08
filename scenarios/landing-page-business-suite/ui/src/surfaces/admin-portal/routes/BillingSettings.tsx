@@ -7,6 +7,7 @@ import {
   updateStripeSettings,
   getBundleCatalog,
   updateBundlePrice,
+  verifyStripePrice,
   type StripeSettingsResponse,
 } from '../../../shared/api';
 import type { BundleCatalogEntry, PlanDisplayMetadata, PlanOption, PricingOverview } from '../../../shared/api';
@@ -24,6 +25,7 @@ interface StripeFormState {
 }
 
 interface PriceFormValues {
+  stripePriceId: string;
   planName: string;
   displayWeight: number;
   displayEnabled: boolean;
@@ -42,6 +44,11 @@ interface PriceFormState {
   demo?: boolean;
 }
 
+interface PriceCheck {
+  status: 'idle' | 'checking' | 'ok' | 'error';
+  message?: string;
+}
+
 const defaultStripeForm: StripeFormState = {
   publishableKey: '',
   secretKey: '',
@@ -54,12 +61,16 @@ const PRICING_PREVIEW_CONTENT = {
   subtitle: 'Updates instantly with unsaved copy changes so you can validate the three-card layout visitors will see.',
 };
 
-const buildPriceValues = (metadata: PlanDisplayMetadata | undefined, defaults: { planName: string; displayWeight: number; displayEnabled: boolean }): PriceFormValues => {
+const buildPriceValues = (
+  metadata: PlanDisplayMetadata | undefined,
+  defaults: { planName: string; displayWeight: number; displayEnabled: boolean; priceId: string },
+): PriceFormValues => {
   const features = Array.isArray(metadata?.features)
     ? (metadata?.features as string[]).map((entry) => String(entry))
     : [];
 
   return {
+    stripePriceId: defaults.priceId,
     planName: defaults.planName,
     displayWeight: defaults.displayWeight,
     displayEnabled: defaults.displayEnabled,
@@ -88,6 +99,7 @@ export function BillingSettings() {
   const [loadingBundles, setLoadingBundles] = useState(true);
   const [includeDemoPlaceholders, setIncludeDemoPlaceholders] = useState(false);
   const [pricingTab, setPricingTab] = useState<'month' | 'year' | 'other'>('month');
+  const [priceChecks, setPriceChecks] = useState<Record<string, PriceCheck>>({});
 
   const loadStripe = useCallback(async () => {
     setLoadingStripe(true);
@@ -116,6 +128,7 @@ export function BillingSettings() {
         entry.prices.forEach((price) => {
           const key = `${entry.bundle.bundle_key}:${price.stripe_price_id}`;
           const values = buildPriceValues(price.metadata, {
+            priceId: price.stripe_price_id,
             planName: price.plan_name,
             displayWeight: price.display_weight,
             displayEnabled: price.display_enabled,
@@ -129,6 +142,8 @@ export function BillingSettings() {
         });
       });
       setPriceForms(nextForms);
+      // Reset price check statuses when bundles reload
+      setPriceChecks({});
     } catch (error) {
       setBundleError(error instanceof Error ? error.message : 'Failed to load bundle catalog');
     } finally {
@@ -244,6 +259,8 @@ export function BillingSettings() {
         nextValues.highlight = Boolean(nextValue);
       } else if (field === 'featuresText') {
         nextValues.featuresText = String(nextValue);
+      } else if (field === 'stripePriceId') {
+        nextValues.stripePriceId = String(nextValue);
       } else {
         (nextValues as Record<string, unknown>)[field] = nextValue;
       }
@@ -281,6 +298,8 @@ export function BillingSettings() {
       .map((entry) => entry.trim())
       .filter(Boolean);
 
+    const stripePriceId = formState.values.stripePriceId.trim();
+
     setPriceForms((prev) => ({
       ...prev,
       [key]: {
@@ -292,6 +311,7 @@ export function BillingSettings() {
 
     try {
       await updateBundlePrice(bundleKey, priceId, {
+        stripe_price_id: stripePriceId === '' ? '' : stripePriceId,
         plan_name: formState.values.planName.trim() || undefined,
         display_weight: formState.values.displayWeight,
         display_enabled: formState.values.displayEnabled,
@@ -310,6 +330,7 @@ export function BillingSettings() {
           original: { ...formState.values },
         },
       }));
+      loadBundles();
     } catch (error) {
       setPriceForms((prev) => ({
         ...prev,
@@ -317,6 +338,45 @@ export function BillingSettings() {
           ...prev[key],
           saving: false,
           error: error instanceof Error ? error.message : 'Failed to update price',
+        },
+      }));
+    }
+  };
+
+  const handleVerifyPrice = async (bundleKey: string, priceId: string) => {
+    const key = `${bundleKey}:${priceId}`;
+    const formState = priceForms[key];
+    const value = formState?.values.stripePriceId.trim() || '';
+    if (!value) {
+      setPriceChecks((prev) => ({
+        ...prev,
+        [key]: { status: 'error', message: 'Enter a Stripe price ID or lookup key' },
+      }));
+      return;
+    }
+    setPriceChecks((prev) => ({ ...prev, [key]: { status: 'checking' } }));
+    try {
+      const info = await verifyStripePrice(value);
+      const parts = [
+        info.id ? `ID ${info.id}` : null,
+        info.lookup_key ? `lookup ${info.lookup_key}` : null,
+        info.interval ? info.interval : null,
+        info.currency ? info.currency.toUpperCase() : null,
+        info.active === false ? 'inactive' : null,
+      ].filter(Boolean);
+      setPriceChecks((prev) => ({
+        ...prev,
+        [key]: {
+          status: 'ok',
+          message: parts.length > 0 ? parts.join(' · ') : 'Verified',
+        },
+      }));
+    } catch (error) {
+      setPriceChecks((prev) => ({
+        ...prev,
+        [key]: {
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Verification failed',
         },
       }));
     }
@@ -432,8 +492,8 @@ export function BillingSettings() {
                       </label>
                     </div>
 
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      <div>
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      <div className="md:col-span-2">
                         <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Plan Name</label>
                         <input
                           type="text"
@@ -451,6 +511,42 @@ export function BillingSettings() {
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Stripe Price ID</label>
+                      <input
+                        type="text"
+                        value={formState.values.stripePriceId}
+                        onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'stripePriceId')}
+                        placeholder="price_abc123 or lookup key if using Stripe aliases"
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      />
+                      <div className="mt-2 flex items-center gap-2 text-xs">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="border border-white/10 bg-white/5 text-white"
+                          onClick={() => handleVerifyPrice(entry.bundle.bundle_key, price.stripe_price_id)}
+                        >
+                          Verify
+                        </Button>
+                        {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.status === 'checking' && (
+                          <span className="text-slate-300">Checking…</span>
+                        )}
+                        {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.status === 'ok' && (
+                          <span className="text-emerald-300">
+                            {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.message || 'Verified'}
+                          </span>
+                        )}
+                        {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.status === 'error' && (
+                          <span className="text-amber-200">
+                            {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.message || 'Verification failed'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">Paste the actual Stripe price ID or leave blank for free/CTA-only tiers.</p>
                     </div>
 
                     <div className="mt-4 grid gap-4 md:grid-cols-2">

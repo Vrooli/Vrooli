@@ -31,6 +31,7 @@ export interface BundleCatalogResponse {
 }
 
 export interface UpdateBundlePricePayload {
+  stripe_price_id?: string;
   plan_name?: string;
   display_weight?: number;
   display_enabled?: boolean;
@@ -115,15 +116,32 @@ export function updateBundlePrice(bundleKey: string, priceId: string, payload: U
   });
 }
 
-export function createCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string }) {
+export function verifyStripePrice(key: string) {
+  const params = new URLSearchParams({ key });
+  return apiCall<{ id: string; lookup_key?: string; currency?: string; amount_cents?: number; interval?: string; active?: boolean; product?: string }>(
+    `/admin/stripe/verify-price?${params.toString()}`,
+  );
+}
+
+export function createCheckoutSession(payload: {
+  price_id: string;
+  customer_email?: string;
+  success_url?: string;
+  cancel_url?: string;
+}) {
+  const body: Record<string, string | undefined> = {
+    price_id: payload.price_id,
+    success_url: payload.success_url,
+    cancel_url: payload.cancel_url,
+  };
+
+  if (payload.customer_email) {
+    body.customer_email = payload.customer_email;
+  }
+
   return apiCall<{ session: CheckoutSession }>('/billing/create-checkout-session', {
     method: 'POST',
-    body: JSON.stringify({
-      price_id: payload.price_id,
-      customer_email: payload.customer_email,
-      success_url: payload.success_url,
-      cancel_url: payload.cancel_url,
-    }),
+    body: JSON.stringify(body),
   }).then((resp) => resp.session);
 }
 

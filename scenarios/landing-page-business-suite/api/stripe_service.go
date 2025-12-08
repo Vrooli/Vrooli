@@ -294,7 +294,14 @@ func (s *StripeService) doStripeRequest(ctx context.Context, method, path string
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("stripe request %s %s failed: %s", method, path, resp.Status)
+		bodySnippet := strings.TrimSpace(string(data))
+		if len(bodySnippet) > 512 {
+			bodySnippet = bodySnippet[:512] + "…"
+		}
+		if bodySnippet == "" {
+			bodySnippet = "no response body"
+		}
+		return nil, fmt.Errorf("stripe request %s %s failed: %s - %s", method, path, resp.Status, bodySnippet)
 	}
 
 	return data, nil
@@ -321,6 +328,83 @@ func (s *StripeService) lookupCustomerID(user string) string {
 	return ""
 }
 
+// resolveStripePriceID accepts a Stripe price ID or lookup key and returns a concrete price ID.
+func (s *StripeService) resolveStripePriceID(key string) (string, error) {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" {
+		return "", errors.New("stripe price id is required")
+	}
+	if strings.HasPrefix(trimmed, "price_") {
+		return trimmed, nil
+	}
+
+	// Treat as lookup key; fetch the first matching price.
+	values := url.Values{}
+	values.Set("lookup_keys[]", trimmed)
+	values.Set("limit", "1")
+	values.Set("expand[]", "data.product")
+	path := "/v1/prices?" + values.Encode()
+
+	body, err := s.doStripeRequest(context.Background(), http.MethodGet, path, nil, "")
+	if err != nil {
+		return "", err
+	}
+
+	var resp struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("decode stripe price lookup: %w", err)
+	}
+	if len(resp.Data) == 0 || strings.TrimSpace(resp.Data[0].ID) == "" {
+		return "", fmt.Errorf("no stripe price found for lookup key %s", trimmed)
+	}
+	return resp.Data[0].ID, nil
+}
+
+// VerifyStripePrice fetches price details from Stripe using either a price ID or lookup key.
+func (s *StripeService) VerifyStripePrice(key string) (map[string]interface{}, error) {
+	resolved, err := s.resolveStripePriceID(key)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/v1/prices/" + url.PathEscape(resolved) + "?expand[]=product"
+	body, err := s.doStripeRequest(context.Background(), http.MethodGet, path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var price struct {
+		ID         string `json:"id"`
+		LookupKey  string `json:"lookup_key"`
+		Currency   string `json:"currency"`
+		UnitAmount int64  `json:"unit_amount"`
+		Active     bool   `json:"active"`
+		Recurring  struct {
+			Interval string `json:"interval"`
+		} `json:"recurring"`
+		Product struct {
+			Name string `json:"name"`
+		} `json:"product"`
+	}
+	if err := json.Unmarshal(body, &price); err != nil {
+		return nil, fmt.Errorf("decode stripe price: %w", err)
+	}
+
+	return map[string]interface{}{
+		"id":           price.ID,
+		"lookup_key":   price.LookupKey,
+		"currency":     price.Currency,
+		"amount_cents": price.UnitAmount,
+		"interval":     price.Recurring.Interval,
+		"active":       price.Active,
+		"product":      price.Product.Name,
+	}, nil
+}
+
 // CreateCheckoutSession creates a Stripe checkout session
 // [REQ:STRIPE-ROUTES] POST /api/checkout/create endpoint
 func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (*landing_page_react_vite_v1.CheckoutSession, error) {
@@ -328,6 +412,11 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 	plan, err := s.planService.GetPlanByPriceID(priceID)
 	if err != nil {
 		return nil, fmt.Errorf("price %s not found: %w", priceID, err)
+	}
+
+	resolvedPriceID, err := s.resolveStripePriceID(priceID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve price %s: %w", priceID, err)
 	}
 
 	if successURL == "" {
@@ -354,7 +443,7 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 	values.Set("mode", mode)
 	values.Set("success_url", successURL)
 	values.Set("cancel_url", cancelURL)
-	values.Set("line_items[0][price]", priceID)
+	values.Set("line_items[0][price]", resolvedPriceID)
 	values.Set("line_items[0][quantity]", "1")
 	values.Set("metadata[bundle_key]", plan.BundleKey)
 	values.Set("metadata[plan_tier]", plan.PlanTier)
@@ -370,7 +459,7 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 
 	body, err := s.doStripeForm(ctx, http.MethodPost, "/v1/checkout/sessions", values)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create checkout for price %s: %w", priceID, err)
 	}
 
 	var resp struct {

@@ -365,6 +365,7 @@ func (s *PlanService) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEnt
 
 // UpdateBundlePriceInput contains editable fields for price display metadata.
 type UpdateBundlePriceInput struct {
+	StripePriceID  *string
 	PlanName       *string
 	DisplayWeight  *int
 	DisplayEnabled *bool
@@ -379,6 +380,11 @@ type UpdateBundlePriceInput struct {
 func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID string, input UpdateBundlePriceInput) (*PlanOption, error) {
 	if priceID == "" || bundleKey == "" {
 		return nil, fmt.Errorf("bundle key and price id are required")
+	}
+
+	stripeOverride := sql.NullString{Valid: false}
+	if input.StripePriceID != nil {
+		stripeOverride = sql.NullString{String: strings.TrimSpace(*input.StripePriceID), Valid: true}
 	}
 
 	var pricePrimaryID int64
@@ -450,18 +456,86 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 
 	_, err = s.db.ExecContext(ctx, `
 		UPDATE bundle_prices
-		SET plan_name = COALESCE($1, plan_name),
-		    display_weight = COALESCE($2, display_weight),
-		    display_enabled = COALESCE($3, display_enabled),
-		    metadata = $4,
+		SET stripe_price_id = CASE WHEN $1 IS NOT NULL THEN NULLIF($1, '') ELSE stripe_price_id END,
+		    plan_name = COALESCE($2, plan_name),
+		    display_weight = COALESCE($3, display_weight),
+		    display_enabled = COALESCE($4, display_enabled),
+		    metadata = $5,
 		    updated_at = NOW()
-		WHERE id = $5
-	`, input.PlanName, input.DisplayWeight, input.DisplayEnabled, metadataJSON, pricePrimaryID)
+		WHERE id = $6
+	`, stripeOverride, input.PlanName, input.DisplayWeight, input.DisplayEnabled, metadataJSON, pricePrimaryID)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.GetPlanByPriceID(priceID)
+	return s.getPlanByInternalID(pricePrimaryID)
+}
+
+// getPlanByInternalID fetches a plan option by primary key (used when stripe_price_id is cleared).
+func (s *PlanService) getPlanByInternalID(id int64) (*PlanOption, error) {
+	query := `
+		SELECT bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
+		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type,
+		       bp.intro_amount_cents, bp.intro_periods, bp.intro_price_lookup_key,
+		       bp.monthly_included_credits, bp.one_time_bonus_credits, bp.plan_rank,
+		       bp.bonus_type, bp.kind, bp.is_variable_amount, bp.display_enabled, b.bundle_key,
+		       bp.metadata, bp.display_weight
+		FROM bundle_prices bp
+		JOIN bundle_products b ON bp.product_id = b.id
+		WHERE bp.id = $1
+	`
+	row := s.db.QueryRow(query, id)
+
+	option := &PlanOption{}
+	var metadataBytes []byte
+	var rawKind string
+	var rawInterval string
+	var rawIntroType sql.NullString
+	var rawIntroLookup sql.NullString
+	var introAmount sql.NullInt64
+	if err := row.Scan(
+		&option.StripePriceId,
+		&option.PlanName,
+		&option.PlanTier,
+		&rawInterval,
+		&option.AmountCents,
+		&option.Currency,
+		&option.IntroEnabled,
+		&rawIntroType,
+		&introAmount,
+		&option.IntroPeriods,
+		&rawIntroLookup,
+		&option.MonthlyIncludedCredits,
+		&option.OneTimeBonusCredits,
+		&option.PlanRank,
+		&option.BonusType,
+		&rawKind,
+		&option.IsVariableAmount,
+		&option.DisplayEnabled,
+		&option.BundleKey,
+		&metadataBytes,
+		&option.DisplayWeight,
+	); err != nil {
+		return nil, err
+	}
+
+	option.Kind = mapPlanKind(rawKind)
+	option.BillingInterval = mapBillingInterval(rawInterval)
+	option.IntroType = mapIntroPricingType(rawIntroType)
+	if introAmount.Valid {
+		option.IntroAmountCents = proto.Int64(introAmount.Int64)
+	}
+	if rawIntroLookup.Valid {
+		option.IntroPriceLookupKey = rawIntroLookup.String
+	}
+
+	if len(metadataBytes) > 0 {
+		if meta := parseMetadata(metadataBytes); meta != nil {
+			option.Metadata = meta
+		}
+	}
+
+	return option, nil
 }
 
 func parseMetadata(metadataBytes []byte) map[string]*structpb.Value {
@@ -501,6 +575,13 @@ func mapPlanKind(kind string) landing_page_react_vite_v1.PlanKind {
 	default:
 		return landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED
 	}
+}
+
+func nullableString(ns sql.NullString) *string {
+	if !ns.Valid {
+		return nil
+	}
+	return &ns.String
 }
 
 func planKindString(kind landing_page_react_vite_v1.PlanKind) string {

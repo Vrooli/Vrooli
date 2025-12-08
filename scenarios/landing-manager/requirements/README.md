@@ -10,7 +10,7 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 ## Contributor Notes
 - Add folders/modules that match your scenario’s PRD targets (P0/P1/P2) instead of reusing other scenarios’ names.
 - Tag tests with `[REQ:ID]` so auto-sync can update status.
-- After running targeted tests, re-run `scripts/requirements/report.js --scenario <name> --mode sync` (or `vrooli scenario requirements sync <name>`) so requirement statuses only change via auto-sync—never edit them by hand.
+- After running targeted tests, re-run `vrooli scenario requirements sync <name>` so requirement statuses only change via auto-sync—never edit them by hand.
 - `PRD.md` checkboxes flip automatically when sync runs; if you see a mismatch, rerun the suite instead of toggling markdown manually.
 - Use `vrooli scenario requirements snapshot <name>` to review the last synced commands, operational-target completion counts, and any expiring manual validations before making changes.
 - Run `vrooli scenario requirements lint-prd <name>` whenever you add or rename operational targets to ensure every `OT-P*-###` entry has at least one requirement (and that no requirement references a missing target).
