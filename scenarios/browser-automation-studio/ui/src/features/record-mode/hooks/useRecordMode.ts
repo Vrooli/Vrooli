@@ -125,20 +125,21 @@ export function useRecordMode({
     if (!currentSessionId) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/v1/recordings/live/${currentSessionId}/actions`);
+      const response = await fetch(`${apiUrl}/recordings/live/${currentSessionId}/actions`);
       if (!response.ok) {
         throw new Error(`Failed to fetch actions: ${response.statusText}`);
       }
 
       const data: GetActionsResponse = await response.json();
-      setActions(data.actions);
+      const actionsFromApi = Array.isArray(data.actions) ? data.actions : [];
+      setActions(actionsFromApi);
 
       // Notify if new actions received
-      if (data.actions.length > lastActionCountRef.current && onActionsReceived) {
-        const newActions = data.actions.slice(lastActionCountRef.current);
+      if (actionsFromApi.length > lastActionCountRef.current && onActionsReceived) {
+        const newActions = actionsFromApi.slice(lastActionCountRef.current);
         onActionsReceived(newActions);
       }
-      lastActionCountRef.current = data.actions.length;
+      lastActionCountRef.current = actionsFromApi.length;
     } catch (err) {
       console.error('Failed to refresh actions:', err);
     }
@@ -228,7 +229,7 @@ export function useRecordMode({
     setError(null);
 
     try {
-      const response = await fetch(`${apiUrl}/api/v1/recordings/live/start`, {
+      const response = await fetch(`${apiUrl}/recordings/live/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: currentSessionId }),
@@ -263,7 +264,7 @@ export function useRecordMode({
     setError(null);
 
     try {
-      const response = await fetch(`${apiUrl}/api/v1/recordings/live/${currentSessionId}/stop`, {
+      const response = await fetch(`${apiUrl}/recordings/live/${currentSessionId}/stop`, {
         method: 'POST',
       });
 
@@ -363,7 +364,7 @@ export function useRecordMode({
       try {
         // Send local actions (with edits) to the API
         const response = await fetch(
-          `${apiUrl}/api/v1/recordings/live/${currentSessionId}/generate-workflow`,
+          `${apiUrl}/recordings/live/${currentSessionId}/generate-workflow`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -404,7 +405,7 @@ export function useRecordMode({
       }
 
       const response = await fetch(
-        `${apiUrl}/api/v1/recordings/live/${currentSessionId}/validate-selector`,
+        `${apiUrl}/recordings/live/${currentSessionId}/validate-selector`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -437,7 +438,7 @@ export function useRecordMode({
 
       try {
         const response = await fetch(
-          `${apiUrl}/api/v1/recordings/live/${currentSessionId}/replay-preview`,
+          `${apiUrl}/recordings/live/${currentSessionId}/replay-preview`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

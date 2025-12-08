@@ -15,7 +15,10 @@ import { useState, useCallback, useEffect } from 'react';
 import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
 import { useRecordMode } from './hooks/useRecordMode';
+import { usePreviewMode } from './hooks/usePreviewMode';
+import { useSnapshotPreview } from './hooks/useSnapshotPreview';
 import { ActionTimeline } from './ActionTimeline';
+import { RecordPreviewPanel } from './RecordPreviewPanel';
 import type { ReplayPreviewResponse } from './types';
 
 interface RecordModePageProps {
@@ -46,6 +49,9 @@ export function RecordModePage({
   const [showReplayResults, setShowReplayResults] = useState(false);
   const [replayResults, setReplayResults] = useState<ReplayPreviewResponse | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [liveBlocked, setLiveBlocked] = useState(false);
+  const [previewMode, setPreviewMode] = usePreviewMode();
 
   useEffect(() => {
     setSessionId(initialSessionId ?? null);
@@ -76,6 +82,19 @@ export function RecordModePage({
     onActionsReceived: (newActions) => {
       console.log('New actions received:', newActions.length);
     },
+  });
+
+  const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
+
+  useEffect(() => {
+    if (!previewUrl && lastActionUrl) {
+      setPreviewUrl(lastActionUrl);
+    }
+  }, [lastActionUrl, previewUrl]);
+
+  const snapshotState = useSnapshotPreview({
+    url: previewUrl || lastActionUrl || null,
+    enabled: previewMode === 'snapshot',
   });
 
   const ensureSession = useCallback(async (): Promise<string | null> => {
@@ -365,16 +384,38 @@ export function RecordModePage({
         </div>
       )}
 
-      {/* Actions timeline */}
-      <div className="flex-1 overflow-y-auto">
-        <ActionTimeline
-          actions={actions}
-          isRecording={isRecording}
-          onDeleteAction={deleteAction}
-          onValidateSelector={validateSelector}
-          onEditSelector={handleEditSelector}
-          onEditPayload={handleEditPayload}
-        />
+      {/* Main content split: timeline + preview */}
+      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+        <div className="lg:w-5/12 flex-1 overflow-y-auto border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700">
+          <ActionTimeline
+            actions={actions}
+            isRecording={isRecording}
+            onDeleteAction={deleteAction}
+            onValidateSelector={validateSelector}
+            onEditSelector={handleEditSelector}
+            onEditPayload={handleEditPayload}
+          />
+        </div>
+
+        <div className="lg:w-7/12 h-[360px] lg:h-full border-gray-200 dark:border-gray-700">
+          <RecordPreviewPanel
+            mode={previewMode}
+            onModeChange={(mode) => setPreviewMode(mode)}
+            previewUrl={previewUrl}
+            onPreviewUrlChange={(url) => {
+              setPreviewUrl(url);
+              setLiveBlocked(false);
+            }}
+            snapshot={snapshotState}
+            onLiveBlocked={() => setLiveBlocked(true)}
+            actions={actions}
+          />
+          {liveBlocked && previewMode === 'live' && (
+            <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-xs text-yellow-800 dark:text-yellow-200 border-t border-yellow-200 dark:border-yellow-800">
+              This site may block embedding in an iframe. Switch to Snapshot mode to continue.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer with test and generate buttons */}
