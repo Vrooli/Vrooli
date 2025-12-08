@@ -62,6 +62,11 @@ in `internal/shared/artifacts/paths.go` to ensure consistency across phases.
 
 ```
 coverage/
+├── logs/                    # Per-run phase logs
+│   └── <run-id>/phase.log   # e.g., 20251208-151044/lint.log
+├── latest/                  # Pointers to most recent run
+│   ├── manifest.json        # Run metadata + artifact map
+│   └── *.log                # Symlinks or pointers to latest logs
 ├── phase-results/           # Per-phase JSON summaries
 │   ├── smoke.json           # UI smoke test results
 │   ├── unit.json            # Unit test results
@@ -87,16 +92,11 @@ coverage/
 │   └── latest.json
 ├── manual-validations/      # Manual validation logs
 │   └── log.jsonl
+├── runtime/                 # Runtime state (seeds)
+│   └── seed-state.json      # Dynamic IDs for @seed/ tokens
 ├── go-coverage.out          # Go coverage data
 └── vitest-requirements.json # Vitest requirement evidence
-
-test/artifacts/
-└── runtime/                 # Runtime state (seeds)
-    └── seed-state.json      # Dynamic IDs for @seed/ tokens
 ```
-
-**Note:** Legacy artifact locations (`test/coverage/`, `test/artifacts/phase-results/`)
-are still supported for reading but all new artifacts are written to canonical paths.
 
 ## Environment Variables
 

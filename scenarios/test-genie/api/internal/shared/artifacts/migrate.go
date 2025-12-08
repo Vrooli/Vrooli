@@ -38,40 +38,6 @@ func Migrate(scenarioDir string, opts MigrationOptions) (*MigrationResult, error
 
 	result := &MigrationResult{}
 
-	// Define migration paths: source -> destination
-	migrations := []struct {
-		desc   string
-		legacy string
-		canon  string
-	}{
-		{
-			desc:   "phase results (test/coverage -> coverage)",
-			legacy: filepath.Join(scenarioDir, "test", "coverage", "phase-results"),
-			canon:  filepath.Join(scenarioDir, PhaseResultsDir),
-		},
-		{
-			desc:   "phase results (test/artifacts -> coverage)",
-			legacy: filepath.Join(scenarioDir, "test", "artifacts", "phase-results"),
-			canon:  filepath.Join(scenarioDir, PhaseResultsDir),
-		},
-		{
-			desc:   "manual validations (test/coverage -> coverage)",
-			legacy: filepath.Join(scenarioDir, "test", "coverage", "manual-validations"),
-			canon:  filepath.Join(scenarioDir, ManualValidationsDir),
-		},
-		{
-			desc:   "manual validations (coverage/manual -> coverage/manual-validations)",
-			legacy: filepath.Join(scenarioDir, "coverage", "manual"),
-			canon:  filepath.Join(scenarioDir, ManualValidationsDir),
-		},
-	}
-
-	for _, m := range migrations {
-		if err := migrateDirectory(m.legacy, m.canon, m.desc, opts, result); err != nil {
-			result.Errors = append(result.Errors, err)
-		}
-	}
-
 	return result, nil
 }
 

@@ -49,6 +49,12 @@ const (
 	// CoverageRoot is the root directory for all coverage artifacts.
 	CoverageRoot = "coverage"
 
+	// LogsDir holds per-run phase logs.
+	LogsDir = "coverage/logs"
+
+	// LatestDir holds pointers and manifests for the most recent run.
+	LatestDir = "coverage/latest"
+
 	// PhaseResultsDir is where per-phase JSON summaries are written.
 	// Each phase writes <phase>.json here (e.g., smoke.json, unit.json).
 	PhaseResultsDir = "coverage/phase-results"
@@ -72,7 +78,10 @@ const (
 	ManualValidationsDir = "coverage/manual-validations"
 
 	// RuntimeDir holds runtime state like seed data.
-	RuntimeDir = "test/artifacts/runtime"
+	RuntimeDir = "coverage/runtime"
+
+	// LatestManifestFile is the manifest describing the latest run artifacts.
+	LatestManifestFile = "manifest.json"
 )
 
 // ============================================================================
@@ -194,25 +203,6 @@ func VitestRequirementsPaths(scenarioDir string) []string {
 // Legacy/Fallback Paths (for backwards compatibility)
 // ============================================================================
 
-// LegacyPhaseResultsPaths returns all legacy paths for phase results.
-// Used by evidence loader to find artifacts from older runs.
-func LegacyPhaseResultsPaths(scenarioDir string) []string {
-	return []string{
-		filepath.Join(scenarioDir, PhaseResultsDir),                  // Current canonical
-		filepath.Join(scenarioDir, "test", "coverage", "phase-results"),
-		filepath.Join(scenarioDir, "test", "artifacts", "phase-results"),
-	}
-}
-
-// LegacyManualValidationsPaths returns all legacy paths for manual validations.
-func LegacyManualValidationsPaths(scenarioDir string) []string {
-	return []string{
-		ManualValidationsPath(scenarioDir),                                             // Current canonical
-		filepath.Join(scenarioDir, "test", "coverage", "manual-validations", ManualValidationsLog),
-		filepath.Join(scenarioDir, "coverage", "manual", ManualValidationsLog), // Old name
-	}
-}
-
 // ============================================================================
 // Directory Creation Helpers
 // ============================================================================
@@ -220,6 +210,8 @@ func LegacyManualValidationsPaths(scenarioDir string) []string {
 // AllCoverageSubdirs returns all coverage subdirectories that may need creation.
 func AllCoverageSubdirs(scenarioDir string) []string {
 	return []string{
+		filepath.Join(scenarioDir, LogsDir),
+		filepath.Join(scenarioDir, LatestDir),
 		filepath.Join(scenarioDir, PhaseResultsDir),
 		filepath.Join(scenarioDir, UISmokeDir),
 		filepath.Join(scenarioDir, AutomationDir),
@@ -253,4 +245,19 @@ func RelativeAutomationArtifactPath(filename string) string {
 // RelativeLighthouseArtifactPath returns the relative path for a Lighthouse artifact.
 func RelativeLighthouseArtifactPath(filename string) string {
 	return filepath.Join(LighthouseDir, filename)
+}
+
+// RunLogsDir builds the absolute path for a specific run's logs.
+func RunLogsDir(scenarioDir, runID string) string {
+	return filepath.Join(scenarioDir, LogsDir, runID)
+}
+
+// LatestDirPath returns the absolute path for latest pointers.
+func LatestDirPath(scenarioDir string) string {
+	return filepath.Join(scenarioDir, LatestDir)
+}
+
+// LatestManifestPath returns the absolute path for the latest manifest file.
+func LatestManifestPath(scenarioDir string) string {
+	return filepath.Join(LatestDirPath(scenarioDir), LatestManifestFile)
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 
 	"test-genie/internal/requirements/types"
@@ -91,20 +92,12 @@ func (l *loader) LoadPhaseResults(ctx context.Context, scenarioRoot string) (typ
 
 	evidenceMap := make(types.EvidenceMap)
 
-	// Check multiple possible locations for phase results (canonical + legacy)
-	possibleDirs := sharedartifacts.LegacyPhaseResultsPaths(scenarioRoot)
-
-	for _, dir := range possibleDirs {
-		if !l.reader.Exists(dir) {
-			continue
-		}
-
+	dir := filepath.Join(scenarioRoot, sharedartifacts.PhaseResultsDir)
+	if l.reader.Exists(dir) {
 		results, err := loadPhaseResultsFromDir(ctx, l.reader, dir)
-		if err != nil {
-			continue
+		if err == nil {
+			evidenceMap.Merge(results)
 		}
-
-		evidenceMap.Merge(results)
 	}
 
 	return evidenceMap, nil
@@ -150,23 +143,17 @@ func (l *loader) LoadManualValidations(ctx context.Context, scenarioRoot string)
 	default:
 	}
 
-	// Check multiple possible locations (canonical + legacy)
-	possiblePaths := sharedartifacts.LegacyManualValidationsPaths(scenarioRoot)
-
-	for _, path := range possiblePaths {
-		if !l.reader.Exists(path) {
-			continue
-		}
-
-		manifest, err := loadManualFromFile(ctx, l.reader, path)
-		if err != nil {
-			continue
-		}
-
-		return manifest, nil
+	path := sharedartifacts.ManualValidationsPath(scenarioRoot)
+	if !l.reader.Exists(path) {
+		return nil, nil
 	}
 
-	return nil, nil
+	manifest, err := loadManualFromFile(ctx, l.reader, path)
+	if err != nil {
+		return nil, nil
+	}
+
+	return manifest, nil
 }
 
 // LoadFromPhaseExecution creates evidence from phase execution results.

@@ -258,7 +258,7 @@ Three token prefixes are used in workflows:
 
 ### @seed vs @store
 
-- **@seed/key**: Resolved **before execution** using `test/artifacts/runtime/seed-state.json`. Use for literal strings (selectors, labels) derived from seed data.
+- **@seed/key**: Resolved **before execution** using `coverage/runtime/seed-state.json`. Use for literal strings (selectors, labels) derived from seed data.
 
 - **@store/key**: Resolved **during execution** by BAS. Use for values that change during workflow execution or are set by previous steps.
 
@@ -277,7 +277,7 @@ The `metadata.reset` field controls seed state between workflows:
 
 ### seed.go / seed.sh
 
-Creates deterministic test data and outputs state to `test/artifacts/runtime/seed-state.json`:
+Creates deterministic test data and outputs state to `coverage/runtime/seed-state.json`:
 
 ```bash
 package main
@@ -294,8 +294,8 @@ func main() {
   // create data via API...
   seed := map[string]string{"projectId": "demo-123", "projectName": "Demo Project"}
 
-  path := "test/artifacts/runtime/seed-state.json"
-  _ = os.MkdirAll("test/artifacts/runtime", 0o755)
+  path := "coverage/runtime/seed-state.json"
+  _ = os.MkdirAll("coverage/runtime", 0o755)
   f, _ := os.Create(path)
   defer f.Close()
   json.NewEncoder(f).Encode(seed)

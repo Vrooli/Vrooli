@@ -15,7 +15,7 @@ flowchart TB
         new["New()"]
         sw["ScenarioWorkspace"]
         env["Environment()"]
-        artifact["EnsureArtifactDir()"]
+    artifact["EnsureArtifactDir()"]
     end
 
     subgraph Config["Configuration Loading"]
@@ -90,11 +90,11 @@ type Environment struct {
 
 ### Artifact Directory
 
-Test artifacts (logs, reports) are lazily created:
+Log artifacts are lazily created under the unified coverage tree:
 
 ```go
 artifactDir, err := workspace.EnsureArtifactDir()
-// Creates: <scenario>/test/artifacts/
+// Creates: <scenario>/coverage/logs/
 ```
 
 ## Testing Configuration
@@ -239,7 +239,7 @@ sequenceDiagram
     W-->>O: Environment{paths...}
 
     O->>W: EnsureArtifactDir()
-    W->>FS: MkdirAll(test/artifacts)
+    W->>FS: MkdirAll(coverage/logs)
     W-->>O: artifact path
 ```
 

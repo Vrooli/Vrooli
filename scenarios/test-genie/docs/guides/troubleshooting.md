@@ -759,10 +759,10 @@ Evidence directory not writable
 **Solutions:**
 ```bash
 # Create evidence directory
-mkdir -p test/artifacts/screenshots
+mkdir -p coverage/ui-smoke
 
 # Check permissions
-chmod 755 test/artifacts
+chmod 755 coverage
 
 # Verify browserless is running
 curl http://localhost:3000/json/version

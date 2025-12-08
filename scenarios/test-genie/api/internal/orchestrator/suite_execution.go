@@ -21,6 +21,7 @@ import (
 	"test-genie/internal/orchestrator/requirements"
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 var (
@@ -291,9 +292,14 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 		return nil, err
 	}
 
-	artifactDir, err := ws.EnsureArtifactDir()
-	if err != nil {
+	runID := time.Now().UTC().Format("20060102-150405")
+
+	if err := sharedartifacts.EnsureCoverageStructure(env.ScenarioDir); err != nil {
 		return nil, err
+	}
+	runLogDir := sharedartifacts.RunLogsDir(env.ScenarioDir, runID)
+	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create run log directory: %w", err)
 	}
 
 	result := &SuiteExecutionResult{
@@ -302,12 +308,16 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 		PresetUsed:   plan.PresetUsed,
 	}
 
-	phaseResults, anyFailure := o.runSelectedPhases(ctx, env, artifactDir, plan.Selected, req.FailFast)
+	phaseResults, anyFailure := o.runSelectedPhases(ctx, env, runLogDir, plan.Selected, req.FailFast)
 
 	result.CompletedAt = time.Now().UTC()
 	result.Success = !anyFailure
 	result.Phases = phaseResults
 	result.PhaseSummary = SummarizePhases(phaseResults)
+
+	if err := o.writeLatestManifest(env.ScenarioDir, runLogDir, runID, result.StartedAt, result.CompletedAt, phaseResults); err != nil {
+		log.Printf("failed to write latest manifest: %v", err)
+	}
 
 	o.syncRequirementsIfNeeded(ctx, env, config, req, plan, phaseResults)
 
@@ -350,9 +360,14 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 		return nil, err
 	}
 
-	artifactDir, err := ws.EnsureArtifactDir()
-	if err != nil {
+	runID := time.Now().UTC().Format("20060102-150405")
+
+	if err := sharedartifacts.EnsureCoverageStructure(env.ScenarioDir); err != nil {
 		return nil, err
+	}
+	runLogDir := sharedartifacts.RunLogsDir(env.ScenarioDir, runID)
+	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create run log directory: %w", err)
 	}
 
 	result := &SuiteExecutionResult{
@@ -361,7 +376,7 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 		PresetUsed:   plan.PresetUsed,
 	}
 
-	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(ctx, env, artifactDir, plan.Selected, req.FailFast, emit)
+	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(ctx, env, runLogDir, plan.Selected, req.FailFast, emit)
 
 	result.CompletedAt = time.Now().UTC()
 	result.Success = !anyFailure
@@ -377,6 +392,10 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 		})
 	}
 
+	if err := o.writeLatestManifest(env.ScenarioDir, runLogDir, runID, result.StartedAt, result.CompletedAt, phaseResults); err != nil {
+		log.Printf("failed to write latest manifest: %v", err)
+	}
+
 	o.syncRequirementsIfNeeded(ctx, env, config, req, plan, phaseResults)
 
 	return result, nil
@@ -385,7 +404,7 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 func (o *SuiteOrchestrator) runSelectedPhases(
 	ctx context.Context,
 	env workspacepkg.Environment,
-	artifactDir string,
+	runLogDir string,
 	defs []phases.Definition,
 	failFast bool,
 ) ([]PhaseExecutionResult, bool) {
@@ -395,7 +414,7 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 	results := make([]PhaseExecutionResult, 0, len(defs))
 	anyFailure := false
 	for _, phase := range defs {
-		phaseResult := o.runPhase(ctx, env, artifactDir, phase)
+		phaseResult := o.runPhase(ctx, env, runLogDir, phase)
 		if phaseResult.Status != "passed" {
 			anyFailure = true
 		}
@@ -410,7 +429,7 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	ctx context.Context,
 	env workspacepkg.Environment,
-	artifactDir string,
+	runLogDir string,
 	defs []phases.Definition,
 	failFast bool,
 	emit ExecutionEventCallback,
@@ -434,7 +453,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 			})
 		}
 
-		phaseResult := o.runPhaseWithEvents(ctx, env, artifactDir, phase, emit)
+		phaseResult := o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit)
 
 		// Emit phase end event
 		if emit != nil {
@@ -602,9 +621,9 @@ func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
 	}
 }
 
-func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Environment, artifactDir string, def phases.Definition) PhaseExecutionResult {
+func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition) PhaseExecutionResult {
 	start := time.Now()
-	logPath := filepath.Join(artifactDir, fmt.Sprintf("%s-%s.log", start.UTC().Format("20060102-150405"), def.Name.String()))
+	logPath := filepath.Join(runLogDir, fmt.Sprintf("%s.log", def.Name.String()))
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return PhaseExecutionResult{
@@ -677,9 +696,9 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Envir
 }
 
 // runPhaseWithEvents is like runPhase but emits observation events during execution.
-func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspacepkg.Environment, artifactDir string, def phases.Definition, emit ExecutionEventCallback) PhaseExecutionResult {
+func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, emit ExecutionEventCallback) PhaseExecutionResult {
 	start := time.Now()
-	logPath := filepath.Join(artifactDir, fmt.Sprintf("%s-%s.log", start.UTC().Format("20060102-150405"), def.Name.String()))
+	logPath := filepath.Join(runLogDir, fmt.Sprintf("%s.log", def.Name.String()))
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return PhaseExecutionResult{
@@ -762,6 +781,56 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 		Remediation:     remediation,
 		Observations:    report.Observations,
 	}
+}
+
+func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID string, startedAt, completedAt time.Time, results []PhaseExecutionResult) error {
+	latestDir := sharedartifacts.LatestDirPath(scenarioDir)
+	if err := os.MkdirAll(latestDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create latest dir: %w", err)
+	}
+
+	logs := make(map[string]string, len(results))
+	phaseEntries := make([]map[string]any, 0, len(results))
+
+	for _, res := range results {
+		logAbs := filepath.Join(runLogDir, fmt.Sprintf("%s.log", res.Name))
+		logRel := sharedartifacts.RelPath(scenarioDir, logAbs)
+		logs[res.Name] = logRel
+
+		phaseEntries = append(phaseEntries, map[string]any{
+			"name":             res.Name,
+			"status":           res.Status,
+			"duration_seconds": res.DurationSeconds,
+			"log":              logRel,
+		})
+
+		if err := updateLatestPointer(latestDir, fmt.Sprintf("%s.log", res.Name), logAbs); err != nil {
+			return err
+		}
+	}
+
+	manifest := map[string]any{
+		"run_id":       runID,
+		"started_at":   startedAt.UTC().Format(time.RFC3339),
+		"completed_at": completedAt.UTC().Format(time.RFC3339),
+		"logs":         logs,
+		"phases":       phaseEntries,
+	}
+
+	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir))
+	return writer.WriteJSON(sharedartifacts.LatestManifestPath(scenarioDir), manifest)
+}
+
+func updateLatestPointer(latestDir, linkName, target string) error {
+	linkPath := filepath.Join(latestDir, linkName)
+	_ = os.Remove(linkPath)
+	if err := os.Symlink(target, linkPath); err != nil {
+		// Fallback: write target path into a small text file
+		if writeErr := os.WriteFile(linkPath, []byte(target), 0o644); writeErr != nil {
+			return fmt.Errorf("failed to create latest pointer for %s: %v (symlink error: %v)", linkName, writeErr, err)
+		}
+	}
+	return nil
 }
 
 // observationEmitter wraps an io.Writer and emits observation events for lines with markers.

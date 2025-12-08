@@ -109,7 +109,7 @@ func DescribeCoverage(scenario string, phases []execTypes.Phase) []string {
 
 	// Lighthouse - only show if performance phase ran
 	if phaseRan(phases, "performance") {
-		lighthouse := filepath.Join(paths.ScenarioDir, "test", "artifacts", "lighthouse")
+		lighthouse := filepath.Join(paths.ScenarioDir, "coverage", "lighthouse")
 		if repo.Exists(lighthouse) {
 			lines = append(lines, fmt.Sprintf("lighthouse: %s", lighthouse))
 		}

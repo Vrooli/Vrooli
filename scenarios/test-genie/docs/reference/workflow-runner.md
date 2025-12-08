@@ -135,14 +135,14 @@ BAS integration tests apply seed data before workflow execution:
 test/playbooks/
   __seeds/
     seed.go         # Generates seed-state.json with dynamic IDs (or seed.sh)
-test/artifacts/
+coverage/
   runtime/
     seed-state.json # Contains project/workflow IDs for @seed/ tokens
 ```
 
 **Usage in workflows:**
 - Use `@seed/<key>` tokens (e.g., `@seed/projectId`) for literal string resolution
-- These are resolved from `test/artifacts/runtime/seed-state.json`
+- These are resolved from `coverage/runtime/seed-state.json`
 - Remove `seed-state.json` or run `cleanup.sh` to regenerate identifiers
 
 ## Fixture Parameters

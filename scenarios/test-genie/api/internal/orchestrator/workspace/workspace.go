@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"test-genie/internal/shared"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 var validScenarioName = regexp.MustCompile(`^[a-zA-Z0-9\-_]+$`)
@@ -117,7 +118,7 @@ func (w *ScenarioWorkspace) EnsureArtifactDir() (string, error) {
 	if w.artifactDir != "" {
 		return w.artifactDir, nil
 	}
-	dir := filepath.Join(w.TestDir, "artifacts")
+	dir := filepath.Join(w.ScenarioDir, sharedartifacts.LogsDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("failed to create artifact directory: %w", err)
 	}

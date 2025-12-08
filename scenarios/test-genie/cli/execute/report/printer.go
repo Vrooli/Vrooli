@@ -541,7 +541,7 @@ func (p *Printer) printDebugGuides(phasesData []execTypes.Phase) {
 			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: vrooli scenario restart <scenario> | vrooli scenario status <scenario> | install BAS CLI"))
 		case "performance":
 			fmt.Fprintf(p.w, "  • %s: common issues → Lighthouse scores, bundle too large, slow page load\n", p.color.Bold("PERFORMANCE"))
-			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: open test/artifacts/lighthouse/*.html | pnpm run analyze | inspect ui/dist/assets"))
+			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: open coverage/lighthouse/*.html | pnpm run analyze | inspect ui/dist/assets"))
 		case "structure":
 			fmt.Fprintf(p.w, "  • %s: common issues → UI smoke failing, missing files, invalid JSON config\n", p.color.Bold("STRUCTURE"))
 			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: tail logs/<scenario>-api.log | validate .vrooli/service.json | restart scenario"))
@@ -566,10 +566,10 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 	fmt.Fprintln(p.w, p.color.Bold("📊 Test Artifacts Summary"))
 	fmt.Fprintln(p.w, "════════════════════════════════════════")
 
-	if paths := repo.DiscoverScenarioPaths(p.scenario); paths.TestDir != "" {
-		artifactDir := filepath.Join(paths.TestDir, "artifacts")
-		if repo.Exists(artifactDir) {
-			fmt.Fprintf(p.w, "Directory: %s\n", p.color.Cyan(artifactDir))
+	if paths := repo.DiscoverScenarioPaths(p.scenario); paths.ScenarioDir != "" {
+		logsDir := filepath.Join(paths.ScenarioDir, "coverage", "logs")
+		if repo.Exists(logsDir) {
+			fmt.Fprintf(p.w, "Directory: %s\n", p.color.Cyan(logsDir))
 		}
 	}
 

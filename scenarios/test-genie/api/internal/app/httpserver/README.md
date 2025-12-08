@@ -191,7 +191,7 @@ Or with explicit phases:
       "name": "structure",
       "status": "passed",
       "durationSeconds": 5,
-      "logPath": "scenarios/test-genie/test/artifacts/...",
+      "logPath": "scenarios/test-genie/coverage/logs/...",
       "observations": ["directories validated: 6", "files validated: 7"]
     }
   ],

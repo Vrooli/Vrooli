@@ -246,7 +246,7 @@
             },
             "output_dir": {
               "type": "string",
-              "default": "test/artifacts/playbooks",
+              "default": "coverage/automation",
               "description": "Directory for artifact output (relative to scenario root)"
             },
             "retain_on_success": {

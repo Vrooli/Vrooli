@@ -181,10 +181,10 @@ The orchestrator reads `.vrooli/testing.json` from each scenario:
 Each phase writes logs to:
 
 ```
-scenarios/<name>/test/artifacts/<timestamp>-<phase>.log
+scenarios/<name>/coverage/logs/<run-id>/<phase>.log
 ```
 
-Log paths are returned in `PhaseExecutionResult.LogPath` for debugging.
+The latest run also updates `scenarios/<name>/coverage/latest/manifest.json` and per-phase log pointers for quick access. Log paths are returned in `PhaseExecutionResult.LogPath` for debugging.
 
 ## Directory Structure
 

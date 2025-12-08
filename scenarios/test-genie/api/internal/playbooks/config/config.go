@@ -98,7 +98,7 @@ func Default() *Config {
 		Artifacts: ArtifactsConfig{
 			Screenshots:     true,
 			DOMSnapshots:    true,
-			OutputDir:       "test/artifacts/playbooks",
+			OutputDir:       "coverage/automation",
 			RetainOnSuccess: false,
 		},
 		Execution: ExecutionConfig{

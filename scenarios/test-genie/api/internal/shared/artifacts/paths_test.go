@@ -75,38 +75,6 @@ func TestUISmokeArtifactPath(t *testing.T) {
 	}
 }
 
-func TestLegacyPhaseResultsPaths(t *testing.T) {
-	scenarioDir := "/scenarios/test"
-	paths := LegacyPhaseResultsPaths(scenarioDir)
-
-	// Should have exactly 3 paths
-	if len(paths) != 3 {
-		t.Errorf("LegacyPhaseResultsPaths() returned %d paths, want 3", len(paths))
-	}
-
-	// First path should be the canonical one
-	canonical := filepath.FromSlash("/scenarios/test/coverage/phase-results")
-	if paths[0] != canonical {
-		t.Errorf("First path should be canonical: got %q, want %q", paths[0], canonical)
-	}
-
-	// Should include legacy paths
-	found := make(map[string]bool)
-	for _, p := range paths {
-		found[p] = true
-	}
-
-	legacy1 := filepath.FromSlash("/scenarios/test/test/coverage/phase-results")
-	if !found[legacy1] {
-		t.Errorf("Should include legacy path: %q", legacy1)
-	}
-
-	legacy2 := filepath.FromSlash("/scenarios/test/test/artifacts/phase-results")
-	if !found[legacy2] {
-		t.Errorf("Should include legacy path: %q", legacy2)
-	}
-}
-
 func TestVitestRequirementsPaths(t *testing.T) {
 	scenarioDir := "/scenarios/test"
 	paths := VitestRequirementsPaths(scenarioDir)
@@ -127,13 +95,15 @@ func TestAllCoverageSubdirs(t *testing.T) {
 	scenarioDir := "/scenarios/test"
 	dirs := AllCoverageSubdirs(scenarioDir)
 
-	// Should have 8 directories
-	if len(dirs) != 8 {
-		t.Errorf("AllCoverageSubdirs() returned %d dirs, want 8", len(dirs))
+	// Should have 10 directories
+	if len(dirs) != 10 {
+		t.Errorf("AllCoverageSubdirs() returned %d dirs, want 10", len(dirs))
 	}
 
 	// Verify key directories are included
 	expected := []string{
+		"/scenarios/test/coverage/logs",
+		"/scenarios/test/coverage/latest",
 		"/scenarios/test/coverage/phase-results",
 		"/scenarios/test/coverage/ui-smoke",
 		"/scenarios/test/coverage/automation",
@@ -141,7 +111,7 @@ func TestAllCoverageSubdirs(t *testing.T) {
 		"/scenarios/test/coverage/unit",
 		"/scenarios/test/coverage/sync",
 		"/scenarios/test/coverage/manual-validations",
-		"/scenarios/test/test/artifacts/runtime",
+		"/scenarios/test/coverage/runtime",
 	}
 
 	for i, exp := range expected {
@@ -199,7 +169,7 @@ func TestRelativePaths(t *testing.T) {
 func TestSeedStatePath(t *testing.T) {
 	scenarioDir := "/scenarios/browser-automation"
 	got := SeedStatePath(scenarioDir)
-	want := filepath.FromSlash("/scenarios/browser-automation/test/artifacts/runtime/seed-state.json")
+	want := filepath.FromSlash("/scenarios/browser-automation/coverage/runtime/seed-state.json")
 	if got != want {
 		t.Errorf("SeedStatePath() = %q, want %q", got, want)
 	}
@@ -237,5 +207,22 @@ func TestConstantConsistency(t *testing.T) {
 	// Verify lighthouse dir
 	if LighthouseDir != "coverage/lighthouse" {
 		t.Errorf("LighthouseDir = %q, want %q", LighthouseDir, "coverage/lighthouse")
+	}
+}
+
+func TestLogsAndLatestPaths(t *testing.T) {
+	scenarioDir := "/scenarios/demo"
+	runID := "20251208-151044"
+
+	if got, want := RunLogsDir(scenarioDir, runID), filepath.FromSlash("/scenarios/demo/coverage/logs/20251208-151044"); got != want {
+		t.Errorf("RunLogsDir() = %q, want %q", got, want)
+	}
+
+	if got, want := LatestDirPath(scenarioDir), filepath.FromSlash("/scenarios/demo/coverage/latest"); got != want {
+		t.Errorf("LatestDirPath() = %q, want %q", got, want)
+	}
+
+	if got, want := LatestManifestPath(scenarioDir), filepath.FromSlash("/scenarios/demo/coverage/latest/manifest.json"); got != want {
+		t.Errorf("LatestManifestPath() = %q, want %q", got, want)
 	}
 }
