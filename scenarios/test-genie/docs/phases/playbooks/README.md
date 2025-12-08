@@ -146,6 +146,8 @@ vrooli scenario start browser-automation-studio
 | 1 | Workflow assertions failed |
 | 2 | Skipped (runtime/BAS unavailable) |
 
+Contract guardrails: Playbooks now treat BAS timeline responses as strict proto contracts. If `/executions/{id}/timeline` contains unknown fields or drifts from the published proto, parsing fails and the phase fails, writing a timeline artifact plus parse error summary under `coverage/automation/<workflow>/`. Update the shared proto or BAS handler when making intentional contract changes.
+
 ## Configuration
 
 Configure the playbooks phase in `.vrooli/testing.json`:

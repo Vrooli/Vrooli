@@ -209,7 +209,7 @@ EOF
 ./scripts/manage.sh your-phase --dry-run
 
 # Test with actual scenarios
-./scripts/scenarios/validation/scenario-test-runner.sh test-scenario
+test-genie execute test-scenario --preset smoke
 ```
 
 ### 3. System Testing

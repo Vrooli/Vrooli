@@ -236,7 +236,7 @@ test-genie execute my-scenario --preset quick
 vrooli scenario requirements init my-scenario
 
 # Validate schema
-node scripts/requirements/validate.js --scenario my-scenario
+vrooli scenario requirements validate my-scenario
 
 # Generate report
 vrooli scenario requirements report my-scenario --format markdown

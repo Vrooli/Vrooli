@@ -49,6 +49,9 @@ bash __test/verify_mocks.sh
 
 # Run from any directory (path-robust)
 cd /tmp && bash /path/to/Vrooli/__test/integration/tier2_direct_test.sh  # ✅ Works
+
+# Run scenario suites through test-genie (Go-native orchestrator)
+test-genie execute my-scenario --preset quick --fail-fast
 ```
 
 ## 🎯 Tier 2 Mock System

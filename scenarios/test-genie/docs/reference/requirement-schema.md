@@ -406,7 +406,7 @@ Sync metadata is stored separately in `coverage/sync/*.json` files.
 
 **Validate your registry:**
 ```bash
-node scripts/requirements/validate.js --scenario <name>
+vrooli scenario requirements validate <name>
 ```
 
 ---

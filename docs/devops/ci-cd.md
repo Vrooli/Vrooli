@@ -297,7 +297,7 @@ jobs:
         run: |
           for scenario in scenarios/*/; do
             echo "Validating structure: $(basename "$scenario")"
-            ./scripts/scenarios/tools/validate-scenario.sh "$(basename "$scenario")" || exit 1
+            test-genie execute "$(basename "$scenario")" --phases structure --fail-fast || exit 1
           done
           
       - name: Start Resources for Testing

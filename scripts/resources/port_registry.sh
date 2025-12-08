@@ -561,13 +561,13 @@ ports::show_help() {
     echo "  --export-json               Export resource ports as JSON (for TypeScript integration)"
     echo "  --get-all-allocated         Get all allocated ports (resources + scenarios)"
     echo "  --get-scenario-ports        Get only scenario allocated ports"
-    echo "  --validate-scenario <name> <service.json>  Validate scenario port config"
+    echo "  --validate-scenario <name> <service.json>  (deprecated) Validate scenario port config (use test-genie structure phase instead)"
     echo "  --allocation-status         Get detailed allocation status"
     echo "  --help                      Show this help message"
     echo "  (no options)               Show port registry information"
     echo
     echo "Examples:"
-    echo "  $0 --validate-scenario my-scenario /path/to/service.json"
+    echo "  # deprecated: $0 --validate-scenario my-scenario /path/to/service.json"
     echo "  $0 --get-all-allocated | head -20"
     echo "  $0 --allocation-status | jq '.scenario_ports'"
 }
@@ -588,7 +588,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]] && [[ -z "${SOURCED_PORT_REGISTRY:-}" ]];
             ports::get_scenario_allocated_ports
             ;;
         --validate-scenario)
-            ports::validate_scenario_config "$2" "$3"
+            echo "Deprecated: use test-genie structure phase for validation." >&2
+            exit 1
             ;;
         --allocation-status)
             ports::get_allocation_status

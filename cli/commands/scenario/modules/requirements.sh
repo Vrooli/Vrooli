@@ -115,7 +115,7 @@ scenario::requirements::report() {
     fi
 
     case "$format" in
-        json|markdown|trace)
+        json|markdown|trace|summary)
             ;;
         *)
             log::error "Unsupported format: $format"
@@ -135,28 +135,25 @@ scenario::requirements::report() {
         return 1
     fi
 
-    if ! command -v node >/dev/null 2>&1; then
-        log::error "Node.js is required to run the requirements reporter"
+    if ! command -v jq >/dev/null 2>&1; then
+        log::error "jq is required to generate requirements reports"
         return 1
     fi
 
-    local reporter="${APP_ROOT}/scripts/requirements/report.js"
-    if [ ! -f "$reporter" ]; then
-        log::error "Requirements reporter not found at $reporter"
-        return 1
-    fi
+    local test_genie_cli
+    test_genie_cli=$(scenario::requirements::_test_genie_cli) || return 1
 
-    local include_flag=""
+    local base_args=(requirements report --dir "$scenario_dir" --format json)
     if [ "$include_pending" = true ]; then
-        include_flag="--include-pending"
+        base_args+=(--include-pending)
     fi
 
     local temp_json
     temp_json=$(mktemp)
-    (cd "$scenario_dir" && node "$reporter" --scenario "$scenario_name" --format json $include_flag --output "$temp_json")
+    (cd "$scenario_dir" && "$test_genie_cli" "${base_args[@]}" --output "$temp_json")
 
     local critical_gap
-    critical_gap=$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(String(data?.summary?.criticalityGap ?? 0));" "$temp_json")
+    critical_gap=$(jq -r '.summary.critical_gap // 0' "$temp_json" 2>/dev/null || echo "0")
 
     local final_status=0
     if [ "$format" = "json" ]; then
@@ -165,15 +162,17 @@ scenario::requirements::report() {
             mv "$temp_json" "$output_path"
         else
             cat "$temp_json"
+            rm -f "$temp_json"
         fi
     else
         if [ -n "$output_path" ]; then
             mkdir -p "$(dirname "$output_path")"
-            (cd "$scenario_dir" && node "$reporter" --scenario "$scenario_name" --format "$format" $include_flag --output "$output_path")
+            (cd "$scenario_dir" && "$test_genie_cli" requirements report --dir "$scenario_dir" --format "$format" ${include_pending:+--include-pending} --output "$output_path")
+            rm -f "$temp_json"
         else
-            (cd "$scenario_dir" && node "$reporter" --scenario "$scenario_name" --format "$format" $include_flag)
+            (cd "$scenario_dir" && "$test_genie_cli" requirements report --dir "$scenario_dir" --format "$format" ${include_pending:+--include-pending})
+            rm -f "$temp_json"
         fi
-        rm -f "$temp_json"
     fi
 
     if [ "$fail_on_gap" = true ] && [ "${critical_gap}" != "0" ]; then
@@ -196,8 +195,8 @@ Subcommands:
     --output <path>                 Write report to file instead of stdout
     --fail-on-critical-gap          Exit with non-zero status if critical P0/P1 requirements are incomplete
 
-  validate <name> [--quiet]         Run schema + semantic validation (`scripts/requirements/validate.js`)
-  sync <name>                       Update requirement status fields via `report.js --mode sync`
+  validate <name> [--quiet]         Run schema + semantic validation (test-genie requirements validate)
+  sync <name>                       Update requirement status fields via native syncer
   phase <name> --phase <phase> [--output path]
                                     Inspect expected validations for a single phase (phase-inspect mode)
 
@@ -300,24 +299,13 @@ scenario::requirements::manual_log() {
         return 1
     fi
 
-    if ! command -v node >/dev/null 2>&1; then
-        log::error "Node.js is required to log manual validations"
-        return 1
-    fi
+    local scenario_dir
+    scenario_dir=$(scenario::requirements::_ensure_scenario_dir "$scenario_name") || return 1
 
-    local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
-    if [[ ! -d "$scenario_dir" ]]; then
-        log::error "Scenario directory not found: $scenario_dir"
-        return 1
-    fi
+    local test_genie_cli
+    test_genie_cli=$(scenario::requirements::_test_genie_cli) || return 1
 
-    local manual_logger="${APP_ROOT}/scripts/requirements/manual-log.js"
-    if [[ ! -f "$manual_logger" ]]; then
-        log::error "Manual validation logger not found at $manual_logger"
-        return 1
-    fi
-
-    local cmd=(node "$manual_logger" --scenario "$scenario_name" --requirement "$requirement_id" --status "$status" --validated-by "$validated_by")
+    local cmd=("$test_genie_cli" requirements manual-log --dir "$scenario_dir" --scenario "$scenario_name" --requirement "$requirement_id" --status "$status" --validated-by "$validated_by")
     if [[ -n "$notes" ]]; then
         cmd+=(--notes "$notes")
     fi
@@ -475,20 +463,12 @@ scenario::requirements::lint_prd() {
     local scenario_dir
     scenario_dir=$(scenario::requirements::_ensure_scenario_dir "$scenario_name") || return 1
 
-    if ! command -v node >/dev/null 2>&1; then
-        log::error "Node.js is required for linting PRD mappings"
-        return 1
-    fi
+    local test_genie_cli
+    test_genie_cli=$(scenario::requirements::_test_genie_cli) || return 1
 
-    local lint_script="${APP_ROOT}/scripts/requirements/lint-prd.js"
-    if [ ! -f "$lint_script" ]; then
-        log::error "Lint script not found at $lint_script"
-        return 1
-    fi
-
-    local cmd=(node "$lint_script" --scenario "$scenario_name")
+    local cmd=("$test_genie_cli" requirements lint-prd --dir "$scenario_dir" --scenario "$scenario_name")
     if [ "$json_output" = true ]; then
-        cmd+=(--format json)
+        cmd+=(--json)
     fi
 
     (cd "$scenario_dir" && "${cmd[@]}")
@@ -512,6 +492,18 @@ scenario::requirements::_ensure_scenario_dir() {
     fi
     echo "$scenario_dir"
     return 0
+}
+
+scenario::requirements::_test_genie_cli() {
+    local cli_path="${VROOLI_TEST_GENIE_CLI:-${APP_ROOT}/scenarios/test-genie/cli/test-genie}"
+    if [[ -x "$cli_path" ]]; then
+        echo "$cli_path"
+        return 0
+    fi
+
+    log::error "test-genie CLI not found at $cli_path"
+    log::info "Build test-genie with: cd ${APP_ROOT}/scenarios/test-genie && make build"
+    return 1
 }
 
 scenario::requirements::validate() {
@@ -543,23 +535,15 @@ scenario::requirements::validate() {
     local scenario_dir
     scenario_dir=$(scenario::requirements::_ensure_scenario_dir "$scenario_name") || return 1
 
-    if ! command -v node >/dev/null 2>&1; then
-        log::error "Node.js is required to run requirements validation"
-        return 1
-    fi
+    local test_genie_cli
+    test_genie_cli=$(scenario::requirements::_test_genie_cli) || return 1
 
-    local validator="${APP_ROOT}/scripts/requirements/validate.js"
-    if [ ! -f "$validator" ]; then
-        log::error "Validator not found at $validator"
-        return 1
-    fi
-
-    local args=(--scenario "$scenario_name")
+    local args=(requirements validate --dir "$scenario_dir" --scenario "$scenario_name")
     if [ "$quiet" = true ]; then
         args+=(--quiet)
     fi
 
-    (cd "$scenario_dir" && node "$validator" "${args[@]}")
+    (cd "$scenario_dir" && "$test_genie_cli" "${args[@]}")
 }
 
 scenario::requirements::sync() {
@@ -586,18 +570,10 @@ scenario::requirements::sync() {
     local scenario_dir
     scenario_dir=$(scenario::requirements::_ensure_scenario_dir "$scenario_name") || return 1
 
-    if ! command -v node >/dev/null 2>&1; then
-        log::error "Node.js is required to run requirements sync"
-        return 1
-    fi
+    local test_genie_cli
+    test_genie_cli=$(scenario::requirements::_test_genie_cli) || return 1
 
-    local reporter="${APP_ROOT}/scripts/requirements/report.js"
-    if [ ! -f "$reporter" ]; then
-        log::error "Requirements reporter not found at $reporter"
-        return 1
-    fi
-
-    (cd "$scenario_dir" && node "$reporter" --scenario "$scenario_name" --mode sync)
+    (cd "$scenario_dir" && "$test_genie_cli" requirements sync --dir "$scenario_dir" --scenario "$scenario_name")
 }
 
 scenario::requirements::phase_inspect() {
@@ -619,7 +595,7 @@ scenario::requirements::phase_inspect() {
                 cat <<'__REQ_PHASE_HELP__'
 Usage: vrooli scenario requirements phase <name> --phase <phase> [--output path]
 
-Runs `scripts/requirements/report.js --mode phase-inspect` to list the validations expected for a
+Runs `test-genie requirements phase --phase <phase>` to list the validations expected for a
 specific phase. Handy when wiring automation assets to requirement entries.
 __REQ_PHASE_HELP__
                 return 0
@@ -644,18 +620,10 @@ __REQ_PHASE_HELP__
     local scenario_dir
     scenario_dir=$(scenario::requirements::_ensure_scenario_dir "$scenario_name") || return 1
 
-    if ! command -v node >/dev/null 2>&1; then
-        log::error "Node.js is required to inspect phase validations"
-        return 1
-    fi
+    local test_genie_cli
+    test_genie_cli=$(scenario::requirements::_test_genie_cli) || return 1
 
-    local reporter="${APP_ROOT}/scripts/requirements/report.js"
-    if [ ! -f "$reporter" ]; then
-        log::error "Requirements reporter not found at $reporter"
-        return 1
-    fi
-
-    local cmd=(node "$reporter" --scenario "$scenario_name" --mode phase-inspect --phase "$phase_name")
+    local cmd=("$test_genie_cli" requirements phase --dir "$scenario_dir" --scenario "$scenario_name" --phase "$phase_name")
     if [ -n "$output_path" ]; then
         mkdir -p "$(dirname "$output_path")"
         (cd "$scenario_dir" && "${cmd[@]}") > "$output_path"
@@ -668,7 +636,7 @@ __REQ_PHASE_HELP__
 scenario::requirements::init() {
     local scenario_name=""
     local force=false
-    local template_name="react-vite"
+    local template_name="modular"
     local owner_contact=""
 
     while [[ $# -gt 0 ]]; do
@@ -717,69 +685,23 @@ __REQ_INIT_HELP__
         return 1
     fi
 
-    local template_dir="${APP_ROOT}/scripts/scenarios/templates/react-vite/requirements"
-    if [ ! -d "$template_dir" ]; then
-        log::error "Cannot locate requirements template at $template_dir"
-        log::info "Ensure the repository includes scripts/scenarios/templates/react-vite/requirements"
-        return 1
+    local test_genie_cli
+    test_genie_cli=$(scenario::requirements::_test_genie_cli) || return 1
+
+    local args=(requirements init --dir "$scenario_dir" --scenario "$scenario_name" --template "$template_name")
+    if [ "$force" = true ]; then
+        args+=(--force)
+    fi
+    if [ -n "$owner_contact" ]; then
+        args+=(--owner "$owner_contact")
     fi
 
-    local target_dir="${scenario_dir}/requirements"
-    if [ -e "$target_dir" ] && [ "$force" = false ]; then
-        log::error "${target_dir} already exists. Re-run with --force to overwrite."
-        return 1
-    fi
-
-    rm -rf "$target_dir"
-    mkdir -p "$target_dir"
-    (cd "$template_dir" && tar -cf - .) | (cd "$target_dir" && tar -xf -)
-
-    local generated_date
-    generated_date=$(date -I)
-    if [ -z "$owner_contact" ]; then
-        owner_contact="engineering@${scenario_name}.local"
-    fi
-
-    local replace_script
-    replace_script=$(cat <<'PY'
-import os
-from pathlib import Path
-
-scenario = os.environ["REQ_SCENARIO_NAME"]
-generated = os.environ["REQ_GENERATED_DATE"]
-contact = os.environ["REQ_CONTACT"]
-file_path = Path(os.environ["REQ_FILE"])
-text = file_path.read_text()
-text = text.replace("__SCENARIO_NAME__", scenario)
-text = text.replace("__GENERATED_DATE__", generated)
-text = text.replace("__CONTACT__", contact)
-file_path.write_text(text)
-PY
-)
-
-    while IFS= read -r -d '' file; do
-        REQ_FILE="$file" \
-        REQ_SCENARIO_NAME="$scenario_name" \
-        REQ_GENERATED_DATE="$generated_date" \
-        REQ_CONTACT="$owner_contact" \
-        python3 - <<PY
-$replace_script
-PY
-    done < <(find "$target_dir" -type f -name '*.yaml' -print0)
-
-    log::success "Initialized requirements/ registry for ${scenario_name} using ${template_name} template"
-    log::info "Edit files under ${target_dir} to map PRD items to technical requirements."
-    log::info "Next steps:"$'\n'
-    log::info "  • Read docs/testing/guides/requirement-tracking-quick-start.md for how to structure requirements and tag tests"
-    log::info "  • Review docs/testing/architecture/REQUIREMENT_FLOW.md for the full PRD → requirement → validation flow"
-    log::info "  • After tagging tests with [REQ:ID], run 'node scripts/requirements/report.js --scenario ${scenario_name} --mode sync' to propagate results"
+    (cd "$scenario_dir" && "$test_genie_cli" "${args[@]}")
 }
 
 scenario::requirements::quick_check() {
     local scenario_name="$1"
     local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
-    local reporter="${APP_ROOT}/scripts/requirements/report.js"
-    local validator="${APP_ROOT}/scripts/requirements/validate.js"
 
     if [ ! -d "$scenario_dir" ]; then
         printf '%s\n' '{"status":"not_found","message":"Scenario directory not found"}'
@@ -791,23 +713,19 @@ scenario::requirements::quick_check() {
         return 0
     fi
 
-    if ! command -v node >/dev/null 2>&1; then
-        printf '%s\n' '{"status":"unavailable","message":"Node.js not available","recommendation":"Install Node.js to evaluate requirement coverage."}'
-        return 0
-    fi
-
     if ! command -v jq >/dev/null 2>&1; then
         printf '%s\n' '{"status":"unavailable","message":"jq not available","recommendation":"Install jq to evaluate requirement coverage."}'
         return 0
     fi
 
-    if [ ! -f "$reporter" ]; then
-        printf '%s\n' '{"status":"unavailable","message":"requirements/report.js not found"}'
+    local test_genie_cli
+    if ! test_genie_cli=$(scenario::requirements::_test_genie_cli); then
+        printf '%s\n' '{"status":"unavailable","message":"test-genie CLI not available","recommendation":"Build test-genie (cd scenarios/test-genie && make build)"}'
         return 0
     fi
 
     local report_json
-    if ! report_json=$(cd "$scenario_dir" && node "$reporter" --scenario "$scenario_name" --format json 2>/dev/null); then
+    if ! report_json=$(cd "$scenario_dir" && "$test_genie_cli" requirements report --dir "$scenario_dir" --scenario "$scenario_name" --format json 2>/dev/null); then
         printf '%s\n' '{"status":"error","message":"Failed to generate requirements summary"}'
         return 0
     fi
@@ -815,17 +733,17 @@ scenario::requirements::quick_check() {
     local metrics
     metrics=$(echo "$report_json" | jq '{
         total: (.summary.total // 0),
-        complete: (.summary.byStatus.complete // 0),
-        in_progress: (.summary.byStatus.in_progress // 0),
-        pending: (.summary.byStatus.pending // 0),
-        criticality_gap: (.summary.criticalityGap // 0)
+        complete: (.summary.complete // 0),
+        in_progress: (.summary.in_progress // 0),
+        pending: (.summary.pending // 0),
+        criticality_gap: (.summary.critical_gap // 0)
     } | .coverage_ratio = (if .total == 0 then 0 else (.complete / (.total)) end)
       | .status = (if .total == 0 then "empty" elif .criticality_gap > 0 then "critical_gap" elif .complete == .total then "complete" else "incomplete" end)')
 
     local drift_json="null"
-    if [ -d "${scenario_dir}/requirements" ] && command -v node >/dev/null 2>&1; then
+    if [ -d "${scenario_dir}/requirements" ]; then
         local drift_raw
-        if drift_raw=$(cd "$scenario_dir" && node "$APP_ROOT/scripts/requirements/drift-check.js" --scenario "$scenario_name" 2>/dev/null); then
+        if drift_raw=$(cd "$scenario_dir" && "$test_genie_cli" requirements drift --dir "$scenario_dir" --scenario "$scenario_name" --json 2>/dev/null); then
             if echo "$drift_raw" | jq -e . >/dev/null 2>&1; then
                 drift_json="$drift_raw"
             fi
@@ -860,16 +778,12 @@ scenario::requirements::quick_check() {
 
     local schema_status="unavailable"
     local schema_message=""
-    if [ -f "$validator" ]; then
-        local validator_output=""
-        if validator_output=$(cd "$scenario_dir" && node "$validator" --scenario "$scenario_name" --quiet 2>&1); then
-            schema_status="valid"
-        else
-            schema_status="invalid"
-            schema_message=$(printf '%s' "$validator_output" | tail -n 12)
-        fi
+    local validator_output=""
+    if validator_output=$(cd "$scenario_dir" && "$test_genie_cli" requirements validate --dir "$scenario_dir" --scenario "$scenario_name" --quiet 2>&1); then
+        schema_status="valid"
     else
-        schema_message="Schema validator not installed"
+        schema_status="invalid"
+        schema_message=$(printf '%s' "$validator_output" | tail -n 12)
     fi
 
     jq -n \
@@ -901,7 +815,7 @@ scenario::requirements::display_summary() {
     status=$(echo "$summary_json" | jq -r '.status // "unknown"')
 
     if [[ "$status" == "missing" ]]; then
-        local requirements_doc_path="${APP_ROOT}/docs/testing/guides/requirement-tracking.md"
+        local requirements_doc_path="${APP_ROOT}/scenarios/test-genie/docs/phases/business/requirements-sync.md"
         if [[ -f "$requirements_doc_path" ]]; then
             local already_listed="false"
             if [[ -n "${SCENARIO_STATUS_EXTRA_DOC_LINKS:-}" ]]; then
@@ -996,7 +910,7 @@ scenario::requirements::display_summary() {
                 echo "  • Validator output:"
                 printf '%s\n' "$schema_message" | sed 's/\r$//' | sed 's/^/      /'
             fi
-            echo "  • Run: node scripts/requirements/validate.js --scenario ${scenario_name}"
+            echo "  • Run: vrooli scenario requirements validate ${scenario_name}"
             ;;
         unavailable)
             if [ -n "$schema_message" ]; then
@@ -1010,96 +924,21 @@ scenario::requirements::display_summary() {
     if [ "$drift_section" != "null" ]; then
         local drift_status
         drift_status=$(echo "$drift_section" | jq -r '.status // empty')
-        local drift_issues
-        drift_issues=$(echo "$drift_section" | jq -r '.issue_count // 0')
         case "$drift_status" in
             missing_snapshot)
-                log::warning "Requirements: ⚠️  Drift snapshot missing; run test/run-tests.sh to regenerate requirements metadata"
+                log::warning "Requirements: ⚠️  Snapshot missing; run the scenario test suite to refresh requirements metadata"
                 ;;
             drift_detected)
-                log::error "Requirements: 🔴 Drift detected (${drift_issues} issue(s))"
+                log::error "Requirements: 🔴 Drift detected"
                 ;;
         esac
 
-        local file_drift
-        file_drift=$(echo "$drift_section" | jq -r '.file_drift.has_drift // false')
-        if [ "$file_drift" = "true" ]; then
-            local mismatch_count new_count missing_count
-            mismatch_count=$(echo "$drift_section" | jq -r '.file_drift.mismatched | length')
-            new_count=$(echo "$drift_section" | jq -r '.file_drift.new_files | length')
-            missing_count=$(echo "$drift_section" | jq -r '.file_drift.missing_from_disk | length')
-            echo "  • Requirement files changed outside auto-sync (mismatched: ${mismatch_count}, new: ${new_count}, missing: ${missing_count})"
-        fi
-
-        local artifact_stale
-        artifact_stale=$(echo "$drift_section" | jq -r '.artifact_stale // false')
-        if [ "$artifact_stale" = "true" ]; then
-            local latest_artifact
-            latest_artifact=$(echo "$drift_section" | jq -r '.latest_artifact_at // empty')
-            echo "  • Newer coverage artifacts detected (${latest_artifact}); rerun auto-sync"
-        fi
-
-        local prd_has_drift
-        prd_has_drift=$(echo "$drift_section" | jq -r '.prd.has_drift // false')
-        if [ "$prd_has_drift" = "true" ]; then
-            local prd_mismatches
-            prd_mismatches=$(echo "$drift_section" | jq -r '.prd.mismatches | length')
-            local prd_missing
-            prd_missing=$(echo "$drift_section" | jq -r '.prd.missing_in_snapshot | length')
-            echo "  • PRD mismatch (${prd_mismatches} status differences, ${prd_missing} missing targets)"
-        fi
-
-        local manual_info
-        manual_info=$(echo "$drift_section" | jq -c '.manual // null' 2>/dev/null || echo 'null')
-        if [ "$manual_info" != "null" ]; then
-            local manual_total manual_issue_count
-            manual_total=$(echo "$manual_info" | jq -r '.total // 0')
-            manual_issue_count=$(echo "$manual_info" | jq -r '.issue_count // 0')
-            if [ "$manual_total" != "0" ]; then
-                echo "  • Manual validations: ${manual_total} tracked"
-            fi
-            local manual_manifest_missing
-            manual_manifest_missing=$(echo "$manual_info" | jq -r '.manifest_missing // false')
-            if [ "$manual_manifest_missing" = "true" ]; then
-                echo "    ↳ Manifest missing; run manual validations via 'vrooli scenario requirements manual-log'"
-            fi
-            local manual_expired_count
-            manual_expired_count=$(echo "$manual_info" | jq -r '.expired | length')
-            if [ "$manual_expired_count" != "0" ]; then
-                local expired_list
-                expired_list=$(echo "$manual_info" | jq -r '.expired | join(", ")')
-                echo "    ↳ Expired entries (${manual_expired_count}): ${expired_list}"
-            fi
-            local manual_missing_meta
-            manual_missing_meta=$(echo "$manual_info" | jq -r '.missing_metadata | length')
-            if [ "$manual_missing_meta" != "0" ]; then
-                local missing_list
-                missing_list=$(echo "$manual_info" | jq -r '.missing_metadata | join(", ")')
-                echo "    ↳ Manual validations missing metadata: ${missing_list}"
-            fi
-            local manual_unsynced
-            manual_unsynced=$(echo "$manual_info" | jq -r '.unsynced | length')
-            if [ "$manual_unsynced" != "0" ]; then
-                local unsynced_list
-                unsynced_list=$(echo "$manual_info" | jq -r '.unsynced | join(", ")')
-                echo "    ↳ Manual logs newer than requirements: ${unsynced_list} (rerun tests + sync)"
-            fi
-            local manual_missing_entries
-            manual_missing_entries=$(echo "$manual_info" | jq -r '.manifest_missing_entries | length')
-            if [ "$manual_missing_entries" != "0" ]; then
-                local missing_entries_list
-                missing_entries_list=$(echo "$manual_info" | jq -r '.manifest_missing_entries | join(", ")')
-                echo "    ↳ Manifest missing entries for: ${missing_entries_list}"
-            fi
-            if [ "$manual_issue_count" != "0" ]; then
-                printf -v SCENARIO_STATUS_EXTRA_RECOMMENDATIONS "%sRevalidate manual requirements or replace them with automated workflows (use 'vrooli scenario requirements manual-log').\n" "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS}"
-            fi
-        fi
-
-        local drift_recommendation
-        drift_recommendation=$(echo "$drift_section" | jq -r '.recommendation // empty')
-        if [ -n "$drift_recommendation" ]; then
-            printf -v SCENARIO_STATUS_EXTRA_RECOMMENDATIONS "%s%s\n" "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS}" "$drift_recommendation"
+        local drift_messages
+        drift_messages=$(echo "$drift_section" | jq -r '.messages[]?' 2>/dev/null || true)
+        if [ -n "$drift_messages" ]; then
+            while IFS= read -r msg; do
+                [ -n "$msg" ] && echo "  • ${msg}"
+            done <<< "$drift_messages"
         fi
     fi
 }

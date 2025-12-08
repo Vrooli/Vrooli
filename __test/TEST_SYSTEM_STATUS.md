@@ -27,6 +27,7 @@ The `__test/` system has been successfully migrated to the Tier 2 mock architect
 - **Direct Tests:** 12/12 passing
 - **BATS Tests:** 7/7 passing
 - **Coverage:** Core services + cross-service integration
+- **Scenario Suites:** Delegated to `test-genie execute --preset quick` (legacy bash runner removed)
 
 ## 📈 Key Metrics
 

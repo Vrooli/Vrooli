@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vrooli.com/schemas/requirements.json",
+  "$id": "https://vrooli.com/schemas/requirements.schema.json",
   "title": "Vrooli Requirements Registry",
   "description": "Schema for scenario requirement registries with validation tracking and live test evidence integration",
   "type": "object",
@@ -138,7 +138,7 @@
         },
         "ref": {
           "type": "string",
-          "description": "File path reference (test file, automation workflow, etc.). MUST be specific test file, NOT generic phase script like test/phases/*.sh. See docs/testing/guides/requirement-tracking.md#validation-specificity-requirements. Runtime validation enforced in scripts/requirements/validate.js."
+          "description": "File path reference (test file, automation workflow, etc.). MUST be specific test file, NOT generic phase script like test/phases/*.sh. See docs/testing/guides/requirement-tracking.md#validation-specificity-requirements. Runtime validation enforced via test-genie requirements validation."
         },
         "workflow_id": {
           "type": "string",

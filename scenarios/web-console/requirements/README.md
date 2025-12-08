@@ -15,13 +15,13 @@ Run coverage reports with:
 
 ```bash
 # JSON output (for CI/automation)
-node ../../scripts/requirements/report.js --scenario web-console --format json
+vrooli scenario requirements report web-console --format json
 
 # Markdown output (for README badges)
-node ../../scripts/requirements/report.js --scenario web-console --format markdown
+vrooli scenario requirements report web-console --format markdown
 
 # Auto-sync from test results
-node ../../scripts/requirements/report.js --scenario web-console --mode sync
+vrooli scenario requirements sync web-console
 ```
 
 ## Operational Targets

@@ -185,6 +185,19 @@ View Test Genie health and queue status:
 test-genie status
 ```
 
+### Manage Requirements (local, no Node required)
+
+Generate coverage, validate registries, sync statuses, and log manual validations using the native Go requirements service:
+
+```bash
+test-genie requirements report --format markdown         # or json|trace|summary
+test-genie requirements validate                         # schema + semantic checks
+test-genie requirements sync --command "suite demo"      # update statuses from evidence
+test-genie requirements manual-log --requirement REQ-001 --status passed --notes "UI verified"
+test-genie requirements lint-prd                         # PRD ↔ requirements mapping
+test-genie requirements drift                            # detect stale snapshot/evidence/manuals
+```
+
 ## Design Principles
 
 ### Screaming Architecture

@@ -7,6 +7,7 @@ import (
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
 	"test-genie/cli/registry"
+	"test-genie/cli/requirements"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
 	"test-genie/cli/uismoke"
@@ -122,6 +123,12 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 				NeedsAPI:    false,
 				Description: "Manage playbook registries",
 				Run:         func(args []string) error { return registry.Run(args) },
+			},
+			{
+				Name:        "requirements",
+				NeedsAPI:    false,
+				Description: "Inspect and sync scenario requirements",
+				Run:         func(args []string) error { return requirements.Run(args) },
 			},
 		},
 	}
