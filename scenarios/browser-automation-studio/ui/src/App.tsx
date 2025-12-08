@@ -29,7 +29,7 @@ const RecordModePage = lazy(() => import("@features/record-mode/RecordModePage")
 
 // Stores and hooks
 import { useExecutionStore } from "@stores/executionStore";
-import { useProjectStore, type Project } from "@stores/projectStore";
+import { useProjectStore, type Project, buildProjectFolderPath } from "@stores/projectStore";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
 import { useScenarioStore } from "@stores/scenarioStore";
 import { useDashboardStore, type RecentWorkflow } from "@stores/dashboardStore";
@@ -496,7 +496,7 @@ function App() {
         const project = await useProjectStore.getState().createProject({
           name: 'My Automations',
           description: 'Automated workflows',
-          folder_path: '/automations',
+          folder_path: buildProjectFolderPath('my-automations'),
         });
         setCurrentProject(project);
         // Then open AI modal with the prompt
@@ -568,7 +568,7 @@ function App() {
       const project = await useProjectStore.getState().createProject({
         name: 'My Automations',
         description: 'Automated browser workflows',
-        folder_path: '/automations',
+        folder_path: buildProjectFolderPath('my-automations'),
       });
 
       // Create an empty workflow in the project

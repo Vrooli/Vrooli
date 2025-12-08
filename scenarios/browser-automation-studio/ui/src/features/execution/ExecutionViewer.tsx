@@ -8,7 +8,6 @@ import {
   useId,
   type MutableRefObject,
 } from "react";
-import { fromJson } from "@bufbuild/protobuf";
 import {
   Activity,
   Pause,
@@ -32,37 +31,14 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import clsx from "clsx";
-import type {
-  ReplayFrame,
-  ReplayChromeTheme,
-  ReplayBackgroundTheme,
-  ReplayCursorTheme,
-  ReplayCursorInitialPosition,
-  ReplayCursorClickAnimation,
-} from "./ReplayPlayer";
 import { useExecutionStore } from "@stores/executionStore";
-import type {
-  Execution,
-  TimelineFrame,
-} from "@stores/executionStore";
-import {
-  type ExecutionExportPreview as ProtoExecutionExportPreview,
-  ExecutionExportPreviewSchema,
-} from "@vrooli/proto-types/browser-automation-studio/v1/execution_pb";
-import { ExportStatus } from "@vrooli/proto-types/browser-automation-studio/v1/shared_pb";
+import type { Execution, TimelineFrame } from "@stores/executionStore";
 import { useWorkflowStore } from "@stores/workflowStore";
-import { useExportStore, type Export } from "@stores/exportStore";
+import { useExportStore } from "@stores/exportStore";
 import { ExportSuccessPanel } from "./ExportSuccessPanel";
 import type { Screenshot, LogEntry } from "@stores/executionEventProcessor";
 import { toast } from "react-hot-toast";
-import { ResponsiveDialog } from "@shared/layout";
-import { getConfig } from "@/config";
 import { logger } from "@utils/logger";
-import type {
-  ReplayMovieSpec,
-  ReplayMovieFrameRect,
-  ReplayMoviePresentation,
-} from "@/types/export";
 import { resolveUrl } from "@utils/executionTypeMappers";
 import ExecutionHistory from "./ExecutionHistory";
 import { selectors } from "@constants/selectors";
@@ -72,27 +48,14 @@ import {
   describePreviewStatusMessage,
   formatCapturedLabel,
   normalizePreviewStatus,
-  stripApiSuffix,
-  mapExportStatus,
-  type ExportStatusLabel,
 } from "./utils/exportHelpers";
-import {
-  DEFAULT_EXPORT_HEIGHT,
-  DEFAULT_EXPORT_WIDTH,
-  DIMENSION_PRESET_CONFIG,
-  EXPORT_EXTENSIONS,
-  EXPORT_FORMAT_OPTIONS,
-  type ExportDimensionPreset,
-  type ExportFormat,
-  coerceMetricNumber,
-  sanitizeFileStem,
-} from "./viewer/exportConfig";
+import { coerceMetricNumber } from "./viewer/exportConfig";
 import { useReplayCustomization } from "./viewer/useReplayCustomization";
 import ReplayCustomizationPanel from "./viewer/ReplayCustomizationPanel";
 import ExportDialog from "./viewer/ExportDialog";
 import ActiveExecutionTabs from "./viewer/ActiveExecutionTabs";
-// Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
-const MOVIE_SPEC_POLL_INTERVAL_MS = 4000;
+import { useExecutionHeartbeat, formatSeconds } from "./viewer/useExecutionHeartbeat";
+import { useExecutionExport } from "./viewer/useExecutionExport";
 
 interface ActiveExecutionProps {
   execution: Execution;
@@ -101,32 +64,6 @@ interface ActiveExecutionProps {
 }
 
 export type ViewerTab = "replay" | "screenshots" | "logs" | "executions";
-
-const HEARTBEAT_WARN_SECONDS = 8;
-const HEARTBEAT_STALL_SECONDS = 15;
-
-type SaveFilePickerOptions = {
-  suggestedName?: string;
-  types?: Array<{
-    description?: string;
-    accept: Record<string, string[]>;
-  }>;
-};
-
-type FileSystemWritableFileStream = {
-  write: (data: BlobPart) => Promise<void>;
-  close: () => Promise<void>;
-};
-
-type FileSystemFileHandle = {
-  createWritable: () => Promise<FileSystemWritableFileStream>;
-};
-
-export interface ExportPreviewMetrics {
-  capturedFrames: number;
-  assetCount: number;
-  totalDurationMs: number;
-}
 
 type ExecutionExportPreview = {
   executionId: string;
@@ -137,44 +74,6 @@ type ExecutionExportPreview = {
   availableAssetCount: number;
   totalDurationMs: number;
   package?: ReplayMovieSpec;
-};
-
-const EXPORT_PREVIEW_PARSE_OPTIONS = {
-  jsonOptions: { useProtoNames: true, ignoreUnknownFields: false },
-} as const;
-
-export const parseExportPreviewPayload = (
-  raw: unknown,
-): {
-  preview: ProtoExecutionExportPreview;
-  status: ExportStatusLabel;
-  metrics: ExportPreviewMetrics;
-  movieSpec: ReplayMovieSpec | null;
-} => {
-  const preview = fromJson(
-    ExecutionExportPreviewSchema,
-    raw as any,
-    EXPORT_PREVIEW_PARSE_OPTIONS,
-  );
-
-  const status = mapExportStatus(preview.status);
-  const metrics: ExportPreviewMetrics = {
-    capturedFrames: typeof preview.capturedFrameCount === "number"
-      ? preview.capturedFrameCount
-      : 0,
-    assetCount: typeof preview.availableAssetCount === "number"
-      ? preview.availableAssetCount
-      : 0,
-    totalDurationMs: typeof preview.totalDurationMs === "number"
-      ? preview.totalDurationMs
-      : 0,
-  };
-
-  const movieSpec = preview.package
-    ? (preview.package as unknown as ReplayMovieSpec)
-    : null;
-
-  return { preview, status, metrics, movieSpec };
 };
 
 function ActiveExecutionViewer({
@@ -200,11 +99,19 @@ function ActiveExecutionViewer({
     useState<Screenshot | null>(null);
   const [hasAutoOpenedScreenshots, setHasAutoOpenedScreenshots] =
     useState(false);
-  const [, setHeartbeatTick] = useState(0);
   const [isStopping, setIsStopping] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isSwitchingExecution, setIsSwitchingExecution] = useState(false);
   const replayCustomization = useReplayCustomization({ executionId: execution.id });
+  const { heartbeatDescriptor, inStepLabel } = useExecutionHeartbeat(execution);
+  const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const preloadedWorkflowRef = useRef<string | null>(null);
+  const composerRef = useRef<HTMLIFrameElement | null>(null);
+  const composerWindowRef = useRef<Window | null>(null);
+  const composerOriginRef = useRef<string | null>(null);
+  const [isComposerReady, setIsComposerReady] = useState(false);
+  const composerFrameStateRef = useRef({ frameIndex: 0, progress: 0 });
+  const { createExport } = useExportStore();
   const {
     replayChromeTheme,
     replayBackgroundTheme,
@@ -245,158 +152,43 @@ function ActiveExecutionViewer({
     handleCursorClickAnimationSelect,
     handleCursorScaleChange,
   } = replayCustomization;
-  const screenshotRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const preloadedWorkflowRef = useRef<string | null>(null);
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("mp4");
-  const [exportFileStem, setExportFileStem] = useState<string>(
-    () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
-  );
-  const [useNativeFilePicker, setUseNativeFilePicker] = useState(false);
-  const [dimensionPreset, setDimensionPreset] =
-    useState<ExportDimensionPreset>("spec");
-  const [customWidthInput, setCustomWidthInput] = useState<string>(() =>
-    String(DEFAULT_EXPORT_WIDTH),
-  );
-  const [customHeightInput, setCustomHeightInput] = useState<string>(() =>
-    String(DEFAULT_EXPORT_HEIGHT),
-  );
-  const [exportPreview, setExportPreview] =
-    useState<ExecutionExportPreview | null>(null);
-  const [exportPreviewExecutionId, setExportPreviewExecutionId] = useState<
-    string | null
-  >(null);
-  const [isExportPreviewLoading, setIsExportPreviewLoading] = useState(false);
-  const [exportPreviewError, setExportPreviewError] = useState<string | null>(
-    null,
-  );
-  const [previewMetrics, setPreviewMetrics] = useState<ExportPreviewMetrics>({
-    capturedFrames: 0,
-    assetCount: 0,
-    totalDurationMs: 0,
+  const exportController = useExecutionExport({
+    execution,
+    replayFrames: execution.timeline ?? [],
+    workflowName,
+    replayCustomization,
+    createExport,
   });
-  const [activeSpecId, setActiveSpecId] = useState<string | null>(null);
-  const [movieSpec, setMovieSpec] = useState<ReplayMovieSpec | null>(null);
-  const [isMovieSpecLoading, setIsMovieSpecLoading] = useState(false);
-  const [movieSpecError, setMovieSpecError] = useState<string | null>(null);
-  const [composerApiBase, setComposerApiBase] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    const existing = (
-      window as typeof window & {
-        __BAS_EXPORT_API_BASE__?: unknown;
-      }
-    ).__BAS_EXPORT_API_BASE__;
-    return typeof existing === "string" && existing.trim().length > 0
-      ? existing.trim()
-      : null;
-  });
-  const composerRef = useRef<HTMLIFrameElement | null>(null);
-  const composerWindowRef = useRef<Window | null>(null);
-  const composerOriginRef = useRef<string | null>(null);
-  const previewComposerRef = useRef<HTMLIFrameElement | null>(null);
-  const composerPreviewWindowRef = useRef<Window | null>(null);
-  const composerPreviewOriginRef = useRef<string | null>(null);
-  const [isComposerReady, setIsComposerReady] = useState(false);
-  const [isPreviewComposerReady, setIsPreviewComposerReady] = useState(false);
-  const [previewComposerError, setPreviewComposerError] = useState<
-    string | null
-  >(null);
-  const composerFrameStateRef = useRef({ frameIndex: 0, progress: 0 });
-  const movieSpecRetryTimeoutRef = useRef<number | null>(null);
-  const movieSpecAbortControllerRef = useRef<AbortController | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [showExportSuccess, setShowExportSuccess] = useState(false);
-  const [lastCreatedExport, setLastCreatedExport] = useState<Export | null>(null);
-  const { createExport } = useExportStore();
-  const supportsFileSystemAccess =
-    typeof window !== "undefined" &&
-    typeof (window as typeof window & { showSaveFilePicker?: unknown })
-      .showSaveFilePicker === "function";
-
-  useEffect(() => {
-    if (composerApiBase) {
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const configData = await getConfig();
-        if (cancelled) {
-          return;
-        }
-        const derived = stripApiSuffix(configData.API_URL);
-        if (derived) {
-          setComposerApiBase((current) =>
-            current && current.length > 0 ? current : derived,
-          );
-        }
-      } catch (error) {
-        if (!cancelled) {
-          logger.warn(
-            "Failed to derive API base for replay composer",
-            { component: "ExecutionViewer", executionId: execution.id },
-            error,
-          );
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [composerApiBase, execution.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !composerApiBase) {
-      return;
-    }
-    (
-      window as typeof window & { __BAS_EXPORT_API_BASE__?: string }
-    ).__BAS_EXPORT_API_BASE__ = composerApiBase;
-  }, [composerApiBase]);
-
-  const specCanvasWidth =
-    movieSpec?.presentation?.canvas?.width ??
-    movieSpec?.presentation?.viewport?.width ??
-    DEFAULT_EXPORT_WIDTH;
-  const specCanvasHeight =
-    movieSpec?.presentation?.canvas?.height ??
-    movieSpec?.presentation?.viewport?.height ??
-    DEFAULT_EXPORT_HEIGHT;
-
-  const defaultExportFileStem = useMemo(
-    () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
-    [execution.id],
-  );
-
-  const composerUrl = useMemo(() => {
-    const embedOrigin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost";
-    const url = new URL("/export/composer.html", embedOrigin);
-    url.searchParams.set("mode", "embedded");
-    url.searchParams.set("executionId", execution.id);
-    url.searchParams.set("apiBase", composerApiBase ?? embedOrigin);
-    return url.toString();
-  }, [composerApiBase, execution.id]);
-
-  const composerPreviewUrl = useMemo(() => {
-    const embedOrigin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost";
-    const url = new URL("/export/composer.html", embedOrigin);
-    url.searchParams.set("mode", "embedded");
-    url.searchParams.set("executionId", execution.id);
-    url.searchParams.set("apiBase", composerApiBase ?? embedOrigin);
-    url.searchParams.set("context", "preview");
-    return url.toString();
-  }, [composerApiBase, execution.id]);
+  const {
+    composerUrl,
+    composerPreviewUrl,
+    movieSpecError,
+    setMovieSpecError,
+    isMovieSpecLoading,
+    preparedMovieSpec,
+    previewMetrics,
+    setPreviewMetrics,
+    activeSpecId,
+    setActiveSpecId,
+    exportDialogProps,
+    isExportDialogOpen,
+    openExportDialog,
+    closeExportDialog,
+    confirmExport,
+    showExportSuccess,
+    lastCreatedExport,
+    dismissExportSuccess,
+    replayFrames,
+  } = exportController;
+  const {
+    previewComposerRef,
+    composerPreviewWindowRef,
+    composerPreviewOriginRef,
+    setIsPreviewComposerReady,
+    setPreviewComposerError,
+    isPreviewComposerReady,
+    previewComposerError,
+  } = exportDialogProps;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -438,38 +230,7 @@ function ActiveExecutionViewer({
     }
   }, [composerPreviewUrl, execution.id]);
 
-  const getSanitizedFileStem = useCallback(
-    () => sanitizeFileStem(exportFileStem, defaultExportFileStem),
-    [exportFileStem, defaultExportFileStem],
-  );
-
-  const buildOutputFileName = useCallback(
-    (extension: string) => {
-      const stem = getSanitizedFileStem();
-      return `${stem}.${extension}`;
-    },
-    [getSanitizedFileStem],
-  );
-
-  const finalFileName = useMemo(
-    () => buildOutputFileName(EXPORT_EXTENSIONS[exportFormat]),
-    [buildOutputFileName, exportFormat],
-  );
-
-  const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const executionError = execution.error ?? undefined;
-
-  useEffect(() => {
-    if (execution.status !== "running" || !heartbeatTimestamp) {
-      return;
-    }
-    const interval = window.setInterval(() => {
-      setHeartbeatTick((tick) => tick + 1);
-    }, 1000);
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [execution.status, heartbeatTimestamp]);
 
   useEffect(() => {
     setHasAutoSwitchedToReplay(
@@ -478,176 +239,6 @@ function ActiveExecutionViewer({
     setActiveTab("replay");
     setSelectedScreenshot(null);
   }, [execution.id]);
-
-  useEffect(() => {
-    setIsExportDialogOpen(false);
-    setExportPreview(null);
-    setExportPreviewExecutionId(null);
-    setExportPreviewError(null);
-    setExportFileStem(defaultExportFileStem);
-    setUseNativeFilePicker(false);
-  }, [defaultExportFileStem]);
-
-  useEffect(() => {
-    setCustomWidthInput(String(specCanvasWidth));
-    setCustomHeightInput(String(specCanvasHeight));
-    setDimensionPreset("spec");
-  }, [execution.id, specCanvasWidth, specCanvasHeight]);
-
-  const clearMovieSpecRetryTimeout = useCallback(() => {
-    if (movieSpecRetryTimeoutRef.current != null) {
-      window.clearTimeout(movieSpecRetryTimeoutRef.current);
-      movieSpecRetryTimeoutRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      clearMovieSpecRetryTimeout();
-      if (movieSpecAbortControllerRef.current) {
-        movieSpecAbortControllerRef.current.abort();
-        movieSpecAbortControllerRef.current = null;
-      }
-    };
-  }, [clearMovieSpecRetryTimeout]);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (movieSpecAbortControllerRef.current) {
-      movieSpecAbortControllerRef.current.abort();
-      movieSpecAbortControllerRef.current = null;
-    }
-    clearMovieSpecRetryTimeout();
-
-    async function fetchMovieSpec() {
-      if (isCancelled) {
-        return;
-      }
-
-      if (movieSpecAbortControllerRef.current) {
-        movieSpecAbortControllerRef.current.abort();
-      }
-      const abortController = new AbortController();
-      movieSpecAbortControllerRef.current = abortController;
-
-      let shouldRetry = false;
-      try {
-        setIsMovieSpecLoading(true);
-        const configData = await getConfig();
-        const response = await fetch(
-          `${configData.API_URL}/executions/${execution.id}/export`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify({ format: "json" }),
-            signal: abortController.signal,
-          },
-        );
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || `Export request failed (${response.status})`);
-        }
-        const raw = await response.json();
-        if (isCancelled) {
-          return;
-        }
-        const {
-          preview,
-          status,
-          metrics,
-          movieSpec,
-        } = parseExportPreviewPayload(raw);
-        const specId =
-          (preview.specId && preview.specId.trim()) ||
-          preview.executionId ||
-          execution.id;
-
-        setPreviewMetrics(metrics);
-        setActiveSpecId(specId);
-
-        const message = describePreviewStatusMessage(
-          status,
-          preview.message,
-          metrics,
-        );
-        if (status !== "ready") {
-          setMovieSpec(null);
-          setMovieSpecError(message);
-          shouldRetry = status === "pending";
-          return;
-        }
-        if (!movieSpec) {
-          setMovieSpec(null);
-          setMovieSpecError(
-            "Replay export unavailable – missing export package",
-          );
-          return;
-        }
-        clearMovieSpecRetryTimeout();
-        setMovieSpec(movieSpec);
-        setMovieSpecError(null);
-      } catch (error) {
-        if (isCancelled) {
-          return;
-        }
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-        const message =
-          error instanceof Error ? error.message : "Failed to load replay spec";
-        setMovieSpecError(message);
-        setMovieSpec(null);
-        logger.error(
-          "Failed to load replay movie spec",
-          { component: "ExecutionViewer", executionId: execution.id },
-          error,
-        );
-        shouldRetry = execution.status === "running";
-      } finally {
-        if (!isCancelled) {
-          setIsMovieSpecLoading(false);
-        }
-        if (!isCancelled) {
-          movieSpecAbortControllerRef.current = null;
-        }
-        if (!isCancelled && shouldRetry) {
-          clearMovieSpecRetryTimeout();
-          movieSpecRetryTimeoutRef.current = window.setTimeout(() => {
-            void fetchMovieSpec();
-          }, MOVIE_SPEC_POLL_INTERVAL_MS);
-        }
-      }
-    }
-
-    setMovieSpecError(null);
-    setMovieSpec(null);
-    setIsMovieSpecLoading(true);
-    void fetchMovieSpec();
-
-    return () => {
-      isCancelled = true;
-      clearMovieSpecRetryTimeout();
-      if (movieSpecAbortControllerRef.current) {
-        movieSpecAbortControllerRef.current.abort();
-        movieSpecAbortControllerRef.current = null;
-      }
-    };
-  }, [
-    execution.id,
-    execution.status,
-    execution.timeline?.length,
-    clearMovieSpecRetryTimeout,
-  ]);
-
-  useEffect(() => {
-    if (exportFormat !== "json" && useNativeFilePicker) {
-      setUseNativeFilePicker(false);
-    }
-  }, [exportFormat, useNativeFilePicker]);
 
   useEffect(() => {
     if (!showExecutionSwitcher || !execution.workflowId) {
@@ -667,90 +258,6 @@ function ActiveExecutionViewer({
   }, [showExecutionSwitcher, activeTab]);
 
   useEffect(() => {
-    if (!isExportDialogOpen) {
-      return;
-    }
-    if (exportPreview && exportPreviewExecutionId === execution.id) {
-      return;
-    }
-    let isCancelled = false;
-    setIsExportPreviewLoading(true);
-    setExportPreviewError(null);
-    void (async () => {
-      try {
-        const configData = await getConfig();
-        const response = await fetch(
-          `${configData.API_URL}/executions/${execution.id}/export`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ format: "json" }),
-          },
-        );
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || `Export request failed (${response.status})`);
-        }
-        const raw = await response.json();
-        if (isCancelled) {
-          return;
-        }
-        const {
-          preview,
-          status,
-          metrics,
-          movieSpec,
-        } = parseExportPreviewPayload(raw);
-
-        const executionIdForPreview =
-          preview.executionId || execution.id;
-        const specId = (preview.specId && preview.specId.trim()) || executionIdForPreview;
-
-        const parsed: ExecutionExportPreview = {
-          executionId: executionIdForPreview,
-          specId,
-          status,
-          message: describePreviewStatusMessage(
-            status,
-            preview.message,
-            metrics,
-          ),
-          capturedFrameCount: metrics.capturedFrames,
-          availableAssetCount: metrics.assetCount,
-          totalDurationMs: metrics.totalDurationMs,
-          package: movieSpec ?? undefined,
-        };
-        setExportPreview(parsed);
-        setPreviewMetrics(metrics);
-        setActiveSpecId(specId);
-        setExportPreviewExecutionId(parsed.executionId);
-      } catch (error) {
-        if (isCancelled) {
-          return;
-        }
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to prepare export preview";
-        setExportPreviewError(message);
-        setExportPreview(null);
-      } finally {
-        if (!isCancelled) {
-          setIsExportPreviewLoading(false);
-        }
-      }
-    })();
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    execution.id,
-    exportPreview,
-    exportPreviewExecutionId,
-    isExportDialogOpen,
-  ]);
-
-  useEffect(() => {
     if (
       !hasAutoSwitchedToReplay &&
       execution.timeline &&
@@ -760,161 +267,6 @@ function ActiveExecutionViewer({
       setHasAutoSwitchedToReplay(true);
     }
   }, [execution.timeline, hasAutoSwitchedToReplay]);
-
-  const derivedHeartbeatTimestamp = useMemo(() => {
-    if (execution.lastHeartbeat?.timestamp) {
-      return execution.lastHeartbeat.timestamp;
-    }
-    const frames = execution.timeline ?? [];
-    for (let idx = frames.length - 1; idx >= 0; idx -= 1) {
-      const frame = frames[idx];
-      const rawTimestamp =
-        frame.completed_at ||
-        frame.completedAt ||
-        frame.started_at ||
-        frame.startedAt;
-      if (rawTimestamp) {
-        const parsed = new Date(rawTimestamp);
-        if (!Number.isNaN(parsed.getTime())) {
-          return parsed;
-        }
-      }
-    }
-    return undefined;
-  }, [execution.lastHeartbeat, execution.timeline]);
-
-  const heartbeatAgeSeconds = useMemo(() => {
-    if (!derivedHeartbeatTimestamp) {
-      return null;
-    }
-    const age = (Date.now() - derivedHeartbeatTimestamp.getTime()) / 1000;
-    return age < 0 ? 0 : age;
-  }, [derivedHeartbeatTimestamp]);
-
-  const inStepSeconds =
-    execution.lastHeartbeat?.elapsedMs != null
-      ? Math.max(0, execution.lastHeartbeat.elapsedMs / 1000)
-      : null;
-
-  const formatSeconds = (value: number) => {
-    if (Number.isNaN(value) || !Number.isFinite(value)) {
-      return "0s";
-    }
-    if (value >= 10) {
-      return `${Math.round(value)}s`;
-    }
-    return `${value.toFixed(1)}s`;
-  };
-
-  const heartbeatAgeLabel =
-    heartbeatAgeSeconds == null
-      ? null
-      : heartbeatAgeSeconds < 0.75
-        ? "just now"
-        : `${formatSeconds(heartbeatAgeSeconds)} ago`;
-
-  const inStepLabel =
-    inStepSeconds != null ? formatSeconds(inStepSeconds) : null;
-
-  type HeartbeatState = "idle" | "awaiting" | "healthy" | "delayed" | "stalled";
-
-  const heartbeatState: HeartbeatState = useMemo(() => {
-    const isRunning = execution.status === "running";
-    const hasHeartbeat = Boolean(
-      execution.lastHeartbeat || derivedHeartbeatTimestamp,
-    );
-    if (!hasHeartbeat) {
-      return isRunning ? "awaiting" : "idle";
-    }
-    if (heartbeatAgeSeconds == null) {
-      return "awaiting";
-    }
-    if (heartbeatAgeSeconds >= HEARTBEAT_STALL_SECONDS) {
-      return "stalled";
-    }
-    if (heartbeatAgeSeconds >= HEARTBEAT_WARN_SECONDS) {
-      return "delayed";
-    }
-    return "healthy";
-  }, [
-    execution.status,
-    execution.lastHeartbeat,
-    heartbeatAgeSeconds,
-    derivedHeartbeatTimestamp,
-  ]);
-
-  const heartbeatDescriptor = useMemo(() => {
-    const baseDescriptor = (() => {
-      switch (heartbeatState) {
-        case "idle":
-          if (execution.status === "running") {
-            return null;
-          }
-          return {
-            tone: "awaiting" as const,
-            iconClass: "text-amber-400",
-            textClass: "text-amber-200/90",
-            label: "No heartbeats recorded for this run",
-          };
-        case "awaiting":
-          return {
-            tone: "awaiting" as const,
-            iconClass: "text-amber-400",
-            textClass: "text-amber-200/90",
-            label: "Awaiting first heartbeat…",
-          };
-        case "healthy":
-          return {
-            tone: "healthy" as const,
-            iconClass: "text-blue-400",
-            textClass: "text-blue-200",
-            label: `Heartbeat ${heartbeatAgeLabel ?? "just now"}`,
-          };
-        case "delayed":
-          return {
-            tone: "delayed" as const,
-            iconClass: "text-amber-400",
-            textClass: "text-amber-200",
-            label: `Heartbeat delayed (${formatSeconds(heartbeatAgeSeconds ?? 0)} since last update)`,
-          };
-        case "stalled":
-          return {
-            tone: "stalled" as const,
-            iconClass: "text-red-400",
-            textClass: "text-red-200",
-            label: `Heartbeat stalled (${formatSeconds(heartbeatAgeSeconds ?? 0)} without update)`,
-          };
-        default:
-          return null;
-      }
-    })();
-
-    if (!baseDescriptor) {
-      return null;
-    }
-
-    const labelWithSource = execution.lastHeartbeat
-      ? baseDescriptor.label
-      : `${baseDescriptor.label} (timeline activity)`;
-
-    if (execution.status !== "running") {
-      return {
-        ...baseDescriptor,
-        label: `${labelWithSource} • Final heartbeat snapshot`,
-      };
-    }
-
-    return {
-      ...baseDescriptor,
-      label: labelWithSource,
-    };
-  }, [
-    heartbeatState,
-    heartbeatAgeLabel,
-    heartbeatAgeSeconds,
-    execution.status,
-    execution.lastHeartbeat,
-  ]);
 
   const statusMessage = useMemo(() => {
     const label =
@@ -945,359 +297,9 @@ function ActiveExecutionViewer({
   const isCancelled = execution.status === "cancelled";
   const canRestart =
     Boolean(execution.workflowId) && execution.status !== "running";
-
-  const timelineForReplay = useMemo(() => {
-    return (execution.timeline ?? []).filter((frame) => {
-      if (!frame) {
-        return false;
-      }
-      const type =
-        typeof frame.stepType === "string" ? frame.stepType.toLowerCase() : "";
-      return type !== "screenshot";
-    });
-  }, [execution.timeline]);
-
-  const replayFrames = useMemo<ReplayFrame[]>(() => {
-    return timelineForReplay.map((frame: TimelineFrame, index: number) => {
-      const resolvedScreenshot = frame.screenshot
-        ? {
-            ...frame.screenshot,
-            url: resolveUrl(frame.screenshot.url),
-            thumbnailUrl: resolveUrl(frame.screenshot.thumbnailUrl),
-          }
-        : undefined;
-
-      const hasScreenshot = Boolean(
-        resolvedScreenshot?.url || resolvedScreenshot?.thumbnailUrl,
-      );
-
-      return {
-        ...frame,
-        id: frame.id || `frame-${index}`,
-        screenshot: hasScreenshot ? resolvedScreenshot : undefined,
-      };
-    });
-  }, [timelineForReplay]);
-
-  const decoratedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
-    if (!movieSpec) {
-      return null;
-    }
-    const cursorSpec = movieSpec.cursor ?? {};
-    const decor = movieSpec.decor ?? {};
-    const motion = movieSpec.cursor_motion ?? {};
-    return {
-      ...movieSpec,
-      cursor: {
-        ...cursorSpec,
-        scale: replayCursorScale,
-        initial_position: replayCursorInitialPosition,
-        click_animation: replayCursorClickAnimation,
-      },
-      decor: {
-        ...decor,
-        chrome_theme: replayChromeTheme,
-        background_theme: replayBackgroundTheme,
-        cursor_theme: replayCursorTheme,
-        cursor_initial_position: replayCursorInitialPosition,
-        cursor_click_animation: replayCursorClickAnimation,
-        cursor_scale: replayCursorScale,
-      },
-      cursor_motion: {
-        ...motion,
-        initial_position: replayCursorInitialPosition,
-        click_animation: replayCursorClickAnimation,
-        cursor_scale: replayCursorScale,
-      },
-    };
-  }, [
-    movieSpec,
-    replayBackgroundTheme,
-    replayChromeTheme,
-    replayCursorTheme,
-    replayCursorInitialPosition,
-    replayCursorClickAnimation,
-    replayCursorScale,
-  ]);
-
-  const dimensionPresetOptions = useMemo(
-    () => [
-      {
-        id: "spec" as ExportDimensionPreset,
-        label: `Scenario (${specCanvasWidth}×${specCanvasHeight})`,
-        width: specCanvasWidth,
-        height: specCanvasHeight,
-        description: "Match recorded canvas",
-      },
-      {
-        id: "1080p" as ExportDimensionPreset,
-        label: DIMENSION_PRESET_CONFIG["1080p"].label,
-        width: DIMENSION_PRESET_CONFIG["1080p"].width,
-        height: DIMENSION_PRESET_CONFIG["1080p"].height,
-        description: "Great for polished exports",
-      },
-      {
-        id: "720p" as ExportDimensionPreset,
-        label: DIMENSION_PRESET_CONFIG["720p"].label,
-        width: DIMENSION_PRESET_CONFIG["720p"].width,
-        height: DIMENSION_PRESET_CONFIG["720p"].height,
-        description: "Smaller file size",
-      },
-      {
-        id: "custom" as ExportDimensionPreset,
-        label: "Custom size",
-        width: Number.parseInt(customWidthInput, 10) || DEFAULT_EXPORT_WIDTH,
-        height: Number.parseInt(customHeightInput, 10) || DEFAULT_EXPORT_HEIGHT,
-        description: "Set explicit pixel dimensions",
-      },
-    ],
-    [customHeightInput, customWidthInput, specCanvasHeight, specCanvasWidth],
-  );
-
-  const selectedDimensions = useMemo(() => {
-    switch (dimensionPreset) {
-      case "custom": {
-        const parsedWidth = Number.parseInt(customWidthInput, 10);
-        const parsedHeight = Number.parseInt(customHeightInput, 10);
-        return {
-          width:
-            Number.isFinite(parsedWidth) && parsedWidth > 0
-              ? parsedWidth
-              : DEFAULT_EXPORT_WIDTH,
-          height:
-            Number.isFinite(parsedHeight) && parsedHeight > 0
-              ? parsedHeight
-              : DEFAULT_EXPORT_HEIGHT,
-        };
-      }
-      case "1080p":
-      case "720p": {
-        const preset = DIMENSION_PRESET_CONFIG[dimensionPreset];
-        return { width: preset.width, height: preset.height };
-      }
-      case "spec":
-      default:
-        return { width: specCanvasWidth, height: specCanvasHeight };
-    }
-  }, [
-    customHeightInput,
-    customWidthInput,
-    dimensionPreset,
-    specCanvasHeight,
-    specCanvasWidth,
-  ]);
-
-  const preparedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
-    const base = decoratedMovieSpec ?? movieSpec;
-    if (!base) {
-      return null;
-    }
-    const cloned = JSON.parse(JSON.stringify(base)) as ReplayMovieSpec;
-    const width = selectedDimensions.width;
-    const height = selectedDimensions.height;
-
-    const basePresentation: ReplayMoviePresentation | undefined =
-      cloned.presentation ?? base.presentation;
-
-    const baseCanvasWidth =
-      basePresentation?.canvas?.width && basePresentation.canvas.width > 0
-        ? basePresentation.canvas.width
-        : width;
-    const baseCanvasHeight =
-      basePresentation?.canvas?.height && basePresentation.canvas.height > 0
-        ? basePresentation.canvas.height
-        : height;
-
-    const scaleX = baseCanvasWidth > 0 ? width / baseCanvasWidth : 1;
-    const scaleY = baseCanvasHeight > 0 ? height / baseCanvasHeight : 1;
-
-    const scaleDimensions = (
-      dims?: { width?: number; height?: number },
-      fallback?: { width: number; height: number },
-    ): { width: number; height: number } => {
-      const fallbackWidth = fallback?.width ?? baseCanvasWidth;
-      const fallbackHeight = fallback?.height ?? baseCanvasHeight;
-      const sourceWidth =
-        dims?.width && dims.width > 0 ? dims.width : fallbackWidth;
-      const sourceHeight =
-        dims?.height && dims.height > 0 ? dims.height : fallbackHeight;
-      return {
-        width: Math.round(sourceWidth * scaleX),
-        height: Math.round(sourceHeight * scaleY),
-      };
-    };
-
-    const scaleFrameRect = (
-      rect?: ReplayMovieFrameRect | null,
-    ): ReplayMovieFrameRect => {
-      const source: ReplayMovieFrameRect = rect
-        ? { ...rect }
-        : {
-            x: 0,
-            y: 0,
-            width: basePresentation?.browser_frame?.width ?? baseCanvasWidth,
-            height: basePresentation?.browser_frame?.height ?? baseCanvasHeight,
-            radius: basePresentation?.browser_frame?.radius ?? 24,
-          };
-      return {
-        x: Math.round((source.x ?? 0) * scaleX),
-        y: Math.round((source.y ?? 0) * scaleY),
-        width: Math.round((source.width ?? baseCanvasWidth) * scaleX),
-        height: Math.round((source.height ?? baseCanvasHeight) * scaleY),
-        radius: source.radius ?? basePresentation?.browser_frame?.radius ?? 24,
-      };
-    };
-
-    const presentation: ReplayMoviePresentation = {
-      canvas: {
-        width,
-        height,
-      },
-      viewport: scaleDimensions(basePresentation?.viewport, {
-        width: basePresentation?.viewport?.width ?? baseCanvasWidth,
-        height: basePresentation?.viewport?.height ?? baseCanvasHeight,
-      }),
-      browser_frame: scaleFrameRect(basePresentation?.browser_frame),
-      device_scale_factor:
-        basePresentation?.device_scale_factor &&
-        basePresentation.device_scale_factor > 0
-          ? basePresentation.device_scale_factor
-          : 1,
-    };
-
-    cloned.presentation = presentation;
-
-    if (Array.isArray(cloned.frames)) {
-      cloned.frames = cloned.frames.map((frame) => ({
-        ...frame,
-        viewport: scaleDimensions(frame.viewport, {
-          width:
-            frame.viewport?.width ??
-            basePresentation?.viewport?.width ??
-            baseCanvasWidth,
-          height:
-            frame.viewport?.height ??
-            basePresentation?.viewport?.height ??
-            baseCanvasHeight,
-        }),
-      }));
-    }
-    return cloned;
-  }, [
-    decoratedMovieSpec,
-    movieSpec,
-    selectedDimensions.height,
-    selectedDimensions.width,
-  ]);
-
-  const activeMovieSpec = preparedMovieSpec ?? decoratedMovieSpec ?? movieSpec;
-
-  useEffect(() => {
-    if (!activeMovieSpec) {
-      return;
-    }
-    setPreviewMetrics((current) => {
-      const frameCount =
-        activeMovieSpec.summary?.frame_count ??
-        activeMovieSpec.frames?.length ??
-        current.capturedFrames;
-      const assetCount =
-        Array.isArray(activeMovieSpec.assets) &&
-        activeMovieSpec.assets.length >= 0
-          ? activeMovieSpec.assets.length
-          : current.assetCount;
-      const totalDuration =
-        activeMovieSpec.summary?.total_duration_ms ??
-        activeMovieSpec.playback?.duration_ms ??
-        current.totalDurationMs;
-      return {
-        capturedFrames: frameCount,
-        assetCount,
-        totalDurationMs: totalDuration,
-      };
-    });
-    const specIdFromSpec = activeMovieSpec.execution?.execution_id;
-    if (specIdFromSpec && specIdFromSpec !== activeSpecId) {
-      setActiveSpecId(specIdFromSpec);
-    }
-  }, [activeMovieSpec, activeSpecId]);
-
-  const firstFramePreviewUrl = useMemo(() => {
-    const frame = replayFrames[0];
-    const screenshotUrl = frame?.screenshot?.url
-      ? (resolveUrl(frame.screenshot.url) ?? frame.screenshot.url)
-      : null;
-    if (screenshotUrl) {
-      return screenshotUrl;
-    }
-    const specFrame = activeMovieSpec?.frames?.[0];
-    if (specFrame?.screenshot_asset_id && activeMovieSpec?.assets) {
-      const asset = activeMovieSpec.assets.find(
-        (candidate) => candidate?.id === specFrame.screenshot_asset_id,
-      );
-      if (asset?.source) {
-        return resolveUrl(asset.source) ?? asset.source;
-      }
-    }
-    return null;
-  }, [activeMovieSpec, replayFrames]);
-
-  const firstFrameLabel = useMemo(() => {
-    const frame = replayFrames[0];
-    if (!frame) {
-      return null;
-    }
-    return (
-      frame.nodeId ||
-      frame.stepType ||
-      (typeof frame.stepIndex === "number"
-        ? `Step ${frame.stepIndex + 1}`
-        : null)
-    );
-  }, [replayFrames]);
-
   const hasTimeline = replayFrames.length > 0;
-
   const exportDialogTitleId = useId();
   const exportDialogDescriptionId = useId();
-  const exportSummary =
-    exportPreview?.package?.summary ?? activeMovieSpec?.summary ?? null;
-  const normalizedExportStatus = exportPreview
-    ? normalizePreviewStatus(exportPreview.status)
-    : movieSpec
-      ? "ready"
-      : "";
-  const exportStatusMessage = isExportPreviewLoading
-    ? "Preparing replay data…"
-    : describePreviewStatusMessage(
-        normalizedExportStatus,
-        exportPreviewError ?? exportPreview?.message,
-        previewMetrics,
-      );
-  const movieSpecFrameCount =
-    movieSpec?.frames != null ? movieSpec.frames.length : undefined;
-  const previewFrameCount =
-    previewMetrics.capturedFrames || previewMetrics.capturedFrames === 0
-      ? previewMetrics.capturedFrames
-      : undefined;
-  const estimatedFrameCount =
-    exportSummary?.frame_count ??
-    movieSpecFrameCount ??
-    previewFrameCount ??
-    replayFrames.length;
-  const previewDurationMs =
-    previewMetrics.totalDurationMs || previewMetrics.totalDurationMs === 0
-      ? previewMetrics.totalDurationMs
-      : undefined;
-  const specDurationMs = activeMovieSpec?.playback?.duration_ms;
-  const estimatedTotalDurationMs =
-    exportSummary?.total_duration_ms ??
-    specDurationMs ??
-    previewDurationMs ??
-    null;
-  const estimatedDurationSeconds =
-    estimatedTotalDurationMs != null ? estimatedTotalDurationMs / 1000 : null;
-  const isBinaryExport = exportFormat !== "json";
 
   const timelineScreenshots = useMemo(() => {
     const frames = execution.timeline ?? [];
@@ -1733,249 +735,6 @@ function ActiveExecutionViewer({
     [execution.id, loadExecution],
   );
 
-  const handleOpenExportDialog = useCallback(() => {
-    if (replayFrames.length === 0) {
-      toast.error("Replay not ready to export yet");
-      return;
-    }
-    setExportFormat("mp4");
-    setExportFileStem(defaultExportFileStem);
-    setUseNativeFilePicker(false);
-    setIsExportDialogOpen(true);
-  }, [defaultExportFileStem, replayFrames.length]);
-
-  const handleCloseExportDialog = useCallback(() => {
-    setIsExportDialogOpen(false);
-  }, []);
-
-  const handleConfirmExport = useCallback(async () => {
-    if (exportFormat !== "json") {
-      if (replayFrames.length === 0) {
-        toast.error("Replay not ready to export yet");
-        return;
-      }
-
-      setIsExporting(true);
-      try {
-        const { API_URL } = await getConfig();
-        const baselineSpec = exportPreview?.package ?? movieSpec;
-        const exportSpec = preparedMovieSpec ?? baselineSpec;
-        const hasExportFrames =
-          exportSpec && Array.isArray(exportSpec.frames)
-            ? exportSpec.frames.length > 0
-            : false;
-        const requestPayload: Record<string, unknown> = {
-          format: exportFormat,
-          file_name: finalFileName,
-        };
-        if (hasExportFrames && exportSpec) {
-          requestPayload.movie_spec = exportSpec;
-        } else {
-          requestPayload.overrides = {
-            theme_preset: {
-              chrome_theme: replayChromeTheme,
-              background_theme: replayBackgroundTheme,
-            },
-            cursor_preset: {
-              theme: replayCursorTheme,
-              initial_position: replayCursorInitialPosition,
-              scale: Number.isFinite(replayCursorScale) ? replayCursorScale : 1,
-              click_animation: replayCursorClickAnimation,
-            },
-          } satisfies Record<string, unknown>;
-        }
-
-        const response = await fetch(
-          `${API_URL}/executions/${execution.id}/export`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: exportFormat === "gif" ? "image/gif" : "video/mp4",
-            },
-            body: JSON.stringify(requestPayload),
-          },
-        );
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(text || `Export request failed (${response.status})`);
-        }
-
-        const blob = await response.blob();
-        const downloadUrl = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = downloadUrl;
-        anchor.download = finalFileName;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        URL.revokeObjectURL(downloadUrl);
-
-        // Create export record in the library
-        const exportName = exportFileStem || `${workflowName} Export`;
-        const createdExport = await createExport({
-          executionId: execution.id,
-          workflowId: execution.workflowId,
-          name: exportName,
-          format: exportFormat as 'mp4' | 'gif' | 'json' | 'html',
-          settings: {
-            chromeTheme: replayChromeTheme,
-            backgroundTheme: replayBackgroundTheme,
-            cursorTheme: replayCursorTheme,
-            cursorScale: replayCursorScale,
-          },
-          fileSizeBytes: blob.size,
-          durationMs: exportPreview?.totalDurationMs,
-          frameCount: exportPreview?.capturedFrameCount,
-        });
-
-        if (createdExport) {
-          setLastCreatedExport(createdExport);
-          setShowExportSuccess(true);
-        }
-        toast.success("Replay export ready");
-        setIsExportDialogOpen(false);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to export replay";
-        toast.error(message);
-      } finally {
-        setIsExporting(false);
-      }
-      return;
-    }
-
-    if (replayFrames.length === 0) {
-      toast.error("Replay not ready to export yet");
-      return;
-    }
-
-    if (useNativeFilePicker && !supportsFileSystemAccess) {
-      toast.error(
-        "This browser does not support choosing a destination. Disable “Choose save location”.",
-      );
-      return;
-    }
-
-    setIsExporting(true);
-    try {
-      const payload = preparedMovieSpec ?? exportPreview?.package ?? movieSpec;
-      if (!payload) {
-        toast.error("Replay not ready to export yet");
-        setIsExporting(false);
-        return;
-      }
-
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      });
-
-      if (useNativeFilePicker && supportsFileSystemAccess) {
-        try {
-          const picker = await (
-            window as typeof window & {
-              showSaveFilePicker?: (
-                options?: SaveFilePickerOptions,
-              ) => Promise<FileSystemFileHandle>;
-            }
-          ).showSaveFilePicker?.({
-            suggestedName: finalFileName,
-            types: [
-              {
-                description: "Replay export (JSON)",
-                accept: { "application/json": [".json"] },
-              },
-            ],
-          });
-          if (!picker) {
-            throw new Error("Unable to open save dialog");
-          }
-          const writable = await picker.createWritable();
-          await writable.write(blob);
-          await writable.close();
-          toast.success("Replay export saved");
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            setIsExporting(false);
-            return;
-          }
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Failed to save replay export";
-          toast.error(message);
-          setIsExporting(false);
-          return;
-        }
-      } else {
-        const url = URL.createObjectURL(blob);
-        try {
-          const anchor = document.createElement("a");
-          anchor.href = url;
-          anchor.download = finalFileName;
-          document.body.appendChild(anchor);
-          anchor.click();
-          document.body.removeChild(anchor);
-          toast.success("Replay download started");
-        } finally {
-          URL.revokeObjectURL(url);
-        }
-      }
-
-      // Create export record in the library for JSON exports
-      const exportName = exportFileStem || `${workflowName} Export`;
-      const createdExport = await createExport({
-        executionId: execution.id,
-        workflowId: execution.workflowId,
-        name: exportName,
-        format: 'json',
-        settings: {
-          chromeTheme: replayChromeTheme,
-          backgroundTheme: replayBackgroundTheme,
-          cursorTheme: replayCursorTheme,
-          cursorScale: replayCursorScale,
-        },
-        fileSizeBytes: blob.size,
-        durationMs: exportPreview?.totalDurationMs,
-        frameCount: exportPreview?.capturedFrameCount,
-      });
-
-      if (createdExport) {
-        setLastCreatedExport(createdExport);
-        setShowExportSuccess(true);
-      }
-
-      setIsExportDialogOpen(false);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to export replay";
-      toast.error(message);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [
-    preparedMovieSpec,
-    exportFormat,
-    exportPreview,
-    execution.id,
-    execution.workflowId,
-    workflowName,
-    exportFileStem,
-    finalFileName,
-    movieSpec,
-    replayBackgroundTheme,
-    replayChromeTheme,
-    replayCursorClickAnimation,
-    replayCursorInitialPosition,
-    replayCursorScale,
-    replayCursorTheme,
-    replayFrames.length,
-    supportsFileSystemAccess,
-    useNativeFilePicker,
-    createExport,
-  ]);
-
   const getStatusIcon = () => {
     const statusTestId = `execution-status-${execution.status}`;
     // Add both general and specific status selectors for test flexibility
@@ -2127,7 +886,7 @@ function ActiveExecutionViewer({
                 ? "Replay not ready to export"
                 : "Export replay"
             }
-            onClick={handleOpenExportDialog}
+            onClick={openExportDialog}
             disabled={replayFrames.length === 0}
             data-testid={selectors.executions.actions.exportReplayButton}
           >
@@ -2431,69 +1190,23 @@ function ActiveExecutionViewer({
 
       <ExportDialog
         isOpen={isExportDialogOpen}
-        onClose={handleCloseExportDialog}
-        onConfirm={handleConfirmExport}
+        onClose={closeExportDialog}
+        onConfirm={confirmExport}
         dialogTitleId={exportDialogTitleId}
         dialogDescriptionId={exportDialogDescriptionId}
-        exportFormat={exportFormat}
-        setExportFormat={setExportFormat}
-        isBinaryExport={isBinaryExport}
-        exportFormatOptions={EXPORT_FORMAT_OPTIONS}
-        dimensionPresetOptions={dimensionPresetOptions}
-        dimensionPreset={dimensionPreset}
-        setDimensionPreset={setDimensionPreset}
-        selectedDimensions={selectedDimensions}
-        customWidthInput={customWidthInput}
-        customHeightInput={customHeightInput}
-        setCustomWidthInput={setCustomWidthInput}
-        setCustomHeightInput={setCustomHeightInput}
-        exportFileStem={exportFileStem}
-        setExportFileStem={setExportFileStem}
-        defaultExportFileStem={defaultExportFileStem}
-        finalFileName={finalFileName}
-        supportsFileSystemAccess={supportsFileSystemAccess}
-        useNativeFilePicker={useNativeFilePicker}
-        setUseNativeFilePicker={setUseNativeFilePicker}
-        preparedMovieSpec={preparedMovieSpec}
-        composerPreviewUrl={composerPreviewUrl}
-        firstFramePreviewUrl={firstFramePreviewUrl}
-        firstFrameLabel={firstFrameLabel}
-        previewComposerRef={previewComposerRef}
-        composerPreviewWindowRef={composerPreviewWindowRef}
-        setIsPreviewComposerReady={setIsPreviewComposerReady}
-        setPreviewComposerError={setPreviewComposerError}
-        composerPreviewOriginRef={composerPreviewOriginRef}
-        isPreviewComposerReady={isPreviewComposerReady}
-        previewComposerError={previewComposerError}
-        isExporting={isExporting}
-        isExportPreviewLoading={isExportPreviewLoading}
-        replayFramesLength={replayFrames.length}
-        exportStatusMessage={exportStatusMessage}
-        estimatedFrameCount={estimatedFrameCount}
-        estimatedDurationSeconds={estimatedDurationSeconds}
-        activeSpecId={activeSpecId}
-        previewMetrics={previewMetrics}
-        formatSeconds={formatSeconds}
+        {...exportDialogProps}
       />
 
       {/* Export Success Panel */}
       {showExportSuccess && lastCreatedExport && (
         <ExportSuccessPanel
           export_={lastCreatedExport}
-          onClose={() => {
-            setShowExportSuccess(false);
-            setLastCreatedExport(null);
-          }}
+          onClose={dismissExportSuccess}
           onViewInLibrary={() => {
-            setShowExportSuccess(false);
-            setLastCreatedExport(null);
-            // Navigate to exports tab - this will be handled by parent component
-            window.dispatchEvent(new CustomEvent('navigate-to-exports'));
+            dismissExportSuccess();
+            window.dispatchEvent(new CustomEvent("navigate-to-exports"));
           }}
-          onViewExecution={() => {
-            setShowExportSuccess(false);
-            setLastCreatedExport(null);
-          }}
+          onViewExecution={dismissExportSuccess}
         />
       )}
     </div>
@@ -2766,4 +1479,5 @@ function ExecutionViewer({
   );
 }
 
+export { parseExportPreviewPayload } from "./viewer/exportPreview";
 export default ExecutionViewer;

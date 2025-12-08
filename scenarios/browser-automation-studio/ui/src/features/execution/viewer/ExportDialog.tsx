@@ -4,7 +4,7 @@ import { ResponsiveDialog } from "@shared/layout";
 import { selectors } from "@constants/selectors";
 import type { MutableRefObject } from "react";
 import type { ReplayMovieSpec } from "@/types/export";
-import type { ExportPreviewMetrics } from "../ExecutionViewer";
+import type { ExportPreviewMetrics } from "./exportPreview";
 import type { ExportDimensionPreset, ExportFormat, ExportFormatOption } from "./exportConfig";
 import { DEFAULT_EXPORT_HEIGHT, DEFAULT_EXPORT_WIDTH, EXPORT_EXTENSIONS } from "./exportConfig";
 

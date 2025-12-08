@@ -3,6 +3,13 @@ import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { parseProject, parseProjectList, parseProjectWithStats } from '../utils/projectProto';
 
+const PROJECTS_ROOT = 'scenarios/browser-automation-studio/data/projects';
+const normalizeFolderSegment = (value: string): string => value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
+export const buildProjectFolderPath = (folderName: string): string => {
+  const safeName = normalizeFolderSegment(folderName || 'project');
+  return `${PROJECTS_ROOT}/${safeName}`;
+};
+
 export interface Project {
   id: string;
   name: string;
@@ -309,7 +316,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const newProject = await createProject({
       name: 'My Automations',
       description: 'Default project for automation workflows',
-      folder_path: '/my-automations',
+      folder_path: buildProjectFolderPath('my-automations'),
     });
 
     // Set as last used
