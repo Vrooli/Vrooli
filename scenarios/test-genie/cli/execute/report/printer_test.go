@@ -9,6 +9,7 @@ import (
 	"time"
 
 	execTypes "test-genie/cli/internal/execute"
+	"test-genie/cli/internal/repo"
 )
 
 func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
@@ -24,7 +25,7 @@ func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 	}
 
 	resp := execTypes.Response{
-		Success:     false,
+		Success:     true,
 		StartedAt:   time.Now().UTC().Format(time.RFC3339),
 		CompletedAt: time.Now().Add(30 * time.Second).UTC().Format(time.RFC3339),
 		PhaseSummary: execTypes.PhaseSummary{
@@ -97,7 +98,54 @@ func TestPrintResultsCondensedReplay(t *testing.T) {
 	if !strings.Contains(out, "fix: Add the missing version") {
 		t.Fatalf("expected remediation hint to be included:\n%s", out)
 	}
-	if !strings.Contains(out, "docs/testing/architecture/PHASED_TESTING.md") {
+	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/structure/README.md")
+	if !strings.Contains(out, expectedDoc) {
 		t.Fatalf("expected structure doc hint to be included:\n%s", out)
+	}
+}
+
+func TestPrintPrePlanShowsDocs(t *testing.T) {
+	var buf bytes.Buffer
+	pr := New(&buf, "demo", "", nil, nil, false, nil)
+	pr.PrintPreExecution([]string{"lint"})
+
+	out := buf.String()
+	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/lint/README.md")
+	if !strings.Contains(out, "docs: "+expectedDoc) {
+		t.Fatalf("expected lint doc link in plan, got:\n%s", out)
+	}
+}
+
+func TestPassedPhaseWarningsAreSurfaced(t *testing.T) {
+	resp := execTypes.Response{
+		Success:     false,
+		StartedAt:   time.Now().UTC().Format(time.RFC3339),
+		CompletedAt: time.Now().Add(2 * time.Second).UTC().Format(time.RFC3339),
+		PhaseSummary: execTypes.PhaseSummary{
+			Total:           1,
+			Passed:          1,
+			Failed:          0,
+			DurationSeconds: 2,
+		},
+		Phases: []execTypes.Phase{
+			{
+				Name:            "dependencies",
+				Status:          "passed",
+				DurationSeconds: 2,
+				Observations: execTypes.ObservationList{
+					{Prefix: "WARNING", Text: "resource telemetry unavailable"},
+					{Prefix: "SUCCESS", Text: "command available: curl"},
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := New(&buf, "demo", "", nil, nil, false, nil)
+	pr.Print(resp)
+
+	out := buf.String()
+	if !strings.Contains(out, "warnings: resource telemetry unavailable") {
+		t.Fatalf("expected warning details to be surfaced for passed phase:\n%s", out)
 	}
 }

@@ -207,11 +207,15 @@ func (l *Linter) runTsc(ctx context.Context) *Result {
 		result.TypeErrors = len(issues)
 
 		if len(issues) > 0 {
+			logNodeIssues(l.logWriter, issues, 20)
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("Node: tsc found %d type error(s)", len(issues))))
 		} else {
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("tsc failed: %v", err)))
+			if len(output) > 0 {
+				shared.LogError(l.logWriter, "tsc output:\n%s", string(output))
+			}
 		}
 		return result
 	}
@@ -310,6 +314,7 @@ func (l *Linter) runEslint(ctx context.Context) *Result {
 		result.Observations = append(result.Observations,
 			shared.NewSuccessObservation("Node: eslint found no issues"))
 	} else {
+		logNodeIssues(l.logWriter, issues, 20)
 		result.Observations = append(result.Observations,
 			shared.NewWarningObservation(fmt.Sprintf("Node: eslint found %d issue(s)", len(issues))))
 	}
@@ -372,4 +377,38 @@ func (l *Linter) parseEslintOutput(output []byte) []Issue {
 	}
 
 	return issues
+}
+
+func logNodeIssues(w io.Writer, issues []Issue, limit int) {
+	if w == nil || len(issues) == 0 {
+		return
+	}
+	if limit <= 0 || limit > len(issues) {
+		limit = len(issues)
+	}
+	for idx, issue := range issues {
+		if idx >= limit {
+			break
+		}
+		location := issue.File
+		if issue.Line > 0 {
+			location = fmt.Sprintf("%s:%d", location, issue.Line)
+			if issue.Column > 0 {
+				location = fmt.Sprintf("%s:%d", location, issue.Column)
+			}
+		}
+		message := issue.Message
+		if issue.Rule != "" {
+			message = fmt.Sprintf("%s [%s]", message, issue.Rule)
+		}
+		entry := fmt.Sprintf("%s: %s", location, message)
+		if issue.Severity == SeverityWarning {
+			shared.LogWarn(w, "%s", entry)
+			continue
+		}
+		shared.LogError(w, "%s", entry)
+	}
+	if len(issues) > limit {
+		shared.LogInfo(w, "... %d more issue(s) not shown", len(issues)-limit)
+	}
 }

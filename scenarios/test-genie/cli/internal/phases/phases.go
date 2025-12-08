@@ -69,6 +69,79 @@ func NormalizeSelection(phases []string) ([]string, error) {
 	return normalized, nil
 }
 
+// NamesFromDescriptors returns the ordered, normalized list of phase names
+// provided by the server catalog.
+func NamesFromDescriptors(descriptors []Descriptor) []string {
+	var names []string
+	seen := make(map[string]struct{}, len(descriptors))
+	for _, desc := range descriptors {
+		name := NormalizeAlias(NormalizeName(desc.Name))
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	return names
+}
+
+// ApplySkip removes any phases present in the skip list, honoring aliases.
+func ApplySkip(phases, skip []string) []string {
+	if len(phases) == 0 || len(skip) == 0 {
+		// Still de-duplicate aliases to avoid repeated entries.
+		return dedupeNormalized(phases)
+	}
+	skipSet := make(map[string]struct{}, len(skip))
+	for _, s := range skip {
+		name := NormalizeAlias(NormalizeName(s))
+		if name == "" {
+			continue
+		}
+		skipSet[name] = struct{}{}
+	}
+
+	seen := make(map[string]struct{}, len(phases))
+	var filtered []string
+	for _, phase := range phases {
+		name := NormalizeAlias(NormalizeName(phase))
+		if name == "" {
+			continue
+		}
+		if _, blocked := skipSet[name]; blocked {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		filtered = append(filtered, name)
+	}
+	return filtered
+}
+
+func dedupeNormalized(phases []string) []string {
+	if len(phases) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(phases))
+	var result []string
+	for _, phase := range phases {
+		name := NormalizeAlias(NormalizeName(phase))
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		result = append(result, name)
+	}
+	return result
+}
+
 // NormalizeName lowercases and trims a phase name.
 func NormalizeName(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))

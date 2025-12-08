@@ -35,14 +35,14 @@ type Issue struct {
 
 // Result holds the result of linting Go code.
 type Result struct {
-	Language     string              `json:"language"`
-	Success      bool                `json:"success"`
-	Issues       []Issue             `json:"issues,omitempty"`
-	TypeErrors   int                 `json:"typeErrors"`
-	LintWarnings int                 `json:"lintWarnings"`
-	ToolsUsed    []string            `json:"toolsUsed"`
-	Skipped      bool                `json:"skipped"`
-	SkipReason   string              `json:"skipReason,omitempty"`
+	Language     string               `json:"language"`
+	Success      bool                 `json:"success"`
+	Issues       []Issue              `json:"issues,omitempty"`
+	TypeErrors   int                  `json:"typeErrors"`
+	LintWarnings int                  `json:"lintWarnings"`
+	ToolsUsed    []string             `json:"toolsUsed"`
+	Skipped      bool                 `json:"skipped"`
+	SkipReason   string               `json:"skipReason,omitempty"`
 	Observations []shared.Observation `json:"observations,omitempty"`
 }
 
@@ -180,6 +180,7 @@ func (l *Linter) runGolangciLint(ctx context.Context, result *Result) *Result {
 		result.Observations = append(result.Observations,
 			shared.NewSuccessObservation("Go: golangci-lint found no issues"))
 	} else {
+		logGoIssues(l.logWriter, issues, 20)
 		result.Observations = append(result.Observations,
 			shared.NewInfoObservation(fmt.Sprintf("Go: %d issue(s) found by golangci-lint", len(issues))))
 	}
@@ -203,6 +204,7 @@ func (l *Linter) runGoVet(ctx context.Context, result *Result) *Result {
 			result.Issues = issues
 			result.TypeErrors = len(issues) // go vet issues are considered type-level errors
 			result.Success = false
+			logGoIssues(l.logWriter, issues, 20)
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("Go: go vet found %d issue(s)", len(issues))))
 			return result
@@ -217,6 +219,40 @@ func (l *Linter) runGoVet(ctx context.Context, result *Result) *Result {
 	result.Observations = append(result.Observations,
 		shared.NewSuccessObservation("Go: go vet found no issues"))
 	return result
+}
+
+func logGoIssues(w io.Writer, issues []Issue, limit int) {
+	if w == nil || len(issues) == 0 {
+		return
+	}
+	if limit <= 0 || limit > len(issues) {
+		limit = len(issues)
+	}
+	for idx, issue := range issues {
+		if idx >= limit {
+			break
+		}
+		location := issue.File
+		if issue.Line > 0 {
+			location = fmt.Sprintf("%s:%d", location, issue.Line)
+			if issue.Column > 0 {
+				location = fmt.Sprintf("%s:%d", location, issue.Column)
+			}
+		}
+		message := issue.Message
+		if issue.Rule != "" {
+			message = fmt.Sprintf("%s [%s]", message, issue.Rule)
+		}
+		entry := fmt.Sprintf("%s: %s", location, message)
+		if issue.Severity == SeverityWarning {
+			shared.LogWarn(w, "%s", entry)
+			continue
+		}
+		shared.LogError(w, "%s", entry)
+	}
+	if len(issues) > limit {
+		shared.LogInfo(w, "... %d more issue(s) not shown", len(issues)-limit)
+	}
 }
 
 // golangciLintOutput represents the JSON output from golangci-lint.

@@ -45,6 +45,22 @@ func DiscoverScenarioPaths(scenario string) Paths {
 	return Paths{ScenarioDir: scenarioDir, TestDir: testDir}
 }
 
+// AbsPath converts a path to an absolute path relative to the repository root.
+// If the path is already absolute or the root cannot be determined, the input
+// path is returned.
+func AbsPath(path string) string {
+	if path == "" {
+		return ""
+	}
+	if filepath.IsAbs(path) {
+		return path
+	}
+	if root := Root(); root != "" {
+		return filepath.Join(root, path)
+	}
+	return path
+}
+
 // Exists checks if a path exists.
 func Exists(path string) bool {
 	_, err := os.Stat(path)

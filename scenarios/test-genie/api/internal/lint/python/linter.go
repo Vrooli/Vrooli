@@ -231,6 +231,7 @@ func (l *Linter) runRuff(ctx context.Context) *Result {
 		result.Observations = append(result.Observations,
 			shared.NewSuccessObservation("Python: ruff found no issues"))
 	} else {
+		logPythonIssues(l.logWriter, issues, 20)
 		result.Observations = append(result.Observations,
 			shared.NewWarningObservation(fmt.Sprintf("Python: ruff found %d issue(s)", len(issues))))
 	}
@@ -300,6 +301,7 @@ func (l *Linter) runFlake8(ctx context.Context) *Result {
 		result.Observations = append(result.Observations,
 			shared.NewSuccessObservation("Python: flake8 found no issues"))
 	} else {
+		logPythonIssues(l.logWriter, issues, 20)
 		result.Observations = append(result.Observations,
 			shared.NewWarningObservation(fmt.Sprintf("Python: flake8 found %d issue(s)", len(issues))))
 	}
@@ -359,6 +361,7 @@ func (l *Linter) runMypy(ctx context.Context) *Result {
 			issues := l.parseMypyOutput(string(output))
 			result.Issues = issues
 			result.TypeErrors = len(issues)
+			logPythonIssues(l.logWriter, issues, 20)
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("Python: mypy found %d type error(s)", len(issues))))
 			return result
@@ -398,4 +401,38 @@ func (l *Linter) parseMypyOutput(output string) []Issue {
 		})
 	}
 	return issues
+}
+
+func logPythonIssues(w io.Writer, issues []Issue, limit int) {
+	if w == nil || len(issues) == 0 {
+		return
+	}
+	if limit <= 0 || limit > len(issues) {
+		limit = len(issues)
+	}
+	for idx, issue := range issues {
+		if idx >= limit {
+			break
+		}
+		location := issue.File
+		if issue.Line > 0 {
+			location = fmt.Sprintf("%s:%d", location, issue.Line)
+			if issue.Column > 0 {
+				location = fmt.Sprintf("%s:%d", location, issue.Column)
+			}
+		}
+		message := issue.Message
+		if issue.Rule != "" {
+			message = fmt.Sprintf("%s [%s]", message, issue.Rule)
+		}
+		entry := fmt.Sprintf("%s: %s", location, message)
+		if issue.Severity == SeverityWarning {
+			shared.LogWarn(w, "%s", entry)
+			continue
+		}
+		shared.LogError(w, "%s", entry)
+	}
+	if len(issues) > limit {
+		shared.LogInfo(w, "... %d more issue(s) not shown", len(issues)-limit)
+	}
 }

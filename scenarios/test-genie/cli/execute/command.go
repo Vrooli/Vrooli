@@ -41,10 +41,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 	durationTargets := phases.TargetDurations(phaseDescriptors)
 
 	// Determine which phases will run (for pre-execution display)
-	progressPhases := parsed.Phases
-	if len(progressPhases) == 0 {
-		progressPhases = []string{"structure", "dependencies", "unit", "integration", "business", "performance"}
-	}
+	progressPhases := planPhaseOrder(parsed.Phases, parsed.Skip, phaseDescriptors)
 
 	// Create printer early for pre-execution output
 	pr := report.New(
@@ -179,6 +176,20 @@ func ParseArgs(args []string) (Args, error) {
 	out.Phases = normalizedPhases
 	out.Skip = normalizedSkip
 	return out, nil
+}
+
+func planPhaseOrder(requested, skip []string, descriptors []phases.Descriptor) []string {
+	// If user requested explicit phases, honor their order first.
+	if len(requested) > 0 {
+		return phases.ApplySkip(requested, skip)
+	}
+
+	// Prefer the server-provided catalog for ordering to avoid drift.
+	ordered := phases.NamesFromDescriptors(descriptors)
+	if len(ordered) == 0 {
+		ordered = phases.AllowedPhases
+	}
+	return phases.ApplySkip(ordered, skip)
 }
 
 // PrintError displays a formatted error box with debugging hints.

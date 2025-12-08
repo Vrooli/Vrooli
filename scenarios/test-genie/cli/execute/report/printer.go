@@ -18,15 +18,15 @@ const phaseSeparator = "━━━━━━━━━━━━━━━━━━�
 
 // Printer renders a structured execution report to an io.Writer.
 type Printer struct {
-	w                   io.Writer
-	color               *Color
-	scenario            string
-	requestedPreset     string
-	requestedPhases     []string
-	requestedSkip       []string
-	failFast            bool
-	descriptorMap       map[string]phases.Descriptor
-	targetDurationByKey map[string]time.Duration
+	w                    io.Writer
+	color                *Color
+	scenario             string
+	requestedPreset      string
+	requestedPhases      []string
+	requestedSkip        []string
+	failFast             bool
+	descriptorMap        map[string]phases.Descriptor
+	targetDurationByKey  map[string]time.Duration
 	streamedObservations bool // true if observations were already streamed via SSE (live output shown)
 }
 
@@ -105,11 +105,15 @@ func (p *Printer) printPreHeader(phaseNames []string) {
 	paths := repo.DiscoverScenarioPaths(p.scenario)
 	estimated := p.estimateTotalFromNames(phaseNames)
 	startText := time.Now().Format("15:04:05")
+	scenarioPath := p.scenario
+	if paths.ScenarioDir != "" {
+		scenarioPath = paths.ScenarioDir
+	}
 
 	fmt.Fprintln(p.w, p.color.Cyan("╔═══════════════════════════════════════════════════════════════╗"))
 	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), p.color.BoldCyan(title), p.color.Cyan("║"))
 	fmt.Fprintln(p.w, p.color.Cyan("╠═══════════════════════════════════════════════════════════════╣"))
-	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Scenario: %s", p.scenario), p.color.Cyan("║"))
+	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Scenario: %s", scenarioPath), p.color.Cyan("║"))
 	if p.requestedPreset != "" {
 		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Preset: %s", p.requestedPreset), p.color.Cyan("║"))
 	}
@@ -127,9 +131,6 @@ func (p *Printer) printPreHeader(phaseNames []string) {
 		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Estimated: ~%s", estimated), p.color.Cyan("║"))
 	}
 	fmt.Fprintf(p.w, "%s  Phases: %-54d%s\n", p.color.Cyan("║"), len(phaseNames), p.color.Cyan("║"))
-	if paths.ScenarioDir != "" {
-		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Test directory: %s/test", p.scenario), p.color.Cyan("║"))
-	}
 	fmt.Fprintln(p.w, p.color.Cyan("╚═══════════════════════════════════════════════════════════════╝"))
 	fmt.Fprintln(p.w)
 }
@@ -144,6 +145,7 @@ func (p *Printer) printPrePlan(phaseNames []string) {
 	for idx, name := range phaseNames {
 		target := p.targetDuration(name)
 		desc := p.lookupPhaseDescription(name)
+		doc := p.phaseDocHint(name)
 		targetText := ""
 		if target != "" {
 			targetText = fmt.Sprintf("(±%s)", target)
@@ -151,6 +153,9 @@ func (p *Printer) printPrePlan(phaseNames []string) {
 		line := fmt.Sprintf("  [%d/%d] %-14s %-10s", idx+1, len(phaseNames), name, targetText)
 		if desc != "" {
 			line = fmt.Sprintf("%s → %s", line, desc)
+		}
+		if doc != "" {
+			line = fmt.Sprintf("%s (docs: %s)", line, doc)
 		}
 		fmt.Fprintln(p.w, p.color.Cyan(line))
 	}
@@ -183,11 +188,15 @@ func (p *Printer) printHeader(resp execTypes.Response) {
 	preset := DefaultValue(resp.PresetUsed, p.requestedPreset)
 	paths := repo.DiscoverScenarioPaths(p.scenario)
 	estimated := p.estimateTotal(resp.Phases)
+	scenarioPath := p.scenario
+	if paths.ScenarioDir != "" {
+		scenarioPath = paths.ScenarioDir
+	}
 
 	fmt.Fprintln(p.w, p.color.Cyan("╔═══════════════════════════════════════════════════════════════╗"))
 	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), p.color.BoldCyan(title), p.color.Cyan("║"))
 	fmt.Fprintln(p.w, p.color.Cyan("╠═══════════════════════════════════════════════════════════════╣"))
-	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Scenario: %s", p.scenario), p.color.Cyan("║"))
+	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Scenario: %s", scenarioPath), p.color.Cyan("║"))
 	if preset != "" {
 		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Preset: %s", preset), p.color.Cyan("║"))
 	}
@@ -207,9 +216,6 @@ func (p *Printer) printHeader(resp execTypes.Response) {
 		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Estimated plan time: %s", estimated), p.color.Cyan("║"))
 	}
 	fmt.Fprintf(p.w, "%s  Phases: %-54d%s\n", p.color.Cyan("║"), len(resp.Phases), p.color.Cyan("║"))
-	if paths.ScenarioDir != "" {
-		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Test directory: %s/test", p.scenario), p.color.Cyan("║"))
-	}
 	fmt.Fprintln(p.w, p.color.Cyan("╚═══════════════════════════════════════════════════════════════╝"))
 	fmt.Fprintln(p.w)
 }
@@ -224,6 +230,7 @@ func (p *Printer) printPlan(phasesData []execTypes.Phase) {
 	for idx, phase := range phasesData {
 		target := p.targetDuration(phase.Name)
 		desc := p.lookupPhaseDescription(phase.Name)
+		doc := p.phaseDocHint(phase.Name)
 		// Format: [1/6] structure       (±120s)  → Description
 		targetText := ""
 		if target != "" {
@@ -232,6 +239,9 @@ func (p *Printer) printPlan(phasesData []execTypes.Phase) {
 		line := fmt.Sprintf("  [%d/%d] %-14s %-10s", idx+1, len(phasesData), phase.Name, targetText)
 		if desc != "" {
 			line = fmt.Sprintf("%s → %s", line, desc)
+		}
+		if doc != "" {
+			line = fmt.Sprintf("%s (docs: %s)", line, doc)
 		}
 		fmt.Fprintln(p.w, p.color.Cyan(line))
 	}
@@ -366,6 +376,7 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 		status := strings.ToUpper(DefaultValue(phase.Status, "unknown"))
 		durationText := FormatPhaseDuration(phase.DurationSeconds)
 		headline := p.phaseHeadline(phase)
+		warnings := WarningObservations(phase.Observations, 3)
 
 		phaseLine := fmt.Sprintf("  %s phase-%-14s •  %-6s", icon, phase.Name, durationText)
 		if !strings.EqualFold(status, "PASSED") && headline != "" {
@@ -376,6 +387,9 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 		// Always show the log path for quick navigation
 		if phase.LogPath != "" {
 			fmt.Fprintf(p.w, "     log: %s\n", DescribeLogPath(phase.LogPath))
+		}
+		if strings.EqualFold(status, "PASSED") && len(warnings) > 0 {
+			fmt.Fprintf(p.w, "     warnings: %s\n", strings.Join(warnings, " | "))
 		}
 
 		// Failed/error phases get a single-line fix hint and doc pointer
@@ -622,14 +636,27 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 
 // phaseDocMapping maps phase names to relevant documentation files.
 var phaseDocMapping = map[string][]string{
-	"structure":    {"docs/testing/architecture/PHASED_TESTING.md"},
-	"dependencies": {"docs/testing/architecture/PHASED_TESTING.md"},
-	"smoke":        {"docs/testing/guides/writing-testable-uis.md", "docs/testing/guides/ui-automation-with-bas.md"},
-	"unit":         {"docs/testing/guides/writing-testable-uis.md"},
-	"integration":  {"docs/testing/guides/ui-automation-with-bas.md", "docs/testing/guides/writing-testable-uis.md"},
-	"playbooks":    {"docs/testing/guides/ui-automation-with-bas.md"},
-	"business":     {"docs/testing/guides/requirement-tracking-quick-start.md"},
-	"performance":  {"docs/testing/architecture/PHASED_TESTING.md"},
+	"structure":    {"scenarios/test-genie/docs/phases/structure/README.md"},
+	"dependencies": {"scenarios/test-genie/docs/phases/dependencies/README.md"},
+	"lint":         {"scenarios/test-genie/docs/phases/lint/README.md"},
+	"smoke":        {"scenarios/test-genie/docs/phases/smoke/README.md"},
+	"unit":         {"scenarios/test-genie/docs/phases/unit/README.md"},
+	"integration":  {"scenarios/test-genie/docs/phases/integration/README.md"},
+	"playbooks":    {"scenarios/test-genie/docs/phases/playbooks/README.md"},
+	"business":     {"scenarios/test-genie/docs/phases/business/README.md"},
+	"performance":  {"scenarios/test-genie/docs/phases/performance/README.md"},
+}
+
+func phaseDocs(name string) []string {
+	rawDocs, ok := phaseDocMapping[NormalizeName(name)]
+	if !ok {
+		return nil
+	}
+	var resolved []string
+	for _, doc := range rawDocs {
+		resolved = append(resolved, repo.AbsPath(doc))
+	}
+	return resolved
 }
 
 func (p *Printer) printDocs(phases []execTypes.Phase) {
@@ -649,10 +676,8 @@ func (p *Printer) printDocs(phases []execTypes.Phase) {
 	// Collect unique docs relevant to failed phases
 	docsSet := make(map[string]struct{})
 	for _, phaseName := range failedPhases {
-		if docs, ok := phaseDocMapping[phaseName]; ok {
-			for _, doc := range docs {
-				docsSet[doc] = struct{}{}
-			}
+		for _, doc := range phaseDocs(phaseName) {
+			docsSet[doc] = struct{}{}
 		}
 	}
 
@@ -714,10 +739,11 @@ func (p *Printer) phaseFixHint(phase execTypes.Phase) string {
 
 // phaseDocHint returns the first doc link for the phase, if any.
 func (p *Printer) phaseDocHint(name string) string {
-	if docs, ok := phaseDocMapping[NormalizeName(name)]; ok && len(docs) > 0 {
-		return docs[0]
+	docs := phaseDocs(name)
+	if len(docs) == 0 {
+		return ""
 	}
-	return ""
+	return docs[0]
 }
 
 // firstInterestingLine finds the first error-like line in content, falling back to

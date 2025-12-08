@@ -86,14 +86,15 @@ func DescribeLogPath(path string) string {
 	if path == "" {
 		return ""
 	}
-	exists, empty := repo.FileState(path)
+	display := repo.AbsPath(path)
+	exists, empty := repo.FileState(display)
 	switch {
 	case !exists:
-		return fmt.Sprintf("%s (missing)", path)
+		return fmt.Sprintf("%s (missing)", display)
 	case empty:
-		return fmt.Sprintf("%s (empty)", path)
+		return fmt.Sprintf("%s (empty)", display)
 	default:
-		return path
+		return display
 	}
 }
 
@@ -108,6 +109,30 @@ func CleanObservations(obs execTypes.ObservationList) []string {
 		cleaned = append(cleaned, text)
 	}
 	return cleaned
+}
+
+// WarningObservations extracts warning observations up to the provided limit.
+// If limit <= 0, all warning observations are returned.
+func WarningObservations(obs execTypes.ObservationList, limit int) []string {
+	var warnings []string
+	for _, o := range obs {
+		text := strings.TrimSpace(o.String())
+		if text == "" {
+			continue
+		}
+		prefix := strings.ToUpper(strings.TrimSpace(o.Prefix))
+		if prefix != "WARNING" && !strings.Contains(text, "[WARNING") {
+			continue
+		}
+		if prefix == "WARNING" && strings.TrimSpace(o.Text) != "" {
+			text = strings.TrimSpace(o.Text)
+		}
+		warnings = append(warnings, text)
+		if limit > 0 && len(warnings) >= limit {
+			break
+		}
+	}
+	return warnings
 }
 
 // CountLinesContaining counts lines in a file containing a substring.
