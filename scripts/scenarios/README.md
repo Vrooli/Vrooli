@@ -63,15 +63,11 @@ All scenarios have been migrated to the new framework:
 
 ### For Validation Testing
 ```bash
-# Run integration tests for a specific scenario
-cd scripts/research-assistant
-./test.sh
+# Run structure checks for a scenario
+test-genie execute my-scenario --phases structure --fail-fast
 
-# Run all scenario tests  
-for dir in scripts/*/; do
-    echo "Testing $(basename $dir)..."
-    (cd "$dir" && ./test.sh)
-done
+# Run full suite (quick preset)
+test-genie execute my-scenario --preset quick --fail-fast
 ```
 
 ### For App Generation
@@ -134,8 +130,7 @@ scenarios/
 │   └── ... (8 more scenarios)
 ├── scripts/scenarios/templates/   # Scenario templates (copy from here!)
 │   └── react-vite/                # React + Vite + Go API archetype
-├── tools/                    # Management and validation tools
-│   └── validate-scenario.sh  # Validate scenario structure
+├── tools/                    # Management tools (legacy bash retired; use test-genie)
 ├── injection/               # Resource injection system
 │   ├── engine.sh           # Injection orchestrator
 │   ├── schema-validator.sh # Configuration validation
