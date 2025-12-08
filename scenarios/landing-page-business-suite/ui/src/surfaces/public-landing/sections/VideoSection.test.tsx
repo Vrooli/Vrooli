@@ -102,17 +102,28 @@ describe('VideoSection [REQ:DESIGN-VIDEO]', () => {
     expect(screen.getByText('Watch how easy it is to get started')).toBeDefined();
   });
 
-  it('[REQ:DESIGN-VIDEO] should show iframe directly when no thumbnail provided', () => {
+  it('[REQ:DESIGN-VIDEO] should derive YouTube thumbnail when none provided', () => {
     const { container } = render(
       <VideoSection
         videoUrl="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
       />
     );
 
-    // Should show iframe immediately when no thumbnail
+    const img = container.querySelector('img[alt="Video thumbnail"]');
+    expect(img).toBeDefined();
+    expect(img?.getAttribute('src')).toContain('https://img.youtube.com/vi/dQw4w9WgXcQ');
+  });
+
+  it('[REQ:DESIGN-VIDEO] should render iframe immediately for non-YouTube without thumbnail', () => {
+    const { container } = render(
+      <VideoSection
+        videoUrl="https://vimeo.com/123456"
+      />
+    );
+
     const iframe = container.querySelector('iframe');
     expect(iframe).toBeDefined();
-    expect(iframe?.src).toContain('youtube.com/embed/dQw4w9WgXcQ');
+    expect(iframe?.src).toContain('player.vimeo.com/video/123456');
   });
 
   it('[REQ:DESIGN-VIDEO] should handle invalid video URLs gracefully', () => {

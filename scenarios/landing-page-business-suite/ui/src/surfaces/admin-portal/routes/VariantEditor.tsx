@@ -624,7 +624,7 @@ export function VariantEditor() {
                     data-testid="variant-weight-input"
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    Higher weight = more traffic. Total weight across all active variants should equal 100%.
+                    Higher weight = more traffic. Weights are proportional; 0% disables a variant. If all active variants are 0, traffic splits evenly.
                   </p>
                 </div>
               </CardContent>

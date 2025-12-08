@@ -4,7 +4,7 @@ import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { listVariants, archiveVariant, deleteVariant, type Variant, type AnalyticsSummary, type VariantStats } from '../../../shared/api';
+import { listVariants, archiveVariant, deleteVariant, updateVariant, type Variant, type AnalyticsSummary, type VariantStats } from '../../../shared/api';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
 import { loadVariantEditorData } from '../controllers/variantEditorController';
 
@@ -12,6 +12,7 @@ const STALE_VARIANT_DAYS = 10;
 const SNAPSHOT_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 type WeightStatus = 'empty' | 'balanced' | 'under' | 'over';
+type TrafficShareMode = 'weighted' | 'even';
 
 const getTrendGlyph = (trend?: VariantStats['trend']) => {
   if (trend === 'up') return <ArrowUpRight className="h-3 w-3 text-emerald-300" />;
@@ -36,6 +37,8 @@ export function Customization() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [variantQuery, setVariantQuery] = useState('');
   const [attentionOnly, setAttentionOnly] = useState(false);
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, number>>({});
+  const [savingWeights, setSavingWeights] = useState<Record<string, boolean>>({});
   const variantListRef = useRef<HTMLDivElement | null>(null);
   const [appliedFocusSlug, setAppliedFocusSlug] = useState<string | null>(null);
   const [appliedSectionFocusSlug, setAppliedSectionFocusSlug] = useState<string | null>(null);
@@ -89,6 +92,31 @@ export function Customization() {
     }
   };
 
+  const persistWeight = useCallback(
+    async (slug: string, nextWeight: number) => {
+      if (savingWeights[slug]) return;
+      const currentVariant = variants.find((v) => v.slug === slug);
+      if (!currentVariant) return;
+      if (currentVariant.weight === nextWeight) return;
+      setSavingWeights((prev) => ({ ...prev, [slug]: true }));
+      try {
+        await updateVariant(slug, { weight: nextWeight });
+        setVariants((prev) =>
+          prev.map((v) => (v.slug === slug ? { ...v, weight: nextWeight } : v))
+        );
+      } catch (err) {
+        alert(`Failed to update weight: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setWeightDrafts((prev) => ({
+          ...prev,
+          [slug]: currentVariant.weight ?? 0,
+        }));
+      } finally {
+        setSavingWeights((prev) => ({ ...prev, [slug]: false }));
+      }
+    },
+    [savingWeights, variants]
+  );
+
   const fetchAnalyticsSnapshot = async () => {
     try {
       setAnalyticsLoading(true);
@@ -106,12 +134,24 @@ export function Customization() {
 
   const activeVariants = variants.filter(v => v.status === 'active');
   const archivedVariants = variants.filter(v => v.status === 'archived');
+  useEffect(() => {
+    const drafts: Record<string, number> = {};
+    activeVariants.forEach((v) => {
+      drafts[v.slug] = v.weight ?? 0;
+    });
+    setWeightDrafts(drafts);
+  }, [activeVariants.map((v) => `${v.slug}:${v.weight}`).join('|')]);
+
+  const getWeight = useCallback(
+    (variant: Variant) => weightDrafts[variant.slug] ?? variant.weight ?? 0,
+    [weightDrafts]
+  );
   const statsBySlug = useMemo(() => {
     const map = new Map<string, VariantStats>();
     analytics?.variant_stats.forEach((stat) => map.set(stat.variant_slug, stat));
     return map;
   }, [analytics]);
-  const totalAssignedWeight = activeVariants.reduce((sum, variant) => sum + (variant.weight ?? 0), 0);
+  const totalAssignedWeight = activeVariants.reduce((sum, variant) => sum + getWeight(variant), 0);
   const weightStatus: WeightStatus = activeVariants.length === 0
     ? 'empty'
     : totalAssignedWeight === 100
@@ -119,6 +159,18 @@ export function Customization() {
       : totalAssignedWeight > 100
         ? 'over'
         : 'under';
+  const trafficShareMode: TrafficShareMode = totalAssignedWeight === 0 ? 'even' : 'weighted';
+  const normalizeShare = useCallback(
+    (weight: number) => {
+      if (activeVariants.length === 0) return 0;
+      if (trafficShareMode === 'even') {
+        return (1 / activeVariants.length) * 100;
+      }
+      if (totalAssignedWeight === 0) return 0;
+      return (weight / totalAssignedWeight) * 100;
+    },
+    [activeVariants.length, totalAssignedWeight, trafficShareMode]
+  );
   const staleVariants = useMemo(() => {
     const now = Date.now();
     return activeVariants
@@ -331,7 +383,9 @@ export function Customization() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-semibold mb-2">Customization</h1>
-            <p className="text-slate-400">Manage A/B test variants and customize landing page content</p>
+            <p className="text-slate-400">
+              Manage A/B test variants and customize landing page content. Weights are relative (0 disables; all-zero = even split).
+            </p>
           </div>
           <div className="flex gap-3">
             <Button
@@ -392,6 +446,67 @@ export function Customization() {
           </div>
         )}
 
+        <Card className="mb-8 bg-white/5 border-white/10">
+          <CardHeader>
+            <CardTitle>Live Traffic Split</CardTitle>
+            <CardDescription className="text-slate-400">
+              Normalized allocation across active variants. Totals above/below 100% are proportionally redistributed by the API.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {activeVariants.length === 0 ? (
+              <p className="text-slate-400 text-sm">No active variants. Create a variant to route traffic.</p>
+            ) : (
+              <div className="space-y-2">
+                {activeVariants.map((variant) => {
+                  const weight = getWeight(variant);
+                  const share = normalizeShare(weight);
+                  const saving = savingWeights[variant.slug];
+                  return (
+                    <div
+                      key={variant.slug}
+                      className="flex flex-col gap-2 rounded-lg border border-white/10 bg-slate-900/40 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-white">{variant.name ?? variant.slug}</div>
+                        <div className="text-xs text-slate-400">
+                          Weight {weight}% • Normalized {share.toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="flex flex-1 items-center gap-3 md:justify-end">
+                        <div className="w-32 h-2 rounded-full bg-slate-800 overflow-hidden">
+                          <div
+                            className="h-2 bg-sky-400 transition-all"
+                            style={{ width: `${Math.min(share, 100)}%` }}
+                            aria-label={`Normalized share ${share.toFixed(1)}%`}
+                          />
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={weight}
+                          disabled={saving}
+                          className="w-36"
+                          onChange={(e) => setWeightDrafts((prev) => ({ ...prev, [variant.slug]: parseInt(e.target.value, 10) || 0 }))}
+                          onMouseUp={(e) => persistWeight(variant.slug, parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                          onTouchEnd={(e) => {
+                            const target = e.target as HTMLInputElement;
+                            persistWeight(variant.slug, parseInt(target.value, 10) || 0);
+                          }}
+                          data-testid={`live-weight-slider-${variant.slug}`}
+                        />
+                        <div className="text-xs text-slate-300 w-12 text-right">{weight}%</div>
+                        {saving && <div className="text-[11px] text-slate-400">Saving…</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Active Variants */}
         <div className="mb-8" ref={variantListRef}>
           <div className="flex items-center justify-between mb-3">
@@ -420,87 +535,91 @@ export function Customization() {
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredActiveVariants.map((variant) => (
-                <Card
-                  key={variant.id}
-                  className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
-                  data-testid={`variant-card-${variant.slug}`}
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{variant.name}</CardTitle>
-                        <CardDescription className="text-slate-400 text-sm mt-1">
-                          {variant.slug}
-                        </CardDescription>
+              {filteredActiveVariants.map((variant) => {
+                const weight = getWeight(variant);
+                const share = normalizeShare(weight);
+                return (
+                  <Card
+                    key={variant.id}
+                    className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
+                    data-testid={`variant-card-${variant.slug}`}
+                  >
+                    <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">{variant.name}</CardTitle>
+                            <CardDescription className="text-slate-400 text-sm mt-1">
+                              {variant.slug}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-400">
+                          Weight: {weight}% · Norm: {share.toFixed(1)}%
+                          </div>
+                        </div>
+                      {variant.description && (
+                        <p className="text-sm text-slate-300 mt-2">{variant.description}</p>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <VariantStatusBadges
+                        slug={variant.slug}
+                        lastUpdatedLabel={formatVariantUpdatedLabel(variant.updated_at)}
+                        attentionReasons={variantAttentionReasons.get(variant.slug) ?? []}
+                      />
+                      <VariantPerformanceSummary
+                        slug={variant.slug}
+                        stats={statsBySlug.get(variant.slug)}
+                        loading={analyticsLoading}
+                      />
+                      {variant.axes && (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {Object.entries(variant.axes).map(([axisId, axisValue]) => (
+                            <span key={axisId} className="text-xs px-2 py-1 rounded-full bg-blue-500/15 text-blue-200">
+                              {axisId}: {axisValue}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-2"
+                          onClick={() => navigate(`/admin/customization/variants/${variant.slug}`)}
+                          data-testid={`edit-variant-${variant.slug}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`/?variant=${variant.slug}`, '_blank')}
+                          data-testid={`preview-variant-${variant.slug}`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleArchive(variant.slug)}
+                          data-testid={`archive-variant-${variant.slug}`}
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/admin/analytics?variant=${variant.slug}`)}
+                          data-testid={`variant-analytics-${variant.slug}`}
+                        >
+                          View Analytics
+                        </Button>
                       </div>
-                      <div className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-400">
-                        Weight: {variant.weight}%
-                      </div>
-                    </div>
-                    {variant.description && (
-                      <p className="text-sm text-slate-300 mt-2">{variant.description}</p>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <VariantStatusBadges
-                      slug={variant.slug}
-                      lastUpdatedLabel={formatVariantUpdatedLabel(variant.updated_at)}
-                      attentionReasons={variantAttentionReasons.get(variant.slug) ?? []}
-                    />
-                    <VariantPerformanceSummary
-                      slug={variant.slug}
-                      stats={statsBySlug.get(variant.slug)}
-                      loading={analyticsLoading}
-                    />
-                    {variant.axes && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {Object.entries(variant.axes).map(([axisId, axisValue]) => (
-                          <span key={axisId} className="text-xs px-2 py-1 rounded-full bg-blue-500/15 text-blue-200">
-                            {axisId}: {axisValue}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-2"
-                        onClick={() => navigate(`/admin/customization/variants/${variant.slug}`)}
-                        data-testid={`edit-variant-${variant.slug}`}
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(`/?variant=${variant.slug}`, '_blank')}
-                        data-testid={`preview-variant-${variant.slug}`}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleArchive(variant.slug)}
-                        data-testid={`archive-variant-${variant.slug}`}
-                      >
-                        <Archive className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/admin/analytics?variant=${variant.slug}`)}
-                        data-testid={`variant-analytics-${variant.slug}`}
-                      >
-                        View Analytics
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -614,15 +733,15 @@ function VariantListSummary({ activeCount, archivedCount, attentionCount, totalW
       return 'No active variants are routing traffic. Create one to light up the public landing.';
     }
     if (weightStatus === 'balanced') {
-      return 'Traffic is fully allocated across variants.';
+      return 'Traffic is fully allocated across variants. Weights are interpreted as proportions.';
     }
     if (weightStatus === 'under') {
-      return `${100 - totalWeight}% of visitors are idle because weights total less than 100%.`;
+      return `Weights sum to ${totalWeight}%. API will normalize; increase weights if you want more skew.`;
     }
     if (weightStatus === 'over') {
-      return `Weights exceed 100% by ${totalWeight - 100}%. Adjust them to match your intent.`;
+      return `Weights exceed 100% by ${totalWeight - 100}%. API normalizes, but trim to express intent.`;
     }
-    return 'Assign weights to control where visitors land.';
+    return 'Assign weights to control where visitors land. 0% disables a variant.';
   })();
 
   return (
@@ -684,12 +803,12 @@ function ExperienceOpsPanel({
       return 'No active variants are routing traffic. Create one to render the public landing page.';
     }
     if (weightStatus === 'balanced') {
-      return 'All visitor traffic is allocated. Keep experimenting but weights already sum to 100%.';
+      return 'All visitor traffic is allocated. Weights act as proportions across active variants.';
     }
     if (weightStatus === 'under') {
-      return `Only ${totalWeight}% of visitors are assigned to active variants. Allocate the remaining ${remainder}% to avoid idle traffic.`;
+      return `Weights sum to ${totalWeight}%. The API normalizes proportions; increase weights for clearer intent.`;
     }
-    return `${totalWeight}% of traffic is assigned, exceeding 100% by ${remainder}%. Adjust weights so the API can honor intended splits.`;
+    return `${totalWeight}% of traffic is assigned, exceeding 100% by ${remainder}%. API still normalizes; trim weights to reflect the split you want.`;
   })();
   const neverTouchedNames = neverUpdatedVariants.map((variant) => variant.name || variant.slug);
   const underperformingSlug = underperforming?.stats.variant_slug;
