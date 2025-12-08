@@ -2,7 +2,7 @@
   "name": "vrooli-test-infrastructure",
   "version": "1.0.0",
   "private": true,
-  "description": "Testing infrastructure for Vrooli documentation and static analysis (uses Lychee for link validation)",
+  "description": "Testing infrastructure for Vrooli documentation validation (uses Lychee for link validation)",
   "devDependencies": {
     "markdownlint-cli2": "^0.11.0",
     "typescript": "^5.0.0",

@@ -160,7 +160,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Application initialized\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  CLI: math-tools --help\"",
+          "run": "echo \"\ud83d\ude80 Application initialized\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  CLI: math-tools --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -188,7 +188,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Services running\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  UI: http://127.0.0.1:${UI_PORT}\" && echo \"  CLI: math-tools --help\"",
+          "run": "echo \"\ud83d\ude80 Services running\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  UI: http://127.0.0.1:${UI_PORT}\" && echo \"  CLI: math-tools --help\"",
           "description": "Display all running service URLs"
         }
       ]
@@ -198,7 +198,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute math-tools --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]
@@ -218,7 +218,7 @@
         },
         {
           "name": "confirm-stop",
-          "run": "echo '🛑 Application services stopped'",
+          "run": "echo '\ud83d\uded1 Application services stopped'",
           "description": "Confirm services stopped"
         }
       ]

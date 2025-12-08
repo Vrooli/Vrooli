@@ -162,7 +162,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Idea Generator initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
+          "run": "echo '\ud83d\ude80 Idea Generator initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -190,7 +190,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
+          "run": "echo '\ud83d\ude80 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -200,7 +200,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute idea-generator --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

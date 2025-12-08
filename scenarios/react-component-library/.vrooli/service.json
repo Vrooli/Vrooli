@@ -128,7 +128,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
+          "run": "test-genie execute react-component-library --preset comprehensive",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

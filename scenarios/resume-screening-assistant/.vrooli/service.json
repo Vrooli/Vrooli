@@ -158,7 +158,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Resume Screening Assistant initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: resume-screening-assistant --help'",
+          "run": "echo '\ud83d\ude80 Resume Screening Assistant initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: resume-screening-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -186,7 +186,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  🎨 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$API_PORT\\n  🖥️ CLI: resume-screening-assistant --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  \ud83c\udfa8 UI Dashboard: http://localhost:$UI_PORT\\n  \ud83d\udcca n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  \u2699\ufe0f API: http://localhost:$API_PORT\\n  \ud83d\udda5\ufe0f CLI: resume-screening-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -196,7 +196,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute resume-screening-assistant --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

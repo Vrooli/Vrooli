@@ -158,7 +158,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔖 Bookmark Intelligence Hub initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  CLI: bookmark-intelligence-hub --help'",
+          "run": "echo '\ud83d\udd16 Bookmark Intelligence Hub initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  CLI: bookmark-intelligence-hub --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -186,7 +186,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔖 Bookmark Intelligence Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  CLI: bookmark-intelligence-hub --help'",
+          "run": "echo '\ud83d\udd16 Bookmark Intelligence Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  CLI: bookmark-intelligence-hub --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -196,7 +196,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute bookmark-intelligence-hub --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

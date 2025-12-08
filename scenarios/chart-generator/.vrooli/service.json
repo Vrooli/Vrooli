@@ -151,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Chart Generator initialized\\n  Style Management UI: http://localhost:${UI_PORT}\\n  Chart Generation API: http://localhost:${API_PORT}\\n  CLI: chart-generator --help\\n  \\n📊 Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
+          "run": "echo '\ud83c\udfa8 Chart Generator initialized\\n  Style Management UI: http://localhost:${UI_PORT}\\n  Chart Generation API: http://localhost:${API_PORT}\\n  CLI: chart-generator --help\\n  \\n\ud83d\udcca Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
           "description": "Display service access URLs and usage examples"
         }
       ]
@@ -179,7 +179,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
+          "run": "echo '\ud83c\udfa8 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n\ud83d\udccb CLI Usage: chart-generator --help'",
           "description": "Display all running service URLs and CLI info"
         }
       ]
@@ -189,7 +189,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute chart-generator --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

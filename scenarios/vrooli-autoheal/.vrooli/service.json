@@ -135,7 +135,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
+          "run": "test-genie execute vrooli-autoheal --preset comprehensive",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

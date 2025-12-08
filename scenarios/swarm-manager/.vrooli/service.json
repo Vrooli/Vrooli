@@ -168,7 +168,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
+          "run": "echo \"\u2705 Swarm Manager is running at http://localhost:${UI_PORT}\""
         }
       ]
     },
@@ -177,7 +177,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute swarm-manager --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

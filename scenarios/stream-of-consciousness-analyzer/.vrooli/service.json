@@ -188,7 +188,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute stream-of-consciousness-analyzer --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

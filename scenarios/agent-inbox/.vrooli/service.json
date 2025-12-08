@@ -107,7 +107,9 @@
         }
       ],
       "condition": {
-        "binaries": ["api/agent-inbox-api"],
+        "binaries": [
+          "api/agent-inbox-api"
+        ],
         "ui-bundle": "ui/dist/index.html"
       }
     },
@@ -144,7 +146,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
+          "run": "test-genie execute agent-inbox --preset comprehensive",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

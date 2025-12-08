@@ -53,23 +53,23 @@ dev: ## Start in development mode
 
 test: ## Run phased tests
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@./test/run-tests.sh
+	@vrooli scenario test $(SCENARIO_NAME)
 
 test-smoke: ## Run quick smoke preset
 	@echo "$(BLUE)🔥 Running smoke tests...$(RESET)"
-	@./test/run-tests.sh smoke
+	@test-genie execute $(SCENARIO_NAME) --preset smoke
 
 test-unit: ## Run unit phase only
 	@echo "$(BLUE)🧪 Running unit tests...$(RESET)"
-	@./test/run-tests.sh unit
+	@test-genie execute $(SCENARIO_NAME) --phases unit
 
 test-integration: ## Run integration phase only
 	@echo "$(BLUE)🔗 Running integration tests...$(RESET)"
-	@./test/run-tests.sh integration
+	@test-genie execute $(SCENARIO_NAME) --phases integration
 
 test-all: ## Run full comprehensive suite
 	@echo "$(BLUE)🔁 Running comprehensive test suite...$(RESET)"
-	@./test/run-tests.sh comprehensive
+	@test-genie execute $(SCENARIO_NAME) --preset comprehensive
 	@echo "$(GREEN)✅ All test phases passed!$(RESET)"
 
 logs: ## Show recent logs for this scenario

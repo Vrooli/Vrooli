@@ -156,7 +156,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Audio Intelligence Platform initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: audio-intelligence-platform --help'",
+          "run": "echo '\ud83d\ude80 Audio Intelligence Platform initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: audio-intelligence-platform --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -189,7 +189,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Audio Intelligence Platform running:\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: audio-intelligence-platform --help'",
+          "run": "echo '\ud83d\ude80 Audio Intelligence Platform running:\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: audio-intelligence-platform --help'",
           "description": "Display service URLs"
         }
       ]
@@ -199,7 +199,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute audio-intelligence-platform --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

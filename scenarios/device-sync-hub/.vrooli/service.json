@@ -146,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Device Sync Hub initialized\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n📱 Access from mobile: Replace localhost with your computers IP address'",
+          "run": "echo -e '\ud83d\ude80 Device Sync Hub initialized\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Access from mobile: Replace localhost with your computers IP address'",
           "description": "Display service access URLs and mobile setup instructions"
         }
       ]
@@ -174,7 +174,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Device Sync Hub running\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n📱 Mobile Access: Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT:-37865}'",
+          "run": "echo -e '\ud83d\ude80 Device Sync Hub running\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Mobile Access: Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT:-37865}'",
           "description": "Display service access URLs"
         }
       ]
@@ -184,7 +184,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute device-sync-hub --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

@@ -83,13 +83,17 @@
         "checks": [
           {
             "type": "binaries",
-            "paths": ["api/secrets-manager-api"],
+            "paths": [
+              "api/secrets-manager-api"
+            ],
             "description": "API binary produced by build-api step"
           },
           {
             "type": "cli",
             "command": "secrets-manager",
-            "targets": ["secrets-manager"],
+            "targets": [
+              "secrets-manager"
+            ],
             "description": "CLI must be installed"
           },
           {
@@ -133,7 +137,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '✅ Setup complete!' && echo '' && echo '🔗 Access points:' && echo \"  API: http://localhost:${API_PORT}/health\" && echo \"  UI:  http://localhost:${UI_PORT}\" && echo '' && echo '▶️  Start with: make start'",
+          "run": "echo '\u2705 Setup complete!' && echo '' && echo '\ud83d\udd17 Access points:' && echo \"  API: http://localhost:${API_PORT}/health\" && echo \"  UI:  http://localhost:${UI_PORT}\" && echo '' && echo '\u25b6\ufe0f  Start with: make start'",
           "description": "Display access URLs after setup"
         }
       ]
@@ -161,7 +165,7 @@
         },
         {
           "name": "show-urls",
-          "run": "sleep 2 && echo '' && echo '🚀 Secrets Manager is running!' && echo '' && echo '🔗 Access points:' && echo \"  API Health: http://localhost:${API_PORT}/health\" && echo \"  Dashboard:  http://localhost:${UI_PORT}\" && echo '' && echo '📊 View logs: make logs' && echo '🛑 Stop: make stop'",
+          "run": "sleep 2 && echo '' && echo '\ud83d\ude80 Secrets Manager is running!' && echo '' && echo '\ud83d\udd17 Access points:' && echo \"  API Health: http://localhost:${API_PORT}/health\" && echo \"  Dashboard:  http://localhost:${UI_PORT}\" && echo '' && echo '\ud83d\udcca View logs: make logs' && echo '\ud83d\uded1 Stop: make stop'",
           "description": "Display running service URLs"
         }
       ]
@@ -171,7 +175,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
+          "run": "test-genie execute secrets-manager --preset comprehensive",
           "description": "Execute structure/unit/integration tests"
         }
       ]

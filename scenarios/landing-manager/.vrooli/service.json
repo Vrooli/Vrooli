@@ -89,12 +89,16 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/landing-manager-api"]
+            "targets": [
+              "api/landing-manager-api"
+            ]
           },
           {
             "type": "cli",
             "command": "landing-manager",
-            "targets": ["landing-manager"]
+            "targets": [
+              "landing-manager"
+            ]
           },
           {
             "type": "ui-bundle",
@@ -164,7 +168,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
+          "run": "test-genie execute landing-manager --preset comprehensive",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

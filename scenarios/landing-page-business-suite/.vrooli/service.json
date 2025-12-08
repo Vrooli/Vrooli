@@ -50,7 +50,7 @@
           },
           "description": "Start Go API server",
           "name": "start-api",
-          "run": "cd api \u0026\u0026 exec ./landing-page-business-suite-api"
+          "run": "cd api && exec ./landing-page-business-suite-api"
         },
         {
           "background": true,
@@ -59,12 +59,12 @@
           },
           "description": "Serve production UI bundle",
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js"
+          "run": "cd ui && node server.js"
         },
         {
           "description": "Display access URLs",
           "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" \u0026\u0026 echo \"UI: http://localhost:${UI_PORT}\" \u0026\u0026 echo \"Admin: http://localhost:${UI_PORT}/admin\""
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\""
         }
       ]
     },
@@ -104,7 +104,7 @@
           },
           "description": "Start Go API server in production mode",
           "name": "start-api",
-          "run": "cd api \u0026\u0026 exec ./landing-page-business-suite-api"
+          "run": "cd api && exec ./landing-page-business-suite-api"
         },
         {
           "background": true,
@@ -113,7 +113,7 @@
           },
           "description": "Serve production UI bundle with optimized settings",
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js"
+          "run": "cd ui && node server.js"
         }
       ]
     },
@@ -133,37 +133,37 @@
           }
         ]
       },
-      "description": "Build API \u0026 UI for the generated landing scenario",
+      "description": "Build API & UI for the generated landing scenario",
       "steps": [
         {
           "description": "Apply database schema (admin, variants, metrics, subscriptions, content sections) to postgres if psql is available",
           "name": "db-schema",
-          "run": "if command -v psql \u003e/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/schema.sql; else echo \"psql not found; runtime will auto-init schema\"; fi"
+          "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/schema.sql; else echo \"psql not found; runtime will auto-init schema\"; fi"
         },
         {
           "description": "Seed default admin user, variants, and content sections when psql is available",
           "name": "db-seed",
-          "run": "if command -v psql \u003e/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/seed.sql; else echo \"psql not found; skipping seed (runtime seeds defaults)\"; fi"
+          "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/seed.sql; else echo \"psql not found; skipping seed (runtime seeds defaults)\"; fi"
         },
         {
           "description": "Build Go API binary (landing-page-business-suite-api) in api/ directory for reuse by start-api step",
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o landing-page-business-suite-api ."
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o landing-page-business-suite-api ."
         },
         {
           "description": "Install UI dependencies",
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi"
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi"
         },
         {
           "description": "Build production UI bundle",
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 pnpm run build; else echo 'ui/ not present yet'; fi"
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi"
         },
         {
           "description": "Display access URLs",
           "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" \u0026\u0026 echo \"UI: http://localhost:${UI_PORT}\" \u0026\u0026 echo \"Admin: http://localhost:${UI_PORT}/admin\""
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\""
         }
       ]
     },
@@ -188,7 +188,7 @@
         {
           "description": "Run structure/unit/integration/business/performance phases",
           "name": "run-tests",
-          "run": "cd test \u0026\u0026 ./run-tests.sh"
+          "run": "test-genie execute landing-page-business-suite --preset comprehensive"
         }
       ]
     },

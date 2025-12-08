@@ -147,7 +147,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Symbol Search initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: symbol-search --help\\n\\nSearch endpoints:\\n  GET /api/search?q=heart&category=symbols\\n  GET /api/categories\\n  GET /api/character/{codepoint}'",
+          "run": "echo '\ud83d\udd0d Symbol Search initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: symbol-search --help\\n\\nSearch endpoints:\\n  GET /api/search?q=heart&category=symbols\\n  GET /api/categories\\n  GET /api/character/{codepoint}'",
           "description": "Display service access URLs and usage"
         }
       ]
@@ -175,7 +175,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Symbol Search running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: symbol-search --help\\n\\nAPI Endpoints:\\n  GET /api/search - Search symbols\\n  GET /api/categories - List categories\\n  GET /api/blocks - List Unicode blocks\\n  GET /api/character/{codepoint} - Character details'",
+          "run": "echo '\ud83d\udd0d Symbol Search running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: symbol-search --help\\n\\nAPI Endpoints:\\n  GET /api/search - Search symbols\\n  GET /api/categories - List categories\\n  GET /api/blocks - List Unicode blocks\\n  GET /api/character/{codepoint} - Character details'",
           "description": "Display running service URLs"
         }
       ]
@@ -185,7 +185,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute symbol-search --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

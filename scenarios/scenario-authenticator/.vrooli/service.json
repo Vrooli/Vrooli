@@ -213,7 +213,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute scenario-authenticator --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

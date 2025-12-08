@@ -159,7 +159,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "run": "echo \"\ud83d\ude80 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
           "description": "Display service access URLs"
         }
       ]
@@ -205,7 +205,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "run": "echo \"\ud83d\ude80 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
           "description": "Display running service URLs"
         }
       ]
@@ -215,7 +215,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute api-library --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

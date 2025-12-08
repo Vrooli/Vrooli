@@ -51,7 +51,7 @@
           "type": "test",
           "ref": "api/staleness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests validate prioritization queries: TestLeastVisitedHandler, TestMostStaleHandler [REQ:VT-REQ-007]"
         },
         {
@@ -78,20 +78,20 @@
       "title": "Campaign Export/Import API",
       "description": "Export and import campaign data for backup, sharing, and migration between environments",
       "priority": "P1",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
           "ref": "api/main_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests validate export functionality: TestExportHandler, TestExportHandlerComprehensive [REQ:VT-REQ-008]"
         },
         {
           "type": "test",
           "ref": "api/import_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestImportHandler validates campaign import and data preservation [REQ:VT-REQ-008]"
         },
         {
@@ -117,14 +117,14 @@
           "type": "test",
           "ref": "api/campaign_handlers_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests validate HTTP endpoints that power the UI dashboard: TestListCampaignsHandler, TestGetCampaignHandler [REQ:VT-REQ-009]"
         },
         {
           "type": "test",
           "ref": "api/main_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests validate coverage metrics for dashboard: TestCoverageHandler, TestCoverageHandlerErrorPaths [REQ:VT-REQ-009]"
         },
         {
@@ -144,13 +144,13 @@
       "title": "Campaign Detail View",
       "description": "Provide detailed campaign view with file list, staleness visualization, and visit tracking",
       "priority": "P1",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
           "ref": "api/main_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unit tests validate campaign detail retrieval and display data [REQ:VT-REQ-010]"
         },
         {

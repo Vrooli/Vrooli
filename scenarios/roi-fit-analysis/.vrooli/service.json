@@ -198,7 +198,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute roi-fit-analysis --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

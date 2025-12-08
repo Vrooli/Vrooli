@@ -102,7 +102,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '🚀 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "run": "printf '\ud83d\ude80 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
           "description": "Display service endpoints"
         }
       ]
@@ -121,7 +121,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '🚀 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "run": "printf '\ud83d\ude80 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
           "description": "Display runtime endpoints"
         }
       ]
@@ -131,7 +131,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute time-tools --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

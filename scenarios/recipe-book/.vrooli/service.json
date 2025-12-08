@@ -170,7 +170,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🍳 Recipe Book initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
+          "run": "echo '\ud83c\udf73 Recipe Book initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -198,7 +198,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🍳 Recipe Book running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\"",
+          "run": "echo \"\ud83c\udf73 Recipe Book running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\"",
           "description": "Display service URLs"
         }
       ]
@@ -208,7 +208,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute recipe-book --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

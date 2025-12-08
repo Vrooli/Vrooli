@@ -133,7 +133,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🕵️ Code Smell Detector initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: code-smell --help'",
+          "run": "echo '\ud83d\udd75\ufe0f Code Smell Detector initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: code-smell --help'",
           "description": "Display service URLs"
         }
       ]
@@ -181,7 +181,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Code Smell Detector running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Health: http://localhost:${UI_PORT}/health'",
+          "run": "echo '\ud83d\udd0d Code Smell Detector running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Health: http://localhost:${UI_PORT}/health'",
           "description": "Display service URLs"
         }
       ]
@@ -191,7 +191,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute code-smell --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

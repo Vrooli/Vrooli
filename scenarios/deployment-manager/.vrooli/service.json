@@ -136,7 +136,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Deployment Manager initialized\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: deployment-manager --help\\n\\n💡 Quick start:\\n  deployment-manager analyze <scenario>\\n  deployment-manager profiles list\\n  deployment-manager fitness <scenario> --tier 2'",
+          "run": "echo '\ud83d\ude80 Deployment Manager initialized\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: deployment-manager --help\\n\\n\ud83d\udca1 Quick start:\\n  deployment-manager analyze <scenario>\\n  deployment-manager profiles list\\n  deployment-manager fitness <scenario> --tier 2'",
           "description": "Display access URLs for API and UI"
         }
       ]
@@ -164,7 +164,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Deployment Manager running:\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: deployment-manager --help\\n\\n📝 View logs: make logs\\n🛑 Stop: make stop'",
+          "run": "echo '\ud83d\ude80 Deployment Manager running:\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: deployment-manager --help\\n\\n\ud83d\udcdd View logs: make logs\\n\ud83d\uded1 Stop: make stop'",
           "description": "Display access URLs for API and UI after startup"
         }
       ]
@@ -174,7 +174,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "./test/run-tests.sh",
+          "run": "test-genie execute deployment-manager --preset comprehensive",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

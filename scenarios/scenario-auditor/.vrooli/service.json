@@ -126,7 +126,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"✅ Scenario Auditor is ready:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
+          "run": "echo \"\u2705 Scenario Auditor is ready:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
         }
       ]
     },
@@ -153,7 +153,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"✅ Scenario Auditor is running:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
+          "run": "echo \"\u2705 Scenario Auditor is running:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
         }
       ]
     },
@@ -162,7 +162,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute scenario-auditor --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

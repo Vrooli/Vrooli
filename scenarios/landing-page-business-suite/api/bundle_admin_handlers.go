@@ -13,7 +13,7 @@ type bundleCatalogResponse struct {
 }
 
 type updateBundlePriceRequest struct {
-	StripePriceID  *string  `json:"stripe_price_id"`
+	StripePriceID  *string   `json:"stripe_price_id"`
 	PlanName       *string   `json:"plan_name"`
 	DisplayWeight  *int      `json:"display_weight"`
 	DisplayEnabled *bool     `json:"display_enabled"`

@@ -31,7 +31,7 @@
     {
       "id": "screenshot_dashboard",
       "action": "screenshot",
-      "path": "test/artifacts/ui/campaign-dashboard-home.png",
+      "path": "coverage/ui-smoke/campaign-dashboard-home.png",
       "description": "Capture dashboard screenshot"
     },
     {

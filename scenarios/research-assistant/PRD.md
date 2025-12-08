@@ -708,7 +708,7 @@ Testing is executed through the shared phased runner (`test/run-tests.sh`), whic
 - **Business** – parses configuration/workflow JSON and sanity-checks core business rules (`test/phases/test-business.sh`)
 - **Performance** – executes lightweight build-time benchmarks for API and UI artefacts (`test/phases/test-performance.sh`)
 
-The runner writes phase summaries to `coverage/phase-results/*.json`, enabling requirements coverage reporting via `node ../../scripts/requirements/report.js --scenario research-assistant`.
+The runner writes phase summaries to `coverage/phase-results/*.json`, enabling requirements coverage reporting via `vrooli scenario requirements report research-assistant`.
 
 ### Performance Validation
 - [x] API response times < 500ms (95th percentile) - Verified: health endpoint responds in <50ms

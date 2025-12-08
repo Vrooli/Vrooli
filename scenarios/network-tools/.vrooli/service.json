@@ -160,7 +160,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
+          "run": "echo '\ud83d\ude80 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -188,7 +188,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -198,7 +198,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute network-tools --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]
@@ -218,7 +218,7 @@
         },
         {
           "name": "confirm-stop",
-          "run": "echo '🛑 Application services stopped'",
+          "run": "echo '\ud83d\uded1 Application services stopped'",
           "description": "Confirm services stopped"
         }
       ]

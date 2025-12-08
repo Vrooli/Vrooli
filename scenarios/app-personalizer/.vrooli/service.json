@@ -116,7 +116,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
+          "run": "echo '\ud83d\ude80 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -135,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
+          "run": "echo '\ud83d\ude80 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
           "description": "Display service URLs"
         }
       ]
@@ -145,7 +145,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute app-personalizer --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

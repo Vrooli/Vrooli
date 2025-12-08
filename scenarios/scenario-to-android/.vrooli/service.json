@@ -129,7 +129,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Android initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-android --help'",
+          "run": "echo '\ud83d\ude80 Scenario to Android initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-android --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -157,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Android running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Scenario to Android running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -182,7 +182,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute scenario-to-android --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

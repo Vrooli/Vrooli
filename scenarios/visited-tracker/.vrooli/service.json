@@ -89,12 +89,16 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/visited-tracker-api"]
+            "targets": [
+              "api/visited-tracker-api"
+            ]
           },
           {
             "type": "cli",
             "command": "visited-tracker",
-            "targets": ["visited-tracker"]
+            "targets": [
+              "visited-tracker"
+            ]
           },
           {
             "type": "ui-bundle",
@@ -131,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "run": "echo '\ud83d\ude80 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -159,7 +163,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Visited Tracker ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "run": "echo '\ud83d\ude80 Visited Tracker ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
           "description": "Display service URLs after startup"
         }
       ]
@@ -169,7 +173,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute visited-tracker --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

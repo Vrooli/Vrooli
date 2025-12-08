@@ -158,7 +158,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🎉 Ecosystem Manager is ready at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\"",
+          "run": "echo \"\ud83c\udf89 Ecosystem Manager is ready at http://localhost:${API_PORT}\" && echo \"\ud83d\udcca Dashboard: http://localhost:${UI_PORT}\" && echo \"\ud83d\udd0c API Base: http://localhost:${API_PORT}/api\"",
           "description": "Display service access URLs"
         }
       ]
@@ -186,7 +186,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🎉 Ecosystem Manager is running\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API: http://localhost:${API_PORT}/api\"",
+          "run": "echo \"\ud83c\udf89 Ecosystem Manager is running\" && echo \"\ud83d\udcca Dashboard: http://localhost:${UI_PORT}\" && echo \"\ud83d\udd0c API: http://localhost:${API_PORT}/api\"",
           "description": "Display service URLs"
         }
       ]
@@ -196,7 +196,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute ecosystem-manager --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

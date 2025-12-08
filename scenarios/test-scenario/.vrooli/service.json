@@ -124,7 +124,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute test-scenario --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

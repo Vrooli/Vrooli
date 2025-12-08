@@ -148,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Recommendation Engine initialized\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API Documentation: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  API Health: http://localhost:${RECOMMENDATION_API_PORT}/health\\n  CLI: recommendation-engine --help'",
+          "run": "echo '\ud83d\ude80 Recommendation Engine initialized\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API Documentation: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  API Health: http://localhost:${RECOMMENDATION_API_PORT}/health\\n  CLI: recommendation-engine --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -186,7 +186,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute recommendation-engine --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

@@ -121,60 +121,13 @@ func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	`
 
 	row := s.db.QueryRow(query, priceID)
-	option := &PlanOption{}
-	var metadataBytes []byte
-	var rawKind string
-	var rawInterval string
-	var rawIntroType sql.NullString
-	var rawIntroLookup sql.NullString
-	var introAmount sql.NullInt64
-	err := row.Scan(
-		&option.StripePriceId,
-		&option.PlanName,
-		&option.PlanTier,
-		&rawInterval,
-		&option.AmountCents,
-		&option.Currency,
-		&option.IntroEnabled,
-		&rawIntroType,
-		&introAmount,
-		&option.IntroPeriods,
-		&rawIntroLookup,
-		&option.MonthlyIncludedCredits,
-		&option.OneTimeBonusCredits,
-		&option.PlanRank,
-		&option.BonusType,
-		&rawKind,
-		&option.IsVariableAmount,
-		&option.DisplayEnabled,
-		&option.BundleKey,
-		&metadataBytes,
-		&option.DisplayWeight,
-	)
+	option, err := s.scanPlanOption(row)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("price %s not found", priceID)
 	}
 	if err != nil {
 		return nil, err
 	}
-
-	if introAmount.Valid {
-		val := introAmount.Int64
-		option.IntroAmountCents = proto.Int64(val)
-	}
-	if rawIntroLookup.Valid {
-		option.IntroPriceLookupKey = rawIntroLookup.String
-	}
-
-	if len(metadataBytes) > 0 {
-		if meta := parseMetadata(metadataBytes); meta != nil {
-			option.Metadata = meta
-		}
-	}
-
-	option.IntroType = mapIntroPricingType(rawIntroType)
-	option.Kind = mapPlanKind(rawKind)
-	option.BillingInterval = mapBillingInterval(rawInterval)
 
 	return option, nil
 }
@@ -217,7 +170,7 @@ func (s *PlanService) loadBundleProduct(bundleKey string) (*bundleProductRecord,
 
 func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 	query := `
-		SELECT bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
+		SELECT bp.id, bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
 		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type, bp.intro_amount_cents,
 		       bp.intro_periods, bp.intro_price_lookup_key, bp.monthly_included_credits,
 		       bp.one_time_bonus_credits, bp.plan_rank, bp.bonus_type, bp.kind, bp.is_variable_amount,
@@ -237,14 +190,17 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 	var options []*PlanOption
 	for rows.Next() {
 		var option PlanOption
+		var pricePrimaryID int64
 		var metadataBytes []byte
 		var introAmount sql.NullInt64
 		var rawKind string
 		var rawIntroType sql.NullString
 		var rawIntroLookup sql.NullString
 		var rawInterval string
+		var stripePriceID sql.NullString
 		if err := rows.Scan(
-			&option.StripePriceId,
+			&pricePrimaryID,
+			&stripePriceID,
 			&option.PlanName,
 			&option.PlanTier,
 			&rawInterval,
@@ -269,6 +225,12 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 			return nil, err
 		}
 
+		if stripePriceID.Valid {
+			option.StripePriceId = strings.TrimSpace(stripePriceID.String)
+		} else {
+			option.StripePriceId = ""
+		}
+
 		if introAmount.Valid {
 			val := introAmount.Int64
 			option.IntroAmountCents = proto.Int64(val)
@@ -281,6 +243,15 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 			if meta := parseMetadata(metadataBytes); meta != nil {
 				option.Metadata = meta
 			}
+		}
+
+		if option.Metadata == nil {
+			option.Metadata = map[string]*structpb.Value{}
+		}
+
+		// When stripe_price_id is empty (free/CTA-only), attach the DB primary key so admin/UI can round-trip.
+		if strings.TrimSpace(option.StripePriceId) == "" {
+			option.Metadata["__price_pk"] = structpb.NewStringValue(fmt.Sprintf("%d", pricePrimaryID))
 		}
 
 		option.IntroType = mapIntroPricingType(rawIntroType)
@@ -397,7 +368,22 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 	`
 	if err := s.db.QueryRowContext(ctx, query, priceID, bundleKey, s.displayEnv).Scan(&pricePrimaryID, &metadataBytes); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("price %s not found for bundle %s", priceID, bundleKey)
+			if numericID, parseErr := strconv.ParseInt(priceID, 10, 64); parseErr == nil {
+				altQuery := `
+					SELECT bp.id, bp.metadata
+					FROM bundle_prices bp
+					JOIN bundle_products b ON bp.product_id = b.id
+					WHERE bp.id = $1 AND b.bundle_key = $2 AND b.environment = $3
+				`
+				if err := s.db.QueryRowContext(ctx, altQuery, numericID, bundleKey, s.displayEnv).Scan(&pricePrimaryID, &metadataBytes); err != nil {
+					if err == sql.ErrNoRows {
+						return nil, fmt.Errorf("price %s not found for bundle %s", priceID, bundleKey)
+					}
+					return nil, err
+				}
+			} else {
+				return nil, fmt.Errorf("price %s not found for bundle %s", priceID, bundleKey)
+			}
 		}
 		return nil, err
 	}
@@ -456,7 +442,7 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 
 	_, err = s.db.ExecContext(ctx, `
 		UPDATE bundle_prices
-		SET stripe_price_id = CASE WHEN $1 IS NOT NULL THEN NULLIF($1, '') ELSE stripe_price_id END,
+		SET stripe_price_id = CASE WHEN $1::text IS NOT NULL THEN NULLIF($1::text, '') ELSE stripe_price_id END,
 		    plan_name = COALESCE($2, plan_name),
 		    display_weight = COALESCE($3, display_weight),
 		    display_enabled = COALESCE($4, display_enabled),
@@ -485,7 +471,10 @@ func (s *PlanService) getPlanByInternalID(id int64) (*PlanOption, error) {
 		WHERE bp.id = $1
 	`
 	row := s.db.QueryRow(query, id)
+	return s.scanPlanOption(row)
+}
 
+func (s *PlanService) scanPlanOption(row *sql.Row) (*PlanOption, error) {
 	option := &PlanOption{}
 	var metadataBytes []byte
 	var rawKind string
@@ -493,8 +482,9 @@ func (s *PlanService) getPlanByInternalID(id int64) (*PlanOption, error) {
 	var rawIntroType sql.NullString
 	var rawIntroLookup sql.NullString
 	var introAmount sql.NullInt64
+	var stripePriceID sql.NullString
 	if err := row.Scan(
-		&option.StripePriceId,
+		&stripePriceID,
 		&option.PlanName,
 		&option.PlanTier,
 		&rawInterval,
@@ -517,6 +507,12 @@ func (s *PlanService) getPlanByInternalID(id int64) (*PlanOption, error) {
 		&option.DisplayWeight,
 	); err != nil {
 		return nil, err
+	}
+
+	if stripePriceID.Valid {
+		option.StripePriceId = strings.TrimSpace(stripePriceID.String)
+	} else {
+		option.StripePriceId = ""
 	}
 
 	option.Kind = mapPlanKind(rawKind)

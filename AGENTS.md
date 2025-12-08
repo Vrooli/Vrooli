@@ -8,7 +8,7 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 1. **Commands**: 
    - Run `vrooli help` to see available.
 1. **Testing**: 
-   - Run `vrooli test help` to see available test commands.
+   - Use `vrooli scenario test <name>` (or test-genie) to run scenario tests.
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
 5. **Documentation**: Run `vrooli info` at session start for the canonical project briefing
@@ -83,7 +83,7 @@ For recurring tasks (test quality, React performance, etc.), use the AI maintena
 vrooli develop
 
 # Run tests
-vrooli test help  # See available test commands
+vrooli scenario test <name>  # Run scenario test suite
 
 # Manage scenarios (PREFERRED method)
 cd scenarios/<scenario-name> && make start   # ✅ BEST - comprehensive management

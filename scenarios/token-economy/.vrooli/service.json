@@ -158,7 +158,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Token Economy ready:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
+          "run": "echo '\ud83d\ude80 Token Economy ready:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -186,7 +186,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
+          "run": "echo '\ud83d\ude80 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -240,7 +240,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute token-economy --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

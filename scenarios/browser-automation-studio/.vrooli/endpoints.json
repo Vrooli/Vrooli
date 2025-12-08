@@ -7,7 +7,7 @@
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns health status of the Browser Automation Studio API and its dependencies",
+      "description": "Returns health status of the Vrooli Ascension API and its dependencies",
       "category": "system",
       "response": {
         "type": "object",

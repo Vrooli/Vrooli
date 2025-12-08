@@ -135,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Bridge initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
+          "run": "echo '\ud83d\ude80 Vrooli Bridge initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -163,7 +163,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -173,7 +173,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute vrooli-bridge --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

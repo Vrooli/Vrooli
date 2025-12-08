@@ -157,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\udd0d Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -185,7 +185,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
@@ -195,7 +195,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute competitor-change-monitor --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

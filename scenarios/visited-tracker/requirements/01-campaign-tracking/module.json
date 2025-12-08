@@ -110,7 +110,7 @@
           "type": "test",
           "ref": "api/file_sync_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests validate file sync: TestStructureSyncHandler, TestSyncCampaignFilesErrorPaths [REQ:VT-REQ-004]"
         },
         {

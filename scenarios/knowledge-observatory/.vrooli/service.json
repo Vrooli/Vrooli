@@ -133,7 +133,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔭 Knowledge Observatory initialized\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: knowledge-observatory --help'",
+          "run": "echo '\ud83d\udd2d Knowledge Observatory initialized\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: knowledge-observatory --help'",
           "description": "Display access URLs for API and UI"
         }
       ]
@@ -161,7 +161,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔭 Knowledge Observatory running:\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: knowledge-observatory --help'",
+          "run": "echo '\ud83d\udd2d Knowledge Observatory running:\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: knowledge-observatory --help'",
           "description": "Display access URLs for API and UI after startup"
         }
       ]
@@ -171,7 +171,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "./test/run-tests.sh",
+          "run": "test-genie execute knowledge-observatory --preset comprehensive",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

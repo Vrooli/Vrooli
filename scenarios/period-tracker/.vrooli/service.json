@@ -175,7 +175,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🩸 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
+          "run": "echo '\ud83e\ude78 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
           "description": "Display service URLs and privacy notice"
         }
       ]
@@ -203,7 +203,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  🔐 All health data encrypted and stored locally only'",
+          "run": "echo '\ud83d\ude80 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  \ud83d\udd10 All health data encrypted and stored locally only'",
           "description": "Display running services with privacy notice"
         }
       ]
@@ -213,7 +213,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute period-tracker --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

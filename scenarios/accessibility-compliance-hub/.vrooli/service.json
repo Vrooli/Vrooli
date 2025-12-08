@@ -97,7 +97,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'",
+          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -125,7 +125,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
+          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -150,7 +150,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute accessibility-compliance-hub --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

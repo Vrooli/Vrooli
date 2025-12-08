@@ -115,7 +115,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Local Info Scout initialized\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\udd0d Local Info Scout initialized\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -134,7 +134,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Local Info Scout running:\\n  API: http://localhost:${API_PORT}\\n  CLI: local-info-scout --help'",
+          "run": "echo '\ud83d\ude80 Local Info Scout running:\\n  API: http://localhost:${API_PORT}\\n  CLI: local-info-scout --help'",
           "description": "Display service URLs and usage information"
         }
       ]
@@ -144,7 +144,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute local-info-scout --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

@@ -137,7 +137,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
+          "run": "echo '\ud83d\ude80 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -165,7 +165,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
+          "run": "echo '\ud83d\ude80 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -175,7 +175,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute ai-model-orchestra-controller --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

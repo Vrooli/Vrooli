@@ -132,7 +132,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📚 No Spoilers Book Talk initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: no-spoilers-book-talk --help'",
+          "run": "echo '\ud83d\udcda No Spoilers Book Talk initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: no-spoilers-book-talk --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -151,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📚 No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
+          "run": "echo '\ud83d\udcda No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
           "description": "Display running service information"
         }
       ]
@@ -161,7 +161,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute no-spoilers-book-talk --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

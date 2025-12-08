@@ -138,7 +138,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎯 Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '\ud83c\udfaf Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -170,7 +170,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎯 Product Manager Agent running\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '\ud83c\udfaf Product Manager Agent running\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -195,7 +195,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute product-manager-agent --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

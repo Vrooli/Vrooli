@@ -133,7 +133,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Desktop initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-desktop --help'",
+          "run": "echo '\ud83d\ude80 Scenario to Desktop initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-desktop --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -161,7 +161,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -186,7 +186,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute scenario-to-desktop --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

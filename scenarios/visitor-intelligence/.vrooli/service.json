@@ -140,7 +140,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '\ud83d\ude80 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -159,7 +159,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '\ud83d\ude80 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
           "description": "Display all running service URLs and integration example"
         }
       ]
@@ -169,7 +169,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute visitor-intelligence --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

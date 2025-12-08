@@ -144,7 +144,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Data Structurer initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help'",
+          "run": "echo '\ud83d\ude80 Data Structurer initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help'",
           "description": "Display service access information"
         }
       ]
@@ -163,7 +163,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
+          "run": "echo '\ud83d\ude80 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
           "description": "Display running service information and usage examples"
         }
       ]
@@ -173,7 +173,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute data-structurer --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

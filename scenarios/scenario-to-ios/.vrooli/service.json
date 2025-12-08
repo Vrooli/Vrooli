@@ -71,7 +71,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to iOS API running on http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Scenario to iOS API running on http://localhost:${API_PORT}'",
           "description": "Display API access URL"
         }
       ]
@@ -81,7 +81,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute scenario-to-ios --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]
@@ -118,7 +118,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to iOS initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-ios --help'",
+          "run": "echo '\ud83d\ude80 Scenario to iOS initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-ios --help'",
           "description": "Display service access URLs"
         }
       ]

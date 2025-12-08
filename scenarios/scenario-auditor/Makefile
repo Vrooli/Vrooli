@@ -81,38 +81,31 @@ setup: install build install-cli ## Full setup (install + build)
 # Testing
 test: ## Run comprehensive test suite
 	@echo "🧪 Running full test suite..."
-	@chmod +x test/run-tests.sh
-	@./test/run-tests.sh
+	@test-genie execute $(SCENARIO_NAME) --preset comprehensive
 
 test-unit: ## Run unit tests only
 	@echo "🧪 Running unit tests..."
-	@chmod +x test/phases/test-unit.sh
-	@./test/phases/test-unit.sh
+	@test-genie execute $(SCENARIO_NAME) --phases unit
 
 test-integration: ## Run integration tests only
 	@echo "🧪 Running integration tests..."
-	@chmod +x test/phases/test-integration.sh
-	@./test/phases/test-integration.sh
+	@test-genie execute $(SCENARIO_NAME) --phases integration
 
 test-structure: ## Run structure validation
 	@echo "🧪 Running structure tests..."
-	@chmod +x test/phases/test-structure.sh
-	@./test/phases/test-structure.sh
+	@test-genie execute $(SCENARIO_NAME) --phases structure
 
 test-deps: ## Check dependencies
 	@echo "🧪 Checking dependencies..."
-	@chmod +x test/phases/test-dependencies.sh
-	@./test/phases/test-dependencies.sh
+	@test-genie execute $(SCENARIO_NAME) --phases dependencies
 
 test-business: ## Run business logic tests
 	@echo "🧪 Running business logic tests..."
-	@chmod +x test/phases/test-business.sh
-	@./test/phases/test-business.sh
+	@test-genie execute $(SCENARIO_NAME) --phases business
 
 test-performance: ## Run performance tests
 	@echo "🧪 Running performance tests..."
-	@chmod +x test/phases/test-performance.sh
-	@./test/phases/test-performance.sh
+	@test-genie execute $(SCENARIO_NAME) --phases performance
 
 # Development
 dev: start ## Start development mode (alias for start)
@@ -220,6 +213,4 @@ restart: stop start ## Restart scenario
 rebuild: clean build ## Clean and rebuild
 
 make-executable: ## Make test scripts executable
-	@chmod +x test/run-tests.sh
-	@chmod +x test/phases/*.sh
 	@chmod +x cli/install.sh

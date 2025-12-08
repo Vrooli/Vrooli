@@ -148,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🛒 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '\ud83d\uded2 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -176,7 +176,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🛒 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '\ud83d\uded2 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -186,7 +186,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute smart-shopping-assistant --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

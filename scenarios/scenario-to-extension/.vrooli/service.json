@@ -127,7 +127,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Extension initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-extension --help'",
+          "run": "echo '\ud83d\ude80 Scenario to Extension initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-extension --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -155,7 +155,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -180,7 +180,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute scenario-to-extension --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

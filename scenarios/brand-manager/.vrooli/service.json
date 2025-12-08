@@ -157,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
+          "run": "echo '\ud83d\ude80 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -185,7 +185,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
+          "run": "echo '\ud83d\ude80 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -195,7 +195,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute brand-manager --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

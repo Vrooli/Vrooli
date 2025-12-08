@@ -4,22 +4,22 @@ run:
 	@echo "Starting test-scenario"
 
 test:
-	./test/run-tests.sh
+	test-genie execute test-scenario --preset comprehensive
 
 test-unit:
-	./test/phases/test-unit.sh
+	test-genie execute test-scenario --phases unit
 
 test-integration:
-	./test/phases/test-integration.sh
+	test-genie execute test-scenario --phases integration
 
 test-performance:
-	./test/phases/test-performance.sh
+	test-genie execute test-scenario --phases performance
 
 test-dependencies:
-	./test/phases/test-dependencies.sh
+	test-genie execute test-scenario --phases dependencies
 
 test-business:
-	./test/phases/test-business.sh
+	test-genie execute test-scenario --phases business
 
 logs:
 	@echo "Displaying logs for test-scenario"

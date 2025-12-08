@@ -148,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scalable App Cookbook initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scalable-app-cookbook --help'",
+          "run": "echo '\ud83d\ude80 Scalable App Cookbook initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scalable-app-cookbook --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -176,7 +176,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scalable-app-cookbook --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scalable-app-cookbook --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -186,7 +186,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute scalable-app-cookbook --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

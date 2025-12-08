@@ -117,7 +117,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
+          "run": "echo '\ud83d\ude80 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -155,7 +155,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute quiz-generator --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

@@ -149,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Workflow Scheduler initialized\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
+          "run": "echo '\ud83d\ude80 Workflow Scheduler initialized\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -182,7 +182,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
+          "run": "echo '\ud83d\ude80 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
           "description": "Display all running service URLs"
         }
       ]
@@ -192,7 +192,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute workflow-scheduler --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

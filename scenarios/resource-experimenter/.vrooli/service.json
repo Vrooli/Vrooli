@@ -176,7 +176,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
+          "run": "echo '\ud83d\ude80 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
           "description": "Display service access information"
         }
       ]
@@ -214,7 +214,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute resource-experimenter --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

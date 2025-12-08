@@ -147,7 +147,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 QR Code Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "run": "echo '\ud83c\udfa8 QR Code Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
           "description": "Display service URLs"
         }
       ]
@@ -175,7 +175,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 QR Code Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
@@ -185,7 +185,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute qr-code-generator --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

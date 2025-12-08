@@ -126,7 +126,11 @@ export function BillingSettings() {
       const nextForms: Record<string, PriceFormState> = {};
       enrichedBundles.forEach((entry) => {
         entry.prices.forEach((price) => {
-          const key = `${entry.bundle.bundle_key}:${price.stripe_price_id}`;
+          const priceIdentifier =
+            price.stripe_price_id ||
+            (price.metadata && (price.metadata as Record<string, unknown>).__price_pk?.toString()) ||
+            price.plan_name;
+          const key = `${entry.bundle.bundle_key}:${priceIdentifier}`;
           const values = buildPriceValues(price.metadata, {
             priceId: price.stripe_price_id,
             planName: price.plan_name,
@@ -389,7 +393,12 @@ export function BillingSettings() {
           ? entry
           : {
               ...entry,
-              prices: entry.prices.filter((price) => price.stripe_price_id !== priceId),
+              prices: entry.prices.filter((price) => {
+                const identifier =
+                  price.stripe_price_id ||
+                  (price.metadata && (price.metadata as Record<string, unknown>).__price_pk?.toString());
+                return identifier !== priceId;
+              }),
             },
       ),
     );
@@ -444,7 +453,11 @@ export function BillingSettings() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div className="space-y-6">
           {visiblePrices.map((price) => {
-            const key = `${entry.bundle.bundle_key}:${price.stripe_price_id}`;
+            const priceIdentifier =
+              price.stripe_price_id ||
+              (price.metadata && (price.metadata as Record<string, unknown>).__price_pk?.toString()) ||
+              price.plan_name;
+            const key = `${entry.bundle.bundle_key}:${priceIdentifier}`;
             const formState = priceForms[key];
             if (!formState) {
               return null;
@@ -452,7 +465,7 @@ export function BillingSettings() {
             const dirty = isDirty(formState);
             const demoPlan = formState.demo;
             return (
-              <div key={price.stripe_price_id} className="rounded-xl border border-white/10 p-4">
+              <div key={key} className="rounded-xl border border-white/10 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{price.plan_name}</h3>
@@ -466,7 +479,7 @@ export function BillingSettings() {
                             : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
                         )}
                       >
-                        {demoPlan ? 'Demo placeholder (not saved)' : `Stripe price: ${price.stripe_price_id}`}
+                        {demoPlan ? 'Demo placeholder (not saved)' : `Stripe price: ${price.stripe_price_id || 'None (free/CTA)'}`}
                       </span>
                     </div>
                   </div>
@@ -476,7 +489,7 @@ export function BillingSettings() {
                       variant="ghost"
                       size="sm"
                       className="gap-2 text-amber-200 hover:text-amber-100"
-                      onClick={() => removeDemoPlan(entry.bundle.bundle_key, price.stripe_price_id)}
+                      onClick={() => removeDemoPlan(entry.bundle.bundle_key, priceIdentifier)}
                     >
                       Remove demo placeholder
                     </Button>
@@ -485,7 +498,7 @@ export function BillingSettings() {
                     <input
                       type="checkbox"
                       checked={formState.values.displayEnabled}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'displayEnabled')}
+                          onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'displayEnabled')}
                           className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
                         />
                         Visible on landing page
@@ -498,7 +511,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.planName}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'planName')}
+                          onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'planName')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -507,7 +520,7 @@ export function BillingSettings() {
                         <input
                           type="number"
                           value={formState.values.displayWeight}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'displayWeight')}
+                          onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'displayWeight')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -518,7 +531,7 @@ export function BillingSettings() {
                       <input
                         type="text"
                         value={formState.values.stripePriceId}
-                        onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'stripePriceId')}
+                        onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'stripePriceId')}
                         placeholder="price_abc123 or lookup key if using Stripe aliases"
                         className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                       />
@@ -528,21 +541,21 @@ export function BillingSettings() {
                           variant="ghost"
                           size="sm"
                           className="border border-white/10 bg-white/5 text-white"
-                          onClick={() => handleVerifyPrice(entry.bundle.bundle_key, price.stripe_price_id)}
+                          onClick={() => handleVerifyPrice(entry.bundle.bundle_key, priceIdentifier)}
                         >
                           Verify
                         </Button>
-                        {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.status === 'checking' && (
+                        {priceChecks[`${entry.bundle.bundle_key}:${priceIdentifier}`]?.status === 'checking' && (
                           <span className="text-slate-300">Checking…</span>
                         )}
-                        {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.status === 'ok' && (
+                        {priceChecks[`${entry.bundle.bundle_key}:${priceIdentifier}`]?.status === 'ok' && (
                           <span className="text-emerald-300">
-                            {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.message || 'Verified'}
+                            {priceChecks[`${entry.bundle.bundle_key}:${priceIdentifier}`]?.message || 'Verified'}
                           </span>
                         )}
-                        {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.status === 'error' && (
+                        {priceChecks[`${entry.bundle.bundle_key}:${priceIdentifier}`]?.status === 'error' && (
                           <span className="text-amber-200">
-                            {priceChecks[`${entry.bundle.bundle_key}:${price.stripe_price_id}`]?.message || 'Verification failed'}
+                            {priceChecks[`${entry.bundle.bundle_key}:${priceIdentifier}`]?.message || 'Verification failed'}
                           </span>
                         )}
                       </div>
@@ -555,7 +568,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.subtitle}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'subtitle')}
+                          onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'subtitle')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -564,7 +577,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.badge}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'badge')}
+                          onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'badge')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -576,7 +589,7 @@ export function BillingSettings() {
                         <input
                           type="text"
                           value={formState.values.ctaLabel}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'ctaLabel')}
+                          onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'ctaLabel')}
                           className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         />
                       </div>
@@ -584,7 +597,7 @@ export function BillingSettings() {
                         <input
                           type="checkbox"
                           checked={formState.values.highlight}
-                          onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'highlight')}
+                          onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'highlight')}
                           className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
                         />
                         Highlight tier (apply hero styling)
@@ -595,7 +608,7 @@ export function BillingSettings() {
                       <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Feature Bullets</label>
                       <textarea
                         value={formState.values.featuresText}
-                        onChange={handlePriceChange(entry.bundle.bundle_key, price.stripe_price_id, 'featuresText')}
+                        onChange={handlePriceChange(entry.bundle.bundle_key, priceIdentifier, 'featuresText')}
                         rows={4}
                         className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                         placeholder={'One feature per line\nDesktop downloads included\nWhite-glove onboarding'}
@@ -609,7 +622,7 @@ export function BillingSettings() {
                 <div className="mt-4 flex items-center gap-3">
                   <Button
                     type="button"
-                    onClick={() => handleSavePrice(entry.bundle.bundle_key, price.stripe_price_id)}
+                    onClick={() => handleSavePrice(entry.bundle.bundle_key, priceIdentifier)}
                     disabled={!dirty || formState.saving || demoPlan}
                     className="gap-2"
                   >
@@ -836,7 +849,11 @@ function buildPricingPreviewData(entry: BundleCatalogEntry, priceForms: Record<s
 }
 
 function applyFormOverrides(bundleKey: string, price: PlanOption, priceForms: Record<string, PriceFormState>): PlanOption {
-  const key = `${bundleKey}:${price.stripe_price_id}`;
+  const priceIdentifier =
+    price.stripe_price_id ||
+    (price.metadata && (price.metadata as Record<string, unknown>).__price_pk?.toString()) ||
+    price.plan_name;
+  const key = `${bundleKey}:${priceIdentifier}`;
   const formState = priceForms[key];
   if (!formState) {
     return { ...price };

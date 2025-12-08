@@ -154,7 +154,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"📰 News Aggregator initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
+          "run": "echo \"\ud83d\udcf0 News Aggregator initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
           "description": "Display service URLs"
         }
       ]
@@ -182,7 +182,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
+          "run": "echo \"\ud83d\ude80 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
           "description": "Display running services"
         }
       ]
@@ -192,7 +192,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute news-aggregator-bias-analysis --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

@@ -197,7 +197,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🌿 Game Dialog Generator initialized! 🎮 UI: http://localhost:${UI_PORT} 🔧 API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+          "run": "echo '\ud83c\udf3f Game Dialog Generator initialized! \ud83c\udfae UI: http://localhost:${UI_PORT} \ud83d\udd27 API: http://localhost:${API_PORT} \ud83d\udcbb CLI: game-dialog-generator --help'",
           "description": "Display service access URLs with jungle theme"
         }
       ]
@@ -225,7 +225,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+          "run": "echo '\ud83c\udf3f Services running! \ud83c\udfae Jungle UI: http://localhost:${UI_PORT} \ud83d\udd27 Dialog API: http://localhost:${API_PORT} \ud83d\udcbb CLI: game-dialog-generator --help'",
           "description": "Display all running service URLs with jungle theme"
         }
       ]
@@ -235,7 +235,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute game-dialog-generator --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

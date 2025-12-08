@@ -125,7 +125,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Maintenance Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+          "run": "echo '\ud83d\ude80 Maintenance Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -153,7 +153,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
           "description": "Display service URLs and usage information"
         }
       ]
@@ -163,7 +163,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute maintenance-orchestrator --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

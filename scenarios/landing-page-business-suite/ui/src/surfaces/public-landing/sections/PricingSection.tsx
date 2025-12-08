@@ -55,13 +55,15 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
   const metaFeatures = Array.isArray(metadata.features) ? (metadata.features as string[]) : [];
   const creditsLabel = bundle.display_credits_label || 'credits';
   const badgeOverride = typeof metadata.badge === 'string' ? (metadata.badge as string) : undefined;
+  const bonusLabel =
+    typeof option.bonus_type === 'string' && option.bonus_type.trim().toLowerCase() !== 'none'
+      ? option.bonus_type.replace('_', ' ')
+      : undefined;
   const badge =
     badgeOverride ||
     (option.intro_enabled && introAmount
       ? `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`
-      : option.bonus_type
-        ? option.bonus_type.replace('_', ' ')
-        : undefined);
+      : bonusLabel);
 
   const features = [
     `${formatCredits(option.monthly_included_credits, bundle.display_credits_multiplier, creditsLabel)} included`,
@@ -427,12 +429,6 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           </div>
         )}
 
-        {hasYearly && (
-          <div className="mt-12 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-            Yearly billing available on request — includes white-glove promotion support and export of the entire style
-            pack for compliance archives.
-          </div>
-        )}
       </div>
       {featuredTier && !stickyDismissed && (
         <div className="fixed bottom-4 left-1/2 z-20 w-[min(480px,92vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-700/30 md:hidden">

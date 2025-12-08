@@ -207,7 +207,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Universal Comment System initialized\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nIntegration Guide: http://localhost:${UI_PORT}/docs/integration'",
+          "run": "echo '\ud83d\ude80 Universal Comment System initialized\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nIntegration Guide: http://localhost:${UI_PORT}/docs/integration'",
           "description": "Display service access URLs and integration information"
         }
       ]
@@ -235,7 +235,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nAPI Endpoints:\\n  GET /api/v1/comments/{scenario}\\n  POST /api/v1/comments/{scenario}\\n  PUT /api/v1/comments/{id}\\n  DELETE /api/v1/comments/{id}\\n  GET /api/v1/config/{scenario}\\n  POST /api/v1/config/{scenario}\\n\\nIntegration Examples:\\n  http://localhost:${UI_PORT}/docs/integration'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nAPI Endpoints:\\n  GET /api/v1/comments/{scenario}\\n  POST /api/v1/comments/{scenario}\\n  PUT /api/v1/comments/{id}\\n  DELETE /api/v1/comments/{id}\\n  GET /api/v1/config/{scenario}\\n  POST /api/v1/config/{scenario}\\n\\nIntegration Examples:\\n  http://localhost:${UI_PORT}/docs/integration'",
           "description": "Display all running service URLs and endpoints"
         }
       ]
@@ -245,7 +245,7 @@
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute comment-system --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
       ]

@@ -495,7 +495,7 @@
       "schema_version": "v0.1",
       "target": "desktop",
       "app": {
-        "name": "Browser Automation Studio",
+        "name": "Vrooli Ascension",
         "version": "1.0.0",
         "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging"
       },
