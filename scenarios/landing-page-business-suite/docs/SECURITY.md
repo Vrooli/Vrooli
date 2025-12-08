@@ -315,7 +315,7 @@ db.QueryRow("SELECT * FROM admin_users WHERE email = '" + email + "'")
 | Data Type | Storage Method |
 |-----------|----------------|
 | Passwords | bcrypt hash (never plaintext) |
-| Stripe Secret Key | Encrypted in `payment_settings` |
+| Stripe Restricted Key (`STRIPE_SECRET_KEY`) | Encrypted in `payment_settings` |
 | Webhook Secret | Encrypted in `payment_settings` |
 | Session Secret | Environment variable only |
 

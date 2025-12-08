@@ -257,7 +257,7 @@ Per-variant SEO configuration:
 1. Go to **Customization -> Stripe Settings**
 2. Enter your Stripe keys:
    - **Publishable Key**: `pk_test_...` or `pk_live_...`
-   - **Secret Key**: `sk_test_...` or `sk_live_...`
+   - **Restricted Key**: `rk_test_...` or `rk_live_...` (created in Stripe as a restricted key)
    - **Webhook Secret**: `whsec_...`
 3. Save
 

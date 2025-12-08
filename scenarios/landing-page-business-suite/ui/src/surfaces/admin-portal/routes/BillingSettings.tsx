@@ -171,23 +171,27 @@ export function BillingSettings() {
   };
 
   const currentDashboardUrl = stripeSettings?.dashboard_url;
+  const publishablePreview = stripeSettings?.publishable_key_preview;
 
   const renderStripeStatus = () => {
     if (!stripeSettings) {
       return null;
     }
+    const publishableSet = stripeSettings.publishable_key_set || Boolean(stripeSettings.publishable_key_preview);
+    const secretSet = stripeSettings.secret_key_set;
+    const webhookSet = stripeSettings.webhook_secret_set;
     const badges = [
       {
         label: 'Publishable Key',
-        ok: stripeSettings.publishable_key_set,
+        ok: publishableSet,
       },
       {
-        label: 'Secret Key',
-        ok: stripeSettings.secret_key_set,
+        label: 'Restricted Key',
+        ok: secretSet,
       },
       {
         label: 'Webhook Secret',
-        ok: stripeSettings.webhook_secret_set,
+        ok: webhookSet,
       },
     ];
 
@@ -486,7 +490,7 @@ export function BillingSettings() {
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-blue-300" /> Stripe Configuration
               </CardTitle>
-              <CardDescription>Store publishable/secret keys and link directly to the Stripe dashboard.</CardDescription>
+              <CardDescription>Store publishable/restricted keys and link directly to the Stripe dashboard.</CardDescription>
             </div>
             {currentDashboardUrl && (
               <Button
@@ -518,19 +522,25 @@ export function BillingSettings() {
                       type="text"
                       value={stripeForm.publishableKey}
                       onChange={handleStripeInput('publishableKey')}
-                      placeholder="pk_live_..."
+                      placeholder={publishablePreview ? `${publishablePreview} (saved)` : 'pk_live_...'}
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                     />
+                    {publishablePreview && (
+                      <p className="mt-1 text-xs text-slate-400">Saved (preview): {publishablePreview}</p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Secret Key</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Restricted Key (secret)</label>
                     <input
                       type="text"
                       value={stripeForm.secretKey}
                       onChange={handleStripeInput('secretKey')}
-                      placeholder="sk_live_..."
+                      placeholder={stripeSettings?.secret_key_set ? 'Saved restricted key (not shown)' : 'rk_live_...'}
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                     />
+                    {stripeSettings?.secret_key_set && (
+                      <p className="mt-1 text-xs text-slate-400">Restricted key is saved. Enter a new value to rotate.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Webhook Secret</label>
@@ -538,9 +548,12 @@ export function BillingSettings() {
                       type="text"
                       value={stripeForm.webhookSecret}
                       onChange={handleStripeInput('webhookSecret')}
-                      placeholder="whsec_..."
+                      placeholder={stripeSettings?.webhook_secret_set ? 'Saved webhook secret (not shown)' : 'whsec_...'}
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                     />
+                    {stripeSettings?.webhook_secret_set && (
+                      <p className="mt-1 text-xs text-slate-400">Webhook secret is saved. Enter a new value to rotate.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Dashboard URL</label>

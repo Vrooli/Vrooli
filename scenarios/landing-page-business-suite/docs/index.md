@@ -66,6 +66,8 @@ Welcome to the documentation for your landing page. This guide will help you und
 | [FAQ](FAQ.md) | Frequently asked questions | All |
 | [Troubleshooting](TROUBLESHOOTING.md) | Solutions for common issues | All |
 | [Security](SECURITY.md) | Authentication, sessions, CORS, and production security | Developers, Operators |
+| [Stripe Restricted Keys](STRIPE_RESTRICTED_KEYS.md) | Use restricted Stripe keys safely with this template | Developers, Operators |
+| [Stripe Webhooks](STRIPE_WEBHOOKS.md) | Configure webhook endpoint + signing secret | Developers, Operators |
 
 ---
 

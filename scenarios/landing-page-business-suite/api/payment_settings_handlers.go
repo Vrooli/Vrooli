@@ -15,8 +15,28 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 			http.Error(w, "Failed to load Stripe settings", http.StatusInternalServerError)
 			return
 		}
+		hasPublishable := record != nil && strings.TrimSpace(record.PublishableKey) != ""
+		hasSecret := record != nil && strings.TrimSpace(record.SecretKey) != ""
+		hasWebhook := record != nil && strings.TrimSpace(record.WebhookSecret) != ""
+		// Redact secrets before sending to the client.
+		if record != nil {
+			record.PublishableKey = ""
+			record.SecretKey = ""
+			record.WebhookSecret = ""
+		}
 
 		snapshot := stripeService.ConfigSnapshot()
+		// Ensure flags reflect DB state even if runtime config was initialized before admin saves.
+		if hasPublishable {
+			snapshot.PublishableKeySet = true
+		}
+		if hasSecret {
+			snapshot.SecretKeySet = true
+		}
+		if hasWebhook {
+			snapshot.WebhookSecretSet = true
+		}
+
 		resp := &landing_page_react_vite_v1.GetStripeSettingsResponse{
 			Snapshot: snapshot,
 			Settings: record,
@@ -60,21 +80,11 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		req.WebhookSecret = normalize(req.WebhookSecret)
 		req.DashboardUrl = normalize(req.DashboardUrl)
 
-		current, err := paymentService.GetStripeSettings(r.Context())
-		if err != nil {
-			http.Error(w, "Failed to read current Stripe settings", http.StatusInternalServerError)
-			return
-		}
-
-		needsPublishable := (current == nil || strings.TrimSpace(current.PublishableKey) == "")
-		needsSecret := (current == nil || strings.TrimSpace(current.SecretKey) == "")
-
-		if needsPublishable && (req.PublishableKey == nil || *req.PublishableKey == "") {
-			http.Error(w, "publishable_key is required", http.StatusBadRequest)
-			return
-		}
-		if needsSecret && (req.SecretKey == nil || *req.SecretKey == "") {
-			http.Error(w, "secret_key is required", http.StatusBadRequest)
+		if (req.PublishableKey == nil || *req.PublishableKey == "") &&
+			(req.SecretKey == nil || *req.SecretKey == "") &&
+			(req.WebhookSecret == nil || *req.WebhookSecret == "") &&
+			(req.DashboardUrl == nil || *req.DashboardUrl == "") {
+			http.Error(w, "At least one field is required", http.StatusBadRequest)
 			return
 		}
 
@@ -88,6 +98,15 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			http.Error(w, "Failed to save Stripe settings", http.StatusInternalServerError)
 			return
 		}
+		hasPublishable := record != nil && strings.TrimSpace(record.PublishableKey) != ""
+		hasSecret := record != nil && strings.TrimSpace(record.SecretKey) != ""
+		hasWebhook := record != nil && strings.TrimSpace(record.WebhookSecret) != ""
+		// Redact secrets before responding.
+		if record != nil {
+			record.PublishableKey = ""
+			record.SecretKey = ""
+			record.WebhookSecret = ""
+		}
 
 		if err := stripeService.RefreshConfig(r.Context()); err != nil {
 			http.Error(w, "Failed to refresh Stripe runtime config", http.StatusInternalServerError)
@@ -95,6 +114,15 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		}
 
 		snapshot := stripeService.ConfigSnapshot()
+		if hasPublishable {
+			snapshot.PublishableKeySet = true
+		}
+		if hasSecret {
+			snapshot.SecretKeySet = true
+		}
+		if hasWebhook {
+			snapshot.WebhookSecretSet = true
+		}
 		resp := &landing_page_react_vite_v1.UpdateStripeSettingsResponse{
 			Snapshot: snapshot,
 			Settings: record,

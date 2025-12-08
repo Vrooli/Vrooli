@@ -186,3 +186,29 @@ body {
     transform: scale(0.98);
   }
 }
+
+/* Slim, branded scrollbars */
+:root,
+body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--color-accent), 0.6) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(var(--color-accent), 0.9), rgba(var(--color-accent-secondary), 0.9));
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(var(--color-accent), 1), rgba(var(--color-accent-secondary), 1));
+}

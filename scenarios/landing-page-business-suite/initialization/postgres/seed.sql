@@ -273,12 +273,7 @@ ON CONFLICT (customer_email) DO UPDATE SET
 -- Seed payment settings row so admin UI can update it without manual SQL
 INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url)
 VALUES (1, NULL, NULL, NULL, NULL)
-ON CONFLICT (id) DO UPDATE SET
-    publishable_key = EXCLUDED.publishable_key,
-    secret_key = EXCLUDED.secret_key,
-    webhook_secret = EXCLUDED.webhook_secret,
-    dashboard_url = EXCLUDED.dashboard_url,
-    updated_at = NOW();
+ON CONFLICT (id) DO NOTHING;
 
 -- Seed default site branding (singleton row)
 INSERT INTO site_branding (id, site_name, tagline, robots_txt)

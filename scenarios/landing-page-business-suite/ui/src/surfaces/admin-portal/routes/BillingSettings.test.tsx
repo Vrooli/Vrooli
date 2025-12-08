@@ -109,7 +109,7 @@ describe('BillingSettings', () => {
     expect(await screen.findByText('Stripe Configuration')).toBeInTheDocument();
     expect(screen.getAllByText('Publishable Key')[0]).toBeInTheDocument();
     // Badge text reflects initial status flags
-    expect(screen.getAllByText('Secret Key')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Restricted Key')[0]).toBeInTheDocument();
     expect(screen.getAllByText('Webhook Secret')[0]).toBeInTheDocument();
 
     await waitFor(() => expect(mockedGetBundleCatalog).toHaveBeenCalled());

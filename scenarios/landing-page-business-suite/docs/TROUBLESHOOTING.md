@@ -211,7 +211,7 @@ Variant B: 20/100 = 20%
 
 1. **Verify Stripe keys are set**:
    - Admin -> Stripe Settings
-   - Check both publishable and secret keys
+   - Check both publishable and restricted keys
 
 2. **Check Stripe Dashboard** for errors
 

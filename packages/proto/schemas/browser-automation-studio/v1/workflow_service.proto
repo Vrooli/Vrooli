@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "browser-automation-studio/v1/workflow.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
+
+// WorkflowSummary captures the primary workflow fields without the full definition.
+message WorkflowSummary {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  string folder_path = 4;
+  string description = 5;
+  repeated string tags = 6;
+  int32 version = 7;
+  bool is_template = 8;
+  string created_by = 9;
+  string last_change_source = 10;
+  string last_change_description = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  WorkflowDefinition flow_definition = 14;
+}
+
+// WorkflowVersion represents a historic version of a workflow.
+message WorkflowVersion {
+  string workflow_id = 1;
+  int32 version = 2;
+  WorkflowDefinition flow_definition = 3;
+  string change_description = 4;
+  string created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// WorkflowList is a convenience wrapper for listing workflows.
+message WorkflowList {
+  repeated WorkflowSummary workflows = 1;
+}
+
+// WorkflowVersionList is a convenience wrapper for listing workflow versions.
+message WorkflowVersionList {
+  repeated WorkflowVersion versions = 1;
+}
+
+// CreateWorkflowRequest mirrors the REST payload from the UI/CLI.
+message CreateWorkflowRequest {
+  string project_id = 1;
+  string name = 2;
+  string folder_path = 3;
+  WorkflowDefinition flow_definition = 4;
+  string ai_prompt = 5;
+}
+
+// CreateWorkflowResponse returns the created workflow and its normalized definition.
+message CreateWorkflowResponse {
+  WorkflowSummary workflow = 1;
+  WorkflowDefinition flow_definition = 2;
+}
+
+// UpdateWorkflowRequest captures manual or autosave edits.
+message UpdateWorkflowRequest {
+  string name = 1;
+  string description = 2;
+  string folder_path = 3;
+  repeated string tags = 4;
+  WorkflowDefinition flow_definition = 5;
+  string change_description = 6;
+  string source = 7;
+  int32 expected_version = 8;
+}
+
+// UpdateWorkflowResponse returns the updated workflow and its definition.
+message UpdateWorkflowResponse {
+  WorkflowSummary workflow = 1;
+  WorkflowDefinition flow_definition = 2;
+}
+
+// ExecuteWorkflowRequest represents execution parameters.
+message ExecuteWorkflowRequest {
+  map<string, google.protobuf.Value> parameters = 1;
+  bool wait_for_completion = 2;
+}
+
+// ExecuteWorkflowResponse provides the started execution identifier.
+message ExecuteWorkflowResponse {
+  string execution_id = 1;
+}
+
+// WorkflowValidationIssue mirrors the validation issue contract.
+message WorkflowValidationIssue {
+  string severity = 1;
+  string code = 2;
+  string message = 3;
+  string node_id = 4;
+  string node_type = 5;
+  string field = 6;
+  string pointer = 7;
+  string hint = 8;
+}
+
+// WorkflowValidationStats summarizes the validated workflow.
+message WorkflowValidationStats {
+  int32 node_count = 1;
+  int32 edge_count = 2;
+  int32 selector_count = 3;
+  int32 unique_selector_count = 4;
+  int32 element_wait_count = 5;
+  bool has_metadata = 6;
+  bool has_execution_viewport = 7;
+}
+
+// WorkflowValidationResult is returned by validate endpoints.
+message WorkflowValidationResult {
+  bool valid = 1;
+  repeated WorkflowValidationIssue errors = 2;
+  repeated WorkflowValidationIssue warnings = 3;
+  WorkflowValidationStats stats = 4;
+  string schema_version = 5;
+  string checked_at = 6;
+  int64 duration_ms = 7;
+}

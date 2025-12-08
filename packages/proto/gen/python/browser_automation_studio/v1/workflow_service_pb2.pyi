@@ -1,0 +1,199 @@
+import datetime
+
+from google.protobuf import struct_pb2 as _struct_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from browser_automation_studio.v1 import workflow_pb2 as _workflow_pb2
+from google.protobuf.internal import containers as _containers
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
+
+DESCRIPTOR: _descriptor.FileDescriptor
+
+class WorkflowSummary(_message.Message):
+    __slots__ = ()
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    FOLDER_PATH_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    IS_TEMPLATE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_FIELD_NUMBER: _ClassVar[int]
+    LAST_CHANGE_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    LAST_CHANGE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    project_id: str
+    name: str
+    folder_path: str
+    description: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    version: int
+    is_template: bool
+    created_by: str
+    last_change_source: str
+    last_change_description: str
+    created_at: _timestamp_pb2.Timestamp
+    updated_at: _timestamp_pb2.Timestamp
+    flow_definition: _workflow_pb2.WorkflowDefinition
+    def __init__(self, id: _Optional[str] = ..., project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., version: _Optional[int] = ..., is_template: _Optional[bool] = ..., created_by: _Optional[str] = ..., last_change_source: _Optional[str] = ..., last_change_description: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ...) -> None: ...
+
+class WorkflowVersion(_message.Message):
+    __slots__ = ()
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    workflow_id: str
+    version: int
+    flow_definition: _workflow_pb2.WorkflowDefinition
+    change_description: str
+    created_by: str
+    created_at: _timestamp_pb2.Timestamp
+    def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., change_description: _Optional[str] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class WorkflowList(_message.Message):
+    __slots__ = ()
+    WORKFLOWS_FIELD_NUMBER: _ClassVar[int]
+    workflows: _containers.RepeatedCompositeFieldContainer[WorkflowSummary]
+    def __init__(self, workflows: _Optional[_Iterable[_Union[WorkflowSummary, _Mapping]]] = ...) -> None: ...
+
+class WorkflowVersionList(_message.Message):
+    __slots__ = ()
+    VERSIONS_FIELD_NUMBER: _ClassVar[int]
+    versions: _containers.RepeatedCompositeFieldContainer[WorkflowVersion]
+    def __init__(self, versions: _Optional[_Iterable[_Union[WorkflowVersion, _Mapping]]] = ...) -> None: ...
+
+class CreateWorkflowRequest(_message.Message):
+    __slots__ = ()
+    PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    FOLDER_PATH_FIELD_NUMBER: _ClassVar[int]
+    FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    AI_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    project_id: str
+    name: str
+    folder_path: str
+    flow_definition: _workflow_pb2.WorkflowDefinition
+    ai_prompt: str
+    def __init__(self, project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., ai_prompt: _Optional[str] = ...) -> None: ...
+
+class CreateWorkflowResponse(_message.Message):
+    __slots__ = ()
+    WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    workflow: WorkflowSummary
+    flow_definition: _workflow_pb2.WorkflowDefinition
+    def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ...) -> None: ...
+
+class UpdateWorkflowRequest(_message.Message):
+    __slots__ = ()
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    FOLDER_PATH_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    description: str
+    folder_path: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    flow_definition: _workflow_pb2.WorkflowDefinition
+    change_description: str
+    source: str
+    expected_version: int
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., folder_path: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., change_description: _Optional[str] = ..., source: _Optional[str] = ..., expected_version: _Optional[int] = ...) -> None: ...
+
+class UpdateWorkflowResponse(_message.Message):
+    __slots__ = ()
+    WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    workflow: WorkflowSummary
+    flow_definition: _workflow_pb2.WorkflowDefinition
+    def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ...) -> None: ...
+
+class ExecuteWorkflowRequest(_message.Message):
+    __slots__ = ()
+    class ParametersEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
+    parameters: _containers.MessageMap[str, _struct_pb2.Value]
+    wait_for_completion: bool
+    def __init__(self, parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., wait_for_completion: _Optional[bool] = ...) -> None: ...
+
+class ExecuteWorkflowResponse(_message.Message):
+    __slots__ = ()
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class WorkflowValidationIssue(_message.Message):
+    __slots__ = ()
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    POINTER_FIELD_NUMBER: _ClassVar[int]
+    HINT_FIELD_NUMBER: _ClassVar[int]
+    severity: str
+    code: str
+    message: str
+    node_id: str
+    node_type: str
+    field: str
+    pointer: str
+    hint: str
+    def __init__(self, severity: _Optional[str] = ..., code: _Optional[str] = ..., message: _Optional[str] = ..., node_id: _Optional[str] = ..., node_type: _Optional[str] = ..., field: _Optional[str] = ..., pointer: _Optional[str] = ..., hint: _Optional[str] = ...) -> None: ...
+
+class WorkflowValidationStats(_message.Message):
+    __slots__ = ()
+    NODE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    EDGE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_COUNT_FIELD_NUMBER: _ClassVar[int]
+    UNIQUE_SELECTOR_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_WAIT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    HAS_METADATA_FIELD_NUMBER: _ClassVar[int]
+    HAS_EXECUTION_VIEWPORT_FIELD_NUMBER: _ClassVar[int]
+    node_count: int
+    edge_count: int
+    selector_count: int
+    unique_selector_count: int
+    element_wait_count: int
+    has_metadata: bool
+    has_execution_viewport: bool
+    def __init__(self, node_count: _Optional[int] = ..., edge_count: _Optional[int] = ..., selector_count: _Optional[int] = ..., unique_selector_count: _Optional[int] = ..., element_wait_count: _Optional[int] = ..., has_metadata: _Optional[bool] = ..., has_execution_viewport: _Optional[bool] = ...) -> None: ...
+
+class WorkflowValidationResult(_message.Message):
+    __slots__ = ()
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    ERRORS_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    STATS_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    errors: _containers.RepeatedCompositeFieldContainer[WorkflowValidationIssue]
+    warnings: _containers.RepeatedCompositeFieldContainer[WorkflowValidationIssue]
+    stats: WorkflowValidationStats
+    schema_version: str
+    checked_at: str
+    duration_ms: int
+    def __init__(self, valid: _Optional[bool] = ..., errors: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., stats: _Optional[_Union[WorkflowValidationStats, _Mapping]] = ..., schema_version: _Optional[str] = ..., checked_at: _Optional[str] = ..., duration_ms: _Optional[int] = ...) -> None: ...

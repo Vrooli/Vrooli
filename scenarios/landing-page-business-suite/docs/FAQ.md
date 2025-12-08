@@ -69,7 +69,7 @@ Stripe only. This covers:
 Yes. You'll need:
 - Stripe account (test or live)
 - Publishable key
-- Secret key
+- Restricted key (`rk_...`)
 - Webhook secret
 
 ### How do I test payments locally?

@@ -154,7 +154,7 @@ To enable payments:
 
 From [Stripe Dashboard](https://dashboard.stripe.com/apikeys):
 - Publishable key: `pk_test_...`
-- Secret key: `sk_test_...`
+   - Restricted key: `rk_test_...`
 
 ### 2. Configure in Admin
 

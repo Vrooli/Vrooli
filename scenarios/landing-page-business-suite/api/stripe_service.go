@@ -91,37 +91,49 @@ func (s *StripeService) RefreshConfig(ctx context.Context) error {
 }
 
 func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConfig, error) {
-	cfg := stripeRuntimeConfig{source: "env"}
+	// Start with environment defaults.
+	envPublishable := strings.TrimSpace(os.Getenv("STRIPE_PUBLISHABLE_KEY"))
+	envSecret := strings.TrimSpace(os.Getenv("STRIPE_SECRET_KEY"))
+	envWebhook := strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET"))
 
+	cfg := stripeRuntimeConfig{
+		publishableKey: envPublishable,
+		secretKey:      envSecret,
+		webhookSecret:  envWebhook,
+		hasPublishable: envPublishable != "",
+		hasSecret:      envSecret != "",
+		hasWebhook:     envWebhook != "",
+		source:         "env",
+	}
+
+	// Overlay database/admin overrides when present; keep env values for fields not provided.
 	if s.paymentSettings != nil {
 		record, err := s.paymentSettings.GetStripeSettings(ctx)
 		if err != nil {
 			return cfg, err
 		}
 		if record != nil {
-			cfg.publishableKey = strings.TrimSpace(record.PublishableKey)
-			cfg.secretKey = strings.TrimSpace(record.SecretKey)
-			cfg.webhookSecret = strings.TrimSpace(record.WebhookSecret)
-			cfg.source = "database"
-			cfg.hasPublishable = cfg.publishableKey != ""
-			cfg.hasSecret = cfg.secretKey != ""
-			cfg.hasWebhook = cfg.webhookSecret != ""
-			if cfg.hasPublishable && cfg.hasSecret {
-				return cfg, nil
+			fromDB := false
+			if publishable := strings.TrimSpace(record.PublishableKey); publishable != "" {
+				cfg.publishableKey = publishable
+				cfg.hasPublishable = true
+				fromDB = true
+			}
+			if secret := strings.TrimSpace(record.SecretKey); secret != "" {
+				cfg.secretKey = secret
+				cfg.hasSecret = true
+				fromDB = true
+			}
+			if webhook := strings.TrimSpace(record.WebhookSecret); webhook != "" {
+				cfg.webhookSecret = webhook
+				cfg.hasWebhook = true
+				fromDB = true
+			}
+			if fromDB {
+				cfg.source = "database"
 			}
 		}
 	}
-
-	envPublishable := strings.TrimSpace(os.Getenv("STRIPE_PUBLISHABLE_KEY"))
-	envSecret := strings.TrimSpace(os.Getenv("STRIPE_SECRET_KEY"))
-	envWebhook := strings.TrimSpace(os.Getenv("STRIPE_WEBHOOK_SECRET"))
-
-	cfg.publishableKey = envPublishable
-	cfg.secretKey = envSecret
-	cfg.webhookSecret = envWebhook
-	cfg.hasPublishable = envPublishable != ""
-	cfg.hasSecret = envSecret != ""
-	cfg.hasWebhook = envWebhook != ""
 
 	if !cfg.hasPublishable {
 		cfg.publishableKey = "pk_test_placeholder"
@@ -132,9 +144,9 @@ func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConf
 	}
 	if !cfg.hasSecret {
 		cfg.secretKey = "sk_test_placeholder"
-		logStructured("STRIPE_SECRET_KEY missing - using placeholder", map[string]interface{}{
+		logStructured("STRIPE_SECRET_KEY (restricted) missing - using placeholder", map[string]interface{}{
 			"level":   "warn",
-			"message": "STRIPE_SECRET_KEY not set; using placeholder for development",
+			"message": "STRIPE_SECRET_KEY (restricted key) not set; using placeholder for development",
 		})
 	}
 	if !cfg.hasWebhook {
@@ -187,7 +199,7 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 
 	// [REQ:STRIPE-CONFIG] Uses Stripe keys from environment or admin settings
 	if !cfg.hasSecret {
-		return nil, errors.New("Stripe not configured - missing STRIPE_SECRET_KEY")
+		return nil, errors.New("Stripe not configured - missing STRIPE_SECRET_KEY (restricted key)")
 	}
 
 	sessionID := fmt.Sprintf("cs_test_%d", time.Now().UnixNano())
