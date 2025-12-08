@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLivePreview } from './hooks/useLivePreview';
 import type { RecordedAction } from './types';
 import type { PreviewMode } from './hooks/usePreviewMode';
 import type { SnapshotPreviewState } from './hooks/useSnapshotPreview';
@@ -22,8 +23,6 @@ export function RecordPreviewPanel({
   onLiveBlocked,
   actions,
 }: RecordPreviewPanelProps) {
-  const [iframeKey, setIframeKey] = useState(0);
-
   const lastUrl = useMemo(() => {
     if (actions.length === 0) return '';
     return actions[actions.length - 1]?.url ?? '';
@@ -31,35 +30,7 @@ export function RecordPreviewPanel({
 
   const effectiveUrl = previewUrl || lastUrl;
 
-  const [liveState, setLiveState] = useState<'idle' | 'loading' | 'loaded' | 'blocked'>('idle');
-  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [urlInput, setUrlInput] = useState(previewUrl);
-  const blockedRef = useRef(false);
-
-  useEffect(() => {
-    blockedRef.current = false;
-    // Start load timer when switching to live with a URL
-    if (mode === 'live' && effectiveUrl) {
-      setLiveState('loading');
-      if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
-      loadTimerRef.current = setTimeout(() => {
-        markBlocked();
-      }, 4500);
-    } else {
-      setLiveState('idle');
-      if (loadTimerRef.current) {
-        clearTimeout(loadTimerRef.current);
-        loadTimerRef.current = null;
-      }
-    }
-    return () => {
-      if (loadTimerRef.current) {
-        clearTimeout(loadTimerRef.current);
-        loadTimerRef.current = null;
-      }
-    };
-  }, [mode, effectiveUrl, onLiveBlocked]);
 
   // Keep input in sync with upstream changes
   useEffect(() => {
@@ -76,73 +47,11 @@ export function RecordPreviewPanel({
     return () => clearTimeout(debounce);
   }, [urlInput, previewUrl, onPreviewUrlChange]);
 
-  const markBlocked = () => {
-    blockedRef.current = true;
-    setLiveState('blocked');
-    onLiveBlocked();
-  };
-
-  const inspectIframe = (): 'blocked' | 'ok' | 'unknown' => {
-    const iframe = iframeRef.current;
-    if (!iframe) return 'unknown';
-    try {
-      const doc = iframe.contentDocument;
-      if (!doc || !doc.body) return 'unknown';
-      const text = (doc.body.innerText || '').toLowerCase();
-      const len = text.trim().length;
-      const childCount = doc.body.childElementCount || 0;
-      const refused = text.includes('refused to connect') || text.includes('denied') || text.includes('blocked');
-      const empty = len === 0 && childCount === 0;
-      if (refused || empty) return 'blocked';
-      return 'ok';
-    } catch {
-      // Cross-origin; assume ok since we cannot inspect
-      return 'ok';
-    }
-  };
-
-  const handleIframeLoad = () => {
-    if (loadTimerRef.current) {
-      clearTimeout(loadTimerRef.current);
-      loadTimerRef.current = null;
-    }
-    blockedRef.current = false;
-    setLiveState('loading');
-
-    const runChecks = () => {
-      const status = inspectIframe();
-      if (status === 'blocked') {
-        markBlocked();
-        return true;
-      }
-      if (status === 'ok') {
-        setLiveState('loaded');
-        return true;
-      }
-      return false;
-    };
-
-    if (runChecks()) return;
-    setTimeout(() => {
-      if (blockedRef.current) return;
-      if (runChecks()) return;
-      setTimeout(() => {
-        if (blockedRef.current) return;
-        if (!runChecks()) {
-          // If still unknown after retries, assume blocked to avoid hanging on blank pages.
-          markBlocked();
-        }
-      }, 600);
-    }, 400);
-  };
-
-  const handleIframeError = () => {
-    if (loadTimerRef.current) {
-      clearTimeout(loadTimerRef.current);
-      loadTimerRef.current = null;
-    }
-    markBlocked();
-  };
+  const { liveState, iframeKey, iframeRef, handleIframeLoad, handleIframeError, reload } = useLivePreview({
+    mode,
+    url: effectiveUrl || null,
+    onBlocked: onLiveBlocked,
+  });
 
   return (
     <div className="flex flex-col h-full">
@@ -176,8 +85,7 @@ export function RecordPreviewPanel({
               if (mode === 'snapshot') {
                 void snapshot.refresh();
               } else {
-                // Force iframe reload by bumping key
-                setIframeKey((k) => k + 1);
+                reload();
               }
             }}
           >

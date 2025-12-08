@@ -2,16 +2,20 @@
  * useRecordMode Hook
  *
  * Manages recording state and API interactions for Record Mode.
- * Supports:
- * - Starting/stopping recording
- * - Real-time WebSocket updates for actions (<100ms latency)
- * - Fallback polling for resilience
- * - Editing actions (selector and payload)
- * - Generating workflows
- * - Validating selectors
+ * Responsibilities are split into two layers:
+ * - Transport: API/WebSocket/polling + recording lifecycle
+ * - Editing: local action mutations and confidence bookkeeping
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { getApiBase } from '@/config';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import type {
@@ -26,67 +30,67 @@ import type {
 } from '../types';
 
 interface UseRecordModeOptions {
-  /** Session ID for the browser session */
   sessionId: string | null;
-  /** Polling interval for actions in ms (0 to disable). Used as fallback when WebSocket is unavailable. */
   pollInterval?: number;
-  /** Callback when new actions are received */
   onActionsReceived?: (actions: RecordedAction[]) => void;
-  /** Whether to use WebSocket for real-time updates (default: true) */
   useWebSocketUpdates?: boolean;
 }
 
 interface UseRecordModeReturn {
-  /** Whether recording is currently active */
   isRecording: boolean;
-  /** Current recording ID */
   recordingId: string | null;
-  /** List of recorded actions */
   actions: RecordedAction[];
-  /** Loading state */
   isLoading: boolean;
-  /** Error message */
   error: string | null;
-  /** Start recording */
   startRecording: () => Promise<void>;
-  /** Stop recording */
   stopRecording: () => Promise<void>;
-  /** Clear actions list */
   clearActions: () => void;
-  /** Delete an action by index */
   deleteAction: (index: number) => void;
-  /** Update an action's selector */
   updateSelector: (index: number, newSelector: string) => void;
-  /** Update an action's payload */
   updatePayload: (index: number, payload: Record<string, unknown>) => void;
-  /** Generate workflow from current actions */
   generateWorkflow: (name: string, projectId?: string) => Promise<GenerateWorkflowResponse>;
-  /** Validate a selector */
   validateSelector: (selector: string) => Promise<SelectorValidation>;
-  /** Refresh actions from server */
   refreshActions: () => Promise<void>;
-  /** Replay recorded actions for preview testing */
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }) => Promise<ReplayPreviewResponse>;
-  /** Whether replay is currently in progress */
   isReplaying: boolean;
-  /** Count of actions with low confidence */
   lowConfidenceCount: number;
-  /** Count of actions with medium confidence */
   mediumConfidenceCount: number;
 }
 
-/** Confidence thresholds */
 const CONFIDENCE = {
   HIGH: 0.8,
   MEDIUM: 0.5,
 };
 
-export function useRecordMode({
+type ActionSetter = Dispatch<SetStateAction<RecordedAction[]>>;
+
+interface UseRecordingTransportOptions extends UseRecordModeOptions {
+  apiUrl: string;
+}
+
+interface UseRecordingTransportReturn {
+  isRecording: boolean;
+  recordingId: string | null;
+  actions: RecordedAction[];
+  setActions: ActionSetter;
+  isLoading: boolean;
+  isReplaying: boolean;
+  error: string | null;
+  startRecording: () => Promise<void>;
+  stopRecording: () => Promise<void>;
+  generateWorkflow: (name: string, projectId?: string) => Promise<GenerateWorkflowResponse>;
+  validateSelector: (selector: string) => Promise<SelectorValidation>;
+  refreshActions: () => Promise<void>;
+  replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }) => Promise<ReplayPreviewResponse>;
+}
+
+function useRecordingTransport({
   sessionId,
-  pollInterval = 5000, // Reduced frequency - WebSocket is primary, polling is fallback
+  pollInterval,
   onActionsReceived,
-  useWebSocketUpdates = true,
-}: UseRecordModeOptions): UseRecordModeReturn {
+  useWebSocketUpdates,
+  apiUrl,
+}: UseRecordingTransportOptions): UseRecordingTransportReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [actions, setActions] = useState<RecordedAction[]>([]);
@@ -100,31 +104,32 @@ export function useRecordMode({
   const lastActionCountRef = useRef(0);
   const wsSubscribedRef = useRef(false);
 
-  const apiUrl = getApiBase();
   const { isConnected, lastMessage, send } = useWebSocket();
 
+  const setActionsWithSync = useCallback<ActionSetter>(
+    (next) => {
+      setActions((prev) => {
+        const resolved = typeof next === 'function' ? (next as (p: RecordedAction[]) => RecordedAction[])(prev) : next;
+        lastActionCountRef.current = resolved.length;
+        return resolved;
+      });
+    },
+    []
+  );
+
   useEffect(() => {
-    setActions([]);
+    setActionsWithSync([]);
     setRecordingId(null);
     setIsRecording(false);
     setError(null);
-    lastActionCountRef.current = 0;
-  }, [sessionId]);
+  }, [sessionId, setActionsWithSync]);
 
-  // Calculate confidence counts
-  const lowConfidenceCount = actions.filter(
-    (a) => a.selector && a.confidence < CONFIDENCE.MEDIUM
-  ).length;
-  const mediumConfidenceCount = actions.filter(
-    (a) => a.selector && a.confidence >= CONFIDENCE.MEDIUM && a.confidence < CONFIDENCE.HIGH
-  ).length;
-
-  // Fetch actions from server
   const refreshActions = useCallback(async () => {
     const currentSessionId = sessionIdRef.current;
     if (!currentSessionId) return;
 
     try {
+      const previousCount = lastActionCountRef.current;
       const response = await fetch(`${apiUrl}/recordings/live/${currentSessionId}/actions`);
       if (!response.ok) {
         throw new Error(`Failed to fetch actions: ${response.statusText}`);
@@ -132,20 +137,17 @@ export function useRecordMode({
 
       const data: GetActionsResponse = await response.json();
       const actionsFromApi = Array.isArray(data.actions) ? data.actions : [];
-      setActions(actionsFromApi);
+      setActionsWithSync(actionsFromApi);
 
-      // Notify if new actions received
-      if (actionsFromApi.length > lastActionCountRef.current && onActionsReceived) {
-        const newActions = actionsFromApi.slice(lastActionCountRef.current);
+      if (actionsFromApi.length > previousCount && onActionsReceived) {
+        const newActions = actionsFromApi.slice(previousCount);
         onActionsReceived(newActions);
       }
-      lastActionCountRef.current = actionsFromApi.length;
     } catch (err) {
       console.error('Failed to refresh actions:', err);
     }
-  }, [apiUrl, onActionsReceived]);
+  }, [apiUrl, onActionsReceived, setActionsWithSync]);
 
-  // Subscribe to WebSocket updates when recording starts
   useEffect(() => {
     const currentSessionId = sessionIdRef.current;
     if (isRecording && useWebSocketUpdates && isConnected && currentSessionId && !wsSubscribedRef.current) {
@@ -154,7 +156,6 @@ export function useRecordMode({
       console.log('[useRecordMode] Subscribed to recording WebSocket updates');
     }
 
-    // Unsubscribe when recording stops
     if (!isRecording && wsSubscribedRef.current) {
       send({ type: 'unsubscribe_recording' });
       wsSubscribedRef.current = false;
@@ -169,39 +170,30 @@ export function useRecordMode({
     };
   }, [isRecording, useWebSocketUpdates, isConnected, sessionId, send]);
 
-  // Handle incoming WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
 
-    // Type guard for recording action messages
     const msg = lastMessage as { type: string; action?: unknown; session_id?: string };
     if (msg.type === 'recording_action' && msg.action) {
       const action = msg.action as RecordedAction;
 
-      // Deduplicate - check if action already exists by ID
-      setActions((prev) => {
+      setActionsWithSync((prev) => {
         const exists = prev.some((a) => a.id === action.id);
         if (exists) return prev;
 
         const newActions = [...prev, action];
-
-        // Notify callback
         if (onActionsReceived) {
           onActionsReceived([action]);
         }
-
-        lastActionCountRef.current = newActions.length;
         return newActions;
       });
 
       console.log('[useRecordMode] Received action via WebSocket:', action.actionType);
     }
-  }, [lastMessage, onActionsReceived]);
+  }, [lastMessage, onActionsReceived, setActionsWithSync]);
 
-  // Fallback polling when WebSocket is not available or as periodic sync
-  // Uses longer interval since WebSocket provides real-time updates
   useEffect(() => {
-    const shouldPoll = isRecording && pollInterval > 0 && (!useWebSocketUpdates || !isConnected);
+    const shouldPoll = isRecording && (pollInterval ?? 0) > 0 && (!useWebSocketUpdates || !isConnected);
 
     if (shouldPoll) {
       pollTimerRef.current = setInterval(() => {
@@ -243,15 +235,14 @@ export function useRecordMode({
       const data: StartRecordingResponse = await response.json();
       setRecordingId(data.recording_id);
       setIsRecording(true);
-      setActions([]);
-      lastActionCountRef.current = 0;
+      setActionsWithSync([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start recording');
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl]);
+  }, [apiUrl, setActionsWithSync]);
 
   const stopRecording = useCallback(async () => {
     const currentSessionId = sessionIdRef.current;
@@ -275,11 +266,8 @@ export function useRecordMode({
 
       const data: StopRecordingResponse = await response.json();
 
-      // Final refresh to get all actions
       await refreshActions();
-
       setIsRecording(false);
-      // Keep recordingId for reference
       console.log('Recording stopped:', data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to stop recording');
@@ -288,64 +276,6 @@ export function useRecordMode({
       setIsLoading(false);
     }
   }, [apiUrl, refreshActions]);
-
-  const clearActions = useCallback(() => {
-    setActions([]);
-    lastActionCountRef.current = 0;
-  }, []);
-
-  const deleteAction = useCallback((index: number) => {
-    setActions((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const updateSelector = useCallback((index: number, newSelector: string) => {
-    setActions((prev) =>
-      prev.map((action, i) => {
-        if (i !== index) return action;
-
-        // Update the primary selector and recalculate confidence
-        const updatedSelector: SelectorSet = action.selector
-          ? {
-              ...action.selector,
-              primary: newSelector,
-            }
-          : {
-              primary: newSelector,
-              candidates: [],
-            };
-
-        // Find confidence from candidates or default to medium
-        const matchingCandidate = action.selector?.candidates.find(
-          (c) => c.value === newSelector
-        );
-        const newConfidence = matchingCandidate?.confidence ?? 0.7;
-
-        return {
-          ...action,
-          selector: updatedSelector,
-          confidence: newConfidence,
-        };
-      })
-    );
-  }, []);
-
-  const updatePayload = useCallback(
-    (index: number, payload: Record<string, unknown>) => {
-      setActions((prev) =>
-        prev.map((action, i) => {
-          if (i !== index) return action;
-          return {
-            ...action,
-            payload: {
-              ...action.payload,
-              ...payload,
-            } as RecordedAction['payload'],
-          };
-        })
-      );
-    },
-    []
-  );
 
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string): Promise<GenerateWorkflowResponse> => {
@@ -362,7 +292,6 @@ export function useRecordMode({
       setError(null);
 
       try {
-        // Send local actions (with edits) to the API
         const response = await fetch(
           `${apiUrl}/recordings/live/${currentSessionId}/generate-workflow`,
           {
@@ -371,8 +300,7 @@ export function useRecordMode({
             body: JSON.stringify({
               name,
               project_id: projectId,
-              // Include edited actions in the request
-              actions: actions,
+              actions,
             }),
           }
         );
@@ -384,8 +312,7 @@ export function useRecordMode({
           );
         }
 
-        const data: GenerateWorkflowResponse = await response.json();
-        return data;
+        return response.json();
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to generate workflow';
         setError(message);
@@ -457,8 +384,7 @@ export function useRecordMode({
           );
         }
 
-        const data: ReplayPreviewResponse = await response.json();
-        return data;
+        return response.json();
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to replay recording';
         setError(message);
@@ -474,20 +400,129 @@ export function useRecordMode({
     isRecording,
     recordingId,
     actions,
+    setActions: setActionsWithSync,
     isLoading,
+    isReplaying,
     error,
     startRecording,
     stopRecording,
-    clearActions,
-    deleteAction,
-    updateSelector,
-    updatePayload,
     generateWorkflow,
     validateSelector,
     refreshActions,
     replayPreview,
-    isReplaying,
+  };
+}
+
+interface UseActionEditingReturn {
+  clearActions: () => void;
+  deleteAction: (index: number) => void;
+  updateSelector: (index: number, newSelector: string) => void;
+  updatePayload: (index: number, payload: Record<string, unknown>) => void;
+  lowConfidenceCount: number;
+  mediumConfidenceCount: number;
+}
+
+function useActionEditing(actions: RecordedAction[], setActions: ActionSetter): UseActionEditingReturn {
+  const updateSelector = useCallback(
+    (index: number, newSelector: string) => {
+      setActions((prev) =>
+        prev.map((action, i) => {
+          if (i !== index) return action;
+
+          const updatedSelector: SelectorSet = action.selector
+            ? { ...action.selector, primary: newSelector }
+            : { primary: newSelector, candidates: [] };
+
+          const matchingCandidate = action.selector?.candidates.find((c) => c.value === newSelector);
+          const newConfidence = matchingCandidate?.confidence ?? 0.7;
+
+          return { ...action, selector: updatedSelector, confidence: newConfidence };
+        })
+      );
+    },
+    [setActions]
+  );
+
+  const updatePayload = useCallback(
+    (index: number, payload: Record<string, unknown>) => {
+      setActions((prev) =>
+        prev.map((action, i) => {
+          if (i !== index) return action;
+          return {
+            ...action,
+            payload: { ...action.payload, ...payload } as RecordedAction['payload'],
+          };
+        })
+      );
+    },
+    [setActions]
+  );
+
+  const clearActions = useCallback(() => {
+    setActions([]);
+  }, [setActions]);
+
+  const deleteAction = useCallback(
+    (index: number) => {
+      setActions((prev) => prev.filter((_, i) => i !== index));
+    },
+    [setActions]
+  );
+
+  const { lowConfidenceCount, mediumConfidenceCount } = useMemo(() => {
+    const low = actions.filter((a) => a.selector && a.confidence < CONFIDENCE.MEDIUM).length;
+    const medium = actions.filter(
+      (a) => a.selector && a.confidence >= CONFIDENCE.MEDIUM && a.confidence < CONFIDENCE.HIGH
+    ).length;
+    return { lowConfidenceCount: low, mediumConfidenceCount: medium };
+  }, [actions]);
+
+  return {
+    clearActions,
+    deleteAction,
+    updateSelector,
+    updatePayload,
     lowConfidenceCount,
     mediumConfidenceCount,
+  };
+}
+
+export function useRecordMode({
+  sessionId,
+  pollInterval = 5000,
+  onActionsReceived,
+  useWebSocketUpdates = true,
+}: UseRecordModeOptions): UseRecordModeReturn {
+  const apiUrl = getApiBase();
+
+  const transport = useRecordingTransport({
+    sessionId,
+    pollInterval,
+    onActionsReceived,
+    useWebSocketUpdates,
+    apiUrl,
+  });
+
+  const editing = useActionEditing(transport.actions, transport.setActions);
+
+  return {
+    isRecording: transport.isRecording,
+    recordingId: transport.recordingId,
+    actions: transport.actions,
+    isLoading: transport.isLoading,
+    error: transport.error,
+    startRecording: transport.startRecording,
+    stopRecording: transport.stopRecording,
+    clearActions: editing.clearActions,
+    deleteAction: editing.deleteAction,
+    updateSelector: editing.updateSelector,
+    updatePayload: editing.updatePayload,
+    generateWorkflow: transport.generateWorkflow,
+    validateSelector: transport.validateSelector,
+    refreshActions: transport.refreshActions,
+    replayPreview: transport.replayPreview,
+    isReplaying: transport.isReplaying,
+    lowConfidenceCount: editing.lowConfidenceCount,
+    mediumConfidenceCount: editing.mediumConfidenceCount,
   };
 }
