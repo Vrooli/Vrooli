@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RecordedAction } from './types';
 import type { PreviewMode } from './hooks/usePreviewMode';
 import type { SnapshotPreviewState } from './hooks/useSnapshotPreview';
@@ -31,6 +31,119 @@ export function RecordPreviewPanel({
 
   const effectiveUrl = previewUrl || lastUrl;
 
+  const [liveState, setLiveState] = useState<'idle' | 'loading' | 'loaded' | 'blocked'>('idle');
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [urlInput, setUrlInput] = useState(previewUrl);
+  const blockedRef = useRef(false);
+
+  useEffect(() => {
+    blockedRef.current = false;
+    // Start load timer when switching to live with a URL
+    if (mode === 'live' && effectiveUrl) {
+      setLiveState('loading');
+      if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
+      loadTimerRef.current = setTimeout(() => {
+        markBlocked();
+      }, 4500);
+    } else {
+      setLiveState('idle');
+      if (loadTimerRef.current) {
+        clearTimeout(loadTimerRef.current);
+        loadTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (loadTimerRef.current) {
+        clearTimeout(loadTimerRef.current);
+        loadTimerRef.current = null;
+      }
+    };
+  }, [mode, effectiveUrl, onLiveBlocked]);
+
+  // Keep input in sync with upstream changes
+  useEffect(() => {
+    setUrlInput(previewUrl);
+  }, [previewUrl]);
+
+  // Debounce URL changes before notifying parent
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (urlInput !== previewUrl) {
+        onPreviewUrlChange(urlInput);
+      }
+    }, 400);
+    return () => clearTimeout(debounce);
+  }, [urlInput, previewUrl, onPreviewUrlChange]);
+
+  const markBlocked = () => {
+    blockedRef.current = true;
+    setLiveState('blocked');
+    onLiveBlocked();
+  };
+
+  const inspectIframe = (): 'blocked' | 'ok' | 'unknown' => {
+    const iframe = iframeRef.current;
+    if (!iframe) return 'unknown';
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.body) return 'unknown';
+      const text = (doc.body.innerText || '').toLowerCase();
+      const len = text.trim().length;
+      const childCount = doc.body.childElementCount || 0;
+      const refused = text.includes('refused to connect') || text.includes('denied') || text.includes('blocked');
+      const empty = len === 0 && childCount === 0;
+      if (refused || empty) return 'blocked';
+      return 'ok';
+    } catch {
+      // Cross-origin; assume ok since we cannot inspect
+      return 'ok';
+    }
+  };
+
+  const handleIframeLoad = () => {
+    if (loadTimerRef.current) {
+      clearTimeout(loadTimerRef.current);
+      loadTimerRef.current = null;
+    }
+    blockedRef.current = false;
+    setLiveState('loading');
+
+    const runChecks = () => {
+      const status = inspectIframe();
+      if (status === 'blocked') {
+        markBlocked();
+        return true;
+      }
+      if (status === 'ok') {
+        setLiveState('loaded');
+        return true;
+      }
+      return false;
+    };
+
+    if (runChecks()) return;
+    setTimeout(() => {
+      if (blockedRef.current) return;
+      if (runChecks()) return;
+      setTimeout(() => {
+        if (blockedRef.current) return;
+        if (!runChecks()) {
+          // If still unknown after retries, assume blocked to avoid hanging on blank pages.
+          markBlocked();
+        }
+      }, 600);
+    }, 400);
+  };
+
+  const handleIframeError = () => {
+    if (loadTimerRef.current) {
+      clearTimeout(loadTimerRef.current);
+      loadTimerRef.current = null;
+    }
+    markBlocked();
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header with mode toggle and URL input */}
@@ -54,8 +167,8 @@ export function RecordPreviewPanel({
           <input
             className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
             placeholder={lastUrl || 'Enter a URL to preview'}
-            value={previewUrl}
-            onChange={(e) => onPreviewUrlChange(e.target.value)}
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
           />
           <button
             className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -77,14 +190,29 @@ export function RecordPreviewPanel({
       <div className="flex-1 overflow-hidden">
         {mode === 'live' ? (
           effectiveUrl ? (
-            <iframe
-              key={iframeKey}
-              src={effectiveUrl}
-              className="w-full h-full bg-white"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock allow-modals"
-              onError={onLiveBlocked}
-              title="Live preview"
-            />
+            <div className="relative h-full">
+              <iframe
+                key={iframeKey}
+                src={effectiveUrl}
+                className="w-full h-full bg-white"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock allow-modals"
+                ref={iframeRef}
+                onError={handleIframeError}
+                onLoad={handleIframeLoad}
+                title="Live preview"
+              />
+              {liveState === 'loading' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm text-xs text-gray-600 dark:text-gray-300">
+                  Attempting live preview… switching to snapshot if it doesn’t load.
+                </div>
+              )}
+              {liveState === 'blocked' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-center px-4 gap-2 text-sm">
+                  <p className="font-medium text-gray-800 dark:text-gray-100">Live preview blocked or slow</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">We’ll use Snapshot mode instead.</p>
+                </div>
+              )}
+            </div>
           ) : (
             <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the page directly. Some sites may block embedding." />
           )
@@ -108,12 +236,26 @@ function SnapshotView({ snapshot, url }: { snapshot: SnapshotPreviewState; url: 
 
   if (snapshot.isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <svg className="w-6 h-6 animate-spin mb-2" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-        </svg>
-        <p className="text-sm">Capturing snapshot...</p>
+      <div className="h-full flex flex-col items-center justify-center text-center px-6 gap-3 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+        <div className="relative">
+          <div className="w-14 h-14 rounded-full border-4 border-blue-100 dark:border-blue-900/30" />
+          <div
+            className="absolute inset-1 rounded-full border-4 border-blue-500/60 border-t-transparent animate-spin"
+            style={{ animationDuration: '1.1s' }}
+          />
+          <div
+            className="absolute inset-2 rounded-full border-4 border-blue-200/80 dark:border-blue-800/60 border-t-transparent animate-spin"
+            style={{ animationDuration: '1.6s' }}
+          />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Capturing snapshot…</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">May take a few seconds while the page loads and renders.</p>
+        </div>
+        <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+          <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+          <span>Waiting for a fresh preview</span>
+        </div>
       </div>
     );
   }

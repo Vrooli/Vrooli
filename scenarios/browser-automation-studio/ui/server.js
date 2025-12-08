@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { startScenarioServer } from '@vrooli/api-base/server'
+import { startScenarioServer, injectBaseTag } from '@vrooli/api-base/server'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -32,6 +32,39 @@ export function startServer() {
     wsPathPrefix: '/ws',
     wsPathTransform: (pathValue) => pathValue,
     proxyTimeoutMs: 60000,
+    setupRoutes: (app) => {
+      // Inject a <base> tag so deep links resolve assets from the correct root.
+      // Handles both direct routes (/) and proxied paths (/apps/<id>/proxy/*).
+      app.use((req, res, next) => {
+        const originalSend = res.send
+
+        res.send = function (body) {
+          const contentType = res.getHeader('content-type')
+          const isHtml =
+            contentType && typeof contentType === 'string' && contentType.includes('text/html')
+
+          if (isHtml && typeof body === 'string') {
+            const pathName = req.originalUrl?.split('?')[0] || '/'
+            const proxyMarker = '/proxy/'
+            const proxyIdx = pathName.indexOf(proxyMarker)
+            const basePath =
+              proxyIdx >= 0
+                ? pathName.slice(0, proxyIdx + proxyMarker.length)
+                : '/'
+
+            const modified = injectBaseTag(body, basePath, {
+              skipIfExists: true,
+              dataAttribute: 'data-bas-base',
+            })
+            return originalSend.call(this, modified)
+          }
+
+          return originalSend.call(this, body)
+        }
+
+        next()
+      })
+    },
   })
 }
 
