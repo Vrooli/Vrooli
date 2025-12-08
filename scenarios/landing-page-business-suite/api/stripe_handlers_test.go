@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -24,6 +25,34 @@ func setStripeEnv(t *testing.T) func() {
 		os.Unsetenv("STRIPE_SECRET_KEY")
 		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
 	}
+}
+
+func newMockStripeServer(t *testing.T) (*httptest.Server, func()) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/checkout/sessions":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"id":"cs_mock","url":"https://stripe.test/cs_mock","status":"open","customer_email":"handler@example.com","customer":"cus_mock","subscription":"sub_mock","amount_total":5000,"mode":"subscription","currency":"usd"}`)
+			return
+		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/subscriptions/"):
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"id":"%s","status":"canceled"}`, strings.TrimPrefix(r.URL.Path, "/v1/subscriptions/"))
+			return
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"url":"https://stripe.test/portal"}`)
+			return
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	os.Setenv("STRIPE_API_BASE", server.URL)
+	cleanup := func() {
+		os.Unsetenv("STRIPE_API_BASE")
+		server.Close()
+	}
+	return server, cleanup
 }
 
 func signStripePayload(t *testing.T, payload []byte, timestamp string, secret string) string {
@@ -57,6 +86,8 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 	defer db.Close()
 	cleanup := setStripeEnv(t)
 	defer cleanup()
+	stripeServer, closeServer := newMockStripeServer(t)
+	defer closeServer()
 
 	resetStripeTestData(t, db)
 
@@ -85,6 +116,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 		map[string]interface{}{"features": []string{"Handlers coverage"}},
 	)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
+	stripeService.UseHTTPClient(stripeServer.Client())
 
 	session, err := stripeService.CreateCheckoutSession("price_handlers_sub", "/ok", "/cancel", "handler@example.com")
 	if err != nil {
@@ -137,6 +169,8 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	defer db.Close()
 	cleanup := setStripeEnv(t)
 	defer cleanup()
+	stripeServer, closeServer := newMockStripeServer(t)
+	defer closeServer()
 
 	resetStripeTestData(t, db)
 
@@ -165,6 +199,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 		map[string]interface{}{},
 	)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
+	stripeService.UseHTTPClient(stripeServer.Client())
 	session, err := stripeService.CreateCheckoutSession("price_credits_topup", "/ok", "/cancel", "credits@example.com")
 	if err != nil {
 		t.Fatalf("checkout creation failed: %v", err)
@@ -199,6 +234,91 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	}
 	if balance == 0 {
 		t.Fatalf("expected non-zero credit balance after top-up")
+	}
+}
+
+func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	cleanup := setStripeEnv(t)
+	defer cleanup()
+
+	resetStripeTestData(t, db)
+
+	// Seed subscription to be updated by invoice events.
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, price_id, bundle_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		ON CONFLICT (subscription_id) DO NOTHING
+	`, "sub_invoice", "invoice@example.com", "past_due", "price_invoice_prev", "business_suite"); err != nil {
+		t.Fatalf("failed to seed subscription: %v", err)
+	}
+
+	stripeService := NewStripeService(db)
+
+	paidPayload := map[string]interface{}{
+		"type": "invoice.paid",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"subscription":   "sub_invoice",
+				"customer_email": "invoice@example.com",
+				"customer":       "cus_invoice",
+				"lines": map[string]interface{}{
+					"data": []interface{}{
+						map[string]interface{}{
+							"price": map[string]interface{}{
+								"id": "price_invoice_new",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	rawPaid, _ := json.Marshal(paidPayload)
+	reqPaid := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawPaid))
+	reqPaid.Header.Set("Stripe-Signature", signStripePayload(t, rawPaid, "1700000002", "whsec_handlers"))
+	recPaid := httptest.NewRecorder()
+	handleStripeWebhook(stripeService).ServeHTTP(recPaid, reqPaid)
+	if recPaid.Code != http.StatusOK {
+		t.Fatalf("invoice.paid handler returned %d: %s", recPaid.Code, recPaid.Body.String())
+	}
+
+	var status, priceID string
+	if err := db.QueryRow(`SELECT status, price_id FROM subscriptions WHERE subscription_id = $1`, "sub_invoice").Scan(&status, &priceID); err != nil {
+		t.Fatalf("failed to load subscription after invoice.paid: %v", err)
+	}
+	if status != "active" {
+		t.Fatalf("expected status active after invoice.paid, got %s", status)
+	}
+	if priceID != "price_invoice_new" {
+		t.Fatalf("expected price updated from invoice lines, got %s", priceID)
+	}
+
+	// Payment failed should flip to past_due.
+	failedPayload := map[string]interface{}{
+		"type": "invoice.payment_failed",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"subscription":   "sub_invoice",
+				"customer_email": "invoice@example.com",
+			},
+		},
+	}
+	rawFailed, _ := json.Marshal(failedPayload)
+	reqFailed := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawFailed))
+	reqFailed.Header.Set("Stripe-Signature", signStripePayload(t, rawFailed, "1700000003", "whsec_handlers"))
+	recFailed := httptest.NewRecorder()
+	handleStripeWebhook(stripeService).ServeHTTP(recFailed, reqFailed)
+	if recFailed.Code != http.StatusOK {
+		t.Fatalf("invoice.payment_failed handler returned %d: %s", recFailed.Code, recFailed.Body.String())
+	}
+
+	if err := db.QueryRow(`SELECT status FROM subscriptions WHERE subscription_id = $1`, "sub_invoice").Scan(&status); err != nil {
+		t.Fatalf("failed to reload subscription after invoice.payment_failed: %v", err)
+	}
+	if status != "past_due" {
+		t.Fatalf("expected past_due after payment_failed, got %s", status)
 	}
 }
 
@@ -325,6 +445,8 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 	defer db.Close()
 	cleanup := setStripeEnv(t)
 	defer cleanup()
+	stripeServer, closeServer := newMockStripeServer(t)
+	defer closeServer()
 
 	resetStripeTestData(t, db)
 
@@ -338,6 +460,7 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 	}
 
 	stripeService := NewStripeService(db)
+	stripeService.UseHTTPClient(stripeServer.Client())
 
 	verifyRec := httptest.NewRecorder()
 	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/subscription/verify?user=cancelme@example.com", nil)
@@ -360,5 +483,34 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 	}
 	if status != "canceled" {
 		t.Fatalf("expected canceled status, got %s", status)
+	}
+}
+
+func TestHandleStripeWebhookRequiresSignature(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	cleanup := setStripeEnv(t)
+	defer cleanup()
+
+	resetStripeTestData(t, db)
+
+	stripeService := NewStripeService(db)
+	handler := handleStripeWebhook(stripeService)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewBufferString(`{"type":"test.event"}`))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing signature, got %d", rec.Code)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM subscriptions`).Scan(&count); err != nil {
+		t.Fatalf("failed to count subscriptions: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no subscriptions created when signature missing, found %d", count)
 	}
 }

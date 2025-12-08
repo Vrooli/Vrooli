@@ -41,10 +41,19 @@ func handleBillingCreateCreditsSession(service *StripeService) http.HandlerFunc 
 	}
 }
 
-func handleBillingPortalURL() http.HandlerFunc {
+func handleBillingPortalURL(service *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, &landing_page_react_vite_v1.BillingPortalResponse{
-			Url: "https://dashboard.stripe.com/test/customers",
-		})
+		user := resolveUserIdentity(r)
+		if user == "" {
+			http.Error(w, "user identity required", http.StatusBadRequest)
+			return
+		}
+		returnURL := r.URL.Query().Get("return_url")
+		resp, err := service.CreateBillingPortalSession(r.Context(), user, returnURL)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, resp)
 	}
 }

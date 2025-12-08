@@ -8,9 +8,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -45,6 +45,7 @@ type Server struct {
 	paymentSettings      *PaymentSettingsService
 	brandingService      *BrandingService
 	assetsService        *AssetsService
+	seoService           *SEOService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -83,6 +84,7 @@ func NewServer() (*Server, error) {
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
 	brandingService := NewBrandingService(db)
 	assetsService := NewAssetsService(db)
+	seoService := NewSEOService(brandingService, variantService)
 
 	if err := syncVariantSnapshots(variantService, contentService); err != nil {
 		return nil, fmt.Errorf("failed to sync variant snapshots: %w", err)
@@ -105,6 +107,7 @@ func NewServer() (*Server, error) {
 		paymentSettings:      paymentSettings,
 		brandingService:      brandingService,
 		assetsService:        assetsService,
+		seoService:           seoService,
 	}
 
 	// Initialize session store for authentication
@@ -128,7 +131,7 @@ func (s *Server) setupRoutes() {
 	// Billing APIs
 	s.router.HandleFunc("/api/v1/billing/create-checkout-session", handleBillingCreateCheckoutSession(s.stripeService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/billing/create-credits-checkout-session", handleBillingCreateCreditsSession(s.stripeService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/billing/portal-url", handleBillingPortalURL()).Methods("GET")
+	s.router.HandleFunc("/api/v1/billing/portal-url", handleBillingPortalURL(s.stripeService)).Methods("GET")
 
 	// Account endpoints
 	s.router.HandleFunc("/api/v1/me/subscription", handleMeSubscription(s.accountService)).Methods("GET")
@@ -202,12 +205,12 @@ func (s *Server) setupRoutes() {
 	s.router.PathPrefix("/api/v1/uploads/").Handler(http.StripPrefix("/api/v1/uploads/", http.FileServer(http.Dir(s.assetsService.GetUploadDir()))))
 
 	// SEO endpoints
-	s.router.HandleFunc("/api/v1/seo/{slug}", handleGetVariantSEO(s.brandingService, s.variantService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/seo/{slug}", handleGetVariantSEO(s.seoService)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/variants/{slug}/seo", s.requireAdmin(handleUpdateVariantSEO(s.variantService))).Methods("PUT")
 
 	// Sitemap and robots.txt
-	s.router.HandleFunc("/sitemap.xml", handleSitemapXML(s.brandingService, s.variantService)).Methods("GET")
-	s.router.HandleFunc("/robots.txt", handleRobotsTXT(s.brandingService)).Methods("GET")
+	s.router.HandleFunc("/sitemap.xml", handleSitemapXML(s.seoService)).Methods("GET")
+	s.router.HandleFunc("/robots.txt", handleRobotsTXT(s.seoService)).Methods("GET")
 
 	// Documentation endpoints (admin-only for viewing docs)
 	s.router.HandleFunc("/api/v1/admin/docs/tree", s.requireAdmin(handleDocsTree())).Methods("GET")
@@ -574,6 +577,23 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 			continue
 		}
 
+		planTier := strings.TrimSpace(option.PlanTier)
+		allowedPlanTiers := map[string]bool{
+			"solo":     true,
+			"pro":      true,
+			"studio":   true,
+			"business": true,
+			"credits":  true,
+			"donation": true,
+		}
+		if !allowedPlanTiers[strings.ToLower(planTier)] {
+			logStructured("plan_tier_skipped_for_seed", map[string]interface{}{
+				"plan_name": option.PlanName,
+				"plan_tier": option.PlanTier,
+			})
+			continue
+		}
+
 		planMetadataJSON, err := json.Marshal((&structpb.Struct{Fields: option.Metadata}).AsMap())
 		if err != nil {
 			return fmt.Errorf("marshal plan metadata %s: %w", option.PlanName, err)
@@ -624,12 +644,17 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 			introAmount = *option.IntroAmountCents
 		}
 
+		intervalLabel := billingIntervalLabel(option.BillingInterval)
+		if intervalLabel == "unspecified" {
+			intervalLabel = "month"
+		}
+
 		if _, err := db.Exec(insertPrice,
 			productID,
 			priceID,
 			option.PlanName,
-			option.PlanTier,
-			option.BillingInterval,
+			planTier,
+			intervalLabel,
 			option.AmountCents,
 			option.Currency,
 			option.IntroEnabled,
@@ -1005,6 +1030,7 @@ func ensureSchema(db *sql.DB) error {
 		`ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS amount_cents INTEGER;`,
 		`ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS schedule_id VARCHAR(255);`,
 		`ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;`,
+		`ALTER TABLE checkout_sessions ADD COLUMN IF NOT EXISTS customer_id VARCHAR(255);`,
 		`CREATE INDEX IF NOT EXISTS idx_checkout_sessions_type ON checkout_sessions(session_type);`,
 		`CREATE TABLE IF NOT EXISTS subscriptions (
 			id SERIAL PRIMARY KEY,
@@ -1124,7 +1150,7 @@ func ensureSchema(db *sql.DB) error {
 			release_version VARCHAR(50) NOT NULL,
 			release_notes TEXT,
 			checksum VARCHAR(255),
-			requires_entitlement BOOLEAN DEFAULT TRUE,
+			requires_entitlement BOOLEAN DEFAULT FALSE,
 			metadata JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),

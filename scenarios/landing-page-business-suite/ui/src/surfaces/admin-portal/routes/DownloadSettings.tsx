@@ -69,7 +69,7 @@ function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset): Platfo
     artifactUrl: asset?.artifact_url ?? '',
     releaseVersion: asset?.release_version ?? '',
     releaseNotes: asset?.release_notes ?? '',
-    requiresEntitlement: asset?.requires_entitlement ?? true,
+    requiresEntitlement: asset?.requires_entitlement ?? false,
     sizeMb: asset?.metadata?.size_mb ? String(asset.metadata.size_mb) : '',
   };
 }

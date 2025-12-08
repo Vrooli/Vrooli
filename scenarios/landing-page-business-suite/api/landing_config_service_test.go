@@ -86,6 +86,56 @@ func TestLandingConfigServiceFallsBackWhenHeroMissing(t *testing.T) {
 	}
 }
 
+func TestLandingConfigServiceUsesInjectedFallbackProvider(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewLandingConfigService(
+		NewVariantService(db, defaultVariantSpace),
+		NewContentService(db),
+		NewPlanService(db),
+		NewDownloadService(db),
+		NewBrandingService(db),
+	)
+
+	customFallback := cloneLandingPayload(fallbackLanding)
+	customFallback.Variant.Slug = "seam-fallback"
+	customFallback.Variant.Name = "Seam Fallback"
+	customFallback.Sections = []LandingSection{
+		{
+			SectionType: "hero",
+			Content:     map[string]interface{}{"title": "Injected Fallback"},
+			Order:       1,
+			Enabled:     true,
+		},
+	}
+	customFallback.Downloads = []DownloadApp{}
+	service.UseFallbackProvider(func() LandingConfigPayload {
+		return customFallback
+	})
+
+	resp1, err := service.GetLandingConfig(context.Background(), "missing-variant")
+	if err != nil {
+		t.Fatalf("GetLandingConfig failed: %v", err)
+	}
+	if resp1.Variant.Slug != "seam-fallback" {
+		t.Fatalf("expected injected fallback slug, got %s", resp1.Variant.Slug)
+	}
+	if len(resp1.Sections) != 1 || resp1.Sections[0].Content["title"] != "Injected Fallback" {
+		t.Fatalf("expected injected fallback content, got %+v", resp1.Sections)
+	}
+
+	// Mutating the returned payload should not bleed into future fallback responses.
+	resp1.Sections[0].Content["title"] = "mutated"
+	resp2, err := service.GetLandingConfig(context.Background(), "missing-variant")
+	if err != nil {
+		t.Fatalf("GetLandingConfig retry failed: %v", err)
+	}
+	if resp2.Sections[0].Content["title"] != "Injected Fallback" {
+		t.Fatalf("expected fallback copy per request, got %s", resp2.Sections[0].Content["title"])
+	}
+}
+
 func TestLandingConfigServiceAllowsVariantsWithHero(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

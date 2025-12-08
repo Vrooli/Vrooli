@@ -10,10 +10,7 @@ __test/
 │   ├── tier2/               # 28 modern mocks (production-ready)
 │   ├── adapter.sh           # Tier 2 mock system interface
 │   └── test_helper.sh       # BATS integration framework
-├── integration/             # Integration test suites
-│   ├── tier2_direct_test.sh         # Direct Tier 2 mock tests (✅ 12/12 passing)
-│   ├── tier2_comprehensive_test.sh  # Tests via adapter/helper approach
-│   └── test_tier2_bats.bats        # BATS framework compatibility tests
+├── integration/             # Integration test suites (manual Tier 2 runners removed)
 ├── fixtures/                # Test fixtures and shared utilities
 │   ├── setup.bash                  # Full Vrooli test infrastructure
 │   ├── simple-tier2-setup.bash    # Simplified BATS setup
@@ -35,20 +32,7 @@ __test/
 ```bash
 # From Vrooli root directory:
 
-# Run direct Tier 2 integration tests (✅ All passing)
-bash __test/integration/tier2_direct_test.sh
-
-# Run comprehensive tests via adapter
-bash __test/integration/tier2_comprehensive_test.sh
-
-# Run BATS compatibility tests
-bats __test/integration/test_tier2_bats.bats
-
-# Verify all mocks
-bash __test/verify_mocks.sh
-
-# Run from any directory (path-robust)
-cd /tmp && bash /path/to/Vrooli/__test/integration/tier2_direct_test.sh  # ✅ Works
+# Manual Tier 2 shell entrypoints were removed; use the test phases or test-genie instead.
 
 # Run scenario suites through test-genie (Go-native orchestrator)
 test-genie execute my-scenario --preset quick --fail-fast
@@ -133,29 +117,6 @@ clear_test_errors "redis"             # Clear all errors
 ```
 
 ## 📋 Test Suites
-
-### Integration Tests
-
-#### tier2_direct_test.sh ✅
-**Status**: 100% passing (12/12 tests)
-- Individual mock functionality tests
-- Cross-service integration (Redis + PostgreSQL, AI pipeline)
-- Bulk operations (100 operations test)
-- Error injection and recovery
-
-#### tier2_comprehensive_test.sh ⚙️
-**Status**: Functional
-- Infrastructure validation
-- Service category testing
-- Performance benchmarking
-- Error handling verification
-
-#### BATS Integration 🔧
-**Status**: Partially working
-- ✅ Mock loading works
-- ✅ Basic commands work
-- ⚠️ State persistence issues between commands
-- ⚠️ Some advanced features need refinement
 
 ### Mock Verification
 
@@ -243,8 +204,7 @@ ${service}_mock_set_error ""
    test_newservice_connection
    test_newservice_health
    
-   # Add to integration tests
-   # Edit __test/integration/tier2_direct_test.sh
+   # Add to integration coverage via your scenario or test-genie suites
    ```
 
 ### Debugging Tests

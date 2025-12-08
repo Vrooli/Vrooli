@@ -73,7 +73,11 @@ func loadCacheTTL() time.Duration {
 func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
 	user := strings.TrimSpace(userIdentity)
 	if user == "" {
-		return &landing_page_react_vite_v1.SubscriptionStatus{State: landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, Message: "user not provided"}, nil
+		return &landing_page_react_vite_v1.SubscriptionStatus{
+			State:        landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
+			UserIdentity: "",
+			Message:      proto.String("user not provided"),
+		}, nil
 	}
 
 	if cached, ok := s.getCachedSubscription(user); ok {
@@ -120,11 +124,17 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 		State:          state,
 		SubscriptionId: proto.String(subID),
 		UserIdentity:   user,
-		PlanTier:       planTier,
-		StripePriceId:  priceID,
-		BundleKey:      bundleKey,
 		CachedAt:       timestamppb.New(updatedAt),
 		CacheAgeMs:     cacheAge.Milliseconds(),
+	}
+	if planTier != "" {
+		result.PlanTier = proto.String(planTier)
+	}
+	if priceID != "" {
+		result.StripePriceId = proto.String(priceID)
+	}
+	if bundleKey != "" {
+		result.BundleKey = proto.String(bundleKey)
 	}
 	if canceledAt.Valid {
 		result.CanceledAt = timestamppb.New(canceledAt.Time)
@@ -209,16 +219,16 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 		return nil, err
 	}
 
-	payload := &EntitlementPayload{
-		Status:       legacyStateLabel(subscription.State),
-		PlanTier:     subscription.PlanTier,
-		PriceID:      subscription.StripePriceId,
-		Credits:      flattenCredits(credits),
-		Subscription: subscription,
-	}
+payload := &EntitlementPayload{
+	Status:       legacyStateLabel(subscription.State),
+	PlanTier:     subscription.GetPlanTier(),
+	PriceID:      subscription.GetStripePriceId(),
+	Credits:      flattenCredits(credits),
+	Subscription: subscription,
+}
 
-	if subscription.StripePriceId != "" {
-		if plan, err := s.planService.GetPlanByPriceID(subscription.StripePriceId); err == nil {
+	if subscription.GetStripePriceId() != "" {
+		if plan, err := s.planService.GetPlanByPriceID(subscription.GetStripePriceId()); err == nil {
 			payload.Features = extractFeatureFlags(plan.Metadata)
 		}
 	}

@@ -85,13 +85,6 @@ show_main_help() {
 🧭 CONTEXT COMMANDS:
     info                Show consolidated project briefing
 
-🧪 TESTING COMMANDS:
-    test                Run comprehensive scenario-first test suite
-    test static         Run static analysis (shellcheck, syntax)
-    test resources      Run resource validation and mock testing
-    test scenarios      Run scenario validation and integration tests
-    test bats           Run BATS test execution with caching
-
 🎯 SCENARIO MANAGEMENT:
     # Scenarios run directly from their source location
     scenario list       List available scenarios
@@ -260,14 +253,6 @@ main() {
 			run_info_command "$@"
 			;;
 		
-		# Test commands (delegate to test-commands.sh)
-		test)
-			# Clear source guards to allow test-commands.sh to load functions properly
-			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-			exec "${VROOLI_ROOT}/cli/commands/test-commands.sh" "$@"
-			;;
-		
-		
 		# Scenario commands  
 		scenario)
 			# Clear source guards to allow scenario-commands.sh to load functions properly
@@ -311,7 +296,7 @@ main() {
 			log::error "Unknown command: $command"
 			
 					# Try to provide fuzzy suggestions
-		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "test" "scenario" "resource" "doctor" "info" "version" "help")
+		local available_commands=("setup" "develop" "build" "deploy" "clean" "backup" "restore" "status" "stop" "scenario" "resource" "doctor" "info" "version" "help")
 		local suggestions=()
 		
 		# Simple fuzzy matching

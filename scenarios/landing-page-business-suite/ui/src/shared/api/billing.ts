@@ -7,7 +7,7 @@ import {
   type StripeSettings,
 } from '@proto-lprv/settings_pb';
 import { apiCall } from './common';
-import type { BundleCatalogEntry } from './types';
+import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession } from './types';
 
 export interface StripeSettingsResponse {
   publishable_key_preview?: string;
@@ -113,4 +113,36 @@ export function updateBundlePrice(bundleKey: string, priceId: string, payload: U
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
+}
+
+export function createCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string }) {
+  return apiCall<{ session: CheckoutSession }>('/billing/create-checkout-session', {
+    method: 'POST',
+    body: JSON.stringify({
+      price_id: payload.price_id,
+      customer_email: payload.customer_email,
+      success_url: payload.success_url,
+      cancel_url: payload.cancel_url,
+    }),
+  }).then((resp) => resp.session);
+}
+
+export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string }) {
+  return apiCall<{ session: CheckoutSession }>('/billing/create-credits-checkout-session', {
+    method: 'POST',
+    body: JSON.stringify({
+      price_id: payload.price_id,
+      customer_email: payload.customer_email,
+      success_url: payload.success_url,
+      cancel_url: payload.cancel_url,
+    }),
+  }).then((resp) => resp.session);
+}
+
+export function createBillingPortalSession(returnUrl?: string, userEmail?: string) {
+  const params = new URLSearchParams();
+  if (returnUrl) params.set('return_url', returnUrl);
+  if (userEmail) params.set('user', userEmail);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return apiCall<BillingPortalResponse>(`/billing/portal-url${suffix}`);
 }

@@ -111,6 +111,24 @@ export interface PricingOverview {
   updated_at: string;
 }
 
+export interface CheckoutSession {
+  session_id: string;
+  session_kind?: string;
+  status?: string;
+  url: string;
+  publishable_key?: string;
+  customer_email?: string;
+  stripe_price_id?: string;
+  amount_cents?: number;
+  currency?: string;
+  success_url?: string;
+  cancel_url?: string;
+}
+
+export interface BillingPortalResponse {
+  url: string;
+}
+
 export interface DownloadAsset {
   id?: number;
   bundle_key: string;
@@ -397,5 +415,21 @@ export interface VariantSEOConfig {
   twitter_card?: 'summary' | 'summary_large_image';
   canonical_path?: string;
   noindex?: boolean;
+  structured_data?: Record<string, unknown>;
+}
+
+export interface VariantSEOResponse {
+  site_name: string;
+  title: string;
+  description: string;
+  og_title: string;
+  og_description: string;
+  og_image_url?: string;
+  twitter_card?: 'summary' | 'summary_large_image' | string;
+  canonical_url?: string;
+  favicon_url?: string;
+  apple_touch_icon_url?: string;
+  theme_primary_color?: string;
+  noindex: boolean;
   structured_data?: Record<string, unknown>;
 }

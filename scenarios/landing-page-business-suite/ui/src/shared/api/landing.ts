@@ -87,6 +87,17 @@ export function getPlans() {
     });
 
     const pricing = message.pricing;
+    // Some environments send updated_at as an ISO string instead of a proto Timestamp.
+    const updatedAt =
+      pricing?.updatedAt && typeof (pricing.updatedAt as any).toJsonString === 'function'
+        ? (pricing.updatedAt as any).toJsonString()
+        : pricing?.updatedAt && typeof (pricing.updatedAt as any) === 'object' && typeof (pricing.updatedAt as any).seconds === 'number'
+          ? new Date(
+              (pricing.updatedAt as any).seconds * 1000 + Math.floor(((pricing.updatedAt as any).nanos ?? 0) / 1_000_000),
+            ).toISOString()
+        : typeof pricing?.updatedAt === 'string'
+          ? (pricing.updatedAt as string)
+          : new Date().toISOString();
     const overview: PricingOverview = {
       bundle: {
         bundle_key: pricing?.bundle?.bundleKey ?? '',
@@ -100,7 +111,7 @@ export function getPlans() {
       },
       monthly: (pricing?.monthly ?? []).map(normalizePlan),
       yearly: (pricing?.yearly ?? []).map(normalizePlan),
-      updated_at: pricing?.updatedAt?.toJsonString() ?? new Date().toISOString(),
+      updated_at: updatedAt,
     };
     return overview;
   });

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -12,6 +13,11 @@ func TestHandleAdminResetDemoData_Disabled(t *testing.T) {
 	t.Setenv("ENABLE_ADMIN_RESET", "false")
 	server := &Server{db: db}
 
+	var before int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM variants`).Scan(&before); err != nil {
+		t.Fatalf("failed to count variants before reset attempt: %v", err)
+	}
+
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/reset-demo-data", nil)
 	resp := httptest.NewRecorder()
 
@@ -19,6 +25,14 @@ func TestHandleAdminResetDemoData_Disabled(t *testing.T) {
 
 	if resp.Code != http.StatusForbidden {
 		t.Fatalf("expected status 403, got %d", resp.Code)
+	}
+
+	var after int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM variants`).Scan(&after); err != nil {
+		t.Fatalf("failed to count variants after reset attempt: %v", err)
+	}
+	if after != before {
+		t.Fatalf("expected variants to remain untouched when reset disabled, before=%d after=%d", before, after)
 	}
 }
 
@@ -82,5 +96,26 @@ func TestHandleAdminResetDemoData_Success(t *testing.T) {
 	}
 	if downloadApps == 0 {
 		t.Fatalf("expected download apps seeded after reset")
+	}
+}
+
+func TestHandleAdminResetDemoData_ResetErrorReturns500(t *testing.T) {
+	db := setupTestDB(t)
+	t.Setenv("ENABLE_ADMIN_RESET", "true")
+	server := &Server{db: db}
+
+	// Force a reset failure by closing the DB before invoking the handler.
+	db.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/reset-demo-data", nil)
+	resp := httptest.NewRecorder()
+
+	server.handleAdminResetDemoData(resp, req)
+
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500 when reset fails, got %d", resp.Code)
+	}
+	if !strings.Contains(resp.Body.String(), "failed to reset") {
+		t.Fatalf("expected failure body, got %q", resp.Body.String())
 	}
 }

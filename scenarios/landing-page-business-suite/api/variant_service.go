@@ -192,7 +192,7 @@ func (vs *VariantService) List() ([]Variant, error) {
 // ListVariants returns all variants, optionally filtered by status (OT-P0-017: AB-CRUD)
 func (vs *VariantService) ListVariants(statusFilter string) ([]Variant, error) {
 	query := `
-		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config
+		SELECT id, slug, name, description, weight, status, created_at, updated_at, archived_at, header_config, COALESCE(seo_config, '{}'::jsonb)
 		FROM variants
 		WHERE status != 'deleted'
 	`
@@ -216,9 +216,10 @@ func (vs *VariantService) ListVariants(statusFilter string) ([]Variant, error) {
 		var v Variant
 		var archivedAt sql.NullTime
 		var headerJSON []byte
+		var seoJSON []byte
 		err := rows.Scan(
 			&v.ID, &v.Slug, &v.Name, &v.Description, &v.Weight,
-			&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt, &headerJSON,
+			&v.Status, &v.CreatedAt, &v.UpdatedAt, &archivedAt, &headerJSON, &seoJSON,
 		)
 		if err != nil {
 			return nil, err
@@ -229,6 +230,10 @@ func (vs *VariantService) ListVariants(statusFilter string) ([]Variant, error) {
 		}
 
 		v.HeaderConfig = decodeHeaderConfig(headerJSON, v.Name, v.Slug)
+		if len(bytes.TrimSpace(seoJSON)) > 0 && string(seoJSON) != "{}" {
+			raw := json.RawMessage(seoJSON)
+			v.SEOConfig = &raw
+		}
 
 		variants = append(variants, v)
 	}
@@ -405,6 +410,36 @@ func (vs *VariantService) UpdateVariant(slug string, name *string, description *
 	return &v, nil
 }
 
+// UpdateSEOConfigBySlug persists SEO config for a variant identified by slug.
+// Handlers remain transport-only; this method owns lookup, encoding, and write semantics.
+func (vs *VariantService) UpdateSEOConfigBySlug(slug string, config VariantSEOConfig) error {
+	normalized := strings.TrimSpace(slug)
+	if normalized == "" {
+		return fmt.Errorf("variant slug is required")
+	}
+
+	variant, err := vs.GetBySlug(normalized)
+	if err != nil {
+		return err
+	}
+
+	return vs.updateSEOConfig(variant.ID, config)
+}
+
+func (vs *VariantService) updateSEOConfig(variantID int, config VariantSEOConfig) error {
+	payload, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("encode seo config: %w", err)
+	}
+
+	_, err = vs.db.Exec(`
+		UPDATE variants
+		SET seo_config = $1::jsonb, updated_at = NOW()
+		WHERE id = $2
+	`, payload, variantID)
+	return err
+}
+
 // ArchiveVariant archives a variant (OT-P0-017, OT-P0-018: AB-CRUD, AB-ARCHIVE)
 // Archived variants remain queryable but won't be selected randomly
 func (vs *VariantService) ArchiveVariant(slug string) error {
@@ -499,6 +534,37 @@ func (vs *VariantService) saveVariantAxesTx(tx *sql.Tx, variantID int, axes map[
 	}
 
 	return nil
+}
+
+// GetVariantSEOConfig retrieves SEO config for a specific variant.
+func (vs *VariantService) GetVariantSEOConfig(variantID int) (*VariantSEOConfig, error) {
+	var seoJSON []byte
+	err := vs.db.QueryRow(`
+		SELECT COALESCE(seo_config, '{}'::jsonb)
+		FROM variants
+		WHERE id = $1
+	`, variantID).Scan(&seoJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	var config VariantSEOConfig
+	if err := json.Unmarshal(seoJSON, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+// GetSEOConfigParsed parses the SEO config JSON attached to the variant.
+func (v *Variant) GetSEOConfigParsed() (*VariantSEOConfig, error) {
+	if v.SEOConfig == nil {
+		return &VariantSEOConfig{}, nil
+	}
+	var config VariantSEOConfig
+	if err := json.Unmarshal(*v.SEOConfig, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
 // ExportVariantSnapshot returns a full variant payload (metadata + sections) for admin editing.

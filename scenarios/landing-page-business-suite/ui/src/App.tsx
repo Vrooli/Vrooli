@@ -14,6 +14,7 @@ import { DownloadSettings } from './surfaces/admin-portal/routes/DownloadSetting
 import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSettings';
 import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
+import { CheckoutPage } from './surfaces/public-landing/routes/CheckoutPage';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<PublicLanding />} />
             <Route path="/health" element={<PublicLanding />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
 
             <Route path="/admin/login" element={<AdminLogin />} />
 

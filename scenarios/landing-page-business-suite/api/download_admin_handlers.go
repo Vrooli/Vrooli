@@ -149,6 +149,11 @@ func buildDownloadAppFromPayload(payload downloadAppRequest, bundleKey string, o
 			return DownloadApp{}, fmt.Errorf("release_version is required for platform %s", platform.Platform)
 		}
 
+		requireEntitlement := false
+		if platform.RequiresEntitlement != nil {
+			requireEntitlement = *platform.RequiresEntitlement
+		}
+
 		app.Platforms = append(app.Platforms, DownloadAsset{
 			BundleKey:           bundleKey,
 			AppKey:              appKey,
@@ -157,7 +162,7 @@ func buildDownloadAppFromPayload(payload downloadAppRequest, bundleKey string, o
 			ReleaseVersion:      strings.TrimSpace(platform.ReleaseVersion),
 			ReleaseNotes:        strings.TrimSpace(platform.ReleaseNotes),
 			Checksum:            strings.TrimSpace(platform.Checksum),
-			RequiresEntitlement: platform.RequiresEntitlement == nil || *platform.RequiresEntitlement,
+			RequiresEntitlement: requireEntitlement,
 			Metadata:            platform.Metadata,
 		})
 	}

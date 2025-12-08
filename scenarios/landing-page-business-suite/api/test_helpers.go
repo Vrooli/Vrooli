@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/lib/pq"
 	tc "github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -80,35 +81,25 @@ func startTestContainerDB(t *testing.T) string {
 		pass := "testpass"
 		dbName := "landing_manager_test"
 
-		req := tc.ContainerRequest{
-			Image:        "postgres:15-alpine",
-			Env:          map[string]string{"POSTGRES_USER": user, "POSTGRES_PASSWORD": pass, "POSTGRES_DB": dbName},
-			ExposedPorts: []string{"5432/tcp"},
-			WaitingFor:   wait.ForListeningPort("5432/tcp").WithStartupTimeout(90 * time.Second),
-		}
-
-		container, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
+		container, err := postgres.RunContainer(ctx,
+			tc.WithImage("postgres:15-alpine"),
+			tc.WithWaitStrategy(wait.ForListeningPort("5432/tcp").WithStartupTimeout(90*time.Second)),
+			postgres.WithDatabase(dbName),
+			postgres.WithUsername(user),
+			postgres.WithPassword(pass),
+		)
 		if err != nil {
 			testContainerInitErr = fmt.Errorf("start postgres container: %w", err)
 			return
 		}
 
-		host, err := container.Host(ctx)
+		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
 		if err != nil {
-			testContainerInitErr = fmt.Errorf("container host: %w", err)
+			testContainerInitErr = fmt.Errorf("connection string: %w", err)
 			return
 		}
 
-		port, err := container.MappedPort(ctx, "5432/tcp")
-		if err != nil {
-			testContainerInitErr = fmt.Errorf("container port: %w", err)
-			return
-		}
-
-		testContainerURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port.Port(), dbName)
+		testContainerURL = connStr
 		testContainerCleanup = func() {
 			_ = container.Terminate(context.Background())
 		}

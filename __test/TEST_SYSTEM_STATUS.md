@@ -24,10 +24,9 @@ The `__test/` system has been successfully migrated to the Tier 2 mock architect
 - **Test Caching:** Operational (`cache/unit.json`) ✅
 
 ### **Integration Tests**
-- **Direct Tests:** 12/12 passing
-- **BATS Tests:** 7/7 passing
-- **Coverage:** Core services + cross-service integration
-- **Scenario Suites:** Delegated to `test-genie execute --preset quick` (legacy bash runner removed)
+- **Manual Tier 2 runners:** removed (use scenario-specific suites or test phases)
+- **Coverage:** Core services + cross-service integration covered by mocks and scenario-level suites
+- **Scenario Suites:** Delegated to `test-genie execute --preset quick`
 
 ## 📈 Key Metrics
 
@@ -116,9 +115,6 @@ __test/
 # Run specific phase
 ./run-tests.sh integration
 
-# Test specific mock
-./integration/tier2_direct_test.sh
-
 # Verify mock system
 ./verify_mocks.sh
 ```
@@ -127,7 +123,7 @@ __test/
 
 ### Test System Health Checks
 1. **Mock Verification:** Run `./verify_mocks.sh` weekly
-2. **Integration Tests:** Run `./integration/tier2_direct_test.sh` before commits
+2. **Integration Tests:** Use scenario suites via test-genie before commits
 3. **Cache Cleanup:** Clear with `./run-tests.sh --clear-cache` if issues arise
 
 ### Known Optimizations Available

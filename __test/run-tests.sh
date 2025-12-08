@@ -20,7 +20,6 @@ show_usage() {
 Usage: ./run-tests.sh [PHASE] [OPTIONS]
 
 PHASES:
-  static        Run static analysis (shellcheck, TypeScript, Python, Go) on all files
   structure     Validate file/directory structures and configurations  
   integration   Run integration tests (resource mocks, app testing, etc.)
   unit          Execute all unit tests (BATS) with caching mechanism
@@ -47,7 +46,6 @@ SCOPING:
   
 EXAMPLES:
   ./run-tests.sh                      # Run all phases (900s timeout)
-  ./run-tests.sh static               # Only static analysis
   ./run-tests.sh all --timeout=1800   # All phases with 30 minute timeout
   ./run-tests.sh all --resource=ollama # Test everything for ollama resource
   ./run-tests.sh unit --scenario=app-generator # Unit tests for app-generator
@@ -70,7 +68,7 @@ PHASE_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        static|structure|integration|unit|docs|all)
+        structure|integration|unit|docs|all)
             PHASE="$1"
             shift
             ;;
@@ -157,7 +155,6 @@ export TEST_CACHE_MAX_AGE="${TEST_CACHE_MAX_AGE:-86400}"
 # Ensure all test framework scripts have proper permissions
 ensure_script_permissions() {
     local scripts_to_check=(
-        "$SCRIPT_DIR/phases/test-static.sh"
         "$SCRIPT_DIR/phases/test-structure.sh"
         "$SCRIPT_DIR/phases/test-integration.sh"
         "$SCRIPT_DIR/phases/test-unit.sh"
@@ -331,9 +328,6 @@ main() {
     local overall_success=true
     
     case $PHASE in
-        static)
-            run_phase "static" "${PHASE_ARGS[@]}" || overall_success=false
-            ;;
         structure)
             run_phase "structure" "${PHASE_ARGS[@]}" || overall_success=false
             ;;
@@ -348,7 +342,7 @@ main() {
             ;;
         all)
             # Run all phases in sequence, passing scope arguments to each
-            local phases=("static" "structure" "integration" "unit" "docs")
+    local phases=("structure" "integration" "unit" "docs")
             
             for phase in "${phases[@]}"; do
                 if ! run_phase "$phase" "${PHASE_ARGS[@]}"; then

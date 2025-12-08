@@ -3,40 +3,46 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
 func setupMetricsTestDB(t *testing.T) (*sql.DB, *MetricsService) {
-	dbURL := os.Getenv("TEST_DATABASE_URL")
-	if dbURL == "" {
-		dbURL = os.Getenv("DATABASE_URL")
-		if dbURL == "" {
-			t.Skip("TEST_DATABASE_URL or DATABASE_URL not set")
-		}
-	}
-
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		t.Fatalf("failed to connect to test database: %v", err)
-	}
+	t.Helper()
+	db := setupTestDB(t)
 
 	// Clean up test data
-	db.Exec("DELETE FROM metrics_events")
+	if _, err := db.Exec("DELETE FROM metrics_events"); err != nil {
+		t.Fatalf("failed to clean metrics_events: %v", err)
+	}
+
+	t.Cleanup(func() {
+		db.Exec("DELETE FROM metrics_events")
+		db.Close()
+	})
 
 	service := NewMetricsService(db)
 	return db, service
 }
 
+func lookupVariantID(t *testing.T, db *sql.DB, slug string) int {
+	t.Helper()
+	var id int
+	if err := db.QueryRow(`SELECT id FROM variants WHERE slug = $1`, slug).Scan(&id); err != nil {
+		t.Fatalf("failed to lookup variant %s: %v", slug, err)
+	}
+	return id
+}
+
 // TestTrackEvent_Valid tests successful event tracking
 func TestTrackEvent_Valid(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
-	defer db.Close()
+	controlID := lookupVariantID(t, db, "control")
 
 	event := MetricEvent{
 		EventType: "page_view",
-		VariantID: 1,
+		VariantID: controlID,
 		SessionID: "test-session-123",
 		VisitorID: "visitor-456",
 		EventData: map[string]interface{}{
@@ -60,11 +66,11 @@ func TestTrackEvent_Valid(t *testing.T) {
 // TestTrackEvent_Idempotency tests that duplicate events are ignored
 func TestTrackEvent_Idempotency(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
-	defer db.Close()
+	controlID := lookupVariantID(t, db, "control")
 
 	event := MetricEvent{
 		EventType: "page_view",
-		VariantID: 1,
+		VariantID: controlID,
 		SessionID: "test-session-idem",
 		EventID:   "unique-event-123",
 	}
@@ -85,6 +91,65 @@ func TestTrackEvent_Idempotency(t *testing.T) {
 	db.QueryRow("SELECT COUNT(*) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count)
 	if count != 1 {
 		t.Errorf("Expected 1 event (idempotency), got %d", count)
+	}
+
+	var storedEventID string
+	if err := db.QueryRow("SELECT event_data->>'event_id' FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&storedEventID); err != nil {
+		t.Fatalf("failed to load stored event id: %v", err)
+	}
+	if storedEventID != event.EventID {
+		t.Fatalf("expected stored event_id to match provided id, got %q", storedEventID)
+	}
+}
+
+func TestTrackEvent_AppendsGeneratedEventID(t *testing.T) {
+	db, service := setupMetricsTestDB(t)
+	controlID := lookupVariantID(t, db, "control")
+
+	event := MetricEvent{
+		EventType: "page_view",
+		VariantID: controlID,
+		SessionID: "test-session-generated",
+		EventData: map[string]interface{}{
+			"page": "/",
+		},
+	}
+
+	if err := service.TrackEvent(event); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	var storedEventID, page string
+	if err := db.QueryRow(`
+		SELECT event_data->>'event_id', event_data->>'page'
+		FROM metrics_events
+		WHERE session_id = $1
+	`, event.SessionID).Scan(&storedEventID, &page); err != nil {
+		t.Fatalf("failed to load stored event data: %v", err)
+	}
+	if storedEventID == "" {
+		t.Fatal("expected generated event_id to be persisted")
+	}
+	if page != "/" {
+		t.Fatalf("expected page metadata preserved, got %q", page)
+	}
+}
+
+func TestTrackEvent_IdempotencyCheckError(t *testing.T) {
+	db, service := setupMetricsTestDB(t)
+	controlID := lookupVariantID(t, db, "control")
+	db.Close()
+
+	err := service.TrackEvent(MetricEvent{
+		EventType: "page_view",
+		VariantID: controlID,
+		SessionID: "session-closed-db",
+	})
+	if err == nil {
+		t.Fatalf("expected error when idempotency check fails")
+	}
+	if !strings.Contains(err.Error(), "idempotency check failed") {
+		t.Fatalf("expected idempotency failure in error, got %v", err)
 	}
 }
 
@@ -126,16 +191,17 @@ func TestTrackEvent_MissingRequiredFields(t *testing.T) {
 // TestGetVariantStats tests variant statistics retrieval
 func TestGetVariantStats(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
-	defer db.Close()
+	controlID := lookupVariantID(t, db, "control")
+	variantAID := lookupVariantID(t, db, "variant-a")
 
 	// Insert test events
 	events := []MetricEvent{
-		{EventType: "page_view", VariantID: 1, SessionID: "session1", EventID: "evt1"},
-		{EventType: "page_view", VariantID: 1, SessionID: "session2", EventID: "evt2"},
-		{EventType: "click", VariantID: 1, SessionID: "session1", EventID: "evt3", EventData: map[string]interface{}{"element_type": "cta"}},
-		{EventType: "conversion", VariantID: 1, SessionID: "session1", EventID: "evt4"},
-		{EventType: "download", VariantID: 1, SessionID: "session1", EventID: "evt_download", EventData: map[string]interface{}{"platform": "windows"}},
-		{EventType: "page_view", VariantID: 2, SessionID: "session3", EventID: "evt5"},
+		{EventType: "page_view", VariantID: controlID, SessionID: "session1", EventID: "evt1"},
+		{EventType: "page_view", VariantID: controlID, SessionID: "session2", EventID: "evt2"},
+		{EventType: "click", VariantID: controlID, SessionID: "session1", EventID: "evt3", EventData: map[string]interface{}{"element_type": "cta"}},
+		{EventType: "conversion", VariantID: controlID, SessionID: "session1", EventID: "evt4"},
+		{EventType: "download", VariantID: controlID, SessionID: "session1", EventID: "evt_download", EventData: map[string]interface{}{"platform": "windows"}},
+		{EventType: "page_view", VariantID: variantAID, SessionID: "session3", EventID: "evt5"},
 	}
 
 	for _, evt := range events {
@@ -158,7 +224,7 @@ func TestGetVariantStats(t *testing.T) {
 	// Find variant 1 stats
 	var variant1Stats *VariantStats
 	for i := range stats {
-		if stats[i].VariantID == 1 {
+		if stats[i].VariantID == controlID {
 			variant1Stats = &stats[i]
 			break
 		}
@@ -188,12 +254,12 @@ func TestGetVariantStats(t *testing.T) {
 // TestGetVariantStats_FilterBySlug tests filtering stats by variant slug
 func TestGetVariantStats_FilterBySlug(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
-	defer db.Close()
+	controlID := lookupVariantID(t, db, "control")
 
 	// Insert test events for variant 1 (control)
 	service.TrackEvent(MetricEvent{
 		EventType: "page_view",
-		VariantID: 1,
+		VariantID: controlID,
 		SessionID: "session1",
 		EventID:   "evt-filter-1",
 	})
@@ -218,16 +284,16 @@ func TestGetVariantStats_FilterBySlug(t *testing.T) {
 // TestGetAnalyticsSummary tests the analytics summary aggregation
 func TestGetAnalyticsSummary(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
-	defer db.Close()
+	controlID := lookupVariantID(t, db, "control")
 
 	// Insert test events
 	events := []MetricEvent{
-		{EventType: "page_view", VariantID: 1, SessionID: "session1", EventID: "sum1"},
-		{EventType: "page_view", VariantID: 1, SessionID: "session2", EventID: "sum2"},
-		{EventType: "click", VariantID: 1, SessionID: "session1", EventID: "sum3", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
-		{EventType: "click", VariantID: 1, SessionID: "session2", EventID: "sum4", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
-		{EventType: "conversion", VariantID: 1, SessionID: "session1", EventID: "sum5"},
-		{EventType: "download", VariantID: 1, SessionID: "session1", EventID: "sum6"},
+		{EventType: "page_view", VariantID: controlID, SessionID: "session1", EventID: "sum1"},
+		{EventType: "page_view", VariantID: controlID, SessionID: "session2", EventID: "sum2"},
+		{EventType: "click", VariantID: controlID, SessionID: "session1", EventID: "sum3", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
+		{EventType: "click", VariantID: controlID, SessionID: "session2", EventID: "sum4", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
+		{EventType: "conversion", VariantID: controlID, SessionID: "session1", EventID: "sum5"},
+		{EventType: "download", VariantID: controlID, SessionID: "session1", EventID: "sum6"},
 	}
 
 	for _, evt := range events {
@@ -260,6 +326,35 @@ func TestGetAnalyticsSummary(t *testing.T) {
 	}
 	if summary.TotalDownloads != 1 {
 		t.Errorf("Expected 1 download, got %d", summary.TotalDownloads)
+	}
+}
+
+func TestGetAnalyticsSummary_NoCTAEvents(t *testing.T) {
+	db, service := setupMetricsTestDB(t)
+	controlID := lookupVariantID(t, db, "control")
+
+	if err := service.TrackEvent(MetricEvent{
+		EventType: "page_view",
+		VariantID: controlID,
+		SessionID: "lonely-session",
+		EventID:   "summary-no-cta",
+	}); err != nil {
+		t.Fatalf("failed to seed page view: %v", err)
+	}
+
+	startDate := time.Now().AddDate(0, 0, -1)
+	endDate := time.Now().AddDate(0, 0, 1)
+
+	summary, err := service.GetAnalyticsSummary(startDate, endDate)
+	if err != nil {
+		t.Fatalf("GetAnalyticsSummary failed: %v", err)
+	}
+
+	if summary.TotalVisitors != 1 {
+		t.Fatalf("expected one visitor, got %d", summary.TotalVisitors)
+	}
+	if summary.TopCTA != "" || summary.TopCTACTR != 0 {
+		t.Fatalf("expected no CTA leader when none clicked, got id=%q ctr=%.2f", summary.TopCTA, summary.TopCTACTR)
 	}
 }
 

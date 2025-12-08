@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -503,7 +504,7 @@ var (
 						"artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
 						"release_version": "1.0.0",
 						"release_notes": "Vrooli Ascension GA with replay exports.",
-						"requires_entitlement": true,
+						"requires_entitlement": false,
 						"metadata": {
 							"size_mb": 210
 						}
@@ -515,7 +516,7 @@ var (
 						"artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
 						"release_version": "1.0.0",
 						"release_notes": "Universal build for Apple Silicon and Intel.",
-						"requires_entitlement": true,
+						"requires_entitlement": false,
 						"metadata": {
 							"size_mb": 190
 						}
@@ -527,7 +528,7 @@ var (
 						"artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
 						"release_version": "1.0.0",
 						"release_notes": "AppImage bundle tested on Ubuntu/Debian.",
-						"requires_entitlement": true,
+						"requires_entitlement": false,
 						"metadata": {
 							"size_mb": 205
 						}
@@ -537,6 +538,8 @@ var (
 		]
 	}`)
 )
+
+type fallbackProvider func() LandingConfigPayload
 
 func init() {
 	path := filepath.Join("..", ".vrooli", "variants", "fallback.json")
@@ -553,11 +556,12 @@ func init() {
 
 // LandingConfigService aggregates variant, section, pricing, and download data.
 type LandingConfigService struct {
-	variantService  *VariantService
-	contentService  *ContentService
-	planService     *PlanService
-	downloadService *DownloadService
-	brandingService *BrandingService
+	variantService   *VariantService
+	contentService   *ContentService
+	planService      *PlanService
+	downloadService  *DownloadService
+	brandingService  *BrandingService
+	fallbackProvider fallbackProvider
 }
 
 // LandingConfigResponse is returned by GET /landing-config.
@@ -605,7 +609,6 @@ type LandingConfigPayload struct {
 	Header    LandingHeaderConfig   `json:"header"`
 }
 
-
 func NewLandingConfigService(
 	variantService *VariantService,
 	contentService *ContentService,
@@ -614,12 +617,18 @@ func NewLandingConfigService(
 	brandingService *BrandingService,
 ) *LandingConfigService {
 	return &LandingConfigService{
-		variantService:  variantService,
-		contentService:  contentService,
-		planService:     planService,
-		downloadService: downloadService,
-		brandingService: brandingService,
+		variantService:   variantService,
+		contentService:   contentService,
+		planService:      planService,
+		downloadService:  downloadService,
+		brandingService:  brandingService,
+		fallbackProvider: defaultFallbackProvider,
 	}
+}
+
+// UseFallbackProvider overrides the source of fallback content (primarily for tests).
+func (s *LandingConfigService) UseFallbackProvider(provider fallbackProvider) {
+	s.fallbackProvider = provider
 }
 
 func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug string) (*LandingConfigResponse, error) {
@@ -715,14 +724,23 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 }
 
 func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigResponse {
+	payload := s.fallbackPayload()
+
 	// fallbackLanding already contains pricing/download placeholders.
 	response := &LandingConfigResponse{
-		Variant:   fallbackLanding.Variant,
-		Sections:  fallbackLanding.Sections,
-		Pricing:   &fallbackLanding.Pricing,
-		Downloads: fallbackLanding.Downloads,
-		Header:    fallbackLanding.Header,
+		Variant:   payload.Variant,
+		Sections:  payload.Sections,
+		Pricing:   &payload.Pricing,
+		Downloads: payload.Downloads,
+		Header:    payload.Header,
 		Fallback:  mark,
+	}
+
+	if mark {
+		trimmedSlug := strings.TrimSpace(response.Variant.Slug)
+		if trimmedSlug == "" || strings.EqualFold(trimmedSlug, "control") {
+			response.Variant.Slug = "fallback"
+		}
 	}
 
 	// Try to include branding even in fallback
@@ -755,6 +773,18 @@ func (s *LandingConfigService) fallbackWithReason(reason string, err error, meta
 	}
 	logStructured("landing_config_fallback", fields)
 	return s.fallbackResponse(true), nil
+}
+
+func (s *LandingConfigService) fallbackPayload() LandingConfigPayload {
+	provider := s.fallbackProvider
+	if provider == nil {
+		provider = defaultFallbackProvider
+	}
+	return cloneLandingPayload(provider())
+}
+
+func defaultFallbackProvider() LandingConfigPayload {
+	return fallbackLanding
 }
 
 func loadFallbackLandingFromFile(path string) (LandingConfigPayload, error) {
@@ -964,4 +994,144 @@ func ensureRenderableSections(sections []LandingSection) error {
 	}
 
 	return fmt.Errorf("hero section missing")
+}
+
+func cloneLandingPayload(payload LandingConfigPayload) LandingConfigPayload {
+	cloned := LandingConfigPayload{
+		Variant: LandingVariantSummary{
+			ID:          payload.Variant.ID,
+			Slug:        payload.Variant.Slug,
+			Name:        payload.Variant.Name,
+			Description: payload.Variant.Description,
+			Axes:        cloneStringMap(payload.Variant.Axes),
+		},
+		Sections:  cloneLandingSections(payload.Sections),
+		Downloads: cloneDownloads(payload.Downloads),
+		Header:    cloneHeaderConfig(payload.Header, payload.Variant.Name),
+	}
+
+	if pricing := clonePricing(payload.Pricing); pricing != nil {
+		cloned.Pricing = *pricing
+	}
+
+	return cloned
+}
+
+func cloneLandingSections(sections []LandingSection) []LandingSection {
+	if len(sections) == 0 {
+		return []LandingSection{}
+	}
+
+	cloned := make([]LandingSection, len(sections))
+	for i, section := range sections {
+		cloned[i] = LandingSection{
+			SectionType: section.SectionType,
+			Content:     cloneContentMap(section.Content),
+			Order:       section.Order,
+			Enabled:     section.Enabled,
+		}
+	}
+	return cloned
+}
+
+func cloneContentMap(content map[string]interface{}) map[string]interface{} {
+	if content == nil {
+		return map[string]interface{}{}
+	}
+	data, err := json.Marshal(content)
+	if err != nil {
+		copy := make(map[string]interface{}, len(content))
+		for k, v := range content {
+			copy[k] = v
+		}
+		return copy
+	}
+	var copy map[string]interface{}
+	if err := json.Unmarshal(data, &copy); err != nil || copy == nil {
+		return map[string]interface{}{}
+	}
+	return copy
+}
+
+func cloneDownloads(downloads []DownloadApp) []DownloadApp {
+	if len(downloads) == 0 {
+		return []DownloadApp{}
+	}
+
+	cloned := make([]DownloadApp, 0, len(downloads))
+	for _, app := range downloads {
+		appCopy := DownloadApp{
+			ID:              app.ID,
+			BundleKey:       app.BundleKey,
+			AppKey:          app.AppKey,
+			Name:            app.Name,
+			Tagline:         app.Tagline,
+			Description:     app.Description,
+			InstallOverview: app.InstallOverview,
+			InstallSteps:    append([]string{}, app.InstallSteps...),
+			Storefronts:     cloneStorefronts(app.Storefronts),
+			Metadata:        cloneContentMap(app.Metadata),
+			DisplayOrder:    app.DisplayOrder,
+			Platforms:       cloneDownloadAssets(app.Platforms),
+		}
+		cloned = append(cloned, appCopy)
+	}
+	return cloned
+}
+
+func cloneStorefronts(storefronts []DownloadStorefront) []DownloadStorefront {
+	if len(storefronts) == 0 {
+		return []DownloadStorefront{}
+	}
+	copied := make([]DownloadStorefront, len(storefronts))
+	copy(copied, storefronts)
+	return copied
+}
+
+func cloneDownloadAssets(assets []DownloadAsset) []DownloadAsset {
+	if len(assets) == 0 {
+		return []DownloadAsset{}
+	}
+
+	copied := make([]DownloadAsset, len(assets))
+	for i, asset := range assets {
+		copied[i] = DownloadAsset{
+			ID:                  asset.ID,
+			BundleKey:           asset.BundleKey,
+			AppKey:              asset.AppKey,
+			Platform:            asset.Platform,
+			ArtifactURL:         asset.ArtifactURL,
+			ReleaseVersion:      asset.ReleaseVersion,
+			ReleaseNotes:        asset.ReleaseNotes,
+			Checksum:            asset.Checksum,
+			RequiresEntitlement: asset.RequiresEntitlement,
+			Metadata:            cloneContentMap(asset.Metadata),
+		}
+	}
+	return copied
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return map[string]string{}
+	}
+	copy := make(map[string]string, len(input))
+	for k, v := range input {
+		copy[k] = v
+	}
+	return copy
+}
+
+func cloneHeaderConfig(cfg LandingHeaderConfig, variantName string) LandingHeaderConfig {
+	copy := cfg
+	copy.Nav.Links = append([]HeaderNavLink{}, cfg.Nav.Links...)
+	return normalizeLandingHeaderConfig(&copy, variantName)
+}
+
+func clonePricing(pricing PricingOverview) *PricingOverview {
+	cloned := proto.Clone(&pricing)
+	if cloned == nil {
+		return nil
+	}
+	return cloned.(*PricingOverview)
 }

@@ -174,6 +174,67 @@ func TestPlanServiceGetPlanByPriceID(t *testing.T) {
 	}
 }
 
+func TestPlanServiceGetPricingOverviewOrdersAndFiltersDisabled(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "production")
+	productID := upsertTestBundleProduct(
+		t,
+		db,
+		bundleKey,
+		"Ordering Bundle",
+		"prod_ordering",
+		"production",
+		1_000_000,
+		0.01,
+		"credits",
+	)
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(t, db, productID, "price_weight_10", "Weighted", "pro", "month", "usd", 1000, false, "none", 0, 0, "", 0, 0, 5, 10, "none", "subscription", map[string]interface{}{})
+	insertBundlePrice(t, db, productID, "price_weight_5_rank1", "Rank 1", "pro", "month", "usd", 2000, false, "none", 0, 0, "", 0, 0, 1, 5, "none", "subscription", map[string]interface{}{})
+	insertBundlePrice(t, db, productID, "price_weight_5_rank2", "Rank 2", "pro", "month", "usd", 3000, false, "none", 0, 0, "", 0, 0, 2, 5, "none", "subscription", map[string]interface{}{})
+	if _, err := db.Exec(`UPDATE bundle_prices SET display_enabled = false WHERE stripe_price_id = $1`, "price_weight_5_rank2"); err != nil {
+		t.Fatalf("failed to disable price: %v", err)
+	}
+
+	service := NewPlanService(db)
+	overview, err := service.GetPricingOverview()
+	if err != nil {
+		t.Fatalf("GetPricingOverview failed: %v", err)
+	}
+
+	if got := len(overview.Monthly); got != 2 {
+		t.Fatalf("expected 2 visible monthly options, got %d", got)
+	}
+	if overview.Monthly[0].GetStripePriceId() != "price_weight_10" {
+		t.Fatalf("expected highest weight first, got %s", overview.Monthly[0].GetStripePriceId())
+	}
+	if overview.Monthly[1].GetStripePriceId() != "price_weight_5_rank1" {
+		t.Fatalf("expected rank tie-breaker next, got %s", overview.Monthly[1].GetStripePriceId())
+	}
+}
+
+func TestPlanServiceGetPlanByPriceIDErrorsForEmptyOrMissing(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewPlanService(db)
+
+	if _, err := service.GetPlanByPriceID(""); err == nil {
+		t.Fatal("expected error when price id missing")
+	}
+
+	_, err := service.GetPlanByPriceID("price_missing")
+	if err == nil {
+		t.Fatal("expected error for missing price record")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found message, got %v", err)
+	}
+}
+
 func configureTestBundleEnv(t *testing.T, env string) string {
 	t.Helper()
 

@@ -1,5 +1,13 @@
 import { apiCall } from './common';
-import type { LandingHeaderConfig, Variant, VariantAxes, VariantSpace, VariantSnapshot } from './types';
+import type {
+  LandingHeaderConfig,
+  Variant,
+  VariantAxes,
+  VariantSpace,
+  VariantSnapshot,
+  VariantSEOConfig,
+  VariantSEOResponse,
+} from './types';
 
 export interface VariantCreatePayload {
   name: string;
@@ -74,4 +82,16 @@ export function selectVariant(variantSlug?: string) {
 
 export function getVariantSpace() {
   return apiCall<VariantSpace>('/variant-space');
+}
+
+export function getVariantSEO(slug: string) {
+  return apiCall<VariantSEOResponse>(`/seo/${slug}`);
+}
+
+export function updateVariantSEO(slug: string, config: VariantSEOConfig) {
+  return apiCall<{ success?: boolean; updated_at?: string }>(`/admin/variants/${slug}/seo`, {
+    method: 'PUT',
+    body: JSON.stringify(config),
+    credentials: 'include',
+  });
 }

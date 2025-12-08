@@ -4,6 +4,7 @@ import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import type { VariantSEOConfig, SiteBranding } from '../../../shared/api';
+import { loadVariantSEOConfig, saveVariantSEOConfig } from '../controllers/seoController';
 
 interface VariantSEOEditorProps {
   variantSlug: string;
@@ -28,20 +29,8 @@ export function VariantSEOEditor({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/v1/seo/${variantSlug}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSeoConfig({
-          title: data.title !== siteBranding?.default_title ? data.title : undefined,
-          description: data.description !== siteBranding?.default_description ? data.description : undefined,
-          og_title: data.og_title,
-          og_description: data.og_description,
-          og_image_url: data.og_image_url !== siteBranding?.default_og_image_url ? data.og_image_url : undefined,
-          twitter_card: data.twitter_card,
-          canonical_path: data.canonical_path,
-          noindex: data.noindex || false,
-        });
-      }
+      const editableConfig = await loadVariantSEOConfig(variantSlug, siteBranding);
+      setSeoConfig(editableConfig);
     } catch (err) {
       setError('Failed to load SEO settings');
     } finally {
@@ -59,17 +48,7 @@ export function VariantSEOEditor({
     setSuccess(false);
 
     try {
-      const response = await fetch(`/api/v1/admin/variants/${variantSlug}/seo`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(seoConfig),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save SEO settings');
-      }
-
+      await saveVariantSEOConfig(variantSlug, seoConfig);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       onSave?.();

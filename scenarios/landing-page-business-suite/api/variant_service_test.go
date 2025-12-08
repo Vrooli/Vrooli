@@ -6,9 +6,9 @@ import (
 
 func defaultAxesSelection() map[string]string {
 	return map[string]string{
-		"persona":         "automation_freelancer",
-		"jtbd":            "scale_services",
-		"conversionStyle": "self_serve",
+		"persona":         "ops_leader",
+		"jtbd":            "launch_bundle",
+		"conversionStyle": "demo_led",
 	}
 }
 
@@ -20,6 +20,24 @@ func altAxesSelection() map[string]string {
 	}
 }
 
+func testVariantSpace() *VariantSpace {
+	return &VariantSpace{
+		Name:          "test-space",
+		SchemaVersion: 1,
+		Axes: map[string]*AxisDefinition{
+			"persona": {
+				Variants: []AxisVariant{{ID: "ops_leader", Label: "Ops Leader"}},
+			},
+			"jtbd": {
+				Variants: []AxisVariant{{ID: "launch_bundle", Label: "Launch bundle"}},
+			},
+			"conversionStyle": {
+				Variants: []AxisVariant{{ID: "demo_led", Label: "Demo-led"}},
+			},
+		},
+	}
+}
+
 func TestSelectVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -27,7 +45,7 @@ func TestSelectVariant(t *testing.T) {
 	// Clean up test data
 	db.Exec("DELETE FROM variants WHERE slug LIKE 'test-%'")
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Test that SelectVariant returns a variant
 	variant, err := vs.SelectVariant()
@@ -52,7 +70,7 @@ func TestGetVariantBySlug(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Test getting existing variant
 	variant, err := vs.GetVariantBySlug("control")
@@ -75,7 +93,7 @@ func TestCreateVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Test creating a new variant
 	variant, err := vs.CreateVariant("test-variant", "Test Variant", "Test description", 30, defaultAxesSelection())
@@ -95,7 +113,7 @@ func TestCreateVariant(t *testing.T) {
 		t.Errorf("Created variant has status %s, expected active", variant.Status)
 	}
 
-	if variant.Axes["persona"] != "automation_freelancer" {
+	if variant.Axes["persona"] != "ops_leader" {
 		t.Errorf("Variant axes not persisted: %+v", variant.Axes)
 	}
 
@@ -113,7 +131,7 @@ func TestUpdateVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Create a test variant
 	_, err := vs.CreateVariant("test-update", "Update Test", "Test update", 50, defaultAxesSelection())
@@ -169,7 +187,7 @@ func TestArchiveVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Create a test variant
 	_, err := vs.CreateVariant("test-archive", "Archive Test", "Test archive", 50, defaultAxesSelection())
@@ -218,7 +236,7 @@ func TestDeleteVariant(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Create a test variant
 	_, err := vs.CreateVariant("test-delete", "Delete Test", "Test delete", 50, defaultAxesSelection())
@@ -246,11 +264,63 @@ func TestDeleteVariant(t *testing.T) {
 	db.Exec("DELETE FROM variants WHERE slug = 'test-delete'")
 }
 
+func TestUpdateSEOConfigBySlug(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	vs := NewVariantService(db, testVariantSpace())
+
+	slug := "test-seo-config"
+	db.Exec("DELETE FROM variants WHERE slug = $1", slug)
+
+	_, err := vs.CreateVariant(slug, "SEO Variant", "SEO description", 40, defaultAxesSelection())
+	if err != nil {
+		t.Fatalf("Failed to create variant for SEO test: %v", err)
+	}
+
+	config := VariantSEOConfig{
+		Title:         "New Title",
+		Description:   "Search friendly copy",
+		CanonicalPath: "/seo-path",
+		NoIndex:       true,
+	}
+
+	if err := vs.UpdateSEOConfigBySlug(slug, config); err != nil {
+		t.Fatalf("UpdateSEOConfigBySlug failed: %v", err)
+	}
+
+	updated, err := vs.GetVariantBySlug(slug)
+	if err != nil {
+		t.Fatalf("GetVariantBySlug failed: %v", err)
+	}
+
+	parsed, err := updated.GetSEOConfigParsed()
+	if err != nil {
+		t.Fatalf("GetSEOConfigParsed failed: %v", err)
+	}
+
+	if parsed.Title != config.Title || parsed.Description != config.Description {
+		t.Errorf("SEO config not persisted correctly: %+v", parsed)
+	}
+	if parsed.CanonicalPath != config.CanonicalPath {
+		t.Errorf("expected canonical path %s, got %s", config.CanonicalPath, parsed.CanonicalPath)
+	}
+	if !parsed.NoIndex {
+		t.Error("expected NoIndex to persist as true")
+	}
+
+	if err := vs.UpdateSEOConfigBySlug("", config); err == nil {
+		t.Error("expected error when slug is empty")
+	}
+
+	db.Exec("DELETE FROM variants WHERE slug = $1", slug)
+}
+
 func TestListVariants(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Test listing all non-deleted variants
 	variants, err := vs.ListVariants("")
@@ -283,7 +353,7 @@ func TestWeightedSelection(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	vs := NewVariantService(db, defaultVariantSpace)
+	vs := NewVariantService(db, testVariantSpace())
 
 	// Create test variants with different weights
 	_, err := vs.CreateVariant("test-heavy", "Heavy Weight", "High weight variant", 90, defaultAxesSelection())

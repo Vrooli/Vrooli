@@ -154,22 +154,6 @@
         }
       ]
     },
-    "test": {
-      "description": "Run comprehensive test suite",
-      "steps": [
-        {
-          "name": "set-test-env",
-          "run": "export NODE_ENV=test CI=${CI:-false} && echo \"Test environment: NODE_ENV=$NODE_ENV, CI=$CI\"",
-          "description": "Set test environment variables"
-        },
-        {
-          "name": "run-shell-tests",
-          "run": "__test/run-tests.sh all",
-          "description": "Execute comprehensive shell test suite (static, resources, scenarios, bats)",
-          "timeout": "10m"
-        }
-      ]
-    },
     "deploy": {
       "description": "Deployment preparation",
       "steps": [

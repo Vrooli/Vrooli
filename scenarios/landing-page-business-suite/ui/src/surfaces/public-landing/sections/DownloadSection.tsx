@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetrics';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
-import { requestDownload } from '../../../shared/api';
+import { createBillingPortalSession, requestDownload } from '../../../shared/api';
+import { useEntitlements } from '../../../shared/hooks/useEntitlements';
 
 interface DownloadSectionProps {
   content?: {
@@ -87,6 +88,9 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     'Get the first Silent Founder OS app. Automate your browser work and export studio-quality recordings.';
   const { trackDownload } = useMetrics();
   const [downloadStatus, setDownloadStatus] = useState<Record<string, DownloadStatus>>({});
+  const { email, setEmail, entitlements, loading: entitlementsLoading, error: entitlementsError, refresh } = useEntitlements();
+  const [portalMessage, setPortalMessage] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   const hasAnyInstallers = filteredApps.some((app) => (app.platforms?.length ?? 0) > 0);
   const anyStorefronts = filteredApps.some((app) => (app.storefronts?.length ?? 0) > 0);
@@ -101,13 +105,21 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   const activeApp = filteredApps.find((app) => app.app_key === activeAppKey) ?? filteredApps[0];
 
   const handleDownload = async (app: DownloadApp, download: DownloadAsset, assetKey: string) => {
+    if (download.requires_entitlement && !email.trim()) {
+      setDownloadStatus((prev) => ({
+        ...prev,
+        [assetKey]: { loading: false, message: 'Enter your subscription email to continue.' },
+      }));
+      return;
+    }
+
     setDownloadStatus((prev) => ({
       ...prev,
       [assetKey]: { loading: true },
     }));
 
     try {
-      const asset = await requestDownload(download.app_key || app.app_key, download.platform);
+      const asset = await requestDownload(download.app_key || app.app_key, download.platform, email.trim() || undefined);
 
       const artifactUrl = sanitizeArtifactUrl(asset?.artifact_url);
       if (!artifactUrl) {
@@ -158,6 +170,36 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     }
   };
 
+  const entitlementsStatus = useMemo(() => {
+    if (entitlementsLoading) return 'Checking…';
+    if (!email.trim()) return 'Enter your subscription email to unlock gated downloads.';
+    if (entitlementsError) return entitlementsError;
+    if (!entitlements) return 'Enter email and we will verify access.';
+    if (entitlements.status === 'active') return 'Active subscription';
+    if (entitlements.status === 'trialing') return 'Trial active';
+    return 'No active subscription detected';
+  }, [email, entitlements, entitlementsError, entitlementsLoading]);
+
+  const handlePortal = async () => {
+    if (!email.trim()) {
+      setPortalMessage('Add your subscription email before opening the billing portal.');
+      return;
+    }
+    setPortalLoading(true);
+    setPortalMessage(null);
+    try {
+      const resp = await createBillingPortalSession(undefined, email.trim());
+      const opened = openDownloadWindow(resp.url);
+      if (!opened) {
+        setPortalMessage('Pop-up blocked. Allow pop-ups to open the billing portal.');
+      }
+    } catch (err) {
+      setPortalMessage(err instanceof Error ? err.message : 'Unable to open billing portal right now.');
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   return (
     <section
       className="relative overflow-hidden border-t border-white/5 bg-[#0B1020] py-24 text-white"
@@ -172,6 +214,29 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
             <div className="space-y-2">
               <h2 className="text-4xl font-semibold leading-tight">{title}</h2>
               <p className="text-lg text-slate-200">{subtitle}</p>
+            </div>
+            <div className="w-full max-w-md space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <label className="block text-sm text-slate-200">
+                Subscription email
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => refresh()}
+                  placeholder="you@example.com"
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-[#0B1020] px-3 py-2 text-white placeholder:text-slate-500 focus:border-[#F97316] focus:outline-none"
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                <span className="rounded-full bg-white/10 px-3 py-1">{entitlementsStatus}</span>
+                <Button size="sm" variant="secondary" onClick={refresh} disabled={entitlementsLoading}>
+                  {entitlementsLoading ? 'Checking…' : 'Refresh'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handlePortal} disabled={portalLoading}>
+                  {portalLoading ? 'Opening…' : 'Billing portal'}
+                </Button>
+              </div>
+              {portalMessage && <p className="text-xs text-amber-300">{portalMessage}</p>}
             </div>
           </div>
         </div>

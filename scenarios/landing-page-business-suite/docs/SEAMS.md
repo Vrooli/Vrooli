@@ -8,226 +8,105 @@ audience: ["developers"]
 
 # Seams & Architecture
 
-> **Last Updated**: 2025-12-02
+> **Last Updated**: 2026-01-07
 > **Purpose**: Document deliberate boundaries (seams) where behavior can vary or be substituted without invasive changes
 
 ## Overview
 
-A **seam** is a deliberate boundary in the code where behavior can vary or be substituted without invasive changes. Seams enable:
-- **Testability**: Replace external dependencies with mocks in tests
-- **Flexibility**: Swap implementations without widespread code changes
-- **Isolation**: Contain side effects behind explicit boundaries
+A seam is a deliberate boundary where behavior can vary or be substituted without invasive changes. In this scenario, seams keep Stripe integration and landing-page logic testable without calling real services.
 
-This document catalogs the seams in this landing page template, their purposes, and how to use them.
+This document reflects the current code; claims here have been verified against the implementation.
 
 ---
 
 ## Responsibility Zones
 
-### Entry / Presentation Layer
+**Transport (HTTP handlers)**  
+`api/*_handlers.go` validate input, enforce auth, and delegate to services. Examples: `stripe_handlers.go`, `payment_settings_handlers.go`, `metrics_handlers.go`, `variant_handlers.go`, `seo_handlers.go` (now delegating merging to `SEOService`).
 
-HTTP handlers in `api/*_handlers.go` (e.g., `account_handlers.go`, `variant_handlers.go`, `metrics_handlers.go`) only:
-- Parse and validate transport concerns
-- Enforce auth middleware
-- Serialize responses
+**Domain/services**  
+`PlanService`, `StripeService`, `PaymentSettingsService`, `ContentService`, `VariantService`, `SEOService`, and `MetricsService` contain business rules and orchestration. Presentation layers must not reach into SQL or Stripe directly. SEO persistence now flows through `VariantService.UpdateSEOConfigBySlug`, which owns slug lookup, JSON encoding, and writes so the admin handler stays transport-only.
 
-Client utilities live in `ui/src/shared/api/*.ts` and exclusively call REST endpoints.
+**Infrastructure/data**  
+SQL access lives inside services (`plan_service.go`, `stripe_service.go`, `payment_settings_service.go`, etc.). Environment parsing and router wiring live in `main.go`.
 
-### Coordination / Domain Layer
-
-Services such as `LandingConfigService`, `VariantService`, `ContentService`, `PlanService`, `MetricsService`, and `DownloadAuthorizer`:
-- Work while hiding HTTP/DB details
-- Encapsulate business rules (variant selection, pricing assembly, analytics validation, download gating)
-- Prevent presentation code from duplicating logic
-
-### Integrations / Infrastructure Layer
-
-Database access stays in services like `download_service.go`, `content_service.go`, `account_service.go`, etc. They are the only layer:
-- Issuing SQL or touching storage
-- Interacting with Stripe adapters
-- Environment/config parsing (`main.go`, `.env` files)
-
-### Cross-Cutting Concerns
-
-- Logging helpers in `logging.go`
-- Middleware (session/auth) in `auth.go`
-- Helper utilities (`writeJSON`, `resolveUserIdentity`)
-
-These remain thin seams that presentation code reuses without embedding domain rules.
+**UI contracts**  
+Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React surfaces (public landing + admin portal). Controllers such as `seoController.ts` adapt those clients for components so React views no longer make raw `fetch` calls.
 
 ---
 
-## Boundary Clarifications
+## Landing Config & Fallback Seams
 
-- `/api/v1/downloads` routes through `DownloadAuthorizer`. The handler no longer reasons about plan bundles or entitlement states; it validates request params and maps domain errors to HTTP status codes.
-
-- Variant HTTP handlers live in `api/variant_handlers.go`, keeping transport validation separate from `VariantService`'s domain logic.
-
-- Download API calls moved to `ui/src/shared/api/downloads.ts`, separating landing config clients from entitlement-aware download logic.
-
-- Metrics ingestion validation moved into `MetricsService.TrackEvent`. The service enforces required fields via `MetricValidationError`.
-
-- Admin portal React routes hand off orchestration to thin controllers under `ui/src/surfaces/admin-portal/controllers`.
+- **Fallback payload provider** (`LandingConfigService.UseFallbackProvider`)  
+  - Baked fallback content loads once from `.vrooli/variants/fallback.json` (or `defaultFallbackLandingJSON`). Each response clones the payload, so mutations in one request cannot leak into the next.  
+  - Tests can inject a minimal fallback provider to avoid disk reads and to assert fallback behavior when variant selection, section retrieval/renderability, pricing, or download listing fails. The response is marked `fallback` while still attempting to include branding.
 
 ---
 
-## Testability Seams
+## Stripe Seams (priority)
 
-### 1. Command Executor Seam
+- **Config loading seam** (`StripeService.RefreshConfig`)  
+  - Source of truth is `loadStripeConfig`: pulls env vars (`STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, optional `STRIPE_API_BASE`) then overlays admin overrides from `PaymentSettingsService.GetStripeSettings`.  
+  - Tests can bypass env + DB by injecting a loader via `StripeService.UseConfigLoader(...)` and calling `RefreshConfig` to apply.  
+  - Placeholders keep `hasSecret/hasWebhook` false when keys are absent, preventing accidental live calls.
 
-**Location**: `api/util/command.go`
+- **HTTP seam for Stripe calls** (`StripeService.doStripeRequest`)  
+  - All Stripe network traffic flows through `stripeAPIURL` + injected client.  
+  - Swap the client with `StripeService.UseHTTPClient(...)` or point to a mock server with `STRIPE_API_BASE`.  
+  - This keeps checkout/portal/subscription calls testable without real Stripe access.
 
-**Purpose**: Isolate external CLI command execution (vrooli CLI, kill, etc.) behind an interface, enabling tests to substitute mock responses.
+- **Admin settings seam** (`payment_settings_handlers.go`, `payment_settings_service.go`)  
+  - Admin endpoints handle normalization, redaction, and persistence of Stripe keys.  
+  - After writes, `StripeService.RefreshConfig` is invoked so runtime state follows storage.  
+  - `ConfigSnapshot` redacts secrets while exposing `*_set` flags and source to the UI.
 
-**Interface:**
-```go
-type CommandExecutor interface {
-    Execute(name string, args ...string) CommandResult
-    ExecuteWithContext(ctx context.Context, name string, args ...string) CommandResult
-}
+- **Webhook verification seam** (`StripeService.VerifyWebhookSignature`, `handleStripeWebhook`)  
+  - Incoming payloads must pass signature verification using the active webhook secret before any Stripe state is persisted.  
+  - Tests can sign payloads using the helper in `stripe_handlers_test.go` or override config via the loader seam.
 
-type CommandResult struct {
-    Output   string
-    ExitCode int
-    Err      error
-}
-```
-
-**Implementations:**
-
-| Implementation | Purpose | Usage |
-|---------------|---------|-------|
-| `RealCommandExecutor` | Executes actual OS commands via `os/exec` | Production |
-| `MockCommandExecutor` | Returns configurable responses | Testing |
-
-**Testing Pattern:**
-```go
-func TestPreviewLinks_Success(t *testing.T) {
-    mockExec := util.NewMockCommandExecutor()
-    mockExec.SetResponse("vrooli", "38000", 0, nil)
-
-    ps := services.NewPreviewServiceWithExecutor(mockExec)
-    result, err := ps.GetPreviewLinks("test-scenario")
-
-    // Verify mock was called correctly
-    if len(mockExec.Calls) != 2 {
-        t.Error("Expected 2 command calls")
-    }
-}
-```
+- **Subscription/cache seam** (`StripeService.VerifySubscription`)  
+  - Subscription state is cached in Postgres and refreshed from Stripe when stale.  
+  - All cache invalidation and reconciliation stay inside `StripeService`; handlers only translate errors and params.
 
 ---
 
-### 2. HTTP Client Seam
+## Other Seams
 
-**Location**: `api/handlers/handlers.go`
+- **Plan/pricing lookup** (`plan_service.go`, `landing_config_service.go`)  
+  Centralizes bundle/price metadata. Handlers and UI pricing components must resolve plans via the service to avoid duplicated Stripe IDs or plan tiers.
 
-**Purpose**: Isolate external HTTP requests behind an injectable http.Client.
+- **Metrics ingestion** (`metrics_service.go`, `metrics_handlers.go`)  
+  Validation and storage happen in the service; handlers only marshal/unmarshal requests.
 
-**Usage:**
-```go
-func TestCustomize_Integration(t *testing.T) {
-    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-    }))
-    defer server.Close()
-
-    client := &http.Client{Timeout: 1 * time.Second}
-    h := handlers.NewHandlerWithHTTPClient(..., client)
-    // Test...
-}
-```
+- **Content & variants** (`content_service.go`, `variant_service.go`)  
+  UI content and A/B variants are isolated behind services so new presentations do not touch SQL.
+- **SEO composition** (`seo_service.go`)  
+  Combines site branding defaults with per-variant SEO config and drives sitemap/robots responses. Handlers call the service; admin UI uses the `seoController` + shared API client instead of direct `fetch` calls to keep transport concerns separate from editing logic.
 
 ---
 
-### 3. Service Layer Seams
+## Testing Guidance
 
-**Location**: `api/handlers/handlers.go`, `api/services/*`
-
-**Purpose**: Separate business logic from HTTP handling via dependency injection.
-
-**Handler struct:**
-```go
-type Handler struct {
-    DB               *sql.DB
-    Registry         *services.TemplateRegistry
-    Generator        *services.ScenarioGenerator
-    PersonaService   *services.PersonaService
-    PreviewService   *services.PreviewService
-    AnalyticsService *services.AnalyticsService
-    HTTPClient       *http.Client
-    CmdExecutor      util.CommandExecutor
-}
-```
+- For Stripe tests, prefer the new seams:  
+  - Inject mock config with `UseConfigLoader` + `RefreshConfig`.  
+  - Inject an `httptest.Server` client with `UseHTTPClient` (or set `STRIPE_API_BASE`).  
+  - Sign webhooks with the helpers in `stripe_handlers_test.go` to exercise signature enforcement.
+- Landing config fallback tests should inject a provider via `UseFallbackProvider` to avoid depending on baked JSON and to confirm payloads are copied per request.
+- Use `resetStripeTestData`, `upsertTestBundleProduct`, and `insertBundlePrice` helpers to seed pricing without touching production fixtures.
+- Admin settings tests should go through `handleUpdateStripeSettings`/`handleGetStripeSettings` to ensure redaction and refresh paths are covered.
 
 ---
 
-### 4. Environment/Configuration Seams
+## Anti-Patterns
 
-**Location**: `api/util/scenario.go`, service constructors
-
-**Purpose**: Allow tests to override paths via environment variables.
-
-| Variable | Purpose | Used By |
-|----------|---------|---------|
-| `VROOLI_ROOT` | Override Vrooli installation root | `util.GetVrooliRoot()` |
-| `GEN_OUTPUT_DIR` | Override generated scenarios path | `util.GenerationRoot()` |
-| `TEMPLATES_DIR` | Override templates directory | `TemplateRegistry` |
-| `ANALYTICS_DATA_DIR` | Override analytics storage | `AnalyticsService` |
-
----
-
-## How to Extend Safely
-
-### Presentation Changes
-New endpoints or UI calls should stick to parsing and delegating to services. If a handler needs business rules, extract them into a service first.
-
-### Domain Updates
-Go into the relevant service (`MetricsService`, `DownloadAuthorizer`, etc.). Add dedicated tests so logic can evolve without starting the full stack.
-
-### Integration Updates
-Schema tweaks, Stripe wiring, etc. belong in the service touching that system. Keep SQL/SDK usage localized.
-
-### Cross-Cutting Enhancements
-Logging, tracing, feature flags should hook through middleware or helper seams.
-
----
-
-## Seam Usage Guidelines
-
-### When to Use Seams
-
-1. **External Commands**: Always use `CommandExecutor` instead of direct `exec.Command`
-2. **HTTP Calls**: Always use injected `HTTPClient` instead of `http.DefaultClient`
-3. **File Paths**: Check for environment variable overrides in test environments
-4. **Validation**: Use centralized validation functions from `validation` package
-
-### When Adding New Seams
-
-1. Create an interface if behavior needs to vary
-2. Provide at least two implementations (real + mock)
-3. Add constructor that accepts the seam dependency
-4. Document in this file
-5. Add tests that exercise both implementations
-
-### Anti-Patterns to Avoid
-
-1. **Direct exec.Command**: Always go through `CommandExecutor`
-2. **Hardcoded paths**: Use environment variable overrides
-3. **Global state**: Prefer dependency injection over package-level variables
-4. **Leaking implementation**: Keep HTTP/CLI details in service layer
-
----
-
-## Future Seam Opportunities
-
-1. **Database Interface**: Could benefit from repository interface for pure unit tests
-2. **File System Seam**: `os.Stat`, `os.ReadDir` could be abstracted
-3. **Time Seam**: `time.Now()` calls could use injectable clock
+- Talking to Stripe directly from handlers or UI; always go through `StripeService`.
+- Bypassing `PlanService`/`PaymentSettingsService` when reading or mutating pricing or Stripe keys.
+- Skipping `RefreshConfig` after overriding Stripe config in tests.
 
 ---
 
 ## See Also
 
-- [Configuration Guide](CONFIGURATION_GUIDE.md) - Environment variables
-- [API Reference](api/README.md) - Endpoint documentation
+- `docs/STRIPE_RESTRICTED_KEYS.md`
+- `docs/STRIPE_WEBHOOKS.md`
+- `docs/api/payments.md`

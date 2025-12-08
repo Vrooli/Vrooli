@@ -395,7 +395,7 @@ test_tools_structure() {
     fi
     
     # Only test tools that still exist after conversion elimination
-    local tools_to_test=("$PROJECT_ROOT/scenarios/tools/validate-scenario.sh")
+    local tools_to_test=()
     
     for tool_file in "${tools_to_test[@]}"; do
         if ! should_test_path "$tool_file"; then

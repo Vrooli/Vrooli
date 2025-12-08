@@ -23,13 +23,15 @@ func (f *fakeDownloads) GetAsset(bundleKey, appKey, platform string) (*DownloadA
 }
 
 type trackingEntitlements struct {
-	payload *EntitlementPayload
-	calls   int
-	err     error
+	payload  *EntitlementPayload
+	calls    int
+	lastUser string
+	err      error
 }
 
 func (t *trackingEntitlements) GetEntitlements(user string) (*EntitlementPayload, error) {
 	t.calls++
+	t.lastUser = user
 	if t.err != nil {
 		return nil, t.err
 	}
@@ -118,6 +120,26 @@ func TestDownloadAuthorizerAuthorize_RequiresIdentityForGatedAssets(t *testing.T
 	}
 }
 
+func TestDownloadAuthorizerAuthorize_PropagatesEntitlementErrors(t *testing.T) {
+	downloads := &fakeDownloads{
+		assets: map[string]*DownloadAsset{
+			"bundle:app:ios": {Platform: "ios", RequiresEntitlement: true},
+		},
+	}
+	entitlements := &trackingEntitlements{
+		err: errors.New("entitlements offline"),
+	}
+
+	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
+	_, err := authorizer.Authorize("app", "ios", "user@example.com")
+	if err == nil || !strings.Contains(err.Error(), "entitlements offline") {
+		t.Fatalf("expected entitlement error to propagate, got %v", err)
+	}
+	if entitlements.calls != 1 {
+		t.Fatalf("expected entitlement lookup once, got %d", entitlements.calls)
+	}
+}
+
 func TestDownloadAuthorizerAuthorize_RejectsBlankPlatform(t *testing.T) {
 	downloads := &fakeDownloads{}
 	entitlements := &trackingEntitlements{}
@@ -149,5 +171,28 @@ func TestDownloadAuthorizerAuthorize_RequiresAppKey(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
 	if _, err := authorizer.Authorize("   ", "windows", "user@example.com"); !errors.Is(err, ErrDownloadAppNotFound) {
 		t.Fatalf("expected ErrDownloadAppNotFound on blank app key, got %v", err)
+	}
+}
+
+func TestDownloadAuthorizerAuthorize_TrimsInputsBeforeLookup(t *testing.T) {
+	downloads := &fakeDownloads{
+		assets: map[string]*DownloadAsset{
+			"bundle:app:android": {Platform: "android", RequiresEntitlement: true},
+		},
+	}
+	entitlements := &trackingEntitlements{
+		payload: &EntitlementPayload{Status: "active"},
+	}
+
+	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
+	asset, err := authorizer.Authorize("  app  ", " android ", "  user@example.com ")
+	if err != nil {
+		t.Fatalf("expected trimmed inputs to authorize, got %v", err)
+	}
+	if asset.Platform != "android" {
+		t.Fatalf("expected android asset returned, got %s", asset.Platform)
+	}
+	if entitlements.lastUser != "user@example.com" {
+		t.Fatalf("expected trimmed identity passed to entitlements, got %q", entitlements.lastUser)
 	}
 }
