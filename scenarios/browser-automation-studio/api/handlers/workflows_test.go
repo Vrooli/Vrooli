@@ -198,16 +198,20 @@ func (m *mockWorkflowServiceForWorkflows) CheckAutomationHealth(ctx context.Cont
 	return true, nil
 }
 
-func setupWorkflowTestHandler(t *testing.T, workflowService WorkflowService) *Handler {
+var _ compositeWorkflowService = (*mockWorkflowServiceForWorkflows)(nil)
+
+func setupWorkflowTestHandler(t *testing.T, workflowService compositeWorkflowService) *Handler {
 	t.Helper()
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
 
 	return &Handler{
-		log:             log,
-		repo:            &mockRepository{},
-		workflowService: workflowService,
+		log:              log,
+		repo:             &mockRepository{},
+		workflowCatalog:  workflowService,
+		executionService: workflowService,
+		exportService:    workflowService,
 	}
 }
 

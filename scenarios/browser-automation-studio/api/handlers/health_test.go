@@ -178,13 +178,16 @@ func TestHealth(t *testing.T) {
 
 	t.Run("[REQ:BAS-FUNC-002] returns degraded when database is healthy but browserless is unavailable", func(t *testing.T) {
 		mockRepo := &healthMockRepository{healthy: true}
+		svc := &workflowServiceMock{
+			automationHealthy: false,
+			automationErr:     errors.New("automation engine unavailable"),
+		}
 		handler := &Handler{
-			repo: mockRepo,
-			workflowService: &workflowServiceMock{
-				automationHealthy: false,
-				automationErr:     errors.New("automation engine unavailable"),
-			},
-			log: log,
+			repo:             mockRepo,
+			workflowCatalog:  svc,
+			executionService: svc,
+			exportService:    svc,
+			log:              log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)
@@ -214,12 +217,13 @@ func TestHealth(t *testing.T) {
 
 	t.Run("[REQ:BAS-FUNC-002] returns unhealthy when database is down", func(t *testing.T) {
 		mockRepo := &healthMockRepository{listProjectsErr: errors.New("connection refused")}
+		svc := &workflowServiceMock{automationHealthy: true}
 		handler := &Handler{
-			repo: mockRepo,
-			workflowService: &workflowServiceMock{
-				automationHealthy: true,
-			},
-			log: log,
+			repo:             mockRepo,
+			workflowCatalog:  svc,
+			executionService: svc,
+			exportService:    svc,
+			log:              log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)
@@ -246,13 +250,16 @@ func TestHealth(t *testing.T) {
 
 	t.Run("[REQ:BAS-FUNC-002] returns degraded when browserless is down but database is up", func(t *testing.T) {
 		mockRepo := &healthMockRepository{healthy: true}
+		svc := &workflowServiceMock{
+			automationHealthy: false,
+			automationErr:     errors.New("automation engine unavailable"),
+		}
 		handler := &Handler{
-			repo: mockRepo,
-			workflowService: &workflowServiceMock{
-				automationHealthy: false,
-				automationErr:     errors.New("automation engine unavailable"),
-			},
-			log: log,
+			repo:             mockRepo,
+			workflowCatalog:  svc,
+			executionService: svc,
+			exportService:    svc,
+			log:              log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)
@@ -279,12 +286,13 @@ func TestHealth(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-FUNC-002] returns error when repository is nil", func(t *testing.T) {
+		svc := &workflowServiceMock{automationHealthy: true}
 		handler := &Handler{
-			repo: nil,
-			workflowService: &workflowServiceMock{
-				automationHealthy: true,
-			},
-			log: log,
+			repo:             nil,
+			workflowCatalog:  svc,
+			executionService: svc,
+			exportService:    svc,
+			log:              log,
 		}
 
 		req := httptest.NewRequest("GET", "/health", nil)

@@ -196,7 +196,7 @@ func (h *Handler) CreateExport(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Verify execution exists
-	_, err = h.workflowService.GetExecution(ctx, executionID)
+	_, err = h.executionService.GetExecution(ctx, executionID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrExecutionNotFound)
@@ -407,7 +407,7 @@ func (h *Handler) GenerateExportCaption(w http.ResponseWriter, r *http.Request) 
 	var workflowName string
 	var workflowDescription string
 	if export.WorkflowID != nil {
-		workflow, wfErr := h.workflowService.GetWorkflow(ctx, *export.WorkflowID)
+		workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, *export.WorkflowID)
 		if wfErr == nil && workflow != nil {
 			workflowName = workflow.Name
 			workflowDescription = workflow.Description

@@ -34,6 +34,11 @@ type mockWorkflowServiceForProjects struct {
 	getProjectStatsFn        func(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
 	getProjectsStatsFn       func(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error)
 	deleteProjectWorkflowsFn func(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
+	listWorkflowsFn          func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
+	getWorkflowFn            func(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
+	updateWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error)
+	restoreWorkflowFn        func(ctx context.Context, workflowID uuid.UUID, version int, desc string) (*database.Workflow, error)
+	modifyWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
 }
 
 func (m *mockWorkflowServiceForProjects) CreateProject(ctx context.Context, project *database.Project) error {
@@ -135,77 +140,116 @@ func (m *mockWorkflowServiceForProjects) DeleteProjectWorkflows(ctx context.Cont
 	return nil
 }
 
+func (m *mockWorkflowServiceForProjects) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
+	if m.listWorkflowsFn != nil {
+		return m.listWorkflowsFn(ctx, folderPath, limit, offset)
+	}
+	return []*database.Workflow{}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
+	wf := &database.Workflow{ID: uuid.New(), Name: name, FolderPath: folderPath, FlowDefinition: database.JSONMap(flowDefinition)}
+	if projectID != nil {
+		wf.ProjectID = projectID
+	}
+	return wf, nil
+}
+
+func (m *mockWorkflowServiceForProjects) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
+	if m.getWorkflowFn != nil {
+		return m.getWorkflowFn(ctx, id)
+	}
+	return &database.Workflow{ID: id}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
+	if m.updateWorkflowFn != nil {
+		return m.updateWorkflowFn(ctx, workflowID, input)
+	}
+	return &database.Workflow{ID: workflowID, Name: input.Name, FolderPath: input.FolderPath}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
+	return []*workflow.WorkflowVersionSummary{}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error) {
+	return &workflow.WorkflowVersionSummary{WorkflowID: workflowID, Version: version}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error) {
+	if m.restoreWorkflowFn != nil {
+		return m.restoreWorkflowFn(ctx, workflowID, version, changeDescription)
+	}
+	return &database.Workflow{ID: workflowID, Version: version}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error) {
+	if m.modifyWorkflowFn != nil {
+		return m.modifyWorkflowFn(ctx, workflowID, prompt, currentFlow)
+	}
+	return &database.Workflow{ID: workflowID}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
+	return []*database.Workflow{}, nil
+}
+
+// Execution + export stubs to satisfy compositeWorkflowService
+func (m *mockWorkflowServiceForProjects) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	return &database.Execution{ID: uuid.New(), WorkflowID: workflowID, Status: "pending"}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error) {
+	return &database.Execution{ID: uuid.New(), WorkflowID: uuid.Nil, Status: "pending"}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
+	return []*database.Execution{}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error) {
+	return &database.Execution{ID: executionID}, nil
+}
+
+func (m *mockWorkflowServiceForProjects) StopExecution(ctx context.Context, executionID uuid.UUID) error {
+	return nil
+}
+
 func (m *mockWorkflowServiceForProjects) CheckAutomationHealth(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (m *mockWorkflowServiceForProjects) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
-	return errors.New("not implemented")
-}
-
-// Stub implementations for other WorkflowService methods (matching handler.go interface)
-func (m *mockWorkflowServiceForProjects) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error) {
-	return nil, nil
-}
 func (m *mockWorkflowServiceForProjects) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
 	return nil, nil
 }
+
 func (m *mockWorkflowServiceForProjects) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*export.ExecutionTimeline, error) {
 	return nil, nil
 }
+
 func (m *mockWorkflowServiceForProjects) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 	return nil, nil
 }
-func (m *mockWorkflowServiceForProjects) GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
-	return nil, nil
-}
-func (m *mockWorkflowServiceForProjects) StopExecution(ctx context.Context, executionID uuid.UUID) error {
+
+func (m *mockWorkflowServiceForProjects) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
 	return nil
 }
-func (m *mockWorkflowServiceForProjects) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
-	return nil, nil
-}
 
-func setupProjectTestHandler(t *testing.T, workflowService WorkflowService) *Handler {
+var _ compositeWorkflowService = (*mockWorkflowServiceForProjects)(nil)
+
+func setupProjectTestHandler(t *testing.T, workflowService compositeWorkflowService) *Handler {
 	t.Helper()
 
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
 
 	return &Handler{
-		log:             log,
-		repo:            &mockRepository{},
-		workflowService: workflowService,
+		log:              log,
+		repo:             &mockRepository{},
+		workflowCatalog:  workflowService,
+		executionService: workflowService,
+		exportService:    workflowService,
 	}
 }
 

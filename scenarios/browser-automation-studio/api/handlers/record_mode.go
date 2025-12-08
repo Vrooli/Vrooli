@@ -789,7 +789,7 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 	flowDefinition := convertActionsToWorkflow(actions)
 
 	// Create the workflow using existing service
-	workflow, err := h.workflowService.CreateWorkflowWithProject(
+	workflow, err := h.workflowCatalog.CreateWorkflowWithProject(
 		ctx,
 		req.ProjectID,
 		req.Name,

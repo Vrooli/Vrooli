@@ -28,7 +28,7 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	screenshots, err := h.workflowService.GetExecutionScreenshots(ctx, executionID)
+	screenshots, err := h.executionService.GetExecutionScreenshots(ctx, executionID)
 	if err != nil {
 		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get screenshots")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_screenshots", "execution_id": executionID.String()}))
@@ -58,7 +58,7 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	timeline, err := h.workflowService.GetExecutionTimeline(ctx, executionID)
+	timeline, err := h.executionService.GetExecutionTimeline(ctx, executionID)
 	if err != nil {
 		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get execution timeline")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_timeline", "execution_id": executionID.String()}))
@@ -117,7 +117,7 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		exportCtx, cancelExport := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 		defer cancelExport()
 
-		if err := h.workflowService.ExportToFolder(exportCtx, executionID, outputDir, h.storage); err != nil {
+		if err := h.exportService.ExportToFolder(exportCtx, executionID, outputDir, h.storage); err != nil {
 			if errors.Is(err, database.ErrNotFound) {
 				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
 				return
@@ -137,7 +137,7 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	previewCtx, cancelPreview := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancelPreview()
 
-	preview, svcErr := h.workflowService.DescribeExecutionExport(previewCtx, executionID)
+	preview, svcErr := h.exportService.DescribeExecutionExport(previewCtx, executionID)
 	if svcErr != nil {
 		if errors.Is(svcErr, database.ErrNotFound) {
 			h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
@@ -241,7 +241,7 @@ func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	execution, err := h.workflowService.GetExecution(ctx, id)
+	execution, err := h.executionService.GetExecution(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get execution")
 		h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": id.String()}))
@@ -278,7 +278,7 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 
 	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
 
-	executions, err := h.workflowService.ListExecutions(ctx, workflowID, limit, offset)
+	executions, err := h.executionService.ListExecutions(ctx, workflowID, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list executions")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_executions"}))
@@ -317,7 +317,7 @@ func (h *Handler) StopExecution(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	if err := h.workflowService.StopExecution(ctx, id); err != nil {
+	if err := h.executionService.StopExecution(ctx, id); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to stop execution")
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "stop_execution", "execution_id": id.String()}))
 		return

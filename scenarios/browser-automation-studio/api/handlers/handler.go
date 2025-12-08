@@ -25,38 +25,6 @@ import (
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 )
 
-type WorkflowService interface {
-	CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error)
-	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
-	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
-	UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input workflow.WorkflowUpdateInput) (*database.Workflow, error)
-	ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error)
-	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*workflow.WorkflowVersionSummary, error)
-	RestoreWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
-	ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
-	ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error)
-	ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
-	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error)
-	GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*export.ExecutionTimeline, error)
-	DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error)
-	ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error
-	GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
-	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error)
-	StopExecution(ctx context.Context, executionID uuid.UUID) error
-	GetProjectByName(ctx context.Context, name string) (*database.Project, error)
-	GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.Project, error)
-	CreateProject(ctx context.Context, project *database.Project) error
-	ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error)
-	GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
-	GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error)
-	GetProject(ctx context.Context, projectID uuid.UUID) (*database.Project, error)
-	UpdateProject(ctx context.Context, project *database.Project) error
-	DeleteProject(ctx context.Context, projectID uuid.UUID) error
-	ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error)
-	DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
-	CheckAutomationHealth(ctx context.Context) (bool, error)
-}
-
 // Handler contains all HTTP handlers
 type replayRenderer interface {
 	Render(ctx context.Context, spec *export.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error)
@@ -64,7 +32,9 @@ type replayRenderer interface {
 
 // Handler contains all HTTP handlers
 type Handler struct {
-	workflowService   WorkflowService
+	workflowCatalog   workflow.CatalogService
+	executionService  workflow.ExecutionService
+	exportService     workflow.ExportService
 	workflowValidator *workflowvalidator.Validator
 	repo              database.Repository
 	wsHub             wsHub.HubInterface
@@ -110,7 +80,9 @@ type HealthResponse struct {
 // HandlerDeps holds all dependencies for the Handler.
 // This struct separates dependency wiring from handler construction.
 type HandlerDeps struct {
-	WorkflowService   WorkflowService
+	WorkflowCatalog   workflow.CatalogService
+	ExecutionService  workflow.ExecutionService
+	ExportService     workflow.ExportService
 	WorkflowValidator *workflowvalidator.Validator
 	Storage           storage.StorageInterface
 	RecordingService  recording.RecordingServiceInterface
@@ -152,7 +124,9 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 	}
 
 	return HandlerDeps{
-		WorkflowService:   workflowSvc,
+		WorkflowCatalog:   workflowSvc,
+		ExecutionService:  workflowSvc,
+		ExportService:     workflowSvc,
 		WorkflowValidator: validatorInstance,
 		Storage:           storageClient,
 		RecordingService:  recordingService,
@@ -174,7 +148,9 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	allowedCopy := append([]string(nil), allowedOrigins...)
 
 	handler := &Handler{
-		workflowService:   deps.WorkflowService,
+		workflowCatalog:   deps.WorkflowCatalog,
+		executionService:  deps.ExecutionService,
+		exportService:     deps.ExportService,
 		workflowValidator: deps.WorkflowValidator,
 		repo:              repo,
 		wsHub:             wsHub,

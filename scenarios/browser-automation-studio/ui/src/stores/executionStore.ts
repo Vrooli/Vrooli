@@ -1,11 +1,8 @@
 import { fromJson } from '@bufbuild/protobuf';
-import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import {
   ExecutionSchema,
   GetScreenshotsResponseSchema,
   type GetScreenshotsResponse as ProtoGetScreenshotsResponse,
-  ExecutionEventEnvelopeSchema,
-  type ExecutionEventEnvelope,
 } from '@vrooli/proto-types/browser-automation-studio/v1/execution_pb';
 import {
   ExecutionTimelineSchema,
@@ -13,14 +10,6 @@ import {
   type TimelineFrame as ProtoTimelineFrame,
   type TimelineLog as ProtoTimelineLog,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
-import {
-  ArtifactType,
-  EventKind,
-  ExecutionStatus as ProtoExecutionStatus,
-  LogLevel as ProtoLogLevel,
-  StepStatus,
-  StepType,
-} from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
 import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
 import { create } from 'zustand';
 import { getConfig } from '../config';
@@ -28,26 +17,30 @@ import { logger } from '../utils/logger';
 import { parseProtoStrict } from '../utils/proto';
 import type { ReplayFrame, ReplayPoint, ReplayRegion, ReplayScreenshot } from '../features/execution/ReplayPlayer';
 import {
+  ExecutionEventsClient,
+  type ExecutionUpdateMessage as WsExecutionUpdateMessage,
+} from '../features/execution/ws/executionEvents';
+import {
+  mapArtifactType,
+  mapExecutionStatus,
+  mapProtoLogLevel,
+  mapStepStatus,
+  mapStepType,
+  timestampToDate,
+} from '../features/execution/utils/mappers';
+import {
   processExecutionEvent,
   createId,
   parseTimestamp,
-  type ExecutionEventMessage,
   type ExecutionEventHandlers,
-  type ExecutionEventType,
   type Screenshot,
   type LogEntry,
 } from './executionEventProcessor';
+import type { ExecutionEventMessage } from '../features/execution/ws/executionEvents';
 
 const WS_RETRY_LIMIT = 5;
 const WS_RETRY_BASE_DELAY_MS = 1500;
 let legacyWsWarningSent = false;
-
-const timestampToDate = (value?: Timestamp | null): Date | undefined => {
-  if (!value) return undefined;
-  const millis = Number(value.seconds ?? 0) * 1000 + Math.floor(Number(value.nanos ?? 0) / 1_000_000);
-  const result = new Date(millis);
-  return Number.isNaN(result.valueOf()) ? undefined : result;
-};
 
 const coerceDate = (value: unknown): Date | undefined => {
   if (value instanceof Date) return value;
@@ -62,19 +55,6 @@ const toNumber = (value?: number | bigint | null): number | undefined => {
   if (value == null) return undefined;
   return typeof value === 'bigint' ? Number(value) : value;
 };
-
-const protoTimestampToDate = (ts?: Timestamp | null): Date | undefined => timestampToDate(ts);
-
-interface ExecutionUpdateMessage {
-  type: string;
-  execution_id?: string;
-  status?: string;
-  progress?: number;
-  current_step?: string;
-  message?: string;
-  data?: ExecutionEventMessage | null;
-  timestamp?: string;
-}
 
 export interface TimelineBoundingBox {
   x?: number;
@@ -180,151 +160,14 @@ interface ExecutionStore {
   clearCurrentExecution: () => void;
 }
 
-const mapExecutionStatus = (status?: ProtoExecutionStatus | string | null): Execution['status'] => {
-  if (typeof status === 'number') {
-    switch (status) {
-      case ProtoExecutionStatus.PENDING:
-        return 'pending';
-      case ProtoExecutionStatus.RUNNING:
-        return 'running';
-      case ProtoExecutionStatus.COMPLETED:
-        return 'completed';
-      case ProtoExecutionStatus.FAILED:
-        return 'failed';
-      case ProtoExecutionStatus.CANCELLED:
-        return 'cancelled';
-      default:
-        return 'pending';
-    }
-  }
-  switch ((status ?? '').toLowerCase()) {
-    case 'pending':
-    case 'queued':
-      return 'pending';
-    case 'running':
-    case 'in_progress':
-      return 'running';
-    case 'completed':
-    case 'success':
-    case 'succeeded':
-      return 'completed';
-    case 'failed':
-    case 'error':
-      return 'failed';
-    case 'cancelled':
-      return 'cancelled';
-    default:
-      return 'pending';
-  }
-};
-
-const mapStepType = (stepType?: StepType | string): string | undefined => {
-  if (typeof stepType === 'number') {
-    switch (stepType) {
-      case StepType.NAVIGATE:
-        return 'navigate';
-      case StepType.CLICK:
-        return 'click';
-      case StepType.ASSERT:
-        return 'assert';
-      case StepType.SUBFLOW:
-        return 'subflow';
-      case StepType.INPUT:
-        return 'input';
-      case StepType.CUSTOM:
-        return 'custom';
-      default:
-        return undefined;
-    }
-  }
-  return stepType;
-};
-
-const mapStepStatus = (status?: StepStatus | string): string | undefined => {
-  if (typeof status === 'number') {
-    switch (status) {
-      case StepStatus.PENDING:
-        return 'pending';
-      case StepStatus.RUNNING:
-        return 'running';
-      case StepStatus.COMPLETED:
-        return 'completed';
-      case StepStatus.FAILED:
-        return 'failed';
-      case StepStatus.CANCELLED:
-        return 'cancelled';
-      case StepStatus.SKIPPED:
-        return 'skipped';
-      case StepStatus.RETRYING:
-        return 'retrying';
-      default:
-        return undefined;
-    }
-  }
-  return status;
-};
-
-const mapArtifactType = (type?: ArtifactType | string): string | undefined => {
-  if (typeof type === 'number') {
-    switch (type) {
-      case ArtifactType.TIMELINE_FRAME:
-        return 'timeline_frame';
-      case ArtifactType.CONSOLE_LOG:
-        return 'console_log';
-      case ArtifactType.NETWORK_EVENT:
-        return 'network_event';
-      case ArtifactType.SCREENSHOT:
-        return 'screenshot';
-      case ArtifactType.DOM_SNAPSHOT:
-        return 'dom_snapshot';
-      case ArtifactType.TRACE:
-        return 'trace';
-      case ArtifactType.CUSTOM:
-        return 'custom';
-      default:
-        return undefined;
-    }
-  }
-  return type;
-};
-
-const mapProtoLogLevel = (level?: ProtoLogLevel | string): LogEntry['level'] => {
-  if (typeof level === 'number') {
-    switch (level) {
-      case ProtoLogLevel.DEBUG:
-        return 'info';
-      case ProtoLogLevel.INFO:
-        return 'info';
-      case ProtoLogLevel.WARN:
-        return 'warning';
-      case ProtoLogLevel.ERROR:
-        return 'error';
-      default:
-        return 'info';
-    }
-  }
-  switch ((level ?? '').toLowerCase()) {
-    case 'debug':
-    case 'info':
-      return 'info';
-    case 'warn':
-    case 'warning':
-      return 'warning';
-    case 'error':
-      return 'error';
-    default:
-      return 'info';
-  }
-};
-
 const parseExecuteWorkflowResponse = (raw: unknown) =>
   parseProtoStrict(ExecuteWorkflowResponseSchema, raw) as ReturnType<typeof fromJson<typeof ExecuteWorkflowResponseSchema>>;
 
 const parseExecutionProto = (raw: unknown): Execution => {
   const proto = parseProtoStrict(ExecutionSchema, raw) as ReturnType<typeof fromJson<typeof ExecutionSchema>>;
-  const startedAt = protoTimestampToDate(proto.startedAt) ?? new Date();
-  const completedAt = protoTimestampToDate(proto.completedAt);
-  const lastHeartbeat = proto.lastHeartbeat ? protoTimestampToDate(proto.lastHeartbeat) : undefined;
+  const startedAt = timestampToDate(proto.startedAt) ?? new Date();
+  const completedAt = timestampToDate(proto.completedAt);
+  const lastHeartbeat = proto.lastHeartbeat ? timestampToDate(proto.lastHeartbeat) : undefined;
 
   return {
     id: proto.executionId || '',
@@ -506,7 +349,7 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
   }
   return proto.screenshots
     .map((shot) => {
-      const ts = protoTimestampToDate(shot.timestamp) ?? coerceDate(shot.timestamp) ?? parseTimestamp(shot.timestamp as any);
+      const ts = timestampToDate(shot.timestamp) ?? coerceDate(shot.timestamp) ?? parseTimestamp(shot.timestamp as any);
       const url = shot.storageUrl || shot.thumbnailUrl || '';
       if (!url) {
         return null;
@@ -519,133 +362,6 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
       } satisfies Screenshot;
     })
     .filter((screenshot): screenshot is Screenshot => screenshot !== null);
-};
-
-const parseEventEnvelope = (value: unknown): ExecutionEventEnvelope | null => {
-  try {
-    return parseProtoStrict(ExecutionEventEnvelopeSchema, value);
-  } catch {
-    return null;
-  }
-};
-
-const envelopeToExecutionEvent = (envelope: ExecutionEventEnvelope | null | undefined): ExecutionEventMessage | null => {
-  if (!envelope) return null;
-
-  const executionId = typeof envelope.executionId === 'string' ? envelope.executionId : '';
-  const workflowId = typeof envelope.workflowId === 'string' ? envelope.workflowId : '';
-  const timestampIso = protoTimestampToDate(envelope.timestamp)?.toISOString();
-
-  const base = {
-    execution_id: executionId,
-    workflow_id: workflowId,
-    step_index: envelope.stepIndex,
-    timestamp: timestampIso,
-  };
-
-  const kind = typeof envelope.kind === 'number' ? envelope.kind : EventKind.UNSPECIFIED;
-
-  switch (envelope.payload?.case) {
-    case 'statusUpdate': {
-      const update = envelope.payload.value;
-      const mappedStatus = mapExecutionStatus(update.status);
-      const type: ExecutionEventType = (() => {
-        switch (update.status) {
-          case ProtoExecutionStatus.RUNNING:
-            return 'execution.started';
-          case ProtoExecutionStatus.COMPLETED:
-            return 'execution.completed';
-          case ProtoExecutionStatus.FAILED:
-            return 'execution.failed';
-          case ProtoExecutionStatus.CANCELLED:
-            return 'execution.cancelled';
-          default:
-            return 'execution.progress';
-        }
-      })();
-
-      return {
-        ...base,
-        type,
-        status: mappedStatus,
-        progress: update.progress,
-        message: update.error ?? undefined,
-      };
-    }
-    case 'timelineFrame': {
-      const frame = envelope.payload.value.frame;
-      if (!frame) return null;
-      const status = mapStepStatus(frame.status);
-      const type: ExecutionEventType = (() => {
-        switch (frame.status) {
-          case StepStatus.RUNNING:
-            return 'step.started';
-          case StepStatus.COMPLETED:
-            return 'step.completed';
-          case StepStatus.FAILED:
-          case StepStatus.CANCELLED:
-            return 'step.failed';
-          default:
-            return 'execution.progress';
-        }
-      })();
-
-      return {
-        ...base,
-        type,
-        step_index: frame.stepIndex,
-        step_node_id: frame.nodeId,
-        step_type: mapStepType(frame.stepType),
-        status,
-        progress: frame.progress,
-        payload: {
-          assertion: frame.assertion ?? undefined,
-          retry_attempt: frame.retryAttempt ?? undefined,
-          retry_max_attempts: frame.retryMaxAttempts ?? undefined,
-          retry_delay_ms: frame.retryDelayMs ?? undefined,
-          dom_snapshot_preview: frame.domSnapshotPreview ?? undefined,
-        },
-      };
-    }
-    case 'log': {
-      const log = envelope.payload.value;
-      return {
-        ...base,
-        type: 'step.log',
-        message: log.message,
-        payload: {
-          level: mapProtoLogLevel(log.level),
-          step_index: envelope.stepIndex ?? undefined,
-        },
-      };
-    }
-    case 'heartbeat': {
-      const heartbeat = envelope.payload.value;
-      return {
-        ...base,
-        type: 'step.heartbeat',
-        progress: heartbeat.progress,
-        payload: {
-          metrics: heartbeat.metrics,
-          received_at: heartbeat.receivedAt ? protoTimestampToDate(heartbeat.receivedAt)?.toISOString() : undefined,
-        },
-      };
-    }
-    case 'telemetry': {
-      const telemetry = envelope.payload.value;
-      return {
-        ...base,
-        type: 'step.telemetry',
-        payload: telemetry.metrics as Record<string, unknown> | null | undefined,
-      };
-    }
-    default: {
-      if (kind === EventKind.STATUS_UPDATE) {
-        return { ...base, type: 'execution.progress' };
-      }
-      return null;
-    }
-  }
 };
 
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
@@ -1031,20 +747,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       });
     };
 
-    const handleEnvelopeMessage = (envelope: ExecutionEventEnvelope, rawMessage?: unknown) => {
-      const event = envelopeToExecutionEvent(envelope);
-      if (!event) return;
-      if (!event.payload && rawMessage && typeof rawMessage === 'object') {
-        const legacyPayload = (rawMessage as Record<string, unknown>).legacy_payload;
-        if (legacyPayload !== undefined) {
-          event.payload = legacyPayload as Record<string, unknown>;
-        }
-      }
-      const fallbackTimestamp = protoTimestampToDate(envelope.timestamp)?.toISOString();
-      handleEvent(event, fallbackTimestamp, event.progress);
-    };
-
-    const handleLegacyUpdate = (raw: ExecutionUpdateMessage) => {
+    const handleLegacyUpdate = (raw: WsExecutionUpdateMessage) => {
       if (!legacyWsWarningSent) {
         logger.warn('Received legacy execution stream payload; please update server to proto envelopes', {
           component: 'ExecutionStore',
@@ -1093,29 +796,13 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
     };
 
-    const messageListener: EventListener = (event) => {
-      try {
-        const data = JSON.parse((event as MessageEvent).data) as unknown;
+    const eventsClient = new ExecutionEventsClient({
+      onEvent: (event, ctx) => handleEvent(event, ctx.fallbackTimestamp, ctx.fallbackProgress),
+      onLegacy: handleLegacyUpdate,
+      logger,
+    });
 
-        const envelope = parseEventEnvelope(data);
-        if (envelope) {
-          handleEnvelopeMessage(envelope, data);
-          return;
-        }
-
-        if (data && typeof data === 'object') {
-          const nestedEnvelope = parseEventEnvelope((data as Record<string, unknown>).data);
-          if (nestedEnvelope) {
-            handleEnvelopeMessage(nestedEnvelope, data);
-            return;
-          }
-        }
-
-        handleLegacyUpdate(data as unknown as ExecutionUpdateMessage);
-      } catch (err) {
-        logger.error('Failed to parse execution update', { component: 'ExecutionStore', action: 'handleWebSocketMessage', executionId }, err);
-      }
-    };
+    const messageListener = eventsClient.createMessageListener();
 
     const openListener: EventListener = () => {
       reconnectScheduled = false;

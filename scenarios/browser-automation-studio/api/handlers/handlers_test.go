@@ -23,6 +23,12 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+type compositeWorkflowService interface {
+	workflow.CatalogService
+	workflow.ExecutionService
+	workflow.ExportService
+}
+
 // mockRepository implements database.Repository for testing
 type mockRepository struct{}
 
@@ -179,8 +185,10 @@ type workflowServiceMock struct {
 	automationErr             error
 }
 
-// Ensure workflowServiceMock stays in sync with the WorkflowService interface
-var _ WorkflowService = (*workflowServiceMock)(nil)
+// Ensure workflowServiceMock stays in sync with the workflow service interfaces
+var (
+	_ compositeWorkflowService = (*workflowServiceMock)(nil)
+)
 
 func (m *workflowServiceMock) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
 	return nil, errors.New("not implemented")
@@ -347,8 +355,8 @@ func TestNewHandler(t *testing.T) {
 		t.Error("Expected WebSocket hub to be set")
 	}
 
-	if handler.workflowService == nil {
-		t.Error("Expected workflow service to be initialized")
+	if handler.workflowCatalog == nil || handler.executionService == nil || handler.exportService == nil {
+		t.Error("Expected workflow services to be initialized")
 	}
 }
 
@@ -440,24 +448,27 @@ func withWorkflowRouteContext(r *http.Request, param, value string) *http.Reques
 func TestListWorkflowVersionsHandlerSuccess(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
-	handler := &Handler{
-		workflowService: &workflowServiceMock{
-			listWorkflowVersionsFn: func(_ context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
-				if limit != 50 || offset != 0 {
-					t.Fatalf("unexpected pagination: limit=%d offset=%d", limit, offset)
-				}
-				return []*workflow.WorkflowVersionSummary{
-					{
-						Version:           3,
-						WorkflowID:        workflowID,
-						CreatedAt:         time.Unix(1731540000, 0),
-						CreatedBy:         "autosave",
-						ChangeDescription: "Autosave",
-					},
-				}, nil
-			},
+	svc := &workflowServiceMock{
+		listWorkflowVersionsFn: func(_ context.Context, workflowID uuid.UUID, limit, offset int) ([]*workflow.WorkflowVersionSummary, error) {
+			if limit != 50 || offset != 0 {
+				t.Fatalf("unexpected pagination: limit=%d offset=%d", limit, offset)
+			}
+			return []*workflow.WorkflowVersionSummary{
+				{
+					Version:           3,
+					WorkflowID:        workflowID,
+					CreatedAt:         time.Unix(1731540000, 0),
+					CreatedBy:         "autosave",
+					ChangeDescription: "Autosave",
+				},
+			}, nil
 		},
-		log: logger,
+	}
+	handler := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logger,
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/workflows/id/versions", nil)
@@ -488,13 +499,16 @@ func TestListWorkflowVersionsHandlerSuccess(t *testing.T) {
 func TestListWorkflowVersionsHandlerNotFound(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
-	handler := &Handler{
-		workflowService: &workflowServiceMock{
-			listWorkflowVersionsFn: func(context.Context, uuid.UUID, int, int) ([]*workflow.WorkflowVersionSummary, error) {
-				return nil, database.ErrNotFound
-			},
+	svc := &workflowServiceMock{
+		listWorkflowVersionsFn: func(context.Context, uuid.UUID, int, int) ([]*workflow.WorkflowVersionSummary, error) {
+			return nil, database.ErrNotFound
 		},
-		log: logger,
+	}
+	handler := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logger,
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/workflows/id/versions", nil)
@@ -513,17 +527,20 @@ func TestGetWorkflowVersionHandlerSuccess(t *testing.T) {
 	workflowID := uuid.New()
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
-	handler := &Handler{
-		workflowService: &workflowServiceMock{
-			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*workflow.WorkflowVersionSummary, error) {
-				return &workflow.WorkflowVersionSummary{
-					Version:    2,
-					WorkflowID: workflowID,
-					CreatedAt:  created,
-				}, nil
-			},
+	svc := &workflowServiceMock{
+		getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*workflow.WorkflowVersionSummary, error) {
+			return &workflow.WorkflowVersionSummary{
+				Version:    2,
+				WorkflowID: workflowID,
+				CreatedAt:  created,
+			}, nil
 		},
-		log: logger,
+	}
+	handler := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logger,
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/workflows/id/versions/2", nil)
@@ -552,16 +569,19 @@ func TestGetWorkflowVersionHandlerSuccess(t *testing.T) {
 func TestRestoreWorkflowVersionConflict(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
-	handler := &Handler{
-		workflowService: &workflowServiceMock{
-			getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*workflow.WorkflowVersionSummary, error) {
-				return &workflow.WorkflowVersionSummary{Version: 3}, nil
-			},
-			restoreWorkflowVersionFn: func(context.Context, uuid.UUID, int, string) (*database.Workflow, error) {
-				return nil, workflow.ErrWorkflowVersionConflict
-			},
+	svc := &workflowServiceMock{
+		getWorkflowVersionFn: func(context.Context, uuid.UUID, int) (*workflow.WorkflowVersionSummary, error) {
+			return &workflow.WorkflowVersionSummary{Version: 3}, nil
 		},
-		log: logger,
+		restoreWorkflowVersionFn: func(context.Context, uuid.UUID, int, string) (*database.Workflow, error) {
+			return nil, workflow.ErrWorkflowVersionConflict
+		},
+	}
+	handler := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logger,
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/id/versions/3/restore", nil)
@@ -582,26 +602,29 @@ func TestExecuteAdhocWorkflowSuccess(t *testing.T) {
 		logger.SetOutput(io.Discard)
 
 		executionID := uuid.New()
-		handler := &Handler{
-			workflowService: &workflowServiceMock{
-				executeAdhocWorkflowFn: func(ctx context.Context, flowDef map[string]any, params map[string]any, name string) (*database.Execution, error) {
-					// Verify workflow name passed correctly
-					if name != "test-workflow" {
-						t.Errorf("expected workflow name 'test-workflow', got '%s'", name)
-					}
-					// Verify flow definition structure
-					if flowDef == nil {
-						t.Error("expected flow definition to be non-nil")
-					}
-					return &database.Execution{
-						ID:              executionID,
-						Status:          "pending",
-						TriggerType:     "adhoc",
-						WorkflowVersion: 0,
-					}, nil
-				},
+		svc := &workflowServiceMock{
+			executeAdhocWorkflowFn: func(ctx context.Context, flowDef map[string]any, params map[string]any, name string) (*database.Execution, error) {
+				// Verify workflow name passed correctly
+				if name != "test-workflow" {
+					t.Errorf("expected workflow name 'test-workflow', got '%s'", name)
+				}
+				// Verify flow definition structure
+				if flowDef == nil {
+					t.Error("expected flow definition to be non-nil")
+				}
+				return &database.Execution{
+					ID:              executionID,
+					Status:          "pending",
+					TriggerType:     "adhoc",
+					WorkflowVersion: 0,
+				}, nil
 			},
-			log: logger,
+		}
+		handler := &Handler{
+			workflowCatalog:  svc,
+			executionService: svc,
+			exportService:    svc,
+			log:              logger,
 		}
 
 		reqBody := `{
@@ -645,9 +668,12 @@ func TestExecuteAdhocWorkflowMissingFlowDefinition(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
 
+	svc := &workflowServiceMock{}
 	handler := &Handler{
-		workflowService: &workflowServiceMock{},
-		log:             logger,
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logger,
 	}
 
 	reqBody := `{"parameters": {}}`
@@ -666,9 +692,12 @@ func TestExecuteAdhocWorkflowInvalidJSON(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
 
+	svc := &workflowServiceMock{}
 	handler := &Handler{
-		workflowService: &workflowServiceMock{},
-		log:             logger,
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logger,
 	}
 
 	reqBody := `{invalid json`
@@ -687,13 +716,16 @@ func TestExecuteAdhocWorkflowServiceError(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
 
+	svc := &workflowServiceMock{}
 	handler := &Handler{
-		workflowService: &workflowServiceMock{
+		workflowCatalog: svc,
+		executionService: &workflowServiceMock{
 			executeAdhocWorkflowFn: func(ctx context.Context, flowDef map[string]any, params map[string]any, name string) (*database.Execution, error) {
 				return nil, errors.New("workflow compilation failed")
 			},
 		},
-		log: logger,
+		exportService: svc,
+		log:           logger,
 	}
 
 	reqBody := `{

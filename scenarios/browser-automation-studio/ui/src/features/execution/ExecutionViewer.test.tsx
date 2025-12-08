@@ -38,6 +38,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, act, type RenderResult } from '@testing-library/react';
 import type { Execution } from '@stores/executionStore';
+import { createMockExecutionStoreState, resetMockExecutionStoreState } from './testUtils/mockExecutionStore';
 
 // Mock modules
 vi.mock('@/config', () => ({
@@ -87,18 +88,7 @@ const createMockExecution = (overrides: Partial<Execution> = {}): Execution => (
 });
 
 // Mock executionStore at module level
-const mockExecutionStoreState = {
-  currentExecution: null,
-  viewerWorkflowId: null,
-  executions: [],
-  closeViewer: vi.fn(),
-  openViewer: vi.fn(),
-  startExecution: vi.fn(),
-  stopExecution: vi.fn(),
-  refreshTimeline: vi.fn(),
-  loadExecution: vi.fn(),
-  loadExecutions: vi.fn(),
-};
+const mockExecutionStoreState = createMockExecutionStoreState();
 
 vi.mock('@stores/executionStore', () => ({
   useExecutionStore: vi.fn((selector) => {
@@ -112,10 +102,7 @@ import ExecutionViewer, { parseExportPreviewPayload } from './ExecutionViewer';
 describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREENSHOT-VIEW]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset state
-    mockExecutionStoreState.currentExecution = null;
-    mockExecutionStoreState.viewerWorkflowId = null;
-    mockExecutionStoreState.executions = [];
+    resetMockExecutionStoreState(mockExecutionStoreState);
   });
 
   describe('Basic Rendering', () => {

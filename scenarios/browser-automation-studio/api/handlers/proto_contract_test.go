@@ -29,7 +29,7 @@ type protoContractWorkflowService struct {
 	previewFn   func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error)
 }
 
-var _ WorkflowService = (*protoContractWorkflowService)(nil)
+var _ compositeWorkflowService = (*protoContractWorkflowService)(nil)
 
 func (s *protoContractWorkflowService) GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error) {
 	return s.execution, nil
@@ -95,6 +95,15 @@ func (s *protoContractWorkflowService) ExportToFolder(ctx context.Context, execu
 func (s *protoContractWorkflowService) StopExecution(ctx context.Context, executionID uuid.UUID) error {
 	return errors.New("not implemented")
 }
+func (s *protoContractWorkflowService) CheckAutomationHealth(ctx context.Context) (bool, error) {
+	return true, nil
+}
+func (s *protoContractWorkflowService) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
+	return nil, errors.New("not implemented")
+}
+func (s *protoContractWorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
+	return errors.New("not implemented")
+}
 func (s *protoContractWorkflowService) GetProjectByName(ctx context.Context, name string) (*database.Project, error) {
 	return nil, errors.New("not implemented")
 }
@@ -122,21 +131,14 @@ func (s *protoContractWorkflowService) UpdateProject(ctx context.Context, projec
 func (s *protoContractWorkflowService) DeleteProject(ctx context.Context, projectID uuid.UUID) error {
 	return errors.New("not implemented")
 }
-func (s *protoContractWorkflowService) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
-	return nil, errors.New("not implemented")
-}
-func (s *protoContractWorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
-	return errors.New("not implemented")
-}
-func (s *protoContractWorkflowService) CheckAutomationHealth(ctx context.Context) (bool, error) {
-	return false, errors.New("not implemented")
-}
 
 func newHandlerForProtoContract(t *testing.T, svc *protoContractWorkflowService) *Handler {
 	t.Helper()
 	return &Handler{
-		workflowService: svc,
-		log:             logrus.New(),
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
 	}
 }
 
@@ -389,9 +391,10 @@ func TestDescribeExecutionExportProtoJSON(t *testing.T) {
 		},
 	}
 
-	handler.workflowService = &protoContractWorkflowService{
+	baseSvc := handler.executionService.(*protoContractWorkflowService)
+	override := &protoContractWorkflowService{
 		execution: &database.Execution{ID: execID},
-		timeline:  handler.workflowService.(*protoContractWorkflowService).timeline,
+		timeline:  baseSvc.timeline,
 		previewFn: func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 			return &workflow.ExecutionExportPreview{
 				ExecutionID:         execID,
@@ -405,6 +408,9 @@ func TestDescribeExecutionExportProtoJSON(t *testing.T) {
 			}, nil
 		},
 	}
+	handler.workflowCatalog = override
+	handler.executionService = override
+	handler.exportService = override
 
 	handler.PostExecutionExport(rr, req)
 

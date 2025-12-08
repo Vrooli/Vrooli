@@ -3,10 +3,10 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
-	"encoding/json"
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/constants"
@@ -147,7 +147,7 @@ func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *dat
 			return nil, ctx.Err()
 		case <-ticker.C:
 			pollCtx, cancel := context.WithTimeout(ctx, constants.DefaultRequestTimeout)
-			latest, err := h.workflowService.GetExecution(pollCtx, executionID)
+			latest, err := h.executionService.GetExecution(pollCtx, executionID)
 			cancel()
 			if err != nil {
 				return nil, err

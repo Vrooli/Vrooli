@@ -243,8 +243,8 @@ func TestValidateWorkflow_StatsInResponse(t *testing.T) {
 					"type":     "wait",
 					"position": map[string]any{"x": 100, "y": 0},
 					"data": map[string]any{
-						"waitType":   "element",
-						"selector":   "#result",
+						"waitType": "element",
+						"selector": "#result",
 					},
 				},
 			},

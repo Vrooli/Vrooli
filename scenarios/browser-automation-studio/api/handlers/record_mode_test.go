@@ -672,7 +672,7 @@ func TestSelectorsMatch_SamePrimary(t *testing.T) {
 // =============================================================================
 
 // recordModeTestHandler creates a Handler configured for record mode testing
-func recordModeTestHandler(t *testing.T, workflowSvc WorkflowService) *Handler {
+func recordModeTestHandler(t *testing.T, workflowSvc compositeWorkflowService) *Handler {
 	t.Helper()
 
 	log := logrus.New()
@@ -681,9 +681,11 @@ func recordModeTestHandler(t *testing.T, workflowSvc WorkflowService) *Handler {
 	hub := wsHub.NewHub(log)
 
 	h := &Handler{
-		log:             log,
-		wsHub:           hub,
-		workflowService: workflowSvc,
+		log:              log,
+		wsHub:            hub,
+		workflowCatalog:  workflowSvc,
+		executionService: workflowSvc,
+		exportService:    workflowSvc,
 	}
 
 	return h
@@ -849,7 +851,7 @@ func (m *recordModeWorkflowServiceMock) CheckAutomationHealth(ctx context.Contex
 }
 
 // Compile-time check that mock implements interface
-var _ WorkflowService = (*recordModeWorkflowServiceMock)(nil)
+var _ compositeWorkflowService = (*recordModeWorkflowServiceMock)(nil)
 
 func TestE2E_GenerateWorkflowWithInlineActions(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] generates workflow from inline actions without driver", func(t *testing.T) {

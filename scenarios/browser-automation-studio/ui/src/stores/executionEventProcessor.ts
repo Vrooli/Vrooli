@@ -1,30 +1,6 @@
-export type ExecutionEventType =
-  | 'execution.started'
-  | 'execution.progress'
-  | 'execution.completed'
-  | 'execution.failed'
-  | 'execution.cancelled'
-  | 'step.started'
-  | 'step.completed'
-  | 'step.failed'
-  | 'step.screenshot'
-  | 'step.heartbeat'
-  | 'step.log'
-  | 'step.telemetry';
-
-export interface ExecutionEventMessage {
-  type: ExecutionEventType;
-  execution_id: string;
-  workflow_id: string;
-  step_index?: number;
-  step_node_id?: string;
-  step_type?: string;
-  status?: string;
-  progress?: number;
-  message?: string;
-  payload?: Record<string, unknown> | null;
-  timestamp?: string;
-}
+import type {
+  ExecutionEventMessage,
+} from '../features/execution/ws/executionEvents';
 
 export interface Screenshot {
   id: string;

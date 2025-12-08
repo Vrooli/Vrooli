@@ -187,7 +187,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wf, err := h.workflowService.CreateWorkflowWithProject(ctx, req.ProjectID, req.Name, req.FolderPath, req.FlowDefinition, req.AIPrompt)
+	wf, err := h.workflowCatalog.CreateWorkflowWithProject(ctx, req.ProjectID, req.Name, req.FolderPath, req.FlowDefinition, req.AIPrompt)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to create workflow")
 		var aiErr *workflow.AIWorkflowError
@@ -227,7 +227,7 @@ func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	workflows, err := h.workflowService.ListWorkflows(ctx, folderPath, limit, offset)
+	workflows, err := h.workflowCatalog.ListWorkflows(ctx, folderPath, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list workflows")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
@@ -260,7 +260,7 @@ func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	wf, err := h.workflowService.GetWorkflow(ctx, id)
+	wf, err := h.workflowCatalog.GetWorkflow(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get workflow")
 		h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": id.String()}))
@@ -321,7 +321,7 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wf, err := h.workflowService.UpdateWorkflow(ctx, id, updateInput)
+	wf, err := h.workflowCatalog.UpdateWorkflow(ctx, id, updateInput)
 	if err != nil {
 		h.log.WithError(err).WithField("workflow_id", id).Error("Failed to update workflow")
 		if errors.Is(err, workflow.ErrWorkflowVersionConflict) {
@@ -370,7 +370,7 @@ func (h *Handler) ListWorkflowVersions(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	versions, err := h.workflowService.ListWorkflowVersions(ctx, id, limit, offset)
+	versions, err := h.workflowCatalog.ListWorkflowVersions(ctx, id, limit, offset)
 	if err != nil {
 		h.log.WithError(err).WithField("workflow_id", id).Error("Failed to list workflow versions")
 		if errors.Is(err, database.ErrNotFound) {
@@ -414,7 +414,7 @@ func (h *Handler) GetWorkflowVersion(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	versionSummary, err := h.workflowService.GetWorkflowVersion(ctx, id, versionNumber)
+	versionSummary, err := h.workflowCatalog.GetWorkflowVersion(ctx, id, versionNumber)
 	if err != nil {
 		h.log.WithError(err).WithFields(map[string]any{"workflow_id": id, "version": versionNumber}).Error("Failed to get workflow version")
 		switch {
@@ -461,14 +461,14 @@ func (h *Handler) RestoreWorkflowVersion(w http.ResponseWriter, r *http.Request)
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	versionSummary, err := h.workflowService.GetWorkflowVersion(ctx, id, versionNumber)
+	versionSummary, err := h.workflowCatalog.GetWorkflowVersion(ctx, id, versionNumber)
 	if err != nil {
 		h.log.WithError(err).WithFields(map[string]any{"workflow_id": id, "version": versionNumber}).Error("Failed to resolve workflow version for restore")
 		h.respondError(w, ErrWorkflowVersionNotFound.WithDetails(map[string]string{"workflow_id": id.String(), "version": versionStr}))
 		return
 	}
 
-	updatedWorkflow, err := h.workflowService.RestoreWorkflowVersion(ctx, id, versionNumber, req.ChangeDescription)
+	updatedWorkflow, err := h.workflowCatalog.RestoreWorkflowVersion(ctx, id, versionNumber, req.ChangeDescription)
 	if err != nil {
 		h.log.WithError(err).WithFields(map[string]any{"workflow_id": id, "version": versionNumber}).Error("Failed to restore workflow version")
 		switch {
@@ -529,7 +529,7 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
 	defer cancel()
 
-	execution, err := h.workflowService.ExecuteWorkflow(ctx, workflowID, req.Parameters)
+	execution, err := h.executionService.ExecuteWorkflow(ctx, workflowID, req.Parameters)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to execute workflow")
 		h.respondError(w, ErrWorkflowExecutionFailed.WithDetails(map[string]string{
@@ -595,7 +595,7 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wf, err := h.workflowService.ModifyWorkflow(ctx, workflowID, req.ModificationPrompt, req.CurrentFlow)
+	wf, err := h.workflowCatalog.ModifyWorkflow(ctx, workflowID, req.ModificationPrompt, req.CurrentFlow)
 	if err != nil {
 		h.log.WithError(err).WithField("workflow_id", workflowID).Error("Failed to modify workflow via AI")
 		h.respondError(w, ErrAIServiceError.WithDetails(map[string]string{"error": err.Error()}))
@@ -679,7 +679,7 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
 	defer cancel()
 
-	execution, err := h.workflowService.ExecuteAdhocWorkflow(
+	execution, err := h.executionService.ExecuteAdhocWorkflow(
 		ctx,
 		req.FlowDefinition,
 		req.Parameters,

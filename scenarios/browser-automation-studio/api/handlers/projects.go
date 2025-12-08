@@ -64,7 +64,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Check if project with this name or folder path already exists
-	existingProject, err := h.workflowService.GetProjectByName(ctx, req.Name)
+	existingProject, err := h.workflowCatalog.GetProjectByName(ctx, req.Name)
 	if err != nil && !errors.Is(err, database.ErrNotFound) {
 		// Only treat as error if it's not a "not found" result
 		h.log.WithError(err).WithField("name", req.Name).Error("Database error checking project name uniqueness")
@@ -76,7 +76,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existingByPath, err := h.workflowService.GetProjectByFolderPath(ctx, absPath)
+	existingByPath, err := h.workflowCatalog.GetProjectByFolderPath(ctx, absPath)
 	if err != nil && !errors.Is(err, database.ErrNotFound) {
 		// Only treat as error if it's not a "not found" result
 		h.log.WithError(err).WithField("folder_path", absPath).Error("Database error checking project folder uniqueness")
@@ -94,7 +94,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		FolderPath:  absPath,
 	}
 
-	if err := h.workflowService.CreateProject(ctx, project); err != nil {
+	if err := h.workflowCatalog.CreateProject(ctx, project); err != nil {
 		h.log.WithError(err).Error("Failed to create project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_project"}))
 		return
@@ -110,7 +110,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
 
-	projects, err := h.workflowService.ListProjects(ctx, limit, offset)
+	projects, err := h.workflowCatalog.ListProjects(ctx, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list projects")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_projects"}))
@@ -122,7 +122,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 		projectIDs = append(projectIDs, project.ID)
 	}
 
-	statsByProject, err := h.workflowService.GetProjectsStats(ctx, projectIDs)
+	statsByProject, err := h.workflowCatalog.GetProjectsStats(ctx, projectIDs)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get project stats in bulk")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_stats"}))
@@ -151,7 +151,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	project, err := h.workflowService.GetProject(ctx, id)
+	project, err := h.workflowCatalog.GetProject(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get project")
 		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
@@ -159,7 +159,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get project stats
-	stats, err := h.workflowService.GetProjectStats(ctx, id)
+	stats, err := h.workflowCatalog.GetProjectStats(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", id).Warn("Failed to get project stats")
 		stats = make(map[string]any)
@@ -187,7 +187,7 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Get existing project
-	project, err := h.workflowService.GetProject(ctx, id)
+	project, err := h.workflowCatalog.GetProject(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to get project for update")
 		h.respondError(w, ErrProjectNotFound.WithDetails(map[string]string{"project_id": id.String()}))
@@ -211,7 +211,7 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		project.FolderPath = absPath
 	}
 
-	if err := h.workflowService.UpdateProject(ctx, project); err != nil {
+	if err := h.workflowCatalog.UpdateProject(ctx, project); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to update project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_project"}))
 		return
@@ -230,7 +230,7 @@ func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	if err := h.workflowService.DeleteProject(ctx, id); err != nil {
+	if err := h.workflowCatalog.DeleteProject(ctx, id); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to delete project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project"}))
 		return
@@ -251,7 +251,7 @@ func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	workflows, err := h.workflowService.ListWorkflowsByProject(ctx, projectID, 100, 0)
+	workflows, err := h.workflowCatalog.ListWorkflowsByProject(ctx, projectID, 100, 0)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to list project workflows")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
@@ -295,7 +295,7 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	if err := h.workflowService.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
+	if err := h.workflowCatalog.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
 		h.log.WithError(err).WithFields(logrus.Fields{
 			"project_id": projectID,
 			"count":      len(workflowIDs),
@@ -322,7 +322,7 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	defer cancel()
 
 	// Get all workflows for this project
-	workflows, err := h.workflowService.ListWorkflowsByProject(ctx, projectID, 1000, 0)
+	workflows, err := h.workflowCatalog.ListWorkflowsByProject(ctx, projectID, 1000, 0)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to get project workflows")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
@@ -340,7 +340,7 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	// Start execution for each workflow
 	executions := make([]map[string]any, 0, len(workflows))
 	for _, workflow := range workflows {
-		execution, err := h.workflowService.ExecuteWorkflow(ctx, workflow.ID, map[string]any{})
+		execution, err := h.executionService.ExecuteWorkflow(ctx, workflow.ID, map[string]any{})
 		if err != nil {
 			h.log.WithError(err).WithField("workflow_id", workflow.ID).Warn("Failed to execute workflow in bulk operation")
 			executions = append(executions, map[string]any{

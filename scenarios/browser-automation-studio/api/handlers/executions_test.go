@@ -118,21 +118,24 @@ func TestPostExecutionExport_AllowsClientMovieSpec(t *testing.T) {
 		}},
 	}
 
-	h := &Handler{
-		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
-				if id != execID {
-					t.Fatalf("unexpected execution id %s", id)
-				}
-				return &workflow.ExecutionExportPreview{
-					ExecutionID: execID,
-					Status:      "ready",
-					Message:     "ok",
-					Package:     baseSpec,
-				}, nil
-			},
+	svc := &workflowServiceMock{
+		describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+			if id != execID {
+				t.Fatalf("unexpected execution id %s", id)
+			}
+			return &workflow.ExecutionExportPreview{
+				ExecutionID: execID,
+				Status:      "ready",
+				Message:     "ok",
+				Package:     baseSpec,
+			}, nil
 		},
-		log: logrus.New(),
+	}
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
 	}
 
 	body := executionExportRequest{Format: "json", MovieSpec: incoming}
@@ -182,13 +185,16 @@ func TestPostExecutionExport_RejectsMismatchedSpec(t *testing.T) {
 		Frames:    []export.ExportFrame{{Index: 0, DurationMs: 1000}},
 	}
 
-	h := &Handler{
-		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
-				return &workflow.ExecutionExportPreview{ExecutionID: execID, Status: "ready", Package: baseSpec}, nil
-			},
+	svc := &workflowServiceMock{
+		describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+			return &workflow.ExecutionExportPreview{ExecutionID: execID, Status: "ready", Package: baseSpec}, nil
 		},
-		log: logrus.New(),
+	}
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
 	}
 
 	incoming := &export.ReplayMovieSpec{
@@ -213,17 +219,20 @@ func TestPostExecutionExport_RejectsMismatchedSpec(t *testing.T) {
 
 func TestPostExecutionExport_ReturnsPreviewWhenNotReady(t *testing.T) {
 	execID := uuid.New()
-	h := &Handler{
-		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
-				return &workflow.ExecutionExportPreview{
-					ExecutionID: execID,
-					Status:      "pending",
-					Message:     "Replay export pending – timeline frames not captured yet",
-				}, nil
-			},
+	svc := &workflowServiceMock{
+		describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+			return &workflow.ExecutionExportPreview{
+				ExecutionID: execID,
+				Status:      "pending",
+				Message:     "Replay export pending – timeline frames not captured yet",
+			}, nil
 		},
-		log: logrus.New(),
+	}
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
 	}
 
 	body := executionExportRequest{Format: "json"}
@@ -255,17 +264,20 @@ func TestPostExecutionExport_ReturnsPreviewWhenNotReady(t *testing.T) {
 
 func TestPostExecutionExport_RejectsMediaRequestWhenUnavailable(t *testing.T) {
 	execID := uuid.New()
-	h := &Handler{
-		workflowService: &workflowServiceMock{
-			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
-				return &workflow.ExecutionExportPreview{
-					ExecutionID: execID,
-					Status:      "unavailable",
-					Message:     "Replay export unavailable – execution failed before capturing any steps",
-				}, nil
-			},
+	svc := &workflowServiceMock{
+		describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+			return &workflow.ExecutionExportPreview{
+				ExecutionID: execID,
+				Status:      "unavailable",
+				Message:     "Replay export unavailable – execution failed before capturing any steps",
+			}, nil
 		},
-		log: logrus.New(),
+	}
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
 	}
 
 	body := executionExportRequest{Format: "mp4"}
@@ -391,7 +403,17 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 	defer stub.cleanup()
 
 	h := &Handler{
-		workflowService: &workflowServiceMock{
+		workflowCatalog: &workflowServiceMock{
+			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+				return &workflow.ExecutionExportPreview{
+					ExecutionID: execID,
+					Status:      "ready",
+					Package:     baseSpec,
+				}, nil
+			},
+		},
+		executionService: &workflowServiceMock{},
+		exportService: &workflowServiceMock{
 			describeExecutionExportFn: func(ctx context.Context, id uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 				return &workflow.ExecutionExportPreview{
 					ExecutionID: execID,
