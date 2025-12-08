@@ -10,6 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	"google.golang.org/protobuf/proto"
 )
 
 // CreateProjectRequest represents the request to create a project
@@ -29,12 +31,6 @@ type UpdateProjectRequest struct {
 // BulkDeleteProjectWorkflowsRequest represents the request payload for deleting multiple workflows
 type BulkDeleteProjectWorkflowsRequest struct {
 	WorkflowIDs []string `json:"workflow_ids"`
-}
-
-// ProjectWithStats represents a project with statistics
-type ProjectWithStats struct {
-	*database.Project
-	Stats map[string]any `json:"stats"`
 }
 
 // CreateProject handles POST /api/v1/projects
@@ -104,11 +100,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusCreated, map[string]any{
-		"project_id": project.ID,
-		"status":     "created",
-		"project":    project,
-	})
+	h.respondProto(w, http.StatusCreated, protoconv.ProjectToProto(project))
 }
 
 // ListProjects handles GET /api/v1/projects
@@ -137,22 +129,16 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectsWithStats := make([]*ProjectWithStats, len(projects))
-	for i, project := range projects {
-		stats, ok := statsByProject[project.ID]
-		if !ok {
-			stats = make(map[string]any)
-		}
-
-		projectsWithStats[i] = &ProjectWithStats{
-			Project: project,
-			Stats:   stats,
+	items := make([]proto.Message, 0, len(projects))
+	for _, project := range projects {
+		stats := protoconv.ProjectStatsFromMap(statsByProject[project.ID], project.ID)
+		pb := protoconv.ProjectWithStatsToProto(project, stats)
+		if pb != nil {
+			items = append(items, pb)
 		}
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"projects": projectsWithStats,
-	})
+	h.respondProtoList(w, http.StatusOK, "projects", items)
 }
 
 // GetProject handles GET /api/v1/projects/{id}
@@ -179,12 +165,8 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 		stats = make(map[string]any)
 	}
 
-	projectWithStats := &ProjectWithStats{
-		Project: project,
-		Stats:   stats,
-	}
-
-	h.respondSuccess(w, http.StatusOK, projectWithStats)
+	pb := protoconv.ProjectWithStatsToProto(project, protoconv.ProjectStatsFromMap(stats, id))
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 // UpdateProject handles PUT /api/v1/projects/{id}
@@ -235,10 +217,7 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"status":  "updated",
-		"project": project,
-	})
+	h.respondProto(w, http.StatusOK, protoconv.ProjectToProto(project))
 }
 
 // DeleteProject handles DELETE /api/v1/projects/{id}

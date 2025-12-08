@@ -512,8 +512,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
 
   const buildJsonFromState = useCallback(() => {
     try {
-      const baseDefinition = (currentWorkflow?.flow_definition ??
-        currentWorkflow?.flowDefinition) as WorkflowDefinition | undefined;
+      const baseDefinition = currentWorkflow?.flowDefinition as WorkflowDefinition | undefined;
       const definition: WorkflowDefinition = {
         nodes: nodes ?? [],
         edges: edges ?? [],

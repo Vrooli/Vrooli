@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 )
 
 // RecordedAction represents a single user action captured during recording.
@@ -325,6 +326,10 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
+	if pb, err := protoconv.RecordingSessionToProto(response); err == nil && pb != nil {
+		h.respondProto(w, http.StatusOK, pb)
+		return
+	}
 	h.respondSuccess(w, http.StatusOK, response)
 }
 
@@ -483,6 +488,10 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if pb, err := protoconv.StartRecordingToProto(driverResp); err == nil && pb != nil {
+		h.respondProto(w, http.StatusOK, pb)
+		return
+	}
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
@@ -545,6 +554,10 @@ func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if pb, err := protoconv.StopRecordingToProto(driverResp); err == nil && pb != nil {
+		h.respondProto(w, http.StatusOK, pb)
+		return
+	}
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
@@ -602,6 +615,10 @@ func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if pb, err := protoconv.RecordingStatusToProto(driverResp); err == nil && pb != nil {
+		h.respondProto(w, http.StatusOK, pb)
+		return
+	}
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
@@ -665,6 +682,10 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if pb, err := protoconv.GetActionsToProto(driverResp); err == nil && pb != nil {
+		h.respondProto(w, http.StatusOK, pb)
+		return
+	}
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
@@ -789,13 +810,18 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		projectID = *workflow.ProjectID
 	}
 
-	h.respondSuccess(w, http.StatusCreated, GenerateWorkflowResponse{
+	respPayload := GenerateWorkflowResponse{
 		WorkflowID:  workflow.ID,
 		ProjectID:   projectID,
 		Name:        workflow.Name,
 		NodeCount:   len(flowDefinition["nodes"].([]map[string]interface{})),
 		ActionCount: len(actions),
-	})
+	}
+	if pb, err := protoconv.GenerateWorkflowToProto(respPayload); err == nil && pb != nil {
+		h.respondProto(w, http.StatusCreated, pb)
+		return
+	}
+	h.respondSuccess(w, http.StatusCreated, respPayload)
 }
 
 // mergeConsecutiveActions optimizes recorded actions by merging:
@@ -1349,6 +1375,10 @@ func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if pb, err := protoconv.SelectorValidationToProto(driverResp); err == nil && pb != nil {
+		h.respondProto(w, http.StatusOK, pb)
+		return
+	}
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
@@ -1454,5 +1484,9 @@ func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request)
 		"total_duration": replayResp.TotalDurationMs,
 	}).Info("Replay preview complete")
 
+	if pb, err := protoconv.ReplayPreviewToProto(replayResp); err == nil && pb != nil {
+		h.respondProto(w, http.StatusOK, pb)
+		return
+	}
 	h.respondSuccess(w, http.StatusOK, replayResp)
 }

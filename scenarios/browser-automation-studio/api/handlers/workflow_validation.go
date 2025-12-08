@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 )
 
@@ -43,7 +44,8 @@ func (h *Handler) ValidateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, result)
+	pb := protoconv.WorkflowValidationResultToProto(result)
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 // ValidateResolvedWorkflow validates workflow definitions that have already been resolved.
@@ -83,5 +85,6 @@ func (h *Handler) ValidateResolvedWorkflow(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, result)
+	pb := protoconv.WorkflowValidationResultToProto(result)
+	h.respondProto(w, http.StatusOK, pb)
 }

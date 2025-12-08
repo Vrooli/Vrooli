@@ -3,6 +3,7 @@ import { Search, X, ChevronLeft, Clock, Filter, RefreshCw, CheckCircle, XCircle,
 import { getConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import toast from 'react-hot-toast';
+import { parseProjectList } from '../../utils/projectProto';
 
 type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -108,12 +109,9 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
       // Fetch projects for names
       const projectsResponse = await fetch(`${config.API_URL}/projects`);
       const projectsData = await projectsResponse.json();
+      const projects = parseProjectList(projectsData);
       const projectsMap = new Map<string, string>();
-      if (Array.isArray(projectsData.projects)) {
-        projectsData.projects.forEach((p: { id: string; name: string }) => {
-          projectsMap.set(p.id, p.name);
-        });
-      }
+      projects.forEach((p) => projectsMap.set(p.id, p.name));
 
       // Fetch workflows for names
       const workflowsResponse = await fetch(`${config.API_URL}/workflows?limit=500`);

@@ -18,6 +18,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // mockWorkflowServiceForWorkflows provides workflow service implementation for workflow handler tests
@@ -235,13 +237,14 @@ func TestCreateWorkflow(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 		}
 
-		var response database.Workflow
+		var response map[string]any
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if response.Name != "Test Workflow" {
-			t.Errorf("expected name 'Test Workflow', got %s", response.Name)
+		workflowPayload, _ := response["workflow"].(map[string]any)
+		if workflowPayload["name"] != "Test Workflow" {
+			t.Errorf("expected name 'Test Workflow', got %v", workflowPayload["name"])
 		}
 	})
 
@@ -387,13 +390,14 @@ func TestGetWorkflow(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 		}
 
-		var response database.Workflow
+		var response map[string]any
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if response.Name != "Retrieved Workflow" {
-			t.Errorf("expected name 'Retrieved Workflow', got %s", response.Name)
+		workflowPayload, _ := response["name"].(string)
+		if workflowPayload != "Retrieved Workflow" {
+			t.Errorf("expected name 'Retrieved Workflow', got %v", workflowPayload)
 		}
 	})
 
@@ -511,20 +515,16 @@ func TestExecuteWorkflow(t *testing.T) {
 			t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
 		}
 
-		var response map[string]any
-		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-			t.Fatalf("failed to decode response: %v", err)
+		var respProto browser_automation_studio_v1.ExecuteWorkflowResponse
+		if err := protojson.Unmarshal(w.Body.Bytes(), &respProto); err != nil {
+			t.Fatalf("failed to decode proto response: %v", err)
 		}
 
-		if response["status"] != "completed" {
-			t.Fatalf("expected completed status, got %v", response["status"])
+		if respProto.GetStatus() != browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED {
+			t.Fatalf("expected completed status, got %v", respProto.GetStatus())
 		}
-		completedAtValue, ok := response["completed_at"].(string)
-		if !ok {
-			t.Fatalf("expected completed_at string, got %T", response["completed_at"])
-		}
-		if completedAtValue != completedAt.UTC().Format(time.RFC3339Nano) {
-			t.Fatalf("expected completed_at %s, got %s", completedAt.UTC().Format(time.RFC3339Nano), completedAtValue)
+		if respProto.GetCompletedAt().AsTime().UTC().Format(time.RFC3339Nano) != completedAt.UTC().Format(time.RFC3339Nano) {
+			t.Fatalf("expected completed_at %s, got %s", completedAt.UTC().Format(time.RFC3339Nano), respProto.GetCompletedAt().AsTime().UTC().Format(time.RFC3339Nano))
 		}
 	})
 
@@ -726,13 +726,13 @@ func TestUpdateWorkflow(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 		}
 
-		var response map[string]any
-		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		var respProto browser_automation_studio_v1.UpdateWorkflowResponse
+		if err := protojson.Unmarshal(w.Body.Bytes(), &respProto); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if response["name"] != "Updated Workflow" {
-			t.Errorf("expected name 'Updated Workflow' in response, got '%v'", response["name"])
+		if respProto.GetWorkflow().GetName() != "Updated Workflow" {
+			t.Errorf("expected name 'Updated Workflow' in response, got '%v'", respProto.GetWorkflow().GetName())
 		}
 	})
 
@@ -878,8 +878,9 @@ func TestModifyWorkflow(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if response["modification_note"] != "ai" {
-			t.Errorf("expected modification_note 'ai', got '%v'", response["modification_note"])
+		workflowPayload, _ := response["workflow"].(map[string]any)
+		if workflowPayload["name"] != "Modified Workflow" {
+			t.Errorf("expected modified workflow name, got '%v'", workflowPayload["name"])
 		}
 	})
 

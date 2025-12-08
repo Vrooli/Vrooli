@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
+import { parseProjectList } from '../utils/projectProto';
 
 export interface RecentWorkflow {
   id: string;
@@ -114,12 +115,9 @@ export const useDashboardStore = create<DashboardState>()(
           // Fetch projects first to get names
           const projectsResponse = await fetch(`${config.API_URL}/projects`);
           const projectsData = await projectsResponse.json();
+          const projectEntries = parseProjectList(projectsData);
           const projectsMap = new Map<string, string>();
-          if (Array.isArray(projectsData.projects)) {
-            projectsData.projects.forEach((p: { id: string; name: string }) => {
-              projectsMap.set(p.id, p.name);
-            });
-          }
+          projectEntries.forEach((p) => projectsMap.set(p.id, p.name));
 
           // Fetch recent workflows (sorted by updated_at desc on server)
           const response = await fetch(`${config.API_URL}/workflows?limit=10`);
@@ -167,12 +165,9 @@ export const useDashboardStore = create<DashboardState>()(
           // Fetch projects for names
           const projectsResponse = await fetch(`${config.API_URL}/projects`);
           const projectsData = await projectsResponse.json();
+          const projects = parseProjectList(projectsData);
           const projectsMap = new Map<string, string>();
-          if (Array.isArray(projectsData.projects)) {
-            projectsData.projects.forEach((p: { id: string; name: string }) => {
-              projectsMap.set(p.id, p.name);
-            });
-          }
+          projects.forEach((p) => projectsMap.set(p.id, p.name));
 
           // Fetch workflows for names
           const workflowsResponse = await fetch(`${config.API_URL}/workflows?limit=100`);
@@ -227,12 +222,9 @@ export const useDashboardStore = create<DashboardState>()(
           // Fetch projects for names
           const projectsResponse = await fetch(`${config.API_URL}/projects`);
           const projectsData = await projectsResponse.json();
+          const projects = parseProjectList(projectsData);
           const projectsMap = new Map<string, string>();
-          if (Array.isArray(projectsData.projects)) {
-            projectsData.projects.forEach((p: { id: string; name: string }) => {
-              projectsMap.set(p.id, p.name);
-            });
-          }
+          projects.forEach((p) => projectsMap.set(p.id, p.name));
 
           if (Array.isArray(workflowsData.workflows)) {
             workflowsData.workflows.forEach((w: Record<string, unknown>) => {

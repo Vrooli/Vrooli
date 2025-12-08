@@ -36,6 +36,16 @@ enum CheckoutSessionStatus {
   CHECKOUT_SESSION_STATUS_CANCELED = 4;
 }
 
+// TransactionType constrains wallet credit/debit sources.
+enum TransactionType {
+  TRANSACTION_TYPE_UNSPECIFIED = 0;
+  TRANSACTION_TYPE_CREDIT_TOPUP = 1;
+  TRANSACTION_TYPE_CONSUMPTION = 2;
+  TRANSACTION_TYPE_ADJUSTMENT = 3;
+  TRANSACTION_TYPE_REFUND = 4;
+  TRANSACTION_TYPE_GRANT = 5;
+}
+
 // CheckoutSession represents a created Stripe checkout session.
 message CheckoutSession {
   // Stripe session identifier (cs_*).
@@ -109,11 +119,11 @@ message SubscriptionStatus {
   // Identity used for the lookup (email or customer id).
   string user_identity = 3;
   // Plan tier associated with the subscription (e.g., pro, team).
-  string plan_tier = 4;
+  optional string plan_tier = 4;
   // Stripe price identifier for the active subscription.
-  string stripe_price_id = 5;
+  optional string stripe_price_id = 5;
   // Bundle key associated with the subscription.
-  string bundle_key = 6;
+  optional string bundle_key = 6;
   // Timestamp when this status was cached/updated.
   google.protobuf.Timestamp cached_at = 7;
   // Cache age in milliseconds.
@@ -121,7 +131,7 @@ message SubscriptionStatus {
   // When the subscription was canceled, if applicable.
   google.protobuf.Timestamp canceled_at = 9;
   // Human-readable status message.
-  string message = 10;
+  optional string message = 10;
   // Additional metadata about the subscription.
   map<string, google.protobuf.Value> metadata = 11;
 }
@@ -147,7 +157,7 @@ message CancelSubscriptionResponse {
   // When the subscription was canceled.
   google.protobuf.Timestamp canceled_at = 3;
   // Human-readable message about the cancellation.
-  string message = 4;
+  optional string message = 4;
 }
 
 // CreditsBalance summarizes wallet credits for a customer.
@@ -171,7 +181,9 @@ message CreditTransaction {
   // Amount in credits (positive for additions, negative for debits).
   int64 amount_credits = 3;
   // Transaction type (e.g., credit_topup, consumption).
-  string transaction_type = 4;
+  string transaction_type = 4 [deprecated = true];
+  // Typed transaction type; prefer over the deprecated string field.
+  TransactionType type = 7;
   // Structured metadata describing the transaction.
   map<string, google.protobuf.Value> metadata = 5;
   // Creation timestamp for the transaction.

@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -300,6 +301,94 @@ func TestDescribeExecutionExportProtoJSON(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Inject a fake preview via the workflowService mock.
+	packageSpec := &export.ReplayMovieSpec{
+		Version:     "v1",
+		GeneratedAt: time.Date(2024, 12, 1, 12, 0, 0, 0, time.UTC),
+		Execution: export.ExportExecutionMetadata{
+			ExecutionID:   execID,
+			WorkflowID:    execID,
+			Status:        "completed",
+			StartedAt:     time.Date(2024, 12, 1, 12, 0, 0, 0, time.UTC),
+			Progress:      100,
+			TotalDuration: 0,
+		},
+		Theme: export.ExportTheme{
+			BackgroundGradient: []string{},
+			BackgroundPattern:  "",
+			AccentColor:        "#fff",
+			SurfaceColor:       "#000",
+			AmbientGlow:        "#000",
+			BrowserChrome: export.ExportBrowserChrome{
+				Visible:     true,
+				Variant:     "chromium",
+				ShowAddress: true,
+				AccentColor: "#fff",
+			},
+		},
+		Cursor: export.ExportCursorSpec{
+			Style:       "arrow",
+			AccentColor: "#fff",
+			Trail: export.ExportCursorTrail{
+				Enabled: false,
+				FadeMs:  0,
+				Weight:  0,
+				Opacity: 0,
+			},
+			ClickPulse: export.ExportClickPulse{
+				Enabled:    false,
+				Radius:     0,
+				DurationMs: 0,
+				Opacity:    0,
+			},
+			Scale:      1,
+			InitialPos: "center",
+			ClickAnim:  "none",
+		},
+		Decor: export.ExportDecor{},
+		Playback: export.ExportPlayback{
+			FPS:             30,
+			DurationMs:      0,
+			FrameIntervalMs: 40,
+			TotalFrames:     0,
+		},
+		Presentation: export.ExportPresentation{
+			Canvas:            export.ExportDimensions{Width: 1280, Height: 720},
+			Viewport:          export.ExportDimensions{Width: 1280, Height: 720},
+			BrowserFrame:      export.ExportFrameRect{X: 0, Y: 0, Width: 1280, Height: 720},
+			DeviceScaleFactor: 1,
+		},
+		CursorMotion: export.ExportCursorMotion{
+			SpeedProfile:    "linear",
+			PathStyle:       "linear",
+			InitialPosition: "center",
+			ClickAnimation:  "none",
+			CursorScale:     1,
+		},
+		Frames: []export.ExportFrame{
+			{
+				StepIndex: 0,
+				NodeID:    "step-1",
+				StepType:  "navigate",
+				Title:     "Go",
+				Status:    "completed",
+				Enter:     export.TransitionSpec{},
+				Exit:      export.TransitionSpec{},
+				Viewport: export.ExportDimensions{
+					Width:  1280,
+					Height: 720,
+				},
+				HighlightRegions: []autocontracts.HighlightRegion{},
+				MaskRegions:      []autocontracts.MaskRegion{},
+				CursorTrail:      []autocontracts.Point{},
+			},
+		},
+		Assets: []export.ExportAsset{},
+		Summary: export.ExportSummary{
+			FrameCount:      1,
+			TotalDurationMs: 0,
+		},
+	}
+
 	handler.workflowService = &protoContractWorkflowService{
 		execution: &database.Execution{ID: execID},
 		timeline:  handler.workflowService.(*protoContractWorkflowService).timeline,
@@ -312,6 +401,7 @@ func TestDescribeExecutionExportProtoJSON(t *testing.T) {
 				CapturedFrameCount:  1,
 				AvailableAssetCount: 1,
 				TotalDurationMs:     1000,
+				Package:             packageSpec,
 			}, nil
 		},
 	}
@@ -331,6 +421,13 @@ func TestDescribeExecutionExportProtoJSON(t *testing.T) {
 	}
 	if _, ok := bodyMap["specId"]; ok {
 		t.Fatalf("did not expect camelCase specId")
+	}
+	pkg, ok := bodyMap["package"].(map[string]any)
+	if !ok || pkg == nil {
+		t.Fatalf("expected package map in response")
+	}
+	if _, ok := pkg["cursor_motion"]; !ok {
+		t.Fatalf("expected cursor_motion in package, got %v", pkg)
 	}
 }
 

@@ -9,11 +9,30 @@ export interface FlowDefinition {
   edges: Edge[];
 }
 
+export interface WorkflowMetadataTyped {
+  name?: string;
+  description?: string;
+  labels?: Record<string, string>;
+  version?: string;
+}
+
+export interface WorkflowSettingsTyped {
+  viewport_width?: number;
+  viewport_height?: number;
+  user_agent?: string;
+  locale?: string;
+  timeout_seconds?: number;
+  headless?: boolean;
+  extras?: Record<string, unknown>;
+}
+
 export interface WorkflowDefinition {
   metadata?: Record<string, unknown> | null;
+  metadata_typed?: WorkflowMetadataTyped | null;
   settings?: Record<string, unknown> | null;
-  nodes: unknown[];
-  edges: unknown[];
+  settings_typed?: WorkflowSettingsTyped | null;
+  nodes: Node[];
+  edges: Edge[];
 }
 
 export interface WorkflowValidationIssue {

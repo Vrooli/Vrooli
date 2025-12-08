@@ -21,9 +21,12 @@ import {
   StepStatus,
   StepType,
 } from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
+import { parseProtoStrict } from '../utils/proto';
+import type { ReplayFrame, ReplayPoint, ReplayRegion, ReplayScreenshot } from '../features/execution/ReplayPlayer';
 import {
   processExecutionEvent,
   createId,
@@ -37,6 +40,7 @@ import {
 
 const WS_RETRY_LIMIT = 5;
 const WS_RETRY_BASE_DELAY_MS = 1500;
+let legacyWsWarningSent = false;
 
 const timestampToDate = (value?: Timestamp | null): Date | undefined => {
   if (!value) return undefined;
@@ -61,30 +65,6 @@ const toNumber = (value?: number | bigint | null): number | undefined => {
 
 const protoTimestampToDate = (ts?: Timestamp | null): Date | undefined => timestampToDate(ts);
 
-/**
- * Converts a snake_case string to camelCase.
- * E.g., "workflow_id" -> "workflowId", "started_at" -> "startedAt"
- */
-const snakeToCamel = (str: string): string =>
-  str.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
-
-/**
- * Recursively normalizes JSON object keys from snake_case to camelCase.
- * This ensures compatibility with protobuf JSON parsing which expects camelCase field names.
- */
-const normalizeJsonKeys = (value: unknown): unknown => {
-  if (value === null || value === undefined) return value;
-  if (Array.isArray(value)) return value.map(normalizeJsonKeys);
-  if (typeof value === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-      result[snakeToCamel(key)] = normalizeJsonKeys(val);
-    }
-    return result;
-  }
-  return value;
-};
-
 interface ExecutionUpdateMessage {
   type: string;
   execution_id?: string;
@@ -105,7 +85,7 @@ export interface TimelineBoundingBox {
 
 export interface TimelineRegion {
   selector?: string;
-  bounding_box?: TimelineBoundingBox;
+  boundingBox?: TimelineBoundingBox;
   padding?: number;
   color?: string;
   opacity?: number;
@@ -114,19 +94,9 @@ export interface TimelineRegion {
 export interface TimelineRetryHistoryEntry {
   attempt?: number;
   success?: boolean;
-  duration_ms?: number;
-  call_duration_ms?: number;
+  durationMs?: number;
+  callDurationMs?: number;
   error?: string;
-}
-
-export interface TimelineScreenshot {
-  artifact_id: string;
-  url?: string;
-  thumbnail_url?: string;
-  width?: number;
-  height?: number;
-  content_type?: string;
-  size_bytes?: number;
 }
 
 export interface TimelineAssertion {
@@ -157,74 +127,13 @@ export interface TimelineLog {
   level?: string;
   message?: string;
   step_name?: string;
-  stepName?: string;
   timestamp?: string;
 }
 
-export interface TimelineFrame {
-  step_index: number;
-  stepIndex?: number;
-  node_id?: string;
-  nodeId?: string;
-  step_type?: StepType | string;
-  stepType?: StepType | string;
-  status?: StepStatus | string;
-  success: boolean;
-  duration_ms?: number;
-  durationMs?: number;
-  total_duration_ms?: number;
-  totalDurationMs?: number;
-  progress?: number;
-  started_at?: string;
-  startedAt?: string;
-  completed_at?: string;
-  completedAt?: string;
-  final_url?: string;
-  finalUrl?: string;
-  error?: string;
-  console_log_count?: number;
-  consoleLogCount?: number;
-  network_event_count?: number;
-  networkEventCount?: number;
-  extracted_data_preview?: unknown;
-  extractedDataPreview?: unknown;
-  highlight_regions?: TimelineRegion[];
-  highlightRegions?: TimelineRegion[];
-  mask_regions?: TimelineRegion[];
-  maskRegions?: TimelineRegion[];
-  focused_element?: { selector?: string; bounding_box?: TimelineBoundingBox };
-  focusedElement?: { selector?: string; boundingBox?: TimelineBoundingBox };
-  element_bounding_box?: TimelineBoundingBox;
-  elementBoundingBox?: TimelineBoundingBox;
-  click_position?: { x?: number; y?: number };
-  clickPosition?: { x?: number; y?: number };
-  cursor_trail?: Array<{ x?: number; y?: number }>;
-  cursorTrail?: Array<{ x?: number; y?: number }>;
-  zoom_factor?: number;
-  zoomFactor?: number;
-  screenshot?: TimelineScreenshot | null;
+export type TimelineFrame = ReplayFrame & {
   artifacts?: TimelineArtifact[];
-  assertion?: TimelineAssertion | null;
-  retry_attempt?: number;
-  retryAttempt?: number;
-  retry_max_attempts?: number;
-  retryMaxAttempts?: number;
-  retry_configured?: number;
-  retryConfigured?: number;
-  retry_delay_ms?: number;
-  retryDelayMs?: number;
-  retry_backoff_factor?: number;
-  retryBackoffFactor?: number;
-  retry_history?: TimelineRetryHistoryEntry[];
-  retryHistory?: TimelineRetryHistoryEntry[];
-  dom_snapshot_preview?: string;
-  domSnapshotPreview?: string;
-  dom_snapshot_artifact_id?: string;
   domSnapshotArtifactId?: string;
-  dom_snapshot?: TimelineArtifact | null;
-  timeline_artifact_id?: string;
-  timelineArtifactId?: string;
-}
+};
 
 export interface Execution {
   id: string;
@@ -408,47 +317,27 @@ const mapProtoLogLevel = (level?: ProtoLogLevel | string): LogEntry['level'] => 
   }
 };
 
+const parseExecuteWorkflowResponse = (raw: unknown) =>
+  parseProtoStrict(ExecuteWorkflowResponseSchema, raw) as ReturnType<typeof fromJson<typeof ExecuteWorkflowResponseSchema>>;
+
 const parseExecutionProto = (raw: unknown): Execution => {
-  // Normalize snake_case keys to camelCase for proto compatibility
-  const normalized = normalizeJsonKeys(raw) as Record<string, unknown>;
+  const proto = parseProtoStrict(ExecutionSchema, raw) as ReturnType<typeof fromJson<typeof ExecutionSchema>>;
+  const startedAt = protoTimestampToDate(proto.startedAt) ?? new Date();
+  const completedAt = protoTimestampToDate(proto.completedAt);
+  const lastHeartbeat = proto.lastHeartbeat ? protoTimestampToDate(proto.lastHeartbeat) : undefined;
 
-  // Attempt proto parsing with normalized data, fall back to empty object on failure
-  let proto: ReturnType<typeof fromJson<typeof ExecutionSchema>>;
-  try {
-    proto = fromJson(ExecutionSchema, normalized as any, { ignoreUnknownFields: true });
-  } catch {
-    // Proto parsing failed - use empty proto, fallbacks will handle the data
-    proto = {} as ReturnType<typeof fromJson<typeof ExecutionSchema>>;
-  }
-
-  // Extract dates with fallbacks (normalized uses camelCase)
-  const startedAt =
-    protoTimestampToDate(proto.startedAt) ??
-    coerceDate(normalized?.startedAt) ??
-    new Date();
-  const completedAt =
-    protoTimestampToDate(proto.completedAt) ??
-    coerceDate(normalized?.completedAt);
-  const lastHeartbeat = proto.lastHeartbeat
-    ? protoTimestampToDate(proto.lastHeartbeat)
-    : coerceDate(normalized?.lastHeartbeat);
-
-  // Extract fields with comprehensive fallbacks
-  // Note: normalized already has camelCase keys (executionId, workflowId, etc.)
   return {
-    id: proto.executionId || String(normalized?.id ?? normalized?.executionId ?? ''),
-    workflowId: proto.workflowId || String(normalized?.workflowId ?? ''),
-    status: mapExecutionStatus(proto.status || (normalized?.status as string | undefined)),
+    id: proto.executionId || '',
+    workflowId: proto.workflowId || '',
+    status: mapExecutionStatus(proto.status),
     startedAt,
     completedAt: completedAt || undefined,
     screenshots: [],
     timeline: [],
     logs: [],
-    currentStep: proto.currentStep || (normalized?.currentStep ? String(normalized.currentStep) : undefined),
-    progress: typeof proto.progress === 'number' && proto.progress > 0
-      ? proto.progress
-      : (typeof normalized?.progress === 'number' ? normalized.progress as number : 0),
-    error: proto.error ?? (normalized?.error ? String(normalized.error) : undefined),
+    currentStep: proto.currentStep || undefined,
+    progress: typeof proto.progress === 'number' && proto.progress > 0 ? proto.progress : 0,
+    error: proto.error ?? undefined,
     lastHeartbeat: lastHeartbeat
       ? {
           timestamp: lastHeartbeat,
@@ -462,6 +351,53 @@ const mapBoundingBoxFromProto = (bbox?: { x?: number; y?: number; width?: number
   const { x, y, width, height } = bbox;
   if ([x, y, width, height].every((v) => v == null)) return undefined;
   return { x, y, width, height };
+};
+
+const mapProtoScreenshot = (shot?: ProtoTimelineFrame['screenshot'] | null): ReplayScreenshot | undefined => {
+  if (!shot) return undefined;
+  return {
+    artifactId: shot.artifactId || createId(),
+    url: shot.url,
+    thumbnailUrl: shot.thumbnailUrl,
+    width: toNumber(shot.width),
+    height: toNumber(shot.height),
+    contentType: shot.contentType || undefined,
+    sizeBytes: toNumber(shot.sizeBytes),
+  };
+};
+
+const mapProtoRegion = (region?: ProtoTimelineFrame['highlightRegions'][number]): ReplayRegion | undefined => {
+  if (!region) return undefined;
+  const boundingBox = mapBoundingBoxFromProto(region.boundingBox);
+  if (!boundingBox && !region.selector) {
+    return undefined;
+  }
+  return {
+    selector: region.selector || undefined,
+    boundingBox,
+    padding: region.padding ?? undefined,
+    color: region.color || undefined,
+    opacity: undefined,
+  };
+};
+
+const mapProtoMaskRegion = (region?: ProtoTimelineFrame['maskRegions'][number]): ReplayRegion | undefined => {
+  if (!region) return undefined;
+  const boundingBox = mapBoundingBoxFromProto(region.boundingBox);
+  if (!boundingBox && !region.selector) {
+    return undefined;
+  }
+  return {
+    selector: region.selector || undefined,
+    boundingBox,
+    opacity: region.opacity ?? undefined,
+  };
+};
+
+const mapProtoPoint = (point?: ProtoTimelineFrame['cursorTrail'][number]): ReplayPoint | undefined => {
+  if (!point) return undefined;
+  if (point.x == null || point.y == null) return undefined;
+  return { x: point.x, y: point.y };
 };
 
 const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineFrame['artifacts'][number]): TimelineArtifact | undefined => {
@@ -480,89 +416,39 @@ const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineFrame['artifacts']
   };
 };
 
-const mapTimelineFrameFromProto = (frame: ProtoTimelineFrame): TimelineFrame => {
-  const screenshot = frame.screenshot
-    ? {
-        artifact_id: frame.screenshot.artifactId,
-        url: frame.screenshot.url,
-        thumbnail_url: frame.screenshot.thumbnailUrl,
-        width: frame.screenshot.width,
-        height: frame.screenshot.height,
-        content_type: frame.screenshot.contentType,
-        size_bytes: toNumber(frame.screenshot.sizeBytes),
-      }
-    : undefined;
-
-  const focusBox = frame.focusedElement?.boundingBox ? mapBoundingBoxFromProto(frame.focusedElement.boundingBox) : undefined;
+// Exported for targeted unit testing to ensure API↔UI contract stays aligned.
+export const mapTimelineFrameFromProto = (frame: ProtoTimelineFrame): TimelineFrame => {
+  const screenshot = mapProtoScreenshot(frame.screenshot);
+  const focusBox = mapBoundingBoxFromProto(frame.focusedElement?.boundingBox);
   const elementBox = mapBoundingBoxFromProto(frame.elementBoundingBox);
-
-  const domSnapshot = frame.domSnapshot ? mapTimelineArtifactFromProto(frame.domSnapshot) : undefined;
+  const artifacts = frame.artifacts?.map((artifact) => mapTimelineArtifactFromProto(artifact)!).filter(Boolean) ?? [];
+  const domSnapshotArtifact = artifacts.find((artifact) => artifact?.type === 'dom_snapshot');
 
   return {
-    step_index: frame.stepIndex,
+    id: screenshot?.artifactId || `frame-${frame.stepIndex}`,
     stepIndex: frame.stepIndex,
-    node_id: frame.nodeId,
-    nodeId: frame.nodeId,
-    step_type: mapStepType(frame.stepType),
+    nodeId: frame.nodeId || undefined,
     stepType: mapStepType(frame.stepType),
     status: mapStepStatus(frame.status),
     success: frame.success,
-    duration_ms: frame.durationMs,
-    durationMs: frame.durationMs,
-    total_duration_ms: frame.totalDurationMs,
-    totalDurationMs: frame.totalDurationMs,
-    progress: frame.progress,
-    started_at: timestampToDate(frame.startedAt)?.toISOString(),
-    startedAt: timestampToDate(frame.startedAt)?.toISOString(),
-    completed_at: timestampToDate(frame.completedAt)?.toISOString(),
-    completedAt: timestampToDate(frame.completedAt)?.toISOString(),
-    final_url: frame.finalUrl || undefined,
+    durationMs: frame.durationMs ?? undefined,
+    totalDurationMs: frame.totalDurationMs ?? undefined,
+    progress: frame.progress ?? undefined,
     finalUrl: frame.finalUrl || undefined,
     error: frame.error || undefined,
-    console_log_count: frame.consoleLogCount,
-    consoleLogCount: frame.consoleLogCount,
-    network_event_count: frame.networkEventCount,
-    networkEventCount: frame.networkEventCount,
-    extracted_data_preview: frame.extractedDataPreview,
     extractedDataPreview: frame.extractedDataPreview,
-    highlight_regions: frame.highlightRegions?.map((region) => ({
-      selector: region.selector,
-      bounding_box: mapBoundingBoxFromProto(region.boundingBox),
-      padding: region.padding,
-      color: region.color,
-    })),
-    highlightRegions: frame.highlightRegions?.map((region) => ({
-      selector: region.selector,
-      boundingBox: mapBoundingBoxFromProto(region.boundingBox),
-      padding: region.padding,
-      color: region.color,
-    })),
-    mask_regions: frame.maskRegions?.map((region) => ({
-      selector: region.selector,
-      bounding_box: mapBoundingBoxFromProto(region.boundingBox),
-      opacity: region.opacity,
-    })),
-    maskRegions: frame.maskRegions?.map((region) => ({
-      selector: region.selector,
-      boundingBox: mapBoundingBoxFromProto(region.boundingBox),
-      opacity: region.opacity,
-    })),
-    focused_element: frame.focusedElement
-      ? { selector: frame.focusedElement.selector, bounding_box: focusBox }
-      : undefined,
+    consoleLogCount: frame.consoleLogCount ?? undefined,
+    networkEventCount: frame.networkEventCount ?? undefined,
+    screenshot: screenshot ?? undefined,
+    highlightRegions: frame.highlightRegions?.map(mapProtoRegion).filter(Boolean) as ReplayRegion[] ?? [],
+    maskRegions: frame.maskRegions?.map(mapProtoMaskRegion).filter(Boolean) as ReplayRegion[] ?? [],
     focusedElement: frame.focusedElement
-      ? { selector: frame.focusedElement.selector, boundingBox: focusBox }
-      : undefined,
-    element_bounding_box: elementBox,
-    elementBoundingBox: elementBox,
-    click_position: frame.clickPosition ? { x: frame.clickPosition.x, y: frame.clickPosition.y } : undefined,
-    clickPosition: frame.clickPosition ? { x: frame.clickPosition.x, y: frame.clickPosition.y } : undefined,
-    cursor_trail: frame.cursorTrail?.map((pt) => ({ x: pt.x, y: pt.y })),
-    cursorTrail: frame.cursorTrail?.map((pt) => ({ x: pt.x, y: pt.y })),
-    zoom_factor: frame.zoomFactor,
-    zoomFactor: frame.zoomFactor,
-    screenshot: screenshot ?? null,
-    artifacts: frame.artifacts?.map((artifact) => mapTimelineArtifactFromProto(artifact)!).filter(Boolean) ?? [],
+      ? { selector: frame.focusedElement.selector || undefined, boundingBox: focusBox ?? undefined }
+      : null,
+    elementBoundingBox: elementBox ?? null,
+    clickPosition: frame.clickPosition ? { x: frame.clickPosition.x, y: frame.clickPosition.y } : null,
+    cursorTrail: frame.cursorTrail?.map(mapProtoPoint).filter(Boolean) as ReplayPoint[] ?? [],
+    zoomFactor: frame.zoomFactor ?? undefined,
     assertion: frame.assertion
       ? {
           mode: frame.assertion.mode,
@@ -574,38 +460,23 @@ const mapTimelineFrameFromProto = (frame: ProtoTimelineFrame): TimelineFrame => 
           negated: frame.assertion.negated,
           caseSensitive: frame.assertion.caseSensitive,
         }
-      : null,
-    retry_attempt: frame.retryAttempt,
-    retryAttempt: frame.retryAttempt,
-    retry_max_attempts: frame.retryMaxAttempts,
-    retryMaxAttempts: frame.retryMaxAttempts,
-    retry_configured: frame.retryConfigured,
-    retryConfigured: frame.retryConfigured,
-    retry_delay_ms: frame.retryDelayMs,
-    retryDelayMs: frame.retryDelayMs,
-    retry_backoff_factor: frame.retryBackoffFactor,
-    retryBackoffFactor: frame.retryBackoffFactor,
-    retry_history: frame.retryHistory?.map((entry) => ({
-      attempt: entry.attempt,
-      success: entry.success,
-      duration_ms: entry.durationMs,
-      call_duration_ms: entry.callDurationMs,
-      error: entry.error || undefined,
-    })) ?? [],
+      : undefined,
+    retryAttempt: frame.retryAttempt ?? undefined,
+    retryMaxAttempts: frame.retryMaxAttempts ?? undefined,
+    retryConfigured: frame.retryConfigured ?? undefined,
+    retryDelayMs: frame.retryDelayMs ?? undefined,
+    retryBackoffFactor: frame.retryBackoffFactor ?? undefined,
     retryHistory: frame.retryHistory?.map((entry) => ({
-      attempt: entry.attempt,
-      success: entry.success,
-      duration_ms: entry.durationMs,
-      call_duration_ms: entry.callDurationMs,
+      attempt: entry.attempt ?? undefined,
+      success: entry.success ?? undefined,
+      durationMs: entry.durationMs ?? undefined,
+      callDurationMs: entry.callDurationMs ?? undefined,
       error: entry.error || undefined,
     })) ?? [],
-    dom_snapshot_preview: frame.domSnapshotPreview || undefined,
     domSnapshotPreview: frame.domSnapshotPreview || undefined,
-    dom_snapshot_artifact_id: domSnapshot?.id,
-    domSnapshotArtifactId: domSnapshot?.id,
-    dom_snapshot: domSnapshot ?? null,
-    timeline_artifact_id: undefined,
-    timelineArtifactId: undefined,
+    domSnapshotArtifactId: domSnapshotArtifact?.id || undefined,
+    domSnapshotHtml: domSnapshotArtifact?.payload?.html ? String(domSnapshotArtifact.payload.html) : undefined,
+    artifacts,
   };
 };
 
@@ -628,79 +499,8 @@ const mapTimelineLogFromProto = (log: ProtoTimelineLog): LogEntry | null => {
   };
 };
 
-/**
- * Fallback parser for timeline frames from raw (normalized) JSON.
- * Used when proto parsing fails or returns incomplete data.
- */
-const mapTimelineFrameFromRaw = (raw: Record<string, unknown>): TimelineFrame => {
-  const stepIndex = typeof raw.stepIndex === 'number' ? raw.stepIndex : 0;
-  const nodeId = raw.nodeId ? String(raw.nodeId) : undefined;
-  const stepType = raw.stepType ? String(raw.stepType) : undefined;
-  const status = raw.status ? String(raw.status) : undefined;
-  const success = raw.success === true;
-  const durationMs = typeof raw.durationMs === 'number' ? raw.durationMs : undefined;
-
-  return {
-    step_index: stepIndex,
-    stepIndex,
-    node_id: nodeId,
-    nodeId,
-    step_type: stepType,
-    stepType,
-    status,
-    success,
-    duration_ms: durationMs,
-    durationMs,
-    total_duration_ms: typeof raw.totalDurationMs === 'number' ? raw.totalDurationMs : undefined,
-    totalDurationMs: typeof raw.totalDurationMs === 'number' ? raw.totalDurationMs : undefined,
-    progress: typeof raw.progress === 'number' ? raw.progress : undefined,
-    started_at: raw.startedAt ? String(raw.startedAt) : undefined,
-    startedAt: raw.startedAt ? String(raw.startedAt) : undefined,
-    completed_at: raw.completedAt ? String(raw.completedAt) : undefined,
-    completedAt: raw.completedAt ? String(raw.completedAt) : undefined,
-    final_url: raw.finalUrl ? String(raw.finalUrl) : undefined,
-    finalUrl: raw.finalUrl ? String(raw.finalUrl) : undefined,
-    error: raw.error ? String(raw.error) : undefined,
-    screenshot: null,
-    artifacts: [],
-    assertion: null,
-    retry_history: [],
-    retryHistory: [],
-  };
-};
-
-/**
- * Fallback parser for timeline logs from raw (normalized) JSON.
- * Used when proto parsing fails or returns incomplete data.
- */
-const mapTimelineLogFromRaw = (raw: Record<string, unknown>): LogEntry | null => {
-  const baseMessage = typeof raw.message === 'string' ? raw.message.trim() : '';
-  const stepName = typeof raw.stepName === 'string' ? raw.stepName : '';
-  const composedMessage = stepName && baseMessage ? `${stepName}: ${baseMessage}` : baseMessage || stepName;
-  if (!composedMessage) {
-    return null;
-  }
-
-  const rawTimestamp = coerceDate(raw.timestamp);
-  const id = raw.id && typeof raw.id === 'string' && raw.id.trim().length > 0
-    ? raw.id.trim()
-    : `${stepName}|${composedMessage}|${rawTimestamp?.toISOString() ?? ''}`;
-
-  const level = typeof raw.level === 'string' ? raw.level.toLowerCase() : 'info';
-  const mappedLevel: LogEntry['level'] =
-    level === 'error' ? 'error' :
-    level === 'warn' || level === 'warning' ? 'warning' : 'info';
-
-  return {
-    id,
-    level: mappedLevel,
-    message: composedMessage,
-    timestamp: rawTimestamp ?? new Date(),
-  };
-};
-
 const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
-  const proto = fromJson(GetScreenshotsResponseSchema, raw as any, { ignoreUnknownFields: true }) as ProtoGetScreenshotsResponse;
+  const proto = parseProtoStrict(GetScreenshotsResponseSchema, raw) as ProtoGetScreenshotsResponse;
   if (!proto.screenshots || proto.screenshots.length === 0) {
     return [];
   }
@@ -723,7 +523,7 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
 
 const parseEventEnvelope = (value: unknown): ExecutionEventEnvelope | null => {
   try {
-    return fromJson(ExecutionEventEnvelopeSchema, value as any, { ignoreUnknownFields: true });
+    return parseProtoStrict(ExecutionEventEnvelopeSchema, value);
   } catch {
     return null;
   }
@@ -900,11 +700,12 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       }
 
       const data = await response.json();
+      const protoPayload = parseExecuteWorkflowResponse(data);
 
       const execution: Execution = {
-        id: data.execution_id,
+        id: protoPayload.executionId || '',
         workflowId,
-        status: 'running',
+        status: mapExecutionStatus(protoPayload.status),
         startedAt: new Date(),
         screenshots: [],
         timeline: [],
@@ -1027,64 +828,36 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
       const data = await response.json();
 
-      // Normalize snake_case keys to camelCase for proto compatibility
-      const normalizedData = normalizeJsonKeys(data) as Record<string, unknown>;
+      // Strict proto parsing; bubble errors so contract drift is visible.
+      // Preserve raw error for UI since the proto contract omits it.
+      const { error: rawError, ...timelinePayload } = (data && typeof data === 'object'
+        ? (data as Record<string, unknown>)
+        : {}) as Record<string, unknown>;
 
-      // Attempt proto parsing with normalized data, fall back gracefully on failure
-      let protoTimeline: ProtoExecutionTimeline;
-      let protoParsingSucceeded = true;
-      try {
-        protoTimeline = fromJson(ExecutionTimelineSchema, normalizedData as any, { ignoreUnknownFields: true });
-      } catch (schemaError) {
-        logger.error(
-          'Timeline response failed proto validation, using fallback parsing',
-          { component: 'ExecutionStore', action: 'refreshTimeline', executionId },
-          schemaError,
-        );
-        // Create empty proto object - we'll use fallbacks
-        protoTimeline = {} as ProtoExecutionTimeline;
-        protoParsingSucceeded = false;
-      }
+      const protoTimeline = parseProtoStrict(
+        ExecutionTimelineSchema,
+        timelinePayload
+      ) as ProtoExecutionTimeline;
 
-      // Parse frames: use proto if available, otherwise use raw fallback parser
-      let frames: TimelineFrame[];
-      if (protoParsingSucceeded && protoTimeline.frames && protoTimeline.frames.length > 0) {
-        frames = protoTimeline.frames.map((frame) => mapTimelineFrameFromProto(frame));
-      } else {
-        // Fallback: parse frames from normalized raw data
-        const rawFrames = Array.isArray(normalizedData.frames) ? normalizedData.frames : [];
-        frames = rawFrames.map((frame) => mapTimelineFrameFromRaw(frame as Record<string, unknown>));
-      }
+      const frames = (protoTimeline.frames ?? []).map((frame) => mapTimelineFrameFromProto(frame));
 
-      // Parse logs: use proto if available, otherwise use raw fallback parser
-      let normalizedLogs: LogEntry[];
-      if (protoParsingSucceeded && protoTimeline.logs && protoTimeline.logs.length > 0) {
-        normalizedLogs = protoTimeline.logs
-          .map((log) => mapTimelineLogFromProto(log))
-          .filter((entry): entry is LogEntry => Boolean(entry));
-      } else {
-        // Fallback: parse logs from normalized raw data
-        const rawLogs = Array.isArray(normalizedData.logs) ? normalizedData.logs : [];
-        normalizedLogs = rawLogs
-          .map((log) => mapTimelineLogFromRaw(log as Record<string, unknown>))
-          .filter((entry): entry is LogEntry => Boolean(entry));
-      }
+      const normalizedLogs = (protoTimeline.logs ?? [])
+        .map((log) => mapTimelineLogFromProto(log))
+        .filter((entry): entry is LogEntry => Boolean(entry));
 
       // Extract status with fallback to raw data
-      const mappedStatus = mapExecutionStatus(
-        protoTimeline.status || (normalizedData.status as string | undefined)
-      );
+      const mappedStatus = mapExecutionStatus(protoTimeline.status);
 
       // Extract progress with fallback to raw data
       const progressValue = typeof protoTimeline.progress === 'number'
         ? protoTimeline.progress
-        : (typeof normalizedData.progress === 'number' ? normalizedData.progress as number : undefined);
+        : undefined;
 
       // Extract completedAt with fallback to raw data
-      const completedAt = timestampToDate(protoTimeline.completedAt) ?? coerceDate(normalizedData.completedAt);
+      const completedAt = timestampToDate(protoTimeline.completedAt);
 
       // Extract error from raw data (ExecutionTimeline proto doesn't have error field)
-      const errorValue = normalizedData.error ? String(normalizedData.error) : undefined;
+      const errorValue = rawError ? String(rawError) : undefined;
 
       set((state) => {
         if (!state.currentExecution || state.currentExecution.id !== executionId) {
@@ -1128,7 +901,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
         if (frames.length > 0) {
           const lastFrame = frames[frames.length - 1];
-          const label = lastFrame?.node_id ?? lastFrame?.step_type;
+          const label = lastFrame?.nodeId ?? lastFrame?.stepType;
           if (typeof label === 'string' && label.trim().length > 0) {
             updated.currentStep = label.trim();
           }
@@ -1258,14 +1031,28 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       });
     };
 
-    const handleEnvelopeMessage = (envelope: ExecutionEventEnvelope) => {
+    const handleEnvelopeMessage = (envelope: ExecutionEventEnvelope, rawMessage?: unknown) => {
       const event = envelopeToExecutionEvent(envelope);
       if (!event) return;
+      if (!event.payload && rawMessage && typeof rawMessage === 'object') {
+        const legacyPayload = (rawMessage as Record<string, unknown>).legacy_payload;
+        if (legacyPayload !== undefined) {
+          event.payload = legacyPayload as Record<string, unknown>;
+        }
+      }
       const fallbackTimestamp = protoTimestampToDate(envelope.timestamp)?.toISOString();
       handleEvent(event, fallbackTimestamp, event.progress);
     };
 
     const handleLegacyUpdate = (raw: ExecutionUpdateMessage) => {
+      if (!legacyWsWarningSent) {
+        logger.warn('Received legacy execution stream payload; please update server to proto envelopes', {
+          component: 'ExecutionStore',
+          action: 'handleWebSocketMessage',
+          executionId,
+        });
+        legacyWsWarningSent = true;
+      }
       const progressValue = typeof raw.progress === 'number' ? raw.progress : undefined;
       const currentStep = raw.current_step;
 
@@ -1308,23 +1095,23 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
     const messageListener: EventListener = (event) => {
       try {
-    const data = JSON.parse((event as MessageEvent).data) as unknown;
+        const data = JSON.parse((event as MessageEvent).data) as unknown;
 
-    const envelope = parseEventEnvelope(data);
-    if (envelope) {
-      handleEnvelopeMessage(envelope);
-      return;
-    }
+        const envelope = parseEventEnvelope(data);
+        if (envelope) {
+          handleEnvelopeMessage(envelope, data);
+          return;
+        }
 
-    if (data && typeof data === 'object') {
-      const nestedEnvelope = parseEventEnvelope((data as Record<string, unknown>).data);
-      if (nestedEnvelope) {
-        handleEnvelopeMessage(nestedEnvelope);
-        return;
-      }
-    }
+        if (data && typeof data === 'object') {
+          const nestedEnvelope = parseEventEnvelope((data as Record<string, unknown>).data);
+          if (nestedEnvelope) {
+            handleEnvelopeMessage(nestedEnvelope, data);
+            return;
+          }
+        }
 
-    handleLegacyUpdate(data as unknown as ExecutionUpdateMessage);
+        handleLegacyUpdate(data as unknown as ExecutionUpdateMessage);
       } catch (err) {
         logger.error('Failed to parse execution update', { component: 'ExecutionStore', action: 'handleWebSocketMessage', executionId }, err);
       }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "service": {
     "name": "browser-automation-studio",
-    "displayName": "Browser Automation Studio",
+    "displayName": "Vrooli Ascension",
     "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
     "version": "1.0.0",
     "tags": [
@@ -44,7 +44,7 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Browser Automation Studio API port",
+      "description": "Vrooli Ascension API port",
       "range": "15000-19999"
     },
     "ui": {
@@ -61,7 +61,7 @@
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Browser Automation Studio health check configuration",
+      "description": "Vrooli Ascension health check configuration",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -89,7 +89,7 @@
       "startup_grace_period": 15000
     },
     "setup": {
-      "description": "Initialize Browser Automation Studio",
+      "description": "Initialize Vrooli Ascension",
       "condition": {
         "checks": [
           {
@@ -134,7 +134,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then pnpm install --filter . --no-optional; else echo 'No package.json found, skipping pnpm install'; fi",
+          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'No package.json found, skipping pnpm install'; fi",
           "description": "Install React UI dependencies"
         },
         {
@@ -149,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '🚀 Browser Automation Studio initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
+          "run": "printf '🚀 Vrooli Ascension initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display service access URLs"
         }
       ]

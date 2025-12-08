@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -16,8 +17,12 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
+	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // CreateWorkflowRequest represents the request to create a workflow
@@ -71,6 +76,27 @@ type RestoreWorkflowVersionRequest struct {
 	ChangeDescription string `json:"change_description"`
 }
 
+// enforceProtoRequestShape marshals the decoded request into the generated proto request to catch
+// unknown/invalid fields early. Returns false if validation fails and writes an error response.
+func (h *Handler) enforceProtoRequestShape(w http.ResponseWriter, operation string, decoded any, msg proto.Message) bool {
+	raw, err := json.Marshal(decoded)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"operation": operation,
+			"error":     "failed to marshal request",
+		}))
+		return false
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, msg); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"operation": operation,
+			"error":     fmt.Sprintf("request does not match proto schema: %v", err),
+		}))
+		return false
+	}
+	return true
+}
+
 const executionCompletionPollInterval = 250 * time.Millisecond // moved to workflow_helpers.go in v2
 
 type workflowVersionResponse struct {
@@ -93,6 +119,12 @@ func (h *Handler) validateWorkflowDefinition(w http.ResponseWriter, r *http.Requ
 	}
 	if definition == nil || len(definition) == 0 {
 		return true
+	}
+	if err := validateWorkflowProtoShape(definition); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "workflow definition does not match proto schema",
+		}))
+		return false
 	}
 	result, err := h.workflowValidator.Validate(r.Context(), definition, workflowvalidator.Options{Strict: strict})
 	if err != nil {
@@ -121,6 +153,10 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode create workflow request")
 		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	if !h.enforceProtoRequestShape(w, "create_workflow", req, &browser_automation_studio_v1.CreateWorkflowRequest{}) {
 		return
 	}
 
@@ -172,7 +208,14 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusCreated, newWorkflowResponse(wf))
+	pb, convErr := protoconv.CreateWorkflowResponseProto(wf)
+	if convErr != nil {
+		h.log.WithError(convErr).Error("Failed to convert create workflow response to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "create_workflow_proto"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusCreated, pb)
 }
 
 // ListWorkflows handles GET /api/v1/workflows
@@ -191,9 +234,20 @@ func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"workflows": workflows,
-	})
+	items := make([]proto.Message, 0, len(workflows))
+	for idx, wf := range workflows {
+		pb, convErr := protoconv.WorkflowSummaryToProto(wf)
+		if convErr != nil {
+			h.log.WithError(convErr).WithField("workflow_index", idx).Error("Failed to convert workflow to proto")
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "workflow_to_proto"}))
+			return
+		}
+		if pb != nil {
+			items = append(items, pb)
+		}
+	}
+
+	h.respondProtoList(w, http.StatusOK, "workflows", items)
 }
 
 // GetWorkflow handles GET /api/v1/workflows/{id}
@@ -213,7 +267,14 @@ func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, newWorkflowResponse(wf))
+	pb, convErr := protoconv.WorkflowSummaryToProto(wf)
+	if convErr != nil {
+		h.log.WithError(convErr).WithField("workflow_id", id).Error("Failed to convert workflow to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "workflow_to_proto"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 // UpdateWorkflow handles PUT /api/v1/workflows/{id}
@@ -227,6 +288,10 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).WithField("workflow_id", id).Error("Failed to decode update workflow request")
 		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	if !h.enforceProtoRequestShape(w, "update_workflow", req, &browser_automation_studio_v1.UpdateWorkflowRequest{}) {
 		return
 	}
 
@@ -271,7 +336,14 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, newWorkflowResponse(wf))
+	pb, convErr := protoconv.UpdateWorkflowResponseProto(wf)
+	if convErr != nil {
+		h.log.WithError(convErr).WithField("workflow_id", id).Error("Failed to convert update workflow response to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "update_workflow_proto"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 // ListWorkflowVersions handles GET /api/v1/workflows/{id}/versions
@@ -309,14 +381,20 @@ func (h *Handler) ListWorkflowVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responses := make([]workflowVersionResponse, 0, len(versions))
-	for _, version := range versions {
-		responses = append(responses, toWorkflowVersionResponse(version))
+	items := make([]proto.Message, 0, len(versions))
+	for idx, version := range versions {
+		pb, convErr := protoconv.WorkflowVersionSummaryToProto(version)
+		if convErr != nil {
+			h.log.WithError(convErr).WithField("workflow_version_index", idx).Error("Failed to convert workflow version to proto")
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "workflow_version_to_proto"}))
+			return
+		}
+		if pb != nil {
+			items = append(items, pb)
+		}
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"versions": responses,
-	})
+	h.respondProtoList(w, http.StatusOK, "versions", items)
 }
 
 // GetWorkflowVersion handles GET /api/v1/workflows/{id}/versions/{version}
@@ -350,7 +428,14 @@ func (h *Handler) GetWorkflowVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, toWorkflowVersionResponse(versionSummary))
+	pb, convErr := protoconv.WorkflowVersionSummaryToProto(versionSummary)
+	if convErr != nil {
+		h.log.WithError(convErr).WithFields(map[string]any{"workflow_id": id, "version": versionNumber}).Error("Failed to convert workflow version to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "get_workflow_version_proto"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 // RestoreWorkflowVersion handles POST /api/v1/workflows/{id}/versions/{version}/restore
@@ -399,10 +484,26 @@ func (h *Handler) RestoreWorkflowVersion(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"workflow":         newWorkflowResponse(updatedWorkflow),
-		"restored_version": toWorkflowVersionResponse(versionSummary),
-	})
+	restoreResp, restoreErr := protoconv.RestoreWorkflowVersionResponseProto(updatedWorkflow, versionSummary)
+	if restoreErr != nil {
+		h.log.WithError(restoreErr).WithFields(map[string]any{"workflow_id": id, "version": versionNumber}).Error("Failed to build restore workflow proto response")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "restore_workflow_proto"}))
+		return
+	}
+
+	// ensure the workflow payload matches the latest persisted record
+	if restoreResp.Workflow == nil {
+		if wfSummary, err := protoconv.WorkflowSummaryToProto(updatedWorkflow); err == nil {
+			restoreResp.Workflow = wfSummary
+		}
+	}
+	if restoreResp.RestoredVersion == nil {
+		if versionProto, err := protoconv.WorkflowVersionSummaryToProto(versionSummary); err == nil {
+			restoreResp.RestoredVersion = versionProto
+		}
+	}
+
+	h.respondProto(w, http.StatusOK, restoreResp)
 }
 
 // ExecuteWorkflow handles POST /api/v1/workflows/{id}/execute
@@ -416,6 +517,10 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode execute workflow request")
 		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	if !h.enforceProtoRequestShape(w, "execute_workflow", req, &browser_automation_studio_v1.ExecuteWorkflowRequest{}) {
 		return
 	}
 
@@ -434,10 +539,7 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]any{
-		"execution_id": execution.ID,
-		"status":       execution.Status,
-	}
+	targetExecution := execution
 
 	if req.WaitForCompletion {
 		waitCtx, waitCancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
@@ -454,16 +556,17 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response["status"] = finalExecution.Status
-		if finalExecution.CompletedAt != nil {
-			response["completed_at"] = finalExecution.CompletedAt.UTC().Format(time.RFC3339Nano)
-		}
-		if finalExecution.Error.Valid {
-			response["error"] = finalExecution.Error.String
-		}
+		targetExecution = finalExecution
 	}
 
-	h.respondSuccess(w, http.StatusOK, response)
+	respProto, convErr := protoconv.ExecuteWorkflowResponseProto(targetExecution)
+	if convErr != nil {
+		h.log.WithError(convErr).WithField("execution_id", targetExecution.ID).Error("Failed to convert execute workflow response to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_workflow_proto"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, respProto)
 }
 
 // ModifyWorkflow handles POST /api/v1/workflows/{id}/modify
@@ -499,13 +602,14 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, struct {
-		workflowResponse
-		ModificationNote string `json:"modification_note,omitempty"`
-	}{
-		workflowResponse: newWorkflowResponse(wf),
-		ModificationNote: "ai",
-	})
+	pb, convErr := protoconv.UpdateWorkflowResponseProto(wf)
+	if convErr != nil {
+		h.log.WithError(convErr).WithField("workflow_id", workflowID).Error("Failed to convert modify workflow response to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "modify_workflow_proto"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pb)
 }
 
 // ExecuteAdhocWorkflow handles POST /api/v1/workflows/execute-adhoc
@@ -590,13 +694,6 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]any{
-		"execution_id": execution.ID,
-		"status":       execution.Status,
-		"workflow_id":  nil, // No persisted workflow for adhoc execution
-		"message":      "Adhoc workflow execution started successfully",
-	}
-
 	if req.WaitForCompletion {
 		waitCtx, waitCancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
 		defer waitCancel()
@@ -612,16 +709,17 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response["status"] = finalExecution.Status
-		if finalExecution.CompletedAt != nil {
-			response["completed_at"] = finalExecution.CompletedAt.UTC().Format(time.RFC3339Nano)
-		}
-		if finalExecution.Error.Valid {
-			response["error"] = finalExecution.Error.String
-		}
+		execution = finalExecution
 	}
 
-	h.respondSuccess(w, http.StatusOK, response)
+	respProto, convErr := protoconv.ExecuteAdhocResponseProto(execution, "Adhoc workflow execution started successfully")
+	if convErr != nil {
+		h.log.WithError(convErr).WithField("execution_id", execution.ID).Error("Failed to convert adhoc execution response to proto")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_adhoc_proto"}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, respProto)
 }
 
 // Helper functions moved to workflow_helpers.go:

@@ -18,6 +18,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // mockWorkflowServiceForProjects provides minimal workflow service implementation for project tests
@@ -231,13 +233,13 @@ func TestCreateProject(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 		}
 
-		var response map[string]any
-		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		var pb browser_automation_studio_v1.Project
+		if err := protojson.Unmarshal(w.Body.Bytes(), &pb); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if _, ok := response["project_id"]; !ok {
-			t.Errorf("response missing 'project_id' field, got: %v", response)
+		if pb.GetId() == "" {
+			t.Errorf("response missing project id, got: %v", pb)
 		}
 	})
 
@@ -426,13 +428,13 @@ func TestGetProject(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 		}
 
-		var response database.Project
-		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		var pb browser_automation_studio_v1.ProjectWithStats
+		if err := protojson.Unmarshal(w.Body.Bytes(), &pb); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if response.Name != "Retrieved Project" {
-			t.Errorf("expected name 'Retrieved Project', got %s", response.Name)
+		if pb.GetProject().GetName() != "Retrieved Project" {
+			t.Errorf("expected name 'Retrieved Project', got %s", pb.GetProject().GetName())
 		}
 	})
 
@@ -487,8 +489,16 @@ func TestListProjects(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 		}
 
+		type projectWithStatsResponse struct {
+			ID        uuid.UUID              `json:"id"`
+			Name      string                 `json:"name"`
+			Stats     map[string]any         `json:"stats"`
+			CreatedAt string                 `json:"created_at"`
+			UpdatedAt string                 `json:"updated_at"`
+			Extra     map[string]interface{} `json:"-"`
+		}
 		var response struct {
-			Projects []ProjectWithStats `json:"projects"`
+			Projects []projectWithStatsResponse `json:"projects"`
 		}
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)

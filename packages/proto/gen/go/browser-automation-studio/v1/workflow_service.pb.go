@@ -688,6 +688,9 @@ func (x *ExecuteWorkflowRequest) GetWaitForCompletion() bool {
 type ExecuteWorkflowResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Status        ExecutionStatus        `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	Error         *string                `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -725,6 +728,27 @@ func (*ExecuteWorkflowResponse) Descriptor() ([]byte, []int) {
 func (x *ExecuteWorkflowResponse) GetExecutionId() string {
 	if x != nil {
 		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *ExecuteWorkflowResponse) GetStatus() ExecutionStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
+}
+
+func (x *ExecuteWorkflowResponse) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *ExecuteWorkflowResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
 	}
 	return ""
 }
@@ -1016,11 +1040,64 @@ func (x *WorkflowValidationResult) GetDurationMs() int64 {
 	return 0
 }
 
+// RestoreWorkflowVersionResponse wraps the restored workflow and version metadata.
+type RestoreWorkflowVersionResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Workflow        *WorkflowSummary       `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	RestoredVersion *WorkflowVersion       `protobuf:"bytes,2,opt,name=restored_version,json=restoredVersion,proto3" json:"restored_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RestoreWorkflowVersionResponse) Reset() {
+	*x = RestoreWorkflowVersionResponse{}
+	mi := &file_browser_automation_studio_v1_workflow_service_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreWorkflowVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreWorkflowVersionResponse) ProtoMessage() {}
+
+func (x *RestoreWorkflowVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_service_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreWorkflowVersionResponse.ProtoReflect.Descriptor instead.
+func (*RestoreWorkflowVersionResponse) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_service_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RestoreWorkflowVersionResponse) GetWorkflow() *WorkflowSummary {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
+func (x *RestoreWorkflowVersionResponse) GetRestoredVersion() *WorkflowVersion {
+	if x != nil {
+		return x.RestoredVersion
+	}
+	return nil
+}
+
 var File_browser_automation_studio_v1_workflow_service_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_workflow_service_proto_rawDesc = "" +
 	"\n" +
-	"3browser-automation-studio/v1/workflow_service.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a+browser-automation-studio/v1/workflow.proto\"\xbc\x04\n" +
+	"3browser-automation-studio/v1/workflow_service.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a+browser-automation-studio/v1/workflow.proto\x1a)browser-automation-studio/v1/shared.proto\"\xbc\x04\n" +
 	"\x0fWorkflowSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1088,9 +1165,13 @@ const file_browser_automation_studio_v1_workflow_service_proto_rawDesc = "" +
 	"\x13wait_for_completion\x18\x02 \x01(\bR\x11waitForCompletion\x1aU\n" +
 	"\x0fParametersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"<\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xe7\x01\n" +
 	"\x17ExecuteWorkflowResponse\x12!\n" +
-	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\xdd\x01\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12E\n" +
+	"\x06status\x18\x02 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12=\n" +
+	"\fcompleted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x19\n" +
+	"\x05error\x18\x04 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\xdd\x01\n" +
 	"\x17WorkflowValidationIssue\x12\x1a\n" +
 	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
@@ -1119,7 +1200,10 @@ const file_browser_automation_studio_v1_workflow_service_proto_rawDesc = "" +
 	"\n" +
 	"checked_at\x18\x06 \x01(\tR\tcheckedAt\x12\x1f\n" +
 	"\vduration_ms\x18\a \x01(\x03R\n" +
-	"durationMsBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"durationMs\"\xc5\x01\n" +
+	"\x1eRestoreWorkflowVersionResponse\x12I\n" +
+	"\bworkflow\x18\x01 \x01(\v2-.browser_automation_studio.v1.WorkflowSummaryR\bworkflow\x12X\n" +
+	"\x10restored_version\x18\x02 \x01(\v2-.browser_automation_studio.v1.WorkflowVersionR\x0frestoredVersionBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_workflow_service_proto_rawDescOnce sync.Once
@@ -1133,50 +1217,56 @@ func file_browser_automation_studio_v1_workflow_service_proto_rawDescGZIP() []by
 	return file_browser_automation_studio_v1_workflow_service_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_workflow_service_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_browser_automation_studio_v1_workflow_service_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_browser_automation_studio_v1_workflow_service_proto_goTypes = []any{
-	(*WorkflowSummary)(nil),          // 0: browser_automation_studio.v1.WorkflowSummary
-	(*WorkflowVersion)(nil),          // 1: browser_automation_studio.v1.WorkflowVersion
-	(*WorkflowList)(nil),             // 2: browser_automation_studio.v1.WorkflowList
-	(*WorkflowVersionList)(nil),      // 3: browser_automation_studio.v1.WorkflowVersionList
-	(*CreateWorkflowRequest)(nil),    // 4: browser_automation_studio.v1.CreateWorkflowRequest
-	(*CreateWorkflowResponse)(nil),   // 5: browser_automation_studio.v1.CreateWorkflowResponse
-	(*UpdateWorkflowRequest)(nil),    // 6: browser_automation_studio.v1.UpdateWorkflowRequest
-	(*UpdateWorkflowResponse)(nil),   // 7: browser_automation_studio.v1.UpdateWorkflowResponse
-	(*ExecuteWorkflowRequest)(nil),   // 8: browser_automation_studio.v1.ExecuteWorkflowRequest
-	(*ExecuteWorkflowResponse)(nil),  // 9: browser_automation_studio.v1.ExecuteWorkflowResponse
-	(*WorkflowValidationIssue)(nil),  // 10: browser_automation_studio.v1.WorkflowValidationIssue
-	(*WorkflowValidationStats)(nil),  // 11: browser_automation_studio.v1.WorkflowValidationStats
-	(*WorkflowValidationResult)(nil), // 12: browser_automation_studio.v1.WorkflowValidationResult
-	nil,                              // 13: browser_automation_studio.v1.ExecuteWorkflowRequest.ParametersEntry
-	(*timestamppb.Timestamp)(nil),    // 14: google.protobuf.Timestamp
-	(*WorkflowDefinition)(nil),       // 15: browser_automation_studio.v1.WorkflowDefinition
-	(*structpb.Value)(nil),           // 16: google.protobuf.Value
+	(*WorkflowSummary)(nil),                // 0: browser_automation_studio.v1.WorkflowSummary
+	(*WorkflowVersion)(nil),                // 1: browser_automation_studio.v1.WorkflowVersion
+	(*WorkflowList)(nil),                   // 2: browser_automation_studio.v1.WorkflowList
+	(*WorkflowVersionList)(nil),            // 3: browser_automation_studio.v1.WorkflowVersionList
+	(*CreateWorkflowRequest)(nil),          // 4: browser_automation_studio.v1.CreateWorkflowRequest
+	(*CreateWorkflowResponse)(nil),         // 5: browser_automation_studio.v1.CreateWorkflowResponse
+	(*UpdateWorkflowRequest)(nil),          // 6: browser_automation_studio.v1.UpdateWorkflowRequest
+	(*UpdateWorkflowResponse)(nil),         // 7: browser_automation_studio.v1.UpdateWorkflowResponse
+	(*ExecuteWorkflowRequest)(nil),         // 8: browser_automation_studio.v1.ExecuteWorkflowRequest
+	(*ExecuteWorkflowResponse)(nil),        // 9: browser_automation_studio.v1.ExecuteWorkflowResponse
+	(*WorkflowValidationIssue)(nil),        // 10: browser_automation_studio.v1.WorkflowValidationIssue
+	(*WorkflowValidationStats)(nil),        // 11: browser_automation_studio.v1.WorkflowValidationStats
+	(*WorkflowValidationResult)(nil),       // 12: browser_automation_studio.v1.WorkflowValidationResult
+	(*RestoreWorkflowVersionResponse)(nil), // 13: browser_automation_studio.v1.RestoreWorkflowVersionResponse
+	nil,                                    // 14: browser_automation_studio.v1.ExecuteWorkflowRequest.ParametersEntry
+	(*timestamppb.Timestamp)(nil),          // 15: google.protobuf.Timestamp
+	(*WorkflowDefinition)(nil),             // 16: browser_automation_studio.v1.WorkflowDefinition
+	(ExecutionStatus)(0),                   // 17: browser_automation_studio.v1.ExecutionStatus
+	(*structpb.Value)(nil),                 // 18: google.protobuf.Value
 }
 var file_browser_automation_studio_v1_workflow_service_proto_depIdxs = []int32{
-	14, // 0: browser_automation_studio.v1.WorkflowSummary.created_at:type_name -> google.protobuf.Timestamp
-	14, // 1: browser_automation_studio.v1.WorkflowSummary.updated_at:type_name -> google.protobuf.Timestamp
-	15, // 2: browser_automation_studio.v1.WorkflowSummary.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
-	15, // 3: browser_automation_studio.v1.WorkflowVersion.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
-	14, // 4: browser_automation_studio.v1.WorkflowVersion.created_at:type_name -> google.protobuf.Timestamp
+	15, // 0: browser_automation_studio.v1.WorkflowSummary.created_at:type_name -> google.protobuf.Timestamp
+	15, // 1: browser_automation_studio.v1.WorkflowSummary.updated_at:type_name -> google.protobuf.Timestamp
+	16, // 2: browser_automation_studio.v1.WorkflowSummary.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
+	16, // 3: browser_automation_studio.v1.WorkflowVersion.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
+	15, // 4: browser_automation_studio.v1.WorkflowVersion.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 5: browser_automation_studio.v1.WorkflowList.workflows:type_name -> browser_automation_studio.v1.WorkflowSummary
 	1,  // 6: browser_automation_studio.v1.WorkflowVersionList.versions:type_name -> browser_automation_studio.v1.WorkflowVersion
-	15, // 7: browser_automation_studio.v1.CreateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
+	16, // 7: browser_automation_studio.v1.CreateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
 	0,  // 8: browser_automation_studio.v1.CreateWorkflowResponse.workflow:type_name -> browser_automation_studio.v1.WorkflowSummary
-	15, // 9: browser_automation_studio.v1.CreateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
-	15, // 10: browser_automation_studio.v1.UpdateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
+	16, // 9: browser_automation_studio.v1.CreateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
+	16, // 10: browser_automation_studio.v1.UpdateWorkflowRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
 	0,  // 11: browser_automation_studio.v1.UpdateWorkflowResponse.workflow:type_name -> browser_automation_studio.v1.WorkflowSummary
-	15, // 12: browser_automation_studio.v1.UpdateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
-	13, // 13: browser_automation_studio.v1.ExecuteWorkflowRequest.parameters:type_name -> browser_automation_studio.v1.ExecuteWorkflowRequest.ParametersEntry
-	10, // 14: browser_automation_studio.v1.WorkflowValidationResult.errors:type_name -> browser_automation_studio.v1.WorkflowValidationIssue
-	10, // 15: browser_automation_studio.v1.WorkflowValidationResult.warnings:type_name -> browser_automation_studio.v1.WorkflowValidationIssue
-	11, // 16: browser_automation_studio.v1.WorkflowValidationResult.stats:type_name -> browser_automation_studio.v1.WorkflowValidationStats
-	16, // 17: browser_automation_studio.v1.ExecuteWorkflowRequest.ParametersEntry.value:type_name -> google.protobuf.Value
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	16, // 12: browser_automation_studio.v1.UpdateWorkflowResponse.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
+	14, // 13: browser_automation_studio.v1.ExecuteWorkflowRequest.parameters:type_name -> browser_automation_studio.v1.ExecuteWorkflowRequest.ParametersEntry
+	17, // 14: browser_automation_studio.v1.ExecuteWorkflowResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	15, // 15: browser_automation_studio.v1.ExecuteWorkflowResponse.completed_at:type_name -> google.protobuf.Timestamp
+	10, // 16: browser_automation_studio.v1.WorkflowValidationResult.errors:type_name -> browser_automation_studio.v1.WorkflowValidationIssue
+	10, // 17: browser_automation_studio.v1.WorkflowValidationResult.warnings:type_name -> browser_automation_studio.v1.WorkflowValidationIssue
+	11, // 18: browser_automation_studio.v1.WorkflowValidationResult.stats:type_name -> browser_automation_studio.v1.WorkflowValidationStats
+	0,  // 19: browser_automation_studio.v1.RestoreWorkflowVersionResponse.workflow:type_name -> browser_automation_studio.v1.WorkflowSummary
+	1,  // 20: browser_automation_studio.v1.RestoreWorkflowVersionResponse.restored_version:type_name -> browser_automation_studio.v1.WorkflowVersion
+	18, // 21: browser_automation_studio.v1.ExecuteWorkflowRequest.ParametersEntry.value:type_name -> google.protobuf.Value
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflow_service_proto_init() }
@@ -1185,13 +1275,15 @@ func file_browser_automation_studio_v1_workflow_service_proto_init() {
 		return
 	}
 	file_browser_automation_studio_v1_workflow_proto_init()
+	file_browser_automation_studio_v1_shared_proto_init()
+	file_browser_automation_studio_v1_workflow_service_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_workflow_service_proto_rawDesc), len(file_browser_automation_studio_v1_workflow_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getConfig } from '../../config';
+import { parseProjectList } from '../../utils/projectProto';
 
 interface SearchResult {
   id: string;
@@ -76,19 +77,17 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       const projectsMap = new Map<string, string>();
       const searchResults: SearchResult[] = [];
 
-      // Process projects
-      if (Array.isArray(projectsData.projects)) {
-        projectsData.projects.forEach((p: { id: string; name: string; description?: string }) => {
-          projectsMap.set(p.id, p.name);
-          if (p.name.toLowerCase().includes(searchLower) || (p.description ?? '').toLowerCase().includes(searchLower)) {
-            searchResults.push({
-              id: p.id,
-              name: p.name,
-              type: 'project',
-            });
-          }
-        });
-      }
+      const projects = parseProjectList(projectsData);
+      projects.forEach((p) => {
+        projectsMap.set(p.id, p.name);
+        if (p.name.toLowerCase().includes(searchLower) || (p.description ?? '').toLowerCase().includes(searchLower)) {
+          searchResults.push({
+            id: p.id,
+            name: p.name,
+            type: 'project',
+          });
+        }
+      });
 
       // Process workflows
       if (Array.isArray(workflowsData.workflows)) {

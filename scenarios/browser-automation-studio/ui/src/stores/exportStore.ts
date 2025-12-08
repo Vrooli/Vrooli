@@ -79,41 +79,54 @@ interface ExportState {
   clearError: () => void;
 }
 
-// Helper to normalize API response to Export interface
-const normalizeExport = (raw: Record<string, unknown>): Export => {
-  const statusValue = String(raw.status ?? 'completed');
-  const validStatuses = ['pending', 'processing', 'completed', 'failed'];
-  const status = validStatuses.includes(statusValue) ? statusValue as Export['status'] : 'completed';
+// Helper to normalize API response to Export interface. Expects snake_case protojson payloads.
+const normalizeExport = (raw: unknown): Export | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
 
-  const formatValue = String(raw.format ?? 'mp4').toLowerCase();
-  const validFormats = ['mp4', 'gif', 'json', 'html'];
-  const format = validFormats.includes(formatValue) ? formatValue as Export['format'] : 'mp4';
+  const id = typeof obj.id === 'string' ? obj.id : '';
+  const executionId = typeof obj.execution_id === 'string' ? obj.execution_id : '';
+  if (!id || !executionId) return null;
+
+  const formatValue = typeof obj.format === 'string' ? obj.format.toLowerCase() : 'mp4';
+  const validFormats = new Set<Export['format']>(['mp4', 'gif', 'json', 'html']);
+  const format: Export['format'] = validFormats.has(formatValue as Export['format'])
+    ? (formatValue as Export['format'])
+    : 'mp4';
+
+  const statusValue = typeof obj.status === 'string' ? obj.status.toLowerCase() : 'completed';
+  const validStatuses = new Set<Export['status']>(['pending', 'processing', 'completed', 'failed']);
+  const status: Export['status'] = validStatuses.has(statusValue as Export['status'])
+    ? (statusValue as Export['status'])
+    : 'completed';
+
+  const asNumber = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined);
 
   return {
-    id: String(raw.id ?? ''),
-    executionId: String(raw.execution_id ?? raw.executionId ?? ''),
-    workflowId: raw.workflow_id || raw.workflowId ? String(raw.workflow_id ?? raw.workflowId) : undefined,
-    name: String(raw.name ?? 'Untitled Export'),
+    id,
+    executionId,
+    workflowId: typeof obj.workflow_id === 'string' ? obj.workflow_id : undefined,
+    name: typeof obj.name === 'string' ? obj.name : 'Untitled Export',
     format,
-    settings: raw.settings as Record<string, unknown> | undefined,
-    storageUrl: raw.storage_url || raw.storageUrl ? String(raw.storage_url ?? raw.storageUrl) : undefined,
-    thumbnailUrl: raw.thumbnail_url || raw.thumbnailUrl ? String(raw.thumbnail_url ?? raw.thumbnailUrl) : undefined,
-    fileSizeBytes: typeof raw.file_size_bytes === 'number' ? raw.file_size_bytes :
-                   typeof raw.fileSizeBytes === 'number' ? raw.fileSizeBytes : undefined,
-    durationMs: typeof raw.duration_ms === 'number' ? raw.duration_ms :
-                typeof raw.durationMs === 'number' ? raw.durationMs : undefined,
-    frameCount: typeof raw.frame_count === 'number' ? raw.frame_count :
-                typeof raw.frameCount === 'number' ? raw.frameCount : undefined,
-    aiCaption: raw.ai_caption || raw.aiCaption ? String(raw.ai_caption ?? raw.aiCaption) : undefined,
-    aiCaptionGeneratedAt: raw.ai_caption_generated_at || raw.aiCaptionGeneratedAt
-      ? new Date(String(raw.ai_caption_generated_at ?? raw.aiCaptionGeneratedAt))
-      : undefined,
+    settings: (obj.settings as Record<string, unknown> | undefined) ?? undefined,
+    storageUrl: typeof obj.storage_url === 'string' ? obj.storage_url : undefined,
+    thumbnailUrl: typeof obj.thumbnail_url === 'string' ? obj.thumbnail_url : undefined,
+    fileSizeBytes: asNumber(obj.file_size_bytes),
+    durationMs: asNumber(obj.duration_ms),
+    frameCount: asNumber(obj.frame_count),
+    aiCaption: typeof obj.ai_caption === 'string' ? obj.ai_caption : undefined,
+    aiCaptionGeneratedAt:
+      typeof obj.ai_caption_generated_at === 'string' ? new Date(obj.ai_caption_generated_at) : undefined,
     status,
-    error: raw.error ? String(raw.error) : undefined,
-    createdAt: new Date(String(raw.created_at ?? raw.createdAt ?? new Date().toISOString())),
-    updatedAt: new Date(String(raw.updated_at ?? raw.updatedAt ?? new Date().toISOString())),
-    workflowName: raw.workflow_name || raw.workflowName ? String(raw.workflow_name ?? raw.workflowName) : undefined,
-    executionDate: raw.execution_date || raw.executionDate ? String(raw.execution_date ?? raw.executionDate) : undefined,
+    error: typeof obj.error === 'string' ? obj.error : undefined,
+    createdAt: new Date(
+      typeof obj.created_at === 'string' ? obj.created_at : new Date().toISOString(),
+    ),
+    updatedAt: new Date(
+      typeof obj.updated_at === 'string' ? obj.updated_at : new Date().toISOString(),
+    ),
+    workflowName: typeof obj.workflow_name === 'string' ? obj.workflow_name : undefined,
+    executionDate: typeof obj.execution_date === 'string' ? obj.execution_date : undefined,
   };
 };
 
@@ -138,7 +151,9 @@ export const useExportStore = create<ExportState>((set) => ({
 
       const data = await response.json();
       const exports = Array.isArray(data.exports)
-        ? data.exports.map((e: Record<string, unknown>) => normalizeExport(e))
+        ? data.exports
+            .map((e: unknown) => normalizeExport(e))
+            .filter((e: Export | null | undefined): e is Export => Boolean(e))
         : [];
 
       // Sort by createdAt descending
@@ -163,7 +178,9 @@ export const useExportStore = create<ExportState>((set) => ({
 
       const data = await response.json();
       const exports = Array.isArray(data.exports)
-        ? data.exports.map((e: Record<string, unknown>) => normalizeExport(e))
+        ? data.exports
+            .map((e: unknown) => normalizeExport(e))
+            .filter((e: Export | null | undefined): e is Export => Boolean(e))
         : [];
 
       return exports;
@@ -184,7 +201,9 @@ export const useExportStore = create<ExportState>((set) => ({
 
       const data = await response.json();
       const exports = Array.isArray(data.exports)
-        ? data.exports.map((e: Record<string, unknown>) => normalizeExport(e))
+        ? data.exports
+            .map((e: unknown) => normalizeExport(e))
+            .filter((e: Export | null | undefined): e is Export => Boolean(e))
         : [];
 
       return exports;
@@ -207,7 +226,8 @@ export const useExportStore = create<ExportState>((set) => ({
       }
 
       const data = await response.json();
-      return data.export ? normalizeExport(data.export) : null;
+      const normalized = normalizeExport(data.export);
+      return normalized;
     } catch (error) {
       logger.error('Failed to get export', { component: 'ExportStore', action: 'getExport', id }, error);
       return null;
@@ -242,7 +262,7 @@ export const useExportStore = create<ExportState>((set) => ({
       }
 
       const data = await response.json();
-      const newExport = data.export ? normalizeExport(data.export) : null;
+      const newExport = normalizeExport(data.export);
 
       if (newExport) {
         // Add to the beginning of the exports list
@@ -290,11 +310,11 @@ export const useExportStore = create<ExportState>((set) => ({
       }
 
       const data = await response.json();
-      const updatedExport = data.export ? normalizeExport(data.export) : null;
+      const updatedExport = normalizeExport(data.export);
 
       if (updatedExport) {
-        set(state => ({
-          exports: state.exports.map(e => e.id === id ? updatedExport : e),
+        set((state) => ({
+          exports: state.exports.map((e: Export) => (e.id === id ? updatedExport : e)),
           selectedExport: state.selectedExport?.id === id ? updatedExport : state.selectedExport,
           isUpdating: false,
         }));
@@ -324,8 +344,8 @@ export const useExportStore = create<ExportState>((set) => ({
         throw new Error(errorData.message ?? `Failed to delete export: ${response.status}`);
       }
 
-      set(state => ({
-        exports: state.exports.filter(e => e.id !== id),
+      set((state) => ({
+        exports: state.exports.filter((e: Export) => e.id !== id),
         selectedExport: state.selectedExport?.id === id ? null : state.selectedExport,
         isDeleting: false,
       }));

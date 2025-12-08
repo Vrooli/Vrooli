@@ -107,7 +107,7 @@ export interface ReplayFrame {
   };
   retryAttempt?: number;
   retryMaxAttempts?: number;
-  retryConfigured?: number;
+  retryConfigured?: number | boolean;
   retryDelayMs?: number;
   retryBackoffFactor?: number;
   retryHistory?: ReplayRetryHistoryEntry[];
@@ -1742,11 +1742,15 @@ export function ReplayPlayer({
   // All remaining code can safely use currentFrame (guaranteed non-null here)
   const screenshot = currentFrame.screenshot;
   const displayDurationMs = currentFrame.totalDurationMs ?? currentFrame.durationMs;
+  const retryConfigured =
+    typeof currentFrame.retryConfigured === 'number'
+      ? currentFrame.retryConfigured > 0
+      : currentFrame.retryConfigured === true;
   const hasResiliencyInfo = Boolean(
     (displayDurationMs && currentFrame.durationMs && Math.round(displayDurationMs) !== Math.round(currentFrame.durationMs)) ||
       (typeof currentFrame.retryAttempt === 'number' && currentFrame.retryAttempt > 1) ||
       (typeof currentFrame.retryMaxAttempts === 'number' && currentFrame.retryMaxAttempts > 1) ||
-      (typeof currentFrame.retryConfigured === 'number' && currentFrame.retryConfigured > 0) ||
+      retryConfigured ||
       (typeof currentFrame.retryDelayMs === 'number' && currentFrame.retryDelayMs > 0) ||
       (typeof currentFrame.retryBackoffFactor === 'number' && currentFrame.retryBackoffFactor !== 1 && currentFrame.retryBackoffFactor !== 0) ||
       (currentFrame.retryHistory && currentFrame.retryHistory.length > 0)
@@ -2488,9 +2492,12 @@ export function ReplayPlayer({
                         : ''}
                     </div>
                   )}
-                  {typeof currentFrame.retryConfigured === 'number' && currentFrame.retryConfigured > 0 && (
-                    <div>Configured retries: {currentFrame.retryConfigured}</div>
-                  )}
+                  {retryConfigured ? (
+                    <div>
+                      Configured retries
+                      {typeof currentFrame.retryConfigured === 'number' ? `: ${currentFrame.retryConfigured}` : ''}
+                    </div>
+                  ) : null}
                   {typeof currentFrame.retryDelayMs === 'number' && currentFrame.retryDelayMs > 0 && (
                     <div>Initial delay: {formatDurationSeconds(currentFrame.retryDelayMs)}</div>
                   )}

@@ -6,11 +6,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"encoding/json"
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -48,6 +51,32 @@ func jsonMapToStd(m database.JSONMap) map[string]any {
 		result[k] = v
 	}
 	return result
+}
+
+// validateWorkflowProtoShape ensures incoming JSON maps conform to the WorkflowDefinition proto shape.
+// This catches unknown/incorrectly cased fields early instead of silently discarding them.
+func validateWorkflowProtoShape(definition map[string]any) error {
+	if definition == nil || len(definition) == 0 {
+		return nil
+	}
+	// Nodes/edges often carry UI-only fields (positions, handles). Ignore them for
+	// proto shape validation so we catch casing/field drift on the typed sections
+	// without rejecting legitimately richer UI payloads.
+	clean := make(map[string]any, len(definition))
+	for k, v := range definition {
+		if k == "nodes" || k == "edges" {
+			continue
+		}
+		clean[k] = v
+	}
+
+	raw, err := json.Marshal(clean)
+	if err != nil {
+		return err
+	}
+
+	// Disallow unknown fields so UI/CLI drifts surface immediately.
+	return (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &browser_automation_studio_v1.WorkflowDefinition{})
 }
 
 // definitionFromNodesEdges constructs a workflow definition map from separate

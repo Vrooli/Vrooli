@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
+import { parseProject, parseProjectList, parseProjectWithStats } from '../utils/projectProto';
 
 export interface Project {
   id: string;
@@ -91,7 +92,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         throw new Error(`Failed to fetch projects: ${response.status}`);
       }
       const data = await response.json();
-      set({ projects: data.projects || [], isLoading: false, isConnected: true });
+      const parsed = parseProjectList(data);
+      set({ projects: parsed, isLoading: false, isConnected: true });
     } catch (error) {
       logger.error('Failed to fetch projects', { component: 'ProjectStore', action: 'fetchProjects' }, error);
       set({
@@ -120,7 +122,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
 
       const data = await response.json();
-      const newProject = data.project;
+      const newProject = parseProject(data);
+
+      if (!newProject) {
+        throw new Error('Failed to parse project payload');
+      }
 
       set(state => ({
         projects: [newProject, ...state.projects],
@@ -156,7 +162,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
 
       const data = await response.json();
-      const updatedProject = data.project as Project;
+      const updatedProject = parseProject(data);
+
+      if (!updatedProject) {
+        throw new Error('Failed to parse project payload');
+      }
 
       set(state => ({
         projects: state.projects.map(p => p.id === id ? updatedProject : p),
@@ -212,7 +222,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to fetch project: ${response.status}`);
       }
-      const project = await response.json();
+      const project = parseProjectWithStats(await response.json());
       return project;
     } catch (error) {
       logger.error('Failed to fetch project', { component: 'ProjectStore', action: 'getProject', projectId: id }, error);

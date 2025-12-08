@@ -3,6 +3,7 @@ import datetime
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from browser_automation_studio.v1 import workflow_pb2 as _workflow_pb2
+from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -139,8 +140,14 @@ class ExecuteWorkflowRequest(_message.Message):
 class ExecuteWorkflowResponse(_message.Message):
     __slots__ = ()
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
-    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+    status: _shared_pb2.ExecutionStatus
+    completed_at: _timestamp_pb2.Timestamp
+    error: str
+    def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ...) -> None: ...
 
 class WorkflowValidationIssue(_message.Message):
     __slots__ = ()
@@ -197,3 +204,11 @@ class WorkflowValidationResult(_message.Message):
     checked_at: str
     duration_ms: int
     def __init__(self, valid: _Optional[bool] = ..., errors: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., stats: _Optional[_Union[WorkflowValidationStats, _Mapping]] = ..., schema_version: _Optional[str] = ..., checked_at: _Optional[str] = ..., duration_ms: _Optional[int] = ...) -> None: ...
+
+class RestoreWorkflowVersionResponse(_message.Message):
+    __slots__ = ()
+    WORKFLOW_FIELD_NUMBER: _ClassVar[int]
+    RESTORED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    workflow: WorkflowSummary
+    restored_version: WorkflowVersion
+    def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., restored_version: _Optional[_Union[WorkflowVersion, _Mapping]] = ...) -> None: ...

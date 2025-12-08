@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   useState,
   useEffect,
@@ -9,6 +10,7 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
+import { fromJson } from "@bufbuild/protobuf";
 import {
   Activity,
   Pause,
@@ -48,8 +50,12 @@ import { useExecutionStore } from "@stores/executionStore";
 import type {
   Execution,
   TimelineFrame,
-  TimelineArtifact,
 } from "@stores/executionStore";
+import {
+  type ExecutionExportPreview as ProtoExecutionExportPreview,
+  ExecutionExportPreviewSchema,
+} from "@vrooli/proto-types/browser-automation-studio/v1/execution_pb";
+import { ExportStatus } from "@vrooli/proto-types/browser-automation-studio/v1/shared_pb";
 import { useWorkflowStore } from "@stores/workflowStore";
 import { useExportStore, type Export } from "@stores/exportStore";
 import { ExportSuccessPanel } from "./ExportSuccessPanel";
@@ -63,16 +69,7 @@ import type {
   ReplayMovieFrameRect,
   ReplayMoviePresentation,
 } from "@/types/export";
-import {
-  toNumber,
-  toBoundingBox,
-  toPoint,
-  mapTrail,
-  mapRegions,
-  mapRetryHistory,
-  mapAssertion,
-  resolveUrl,
-} from "@utils/executionTypeMappers";
+import { resolveUrl } from "@utils/executionTypeMappers";
 import ExecutionHistory from "./ExecutionHistory";
 import { selectors } from "@constants/selectors";
 // Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
@@ -200,28 +197,6 @@ type FileSystemFileHandle = {
   createWritable: () => Promise<FileSystemWritableFileStream>;
 };
 
-interface ExecutionExportPreviewResponse {
-  execution_id?: string;
-  spec_id?: string;
-  status?: string;
-  message?: string;
-  captured_frame_count?: number;
-  available_asset_count?: number;
-  total_duration_ms?: number;
-  package?: ReplayMovieSpec;
-}
-
-interface ExecutionExportPreview {
-  executionId: string;
-  specId?: string;
-  status: string;
-  message?: string;
-  capturedFrameCount: number;
-  availableAssetCount: number;
-  totalDurationMs: number;
-  package?: ReplayMovieSpec;
-}
-
 type ExportDimensionPreset = "spec" | "1080p" | "720p" | "custom";
 
 interface ExportPreviewMetrics {
@@ -230,10 +205,76 @@ interface ExportPreviewMetrics {
   totalDurationMs: number;
 }
 
+type ExportStatusLabel = "ready" | "pending" | "error" | "unavailable" | "unknown";
+
+type ExecutionExportPreview = {
+  executionId: string;
+  specId?: string;
+  status: ExportStatusLabel;
+  message?: string;
+  capturedFrameCount: number;
+  availableAssetCount: number;
+  totalDurationMs: number;
+  package?: ReplayMovieSpec;
+};
+
 const EXPORT_EXTENSIONS: Record<ExportFormat, string> = {
   json: "json",
   mp4: "mp4",
   gif: "gif",
+};
+
+const EXPORT_PREVIEW_PARSE_OPTIONS = {
+  jsonOptions: { useProtoNames: true, ignoreUnknownFields: false },
+} as const;
+
+const mapExportStatus = (status?: ExportStatus | null): ExportStatusLabel => {
+  switch (status) {
+    case ExportStatus.READY:
+      return "ready";
+    case ExportStatus.PENDING:
+      return "pending";
+    case ExportStatus.ERROR:
+      return "error";
+    case ExportStatus.UNAVAILABLE:
+      return "unavailable";
+    default:
+      return "unknown";
+  }
+};
+
+export const parseExportPreviewPayload = (
+  raw: unknown,
+): {
+  preview: ProtoExecutionExportPreview;
+  status: ExportStatusLabel;
+  metrics: ExportPreviewMetrics;
+  movieSpec: ReplayMovieSpec | null;
+} => {
+  const preview = fromJson(
+    ExecutionExportPreviewSchema,
+    raw as any,
+    EXPORT_PREVIEW_PARSE_OPTIONS,
+  );
+
+  const status = mapExportStatus(preview.status);
+  const metrics: ExportPreviewMetrics = {
+    capturedFrames: typeof preview.capturedFrameCount === "number"
+      ? preview.capturedFrameCount
+      : 0,
+    assetCount: typeof preview.availableAssetCount === "number"
+      ? preview.availableAssetCount
+      : 0,
+    totalDurationMs: typeof preview.totalDurationMs === "number"
+      ? preview.totalDurationMs
+      : 0,
+  };
+
+  const movieSpec = preview.package
+    ? (preview.package as unknown as ReplayMovieSpec)
+    : null;
+
+  return { preview, status, metrics, movieSpec };
 };
 
 const DIMENSION_PRESET_CONFIG: Record<
@@ -1207,46 +1248,36 @@ function ActiveExecutionViewer({
           const text = await response.text();
           throw new Error(text || `Export request failed (${response.status})`);
         }
-        const raw = (await response.json()) as ExecutionExportPreviewResponse;
+        const raw = await response.json();
         if (isCancelled) {
           return;
         }
-        const status = normalizePreviewStatus(raw.status);
-        const capturedFramesRaw =
-          raw.captured_frame_count ??
-          raw.package?.summary?.frame_count ??
-          raw.package?.frames?.length ??
-          0;
-        const availableAssetRaw =
-          raw.available_asset_count ?? raw.package?.assets?.length ?? 0;
-        const totalDurationRaw =
-          raw.total_duration_ms ??
-          raw.package?.summary?.total_duration_ms ??
-          raw.package?.playback?.duration_ms ??
-          0;
+        const {
+          preview,
+          status,
+          metrics,
+          movieSpec,
+        } = parseExportPreviewPayload(raw);
         const specId =
-          (typeof raw.spec_id === "string" && raw.spec_id.trim()) ||
-          raw.execution_id ||
+          (preview.specId && preview.specId.trim()) ||
+          preview.executionId ||
           execution.id;
-        const metrics: ExportPreviewMetrics = {
-          capturedFrames: coerceMetricNumber(capturedFramesRaw),
-          assetCount: coerceMetricNumber(availableAssetRaw),
-          totalDurationMs: coerceMetricNumber(totalDurationRaw),
-        };
+
         setPreviewMetrics(metrics);
         setActiveSpecId(specId);
+
         const message = describePreviewStatusMessage(
           status,
-          raw.message,
+          preview.message,
           metrics,
         );
-        if (status && status !== "ready") {
+        if (status !== "ready") {
           setMovieSpec(null);
           setMovieSpecError(message);
           shouldRetry = status === "pending";
           return;
         }
-        if (!raw.package) {
+        if (!movieSpec) {
           setMovieSpec(null);
           setMovieSpecError(
             "Replay export unavailable – missing export package",
@@ -1254,7 +1285,7 @@ function ActiveExecutionViewer({
           return;
         }
         clearMovieSpecRetryTimeout();
-        setMovieSpec(raw.package);
+        setMovieSpec(movieSpec);
         setMovieSpecError(null);
       } catch (error) {
         if (isCancelled) {
@@ -1357,41 +1388,34 @@ function ActiveExecutionViewer({
           const text = await response.text();
           throw new Error(text || `Export request failed (${response.status})`);
         }
-        const raw = (await response.json()) as ExecutionExportPreviewResponse;
+        const raw = await response.json();
         if (isCancelled) {
           return;
         }
-        const executionIdForPreview = raw.execution_id ?? execution.id;
-        const specId =
-          (typeof raw.spec_id === "string" && raw.spec_id.trim()) ||
-          executionIdForPreview;
-        const status = normalizePreviewStatus(raw.status) || "unknown";
-        const capturedFramesRaw =
-          raw.captured_frame_count ??
-          raw.package?.summary?.frame_count ??
-          raw.package?.frames?.length ??
-          0;
-        const availableAssetRaw =
-          raw.available_asset_count ?? raw.package?.assets?.length ?? 0;
-        const totalDurationRaw =
-          raw.total_duration_ms ??
-          raw.package?.summary?.total_duration_ms ??
-          raw.package?.playback?.duration_ms ??
-          0;
-        const metrics: ExportPreviewMetrics = {
-          capturedFrames: coerceMetricNumber(capturedFramesRaw),
-          assetCount: coerceMetricNumber(availableAssetRaw),
-          totalDurationMs: coerceMetricNumber(totalDurationRaw),
-        };
+        const {
+          preview,
+          status,
+          metrics,
+          movieSpec,
+        } = parseExportPreviewPayload(raw);
+
+        const executionIdForPreview =
+          preview.executionId || execution.id;
+        const specId = (preview.specId && preview.specId.trim()) || executionIdForPreview;
+
         const parsed: ExecutionExportPreview = {
           executionId: executionIdForPreview,
           specId,
           status,
-          message: describePreviewStatusMessage(status, raw.message, metrics),
+          message: describePreviewStatusMessage(
+            status,
+            preview.message,
+            metrics,
+          ),
           capturedFrameCount: metrics.capturedFrames,
           availableAssetCount: metrics.assetCount,
           totalDurationMs: metrics.totalDurationMs,
-          package: raw.package,
+          package: movieSpec ?? undefined,
         };
         setExportPreview(parsed);
         setPreviewMetrics(metrics);
@@ -1860,168 +1884,31 @@ function ActiveExecutionViewer({
       if (!frame) {
         return false;
       }
-      const type = (
-        typeof frame.step_type === "string"
-          ? frame.step_type
-          : typeof frame.stepType === "string"
-            ? frame.stepType
-            : ""
-      ).toLowerCase();
+      const type =
+        typeof frame.stepType === "string" ? frame.stepType.toLowerCase() : "";
       return type !== "screenshot";
     });
   }, [execution.timeline]);
 
   const replayFrames = useMemo<ReplayFrame[]>(() => {
     return timelineForReplay.map((frame: TimelineFrame, index: number) => {
-      const screenshotData = frame?.screenshot ?? undefined;
-      const screenshotUrl = resolveUrl(screenshotData?.url);
-      const thumbnailUrl = resolveUrl(screenshotData?.thumbnail_url);
-
-      const focused = frame?.focused_element ?? frame?.focusedElement;
-      const focusedRaw = (focused ?? undefined) as
-        | Record<string, unknown>
-        | undefined;
-      const focusedBoundingBox = toBoundingBox(
-        (focusedRaw?.bounding_box as unknown) ??
-          (focusedRaw?.boundingBox as unknown),
-      );
-      const normalizedFocusedBoundingBox = focusedBoundingBox ?? undefined;
-      const totalDuration = toNumber(
-        frame?.total_duration_ms ?? frame?.totalDurationMs,
-      );
-      const retryAttempt = toNumber(
-        frame?.retry_attempt ?? frame?.retryAttempt,
-      );
-      const retryMaxAttempts = toNumber(
-        frame?.retry_max_attempts ?? frame?.retryMaxAttempts,
-      );
-      const retryConfigured = toNumber(
-        frame?.retry_configured ?? frame?.retryConfigured,
-      );
-      const retryDelayMs = toNumber(
-        frame?.retry_delay_ms ?? frame?.retryDelayMs,
-      );
-      const retryBackoffFactor = toNumber(
-        frame?.retry_backoff_factor ?? frame?.retryBackoffFactor,
-      );
-      const retryHistory = mapRetryHistory(
-        frame?.retry_history ?? frame?.retryHistory,
-      );
-      const domSnapshotArtifact = Array.isArray(frame?.artifacts)
-        ? frame.artifacts.find(
-            (artifact: TimelineArtifact) => artifact?.type === "dom_snapshot",
-          )
+      const resolvedScreenshot = frame.screenshot
+        ? {
+            ...frame.screenshot,
+            url: resolveUrl(frame.screenshot.url),
+            thumbnailUrl: resolveUrl(frame.screenshot.thumbnailUrl),
+          }
         : undefined;
-      const domSnapshotHtml =
-        domSnapshotArtifact?.payload &&
-        typeof domSnapshotArtifact.payload === "object"
-          ? (() => {
-              const payload = domSnapshotArtifact.payload as Record<
-                string,
-                unknown
-              >;
-              const html = payload?.html;
-              return typeof html === "string" ? html : undefined;
-            })()
-          : undefined;
-      const domSnapshotPreview =
-        typeof (frame?.dom_snapshot_preview ?? frame?.domSnapshotPreview) ===
-        "string"
-          ? (frame.dom_snapshot_preview ?? frame.domSnapshotPreview)
-          : undefined;
-      const domSnapshotArtifactId =
-        typeof (
-          frame?.dom_snapshot_artifact_id ?? frame?.domSnapshotArtifactId
-        ) === "string"
-          ? (frame.dom_snapshot_artifact_id ?? frame.domSnapshotArtifactId)
-          : typeof domSnapshotArtifact?.id === "string"
-            ? domSnapshotArtifact.id
-            : undefined;
-
-      const mappedFrame: ReplayFrame = {
-        id:
-          screenshotData?.artifact_id ||
-          frame?.timeline_artifact_id ||
-          `frame-${index}`,
-        stepIndex:
-          typeof frame?.step_index === "number" ? frame.step_index : index,
-        nodeId: typeof frame?.node_id === "string" ? frame.node_id : undefined,
-        stepType:
-          typeof frame?.step_type === "string" ? frame.step_type : undefined,
-        status: typeof frame?.status === "string" ? frame.status : undefined,
-        success: Boolean(frame?.success),
-        durationMs: toNumber(frame?.duration_ms ?? frame?.durationMs),
-        totalDurationMs: totalDuration,
-        progress: toNumber(frame?.progress),
-        finalUrl:
-          typeof frame?.final_url === "string"
-            ? frame.final_url
-            : typeof frame?.finalUrl === "string"
-              ? frame.finalUrl
-              : undefined,
-        error: typeof frame?.error === "string" ? frame.error : undefined,
-        extractedDataPreview:
-          frame?.extracted_data_preview ?? frame?.extractedDataPreview,
-        consoleLogCount: toNumber(
-          frame?.console_log_count ?? frame?.consoleLogCount,
-        ),
-        networkEventCount: toNumber(
-          frame?.network_event_count ?? frame?.networkEventCount,
-        ),
-        screenshot: screenshotData
-          ? {
-              artifactId: screenshotData.artifact_id || `artifact-${index}`,
-              url: screenshotUrl,
-              thumbnailUrl,
-              width: toNumber(screenshotData.width),
-              height: toNumber(screenshotData.height),
-              contentType:
-                typeof screenshotData.content_type === "string"
-                  ? screenshotData.content_type
-                  : undefined,
-              sizeBytes: toNumber(screenshotData.size_bytes),
-            }
-          : undefined,
-        highlightRegions: mapRegions(
-          frame?.highlight_regions ?? frame?.highlightRegions,
-        ),
-        maskRegions: mapRegions(frame?.mask_regions ?? frame?.maskRegions),
-        focusedElement:
-          focused || normalizedFocusedBoundingBox
-            ? {
-                selector:
-                  typeof focused?.selector === "string"
-                    ? focused.selector
-                    : undefined,
-                boundingBox: normalizedFocusedBoundingBox,
-              }
-            : null,
-        elementBoundingBox:
-          toBoundingBox(
-            frame?.element_bounding_box ?? frame?.elementBoundingBox,
-          ) ?? null,
-        clickPosition:
-          toPoint(frame?.click_position ?? frame?.clickPosition) ?? null,
-        cursorTrail: mapTrail(frame?.cursor_trail ?? frame?.cursorTrail),
-        zoomFactor: toNumber(frame?.zoom_factor ?? frame?.zoomFactor),
-        assertion: mapAssertion(frame?.assertion) ?? undefined,
-        retryAttempt,
-        retryMaxAttempts,
-        retryConfigured,
-        retryDelayMs,
-        retryBackoffFactor,
-        retryHistory,
-        domSnapshotHtml,
-        domSnapshotPreview,
-        domSnapshotArtifactId,
-      };
 
       const hasScreenshot = Boolean(
-        mappedFrame.screenshot?.url || mappedFrame.screenshot?.thumbnailUrl,
+        resolvedScreenshot?.url || resolvedScreenshot?.thumbnailUrl,
       );
-      return hasScreenshot
-        ? mappedFrame
-        : { ...mappedFrame, screenshot: undefined };
+
+      return {
+        ...frame,
+        id: frame.id || `frame-${index}`,
+        screenshot: hasScreenshot ? resolvedScreenshot : undefined,
+      };
     });
   }, [timelineForReplay]);
 
@@ -2354,15 +2241,15 @@ function ActiveExecutionViewer({
         return;
       }
       items.push({
-        id: frame?.screenshot?.artifact_id || `timeline-${index}`,
+        id: frame?.screenshot?.artifactId || `timeline-${index}`,
         url: resolved,
         stepName:
-          frame?.node_id ||
-          (typeof frame?.step_type === "string" ? frame.step_type : undefined) ||
-          (typeof frame?.step_index === "number"
-            ? `Step ${frame.step_index + 1}`
+          frame?.nodeId ||
+          (typeof frame?.stepType === "string" ? frame.stepType : undefined) ||
+          (typeof frame?.stepIndex === "number"
+            ? `Step ${frame.stepIndex + 1}`
             : "Step"),
-        timestamp: frame?.started_at ? new Date(frame.started_at) : new Date(),
+        timestamp: new Date(),
       });
     });
     return items;

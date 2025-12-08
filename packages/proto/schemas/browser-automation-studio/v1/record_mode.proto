@@ -4,6 +4,7 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
@@ -53,7 +54,7 @@ message RecordedAction {
   string id = 1;
   string session_id = 2;
   int32 sequence_num = 3;
-  string timestamp = 4;
+  google.protobuf.Timestamp timestamp = 4;
   int32 duration_ms = 5;
   string action_type = 6;
   double confidence = 7;
@@ -61,6 +62,8 @@ message RecordedAction {
   ElementMeta element_meta = 9;
   RecordBoundingBox bounding_box = 10;
   google.protobuf.Struct payload = 11;
+  // Typed payload; prefer over Struct when available.
+  JsonObject payload_typed = 15;
   string url = 12;
   string frame_id = 13;
   RecordPoint cursor_pos = 14;
@@ -72,7 +75,7 @@ message RecordingState {
   string recording_id = 2;
   string session_id = 3;
   int32 action_count = 4;
-  string started_at = 5;
+  google.protobuf.Timestamp started_at = 5;
 }
 
 // CreateRecordingSessionRequest is the request body for creating a browser session for recording.
@@ -85,7 +88,7 @@ message CreateRecordingSessionRequest {
 // CreateRecordingSessionResponse is the response after creating a recording session.
 message CreateRecordingSessionResponse {
   string session_id = 1;
-  string created_at = 2;
+  google.protobuf.Timestamp created_at = 2;
 }
 
 // StartRecordingRequest is the request body for starting a live recording.
@@ -98,7 +101,7 @@ message StartRecordingRequest {
 message StartRecordingResponse {
   string recording_id = 1;
   string session_id = 2;
-  string started_at = 3;
+  google.protobuf.Timestamp started_at = 3;
 }
 
 // StopRecordingResponse is the response after stopping recording.
@@ -106,7 +109,7 @@ message StopRecordingResponse {
   string recording_id = 1;
   string session_id = 2;
   int32 action_count = 3;
-  string stopped_at = 4;
+  google.protobuf.Timestamp stopped_at = 4;
 }
 
 // RecordingStatusResponse is the response for recording status.
@@ -115,7 +118,7 @@ message RecordingStatusResponse {
   bool is_recording = 2;
   string recording_id = 3;
   int32 action_count = 4;
-  string started_at = 5;
+  google.protobuf.Timestamp started_at = 5;
 }
 
 // GetActionsResponse is the response for getting recorded actions.

@@ -107,7 +107,7 @@ vi.mock('@stores/executionStore', () => ({
 }));
 
 // Import component after mocks are set up
-import ExecutionViewer from './ExecutionViewer';
+import ExecutionViewer, { parseExportPreviewPayload } from './ExecutionViewer';
 
 describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREENSHOT-VIEW]', () => {
   beforeEach(() => {
@@ -229,6 +229,57 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
 
       // ActiveExecutionViewer should render with failed execution
       // Error message display tested in ActiveExecutionViewer tests
+    });
+  });
+
+  describe('parseExportPreviewPayload', () => {
+    const basePreview = {
+      execution_id: 'exec-1',
+      spec_id: 'spec-1',
+      status: 'EXPORT_STATUS_READY',
+      message: 'ready',
+      captured_frame_count: 2,
+      available_asset_count: 1,
+      total_duration_ms: 1234,
+      package: {
+        version: 'v1',
+        generated_at: '2025-01-01T00:00:00Z',
+        execution: {
+          execution_id: 'exec-1',
+          workflow_id: 'wf-1',
+          status: 'completed',
+          started_at: '2025-01-01T00:00:00Z',
+          progress: 100,
+          total_duration_ms: 1234,
+        },
+        theme: {},
+        cursor: {},
+        decor: {},
+        playback: {},
+        presentation: {},
+        cursor_motion: {},
+        frames: [],
+        assets: [],
+        summary: {},
+      } as unknown as ReturnType<typeof parseExportPreviewPayload>['movieSpec'],
+    };
+
+    it('parses protojson export preview payload with snake_case fields', () => {
+      const { preview, status, metrics, movieSpec } = parseExportPreviewPayload(basePreview);
+
+      expect(preview.executionId).toBe('exec-1');
+      expect(preview.specId).toBe('spec-1');
+      expect(status).toBe('ready');
+      expect(metrics.capturedFrames).toBe(2);
+      expect(metrics.assetCount).toBe(1);
+      expect(metrics.totalDurationMs).toBe(1234);
+      expect(movieSpec?.version).toBe('v1');
+    });
+
+    it('throws on unknown top-level fields when parsing export preview', () => {
+      expect(() =>
+        parseExportPreviewPayload({ ...basePreview, unexpected: true }),
+      ).toThrow();
     });
   });
 

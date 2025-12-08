@@ -4,6 +4,7 @@ import { getConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { useDashboardStore, FavoriteWorkflow } from '../../stores/dashboardStore';
 import toast from 'react-hot-toast';
+import { parseProjectList } from '../../utils/projectProto';
 
 interface WorkflowItem {
   id: string;
@@ -70,12 +71,9 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
       // Fetch projects first
       const projectsResponse = await fetch(`${config.API_URL}/projects`);
       const projectsData = await projectsResponse.json();
+      const projects = parseProjectList(projectsData);
       const projectsMap = new Map<string, string>();
-      if (Array.isArray(projectsData.projects)) {
-        projectsData.projects.forEach((p: { id: string; name: string }) => {
-          projectsMap.set(p.id, p.name);
-        });
-      }
+      projects.forEach((p) => projectsMap.set(p.id, p.name));
 
       // Fetch all workflows
       const response = await fetch(`${config.API_URL}/workflows?limit=500`);

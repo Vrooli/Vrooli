@@ -10,7 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
-	_ "google.golang.org/protobuf/types/known/timestamppb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -378,21 +378,23 @@ func (x *RecordPoint) GetY() float64 {
 
 // RecordedAction represents a single user action captured during recording.
 type RecordedAction struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	SequenceNum   int32                  `protobuf:"varint,3,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`
-	Timestamp     string                 `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	DurationMs    int32                  `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	ActionType    string                 `protobuf:"bytes,6,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
-	Confidence    float64                `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
-	Selector      *SelectorSet           `protobuf:"bytes,8,opt,name=selector,proto3" json:"selector,omitempty"`
-	ElementMeta   *ElementMeta           `protobuf:"bytes,9,opt,name=element_meta,json=elementMeta,proto3" json:"element_meta,omitempty"`
-	BoundingBox   *RecordBoundingBox     `protobuf:"bytes,10,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
-	Payload       *structpb.Struct       `protobuf:"bytes,11,opt,name=payload,proto3" json:"payload,omitempty"`
-	Url           string                 `protobuf:"bytes,12,opt,name=url,proto3" json:"url,omitempty"`
-	FrameId       string                 `protobuf:"bytes,13,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
-	CursorPos     *RecordPoint           `protobuf:"bytes,14,opt,name=cursor_pos,json=cursorPos,proto3" json:"cursor_pos,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId   string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SequenceNum int32                  `protobuf:"varint,3,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`
+	Timestamp   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	DurationMs  int32                  `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	ActionType  string                 `protobuf:"bytes,6,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
+	Confidence  float64                `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	Selector    *SelectorSet           `protobuf:"bytes,8,opt,name=selector,proto3" json:"selector,omitempty"`
+	ElementMeta *ElementMeta           `protobuf:"bytes,9,opt,name=element_meta,json=elementMeta,proto3" json:"element_meta,omitempty"`
+	BoundingBox *RecordBoundingBox     `protobuf:"bytes,10,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
+	Payload     *structpb.Struct       `protobuf:"bytes,11,opt,name=payload,proto3" json:"payload,omitempty"`
+	// Typed payload; prefer over Struct when available.
+	PayloadTyped  *JsonObject  `protobuf:"bytes,15,opt,name=payload_typed,json=payloadTyped,proto3" json:"payload_typed,omitempty"`
+	Url           string       `protobuf:"bytes,12,opt,name=url,proto3" json:"url,omitempty"`
+	FrameId       string       `protobuf:"bytes,13,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
+	CursorPos     *RecordPoint `protobuf:"bytes,14,opt,name=cursor_pos,json=cursorPos,proto3" json:"cursor_pos,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -448,11 +450,11 @@ func (x *RecordedAction) GetSequenceNum() int32 {
 	return 0
 }
 
-func (x *RecordedAction) GetTimestamp() string {
+func (x *RecordedAction) GetTimestamp() *timestamppb.Timestamp {
 	if x != nil {
 		return x.Timestamp
 	}
-	return ""
+	return nil
 }
 
 func (x *RecordedAction) GetDurationMs() int32 {
@@ -504,6 +506,13 @@ func (x *RecordedAction) GetPayload() *structpb.Struct {
 	return nil
 }
 
+func (x *RecordedAction) GetPayloadTyped() *JsonObject {
+	if x != nil {
+		return x.PayloadTyped
+	}
+	return nil
+}
+
 func (x *RecordedAction) GetUrl() string {
 	if x != nil {
 		return x.Url
@@ -532,7 +541,7 @@ type RecordingState struct {
 	RecordingId   string                 `protobuf:"bytes,2,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
 	SessionId     string                 `protobuf:"bytes,3,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	ActionCount   int32                  `protobuf:"varint,4,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
-	StartedAt     string                 `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -595,11 +604,11 @@ func (x *RecordingState) GetActionCount() int32 {
 	return 0
 }
 
-func (x *RecordingState) GetStartedAt() string {
+func (x *RecordingState) GetStartedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StartedAt
 	}
-	return ""
+	return nil
 }
 
 // CreateRecordingSessionRequest is the request body for creating a browser session for recording.
@@ -667,7 +676,7 @@ func (x *CreateRecordingSessionRequest) GetInitialUrl() string {
 type CreateRecordingSessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -709,11 +718,11 @@ func (x *CreateRecordingSessionResponse) GetSessionId() string {
 	return ""
 }
 
-func (x *CreateRecordingSessionResponse) GetCreatedAt() string {
+func (x *CreateRecordingSessionResponse) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
 	}
-	return ""
+	return nil
 }
 
 // StartRecordingRequest is the request body for starting a live recording.
@@ -774,7 +783,7 @@ type StartRecordingResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RecordingId   string                 `protobuf:"bytes,1,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
 	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	StartedAt     string                 `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -823,11 +832,11 @@ func (x *StartRecordingResponse) GetSessionId() string {
 	return ""
 }
 
-func (x *StartRecordingResponse) GetStartedAt() string {
+func (x *StartRecordingResponse) GetStartedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StartedAt
 	}
-	return ""
+	return nil
 }
 
 // StopRecordingResponse is the response after stopping recording.
@@ -836,7 +845,7 @@ type StopRecordingResponse struct {
 	RecordingId   string                 `protobuf:"bytes,1,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
 	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	ActionCount   int32                  `protobuf:"varint,3,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
-	StoppedAt     string                 `protobuf:"bytes,4,opt,name=stopped_at,json=stoppedAt,proto3" json:"stopped_at,omitempty"`
+	StoppedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=stopped_at,json=stoppedAt,proto3" json:"stopped_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -892,11 +901,11 @@ func (x *StopRecordingResponse) GetActionCount() int32 {
 	return 0
 }
 
-func (x *StopRecordingResponse) GetStoppedAt() string {
+func (x *StopRecordingResponse) GetStoppedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StoppedAt
 	}
-	return ""
+	return nil
 }
 
 // RecordingStatusResponse is the response for recording status.
@@ -906,7 +915,7 @@ type RecordingStatusResponse struct {
 	IsRecording   bool                   `protobuf:"varint,2,opt,name=is_recording,json=isRecording,proto3" json:"is_recording,omitempty"`
 	RecordingId   string                 `protobuf:"bytes,3,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
 	ActionCount   int32                  `protobuf:"varint,4,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
-	StartedAt     string                 `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -969,11 +978,11 @@ func (x *RecordingStatusResponse) GetActionCount() int32 {
 	return 0
 }
 
-func (x *RecordingStatusResponse) GetStartedAt() string {
+func (x *RecordingStatusResponse) GetStartedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StartedAt
 	}
-	return ""
+	return nil
 }
 
 // GetActionsResponse is the response for getting recorded actions.
@@ -1656,7 +1665,7 @@ var File_browser_automation_studio_v1_record_mode_proto protoreflect.FileDescrip
 
 const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\n" +
-	".browser-automation-studio/v1/record_mode.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x7f\n" +
+	".browser-automation-studio/v1/record_mode.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)browser-automation-studio/v1/shared.proto\"\x7f\n" +
 	"\x11SelectorCandidate\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x12\x1e\n" +
@@ -1696,13 +1705,13 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\x06height\x18\x04 \x01(\x01R\x06height\")\n" +
 	"\vRecordPoint\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\"\xf5\x04\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\xe0\x05\n" +
 	"\x0eRecordedAction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x12!\n" +
-	"\fsequence_num\x18\x03 \x01(\x05R\vsequenceNum\x12\x1c\n" +
-	"\ttimestamp\x18\x04 \x01(\tR\ttimestamp\x12\x1f\n" +
+	"\fsequence_num\x18\x03 \x01(\x05R\vsequenceNum\x128\n" +
+	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1f\n" +
 	"\vduration_ms\x18\x05 \x01(\x05R\n" +
 	"durationMs\x12\x1f\n" +
 	"\vaction_type\x18\x06 \x01(\tR\n" +
@@ -1714,54 +1723,55 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\felement_meta\x18\t \x01(\v2).browser_automation_studio.v1.ElementMetaR\velementMeta\x12R\n" +
 	"\fbounding_box\x18\n" +
 	" \x01(\v2/.browser_automation_studio.v1.RecordBoundingBoxR\vboundingBox\x121\n" +
-	"\apayload\x18\v \x01(\v2\x17.google.protobuf.StructR\apayload\x12\x10\n" +
+	"\apayload\x18\v \x01(\v2\x17.google.protobuf.StructR\apayload\x12M\n" +
+	"\rpayload_typed\x18\x0f \x01(\v2(.browser_automation_studio.v1.JsonObjectR\fpayloadTyped\x12\x10\n" +
 	"\x03url\x18\f \x01(\tR\x03url\x12\x19\n" +
 	"\bframe_id\x18\r \x01(\tR\aframeId\x12H\n" +
 	"\n" +
-	"cursor_pos\x18\x0e \x01(\v2).browser_automation_studio.v1.RecordPointR\tcursorPos\"\xb7\x01\n" +
+	"cursor_pos\x18\x0e \x01(\v2).browser_automation_studio.v1.RecordPointR\tcursorPos\"\xd3\x01\n" +
 	"\x0eRecordingState\x12!\n" +
 	"\fis_recording\x18\x01 \x01(\bR\visRecording\x12!\n" +
 	"\frecording_id\x18\x02 \x01(\tR\vrecordingId\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x03 \x01(\tR\tsessionId\x12!\n" +
-	"\faction_count\x18\x04 \x01(\x05R\vactionCount\x12\x1d\n" +
+	"\faction_count\x18\x04 \x01(\x05R\vactionCount\x129\n" +
 	"\n" +
-	"started_at\x18\x05 \x01(\tR\tstartedAt\"\x90\x01\n" +
+	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\x90\x01\n" +
 	"\x1dCreateRecordingSessionRequest\x12%\n" +
 	"\x0eviewport_width\x18\x01 \x01(\x05R\rviewportWidth\x12'\n" +
 	"\x0fviewport_height\x18\x02 \x01(\x05R\x0eviewportHeight\x12\x1f\n" +
 	"\vinitial_url\x18\x03 \x01(\tR\n" +
-	"initialUrl\"^\n" +
+	"initialUrl\"z\n" +
 	"\x1eCreateRecordingSessionResponse\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x129\n" +
 	"\n" +
-	"created_at\x18\x02 \x01(\tR\tcreatedAt\"Y\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"Y\n" +
 	"\x15StartRecordingRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
-	"\fcallback_url\x18\x02 \x01(\tR\vcallbackUrl\"y\n" +
+	"\fcallback_url\x18\x02 \x01(\tR\vcallbackUrl\"\x95\x01\n" +
 	"\x16StartRecordingResponse\x12!\n" +
 	"\frecording_id\x18\x01 \x01(\tR\vrecordingId\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x1d\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x129\n" +
 	"\n" +
-	"started_at\x18\x03 \x01(\tR\tstartedAt\"\x9b\x01\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\xb7\x01\n" +
 	"\x15StopRecordingResponse\x12!\n" +
 	"\frecording_id\x18\x01 \x01(\tR\vrecordingId\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x12!\n" +
-	"\faction_count\x18\x03 \x01(\x05R\vactionCount\x12\x1d\n" +
+	"\faction_count\x18\x03 \x01(\x05R\vactionCount\x129\n" +
 	"\n" +
-	"stopped_at\x18\x04 \x01(\tR\tstoppedAt\"\xc0\x01\n" +
+	"stopped_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstoppedAt\"\xdc\x01\n" +
 	"\x17RecordingStatusResponse\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
 	"\fis_recording\x18\x02 \x01(\bR\visRecording\x12!\n" +
 	"\frecording_id\x18\x03 \x01(\tR\vrecordingId\x12!\n" +
-	"\faction_count\x18\x04 \x01(\x05R\vactionCount\x12\x1d\n" +
+	"\faction_count\x18\x04 \x01(\x05R\vactionCount\x129\n" +
 	"\n" +
-	"started_at\x18\x05 \x01(\tR\tstartedAt\"\x91\x01\n" +
+	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\x91\x01\n" +
 	"\x12GetActionsResponse\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12F\n" +
@@ -1863,27 +1873,36 @@ var file_browser_automation_studio_v1_record_mode_proto_goTypes = []any{
 	(*SelectorValidation)(nil),                  // 20: browser_automation_studio.v1.SelectorValidation
 	nil,                                         // 21: browser_automation_studio.v1.ElementMeta.AttributesEntry
 	(*GenerateWorkflowRequest_ActionRange)(nil), // 22: browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
-	(*structpb.Struct)(nil),                     // 23: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),               // 23: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                     // 24: google.protobuf.Struct
+	(*JsonObject)(nil),                          // 25: browser_automation_studio.v1.JsonObject
 }
 var file_browser_automation_studio_v1_record_mode_proto_depIdxs = []int32{
 	0,  // 0: browser_automation_studio.v1.SelectorSet.candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
 	21, // 1: browser_automation_studio.v1.ElementMeta.attributes:type_name -> browser_automation_studio.v1.ElementMeta.AttributesEntry
-	1,  // 2: browser_automation_studio.v1.RecordedAction.selector:type_name -> browser_automation_studio.v1.SelectorSet
-	2,  // 3: browser_automation_studio.v1.RecordedAction.element_meta:type_name -> browser_automation_studio.v1.ElementMeta
-	3,  // 4: browser_automation_studio.v1.RecordedAction.bounding_box:type_name -> browser_automation_studio.v1.RecordBoundingBox
-	23, // 5: browser_automation_studio.v1.RecordedAction.payload:type_name -> google.protobuf.Struct
-	4,  // 6: browser_automation_studio.v1.RecordedAction.cursor_pos:type_name -> browser_automation_studio.v1.RecordPoint
-	5,  // 7: browser_automation_studio.v1.GetActionsResponse.actions:type_name -> browser_automation_studio.v1.RecordedAction
-	22, // 8: browser_automation_studio.v1.GenerateWorkflowRequest.action_range:type_name -> browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
-	5,  // 9: browser_automation_studio.v1.GenerateWorkflowRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
-	5,  // 10: browser_automation_studio.v1.ReplayPreviewRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
-	17, // 11: browser_automation_studio.v1.ActionReplayResult.error:type_name -> browser_automation_studio.v1.ActionReplayError
-	18, // 12: browser_automation_studio.v1.ReplayPreviewResponse.results:type_name -> browser_automation_studio.v1.ActionReplayResult
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	23, // 2: browser_automation_studio.v1.RecordedAction.timestamp:type_name -> google.protobuf.Timestamp
+	1,  // 3: browser_automation_studio.v1.RecordedAction.selector:type_name -> browser_automation_studio.v1.SelectorSet
+	2,  // 4: browser_automation_studio.v1.RecordedAction.element_meta:type_name -> browser_automation_studio.v1.ElementMeta
+	3,  // 5: browser_automation_studio.v1.RecordedAction.bounding_box:type_name -> browser_automation_studio.v1.RecordBoundingBox
+	24, // 6: browser_automation_studio.v1.RecordedAction.payload:type_name -> google.protobuf.Struct
+	25, // 7: browser_automation_studio.v1.RecordedAction.payload_typed:type_name -> browser_automation_studio.v1.JsonObject
+	4,  // 8: browser_automation_studio.v1.RecordedAction.cursor_pos:type_name -> browser_automation_studio.v1.RecordPoint
+	23, // 9: browser_automation_studio.v1.RecordingState.started_at:type_name -> google.protobuf.Timestamp
+	23, // 10: browser_automation_studio.v1.CreateRecordingSessionResponse.created_at:type_name -> google.protobuf.Timestamp
+	23, // 11: browser_automation_studio.v1.StartRecordingResponse.started_at:type_name -> google.protobuf.Timestamp
+	23, // 12: browser_automation_studio.v1.StopRecordingResponse.stopped_at:type_name -> google.protobuf.Timestamp
+	23, // 13: browser_automation_studio.v1.RecordingStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	5,  // 14: browser_automation_studio.v1.GetActionsResponse.actions:type_name -> browser_automation_studio.v1.RecordedAction
+	22, // 15: browser_automation_studio.v1.GenerateWorkflowRequest.action_range:type_name -> browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
+	5,  // 16: browser_automation_studio.v1.GenerateWorkflowRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
+	5,  // 17: browser_automation_studio.v1.ReplayPreviewRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
+	17, // 18: browser_automation_studio.v1.ActionReplayResult.error:type_name -> browser_automation_studio.v1.ActionReplayError
+	18, // 19: browser_automation_studio.v1.ReplayPreviewResponse.results:type_name -> browser_automation_studio.v1.ActionReplayResult
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_record_mode_proto_init() }
@@ -1891,6 +1910,7 @@ func file_browser_automation_studio_v1_record_mode_proto_init() {
 	if File_browser_automation_studio_v1_record_mode_proto != nil {
 		return
 	}
+	file_browser_automation_studio_v1_shared_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

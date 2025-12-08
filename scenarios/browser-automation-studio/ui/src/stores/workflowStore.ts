@@ -1,8 +1,26 @@
 import { create } from 'zustand';
 import { Node, Edge } from 'reactflow';
+import {
+  CreateWorkflowResponseSchema,
+  UpdateWorkflowResponseSchema,
+  WorkflowListSchema,
+  WorkflowSummarySchema,
+  WorkflowVersionListSchema,
+  WorkflowVersionSchema,
+  type WorkflowSummary,
+  type WorkflowList,
+  type WorkflowVersionList,
+  type WorkflowVersion as ProtoWorkflowVersion,
+  type CreateWorkflowResponse,
+  type UpdateWorkflowResponse,
+  type RestoreWorkflowVersionResponse,
+  RestoreWorkflowVersionResponseSchema,
+} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
+import { WorkflowDefinitionSchema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_pb';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { normalizeNodes, normalizeEdges } from '../utils/workflowNormalizers';
+import { parseProtoStrict, protoMessageToJson } from '../utils/proto';
 
 const AUTOSAVE_DELAY_MS = 2500;
 let autosaveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -27,6 +45,9 @@ export interface ExecutionViewportSettings {
 
 const MIN_VIEWPORT_DIMENSION = 200;
 const MAX_VIEWPORT_DIMENSION = 10000;
+
+const toJsonRecord = (schema: any, message: any): Record<string, unknown> =>
+  protoMessageToJson(schema, message);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -122,6 +143,21 @@ const buildFlowDefinition = (
   next.nodes = nodes;
   next.edges = edges;
 
+  // Preserve/derive typed metadata if available
+  if (isPlainObject(baseRecord.metadata_typed)) {
+    next.metadata_typed = baseRecord.metadata_typed as Record<string, unknown>;
+  } else if (isPlainObject(baseRecord.metadata)) {
+    const meta = baseRecord.metadata as Record<string, unknown>;
+    const derived: Record<string, unknown> = {};
+    if (typeof meta.name === 'string') derived.name = meta.name;
+    if (typeof meta.description === 'string') derived.description = meta.description;
+    if (isPlainObject(meta.labels)) derived.labels = meta.labels as Record<string, string>;
+    if (typeof meta.version === 'string') derived.version = meta.version;
+    if (Object.keys(derived).length > 0) {
+      next.metadata_typed = derived;
+    }
+  }
+
   let existingSettings: Record<string, unknown> = {};
   if (isPlainObject(baseRecord.settings)) {
     existingSettings = { ...(baseRecord.settings as Record<string, unknown>) };
@@ -131,6 +167,16 @@ const buildFlowDefinition = (
     existingSettings.executionViewport = viewport;
   } else {
     delete existingSettings.executionViewport;
+  }
+
+  // Populate proto-typed settings alongside legacy settings
+  if (viewport) {
+    next.settings_typed = {
+      viewport_width: viewport.width,
+      viewport_height: viewport.height,
+    };
+  } else if (isPlainObject(baseRecord.settings_typed)) {
+    next.settings_typed = baseRecord.settings_typed as Record<string, unknown>;
   }
 
   if (Object.keys(existingSettings).length > 0) {
@@ -362,7 +408,95 @@ const computeWorkflowFingerprint = (workflow: Workflow | null, nodes: Node[], ed
     nodes: serializableNodes,
     edges: serializableEdges,
     executionViewport: sanitizedViewport ?? null,
+    flowDefinition: workflow.flowDefinition ?? null,
   });
+};
+
+const workflowSummaryToPayload = (summary: WorkflowSummary | null | undefined): Record<string, unknown> | null => {
+  if (!summary) {
+    return null;
+  }
+
+  let summaryJson = toJsonRecord(WorkflowSummarySchema, summary);
+  if (Object.keys(summaryJson).length === 0 && isPlainObject(summary)) {
+    summaryJson = summary as Record<string, unknown>;
+  }
+  if (summary.flowDefinition) {
+    const flowJson = toJsonRecord(WorkflowDefinitionSchema, summary.flowDefinition);
+    if (Object.keys(flowJson).length > 0) {
+      summaryJson.flow_definition = flowJson;
+    }
+  }
+  return summaryJson;
+};
+
+const parseWorkflowSummaryMessage = (summary: WorkflowSummary | Record<string, unknown> | null | undefined): Workflow | null => {
+  // Accept either parsed proto summary or legacy plain object.
+  const payload = workflowSummaryToPayload(summary as WorkflowSummary) ?? (isPlainObject(summary) ? (summary as Record<string, unknown>) : null);
+  if (!payload) {
+    return null;
+  }
+  try {
+    return normalizeWorkflowResponse(payload);
+  } catch (error) {
+    logger.error('Failed to normalize workflow from payload', { component: 'WorkflowStore', action: 'parseWorkflowSummary' }, error);
+    return null;
+  }
+};
+
+const parseWorkflowFromCreateResponse = (raw: unknown): Workflow | null => {
+  try {
+    const proto = parseProtoStrict<CreateWorkflowResponse>(CreateWorkflowResponseSchema, raw);
+    const summaryPayload = workflowSummaryToPayload(proto.workflow);
+    if (!summaryPayload) return null;
+    if (proto.flowDefinition) {
+      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionSchema, proto.flowDefinition);
+    }
+    return normalizeWorkflowResponse(summaryPayload);
+  } catch (error) {
+    logger.error('Failed to parse create workflow proto response', { component: 'WorkflowStore', action: 'parseCreateWorkflow' }, error);
+    if (raw && typeof raw === 'object') {
+      try {
+        return normalizeWorkflowResponse(raw as Record<string, unknown>);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+};
+
+const parseWorkflowFromUpdateResponse = (raw: unknown): Workflow | null => {
+  try {
+    const proto = parseProtoStrict<UpdateWorkflowResponse>(UpdateWorkflowResponseSchema, raw);
+    const summaryPayload = workflowSummaryToPayload(proto.workflow);
+    if (!summaryPayload) return null;
+    if (proto.flowDefinition) {
+      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionSchema, proto.flowDefinition);
+    }
+    return normalizeWorkflowResponse(summaryPayload);
+  } catch (error) {
+    logger.error('Failed to parse update workflow proto response', { component: 'WorkflowStore', action: 'parseUpdateWorkflow' }, error);
+    if (raw && typeof raw === 'object') {
+      try {
+        return normalizeWorkflowResponse(raw as Record<string, unknown>);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+};
+
+const parseWorkflowVersionMessage = (version: ProtoWorkflowVersion | null | undefined): WorkflowVersionSummary | null => {
+  if (!version) return null;
+  try {
+    const payload = toJsonRecord(WorkflowVersionSchema, version);
+    return normalizeVersionSummary(payload);
+  } catch (error) {
+    logger.error('Failed to parse workflow version proto', { component: 'WorkflowStore', action: 'parseWorkflowVersion' }, error);
+    return null;
+  }
 };
 
 export interface Workflow {
@@ -379,7 +513,6 @@ export interface Workflow {
   lastChangeDescription?: string;
   createdAt: Date;
   updatedAt: Date;
-  flow_definition?: Record<string, unknown>;
   flowDefinition?: Record<string, unknown>;
   executionViewport?: ExecutionViewportSettings;
   [key: string]: unknown;
@@ -469,7 +602,6 @@ const normalizeWorkflowResponse = (workflow: unknown): Workflow => {
     lastChangeDescription: workflowData.last_change_description ?? workflowData.lastChangeDescription ?? '',
     createdAt: parseDate(workflowData.created_at ?? workflowData.createdAt),
     updatedAt: parseDate(workflowData.updated_at ?? workflowData.updatedAt),
-    flow_definition: flowDefinition,
     flowDefinition,
     executionViewport,
   } as Workflow;
@@ -565,9 +697,32 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(`Failed to load workflows: ${response.status}`);
       }
       const data = await response.json();
-      const workflows = Array.isArray(data.workflows)
-        ? (data.workflows as any[]).map(normalizeWorkflowResponse)
-        : [];
+
+      let workflows: Workflow[] = [];
+      try {
+        const protoList = parseProtoStrict<WorkflowList>(WorkflowListSchema, data);
+        workflows = (protoList.workflows ?? []).map((item, idx) => {
+          const parsed = parseWorkflowSummaryMessage(item);
+          if (!parsed) {
+            logger.warn('Skipping invalid workflow in proto list', { component: 'WorkflowStore', action: 'loadWorkflows', index: idx });
+          }
+          return parsed;
+        }).filter((item): item is Workflow => Boolean(item));
+      } catch (err) {
+        logger.error('Failed to parse workflow list proto', { component: 'WorkflowStore', action: 'loadWorkflows' }, err);
+        // Fallback for legacy payloads
+        const legacyList = Array.isArray((data as any)?.workflows) ? (data as any).workflows as Record<string, unknown>[] : [];
+        workflows = legacyList
+          .map((entry, idx) => {
+            const parsed = parseWorkflowSummaryMessage(entry);
+            if (!parsed) {
+              logger.warn('Skipping invalid workflow in legacy list', { component: 'WorkflowStore', action: 'loadWorkflows', index: idx });
+            }
+            return parsed;
+          })
+          .filter((item): item is Workflow => Boolean(item));
+      }
+
       set({ workflows });
     } catch (error) {
       logger.error('Failed to load workflows', { component: 'WorkflowStore', action: 'loadWorkflows', projectId }, error);
@@ -587,9 +742,24 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         console.error("[DEBUG] loadWorkflow: API error", { status: response.status, errorText });
         throw new Error(`Failed to load workflow: ${response.status}`);
       }
-      const workflow = await response.json();
-      console.log("[DEBUG] loadWorkflow: workflow data received", { hasWorkflow: !!workflow, workflowId: workflow?.id });
-      const normalized = normalizeWorkflowResponse(workflow);
+      const payload = await response.json();
+      let normalized: Workflow | null = null;
+      try {
+        const proto = parseProtoStrict<WorkflowSummary>(WorkflowSummarySchema, payload);
+        normalized = parseWorkflowSummaryMessage(proto);
+      } catch (err) {
+        logger.error('Failed to parse workflow proto', { component: 'WorkflowStore', action: 'loadWorkflow' }, err);
+        if (payload && typeof payload === 'object') {
+          try {
+            normalized = parseWorkflowSummaryMessage(payload as Record<string, unknown>);
+          } catch {
+            normalized = null;
+          }
+        }
+      }
+      if (!normalized) {
+        throw new Error('Failed to parse workflow payload');
+      }
       console.log("[DEBUG] loadWorkflow: normalized workflow", { hasNodes: !!normalized.nodes, nodeCount: normalized.nodes?.length });
       const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
       set({
@@ -659,9 +829,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         console.error("[DEBUG] createWorkflow: API error", { status: response.status, message });
         throw new Error(message || `Failed to create workflow: ${response.status}`);
       }
-      const workflow = await response.json();
-      console.log("[DEBUG] createWorkflow: workflow data received", { hasWorkflow: !!workflow, workflowId: workflow?.id });
-      const normalized = normalizeWorkflowResponse(workflow);
+      const payload = await response.json();
+      const normalized = parseWorkflowFromCreateResponse(payload);
+      if (!normalized) {
+        throw new Error('Failed to parse created workflow payload');
+      }
       console.log("[DEBUG] createWorkflow: normalized workflow", { hasNormalized: !!normalized, normalizedId: normalized?.id });
       const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
       set({
@@ -725,7 +897,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const serializableEdges = sanitizeEdgesForPersistence(edges ?? []);
       const sanitizedViewport = sanitizeViewportSettings(currentWorkflow.executionViewport);
       const flowDefinition = buildFlowDefinition(
-        currentWorkflow.flow_definition ?? currentWorkflow.flowDefinition,
+        currentWorkflow.flowDefinition,
         serializableNodes,
         serializableEdges,
         sanitizedViewport,
@@ -737,8 +909,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         name: currentWorkflow.name,
         description: currentWorkflow.description ?? '',
         folder_path: currentWorkflow.folderPath,
-        nodes: serializableNodes,
-        edges: serializableEdges,
         flow_definition: flowDefinition,
         expected_version: expectedVersion,
         source,
@@ -766,8 +936,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw { message: message || `Failed to save workflow: ${response.status}` , status: response.status };
       }
 
-      const updated = await response.json();
-      const normalized = normalizeWorkflowResponse(updated);
+      const responsePayload = await response.json();
+      const normalized = parseWorkflowFromUpdateResponse(responsePayload);
+      if (!normalized) {
+        throw new Error('Failed to parse workflow save payload');
+      }
       const nextFingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
 
       set((prevState) => ({
@@ -926,10 +1099,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const nextNodes = updates.nodes ?? nodes;
     const nextEdges = updates.edges ?? edges;
     const sanitizedViewport = sanitizeViewportSettings(updates.executionViewport ?? currentWorkflow.executionViewport);
-    const baseDefinition = updates.flow_definition
-      ?? updates.flowDefinition
-      ?? currentWorkflow.flow_definition
-      ?? currentWorkflow.flowDefinition;
+    const baseDefinition = updates.flowDefinition ?? currentWorkflow.flowDefinition;
     const persistedNodes = sanitizeNodesForPersistence(nextNodes as Node[]);
     const persistedEdges = sanitizeEdgesForPersistence(nextEdges as Edge[] | undefined);
     const flowDefinition = buildFlowDefinition(baseDefinition, persistedNodes, persistedEdges, sanitizedViewport);
@@ -938,7 +1108,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       ...currentWorkflow,
       ...updates,
       executionViewport: sanitizedViewport,
-      flow_definition: flowDefinition,
       flowDefinition,
     };
     const nextFingerprint = computeWorkflowFingerprint(updatedWorkflow, nextNodes, nextEdges);
@@ -974,8 +1143,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const message = await response.text();
         throw new Error(message || `Failed to generate workflow: ${response.status}`);
       }
-      const workflow = await response.json();
-      const normalized = normalizeWorkflowResponse(workflow);
+      const payload = await response.json();
+      const normalized = parseWorkflowFromCreateResponse(payload);
+      if (!normalized) {
+        throw new Error('Failed to parse generated workflow payload');
+      }
       const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
       set({
         currentWorkflow: normalized,
@@ -1024,8 +1196,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const message = await response.text();
         throw new Error(message || `Failed to modify workflow: ${response.status}`);
       }
-      const modifiedWorkflow = await response.json();
-      const normalized = normalizeWorkflowResponse(modifiedWorkflow);
+      const payload = await response.json();
+      const normalized = parseWorkflowFromUpdateResponse(payload);
+      if (!normalized) {
+        throw new Error('Failed to parse modified workflow payload');
+      }
       const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
       set({
         currentWorkflow: normalized,
@@ -1173,10 +1348,33 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }
 
       const payload = await response.json();
-      const items = Array.isArray(payload?.versions) ? payload.versions : [];
-      const summaries = items
-        .map(normalizeVersionSummary)
-        .sort((a: WorkflowVersionSummary, b: WorkflowVersionSummary) => b.version - a.version);
+      let summaries: WorkflowVersionSummary[] = [];
+
+      try {
+        const protoList = parseProtoStrict<WorkflowVersionList>(WorkflowVersionListSchema, payload);
+        summaries = (protoList.versions ?? [])
+          .map((item) => parseWorkflowVersionMessage(item))
+          .filter((item: WorkflowVersionSummary | null): item is WorkflowVersionSummary => item !== null)
+          .sort((a: WorkflowVersionSummary, b: WorkflowVersionSummary) => b.version - a.version);
+      } catch (err) {
+        logger.error('Failed to parse workflow version list proto, falling back to raw payload', {
+          component: 'WorkflowStore',
+          action: 'loadWorkflowVersions',
+        }, err);
+      }
+
+      if (summaries.length === 0 && Array.isArray((payload as any)?.versions)) {
+        summaries = (payload as any).versions
+          .map((item: unknown) => {
+            try {
+              return normalizeVersionSummary(item as Record<string, unknown>);
+            } catch {
+              return null;
+            }
+          })
+          .filter((item: WorkflowVersionSummary | null): item is WorkflowVersionSummary => item !== null)
+          .sort((a: WorkflowVersionSummary, b: WorkflowVersionSummary) => b.version - a.version);
+      }
 
       set({
         versionHistory: summaries,
@@ -1228,7 +1426,30 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }
 
       const data = await response.json();
-      const normalized = normalizeWorkflowResponse(data?.workflow);
+
+      let restoredWorkflowPayload: unknown = data?.workflow ?? data;
+      let restoredVersionPayload: ProtoWorkflowVersion | null = null;
+
+      try {
+        const proto = parseProtoStrict<RestoreWorkflowVersionResponse>(RestoreWorkflowVersionResponseSchema, data);
+        if (proto.workflow) {
+          restoredWorkflowPayload = proto.workflow;
+        }
+        if (proto.restoredVersion) {
+          restoredVersionPayload = proto.restoredVersion;
+        }
+      } catch (err) {
+        logger.error('Failed to parse restore workflow proto response', { component: 'WorkflowStore', action: 'restoreWorkflowVersion', workflowId }, err);
+      }
+
+      const normalized = parseWorkflowFromUpdateResponse(restoredWorkflowPayload);
+      if (!normalized) {
+        throw new Error('Failed to parse restored workflow payload');
+      }
+
+      const restoredVersionSummary = restoredVersionPayload
+        ? parseWorkflowVersionMessage(restoredVersionPayload)
+        : null;
       const nextFingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
 
       set((prevState) => ({
@@ -1249,6 +1470,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         restoringVersion: null,
         conflictWorkflow: null,
         conflictMetadata: null,
+        versionHistory: restoredVersionSummary
+          ? [restoredVersionSummary, ...prevState.versionHistory.filter((version) => version.version !== restoredVersionSummary.version)]
+          : prevState.versionHistory,
       }));
 
       try {
@@ -1293,7 +1517,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to refresh workflow snapshot: ${response.status}`);
       }
       const payload = await response.json();
-      const normalized = normalizeWorkflowResponse(payload);
+      const proto = parseProtoStrict<WorkflowSummary>(WorkflowSummarySchema, payload);
+      const normalized = parseWorkflowSummaryMessage(proto);
+      if (!normalized) {
+        throw new Error('Failed to parse workflow snapshot');
+      }
       set({
         conflictWorkflow: normalized,
         conflictMetadata: {

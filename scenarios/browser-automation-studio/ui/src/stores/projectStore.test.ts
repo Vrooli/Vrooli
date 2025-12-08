@@ -14,6 +14,11 @@ function createFetchResponse<T>(data: T, ok = true, status = ok ? 200 : 400) {
   } as Response);
 }
 
+const ts = (iso: string) => {
+  const date = new Date(iso);
+  return { seconds: Math.floor(date.getTime() / 1000), nanos: (date.getTime() % 1000) * 1_000_000 };
+};
+
 describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -27,22 +32,27 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
   });
 
   it('fetches projects successfully', async () => {
-    const mockProjects: Project[] = [
+    const mockProjects: any[] = [
       {
-        id: 'project-1',
-        name: 'Test Project 1',
-        description: 'Description 1',
-        folder_path: '/test/path1',
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
+        project: {
+          id: 'project-1',
+          name: 'Test Project 1',
+          description: 'Description 1',
+          folder_path: '/test/path1',
+          created_at: ts('2025-01-01T00:00:00Z'),
+          updated_at: ts('2025-01-01T00:00:00Z'),
+        },
+        stats: { workflow_count: 2, execution_count: 3 },
       },
       {
-        id: 'project-2',
-        name: 'Test Project 2',
-        description: '',
-        folder_path: '/test/path2',
-        created_at: '2025-01-02',
-        updated_at: '2025-01-02',
+        project: {
+          id: 'project-2',
+          name: 'Test Project 2',
+          description: '',
+          folder_path: '/test/path2',
+          created_at: ts('2025-01-02T00:00:00Z'),
+          updated_at: ts('2025-01-02T00:00:00Z'),
+        },
       },
     ];
 
@@ -68,15 +78,22 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       folder_path: '/test/new',
     };
 
-    const createdProject: Project = {
+    const createdProjectProto = {
       id: 'new-project-id',
       ...newProjectData,
-      created_at: '2025-01-03',
-      updated_at: '2025-01-03',
+      created_at: ts('2025-01-03T00:00:00Z'),
+      updated_at: ts('2025-01-03T00:00:00Z'),
+    };
+
+    const expectedProject: Project = {
+      id: 'new-project-id',
+      ...newProjectData,
+      created_at: '2025-01-03T00:00:00.000Z',
+      updated_at: '2025-01-03T00:00:00.000Z',
     };
 
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      createFetchResponse({ project: createdProject })
+      createFetchResponse(createdProjectProto)
     );
 
     let returnedProject: Project | undefined;
@@ -92,8 +109,8 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       })
     );
 
-    expect(returnedProject).toEqual(createdProject);
-    expect(useProjectStore.getState().projects).toContainEqual(createdProject);
+    expect(returnedProject).toEqual(expectedProject);
+    expect(useProjectStore.getState().projects).toContainEqual(expectedProject);
   });
 
   it('handles project creation errors [REQ:BAS-PROJECT-CREATE-VALIDATION]', async () => {
@@ -133,15 +150,21 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       folder_path: '/test/path',
     };
 
-    const updatedProject: Project = {
+    const updatedProjectProto = {
       ...existingProject,
       ...updates,
-      updated_at: '2025-01-04',
+      created_at: ts('2025-01-01T00:00:00Z'),
+      updated_at: ts('2025-01-04T00:00:00Z'),
     };
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      createFetchResponse({ project: updatedProject })
-    );
+    const expectedUpdated: Project = {
+      ...existingProject,
+      ...updates,
+      created_at: '2025-01-01T00:00:00.000Z',
+      updated_at: '2025-01-04T00:00:00.000Z',
+    };
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(createFetchResponse(updatedProjectProto));
 
     await act(async () => {
       await useProjectStore.getState().updateProject('existing-id', updates);
@@ -156,8 +179,7 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
     );
 
     const projectInStore = useProjectStore.getState().projects.find((p) => p.id === 'existing-id');
-    expect(projectInStore?.name).toBe('Updated Name');
-    expect(projectInStore?.description).toBe('New Description');
+    expect(projectInStore).toEqual(expectedUpdated);
   });
 
   it('deletes a project successfully', async () => {

@@ -1,5 +1,8 @@
+import datetime
+
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -90,13 +93,14 @@ class RecordedAction(_message.Message):
     ELEMENT_META_FIELD_NUMBER: _ClassVar[int]
     BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_TYPED_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     CURSOR_POS_FIELD_NUMBER: _ClassVar[int]
     id: str
     session_id: str
     sequence_num: int
-    timestamp: str
+    timestamp: _timestamp_pb2.Timestamp
     duration_ms: int
     action_type: str
     confidence: float
@@ -104,10 +108,11 @@ class RecordedAction(_message.Message):
     element_meta: ElementMeta
     bounding_box: RecordBoundingBox
     payload: _struct_pb2.Struct
+    payload_typed: _shared_pb2.JsonObject
     url: str
     frame_id: str
     cursor_pos: RecordPoint
-    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., timestamp: _Optional[str] = ..., duration_ms: _Optional[int] = ..., action_type: _Optional[str] = ..., confidence: _Optional[float] = ..., selector: _Optional[_Union[SelectorSet, _Mapping]] = ..., element_meta: _Optional[_Union[ElementMeta, _Mapping]] = ..., bounding_box: _Optional[_Union[RecordBoundingBox, _Mapping]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., url: _Optional[str] = ..., frame_id: _Optional[str] = ..., cursor_pos: _Optional[_Union[RecordPoint, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., action_type: _Optional[str] = ..., confidence: _Optional[float] = ..., selector: _Optional[_Union[SelectorSet, _Mapping]] = ..., element_meta: _Optional[_Union[ElementMeta, _Mapping]] = ..., bounding_box: _Optional[_Union[RecordBoundingBox, _Mapping]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., payload_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ..., url: _Optional[str] = ..., frame_id: _Optional[str] = ..., cursor_pos: _Optional[_Union[RecordPoint, _Mapping]] = ...) -> None: ...
 
 class RecordingState(_message.Message):
     __slots__ = ()
@@ -120,8 +125,8 @@ class RecordingState(_message.Message):
     recording_id: str
     session_id: str
     action_count: int
-    started_at: str
-    def __init__(self, is_recording: _Optional[bool] = ..., recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., action_count: _Optional[int] = ..., started_at: _Optional[str] = ...) -> None: ...
+    started_at: _timestamp_pb2.Timestamp
+    def __init__(self, is_recording: _Optional[bool] = ..., recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., action_count: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class CreateRecordingSessionRequest(_message.Message):
     __slots__ = ()
@@ -138,8 +143,8 @@ class CreateRecordingSessionResponse(_message.Message):
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     session_id: str
-    created_at: str
-    def __init__(self, session_id: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+    created_at: _timestamp_pb2.Timestamp
+    def __init__(self, session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StartRecordingRequest(_message.Message):
     __slots__ = ()
@@ -156,8 +161,8 @@ class StartRecordingResponse(_message.Message):
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     recording_id: str
     session_id: str
-    started_at: str
-    def __init__(self, recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., started_at: _Optional[str] = ...) -> None: ...
+    started_at: _timestamp_pb2.Timestamp
+    def __init__(self, recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StopRecordingResponse(_message.Message):
     __slots__ = ()
@@ -168,8 +173,8 @@ class StopRecordingResponse(_message.Message):
     recording_id: str
     session_id: str
     action_count: int
-    stopped_at: str
-    def __init__(self, recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., action_count: _Optional[int] = ..., stopped_at: _Optional[str] = ...) -> None: ...
+    stopped_at: _timestamp_pb2.Timestamp
+    def __init__(self, recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., action_count: _Optional[int] = ..., stopped_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RecordingStatusResponse(_message.Message):
     __slots__ = ()
@@ -182,8 +187,8 @@ class RecordingStatusResponse(_message.Message):
     is_recording: bool
     recording_id: str
     action_count: int
-    started_at: str
-    def __init__(self, session_id: _Optional[str] = ..., is_recording: _Optional[bool] = ..., recording_id: _Optional[str] = ..., action_count: _Optional[int] = ..., started_at: _Optional[str] = ...) -> None: ...
+    started_at: _timestamp_pb2.Timestamp
+    def __init__(self, session_id: _Optional[str] = ..., is_recording: _Optional[bool] = ..., recording_id: _Optional[str] = ..., action_count: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetActionsResponse(_message.Message):
     __slots__ = ()

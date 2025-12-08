@@ -36,6 +36,15 @@ class CheckoutSessionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CHECKOUT_SESSION_STATUS_COMPLETE: _ClassVar[CheckoutSessionStatus]
     CHECKOUT_SESSION_STATUS_EXPIRED: _ClassVar[CheckoutSessionStatus]
     CHECKOUT_SESSION_STATUS_CANCELED: _ClassVar[CheckoutSessionStatus]
+
+class TransactionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TRANSACTION_TYPE_UNSPECIFIED: _ClassVar[TransactionType]
+    TRANSACTION_TYPE_CREDIT_TOPUP: _ClassVar[TransactionType]
+    TRANSACTION_TYPE_CONSUMPTION: _ClassVar[TransactionType]
+    TRANSACTION_TYPE_ADJUSTMENT: _ClassVar[TransactionType]
+    TRANSACTION_TYPE_REFUND: _ClassVar[TransactionType]
+    TRANSACTION_TYPE_GRANT: _ClassVar[TransactionType]
 SUBSCRIPTION_STATE_UNSPECIFIED: SubscriptionState
 SUBSCRIPTION_STATE_ACTIVE: SubscriptionState
 SUBSCRIPTION_STATE_TRIALING: SubscriptionState
@@ -51,6 +60,12 @@ CHECKOUT_SESSION_STATUS_OPEN: CheckoutSessionStatus
 CHECKOUT_SESSION_STATUS_COMPLETE: CheckoutSessionStatus
 CHECKOUT_SESSION_STATUS_EXPIRED: CheckoutSessionStatus
 CHECKOUT_SESSION_STATUS_CANCELED: CheckoutSessionStatus
+TRANSACTION_TYPE_UNSPECIFIED: TransactionType
+TRANSACTION_TYPE_CREDIT_TOPUP: TransactionType
+TRANSACTION_TYPE_CONSUMPTION: TransactionType
+TRANSACTION_TYPE_ADJUSTMENT: TransactionType
+TRANSACTION_TYPE_REFUND: TransactionType
+TRANSACTION_TYPE_GRANT: TransactionType
 
 class CheckoutSession(_message.Message):
     __slots__ = ()
@@ -212,15 +227,17 @@ class CreditTransaction(_message.Message):
     CUSTOMER_EMAIL_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_CREDITS_FIELD_NUMBER: _ClassVar[int]
     TRANSACTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     customer_email: str
     amount_credits: int
     transaction_type: str
+    type: TransactionType
     metadata: _containers.MessageMap[str, _struct_pb2.Value]
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., customer_email: _Optional[str] = ..., amount_credits: _Optional[int] = ..., transaction_type: _Optional[str] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., customer_email: _Optional[str] = ..., amount_credits: _Optional[int] = ..., transaction_type: _Optional[str] = ..., type: _Optional[_Union[TransactionType, str]] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetCreditsResponse(_message.Message):
     __slots__ = ()

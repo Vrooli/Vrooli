@@ -127,7 +127,9 @@ type WorkflowNode struct {
 	// Node type (navigate, click, assert, subflow, etc.).
 	Type StepType `protobuf:"varint,2,opt,name=type,proto3,enum=browser_automation_studio.v1.StepType" json:"type,omitempty"`
 	// Node-specific configuration payload.
-	Data          *structpb.Struct `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	Data *structpb.Struct `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	// Strongly typed node configuration; prefer over Struct when possible.
+	DataTyped     *JsonObject `protobuf:"bytes,4,opt,name=data_typed,json=dataTyped,proto3" json:"data_typed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -183,6 +185,13 @@ func (x *WorkflowNode) GetData() *structpb.Struct {
 	return nil
 }
 
+func (x *WorkflowNode) GetDataTyped() *JsonObject {
+	if x != nil {
+		return x.DataTyped
+	}
+	return nil
+}
+
 // WorkflowEdge connects nodes within a workflow graph.
 type WorkflowEdge struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -195,7 +204,9 @@ type WorkflowEdge struct {
 	// Edge type (e.g., smoothstep) when provided.
 	Type string `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
 	// Provider-specific edge metadata.
-	Data          *structpb.Struct `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	Data *structpb.Struct `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	// Typed edge metadata; prefer over Struct when available.
+	DataTyped     *JsonObject `protobuf:"bytes,6,opt,name=data_typed,json=dataTyped,proto3" json:"data_typed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -261,6 +272,13 @@ func (x *WorkflowEdge) GetType() string {
 func (x *WorkflowEdge) GetData() *structpb.Struct {
 	if x != nil {
 		return x.Data
+	}
+	return nil
+}
+
+func (x *WorkflowEdge) GetDataTyped() *JsonObject {
+	if x != nil {
+		return x.DataTyped
 	}
 	return nil
 }
@@ -455,17 +473,21 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aS\n" +
 	"\rSettingsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\x87\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xd0\x01\n" +
 	"\fWorkflowNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12:\n" +
 	"\x04type\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.StepTypeR\x04type\x12+\n" +
-	"\x04data\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x04data\"\x8f\x01\n" +
+	"\x04data\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x04data\x12G\n" +
+	"\n" +
+	"data_typed\x18\x04 \x01(\v2(.browser_automation_studio.v1.JsonObjectR\tdataTyped\"\xd8\x01\n" +
 	"\fWorkflowEdge\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n" +
 	"\x06target\x18\x03 \x01(\tR\x06target\x12\x12\n" +
 	"\x04type\x18\x04 \x01(\tR\x04type\x12+\n" +
-	"\x04data\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x04data\"\xf1\x01\n" +
+	"\x04data\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x04data\x12G\n" +
+	"\n" +
+	"data_typed\x18\x06 \x01(\v2(.browser_automation_studio.v1.JsonObjectR\tdataTyped\"\xf1\x01\n" +
 	"\x10WorkflowMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12R\n" +
@@ -512,7 +534,8 @@ var file_browser_automation_studio_v1_workflow_proto_goTypes = []any{
 	nil,                        // 8: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
 	(StepType)(0),              // 9: browser_automation_studio.v1.StepType
 	(*structpb.Struct)(nil),    // 10: google.protobuf.Struct
-	(*structpb.Value)(nil),     // 11: google.protobuf.Value
+	(*JsonObject)(nil),         // 11: browser_automation_studio.v1.JsonObject
+	(*structpb.Value)(nil),     // 12: google.protobuf.Value
 }
 var file_browser_automation_studio_v1_workflow_proto_depIdxs = []int32{
 	1,  // 0: browser_automation_studio.v1.WorkflowDefinition.nodes:type_name -> browser_automation_studio.v1.WorkflowNode
@@ -523,17 +546,19 @@ var file_browser_automation_studio_v1_workflow_proto_depIdxs = []int32{
 	4,  // 5: browser_automation_studio.v1.WorkflowDefinition.settings_typed:type_name -> browser_automation_studio.v1.WorkflowSettings
 	9,  // 6: browser_automation_studio.v1.WorkflowNode.type:type_name -> browser_automation_studio.v1.StepType
 	10, // 7: browser_automation_studio.v1.WorkflowNode.data:type_name -> google.protobuf.Struct
-	10, // 8: browser_automation_studio.v1.WorkflowEdge.data:type_name -> google.protobuf.Struct
-	7,  // 9: browser_automation_studio.v1.WorkflowMetadata.labels:type_name -> browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
-	8,  // 10: browser_automation_studio.v1.WorkflowSettings.extras:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
-	11, // 11: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry.value:type_name -> google.protobuf.Value
-	11, // 12: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry.value:type_name -> google.protobuf.Value
-	11, // 13: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry.value:type_name -> google.protobuf.Value
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	11, // 8: browser_automation_studio.v1.WorkflowNode.data_typed:type_name -> browser_automation_studio.v1.JsonObject
+	10, // 9: browser_automation_studio.v1.WorkflowEdge.data:type_name -> google.protobuf.Struct
+	11, // 10: browser_automation_studio.v1.WorkflowEdge.data_typed:type_name -> browser_automation_studio.v1.JsonObject
+	7,  // 11: browser_automation_studio.v1.WorkflowMetadata.labels:type_name -> browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
+	8,  // 12: browser_automation_studio.v1.WorkflowSettings.extras:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
+	12, // 13: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry.value:type_name -> google.protobuf.Value
+	12, // 14: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry.value:type_name -> google.protobuf.Value
+	12, // 15: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry.value:type_name -> google.protobuf.Value
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflow_proto_init() }

@@ -43,10 +43,12 @@ class WorkflowNode(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
+    DATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     id: str
     type: _shared_pb2.StepType
     data: _struct_pb2.Struct
-    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.StepType, str]] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    data_typed: _shared_pb2.JsonObject
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.StepType, str]] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., data_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ...) -> None: ...
 
 class WorkflowEdge(_message.Message):
     __slots__ = ()
@@ -55,12 +57,14 @@ class WorkflowEdge(_message.Message):
     TARGET_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
+    DATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     id: str
     source: str
     target: str
     type: str
     data: _struct_pb2.Struct
-    def __init__(self, id: _Optional[str] = ..., source: _Optional[str] = ..., target: _Optional[str] = ..., type: _Optional[str] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    data_typed: _shared_pb2.JsonObject
+    def __init__(self, id: _Optional[str] = ..., source: _Optional[str] = ..., target: _Optional[str] = ..., type: _Optional[str] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., data_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ...) -> None: ...
 
 class WorkflowMetadata(_message.Message):
     __slots__ = ()

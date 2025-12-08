@@ -31,6 +31,8 @@ message WorkflowNode {
   StepType type = 2;
   // Node-specific configuration payload.
   google.protobuf.Struct data = 3;
+  // Strongly typed node configuration; prefer over Struct when possible.
+  JsonObject data_typed = 4;
 }
 
 // WorkflowEdge connects nodes within a workflow graph.
@@ -45,6 +47,8 @@ message WorkflowEdge {
   string type = 4;
   // Provider-specific edge metadata.
   google.protobuf.Struct data = 5;
+  // Typed edge metadata; prefer over Struct when available.
+  JsonObject data_typed = 6;
 }
 
 // WorkflowMetadata captures the most common workflow descriptors.

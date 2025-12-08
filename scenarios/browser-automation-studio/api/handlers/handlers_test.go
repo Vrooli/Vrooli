@@ -19,6 +19,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // mockRepository implements database.Repository for testing
@@ -620,21 +622,21 @@ func TestExecuteAdhocWorkflowSuccess(t *testing.T) {
 			t.Fatalf("expected status 200, got %d: %s", resp.Code, resp.Body.String())
 		}
 
-		var result map[string]any
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			t.Fatalf("failed to decode response: %v", err)
+		var pb browser_automation_studio_v1.ExecuteAdhocResponse
+		if err := protojson.Unmarshal(resp.Body.Bytes(), &pb); err != nil {
+			t.Fatalf("failed to decode proto response: %v", err)
 		}
 
-		if result["execution_id"] != executionID.String() {
-			t.Errorf("expected execution_id %s, got %v", executionID, result["execution_id"])
+		if pb.GetExecutionId() != executionID.String() {
+			t.Errorf("expected execution_id %s, got %v", executionID, pb.GetExecutionId())
 		}
 
-		if result["workflow_id"] != nil {
+		if pb.WorkflowId != nil {
 			t.Error("expected workflow_id to be null for adhoc execution")
 		}
 
-		if result["status"] != "pending" {
-			t.Errorf("expected status 'pending', got %v", result["status"])
+		if pb.GetStatus() != browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_PENDING {
+			t.Errorf("expected status pending, got %v", pb.GetStatus().String())
 		}
 	})
 }

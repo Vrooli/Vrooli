@@ -45,8 +45,8 @@ func TestExecutionToProto(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if pb.GetId() != exec.ID.String() {
-		t.Fatalf("expected id %s, got %s", exec.ID, pb.GetId())
+	if pb.GetExecutionId() != exec.ID.String() {
+		t.Fatalf("expected id %s, got %s", exec.ID, pb.GetExecutionId())
 	}
 	if pb.GetWorkflowVersion() != 3 {
 		t.Fatalf("expected workflow_version 3, got %d", pb.GetWorkflowVersion())
@@ -56,6 +56,12 @@ func TestExecutionToProto(t *testing.T) {
 	}
 	if pb.TriggerMetadata["source"].GetStringValue() != "api" {
 		t.Fatalf("expected trigger metadata source=api, got %v", pb.TriggerMetadata["source"])
+	}
+	if pb.ParametersTyped["foo"].GetStringValue() != "bar" || pb.ParametersTyped["count"].GetIntValue() != 2 {
+		t.Fatalf("parameters_typed not set: %+v", pb.ParametersTyped)
+	}
+	if pb.ResultTyped["ok"].GetBoolValue() != true {
+		t.Fatalf("result_typed not set: %+v", pb.ResultTyped)
 	}
 
 	// Ensure JSON uses proto field names (snake_case).
@@ -164,8 +170,17 @@ func TestTimelineToProto(t *testing.T) {
 	if frame.ExtractedDataPreview == nil || frame.ExtractedDataPreview.GetStructValue().Fields["preview"].GetStringValue() != "ok" {
 		t.Fatalf("expected extracted_data_preview to be preserved, got %+v", frame.ExtractedDataPreview)
 	}
+	if frame.ExtractedDataPreviewTyped == nil || frame.ExtractedDataPreviewTyped.GetObjectValue().Fields["preview"].GetStringValue() != "ok" {
+		t.Fatalf("expected extracted_data_preview_typed to be preserved, got %+v", frame.ExtractedDataPreviewTyped)
+	}
 	if len(frame.Artifacts) != 1 || frame.Artifacts[0].Payload["foo"].GetStringValue() != "bar" {
 		t.Fatalf("artifact payload not converted correctly: %+v", frame.Artifacts)
+	}
+	if len(frame.Artifacts) != 1 || frame.Artifacts[0].PayloadTyped["foo"].GetStringValue() != "bar" {
+		t.Fatalf("artifact payload_typed not converted correctly: %+v", frame.Artifacts[0].PayloadTyped)
+	}
+	if frame.RetryConfigured == nil || !frame.GetRetryConfigured() {
+		t.Fatalf("retry_configured should be set to true")
 	}
 }
 

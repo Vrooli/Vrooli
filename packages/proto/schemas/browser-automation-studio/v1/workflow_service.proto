@@ -5,6 +5,7 @@ package browser_automation_studio.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "browser-automation-studio/v1/workflow.proto";
+import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
@@ -88,6 +89,9 @@ message ExecuteWorkflowRequest {
 // ExecuteWorkflowResponse provides the started execution identifier.
 message ExecuteWorkflowResponse {
   string execution_id = 1;
+  ExecutionStatus status = 2;
+  google.protobuf.Timestamp completed_at = 3;
+  optional string error = 4;
 }
 
 // WorkflowValidationIssue mirrors the validation issue contract.
@@ -122,4 +126,10 @@ message WorkflowValidationResult {
   string schema_version = 5;
   string checked_at = 6;
   int64 duration_ms = 7;
+}
+
+// RestoreWorkflowVersionResponse wraps the restored workflow and version metadata.
+message RestoreWorkflowVersionResponse {
+  WorkflowSummary workflow = 1;
+  WorkflowVersion restored_version = 2;
 }

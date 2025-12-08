@@ -61,6 +61,8 @@ message TimelineFrame {
   int32 network_event_count = 14;
   // Preview of extracted data (shape depends on workflow).
   google.protobuf.Value extracted_data_preview = 15;
+  // Typed preview of extracted data; prefer over the Value when available.
+  JsonValue extracted_data_preview_typed = 34;
   // Highlight overlays applied to the screenshot.
   repeated HighlightRegion highlight_regions = 16;
   // Masked regions applied during capture.
@@ -85,8 +87,8 @@ message TimelineFrame {
   int32 retry_attempt = 26;
   // Max retries configured for this step.
   int32 retry_max_attempts = 27;
-  // Whether retries were configured for this step (0 = false).
-  int32 retry_configured = 28;
+  // Whether retries were configured for this step.
+  optional bool retry_configured = 28;
   // Delay applied before retrying (milliseconds).
   int32 retry_delay_ms = 29;
   // Exponential backoff factor used for retries.
@@ -137,6 +139,8 @@ message TimelineArtifact {
   optional int32 step_index = 8;
   // Provider-specific payload describing the artifact.
   map<string, google.protobuf.Value> payload = 9;
+  // Typed payload describing the artifact; prefer over the Value map.
+  map<string, JsonValue> payload_typed = 10;
 }
 
 // RetryHistoryEntry captures the outcome of a retry attempt.

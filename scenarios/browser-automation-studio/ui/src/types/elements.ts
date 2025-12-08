@@ -101,8 +101,8 @@ export interface TimelineFramePayload {
   retryAttempt?: number;
   retry_max_attempts?: number;
   retryMaxAttempts?: number;
-  retry_configured?: number;
-  retryConfigured?: number;
+  retry_configured?: number | boolean;
+  retryConfigured?: number | boolean;
   retry_delay_ms?: number;
   retryDelayMs?: number;
   retry_backoff_factor?: number;

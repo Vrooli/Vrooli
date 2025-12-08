@@ -681,7 +681,7 @@ cat <<'JSON'
   "scenarios": [
     {
       "name": "browser-automation-studio",
-      "description": "Browser Automation Studio"
+      "description": "Vrooli Ascension"
     }
   ]
 }
@@ -703,8 +703,8 @@ exit 1
 		apps: []repository.App{
 			{
 				ID:           "browser-automation-studio",
-				Name:         "Browser Automation Studio",
-				ScenarioName: "Browser Automation Studio",
+				Name:         "Vrooli Ascension",
+				ScenarioName: "Vrooli Ascension",
 			},
 		},
 	}
@@ -718,7 +718,7 @@ exit 1
 	if result == nil {
 		t.Fatal("expected non-nil scenario status")
 	}
-	if result.Scenario != "Browser Automation Studio" {
+	if result.Scenario != "Vrooli Ascension" {
 		t.Errorf("expected scenario name to be preserved, got %q", result.Scenario)
 	}
 

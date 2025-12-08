@@ -10,148 +10,148 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // String to enum converters
 
-func stringToExecutionStatus(s string) basv1.ExecutionStatus {
+func stringToExecutionStatus(s string) browser_automation_studio_v1.ExecutionStatus {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "PENDING", "EXECUTION_STATUS_PENDING":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_PENDING
+		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_PENDING
 	case "RUNNING", "EXECUTION_STATUS_RUNNING":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_RUNNING
+		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_RUNNING
 	case "COMPLETED", "EXECUTION_STATUS_COMPLETED":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED
+		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED
 	case "FAILED", "EXECUTION_STATUS_FAILED":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_FAILED
+		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED
 	case "CANCELLED", "CANCELED", "EXECUTION_STATUS_CANCELLED":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_CANCELLED
+		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_CANCELLED
 	default:
-		return basv1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
+		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
 	}
 }
 
-func stringToTriggerType(s string) basv1.TriggerType {
+func stringToTriggerType(s string) browser_automation_studio_v1.TriggerType {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "MANUAL", "TRIGGER_TYPE_MANUAL":
-		return basv1.TriggerType_TRIGGER_TYPE_MANUAL
+		return browser_automation_studio_v1.TriggerType_TRIGGER_TYPE_MANUAL
 	case "SCHEDULED", "TRIGGER_TYPE_SCHEDULED":
-		return basv1.TriggerType_TRIGGER_TYPE_SCHEDULED
+		return browser_automation_studio_v1.TriggerType_TRIGGER_TYPE_SCHEDULED
 	case "API", "TRIGGER_TYPE_API":
-		return basv1.TriggerType_TRIGGER_TYPE_API
+		return browser_automation_studio_v1.TriggerType_TRIGGER_TYPE_API
 	case "WEBHOOK", "TRIGGER_TYPE_WEBHOOK":
-		return basv1.TriggerType_TRIGGER_TYPE_WEBHOOK
+		return browser_automation_studio_v1.TriggerType_TRIGGER_TYPE_WEBHOOK
 	default:
-		return basv1.TriggerType_TRIGGER_TYPE_UNSPECIFIED
+		return browser_automation_studio_v1.TriggerType_TRIGGER_TYPE_UNSPECIFIED
 	}
 }
 
-func stringToExportStatus(s string) basv1.ExportStatus {
+func stringToExportStatus(s string) browser_automation_studio_v1.ExportStatus {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "READY", "EXPORT_STATUS_READY":
-		return basv1.ExportStatus_EXPORT_STATUS_READY
+		return browser_automation_studio_v1.ExportStatus_EXPORT_STATUS_READY
 	case "PENDING", "NOT_READY", "EXPORT_STATUS_PENDING":
-		return basv1.ExportStatus_EXPORT_STATUS_PENDING
+		return browser_automation_studio_v1.ExportStatus_EXPORT_STATUS_PENDING
 	case "ERROR", "EXPORT_STATUS_ERROR":
-		return basv1.ExportStatus_EXPORT_STATUS_ERROR
+		return browser_automation_studio_v1.ExportStatus_EXPORT_STATUS_ERROR
 	case "UNAVAILABLE", "EXPORT_STATUS_UNAVAILABLE":
-		return basv1.ExportStatus_EXPORT_STATUS_UNAVAILABLE
+		return browser_automation_studio_v1.ExportStatus_EXPORT_STATUS_UNAVAILABLE
 	default:
-		return basv1.ExportStatus_EXPORT_STATUS_UNSPECIFIED
+		return browser_automation_studio_v1.ExportStatus_EXPORT_STATUS_UNSPECIFIED
 	}
 }
 
-func stringToStepType(s string) basv1.StepType {
+func stringToStepType(s string) browser_automation_studio_v1.StepType {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "navigate", "step_type_navigate":
-		return basv1.StepType_STEP_TYPE_NAVIGATE
+		return browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE
 	case "click", "step_type_click":
-		return basv1.StepType_STEP_TYPE_CLICK
+		return browser_automation_studio_v1.StepType_STEP_TYPE_CLICK
 	case "input", "type", "step_type_input":
-		return basv1.StepType_STEP_TYPE_INPUT
+		return browser_automation_studio_v1.StepType_STEP_TYPE_INPUT
 	case "assert", "step_type_assert":
-		return basv1.StepType_STEP_TYPE_ASSERT
+		return browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT
 	case "subflow", "step_type_subflow":
-		return basv1.StepType_STEP_TYPE_SUBFLOW
+		return browser_automation_studio_v1.StepType_STEP_TYPE_SUBFLOW
 	case "custom", "step_type_custom":
-		return basv1.StepType_STEP_TYPE_CUSTOM
+		return browser_automation_studio_v1.StepType_STEP_TYPE_CUSTOM
 	// Map other step types to CUSTOM since they're not in the proto
 	case "wait", "extract", "screenshot", "scroll", "select", "hover", "keyboard", "condition", "loop":
-		return basv1.StepType_STEP_TYPE_CUSTOM
+		return browser_automation_studio_v1.StepType_STEP_TYPE_CUSTOM
 	default:
-		return basv1.StepType_STEP_TYPE_UNSPECIFIED
+		return browser_automation_studio_v1.StepType_STEP_TYPE_UNSPECIFIED
 	}
 }
 
-func stringToStepStatus(s string) basv1.StepStatus {
+func stringToStepStatus(s string) browser_automation_studio_v1.StepStatus {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "PENDING", "STEP_STATUS_PENDING":
-		return basv1.StepStatus_STEP_STATUS_PENDING
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_PENDING
 	case "RUNNING", "STEP_STATUS_RUNNING":
-		return basv1.StepStatus_STEP_STATUS_RUNNING
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_RUNNING
 	case "COMPLETED", "STEP_STATUS_COMPLETED":
-		return basv1.StepStatus_STEP_STATUS_COMPLETED
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED
 	case "FAILED", "STEP_STATUS_FAILED":
-		return basv1.StepStatus_STEP_STATUS_FAILED
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED
 	case "CANCELLED", "STEP_STATUS_CANCELLED":
-		return basv1.StepStatus_STEP_STATUS_CANCELLED
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_CANCELLED
 	case "SKIPPED", "STEP_STATUS_SKIPPED":
-		return basv1.StepStatus_STEP_STATUS_SKIPPED
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_SKIPPED
 	case "RETRYING", "STEP_STATUS_RETRYING":
-		return basv1.StepStatus_STEP_STATUS_RETRYING
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_RETRYING
 	default:
-		return basv1.StepStatus_STEP_STATUS_UNSPECIFIED
+		return browser_automation_studio_v1.StepStatus_STEP_STATUS_UNSPECIFIED
 	}
 }
 
-func stringToLogLevel(s string) basv1.LogLevel {
+func stringToLogLevel(s string) browser_automation_studio_v1.LogLevel {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "DEBUG", "LOG_LEVEL_DEBUG":
-		return basv1.LogLevel_LOG_LEVEL_DEBUG
+		return browser_automation_studio_v1.LogLevel_LOG_LEVEL_DEBUG
 	case "INFO", "LOG_LEVEL_INFO":
-		return basv1.LogLevel_LOG_LEVEL_INFO
+		return browser_automation_studio_v1.LogLevel_LOG_LEVEL_INFO
 	case "WARN", "WARNING", "LOG_LEVEL_WARN":
-		return basv1.LogLevel_LOG_LEVEL_WARN
+		return browser_automation_studio_v1.LogLevel_LOG_LEVEL_WARN
 	case "ERROR", "LOG_LEVEL_ERROR":
-		return basv1.LogLevel_LOG_LEVEL_ERROR
+		return browser_automation_studio_v1.LogLevel_LOG_LEVEL_ERROR
 	default:
-		return basv1.LogLevel_LOG_LEVEL_UNSPECIFIED
+		return browser_automation_studio_v1.LogLevel_LOG_LEVEL_UNSPECIFIED
 	}
 }
 
-func stringToArtifactType(s string) basv1.ArtifactType {
+func stringToArtifactType(s string) browser_automation_studio_v1.ArtifactType {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "screenshot", "artifact_type_screenshot":
-		return basv1.ArtifactType_ARTIFACT_TYPE_SCREENSHOT
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_SCREENSHOT
 	case "dom", "dom_snapshot", "artifact_type_dom_snapshot":
-		return basv1.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT
 	case "timeline_frame", "artifact_type_timeline_frame":
-		return basv1.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME
 	case "console_log", "artifact_type_console_log":
-		return basv1.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG
 	case "network_event", "artifact_type_network_event":
-		return basv1.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT
 	case "trace", "artifact_type_trace":
-		return basv1.ArtifactType_ARTIFACT_TYPE_TRACE
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_TRACE
 	case "custom", "artifact_type_custom", "extracted_data", "video", "har":
-		return basv1.ArtifactType_ARTIFACT_TYPE_CUSTOM
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_CUSTOM
 	default:
-		return basv1.ArtifactType_ARTIFACT_TYPE_UNSPECIFIED
+		return browser_automation_studio_v1.ArtifactType_ARTIFACT_TYPE_UNSPECIFIED
 	}
 }
 
 // ExecutionToProto converts a database.Execution into the generated proto message.
-func ExecutionToProto(execution *database.Execution) (*basv1.Execution, error) {
+func ExecutionToProto(execution *database.Execution) (*browser_automation_studio_v1.Execution, error) {
 	if execution == nil {
 		return nil, fmt.Errorf("execution is nil")
 	}
@@ -171,8 +171,8 @@ func ExecutionToProto(execution *database.Execution) (*basv1.Execution, error) {
 		return nil, err
 	}
 
-	pb := &basv1.Execution{
-		Id:              execution.ID.String(),
+	pb := &browser_automation_studio_v1.Execution{
+		ExecutionId:     execution.ID.String(),
 		WorkflowId:      execution.WorkflowID.String(),
 		WorkflowVersion: int32(execution.WorkflowVersion),
 		Status:          stringToExecutionStatus(execution.Status),
@@ -190,6 +190,9 @@ func ExecutionToProto(execution *database.Execution) (*basv1.Execution, error) {
 	if len(parameters) > 0 {
 		pb.Parameters = parameters
 	}
+	if typed := toJsonValueMap(map[string]any(execution.Parameters)); len(typed) > 0 {
+		pb.ParametersTyped = typed
+	}
 	if execution.CompletedAt != nil {
 		pb.CompletedAt = timestamppb.New(*execution.CompletedAt)
 	}
@@ -203,12 +206,38 @@ func ExecutionToProto(execution *database.Execution) (*basv1.Execution, error) {
 	if len(result) > 0 {
 		pb.Result = result
 	}
+	if typed := toJsonValueMap(map[string]any(execution.Result)); len(typed) > 0 {
+		pb.ResultTyped = typed
+	}
+
+	return pb, nil
+}
+
+// ExecuteAdhocResponseProto converts the execution into the adhoc response proto.
+func ExecuteAdhocResponseProto(execution *database.Execution, message string) (*browser_automation_studio_v1.ExecuteAdhocResponse, error) {
+	if execution == nil {
+		return nil, fmt.Errorf("execution is nil")
+	}
+
+	pb := &browser_automation_studio_v1.ExecuteAdhocResponse{
+		ExecutionId: execution.ID.String(),
+		Status:      stringToExecutionStatus(execution.Status),
+		Message:     message,
+	}
+
+	if execution.CompletedAt != nil {
+		pb.CompletedAt = timestamppb.New(*execution.CompletedAt)
+	}
+	if execution.Error.Valid {
+		errMsg := execution.Error.String
+		pb.Error = &errMsg
+	}
 
 	return pb, nil
 }
 
 // ExecutionExportPreviewToProto converts the workflow.ExecutionExportPreview to the proto message.
-func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*basv1.ExecutionExportPreview, error) {
+func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*browser_automation_studio_v1.ExecutionExportPreview, error) {
 	if preview == nil {
 		return nil, fmt.Errorf("preview is nil")
 	}
@@ -229,7 +258,7 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 		}
 	}
 
-	return &basv1.ExecutionExportPreview{
+	return &browser_automation_studio_v1.ExecutionExportPreview{
 		ExecutionId:         preview.ExecutionID.String(),
 		SpecId:              preview.SpecID,
 		Status:              stringToExportStatus(preview.Status),
@@ -238,16 +267,17 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 		AvailableAssetCount: int32(preview.AvailableAssetCount),
 		TotalDurationMs:     int32(preview.TotalDurationMs),
 		Package:             pkg,
+		PackageTyped:        toJsonObjectFromAny(preview.Package),
 	}, nil
 }
 
 // ScreenshotsToProto converts database screenshots to the proto response.
-func ScreenshotsToProto(screenshots []*database.Screenshot) (*basv1.GetScreenshotsResponse, error) {
+func ScreenshotsToProto(screenshots []*database.Screenshot) (*browser_automation_studio_v1.GetScreenshotsResponse, error) {
 	if len(screenshots) == 0 {
-		return &basv1.GetScreenshotsResponse{}, nil
+		return &browser_automation_studio_v1.GetScreenshotsResponse{}, nil
 	}
 
-	result := make([]*basv1.Screenshot, 0, len(screenshots))
+	result := make([]*browser_automation_studio_v1.Screenshot, 0, len(screenshots))
 	for idx, shot := range screenshots {
 		if shot == nil {
 			return nil, fmt.Errorf("screenshots[%d] is nil", idx)
@@ -278,7 +308,7 @@ func ScreenshotsToProto(screenshots []*database.Screenshot) (*basv1.GetScreensho
 			}
 		}
 
-		result = append(result, &basv1.Screenshot{
+		result = append(result, &browser_automation_studio_v1.Screenshot{
 			Id:           shot.ID.String(),
 			ExecutionId:  shot.ExecutionID.String(),
 			StepName:     shot.StepName,
@@ -292,16 +322,16 @@ func ScreenshotsToProto(screenshots []*database.Screenshot) (*basv1.GetScreensho
 		})
 	}
 
-	return &basv1.GetScreenshotsResponse{Screenshots: result}, nil
+	return &browser_automation_studio_v1.GetScreenshotsResponse{Screenshots: result}, nil
 }
 
 // TimelineToProto converts the replay-focused ExecutionTimeline into the proto message.
-func TimelineToProto(timeline *export.ExecutionTimeline) (*basv1.ExecutionTimeline, error) {
+func TimelineToProto(timeline *export.ExecutionTimeline) (*browser_automation_studio_v1.ExecutionTimeline, error) {
 	if timeline == nil {
 		return nil, fmt.Errorf("timeline is nil")
 	}
 
-	pb := &basv1.ExecutionTimeline{
+	pb := &browser_automation_studio_v1.ExecutionTimeline{
 		ExecutionId: timeline.ExecutionID.String(),
 		WorkflowId:  timeline.WorkflowID.String(),
 		Status:      stringToExecutionStatus(timeline.Status),
@@ -328,7 +358,7 @@ func TimelineToProto(timeline *export.ExecutionTimeline) (*basv1.ExecutionTimeli
 	return pb, nil
 }
 
-func timelineFrameToProto(frame export.TimelineFrame) (*basv1.TimelineFrame, error) {
+func timelineFrameToProto(frame export.TimelineFrame) (*browser_automation_studio_v1.TimelineFrame, error) {
 	extractedPreview, err := toProtoValue(frame.ExtractedDataPreview, "frames.extracted_data_preview")
 	if err != nil {
 		return nil, err
@@ -343,30 +373,37 @@ func timelineFrameToProto(frame export.TimelineFrame) (*basv1.TimelineFrame, err
 		completedAt = timestamppb.New(*frame.CompletedAt)
 	}
 
-	pbFrame := &basv1.TimelineFrame{
-		StepIndex:            int32(frame.StepIndex),
-		NodeId:               frame.NodeID,
-		StepType:             stringToStepType(frame.StepType),
-		Status:               stringToStepStatus(frame.Status),
-		Success:              frame.Success,
-		DurationMs:           int32(frame.DurationMs),
-		TotalDurationMs:      int32(frame.TotalDurationMs),
-		Progress:             int32(frame.Progress),
-		StartedAt:            startedAt,
-		CompletedAt:          completedAt,
-		FinalUrl:             frame.FinalURL,
-		Error:                frame.Error,
-		ConsoleLogCount:      int32(frame.ConsoleLogCount),
-		NetworkEventCount:    int32(frame.NetworkEventCount),
-		ExtractedDataPreview: extractedPreview,
-		ZoomFactor:           frame.ZoomFactor,
-		RetryAttempt:         int32(frame.RetryAttempt),
-		RetryMaxAttempts:     int32(frame.RetryMaxAttempts),
-		RetryConfigured:      int32(frame.RetryConfigured),
-		RetryDelayMs:         int32(frame.RetryDelayMs),
-		RetryBackoffFactor:   frame.RetryBackoffFactor,
-		RetryHistory:         convertRetryHistory(frame.RetryHistory),
-		DomSnapshotPreview:   frame.DomSnapshotPreview,
+	pbFrame := &browser_automation_studio_v1.TimelineFrame{
+		StepIndex:                 int32(frame.StepIndex),
+		NodeId:                    frame.NodeID,
+		StepType:                  stringToStepType(frame.StepType),
+		Status:                    stringToStepStatus(frame.Status),
+		Success:                   frame.Success,
+		DurationMs:                int32(frame.DurationMs),
+		TotalDurationMs:           int32(frame.TotalDurationMs),
+		Progress:                  int32(frame.Progress),
+		StartedAt:                 startedAt,
+		CompletedAt:               completedAt,
+		FinalUrl:                  frame.FinalURL,
+		ConsoleLogCount:           int32(frame.ConsoleLogCount),
+		NetworkEventCount:         int32(frame.NetworkEventCount),
+		ExtractedDataPreview:      extractedPreview,
+		ExtractedDataPreviewTyped: toJsonValue(frame.ExtractedDataPreview),
+		ZoomFactor:                frame.ZoomFactor,
+		RetryAttempt:              int32(frame.RetryAttempt),
+		RetryMaxAttempts:          int32(frame.RetryMaxAttempts),
+		RetryDelayMs:              int32(frame.RetryDelayMs),
+		RetryBackoffFactor:        frame.RetryBackoffFactor,
+		RetryHistory:              convertRetryHistory(frame.RetryHistory),
+		DomSnapshotPreview:        frame.DomSnapshotPreview,
+	}
+	if frame.RetryConfigured != 0 {
+		configured := true
+		pbFrame.RetryConfigured = &configured
+	}
+	if frame.Error != "" {
+		errMsg := frame.Error
+		pbFrame.Error = &errMsg
 	}
 
 	if frame.HighlightRegions != nil {
@@ -433,23 +470,27 @@ func timelineFrameToProto(frame export.TimelineFrame) (*basv1.TimelineFrame, err
 	return pbFrame, nil
 }
 
-func timelineLogToProto(log export.TimelineLog) *basv1.TimelineLog {
-	return &basv1.TimelineLog{
+func timelineLogToProto(log export.TimelineLog) *browser_automation_studio_v1.TimelineLog {
+	pb := &browser_automation_studio_v1.TimelineLog{
 		Id:        log.ID,
 		Level:     stringToLogLevel(log.Level),
 		Message:   log.Message,
-		StepName:  log.StepName,
 		Timestamp: timestamppb.New(log.Timestamp),
 	}
+	if log.StepName != "" {
+		stepName := log.StepName
+		pb.StepName = &stepName
+	}
+	return pb
 }
 
-func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*basv1.RetryHistoryEntry {
+func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*browser_automation_studio_v1.RetryHistoryEntry {
 	if len(entries) == 0 {
 		return nil
 	}
-	result := make([]*basv1.RetryHistoryEntry, 0, len(entries))
+	result := make([]*browser_automation_studio_v1.RetryHistoryEntry, 0, len(entries))
 	for _, entry := range entries {
-		result = append(result, &basv1.RetryHistoryEntry{
+		result = append(result, &browser_automation_studio_v1.RetryHistoryEntry{
 			Attempt:        int32(entry.Attempt),
 			Success:        entry.Success,
 			DurationMs:     int32(entry.DurationMs),
@@ -460,8 +501,8 @@ func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*basv1.RetryHis
 	return result
 }
 
-func convertHighlightRegion(region autocontracts.HighlightRegion) *basv1.HighlightRegion {
-	pb := &basv1.HighlightRegion{
+func convertHighlightRegion(region autocontracts.HighlightRegion) *browser_automation_studio_v1.HighlightRegion {
+	pb := &browser_automation_studio_v1.HighlightRegion{
 		Selector: region.Selector,
 		Padding:  int32(region.Padding),
 		Color:    region.Color,
@@ -472,8 +513,8 @@ func convertHighlightRegion(region autocontracts.HighlightRegion) *basv1.Highlig
 	return pb
 }
 
-func convertMaskRegion(region autocontracts.MaskRegion) *basv1.MaskRegion {
-	pb := &basv1.MaskRegion{
+func convertMaskRegion(region autocontracts.MaskRegion) *browser_automation_studio_v1.MaskRegion {
+	pb := &browser_automation_studio_v1.MaskRegion{
 		Selector: region.Selector,
 		Opacity:  region.Opacity,
 	}
@@ -483,8 +524,8 @@ func convertMaskRegion(region autocontracts.MaskRegion) *basv1.MaskRegion {
 	return pb
 }
 
-func convertElementFocus(focus *autocontracts.ElementFocus) *basv1.ElementFocus {
-	pb := &basv1.ElementFocus{
+func convertElementFocus(focus *autocontracts.ElementFocus) *browser_automation_studio_v1.ElementFocus {
+	pb := &browser_automation_studio_v1.ElementFocus{
 		Selector: focus.Selector,
 	}
 	if focus.BoundingBox != nil {
@@ -493,11 +534,11 @@ func convertElementFocus(focus *autocontracts.ElementFocus) *basv1.ElementFocus 
 	return pb
 }
 
-func convertBoundingBox(bbox *autocontracts.BoundingBox) *basv1.BoundingBox {
+func convertBoundingBox(bbox *autocontracts.BoundingBox) *browser_automation_studio_v1.BoundingBox {
 	if bbox == nil {
 		return nil
 	}
-	return &basv1.BoundingBox{
+	return &browser_automation_studio_v1.BoundingBox{
 		X:      bbox.X,
 		Y:      bbox.Y,
 		Width:  bbox.Width,
@@ -505,21 +546,21 @@ func convertBoundingBox(bbox *autocontracts.BoundingBox) *basv1.BoundingBox {
 	}
 }
 
-func convertPoint(pt *autocontracts.Point) *basv1.Point {
+func convertPoint(pt *autocontracts.Point) *browser_automation_studio_v1.Point {
 	if pt == nil {
 		return nil
 	}
-	return &basv1.Point{
+	return &browser_automation_studio_v1.Point{
 		X: pt.X,
 		Y: pt.Y,
 	}
 }
 
-func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *basv1.TimelineScreenshot {
+func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *browser_automation_studio_v1.TimelineScreenshot {
 	if screenshot == nil {
 		return nil
 	}
-	pb := &basv1.TimelineScreenshot{
+	pb := &browser_automation_studio_v1.TimelineScreenshot{
 		ArtifactId:   screenshot.ArtifactID,
 		Url:          screenshot.URL,
 		ThumbnailUrl: screenshot.ThumbnailURL,
@@ -528,27 +569,33 @@ func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *basv1.TimelineS
 		ContentType:  screenshot.ContentType,
 	}
 	if screenshot.SizeBytes != nil {
-		pb.SizeBytes = *screenshot.SizeBytes
+		pb.SizeBytes = screenshot.SizeBytes
 	}
 	return pb
 }
 
-func convertArtifact(artifact typeconv.TimelineArtifact) (*basv1.TimelineArtifact, error) {
+func convertArtifact(artifact typeconv.TimelineArtifact) (*browser_automation_studio_v1.TimelineArtifact, error) {
 	payload, err := toStructMap(artifact.Payload, "artifacts.payload")
 	if err != nil {
 		return nil, err
 	}
 
-	pb := &basv1.TimelineArtifact{
-		Id:           artifact.ID,
-		Type:         stringToArtifactType(artifact.Type),
-		Label:        artifact.Label,
-		StorageUrl:   artifact.StorageURL,
-		ThumbnailUrl: artifact.ThumbnailURL,
-		ContentType:  artifact.ContentType,
+	pb := &browser_automation_studio_v1.TimelineArtifact{
+		Id:          artifact.ID,
+		Type:        stringToArtifactType(artifact.Type),
+		StorageUrl:  artifact.StorageURL,
+		ContentType: artifact.ContentType,
+	}
+	if artifact.Label != "" {
+		label := artifact.Label
+		pb.Label = &label
+	}
+	if artifact.ThumbnailURL != "" {
+		thumb := artifact.ThumbnailURL
+		pb.ThumbnailUrl = &thumb
 	}
 	if artifact.SizeBytes != nil {
-		pb.SizeBytes = *artifact.SizeBytes
+		pb.SizeBytes = artifact.SizeBytes
 	}
 	if artifact.StepIndex != nil {
 		stepIndex := int32(*artifact.StepIndex)
@@ -557,14 +604,17 @@ func convertArtifact(artifact typeconv.TimelineArtifact) (*basv1.TimelineArtifac
 	if len(payload) > 0 {
 		pb.Payload = payload
 	}
+	if typed := toJsonValueMap(artifact.Payload); len(typed) > 0 {
+		pb.PayloadTyped = typed
+	}
 	return pb, nil
 }
 
-func convertAssertion(assertion *autocontracts.AssertionOutcome) (*basv1.AssertionOutcome, error) {
+func convertAssertion(assertion *autocontracts.AssertionOutcome) (*browser_automation_studio_v1.AssertionOutcome, error) {
 	if assertion == nil {
 		return nil, nil
 	}
-	pb := &basv1.AssertionOutcome{
+	pb := &browser_automation_studio_v1.AssertionOutcome{
 		Mode:          assertion.Mode,
 		Selector:      assertion.Selector,
 		Success:       assertion.Success,
@@ -616,4 +666,115 @@ func toProtoValue(value any, field string) (*structpb.Value, error) {
 		return nil, fmt.Errorf("%s: %w", field, err)
 	}
 	return val, nil
+}
+
+func toJsonValueMap(source map[string]any) map[string]*browser_automation_studio_v1.JsonValue {
+	if len(source) == 0 {
+		return nil
+	}
+	result := make(map[string]*browser_automation_studio_v1.JsonValue, len(source))
+	for key, value := range source {
+		if jsonVal := toJsonValue(value); jsonVal != nil {
+			result[key] = jsonVal
+		}
+	}
+	return result
+}
+
+func toJsonValue(value any) *browser_automation_studio_v1.JsonValue {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case *structpb.Value:
+		return toJsonValue(v.AsInterface())
+	case bool:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BoolValue{BoolValue: v}}
+	case int:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+	case int8:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+	case int16:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+	case int32:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+	case int64:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: v}}
+	case uint:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+	case uint32:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+	case uint64:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+	case float32:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: float64(v)}}
+	case float64:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: v}}
+	case string:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_StringValue{StringValue: v}}
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: i}}
+		}
+		if f, err := v.Float64(); err == nil {
+			return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: f}}
+		}
+		return nil
+	case map[string]any:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ObjectValue{ObjectValue: toJsonObject(v)}}
+	case []any:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ListValue{ListValue: toJsonList(v)}}
+	default:
+		// Attempt to JSON round-trip unknown types into a generic shape.
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return nil
+		}
+		var tmp any
+		if err := json.Unmarshal(raw, &tmp); err != nil {
+			return nil
+		}
+		return toJsonValue(tmp)
+	}
+}
+
+func toJsonObjectFromAny(value any) *browser_automation_studio_v1.JsonObject {
+	switch v := value.(type) {
+	case map[string]any:
+		return toJsonObject(v)
+	default:
+		if jsonVal := toJsonValue(v); jsonVal != nil {
+			return jsonVal.GetObjectValue()
+		}
+		return nil
+	}
+}
+
+func toJsonObject(source map[string]any) *browser_automation_studio_v1.JsonObject {
+	if len(source) == 0 {
+		return nil
+	}
+	result := &browser_automation_studio_v1.JsonObject{
+		Fields: make(map[string]*browser_automation_studio_v1.JsonValue, len(source)),
+	}
+	for key, value := range source {
+		if jsonVal := toJsonValue(value); jsonVal != nil {
+			result.Fields[key] = jsonVal
+		}
+	}
+	return result
+}
+
+func toJsonList(items []any) *browser_automation_studio_v1.JsonList {
+	if len(items) == 0 {
+		return nil
+	}
+	result := &browser_automation_studio_v1.JsonList{
+		Values: make([]*browser_automation_studio_v1.JsonValue, 0, len(items)),
+	}
+	for _, item := range items {
+		if jsonVal := toJsonValue(item); jsonVal != nil {
+			result.Values = append(result.Values, jsonVal)
+		}
+	}
+	return result
 }

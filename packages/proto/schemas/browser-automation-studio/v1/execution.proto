@@ -26,6 +26,8 @@ message Execution {
   map<string, google.protobuf.Value> trigger_metadata = 6;
   // Runtime parameters passed to the execution.
   map<string, google.protobuf.Value> parameters = 7;
+  // Strongly typed runtime parameters; prefer over Value maps.
+  map<string, JsonValue> parameters_typed = 17;
   // When the execution started.
   google.protobuf.Timestamp started_at = 8;
   // When the execution completed (null if still running).
@@ -36,6 +38,8 @@ message Execution {
   optional string error = 11;
   // Structured result payload reported by the executor.
   map<string, google.protobuf.Value> result = 12;
+  // Strongly typed execution results; prefer over Value maps.
+  map<string, JsonValue> result_typed = 18;
   // Progress percentage (0-100).
   int32 progress = 13;
   // Human-readable description of the current step.
@@ -52,6 +56,8 @@ message ExecuteAdhocRequest {
   WorkflowDefinition flow_definition = 1;
   // Runtime parameters for the adhoc execution.
   map<string, google.protobuf.Value> parameters = 2;
+  // Strongly typed runtime parameters; prefer over Value maps.
+  map<string, JsonValue> parameters_typed = 5;
   // Whether to wait for completion before responding.
   bool wait_for_completion = 3;
   // Optional metadata for labeling the execution.
@@ -160,6 +166,8 @@ message ExecutionExportPreview {
   int32 total_duration_ms = 7;
   // Replay movie package encoded as JSON (movie spec).
   google.protobuf.Struct package = 8;
+  // Typed replay movie package; prefer over Struct when available.
+  JsonObject package_typed = 9;
 }
 
 // StatusUpdateEvent carries execution-level status changes.
