@@ -128,7 +128,7 @@ export default function LighthouseTab({ app, history, loading, error, onRefetch 
     if (info?.expectedPath) {
       lines.push(`Expected config path: ${info.expectedPath}`);
     }
-    lines.push('Please initialize the config with scripts/scenarios/testing/lighthouse/config.sh init.');
+    lines.push('Create .vrooli/lighthouse.json (see scenarios/test-genie/docs/phases/performance/lighthouse.md), then run test-genie execute <scenario> performance.');
 
     const payload: ReportIssuePayload = {
       message: lines.join('\n'),
@@ -538,7 +538,15 @@ function BulkMissingConfigDialog({ isOpen, onClose, snackPublisher }: BulkDialog
 
     const selected = Array.from(selection).sort();
     const description = `Add .vrooli/lighthouse.json for ${selected.length} scenario(s).`;
-    const lines = [description, '', 'Scenarios requiring setup:', ...selected.map(name => `- ${name}`), '', 'Recommended command:', 'scripts/scenarios/testing/lighthouse/config.sh init'];
+    const lines = [
+      description,
+      '',
+      'Scenarios requiring setup:',
+      ...selected.map(name => `- ${name}`),
+      '',
+      'Recommended command:',
+      'test-genie execute <scenario> performance',
+    ];
 
     const payload: ReportIssuePayload = {
       message: lines.join('\n'),

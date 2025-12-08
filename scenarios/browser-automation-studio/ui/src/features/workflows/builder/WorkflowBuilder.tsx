@@ -1,5 +1,5 @@
 import Editor from "@monaco-editor/react";
-import { Code, Eye } from "lucide-react";
+import { Circle, Code, Eye } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import ReactFlow, {
@@ -191,9 +191,10 @@ const normalizeViewportSetting = (
 
 interface WorkflowBuilderProps {
   projectId?: string;
+  onStartRecording?: () => void;
 }
 
-function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
+function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderProps) {
   // Project ID is used for workflow scoping - workflows are associated with projects
   // via the database schema and filtered in the ProjectDetail component
   if (projectId) {
@@ -1035,6 +1036,16 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
         className="absolute top-4 right-4 z-10 flex items-center gap-2"
         data-testid={selectors.workflowBuilder.viewModeToggle}
       >
+        {onStartRecording && (
+          <button
+            onClick={onStartRecording}
+            className="toolbar-button flex items-center gap-1 bg-red-500/20 hover:bg-red-500/30 text-red-100 border border-red-500/40"
+            title="Start Record Mode"
+          >
+            <Circle size={14} className="text-red-300 fill-red-300" />
+            <span className="text-xs font-medium">Record</span>
+          </button>
+        )}
         <button
           onClick={() => handleViewModeChange("visual")}
           className={`toolbar-button ${viewMode === "visual" ? "active" : ""}`}

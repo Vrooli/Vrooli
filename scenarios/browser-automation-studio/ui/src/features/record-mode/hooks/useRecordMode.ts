@@ -27,7 +27,7 @@ import type {
 
 interface UseRecordModeOptions {
   /** Session ID for the browser session */
-  sessionId: string;
+  sessionId: string | null;
   /** Polling interval for actions in ms (0 to disable). Used as fallback when WebSocket is unavailable. */
   pollInterval?: number;
   /** Callback when new actions are received */
@@ -94,12 +94,22 @@ export function useRecordMode({
   const [isReplaying, setIsReplaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const sessionIdRef = useRef<string | null>(sessionId ?? null);
+  sessionIdRef.current = sessionId ?? null;
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastActionCountRef = useRef(0);
   const wsSubscribedRef = useRef(false);
 
   const apiUrl = getApiBase();
   const { isConnected, lastMessage, send } = useWebSocket();
+
+  useEffect(() => {
+    setActions([]);
+    setRecordingId(null);
+    setIsRecording(false);
+    setError(null);
+    lastActionCountRef.current = 0;
+  }, [sessionId]);
 
   // Calculate confidence counts
   const lowConfidenceCount = actions.filter(
@@ -111,10 +121,11 @@ export function useRecordMode({
 
   // Fetch actions from server
   const refreshActions = useCallback(async () => {
-    if (!sessionId) return;
+    const currentSessionId = sessionIdRef.current;
+    if (!currentSessionId) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/v1/recordings/live/${sessionId}/actions`);
+      const response = await fetch(`${apiUrl}/api/v1/recordings/live/${currentSessionId}/actions`);
       if (!response.ok) {
         throw new Error(`Failed to fetch actions: ${response.statusText}`);
       }
@@ -131,12 +142,13 @@ export function useRecordMode({
     } catch (err) {
       console.error('Failed to refresh actions:', err);
     }
-  }, [sessionId, apiUrl, onActionsReceived]);
+  }, [apiUrl, onActionsReceived]);
 
   // Subscribe to WebSocket updates when recording starts
   useEffect(() => {
-    if (isRecording && useWebSocketUpdates && isConnected && sessionId && !wsSubscribedRef.current) {
-      send({ type: 'subscribe_recording', session_id: sessionId });
+    const currentSessionId = sessionIdRef.current;
+    if (isRecording && useWebSocketUpdates && isConnected && currentSessionId && !wsSubscribedRef.current) {
+      send({ type: 'subscribe_recording', session_id: currentSessionId });
       wsSubscribedRef.current = true;
       console.log('[useRecordMode] Subscribed to recording WebSocket updates');
     }
@@ -206,7 +218,8 @@ export function useRecordMode({
   }, [isRecording, pollInterval, refreshActions, useWebSocketUpdates, isConnected]);
 
   const startRecording = useCallback(async () => {
-    if (!sessionId) {
+    const currentSessionId = sessionIdRef.current;
+    if (!currentSessionId) {
       setError('No session ID provided');
       return;
     }
@@ -218,7 +231,7 @@ export function useRecordMode({
       const response = await fetch(`${apiUrl}/api/v1/recordings/live/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId }),
+        body: JSON.stringify({ session_id: currentSessionId }),
       });
 
       if (!response.ok) {
@@ -237,10 +250,11 @@ export function useRecordMode({
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, apiUrl]);
+  }, [apiUrl]);
 
   const stopRecording = useCallback(async () => {
-    if (!sessionId) {
+    const currentSessionId = sessionIdRef.current;
+    if (!currentSessionId) {
       setError('No session ID provided');
       return;
     }
@@ -249,7 +263,7 @@ export function useRecordMode({
     setError(null);
 
     try {
-      const response = await fetch(`${apiUrl}/api/v1/recordings/live/${sessionId}/stop`, {
+      const response = await fetch(`${apiUrl}/api/v1/recordings/live/${currentSessionId}/stop`, {
         method: 'POST',
       });
 
@@ -272,7 +286,7 @@ export function useRecordMode({
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, apiUrl, refreshActions]);
+  }, [apiUrl, refreshActions]);
 
   const clearActions = useCallback(() => {
     setActions([]);
@@ -334,7 +348,8 @@ export function useRecordMode({
 
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string): Promise<GenerateWorkflowResponse> => {
-      if (!sessionId) {
+      const currentSessionId = sessionIdRef.current;
+      if (!currentSessionId) {
         throw new Error('No session ID provided');
       }
 
@@ -348,7 +363,7 @@ export function useRecordMode({
       try {
         // Send local actions (with edits) to the API
         const response = await fetch(
-          `${apiUrl}/api/v1/recordings/live/${sessionId}/generate-workflow`,
+          `${apiUrl}/api/v1/recordings/live/${currentSessionId}/generate-workflow`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -378,17 +393,18 @@ export function useRecordMode({
         setIsLoading(false);
       }
     },
-    [sessionId, apiUrl, actions]
+    [apiUrl, actions]
   );
 
   const validateSelector = useCallback(
     async (selector: string): Promise<SelectorValidation> => {
-      if (!sessionId) {
+      const currentSessionId = sessionIdRef.current;
+      if (!currentSessionId) {
         throw new Error('No session ID provided');
       }
 
       const response = await fetch(
-        `${apiUrl}/api/v1/recordings/live/${sessionId}/validate-selector`,
+        `${apiUrl}/api/v1/recordings/live/${currentSessionId}/validate-selector`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -402,12 +418,13 @@ export function useRecordMode({
 
       return response.json();
     },
-    [sessionId, apiUrl]
+    [apiUrl]
   );
 
   const replayPreview = useCallback(
     async (options?: { limit?: number; stopOnFailure?: boolean }): Promise<ReplayPreviewResponse> => {
-      if (!sessionId) {
+      const currentSessionId = sessionIdRef.current;
+      if (!currentSessionId) {
         throw new Error('No session ID provided');
       }
 
@@ -420,7 +437,7 @@ export function useRecordMode({
 
       try {
         const response = await fetch(
-          `${apiUrl}/api/v1/recordings/live/${sessionId}/replay-preview`,
+          `${apiUrl}/api/v1/recordings/live/${currentSessionId}/replay-preview`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -449,7 +466,7 @@ export function useRecordMode({
         setIsReplaying(false);
       }
     },
-    [sessionId, apiUrl, actions]
+    [apiUrl, actions]
   );
 
   return {

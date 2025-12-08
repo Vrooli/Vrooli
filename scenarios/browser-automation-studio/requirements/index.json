@@ -167,8 +167,8 @@
     }
   ],
   "reporting": {
-    "script": "scripts/requirements/report.js",
-    "entrypoint": "node scripts/requirements/report.js",
+    "script": "vrooli scenario requirements report browser-automation-studio",
+    "entrypoint": "vrooli scenario requirements report browser-automation-studio",
     "outputs": [
       {
         "format": "json",

@@ -113,6 +113,14 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
     category: 'Help',
     contexts: ['dashboard', 'project-detail', 'workflow-builder'],
   },
+  {
+    id: 'start-recording',
+    key: 'r',
+    modifiers: ['shift'],
+    description: 'Start Record Mode',
+    category: 'Actions',
+    contexts: ['dashboard', 'project-detail', 'workflow-builder'],
+  },
 
   // -------------------------------------------------------------------------
   // Project Detail shortcuts

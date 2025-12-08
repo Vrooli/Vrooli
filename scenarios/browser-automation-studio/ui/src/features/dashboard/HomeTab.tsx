@@ -19,6 +19,7 @@ import {
   Video,
   LayoutGrid,
   Wand2,
+  Circle,
 } from 'lucide-react';
 import { useDashboardStore, type RecentWorkflow, type FavoriteWorkflow } from '@stores/dashboardStore';
 import { useExecutionStore } from '@stores/executionStore';
@@ -34,6 +35,7 @@ interface HomeTabProps {
   onViewExecution: (executionId: string, workflowId: string) => void;
   onOpenSettings: () => void;
   onUseTemplate: (prompt: string, templateName: string) => void;
+  onStartRecording?: () => void;
   isGenerating?: boolean;
 }
 
@@ -45,6 +47,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onViewExecution,
   onOpenSettings,
   onUseTemplate,
+  onStartRecording,
   isGenerating = false,
 }) => {
   const [prompt, setPrompt] = useState('');
@@ -470,6 +473,15 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             >
               {heroSecondaryLabel}
             </button>
+            {onStartRecording && (
+              <button
+                onClick={onStartRecording}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/25 transition-colors"
+              >
+                <Circle size={14} className="text-red-400 fill-red-400" />
+                Start recording
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -497,6 +509,27 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </div>
           </div>
           <div className="space-y-2">
+            {onStartRecording && (
+              <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Circle size={14} className="text-red-400 fill-red-400" />
+                    <span className="text-sm font-semibold text-white">Record Mode</span>
+                  </div>
+                  <span className="text-[11px] text-red-200/80">Live capture</span>
+                </div>
+                <p className="text-xs text-red-100/80">
+                  Capture clicks and inputs, then turn them into a workflow with one click.
+                </p>
+                <button
+                  onClick={onStartRecording}
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-red-50 text-sm font-medium transition-colors"
+                >
+                  <Circle size={12} className="text-red-200 fill-red-200" />
+                  Start recording
+                </button>
+              </div>
+            )}
             <button
               onClick={() => onUseTemplate('Log into a dashboard and capture a screenshot', 'Login capture')}
               className="flex items-center justify-between w-full p-3 bg-flow-node/60 hover:bg-flow-node-hover border border-flow-border/60 rounded-lg transition-colors text-left"

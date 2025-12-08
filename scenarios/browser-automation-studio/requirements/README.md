@@ -16,7 +16,7 @@ Numbers preserve ordering/insertion; they do **not** indicate priority. Each tar
 1. PRD defines operational targets → mapped one-to-one with the folders above.
 2. `requirements/index.json` imports each module; auto-sync propagates validation status from tests to requirements to PRD targets.
 3. Validation types (`unit`, `integration`, `automation`, `manual`, etc.) reference concrete test files or playbooks.
-4. Coverage summaries are emitted by the requirements reporter (see `scripts/requirements/report.js`) and stored in `coverage/phase-results/`.
+4. Coverage summaries are emitted by the requirements reporter (`vrooli scenario requirements report browser-automation-studio`) and stored in `coverage/phase-results/`.
 
 ## How to Work Here
 - When adding/changing a feature, first decide which operational target owns it; add/update the module JSON inside that folder.
@@ -26,7 +26,7 @@ Numbers preserve ordering/insertion; they do **not** indicate priority. Each tar
 
 ## Validation & Tooling
 - Run `make test` (or `vrooli test <phase>`) to execute phases and sync requirement statuses.
-- `scripts/requirements/report.js` generates machine- and human-readable coverage snapshots.
+- `vrooli scenario requirements report browser-automation-studio` generates machine- and human-readable coverage snapshots.
 - Testing helpers fail when a requirement references a missing playbook (or vice versa) so drift is caught quickly.
 
 ## References

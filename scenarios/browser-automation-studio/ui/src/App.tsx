@@ -26,6 +26,7 @@ const SettingsPage = lazy(() => import("@features/settings/SettingsPage"));
 const GlobalWorkflowsView = lazy(() => import("@features/dashboard/GlobalWorkflowsView").then(m => ({ default: m.GlobalWorkflowsView })));
 const GlobalExecutionsView = lazy(() => import("@features/dashboard/GlobalExecutionsView").then(m => ({ default: m.GlobalExecutionsView })));
 const RecordModePage = lazy(() => import("@features/record-mode/RecordModePage").then(m => ({ default: m.RecordModePage })));
+import { type DashboardTab } from "@features/dashboard";
 
 // Stores and hooks
 import { useExecutionStore } from "@stores/executionStore";
@@ -68,6 +69,7 @@ function App() {
   );
   const [isResizingExecution, setIsResizingExecution] = useState(false);
   const [recordingSessionId, setRecordingSessionId] = useState<string | null>(null);
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>("home");
 
   const { projects, currentProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow } = useWorkflowStore();
@@ -209,18 +211,23 @@ function App() {
   );
 
   const navigateToDashboard = useCallback(
-    (replace = false) => {
-      const url = "/";
-      const state = { view: "dashboard" };
+    (options?: { replace?: boolean; tab?: DashboardTab } | boolean) => {
+      const replace = typeof options === "boolean" ? options : options?.replace ?? false;
+      const targetTab =
+        typeof options === "object" && options?.tab ? options.tab : dashboardTab;
+      const search = targetTab !== "home" ? `?tab=${targetTab}` : "";
+      const url = `/${search}`;
+      const state = { view: "dashboard", tab: targetTab };
       safeNavigate(state, url, replace);
       setShowAIModal(false);
       setShowProjectModal(false);
       setSelectedWorkflow(null);
       setSelectedFolder("/");
       setCurrentProject(null);
+      setDashboardTab(targetTab);
       setCurrentView("dashboard");
     },
-    [safeNavigate, setCurrentProject],
+    [dashboardTab, safeNavigate, setCurrentProject],
   );
 
   const navigateToSettings = useCallback(
@@ -260,13 +267,14 @@ function App() {
   );
 
   const navigateToRecordMode = useCallback(
-    (sessionId: string, replace = false) => {
-      const url = `/record/${sessionId}`;
-      const state = { view: "record-mode", sessionId };
+    (sessionId?: string | null, replace = false) => {
+      const isNewSession = !sessionId;
+      const url = isNewSession ? "/record/new" : `/record/${sessionId}`;
+      const state = { view: "record-mode", sessionId: sessionId ?? null, isNew: isNewSession };
       safeNavigate(state, url, replace);
       setShowAIModal(false);
       setShowProjectModal(false);
-      setRecordingSessionId(sessionId);
+      setRecordingSessionId(sessionId ?? null);
       setCurrentView("record-mode");
     },
     [safeNavigate],
@@ -529,6 +537,10 @@ function App() {
     }
   }, [startExecution]);
 
+  const handleDashboardTabChange = useCallback((tab: DashboardTab) => {
+    navigateToDashboard({ tab });
+  }, [navigateToDashboard]);
+
   // Handler for trying the demo workflow from welcome state
   const handleTryDemo = useCallback(async () => {
     try {
@@ -614,6 +626,11 @@ function App() {
     await handleNavigateToWorkflow(projectId, workflowId);
   }, [recordingSessionId, handleNavigateToWorkflow]);
 
+  const handleRecordingSessionReady = useCallback((sessionId: string) => {
+    setRecordingSessionId(sessionId);
+    navigateToRecordMode(sessionId, true);
+  }, [navigateToRecordMode]);
+
   const handleBackToDashboard = () => {
     navigateToDashboard();
   };
@@ -626,39 +643,8 @@ function App() {
     }
   };
 
-  const handleStartRecording = useCallback(async () => {
-    try {
-      const config = await import("./config").then(m => m.getConfig());
-
-      // Create a new browser session for recording
-      const response = await fetch(`${config.API_URL}/recordings/live/session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          viewport_width: 1280,
-          viewport_height: 720,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to create recording session: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const sessionId = data.session_id;
-
-      if (!sessionId) {
-        throw new Error("No session ID returned from server");
-      }
-
-      // Navigate to record mode
-      navigateToRecordMode(sessionId);
-      toast.success("Recording session started!");
-    } catch (error) {
-      logger.error("Failed to start recording", { component: "App", action: "handleStartRecording" }, error);
-      toast.error(error instanceof Error ? error.message : "Failed to start recording session");
-    }
+  const handleStartRecording = useCallback(() => {
+    navigateToRecordMode(null);
   }, [navigateToRecordMode]);
 
   const handleCreateProject = () => {
@@ -867,6 +853,9 @@ function App() {
 
       // Project detail shortcuts
       'new-workflow': () => setShowAIModal(true),
+      'start-recording': () => {
+        void handleStartRecording();
+      },
     }),
     [
       showKeyboardShortcuts,
@@ -879,19 +868,29 @@ function App() {
       navigateToDashboard,
       navigateToSettings,
       openTour,
+      handleStartRecording,
     ]
   );
 
   useRegisterShortcuts(shortcutActions);
 
   useEffect(() => {
+    const parseDashboardTab = (value: string | null): DashboardTab => {
+      if (value === "projects" || value === "executions" || value === "exports") {
+        return value;
+      }
+      return "home";
+    };
+
     const resolvePath = async (path: string, replace = false) => {
       console.log("[DEBUG] resolvePath called", { path, replace });
       const normalized = path.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
+      const searchParams = new URLSearchParams(window.location.search);
+      const requestedTab = parseDashboardTab(searchParams.get("tab"));
 
       if (normalized === "/") {
         console.log("[DEBUG] resolvePath: navigating to dashboard");
-        navigateToDashboard(replace);
+        navigateToDashboard({ replace, tab: requestedTab });
         return;
       }
 
@@ -921,8 +920,9 @@ function App() {
 
       // Handle /record/{sessionId} route (record mode)
       if (segments[0] === "record" && segments[1]) {
-        console.log("[DEBUG] resolvePath: navigating to record mode", { sessionId: segments[1] });
-        navigateToRecordMode(segments[1], replace);
+        const sessionId = segments[1] === "new" ? null : segments[1];
+        console.log("[DEBUG] resolvePath: navigating to record mode", { sessionId });
+        navigateToRecordMode(sessionId, replace);
         return;
       }
 
@@ -1018,10 +1018,13 @@ function App() {
           }
         >
           <Dashboard
+            activeTab={dashboardTab}
+            onTabChange={handleDashboardTabChange}
             onProjectSelect={handleProjectSelect}
             onCreateProject={handleCreateProject}
             onCreateFirstWorkflow={handleCreateFirstWorkflow}
             onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+            onStartRecording={handleStartRecording}
             onOpenSettings={navigateToSettings}
             onOpenTutorial={openTour}
             onOpenDocs={() => setShowDocs(true)}
@@ -1161,7 +1164,7 @@ function App() {
   }
 
   // Record Mode View
-  if (currentView === "record-mode" && recordingSessionId) {
+  if (currentView === "record-mode") {
     return (
       <div
         className="h-screen flex flex-col bg-flow-bg"
@@ -1177,6 +1180,7 @@ function App() {
           <RecordModePage
             sessionId={recordingSessionId}
             onWorkflowGenerated={handleRecordingWorkflowGenerated}
+            onSessionReady={handleRecordingSessionReady}
             onClose={closeRecordMode}
           />
         </Suspense>
@@ -1288,7 +1292,10 @@ function App() {
                   </div>
                 }
               >
-                <WorkflowBuilder projectId={currentProject?.id} />
+                <WorkflowBuilder
+                  projectId={currentProject?.id}
+                  onStartRecording={handleStartRecording}
+                />
               </Suspense>
             </div>
 

@@ -27,7 +27,7 @@ This capability transforms browser automation from code-based scripts to visual,
 - **Demo Workflow**: Fresh databases automatically seed a ready-to-run workflow (`Demo: Capture Example.com Hero`) that navigates to example.com, asserts the hero headline, and captures an annotated screenshot so UI/CLI validation is possible without manual authoring. The seed run provisions a project named **Demo Browser Automations** and creates a filesystem workspace at `scenarios/browser-automation-studio/data/projects/demo` (configurable with `BAS_DEMO_PROJECT_PATH`) so replay exports and renderer artifacts have a dedicated home.
 - **Replay Exporter**: `/api/v1/executions/{id}/export` returns replay packages with frame metadata, theme presets, and asset manifests. `browser-automation-studio execution export` surfaces the JSON payload, while `execution render` converts it into a self-contained marketing replay.
 - **Chrome Extension Imports**: `POST /api/v1/recordings/import` normalises zipped extension captures into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`, allowing real-user recordings to appear beside Browserless runs.
-- **Requirements Tracking**: `requirements/index.json` (v0.2.0 modular registry) plus `scripts/requirements/report.js` reflect telemetry/replay progress. Automated integration with CI dashboards is still pending.
+- **Requirements Tracking**: `requirements/index.json` (v0.2.0 modular registry) plus `vrooli scenario requirements report browser-automation-studio` reflect telemetry/replay progress. Automated integration with CI dashboards is still pending.
 - **Testing**: Compiler/runtime/executor telemetry have targeted unit coverage; WebSocket contract, handler integration, and end-to-end Browserless tests remain gaps.
 - **Docs & Positioning**: README/PRD/action-plan document the delivered executor/replay layers and call out remaining milestones (branching planner, CLI parity, testing ramp).
 
@@ -530,7 +530,7 @@ discovery:
 ### Declarative Test Specification
 - **Phased testing:** `test/phases/*.sh` owns the scenario-quality entry point. Structure + unit phases run today; integration/business phases will add Browserless end-to-end coverage once the executor matures.
 - **Lifecycle health:** `.vrooli/service.json` wires health probes, CLI smoke tests, and API curls into the lifecycle `make test` path.
-- **Requirements linkage:** `scripts/requirements/report.js --scenario browser-automation-studio` emits JSON/Markdown coverage that backs the README dashboard and now ingests `coverage/phase-results/*.json` from the test phases so live pass/fail state shows up alongside static requirement status (automation hooks still pending).
+- **Requirements linkage:** `vrooli scenario requirements report browser-automation-studio` emits JSON/Markdown coverage that backs the README dashboard and now ingests `coverage/phase-results/*.json` from the test phases so live pass/fail state shows up alongside static requirement status (automation hooks still pending).
 
 ```bash
 # Example local run
@@ -541,8 +541,7 @@ test/phases/test-structure.sh
 test/phases/test-unit.sh
 
 # Requirements snapshot (Markdown output)
-node ../../scripts/requirements/report.js \
-  --scenario browser-automation-studio --format markdown
+vrooli scenario requirements report browser-automation-studio --format markdown
 ```
 
 ## 📝 Implementation Notes

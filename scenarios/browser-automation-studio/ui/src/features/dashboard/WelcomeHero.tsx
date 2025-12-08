@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   BarChart3,
   ArrowRight,
+  Circle,
 } from 'lucide-react';
 import { selectors } from '@constants/selectors';
 import { FeatureShowcase } from './FeatureShowcase';
@@ -18,6 +19,7 @@ import { FeatureShowcase } from './FeatureShowcase';
 interface WelcomeHeroProps {
   onCreateFirstWorkflow: () => void;
   onOpenTutorial?: () => void;
+  onStartRecording?: () => void;
 }
 
 interface FeatureCardProps {
@@ -133,6 +135,7 @@ const FEATURES = [
 export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
   onCreateFirstWorkflow,
   onOpenTutorial,
+  onStartRecording,
 }) => {
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
 
@@ -193,6 +196,16 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
               <span>Create Your First Workflow</span>
               <div className="hero-button-glow" />
             </button>
+
+            {onStartRecording && (
+              <button
+                onClick={onStartRecording}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-red-500/40 bg-red-500/15 text-red-100 hover:bg-red-500/25 transition-colors"
+              >
+                <Circle size={18} className="text-red-300 fill-red-300" />
+                <span>Start Recording</span>
+              </button>
+            )}
 
             {onOpenTutorial && (
               <button

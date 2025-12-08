@@ -65,7 +65,7 @@ requirements/
 
 Requirements coverage can be generated via:
 ```bash
-node scripts/requirements/report.js --scenario scenario-to-desktop --format markdown
+vrooli scenario requirements report scenario-to-desktop --format markdown
 ```
 
 ## Last Updated

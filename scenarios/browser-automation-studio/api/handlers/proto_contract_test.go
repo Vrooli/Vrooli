@@ -18,6 +18,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // protoContractWorkflowService is a lightweight WorkflowService stub for proto contract tests.
@@ -281,6 +283,47 @@ func TestGetExecutionTimelineProtoJSON(t *testing.T) {
 	}
 	if _, ok := frameObj["stepIndex"]; ok {
 		t.Fatalf("did not expect camelCase stepIndex field")
+	}
+
+	var protoTimeline browser_automation_studio_v1.ExecutionTimeline
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(rr.Body.Bytes(), &protoTimeline); err != nil {
+		t.Fatalf("strict proto unmarshal failed: %v", err)
+	}
+	if protoTimeline.GetExecutionId() != execID.String() {
+		t.Fatalf("expected execution_id %s, got %s", execID.String(), protoTimeline.GetExecutionId())
+	}
+}
+
+func TestGetExecutionTimelineProtoJSON_InvalidPayload(t *testing.T) {
+	execID := uuid.New()
+	handler := newHandlerForProtoContract(t, &protoContractWorkflowService{
+		timeline: &export.ExecutionTimeline{
+			ExecutionID: execID,
+			WorkflowID:  execID,
+			Status:      "completed",
+			Progress:    100,
+			Frames: []export.TimelineFrame{
+				{
+					StepIndex:            0,
+					NodeID:               "node-invalid",
+					StepType:             "navigate",
+					Status:               "completed",
+					Success:              true,
+					ExtractedDataPreview: make(chan int), // not JSON-serializable, should fail proto conversion
+				},
+			},
+		},
+	})
+
+	req := addRouteParam(httptest.NewRequest(http.MethodGet, "/api/v1/executions/"+execID.String()+"/timeline", nil), "id", execID.String())
+	rr := httptest.NewRecorder()
+	handler.GetExecutionTimeline(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "timeline_to_proto") {
+		t.Fatalf("expected timeline_to_proto error detail, got %s", rr.Body.String())
 	}
 }
 

@@ -23,8 +23,7 @@ type LighthouseHandler struct {
 
 const (
 	lighthouseConfigRelativePath = ".vrooli/lighthouse.json"
-	lighthouseInitCommand        = "scripts/scenarios/testing/lighthouse/config.sh init"
-	lighthouseSetupHint          = "Use scripts/scenarios/testing/lighthouse/config.sh init inside each scenario to scaffold Lighthouse tests."
+	lighthouseSetupHint          = "Create .vrooli/lighthouse.json (see scenarios/test-genie/docs/phases/performance/lighthouse.md) so the performance phase can run Lighthouse audits."
 )
 
 // NewLighthouseHandler creates a new Lighthouse handler
@@ -114,14 +113,12 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 	phaseResultsPath := h.phaseResultsPath(scenarioName)
 	prevPhaseMod := fileModTime(phaseResultsPath)
 
-	// Execute lighthouse runner via bash
-	cmd := exec.CommandContext(c.Request.Context(),
-		"bash", "-c",
-		fmt.Sprintf(
-			"cd %s && ./test/phases/test-performance.sh --lighthouse-only 2>&1",
-			scenarioPath,
-		),
+	// Execute Lighthouse via the Go-native test-genie performance phase
+	cmd := exec.CommandContext(
+		c.Request.Context(),
+		"test-genie", "execute", scenarioName, "performance", "--no-stream", "--skip", "structure,dependencies,unit,integration,business",
 	)
+	cmd.Dir = h.appRoot
 
 	// Set environment
 	cmd.Env = append(os.Environ(),
@@ -260,7 +257,7 @@ func fileModTime(path string) time.Time {
 
 func (h *LighthouseHandler) respondMissingConfig(c *gin.Context, scenarioName string) {
 	scenarioDir := filepath.Join("scenarios", scenarioName)
-	initCommand := fmt.Sprintf("cd %s && %s", scenarioDir, lighthouseInitCommand)
+	createConfig := fmt.Sprintf("Create %s (see scenarios/test-genie/docs/phases/performance/lighthouse.md)", h.configPath(scenarioName))
 
 	c.JSON(http.StatusNotFound, gin.H{
 		"error":           fmt.Sprintf("Scenario %s has no %s", scenarioName, lighthouseConfigRelativePath),
@@ -268,7 +265,7 @@ func (h *LighthouseHandler) respondMissingConfig(c *gin.Context, scenarioName st
 		"scenario":        scenarioName,
 		"expected_path":   h.configPath(scenarioName),
 		"hint":            lighthouseSetupHint,
-		"suggested_steps": []string{initCommand},
+		"suggested_steps": []string{createConfig, fmt.Sprintf("Then run: test-genie execute %s performance --no-stream --skip structure,dependencies,unit,integration,business (from repo root)", scenarioName)},
 	})
 }
 

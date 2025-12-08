@@ -11,25 +11,34 @@
  * - Visual polish (loading states, confirmation dialogs)
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { getConfig } from '@/config';
+import { logger } from '@/utils/logger';
 import { useRecordMode } from './hooks/useRecordMode';
 import { ActionTimeline } from './ActionTimeline';
 import type { ReplayPreviewResponse } from './types';
 
 interface RecordModePageProps {
   /** Browser session ID */
-  sessionId: string;
+  sessionId: string | null;
   /** Callback when workflow is generated */
   onWorkflowGenerated?: (workflowId: string, projectId: string) => void;
+  /** Callback when a live session is created */
+  onSessionReady?: (sessionId: string) => void;
   /** Callback to close record mode */
   onClose?: () => void;
 }
 
 export function RecordModePage({
-  sessionId,
+  sessionId: initialSessionId,
   onWorkflowGenerated,
+  onSessionReady,
   onClose,
 }: RecordModePageProps) {
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId ?? null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [pendingStart, setPendingStart] = useState(false);
   const [workflowName, setWorkflowName] = useState('');
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -37,6 +46,12 @@ export function RecordModePage({
   const [showReplayResults, setShowReplayResults] = useState(false);
   const [replayResults, setReplayResults] = useState<ReplayPreviewResponse | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSessionId(initialSessionId ?? null);
+    setSessionError(null);
+    setPendingStart(false);
+  }, [initialSessionId]);
 
   const {
     isRecording,
@@ -63,13 +78,73 @@ export function RecordModePage({
     },
   });
 
-  const handleStartRecording = useCallback(async () => {
-    try {
-      await startRecording();
-    } catch (err) {
-      console.error('Failed to start recording:', err);
+  const ensureSession = useCallback(async (): Promise<string | null> => {
+    if (sessionId) {
+      return sessionId;
     }
-  }, [startRecording]);
+
+    setIsCreatingSession(true);
+    setSessionError(null);
+
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/recordings/live/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewport_width: 1280,
+          viewport_height: 720,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to create recording session: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const newSessionId = data.session_id;
+
+      if (!newSessionId) {
+        throw new Error('No session ID returned from server');
+      }
+
+      setSessionId(newSessionId);
+      if (onSessionReady) {
+        onSessionReady(newSessionId);
+      }
+      return newSessionId;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create recording session';
+      setSessionError(message);
+      logger.error('Failed to create recording session', { component: 'RecordModePage', action: 'ensureSession' }, err);
+      return null;
+    } finally {
+      setIsCreatingSession(false);
+    }
+  }, [sessionId, onSessionReady]);
+
+  useEffect(() => {
+    if (!pendingStart || !sessionId) {
+      return;
+    }
+
+    startRecording()
+      .catch((err) => {
+        logger.error('Failed to start recording', { component: 'RecordModePage', action: 'startRecording' }, err);
+      })
+      .finally(() => {
+        setPendingStart(false);
+      });
+  }, [pendingStart, sessionId, startRecording]);
+
+  const handleStartRecording = useCallback(async () => {
+    setPendingStart(true);
+    const ensuredSession = await ensureSession();
+    if (!ensuredSession) {
+      setPendingStart(false);
+    }
+  }, [ensureSession]);
 
   const handleStopRecording = useCallback(async () => {
     try {
@@ -134,6 +209,8 @@ export function RecordModePage({
   }, [replayPreview]);
 
   const hasUnstableSelectors = lowConfidenceCount > 0 || mediumConfidenceCount > 0;
+  const displayError = sessionError ?? error;
+  const isStartingRecording = isLoading || isCreatingSession || pendingStart;
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
@@ -171,10 +248,10 @@ export function RecordModePage({
           {!isRecording ? (
             <button
               onClick={handleStartRecording}
-              disabled={isLoading}
+              disabled={isStartingRecording}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isLoading ? (
+              {isStartingRecording ? (
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -248,18 +325,18 @@ export function RecordModePage({
       </div>
 
       {/* Error display */}
-      {error && (
+      {displayError && (
         <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
           <div className="flex items-start gap-3">
             <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             <div>
-              <p className="text-sm font-medium text-red-800 dark:text-red-200">{error}</p>
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">{displayError}</p>
               <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                {error.includes('driver') || error.includes('unavailable')
+                {displayError.includes('driver') || displayError.includes('unavailable')
                   ? 'Make sure the browser session is active and try again.'
-                  : error.includes('recording')
+                  : displayError.includes('recording')
                   ? 'Try stopping and restarting the recording.'
                   : 'Please try again. If the problem persists, refresh the page.'}
               </p>

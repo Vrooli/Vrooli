@@ -9,6 +9,7 @@ import {
   HelpCircle,
   BookOpen,
   Command,
+  Circle,
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
 import { useDashboardStore } from "@stores/dashboardStore";
@@ -30,6 +31,7 @@ interface DashboardProps {
   onCreateProject: () => void;
   onCreateFirstWorkflow?: () => void;
   onShowKeyboardShortcuts?: () => void;
+  onStartRecording?: () => void;
   onOpenSettings?: () => void;
   onOpenTutorial?: () => void;
   onOpenDocs?: () => void;
@@ -40,6 +42,8 @@ interface DashboardProps {
   onViewAllWorkflows?: () => void;
   onViewAllExecutions?: () => void;
   onTryDemo?: () => void;
+  activeTab?: DashboardTab;
+  onTabChange?: (tab: DashboardTab) => void;
   isGeneratingWorkflow?: boolean;
 }
 
@@ -48,6 +52,7 @@ function Dashboard({
   onCreateProject,
   onCreateFirstWorkflow,
   onShowKeyboardShortcuts,
+  onStartRecording,
   onOpenSettings,
   onOpenTutorial,
   onOpenDocs,
@@ -56,6 +61,8 @@ function Dashboard({
   onAIGenerateWorkflow,
   onRunWorkflow,
   onTryDemo,
+  activeTab: activeTabProp,
+  onTabChange,
   isGeneratingWorkflow = false,
 }: DashboardProps) {
   const {
@@ -73,8 +80,14 @@ function Dashboard({
   } = useDashboardStore();
   const { checkCapability: checkAICapability } = useAICapabilityStore();
   const { isConnected: isWebSocketConnected } = useWebSocket();
-  const [activeTab, setActiveTab] = useState<DashboardTab>('home');
+  const [activeTab, setActiveTab] = useState<DashboardTab>(activeTabProp ?? 'home');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeTabProp && activeTabProp !== activeTab) {
+      setActiveTab(activeTabProp);
+    }
+  }, [activeTabProp, activeTab]);
 
   useEffect(() => {
     fetchProjects();
@@ -105,10 +118,13 @@ function Dashboard({
   useEffect(() => {
     const handleNavigateToExports = () => {
       setActiveTab('exports');
+      if (onTabChange) {
+        onTabChange('exports');
+      }
     };
     window.addEventListener('navigate-to-exports', handleNavigateToExports);
     return () => window.removeEventListener('navigate-to-exports', handleNavigateToExports);
-  }, []);
+  }, [onTabChange]);
 
   const handleNavigateToWorkflow = useCallback((projectId: string, workflowId: string) => {
     if (onNavigateToWorkflow) {
@@ -148,12 +164,18 @@ function Dashboard({
 
   const handleViewAllExecutions = useCallback(() => {
     setActiveTab('executions');
-  }, []);
+    if (onTabChange) {
+      onTabChange('executions');
+    }
+  }, [onTabChange]);
 
   // Handle tab change
   const handleTabChange = useCallback((tab: DashboardTab) => {
     setActiveTab(tab);
-  }, []);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  }, [onTabChange]);
 
   // Status bar for API connection issues
   const StatusBar = () => {
@@ -199,6 +221,7 @@ function Dashboard({
             onViewExecution={handleViewExecution}
             onOpenSettings={handleOpenSettings}
             onUseTemplate={handleUseTemplate}
+            onStartRecording={onStartRecording}
             isGenerating={isGeneratingWorkflow}
           />
         );
@@ -288,6 +311,18 @@ function Dashboard({
                 onViewAllExecutions={handleViewAllExecutions}
               />
 
+              {onStartRecording && (
+                <button
+                  onClick={onStartRecording}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-red-200 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 rounded-lg transition-colors"
+                  title="Start Record Mode"
+                  aria-label="Start recording actions"
+                >
+                  <Circle size={12} className="text-red-400 fill-red-400" />
+                  <span className="text-sm">Record</span>
+                </button>
+              )}
+
               {/* Global Search Button */}
               <button
                 onClick={() => setIsSearchModalOpen(true)}
@@ -362,9 +397,9 @@ function Dashboard({
         <TabNavigation
           activeTab={activeTab}
           onTabChange={handleTabChange}
-      runningCount={runningExecutions.length}
-    />
-  </header>
+          runningCount={runningExecutions.length}
+        />
+      </header>
 
       {/* Status Bar for API errors */}
       <StatusBar />
@@ -384,6 +419,7 @@ function Dashboard({
           <WelcomeHero
             onCreateFirstWorkflow={onCreateFirstWorkflow ?? onCreateProject}
             onOpenTutorial={onOpenTutorial}
+            onStartRecording={onStartRecording}
           />
         ) : (
           renderTabContent()
