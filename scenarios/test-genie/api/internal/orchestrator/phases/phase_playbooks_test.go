@@ -3,6 +3,8 @@ package phases
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
+	"test-genie/internal/playbooks/isolation"
 	"test-genie/internal/shared"
 )
 
@@ -19,6 +22,31 @@ type playbooksTestHarness struct {
 	scenarioDir string
 	testDir     string
 	appRoot     string
+}
+
+type fakeIsolation struct {
+	result *isolation.Result
+	err    error
+	called bool
+}
+
+func (f *fakeIsolation) Prepare(context.Context) (*isolation.Result, error) {
+	f.called = true
+	return f.result, f.err
+}
+
+func overrideIsolationManager(fake isolationProvider) func() {
+	prev := isolationManagerFactory
+	isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
+		return fake
+	}
+	return func() { isolationManagerFactory = prev }
+}
+
+func overrideCommandExecNoop() func() {
+	return OverrideCommandExecutor(func(context.Context, string, io.Writer, string, ...string) error {
+		return nil
+	})
 }
 
 func newPlaybooksTestHarness(t *testing.T) *playbooksTestHarness {
@@ -86,6 +114,13 @@ func (h *playbooksTestHarness) removeUI(t *testing.T) {
 // Tests for runPlaybooksPhase
 
 func TestRunPlaybooksPhaseNoUIDirectory(t *testing.T) {
+	restoreIso := overrideIsolationManager(&fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	})
+	defer restoreIso()
+	restoreCmd := overrideCommandExecNoop()
+	defer restoreCmd()
+
 	// Playbooks can target any scenario, not just ones with a local ui/ directory.
 	// Removing the ui/ directory should NOT skip the phase - it should proceed
 	// to load the registry and execute playbooks.
@@ -112,6 +147,14 @@ func TestRunPlaybooksPhaseNoUIDirectory(t *testing.T) {
 }
 
 func TestRunPlaybooksPhaseSkipViaEnv(t *testing.T) {
+	fakeIso := &fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	}
+	restoreIso := overrideIsolationManager(fakeIso)
+	defer restoreIso()
+	restoreCmd := overrideCommandExecNoop()
+	defer restoreCmd()
+
 	h := newPlaybooksTestHarness(t)
 
 	os.Setenv("TEST_GENIE_SKIP_PLAYBOOKS", "1")
@@ -122,9 +165,19 @@ func TestRunPlaybooksPhaseSkipViaEnv(t *testing.T) {
 	if report.Err != nil {
 		t.Fatalf("expected success when skipped via env, got error: %v", report.Err)
 	}
+	if fakeIso.called {
+		t.Fatalf("expected isolation to be skipped when TEST_GENIE_SKIP_PLAYBOOKS is set")
+	}
 }
 
 func TestRunPlaybooksPhaseEmptyRegistry(t *testing.T) {
+	restoreIso := overrideIsolationManager(&fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	})
+	defer restoreIso()
+	restoreCmd := overrideCommandExecNoop()
+	defer restoreCmd()
+
 	h := newPlaybooksTestHarness(t)
 	h.writeRegistry(t, `{"playbooks": []}`)
 
@@ -136,6 +189,13 @@ func TestRunPlaybooksPhaseEmptyRegistry(t *testing.T) {
 }
 
 func TestRunPlaybooksPhaseRegistryNotFound(t *testing.T) {
+	restoreIso := overrideIsolationManager(&fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	})
+	defer restoreIso()
+	restoreCmd := overrideCommandExecNoop()
+	defer restoreCmd()
+
 	h := newPlaybooksTestHarness(t)
 	// Don't create registry.json
 
@@ -150,6 +210,13 @@ func TestRunPlaybooksPhaseRegistryNotFound(t *testing.T) {
 }
 
 func TestRunPlaybooksPhaseInvalidRegistryJSON(t *testing.T) {
+	restoreIso := overrideIsolationManager(&fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	})
+	defer restoreIso()
+	restoreCmd := overrideCommandExecNoop()
+	defer restoreCmd()
+
 	h := newPlaybooksTestHarness(t)
 	h.writeRegistry(t, `{"invalid json`)
 
@@ -164,6 +231,13 @@ func TestRunPlaybooksPhaseInvalidRegistryJSON(t *testing.T) {
 }
 
 func TestRunPlaybooksPhaseContextCancelled(t *testing.T) {
+	restoreIso := overrideIsolationManager(&fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	})
+	defer restoreIso()
+	restoreCmd := overrideCommandExecNoop()
+	defer restoreCmd()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -176,6 +250,93 @@ func TestRunPlaybooksPhaseContextCancelled(t *testing.T) {
 	}
 	if report.FailureClassification != FailureClassSystem {
 		t.Errorf("expected system failure, got: %s", report.FailureClassification)
+	}
+}
+
+// Ensure the isolation env is cleared before BAS (or other scenarios) start so they
+// don't inherit the temporary Playbooks resources.
+func TestRunPlaybooksPhaseIsolationEnvRestoredBeforeBAS(t *testing.T) {
+	markerKey := "PLAYBOOKS_MARKER"
+
+	// Fake isolation with marker env that should not leak to BAS commands.
+	restoreIso := overrideIsolationManager(&fakeIsolation{
+		result: &isolation.Result{
+			RunID: "run-123",
+			Env: map[string]string{
+				markerKey: "1",
+			},
+			Cleanup: func(context.Context) error { return nil },
+		},
+	})
+	defer restoreIso()
+
+	h := newPlaybooksTestHarness(t)
+
+	// Minimal registry + workflow so runner executes BAS path.
+	h.writeRegistry(t, `{"playbooks":[{"file":"test/playbooks/capabilities/01-basic/test.json","description":"test","order":"01.01","requirements":[],"fixtures":[],"reset":"none"}]}`)
+	h.writeWorkflow(t, "test/playbooks/capabilities/01-basic/test.json", `{
+  "metadata": {"description": "basic", "version": 1},
+  "nodes": [{"id":"n1","type":"navigate","data":{"destinationType":"url","url":"http://example.com"}}],
+  "edges": []
+}`)
+
+	// Stub BAS server to satisfy health/validate/execute/status/timeline calls.
+	basServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/health":
+			w.WriteHeader(http.StatusOK)
+		case "/api/v1/workflows/validate-resolved":
+			_, _ = w.Write([]byte(`{"valid":true,"errors":[]}`))
+		case "/api/v1/workflows/execute-adhoc":
+			_, _ = w.Write([]byte(`{"execution_id":"exec-123"}`))
+		case "/api/v1/executions/exec-123":
+			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100}`))
+		case "/api/v1/executions/exec-123/timeline":
+			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100,"frames":[],"logs":[]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer basServer.Close()
+	basPort := strings.TrimPrefix(basServer.URL, "http://127.0.0.1:")
+	basPort = strings.TrimPrefix(basPort, "http://localhost:")
+
+	var basEnvLeakDetected bool
+
+	// Command executor: fail if BAS commands see the marker.
+	restoreExec := OverrideCommandExecutor(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) error {
+		joined := strings.Join(append([]string{name}, args...), " ")
+		if strings.Contains(joined, "browser-automation-studio") {
+			if os.Getenv(markerKey) == "1" {
+				basEnvLeakDetected = true
+				t.Fatalf("marker env leaked to BAS command: %s", joined)
+			}
+		}
+		return nil
+	})
+	defer restoreExec()
+
+	// Command capture: return BAS port and ensure marker absent for BAS port lookups.
+	restoreCapture := OverrideCommandCapture(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) (string, error) {
+		joined := strings.Join(append([]string{name}, args...), " ")
+		if strings.Contains(joined, "browser-automation-studio") && strings.Contains(joined, "port") {
+			if os.Getenv(markerKey) == "1" {
+				basEnvLeakDetected = true
+				t.Fatalf("marker env leaked to BAS port command: %s", joined)
+			}
+			return basPort, nil
+		}
+		return "", nil
+	})
+	defer restoreCapture()
+
+	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
+
+	if report.Err != nil {
+		t.Fatalf("expected success, got error: %v", report.Err)
+	}
+	if basEnvLeakDetected {
+		t.Fatal("marker env should not be visible to BAS commands")
 	}
 }
 

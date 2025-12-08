@@ -24,6 +24,32 @@ const (
 	BASScenarioName = "browser-automation-studio"
 )
 
+// applyEnv temporarily sets env vars, returning a restore function.
+func applyEnv(env map[string]string) func() {
+	if len(env) == 0 {
+		return func() {}
+	}
+	prev := make(map[string]*string, len(env))
+	for k, v := range env {
+		if existing, ok := os.LookupEnv(k); ok {
+			val := existing
+			prev[k] = &val
+		} else {
+			prev[k] = nil
+		}
+		_ = os.Setenv(k, v)
+	}
+	return func() {
+		for k, v := range prev {
+			if v == nil {
+				_ = os.Unsetenv(k)
+				continue
+			}
+			_ = os.Setenv(k, *v)
+		}
+	}
+}
+
 // Config holds configuration for the playbooks runner.
 type Config struct {
 	ScenarioDir  string
@@ -37,6 +63,7 @@ type Config struct {
 type Runner struct {
 	config          Config
 	playbooksConfig *config.Config // Configuration from testing.json
+	seedEnv         map[string]string
 
 	// Injected dependencies (interfaces for testing)
 	registryLoader   registry.Loader
@@ -168,6 +195,13 @@ func WithPlaybooksConfig(cfg *config.Config) Option {
 	}
 }
 
+// WithSeedEnv injects environment variables to apply while running seeds.
+func WithSeedEnv(env map[string]string) Option {
+	return func(r *Runner) {
+		r.seedEnv = env
+	}
+}
+
 // Run executes all playbook workflows and returns the result.
 func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := ctx.Err(); err != nil {
@@ -266,9 +300,14 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 
 	// Apply seeds - skip in dry-run mode since seeds can have side effects
 	var cleanup func()
-	if !r.playbooksConfig.Execution.DryRun {
+	if !r.playbooksConfig.Execution.DryRun && r.playbooksConfig.Seeds.Enabled {
+		seedCtx, cancel := context.WithTimeout(ctx, r.playbooksConfig.Seeds.SeedTimeout())
+		defer cancel()
+
 		var err error
-		cleanup, err = r.seedManager.Apply(ctx)
+		restoreSeedEnv := applyEnv(r.seedEnv)
+		cleanup, err = r.seedManager.Apply(seedCtx)
+		restoreSeedEnv()
 		if err != nil {
 			return &RunResult{
 				Success:       false,
@@ -279,6 +318,8 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 				ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
 			}
 		}
+	} else if !r.playbooksConfig.Seeds.Enabled {
+		shared.LogInfo(r.logWriter, "playbooks seeds disabled via config")
 	}
 	if cleanup != nil {
 		defer cleanup()

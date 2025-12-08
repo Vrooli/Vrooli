@@ -26,9 +26,8 @@ test/playbooks/
 ├── __subflows/             # Reusable fixtures (prefix: __)
 │   ├── open-demo-project.json
 │   └── load-seed-state.json
-└── __seeds/                # Setup/cleanup scripts (prefix: __)
-    ├── apply.sh
-    └── cleanup.sh
+└── __seeds/                # Seed entrypoint (prefix: __)
+    └── seed.go             # or seed.sh
 ```
 
 ## Directory Purposes
@@ -38,7 +37,7 @@ test/playbooks/
 | `capabilities/` | Tests organized by PRD operational targets | `NN-name` (e.g., `01-foundation`) |
 | `journeys/` | End-to-end flows spanning multiple features | `NN-name` (e.g., `01-new-user`) |
 | `__subflows/` | Reusable workflow fragments (fixtures) | Double underscore prefix |
-| `__seeds/` | Database/state setup scripts | Double underscore prefix |
+| `__seeds/` | Database/state setup entrypoint | Double underscore prefix |
 
 ### capabilities/
 
@@ -84,12 +83,11 @@ __subflows/
 
 ### __seeds/
 
-Shell scripts for deterministic test data setup. These run before playbook execution begins.
+Single entrypoint for deterministic test data setup. Runs once before playbook execution.
 
 ```
 __seeds/
-├── apply.sh      # Creates test data (projects, workflows, etc.)
-└── cleanup.sh    # Removes test data after run
+└── seed.go      # Preferred (go run), or seed.sh as a lightweight alternative
 ```
 
 ## Naming Conventions
@@ -277,42 +275,33 @@ The `metadata.reset` field controls seed state between workflows:
 
 ## Seed Scripts
 
-### apply.sh
+### seed.go / seed.sh
 
 Creates deterministic test data and outputs state to `test/artifacts/runtime/seed-state.json`:
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
+package main
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SEED_STATE="${SCENARIO_DIR}/test/artifacts/runtime/seed-state.json"
+import (
+  "encoding/json"
+  "log"
+  "net/http"
+  "os"
+)
 
-# Create test project via API
-PROJECT_ID=$(curl -s -X POST "http://localhost:${API_PORT}/api/v1/projects" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Demo Project"}' | jq -r '.id')
+func main() {
+  api := os.Getenv("API_URL")
+  // create data via API...
+  seed := map[string]string{"projectId": "demo-123", "projectName": "Demo Project"}
 
-# Write state for workflows to consume
-mkdir -p "$(dirname "$SEED_STATE")"
-cat > "$SEED_STATE" << EOF
-{
-  "projectId": "${PROJECT_ID}",
-  "projectName": "Demo Project"
+  path := "test/artifacts/runtime/seed-state.json"
+  _ = os.MkdirAll("test/artifacts/runtime", 0o755)
+  f, _ := os.Create(path)
+  defer f.Close()
+  json.NewEncoder(f).Encode(seed)
+  log.Printf("seed state written to %s", path)
+  _ = http.Get(api) // placeholder
 }
-EOF
-```
-
-### cleanup.sh
-
-Removes test data after playbook execution:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Delete seeded data
-curl -s -X DELETE "http://localhost:${API_PORT}/api/v1/projects/${PROJECT_ID}"
 ```
 
 ## Authoring Checklist

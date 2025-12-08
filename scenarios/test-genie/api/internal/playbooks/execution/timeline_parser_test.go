@@ -12,6 +12,8 @@ import (
 
 var timelineMarshalOpts = protojson.MarshalOptions{UseProtoNames: true}
 
+func strPtr(s string) *string { return &s }
+
 func marshalTimeline(t *testing.T, tl *browser_automation_studio_v1.ExecutionTimeline) []byte {
 	t.Helper()
 	data, err := timelineMarshalOpts.Marshal(tl)
@@ -72,7 +74,7 @@ func TestParseFullTimeline_BasicTimeline(t *testing.T) {
 				Id:        "log-1",
 				Level:     browser_automation_studio_v1.LogLevel_LOG_LEVEL_INFO,
 				Message:   "Test message",
-				StepName:  "navigate-1",
+				StepName:  strPtr("navigate-1"),
 				Timestamp: timestamppb.Now(),
 			},
 		},
@@ -128,7 +130,7 @@ func TestParseFullTimeline_WithFailedFrame(t *testing.T) {
 				StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_CLICK,
 				Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED,
 				Success:   false,
-				Error:     "element not found",
+				Error:     strPtr("element not found"),
 			},
 		},
 	}
@@ -266,7 +268,7 @@ func TestParseFullTimeline_WithLogs(t *testing.T) {
 				Id:        "log-1",
 				Level:     browser_automation_studio_v1.LogLevel_LOG_LEVEL_ERROR,
 				Message:   "Failed to load resource",
-				StepName:  "navigate-1",
+				StepName:  strPtr("navigate-1"),
 				Timestamp: timestamppb.New(now),
 			},
 			{

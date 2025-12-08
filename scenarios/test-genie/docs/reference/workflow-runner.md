@@ -87,7 +87,7 @@ testing::playbooks::run_workflow \
    metadata or playbook registry
 
 2. Seed Application
-   Applies test seed data (__seeds/apply.sh) if present, once at phase start
+   Applies test seed data (__seeds/seed.go or seed.sh) if present, once at phase start
 
 3. Runtime Management
    Automatically starts target scenario if not running (when --manage-runtime auto)
@@ -134,8 +134,7 @@ BAS integration tests apply seed data before workflow execution:
 ```
 test/playbooks/
   __seeds/
-    apply.sh        # Generates seed-state.json with dynamic IDs
-    cleanup.sh      # Removes seed data
+    seed.go         # Generates seed-state.json with dynamic IDs (or seed.sh)
 test/artifacts/
   runtime/
     seed-state.json # Contains project/workflow IDs for @seed/ tokens

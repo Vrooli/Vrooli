@@ -7,22 +7,23 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const (
 	// SeedsFolder is the name of the seeds folder within playbooks.
 	SeedsFolder = "__seeds"
-	// ApplyScript is the name of the apply script.
-	ApplyScript = "apply.sh"
-	// CleanupScript is the name of the cleanup script.
-	CleanupScript = "cleanup.sh"
+	// GoEntrypoint is the preferred seed entrypoint (executed via go run).
+	GoEntrypoint = "seed.go"
+	// ShellEntrypoint is the legacy-compatible seed entrypoint (bash).
+	ShellEntrypoint = "seed.sh"
 )
 
 // Manager defines the interface for seed script management.
 type Manager interface {
-	// Apply runs the apply seed script and returns a cleanup function.
+	// Apply runs the seed entrypoint. Cleanup is a no-op placeholder for compatibility.
 	Apply(ctx context.Context) (cleanup func(), err error)
-	// HasSeeds returns true if the seeds directory exists with an apply script.
+	// HasSeeds returns true if the seeds directory exists with a supported entrypoint.
 	HasSeeds() bool
 }
 
@@ -52,61 +53,57 @@ func (m *FileManager) SeedsDir() string {
 	return filepath.Join(m.testDir, "playbooks", SeedsFolder)
 }
 
-// ApplyPath returns the path to the apply script.
-func (m *FileManager) ApplyPath() string {
-	return filepath.Join(m.SeedsDir(), ApplyScript)
-}
-
-// CleanupPath returns the path to the cleanup script.
-func (m *FileManager) CleanupPath() string {
-	return filepath.Join(m.SeedsDir(), CleanupScript)
-}
-
-// HasSeeds returns true if the seeds directory exists with an apply script.
+// HasSeeds returns true if the seeds directory exists with a supported entrypoint.
 func (m *FileManager) HasSeeds() bool {
-	_, err := os.Stat(m.ApplyPath())
-	return err == nil
+	args, _ := m.entrypoint()
+	return len(args) > 0
 }
 
-// Apply runs the apply seed script and returns a cleanup function.
-// If no apply script exists, returns nil cleanup and no error.
+// Apply runs the seed entrypoint and returns a no-op cleanup function.
+// If no entrypoint exists, returns nil cleanup and no error.
 func (m *FileManager) Apply(ctx context.Context) (func(), error) {
-	applyPath := m.ApplyPath()
-	if _, err := os.Stat(applyPath); err != nil {
+	args, _ := m.entrypoint()
+	if len(args) == 0 {
 		// No apply script, nothing to do
 		return nil, nil
 	}
 
-	if err := m.runScript(ctx, applyPath); err != nil {
-		return nil, fmt.Errorf("apply seed script failed: %w", err)
+	if err := m.runScript(ctx, args[0], args[1:]...); err != nil {
+		return nil, fmt.Errorf("seed execution failed: %w", err)
 	}
 
-	// Create cleanup function
-	cleanupPath := m.CleanupPath()
-	cleanup := func() {}
-	if _, err := os.Stat(cleanupPath); err == nil {
-		cleanup = func() {
-			// Use a background context for cleanup since the original context may be cancelled
-			_ = m.runScript(context.Background(), cleanupPath)
-		}
-	}
-
-	return cleanup, nil
+	return func() {}, nil
 }
 
 // runScript executes a seed script with the appropriate environment.
-func (m *FileManager) runScript(ctx context.Context, scriptPath string) error {
-	cmd := exec.CommandContext(ctx, "bash", scriptPath)
+func (m *FileManager) runScript(ctx context.Context, command string, args ...string) error {
+	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = m.scenarioDir
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("TEST_GENIE_SCENARIO_DIR=%s", m.scenarioDir),
 		fmt.Sprintf("TEST_GENIE_APP_ROOT=%s", m.appRoot),
+		"TEST_GENIE_SEEDS=1",
 	)
 	cmd.Stdout = m.logWriter
 	cmd.Stderr = m.logWriter
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("script %s failed: %w", scriptPath, err)
+		return fmt.Errorf("seed command %s %s failed: %w", command, strings.Join(args, " "), err)
 	}
 	return nil
+}
+
+// entrypoint returns the command and path for the best-available seed runner.
+func (m *FileManager) entrypoint() ([]string, string) {
+	seedsDir := m.SeedsDir()
+	goPath := filepath.Join(seedsDir, GoEntrypoint)
+	if _, err := os.Stat(goPath); err == nil {
+		return []string{"go", "run", goPath}, goPath
+	}
+
+	shellPath := filepath.Join(seedsDir, ShellEntrypoint)
+	if _, err := os.Stat(shellPath); err == nil {
+		return []string{"bash", shellPath}, shellPath
+	}
+	return nil, ""
 }

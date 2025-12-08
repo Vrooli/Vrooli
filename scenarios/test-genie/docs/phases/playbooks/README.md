@@ -88,13 +88,13 @@ test/playbooks/
 │   └── 02-builder/
 ├── journeys/           # Multi-surface user flows
 ├── __subflows/         # Reusable fixtures
-└── __seeds/            # Setup/cleanup scripts
+└── __seeds/            # Seed entrypoint (seed.go preferred, seed.sh allowed)
 ```
 
 Key conventions:
 - **Two-digit prefixes** (`01-`, `02-`) ensure deterministic execution order
 - **`__subflows/`** contains fixtures referenced via `@fixture/<slug>`
-- **`__seeds/`** contains `apply.sh` and `cleanup.sh` for test data
+- **`__seeds/`** contains `seed.go` (or `seed.sh`) for test data
 
 See [Directory Structure](directory-structure.md) for complete documentation including fixture metadata, token types, and authoring checklist.
 
@@ -184,6 +184,7 @@ Configure the playbooks phase in `.vrooli/testing.json`:
 |--------|---------|-------------|
 | `ignore_validation_errors` | `false` | When BAS validation request fails (e.g., BAS unavailable), continue with execution instead of failing. **Not recommended for production.** |
 | `dry_run` | `false` | Validate all workflows without executing them. Useful for CI pre-checks or debugging workflow syntax. Skips seed scripts and scenario startup. |
+| `TEST_GENIE_PLAYBOOKS_RETAIN` | `0` | Set to `1` before running Playbooks to retain the temporary Postgres/Redis instances for inspection. Observations will include ready-to-run `psql`/`redis-cli` commands. |
 
 ### Dry-Run Mode
 
@@ -203,10 +204,14 @@ Dry-run mode validates workflows through BAS without executing browser automatio
 
 In dry-run mode:
 - Workflows are loaded, resolved, and validated via BAS
-- Seed scripts (`__seeds/apply.sh`) are **not** run
+- Seed entrypoint (`__seeds/seed.go` or `seed.sh`) runs once before execution; skipped in dry-run
 - Required scenarios (referenced via `destinationType: scenario`) are **not** started
 - Execution is skipped after successful validation
 - Each workflow returns with `(dry-run: validated only)` in its stats
+
+### Retain isolation for debugging
+
+Set `TEST_GENIE_PLAYBOOKS_RETAIN=1` before running the Playbooks phase to keep the temporary Postgres/Redis instances alive after execution. The phase logs will print `psql`/`redis-cli` commands targeting the retained resources. By default, isolation is torn down and the scenario is restarted against its normal resources after Playbooks completes.
 
 ## Related Documentation
 

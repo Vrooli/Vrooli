@@ -215,12 +215,12 @@
             "enabled": {
               "type": "boolean",
               "default": true,
-              "description": "Run __seeds/apply.sh before workflows"
+              "description": "Run __seeds/seed.go (or seed.sh) before workflows"
             },
             "cleanup": {
               "type": "boolean",
               "default": true,
-              "description": "Run __seeds/cleanup.sh after workflows complete"
+              "description": "(legacy) unused"
             },
             "timeout_ms": {
               "type": "integer",

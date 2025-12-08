@@ -342,7 +342,7 @@ test/playbooks/
 │   └── 01-foundation/  # Two-digit prefix for ordering
 ├── journeys/           # Multi-surface user flows
 ├── __subflows/         # Reusable fixtures (@fixture/<slug>)
-└── __seeds/            # Setup/cleanup scripts
+└── __seeds/            # Seed entrypoint (seed.go preferred)
 ```
 
 See [Directory Structure](directory-structure.md) for naming conventions, fixture metadata, and authoring checklist.
@@ -429,7 +429,7 @@ For `@selector/` references, the error message will tell you:
 ## Reusable Subflows & Seed Data
 
 - **Subflows**: Store under `test/playbooks/__subflows/`. Reference with `@fixture/<slug>`
-- **Seed Data**: Keep in `test/playbooks/__seeds/` with `apply.sh` and `cleanup.sh`
+- **Seed Data**: Keep in `test/playbooks/__seeds/` with `seed.go` (or `seed.sh`)
 - **Canonical fixtures**: Use `open-demo-project`, `open-builder-from-demo`, `open-demo-workflow`
 
 See [Directory Structure](directory-structure.md) for complete fixture metadata reference, parameter syntax, and token types (`@fixture/`, `@seed/`, `@store/`).

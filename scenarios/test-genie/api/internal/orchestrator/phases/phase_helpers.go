@@ -342,6 +342,12 @@ func StartScenario(ctx context.Context, scenarioName string, logWriter io.Writer
 	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "start", scenarioName, "--clean-stale")
 }
 
+// RestartScenario restarts a scenario (stop then start) using vrooli CLI.
+func RestartScenario(ctx context.Context, scenarioName string, logWriter io.Writer) error {
+	shared.LogStep(logWriter, "restarting scenario %s", scenarioName)
+	return phaseCommandExecutor(ctx, "", logWriter, "vrooli", "scenario", "restart", scenarioName, "--clean-stale")
+}
+
 func findPrimaryBatsSuite(cliDir, scenarioName string) (string, error) {
 	preferred := []string{}
 	name := strings.TrimSpace(scenarioName)

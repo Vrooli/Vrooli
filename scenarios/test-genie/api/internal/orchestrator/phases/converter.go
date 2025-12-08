@@ -31,7 +31,7 @@ func ResultToReport(result RunnerResultAdapter, successMessage string, logWriter
 	}
 
 	if successMessage != "" {
-		shared.LogSuccess(logWriter, successMessage)
+		shared.LogSuccess(logWriter, "%s", successMessage)
 	}
 	return RunReport{Observations: result.Observations}
 }
@@ -57,7 +57,7 @@ func ResultToReportWithSummary(result RunnerResultAdapter, summaryIcon, summaryT
 	}
 
 	if successMessage != "" {
-		shared.LogSuccess(logWriter, successMessage)
+		shared.LogSuccess(logWriter, "%s", successMessage)
 	}
 	return RunReport{Observations: observations}
 }

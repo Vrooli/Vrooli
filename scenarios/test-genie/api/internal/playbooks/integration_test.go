@@ -23,6 +23,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+func strPtr(s string) *string { return &s }
+
 // TestIntegration_FullPlaybooksFlow validates the complete playbooks phase execution flow.
 // This is the comprehensive integration test that exercises:
 // - Registry loading with multiple playbooks
@@ -642,7 +644,7 @@ func createMockBASServerWithFailedAssertion(t *testing.T) *httptest.Server {
 						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
 						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED,
 						Success:   false,
-						Error:     "Element not visible: [data-testid='dashboard']",
+						Error:     strPtr("Element not visible: [data-testid='dashboard']"),
 						Assertion: &browser_automation_studio_v1.AssertionOutcome{
 							Mode:     "visible",
 							Selector: "[data-testid='dashboard']",

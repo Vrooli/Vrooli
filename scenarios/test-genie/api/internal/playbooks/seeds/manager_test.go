@@ -19,19 +19,19 @@ func TestManagerHasSeeds(t *testing.T) {
 
 	manager := NewManager(tempDir, tempDir, testDir, nil)
 
-	// Without apply script
+	// Without entrypoint
 	if manager.HasSeeds() {
-		t.Error("expected HasSeeds=false without apply script")
+		t.Error("expected HasSeeds=false without entrypoint")
 	}
 
-	// With apply script
-	applyPath := filepath.Join(seedsDir, ApplyScript)
-	if err := os.WriteFile(applyPath, []byte("#!/bin/bash\necho apply"), 0o755); err != nil {
-		t.Fatalf("failed to create apply script: %v", err)
+	// With shell entrypoint
+	seedPath := filepath.Join(seedsDir, ShellEntrypoint)
+	if err := os.WriteFile(seedPath, []byte("#!/bin/bash\necho seed"), 0o755); err != nil {
+		t.Fatalf("failed to create seed script: %v", err)
 	}
 
 	if !manager.HasSeeds() {
-		t.Error("expected HasSeeds=true with apply script")
+		t.Error("expected HasSeeds=true with seed script")
 	}
 }
 
@@ -60,13 +60,13 @@ func TestManagerApplySuccess(t *testing.T) {
 		t.Fatalf("failed to create seeds dir: %v", err)
 	}
 
-	// Create apply script that writes a marker file
+	// Create seed script that writes a marker file
 	markerPath := filepath.Join(tempDir, "applied.txt")
 	applyScript := `#!/bin/bash
 echo "applied" > "` + markerPath + `"
 `
-	if err := os.WriteFile(filepath.Join(seedsDir, ApplyScript), []byte(applyScript), 0o755); err != nil {
-		t.Fatalf("failed to create apply script: %v", err)
+	if err := os.WriteFile(filepath.Join(seedsDir, ShellEntrypoint), []byte(applyScript), 0o755); err != nil {
+		t.Fatalf("failed to create seed script: %v", err)
 	}
 
 	var output bytes.Buffer
@@ -77,58 +77,16 @@ echo "applied" > "` + markerPath + `"
 		t.Fatalf("expected success, got error: %v", err)
 	}
 
-	// Verify apply ran
+	// Verify seed ran
 	if _, err := os.Stat(markerPath); err != nil {
-		t.Error("apply script did not create marker file")
+		t.Error("seed script did not create marker file")
 	}
 
-	// Cleanup should be a no-op since no cleanup script exists
+	// Cleanup should be a no-op placeholder
 	if cleanup == nil {
 		t.Error("expected non-nil cleanup function")
 	}
 	cleanup()
-}
-
-func TestManagerApplyWithCleanup(t *testing.T) {
-	tempDir := t.TempDir()
-	testDir := filepath.Join(tempDir, "test")
-	seedsDir := filepath.Join(testDir, "playbooks", SeedsFolder)
-	if err := os.MkdirAll(seedsDir, 0o755); err != nil {
-		t.Fatalf("failed to create seeds dir: %v", err)
-	}
-
-	// Create apply script
-	applyMarker := filepath.Join(tempDir, "applied.txt")
-	applyScript := `#!/bin/bash
-echo "applied" > "` + applyMarker + `"
-`
-	if err := os.WriteFile(filepath.Join(seedsDir, ApplyScript), []byte(applyScript), 0o755); err != nil {
-		t.Fatalf("failed to create apply script: %v", err)
-	}
-
-	// Create cleanup script
-	cleanupMarker := filepath.Join(tempDir, "cleaned.txt")
-	cleanupScript := `#!/bin/bash
-echo "cleaned" > "` + cleanupMarker + `"
-`
-	if err := os.WriteFile(filepath.Join(seedsDir, CleanupScript), []byte(cleanupScript), 0o755); err != nil {
-		t.Fatalf("failed to create cleanup script: %v", err)
-	}
-
-	manager := NewManager(tempDir, tempDir, testDir, nil)
-
-	cleanup, err := manager.Apply(context.Background())
-	if err != nil {
-		t.Fatalf("expected success, got error: %v", err)
-	}
-
-	// Run cleanup
-	cleanup()
-
-	// Verify cleanup ran
-	if _, err := os.Stat(cleanupMarker); err != nil {
-		t.Error("cleanup script did not create marker file")
-	}
 }
 
 func TestManagerApplyFailure(t *testing.T) {
@@ -139,12 +97,12 @@ func TestManagerApplyFailure(t *testing.T) {
 		t.Fatalf("failed to create seeds dir: %v", err)
 	}
 
-	// Create failing apply script
+	// Create failing seed script
 	applyScript := `#!/bin/bash
 exit 1
 `
-	if err := os.WriteFile(filepath.Join(seedsDir, ApplyScript), []byte(applyScript), 0o755); err != nil {
-		t.Fatalf("failed to create apply script: %v", err)
+	if err := os.WriteFile(filepath.Join(seedsDir, ShellEntrypoint), []byte(applyScript), 0o755); err != nil {
+		t.Fatalf("failed to create seed script: %v", err)
 	}
 
 	manager := NewManager(tempDir, tempDir, testDir, nil)
@@ -152,7 +110,7 @@ exit 1
 	if err == nil {
 		t.Fatal("expected error for failing script")
 	}
-	if !strings.Contains(err.Error(), "apply seed script failed") {
+	if !strings.Contains(err.Error(), "seed execution failed") {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -165,12 +123,12 @@ func TestManagerApplyCanceled(t *testing.T) {
 		t.Fatalf("failed to create seeds dir: %v", err)
 	}
 
-	// Create slow apply script
+	// Create slow seed script
 	applyScript := `#!/bin/bash
 sleep 10
 `
-	if err := os.WriteFile(filepath.Join(seedsDir, ApplyScript), []byte(applyScript), 0o755); err != nil {
-		t.Fatalf("failed to create apply script: %v", err)
+	if err := os.WriteFile(filepath.Join(seedsDir, ShellEntrypoint), []byte(applyScript), 0o755); err != nil {
+		t.Fatalf("failed to create seed script: %v", err)
 	}
 
 	manager := NewManager(tempDir, tempDir, testDir, nil)
@@ -208,8 +166,8 @@ func TestManagerEnvironmentVariables(t *testing.T) {
 echo "SCENARIO_DIR=$TEST_GENIE_SCENARIO_DIR" > "` + envMarker + `"
 echo "APP_ROOT=$TEST_GENIE_APP_ROOT" >> "` + envMarker + `"
 `
-	if err := os.WriteFile(filepath.Join(seedsDir, ApplyScript), []byte(applyScript), 0o755); err != nil {
-		t.Fatalf("failed to create apply script: %v", err)
+	if err := os.WriteFile(filepath.Join(seedsDir, ShellEntrypoint), []byte(applyScript), 0o755); err != nil {
+		t.Fatalf("failed to create seed script: %v", err)
 	}
 
 	manager := NewManager(scenarioDir, appRoot, testDir, nil)
@@ -243,15 +201,5 @@ func TestManagerPaths(t *testing.T) {
 	expectedSeedsDir := "/test/playbooks/__seeds"
 	if got := manager.SeedsDir(); got != expectedSeedsDir {
 		t.Errorf("SeedsDir: expected %s, got %s", expectedSeedsDir, got)
-	}
-
-	expectedApply := "/test/playbooks/__seeds/apply.sh"
-	if got := manager.ApplyPath(); got != expectedApply {
-		t.Errorf("ApplyPath: expected %s, got %s", expectedApply, got)
-	}
-
-	expectedCleanup := "/test/playbooks/__seeds/cleanup.sh"
-	if got := manager.CleanupPath(); got != expectedCleanup {
-		t.Errorf("CleanupPath: expected %s, got %s", expectedCleanup, got)
 	}
 }

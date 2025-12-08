@@ -315,7 +315,7 @@ func TestValidator_SubflowsAllValid(t *testing.T) {
 	}
 }
 
-func TestValidator_SeedsMissingApply(t *testing.T) {
+func TestValidator_SeedsMissingEntrypoint(t *testing.T) {
 	root := t.TempDir()
 	playbooksDir := filepath.Join(root, "test", "playbooks")
 	mustMkdir(t, playbooksDir)
@@ -324,10 +324,9 @@ func TestValidator_SeedsMissingApply(t *testing.T) {
 	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
 	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
 
-	// Create __seeds directory without apply.sh
+	// Create __seeds directory without seed.go/seed.sh
 	seedsDir := filepath.Join(playbooksDir, "__seeds")
 	mustMkdir(t, seedsDir)
-	writeFile(t, filepath.Join(seedsDir, "cleanup.sh"), "#!/bin/bash\necho cleanup")
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -340,20 +339,20 @@ func TestValidator_SeedsMissingApply(t *testing.T) {
 		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
 	}
 
-	// Should have warning about missing apply.sh
+	// Should have warning about missing entrypoint
 	found := false
 	for _, obs := range result.Observations {
-		if obs.Type == ObservationWarning && obs.Message == "__seeds/ directory exists but missing apply.sh" {
+		if obs.Type == ObservationWarning && obs.Message == "__seeds/ directory exists but missing seed.go or seed.sh" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected warning about missing apply.sh")
+		t.Error("expected warning about missing seed.go or seed.sh")
 	}
 }
 
-func TestValidator_SeedsWithApply(t *testing.T) {
+func TestValidator_SeedsWithEntrypoint(t *testing.T) {
 	root := t.TempDir()
 	playbooksDir := filepath.Join(root, "test", "playbooks")
 	mustMkdir(t, playbooksDir)
@@ -362,11 +361,10 @@ func TestValidator_SeedsWithApply(t *testing.T) {
 	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
 	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
 
-	// Create __seeds directory with apply.sh
+	// Create __seeds directory with seed.go
 	seedsDir := filepath.Join(playbooksDir, "__seeds")
 	mustMkdir(t, seedsDir)
-	writeFile(t, filepath.Join(seedsDir, "apply.sh"), "#!/bin/bash\necho apply")
-	writeFile(t, filepath.Join(seedsDir, "cleanup.sh"), "#!/bin/bash\necho cleanup")
+	writeFile(t, filepath.Join(seedsDir, "seed.go"), "package main\nfunc main() {}")
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -450,8 +448,7 @@ func TestValidator_CompleteValidStructure(t *testing.T) {
 	// Create valid __seeds
 	seedsDir := filepath.Join(playbooksDir, "__seeds")
 	mustMkdir(t, seedsDir)
-	writeFile(t, filepath.Join(seedsDir, "apply.sh"), "#!/bin/bash\necho apply")
-	writeFile(t, filepath.Join(seedsDir, "cleanup.sh"), "#!/bin/bash\necho cleanup")
+	writeFile(t, filepath.Join(seedsDir, "seed.go"), "package main\nfunc main() {}")
 
 	v := New(Config{
 		ScenarioDir: root,

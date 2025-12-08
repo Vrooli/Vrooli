@@ -324,7 +324,7 @@ func (v *validator) validateSubflows(playbooksDir string) ([]Observation, int) {
 	return observations, issues
 }
 
-// validateSeeds checks that __seeds/ has apply.sh if the directory exists.
+// validateSeeds checks that __seeds/ has a supported entrypoint if the directory exists.
 func (v *validator) validateSeeds(playbooksDir string) ([]Observation, int) {
 	var observations []Observation
 	var issues int
@@ -335,10 +335,13 @@ func (v *validator) validateSeeds(playbooksDir string) ([]Observation, int) {
 		return observations, issues
 	}
 
-	applyPath := filepath.Join(seedsDir, "apply.sh")
-	if _, err := os.Stat(applyPath); os.IsNotExist(err) {
+	goPath := filepath.Join(seedsDir, "seed.go")
+	shPath := filepath.Join(seedsDir, "seed.sh")
+	_, goErr := os.Stat(goPath)
+	_, shErr := os.Stat(shPath)
+	if os.IsNotExist(goErr) && os.IsNotExist(shErr) {
 		observations = append(observations, NewWarningObservation(
-			"__seeds/ directory exists but missing apply.sh",
+			"__seeds/ directory exists but missing seed.go or seed.sh",
 		))
 		issues++
 	}
