@@ -4,7 +4,7 @@
 
 - Scenario: `picker-wheel`
 - Packager: `scenario-to-desktop` (Electron)
-- Output: Windows `.exe` bundling the UI and Electron runtime.
+- Output: Windows `.msi` bundling the UI and Electron runtime.
 
 ## Reality Check
 

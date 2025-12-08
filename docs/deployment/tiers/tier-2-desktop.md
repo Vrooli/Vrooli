@@ -37,6 +37,48 @@ When we shipped the Picker Wheel Electron build we discovered:
 | Secret stratification | `secrets-manager` | Infrastructure secrets stripped, per-install secrets generated. |
 | Desktop packager | `scenario-to-desktop` | Needs to bundle UI, API, dependencies, bootstrapper, upgrade channel. |
 
+## Installer Formats
+
+Desktop builds now produce enterprise-ready installer formats:
+
+| Platform | Format | File | Notes |
+|----------|--------|------|-------|
+| Windows | MSI | `.msi` | Enterprise-friendly, Group Policy support, silent install |
+| macOS | PKG | `.pkg` | Installer package, supports signed notarization |
+| Linux | AppImage | `.AppImage` | Portable, self-contained, no install required |
+| Linux | DEB | `.deb` | Debian/Ubuntu package manager integration |
+
+Build commands:
+```bash
+npm run dist:win    # Windows MSI
+npm run dist:mac    # macOS PKG
+npm run dist:linux  # Linux AppImage + DEB
+npm run dist:all    # All platforms
+```
+
+## Auto-Update System
+
+Desktop applications support automatic updates via `electron-updater`:
+
+- **Three channels**: `dev` (internal), `beta` (testers), `stable` (production)
+- **Two providers**: GitHub Releases or self-hosted generic server
+- **User control**: Manual update check via Help menu
+- **Telemetry**: Update events recorded for deployment-manager analytics
+
+See [Auto-Update Channel Design](../guides/auto-updates.md) for full configuration details.
+
+**Quick setup (GitHub Releases):**
+```json
+{
+  "update_config": {
+    "channel": "stable",
+    "provider": "github",
+    "github": {"owner": "your-org", "repo": "your-app-desktop"},
+    "auto_check": true
+  }
+}
+```
+
 ## Roadmap
 
 1. Extend `service.json` with `deployment.platforms.desktop` metadata (supported?, requirements, alternatives, offline flag).
@@ -45,8 +87,8 @@ When we shipped the Picker Wheel Electron build we discovered:
 4. Update `scenario-to-desktop` to:
    - Spin up bundled resources (e.g., embed SQLite DB file, package lite inference models, etc.).
    - Offer configuration prompts for optional secrets (OpenRouter API key, etc.).
-   - Ship autopatching/updater hooks.
-5. Create automated installers (MSI/pkg/AppImage) driven by the bundle manifest.
+5. ~~Create automated installers (MSI/pkg/AppImage) driven by the bundle manifest.~~ ✅ Done - see Installer Formats above.
+6. ~~Implement auto-update channel design.~~ ✅ Done - see Auto-Update System above.
 
 ## Interim Guidance
 

@@ -46,7 +46,8 @@ function formatCredits(amount: number, multiplier: number, label: string) {
 }
 
 function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean) {
-  const priceLabel = formatCurrency(option.amount_cents, option.currency);
+  const hasAmount = typeof option.amount_cents === 'number' && option.amount_cents > 0;
+  const priceLabel = hasAmount ? formatCurrency(option.amount_cents, option.currency) : 'Custom';
   const introAmount = option.intro_amount_cents;
   const metadata = option.metadata || {};
   const metaFeatures = Array.isArray(metadata.features) ? (metadata.features as string[]) : [];
@@ -73,7 +74,9 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
   const subtitle =
     typeof metadata.subtitle === 'string' && metadata.subtitle.trim().length > 0
       ? (metadata.subtitle as string)
-      : `Plan rank #${option.plan_rank}`;
+      : Number.isFinite(option.plan_rank)
+        ? `Plan rank #${option.plan_rank}`
+        : 'Flexible access';
   const ctaText =
     typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0
       ? (metadata.cta_label as string)
@@ -86,7 +89,9 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
   return {
     name: option.plan_name,
     description: option.plan_tier.charAt(0).toUpperCase() + option.plan_tier.slice(1),
-    price: `${priceLabel} / ${option.billing_interval === 'month' ? 'month' : 'year'}`,
+    price: hasAmount
+      ? `${priceLabel} / ${option.billing_interval === 'month' ? 'month' : 'year'}`
+      : 'Contact sales',
     features,
     cta_text: ctaText,
     cta_url: `/checkout?price_id=${option.stripe_price_id}`,
@@ -106,6 +111,7 @@ function getTierFeatures(tier: PricingTier): string[] {
 export function PricingSection({ content, pricingOverview }: PricingSectionProps) {
   const { trackCTAClick } = useMetrics();
   const [activeInterval, setActiveInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [stickyDismissed, setStickyDismissed] = useState(false);
 
   const renderTier = (tier: PricingTier, index: number) => {
     const handleClick = () => {
@@ -120,28 +126,36 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     const highlight = tier.highlighted;
     return (
       <div
-        className={`relative h-full rounded-3xl border p-8 transition-all duration-300 ${
+        className={`relative h-full overflow-visible rounded-3xl border p-8 pt-10 transition-all duration-300 ${
           highlight
-            ? 'border-[#F97316]/40 bg-[#0F172A] text-white shadow-2xl shadow-[#F97316]/20'
-            : 'border-slate-200 bg-white text-slate-900 hover:-translate-y-1'
+            ? 'border-[#F97316]/50 bg-gradient-to-b from-[#0F172A] via-[#0D162C] to-[#0B1326] text-white shadow-[0_30px_80px_-40px_rgba(249,115,22,0.45)]'
+            : 'border-slate-200 bg-white text-slate-900 hover:-translate-y-1 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.4)]'
         }`}
         data-testid={`pricing-tier-${index}`}
       >
+        {highlight && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(249,115,22,0.12),transparent_32%)]" />}
         {tier.badge && (
-          <div className={`absolute -top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-sm font-semibold ${highlight ? 'bg-white/10 text-white' : 'bg-[#0F172A] text-white'}`}>
+          <div
+            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-1 text-sm font-semibold ${
+              highlight
+                ? 'bg-[#0F172A] text-white ring-2 ring-[#F97316]/40'
+                : 'bg-[#0F172A] text-white'
+            }`}
+            style={{ zIndex: 5 }}
+          >
             {tier.badge}
           </div>
         )}
 
         <div className="space-y-6">
-          <div>
-            <h3 className={`text-2xl font-bold ${highlight ? 'text-white' : 'text-slate-900'} mb-2`}>{tier.name}</h3>
+          <div className="space-y-2">
+            <h3 className={`text-2xl font-bold ${highlight ? 'text-white' : 'text-slate-900'}`}>{tier.name}</h3>
             {tier.subtitle && (
-              <p className={`text-xs uppercase tracking-wider mb-2 ${highlight ? 'text-[#F97316]' : 'text-slate-500'}`}>
+              <p className={`text-xs uppercase tracking-[0.3em] ${highlight ? 'text-[#F97316]' : 'text-slate-500'}`}>
                 {tier.subtitle}
               </p>
             )}
-            <p className={`${highlight ? 'text-slate-300' : 'text-slate-500'} text-sm mb-4`}>{tier.description}</p>
+            <p className={`${highlight ? 'text-slate-200' : 'text-slate-600'} text-sm`}>{tier.description}</p>
             <div className="flex items-baseline gap-2">
               <span className={`text-5xl font-bold ${highlight ? 'text-white' : 'text-slate-900'}`}>{tier.price}</span>
             </div>
@@ -176,13 +190,23 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   const monthlyPlans = bundle ? ensureDemoPlansForDisplay(bundle, monthlyPlansRaw, 3) : [];
   const yearlyPlans = bundle ? yearlyPlansRaw : [];
 
+  const sortByAmount = (plans: PlanOption[]) =>
+    [...plans].sort((a, b) => {
+      const aHas = typeof a.amount_cents === 'number' && a.amount_cents > 0;
+      const bHas = typeof b.amount_cents === 'number' && b.amount_cents > 0;
+      if (!aHas && !bHas) return 0;
+      if (!aHas) return 1;
+      if (!bHas) return -1;
+      return a.amount_cents - b.amount_cents;
+    });
+
   const monthlyTiers =
     bundle && monthlyPlans.length > 0
-      ? monthlyPlans.map((option, index) => buildTierFromPlan(option, bundle, index === 0))
+      ? sortByAmount(monthlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0))
       : [];
   const yearlyTiers =
     bundle && yearlyPlans.length > 0
-      ? yearlyPlans.map((option, index) => buildTierFromPlan(option, bundle, index === 0))
+      ? sortByAmount(yearlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0))
       : [];
 
   const fallbackTiers = (content.tiers || [
@@ -217,6 +241,20 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       badge: 'Most popular',
     },
     {
+      name: 'Team',
+      price: '$189',
+      description: 'Seat-based access with shared billing and audit trails',
+      features: [
+        'Everything in Studio',
+        'Seat-based entitlements for installers',
+        'Shared analytics and usage caps',
+        'Email + chat support',
+      ],
+      cta_text: 'Start team trial',
+      cta_url: '/checkout?plan=team',
+      badge: 'New',
+    },
+    {
       name: 'Founder OS',
       price: 'Custom',
       description: 'Bundle future Vrooli business apps as they launch',
@@ -241,6 +279,19 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     }
   }, [activeInterval, hasYearly]);
 
+  const monthlyAnchor = monthlyPlansRaw[0];
+  const yearlyAnchor = yearlyPlansRaw[0];
+  const savingsPercent =
+    monthlyAnchor && yearlyAnchor
+      ? Math.max(
+          0,
+          Math.round(
+            (1 - yearlyAnchor.amount_cents / 12 / (monthlyAnchor.amount_cents || 1)) * 100,
+          ),
+        )
+      : null;
+  const savingsLabel = savingsPercent && savingsPercent > 0 ? `Save ${savingsPercent}% yearly` : null;
+
   const effectiveInterval =
     bundle && activeInterval === 'yearly' && hasYearly ? 'yearly' : 'monthly';
   const tiersToRender = bundle
@@ -251,7 +302,8 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       : monthlyTiers.length > 0
         ? monthlyTiers
         : []
-    : fallbackTiers;
+    : fallbackTiers.slice(0, 4);
+  const featuredTier = tiersToRender.find((tier) => tier.highlighted) || tiersToRender[0];
 
   return (
     <section className="bg-[#F6F5F2] py-24 text-slate-900">
@@ -266,7 +318,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
         </div>
 
         {bundle && hasYearly && (
-          <div className="mt-8 inline-flex w-full max-w-xl flex-wrap gap-2 rounded-full border border-slate-300 bg-white/80 p-1 text-sm font-semibold text-slate-600">
+          <div className="mt-8 inline-flex w-full max-w-xl flex-wrap items-center gap-2 rounded-full border border-slate-300 bg-white/80 p-1 text-sm font-semibold text-slate-600">
             {(['monthly', 'yearly'] as const).map((mode) => {
               const active = effectiveInterval === mode;
               return (
@@ -282,14 +334,19 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
                 </button>
               );
             })}
+            {savingsLabel && effectiveInterval === 'yearly' && (
+              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700">
+                {savingsLabel}
+              </span>
+            )}
           </div>
         )}
 
-        <div className="mt-12 -mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-6 md:mx-0 md:grid md:grid-cols-3 md:gap-8 md:overflow-visible md:pb-0 md:snap-none">
+        <div className="mt-12 -mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible pb-6 pt-4 md:mx-0">
           {tiersToRender.map((tier, index) => (
             <div
               key={`${tier.name}-${tier.price ?? 'n/a'}-${index}`}
-              className="min-w-[82%] flex-shrink-0 snap-center md:min-w-0 md:flex-shrink"
+              className="min-w-[82%] flex-shrink-0 snap-center md:min-w-[360px] lg:min-w-[380px]"
             >
               {renderTier(tier, index)}
             </div>
@@ -303,6 +360,37 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           </div>
         )}
       </div>
+      {featuredTier && !stickyDismissed && (
+        <div className="fixed bottom-4 left-1/2 z-20 w-[min(480px,92vw)] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-700/30 md:hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Featured</p>
+              <p className="text-sm font-semibold text-slate-900">{featuredTier.name}</p>
+              <p className="text-xs text-slate-500">{featuredTier.price}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!featuredTier.cta_url) return;
+                  trackCTAClick('pricing-featured-sticky', { tier: featuredTier.name, price: featuredTier.price });
+                  window.location.href = featuredTier.cta_url;
+                }}
+              >
+                {featuredTier.cta_text || 'Choose'}
+              </Button>
+              <button
+                type="button"
+                className="text-xs text-slate-500 hover:text-slate-700"
+                onClick={() => setStickyDismissed(true)}
+                aria-label="Dismiss pricing sticky"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
