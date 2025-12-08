@@ -14,6 +14,7 @@ import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
 import { PricingSection } from '../../public-landing/sections/PricingSection';
 import { AlertTriangle, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
 import { injectDemoPlansForBundle, isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
+import { cn } from '../../../shared/lib/utils';
 
 interface StripeFormState {
   publishableKey: string;
@@ -85,6 +86,8 @@ export function BillingSettings() {
   const [priceForms, setPriceForms] = useState<Record<string, PriceFormState>>({});
   const [bundleError, setBundleError] = useState<string | null>(null);
   const [loadingBundles, setLoadingBundles] = useState(true);
+  const [includeDemoPlaceholders, setIncludeDemoPlaceholders] = useState(false);
+  const [pricingTab, setPricingTab] = useState<'month' | 'year' | 'other'>('month');
 
   const loadStripe = useCallback(async () => {
     setLoadingStripe(true);
@@ -104,7 +107,9 @@ export function BillingSettings() {
     setBundleError(null);
     try {
       const { bundles: payload } = await getBundleCatalog();
-      const enrichedBundles = payload.map((entry) => injectDemoPlansForBundle(entry));
+      const enrichedBundles = payload.map((entry) =>
+        includeDemoPlaceholders ? injectDemoPlansForBundle(entry) : entry,
+      );
       setBundles(enrichedBundles);
       const nextForms: Record<string, PriceFormState> = {};
       enrichedBundles.forEach((entry) => {
@@ -129,7 +134,7 @@ export function BillingSettings() {
     } finally {
       setLoadingBundles(false);
     }
-  }, []);
+  }, [includeDemoPlaceholders]);
 
   useEffect(() => {
     loadStripe();
@@ -317,6 +322,24 @@ export function BillingSettings() {
     }
   };
 
+  const removeDemoPlan = useCallback((bundleKey: string, priceId: string) => {
+    setBundles((prev) =>
+      prev.map((entry) =>
+        entry.bundle.bundle_key !== bundleKey
+          ? entry
+          : {
+              ...entry,
+              prices: entry.prices.filter((price) => price.stripe_price_id !== priceId),
+            },
+      ),
+    );
+    setPriceForms((prev) => {
+      const next = { ...prev };
+      delete next[`${bundleKey}:${priceId}`];
+      return next;
+    });
+  }, []);
+
   const renderBundleCards = () => {
     if (loadingBundles) {
       return <p className="text-slate-400">Loading bundle catalog…</p>;
@@ -330,7 +353,18 @@ export function BillingSettings() {
       );
     }
 
-    return bundles.map((entry) => (
+    return bundles.map((entry) => {
+      const visiblePrices = entry.prices.filter((price) => {
+        const interval = normalizeInterval(price.billing_interval);
+        if (!includeDemoPlaceholders && isDemoPlanOption(price)) {
+          return false;
+        }
+        if (pricingTab === 'month') return interval === 'month';
+        if (pricingTab === 'year') return interval === 'year';
+        return interval === 'one_time' || interval === 'other';
+      });
+      const demoHidden = entry.prices.some(isDemoPlanOption) && !includeDemoPlaceholders;
+      return (
       <Card key={entry.bundle.bundle_key} className="border-white/10 bg-slate-900/40">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -342,9 +376,14 @@ export function BillingSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {demoHidden && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+              Demo placeholders hidden. Turn them back on to see filler tiers until you add real Stripe prices.
+            </div>
+          )}
           <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div className="space-y-6">
-          {entry.prices.map((price) => {
+          {visiblePrices.map((price) => {
             const key = `${entry.bundle.bundle_key}:${price.stripe_price_id}`;
             const formState = priceForms[key];
             if (!formState) {
@@ -357,13 +396,31 @@ export function BillingSettings() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{price.plan_name}</h3>
-                    <p className="text-sm text-slate-400">{price.stripe_price_id} · {price.billing_interval}</p>
-                    {demoPlan && (
-                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
-                        Demo placeholder · connect Stripe to replace this slot
-                      </p>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+                      <span>{intervalLabel(normalizeInterval(price.billing_interval))} · {price.currency.toUpperCase()}</span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs',
+                          demoPlan
+                            ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
+                            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+                        )}
+                      >
+                        {demoPlan ? 'Demo placeholder (not saved)' : `Stripe price: ${price.stripe_price_id}`}
+                      </span>
+                    </div>
                   </div>
+                  {demoPlan && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2 text-amber-200 hover:text-amber-100"
+                      onClick={() => removeDemoPlan(entry.bundle.bundle_key, price.stripe_price_id)}
+                    >
+                      Remove demo placeholder
+                    </Button>
+                  )}
                   <label className="flex items-center gap-2 text-sm text-slate-200">
                     <input
                       type="checkbox"
@@ -474,11 +531,12 @@ export function BillingSettings() {
             );
           })}
             </div>
-            <PlanPreview data={buildPricingPreviewData(entry, priceForms)} />
+            <PlanPreview data={buildPricingPreviewData(entry, priceForms, includeDemoPlaceholders)} />
           </div>
         </CardContent>
       </Card>
-    ));
+    );
+    });
   };
 
   return (
@@ -584,9 +642,35 @@ export function BillingSettings() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Plan Display Manager</h2>
-            <Button variant="ghost" size="sm" onClick={loadBundles} className="gap-2">
-              <RefreshCw className="h-4 w-4" /> Reload catalog
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex overflow-hidden rounded-lg border border-white/10">
+                {(['month', 'year', 'other'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    className={cn(
+                      'px-3 py-1 text-sm transition-colors',
+                      pricingTab === tab
+                        ? 'bg-white/10 text-white'
+                        : 'bg-transparent text-slate-300 hover:bg-white/5'
+                    )}
+                    onClick={() => setPricingTab(tab)}
+                  >
+                    {tab === 'month' ? 'Monthly' : tab === 'year' ? 'Yearly' : 'Other'}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIncludeDemoPlaceholders((prev) => !prev)}
+                className="gap-2"
+              >
+                {includeDemoPlaceholders ? 'Hide demo placeholders' : 'Show demo placeholders'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={loadBundles} className="gap-2">
+                <RefreshCw className="h-4 w-4" /> Reload catalog
+              </Button>
+            </div>
           </div>
           <div className="space-y-6">{renderBundleCards()}</div>
         </div>
@@ -601,13 +685,43 @@ interface PricingPreviewData {
   placeholderCount: number;
 }
 
-function buildPricingPreviewData(entry: BundleCatalogEntry, priceForms: Record<string, PriceFormState>): PricingPreviewData {
-  const enhancedPlans = entry.prices.map((price) => applyFormOverrides(entry.bundle.bundle_key, price, priceForms));
+type IntervalSlug = 'month' | 'year' | 'one_time' | 'other';
+
+const normalizeInterval = (value: PlanOption['billing_interval'] | string | number | null | undefined): IntervalSlug => {
+  if (typeof value === 'number') {
+    if (value === 1) return 'month';
+    if (value === 2) return 'year';
+    if (value === 3) return 'one_time';
+  }
+  const raw = String(value ?? '').toLowerCase();
+  if (raw.includes('month')) return 'month';
+  if (raw.includes('year')) return 'year';
+  if (raw.includes('one_time') || raw.includes('one-time') || raw.includes('onetime')) return 'one_time';
+  return 'other';
+};
+
+const intervalLabel = (slug: IntervalSlug) => {
+  switch (slug) {
+    case 'month':
+      return 'Monthly';
+    case 'year':
+      return 'Yearly';
+    case 'one_time':
+      return 'One-time';
+    default:
+      return 'Other';
+  }
+};
+
+function buildPricingPreviewData(entry: BundleCatalogEntry, priceForms: Record<string, PriceFormState>, includeDemo: boolean): PricingPreviewData {
+  const enhancedPlans = entry.prices
+    .filter((plan) => includeDemo || !isDemoPlanOption(plan))
+    .map((price) => applyFormOverrides(entry.bundle.bundle_key, price, priceForms));
   const monthlyPlans = sortPlans(
-    enhancedPlans.filter((plan) => plan.billing_interval === 'month' && plan.display_enabled),
+    enhancedPlans.filter((plan) => normalizeInterval(plan.billing_interval) === 'month' && plan.display_enabled),
   );
   const yearlyPlans = sortPlans(
-    enhancedPlans.filter((plan) => plan.billing_interval === 'year' && plan.display_enabled),
+    enhancedPlans.filter((plan) => normalizeInterval(plan.billing_interval) === 'year' && plan.display_enabled),
   );
 
   const placeholderCount = monthlyPlans.filter((plan) => isDemoPlanOption(plan)).length;

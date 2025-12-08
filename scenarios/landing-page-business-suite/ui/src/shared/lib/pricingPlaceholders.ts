@@ -134,6 +134,10 @@ export function injectDemoPlansForBundle(entry: BundleCatalogEntry, minMonthlyCo
   const monthlyRealCount = entry.prices.filter(
     (plan) => plan.billing_interval === 'month' && !isDemoPlanOption(plan)
   ).length;
+  // Do not inject placeholders when Stripe plans are present.
+  if (monthlyRealCount > 0) {
+    return entry;
+  }
   const needed = Math.max(0, minMonthlyCount - monthlyRealCount);
   if (needed === 0) {
     return entry;

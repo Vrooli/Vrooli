@@ -3,7 +3,8 @@ import { Check } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetrics';
 import type { PlanOption, PricingOverview } from '../../../shared/api';
-import { ensureDemoPlansForDisplay } from '../../../shared/lib/pricingPlaceholders';
+import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
+import { normalizeInterval } from '../../../shared/lib/pricingIntervals';
 
 interface PricingTier {
   name: string;
@@ -45,7 +46,7 @@ function formatCredits(amount: number, multiplier: number, label: string) {
   return `${value} ${label}`;
 }
 
-function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean) {
+function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean, interval: 'month' | 'year') {
   const hasAmount = typeof option.amount_cents === 'number' && option.amount_cents > 0;
   const priceLabel = hasAmount ? formatCurrency(option.amount_cents, option.currency) : 'Custom';
   const introAmount = option.intro_amount_cents;
@@ -90,7 +91,7 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
     name: option.plan_name,
     description: option.plan_tier.charAt(0).toUpperCase() + option.plan_tier.slice(1),
     price: hasAmount
-      ? `${priceLabel} / ${option.billing_interval === 'month' ? 'month' : 'year'}`
+      ? `${priceLabel} / ${interval === 'month' ? 'month' : 'year'}`
       : 'Contact sales',
     features,
     cta_text: ctaText,
@@ -187,8 +188,24 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   const bundle = pricingOverview?.bundle;
   const monthlyPlansRaw = Array.isArray(pricingOverview?.monthly) ? (pricingOverview?.monthly as PlanOption[]) : [];
   const yearlyPlansRaw = Array.isArray(pricingOverview?.yearly) ? (pricingOverview?.yearly as PlanOption[]) : [];
-  const monthlyPlans = bundle ? ensureDemoPlansForDisplay(bundle, monthlyPlansRaw, 3) : [];
-  const yearlyPlans = bundle ? yearlyPlansRaw : [];
+  const monthlyPlans = bundle
+    ? monthlyPlansRaw.filter(
+        (plan) =>
+          !isDemoPlanOption(plan) &&
+          normalizeInterval(plan.billing_interval) === 'month' &&
+          typeof plan.amount_cents === 'number' &&
+          plan.amount_cents > 0,
+      )
+    : [];
+  const yearlyPlans = bundle
+    ? yearlyPlansRaw.filter(
+        (plan) =>
+          !isDemoPlanOption(plan) &&
+          normalizeInterval(plan.billing_interval) === 'year' &&
+          typeof plan.amount_cents === 'number' &&
+          plan.amount_cents > 0,
+      )
+    : [];
 
   const sortByAmount = (plans: PlanOption[]) =>
     [...plans].sort((a, b) => {
@@ -202,11 +219,11 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
 
   const monthlyTiers =
     bundle && monthlyPlans.length > 0
-      ? sortByAmount(monthlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0))
+      ? sortByAmount(monthlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0, 'month'))
       : [];
   const yearlyTiers =
     bundle && yearlyPlans.length > 0
-      ? sortByAmount(yearlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0))
+      ? sortByAmount(yearlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0, 'year'))
       : [];
 
   const fallbackTiers = (content.tiers || [
