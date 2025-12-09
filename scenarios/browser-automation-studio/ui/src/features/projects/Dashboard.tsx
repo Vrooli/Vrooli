@@ -2,12 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   WifiOff,
-  Wifi,
   Search,
-  Keyboard,
   Settings,
   HelpCircle,
-  BookOpen,
   Command,
   Circle,
 } from "lucide-react";
@@ -30,11 +27,10 @@ interface DashboardProps {
   onProjectSelect: (project: Project) => void;
   onCreateProject: () => void;
   onCreateFirstWorkflow?: () => void;
-  onShowKeyboardShortcuts?: () => void;
   onStartRecording?: () => void;
   onOpenSettings?: () => void;
+  onOpenHelp?: () => void;
   onOpenTutorial?: () => void;
-  onOpenDocs?: () => void;
   onNavigateToWorkflow?: (projectId: string, workflowId: string) => void;
   onViewExecution?: (executionId: string, workflowId: string) => void;
   onAIGenerateWorkflow?: (prompt: string) => void;
@@ -51,11 +47,10 @@ function Dashboard({
   onProjectSelect,
   onCreateProject,
   onCreateFirstWorkflow,
-  onShowKeyboardShortcuts,
   onStartRecording,
   onOpenSettings,
+  onOpenHelp,
   onOpenTutorial,
-  onOpenDocs,
   onNavigateToWorkflow,
   onViewExecution,
   onAIGenerateWorkflow,
@@ -287,23 +282,15 @@ function Dashboard({
             </div>
             <div className="flex items-center gap-2">
               {/* WebSocket Connection Indicator */}
-              <div
-                className={`hidden sm:flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
-                  isWebSocketConnected
-                    ? 'text-green-400 bg-green-500/10'
-                    : 'text-gray-500 bg-gray-800/50'
-                }`}
-                title={isWebSocketConnected ? 'Real-time updates active' : 'Connecting to real-time updates...'}
-              >
-                {isWebSocketConnected ? (
-                  <Wifi size={12} className="text-green-400" />
-                ) : (
-                  <WifiOff size={12} className="text-gray-500 animate-pulse" />
-                )}
-                <span className="hidden lg:inline">
-                  {isWebSocketConnected ? 'Live' : 'Connecting'}
-                </span>
-              </div>
+              {!isWebSocketConnected && (
+                <div
+                  className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30"
+                  title="Live updates temporarily unavailable"
+                >
+                  <WifiOff size={12} className="text-amber-300 animate-pulse" />
+                  <span className="hidden lg:inline">Live updates offline</span>
+                </div>
+              )}
 
               {/* Running Executions Badge */}
               <RunningExecutionsBadge
@@ -347,35 +334,15 @@ function Dashboard({
                 <Search size={18} />
               </button>
 
-              {onOpenDocs && (
+              {onOpenHelp && (
                 <button
-                  onClick={onOpenDocs}
+                  onClick={onOpenHelp}
                   className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                  title="Documentation"
-                  aria-label="Open documentation"
+                  title="Help"
+                  aria-label="Open help"
                   data-testid={selectors.dashboard.docsButton}
                 >
-                  <BookOpen size={18} />
-                </button>
-              )}
-              {onOpenTutorial && (
-                <button
-                  onClick={onOpenTutorial}
-                  className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                  title={`Tutorial (${getModifierKey()}+Shift+T)`}
-                  aria-label="Open tutorial"
-                >
                   <HelpCircle size={18} />
-                </button>
-              )}
-              {onShowKeyboardShortcuts && (
-                <button
-                  onClick={onShowKeyboardShortcuts}
-                  className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                  title={`Keyboard shortcuts (${getModifierKey()}+?)`}
-                  aria-label="Show keyboard shortcuts"
-                >
-                  <Keyboard size={18} />
                 </button>
               )}
               {onOpenSettings && (

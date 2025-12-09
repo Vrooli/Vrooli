@@ -227,7 +227,8 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
       onDismiss={onClose}
       ariaLabelledBy={titleId}
       size="default"
-      className="bg-flow-node border border-gray-700 shadow-2xl"
+      overlayClassName="bg-black/70 backdrop-blur-sm"
+      className="bg-flow-bg/95 border border-gray-700 shadow-2xl rounded-2xl overflow-hidden"
     >
       <div data-testid={selectors.dialogs.project.root}>
         {/* Header */}

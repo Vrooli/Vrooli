@@ -56,6 +56,7 @@ import type {
   ReplayFrame,
 } from '../execution/ReplayPlayer';
 import Tooltip from '@shared/ui/Tooltip';
+import { RangeSlider } from '@shared/ui';
 import { BrandingTab } from './components/branding';
 import { WatermarkSettings } from '../execution/replay/WatermarkSettings';
 import { IntroCardSettings } from '../execution/replay/IntroCardSettings';
@@ -767,14 +768,14 @@ function SettingsPage({ onBack }: SettingsPageProps) {
 
       <SettingSection title="Cursor Size" tooltip="Scale the cursor size.">
         <div className="flex items-center gap-4">
-          <input
-            type="range"
+          <RangeSlider
             min={CURSOR_SCALE_MIN}
             max={CURSOR_SCALE_MAX}
             step={0.1}
             value={replay.cursorScale}
-            onChange={(e) => setReplaySetting('cursorScale', parseFloat(e.target.value))}
-            className="flex-1 accent-flow-accent"
+            onChange={(next) => setReplaySetting('cursorScale', next)}
+            ariaLabel="Cursor size"
+            className="flex-1"
           />
           <span className="text-sm text-gray-400 w-12 text-right">{(replay.cursorScale * 100).toFixed(0)}%</span>
         </div>
@@ -828,14 +829,13 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               <label className="text-sm text-gray-300">Frame Duration</label>
               <span className="text-sm font-medium text-flow-accent">{(replay.frameDuration / 1000).toFixed(1)}s</span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={800}
               max={6000}
               step={100}
               value={replay.frameDuration}
-              onChange={(e) => setReplaySetting('frameDuration', parseInt(e.target.value, 10))}
-              className="w-full accent-flow-accent"
+              onChange={(next) => setReplaySetting('frameDuration', next)}
+              ariaLabel="Frame duration"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Fast (0.8s)</span>
@@ -919,14 +919,13 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               <label className="text-sm text-gray-300">Workflow Timeout</label>
               <span className="text-sm font-medium text-flow-accent">{workflowDefaults.defaultTimeout}s</span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={10}
               max={300}
               step={5}
               value={workflowDefaults.defaultTimeout}
-              onChange={(e) => setWorkflowDefault('defaultTimeout', parseInt(e.target.value, 10))}
-              className="w-full accent-flow-accent"
+              onChange={(next) => setWorkflowDefault('defaultTimeout', next)}
+              ariaLabel="Workflow timeout"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>10s</span>
@@ -938,14 +937,13 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               <label className="text-sm text-gray-300">Step Timeout</label>
               <span className="text-sm font-medium text-flow-accent">{workflowDefaults.stepTimeout}s</span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={5}
               max={60}
               step={1}
               value={workflowDefaults.stepTimeout}
-              onChange={(e) => setWorkflowDefault('stepTimeout', parseInt(e.target.value, 10))}
-              className="w-full accent-flow-accent"
+              onChange={(next) => setWorkflowDefault('stepTimeout', next)}
+              ariaLabel="Step timeout"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>5s</span>
@@ -962,14 +960,13 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               <label className="text-sm text-gray-300">Retry Attempts</label>
               <span className="text-sm font-medium text-flow-accent">{workflowDefaults.retryAttempts}</span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={0}
               max={5}
               step={1}
               value={workflowDefaults.retryAttempts}
-              onChange={(e) => setWorkflowDefault('retryAttempts', parseInt(e.target.value, 10))}
-              className="w-full accent-flow-accent"
+              onChange={(next) => setWorkflowDefault('retryAttempts', next)}
+              ariaLabel="Retry attempts"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>No retries</span>
@@ -981,14 +978,13 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               <label className="text-sm text-gray-300">Retry Delay</label>
               <span className="text-sm font-medium text-flow-accent">{workflowDefaults.retryDelay}ms</span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={100}
               max={5000}
               step={100}
               value={workflowDefaults.retryDelay}
-              onChange={(e) => setWorkflowDefault('retryDelay', parseInt(e.target.value, 10))}
-              className="w-full accent-flow-accent"
+              onChange={(next) => setWorkflowDefault('retryDelay', next)}
+              ariaLabel="Retry delay"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>100ms</span>
@@ -1061,14 +1057,13 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               <label className="text-sm text-gray-300">Slow Motion</label>
               <span className="text-sm font-medium text-flow-accent">{workflowDefaults.slowMo}ms</span>
             </div>
-            <input
-              type="range"
+            <RangeSlider
               min={0}
               max={1000}
               step={50}
               value={workflowDefaults.slowMo}
-              onChange={(e) => setWorkflowDefault('slowMo', parseInt(e.target.value, 10))}
-              className="w-full accent-flow-accent"
+              onChange={(next) => setWorkflowDefault('slowMo', next)}
+              ariaLabel="Slow motion delay"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Normal</span>
@@ -1784,7 +1779,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
       {/* Content */}
       <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
         {/* Settings Panel - constrain width only when preview is shown (Replay tab) */}
-        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 ${activeTab === 'replay' ? 'lg:max-w-2xl' : ''}`}>
+        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 ${activeTab === 'replay' ? 'lg:max-w-2xl' : 'max-w-5xl w-full mx-auto'}`}>
           {activeTab === 'display' && renderDisplaySettings()}
           {activeTab === 'replay' && renderReplaySettings()}
           {activeTab === 'branding' && <BrandingTab />}

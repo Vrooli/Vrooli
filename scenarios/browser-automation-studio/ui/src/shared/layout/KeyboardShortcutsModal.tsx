@@ -11,15 +11,7 @@ interface KeyboardShortcutsModalProps {
   onClose: () => void;
 }
 
-/**
- * Modal displaying all available keyboard shortcuts, grouped by category.
- * Now context-aware - shows only shortcuts relevant to the current view.
- * Accessible via Shift + ? or the help button.
- */
-function KeyboardShortcutsModal({
-  isOpen,
-  onClose,
-}: KeyboardShortcutsModalProps) {
+export function KeyboardShortcutsContent() {
   // Get shortcuts grouped by category (already filtered by current context)
   const shortcutsByCategory = useKeyboardShortcutsStore((state) =>
     state.getShortcutsByCategory()
@@ -28,12 +20,7 @@ function KeyboardShortcutsModal({
   const categories = Object.keys(shortcutsByCategory).sort();
 
   return (
-    <ResponsiveDialog
-      isOpen={isOpen}
-      onDismiss={onClose}
-      ariaLabel="Keyboard Shortcuts"
-      size="wide"
-    >
+    <>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-flow-accent/20 rounded-lg">
@@ -48,14 +35,6 @@ function KeyboardShortcutsModal({
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-2 text-flow-text-muted hover:text-flow-text hover:bg-flow-node-hover rounded-lg transition-colors"
-          aria-label="Close keyboard shortcuts"
-        >
-          <X size={20} />
-        </button>
       </div>
 
       <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
@@ -90,16 +69,34 @@ function KeyboardShortcutsModal({
           ))
         )}
       </div>
+    </>
+  );
+}
 
-      <div className="mt-6 pt-4 border-t border-flow-border">
-        <p className="text-xs text-flow-text-muted text-center">
-          Press{" "}
-          <kbd className="px-1.5 py-0.5 bg-flow-node border border-flow-border rounded text-flow-text-secondary">
-            Esc
-          </kbd>{" "}
-          to close this dialog
-        </p>
+/**
+ * Legacy modal wrapper so existing callers can still render shortcuts standalone.
+ */
+function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsModalProps) {
+  return (
+    <ResponsiveDialog
+      isOpen={isOpen}
+      onDismiss={onClose}
+      ariaLabel="Keyboard Shortcuts"
+      size="wide"
+      overlayClassName="bg-black/70 backdrop-blur-sm"
+      className="bg-flow-bg/95 border border-gray-700 shadow-2xl rounded-2xl"
+    >
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-2 text-flow-text-muted hover:text-flow-text hover:bg-flow-node-hover rounded-lg transition-colors"
+          aria-label="Close keyboard shortcuts"
+        >
+          <X size={20} />
+        </button>
       </div>
+      <KeyboardShortcutsContent />
     </ResponsiveDialog>
   );
 }

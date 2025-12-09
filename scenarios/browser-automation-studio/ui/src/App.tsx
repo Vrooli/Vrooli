@@ -3,7 +3,7 @@ import { ReactFlowProvider } from "reactflow";
 import "reactflow/dist/style.css";
 
 // Shared layout components
-import { ResponsiveDialog, Sidebar, Header, KeyboardShortcutsModal } from "@shared/layout";
+import { ResponsiveDialog, Sidebar, Header } from "@shared/layout";
 import { ProjectModal } from "@features/projects";
 import { GuidedTour, useGuidedTour } from "@features/onboarding";
 import { DocsModal } from "@features/docs";
@@ -59,8 +59,10 @@ function App() {
   const [currentView, setCurrentView] = useState<AppView | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  const [docsInitialTab, setDocsInitialTab] = useState<
+    "getting-started" | "node-reference" | "schema-reference" | "shortcuts"
+  >("getting-started");
   const [selectedFolder, setSelectedFolder] = useState<string>("/");
   const [selectedWorkflow, setSelectedWorkflow] =
     useState<NormalizedWorkflow | null>(null);
@@ -787,7 +789,7 @@ function App() {
   // Map current view to shortcut context
   const shortcutContext = useMemo<ShortcutContext>(() => {
     // Check for open modals first
-    if (showKeyboardShortcuts || showAIModal || showProjectModal || showDocs || showTour) {
+    if (showAIModal || showProjectModal || showDocs || showTour) {
       return 'modal';
     }
     switch (currentView) {
@@ -806,7 +808,7 @@ function App() {
       default:
         return 'dashboard';
     }
-  }, [currentView, showKeyboardShortcuts, showAIModal, showProjectModal, showDocs, showTour]);
+  }, [currentView, showAIModal, showProjectModal, showDocs, showTour]);
 
   // Set the active shortcut context
   useShortcutContext(shortcutContext);
@@ -815,11 +817,12 @@ function App() {
   const shortcutActions = useMemo(
     () => ({
       // Global shortcuts
-      'show-shortcuts': () => setShowKeyboardShortcuts(true),
+      'show-shortcuts': () => {
+        setDocsInitialTab('shortcuts');
+        setShowDocs(true);
+      },
       'close-modal': () => {
-        if (showKeyboardShortcuts) {
-          setShowKeyboardShortcuts(false);
-        } else if (showDocs) {
+        if (showDocs) {
           setShowDocs(false);
         } else if (showAIModal) {
           setShowAIModal(false);
@@ -858,7 +861,6 @@ function App() {
       },
     }),
     [
-      showKeyboardShortcuts,
       showDocs,
       showAIModal,
       showProjectModal,
@@ -1003,6 +1005,15 @@ function App() {
   }
 
   // Dashboard View
+  const docsModal = (
+    <DocsModal
+      isOpen={showDocs}
+      initialTab={docsInitialTab}
+      onClose={() => setShowDocs(false)}
+      onOpenTutorial={openTour}
+    />
+  );
+
   if (currentView === "dashboard") {
     console.log("[DEBUG] App rendering Dashboard view, showProjectModal:", showProjectModal);
     return (
@@ -1023,16 +1034,18 @@ function App() {
             onProjectSelect={handleProjectSelect}
             onCreateProject={handleCreateProject}
             onCreateFirstWorkflow={handleCreateFirstWorkflow}
-            onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
-            onStartRecording={handleStartRecording}
-            onOpenSettings={navigateToSettings}
-            onOpenTutorial={openTour}
-            onOpenDocs={() => setShowDocs(true)}
-            onNavigateToWorkflow={handleNavigateToWorkflow}
-            onViewExecution={handleViewExecution}
-            onAIGenerateWorkflow={handleDashboardAIGenerate}
-            onRunWorkflow={handleRunWorkflow}
-            onViewAllWorkflows={navigateToAllWorkflows}
+          onStartRecording={handleStartRecording}
+          onOpenSettings={navigateToSettings}
+          onOpenHelp={() => {
+            setDocsInitialTab('getting-started');
+            setShowDocs(true);
+          }}
+          onOpenTutorial={openTour}
+          onNavigateToWorkflow={handleNavigateToWorkflow}
+          onViewExecution={handleViewExecution}
+          onAIGenerateWorkflow={handleDashboardAIGenerate}
+          onRunWorkflow={handleRunWorkflow}
+          onViewAllWorkflows={navigateToAllWorkflows}
             onViewAllExecutions={navigateToAllExecutions}
             onTryDemo={handleTryDemo}
           />
@@ -1053,15 +1066,7 @@ function App() {
           onSuccess={handleProjectCreated}
         />
 
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-                  />
-
-        <DocsModal
-          isOpen={showDocs}
-          onClose={() => setShowDocs(false)}
-        />
+        {docsModal}
       </div>
     );
   }
@@ -1083,10 +1088,7 @@ function App() {
           <SettingsPage onBack={navigateToDashboard} />
         </Suspense>
 
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-                  />
+        {docsModal}
 
         <GuidedTour
           isOpen={showTour}
@@ -1117,10 +1119,7 @@ function App() {
           />
         </Suspense>
 
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-                  />
+        {docsModal}
 
         <GuidedTour
           isOpen={showTour}
@@ -1150,10 +1149,7 @@ function App() {
           />
         </Suspense>
 
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-                  />
+        {docsModal}
 
         <GuidedTour
           isOpen={showTour}
@@ -1185,10 +1181,7 @@ function App() {
           />
         </Suspense>
 
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-        />
+        {docsModal}
 
         <GuidedTour
           isOpen={showTour}
@@ -1240,10 +1233,7 @@ function App() {
           </Suspense>
         )}
 
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-                  />
+        {docsModal}
 
         <GuidedTour
           isOpen={showTour}
@@ -1270,8 +1260,10 @@ function App() {
           currentProject={currentProject}
           currentWorkflow={selectedWorkflow}
           showBackToProject={currentView === "project-workflow"}
-          onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
-          onOpenTutorial={openTour}
+          onOpenHelp={() => {
+            setDocsInitialTab('shortcuts');
+            setShowDocs(true);
+          }}
         />
 
         <div className="flex-1 flex overflow-hidden min-h-0">
@@ -1385,10 +1377,7 @@ function App() {
           </Suspense>
         )}
 
-        <KeyboardShortcutsModal
-          isOpen={showKeyboardShortcuts}
-          onClose={() => setShowKeyboardShortcuts(false)}
-                  />
+        {docsModal}
 
         <GuidedTour
           isOpen={showTour}

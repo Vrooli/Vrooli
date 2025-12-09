@@ -5,12 +5,14 @@ import {
   FileJson,
   X,
   ArrowLeft,
+  Keyboard,
 } from "lucide-react";
 import { GettingStarted } from "./GettingStarted";
 import { NodeReference } from "./NodeReference";
 import { SchemaReference } from "./SchemaReference";
+import { KeyboardShortcutsContent } from "@shared/layout/KeyboardShortcutsModal";
 
-type DocsTab = "getting-started" | "node-reference" | "schema-reference";
+type DocsTab = "getting-started" | "node-reference" | "schema-reference" | "shortcuts";
 
 interface DocsHubProps {
   /** Initial tab to display */
@@ -23,12 +25,15 @@ interface DocsHubProps {
   mode?: "page" | "modal";
   /** API base URL for fetching live schema */
   apiBaseUrl?: string;
+  /** Open the guided tutorial and close docs */
+  onOpenTutorial?: () => void;
 }
 
 const TABS: { id: DocsTab; label: string; icon: React.ElementType }[] = [
   { id: "getting-started", label: "Getting Started", icon: BookOpen },
   { id: "node-reference", label: "Node Reference", icon: Blocks },
   { id: "schema-reference", label: "Schema Reference", icon: FileJson },
+  { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
 ];
 
 export function DocsHub({
@@ -37,10 +42,18 @@ export function DocsHub({
   onClose,
   mode = "page",
   apiBaseUrl,
+  onOpenTutorial,
 }: DocsHubProps) {
   const [activeTab, setActiveTab] = useState<DocsTab>(
     initialNodeType ? "node-reference" : initialTab
   );
+
+  const handleOpenTutorial = () => {
+    if (!onOpenTutorial) return;
+    onClose?.();
+    // Slight delay to allow modal to close before opening tutorial
+    setTimeout(() => onOpenTutorial(), 50);
+  };
 
   const content = (
     <div className="flex flex-col h-full bg-flow-bg">
@@ -64,6 +77,16 @@ export function DocsHub({
             </p>
           </div>
         </div>
+        <div className="flex items-center gap-3">
+          {onOpenTutorial && (
+            <button
+              type="button"
+              onClick={handleOpenTutorial}
+              className="px-3 py-2 text-sm text-white bg-flow-accent hover:bg-flow-accent/90 rounded-lg transition-colors"
+            >
+              Open Tutorial
+            </button>
+          )}
         {mode === "modal" && onClose && (
           <button
             type="button"
@@ -74,6 +97,7 @@ export function DocsHub({
             <X size={20} />
           </button>
         )}
+        </div>
       </header>
 
       {/* Tab Navigation */}
@@ -108,6 +132,11 @@ export function DocsHub({
         {activeTab === "schema-reference" && (
           <SchemaReference apiBaseUrl={apiBaseUrl} />
         )}
+        {activeTab === "shortcuts" && (
+          <div className="p-6">
+            <KeyboardShortcutsContent />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -134,6 +163,7 @@ interface DocsModalProps {
   initialTab?: DocsTab;
   initialNodeType?: string;
   apiBaseUrl?: string;
+  onOpenTutorial?: () => void;
 }
 
 export function DocsModal({
@@ -142,6 +172,7 @@ export function DocsModal({
   initialTab,
   initialNodeType,
   apiBaseUrl,
+  onOpenTutorial,
 }: DocsModalProps) {
   if (!isOpen) return null;
 
@@ -152,6 +183,7 @@ export function DocsModal({
       initialTab={initialTab}
       initialNodeType={initialNodeType}
       apiBaseUrl={apiBaseUrl}
+      onOpenTutorial={onOpenTutorial}
     />
   );
 }
