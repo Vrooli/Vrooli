@@ -5,7 +5,7 @@
   "dependencies": [],
   "recovery_attempts": 3,
   "priority": "high",
-  "description": "Lightweight serverless SQL database engine",
+  "description": "Lightweight serverless SQL database engine (Go, portable binary)",
   "category": "storage",
   "features": [
     "Zero-configuration",
