@@ -740,6 +740,7 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Envir
 	if len(preObservations) > 0 {
 		result.Observations = append(preObservations, result.Observations...)
 	}
+	appendObservationsToLog(logPath, o.projectRoot, result.Observations)
 	return result
 }
 
@@ -1258,4 +1259,26 @@ func formatToggleContext(toggle PhaseToggle) string {
 		return ""
 	}
 	return " (" + strings.Join(parts, "; ") + ")"
+}
+
+func appendObservationsToLog(logPath string, projectRoot string, observations []phases.Observation) {
+	if logPath == "" || len(observations) == 0 {
+		return
+	}
+	target := logPath
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(projectRoot, target)
+	}
+	f, err := os.OpenFile(target, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	fmt.Fprintln(f, "OBSERVATIONS:")
+	for _, obs := range observations {
+		if text := obs.String(); strings.TrimSpace(text) != "" {
+			fmt.Fprintln(f, " -", text)
+		}
+	}
 }

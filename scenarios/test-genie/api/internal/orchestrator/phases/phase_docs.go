@@ -49,5 +49,6 @@ func runDocsPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 	)
 
 	writePhasePointer(env, "docs", report, map[string]any{"summary": summary}, logWriter)
+	logPhaseStep(logWriter, "Docs summary: %s (abs_hits=%d, abs_blocked=%d)", summary.String(), summary.AbsolutePathHits, summary.AbsoluteFailures)
 	return report
 }

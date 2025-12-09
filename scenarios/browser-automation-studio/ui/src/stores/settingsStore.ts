@@ -493,6 +493,12 @@ const applyTheme = (settings: DisplaySettings): void => {
   // Determine effective theme
   const effectiveTheme = settings.themeMode === 'system' ? getSystemTheme() : settings.themeMode;
   root.setAttribute('data-theme', effectiveTheme);
+  // Sync Tailwind's dark variant class so legacy dark: styles follow the theme
+  if (effectiveTheme === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
 
   // Apply font size class
   root.setAttribute('data-font-size', settings.fontSize);

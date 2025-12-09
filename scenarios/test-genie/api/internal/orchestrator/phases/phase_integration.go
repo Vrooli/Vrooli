@@ -27,6 +27,8 @@ import (
 // See: packages/api-base/docs/concepts/websocket-support.md
 func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	var summary string
+	// Strip ANSI escape sequences from captured CLI output for cleaner logs.
+	cleanLog := wrapLogSansANSI(logWriter)
 
 	report := RunPhase(ctx, logWriter, "integration",
 		func() (*integration.RunResult, error) {
@@ -41,7 +43,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 
 			runner := integration.New(
 				intConfig,
-				integration.WithLogger(logWriter),
+				integration.WithLogger(cleanLog),
 				integration.WithCommandExecutor(phaseCommandExecutor),
 				integration.WithCommandCapture(phaseCommandCapture),
 				integration.WithCommandLookup(commandLookup),

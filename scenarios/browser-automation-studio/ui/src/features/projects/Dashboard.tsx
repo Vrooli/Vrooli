@@ -301,7 +301,7 @@ function Dashboard({
               {onStartRecording && (
                 <button
                   onClick={onStartRecording}
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-red-200 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 rounded-lg transition-colors"
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-[rgb(var(--flow-error))] bg-[rgba(var(--flow-error),0.12)] hover:bg-[rgba(var(--flow-error),0.2)] border border-[rgba(var(--flow-error),0.35)] rounded-lg transition-colors"
                   title="Start Record Mode"
                   aria-label="Start recording actions"
                 >

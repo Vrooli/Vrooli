@@ -92,6 +92,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 	if len(files) == 0 {
+		shared.LogInfo(r.log, "Docs scan: no Markdown files found")
 		return &RunResult{
 			Success: true,
 			Observations: []Observation{
@@ -100,6 +101,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Summary: Summary{},
 		}
 	}
+	shared.LogInfo(r.log, "Docs scan: %d Markdown file(s) detected", len(files))
 
 	var (
 		obs       []Observation
@@ -139,6 +141,17 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		summary.BrokenLinks == 0 &&
 		summary.AbsoluteFailures == 0 &&
 		len(allErrors) == 0
+
+	summaryLine := fmt.Sprintf(
+		"Docs summary: files=%d mermaid=%d validated (%d failures) markdown(warn=%d, fail=%d) links(local=%d external=%d broken=%d) absolute(hits=%d blocked=%d)",
+		summary.FilesChecked,
+		summary.MermaidValidated, summary.MermaidFailures,
+		summary.MarkdownWarnings, summary.MarkdownFailures,
+		summary.LocalLinks, summary.ExternalLinks, summary.BrokenLinks,
+		summary.AbsolutePathHits, summary.AbsoluteFailures,
+	)
+	shared.LogInfo(r.log, summaryLine)
+	fmt.Fprintln(r.log, summaryLine)
 
 	if success {
 		obs = append(obs, NewSuccessObservation(fmt.Sprintf("Docs validation passed (%s)", summary.String())))
@@ -317,6 +330,7 @@ func (r *Runner) inspectFile(path string) ([]Observation, fileSummary, []linkTar
 				}
 				summary.AbsoluteFailures++
 				obs = append(obs, NewErrorObservation(fmt.Sprintf("%s:%d contains absolute filesystem path", path, lineNum)))
+				fmt.Fprintf(r.log, "ABSOLUTE_PATH %s:%d -> %s\n", path, lineNum, trim)
 			}
 		}
 	}

@@ -85,6 +85,17 @@ func runSmokePhase(ctx context.Context, env workspace.Environment, logWriter io.
 
 	// Success case
 	observations = append(observations, NewSuccessObservation(phaseResult.FormatObservation()))
+	if res := phaseResult.Result; res != nil {
+		logPhaseStep(logWriter,
+			"UI smoke details: url=%s duration=%dms handshake(signaled=%t timeout=%t %dms err=%s) network_failures=%d page_errors=%d console_errors=%d",
+			res.UIURL, res.DurationMs, res.Handshake.Signaled, res.Handshake.TimedOut, res.Handshake.DurationMs, res.Handshake.Error,
+			res.NetworkFailureCount, res.PageErrorCount, res.ConsoleErrorCount,
+		)
+		if res.Artifacts != (smoke.ArtifactPaths{}) {
+			logPhaseStep(logWriter, "UI smoke artifacts: screenshot=%s console=%s network=%s html=%s raw=%s readme=%s",
+				res.Artifacts.Screenshot, res.Artifacts.Console, res.Artifacts.Network, res.Artifacts.HTML, res.Artifacts.Raw, res.Artifacts.Readme)
+		}
+	}
 	logPhaseSuccess(logWriter, "UI smoke test passed")
 
 	return RunReport{Observations: observations}

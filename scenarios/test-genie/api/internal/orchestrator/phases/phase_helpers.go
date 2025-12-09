@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"unicode/utf8"
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
@@ -91,6 +92,12 @@ func runCommand(ctx context.Context, dir string, logWriter io.Writer, name strin
 	if dir != "" {
 		cmd.Dir = dir
 	}
+	cmd.Env = append(os.Environ(),
+		"NO_COLOR=1",
+		"FORCE_COLOR=0",
+		"CLICOLOR=0",
+		"TERM=dumb",
+	)
 	if logWriter == nil {
 		logWriter = io.Discard
 	}
@@ -107,6 +114,13 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 	if dir != "" {
 		cmd.Dir = dir
 	}
+	// Disable ANSI color in captured output to keep logs readable.
+	cmd.Env = append(os.Environ(),
+		"NO_COLOR=1",
+		"FORCE_COLOR=0",
+		"CLICOLOR=0",
+		"TERM=dumb",
+	)
 	var output bytes.Buffer
 	if logWriter != nil {
 		cmd.Stdout = io.MultiWriter(logWriter, &output)
@@ -117,6 +131,49 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 	}
 	err := cmd.Run()
 	return output.String(), err
+}
+
+// stripANSIWriter removes ANSI escape sequences from writes before forwarding.
+type stripANSIWriter struct {
+	target io.Writer
+}
+
+func (w *stripANSIWriter) Write(p []byte) (int, error) {
+	clean := stripANSI(p)
+	return w.target.Write(clean)
+}
+
+// stripANSI removes ANSI escape sequences from a byte slice.
+func stripANSI(p []byte) []byte {
+	var out []rune
+	for i := 0; i < len(p); {
+		r, size := utf8.DecodeRune(p[i:])
+		// Detect CSI sequences: ESC [
+		if r == 0x1b && i+1 < len(p) && p[i+1] == '[' {
+			// Skip until letter terminator
+			j := i + 2
+			for j < len(p) {
+				if (p[j] >= 'A' && p[j] <= 'Z') || (p[j] >= 'a' && p[j] <= 'z') {
+					j++
+					break
+				}
+				j++
+			}
+			i = j
+			continue
+		}
+		out = append(out, r)
+		i += size
+	}
+	return []byte(string(out))
+}
+
+// wrapLogSansANSI ensures downstream logs are ANSI-free.
+func wrapLogSansANSI(w io.Writer) io.Writer {
+	if w == nil {
+		return nil
+	}
+	return &stripANSIWriter{target: w}
 }
 
 // OverrideCommandLookup temporarily replaces the binary lookup used by phases.

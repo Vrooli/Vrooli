@@ -266,6 +266,16 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 	duration := time.Since(startTime)
 	result := o.buildResult(response, handshakeResult, bundleStatus, bridgeStatus, artifactPaths, uiURL, duration)
 
+	// Log additional telemetry for richer diagnostics.
+	o.log("Handshake: signaled=%t timed_out=%t duration=%dms error=%s", handshakeResult.Signaled, handshakeResult.TimedOut, handshakeResult.DurationMs, handshakeResult.Error)
+	if response != nil {
+		o.log("UI telemetry: network_failures=%d page_errors=%d console_errors=%d storage_patches=%d", len(response.Network), len(response.PageErrors), result.ConsoleErrorCount, len(response.StorageShim))
+	}
+	if artifactPaths != nil {
+		o.log("Artifacts: screenshot=%s console=%s network=%s html=%s raw=%s readme=%s",
+			artifactPaths.Screenshot, artifactPaths.Console, artifactPaths.Network, artifactPaths.HTML, artifactPaths.Raw, artifactPaths.Readme)
+	}
+
 	// Step 11: Persist result
 	o.persistResult(ctx, result)
 

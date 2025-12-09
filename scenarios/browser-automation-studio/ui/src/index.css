@@ -51,8 +51,9 @@
   [data-theme="light"] {
     --flow-bg: 249 248 252;
     --flow-bg-secondary: 244 242 249;
-    --flow-node: 253 252 255;
-    --flow-node-hover: 246 244 251;
+    /* Node surfaces should go light in light mode */
+    --flow-node: 255 255 255;
+    --flow-node-hover: 242 244 248;
     --flow-edge: 148 146 168;
     --flow-accent: 99 102 241;
     --flow-accent-hover: 79 70 229;
@@ -64,8 +65,8 @@
     --flow-success: 22 163 74;
     --flow-warning: 217 119 6;
     --flow-error: 220 38 38;
-    --flow-surface: 253 252 255;
-    --flow-surface-hover: 246 244 251;
+    --flow-surface: 244 246 252;
+    --flow-surface-hover: 238 241 249;
     --scrollbar-bg: 249 248 252;
     --scrollbar-thumb: 214 211 228;
     --scrollbar-thumb-hover: 168 164 192;
