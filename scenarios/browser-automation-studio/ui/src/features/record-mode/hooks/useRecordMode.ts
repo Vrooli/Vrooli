@@ -42,7 +42,7 @@ interface UseRecordModeReturn {
   actions: RecordedAction[];
   isLoading: boolean;
   error: string | null;
-  startRecording: () => Promise<void>;
+  startRecording: (sessionIdOverride?: string) => Promise<void>;
   stopRecording: () => Promise<void>;
   clearActions: () => void;
   deleteAction: (index: number) => void;
@@ -76,7 +76,7 @@ interface UseRecordingTransportReturn {
   isLoading: boolean;
   isReplaying: boolean;
   error: string | null;
-  startRecording: () => Promise<void>;
+  startRecording: (sessionIdOverride?: string) => Promise<void>;
   stopRecording: () => Promise<void>;
   generateWorkflow: (name: string, projectId?: string) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
@@ -211,9 +211,9 @@ function useRecordingTransport({
     };
   }, [isRecording, pollInterval, refreshActions]);
 
-  const startRecording = useCallback(async () => {
-    const currentSessionId = sessionIdRef.current;
-    if (!currentSessionId) {
+  const startRecording = useCallback(async (sessionIdOverride?: string) => {
+    const currentSessionId = sessionIdOverride ?? sessionIdRef.current;
+    if (!currentSessionId || currentSessionId.trim() === '') {
       setError('No session ID provided');
       return;
     }

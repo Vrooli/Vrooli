@@ -24,8 +24,8 @@ interface PlaywrightViewProps {
  */
 export function PlaywrightView({
   sessionId,
-  quality = 60,
-  fps = 4,
+  quality = 50,
+  fps = 3,
   onStreamError,
   refreshToken,
 }: PlaywrightViewProps) {
@@ -35,13 +35,18 @@ export function PlaywrightView({
   const [error, setError] = useState<string | null>(null);
   const lastMoveRef = useRef(0);
   const inFlightRef = useRef(false);
+  const lastFrameRef = useRef<FramePayload | null>(null);
+  const lastSessionRef = useRef<string | null>(null);
 
-  const pollInterval = useMemo(() => Math.max(200, Math.floor(1000 / fps)), [fps]);
+  const pollInterval = useMemo(() => Math.max(300, Math.floor(1000 / fps)), [fps]);
+  const pollIntervalRef = useRef(pollInterval);
+  pollIntervalRef.current = pollInterval;
 
   const fetchFrame = useCallback(async () => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setIsFetching(true);
+    const started = performance.now();
     try {
       const config = await getConfig();
       const endpoint = `${config.API_URL}/recordings/live/${sessionId}/frame?quality=${quality}&t=${Date.now()}`;
@@ -50,8 +55,17 @@ export function PlaywrightView({
         throw new Error(`Frame fetch failed (${res.status})`);
       }
       const data = (await res.json()) as FramePayload;
-      setFrame(data);
-      setError(null);
+      // Preload the image before swapping to avoid flicker.
+      const img = new Image();
+      img.onload = () => {
+        setFrame(data);
+        lastFrameRef.current = data;
+        setError(null);
+      };
+      img.onerror = () => {
+        setError("Failed to decode live frame");
+      };
+      img.src = data.image;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch live frame";
       setError(message);
@@ -61,19 +75,25 @@ export function PlaywrightView({
     } finally {
       setIsFetching(false);
       inFlightRef.current = false;
+      const elapsed = performance.now() - started;
+      // Slow down polling if frames are taking longer than the target interval.
+      if (elapsed > pollInterval) {
+        const dampenedFps = Math.max(1, Math.round(1000 / Math.min(elapsed, 1500)));
+        const nextInterval = Math.max(400, Math.floor(1000 / dampenedFps));
+        pollIntervalRef.current = nextInterval;
+      }
     }
-  }, [fps, onStreamError, quality, sessionId]);
+  }, [fps, onStreamError, quality, sessionId, pollInterval]);
 
   useEffect(() => {
-    setFrame(null);
-    setError(null);
     let cancelled = false;
 
     const tick = async () => {
       if (cancelled) return;
       await fetchFrame();
       if (cancelled) return;
-      setTimeout(tick, pollInterval);
+      const nextInterval = pollIntervalRef.current;
+      setTimeout(tick, nextInterval);
     };
 
     tick();
@@ -82,6 +102,15 @@ export function PlaywrightView({
       cancelled = true;
     };
   }, [fetchFrame, pollInterval, refreshToken]);
+
+  useEffect(() => {
+    if (lastSessionRef.current !== sessionId) {
+      lastSessionRef.current = sessionId;
+      setFrame(null);
+      lastFrameRef.current = null;
+      setError(null);
+    }
+  }, [sessionId]);
 
   const sendInput = useCallback(
     async (payload: unknown) => {
@@ -204,8 +233,12 @@ export function PlaywrightView({
       onKeyDown={handleKey}
       className="relative h-full w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
-      {frame ? (
-        <img src={frame.image} alt="Live Playwright preview" className="w-full h-full object-contain bg-white" />
+      {lastFrameRef.current ? (
+        <img
+          src={(frame ?? lastFrameRef.current)?.image}
+          alt="Live Playwright preview"
+          className="w-full h-full object-contain bg-white"
+        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
           {isFetching ? "Connecting to live session…" : "Waiting for first frame…"}
@@ -214,9 +247,9 @@ export function PlaywrightView({
 
       <div className="absolute left-2 top-2 rounded-full bg-white/90 dark:bg-gray-900/80 px-3 py-1 text-[11px] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm">
         Live Playwright session
-        {frame && (
+        {(frame ?? lastFrameRef.current) && (
           <span className="ml-2 text-gray-500 dark:text-gray-400">
-            {new Date(frame.captured_at).toLocaleTimeString()}
+            {new Date((frame ?? lastFrameRef.current)!.captured_at).toLocaleTimeString()}
           </span>
         )}
       </div>

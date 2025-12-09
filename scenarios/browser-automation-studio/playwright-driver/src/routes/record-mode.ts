@@ -128,6 +128,17 @@ interface FrameResponse {
   captured_at: string;
 }
 
+interface ViewportRequest {
+  width: number;
+  height: number;
+}
+
+interface ViewportResponse {
+  session_id: string;
+  width: number;
+  height: number;
+}
+
 /** Collected actions waiting to be fetched */
 const actionBuffers: Map<string, RecordedAction[]> = new Map();
 
@@ -717,6 +728,49 @@ export async function handleRecordFrame(
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/frame`);
+  }
+}
+
+/**
+ * Update viewport size for the active recording page.
+ *
+ * POST /session/:id/record/viewport
+ */
+export async function handleRecordViewport(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const { width, height } = body as unknown as ViewportRequest;
+
+    if (!width || !height || width <= 0 || height <= 0) {
+      sendJson(res, 400, {
+        error: 'INVALID_VIEWPORT',
+        message: 'width and height must be positive numbers',
+      });
+      return;
+    }
+
+    await session.page.setViewportSize({
+      width: Math.round(width),
+      height: Math.round(height),
+    });
+
+    const viewport = session.page.viewportSize();
+    const response: ViewportResponse = {
+      session_id: sessionId,
+      width: viewport?.width ?? Math.round(width),
+      height: viewport?.height ?? Math.round(height),
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/viewport`);
   }
 }
 

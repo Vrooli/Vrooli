@@ -346,6 +346,21 @@ Updates a download app.
 
 ---
 
+### DELETE /admin/download-apps/{app_key}
+
+Deletes a download app and its installer assets.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+---
+
 ## System
 
 ### POST /admin/reset-demo-data

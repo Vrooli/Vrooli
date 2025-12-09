@@ -11,7 +11,7 @@
  * - Visual polish (loading states, confirmation dialogs)
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { RecordActionsPanel } from './components/RecordActionsPanel';
 import { RecordingHeader } from './components/RecordingHeader';
 import { ErrorBanner, UnstableSelectorsBanner } from './components/RecordModeBanners';
@@ -66,6 +66,7 @@ export function RecordModePage({
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
   const [liveBlocked, setLiveBlocked] = useState(false);
   const [previewMode, setPreviewMode] = usePreviewMode();
+  const viewportSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     isSidebarOpen,
     timelineWidth,
@@ -158,6 +159,38 @@ export function RecordModePage({
     };
   }, [sessionId, previewUrl, ensureSession, previewViewport]);
 
+  useEffect(() => {
+    if (!sessionId || !previewViewport || previewMode !== 'live') {
+      return;
+    }
+
+    if (viewportSyncTimer.current) {
+      clearTimeout(viewportSyncTimer.current);
+    }
+
+    viewportSyncTimer.current = setTimeout(async () => {
+      try {
+        const config = await getConfig();
+        await fetch(`${config.API_URL}/recordings/live/${sessionId}/viewport`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            width: Math.round(previewViewport.width),
+            height: Math.round(previewViewport.height),
+          }),
+        });
+      } catch (err) {
+        console.warn('Failed to sync viewport to recording session', err);
+      }
+    }, 200);
+
+    return () => {
+      if (viewportSyncTimer.current) {
+        clearTimeout(viewportSyncTimer.current);
+      }
+    };
+  }, [previewViewport, previewMode, sessionId]);
+
   const handleStartRecording = useCallback(async () => {
     setPendingStart(true);
     resetSessionError();
@@ -167,7 +200,7 @@ export function RecordModePage({
       return;
     }
     try {
-      await startRecording();
+      await startRecording(ensuredSession);
     } catch (err) {
       console.error('Failed to start recording:', err);
     } finally {

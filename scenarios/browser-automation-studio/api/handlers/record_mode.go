@@ -226,6 +226,12 @@ type RecordingFrameResponse struct {
 	CapturedAt string `json:"captured_at"`
 }
 
+// RecordingViewportRequest updates viewport dimensions.
+type RecordingViewportRequest struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
 const (
 	recordModeTimeout    = 30 * time.Second
 	playwrightDriverEnv  = "PLAYWRIGHT_DRIVER_URL"
@@ -1665,6 +1671,84 @@ func (h *Handler) CaptureRecordingScreenshot(w http.ResponseWriter, r *http.Requ
 
 	var driverResp RecordingScreenshotResponse
 	if err := json.Unmarshal(respBody, &driverResp); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse driver response",
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// UpdateRecordingViewport handles POST /api/v1/recordings/live/{sessionId}/viewport
+// Updates the viewport dimensions for the active recording session.
+func (h *Handler) UpdateRecordingViewport(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var reqBody RecordingViewportRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	if reqBody.Width <= 0 || reqBody.Height <= 0 {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "width and height must be positive integers",
+		}))
+		return
+	}
+
+	driverURL := fmt.Sprintf("%s/session/%s/record/viewport", getPlaywrightDriverURL(), sessionID)
+	jsonBody, _ := json.Marshal(reqBody)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for viewport update")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(body),
+		}))
+		return
+	}
+
+	var driverResp struct {
+		SessionID string `json:"session_id"`
+		Width     int    `json:"width"`
+		Height    int    `json:"height"`
+	}
+	if err := json.Unmarshal(body, &driverResp); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": "Failed to parse driver response",
 		}))

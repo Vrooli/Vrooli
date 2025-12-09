@@ -205,6 +205,7 @@ PUT    /api/v1/admin/settings/stripe
 GET    /api/v1/admin/download-apps
 POST   /api/v1/admin/download-apps
 PUT    /api/v1/admin/download-apps/{app_key}
+DELETE /api/v1/admin/download-apps/{app_key}
 GET    /api/v1/admin/bundles
 PATCH  /api/v1/admin/bundles/{bundle_key}/prices/{price_id}
 GET    /api/v1/admin/branding

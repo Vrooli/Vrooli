@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -98,6 +99,28 @@ func handleAdminSaveDownloadApp(downloads *DownloadService, plans *PlanService) 
 		}
 
 		writeJSON(w, updated)
+	}
+}
+
+func handleAdminDeleteDownloadApp(downloads *DownloadService, plans *PlanService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		appKey := vars["app_key"]
+		if strings.TrimSpace(appKey) == "" {
+			http.Error(w, "app_key path parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		if err := downloads.DeleteApp(plans.BundleKey(), appKey); err != nil {
+			if errors.Is(err, ErrDownloadAppNotFound) {
+				http.Error(w, "download app not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, fmt.Sprintf("failed to delete download app: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		writeJSON(w, map[string]bool{"success": true})
 	}
 }
 

@@ -394,6 +394,26 @@ func (s *DownloadService) UpsertDownloadApp(app DownloadApp) (*DownloadApp, erro
 	return s.GetApp(app.BundleKey, app.AppKey)
 }
 
+// DeleteApp removes a download app and its associated assets.
+func (s *DownloadService) DeleteApp(bundleKey, appKey string) error {
+	bundleKey = strings.TrimSpace(bundleKey)
+	appKey = strings.TrimSpace(appKey)
+	if bundleKey == "" || appKey == "" {
+		return fmt.Errorf("bundle_key and app_key are required")
+	}
+
+	result, err := s.db.Exec(`DELETE FROM download_apps WHERE bundle_key = $1 AND app_key = $2`, bundleKey, appKey)
+	if err != nil {
+		return fmt.Errorf("delete download app: %w", err)
+	}
+
+	if rows, err := result.RowsAffected(); err == nil && rows == 0 {
+		return ErrDownloadAppNotFound
+	}
+
+	return nil
+}
+
 // GetAsset fetches a download artifact by platform.
 func (s *DownloadService) GetAsset(bundleKey, appKey, platform string) (*DownloadAsset, error) {
 	query := `

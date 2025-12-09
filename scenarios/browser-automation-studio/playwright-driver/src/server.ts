@@ -38,6 +38,7 @@ import {
   handleRecordScreenshot,
   handleRecordInput,
   handleRecordFrame,
+  handleRecordViewport,
 } from './routes';
 import { send404, send405, sendError } from './middleware';
 import { createLogger, setLogger, logger, metrics } from './utils';
@@ -167,6 +168,9 @@ async function main() {
       } else if (pathname.match(/^\/session\/[^/]+\/record\/frame$/) && method === 'GET') {
         const sessionId = pathname.split('/')[2];
         await handleRecordFrame(req, res, sessionId, sessionManager, config);
+      } else if (pathname.match(/^\/session\/[^/]+\/record\/viewport$/) && method === 'POST') {
+        const sessionId = pathname.split('/')[2];
+        await handleRecordViewport(req, res, sessionId, sessionManager, config);
       } else if (pathname === '/health' && method !== 'GET') {
         send405(res, ['GET']);
       } else if (pathname === '/session/start' && method !== 'POST') {
