@@ -66,6 +66,20 @@ make test  # All phases: dependencies, structure, CLI, API, UI
 - Secrets: `secrets identify <profile>`, `secrets template <profile> --format env`, `secrets validate <profile>`.
 ```
 
+## Deployment Workflows
+
+For complete step-by-step deployment guides with exact commands and expected outputs:
+
+| Workflow | Description | Guide |
+|----------|-------------|-------|
+| **Quick Start** | Deploy your first scenario in 5 minutes | [Quick Start](docs/guides/quick-start.md) |
+| **Desktop (Tier 2)** | Deploy as Windows/macOS/Linux app | [Desktop Deployment](docs/workflows/desktop-deployment.md) |
+| **Mobile (Tier 3)** | Deploy as iOS/Android app | [Mobile Deployment](docs/workflows/mobile-deployment.md) |
+| **SaaS (Tier 4)** | Deploy to cloud infrastructure | [SaaS Deployment](docs/workflows/saas-deployment.md) |
+| **Troubleshooting** | Common issues and solutions | [Troubleshooting](docs/workflows/troubleshooting.md) |
+
+See [All Workflows](docs/workflows/README.md) for the complete index with navigation by task, component, or tier.
+
 ## Architecture
 
 **Stack**:
@@ -93,16 +107,21 @@ make test  # All phases: dependencies, structure, CLI, API, UI
 | 4 | SaaS/Cloud | DigitalOcean/AWS/bare metal | Score fitness, estimate costs, orchestrate scenario-to-saas |
 | 5 | Enterprise | Hardware appliances with compliance | Validate licensing, enforce approval workflows, orchestrate scenario-to-enterprise |
 
-See `/docs/deployment/README.md` for full tier documentation.
+See [docs/README.md](docs/README.md) for full tier documentation.
 
 ## Documentation
 
+- **[docs/README.md](docs/README.md)**: Deployment documentation hub (authoritative source)
+- **[docs/cli/](docs/cli/README.md)**: CLI command reference
+- **[docs/api/](docs/api/README.md)**: REST API reference
+- **[docs/workflows/](docs/workflows/README.md)**: Step-by-step deployment guides
+- **[docs/guides/](docs/guides/README.md)**: Technical deep-dives (fitness scoring, dependency swapping, secrets)
+- **[docs/tiers/](docs/tiers/README.md)**: Deployment tier reference
 - **PRD.md**: Full operational targets (99 OTs across P0/P1/P2)
 - **requirements/**: Requirements registry (index.json + 14 modules mapping OTs to testable requirements)
 - **docs/RESEARCH.md**: Uniqueness check, integration points, external references
 - **docs/PROGRESS.md**: Implementation progress log
 - **docs/PROBLEMS.md**: Known issues, blockers, deferred decisions
-- **/docs/deployment/**: Deployment hub (tier system, fitness scoring, dependency swapping guides)
 
 ## Status: Initialization Phase
 
