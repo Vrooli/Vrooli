@@ -2,14 +2,17 @@ package scenarios
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 )
 
-// TestingCapabilities mirrors scripts/scenarios/testing/legacy/run-scenario-tests.sh feature detection.
+// TestingCapabilities captures how to run tests for a scenario using Go-native or scenario-local entrypoints.
 type TestingCapabilities struct {
+	Genie     bool             `json:"genie"`
 	HasTests  bool             `json:"hasTests"`
 	Phased    bool             `json:"phased"`
 	Lifecycle bool             `json:"lifecycle"`
@@ -34,6 +37,16 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 	caps := TestingCapabilities{}
 	appRoot := projectRootFromScenario(scenarioDir)
 	scenarioName := filepath.Base(scenarioDir)
+
+	if cmd := detectTestGenieCommand(); len(cmd) > 0 && appRoot != "" {
+		caps.Genie = true
+		caps.Commands = append(caps.Commands, TestingCommand{
+			Type:        "genie",
+			Command:     append(cmd, "execute", scenarioName, "--preset", "smoke"),
+			WorkingDir:  appRoot,
+			Description: "Runs the Go-native test-genie orchestrator (smoke preset).",
+		})
+	}
 	if hasExecutable(filepath.Join(scenarioDir, "test", "run-tests.sh")) {
 		caps.Phased = true
 		caps.Commands = append(caps.Commands, TestingCommand{
@@ -59,14 +72,16 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 		if appRoot != "" {
 			caps.Commands = append(caps.Commands, TestingCommand{
 				Type:        "legacy",
-				Command:     []string{filepath.Join(appRoot, "scripts", "scenarios", "tools", "run-integration-test.sh"), scenarioName},
+				Command:     []string{"vrooli", "test", "scenarios", "--scenario", scenarioName},
 				WorkingDir:  appRoot,
-				Description: "Runs legacy scenario-test.yaml harness (consider migrating).",
+				Description: "Runs legacy scenario-test.yaml harness via vrooli CLI (consider migrating).",
 			})
 		}
 	}
-	caps.HasTests = caps.Phased || caps.Lifecycle || caps.Legacy
+	caps.HasTests = caps.Genie || caps.Phased || caps.Lifecycle || caps.Legacy
 	switch {
+	case caps.Genie:
+		caps.Preferred = "genie"
 	case caps.Phased:
 		caps.Preferred = "phased"
 	case caps.Lifecycle:
@@ -99,7 +114,7 @@ func (caps TestingCapabilities) PreferredCommand() *TestingCommand {
 			return cmd
 		}
 	}
-	for _, kind := range []string{"phased", "lifecycle", "legacy"} {
+	for _, kind := range []string{"genie", "phased", "lifecycle", "legacy"} {
 		if cmd := caps.CommandByType(kind); cmd != nil {
 			return cmd
 		}
@@ -145,6 +160,26 @@ func hasLifecycleTest(path string) bool {
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
+}
+
+func detectTestGenieCommand() []string {
+	if disable := strings.TrimSpace(os.Getenv("TEST_GENIE_DISABLE")); disable != "" {
+		return nil
+	}
+	if custom := strings.TrimSpace(os.Getenv("TEST_GENIE_BIN")); custom != "" {
+		if hasExecutable(custom) {
+			return []string{custom}
+		}
+		return nil
+	}
+	path, err := exec.LookPath("test-genie")
+	if err == nil && path != "" {
+		return []string{path}
+	}
+	if errors.Is(err, exec.ErrDot) {
+		return nil
+	}
+	return nil
 }
 
 func projectRootFromScenario(scenarioDir string) string {

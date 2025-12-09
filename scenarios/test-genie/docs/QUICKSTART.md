@@ -56,27 +56,30 @@ Results are available via:
 
 | Preset | Phases | Time | Use Case |
 |--------|--------|------|----------|
-| **Quick** | Structure, Unit | ~1 min | Fast sanity check |
-| **Smoke** | Structure, Dependencies, Unit, Integration | ~4 min | Pre-push validation |
-| **Comprehensive** | All 7 phases | ~10 min | Full coverage |
+| **Quick** | Structure, Docs, Unit | ~1-2 min | Fast sanity check |
+| **Smoke** | Structure, Lint, Docs, Integration | ~4-5 min | Pre-push validation |
+| **Comprehensive** | All 10 phases | ~10+ min | Full coverage |
 
 See [Presets Reference](reference/presets.md) for details.
 
 ## Test Phases
 
-Test Genie uses a 7-phase testing architecture:
+Test Genie uses a 10-phase testing architecture:
 
 ```
-Structure → Dependencies → Unit → Integration → E2E → Business → Performance
+Structure → Dependencies → Lint → Docs → Smoke → Unit → Integration → Playbooks → Business → Performance
 ```
 
 | Phase | Purpose | Timeout |
 |-------|---------|---------|
 | **Structure** | Validate files and config | 15s |
 | **Dependencies** | Check tools and resources | 30s |
+| **Lint** | Type checking and linting | 30s |
+| **Docs** | Markdown, mermaid, link validation | 60s |
+| **Smoke** | UI load + iframe-bridge | 90s |
 | **Unit** | Run unit tests (Go, Node, Python) | 60s |
 | **Integration** | Test API/UI connectivity | 120s |
-| **E2E** | Execute BAS browser automation workflows | 120s |
+| **Playbooks** | Execute BAS browser automation workflows | 120s |
 | **Business** | Validate workflows and rules | 180s |
 | **Performance** | Run benchmarks (optional) | 60s |
 
@@ -92,8 +95,11 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
 
 ### Phase Documentation
-- [Phases Overview](phases/README.md) - 7-phase architecture with mermaid diagrams
+- [Phases Overview](phases/README.md) - 10-phase architecture with mermaid diagrams
 - [Structure Phase](phases/structure/README.md) - File and CLI validation
+- [Dependencies Phase](phases/dependencies/README.md) - Runtime and tool checks
+- [Lint Phase](phases/lint/README.md) - Type checking and linting
+- [Docs Phase](phases/docs/README.md) - Markdown, mermaid, and link validation
 - [Unit Phase](phases/unit/README.md) - Test runners and coverage
 - [Integration Phase](phases/integration/README.md) - CLI and API testing
 - [Playbooks Phase](phases/playbooks/README.md) - BAS browser automation
@@ -101,7 +107,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Performance Phase](phases/performance/README.md) - Build benchmarks and Lighthouse
 
 ### Guides (How-To)
-- [Phased Testing](guides/phased-testing.md) - Understanding the 7-phase architecture
+- [Phased Testing](guides/phased-testing.md) - Understanding the 10-phase architecture
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests

@@ -3,6 +3,9 @@ package playbooks
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +13,7 @@ import (
 
 	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"test-genie/internal/playbooks/artifacts"
+	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/playbooks/registry"
 	"test-genie/internal/playbooks/seeds"
@@ -159,6 +163,94 @@ func TestRunnerRunSkippedViaEnv(t *testing.T) {
 	}
 }
 
+func TestRunnerRunDisabledViaConfig(t *testing.T) {
+	cfg := config.Default()
+	cfg.Enabled = false
+
+	runner := New(Config{}, WithPlaybooksConfig(cfg))
+	result := runner.Run(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success when disabled via config, got error: %v", result.Error)
+	}
+	if len(result.Observations) == 0 {
+		t.Fatal("expected skip observation when disabled via config")
+	}
+}
+
+func TestEnsureBASUsesConfiguredEndpoint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	cfg := config.Default()
+	cfg.BAS.Endpoint = server.URL
+
+	startCalled := false
+	runner := New(Config{},
+		WithPlaybooksConfig(cfg),
+		WithLogger(io.Discard),
+		WithScenarioStarter(func(ctx context.Context, scenario string) error {
+			startCalled = true
+			return nil
+		}),
+	)
+
+	if err := runner.ensureBAS(context.Background()); err != nil {
+		t.Fatalf("ensureBAS() error = %v", err)
+	}
+	if startCalled {
+		t.Fatal("expected configured endpoint path to skip scenario start")
+	}
+	if runner.basClient == nil {
+		t.Fatal("expected basClient to be initialized")
+	}
+}
+
+func TestApplyExecutionDefaults(t *testing.T) {
+	definition := map[string]any{
+		"flow_definition": map[string]any{
+			"nodes": []any{},
+			"settings": map[string]any{
+				"defaultStepTimeoutMs": 1111,
+				"executionViewport": map[string]any{
+					"height": 720,
+				},
+			},
+		},
+	}
+
+	execCfg := config.ExecutionConfig{
+		DefaultStepTimeoutMs: 2222,
+		Viewport: config.ViewportConfig{
+			Width:  1440,
+			Height: 900,
+		},
+	}
+
+	applyExecutionDefaults(definition, execCfg)
+
+	inner := definition["flow_definition"].(map[string]any)
+	settings := inner["settings"].(map[string]any)
+
+	if settings["defaultStepTimeoutMs"].(int) != 1111 {
+		t.Fatalf("expected existing defaultStepTimeoutMs to remain, got %v", settings["defaultStepTimeoutMs"])
+	}
+
+	viewport := settings["executionViewport"].(map[string]any)
+	if viewport["width"].(int) != 1440 {
+		t.Fatalf("expected width to be set from config, got %v", viewport["width"])
+	}
+	if viewport["height"].(int) != 720 {
+		t.Fatalf("expected existing height to remain, got %v", viewport["height"])
+	}
+}
+
 func TestRunnerRunNoUIButEmptyRegistry(t *testing.T) {
 	// Even without a ui/ directory, the runner should proceed to load the registry.
 	// Playbooks can target any scenario (not just ones with local UI).
@@ -275,7 +367,20 @@ func TestRunnerRunWorkflowSuccess(t *testing.T) {
 		}),
 		WithBASClient(&mockBASClient{
 			executeID: "exec-123",
-			timeline:  []byte(`{"frames": [{"step_type": "navigate"}]}`),
+			timeline: []byte(`{
+				"execution_id": "exec-123",
+				"workflow_id": "wf-1",
+				"status": "EXECUTION_STATUS_COMPLETED",
+				"frames": [
+					{
+						"step_index": 0,
+						"node_id": "n1",
+						"step_type": "STEP_TYPE_NAVIGATE",
+						"status": "STEP_STATUS_COMPLETED",
+						"success": true
+					}
+				]
+			}`),
 		}),
 		WithSeedManager(&mockSeedManager{}),
 		WithArtifactWriter(&mockArtifactWriter{}),
@@ -318,7 +423,20 @@ func TestRunnerRunWorkflowFailure(t *testing.T) {
 		WithBASClient(&mockBASClient{
 			executeID: "exec-123",
 			waitErr:   errors.New("element not found"),
-			timeline:  []byte(`{"frames": []}`),
+			timeline: []byte(`{
+				"execution_id": "exec-123",
+				"workflow_id": "wf-1",
+				"status": "EXECUTION_STATUS_FAILED",
+				"frames": [
+					{
+						"step_index": 0,
+						"node_id": "n1",
+						"step_type": "STEP_TYPE_NAVIGATE",
+						"status": "STEP_STATUS_FAILED",
+						"success": false
+					}
+				]
+			}`),
 		}),
 		WithSeedManager(&mockSeedManager{}),
 		WithArtifactWriter(&mockArtifactWriter{timelinePath: "artifacts/timeline.json"}),
@@ -336,6 +454,66 @@ func TestRunnerRunWorkflowFailure(t *testing.T) {
 	}
 	if result.Results[0].ArtifactPath == "" {
 		t.Error("expected artifact path to be set on failure")
+	}
+}
+
+func TestRunnerRunTimelineParseFailure(t *testing.T) {
+	tempDir := t.TempDir()
+	scenarioDir := tempDir
+	testDir := filepath.Join(tempDir, "test")
+	playbookPath := filepath.Join("test", "playbooks", "capabilities", "flow.json")
+
+	if err := os.MkdirAll(filepath.Join(testDir, "playbooks", "capabilities"), 0o755); err != nil {
+		t.Fatalf("failed to create playbooks dir: %v", err)
+	}
+
+	createTestWorkflow(t, scenarioDir, playbookPath)
+
+	reg := Registry{
+		Playbooks: []Entry{{
+			File:         playbookPath,
+			Description:  "contract check",
+			Order:        "01.01",
+			Requirements: []string{"REQ-1"},
+			Reset:        "none",
+		}},
+	}
+
+	bas := &mockBASClient{
+		executeID: "exec-1",
+		status: &ExecutionStatus{
+			Status: browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		},
+		// Unknown field should trigger strict proto parse failure.
+		timeline: []byte(`{"execution_id":"exec-1","frames":[{"step_index":0,"node_id":"n1","unknown_field":true}]}`),
+	}
+
+	runner := New(Config{
+		ScenarioDir:  scenarioDir,
+		ScenarioName: "test-scenario",
+		TestDir:      testDir,
+		AppRoot:      tempDir,
+	},
+		WithLogger(io.Discard),
+		WithRegistryLoader(&mockRegistryLoader{registry: reg}),
+		WithWorkflowResolver(&mockWorkflowResolver{definition: map[string]any{"nodes": []any{}, "edges": []any{}}}),
+		WithBASClient(bas),
+		WithSeedManager(&mockSeedManager{}),
+		WithArtifactWriter(artifacts.NewWriter(scenarioDir, "test-scenario", tempDir)),
+	)
+
+	result := runner.Run(context.Background())
+	if result.Success {
+		t.Fatal("expected run to fail when timeline parsing fails")
+	}
+	if result.FailureClass != FailureClassExecution {
+		t.Fatalf("expected FailureClassExecution, got %v", result.FailureClass)
+	}
+	if result.Error == nil || !strings.Contains(result.Error.Error(), "timeline parse failed") {
+		t.Fatalf("expected timeline parse failure error, got %v", result.Error)
+	}
+	if len(result.Results) != 1 || result.Results[0].Err == nil {
+		t.Fatalf("expected single failed result with error, got %#v", result.Results)
 	}
 }
 
@@ -560,7 +738,20 @@ func TestRunnerExecutionOutcomeFields(t *testing.T) {
 		}),
 		WithBASClient(&mockBASClient{
 			executeID: "exec-456",
-			timeline:  []byte(`{"frames": [{"step_type": "STEP_TYPE_ASSERT", "status": "STEP_STATUS_COMPLETED", "success": true}]}`),
+			timeline: []byte(`{
+				"execution_id": "exec-456",
+				"workflow_id": "wf-1",
+				"status": "EXECUTION_STATUS_COMPLETED",
+				"frames": [
+					{
+						"step_index": 0,
+						"node_id": "assert-1",
+						"step_type": "STEP_TYPE_ASSERT",
+						"status": "STEP_STATUS_COMPLETED",
+						"success": true
+					}
+				]
+			}`),
 		}),
 		WithSeedManager(&mockSeedManager{}),
 		WithArtifactWriter(&mockArtifactWriter{}),

@@ -146,6 +146,13 @@ vrooli scenario start browser-automation-studio
 | 1 | Workflow assertions failed |
 | 2 | Skipped (runtime/BAS unavailable) |
 
+## Proto Contract Guardrails
+
+The playbooks phase parses BAS timelines with **strict protojson** (`DiscardUnknown=false`). Any BAS response field not defined in `packages/proto/schemas/browser-automation-studio/v1/timeline.proto` will fail the phase. To avoid drift:
+- Update the shared proto first for any new BAS timeline fields, then regenerate (`make -C packages/proto generate`) and run the breaking check (`make -C packages/proto breaking`, baseline `BUF_BASE_BRANCH=master`).
+- Keep golden timeline fixtures in `scenarios/test-genie/api/internal/playbooks/execution/testdata/` passing: `go test ./scenarios/test-genie/api/internal/playbooks/execution -run Golden`.
+- When a parse error occurs, inspect the timeline artifact and re-run Buf breaking to confirm the proto contract matches BAS.
+
 Contract guardrails: Playbooks now treat BAS timeline responses as strict proto contracts. If `/executions/{id}/timeline` contains unknown fields or drifts from the published proto, parsing fails and the phase fails, writing a timeline artifact plus parse error summary under `coverage/automation/<workflow>/`. Update the shared proto or BAS handler when making intentional contract changes.
 
 ## Configuration

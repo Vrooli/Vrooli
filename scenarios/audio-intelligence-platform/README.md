@@ -67,7 +67,7 @@ Default settings in `initialization/configuration/`:
 - `ui-config.json`: Interface customization options
 
 ## Testing
-- `test/run-tests.sh`: Phased orchestration covering structure, dependencies, unit, integration, business, and performance gates
+- `vrooli scenario test audio-intelligence-platform`: Phased orchestration covering structure, dependencies, unit, integration, business, and performance gates
 - `test/phases/test-integration.sh`: Starts the scenario via the lifecycle and validates core API endpoints
 - `cli/audio-intelligence-platform.bats` & `custom-tests.sh`: CLI contracts and custom workflow checks executed during the business phase
 

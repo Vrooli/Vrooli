@@ -121,7 +121,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🧪 Test Genie ready!\\n  🌐 API: http://localhost:${API_PORT}\\n  🖥️  UI: http://localhost:${UI_PORT}\\n  🛠️ CLI: test-genie --help\\n  📦 Queue Postgres URL: ${DATABASE_URL}'",
+          "run": "echo '\ud83e\uddea Test Genie ready!\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83d\udee0\ufe0f CLI: test-genie --help\\n  \ud83d\udce6 Queue Postgres URL: ${DATABASE_URL}'",
           "description": "Display service entrypoints after setup completes"
         }
       ]
@@ -149,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Test Genie running:\\n  🌐 API: http://localhost:${API_PORT}\\n  🖥️  UI: http://localhost:${UI_PORT}\\n  🧪 Execute suites via: curl -X POST http://localhost:${API_PORT}/api/v1/executions'",
+          "run": "echo 'Test Genie running:\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83e\uddea Execute suites via: curl -X POST http://localhost:${API_PORT}/api/v1/executions'",
           "description": "Display scenario URLs for operators"
         }
       ]
@@ -159,7 +159,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
+          "run": "test-genie execute test-genie --preset comprehensive",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

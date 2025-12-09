@@ -39,13 +39,12 @@ type Config struct {
 
 // BASConfig holds Vrooli Ascension connection settings.
 type BASConfig struct {
-	Endpoint        string `json:"endpoint"`
-	TimeoutMs       int    `json:"timeout_ms"`
-	LaunchTimeoutMs int    `json:"launch_timeout_ms"`
-	// Derived timeouts (not in JSON, computed from TimeoutMs)
-	HealthCheckTimeoutMs     int `json:"-"`
-	HealthCheckWaitTimeoutMs int `json:"-"`
-	WorkflowExecutionTimeout int `json:"-"`
+	Endpoint                 string `json:"endpoint"`
+	TimeoutMs                int    `json:"timeout_ms"`
+	LaunchTimeoutMs          int    `json:"launch_timeout_ms"`
+	HealthCheckTimeoutMs     int    `json:"health_check_timeout_ms"`
+	HealthCheckWaitTimeoutMs int    `json:"health_check_wait_timeout_ms"`
+	WorkflowExecutionTimeout int    `json:"workflow_execution_timeout_ms"`
 }
 
 // SeedsConfig holds seed script execution settings.
@@ -208,6 +207,15 @@ func Load(scenarioDir string) (*Config, error) {
 	}
 	if loaded.BAS.LaunchTimeoutMs > 0 {
 		cfg.BAS.LaunchTimeoutMs = loaded.BAS.LaunchTimeoutMs
+	}
+	if loaded.BAS.HealthCheckTimeoutMs > 0 {
+		cfg.BAS.HealthCheckTimeoutMs = loaded.BAS.HealthCheckTimeoutMs
+	}
+	if loaded.BAS.HealthCheckWaitTimeoutMs > 0 {
+		cfg.BAS.HealthCheckWaitTimeoutMs = loaded.BAS.HealthCheckWaitTimeoutMs
+	}
+	if loaded.BAS.WorkflowExecutionTimeout > 0 {
+		cfg.BAS.WorkflowExecutionTimeout = loaded.BAS.WorkflowExecutionTimeout
 	}
 
 	// Seeds config - only override if section exists

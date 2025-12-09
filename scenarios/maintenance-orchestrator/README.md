@@ -171,7 +171,7 @@ The maintenance-orchestrator has comprehensive test coverage:
 make test
 
 # Run specific test phase
-./test/run-tests.sh --phase cli
+test-genie execute maintenance-orchestrator --phases cli
 
 # Run CLI tests directly
 cd cli && bats maintenance-orchestrator.bats

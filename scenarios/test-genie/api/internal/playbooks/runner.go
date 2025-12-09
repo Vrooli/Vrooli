@@ -221,6 +221,15 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
+	// Respect config toggle
+	if r.playbooksConfig != nil && !r.playbooksConfig.Enabled {
+		shared.LogWarn(r.logWriter, "playbooks phase disabled via .vrooli/testing.json (playbooks.enabled=false)")
+		return &RunResult{
+			Success:      true,
+			Observations: []Observation{NewSkipObservation("playbooks phase disabled via .vrooli/testing.json")},
+		}
+	}
+
 	// Log dry-run mode if active
 	if r.playbooksConfig.Execution.DryRun {
 		shared.LogStep(r.logWriter, "[dry-run] validating workflows without execution")
@@ -491,6 +500,9 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 		}
 	}
 
+	// Apply execution defaults from config (viewport, step timeout) before cleaning
+	applyExecutionDefaults(definition, r.playbooksConfig.Execution)
+
 	// Clean definition for BAS
 	cleanDef := workflow.CleanDefinition(definition)
 
@@ -568,10 +580,15 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 	outcome.Duration = time.Since(start)
 
 	// Collect artifacts (both on success and failure for debugging)
-	artifactResult := r.collectWorkflowArtifacts(ctx, entry, executionID, outcome, execErr)
+	artifactResult, parseErr := r.collectWorkflowArtifacts(ctx, entry, executionID, outcome, execErr)
 
-	if execErr != nil {
-		playErr := NewWaitError(entry.File, executionID, execErr)
+	if execErr != nil || parseErr != nil {
+		var playErr *PlaybookExecutionError
+		if parseErr != nil && execErr == nil {
+			playErr = NewArtifactError(entry.File, fmt.Errorf("timeline parse failed: %w", parseErr)).WithExecutionID(executionID)
+		} else {
+			playErr = NewWaitError(entry.File, executionID, execErr)
+		}
 		playErr.Artifacts = ExecutionArtifacts{
 			Timeline: artifactResult.Timeline,
 			Trace:    r.traceWriter.Path(),
@@ -580,7 +597,11 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 		if artifactResult.Proto != nil {
 			playErr.WithTimeline(artifactResult.Proto)
 		}
-		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, executionID, execErr, outcome.Duration))
+		// Provide raw timeline path when parse failed (for diagnostics)
+		if parseErr != nil && playErr.Artifacts.Timeline != "" {
+			playErr.Artifacts.RawTimeline = playErr.Artifacts.Timeline
+		}
+		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, executionID, playErr, outcome.Duration))
 
 		return Result{
 			Entry:        entry,
@@ -603,6 +624,23 @@ func (r *Runner) ensureBAS(ctx context.Context) error {
 		return r.basClient.WaitForHealth(ctx)
 	}
 
+	clientCfg := execution.ClientConfig{
+		Timeout:                  r.playbooksConfig.BAS.Timeout(),
+		HealthCheckWaitTimeout:   r.playbooksConfig.BAS.HealthCheckWaitTimeout(),
+		WorkflowExecutionTimeout: r.playbooksConfig.BAS.WorkflowTimeout(),
+	}
+
+	endpoint := strings.TrimSpace(r.playbooksConfig.BAS.Endpoint)
+	isCustomEndpoint := endpoint != "" && endpoint != config.DefaultBASEndpoint
+	if isCustomEndpoint {
+		shared.LogStep(r.logWriter, "using BAS endpoint from config: %s", endpoint)
+		r.basClient = execution.NewClientWithConfig(endpoint, clientCfg)
+		if err := r.basClient.WaitForHealth(ctx); err != nil {
+			return fmt.Errorf("browser-automation-studio unhealthy at %s: %w", endpoint, err)
+		}
+		return nil
+	}
+
 	// Always start BAS first - vrooli scenario start is idempotent (safe if already running)
 	if r.startScenario != nil {
 		shared.LogStep(r.logWriter, "ensuring browser-automation-studio is running")
@@ -619,20 +657,19 @@ func (r *Runner) ensureBAS(ctx context.Context) error {
 	}
 
 	if err != nil || apiPort == "" {
-		return fmt.Errorf("browser-automation-studio API port unavailable")
+		return fmt.Errorf("browser-automation-studio API port unavailable (tried scenario port resolution)")
 	}
 
 	apiBase := fmt.Sprintf("http://127.0.0.1:%s/api/v1", apiPort)
 
 	// Create client with configured timeouts
-	clientCfg := execution.ClientConfig{
-		Timeout:                  r.playbooksConfig.BAS.Timeout(),
-		HealthCheckWaitTimeout:   r.playbooksConfig.BAS.HealthCheckWaitTimeout(),
-		WorkflowExecutionTimeout: r.playbooksConfig.BAS.WorkflowTimeout(),
-	}
 	r.basClient = execution.NewClientWithConfig(apiBase, clientCfg)
 
-	return r.basClient.WaitForHealth(ctx)
+	if err := r.basClient.WaitForHealth(ctx); err != nil {
+		return fmt.Errorf("browser-automation-studio unhealthy at %s: %w", apiBase, err)
+	}
+
+	return nil
 }
 
 // ensureRequiredScenarios ensures all scenarios referenced via destinationType=scenario are running.
@@ -719,6 +756,9 @@ func (r *Runner) runResolvedValidation(ctx context.Context, reg Registry, uiBase
 				}
 			}
 		}
+
+		// Apply execution defaults from config (viewport, step timeout) before cleaning
+		applyExecutionDefaults(definition, r.playbooksConfig.Execution)
 
 		cleanDef := workflow.CleanDefinition(definition)
 		validationResult, err := r.basClient.ValidateResolved(ctx, cleanDef)
@@ -873,4 +913,41 @@ func convertPreflightToObservations(result *workflow.PreflightResult) []Observat
 	}
 
 	return obs
+}
+
+// applyExecutionDefaults injects execution defaults (viewport, step timeout)
+// into the workflow definition when they are not already specified. This ensures
+// operator-controlled settings from testing.json flow into BAS without editing
+// every workflow JSON.
+func applyExecutionDefaults(definition map[string]any, execCfg config.ExecutionConfig) {
+	if execCfg.DefaultStepTimeoutMs <= 0 && execCfg.Viewport.Width <= 0 && execCfg.Viewport.Height <= 0 {
+		return
+	}
+
+	target := definition
+	if inner, ok := definition["flow_definition"].(map[string]any); ok {
+		target = inner
+	}
+
+	settings, ok := target["settings"].(map[string]any)
+	if !ok {
+		settings = make(map[string]any)
+		target["settings"] = settings
+	}
+
+	if _, ok := settings["defaultStepTimeoutMs"]; !ok && execCfg.DefaultStepTimeoutMs > 0 {
+		settings["defaultStepTimeoutMs"] = execCfg.DefaultStepTimeoutMs
+	}
+
+	viewport, ok := settings["executionViewport"].(map[string]any)
+	if !ok {
+		viewport = make(map[string]any)
+		settings["executionViewport"] = viewport
+	}
+	if _, ok := viewport["width"]; !ok && execCfg.Viewport.Width > 0 {
+		viewport["width"] = execCfg.Viewport.Width
+	}
+	if _, ok := viewport["height"]; !ok && execCfg.Viewport.Height > 0 {
+		viewport["height"] = execCfg.Viewport.Height
+	}
 }

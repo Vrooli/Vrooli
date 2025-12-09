@@ -160,10 +160,10 @@ vrooli scenario test symbol-search
 
 ```bash
 # Run the full phased suite
-./test/run-tests.sh
+vrooli scenario test symbol-search
 
 # Focus on a single phase
-./test/run-tests.sh performance
+test-genie execute symbol-search --phases performance
 ```
 
 ### Database Management

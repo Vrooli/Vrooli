@@ -43,8 +43,7 @@ open http://localhost:$(vrooli scenario port react-component-library UI_PORT)
 make test
 
 # Or run specific phases
-cd test
-./run-tests.sh
+test-genie execute react-component-library --phases structure,unit
 ```
 
 Tests are organized by phase:

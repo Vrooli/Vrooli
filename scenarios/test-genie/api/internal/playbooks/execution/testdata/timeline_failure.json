@@ -1,0 +1,50 @@
+{
+  "execution_id": "exec-fail",
+  "workflow_id": "wf-456",
+  "status": "EXECUTION_STATUS_FAILED",
+  "progress": 60,
+  "started_at": "2024-01-02T00:00:00Z",
+  "completed_at": "2024-01-02T00:00:03Z",
+  "frames": [
+    {
+      "step_index": 0,
+      "node_id": "navigate-1",
+      "step_type": "STEP_TYPE_NAVIGATE",
+      "status": "STEP_STATUS_COMPLETED",
+      "success": true,
+      "duration_ms": 500,
+      "progress": 40,
+      "final_url": "http://example.test/",
+      "dom_snapshot_preview": "<body>after navigate</body>"
+    },
+    {
+      "step_index": 1,
+      "node_id": "assert-1",
+      "step_type": "STEP_TYPE_ASSERT",
+      "status": "STEP_STATUS_FAILED",
+      "success": false,
+      "duration_ms": 300,
+      "error": "text mismatch",
+      "progress": 60,
+      "assertion": {
+        "mode": "text_equals",
+        "selector": "[data-testid='title']",
+        "expected": { "stringValue": "Welcome" },
+        "actual": { "stringValue": "Goodbye" },
+        "success": false,
+        "negated": false,
+        "case_sensitive": true,
+        "message": "title mismatch"
+      }
+    }
+  ],
+  "logs": [
+    {
+      "id": "log-err",
+      "level": "LOG_LEVEL_ERROR",
+      "message": "assertion failed",
+      "step_name": "assert-1",
+      "timestamp": "2024-01-02T00:00:02Z"
+    }
+  ]
+}

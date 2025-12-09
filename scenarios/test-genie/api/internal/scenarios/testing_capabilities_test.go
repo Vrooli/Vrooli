@@ -8,6 +8,9 @@ import (
 )
 
 func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
 	testDir := filepath.Join(dir, "test")
 	if err := os.MkdirAll(testDir, 0o755); err != nil {
@@ -28,6 +31,9 @@ func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
 }
 
 func TestDetectTestingCapabilitiesLifecycle(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
 	manifest := `{"lifecycle":{"test":"./scripts/run.sh"}}`
 	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
@@ -47,6 +53,9 @@ func TestDetectTestingCapabilitiesLifecycle(t *testing.T) {
 }
 
 func TestDetectTestingCapabilitiesLegacy(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "scenario-test.yaml"), []byte("legacy: true"), 0o644); err != nil {
 		t.Fatalf("write scenario-test.yaml: %v", err)
@@ -68,6 +77,9 @@ func TestDetectTestingCapabilitiesLegacy(t *testing.T) {
 }
 
 func TestDetectTestingCapabilitiesMultipleModes(t *testing.T) {
+	t.Setenv("PATH", "")
+	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
 	// Lifecycle + legacy but no phased should prefer lifecycle
 	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
@@ -109,5 +121,33 @@ func TestDetectTestingCapabilitiesMultipleModes(t *testing.T) {
 	}
 	if !foundPhased {
 		t.Fatalf("expected phased command after upgrade, got %#v", caps.Commands)
+	}
+}
+
+func TestDetectTestingCapabilitiesPrefersGenie(t *testing.T) {
+	dir := t.TempDir()
+	// Create fake test-genie binary
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("mkdir bin: %v", err)
+	}
+	binPath := filepath.Join(binDir, "test-genie")
+	mode := os.FileMode(0o755)
+	if runtime.GOOS == "windows" {
+		mode = 0o644
+	}
+	if err := os.WriteFile(binPath, []byte("#!/usr/bin/env bash\nexit 0\n"), mode); err != nil {
+		t.Fatalf("write fake binary: %v", err)
+	}
+	t.Setenv("PATH", binDir)
+	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_DISABLE", "")
+
+	caps := DetectTestingCapabilities(dir)
+	if !caps.Genie || caps.Preferred != "genie" {
+		t.Fatalf("expected genie preference, got %#v", caps)
+	}
+	if len(caps.Commands) == 0 || caps.Commands[0].Type != "genie" {
+		t.Fatalf("expected genie command first, got %#v", caps.Commands)
 	}
 }

@@ -70,7 +70,7 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 
 	var monthly, yearly []*PlanOption
 	for _, price := range prices {
-		if !price.GetDisplayEnabled() {
+		if !price.GetDisplayEnabled() && strings.ToLower(strings.TrimSpace(price.PlanTier)) != "free" {
 			continue
 		}
 		switch price.BillingInterval {

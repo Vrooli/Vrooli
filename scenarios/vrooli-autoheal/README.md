@@ -100,10 +100,10 @@ Health checks and monitored resources/scenarios are configured via:
 make test
 
 # Phased tests
-cd test && ./run-tests.sh
+vrooli scenario test vrooli-autoheal
 
 # Quick developer loop
-cd test && ./run-tests.sh quick
+test-genie execute vrooli-autoheal --preset quick
 ```
 
 ## Documentation

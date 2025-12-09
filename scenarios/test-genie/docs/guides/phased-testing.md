@@ -4,48 +4,51 @@ This guide explains Vrooli's comprehensive phased testing architecture and how t
 
 ## Overview
 
-Vrooli uses a **7-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
+Vrooli uses a **10-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
 
-## The 7-Phase Architecture
+## The 10-Phase Architecture
 
 ```mermaid
 graph TB
     subgraph "Static Phases (No Runtime)"
         P1[Phase 1: Structure<br/>15s<br/>Files & config]
         P2[Phase 2: Dependencies<br/>30s<br/>Packages & resources]
-        P3[Phase 3: Unit<br/>60s<br/>Go, Vitest, Python]
+        P3[Phase 3: Lint<br/>30s<br/>Type checking]
+        P4[Phase 4: Docs<br/>60s<br/>Markdown, links]
     end
 
     subgraph "Runtime Phases (Scenario Running)"
-        P4[Phase 4: Integration<br/>120s<br/>API, CLI, BATS]
-        P5[Phase 5: E2E<br/>120s<br/>BAS browser automation]
-        P6[Phase 6: Business<br/>180s<br/>Requirements & coverage]
-        P7[Phase 7: Performance<br/>60s<br/>Benchmarks & load]
+        P5[Phase 5: Smoke<br/>90s<br/>UI load, iframe-bridge]
+        P6[Phase 6: Unit<br/>60s<br/>Go, Node, Python]
+        P7[Phase 7: Integration<br/>120s<br/>API, CLI, BATS]
+        P8[Phase 8: Playbooks<br/>120s<br/>BAS browser automation]
+        P9[Phase 9: Business<br/>180s<br/>Requirements & coverage]
+        P10[Phase 10: Performance<br/>60s<br/>Benchmarks & load]
     end
 
-    P1 --> P2
-    P2 --> P3
-    P3 --> P4
-    P4 --> P5
-    P5 --> P6
-    P6 --> P7
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
 
     style P1 fill:#fff3e0
     style P2 fill:#f3e5f5
     style P3 fill:#e8f5e9
-    style P4 fill:#fff9c4
-    style P5 fill:#e1f5fe
-    style P6 fill:#ffe0b2
-    style P7 fill:#f8bbd0
+    style P4 fill:#e3f2fd
+    style P5 fill:#fff9c4
+    style P6 fill:#fff3e0
+    style P7 fill:#e1f5fe
+    style P8 fill:#e1f5fe
+    style P9 fill:#ffe0b2
+    style P10 fill:#f8bbd0
 ```
 
 | Phase | Timeout | Purpose | Requires Runtime |
 |-------|---------|---------|------------------|
 | **Structure** | 15s | Validate files and configuration | No |
 | **Dependencies** | 30s | Check tools and resources | No |
+| **Lint** | 30s | Type checking and linting | No |
+| **Docs** | 60s | Validate Markdown, mermaid, links, portability | No |
 | **Unit** | 60s | Run unit tests (Go, Node, Python) | No |
 | **Integration** | 120s | Test API endpoints and CLI commands | Yes |
-| **E2E** | 120s | Execute BAS browser automation workflows | Yes |
+| **Playbooks** | 120s | Execute BAS browser automation workflows | Yes |
 | **Business** | 180s | Validate requirements coverage | Yes |
 | **Performance** | 60s | Run benchmarks (optional) | Yes |
 
@@ -70,9 +73,9 @@ test-genie execute my-scenario --preset comprehensive
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| **Quick** | Structure, Unit | Fast feedback during development |
-| **Smoke** | Structure, Dependencies, Unit, Integration | Pre-push validation |
-| **Comprehensive** | All 7 phases | Full coverage before release |
+| **Quick** | Structure, Docs, Unit | Fast feedback during development |
+| **Smoke** | Structure, Lint, Docs, Integration | Pre-push validation |
+| **Comprehensive** | All 10 phases | Full coverage before release |
 
 See [Presets Reference](../reference/presets.md) for detailed preset definitions.
 
@@ -137,7 +140,30 @@ make logs     # View test logs
 - pnpm not installed
 - Declared resource not available
 
-### Phase 3: Unit Tests
+### Phase 3: Lint
+
+**Purpose**: Run static analysis and type checking to catch errors before runtime.
+
+**Checks**:
+- Go: `golangci-lint` (fallback `go vet`)
+- TypeScript/JavaScript: `tsc --noEmit`, `eslint`
+- Python: `ruff`/`flake8`, optional `mypy`
+
+Warnings are informational; type errors fail. See [Lint Phase](../phases/lint/README.md).
+
+### Phase 4: Docs Validation
+
+**Purpose**: Ensure documentation stays portable and healthy.
+
+**Checks**:
+- Markdown structure (unclosed fences)
+- Mermaid diagram headers + bracket balance
+- Link integrity (local files must exist; external URLs HTTP-checked)
+- Absolute filesystem paths are blocked (`/home/...`, `C:\...`)
+
+See [Docs Phase](../phases/docs/README.md) for configuration options.
+
+### Phase 5: Unit Tests
 
 **Purpose**: Run unit tests for all languages present in the scenario.
 
@@ -154,7 +180,7 @@ make logs     # View test logs
 
 See [Scenario Unit Testing](scenario-unit-testing.md) for writing effective unit tests.
 
-### Phase 4: Integration Tests
+### Phase 6: Integration Tests
 
 **Purpose**: Validate component interactions with running scenario.
 
@@ -178,7 +204,20 @@ curl -f http://localhost:${UI_PORT}
 my-scenario-cli --version
 ```
 
-### Phase 5: Business Logic Tests
+### Phase 7: Playbooks (E2E) Tests
+
+**Purpose**: Validate end-to-end UI workflows via BAS playbooks.
+
+**Requires**: Scenario + BAS running
+
+**Validates**:
+- Declarative browser workflows in `test/playbooks/`
+- Fixture/seeds execution
+- Contract correctness with BAS timeline responses
+
+See [Playbooks Phase](../phases/playbooks/README.md) for authoring guidance.
+
+### Phase 8: Business Logic Tests
 
 **Purpose**: Validate end-to-end workflows and business requirements.
 
@@ -201,7 +240,7 @@ result=$(curl -s "$API_URL/projects/$project_id" | jq -r '.name')
 
 For UI workflows, use [BAS playbooks](ui-testability.md) instead of curl-based testing.
 
-### Phase 6: Performance Tests
+### Phase 9: Performance Tests
 
 **Purpose**: Establish performance baselines and detect regressions.
 

@@ -18,12 +18,12 @@ func (r *Runner) collectWorkflowArtifacts(
 	executionID string,
 	outcome *Outcome,
 	execErr error,
-) *artifacts.WorkflowArtifacts {
+) (*artifacts.WorkflowArtifacts, error) {
 	// Fetch timeline data from BAS
 	timeline, timelineData, fetchErr := r.basClient.GetTimeline(ctx, executionID)
 	if fetchErr != nil {
 		shared.LogWarn(r.logWriter, "failed to fetch timeline for %s: %v", entry.File, fetchErr)
-		return &artifacts.WorkflowArtifacts{}
+		return &artifacts.WorkflowArtifacts{}, nil
 	}
 
 	// Parse timeline for structured data
@@ -75,7 +75,7 @@ func (r *Runner) collectWorkflowArtifacts(
 		// Fallback to legacy timeline-only writing
 		shared.LogWarn(r.logWriter, "artifact writer does not support full artifact collection, using legacy mode")
 		timelinePath, _ := r.artifactWriter.WriteTimeline(entry.File, timelineData)
-		return &artifacts.WorkflowArtifacts{Dir: timelinePath, Timeline: timelinePath}
+		return &artifacts.WorkflowArtifacts{Dir: timelinePath, Timeline: timelinePath}, parseErr
 	}
 
 	// Write all artifacts
@@ -96,7 +96,7 @@ func (r *Runner) collectWorkflowArtifacts(
 		workflowArtifacts.Proto = timeline
 	}
 
-	return workflowArtifacts
+	return workflowArtifacts, parseErr
 }
 
 // getSummaryFromParsed extracts TimelineSummary from parsed timeline.

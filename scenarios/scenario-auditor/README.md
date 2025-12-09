@@ -177,7 +177,7 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 - ✅ Required step ordering and presence
 - ✅ Develop lifecycle includes start-api/start-ui/show-urls conventions
 - ✅ Ports configuration enforces API_PORT 15000-19999 and UI_PORT 35000-39999 ranges
-- ✅ Test lifecycle includes the shared run-tests step (test/run-tests.sh)
+- ✅ Test lifecycle uses the Go orchestrator via test-genie (`vrooli scenario test <scenario>`)
 - ✅ Setup steps cover install-cli, scenario-specific build-api, and show-urls finale
 - ✅ Setup conditions ensure binaries and CLI checks match the scenario name
 - ✅ Lifecycle.health config enforces /health endpoints and http checks
@@ -233,7 +233,6 @@ make test-ui-practices  # UI practices enforcement (ADDED 2025-10-05)
 ### Test Structure
 ```
 test/
-├── run-tests.sh           # Main test runner
 ├── phases/                # Phase-based tests
 │   ├── test-unit.sh       # Unit tests
 │   ├── test-integration.sh # Integration tests

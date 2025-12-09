@@ -156,7 +156,8 @@ Tests are organized into phases:
 - `test-business.sh`: Business logic validation
 - `test-performance.sh`: Performance benchmarks
 
-Run all: `./test/run-tests.sh`
+Run all: `vrooli scenario test app-issue-tracker`
+Run all (Go orchestrator): `vrooli scenario test app-issue-tracker`
 
 ### Lifecycle Management
 Always use the Makefile targets or Vrooli CLI:

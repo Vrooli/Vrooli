@@ -5,6 +5,7 @@ import { useMetrics } from '../../../shared/hooks/useMetrics';
 import { createCheckoutSession, type PlanOption, type PricingOverview } from '../../../shared/api';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 import { normalizeInterval } from '../../../shared/lib/pricingIntervals';
+import { getFallbackLandingConfig } from '../../../shared/lib/fallbackLandingConfig';
 
 interface PricingTier {
   name: string;
@@ -46,10 +47,31 @@ function formatCredits(amount: number, multiplier: number, label: string) {
   return `${value} ${label}`;
 }
 
+function ensureFreeTier(pricing: PricingOverview | null, fallbackPricing: PricingOverview | null): PricingOverview | null {
+  if (!pricing) return fallbackPricing;
+  const hasFree =
+    [...(pricing.monthly ?? []), ...(pricing.yearly ?? [])].some(
+      (p) => typeof p.plan_tier === 'string' && p.plan_tier.toLowerCase() === 'free',
+    );
+  if (hasFree) return pricing;
+  const fallbackFree =
+    [...(fallbackPricing?.monthly ?? []), ...(fallbackPricing?.yearly ?? [])].find(
+      (p) => typeof p.plan_tier === 'string' && p.plan_tier.toLowerCase() === 'free',
+    );
+  if (!fallbackFree) return pricing;
+  const merged: PricingOverview = {
+    ...pricing,
+    monthly: [fallbackFree, ...(pricing.monthly ?? [])],
+    yearly: pricing.yearly ?? [],
+  };
+  return merged;
+}
+
 function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean, interval: 'month' | 'year') {
-  const hasAmount = typeof option.amount_cents === 'number' && option.amount_cents > 0;
-  const isFree = option.amount_cents === 0;
-  const priceLabel = hasAmount ? formatCurrency(option.amount_cents, option.currency) : isFree ? 'Free' : 'Custom';
+  const amount = typeof option.amount_cents === 'number' ? option.amount_cents : 0;
+  const hasAmount = amount > 0;
+  const isFree = amount === 0;
+  const priceLabel = hasAmount ? formatCurrency(amount, option.currency) : isFree ? 'Free' : 'Custom';
   const introAmount = option.intro_amount_cents;
   const metadata = option.metadata || {};
   const metaFeatures = Array.isArray(metadata.features) ? (metadata.features as string[]) : [];
@@ -122,6 +144,9 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   const [stickyDismissed, setStickyDismissed] = useState(false);
   const [redirectingPrice, setRedirectingPrice] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
+
+  const fallbackPricing = useMemo(() => getFallbackLandingConfig().pricing, []);
+  const pricing = useMemo(() => ensureFreeTier(pricingOverview ?? null, fallbackPricing ?? null), [pricingOverview, fallbackPricing]);
 
   const buildDefaultURLs = useMemo(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -238,14 +263,15 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     );
   };
 
-  const bundle = pricingOverview?.bundle;
-  const monthlyPlansRaw = Array.isArray(pricingOverview?.monthly) ? (pricingOverview?.monthly as PlanOption[]) : [];
-  const yearlyPlansRaw = Array.isArray(pricingOverview?.yearly) ? (pricingOverview?.yearly as PlanOption[]) : [];
+  const bundle = pricing?.bundle;
+  const monthlyPlansRaw = Array.isArray(pricing?.monthly) ? (pricing?.monthly as PlanOption[]) : [];
+  const yearlyPlansRaw = Array.isArray(pricing?.yearly) ? (pricing?.yearly as PlanOption[]) : [];
   const monthlyPlans = bundle
     ? monthlyPlansRaw.filter(
         (plan) =>
           !isDemoPlanOption(plan) &&
-          normalizeInterval(plan.billing_interval) === 'month' &&
+          (normalizeInterval(plan.billing_interval) === 'month' ||
+            (typeof plan.plan_tier === 'string' && plan.plan_tier.toLowerCase() === 'free')) &&
           typeof plan.amount_cents === 'number' &&
           plan.amount_cents >= 0,
       )
@@ -278,6 +304,23 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     bundle && yearlyPlans.length > 0
       ? sortByAmount(yearlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0, 'year'))
       : [];
+
+  const freeTier: PricingTier = {
+    name: 'Free Monthly',
+    price: 'Free',
+    description: '50 runs/month with builder and watermark exports',
+    features: ['50 runs/month', 'Builder + replay viewer (watermark)', 'Email support'],
+    cta_text: 'Download',
+    cta_url: '#downloads-section',
+    highlighted: monthlyTiers.length === 0,
+    badge: 'Start free',
+    subtitle: 'Free',
+  };
+
+  const monthlyWithFree =
+    monthlyTiers.length > 0 && monthlyTiers.some((tier) => tier.name.toLowerCase().includes('free'))
+      ? monthlyTiers
+      : [freeTier, ...monthlyTiers];
 
   const fallbackTiers = (content.tiers || [
     {
@@ -368,10 +411,8 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
     ? effectiveInterval === 'yearly'
       ? yearlyTiers.length > 0
         ? yearlyTiers
-        : monthlyTiers
-      : monthlyTiers.length > 0
-        ? monthlyTiers
-        : []
+        : monthlyWithFree
+      : monthlyWithFree
     : fallbackTiers.slice(0, 4);
   const featuredTier = tiersToRender.find((tier) => tier.highlighted) || tiersToRender[0];
 

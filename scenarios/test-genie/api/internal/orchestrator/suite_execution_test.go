@@ -182,10 +182,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 9 {
-			t.Fatalf("expected nine phases, got %d", len(result.Phases))
+		if len(result.Phases) != 10 {
+			t.Fatalf("expected ten phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "dependencies", "lint", "smoke", "unit", "integration", "playbooks", "business", "performance"}
+		expected := []string{"structure", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -442,8 +442,8 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 8 {
-			t.Fatalf("expected eight phases after disabling integration, got %d", len(result.Phases))
+		if len(result.Phases) != 9 {
+			t.Fatalf("expected nine phases after disabling integration, got %d", len(result.Phases))
 		}
 	})
 }

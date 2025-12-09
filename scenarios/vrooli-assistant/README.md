@@ -120,8 +120,8 @@ test/phases/test-performance.sh  # Performance benchmarks
 # Run CLI BATS tests only
 bats cli/vrooli-assistant.bats
 
-# Run all phased tests
-test/run-tests.sh
+# Run all phased tests via Go orchestrator
+vrooli scenario test vrooli-assistant
 ```
 
 ## 🔌 API Endpoints

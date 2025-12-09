@@ -53,6 +53,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description:    "Runs static analysis including linting and type checking for Go, TypeScript, and Python.",
 	})
 	register(Spec{
+		Name:           Docs,
+		Runner:         runDocsPhase,
+		Optional:       false,
+		DefaultTimeout: 60 * time.Second,
+		Description:    "Validates Markdown, mermaid diagrams, links, and portability guards across scenario docs.",
+	})
+	register(Spec{
 		Name:        Smoke,
 		Runner:      runSmokePhase,
 		Optional:    true,

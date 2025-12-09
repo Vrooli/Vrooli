@@ -1,0 +1,67 @@
+{
+  "execution_id": "exec-happy",
+  "workflow_id": "wf-123",
+  "status": "EXECUTION_STATUS_COMPLETED",
+  "progress": 100,
+  "started_at": "2024-01-01T00:00:00Z",
+  "completed_at": "2024-01-01T00:00:05Z",
+  "frames": [
+    {
+      "step_index": 0,
+      "node_id": "navigate-1",
+      "step_type": "STEP_TYPE_NAVIGATE",
+      "status": "STEP_STATUS_COMPLETED",
+      "success": true,
+      "duration_ms": 800,
+      "total_duration_ms": 900,
+      "progress": 50,
+      "started_at": "2024-01-01T00:00:00Z",
+      "completed_at": "2024-01-01T00:00:01Z",
+      "final_url": "http://example.test/",
+      "console_log_count": 1,
+      "network_event_count": 0,
+      "dom_snapshot_preview": "<body>snapshot preview</body>",
+      "dom_snapshot": {
+        "id": "dom-1",
+        "type": "ARTIFACT_TYPE_DOM_SNAPSHOT",
+        "storage_url": "http://localhost:18000/artifacts/dom-1"
+      },
+      "screenshot": {
+        "artifact_id": "ss-1",
+        "url": "http://localhost:18000/screenshots/ss-1",
+        "thumbnail_url": "http://localhost:18000/screenshots/ss-1-thumb",
+        "width": 1280,
+        "height": 720,
+        "content_type": "image/png"
+      }
+    },
+    {
+      "step_index": 1,
+      "node_id": "assert-1",
+      "step_type": "STEP_TYPE_ASSERT",
+      "status": "STEP_STATUS_COMPLETED",
+      "success": true,
+      "duration_ms": 400,
+      "progress": 100,
+      "assertion": {
+        "mode": "text_equals",
+        "selector": "[data-testid='title']",
+        "expected": { "stringValue": "Welcome" },
+        "actual": { "stringValue": "Welcome" },
+        "success": true,
+        "negated": false,
+        "case_sensitive": true,
+        "message": "title matches"
+      }
+    }
+  ],
+  "logs": [
+    {
+      "id": "log-1",
+      "level": "LOG_LEVEL_INFO",
+      "message": "navigated",
+      "step_name": "navigate-1",
+      "timestamp": "2024-01-01T00:00:01Z"
+    }
+  ]
+}

@@ -639,6 +639,7 @@ var phaseDocMapping = map[string][]string{
 	"structure":    {"scenarios/test-genie/docs/phases/structure/README.md"},
 	"dependencies": {"scenarios/test-genie/docs/phases/dependencies/README.md"},
 	"lint":         {"scenarios/test-genie/docs/phases/lint/README.md"},
+	"docs":         {"scenarios/test-genie/docs/phases/docs/README.md"},
 	"smoke":        {"scenarios/test-genie/docs/phases/smoke/README.md"},
 	"unit":         {"scenarios/test-genie/docs/phases/unit/README.md"},
 	"integration":  {"scenarios/test-genie/docs/phases/integration/README.md"},

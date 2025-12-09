@@ -18,7 +18,7 @@ test-genie status --executions
 
 ## What Test Genie Does
 
-- **Executes tests** via 7-phase pipeline (structure → dependencies → unit → integration → e2e → business → performance)
+- **Executes tests** via 10-phase pipeline (structure → dependencies → lint → docs → smoke → unit → integration → playbooks → business → performance)
 - **Tracks requirements** by auto-syncing `[REQ:ID]` tags from test results
 - **Provides APIs** for agent automation (REST + CLI)
 - **Queues test generation** requests for downstream AI agents
@@ -39,9 +39,12 @@ test-genie/
 |-------|---------|---------|
 | Structure | 15s | Validate files, JSON configs |
 | Dependencies | 30s | Check runtimes, tools, resources |
+| Lint | 30s | Type checking and linting |
+| Docs | 60s | Validate Markdown, mermaid, links, portability |
+| Smoke | 90s | UI handshake via iframe-bridge |
 | Unit | 60s | Run Go/Node/Python unit tests |
 | Integration | 120s | Test API endpoints, CLI commands |
-| E2E | 120s | Execute BAS browser automation workflows |
+| Playbooks | 120s | Execute BAS browser automation workflows |
 | Business | 180s | Validate requirements coverage |
 | Performance | 60s | Build time budgets, benchmarks (optional) |
 
@@ -49,9 +52,9 @@ test-genie/
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| `quick` | Structure, Dependencies | Fast sanity check |
-| `smoke` | Structure, Dependencies, Unit | Pre-commit validation |
-| `comprehensive` | All 7 phases | Full CI/CD validation |
+| `quick` | Structure, Docs, Unit | Fast sanity check |
+| `smoke` | Structure, Lint, Docs, Integration | Pre-commit validation |
+| `comprehensive` | All 10 phases | Full CI/CD validation |
 
 ```bash
 test-genie execute my-scenario --preset smoke
@@ -152,7 +155,7 @@ make stop
 Comprehensive docs are in `docs/`:
 
 - [QUICKSTART.md](docs/QUICKSTART.md) - Get started in 5 minutes
-- [Phased Testing Guide](docs/guides/phased-testing.md) - 7-phase architecture
+- [Phased Testing Guide](docs/guides/phased-testing.md) - 10-phase architecture
 - [Requirements Sync](docs/guides/requirements-sync.md) - Auto-tracking from tests
 - [API Reference](docs/reference/api-endpoints.md) - REST API documentation
 - [CLI Reference](docs/reference/cli-commands.md) - CLI command reference

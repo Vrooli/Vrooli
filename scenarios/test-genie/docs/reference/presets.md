@@ -18,9 +18,10 @@ test-genie execute my-scenario --preset quick
 | Phase | Description | Timeout |
 |-------|-------------|---------|
 | Structure | Validates files and config | 15s |
+| Docs | Validates Markdown, mermaid, links | 60s |
 | Unit | Runs unit tests | 60s |
 
-**Total time**: ~75 seconds
+**Total time**: ~2 minutes
 
 **Use when:**
 - Making quick code changes
@@ -46,11 +47,11 @@ test-genie execute my-scenario --preset smoke
 | Phase | Description | Timeout |
 |-------|-------------|---------|
 | Structure | Validates files and config | 15s |
-| Dependencies | Checks resources available | 30s |
-| Unit | Runs unit tests | 60s |
+| Lint | Type checking and linting | 30s |
+| Docs | Validates Markdown, mermaid, links | 60s |
 | Integration | Basic connectivity tests | 120s |
 
-**Total time**: ~4 minutes
+**Total time**: ~4-5 minutes
 
 **Use when:**
 - Before pushing to remote
@@ -76,12 +77,16 @@ test-genie execute my-scenario --preset comprehensive
 |-------|-------------|---------|
 | Structure | Validates files and config | 15s |
 | Dependencies | Checks resources available | 30s |
+| Lint | Type checking and linting | 30s |
+| Docs | Validates Markdown, mermaid, links | 60s |
+| Smoke | UI handshake / iframe-bridge | 90s |
 | Unit | Runs unit tests | 60s |
 | Integration | Full API/UI testing | 120s |
+| Playbooks | BAS browser automation | 120s |
 | Business | End-to-end workflows | 180s |
 | Performance | Benchmarks and load tests | 60s |
 
-**Total time**: ~8 minutes
+**Total time**: ~10+ minutes
 
 **Use when:**
 - Before merging PRs
@@ -98,23 +103,28 @@ test-genie execute my-scenario --preset comprehensive
 graph LR
     subgraph Quick
         Q1[Structure]
-        Q2[Unit]
+        Q2[Docs]
+        Q3[Unit]
     end
 
     subgraph Smoke
         S1[Structure]
-        S2[Dependencies]
-        S3[Unit]
+        S2[Lint]
+        S3[Docs]
         S4[Integration]
     end
 
     subgraph Comprehensive
         C1[Structure]
         C2[Dependencies]
-        C3[Unit]
-        C4[Integration]
-        C5[Business]
-        C6[Performance]
+        C3[Lint]
+        C4[Docs]
+        C5[Smoke]
+        C6[Unit]
+        C7[Integration]
+        C8[Playbooks]
+        C9[Business]
+        C10[Performance]
     end
 
     style Quick fill:#e8f5e9

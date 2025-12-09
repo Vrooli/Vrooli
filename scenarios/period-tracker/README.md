@@ -184,7 +184,7 @@ period-tracker/
 ## Support
 
 For issues, feature requests, or questions:
-- Run `test/run-tests.sh` and review phase summaries in `coverage/phase-results/`
+- Run `vrooli scenario test period-tracker` and review phase summaries in `coverage/phase-results/`
 - Review API logs in api/period-tracker-api.log
 - Verify database connectivity and encryption status
 - Ensure all required resources are healthy

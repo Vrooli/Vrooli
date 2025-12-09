@@ -579,7 +579,7 @@ const handleProjectClick = (projectId) => {
 ## See Also
 
 ### Related Guides
-- [Phases Overview](../phases/README.md) - How UI tests fit into the 7-phase architecture
+- [Phases Overview](../phases/README.md) - How UI tests fit into the 10-phase architecture
 - [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Unit testing with Vitest
 - [Requirements Sync](../phases/business/requirements-sync.md) - Link UI tests to requirements
 

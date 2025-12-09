@@ -44,7 +44,7 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 - Run `browser-automation-studio workflow lint test/playbooks/**/*.json --strict` to perform schema + lint checks via the API. Use `--json` for machine-readable output.
 - Alternatively, run the Go CLI locally: `(cd api && go run ./cmd/workflow-lint --strict ../test/playbooks/**/*.json)` to lint without the Bash CLI
 - The API exposes `POST /api/v1/workflows/validate` so the UI builder and external tooling can validate workflows without running them
-- `./test/run-tests.sh` now invokes the validator before executing any phase; export `WORKFLOW_LINT_STRICT=1` to fail on warnings or leave it unset to treat warnings as advisory. Pass `WORKFLOW_LINT_API=0` to temporarily skip the API-based lint inside the integration phase.
+- `vrooli scenario test browser-automation-studio` now invokes the validator before executing any phase; export `WORKFLOW_LINT_STRICT=1` to fail on warnings or leave it unset to treat warnings as advisory. Pass `WORKFLOW_LINT_API=0` to temporarily skip the API-based lint inside the integration phase.
 - All scenarios automatically lint their `test/playbooks/**/*.json` files via the shared test runner. Set `WORKFLOW_LINT_PRECHECK=0` to skip the preflight entirely when debugging, or `WORKFLOW_LINT_STRICT=1` to promote warnings to errors.
 - Selector references now resolve through `ui/src/consts/selectors.ts`. Use `@selector/<key>` tokens (or `@selector/<dynamicKey>(param=value)` for parameterized selectors like execution filters) in workflows instead of hardcoded `[data-testid="..."]`; the resolver expands them and the validator confirms every selector maps to a registered test id.
 

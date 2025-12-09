@@ -104,6 +104,17 @@ func (h *playbooksTestHarness) writeWorkflow(t *testing.T, relativePath, content
 	}
 }
 
+func (h *playbooksTestHarness) writeTestingJSON(t *testing.T, content string) {
+	t.Helper()
+	configPath := filepath.Join(h.scenarioDir, ".vrooli", "testing.json")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("failed to create .vrooli dir: %v", err)
+	}
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write testing.json: %v", err)
+	}
+}
+
 func (h *playbooksTestHarness) removeUI(t *testing.T) {
 	t.Helper()
 	if err := os.RemoveAll(filepath.Join(h.scenarioDir, "ui")); err != nil {
@@ -479,6 +490,27 @@ func TestRunPlaybooksPhaseDeprecatedPlaybooksFallback(t *testing.T) {
 	// Should succeed with empty playbooks (from deprecated fallback)
 	if report.Err != nil {
 		t.Fatalf("expected success for deprecated playbooks fallback, got error: %v", report.Err)
+	}
+}
+
+func TestRunPlaybooksPhaseDisabledInConfig(t *testing.T) {
+	restoreIso := overrideIsolationManager(&fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	})
+	defer restoreIso()
+	restoreCmd := overrideCommandExecNoop()
+	defer restoreCmd()
+
+	h := newPlaybooksTestHarness(t)
+	h.writeRegistry(t, `{"playbooks": []}`)
+	h.writeTestingJSON(t, `{"playbooks":{"enabled":false}}`)
+
+	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
+	if report.Err != nil {
+		t.Fatalf("expected success when playbooks disabled via config, got error: %v", report.Err)
+	}
+	if len(report.Observations) == 0 || !observationsContain(report.Observations, "disabled") {
+		t.Fatalf("expected skip observation when disabled via config, got %+v", report.Observations)
 	}
 }
 

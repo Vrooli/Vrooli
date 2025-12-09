@@ -150,7 +150,7 @@ math-tools/
 │   │   ├── test-integration.sh  # Integration tests
 │   │   ├── test-performance.sh  # Performance tests
 │   │   └── test-business.sh     # Business logic tests
-│   └── run-tests.sh             # Test orchestrator
+│   └── (run via test-genie)     # Phased orchestration handled by CLI
 ├── Makefile                     # Scenario commands
 ├── PRD.md                       # Product requirements
 ├── PROBLEMS.md                  # Known issues and solutions

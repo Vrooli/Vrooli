@@ -111,9 +111,10 @@ function formatDownloadPlatform(platform?: string) {
 const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
   hero: ({ section }) => <HeroSection content={section.content} />, 
   features: ({ section }) => <FeaturesSection content={section.content} />,
-  pricing: ({ section, config }) => (
-    <PricingSection content={section.content} pricingOverview={config?.pricing} />
-  ),
+  pricing: ({ section, config }) => {
+    // Ensure we always have pricing data; fall back to section content tiers if needed
+    return <PricingSection content={section.content} pricingOverview={config?.pricing} />;
+  },
   cta: ({ section }) => <CTASection content={section.content} />, 
   testimonials: ({ section }) => <TestimonialsSection content={section.content} />,
   faq: ({ section }) => <FAQSection content={section.content} />,

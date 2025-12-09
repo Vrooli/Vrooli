@@ -161,8 +161,7 @@ ai-model-orchestra-controller/
 │   ├── dashboard.css                  # Dashboard styles
 │   ├── dashboard.js                   # Dashboard functionality
 │   └── server.js                      # Static file server
-├── test/                              # Comprehensive test suite
-│   ├── run-tests.sh                   # Main test orchestrator
+├── test/                              # Comprehensive test suite (used by test-genie)
 │   └── phases/                        # Phased testing scripts
 │       ├── test-structure.sh          # Structure validation
 │       ├── test-dependencies.sh       # Dependency checks
@@ -445,18 +444,12 @@ The scenario includes a phased testing framework:
 
 ```bash
 # Run all tests
-make test
-
-# Alternative: Direct test runner
-./test/run-tests.sh
+vrooli scenario test ai-model-orchestra-controller
 
 # Run specific test phases
-./test/run-tests.sh structure dependencies  # Quick validation
-./test/run-tests.sh unit integration       # Core functionality  
-./test/run-tests.sh business performance   # Full validation
-
-# Verbose output
-./test/run-tests.sh all --verbose
+test-genie execute ai-model-orchestra-controller --phases structure,dependencies     # Quick validation
+test-genie execute ai-model-orchestra-controller --phases unit,integration          # Core functionality  
+test-genie execute ai-model-orchestra-controller --phases business,performance      # Full validation
 ```
 
 ### Test Phases
@@ -594,7 +587,7 @@ make stop && make run
 
 - **Go API**: Console output via `vrooli scenario logs ai-model-orchestra-controller`
 - **Scenario Logs**: `vrooli logs ai-model-orchestra-controller`
-- **Test Logs**: `./test/run-tests.sh --verbose`
+- **Test Logs**: `test-genie execute ai-model-orchestra-controller --preset comprehensive`
 - **System Status**: `ai-orchestra health --verbose`
 
 ## 🤝 Contributing

@@ -236,7 +236,7 @@ result, err := service.Validate(ctx, scenarioDir)
 
 ### Related Guides
 - [Business Phase](README.md) - Business phase overview
-- [Phases Overview](../README.md) - 7-phase testing architecture
+- [Phases Overview](../README.md) - 10-phase testing architecture
 - [Test Generation](../../guides/test-generation.md) - AI-powered test creation with `[REQ:ID]` tags
 - [Scenario Unit Testing](../unit/scenario-unit-testing.md) - Writing tagged unit tests
 

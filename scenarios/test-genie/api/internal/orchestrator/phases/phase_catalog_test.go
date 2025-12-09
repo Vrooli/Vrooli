@@ -88,3 +88,20 @@ func TestLintPhaseIsRegistered(t *testing.T) {
 		t.Errorf("lint phase description should mention linting or static analysis, got: %s", lint.Description)
 	}
 }
+
+func TestDocsPhaseIsRegistered(t *testing.T) {
+	catalog := NewDefaultCatalog(time.Minute)
+	docsPhase, ok := catalog.Lookup("docs")
+	if !ok {
+		t.Fatalf("expected docs phase to be registered")
+	}
+	if docsPhase.Runner == nil {
+		t.Fatalf("docs phase should have a runner")
+	}
+	if docsPhase.Optional {
+		t.Fatalf("docs phase should not be optional")
+	}
+	if !strings.Contains(strings.ToLower(docsPhase.Description), "docs") {
+		t.Errorf("docs phase description should mention docs, got: %s", docsPhase.Description)
+	}
+}

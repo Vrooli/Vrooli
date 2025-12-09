@@ -38,6 +38,15 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		playbooksCfg = config.Default()
 	}
 
+	if playbooksCfg != nil && !playbooksCfg.Enabled {
+		shared.LogWarn(logWriter, "playbooks phase disabled via .vrooli/testing.json (playbooks.enabled=false)")
+		return RunReport{
+			Observations: []Observation{
+				NewSkipObservation("playbooks phase disabled via .vrooli/testing.json"),
+			},
+		}
+	}
+
 	retainIsolation := isolation.ShouldRetainFromEnv()
 
 	// Honor skip flag before provisioning isolation or restarting the scenario.

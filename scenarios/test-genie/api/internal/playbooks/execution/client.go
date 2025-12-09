@@ -27,7 +27,8 @@ const (
 
 var (
 	protoJSONUnmarshal = protojson.UnmarshalOptions{
-		DiscardUnknown: true,
+		// Reject unknown fields to catch contract drift with BAS responses.
+		DiscardUnknown: false,
 	}
 	protoJSONMarshal = protojson.MarshalOptions{
 		UseProtoNames:   true, // Use snake_case field names to match BAS expectations
@@ -459,7 +460,7 @@ type TimelineParseError struct {
 }
 
 func (e *TimelineParseError) Error() string {
-	return fmt.Sprintf("failed to parse timeline data (%d bytes): %v", len(e.RawData), e.Cause)
+	return fmt.Sprintf("failed to parse timeline data (%d bytes): %v (check BAS timeline proto contract)", len(e.RawData), e.Cause)
 }
 
 func (e *TimelineParseError) Unwrap() error {

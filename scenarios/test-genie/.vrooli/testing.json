@@ -35,6 +35,21 @@
       "node": {}
     }
   },
+  "docs": {
+    "markdown": { "enabled": true },
+    "mermaid": { "enabled": true, "strict": true },
+    "links": {
+      "enabled": true,
+      "ignore": ["http://localhost:*"],
+      "max_concurrency": 6,
+      "timeout_ms": 5000,
+      "strict_external": false
+    },
+    "absolute_paths": {
+      "enabled": true,
+      "allow": ["/api/"]
+    }
+  },
   "integration": {
     "_comment": "Integration phase configuration. WebSocket URL is derived from API URL following @vrooli/api-base conventions. See: packages/api-base/docs/concepts/websocket-support.md",
     "api": {

@@ -1,6 +1,8 @@
 package execution
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -43,6 +45,18 @@ func TestParseFullTimeline_InvalidJSON(t *testing.T) {
 	}
 	if _, ok := err.(*TimelineParseError); !ok {
 		t.Errorf("expected TimelineParseError, got %T", err)
+	}
+}
+
+func TestParseFullTimeline_UnknownFieldFails(t *testing.T) {
+	data := []byte(`{"execution_id":"exec-123","unknown_field":true}`)
+
+	_, err := ParseFullTimeline(data)
+	if err == nil {
+		t.Fatal("expected error for unknown field")
+	}
+	if _, ok := err.(*TimelineParseError); !ok {
+		t.Fatalf("expected TimelineParseError, got %T", err)
 	}
 }
 
@@ -149,6 +163,50 @@ func TestParseFullTimeline_WithFailedFrame(t *testing.T) {
 	}
 	if parsed.FailedFrame.Error != "element not found" {
 		t.Errorf("expected error 'element not found', got %s", parsed.FailedFrame.Error)
+	}
+}
+
+func TestParseFullTimeline_GoldenHappyFixture(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("testdata", "timeline_happy.json"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	parsed, err := ParseFullTimeline(data)
+	if err != nil {
+		t.Fatalf("unexpected error parsing happy fixture: %v", err)
+	}
+
+	if parsed.Status != "completed" {
+		t.Fatalf("expected status completed, got %s", parsed.Status)
+	}
+	if parsed.Summary.TotalSteps != 2 || parsed.Summary.TotalAsserts != 1 || parsed.Summary.AssertsPassed != 1 {
+		t.Fatalf("unexpected summary: %+v", parsed.Summary)
+	}
+	if parsed.FinalDOMPreview == "" {
+		t.Fatalf("expected dom snapshot preview to be present")
+	}
+}
+
+func TestParseFullTimeline_GoldenFailureFixture(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("testdata", "timeline_failure.json"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	parsed, err := ParseFullTimeline(data)
+	if err != nil {
+		t.Fatalf("unexpected error parsing failure fixture: %v", err)
+	}
+
+	if parsed.Status != "failed" {
+		t.Fatalf("expected status failed, got %s", parsed.Status)
+	}
+	if parsed.FailedFrame == nil || parsed.FailedFrame.NodeID != "assert-1" {
+		t.Fatalf("expected failed frame for assert-1, got %+v", parsed.FailedFrame)
+	}
+	if parsed.Summary.TotalAsserts == 0 || parsed.Summary.AssertsPassed != 0 {
+		t.Fatalf("expected failed assertions to be reflected in summary, got %+v", parsed.Summary)
 	}
 }
 

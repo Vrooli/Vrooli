@@ -154,7 +154,7 @@ vrooli scenario test pregnancy-tracker
 
 For issues or questions:
 - Check the PRD.md for detailed requirements
-- Run `test/run-tests.sh` (or `make test`) to execute the phased test suite
+- Run `vrooli scenario test pregnancy-tracker` (or `make test`) to execute the phased test suite
 - Ensure all required resources are running
 
 ## License

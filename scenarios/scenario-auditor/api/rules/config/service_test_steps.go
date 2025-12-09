@@ -9,8 +9,8 @@ import (
 
 /*
 Rule: Test Lifecycle Steps
-Description: Ensure lifecycle.test.steps runs the standard phased testing script
-Reason: Guarantees scenarios execute the unified test suite for consistent coverage
+Description: Ensure lifecycle.test.steps runs the Go-based test-genie executor
+Reason: Guarantees scenarios execute the unified test suite via the Go orchestrator for consistent coverage
 Category: config
 Severity: high
 Standard: configuration-v1
@@ -88,7 +88,7 @@ Targets: service_json
 </test-case>
 
 <test-case id="missing-required-step" should-fail="true">
-  <description>steps defined but required run-tests step missing</description>
+  <description>steps defined but required test-genie execute step missing</description>
   <input language="json"><![CDATA[
 {
   "lifecycle": {
@@ -104,7 +104,7 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>test/run-tests.sh</expected-message>
+  <expected-message>test-genie execute</expected-message>
 </test-case>
 
 <test-case id="valid-test-steps" should-fail="false">
@@ -117,7 +117,7 @@ Targets: service_json
       "steps": [
         {
           "name": "run-tests",
-          "run": "test/run-tests.sh",
+          "run": "test-genie execute demo --preset comprehensive",
           "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)"
         },
         {
@@ -145,7 +145,7 @@ Targets: service_json
 </test-case>
 
 <test-case id="valid-run-tests-variant" should-fail="false">
-  <description>Accepts commands that prepare the environment before invoking the shared runner</description>
+  <description>Accepts commands that prepare the environment before invoking test-genie</description>
   <input language="json"><![CDATA[
 {
   "lifecycle": {
@@ -153,8 +153,8 @@ Targets: service_json
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && export API_PORT=${API_PORT:-18000} && ./run-tests.sh --all",
-          "description": "Delegate testing to shared runner with environment bootstrap"
+          "run": "cd test && export API_PORT=${API_PORT:-18000} && test-genie execute demo --preset comprehensive",
+          "description": "Delegate testing to Go orchestrator with environment bootstrap"
         }
       ]
     }
@@ -181,11 +181,11 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>test/run-tests.sh</expected-message>
+  <expected-message>test-genie execute</expected-message>
 </test-case>
 
 <test-case id="non-executing-reference" should-fail="true">
-  <description>Reject commands that only mention the runner without executing it</description>
+  <description>Reject commands that only mention test-genie without executing it</description>
   <input language="json"><![CDATA[
 {
   "lifecycle": {
@@ -193,7 +193,7 @@ Targets: service_json
       "steps": [
         {
           "name": "noop",
-          "run": "echo 'test/run-tests.sh would run'",
+          "run": "echo 'test-genie execute demo would run'",
           "description": "Mentions runner without executing it"
         }
       ]
@@ -202,11 +202,11 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>test/run-tests.sh</expected-message>
+  <expected-message>test-genie execute</expected-message>
 </test-case>
 */
 
-// CheckLifecycleTestSteps validates that lifecycle.test.steps includes a step invoking the shared test/run-tests.sh runner.
+// CheckLifecycleTestSteps validates that lifecycle.test.steps includes a step invoking the Go-based test-genie executor.
 func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 	if !shouldCheckLifecycleServiceJSON(filePath) {
 		return nil
@@ -256,7 +256,7 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 
 	if len(steps) == 0 {
 		line := findJSONLine(string(content), "\"steps\"")
-		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps cannot be empty; add a step that invokes test/run-tests.sh")}
+		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps cannot be empty; add a step that invokes test-genie execute")}
 	}
 
 	hasSharedRunner := false
@@ -274,7 +274,7 @@ func CheckLifecycleTestSteps(content []byte, filePath string) []Violation {
 
 	if !hasSharedRunner {
 		line := findJSONLine(string(content), "\"steps\"")
-		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps must include a step that invokes test/run-tests.sh")}
+		return []Violation{newTestStepsViolation(filePath, line, "service.json lifecycle.test.steps must include a step that invokes test-genie execute")}
 	}
 
 	return nil
@@ -305,7 +305,7 @@ func newTestStepsViolation(filePath string, line int, message string) Violation 
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Ensure lifecycle.test.steps invokes the shared test/run-tests.sh runner",
+		Recommendation: "Ensure lifecycle.test.steps invokes the Go-based runner: test-genie execute <scenario> --preset comprehensive",
 		Standard:       "configuration-v1",
 	}
 }
@@ -375,6 +375,7 @@ func executesSharedTestRunner(segment string) bool {
 		"bash": {},
 		"sh":   {},
 		"sudo": {},
+		"npx":  {},
 	}
 
 	if _, ok := wrappers[strings.ToLower(token)]; ok {
@@ -397,14 +398,19 @@ func executesSharedTestRunner(segment string) bool {
 	}
 
 	normalized := strings.ToLower(strings.ReplaceAll(token, "\\", "/"))
-	if normalized == "test/run-tests.sh" || normalized == "./test/run-tests.sh" || normalized == "./run-tests.sh" || normalized == "run-tests.sh" {
-		return true
+	if strings.HasSuffix(normalized, "test-genie") || strings.HasSuffix(normalized, "/test-genie") {
+		return hasExecuteSubcommand(tokens, idx+1)
 	}
 
-	if strings.HasSuffix(normalized, "/test/run-tests.sh") {
-		return true
-	}
+	return false
+}
 
+func hasExecuteSubcommand(tokens []string, start int) bool {
+	for i := start; i < len(tokens); i++ {
+		if strings.EqualFold(tokens[i], "execute") {
+			return true
+		}
+	}
 	return false
 }
 
