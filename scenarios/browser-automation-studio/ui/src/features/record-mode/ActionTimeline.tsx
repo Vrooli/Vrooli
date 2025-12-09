@@ -228,6 +228,11 @@ export function ActionTimeline({
     );
   };
 
+  const shouldWarnOnSelector = (action: RecordedAction) => {
+    // Non-element actions like scroll/navigate/keypress don't need selector warnings.
+    return ['click', 'type', 'select', 'focus', 'hover', 'blur'].includes(action.actionType);
+  };
+
   if (actions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-48 text-gray-500">
@@ -259,6 +264,7 @@ export function ActionTimeline({
         const isExpanded = expandedIndex === index;
         const isEditing = editingIndex === index;
         const confidenceLevel = getConfidenceLevel(action.confidence);
+        const warnable = shouldWarnOnSelector(action);
 
         return (
           <div
@@ -283,10 +289,10 @@ export function ActionTimeline({
               </span>
 
               {/* Label */}
-              <span className="flex-1 text-sm truncate">{getActionLabel(action)}</span>
+              <span className="flex-1 text-sm leading-snug break-words">{getActionLabel(action)}</span>
 
               {/* Confidence indicator */}
-              {action.selector && getConfidenceIndicator(action.confidence)}
+              {warnable && action.selector && getConfidenceIndicator(action.confidence)}
 
               {/* Delete button */}
               {onDeleteAction && !isEditing && (
@@ -321,7 +327,7 @@ export function ActionTimeline({
             {isExpanded && !isEditing && (
               <div className="mt-3 ml-9 space-y-3 text-sm">
                 {/* Unstable selector warning */}
-                {action.selector && confidenceLevel !== 'high' && (
+                {warnable && action.selector && confidenceLevel !== 'high' && (
                   <div className={`p-2 rounded-lg ${
                     confidenceLevel === 'low'
                       ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'

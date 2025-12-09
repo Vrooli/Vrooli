@@ -723,10 +723,6 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 		driverResp.Actions = []RecordedAction{}
 	}
 
-	if pb, err := protoconv.GetActionsToProto(driverResp); err == nil && pb != nil {
-		h.respondProto(w, http.StatusOK, pb)
-		return
-	}
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 

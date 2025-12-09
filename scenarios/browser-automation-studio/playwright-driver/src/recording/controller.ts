@@ -763,6 +763,12 @@ export class RecordModeController {
    * Calculate confidence score for an action based on selector quality.
    */
   private calculateActionConfidence(raw: RawBrowserEvent): number {
+    // Actions like scroll/navigate don't rely on selectors; skip noisy warnings.
+    const actionType = this.normalizeActionType(raw.actionType);
+    if (actionType === 'scroll' || actionType === 'navigate') {
+      return 1;
+    }
+
     if (!raw.selector || !raw.selector.candidates || raw.selector.candidates.length === 0) {
       return 0.5;
     }
@@ -772,7 +778,18 @@ export class RecordModeController {
       (c) => c.value === raw.selector.primary
     );
 
-    return primaryCandidate?.confidence ?? 0.5;
+    if (!primaryCandidate) {
+      return 0.5;
+    }
+
+    // If we found a stable signal (data-testid/id/aria/data-*), bump to a safe floor
+    // to avoid flashing "unstable" warnings on otherwise solid selectors.
+    const strongTypes = ['data-testid', 'id', 'aria', 'data-attr'];
+    if (strongTypes.includes(primaryCandidate.type) && primaryCandidate.confidence < 0.85) {
+      return Math.max(primaryCandidate.confidence, 0.85);
+    }
+
+    return primaryCandidate.confidence ?? 0.5;
   }
 
   /**

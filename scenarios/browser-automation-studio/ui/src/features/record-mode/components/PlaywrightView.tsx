@@ -24,8 +24,8 @@ interface PlaywrightViewProps {
  */
 export function PlaywrightView({
   sessionId,
-  quality = 50,
-  fps = 3,
+  quality = 35,
+  fps = 2,
   onStreamError,
   refreshToken,
 }: PlaywrightViewProps) {
