@@ -127,7 +127,7 @@ curl http://localhost:<port>/health
 1. **Clear cookies** for the domain
 2. **Check API is running** at `/api/v1/health`
 3. **Verify credentials**:
-   - Default: `admin@localhost` / `admin123`
+   - Default: `admin@localhost` / `changeme123` (change via `/admin/profile`)
 
 ### Changes not saving
 

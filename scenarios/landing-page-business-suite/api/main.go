@@ -145,6 +145,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/login", s.handleAdminLogin).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/logout", s.requireAdmin(s.handleAdminLogout)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/session", s.handleAdminSession).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfile)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfileUpdate)).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleGetStripeSettings(s.paymentSettings, s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdmin(handleAdminVerifyStripePrice(s.stripeService))).Methods("GET")
@@ -354,14 +356,11 @@ func seedDefaultData(db *sql.DB) error {
 	}
 
 	// Seed default admin user for local use
-	const defaultAdminEmail = "admin@localhost"
-	const defaultAdminHash = "$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG"
-
 	if _, err := db.Exec(
 		`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)
 		 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
 		defaultAdminEmail,
-		defaultAdminHash,
+		defaultAdminPasswordHash,
 	); err != nil {
 		return fmt.Errorf("failed to seed admin user: %w", err)
 	}

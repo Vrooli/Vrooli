@@ -22,15 +22,16 @@ Authenticates an admin user.
 ```json
 {
   "email": "admin@localhost",
-  "password": "admin123"
+  "password": "changeme123"
 }
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
-  "email": "admin@localhost"
+  "authenticated": true,
+  "email": "admin@localhost",
+  "reset_enabled": false
 }
 ```
 
@@ -67,7 +68,8 @@ Checks if current session is valid.
 ```json
 {
   "authenticated": true,
-  "email": "admin@localhost"
+  "email": "admin@localhost",
+  "reset_enabled": false
 }
 ```
 
@@ -75,9 +77,65 @@ Or when not authenticated:
 ```json
 {
   "authenticated": false,
-  "email": null
+  "email": null,
+  "reset_enabled": false
 }
 ```
+
+---
+
+### GET /admin/profile
+
+Returns the authenticated admin profile and whether defaults are still in use.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "email": "admin@localhost",
+  "is_default_email": true,
+  "is_default_password": true
+}
+```
+
+---
+
+### PUT /admin/profile
+
+Updates the admin email and/or password. `current_password` is required for all changes.
+
+**Authentication:** Admin session required
+
+**Request (update email):**
+```json
+{
+  "current_password": "changeme123",
+  "new_email": "owner@example.com"
+}
+```
+
+**Request (update password):**
+```json
+{
+  "current_password": "changeme123",
+  "new_password": "StrongerPass123!"
+}
+```
+
+**Response:**
+```json
+{
+  "email": "owner@example.com",
+  "is_default_email": false,
+  "is_default_password": false
+}
+```
+
+**Errors:**
+- `400 Bad Request` - Missing fields or weak password
+- `401 Unauthorized` - Current password invalid
+- `409 Conflict` - Email already in use
 
 ---
 

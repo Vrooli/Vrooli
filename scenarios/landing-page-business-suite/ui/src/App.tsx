@@ -15,6 +15,7 @@ import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSetting
 import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 import { CheckoutPage } from './surfaces/public-landing/routes/CheckoutPage';
+import { ProfileSettings } from './surfaces/admin-portal/routes/ProfileSettings';
 
 export default function App() {
   return (
@@ -83,6 +84,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <BrandingSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfileSettings />
                 </ProtectedRoute>
               }
             />

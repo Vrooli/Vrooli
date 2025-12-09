@@ -108,10 +108,10 @@ pnpm run dev
 
 ```
 Email: admin@localhost
-Password: admin123
+Password: changeme123
 ```
 
-**Change these immediately in production!**
+Visit `/admin/profile` after your first login to change the email and rotate the password. This removes the seeded default credentials from your deployment.
 
 ---
 

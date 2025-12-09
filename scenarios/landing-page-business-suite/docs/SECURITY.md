@@ -82,25 +82,15 @@ On first run, a default admin account is seeded:
 | Field | Value |
 |-------|-------|
 | Email | `admin@localhost` |
-| Password | `admin123` |
+| Password | `changeme123` |
 
-**⚠️ CRITICAL: Change the default password immediately in production!**
+**⚠️ CRITICAL: Change the default email and password immediately in production!**
 
-```sql
--- Update admin password (hash generated with bcrypt)
-UPDATE admin_users
-SET password_hash = '$2a$10$<your-new-hash>'
-WHERE email = 'admin@localhost';
-```
+Use the admin portal ( `/admin/profile` ) to rotate credentials:
+- Enter your current password, provide a new email, and save.
+- Enter your current password, choose a strong new password (12+ chars, letters and numbers), and save.
 
-Generate a new hash:
-```bash
-# Using htpasswd
-htpasswd -bnBC 10 "" 'YourNewSecurePassword' | tr -d ':\n'
-
-# Or via Go
-go run -e 'fmt.Println(bcrypt.GenerateFromPassword([]byte("YourNewPassword"), 10))'
-```
+The change is applied to the live session immediately; the default hash is removed from the database.
 
 ---
 
@@ -353,7 +343,7 @@ DATABASE_URL=postgres://user:pass@host:5432/db?sslmode=require
 
 ### Pre-Deployment
 
-- [ ] **Change default admin password** - `admin@localhost` / `admin123` must be changed
+- [ ] **Change default admin password** - `admin@localhost` / `changeme123` must be changed via `/admin/profile`
 - [ ] **Set SESSION_SECRET** - Generate cryptographically random 32+ byte key
 - [ ] **Enable HTTPS** - All traffic must be encrypted
 - [ ] **Set Secure cookie flag** - Modify `auth.go` line 99: `session.Options.Secure = true`

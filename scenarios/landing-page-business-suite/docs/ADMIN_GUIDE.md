@@ -23,10 +23,10 @@ The admin portal is **not linked** from the public landing page for security.
 
 ```
 Email: admin@localhost
-Password: admin123
+Password: changeme123
 ```
 
-> **Important**: Change these credentials immediately in production!
+-> **Important**: Change these credentials immediately in production via the **Profile** page (`/admin/profile`) to remove seeded defaults.
 
 ---
 

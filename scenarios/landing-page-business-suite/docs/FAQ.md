@@ -102,22 +102,22 @@ Navigate to `/admin` on your landing page URL. It's not linked from the public p
 
 ```
 Email: admin@localhost
-Password: admin123
+Password: changeme123
 ```
 
-**Change these immediately in production!**
+**Change these immediately in production via `/admin/profile`.**
 
 ### Can I have multiple admin users?
 
 Not currently. Single admin user per landing page. Multi-user support is not yet implemented.
 
-### How do I change the admin password?
+### How do I change the admin email or password?
 
-Currently requires database update:
-```sql
--- Generate new bcrypt hash and update
-UPDATE admin_users SET password_hash = '<new-hash>' WHERE email = 'admin@localhost';
-```
+Log into the admin portal and open **Profile** ( `/admin/profile` ):
+- Enter your current password, set a new email, and save.
+- Enter your current password plus a new 12+ character password (letters and numbers), then save.
+
+This updates the active session immediately and removes the default credentials.
 
 ---
 
