@@ -63,6 +63,7 @@ export function RecordModePage({
   const [replayResults, setReplayResults] = useState<ReplayPreviewResponse | null>(null);
   const [replayError, setReplayError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
   const [liveBlocked, setLiveBlocked] = useState(false);
   const [previewMode, setPreviewMode] = usePreviewMode();
   const {
@@ -133,7 +134,7 @@ export function RecordModePage({
 
     const syncPreviewToSession = async () => {
       try {
-        const activeSessionId = sessionId ?? (await ensureSession());
+        const activeSessionId = sessionId ?? (await ensureSession(previewViewport));
         if (!activeSessionId || cancelled) return;
 
         const config = await getConfig();
@@ -155,12 +156,12 @@ export function RecordModePage({
       cancelled = true;
       abortController.abort();
     };
-  }, [sessionId, previewUrl, ensureSession]);
+  }, [sessionId, previewUrl, ensureSession, previewViewport]);
 
   const handleStartRecording = useCallback(async () => {
     setPendingStart(true);
     resetSessionError();
-    const ensuredSession = await ensureSession();
+    const ensuredSession = await ensureSession(previewViewport);
     if (!ensuredSession) {
       setPendingStart(false);
       return;
@@ -301,6 +302,7 @@ export function RecordModePage({
               setPreviewUrl(url);
               setLiveBlocked(false);
             }}
+            onViewportChange={(size) => setPreviewViewport(size)}
             snapshot={snapshotState}
             onLiveBlocked={() => {
               setLiveBlocked(true);

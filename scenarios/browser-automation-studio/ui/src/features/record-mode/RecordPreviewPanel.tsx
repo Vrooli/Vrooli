@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RecordedAction } from './types';
 import type { PreviewMode } from './hooks/usePreviewMode';
 import type { SnapshotPreviewState } from './hooks/useSnapshotPreview';
@@ -13,6 +13,7 @@ interface RecordPreviewPanelProps {
   onLiveBlocked: () => void;
   actions: RecordedAction[];
   sessionId?: string | null;
+  onViewportChange?: (size: { width: number; height: number }) => void;
 }
 
 export function RecordPreviewPanel({
@@ -24,6 +25,7 @@ export function RecordPreviewPanel({
   onLiveBlocked,
   actions,
   sessionId,
+  onViewportChange,
 }: RecordPreviewPanelProps) {
   const lastUrl = useMemo(() => {
     if (actions.length === 0) return '';
@@ -34,6 +36,8 @@ export function RecordPreviewPanel({
 
   const [urlInput, setUrlInput] = useState(previewUrl);
   const [liveRefreshToken, setLiveRefreshToken] = useState(0);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const lastReportedViewportRef = useRef<{ width: number; height: number } | null>(null);
 
   // Keep input in sync with upstream changes
   useEffect(() => {
@@ -49,6 +53,32 @@ export function RecordPreviewPanel({
     }, 400);
     return () => clearTimeout(debounce);
   }, [urlInput, previewUrl, onPreviewUrlChange]);
+
+  // Observe preview container size and notify parent for viewport sizing.
+  useEffect(() => {
+    const node = previewContainerRef.current;
+    if (!node) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry.contentRect.width;
+      const height = entry.contentRect.height;
+      if (width <= 0 || height <= 0) return;
+
+      const size = { width, height };
+      const prev = lastReportedViewportRef.current;
+      if (prev && Math.abs(prev.width - width) < 1 && Math.abs(prev.height - height) < 1) {
+        return;
+      }
+      lastReportedViewportRef.current = size;
+      if (onViewportChange) {
+        onViewportChange(size);
+      }
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [previewContainerRef, onViewportChange]);
 
   return (
     <div className="flex flex-col h-full">
@@ -97,7 +127,7 @@ export function RecordPreviewPanel({
           Recording session is synced to this URL. Interactions are executed in the Playwright browser session.
         </div>
       )}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden" ref={previewContainerRef}>
         {mode === 'live' ? (
           sessionId ? (
             effectiveUrl ? (

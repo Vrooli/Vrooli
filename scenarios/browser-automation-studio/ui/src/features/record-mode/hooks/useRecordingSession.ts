@@ -7,11 +7,16 @@ interface UseRecordingSessionOptions {
   onSessionReady?: (sessionId: string) => void;
 }
 
+interface ViewportSize {
+  width: number;
+  height: number;
+}
+
 interface UseRecordingSessionReturn {
   sessionId: string | null;
   isCreatingSession: boolean;
   sessionError: string | null;
-  ensureSession: () => Promise<string | null>;
+  ensureSession: (viewport?: ViewportSize | null) => Promise<string | null>;
   resetSessionError: () => void;
 }
 
@@ -28,7 +33,7 @@ export function useRecordingSession({
     setSessionError(null);
   }, [initialSessionId]);
 
-  const ensureSession = useCallback(async (): Promise<string | null> => {
+  const ensureSession = useCallback(async (viewport?: ViewportSize | null): Promise<string | null> => {
     if (sessionId) {
       return sessionId;
     }
@@ -42,8 +47,8 @@ export function useRecordingSession({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          viewport_width: 1280,
-          viewport_height: 720,
+          viewport_width: viewport?.width && viewport.width > 0 ? Math.round(viewport.width) : 1280,
+          viewport_height: viewport?.height && viewport.height > 0 ? Math.round(viewport.height) : 720,
         }),
       });
 

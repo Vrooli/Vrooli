@@ -87,11 +87,15 @@ export function PlaywrightView({
     async (payload: unknown) => {
       try {
         const config = await getConfig();
-        await fetch(`${config.API_URL}/recordings/live/${sessionId}/input`, {
+        const res = await fetch(`${config.API_URL}/recordings/live/${sessionId}/input`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `Input dispatch failed (${res.status})`);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to forward input";
         setError(message);
@@ -107,11 +111,20 @@ export function PlaywrightView({
     (clientX: number, clientY: number) => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect || !frame?.width || !frame?.height) return { x: 0, y: 0 };
-      const xRatio = frame.width / rect.width;
-      const yRatio = frame.height / rect.height;
+      const scale = Math.min(rect.width / frame.width, rect.height / frame.height);
+      const displayWidth = frame.width * scale;
+      const displayHeight = frame.height * scale;
+      const offsetX = (rect.width - displayWidth) / 2;
+      const offsetY = (rect.height - displayHeight) / 2;
+      const relativeX = clientX - rect.left - offsetX;
+      const relativeY = clientY - rect.top - offsetY;
+      const clampedX = Math.max(0, Math.min(displayWidth, relativeX));
+      const clampedY = Math.max(0, Math.min(displayHeight, relativeY));
+      const xRatio = frame.width / displayWidth;
+      const yRatio = frame.height / displayHeight;
       return {
-        x: (clientX - rect.left) * xRatio,
-        y: (clientY - rect.top) * yRatio,
+        x: clampedX * xRatio,
+        y: clampedY * yRatio,
       };
     },
     [frame?.height, frame?.width]

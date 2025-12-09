@@ -193,13 +193,14 @@ function useRecordingTransport({
   }, [lastMessage, onActionsReceived, setActionsWithSync]);
 
   useEffect(() => {
-    const shouldPoll = isRecording && (pollInterval ?? 0) > 0 && (!useWebSocketUpdates || !isConnected);
+    const shouldPoll = isRecording && (pollInterval ?? 0) > 0;
+    const intervalMs = pollInterval && pollInterval > 0 ? pollInterval : 2000;
 
     if (shouldPoll) {
       pollTimerRef.current = setInterval(() => {
         void refreshActions();
-      }, pollInterval);
-      console.log('[useRecordMode] Started fallback polling');
+      }, intervalMs);
+      console.log('[useRecordMode] Started action polling');
     }
 
     return () => {
@@ -208,7 +209,7 @@ function useRecordingTransport({
         pollTimerRef.current = null;
       }
     };
-  }, [isRecording, pollInterval, refreshActions, useWebSocketUpdates, isConnected]);
+  }, [isRecording, pollInterval, refreshActions]);
 
   const startRecording = useCallback(async () => {
     const currentSessionId = sessionIdRef.current;
