@@ -37,7 +37,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
               border-b-2 -mb-[2px]
               ${
                 isActive
-                  ? 'text-white border-flow-accent'
+                  ? 'text-surface border-flow-accent'
                   : 'text-gray-400 border-transparent hover:text-gray-200 hover:border-gray-600'
               }
             `}

@@ -47,7 +47,6 @@
   }
 
   /* Light theme - RGB values for Tailwind opacity support */
-  /* Uses subtle purple tint for brand cohesion and warmth */
   [data-theme="light"] {
     --flow-bg: 249 248 252;
     --flow-bg-secondary: 244 242 249;
@@ -71,8 +70,7 @@
     --scrollbar-thumb: 214 211 228;
     --scrollbar-thumb-hover: 168 164 192;
 
-    /* Light theme: invert gray scale semantically
-       Dark backgrounds become light, light text becomes dark */
+    /* Light theme: invert gray scale so existing gray-* usages become light surfaces */
     --gray-50: 3 7 18;
     --gray-100: 17 24 39;
     --gray-200: 31 41 55;
@@ -85,9 +83,8 @@
     --gray-900: 241 245 249;
     --gray-950: 248 250 252;
 
-    /* White becomes dark for text in light mode */
-    --color-white: 15 23 42;
-    /* Black stays black for overlays (or slightly lighter for better aesthetics) */
+    /* White stays white; black stays black */
+    --color-white: 255 255 255;
     --color-black: 0 0 0;
   }
 
@@ -222,6 +219,17 @@
 }
 
 @layer components {
+  /* Theme-aware text utilities */
+  .text-surface {
+    color: rgb(var(--flow-text));
+  }
+  .text-subtle {
+    color: rgb(var(--flow-text-secondary));
+  }
+  .text-muted {
+    color: rgb(var(--flow-text-muted));
+  }
+
   .workflow-node {
     @apply bg-flow-node border border-gray-700 rounded-lg min-w-[200px] shadow-lg hover:shadow-xl transition-all hover:border-flow-accent;
     padding: var(--space-3);
@@ -407,13 +415,13 @@
   }
 
   .btn-ghost {
-    @apply hover:bg-gray-800 active:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply hover:bg-gray-800 active:bg-gray-700 text-gray-400 hover:text-surface rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 disabled:opacity-50 disabled:cursor-not-allowed;
     padding: var(--space-2) var(--space-3);
   }
 
   /* Input focus states */
   .input-field {
-    @apply bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 transition-all duration-150 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/30 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-flow-node border border-gray-700 rounded-lg text-surface placeholder-gray-500 transition-all duration-150 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/30 disabled:opacity-50 disabled:cursor-not-allowed;
     padding: var(--space-2) var(--space-3);
   }
 

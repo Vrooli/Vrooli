@@ -805,7 +805,7 @@ function ActiveExecutionViewer({
         <div className="flex items-center gap-3">
           {getStatusIcon()}
           <div>
-            <div className="text-sm font-medium text-white">
+            <div className="text-sm font-medium text-surface">
               Execution #{execution.id.slice(0, 8)}
             </div>
             <div
@@ -952,7 +952,7 @@ function ActiveExecutionViewer({
               data-testid={selectors.replay.player}
             >
               {!hasTimeline && (
-                <div className="rounded-lg border border-dashed border-slate-700/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-200/80">
+                <div className="rounded-lg border border-dashed border-flow-border/70 bg-flow-node/70 px-4 py-3 text-sm text-flow-text-secondary">
                   Replay frames stream in as each action runs. Leave this tab open
                   to tailor the final cut in real time.
                 </div>
@@ -983,7 +983,7 @@ function ActiveExecutionViewer({
                 </div>
               )}
               <ReplayCustomizationPanel controller={replayCustomization} />
-              <div className="relative w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 shadow-[0_25px_70px_rgba(15,23,42,0.45)]">
+              <div className="relative w-full overflow-hidden rounded-2xl border border-flow-border bg-flow-node/70 shadow-[0_25px_70px_rgba(0,0,0,0.35)]">
                 <iframe
                   key={execution.id}
                   ref={(node) => {
@@ -1000,8 +1000,8 @@ function ActiveExecutionViewer({
                   allow="clipboard-read; clipboard-write"
                 />
                 {(isMovieSpecLoading || !isComposerReady) && !movieSpecError && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/55">
-                    <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50">
+                    <span className="text-xs uppercase tracking-[0.3em] text-flow-text-muted">
                       {isMovieSpecLoading
                         ? "Loading replay spec…"
                         : "Initialising player…"}
@@ -1009,17 +1009,17 @@ function ActiveExecutionViewer({
                   </div>
                 )}
                 {movieSpecError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-950/65 p-6 text-center">
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-6 py-4 text-sm text-slate-200 shadow-[0_15px_45px_rgba(15,23,42,0.5)]">
-                      <div className="mb-1 font-semibold text-slate-100">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-6 text-center">
+                    <div className="rounded-xl border border-flow-border bg-flow-node/80 px-6 py-4 text-sm text-flow-text shadow-[0_15px_45px_rgba(0,0,0,0.4)]">
+                      <div className="mb-1 font-semibold text-flow-text">
                         Failed to load replay spec
                       </div>
-                      <div className="text-xs text-slate-300/80">
+                      <div className="text-xs text-flow-text-secondary">
                         {movieSpecError}
                       </div>
                       {(previewMetrics.capturedFrames > 0 ||
                         previewMetrics.totalDurationMs > 0) && (
-                        <div className="mt-3 text-[11px] text-slate-400">
+                        <div className="mt-3 text-[11px] text-flow-text-muted">
                           {previewMetrics.capturedFrames > 0 && (
                             <span>
                               {formatCapturedLabel(
@@ -1043,7 +1043,7 @@ function ActiveExecutionViewer({
                         </div>
                       )}
                       {activeSpecId && (
-                        <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+                        <div className="mt-1 text-[10px] uppercase tracking-[0.24em] text-flow-text-muted">
                           Spec {activeSpecId.slice(0, 8)}
                         </div>
                       )}
@@ -1101,11 +1101,11 @@ function ActiveExecutionViewer({
                         )}
                         data-testid={selectors.timeline.frame}
                       >
-                        <div className="bg-slate-900/80 px-3 py-2 flex items-center justify-between text-xs text-slate-300">
+                        <div className="bg-flow-node/80 px-3 py-2 flex items-center justify-between text-xs text-flow-text-secondary">
                           <span className="truncate font-medium">
                             {screenshot.stepName}
                           </span>
-                          <span className="text-slate-400">
+                          <span className="text-flow-text-muted">
                             {format(screenshot.timestamp, "HH:mm:ss.SSS")}
                           </span>
                         </div>
@@ -1312,8 +1312,8 @@ function EmptyExecutionViewer({
   const renderEmptyTab = (title: string, description: string) => (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       <div className="max-w-md space-y-2">
-        <h3 className="text-lg font-semibold text-white">{title}</h3>
-        <p className="text-sm text-slate-400">{description}</p>
+        <h3 className="text-lg font-semibold text-surface">{title}</h3>
+        <p className="text-sm text-flow-text-muted">{description}</p>
       </div>
       {renderStartButton({ variant: "large" })}
     </div>
@@ -1325,7 +1325,7 @@ function EmptyExecutionViewer({
         <div className="flex items-center gap-3">
           <PlayCircle size={20} className="text-flow-accent" />
           <div>
-            <div className="text-sm font-medium text-white">{workflowName}</div>
+            <div className="text-sm font-medium text-surface">{workflowName}</div>
             <div className="text-xs text-gray-500">
               Execution viewer ready — no runs started yet
             </div>
@@ -1358,8 +1358,8 @@ function EmptyExecutionViewer({
           data-testid={selectors.executions.tabs.replay}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "replay"
-              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
-              : "text-gray-400 hover:text-white"
+              ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
+              : "text-subtle hover:text-surface"
           }`}
           onClick={() => setActiveTab("replay")}
         >
@@ -1370,8 +1370,8 @@ function EmptyExecutionViewer({
           data-testid={selectors.executions.tabs.screenshots}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "screenshots"
-              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
-              : "text-gray-400 hover:text-white"
+              ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
+              : "text-subtle hover:text-surface"
           }`}
           onClick={() => setActiveTab("screenshots")}
         >
@@ -1382,8 +1382,8 @@ function EmptyExecutionViewer({
           data-testid={selectors.executions.tabs.logs}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "logs"
-              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
-              : "text-gray-400 hover:text-white"
+              ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
+              : "text-subtle hover:text-surface"
           }`}
           onClick={() => setActiveTab("logs")}
         >
@@ -1395,8 +1395,8 @@ function EmptyExecutionViewer({
             data-testid={selectors.executions.tabs.executions}
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
               activeTab === "executions"
-                ? "bg-flow-bg text-white border-b-2 border-flow-accent"
-                : "text-gray-400 hover:text-white"
+                ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
+                : "text-subtle hover:text-surface"
             }`}
             onClick={() => setActiveTab("executions")}
           >
@@ -1426,10 +1426,10 @@ function EmptyExecutionViewer({
           <div className="flex-1 overflow-auto p-4 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-medium text-white">
+                <h3 className="text-sm font-medium text-surface">
                   Execution history
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-flow-text-muted">
                   Select a past execution to inspect its replay, screenshots,
                   and logs.
                 </p>

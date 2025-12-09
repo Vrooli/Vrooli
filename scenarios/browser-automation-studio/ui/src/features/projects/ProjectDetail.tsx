@@ -819,7 +819,7 @@ function ProjectDetail({
                       e.stopPropagation();
                       toggleWorkflowSelection(workflow.id);
                     }}
-                    className="text-gray-300 hover:text-white"
+                    className="text-subtle hover:text-surface"
                     title={isSelected ? "Deselect workflow" : "Select workflow"}
                     aria-label={
                       isSelected ? "Deselect workflow" : "Select workflow"
@@ -835,7 +835,7 @@ function ProjectDetail({
                   <FileCode size={14} className="text-green-400" />
                 )}
                 <span
-                  className={`text-sm ${selectionMode && isSelected ? "text-white" : "text-gray-400 group-hover:text-white"}`}
+                  className={`text-sm ${selectionMode && isSelected ? "text-surface" : "text-subtle group-hover:text-surface"}`}
                 >
                   {workflow.name}
                 </span>
@@ -845,7 +845,7 @@ function ProjectDetail({
                       data-testid={selectors.workflowBuilder.executeButton}
                       onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
                       disabled={executionInProgress[workflow.id]}
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                      className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded transition-colors"
                       title="Execute Workflow"
                       aria-label="Execute Workflow"
                     >
@@ -910,13 +910,13 @@ function ProjectDetail({
             <div className="flex items-start gap-4">
               <button
                 onClick={onBack}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <ArrowLeft size={20} />
               </button>
               <div>
-                <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1">
-                  <h1 className="text-2xl font-bold text-white">
+              <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1">
+                  <h1 className="text-2xl font-bold text-surface">
                     {project.name}
                   </h1>
                   <div className="flex items-center gap-2">
@@ -926,7 +926,7 @@ function ProjectDetail({
                         ref={statsButtonRef}
                         type="button"
                         onClick={() => setShowStatsPopover((prev) => !prev)}
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                        className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
                         aria-label="Project details"
                         aria-expanded={showStatsPopover}
                       >
@@ -939,13 +939,13 @@ function ProjectDetail({
                           className="z-30 w-80 rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
                         >
                           <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-semibold text-white">
+                            <h3 className="text-sm font-semibold text-surface">
                               Project Details
                             </h3>
                             <button
                               type="button"
                               onClick={() => setShowStatsPopover(false)}
-                              className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                              className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
                               aria-label="Close project details"
                             >
                               <X size={14} />
@@ -958,7 +958,7 @@ function ProjectDetail({
                               <dt className="text-xs text-gray-400 mb-1">
                                 Project Name
                               </dt>
-                              <dd className="text-sm font-medium text-white">
+                              <dd className="text-sm font-medium text-surface">
                                 {project.name}
                               </dd>
                             </div>
@@ -990,7 +990,7 @@ function ProjectDetail({
                             <dl className="space-y-2 text-sm text-gray-300">
                               <div className="flex items-center justify-between">
                                 <dt className="text-gray-400">Workflows</dt>
-                                <dd className="font-medium text-white">
+                                <dd className="font-medium text-surface">
                                   {workflowCount}
                                 </dd>
                               </div>
@@ -998,7 +998,7 @@ function ProjectDetail({
                                 <dt className="text-gray-400">
                                   Total executions
                                 </dt>
-                                <dd className="font-medium text-white">
+                                <dd className="font-medium text-surface">
                                   {totalExecutions}
                                 </dd>
                               </div>
@@ -1006,13 +1006,13 @@ function ProjectDetail({
                                 <dt className="text-gray-400">
                                   Last execution
                                 </dt>
-                                <dd className="font-medium text-white">
+                                <dd className="font-medium text-surface">
                                   {lastExecutionLabel}
                                 </dd>
                               </div>
                               <div className="flex items-center justify-between">
                                 <dt className="text-gray-400">Last updated</dt>
-                                <dd className="font-medium text-white">
+                                <dd className="font-medium text-surface">
                                   {lastUpdatedLabel}
                                 </dd>
                               </div>
@@ -1029,7 +1029,7 @@ function ProjectDetail({
                     <button
                       data-testid={selectors.projects.editButton}
                       onClick={() => setShowEditProjectModal(true)}
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                      className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
                       title="Edit project details"
                     >
                       <PencilLine size={16} />
@@ -1040,7 +1040,7 @@ function ProjectDetail({
                       <button
                         ref={moreMenuButtonRef}
                         onClick={() => setShowMoreMenu((prev) => !prev)}
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                        className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
                         aria-label="More options"
                         aria-expanded={showMoreMenu}
                       >
@@ -1058,7 +1058,7 @@ function ProjectDetail({
                               setShowMoreMenu(false);
                             }}
                             disabled={workflows.length === 0}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-flow-node-hover hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
                           >
                             <ListChecks size={16} />
                             <span className="text-sm">Manage Workflows</span>
@@ -1069,7 +1069,7 @@ function ProjectDetail({
                                 onStartRecording();
                                 setShowMoreMenu(false);
                               }}
-                              className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-flow-node-hover hover:text-white transition-colors text-left"
+                              className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
                             >
                               <Circle size={16} className="text-red-500 fill-red-500" />
                               <span className="text-sm">Record Actions</span>
@@ -1081,7 +1081,7 @@ function ProjectDetail({
                               setShowMoreMenu(false);
                             }}
                             disabled={isImportingRecording}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-flow-node-hover hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-left"
                           >
                             {isImportingRecording ? (
                               <Loader size={16} className="animate-spin" />
@@ -1146,7 +1146,7 @@ function ProjectDetail({
                   </button>
                   <button
                     onClick={handleSelectAll}
-                    className="flex items-center gap-2 px-3 py-1.5 md:rounded-lg rounded-full border border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 md:rounded-lg rounded-full border border-gray-700 text-subtle hover:border-flow-accent hover:text-surface transition-colors"
                     title={
                       selectedWorkflows.size === filteredWorkflows.length &&
                       filteredWorkflows.length > 0
@@ -1198,8 +1198,8 @@ function ProjectDetail({
                 aria-selected={activeTab === "workflows"}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "workflows"
-                    ? "border-flow-accent text-white"
-                    : "border-transparent text-gray-400 hover:text-white"
+                    ? "border-flow-accent text-surface"
+                    : "border-transparent text-subtle hover:text-surface"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -1216,8 +1216,8 @@ function ProjectDetail({
                 aria-selected={activeTab === "executions"}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "executions"
-                    ? "border-flow-accent text-white"
-                    : "border-transparent text-gray-400 hover:text-white"
+                    ? "border-flow-accent text-surface"
+                    : "border-transparent text-subtle hover:text-surface"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -1241,7 +1241,7 @@ function ProjectDetail({
                     placeholder="Search workflows..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+                    className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent"
                   />
                   {searchTerm && (
                     <button
@@ -1262,7 +1262,7 @@ function ProjectDetail({
                     className={`px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${
                       viewMode === "card"
                         ? "bg-flow-accent text-white"
-                        : "text-gray-400 hover:text-white"
+                        : "text-subtle hover:text-surface"
                     }`}
                     title="Card View"
                   >
@@ -1274,7 +1274,7 @@ function ProjectDetail({
                     className={`px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${
                       viewMode === "tree"
                         ? "bg-flow-accent text-white"
-                        : "text-gray-400 hover:text-white"
+                        : "text-subtle hover:text-surface"
                     }`}
                     title="Tree View"
                   >
@@ -1289,7 +1289,7 @@ function ProjectDetail({
                     onClick={() =>
                       setShowViewModeDropdown(!showViewModeDropdown)
                     }
-                    className="p-2 bg-flow-node border border-gray-700 rounded-lg text-gray-300 hover:border-flow-accent hover:text-white transition-colors"
+                    className="p-2 bg-flow-node border border-gray-700 rounded-lg text-subtle hover:border-flow-accent hover:text-surface transition-colors"
                     title={viewMode === "card" ? "Card View" : "Tree View"}
                   >
                     {viewMode === "card" ? (
@@ -1312,7 +1312,7 @@ function ProjectDetail({
                         className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
                           viewMode === "card"
                             ? "bg-flow-accent text-white"
-                            : "text-gray-300 hover:bg-flow-node-hover hover:text-white"
+                            : "text-subtle hover:bg-flow-node-hover hover:text-surface"
                         }`}
                       >
                         <LayoutGrid size={16} />
@@ -1326,7 +1326,7 @@ function ProjectDetail({
                         className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
                           viewMode === "tree"
                             ? "bg-flow-accent text-white"
-                            : "text-gray-300 hover:bg-flow-node-hover hover:text-white"
+                            : "text-subtle hover:bg-flow-node-hover hover:text-surface"
                         }`}
                       >
                         <FolderTree size={16} />
@@ -1380,7 +1380,7 @@ function ProjectDetail({
                         {error ? <WifiOff size={40} className="text-red-400" /> : <FileCode size={40} className="text-green-400" />}
                       </div>
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
+                    <h3 className="text-xl font-semibold text-surface mb-2">
                       {error ? "Unable to Load Workflows" : "Ready to Automate"}
                     </h3>
                     <p className="text-gray-400 max-w-md mx-auto">
@@ -1402,7 +1402,7 @@ function ProjectDetail({
                             <div className="p-2 bg-amber-500/20 rounded-lg group-hover:bg-amber-500/30 transition-colors">
                               <Plus size={20} className="text-amber-400" />
                             </div>
-                            <h4 className="font-medium text-white">AI-Assisted</h4>
+                            <h4 className="font-medium text-surface">AI-Assisted</h4>
                           </div>
                           <p className="text-sm text-gray-400">
                             Describe your automation in plain language and let AI generate the workflow.
@@ -1417,7 +1417,7 @@ function ProjectDetail({
                             <div className="p-2 bg-blue-500/20 rounded-lg group-hover:bg-blue-500/30 transition-colors">
                               <FolderTree size={20} className="text-blue-400" />
                             </div>
-                            <h4 className="font-medium text-white">Visual Builder</h4>
+                            <h4 className="font-medium text-surface">Visual Builder</h4>
                           </div>
                           <p className="text-sm text-gray-400">
                             Use the drag-and-drop interface to build workflows step by step.
@@ -1446,7 +1446,7 @@ function ProjectDetail({
                         <Search size={28} className="text-gray-500" />
                       </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-surface mb-2">
                       No Workflows Found
                     </h3>
                     <p className="text-gray-400 mb-4">
@@ -1546,7 +1546,7 @@ function ProjectDetail({
                             </div>
                             <div className="min-w-0">
                               <h3
-                                className="font-semibold text-white truncate"
+                                className="font-semibold text-surface truncate"
                                 title={String(workflow.name)}
                               >
                                 {String(workflow.name)}
@@ -1571,7 +1571,7 @@ function ProjectDetail({
                                 e.stopPropagation();
                                 toggleWorkflowSelection(workflow.id);
                               }}
-                              className="flex-shrink-0 p-2 text-gray-300 hover:text-white transition-colors"
+                              className="flex-shrink-0 p-2 text-gray-300 hover:text-surface transition-colors"
                               title={isSelected ? "Deselect workflow" : "Select workflow"}
                             >
                               {isSelected ? (
@@ -1587,7 +1587,7 @@ function ProjectDetail({
                                   e.stopPropagation();
                                   setShowWorkflowActionsFor(isActionsOpen ? null : workflow.id);
                                 }}
-                                className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                className="p-1.5 text-gray-500 hover:text-surface hover:bg-gray-700 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                 aria-label="Workflow actions"
                                 aria-expanded={isActionsOpen}
                               >
@@ -1611,7 +1611,7 @@ function ProjectDetail({
                                         handleExecuteWorkflow(e, workflow.id);
                                       }}
                                       disabled={executionInProgress[workflow.id]}
-                                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-white transition-colors disabled:opacity-50"
+                                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-surface transition-colors disabled:opacity-50"
                                     >
                                       {executionInProgress[workflow.id] ? (
                                         <Loader size={14} className="animate-spin" />
@@ -1654,7 +1654,7 @@ function ProjectDetail({
                         {(executionCount > 0 || successRate != null) && (
                           <div className="grid grid-cols-2 gap-3 mb-4">
                             <div className="bg-gray-800/50 rounded-lg px-3 py-2 text-center">
-                              <div className="text-lg font-semibold text-white">
+                              <div className="text-lg font-semibold text-surface">
                                 {executionCount}
                               </div>
                               <div className="text-xs text-gray-500">Executions</div>

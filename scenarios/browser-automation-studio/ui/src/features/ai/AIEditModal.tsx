@@ -66,7 +66,7 @@ function AIEditModal({ onClose }: AIEditModalProps) {
             <Bug size={20} className="text-white" />
           </div>
           <div>
-            <h2 id={titleId} className="text-lg font-semibold text-white">AI Workflow Editor</h2>
+            <h2 id={titleId} className="text-lg font-semibold text-surface">AI Workflow Editor</h2>
             <p className="text-xs text-gray-400">Describe changes to make to your workflow</p>
           </div>
         </div>
@@ -152,7 +152,7 @@ function AIEditModal({ onClose }: AIEditModalProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-sm text-subtle hover:text-surface transition-colors"
           >
             Cancel
           </button>

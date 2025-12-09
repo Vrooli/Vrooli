@@ -126,8 +126,8 @@ export function AssetGallery({
               onClick={() => setActiveFilter(option.id)}
               className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 activeFilter === option.id
-                  ? 'bg-gray-700 text-white'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-gray-700 text-surface'
+                  : 'text-gray-400 hover:text-surface'
               }`}
             >
               {option.label}
@@ -142,7 +142,7 @@ export function AssetGallery({
           <div className="p-4 bg-gray-800 rounded-full mb-4">
             <FolderOpen size={32} className="text-gray-500" />
           </div>
-          <h3 className="text-lg font-medium text-white mb-1">No assets yet</h3>
+          <h3 className="text-lg font-medium text-surface mb-1">No assets yet</h3>
           <p className="text-sm text-gray-500 max-w-xs">
             Upload logos and background images to use in your replays.
           </p>
@@ -200,7 +200,7 @@ export function AssetGallery({
                           if (e.key === 'Enter') saveEdit();
                           if (e.key === 'Escape') cancelEdit();
                         }}
-                        className="flex-1 px-2 py-1 text-sm bg-gray-900 border border-gray-600 rounded text-white"
+                        className="flex-1 px-2 py-1 text-sm bg-gray-900 border border-gray-600 rounded text-surface"
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -227,7 +227,7 @@ export function AssetGallery({
                     </div>
                   ) : (
                     <>
-                      <h4 className="text-sm font-medium text-white truncate" title={asset.name}>
+                      <h4 className="text-sm font-medium text-surface truncate" title={asset.name}>
                         {asset.name}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
@@ -250,7 +250,7 @@ export function AssetGallery({
                         e.stopPropagation();
                         startEdit(asset);
                       }}
-                      className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
+                      className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-surface transition-colors"
                       title="Rename"
                     >
                       <Edit2 size={16} />
@@ -263,7 +263,7 @@ export function AssetGallery({
                         e.stopPropagation();
                         setChangingTypeId(asset.id);
                       }}
-                      className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
+                      className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-surface transition-colors"
                       title="Change type"
                     >
                       <Tag size={16} />
@@ -308,7 +308,7 @@ export function AssetGallery({
                     <button
                       type="button"
                       onClick={() => setChangingTypeId(null)}
-                      className="mt-2 text-xs text-gray-500 hover:text-white"
+                      className="mt-2 text-xs text-gray-500 hover:text-surface"
                     >
                       Cancel
                     </button>
@@ -321,12 +321,12 @@ export function AssetGallery({
                     className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3 p-4"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <span className="text-sm text-white text-center">Delete this asset?</span>
+                    <span className="text-sm text-surface text-center">Delete this asset?</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setDeletingId(null)}
-                        className="px-3 py-1.5 text-sm bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                        className="px-3 py-1.5 text-sm bg-gray-700 text-surface rounded-lg hover:bg-gray-600"
                       >
                         Cancel
                       </button>

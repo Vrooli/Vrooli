@@ -44,11 +44,11 @@ export const TabEmptyState: React.FC<TabEmptyStateProps> = ({
         {/* Content */}
         <div className="space-y-5">
           <div className="inline-flex items-center gap-3 rounded-xl bg-flow-node/80 px-3 py-2 border border-flow-border/60 shadow-inner shadow-black/10">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-flow-accent/25 to-purple-500/20 text-white shadow-md shadow-blue-500/20">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-flow-accent/25 to-purple-500/20 text-surface shadow-md shadow-blue-500/20">
               {icon}
             </div>
             <div>
-              <div className="text-sm font-semibold text-white hero-gradient-text leading-tight">
+              <div className="text-sm font-semibold text-surface hero-gradient-text leading-tight">
                 {title}
               </div>
               <div className="text-xs text-flow-text-muted leading-tight">{subtitle}</div>
@@ -98,7 +98,7 @@ export const TabEmptyState: React.FC<TabEmptyStateProps> = ({
                       >
                         {step.completed ? '✓' : idx + 1}
                       </div>
-                      <span className={`font-medium ${step.active ? 'text-white' : step.completed ? 'text-emerald-100' : ''}`}>
+                      <span className={`font-medium ${step.active ? 'text-surface' : step.completed ? 'text-emerald-100' : ''}`}>
                         {step.label}
                       </span>
                     </div>
@@ -125,7 +125,7 @@ export const TabEmptyState: React.FC<TabEmptyStateProps> = ({
                       {feature.icon}
                     </div>
                     <div className="space-y-1">
-                      <div className="font-semibold text-white">{feature.title}</div>
+                      <div className="font-semibold text-surface">{feature.title}</div>
                       <p className="text-sm text-flow-text-muted leading-relaxed">
                         {feature.description}
                       </p>

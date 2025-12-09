@@ -126,7 +126,7 @@ export const RecentWorkflowsWidget: React.FC<RecentWorkflowsWidgetProps> = ({ on
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-white truncate">{workflow.name}</div>
+              <div className="text-sm text-surface truncate">{workflow.name}</div>
               <div className="text-xs text-gray-500 truncate">
                 {workflow.projectName} &middot; {formatRelativeTime(new Date(workflow.updatedAt))}
               </div>

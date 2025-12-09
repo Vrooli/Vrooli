@@ -86,14 +86,14 @@ function Sidebar({
     >
       <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
         {!isCollapsed && (
-          <span className="text-sm font-semibold text-white uppercase tracking-wide">
-            Node Palette
-          </span>
+          <span className="text-sm font-semibold text-surface uppercase tracking-wide">
+          Node Palette
+        </span>
         )}
         <button
           type="button"
           onClick={handleToggleCollapse}
-          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
+          className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-md transition-colors"
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >

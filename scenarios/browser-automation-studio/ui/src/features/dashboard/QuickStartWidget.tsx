@@ -40,7 +40,7 @@ export const QuickStartWidget: React.FC<QuickStartWidgetProps> = ({
           </svg>
         </div>
         <div>
-          <h3 className="text-white font-medium">Quick Start</h3>
+        <h3 className="text-surface font-medium">Quick Start</h3>
           <p className="text-sm text-gray-400">Describe what you want to automate</p>
         </div>
       </div>
@@ -52,7 +52,7 @@ export const QuickStartWidget: React.FC<QuickStartWidgetProps> = ({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g., Log into example.com and take a screenshot of the dashboard..."
-            className="w-full px-4 py-3 pr-24 bg-gray-800/80 border border-gray-600/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition-colors"
+            className="w-full px-4 py-3 pr-24 bg-gray-800/80 border border-gray-600/50 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition-colors"
             disabled={isGenerating}
           />
           <button

@@ -249,7 +249,7 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
         {domTree ? (
           <div className="bg-flow-bg border border-gray-700 rounded-lg">
             <div className="p-3 border-b border-gray-700">
-              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <h3 className="text-sm font-medium text-surface flex items-center gap-2">
                 <Code size={16} />
                 DOM Tree Inspector
               </h3>
@@ -264,7 +264,7 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
             
             {selectedNode && (
               <div className="p-3 border-t border-gray-700">
-                <h4 className="text-sm font-medium text-white mb-2">Selected Element</h4>
+                <h4 className="text-sm font-medium text-surface mb-2">Selected Element</h4>
                 <div className="space-y-1 text-xs">
                   <p><span className="text-gray-400">Tag:</span> {selectedNode.tagName.toLowerCase()}</p>
                   <p><span className="text-gray-400">Selector:</span> <code className="text-blue-300">{selectedNode.selector}</code></p>

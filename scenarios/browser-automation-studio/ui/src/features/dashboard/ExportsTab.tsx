@@ -271,14 +271,14 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
             )}
             <button
               onClick={() => onViewExecution(export_.executionId, export_.workflowId ?? '')}
-              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              className="p-2 bg-gray-700 text-surface rounded-lg hover:bg-gray-600 transition-colors"
               title="View execution"
             >
               <Eye size={18} />
             </button>
             <button
               onClick={() => openRenameDialog(export_)}
-              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              className="p-2 bg-gray-700 text-surface rounded-lg hover:bg-gray-600 transition-colors"
               title="Rename"
             >
               <Pencil size={18} />
@@ -292,7 +292,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
             </button>
             <button
               onClick={() => handleCopyLink(export_.storageUrl)}
-              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              className="p-2 bg-gray-700 text-surface rounded-lg hover:bg-gray-600 transition-colors"
               title="Copy link"
             >
               <Copy size={18} />
@@ -302,7 +302,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
 
         {/* Content */}
         <div className="p-3 flex-1 flex flex-col">
-          <h4 className="font-medium text-white truncate" title={export_.name}>
+          <h4 className="font-medium text-surface truncate" title={export_.name}>
             {export_.name}
           </h4>
 
@@ -344,7 +344,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
               </p>
               <button
                 onClick={() => handleCopyCaption(export_.aiCaption!)}
-                className="mt-1.5 flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
+                className="mt-1.5 flex items-center gap-1 text-xs text-gray-400 hover:text-surface transition-colors"
               >
                 <Copy size={10} />
                 Copy
@@ -366,7 +366,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           </div>
           <div>
             <div className="text-xs text-gray-400">Total exports</div>
-            <div className="text-lg font-semibold text-white">{exports.length}</div>
+            <div className="text-lg font-semibold text-surface">{exports.length}</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -375,7 +375,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           </div>
           <div>
             <div className="text-xs text-gray-400">Ready to share</div>
-            <div className="text-lg font-semibold text-white">
+            <div className="text-lg font-semibold text-surface">
               {exports.filter(e => e.status === 'completed').length}
             </div>
           </div>
@@ -386,7 +386,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
           </div>
           <div>
             <div className="text-xs text-gray-400">Last export size</div>
-            <div className="text-lg font-semibold text-white">
+            <div className="text-lg font-semibold text-surface">
               {exports[0]?.fileSizeBytes ? formatFileSize(exports[0].fileSizeBytes) : '—'}
             </div>
           </div>
@@ -410,7 +410,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-white">Exports Library</h2>
+          <h2 className="text-lg font-semibold text-surface">Exports Library</h2>
           <p className="text-sm text-gray-400">
             Your exported replay videos, GIFs, and packages
           </p>
@@ -418,7 +418,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
         <button
           onClick={handleRefresh}
           disabled={isRefreshing || isLoading}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-surface hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
           Refresh
@@ -494,26 +494,26 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
             {exports.map((export_) => renderExportCard(export_))}
           </div>
           <div className="space-y-3 bg-gray-800/50 border border-gray-700/70 rounded-xl p-4">
-            <h4 className="text-sm font-semibold text-white">Popular next steps</h4>
+            <h4 className="text-sm font-semibold text-surface">Popular next steps</h4>
             <p className="text-xs text-gray-400">Keep users moving after exporting.</p>
             <div className="space-y-2">
               <button
                 onClick={onNavigateToExecutions}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-white transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-surface transition-colors"
               >
                 Schedule export
                 <Clock size={14} />
               </button>
               <button
                 onClick={onNavigateToHome}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-white transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-surface transition-colors"
               >
                 Send via email/Slack
                 <Share2 size={14} />
               </button>
               <button
                 onClick={onNavigateToHome}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-white transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg bg-gray-800 border border-gray-700 hover:border-flow-accent/60 hover:text-surface transition-colors"
               >
                 Create follow-up workflow
                 <Sparkles size={14} />
@@ -542,7 +542,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Export name"
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:border-flow-accent focus:outline-none"
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-surface placeholder:text-gray-500 focus:border-flow-accent focus:outline-none"
             autoFocus
           />
           <div className="flex justify-end gap-2">
@@ -552,7 +552,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
                 setSelectedExport(null);
                 setNewName('');
               }}
-              className="px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-400 hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
             >
               Cancel
             </button>
@@ -586,7 +586,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
                 setIsDeleteDialogOpen(false);
                 setExportToDelete(null);
               }}
-              className="px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-400 hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
             >
               Cancel
             </button>

@@ -77,7 +77,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       >
         {icon}
       </div>
-      <h3 className="text-base font-semibold text-white mb-2">{title}</h3>
+      <h3 className="text-base font-semibold text-surface mb-2">{title}</h3>
       <p className="text-sm text-flow-text-muted leading-relaxed">{description}</p>
 
       {/* Active indicator */}

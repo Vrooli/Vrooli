@@ -359,13 +359,13 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         <div className="flex items-center gap-3">
           <Target size={20} className="text-blue-400" />
           <div>
-            <h2 id={titleId} className="text-lg font-semibold text-white">Element Picker</h2>
+            <h2 id={titleId} className="text-lg font-semibold text-surface">Element Picker</h2>
             <p className="text-xs text-gray-400">{url}</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+          className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
           aria-label="Close element picker"
         >
           <X size={18} />
@@ -379,7 +379,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
             className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors flex-shrink-0 ${
               activeTab === 'visual'
                 ? 'border-b-2 border-blue-400 text-blue-400'
-                : 'text-gray-400 hover:text-white'
+                : 'text-subtle hover:text-surface'
             }`}
           >
             <Eye size={16} />
@@ -390,7 +390,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
             className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors flex-shrink-0 ${
               activeTab === 'suggestions'
                 ? 'border-b-2 border-blue-400 text-blue-400'
-                : 'text-gray-400 hover:text-white'
+                : 'text-subtle hover:text-surface'
             }`}
           >
             <Brain size={16} />
@@ -401,7 +401,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
             className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors flex-shrink-0 ${
               activeTab === 'browser'
                 ? 'border-b-2 border-blue-400 text-blue-400'
-                : 'text-gray-400 hover:text-white'
+                : 'text-subtle hover:text-surface'
             }`}
           >
             <Monitor size={16} />
@@ -412,7 +412,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
             className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors flex-shrink-0 ${
               activeTab === 'custom'
                 ? 'border-b-2 border-blue-400 text-blue-400'
-                : 'text-gray-400 hover:text-white'
+                : 'text-subtle hover:text-surface'
             }`}
           >
             <Settings size={16} />
@@ -501,7 +501,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
                                 disabled={!canSelectParent}
                                 className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
                                   canSelectParent
-                                    ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+                                    ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-surface'
                                     : 'border-gray-800 text-gray-600 cursor-not-allowed'
                                 }`}
                               >
@@ -514,7 +514,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
                                 disabled={!canSelectChild}
                                 className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
                                   canSelectChild
-                                    ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+                                    ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-surface'
                                     : 'border-gray-800 text-gray-600 cursor-not-allowed'
                                 }`}
                               >
@@ -538,7 +538,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
                       {/* Selected Element Info below screenshot */}
                       {selectedElement && (
                         <div className="p-3 bg-flow-bg border border-gray-700 rounded-lg">
-                          <h3 className="text-sm font-medium text-white mb-2">Selected Element</h3>
+                          <h3 className="text-sm font-medium text-surface mb-2">Selected Element</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2 text-sm">
                               {selectedElement.text && (

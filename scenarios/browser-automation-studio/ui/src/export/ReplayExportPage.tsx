@@ -1302,12 +1302,10 @@ const ReplayExportPage = () => {
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 p-8 text-slate-200">
-        <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
-          <h1 className="text-lg font-semibold text-slate-100">
-            Replay export unavailable
-          </h1>
-          <p className="mt-3 text-sm text-slate-300/80">{loadError}</p>
+      <div className="flex min-h-screen w-full items-center justify-center bg-flow-bg p-8 text-flow-text">
+        <div className="max-w-md rounded-2xl border border-flow-border bg-flow-node/80 p-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+          <h1 className="text-lg font-semibold text-flow-text">Replay export unavailable</h1>
+          <p className="mt-3 text-sm text-flow-text-secondary">{loadError}</p>
         </div>
       </div>
     );
@@ -1389,8 +1387,8 @@ const ReplayExportPage = () => {
         />
 
         {showPlaceholder && mode !== "capture" && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/40">
-            <span className="text-xs uppercase tracking-[0.3em] text-slate-300/80">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+            <span className="text-xs uppercase tracking-[0.3em] text-flow-text-muted">
               {placeholderMessage}
             </span>
           </div>

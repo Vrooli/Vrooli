@@ -80,7 +80,7 @@ export const RunningIndicator: React.FC<RunningIndicatorProps> = ({ onViewExecut
                     <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-white truncate">{execution.workflowName}</div>
+                    <div className="text-sm text-surface truncate">{execution.workflowName}</div>
                     {execution.projectName && (
                       <div className="text-xs text-gray-500 truncate">
                         in {execution.projectName}

@@ -363,7 +363,7 @@ export function RecordModePage({
   }, [autoSwitchBlocked]);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
         isRecording={isRecording}
         actionCount={actions.length}

@@ -34,7 +34,7 @@ export function BrandingTab() {
       <div className="flex items-center gap-3">
         <ImageIcon size={24} className="text-pink-400" />
         <div>
-          <h2 className="text-lg font-semibold text-white">Brand Assets</h2>
+          <h2 className="text-lg font-semibold text-surface">Brand Assets</h2>
           <p className="text-sm text-gray-400">
             Upload logos and backgrounds for watermarks, intro, and outro cards
           </p>
@@ -107,7 +107,7 @@ export function BrandingTab() {
       {/* Upload Section */}
       <div className="border border-gray-700 rounded-lg overflow-hidden">
         <div className="px-4 py-3 bg-gray-800/50 border-b border-gray-700">
-          <h3 className="text-sm font-medium text-white">Upload Assets</h3>
+          <h3 className="text-sm font-medium text-surface">Upload Assets</h3>
         </div>
         <div className="p-4">
           <AssetUploader />
@@ -117,7 +117,7 @@ export function BrandingTab() {
       {/* Asset Library */}
       <div className="border border-gray-700 rounded-lg overflow-hidden">
         <div className="px-4 py-3 bg-gray-800/50 border-b border-gray-700">
-          <h3 className="text-sm font-medium text-white">Asset Library</h3>
+          <h3 className="text-sm font-medium text-surface">Asset Library</h3>
         </div>
         <div className="p-4">
           <AssetGallery />

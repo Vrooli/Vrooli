@@ -213,7 +213,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-white truncate">{workflow.name}</div>
+        <div className="text-sm font-medium text-surface truncate">{workflow.name}</div>
         <div className="text-xs text-gray-500 truncate">
           {showProject && <span>{workflow.projectName} &middot; </span>}
           {workflow.folderPath !== '/' && <span>{workflow.folderPath} &middot; </span>}
@@ -254,13 +254,13 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
           <div className="flex items-center gap-4">
             <button
               onClick={onBack}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
               title="Back to Dashboard"
             >
               <ChevronLeft size={20} />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white">All Workflows</h1>
+              <h1 className="text-xl font-bold text-surface">All Workflows</h1>
               <p className="text-sm text-gray-400">
                 {isLoading ? 'Loading...' : `${filteredWorkflows.length} workflow${filteredWorkflows.length !== 1 ? 's' : ''}`}
               </p>
@@ -276,7 +276,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
                 placeholder="Search workflows..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/50"
+                className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/50"
               />
               {searchTerm && (
                 <button
@@ -292,7 +292,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
               className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
                 showFilters
                   ? 'bg-flow-accent/20 border-flow-accent text-flow-accent'
-                  : 'bg-gray-800/50 border-gray-700 text-gray-400 hover:text-white'
+                  : 'bg-gray-800/50 border-gray-700 text-subtle hover:text-surface'
               }`}
             >
               <Filter size={16} />
@@ -308,7 +308,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-white focus:outline-none focus:border-flow-accent"
+                  className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-surface focus:outline-none focus:border-flow-accent"
                 >
                   <option value="recent">Most Recent</option>
                   <option value="name">Name</option>
@@ -320,7 +320,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
                 <select
                   value={groupBy}
                   onChange={(e) => setGroupBy(e.target.value as GroupOption)}
-                  className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-white focus:outline-none focus:border-flow-accent"
+                  className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-surface focus:outline-none focus:border-flow-accent"
                 >
                   <option value="project">Project</option>
                   <option value="none">None</option>
@@ -350,7 +350,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center">
               <Search size={28} className="text-gray-500" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">
+            <h3 className="text-lg font-semibold text-surface mb-2">
               {searchTerm ? 'No workflows found' : 'No workflows yet'}
             </h3>
             <p className="text-gray-400">

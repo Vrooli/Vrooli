@@ -240,7 +240,7 @@ function SettingSection({ title, tooltip, defaultOpen = true, children }: Settin
         className="w-full flex items-center justify-between px-4 py-3 bg-gray-800/50 hover:bg-gray-800 transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          <span className="font-medium text-white">{title}</span>
+          <span className="font-medium text-surface">{title}</span>
           {tooltip && (
             <Tooltip content={tooltip}>
               <HelpCircle size={14} className="text-gray-500" />
@@ -282,7 +282,7 @@ function OptionGrid<T extends string>({ options, value, onChange, columns = 3 }:
           {!option.preview && !option.previewNode && option.previewStyle && (
             <div className="w-10 h-10 mb-2 rounded-lg" style={option.previewStyle} />
           )}
-          <span className="text-sm font-medium text-white">{option.label}</span>
+          <span className="text-sm font-medium text-surface">{option.label}</span>
           {(option.subtitle || option.description) && (
             <span className="text-xs text-gray-500 mt-0.5">{option.subtitle || option.description}</span>
           )}
@@ -598,7 +598,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
       <div className="relative mb-6">
         <div className="flex items-center gap-3 mb-3">
           <Sparkles size={18} className="text-amber-400" />
-          <span className="text-sm font-medium text-white">Quick Presets</span>
+          <span className="text-sm font-medium text-surface">Quick Presets</span>
           <Tooltip content="Apply a preset to quickly configure all replay settings at once. You can also save your own custom presets.">
             <HelpCircle size={14} className="text-gray-500" />
           </Tooltip>
@@ -609,7 +609,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
           <button
             type="button"
             onClick={() => setShowPresetDropdown(!showPresetDropdown)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white hover:border-gray-600 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-surface hover:border-gray-600 transition-colors"
           >
             <div className="flex items-center gap-3">
               <Bookmark size={16} className={activePreset ? 'text-flow-accent' : 'text-gray-500'} />
@@ -634,7 +634,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                     type="button"
                     onClick={() => handlePresetSelect(preset.id)}
                     className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-800 transition-colors ${
-                      activePresetId === preset.id ? 'bg-flow-accent/10 text-flow-accent' : 'text-white'
+                            activePresetId === preset.id ? 'bg-flow-accent/10 text-flow-accent' : 'text-surface'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -660,7 +660,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                           type="button"
                           onClick={() => handlePresetSelect(preset.id)}
                           className={`flex-1 flex items-center gap-3 px-4 py-3 text-left ${
-                            activePresetId === preset.id ? 'text-flow-accent' : 'text-white'
+                            activePresetId === preset.id ? 'text-flow-accent' : 'text-surface'
                           }`}
                         >
                           {activePresetId === preset.id ? <Check size={16} className="text-flow-accent" /> : <Bookmark size={16} className="text-gray-500" />}
@@ -907,7 +907,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
       <div className="flex items-center gap-3 mb-6">
         <Clock size={24} className="text-green-400" />
         <div>
-          <h2 className="text-lg font-semibold text-white">Workflow Defaults</h2>
+          <h2 className="text-lg font-semibold text-surface">Workflow Defaults</h2>
           <p className="text-sm text-gray-400">Default settings applied to new workflows</p>
         </div>
       </div>
@@ -1083,7 +1083,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
       <div className="flex items-center gap-3 mb-6">
         <Key size={24} className="text-amber-400" />
         <div>
-          <h2 className="text-lg font-semibold text-white">API Keys & Integrations</h2>
+          <h2 className="text-lg font-semibold text-surface">API Keys & Integrations</h2>
           <p className="text-sm text-gray-400">Override default API keys with your own</p>
         </div>
       </div>
@@ -1111,7 +1111,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 value={apiKeys.browserlessApiKey}
                 onChange={(e) => setApiKey('browserlessApiKey', e.target.value)}
                 placeholder="Enter your Browserless API key"
-                className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+                className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent"
               />
               <button
                 type="button"
@@ -1139,7 +1139,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 value={apiKeys.openaiApiKey}
                 onChange={(e) => setApiKey('openaiApiKey', e.target.value)}
                 placeholder="sk-..."
-                className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+                className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent"
               />
               <button
                 type="button"
@@ -1162,7 +1162,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 value={apiKeys.anthropicApiKey}
                 onChange={(e) => setApiKey('anthropicApiKey', e.target.value)}
                 placeholder="sk-ant-..."
-                className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+                className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent"
               />
               <button
                 type="button"
@@ -1188,7 +1188,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             value={apiKeys.customApiEndpoint}
             onChange={(e) => setApiKey('customApiEndpoint', e.target.value)}
             placeholder="https://api.example.com"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent"
           />
           <p className="text-xs text-gray-500 mt-2">
             For self-hosted or proxy API endpoints
@@ -1222,7 +1222,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         <div className="flex items-center gap-3 mb-6">
           <Monitor size={24} className="text-purple-400" />
           <div>
-            <h2 className="text-lg font-semibold text-white">Display Settings</h2>
+            <h2 className="text-lg font-semibold text-surface">Display Settings</h2>
             <p className="text-sm text-gray-400">Customize appearance and accessibility</p>
           </div>
         </div>
@@ -1243,7 +1243,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 <div className={`mb-2 ${display.themeMode === option.id ? 'text-flow-accent' : 'text-gray-400'}`}>
                   {option.icon}
                 </div>
-                <span className="text-sm font-medium text-white">{option.label}</span>
+                <span className="text-sm font-medium text-surface">{option.label}</span>
                 <span className="text-xs text-gray-500 mt-1 text-center">{option.description}</span>
               </button>
             ))}
@@ -1272,7 +1272,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 <div className="flex items-center gap-3">
                   <Type size={18} className={display.fontSize === option.id ? 'text-flow-accent' : 'text-gray-400'} />
                   <div className="text-left">
-                    <span className="text-sm font-medium text-white block">{option.label}</span>
+                    <span className="text-sm font-medium text-surface block">{option.label}</span>
                     <span className="text-xs text-gray-500">{option.description}</span>
                   </div>
                 </div>
@@ -1306,7 +1306,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                     {option.preview}
                   </span>
                   <div className="text-left">
-                    <span className="text-sm font-medium text-white block">{option.label}</span>
+                    <span className="text-sm font-medium text-surface block">{option.label}</span>
                     <span className="text-xs text-gray-500">{option.description}</span>
                   </div>
                 </div>
@@ -1422,7 +1422,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         <div className="flex items-center gap-3 mb-6">
           <Database size={24} className="text-red-400" />
           <div>
-            <h2 className="text-lg font-semibold text-white">Data Management</h2>
+            <h2 className="text-lg font-semibold text-surface">Data Management</h2>
             <p className="text-sm text-gray-400">Clear and manage your stored data</p>
           </div>
         </div>
@@ -1431,7 +1431,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         <div className="flex justify-end mb-4">
           <button
             onClick={refreshDataCounts}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
           >
             <RefreshCw size={14} />
             Refresh Counts
@@ -1476,7 +1476,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex items-center gap-3">
               <FolderX size={20} className="text-gray-400" />
               <div>
-                <p className="text-sm text-white">Delete All Projects</p>
+                <p className="text-sm text-surface">Delete All Projects</p>
                 <p className="text-xs text-gray-500">
                   {projects.length === 0
                     ? 'No projects to delete'
@@ -1499,7 +1499,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex items-center gap-3">
               <FileX size={20} className="text-gray-400" />
               <div>
-                <p className="text-sm text-white">Delete All Exports</p>
+                <p className="text-sm text-surface">Delete All Exports</p>
                 <p className="text-xs text-gray-500">
                   {exports.length === 0
                     ? 'No exports to delete'
@@ -1522,7 +1522,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex items-center gap-3">
               <RotateCcw size={20} className="text-gray-400" />
               <div>
-                <p className="text-sm text-white">Reset All Settings</p>
+                <p className="text-sm text-surface">Reset All Settings</p>
                 <p className="text-xs text-gray-500">
                   Display, replay, workflow defaults, API keys, and presets will be reset
                 </p>
@@ -1551,7 +1551,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex items-start gap-3">
               <Trash2 size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-lg font-medium text-white">Delete Everything</p>
+                <p className="text-lg font-medium text-surface">Delete Everything</p>
                 <p className="text-sm text-gray-400 mt-1">
                   This will permanently delete all projects, workflows, exports, and reset all settings.
                   Use this to completely start fresh.
@@ -1582,7 +1582,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         {deleteConfirmation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl animate-fade-in">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-surface mb-4 flex items-center gap-2">
                 <AlertTriangle size={20} className="text-red-400" />
                 {getDeleteConfirmationTitle()}
               </h3>
@@ -1593,7 +1593,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 <button
                   onClick={() => setDeleteConfirmation(null)}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2 text-subtle hover:text-surface hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1631,7 +1631,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex items-center gap-4">
               <button
                 onClick={onBack}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                 title="Back to Dashboard"
                 aria-label="Back to Dashboard"
               >
@@ -1642,7 +1642,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                   <Settings size={20} className="text-flow-accent" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-white">Settings</h1>
+                  <h1 className="text-xl font-bold text-surface">Settings</h1>
                   <p className="text-sm text-gray-400 hidden sm:block">Manage your preferences and integrations</p>
                 </div>
               </div>
@@ -1670,7 +1670,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               )}
               <button
                 onClick={handleReset}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                 title={activeTab === 'apikeys' ? 'Clear all API keys' : 'Reset to defaults'}
               >
                 <RotateCcw size={16} />
@@ -1691,8 +1691,8 @@ function SettingsPage({ onBack }: SettingsPageProps) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-flow-accent text-white'
-                    : 'border-transparent text-gray-400 hover:text-white hover:border-gray-600'
+                    ? 'border-flow-accent text-surface'
+                    : 'border-transparent text-subtle hover:text-surface hover:border-gray-600'
                 }`}
               >
                 {tab.icon}
@@ -1707,7 +1707,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
       {showSaveDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl animate-fade-in">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-surface mb-4 flex items-center gap-2">
               <Bookmark size={20} className="text-flow-accent" />
               Save Preset
             </h3>
@@ -1719,7 +1719,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
               value={newPresetName}
               onChange={(e) => setNewPresetName(e.target.value)}
               placeholder="My Custom Preset"
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/30"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/30"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSavePreset();
@@ -1729,7 +1729,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowSaveDialog(false)}
-                className="flex-1 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="flex-1 px-4 py-2 text-subtle hover:text-surface hover:bg-gray-800 rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -1750,7 +1750,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
       {presetToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl animate-fade-in">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-surface mb-4 flex items-center gap-2">
               <Trash2 size={20} className="text-red-400" />
               Delete Preset
             </h3>
@@ -1760,7 +1760,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex gap-3">
               <button
                 onClick={() => setPresetToDelete(null)}
-                className="flex-1 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="flex-1 px-4 py-2 text-subtle hover:text-surface hover:bg-gray-800 rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -1799,12 +1799,12 @@ function SettingsPage({ onBack }: SettingsPageProps) {
             <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-800">
               <div className="flex items-center gap-2">
                 <Film size={16} className="text-gray-400" />
-                <span className="text-sm font-medium text-white">Live Preview</span>
+                <span className="text-sm font-medium text-surface">Live Preview</span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsPreviewPlaying(!isPreviewPlaying)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-surface bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
               >
                 {isPreviewPlaying ? <Pause size={14} /> : <Play size={14} />}
                 {isPreviewPlaying ? 'Pause' : 'Play'}

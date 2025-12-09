@@ -93,7 +93,7 @@ export const RunningExecutionsBadge: React.FC<RunningExecutionsBadgeProps> = ({
         >
           {/* Header */}
           <div className="px-4 py-3 bg-gray-800/80 border-b border-gray-700">
-            <h3 className="text-sm font-medium text-white flex items-center gap-2">
+            <h3 className="text-sm font-medium text-surface flex items-center gap-2">
               <Loader2 size={14} className="text-green-400 animate-spin" />
               Running Executions
             </h3>
@@ -108,7 +108,7 @@ export const RunningExecutionsBadge: React.FC<RunningExecutionsBadgeProps> = ({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-white text-sm truncate">
+                    <div className="font-medium text-surface text-sm truncate">
                       {execution.workflowName}
                     </div>
                     {execution.projectName && (
@@ -126,7 +126,7 @@ export const RunningExecutionsBadge: React.FC<RunningExecutionsBadgeProps> = ({
                         onViewExecution(execution.id, execution.workflowId);
                         setIsOpen(false);
                       }}
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded transition-colors"
+                      className="p-1.5 text-subtle hover:text-surface hover:bg-gray-600 rounded transition-colors"
                       title="View execution"
                     >
                       <Eye size={14} />

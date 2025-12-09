@@ -16,7 +16,7 @@ export function RecordingHeader({
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
       <div className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Record Mode</h1>
+        <h1 className="text-lg font-semibold text-surface">Record Mode</h1>
         {isRecording && (
           <span className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded-full">
             <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
@@ -27,7 +27,7 @@ export function RecordingHeader({
       <div className="flex items-center gap-2">
         <button
           onClick={onToggleTimeline}
-          className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          className="relative p-2 text-subtle hover:text-surface"
           title={isSidebarOpen ? 'Hide timeline' : 'Show timeline'}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

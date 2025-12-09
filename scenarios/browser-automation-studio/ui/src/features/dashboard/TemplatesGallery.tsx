@@ -125,7 +125,7 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
           className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
             selectedCategory === null
               ? 'bg-flow-accent text-white border-flow-accent'
-              : 'text-flow-text-secondary border-flow-border hover:border-flow-border-light hover:text-white'
+              : 'text-flow-text-secondary border-flow-border hover:border-flow-border-light hover:text-surface'
           }`}
         >
           All
@@ -137,7 +137,7 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
             className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
               selectedCategory === cat
                 ? categoryColors[cat]
-                : 'text-flow-text-secondary border-flow-border hover:border-flow-border-light hover:text-white'
+                : 'text-flow-text-secondary border-flow-border hover:border-flow-border-light hover:text-surface'
             }`}
           >
             {categoryLabels[cat]}
@@ -157,7 +157,7 @@ export const TemplatesGallery: React.FC<TemplatesGalleryProps> = ({ onUseTemplat
               {template.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-white font-medium truncate group-hover:text-blue-300 transition-colors">
+              <div className="text-sm text-surface font-medium truncate group-hover:text-blue-300 transition-colors">
                 {template.name}
               </div>
               <div className="text-xs text-flow-text-muted line-clamp-2">

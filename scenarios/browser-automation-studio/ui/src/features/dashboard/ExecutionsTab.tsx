@@ -157,7 +157,7 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
               />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium text-white truncate">
+              <div className="font-medium text-surface truncate">
                 {execution.workflowName}
               </div>
               {execution.projectName && (
@@ -206,7 +206,7 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
             )}
             <button
               onClick={() => onViewExecution(execution.id, execution.workflowId)}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
               title="View details"
             >
               <Eye size={16} />
@@ -271,7 +271,7 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
         <button
           onClick={handleRefresh}
           disabled={isRefreshing || isLoadingExecutions}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
           Refresh

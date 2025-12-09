@@ -159,7 +159,7 @@ function NodeCard({
           <Icon size={18} />
         </div>
         <div className="flex-1 pr-10">
-          <div className="font-medium text-sm text-white mb-0.5">
+          <div className="font-medium text-sm text-surface mb-0.5">
             {highlightText(node.label, searchTerm)}
           </div>
           <div className="text-xs text-gray-500">
@@ -206,12 +206,12 @@ function NodeHelpPanel({ nodeType, onClose }: NodeHelpPanelProps) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
         <div className="flex items-center gap-2">
           {Icon && <Icon size={18} className={nodeDef?.color || "text-gray-400"} />}
-          <h3 className="font-semibold text-white">{doc.name}</h3>
+          <h3 className="font-semibold text-surface">{doc.name}</h3>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded transition-colors"
           aria-label="Close help panel"
         >
           <X size={16} />
@@ -457,7 +457,7 @@ function NodePalette() {
               }
             }}
             placeholder="Search nodes (Cmd/Ctrl + K)"
-            className="w-full bg-flow-bg border border-gray-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
+          className="w-full bg-flow-bg border border-gray-700 rounded-lg py-2 pl-9 pr-3 text-sm text-surface placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
             data-testid={selectors.nodePalette.searchInput}
           />
         </div>

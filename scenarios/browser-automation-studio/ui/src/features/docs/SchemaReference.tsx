@@ -247,7 +247,7 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
           <button
             type="button"
             onClick={copySchema}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-400 hover:text-surface bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? "Copied!" : "Copy JSON"}

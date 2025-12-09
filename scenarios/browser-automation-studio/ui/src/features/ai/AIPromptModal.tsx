@@ -111,7 +111,7 @@ function AIPromptModal({
             <Sparkles size={20} className="text-white" />
           </div>
           <div>
-            <h2 id={titleId} className="text-lg font-semibold text-white">
+            <h2 id={titleId} className="text-lg font-semibold text-surface">
               AI Workflow Generator
             </h2>
             <p className="text-xs text-gray-400">
@@ -137,7 +137,7 @@ function AIPromptModal({
                 <Wrench size={16} className="text-blue-400" />
               </div>
               <div>
-                <h3 className="text-sm font-medium text-white">
+                <h3 className="text-sm font-medium text-surface">
                   Prefer to build manually?
                 </h3>
                 <p className="text-xs text-gray-400">
@@ -235,7 +235,7 @@ function AIPromptModal({
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-sm text-subtle hover:text-surface transition-colors"
           >
             Cancel
           </button>

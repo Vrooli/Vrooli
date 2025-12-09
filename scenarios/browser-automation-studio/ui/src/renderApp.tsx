@@ -94,9 +94,9 @@ function renderTree(): ReactNode {
             className: '',
             duration: 4000,
             style: {
-              background: '#1a1d29',
-              color: '#fff',
-              border: '1px solid #2a2d3a',
+              background: 'rgb(var(--flow-node))',
+              color: 'rgb(var(--flow-text))',
+              border: '1px solid rgb(var(--flow-border))',
             },
           }}
         />

@@ -14,7 +14,7 @@ export const ExecutionsEmptyPreview: React.FC = () => {
       <div className="flex items-center justify-between rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 shadow-md shadow-green-500/10 animate-fade-in-up">
         <div className="flex items-center gap-2 text-green-200">
           <MonitorPlay size={18} />
-          <span className="font-semibold text-white">Live execution preview</span>
+          <span className="font-semibold text-surface">Live execution preview</span>
         </div>
         <div className="flex items-center gap-1 text-xs text-green-200 bg-green-500/20 px-2 py-1 rounded-lg">
           <Activity size={12} className="animate-pulse" />
@@ -26,7 +26,7 @@ export const ExecutionsEmptyPreview: React.FC = () => {
         {steps.map((step, idx) => {
           const statusStyles = {
             done: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
-            active: 'border-flow-accent/40 bg-flow-accent/10 text-white',
+            active: 'border-flow-accent/40 bg-flow-accent/10 text-surface',
             queued: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
           } as const;
 

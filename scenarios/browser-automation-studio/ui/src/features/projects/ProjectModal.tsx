@@ -237,7 +237,7 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
           <div className="w-8 h-8 bg-flow-accent/20 rounded-lg flex items-center justify-center">
             <FolderOpen size={16} className="text-flow-accent" />
           </div>
-          <h2 id={titleId} className="text-xl font-bold text-white">
+          <h2 id={titleId} className="text-xl font-bold text-surface">
             {isEditing ? "Edit Project" : "Create New Project"}
           </h2>
         </div>
@@ -247,7 +247,7 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
             logger.debug("ProjectModal X button clicked", { component: "ProjectModal" });
             onClose();
           }}
-          className="text-gray-400 hover:text-white transition-colors"
+          className="text-subtle hover:text-surface transition-colors"
           aria-label="Close project modal"
         >
           <X size={20} />
@@ -280,7 +280,7 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, name: e.target.value }))
             }
-            className={`w-full px-3 py-2 bg-flow-bg border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent ${
+            className={`w-full px-3 py-2 bg-flow-bg border rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent ${
               validationErrors.name ? "border-red-500" : "border-gray-700"
             }`}
             placeholder="e.g., Visited Tracker Tests"
@@ -307,7 +307,7 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
               setFormData((prev) => ({ ...prev, description: e.target.value }))
             }
             rows={3}
-            className="w-full px-3 py-2 bg-flow-bg border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent resize-none"
+            className="w-full px-3 py-2 bg-flow-bg border border-gray-700 rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent resize-none"
             placeholder="Describe what this project is for..."
           />
         </div>
@@ -324,7 +324,7 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
               setIsFolderPathDirty(true);
               setFormData((prev) => ({ ...prev, folder_path: e.target.value }));
             }}
-            className={`w-full px-3 py-2 bg-flow-bg border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent ${
+            className={`w-full px-3 py-2 bg-flow-bg border rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent ${
               validationErrors.folder_path
                 ? "border-red-500"
                 : "border-gray-700"
@@ -372,7 +372,7 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
               logger.debug("ProjectModal Cancel button clicked", { component: "ProjectModal" });
               onClose();
             }}
-            className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-subtle hover:text-surface transition-colors"
             disabled={isSubmitting}
           >
             Cancel

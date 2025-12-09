@@ -134,7 +134,7 @@ function Tooltip({
           ref={tooltipRef}
           role="tooltip"
           style={getPositionStyles()}
-          className={`fixed z-50 px-3 py-2 text-sm text-white bg-gray-800 rounded-lg shadow-lg max-w-xs ${className}`}
+          className={`fixed z-50 px-3 py-2 text-sm text-surface bg-gray-800 rounded-lg shadow-lg max-w-xs ${className}`}
         >
           {content}
           <div

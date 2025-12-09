@@ -252,7 +252,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search workflows, projects, executions..."
-            className="flex-1 bg-transparent text-white placeholder-gray-500 outline-none text-base"
+            className="flex-1 bg-transparent text-surface placeholder-gray-500 outline-none text-base"
           />
           {isLoading && (
             <div className="w-4 h-4 border-2 border-gray-600 border-t-gray-300 rounded-full animate-spin" />
@@ -305,7 +305,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-white font-medium truncate">{result.name}</span>
+                  <span className="text-surface font-medium truncate">{result.name}</span>
                   <span className="text-xs text-gray-500 capitalize">{result.type}</span>
                   {result.type === 'execution' && result.status && (
                     <span className={`text-xs px-1.5 py-0.5 rounded ${

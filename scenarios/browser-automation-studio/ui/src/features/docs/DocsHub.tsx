@@ -64,7 +64,7 @@ export function DocsHub({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-2 text-gray-400 hover:text-surface hover:bg-gray-800 rounded-lg transition-colors"
               aria-label="Back to dashboard"
             >
               <ArrowLeft size={20} />
@@ -91,7 +91,7 @@ export function DocsHub({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-surface hover:bg-gray-800 rounded-lg transition-colors"
             aria-label="Close documentation"
           >
             <X size={20} />

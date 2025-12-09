@@ -34,7 +34,7 @@ function VariableSuggestionList({
         <button
           key={`${variable.name}-${variable.sourceNodeId}`}
           type="button"
-          className="px-2 py-0.5 text-[10px] rounded border border-gray-700 text-gray-300 hover:text-white hover:border-flow-accent transition-colors"
+          className="px-2 py-0.5 text-[10px] rounded border border-gray-700 text-gray-300 hover:text-surface hover:border-flow-accent transition-colors"
           title={variable.sourceLabel}
           onClick={() => onSelect?.(variable.name)}
         >

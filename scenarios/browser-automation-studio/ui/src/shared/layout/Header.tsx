@@ -648,7 +648,7 @@ function Header({
                 </button>
               )}
 
-              <h1 className="text-xl font-bold text-white flex items-center gap-2">
+              <h1 className="text-xl font-bold text-surface flex items-center gap-2">
                 {displayWorkflow ? (
                   <div className="flex items-center gap-2">
                     {isEditingTitle ? (
@@ -660,7 +660,7 @@ function Header({
                           onChange={(e) => setEditTitle(e.target.value)}
                           onKeyDown={handleTitleKeyDown}
                           onBlur={handleSaveTitle}
-                          className="bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 focus:border-flow-accent focus:outline-none"
+                          className="bg-gray-800 text-surface px-2 py-1 rounded border border-gray-600 focus:border-flow-accent focus:outline-none"
                           placeholder="Workflow name..."
                           data-testid={selectors.header.title.input}
                         />
@@ -692,7 +692,7 @@ function Header({
                         </span>
                         <button
                           onClick={handleStartEditTitle}
-                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white transition-opacity p-1"
+                          className="opacity-0 group-hover:opacity-100 text-subtle hover:text-surface transition-opacity p-1"
                           title="Edit workflow name"
                           data-testid={selectors.header.title.editButton}
                         >
@@ -713,7 +713,7 @@ function Header({
                     ref={infoButtonRef}
                     type="button"
                     onClick={() => setShowWorkflowInfo((prev) => !prev)}
-                    className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                    className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
                     title="Workflow details"
                     aria-label="Workflow details"
                     aria-expanded={showWorkflowInfo}
@@ -729,13 +729,13 @@ function Header({
                       data-testid={selectors.header.info.popover}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-white">
+                        <h3 className="text-sm font-semibold text-surface">
                           Workflow Details
                         </h3>
                         <button
                           type="button"
                           onClick={() => setShowWorkflowInfo(false)}
-                          className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                          className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
                           aria-label="Close workflow details"
                           data-testid={selectors.header.buttons.infoClose}
                         >
@@ -751,7 +751,7 @@ function Header({
                           <dl className="space-y-2 text-sm text-gray-300">
                             <div>
                               <dt className="text-xs text-gray-500">Name</dt>
-                              <dd className="text-sm font-medium text-white">
+                              <dd className="text-sm font-medium text-surface">
                                 {displayWorkflow.name}
                               </dd>
                             </div>
@@ -800,7 +800,7 @@ function Header({
                           <dl className="space-y-2">
                             <div>
                               <dt className="text-xs text-gray-500">Name</dt>
-                              <dd className="text-sm font-medium text-white">
+                              <dd className="text-sm font-medium text-surface">
                                 {currentProject.name}
                               </dd>
                             </div>
@@ -906,11 +906,11 @@ function Header({
         data-testid={selectors.header.saveError.dialog}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Autosave error</h2>
+          <h2 className="text-lg font-semibold text-surface">Autosave error</h2>
           <button
             type="button"
             onClick={() => setShowSaveErrorDetails(false)}
-            className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
             data-testid={selectors.header.saveError.dialogCloseButton}
           >
             <X size={16} />
@@ -940,13 +940,13 @@ function Header({
         data-testid={selectors.header.versionHistory.dialog}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-surface">
             Workflow Versions
           </h2>
           <button
             type="button"
             onClick={() => setShowVersionHistory(false)}
-            className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
             data-testid={selectors.header.versionHistory.closeButton}
           >
             <X size={16} />
@@ -966,7 +966,7 @@ function Header({
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-3">
-                <h4 className="text-sm font-semibold text-white">
+                <h4 className="text-sm font-semibold text-surface">
                   Local draft
                 </h4>
                 <ul className="mt-2 space-y-1 text-xs text-gray-300">
@@ -1068,7 +1068,7 @@ function Header({
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-surface">
                         Version {version.version}
                         {isCurrent && (
                           <span className="text-xs text-blue-300 uppercase tracking-wide">

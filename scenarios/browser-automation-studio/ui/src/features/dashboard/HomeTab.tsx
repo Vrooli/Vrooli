@@ -355,7 +355,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
           <button
             onClick={handleRunCta}
-            className="text-xs px-3 py-1.5 rounded-lg bg-flow-accent/20 text-white hover:bg-flow-accent/30 transition-colors flex items-center gap-1.5"
+            className="text-xs px-3 py-1.5 rounded-lg bg-flow-accent/20 text-surface hover:bg-flow-accent/30 transition-colors flex items-center gap-1.5"
           >
             <Play size={12} />
             Run a workflow
@@ -400,7 +400,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => onViewExecution(execution.id, execution.workflowId)}
-                  className="p-2 text-flow-text-secondary hover:text-white hover:bg-flow-node-hover rounded-lg transition-colors data-[theme=light]:hover:bg-flow-node"
+                  className="p-2 text-flow-text-secondary hover:text-surface hover:bg-flow-node-hover rounded-lg transition-colors data-[theme=light]:hover:bg-flow-node"
                   title="View execution"
                 >
                   <Eye size={14} />
@@ -418,7 +418,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           {runningExecutions.length > 3 && (
             <button
               onClick={() => onViewExecution(runningExecutions[0].id, runningExecutions[0].workflowId)}
-              className="w-full text-center text-xs text-flow-text-secondary hover:text-white py-2 transition-colors"
+              className="w-full text-center text-xs text-flow-text-secondary hover:text-surface py-2 transition-colors"
             >
               +{runningExecutions.length - 3} more running...
             </button>
@@ -703,7 +703,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}
-                    className="p-2 rounded-lg transition-colors text-flow-text-muted hover:text-white hover:bg-flow-node"
+                    className="p-2 rounded-lg transition-colors text-flow-text-muted hover:text-surface hover:bg-flow-node"
                     title="Edit workflow"
                   >
                     <Pencil size={14} />

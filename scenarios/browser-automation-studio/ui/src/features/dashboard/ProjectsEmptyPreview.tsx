@@ -11,12 +11,12 @@ export const ProjectsEmptyPreview: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-flow-accent/25 to-purple-500/30 text-white shadow-md shadow-blue-500/20 animate-fade-in-up">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-flow-accent/25 to-purple-500/30 text-surface shadow-md shadow-blue-500/20 animate-fade-in-up">
           <FolderOpen size={22} />
         </div>
         <div>
           <div className="text-sm uppercase tracking-wide text-flow-text-muted">Portfolio</div>
-          <div className="text-lg font-semibold text-white">Growth Experiments</div>
+          <div className="text-lg font-semibold text-surface">Growth Experiments</div>
         </div>
       </div>
 
@@ -40,7 +40,7 @@ export const ProjectsEmptyPreview: React.FC = () => {
             >
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-flow-accent animate-pulse-slow" />
-                <span className="text-white text-sm">{workflow.name}</span>
+                <span className="text-surface text-sm">{workflow.name}</span>
               </div>
               <span className={`text-xs ${workflow.color}`}>{workflow.status}</span>
             </div>

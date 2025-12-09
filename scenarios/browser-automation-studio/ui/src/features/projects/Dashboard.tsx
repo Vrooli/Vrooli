@@ -276,7 +276,7 @@ function Dashboard({
                   loading="lazy"
                 />
               </div>
-              <h1 className="text-xl font-bold text-white">
+              <h1 className="text-xl font-bold text-surface">
                 Vrooli Ascension
               </h1>
             </div>
@@ -313,7 +313,7 @@ function Dashboard({
               {/* Global Search Button */}
               <button
                 onClick={() => setIsSearchModalOpen(true)}
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-subtle hover:text-surface bg-gray-800/50 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors"
                 title={`Search (${getModifierKey()}+K)`}
                 aria-label="Open search"
               >
@@ -327,7 +327,7 @@ function Dashboard({
               {/* Mobile search button */}
               <button
                 onClick={() => setIsSearchModalOpen(true)}
-                className="sm:hidden p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                className="sm:hidden p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                 title="Search"
                 aria-label="Open search"
               >
@@ -337,7 +337,7 @@ function Dashboard({
               {onOpenHelp && (
                 <button
                   onClick={onOpenHelp}
-                  className="hidden sm:flex p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  className="hidden sm:flex p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                   title="Help"
                   aria-label="Open help"
                   data-testid={selectors.dashboard.docsButton}
@@ -348,7 +348,7 @@ function Dashboard({
               {onOpenSettings && (
                 <button
                   onClick={onOpenSettings}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                  className="p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                   title={`Settings (${getModifierKey()}+,)`}
                   aria-label="Open settings"
                   data-testid={selectors.dashboard.settingsButton}
