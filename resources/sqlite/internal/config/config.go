@@ -14,6 +14,7 @@ type Config struct {
 	DatabasePath        string
 	BackupPath          string
 	ReplicaPath         string
+	MigrationPath       string
 	JournalMode         string
 	BusyTimeout         time.Duration
 	CacheSize           int
@@ -35,6 +36,7 @@ func Load() Config {
 		DatabasePath:        firstNonEmpty(os.Getenv("SQLITE_DATABASE_PATH"), filepath.Join(dataRoot, "sqlite", "databases")),
 		BackupPath:          firstNonEmpty(os.Getenv("SQLITE_BACKUP_PATH"), filepath.Join(dataRoot, "sqlite", "backups")),
 		ReplicaPath:         firstNonEmpty(os.Getenv("SQLITE_REPLICATION_PATH"), filepath.Join(dataRoot, "sqlite", "replicas")),
+		MigrationPath:       firstNonEmpty(os.Getenv("SQLITE_MIGRATION_PATH"), filepath.Join(dataRoot, "sqlite", "migrations")),
 		JournalMode:         firstNonEmpty(os.Getenv("SQLITE_JOURNAL_MODE"), "WAL"),
 		BusyTimeout:         time.Duration(envInt("SQLITE_BUSY_TIMEOUT", 10000)) * time.Millisecond,
 		CacheSize:           envInt("SQLITE_CACHE_SIZE", 2000),
@@ -50,7 +52,7 @@ func Load() Config {
 
 // EnsureDirectories creates required data directories.
 func (c Config) EnsureDirectories() error {
-	paths := []string{c.DatabasePath, c.BackupPath, c.ReplicaPath}
+	paths := []string{c.DatabasePath, c.BackupPath, c.ReplicaPath, c.MigrationPath}
 	for _, p := range paths {
 		if err := os.MkdirAll(p, 0o755); err != nil {
 			return err

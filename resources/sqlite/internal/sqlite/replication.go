@@ -55,7 +55,21 @@ func (s *Service) saveReplicaState(state replicaState) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	tmp, err := os.CreateTemp(filepath.Dir(path), "state-*.json")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }
 
 func (s *Service) AddReplica(dbName, target string, interval time.Duration) error {
@@ -65,7 +79,7 @@ func (s *Service) AddReplica(dbName, target string, interval time.Duration) erro
 	if target == "" {
 		return errors.New("target path required")
 	}
-	if _, err := os.Stat(filepath.Dir(target)); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return fmt.Errorf("target dir not accessible: %w", err)
 	}
 

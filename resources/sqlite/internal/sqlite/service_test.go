@@ -66,6 +66,7 @@ func testConfig(t *testing.T) config.Config {
 		DatabasePath:        filepath.Join(root, "databases"),
 		BackupPath:          filepath.Join(root, "backups"),
 		ReplicaPath:         filepath.Join(root, "replicas"),
+		MigrationPath:       filepath.Join(root, "migrations"),
 		JournalMode:         "WAL",
 		BusyTimeout:         10 * time.Second,
 		CacheSize:           2000,

@@ -2,17 +2,23 @@ package sqlite
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
 
 func (s *Service) migrationsDir() string {
-	return filepath.Join(s.Config.DatabasePath, "migrations")
+	return s.Config.MigrationPath
+}
+
+func (s *Service) databaseMigrationsDir(name string) string {
+	return filepath.Join(s.migrationsDir(), name)
 }
 
 func (s *Service) InitMigrations(name string) error {
@@ -92,7 +98,11 @@ func (s *Service) ApplyMigrations(ctx context.Context, dbName string, targetVers
 		return 0, err
 	}
 	dir := s.migrationsDir()
+	if entries, err := os.ReadDir(s.databaseMigrationsDir(dbName)); err == nil && len(entries) > 0 {
+		dir = s.databaseMigrationsDir(dbName)
+	}
 	files, _ := os.ReadDir(dir)
+	sort.Slice(files, func(i, j int) bool { return files[i].Name() < files[j].Name() })
 	count := 0
 	for _, f := range files {
 		if f.IsDir() || !strings.HasSuffix(f.Name(), ".sql") {
@@ -114,7 +124,7 @@ func (s *Service) ApplyMigrations(ctx context.Context, dbName string, targetVers
 			return count, fmt.Errorf("failed applying %s: %w", filename, err)
 		}
 		count++
-		_, _ = db.ExecContext(ctx, "INSERT INTO schema_migrations(version, description) VALUES(?, ?)", version, filename)
+		_, _ = db.ExecContext(ctx, "INSERT INTO schema_migrations(version, description, checksum) VALUES(?, ?, ?)", version, filename, fileChecksum(sqlBytes))
 	}
 	return count, nil
 }
@@ -141,7 +151,11 @@ func (s *Service) MigrationStatus(ctx context.Context, dbName string) (applied [
 		applied = append(applied, v)
 	}
 	dir := s.migrationsDir()
+	if entries, err := os.ReadDir(s.databaseMigrationsDir(dbName)); err == nil && len(entries) > 0 {
+		dir = s.databaseMigrationsDir(dbName)
+	}
 	files, _ := os.ReadDir(dir)
+	sort.Slice(files, func(i, j int) bool { return files[i].Name() < files[j].Name() })
 	for _, f := range files {
 		if f.IsDir() || !strings.HasSuffix(f.Name(), ".sql") {
 			continue
@@ -167,4 +181,9 @@ func (s *Service) appliedVersions(ctx context.Context, db *sql.DB) (map[string]b
 		result[v] = true
 	}
 	return result, nil
+}
+
+func fileChecksum(data []byte) string {
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("%x", sum[:])
 }

@@ -36,6 +36,9 @@ func (s *Service) QueryInsert(ctx context.Context, dbName, table string, pairs [
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid pair: %s", p)
 		}
+		if err := validateIdentifier(parts[0]); err != nil {
+			return err
+		}
 		cols = append(cols, parts[0])
 		vals = append(vals, fmt.Sprintf("'%s'", strings.ReplaceAll(parts[1], "'", "''")))
 	}
@@ -55,6 +58,9 @@ func (s *Service) QueryUpdate(ctx context.Context, dbName, table string, pairs [
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid pair: %s", p)
 		}
+		if err := validateIdentifier(parts[0]); err != nil {
+			return err
+		}
 		assignments = append(assignments, fmt.Sprintf("%s='%s'", parts[0], strings.ReplaceAll(parts[1], "'", "''")))
 	}
 	query := fmt.Sprintf("UPDATE %s SET %s", table, strings.Join(assignments, ","))
@@ -63,4 +69,24 @@ func (s *Service) QueryUpdate(ctx context.Context, dbName, table string, pairs [
 	}
 	_, err := s.Execute(ctx, dbName, query)
 	return err
+}
+
+func validateIdentifier(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("identifier required")
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '_':
+		default:
+			return fmt.Errorf("invalid identifier: %s", name)
+		}
+	}
+	if name[0] >= '0' && name[0] <= '9' {
+		return fmt.Errorf("identifier cannot start with a digit: %s", name)
+	}
+	return nil
 }

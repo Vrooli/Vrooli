@@ -590,7 +590,7 @@ func (s *Service) IsEncrypted(path string) bool {
 	if len(header) >= len(encMagic) && string(header[:len(encMagic)]) == encMagic {
 		return true
 	}
-	return true
+	return false
 }
 
 func (s *Service) Status(ctx context.Context) (*StatusInfo, error) {
@@ -659,6 +659,9 @@ func copyFile(src, dest string, perm os.FileMode) error {
 func (s *Service) copyDatabase(ctx context.Context, src, dest string, force bool) error {
 	if _, err := os.Stat(dest); err == nil && !force {
 		return fmt.Errorf("destination exists: %s", dest)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
 	}
 	db, err := s.openDatabase(ctx, src)
 	if err != nil {
