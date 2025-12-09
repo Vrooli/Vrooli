@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
+import "google/protobuf/struct.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
 // JsonValue models a typed JSON value for scenarios that need stronger typing
@@ -14,6 +16,10 @@ message JsonValue {
     string string_value = 4;
     JsonObject object_value = 5;
     JsonList list_value = 6;
+    // Explicit null to preserve intent when converting to/from JSON.
+    google.protobuf.NullValue null_value = 7;
+    // Raw bytes for cases where binary payloads are passed through.
+    bytes bytes_value = 8;
   }
 }
 
@@ -55,6 +61,7 @@ enum StepType {
   STEP_TYPE_SUBFLOW = 4;
   STEP_TYPE_INPUT = 5;
   STEP_TYPE_CUSTOM = 6;
+  STEP_TYPE_WAIT = 7;
 }
 
 // StepStatus captures the lifecycle of an individual step.

@@ -285,7 +285,7 @@ function ExecutionHistory({
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <AlertCircle size={48} className="text-red-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">
+          <h3 className="text-lg font-semibold text-surface mb-2">
             Failed to Load Executions
           </h3>
           <p className="text-gray-400 mb-4">{error}</p>
@@ -317,8 +317,8 @@ function ExecutionHistory({
               onClick={() => setStatusFilter(filter)}
               className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                 statusFilter === filter
-                  ? "bg-flow-accent text-white"
-                  : "bg-flow-node text-gray-400 hover:text-white hover:bg-gray-700"
+                  ? "bg-flow-accent text-surface"
+                  : "bg-flow-node text-subtle hover:text-surface hover:bg-gray-700"
               }`}
             >
               {formatFilterLabel(filter)} ({statusCounts[filter]})
@@ -328,7 +328,7 @@ function ExecutionHistory({
             data-testid={selectors.executions.list.refreshButton}
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="ml-auto p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ml-auto p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh"
           >
             <RefreshCw
@@ -345,7 +345,7 @@ function ExecutionHistory({
               ref={mobileFilterButtonRef}
               type="button"
               onClick={() => setIsMobileFilterOpen((prev) => !prev)}
-              className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-700 bg-flow-node px-3 py-2 text-sm text-gray-200 hover:border-flow-accent hover:text-white transition-colors"
+              className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-700 bg-flow-node px-3 py-2 text-sm text-surface hover:border-flow-accent hover:text-surface transition-colors"
               aria-haspopup="listbox"
               aria-expanded={isMobileFilterOpen}
             >
@@ -377,8 +377,8 @@ function ExecutionHistory({
                     }}
                     className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
                       statusFilter === filter
-                        ? "bg-flow-accent/20 text-white"
-                        : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+                        ? "bg-flow-accent/20 text-surface"
+                        : "text-gray-300 hover:bg-gray-700/50 hover:text-surface"
                     }`}
                   >
                     <span>{formatFilterLabel(filter)}</span>
@@ -394,7 +394,7 @@ function ExecutionHistory({
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="ml-auto p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ml-auto p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh"
           >
             <RefreshCw
@@ -414,7 +414,7 @@ function ExecutionHistory({
           <div className="flex items-center justify-center h-full p-8">
             <div className="text-center">
               <Clock size={48} className="text-gray-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-white mb-2">
+              <h3 className="text-lg font-semibold text-surface mb-2">
                 {statusFilter === "all"
                   ? "No Executions Yet"
                   : `No ${statusFilter} executions`}
@@ -449,7 +449,7 @@ function ExecutionHistory({
                     <div className="flex-1 min-w-0">
                       {/* Execution ID */}
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-white">
+                        <span className="text-sm font-medium text-surface">
                           #{execution.id.slice(0, 8)}
                         </span>
                         {getStatusBadge(execution.status)}
@@ -507,7 +507,7 @@ function ExecutionHistory({
                         e.stopPropagation();
                         onSelectExecution(execution);
                       }}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                       title="View execution details"
                     >
                       <Eye size={14} />

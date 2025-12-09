@@ -1063,19 +1063,30 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 
 	var nodeType string
 	data := map[string]interface{}{}
+	config := map[string]interface{}{}
 
 	switch action.ActionType {
 	case "click":
 		nodeType = "click"
 		if action.Selector != nil {
 			data["selector"] = action.Selector.Primary
+			config["click"] = map[string]any{
+				"selector": action.Selector.Primary,
+			}
 		}
 		if action.Payload != nil {
 			if btn, ok := action.Payload["button"]; ok {
 				data["button"] = btn
+				ensureConfig(config, "click")["button"] = btn
 			}
 			if mods, ok := action.Payload["modifiers"]; ok {
 				data["modifiers"] = mods
+			}
+			if count, ok := action.Payload["clickCount"]; ok {
+				ensureConfig(config, "click")["click_count"] = count
+			}
+			if delay, ok := action.Payload["delay"]; ok {
+				ensureConfig(config, "click")["delay_ms"] = delay
 			}
 		}
 		data["label"] = generateClickLabel(action)
@@ -1084,11 +1095,18 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 		nodeType = "type"
 		if action.Selector != nil {
 			data["selector"] = action.Selector.Primary
+			config["input"] = map[string]any{
+				"selector": action.Selector.Primary,
+			}
 		}
 		if action.Payload != nil {
 			if text, ok := action.Payload["text"].(string); ok {
 				data["text"] = text
 				data["label"] = fmt.Sprintf("Type: %q", truncateString(text, 20))
+				ensureConfig(config, "input")["value"] = text
+			}
+			if submit, ok := action.Payload["submit"]; ok {
+				ensureConfig(config, "input")["submit"] = submit
 			}
 		}
 
@@ -1096,6 +1114,17 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 		nodeType = "navigate"
 		data["url"] = action.URL
 		data["label"] = fmt.Sprintf("Navigate to %s", extractHostname(action.URL))
+		config["navigate"] = map[string]any{
+			"url": action.URL,
+		}
+		if action.Payload != nil {
+			if waitFor, ok := action.Payload["waitForSelector"]; ok {
+				ensureConfig(config, "navigate")["wait_for_selector"] = waitFor
+			}
+			if timeout, ok := action.Payload["timeoutMs"]; ok {
+				ensureConfig(config, "navigate")["timeout_ms"] = timeout
+			}
+		}
 
 	case "scroll":
 		nodeType = "scroll"
@@ -1108,6 +1137,12 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 			}
 		}
 		data["label"] = "Scroll"
+		config["custom"] = map[string]any{
+			"kind": "scroll",
+			"payload": map[string]any{
+				"y": data["y"],
+			},
+		}
 
 	case "select":
 		nodeType = "select"
@@ -1120,6 +1155,10 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 			}
 		}
 		data["label"] = "Select option"
+		config["custom"] = map[string]any{
+			"kind":    "select",
+			"payload": data,
+		}
 
 	case "focus":
 		nodeType = "click"
@@ -1127,6 +1166,9 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 			data["selector"] = action.Selector.Primary
 		}
 		data["label"] = "Focus element"
+		config["click"] = map[string]any{
+			"selector": action.Selector.Primary,
+		}
 
 	case "keypress":
 		nodeType = "keyboard"
@@ -1136,6 +1178,10 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 				data["label"] = fmt.Sprintf("Press %s", key)
 			}
 		}
+		config["custom"] = map[string]any{
+			"kind":    "keypress",
+			"payload": data,
+		}
 
 	default:
 		// Default to click for unknown types
@@ -1144,12 +1190,30 @@ func mapActionToNode(action RecordedAction, nodeID string, index int) map[string
 			data["selector"] = action.Selector.Primary
 		}
 		data["label"] = action.ActionType
+		config["custom"] = map[string]any{
+			"kind":    action.ActionType,
+			"payload": data,
+		}
 	}
 
 	node["type"] = nodeType
 	node["data"] = data
+	if len(config) > 0 {
+		node["config"] = config
+	}
 
 	return node
+}
+
+func ensureConfig(config map[string]any, key string) map[string]any {
+	if existing, ok := config[key]; ok {
+		if typed, ok := existing.(map[string]any); ok {
+			return typed
+		}
+	}
+	typed := map[string]any{}
+	config[key] = typed
+	return typed
 }
 
 // WaitTemplate describes a wait node to be inserted between actions.
@@ -1270,6 +1334,12 @@ func createWaitNode(template *WaitTemplate, nodeID string, posY float64) map[str
 			"y": posY,
 		},
 		"data": data,
+		"config": map[string]any{
+			"custom": map[string]any{
+				"kind":    "wait",
+				"payload": data,
+			},
+		},
 	}
 }
 

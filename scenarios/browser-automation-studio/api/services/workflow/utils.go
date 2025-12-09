@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 )
@@ -233,7 +232,7 @@ func ToInterfaceSlice(value any) []any {
 	return typeconv.ToInterfaceSlice(value)
 }
 
-func equalStringArrays(a, b pq.StringArray) bool {
+func equalStringArrays(a, b database.StringArray) bool {
 	if len(a) != len(b) {
 		return false
 	}

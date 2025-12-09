@@ -38,6 +38,8 @@ type CreateWorkflowRequest struct {
 type ExecuteWorkflowRequest struct {
 	Parameters        map[string]any `json:"parameters,omitempty"`
 	WaitForCompletion bool           `json:"wait_for_completion"`
+	WorkflowID        string         `json:"workflow_id,omitempty"`
+	WorkflowVersion   *int           `json:"workflow_version,omitempty"`
 }
 
 // ExecuteAdhocWorkflowRequest represents the request to execute a workflow without persistence
@@ -69,6 +71,7 @@ type UpdateWorkflowRequest struct {
 	ChangeDescription string         `json:"change_description,omitempty"`
 	Source            string         `json:"source,omitempty"`
 	ExpectedVersion   *int           `json:"expected_version,omitempty"`
+	WorkflowID        string         `json:"workflow_id,omitempty"`
 }
 
 // RestoreWorkflowVersionRequest allows callers to provide an optional change description when rolling back.
@@ -289,6 +292,20 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		h.log.WithError(err).WithField("workflow_id", id).Error("Failed to decode update workflow request")
 		h.respondError(w, ErrInvalidRequest)
 		return
+	}
+
+	if strings.TrimSpace(req.WorkflowID) != "" && req.WorkflowID != id.String() {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error":        "workflow_id in body does not match path",
+			"path_id":      id.String(),
+			"payload_id":   req.WorkflowID,
+			"field":        "workflow_id",
+			"current_path": r.URL.Path,
+		}))
+		return
+	}
+	if req.WorkflowID == "" {
+		req.WorkflowID = id.String()
 	}
 
 	if !h.enforceProtoRequestShape(w, "update_workflow", req, &browser_automation_studio_v1.UpdateWorkflowRequest{}) {
@@ -518,6 +535,20 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		h.log.WithError(err).Error("Failed to decode execute workflow request")
 		h.respondError(w, ErrInvalidRequest)
 		return
+	}
+
+	if strings.TrimSpace(req.WorkflowID) != "" && req.WorkflowID != workflowID.String() {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error":        "workflow_id in body does not match path",
+			"path_id":      workflowID.String(),
+			"payload_id":   req.WorkflowID,
+			"field":        "workflow_id",
+			"current_path": r.URL.Path,
+		}))
+		return
+	}
+	if req.WorkflowID == "" {
+		req.WorkflowID = workflowID.String()
 	}
 
 	if !h.enforceProtoRequestShape(w, "execute_workflow", req, &browser_automation_studio_v1.ExecuteWorkflowRequest{}) {

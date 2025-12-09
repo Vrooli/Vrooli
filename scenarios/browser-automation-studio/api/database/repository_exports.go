@@ -40,7 +40,7 @@ func (r *repository) CreateExport(ctx context.Context, export *Export) error {
 }
 
 func (r *repository) GetExport(ctx context.Context, id uuid.UUID) (*Export, error) {
-	query := `SELECT * FROM exports WHERE id = $1`
+	query := r.db.Rebind(`SELECT * FROM exports WHERE id = ?`)
 
 	var export Export
 	err := r.db.GetContext(ctx, &export, query, id)
@@ -90,7 +90,7 @@ func (r *repository) UpdateExport(ctx context.Context, export *Export) error {
 }
 
 func (r *repository) DeleteExport(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM exports WHERE id = $1`
+	query := r.db.Rebind(`DELETE FROM exports WHERE id = ?`)
 
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -111,16 +111,16 @@ func (r *repository) DeleteExport(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*ExportWithDetails, error) {
-	query := `
+	query := r.db.Rebind(`
 		SELECT
 			e.*,
 			COALESCE(w.name, '') as workflow_name,
-			TO_CHAR(ex.started_at, 'YYYY-MM-DD HH24:MI:SS') as execution_date
+			ex.started_at as execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id
 		ORDER BY e.created_at DESC
-		LIMIT $1 OFFSET $2`
+		LIMIT ? OFFSET ?`)
 
 	var exports []*ExportWithDetails
 	err := r.db.SelectContext(ctx, &exports, query, limit, offset)
@@ -133,7 +133,7 @@ func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*Exp
 }
 
 func (r *repository) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*Export, error) {
-	query := `SELECT * FROM exports WHERE execution_id = $1 ORDER BY created_at DESC`
+	query := r.db.Rebind(`SELECT * FROM exports WHERE execution_id = ? ORDER BY created_at DESC`)
 
 	var exports []*Export
 	err := r.db.SelectContext(ctx, &exports, query, executionID)
@@ -146,7 +146,7 @@ func (r *repository) ListExportsByExecution(ctx context.Context, executionID uui
 }
 
 func (r *repository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*Export, error) {
-	query := `SELECT * FROM exports WHERE workflow_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+	query := r.db.Rebind(`SELECT * FROM exports WHERE workflow_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`)
 
 	var exports []*Export
 	err := r.db.SelectContext(ctx, &exports, query, workflowID, limit, offset)

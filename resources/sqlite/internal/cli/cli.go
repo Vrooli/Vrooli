@@ -17,14 +17,51 @@ import (
 	"github.com/vrooli/resources/sqlite/internal/sqlite"
 )
 
+// SQLiteService defines the contract the CLI relies on. Kept narrow to enable lightweight stubbing in tests.
+type SQLiteService interface {
+	CreateDatabase(ctx context.Context, name string) (string, error)
+	Execute(ctx context.Context, name, query string) (*sqlite.QueryResult, error)
+	ListDatabases() ([]sqlite.DBInfo, error)
+	GetDatabaseInfo(ctx context.Context, name, query string) (*sqlite.GetResult, error)
+	BackupDatabase(ctx context.Context, name string) (string, error)
+	RestoreDatabase(ctx context.Context, name, backup string, force bool) (string, error)
+	RemoveDatabase(name string, force bool) error
+	Batch(ctx context.Context, name string, reader io.Reader) (*sqlite.BatchResult, error)
+	ImportCSV(ctx context.Context, dbName, table, csvPath string, hasHeader bool, columnOverride []string) (int, error)
+	ExportCSV(ctx context.Context, dbName, table, outputPath string) (int, error)
+	EncryptDatabase(dbName, password string) error
+	DecryptDatabase(dbName, password string) error
+	AddReplica(dbName, target string, interval time.Duration) error
+	RemoveReplica(dbName, target string) error
+	ListReplicas() ([]sqlite.Replica, error)
+	SyncReplica(ctx context.Context, dbName string, force bool) (int, int, error)
+	SyncDueReplicas(ctx context.Context, force bool) (int, int, error)
+	VerifyReplicas(ctx context.Context, dbName string) ([]string, error)
+	ToggleReplica(dbName, target string, enabled bool) error
+	InitMigrations(name string) error
+	CreateMigration(name string) (string, error)
+	ApplyMigrations(ctx context.Context, dbName string, targetVersion string) (int, error)
+	MigrationStatus(ctx context.Context, dbName string) (applied []string, pending []string, err error)
+	QuerySelect(ctx context.Context, dbName, table string, where string, order string, limit int) (*sqlite.QueryResult, error)
+	QueryInsert(ctx context.Context, dbName, table string, pairs []string) error
+	QueryUpdate(ctx context.Context, dbName, table string, pairs []string, where string) error
+	EnableStats(ctx context.Context, dbName string) error
+	ShowStats(ctx context.Context, dbName string) (*sqlite.QueryResult, error)
+	Analyze(ctx context.Context, dbName string) error
+	Vacuum(ctx context.Context, dbName string) error
+	Status(ctx context.Context) (*sqlite.StatusInfo, error)
+}
+
 // CLI dispatches resource commands.
 type CLI struct {
-	Service     *sqlite.Service
+	Service     SQLiteService
 	Config      config.Config
 	RuntimePath string
 	RuntimeData []byte
 	SourceRoot  string
 	Now         func() time.Time
+	Rebuilder   func() error
+	TestRunner  func(ctx context.Context, dir string) error
 }
 
 func New(cfg config.Config, runtimePath string, runtimeData []byte, sourceRoot string) *CLI {
@@ -94,7 +131,11 @@ func (c *CLI) handleManage(args []string) int {
 		if err := c.Config.EnsureDirectories(); err != nil {
 			return fail(err)
 		}
-		if err := c.rebuildBinary(); err != nil {
+		rebuilder := c.rebuildBinary
+		if c.Rebuilder != nil {
+			rebuilder = c.Rebuilder
+		}
+		if err := rebuilder(); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 			fmt.Println("SQLite data directories prepared; existing binary left unchanged.")
 			return 0
@@ -251,15 +292,26 @@ func (c *CLI) handleContent(args []string) int {
 		return 0
 	case "import_csv":
 		if len(rest) < 3 {
-			fmt.Fprintln(os.Stderr, "Usage: content import_csv <database_name> <table> <csv_file> [--no-header]")
+			fmt.Fprintln(os.Stderr, "Usage: content import_csv <database_name> <table> <csv_file> [--no-header] [--columns col1,col2]")
 			return 1
 		}
 		dbName, table, file := rest[0], rest[1], rest[2]
 		hasHeader := true
-		if contains(rest[3:], "--no-header") {
-			hasHeader = false
+		columns := []string{}
+		for i := 3; i < len(rest); i++ {
+			switch rest[i] {
+			case "--no-header":
+				hasHeader = false
+			case "--columns":
+				if i+1 >= len(rest) {
+					fmt.Fprintln(os.Stderr, "--columns requires a comma-separated list")
+					return 1
+				}
+				i++
+				columns = strings.Split(rest[i], ",")
+			}
 		}
-		count, err := c.Service.ImportCSV(ctx, dbName, table, file, hasHeader)
+		count, err := c.Service.ImportCSV(ctx, dbName, table, file, hasHeader, columns)
 		if err != nil {
 			return fail(err)
 		}
@@ -356,7 +408,7 @@ Commands:
   migrate <sub>              init|create|up|status
   query <sub>                select|insert|update
   stats <sub>                enable|show|analyze|vacuum
-  test <sub>                 smoke|integration|unit (runs go test ./...)`)
+  test <sub>                 smoke|integration|unit|all (runs go test ./...)`)
 }
 
 func (c *CLI) handleReplicate(args []string) int {
@@ -425,24 +477,39 @@ func (c *CLI) handleReplicate(args []string) int {
 		}
 		return 0
 	case "sync":
-		if len(args) < 3 {
-			fmt.Fprintln(os.Stderr, "Usage: replicate sync --database <name> [--force]")
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "Usage: replicate sync --database <name> [--force] [--all]")
 			return 1
 		}
 		db := ""
 		force := false
+		all := false
 		for i := 1; i < len(args); i++ {
 			switch args[i] {
 			case "--database", "-d":
 				i++
-				db = args[i]
+				if i < len(args) {
+					db = args[i]
+				}
 			case "--force", "-f":
 				force = true
+			case "--all", "-a":
+				all = true
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), c.Config.CLITimeout)
 		defer cancel()
-		ok, failCount, err := c.Service.SyncReplica(ctx, db, force)
+		var ok, failCount int
+		var err error
+		if all {
+			ok, failCount, err = c.Service.SyncDueReplicas(ctx, force)
+		} else {
+			if db == "" {
+				fmt.Fprintln(os.Stderr, "--database is required unless --all is provided")
+				return 1
+			}
+			ok, failCount, err = c.Service.SyncReplica(ctx, db, force)
+		}
 		if err != nil {
 			return fail(err)
 		}
@@ -682,6 +749,10 @@ func (c *CLI) handleStats(args []string) int {
 	case "show":
 		res, err := c.Service.ShowStats(ctx, db)
 		if err != nil {
+			if errors.Is(err, sqlite.ErrDbstatUnavailable) {
+				fmt.Println("dbstat extension not available in this SQLite build; stats show is unavailable.")
+				return 0
+			}
 			return fail(err)
 		}
 		printTable(res)
@@ -708,19 +779,21 @@ func (c *CLI) handleTest(args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), c.Config.CLITimeout)
 	defer cancel()
 
-	if _, err := exec.LookPath("go"); err != nil {
-		fmt.Fprintln(os.Stderr, "Go toolchain not found. Install Go or run `go test ./...` inside resources/sqlite.")
-		return 1
-	}
-
-	// Run tests from the resource root (parent of config directory).
 	root := filepath.Dir(filepath.Dir(c.RuntimePath))
-	cmd := exec.CommandContext(ctx, "go", "test", "./...")
-	cmd.Dir = root
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	if len(args) > 0 {
+		switch args[0] {
+		case "smoke", "integration", "unit", "all":
+			// Accepted aliases; same runner for Go-based tests.
+		default:
+			fmt.Fprintln(os.Stderr, "Usage: test smoke|integration|unit|all")
+			return 1
+		}
+	}
+	runner := c.runGoTests
+	if c.TestRunner != nil {
+		runner = c.TestRunner
+	}
+	if err := runner(ctx, root); err != nil {
 		return 1
 	}
 	return 0
@@ -769,6 +842,10 @@ func (c *CLI) rebuildBinary() error {
 	}
 
 	srcRoot := cliutil.ResolveSourceRoot(c.SourceRoot, "SQLITE_CLI_SOURCE_ROOT", "VROOLI_CLI_SOURCE_ROOT")
+	if srcRoot == "" {
+		return fmt.Errorf("unable to locate SQLite source root; set SQLITE_CLI_SOURCE_ROOT or VROOLI_CLI_SOURCE_ROOT")
+	}
+
 	installDir := os.Getenv("VROOLI_BIN")
 	if strings.TrimSpace(installDir) == "" {
 		home, _ := os.UserHomeDir()
@@ -782,31 +859,51 @@ func (c *CLI) rebuildBinary() error {
 	}
 	target := filepath.Join(installDir, "resource-sqlite")
 
-	if srcRoot == "" {
-		return fmt.Errorf("unable to locate SQLite source root; set SQLITE_CLI_SOURCE_ROOT or VROOLI_CLI_SOURCE_ROOT")
+	repoRoot, ok := findRepoRoot(srcRoot)
+	if !ok {
+		return fmt.Errorf("unable to locate repository root from %s", srcRoot)
 	}
 
-	tmp, err := os.CreateTemp(installDir, "resource-sqlite-build-*")
-	if err != nil {
-		return fmt.Errorf("create temp binary: %w", err)
-	}
-	tmpPath := tmp.Name()
-	_ = tmp.Close()
-	defer os.Remove(tmpPath)
-
-	cmd := exec.Command("go", "build", "-o", tmpPath, "./cmd/resource-sqlite")
-	cmd.Dir = srcRoot
+	cmd := exec.Command("go", "run", "./cmd/cli-installer",
+		"--module", srcRoot,
+		"--output", target,
+		"--name", "resource-sqlite",
+		"--force", "true",
+	)
+	cmd.Dir = filepath.Join(repoRoot, "packages", "cli-core")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to build resource-sqlite binary: %w", err)
+		return fmt.Errorf("failed to build resource-sqlite binary via cli-core: %w", err)
 	}
 
-	if err := os.Rename(tmpPath, target); err != nil {
-		return fmt.Errorf("install binary: %w", err)
-	}
-	_ = os.Chmod(target, 0o755)
 	return nil
+}
+
+func (c *CLI) runGoTests(ctx context.Context, root string) error {
+	if _, err := exec.LookPath("go"); err != nil {
+		fmt.Fprintln(os.Stderr, "Go toolchain not found. Install Go or run `go test ./...` inside resources/sqlite.")
+		return err
+	}
+	cmd := exec.CommandContext(ctx, "go", "test", "./...")
+	cmd.Dir = root
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func findRepoRoot(start string) (string, bool) {
+	dir := filepath.Clean(start)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "packages", "cli-core")); err == nil {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
 }

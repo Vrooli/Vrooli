@@ -93,10 +93,9 @@ vrooli scenario run <scenario-name>
 Our testing system is distributed across multiple layers for comprehensive validation:
 
 #### **Individual Resource Tests**
-- **Location**: `__test/resources/single/category/resource.test.sh`
+- **Location**: Resource-local `test/` directories (see each resource README)
 - **Purpose**: Test individual resource functionality, health checks, and API endpoints
-- **Examples**: `__test/resources/single/ai/ollama.test.sh`
-- **Documentation**: [Resource Testing Framework](../__test/resources/README.md)
+- **Execution**: Run the resource’s `test/run-tests.sh` (when present) or the resource-specific scripts documented in its README
 
 #### **Multi-Resource Integration Tests**  
 - **Location**: `scenarios/scenario-name/test.sh`
@@ -132,20 +131,17 @@ Resource usage examples are organized by complexity and integration level:
 - **Value**: Demonstrates real-world integration patterns and revenue potential
 
 #### **Test Fixtures**
-- **Location**: `__test/resources/fixtures/`
+- **Location**: `__test/fixtures/`
 - **Content**: Sample data for testing (audio, documents, images, workflows)
 - **Usage**: Shared test data across all resource tests
 
 ### Quick Testing Commands
 ```bash
-# Test individual resource
-./__test/resources/quick-test.sh ollama
-
 # Test business scenario
 cd ./scenarios/research-assistant && ./test.sh
 
-# Run all resource tests
-cd ./__test/resources && ./run.sh
+# Run resource-local tests (example)
+cd ./resources/ollama && ./test/integration-test.sh
 
 # Test scenarios using specific resource
 ./scenarios/tools/test-by-resource.sh --resource ollama

@@ -430,13 +430,13 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
       <div className="flex h-full max-h-[80vh] flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-white">Select App</h2>
+            <h2 className="text-base font-semibold text-surface">Select App</h2>
             <p className="text-xs text-gray-400">Browse available apps to navigate during this workflow.</p>
           </div>
           <button
             type="button"
             onClick={closeScenarioDialog}
-            className="rounded border border-gray-800 p-1 text-gray-400 hover:text-white hover:border-flow-accent transition-colors"
+            className="rounded border border-gray-800 p-1 text-subtle hover:text-surface hover:border-flow-accent transition-colors"
             aria-label="Close app selector"
           >
             <X size={16} />
@@ -448,14 +448,14 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
             type="search"
             autoFocus
             placeholder="Search apps..."
-            className="flex-1 rounded border border-gray-800 bg-flow-bg px-3 py-2 text-sm text-white focus:border-flow-accent focus:outline-none"
+            className="flex-1 rounded border border-gray-800 bg-flow-bg px-3 py-2 text-sm text-surface focus:border-flow-accent focus:outline-none"
             value={scenarioSearchTerm}
             onChange={(event) => setScenarioSearchTerm(event.target.value)}
           />
           <button
             type="button"
             onClick={() => void fetchScenarios()}
-            className="rounded border border-gray-800 bg-flow-bg p-2 text-gray-300 transition-colors hover:border-flow-accent hover:text-white disabled:opacity-40"
+            className="rounded border border-gray-800 bg-flow-bg p-2 text-subtle transition-colors hover:border-flow-accent hover:text-surface disabled:opacity-40"
             aria-label="Refresh apps"
             disabled={scenariosLoading}
           >
@@ -479,7 +479,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                   type="button"
                   onClick={() => handleScenarioSelect(option.name)}
                   className={`block w-full text-left px-3 py-2 transition-colors ${
-                    isActive ? 'bg-flow-accent/20 text-white' : 'text-gray-200 hover:bg-flow-accent/10'
+                    isActive ? 'bg-flow-accent/20 text-surface' : 'text-gray-200 hover:bg-flow-accent/10'
                   }`}
                 >
                   <div className="text-sm font-semibold">{option.name}</div>
@@ -534,8 +534,8 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                 onClick={() => handleDestinationChange(option.type)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-semibold tracking-wide transition-colors ${
                   isActive
-                    ? 'border-flow-accent bg-flow-accent/20 text-white'
-                    : 'border-gray-700 text-gray-400 hover:text-white hover:border-flow-accent'
+                    ? 'border-flow-accent bg-flow-accent/20 text-surface'
+                    : 'border-gray-700 text-subtle hover:text-surface hover:border-flow-accent'
                 }`}
                 aria-pressed={isActive}
               >
@@ -608,7 +608,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
             <button
               type="button"
               onClick={() => setIsPreviewOpen((open) => !open)}
-              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-300 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-subtle hover:text-surface transition-colors"
             >
               {isPreviewOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <span>Preview</span>
@@ -621,7 +621,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
               )}
               <button
                 type="button"
-                className="p-1.5 rounded border border-gray-700 bg-flow-bg text-gray-400 hover:text-white hover:border-flow-accent transition-colors disabled:opacity-40 disabled:hover:text-gray-400 disabled:hover:border-gray-700"
+                className="p-1.5 rounded border border-gray-700 bg-flow-bg text-subtle hover:text-surface hover:border-flow-accent transition-colors disabled:opacity-40 disabled:hover:text-subtle disabled:hover:border-gray-700"
                 onClick={(event) => {
                   event.stopPropagation();
                   if (previewSignature) {
@@ -655,7 +655,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                     className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors ${
                       activeTab === 'screenshot'
                         ? 'text-blue-400 border-b-2 border-blue-400'
-                        : 'text-gray-400 hover:text-white'
+                        : 'text-subtle hover:text-surface'
                     }`}
                     aria-pressed={activeTab === 'screenshot'}
                   >
@@ -668,7 +668,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                     className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors ${
                       activeTab === 'console'
                         ? 'text-blue-400 border-b-2 border-blue-400'
-                        : 'text-gray-400 hover:text-white'
+                        : 'text-subtle hover:text-surface'
                     }`}
                     aria-pressed={activeTab === 'console'}
                   >

@@ -29,7 +29,7 @@ func (r *repository) CreateFolder(ctx context.Context, folder *WorkflowFolder) e
 }
 
 func (r *repository) GetFolder(ctx context.Context, path string) (*WorkflowFolder, error) {
-	query := `SELECT * FROM workflow_folders WHERE path = $1`
+	query := r.db.Rebind(`SELECT * FROM workflow_folders WHERE path = ?`)
 
 	var folder WorkflowFolder
 	err := r.db.GetContext(ctx, &folder, query, path)

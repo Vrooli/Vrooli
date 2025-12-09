@@ -9,6 +9,7 @@ package browser_automation_studio_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -147,6 +148,7 @@ const (
 	StepType_STEP_TYPE_SUBFLOW     StepType = 4
 	StepType_STEP_TYPE_INPUT       StepType = 5
 	StepType_STEP_TYPE_CUSTOM      StepType = 6
+	StepType_STEP_TYPE_WAIT        StepType = 7
 )
 
 // Enum value maps for StepType.
@@ -159,6 +161,7 @@ var (
 		4: "STEP_TYPE_SUBFLOW",
 		5: "STEP_TYPE_INPUT",
 		6: "STEP_TYPE_CUSTOM",
+		7: "STEP_TYPE_WAIT",
 	}
 	StepType_value = map[string]int32{
 		"STEP_TYPE_UNSPECIFIED": 0,
@@ -168,6 +171,7 @@ var (
 		"STEP_TYPE_SUBFLOW":     4,
 		"STEP_TYPE_INPUT":       5,
 		"STEP_TYPE_CUSTOM":      6,
+		"STEP_TYPE_WAIT":        7,
 	}
 )
 
@@ -511,6 +515,8 @@ type JsonValue struct {
 	//	*JsonValue_StringValue
 	//	*JsonValue_ObjectValue
 	//	*JsonValue_ListValue
+	//	*JsonValue_NullValue
+	//	*JsonValue_BytesValue
 	Kind          isJsonValue_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -607,6 +613,24 @@ func (x *JsonValue) GetListValue() *JsonList {
 	return nil
 }
 
+func (x *JsonValue) GetNullValue() structpb.NullValue {
+	if x != nil {
+		if x, ok := x.Kind.(*JsonValue_NullValue); ok {
+			return x.NullValue
+		}
+	}
+	return structpb.NullValue(0)
+}
+
+func (x *JsonValue) GetBytesValue() []byte {
+	if x != nil {
+		if x, ok := x.Kind.(*JsonValue_BytesValue); ok {
+			return x.BytesValue
+		}
+	}
+	return nil
+}
+
 type isJsonValue_Kind interface {
 	isJsonValue_Kind()
 }
@@ -635,6 +659,16 @@ type JsonValue_ListValue struct {
 	ListValue *JsonList `protobuf:"bytes,6,opt,name=list_value,json=listValue,proto3,oneof"`
 }
 
+type JsonValue_NullValue struct {
+	// Explicit null to preserve intent when converting to/from JSON.
+	NullValue structpb.NullValue `protobuf:"varint,7,opt,name=null_value,json=nullValue,proto3,enum=google.protobuf.NullValue,oneof"`
+}
+
+type JsonValue_BytesValue struct {
+	// Raw bytes for cases where binary payloads are passed through.
+	BytesValue []byte `protobuf:"bytes,8,opt,name=bytes_value,json=bytesValue,proto3,oneof"`
+}
+
 func (*JsonValue_BoolValue) isJsonValue_Kind() {}
 
 func (*JsonValue_IntValue) isJsonValue_Kind() {}
@@ -646,6 +680,10 @@ func (*JsonValue_StringValue) isJsonValue_Kind() {}
 func (*JsonValue_ObjectValue) isJsonValue_Kind() {}
 
 func (*JsonValue_ListValue) isJsonValue_Kind() {}
+
+func (*JsonValue_NullValue) isJsonValue_Kind() {}
+
+func (*JsonValue_BytesValue) isJsonValue_Kind() {}
 
 // JsonObject mirrors a JSON object with typed values.
 type JsonObject struct {
@@ -741,7 +779,7 @@ var File_browser_automation_studio_v1_shared_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\n" +
-	")browser-automation-studio/v1/shared.proto\x12\x1cbrowser_automation_studio.v1\"\xb5\x02\n" +
+	")browser-automation-studio/v1/shared.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x95\x03\n" +
 	"\tJsonValue\x12\x1f\n" +
 	"\n" +
 	"bool_value\x18\x01 \x01(\bH\x00R\tboolValue\x12\x1d\n" +
@@ -750,7 +788,11 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\fstring_value\x18\x04 \x01(\tH\x00R\vstringValue\x12M\n" +
 	"\fobject_value\x18\x05 \x01(\v2(.browser_automation_studio.v1.JsonObjectH\x00R\vobjectValue\x12G\n" +
 	"\n" +
-	"list_value\x18\x06 \x01(\v2&.browser_automation_studio.v1.JsonListH\x00R\tlistValueB\x06\n" +
+	"list_value\x18\x06 \x01(\v2&.browser_automation_studio.v1.JsonListH\x00R\tlistValue\x12;\n" +
+	"\n" +
+	"null_value\x18\a \x01(\x0e2\x1a.google.protobuf.NullValueH\x00R\tnullValue\x12!\n" +
+	"\vbytes_value\x18\b \x01(\fH\x00R\n" +
+	"bytesValueB\x06\n" +
 	"\x04kind\"\xbe\x01\n" +
 	"\n" +
 	"JsonObject\x12L\n" +
@@ -772,7 +814,7 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\x13TRIGGER_TYPE_MANUAL\x10\x01\x12\x1a\n" +
 	"\x16TRIGGER_TYPE_SCHEDULED\x10\x02\x12\x14\n" +
 	"\x10TRIGGER_TYPE_API\x10\x03\x12\x18\n" +
-	"\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xaa\x01\n" +
+	"\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xbe\x01\n" +
 	"\bStepType\x12\x19\n" +
 	"\x15STEP_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12STEP_TYPE_NAVIGATE\x10\x01\x12\x13\n" +
@@ -780,7 +822,8 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\x10STEP_TYPE_ASSERT\x10\x03\x12\x15\n" +
 	"\x11STEP_TYPE_SUBFLOW\x10\x04\x12\x13\n" +
 	"\x0fSTEP_TYPE_INPUT\x10\x05\x12\x14\n" +
-	"\x10STEP_TYPE_CUSTOM\x10\x06*\xdc\x01\n" +
+	"\x10STEP_TYPE_CUSTOM\x10\x06\x12\x12\n" +
+	"\x0eSTEP_TYPE_WAIT\x10\a*\xdc\x01\n" +
 	"\n" +
 	"StepStatus\x12\x1b\n" +
 	"\x17STEP_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -835,30 +878,32 @@ func file_browser_automation_studio_v1_shared_proto_rawDescGZIP() []byte {
 var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_browser_automation_studio_v1_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_browser_automation_studio_v1_shared_proto_goTypes = []any{
-	(ExecutionStatus)(0), // 0: browser_automation_studio.v1.ExecutionStatus
-	(TriggerType)(0),     // 1: browser_automation_studio.v1.TriggerType
-	(StepType)(0),        // 2: browser_automation_studio.v1.StepType
-	(StepStatus)(0),      // 3: browser_automation_studio.v1.StepStatus
-	(LogLevel)(0),        // 4: browser_automation_studio.v1.LogLevel
-	(ArtifactType)(0),    // 5: browser_automation_studio.v1.ArtifactType
-	(EventKind)(0),       // 6: browser_automation_studio.v1.EventKind
-	(ExportStatus)(0),    // 7: browser_automation_studio.v1.ExportStatus
-	(*JsonValue)(nil),    // 8: browser_automation_studio.v1.JsonValue
-	(*JsonObject)(nil),   // 9: browser_automation_studio.v1.JsonObject
-	(*JsonList)(nil),     // 10: browser_automation_studio.v1.JsonList
-	nil,                  // 11: browser_automation_studio.v1.JsonObject.FieldsEntry
+	(ExecutionStatus)(0),    // 0: browser_automation_studio.v1.ExecutionStatus
+	(TriggerType)(0),        // 1: browser_automation_studio.v1.TriggerType
+	(StepType)(0),           // 2: browser_automation_studio.v1.StepType
+	(StepStatus)(0),         // 3: browser_automation_studio.v1.StepStatus
+	(LogLevel)(0),           // 4: browser_automation_studio.v1.LogLevel
+	(ArtifactType)(0),       // 5: browser_automation_studio.v1.ArtifactType
+	(EventKind)(0),          // 6: browser_automation_studio.v1.EventKind
+	(ExportStatus)(0),       // 7: browser_automation_studio.v1.ExportStatus
+	(*JsonValue)(nil),       // 8: browser_automation_studio.v1.JsonValue
+	(*JsonObject)(nil),      // 9: browser_automation_studio.v1.JsonObject
+	(*JsonList)(nil),        // 10: browser_automation_studio.v1.JsonList
+	nil,                     // 11: browser_automation_studio.v1.JsonObject.FieldsEntry
+	(structpb.NullValue)(0), // 12: google.protobuf.NullValue
 }
 var file_browser_automation_studio_v1_shared_proto_depIdxs = []int32{
 	9,  // 0: browser_automation_studio.v1.JsonValue.object_value:type_name -> browser_automation_studio.v1.JsonObject
 	10, // 1: browser_automation_studio.v1.JsonValue.list_value:type_name -> browser_automation_studio.v1.JsonList
-	11, // 2: browser_automation_studio.v1.JsonObject.fields:type_name -> browser_automation_studio.v1.JsonObject.FieldsEntry
-	8,  // 3: browser_automation_studio.v1.JsonList.values:type_name -> browser_automation_studio.v1.JsonValue
-	8,  // 4: browser_automation_studio.v1.JsonObject.FieldsEntry.value:type_name -> browser_automation_studio.v1.JsonValue
-	5,  // [5:5] is the sub-list for method output_type
-	5,  // [5:5] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	12, // 2: browser_automation_studio.v1.JsonValue.null_value:type_name -> google.protobuf.NullValue
+	11, // 3: browser_automation_studio.v1.JsonObject.fields:type_name -> browser_automation_studio.v1.JsonObject.FieldsEntry
+	8,  // 4: browser_automation_studio.v1.JsonList.values:type_name -> browser_automation_studio.v1.JsonValue
+	8,  // 5: browser_automation_studio.v1.JsonObject.FieldsEntry.value:type_name -> browser_automation_studio.v1.JsonValue
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_shared_proto_init() }
@@ -873,6 +918,8 @@ func file_browser_automation_studio_v1_shared_proto_init() {
 		(*JsonValue_StringValue)(nil),
 		(*JsonValue_ObjectValue)(nil),
 		(*JsonValue_ListValue)(nil),
+		(*JsonValue_NullValue)(nil),
+		(*JsonValue_BytesValue)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

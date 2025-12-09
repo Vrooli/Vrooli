@@ -35,7 +35,7 @@ func (r *repository) CreateExecution(ctx context.Context, execution *Execution) 
 }
 
 func (r *repository) GetExecution(ctx context.Context, id uuid.UUID) (*Execution, error) {
-	query := `SELECT * FROM executions WHERE id = $1`
+	query := r.db.Rebind(`SELECT * FROM executions WHERE id = ?`)
 
 	var execution Execution
 	err := r.db.GetContext(ctx, &execution, query, id)
@@ -67,7 +67,7 @@ func (r *repository) UpdateExecution(ctx context.Context, execution *Execution) 
 }
 
 func (r *repository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM executions WHERE id = $1`
+	query := r.db.Rebind(`DELETE FROM executions WHERE id = ?`)
 
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -83,10 +83,10 @@ func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, 
 	var args []any
 
 	if workflowID != nil {
-		query = `SELECT * FROM executions WHERE workflow_id = $1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`
+		query = r.db.Rebind(`SELECT * FROM executions WHERE workflow_id = ? ORDER BY started_at DESC LIMIT ? OFFSET ?`)
 		args = []any{*workflowID, limit, offset}
 	} else {
-		query = `SELECT * FROM executions ORDER BY started_at DESC LIMIT $1 OFFSET $2`
+		query = r.db.Rebind(`SELECT * FROM executions ORDER BY started_at DESC LIMIT ? OFFSET ?`)
 		args = []any{limit, offset}
 	}
 
@@ -151,10 +151,10 @@ func (r *repository) UpdateExecutionStep(ctx context.Context, step *ExecutionSte
 }
 
 func (r *repository) ListExecutionSteps(ctx context.Context, executionID uuid.UUID) ([]*ExecutionStep, error) {
-	query := `
+	query := r.db.Rebind(`
 		SELECT * FROM execution_steps
-		WHERE execution_id = $1
-		ORDER BY step_index ASC`
+		WHERE execution_id = ?
+		ORDER BY step_index ASC`)
 
 	var steps []*ExecutionStep
 	if err := r.db.SelectContext(ctx, &steps, query, executionID); err != nil {
@@ -192,10 +192,10 @@ func (r *repository) CreateExecutionArtifact(ctx context.Context, artifact *Exec
 }
 
 func (r *repository) ListExecutionArtifacts(ctx context.Context, executionID uuid.UUID) ([]*ExecutionArtifact, error) {
-	query := `
+	query := r.db.Rebind(`
 		SELECT * FROM execution_artifacts
-		WHERE execution_id = $1
-		ORDER BY created_at ASC`
+		WHERE execution_id = ?
+		ORDER BY created_at ASC`)
 
 	var artifacts []*ExecutionArtifact
 	if err := r.db.SelectContext(ctx, &artifacts, query, executionID); err != nil {

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -564,7 +563,7 @@ func cloneWorkflow(wf *database.Workflow) *database.Workflow {
 		clone.FlowDefinition = cloneJSONMapTest(wf.FlowDefinition)
 	}
 	if wf.Tags != nil {
-		clone.Tags = append(pq.StringArray{}, wf.Tags...)
+		clone.Tags = append(database.StringArray{}, wf.Tags...)
 	}
 	return &clone
 }

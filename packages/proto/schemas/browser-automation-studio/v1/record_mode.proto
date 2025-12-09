@@ -8,6 +8,17 @@ import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
+// RecordedActionType enumerates supported action kinds captured during recording.
+enum RecordedActionType {
+  RECORDED_ACTION_TYPE_UNSPECIFIED = 0;
+  RECORDED_ACTION_TYPE_NAVIGATE = 1;
+  RECORDED_ACTION_TYPE_CLICK = 2;
+  RECORDED_ACTION_TYPE_INPUT = 3;
+  RECORDED_ACTION_TYPE_WAIT = 4;
+  RECORDED_ACTION_TYPE_ASSERT = 5;
+  RECORDED_ACTION_TYPE_CUSTOM_SCRIPT = 6;
+}
+
 // SelectorCandidate is a single selector with metadata.
 message SelectorCandidate {
   string type = 1;
@@ -56,17 +67,86 @@ message RecordedAction {
   int32 sequence_num = 3;
   google.protobuf.Timestamp timestamp = 4;
   int32 duration_ms = 5;
-  string action_type = 6;
+  string action_type = 6 [deprecated = true];
   double confidence = 7;
   SelectorSet selector = 8;
   ElementMeta element_meta = 9;
   RecordBoundingBox bounding_box = 10;
-  google.protobuf.Struct payload = 11;
+  google.protobuf.Struct payload = 11 [deprecated = true];
   // Typed payload; prefer over Struct when available.
   JsonObject payload_typed = 15;
   string url = 12;
   string frame_id = 13;
   RecordPoint cursor_pos = 14;
+  // Discrete action kind; prefer over the free-form action_type string.
+  RecordedActionType action_kind = 16;
+  // Typed action payloads; prefer over payload/payload_typed.
+  oneof typed_action {
+    NavigateActionPayload navigate = 17;
+    ClickActionPayload click = 18;
+    InputActionPayload input = 19;
+    WaitActionPayload wait = 20;
+    AssertActionPayload assert = 21;
+    CustomScriptActionPayload custom_script = 22;
+  }
+}
+
+// NavigateActionPayload captures navigation inputs.
+message NavigateActionPayload {
+  string url = 1;
+  // Optional selector to wait for before proceeding.
+  optional string wait_for_selector = 2;
+  // Timeout in milliseconds for the wait.
+  optional int32 timeout_ms = 3;
+}
+
+// ClickActionPayload captures pointer click configuration.
+message ClickActionPayload {
+  // Mouse button (left, middle, right); defaults to left when empty.
+  string button = 1;
+  // Number of clicks; defaults to 1.
+  optional int32 click_count = 2;
+  // Delay between mousedown and mouseup in milliseconds.
+  optional int32 delay_ms = 3;
+  // Whether to scroll element into view before clicking.
+  optional bool scroll_into_view = 4;
+}
+
+// InputActionPayload captures text entry.
+message InputActionPayload {
+  string value = 1;
+  // Treat value as sensitive and mask in logs.
+  bool is_sensitive = 2;
+  // Whether to press Enter after input.
+  optional bool submit = 3;
+}
+
+// WaitActionPayload captures a fixed wait.
+message WaitActionPayload {
+  // Duration to wait in milliseconds.
+  int32 duration_ms = 1;
+}
+
+// AssertActionPayload captures assertion metadata.
+message AssertActionPayload {
+  // Assertion mode (exists, visible, text_equals, etc.).
+  string mode = 1;
+  // CSS selector being asserted on.
+  string selector = 2;
+  // Expected value for the assertion.
+  google.protobuf.Value expected = 3;
+  // Whether the assertion is negated.
+  bool negated = 4;
+  // Case sensitivity flag.
+  bool case_sensitive = 5;
+}
+
+// CustomScriptActionPayload captures custom script execution data.
+message CustomScriptActionPayload {
+  // Language for the script (e.g., "javascript").
+  string language = 1;
+  // Source code to execute.
+  string source = 2;
 }
 
 // Recording session state.
@@ -172,11 +252,22 @@ message ActionReplayError {
 message ActionReplayResult {
   string action_id = 1;
   int32 sequence_num = 2;
-  string action_type = 3;
+  string action_type = 3 [deprecated = true];
   bool success = 4;
   int32 duration_ms = 5;
   ActionReplayError error = 6;
   string screenshot_on_error = 7;
+  // Discrete action kind; prefer over the legacy action_type string.
+  RecordedActionType action_kind = 8;
+  // Typed action payload that was replayed; prefer over action_type.
+  oneof typed_action {
+    NavigateActionPayload navigate = 9;
+    ClickActionPayload click = 10;
+    InputActionPayload input = 11;
+    WaitActionPayload wait = 12;
+    AssertActionPayload assert = 13;
+    CustomScriptActionPayload custom_script = 14;
+  }
 }
 
 // ReplayPreviewResponse is the response from replay preview.

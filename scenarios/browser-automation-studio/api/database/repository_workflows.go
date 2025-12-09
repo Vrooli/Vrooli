@@ -7,14 +7,14 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
 // Workflow repository methods
 
 func (r *repository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*Workflow, error) {
-	query := `SELECT * FROM workflows WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+	query := r.db.Rebind(`SELECT * FROM workflows WHERE project_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`)
 
 	var workflows []*Workflow
 	err := r.db.SelectContext(ctx, &workflows, query, projectID, limit, offset)
@@ -51,7 +51,7 @@ func (r *repository) CreateWorkflow(ctx context.Context, workflow *Workflow) err
 }
 
 func (r *repository) GetWorkflow(ctx context.Context, id uuid.UUID) (*Workflow, error) {
-	query := `SELECT * FROM workflows WHERE id = $1`
+	query := r.db.Rebind(`SELECT * FROM workflows WHERE id = ?`)
 
 	var workflow Workflow
 	err := r.db.GetContext(ctx, &workflow, query, id)
@@ -67,7 +67,7 @@ func (r *repository) GetWorkflow(ctx context.Context, id uuid.UUID) (*Workflow, 
 }
 
 func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath string) (*Workflow, error) {
-	query := `SELECT * FROM workflows WHERE name = $1 AND folder_path = $2`
+	query := r.db.Rebind(`SELECT * FROM workflows WHERE name = ? AND folder_path = ?`)
 
 	var workflow Workflow
 	err := r.db.GetContext(ctx, &workflow, query, name, folderPath)
@@ -86,7 +86,7 @@ func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath str
 }
 
 func (r *repository) GetWorkflowByProjectAndName(ctx context.Context, projectID uuid.UUID, name string) (*Workflow, error) {
-	query := `SELECT * FROM workflows WHERE project_id = $1 AND name = $2 LIMIT 1`
+	query := r.db.Rebind(`SELECT * FROM workflows WHERE project_id = ? AND name = ? LIMIT 1`)
 
 	var workflow Workflow
 	err := r.db.GetContext(ctx, &workflow, query, projectID, name)
@@ -122,7 +122,7 @@ func (r *repository) UpdateWorkflow(ctx context.Context, workflow *Workflow) err
 }
 
 func (r *repository) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM workflows WHERE id = $1`
+	query := r.db.Rebind(`DELETE FROM workflows WHERE id = ?`)
 
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -138,9 +138,13 @@ func (r *repository) DeleteProjectWorkflows(ctx context.Context, projectID uuid.
 		return nil
 	}
 
-	query := `DELETE FROM workflows WHERE project_id = $1 AND id = ANY($2)`
+	query, args, err := sqlx.In(`DELETE FROM workflows WHERE project_id = ? AND id IN (?)`, projectID, workflowIDs)
+	if err != nil {
+		return fmt.Errorf("build delete project workflows query: %w", err)
+	}
+	query = r.db.Rebind(query)
 
-	_, err := r.db.ExecContext(ctx, query, projectID, pq.Array(workflowIDs))
+	_, err = r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		r.log.WithError(err).WithFields(logrus.Fields{
 			"project_id":   projectID,
@@ -157,10 +161,10 @@ func (r *repository) ListWorkflows(ctx context.Context, folderPath string, limit
 	var args []any
 
 	if folderPath != "" {
-		query = `SELECT * FROM workflows WHERE folder_path = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+		query = r.db.Rebind(`SELECT * FROM workflows WHERE folder_path = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`)
 		args = []any{folderPath, limit, offset}
 	} else {
-		query = `SELECT * FROM workflows ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+		query = r.db.Rebind(`SELECT * FROM workflows ORDER BY created_at DESC LIMIT ? OFFSET ?`)
 		args = []any{limit, offset}
 	}
 
@@ -199,7 +203,7 @@ func (r *repository) CreateWorkflowVersion(ctx context.Context, version *Workflo
 }
 
 func (r *repository) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*WorkflowVersion, error) {
-	query := `SELECT * FROM workflow_versions WHERE workflow_id = $1 AND version = $2`
+	query := r.db.Rebind(`SELECT * FROM workflow_versions WHERE workflow_id = ? AND version = ?`)
 
 	var wfVersion WorkflowVersion
 	err := r.db.GetContext(ctx, &wfVersion, query, workflowID, version)
@@ -215,7 +219,7 @@ func (r *repository) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUI
 }
 
 func (r *repository) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*WorkflowVersion, error) {
-	query := `SELECT * FROM workflow_versions WHERE workflow_id = $1 ORDER BY version DESC LIMIT $2 OFFSET $3`
+	query := r.db.Rebind(`SELECT * FROM workflow_versions WHERE workflow_id = ? ORDER BY version DESC LIMIT ? OFFSET ?`)
 
 	var versions []*WorkflowVersion
 	err := r.db.SelectContext(ctx, &versions, query, workflowID, limit, offset)

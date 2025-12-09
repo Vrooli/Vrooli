@@ -187,6 +187,9 @@ func ExecutionToProto(execution *database.Execution) (*browser_automation_studio
 	if len(triggerMetadata) > 0 {
 		pb.TriggerMetadata = triggerMetadata
 	}
+	if typed := toJsonValueMap(map[string]any(execution.TriggerMetadata)); len(typed) > 0 {
+		pb.TriggerMetadataTyped = typed
+	}
 	if len(parameters) > 0 {
 		pb.Parameters = parameters
 	}
@@ -684,7 +687,7 @@ func toJsonValueMap(source map[string]any) map[string]*browser_automation_studio
 func toJsonValue(value any) *browser_automation_studio_v1.JsonValue {
 	switch v := value.(type) {
 	case nil:
-		return nil
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
 	case *structpb.Value:
 		return toJsonValue(v.AsInterface())
 	case bool:
@@ -719,6 +722,8 @@ func toJsonValue(value any) *browser_automation_studio_v1.JsonValue {
 			return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: f}}
 		}
 		return nil
+	case []byte:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BytesValue{BytesValue: v}}
 	case map[string]any:
 		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ObjectValue{ObjectValue: toJsonObject(v)}}
 	case []any:

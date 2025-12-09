@@ -194,9 +194,9 @@ See the [Models Guide](docs/MODELS.md) for 50+ additional models.
 ## 🧪 Testing & Examples
 
 ### Individual Resource Tests
-- **Test Location**: `__test/resources/single/ai/ollama.test.sh`
+- **Test Location**: `resources/ollama/test/integration-test.sh`
 - **Test Coverage**: Health checks, model listing, text generation, API functionality
-- **Run Test**: `cd __test/resources && ./quick-test.sh ollama`
+- **Run Test**: `cd resources/ollama && ./test/integration-test.sh`
 
 ### Working Examples
 - **Examples Folder**: [examples/](examples/)

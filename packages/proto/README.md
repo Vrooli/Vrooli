@@ -15,6 +15,7 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 
 - Prefer typed fields over raw `Struct` payloads wherever available. For BAS, use `metadata_typed` / `settings_typed` instead of the deprecated maps, and only rely on map/Struct fields for provider-specific extensions that are truly dynamic.
 - Optional scalars (`optional string ...`, `optional int64 ...`) are present throughout the BAS timeline/billing contracts to distinguish “unset” from zero values. In generated code, check presence (e.g., `HasError` in Go or truthy `error` plus `hasError()` in TS) instead of assuming defaults.
+- `JsonValue` supports explicit nulls and raw bytes; use these when round-tripping JSON that contains `null` or binary blobs instead of dropping intent or coercing to zero values.
 - The `@vrooli/proto-types` package is ESM-only; CJS consumers should `import()` dynamically or transpile to ESM when wiring into Jest/older Node runtimes.
 
 ## JSON casing & compatibility
@@ -73,5 +74,6 @@ parsed = json_format.ParseDict(
 
 ## BAS schema notes
 
-- `browser-automation-studio/v1/workflow.proto` provides typed `metadata_typed` and `settings_typed` fields. The older Struct-backed maps are deprecated but remain for compatibility while clients migrate.
+- `browser-automation-studio/v1/workflow.proto` provides typed `metadata_typed` / `settings_typed` and now `WorkflowNode.config` for discriminated per-step payloads (navigate/click/input/assert/subflow/custom). Prefer these over the legacy Struct-backed maps.
+- `record_mode.proto` exposes `action_kind` plus typed payloads (`typed_action`) for recorded actions (navigate/click/input/wait/assert/custom script) so clients can switch off the free-form `action_type` string and `Struct` payloads.
 - When migrating from legacy JSON, populate the typed fields first and copy only provider-specific spillover into the remaining `Struct`/`map<string, Value>` fields. This keeps the generated TS/Go/Python types strongly typed for the common path.

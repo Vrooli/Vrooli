@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
@@ -141,7 +140,7 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub *wsHub.Hub, log 
 }
 
 // cloneJSONMap creates a deep copy of a database.JSONMap using typeconv utilities.
-// Handles database.JSONMap and pq.StringArray as special domain-specific types.
+// Handles database.JSONMap and database.StringArray as special domain-specific types.
 func cloneJSONMap(source database.JSONMap) database.JSONMap {
 	if source == nil {
 		return nil
@@ -154,13 +153,13 @@ func cloneJSONMap(source database.JSONMap) database.JSONMap {
 }
 
 // deepCloneInterface delegates to typeconv.DeepCloneValue with additional handling
-// for domain-specific types (database.JSONMap, pq.StringArray).
+// for domain-specific types (database.JSONMap, database.StringArray).
 func deepCloneInterface(value any) any {
 	switch typed := value.(type) {
 	case database.JSONMap:
 		return cloneJSONMap(typed)
-	case pq.StringArray:
-		return append(pq.StringArray{}, typed...)
+	case database.StringArray:
+		return append(database.StringArray{}, typed...)
 	default:
 		return typeconv.DeepCloneValue(typed)
 	}

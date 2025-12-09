@@ -232,19 +232,32 @@ Goal: deliver true offline/portable desktop bundles (UI + API + resources + secr
   - [x] scenario-dependency-analyzer · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
   - [x] scenario-dependency-analyzer · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
   - [x] secrets-manager · Screaming Architecture Audit — `scenarios/ecosystem-manager/prompts/phases/screaming-architecture-audit.md`
-  - [ ] secrets-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
-  - [ ] secrets-manager · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] secrets-manager · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
-  - [ ] secrets-manager · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
-  - [ ] secrets-manager · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
-  - [ ] secrets-manager · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] secrets-manager · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
-  - [ ] secrets-manager · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
-  - [ ] secrets-manager · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] secrets-manager · Boundary of Responsibility Enforcement — `scenarios/ecosystem-manager/prompts/phases/boundary-of-responsibility-enforcement.md`
+  - [x] secrets-manager · Seam Discovery and Enforcement (first pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [x] secrets-manager · Seam Discovery and Enforcement (second pass) — `scenarios/ecosystem-manager/prompts/phases/seam-discovery-and-enforcement`
+  - [x] secrets-manager · Cognitive Load Reduction — `scenarios/ecosystem-manager/prompts/phases/cognitive-load-reduction.md`
+  - [x] secrets-manager · Decision Boundary Extraction — `scenarios/ecosystem-manager/prompts/phases/decision-boundary-extraction.md`
+  - [x] secrets-manager · Refactor (first pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [x] secrets-manager · Refactor (second pass) — `scenarios/ecosystem-manager/prompts/phases/refactor.md`
+  - [x] secrets-manager · Test (first pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
+  - [x] secrets-manager · Test (second pass) — `scenarios/ecosystem-manager/prompts/phases/test.md`
 - Bundling delivery gaps
-  - [ ] Implement deployment-manager bundle assembly end-to-end (scenario selection, swaps, secret plans, signed/validated `bundle.json` export).
-  - [ ] Wire secrets-manager outputs into bundle export + first-run enforcement (prompt/generated secrets persisted and validated before service start).
-  - [ ] Make scenario-to-desktop consume validated manifests, stage binaries/assets, and fail fast on missing artifacts; ensure Electron targets the runtime control API.
-  - [ ] Implement installer/updater flows (MSI/PKG/AppImage) and document updater channel design.
-  - [ ] Add deployment-manager telemetry ingestion UI for desktop bundles with failure breakdowns.
+  - [x] Implement deployment-manager bundle assembly end-to-end (scenario selection, swaps, secret plans, signed/validated `bundle.json` export).
+  - [x] Wire secrets-manager outputs into bundle export + first-run enforcement (prompt/generated secrets persisted and validated before service start).
+  - [x] Make scenario-to-desktop consume validated manifests, stage binaries/assets, and fail fast on missing artifacts; ensure Electron targets the runtime control API.
+    - Added `ValidateBundle()` method to runtime supervisor for comprehensive pre-flight validation (binaries, assets, checksums).
+    - Added `/validate` API endpoint to expose validation results to Electron and external tools.
+    - Added Electron-side pre-flight validation (`validateBundlePreFlight()`) that checks manifest structure and file existence BEFORE spawning the runtime.
+    - Added runtime-side validation call after startup for comprehensive checksum verification.
+    - Both validation layers provide structured error responses with specific missing binaries/assets/checksum failures.
+  - [x] Implement installer/updater flows (MSI/PKG/AppImage) and document updater channel design.
+    - Added update channel support (dev/beta/stable) to template-generator.ts with GitHub and generic (self-hosted) providers.
+    - Enhanced main.ts auto-updater with channel awareness, telemetry integration, and manual check via Help menu.
+    - Created comprehensive documentation at `docs/deployment/guides/auto-updates.md`.
+    - Updated tier-2-desktop.md with installer formats and auto-update system overview.
+  - [x] Add deployment-manager telemetry ingestion UI for desktop bundles with failure breakdowns.
+    - Created dedicated `BundleTelemetry.tsx` page with aggregate statistics, failure breakdown grid, and per-bundle telemetry entries.
+    - Added `/telemetry` route and navigation item for direct access to desktop bundle telemetry.
+    - Dashboard shows: total bundles, total events, healthy/failed bundle counts, failure breakdown by event type (dependency_unreachable, swap_missing_asset, asset_missing, migration_failed, api_unreachable, secrets_missing, health_failed).
+    - Includes upload form for manual telemetry ingestion and filtering (search, failures-only toggle).
   - [ ] Ship an end-to-end bundled build (UI+API+resources) with secrets, swaps, migrations, and runtime control surface validated.

@@ -154,7 +154,7 @@ export const RecentExecutionsWidget: React.FC<RecentExecutionsWidgetProps> = ({ 
           >
             <StatusIcon status={execution.status} />
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-white truncate">{execution.workflowName}</div>
+              <div className="text-sm text-surface truncate">{execution.workflowName}</div>
               <div className="text-xs text-gray-500 truncate">
                 {execution.status === 'running' ? (
                   <span className="text-blue-400">Running...</span>

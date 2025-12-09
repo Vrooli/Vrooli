@@ -105,6 +105,8 @@ export interface RecordedAction {
 
   /** Action classification */
   actionType: ActionType;
+  /** Typed action kind (proto-aligned) */
+  actionKind?: RecordedActionKind;
   /** Confidence in action classification (0-1) */
   confidence: number;
 
@@ -117,6 +119,8 @@ export interface RecordedAction {
 
   /** Action-specific parameters */
   payload?: ActionPayload;
+  /** Typed action payloads (proto-aligned) */
+  typedAction?: TypedActionPayload;
 
   /** Page URL at action time */
   url: string;
@@ -140,6 +144,16 @@ export type ActionType =
   | 'focus'
   | 'blur'
   | 'keypress';
+
+/** Proto-aligned recorded action kinds. */
+export type RecordedActionKind =
+  | 'RECORDED_ACTION_TYPE_UNSPECIFIED'
+  | 'RECORDED_ACTION_TYPE_NAVIGATE'
+  | 'RECORDED_ACTION_TYPE_CLICK'
+  | 'RECORDED_ACTION_TYPE_INPUT'
+  | 'RECORDED_ACTION_TYPE_WAIT'
+  | 'RECORDED_ACTION_TYPE_ASSERT'
+  | 'RECORDED_ACTION_TYPE_CUSTOM_SCRIPT';
 
 /**
  * Action-specific payload data.
@@ -175,6 +189,53 @@ export interface ActionPayload {
 
   // Generic
   [key: string]: unknown;
+}
+
+/** Typed payloads for RecordedAction. */
+export type TypedActionPayload =
+  | { navigate: NavigateActionPayload }
+  | { click: ClickActionPayload }
+  | { input: InputActionPayload }
+  | { wait: WaitActionPayload }
+  | { assert: AssertActionPayload }
+  | { customScript: CustomScriptActionPayload };
+
+export interface NavigateActionPayload {
+  url: string;
+  waitForSelector?: string;
+  timeoutMs?: number;
+}
+
+export interface ClickActionPayload {
+  selector?: string;
+  button?: 'left' | 'right' | 'middle';
+  clickCount?: number;
+  delayMs?: number;
+  scrollIntoView?: boolean;
+}
+
+export interface InputActionPayload {
+  selector?: string;
+  value: string;
+  isSensitive?: boolean;
+  submit?: boolean;
+}
+
+export interface WaitActionPayload {
+  durationMs: number;
+}
+
+export interface AssertActionPayload {
+  mode: string;
+  selector: string;
+  expected?: unknown;
+  negated?: boolean;
+  caseSensitive?: boolean;
+}
+
+export interface CustomScriptActionPayload {
+  language?: string;
+  source: string;
 }
 
 /**

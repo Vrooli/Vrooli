@@ -4,10 +4,45 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 import "browser-automation-studio/v1/workflow.proto";
 import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
+
+// WorkflowService declares the core BAS workflow lifecycle operations. The
+// HTTP API mirrors these RPC shapes; adding the service enables generated
+// clients and breaking-change checks.
+service WorkflowService {
+  // Creates a new workflow in a project.
+  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/create"
+      body: "*"
+    };
+  }
+  // Updates a workflow definition and metadata.
+  rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/workflows/{workflow_id}"
+      body: "*"
+    };
+  }
+  // Executes a workflow by ID/version with optional parameters.
+  rpc ExecuteWorkflow(ExecuteWorkflowRequest) returns (ExecuteWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/{workflow_id}/execute"
+      body: "*"
+    };
+  }
+  // Validates a workflow definition and returns warnings/errors.
+  rpc ValidateWorkflow(WorkflowDefinition) returns (WorkflowValidationResult) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/validate"
+      body: "*"
+    };
+  }
+}
 
 // WorkflowSummary captures the primary workflow fields without the full definition.
 message WorkflowSummary {
@@ -72,6 +107,8 @@ message UpdateWorkflowRequest {
   string change_description = 6;
   string source = 7;
   int32 expected_version = 8;
+  // Target workflow ID; populated by RPC clients (path-param for REST).
+  optional string workflow_id = 9;
 }
 
 // UpdateWorkflowResponse returns the updated workflow and its definition.
@@ -82,8 +119,14 @@ message UpdateWorkflowResponse {
 
 // ExecuteWorkflowRequest represents execution parameters.
 message ExecuteWorkflowRequest {
-  map<string, google.protobuf.Value> parameters = 1;
+  map<string, google.protobuf.Value> parameters = 1 [deprecated = true];
+  // Strongly typed runtime parameters; prefer over Value maps.
+  map<string, JsonValue> parameters_typed = 3;
   bool wait_for_completion = 2;
+  // Workflow ID to execute; required when calling the RPC directly.
+  string workflow_id = 4;
+  // Optional workflow version to execute.
+  optional int32 workflow_version = 5;
 }
 
 // ExecuteWorkflowResponse provides the started execution identifier.

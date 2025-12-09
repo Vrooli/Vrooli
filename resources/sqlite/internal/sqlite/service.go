@@ -288,6 +288,9 @@ func (s *Service) BackupDatabase(ctx context.Context, name string) (string, erro
 	if err := os.Chmod(backupPath, s.Config.FilePermissions); err != nil {
 		return "", err
 	}
+	if s.Config.BackupRetentionDays > 0 {
+		_ = s.pruneBackups(base, time.Now())
+	}
 	return backupPath, nil
 }
 
@@ -399,7 +402,7 @@ func (s *Service) Batch(ctx context.Context, name string, reader io.Reader) (*Ba
 }
 
 // ImportCSV streams CSV rows into an existing table.
-func (s *Service) ImportCSV(ctx context.Context, dbName, table, csvPath string, hasHeader bool) (int, error) {
+func (s *Service) ImportCSV(ctx context.Context, dbName, table, csvPath string, hasHeader bool, columnOverride []string) (int, error) {
 	if err := s.ValidateName(table); err != nil {
 		return 0, err
 	}
@@ -425,12 +428,38 @@ func (s *Service) ImportCSV(ctx context.Context, dbName, table, csvPath string, 
 	if err != nil {
 		return 0, err
 	}
-	if hasHeader {
-		if _, err := reader.Read(); err != nil {
+	tableColumns, err := s.tableColumns(ctx, db, table)
+	if err != nil {
+		_ = tx.Rollback()
+		return 0, err
+	}
+
+	insertColumns := tableColumns
+	if len(columnOverride) > 0 {
+		insertColumns = normalizeColumns(columnOverride)
+		if err := s.validateColumnsExist(insertColumns, tableColumns); err != nil {
 			_ = tx.Rollback()
 			return 0, err
 		}
 	}
+
+	if hasHeader {
+		header, err := reader.Read()
+		if err != nil {
+			_ = tx.Rollback()
+			return 0, err
+		}
+		normalized := normalizeColumns(header)
+		if len(columnOverride) == 0 {
+			if err := s.validateColumnsExist(normalized, tableColumns); err != nil {
+				_ = tx.Rollback()
+				return 0, err
+			}
+			insertColumns = normalized
+		}
+	}
+
+	expectedCols := len(insertColumns)
 	for {
 		record, err := reader.Read()
 		if errors.Is(err, io.EOF) {
@@ -440,9 +469,13 @@ func (s *Service) ImportCSV(ctx context.Context, dbName, table, csvPath string, 
 			_ = tx.Rollback()
 			return 0, err
 		}
-		placeholders := strings.TrimRight(strings.Repeat("?,", len(record)), ",")
-		query := fmt.Sprintf("INSERT INTO %s VALUES (%s)", table, placeholders)
-		args := make([]any, len(record))
+		if len(record) != expectedCols {
+			_ = tx.Rollback()
+			return 0, fmt.Errorf("row %d has %d columns; expected %d", inserted+1, len(record), expectedCols)
+		}
+		placeholders := strings.TrimRight(strings.Repeat("?,", expectedCols), ",")
+		query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(insertColumns, ","), placeholders)
+		args := make([]any, expectedCols)
 		for i, v := range record {
 			args[i] = v
 		}
@@ -539,11 +572,16 @@ func (s *Service) EncryptDatabase(dbName, password string) error {
 	if err != nil {
 		return err
 	}
+	_ = removeJournalFiles(path)
 	cipher, err := encryptBytes(plain, password)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, cipher, s.Config.FilePermissions)
+	if err := os.WriteFile(path, cipher, s.Config.FilePermissions); err != nil {
+		return err
+	}
+	_ = removeJournalFiles(path)
+	return nil
 }
 
 func (s *Service) DecryptDatabase(dbName, password string) error {
@@ -559,7 +597,12 @@ func (s *Service) DecryptDatabase(dbName, password string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, plain, s.Config.FilePermissions)
+	_ = removeJournalFiles(path)
+	if err := os.WriteFile(path, plain, s.Config.FilePermissions); err != nil {
+		return err
+	}
+	_ = removeJournalFiles(path)
+	return nil
 }
 
 func (s *Service) IsEncrypted(path string) bool {
@@ -625,6 +668,12 @@ func querySingleInt(ctx context.Context, db *sql.DB, query string) int64 {
 func querySingleText(ctx context.Context, db *sql.DB, query string) string {
 	var s string
 	_ = db.QueryRowContext(ctx, query).Scan(&s)
+	return s
+}
+
+func querySingleTextArgs(ctx context.Context, db *sql.DB, query string, args ...any) string {
+	var s string
+	_ = db.QueryRowContext(ctx, query, args...).Scan(&s)
 	return s
 }
 
@@ -695,6 +744,99 @@ func (s *Service) integrityCheck(ctx context.Context, path string) error {
 		return fmt.Errorf("integrity_check returned %s", result)
 	}
 	return nil
+}
+
+func removeJournalFiles(base string) error {
+	var errs []string
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if err := os.Remove(base + suffix); err != nil && !errors.Is(err, os.ErrNotExist) {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func (s *Service) pruneBackups(base string, now time.Time) error {
+	entries, err := os.ReadDir(s.Config.BackupPath)
+	if err != nil {
+		return err
+	}
+	cutoff := now.Add(-time.Duration(s.Config.BackupRetentionDays) * 24 * time.Hour)
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasPrefix(name, base+"_") || filepath.Ext(name) != ".db" {
+			continue
+		}
+		parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(name, base+"_"), ".db"), "_")
+		if len(parts) == 0 {
+			continue
+		}
+		tsRaw := parts[0]
+		parsed, err := time.Parse("20060102", tsRaw)
+		if err != nil {
+			if len(tsRaw) == len("20060102_150405") {
+				parsed, err = time.Parse("20060102_150405", tsRaw)
+			}
+		}
+		if err != nil {
+			info, statErr := e.Info()
+			if statErr != nil {
+				continue
+			}
+			parsed = info.ModTime()
+		}
+		if parsed.Before(cutoff) {
+			_ = os.Remove(filepath.Join(s.Config.BackupPath, name))
+		}
+	}
+	return nil
+}
+
+func (s *Service) tableColumns(ctx context.Context, db *sql.DB, table string) ([]string, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s);", table))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var cols []string
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return nil, err
+		}
+		cols = append(cols, name)
+	}
+	return cols, rows.Err()
+}
+
+func (s *Service) validateColumnsExist(cols []string, tableCols []string) error {
+	tableSet := map[string]struct{}{}
+	for _, c := range tableCols {
+		tableSet[strings.ToLower(c)] = struct{}{}
+	}
+	for _, col := range cols {
+		if _, ok := tableSet[strings.ToLower(col)]; !ok {
+			return fmt.Errorf("column %s not found in table", col)
+		}
+	}
+	return nil
+}
+
+func normalizeColumns(cols []string) []string {
+	out := make([]string, len(cols))
+	for i, c := range cols {
+		out[i] = strings.TrimSpace(c)
+	}
+	return out
 }
 
 // Simple encryption helpers (AES-GCM with PBKDF2-derived key).

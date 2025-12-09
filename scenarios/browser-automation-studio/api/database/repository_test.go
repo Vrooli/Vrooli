@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -23,103 +24,140 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	backend := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_TEST_BACKEND")))
+	if backend == "" {
+		backend = "postgres"
+	}
 	ctx := context.Background()
 
-	handle, err := testdb.Start(ctx)
-	if err != nil {
-		fmt.Printf("Failed to start postgres test db: %s\n", err)
-		os.Exit(0)
+	if backend == "postgres" {
+		handle, err := testdb.Start(ctx)
+		if err != nil {
+			fmt.Printf("Failed to start postgres test db: %s\n", err)
+			os.Exit(0)
+		}
+		testDBHandle = handle
+
+		code := m.Run()
+
+		handle.Terminate(ctx)
+		os.Exit(code)
 	}
-	testDBHandle = handle
 
-	// Run tests
+	// SQLite mode does not require external containers.
 	code := m.Run()
-
-	// Cleanup
-	handle.Terminate(ctx)
-
 	os.Exit(code)
 }
 
 // setupTestDB creates a test database connection using the testcontainer.
 // It acquires a mutex to ensure exclusive access to the shared test database.
 func setupTestDB(t *testing.T) (*DB, func()) {
-	if testDBHandle == nil {
-		t.Fatal("Test database not initialized - TestMain should have set handle")
+	backend := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_TEST_BACKEND")))
+	if backend == "" {
+		backend = "postgres"
 	}
 
-	// Acquire exclusive access to the test database
-	testDBMu.Lock()
+	if backend == "postgres" {
+		if testDBHandle == nil {
+			t.Fatal("Test database not initialized - TestMain should have set handle")
+		}
 
-	// Save and clear environment variables
-	oldURL := os.Getenv("DATABASE_URL")
-	oldSkipDemo := os.Getenv("BAS_SKIP_DEMO_SEED")
-	oldHost := os.Getenv("POSTGRES_HOST")
-	oldPort := os.Getenv("POSTGRES_PORT")
-	oldUser := os.Getenv("POSTGRES_USER")
-	oldPass := os.Getenv("POSTGRES_PASSWORD")
-	oldDB := os.Getenv("POSTGRES_DB")
+		testDBMu.Lock()
 
-	// Clear POSTGRES_* vars to ensure DATABASE_URL is used
-	os.Unsetenv("POSTGRES_HOST")
-	os.Unsetenv("POSTGRES_PORT")
-	os.Unsetenv("POSTGRES_USER")
-	os.Unsetenv("POSTGRES_PASSWORD")
-	os.Unsetenv("POSTGRES_DB")
+		oldURL := os.Getenv("DATABASE_URL")
+		oldSkipDemo := os.Getenv("BAS_SKIP_DEMO_SEED")
+		oldHost := os.Getenv("POSTGRES_HOST")
+		oldPort := os.Getenv("POSTGRES_PORT")
+		oldUser := os.Getenv("POSTGRES_USER")
+		oldPass := os.Getenv("POSTGRES_PASSWORD")
+		oldDB := os.Getenv("POSTGRES_DB")
 
-	os.Setenv("DATABASE_URL", testDBHandle.DSN)
-	os.Setenv("BAS_SKIP_DEMO_SEED", "true")
+		os.Unsetenv("POSTGRES_HOST")
+		os.Unsetenv("POSTGRES_PORT")
+		os.Unsetenv("POSTGRES_USER")
+		os.Unsetenv("POSTGRES_PASSWORD")
+		os.Unsetenv("POSTGRES_DB")
+
+		os.Setenv("DATABASE_URL", testDBHandle.DSN)
+		os.Setenv("BAS_SKIP_DEMO_SEED", "true")
+
+		log := logrus.New()
+		log.SetOutput(ioutil.Discard)
+
+		db, err := NewConnection(log)
+		if err != nil {
+			testDBMu.Unlock()
+			t.Fatalf("Failed to connect to test database: %v", err)
+		}
+
+		if err := truncateAllWithRetry(db, 3); err != nil {
+			db.Close()
+			testDBMu.Unlock()
+			t.Fatalf("failed to truncate test tables: %v", err)
+		}
+
+		cleanup := func() {
+			_ = truncateAll(db)
+			db.Close()
+
+			if oldURL != "" {
+				os.Setenv("DATABASE_URL", oldURL)
+			} else {
+				os.Unsetenv("DATABASE_URL")
+			}
+
+			if oldSkipDemo != "" {
+				os.Setenv("BAS_SKIP_DEMO_SEED", oldSkipDemo)
+			} else {
+				os.Unsetenv("BAS_SKIP_DEMO_SEED")
+			}
+
+			if oldHost != "" {
+				os.Setenv("POSTGRES_HOST", oldHost)
+			}
+			if oldPort != "" {
+				os.Setenv("POSTGRES_PORT", oldPort)
+			}
+			if oldUser != "" {
+				os.Setenv("POSTGRES_USER", oldUser)
+			}
+			if oldPass != "" {
+				os.Setenv("POSTGRES_PASSWORD", oldPass)
+			}
+			if oldDB != "" {
+				os.Setenv("POSTGRES_DB", oldDB)
+			}
+
+			testDBMu.Unlock()
+		}
+
+		return db, cleanup
+	}
 
 	log := logrus.New()
 	log.SetOutput(ioutil.Discard)
 
+	// SQLite mode: use a temp file per test to isolate state.
+	tmpDir := t.TempDir()
+	sqlitePath := filepath.Join(tmpDir, "test.db")
+
+	os.Setenv("BAS_DB_BACKEND", "sqlite")
+	os.Setenv("BAS_SQLITE_PATH", sqlitePath)
+	os.Setenv("BAS_SKIP_DEMO_SEED", "true")
+
 	db, err := NewConnection(log)
 	if err != nil {
-		testDBMu.Unlock()
-		t.Fatalf("Failed to connect to test database: %v", err)
+		t.Fatalf("Failed to connect to sqlite test database: %v", err)
 	}
 
-	if err := truncateAllWithRetry(db, 3); err != nil {
+	if err := truncateAll(db); err != nil {
 		db.Close()
-		testDBMu.Unlock()
-		t.Fatalf("failed to truncate test tables: %v", err)
+		t.Fatalf("failed to truncate sqlite tables: %v", err)
 	}
 
 	cleanup := func() {
 		_ = truncateAll(db)
 		db.Close()
-
-		// Restore environment variables
-		if oldURL != "" {
-			os.Setenv("DATABASE_URL", oldURL)
-		} else {
-			os.Unsetenv("DATABASE_URL")
-		}
-
-		if oldSkipDemo != "" {
-			os.Setenv("BAS_SKIP_DEMO_SEED", oldSkipDemo)
-		} else {
-			os.Unsetenv("BAS_SKIP_DEMO_SEED")
-		}
-
-		if oldHost != "" {
-			os.Setenv("POSTGRES_HOST", oldHost)
-		}
-		if oldPort != "" {
-			os.Setenv("POSTGRES_PORT", oldPort)
-		}
-		if oldUser != "" {
-			os.Setenv("POSTGRES_USER", oldUser)
-		}
-		if oldPass != "" {
-			os.Setenv("POSTGRES_PASSWORD", oldPass)
-		}
-		if oldDB != "" {
-			os.Setenv("POSTGRES_DB", oldDB)
-		}
-
-		// Release exclusive access
-		testDBMu.Unlock()
 	}
 
 	return db, cleanup
@@ -129,10 +167,9 @@ func truncateAll(db *DB) error {
 	if db == nil {
 		return nil
 	}
-	// Use a single TRUNCATE statement with all tables to avoid deadlock issues
-	// when multiple test goroutines attempt concurrent truncation.
-	// Tables are listed in reverse dependency order (children before parents).
-	query := `TRUNCATE
+	ctx := context.Background()
+	if db.Dialect().IsPostgres() {
+		query := `TRUNCATE
 		exports,
 		ai_generations,
 		workflow_schedules,
@@ -148,12 +185,33 @@ func truncateAll(db *DB) error {
 		workflow_folders,
 		projects
 	CASCADE`
-
-	ctx := context.Background()
-	if _, err := db.ExecContext(ctx, query); err != nil {
+		_, err := db.ExecContext(ctx, query)
 		return err
 	}
 
+	// SQLite: DELETE tables in dependency order and vacuum to reset autoincrement.
+	tables := []string{
+		"exports",
+		"ai_generations",
+		"workflow_schedules",
+		"workflow_templates",
+		"execution_artifacts",
+		"execution_steps",
+		"execution_logs",
+		"screenshots",
+		"extracted_data",
+		"executions",
+		"workflow_versions",
+		"workflows",
+		"workflow_folders",
+		"projects",
+	}
+	for _, table := range tables {
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+			return err
+		}
+	}
+	_, _ = db.ExecContext(ctx, "VACUUM")
 	return nil
 }
 

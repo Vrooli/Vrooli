@@ -71,7 +71,7 @@ export function DocsHub({
             </button>
           )}
           <div>
-            <h1 className="text-xl font-bold text-white">Documentation</h1>
+            <h1 className="text-xl font-bold text-surface">Documentation</h1>
             <p className="text-sm text-gray-400">
               Learn how to use Vrooli Ascension
             </p>
@@ -112,8 +112,8 @@ export function DocsHub({
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 isActive
-                  ? "border-flow-accent text-white"
-                  : "border-transparent text-gray-400 hover:text-gray-300"
+                  ? "border-flow-accent text-surface"
+                  : "border-transparent text-subtle hover:text-surface"
               }`}
             >
               <Icon size={16} />

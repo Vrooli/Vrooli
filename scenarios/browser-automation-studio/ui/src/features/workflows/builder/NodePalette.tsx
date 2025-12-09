@@ -574,7 +574,7 @@ function NodePalette() {
                 <div className="flex items-center gap-2">
                   <CategoryIcon size={16} className="text-flow-accent" />
                   <div>
-                    <div className="text-sm font-semibold text-white">
+                    <div className="text-sm font-semibold text-surface">
                       {category.label}
                     </div>
                     <div className="text-[11px] text-gray-500">

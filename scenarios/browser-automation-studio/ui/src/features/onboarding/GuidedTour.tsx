@@ -530,7 +530,7 @@ export function GuidedTour({
               {currentStep.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold text-white leading-tight">
+              <h3 className="text-base font-semibold text-surface leading-tight">
                 {currentStep.title}
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -587,7 +587,7 @@ export function GuidedTour({
               className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
                 isFirstStep
                   ? "text-gray-600 cursor-not-allowed"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  : "text-subtle hover:text-surface hover:bg-gray-800"
               }`}
             >
               <ChevronLeft size={16} />

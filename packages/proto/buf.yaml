@@ -3,7 +3,7 @@ modules:
   - path: schemas
     name: buf.build/vrooli/schemas
 deps:
-  - buf.build/google/protobuf
+  - buf.build/googleapis/googleapis
 lint:
   use:
     - DEFAULT

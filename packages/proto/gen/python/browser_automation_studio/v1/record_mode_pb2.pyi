@@ -4,12 +4,30 @@ from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class RecordedActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RECORDED_ACTION_TYPE_UNSPECIFIED: _ClassVar[RecordedActionType]
+    RECORDED_ACTION_TYPE_NAVIGATE: _ClassVar[RecordedActionType]
+    RECORDED_ACTION_TYPE_CLICK: _ClassVar[RecordedActionType]
+    RECORDED_ACTION_TYPE_INPUT: _ClassVar[RecordedActionType]
+    RECORDED_ACTION_TYPE_WAIT: _ClassVar[RecordedActionType]
+    RECORDED_ACTION_TYPE_ASSERT: _ClassVar[RecordedActionType]
+    RECORDED_ACTION_TYPE_CUSTOM_SCRIPT: _ClassVar[RecordedActionType]
+RECORDED_ACTION_TYPE_UNSPECIFIED: RecordedActionType
+RECORDED_ACTION_TYPE_NAVIGATE: RecordedActionType
+RECORDED_ACTION_TYPE_CLICK: RecordedActionType
+RECORDED_ACTION_TYPE_INPUT: RecordedActionType
+RECORDED_ACTION_TYPE_WAIT: RecordedActionType
+RECORDED_ACTION_TYPE_ASSERT: RecordedActionType
+RECORDED_ACTION_TYPE_CUSTOM_SCRIPT: RecordedActionType
 
 class SelectorCandidate(_message.Message):
     __slots__ = ()
@@ -97,6 +115,13 @@ class RecordedAction(_message.Message):
     URL_FIELD_NUMBER: _ClassVar[int]
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     CURSOR_POS_FIELD_NUMBER: _ClassVar[int]
+    ACTION_KIND_FIELD_NUMBER: _ClassVar[int]
+    NAVIGATE_FIELD_NUMBER: _ClassVar[int]
+    CLICK_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FIELD_NUMBER: _ClassVar[int]
+    ASSERT_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_SCRIPT_FIELD_NUMBER: _ClassVar[int]
     id: str
     session_id: str
     sequence_num: int
@@ -112,7 +137,73 @@ class RecordedAction(_message.Message):
     url: str
     frame_id: str
     cursor_pos: RecordPoint
-    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., action_type: _Optional[str] = ..., confidence: _Optional[float] = ..., selector: _Optional[_Union[SelectorSet, _Mapping]] = ..., element_meta: _Optional[_Union[ElementMeta, _Mapping]] = ..., bounding_box: _Optional[_Union[RecordBoundingBox, _Mapping]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., payload_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ..., url: _Optional[str] = ..., frame_id: _Optional[str] = ..., cursor_pos: _Optional[_Union[RecordPoint, _Mapping]] = ...) -> None: ...
+    action_kind: RecordedActionType
+    navigate: NavigateActionPayload
+    click: ClickActionPayload
+    input: InputActionPayload
+    wait: WaitActionPayload
+    custom_script: CustomScriptActionPayload
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., action_type: _Optional[str] = ..., confidence: _Optional[float] = ..., selector: _Optional[_Union[SelectorSet, _Mapping]] = ..., element_meta: _Optional[_Union[ElementMeta, _Mapping]] = ..., bounding_box: _Optional[_Union[RecordBoundingBox, _Mapping]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., payload_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ..., url: _Optional[str] = ..., frame_id: _Optional[str] = ..., cursor_pos: _Optional[_Union[RecordPoint, _Mapping]] = ..., action_kind: _Optional[_Union[RecordedActionType, str]] = ..., navigate: _Optional[_Union[NavigateActionPayload, _Mapping]] = ..., click: _Optional[_Union[ClickActionPayload, _Mapping]] = ..., input: _Optional[_Union[InputActionPayload, _Mapping]] = ..., wait: _Optional[_Union[WaitActionPayload, _Mapping]] = ..., custom_script: _Optional[_Union[CustomScriptActionPayload, _Mapping]] = ..., **kwargs) -> None: ...
+
+class NavigateActionPayload(_message.Message):
+    __slots__ = ()
+    URL_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FOR_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    url: str
+    wait_for_selector: str
+    timeout_ms: int
+    def __init__(self, url: _Optional[str] = ..., wait_for_selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class ClickActionPayload(_message.Message):
+    __slots__ = ()
+    BUTTON_FIELD_NUMBER: _ClassVar[int]
+    CLICK_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DELAY_MS_FIELD_NUMBER: _ClassVar[int]
+    SCROLL_INTO_VIEW_FIELD_NUMBER: _ClassVar[int]
+    button: str
+    click_count: int
+    delay_ms: int
+    scroll_into_view: bool
+    def __init__(self, button: _Optional[str] = ..., click_count: _Optional[int] = ..., delay_ms: _Optional[int] = ..., scroll_into_view: _Optional[bool] = ...) -> None: ...
+
+class InputActionPayload(_message.Message):
+    __slots__ = ()
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    IS_SENSITIVE_FIELD_NUMBER: _ClassVar[int]
+    SUBMIT_FIELD_NUMBER: _ClassVar[int]
+    value: str
+    is_sensitive: bool
+    submit: bool
+    def __init__(self, value: _Optional[str] = ..., is_sensitive: _Optional[bool] = ..., submit: _Optional[bool] = ...) -> None: ...
+
+class WaitActionPayload(_message.Message):
+    __slots__ = ()
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    duration_ms: int
+    def __init__(self, duration_ms: _Optional[int] = ...) -> None: ...
+
+class AssertActionPayload(_message.Message):
+    __slots__ = ()
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    NEGATED_FIELD_NUMBER: _ClassVar[int]
+    CASE_SENSITIVE_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    selector: str
+    expected: _struct_pb2.Value
+    negated: bool
+    case_sensitive: bool
+    def __init__(self, mode: _Optional[str] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ...) -> None: ...
+
+class CustomScriptActionPayload(_message.Message):
+    __slots__ = ()
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    language: str
+    source: str
+    def __init__(self, language: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
 
 class RecordingState(_message.Message):
     __slots__ = ()
@@ -272,6 +363,13 @@ class ActionReplayResult(_message.Message):
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     SCREENSHOT_ON_ERROR_FIELD_NUMBER: _ClassVar[int]
+    ACTION_KIND_FIELD_NUMBER: _ClassVar[int]
+    NAVIGATE_FIELD_NUMBER: _ClassVar[int]
+    CLICK_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FIELD_NUMBER: _ClassVar[int]
+    ASSERT_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_SCRIPT_FIELD_NUMBER: _ClassVar[int]
     action_id: str
     sequence_num: int
     action_type: str
@@ -279,7 +377,13 @@ class ActionReplayResult(_message.Message):
     duration_ms: int
     error: ActionReplayError
     screenshot_on_error: str
-    def __init__(self, action_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., action_type: _Optional[str] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., error: _Optional[_Union[ActionReplayError, _Mapping]] = ..., screenshot_on_error: _Optional[str] = ...) -> None: ...
+    action_kind: RecordedActionType
+    navigate: NavigateActionPayload
+    click: ClickActionPayload
+    input: InputActionPayload
+    wait: WaitActionPayload
+    custom_script: CustomScriptActionPayload
+    def __init__(self, action_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., action_type: _Optional[str] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., error: _Optional[_Union[ActionReplayError, _Mapping]] = ..., screenshot_on_error: _Optional[str] = ..., action_kind: _Optional[_Union[RecordedActionType, str]] = ..., navigate: _Optional[_Union[NavigateActionPayload, _Mapping]] = ..., click: _Optional[_Union[ClickActionPayload, _Mapping]] = ..., input: _Optional[_Union[InputActionPayload, _Mapping]] = ..., wait: _Optional[_Union[WaitActionPayload, _Mapping]] = ..., custom_script: _Optional[_Union[CustomScriptActionPayload, _Mapping]] = ..., **kwargs) -> None: ...
 
 class ReplayPreviewResponse(_message.Message):
     __slots__ = ()

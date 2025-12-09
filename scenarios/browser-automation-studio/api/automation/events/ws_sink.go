@@ -353,17 +353,31 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 				if telemetryPayload.ElapsedMs > 0 {
 					metrics["elapsed_ms"] = telemetryPayload.ElapsedMs
 				}
+				typedMetrics := jsonMetrics(metrics)
 				pb.Payload = &browser_automation_studio_v1.ExecutionEventEnvelope_Heartbeat{
 					Heartbeat: &browser_automation_studio_v1.HeartbeatEvent{
 						ReceivedAt: timestamppb.New(telemetryPayload.Timestamp),
 						Progress:   progress,
 						Metrics:    structpbMetrics(metrics),
+						MetricsTyped: func() map[string]*browser_automation_studio_v1.JsonValue {
+							if len(typedMetrics) == 0 {
+								return nil
+							}
+							return typedMetrics
+						}(),
 					},
 				}
 			} else {
+				typedMetrics := jsonMetrics(nil)
 				pb.Payload = &browser_automation_studio_v1.ExecutionEventEnvelope_Telemetry{
 					Telemetry: &browser_automation_studio_v1.TelemetryEvent{
-						Metrics:    structpbMetrics(nil),
+						Metrics: structpbMetrics(nil),
+						MetricsTyped: func() map[string]*browser_automation_studio_v1.JsonValue {
+							if len(typedMetrics) == 0 {
+								return nil
+							}
+							return typedMetrics
+						}(),
 						RecordedAt: timestamppb.New(telemetryPayload.Timestamp),
 					},
 				}
@@ -636,6 +650,73 @@ func structpbMetrics(values map[string]any) map[string]*structpb.Value {
 		return nil
 	}
 	return result.Fields
+}
+
+func jsonMetrics(values map[string]any) map[string]*browser_automation_studio_v1.JsonValue {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make(map[string]*browser_automation_studio_v1.JsonValue, len(values))
+	for k, v := range values {
+		if jsonVal := toJsonValue(v); jsonVal != nil {
+			result[k] = jsonVal
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func toJsonValue(v any) *browser_automation_studio_v1.JsonValue {
+	switch val := v.(type) {
+	case nil:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	case bool:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BoolValue{BoolValue: val}}
+	case int:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+	case int32:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+	case int64:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: val}}
+	case uint:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+	case uint32:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+	case uint64:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+	case float32:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
+	case float64:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: val}}
+	case string:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_StringValue{StringValue: val}}
+	case []byte:
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BytesValue{BytesValue: val}}
+	case map[string]any:
+		obj := make(map[string]*browser_automation_studio_v1.JsonValue, len(val))
+		for key, value := range val {
+			if nested := toJsonValue(value); nested != nil {
+				obj[key] = nested
+			}
+		}
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ObjectValue{
+			ObjectValue: &browser_automation_studio_v1.JsonObject{Fields: obj},
+		}}
+	case []any:
+		items := make([]*browser_automation_studio_v1.JsonValue, 0, len(val))
+		for _, item := range val {
+			if nested := toJsonValue(item); nested != nil {
+				items = append(items, nested)
+			}
+		}
+		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ListValue{
+			ListValue: &browser_automation_studio_v1.JsonList{Values: items},
+		}}
+	default:
+		return nil
+	}
 }
 
 func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *browser_automation_studio_v1.AssertionOutcome {

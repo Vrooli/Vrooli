@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -82,7 +81,7 @@ func (s *WorkflowService) readWorkflowFile(ctx context.Context, project *databas
 	}
 
 	description := strings.TrimSpace(anyToString(payload["description"]))
-	tags := pq.StringArray(stringSliceFromAny(payload["tags"]))
+	tags := database.StringArray(stringSliceFromAny(payload["tags"]))
 	changeDesc := strings.TrimSpace(anyToString(payload["change_description"]))
 	sourceLabel := strings.TrimSpace(anyToString(payload["source"]))
 	if changeDesc == "" {

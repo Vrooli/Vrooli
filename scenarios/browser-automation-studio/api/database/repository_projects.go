@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jmoiron/sqlx"
 )
 
 // Project repository methods
@@ -33,7 +33,7 @@ func (r *repository) CreateProject(ctx context.Context, project *Project) error 
 }
 
 func (r *repository) GetProject(ctx context.Context, id uuid.UUID) (*Project, error) {
-	query := `SELECT * FROM projects WHERE id = $1`
+	query := r.db.Rebind(`SELECT * FROM projects WHERE id = ?`)
 
 	var project Project
 	err := r.db.GetContext(ctx, &project, query, id)
@@ -49,7 +49,7 @@ func (r *repository) GetProject(ctx context.Context, id uuid.UUID) (*Project, er
 }
 
 func (r *repository) GetProjectByName(ctx context.Context, name string) (*Project, error) {
-	query := `SELECT * FROM projects WHERE name = $1`
+	query := r.db.Rebind(`SELECT * FROM projects WHERE name = ?`)
 
 	var project Project
 	err := r.db.GetContext(ctx, &project, query, name)
@@ -65,7 +65,7 @@ func (r *repository) GetProjectByName(ctx context.Context, name string) (*Projec
 }
 
 func (r *repository) GetProjectByFolderPath(ctx context.Context, folderPath string) (*Project, error) {
-	query := `SELECT * FROM projects WHERE folder_path = $1`
+	query := r.db.Rebind(`SELECT * FROM projects WHERE folder_path = ?`)
 
 	var project Project
 	err := r.db.GetContext(ctx, &project, query, folderPath)
@@ -112,14 +112,16 @@ func (r *repository) DeleteProject(ctx context.Context, id uuid.UUID) error {
 	defer tx.Rollback()
 
 	// Delete all workflows in the project first
-	_, err = tx.ExecContext(ctx, `DELETE FROM workflows WHERE project_id = $1`, id)
+	deleteWorkflows := r.db.Rebind(`DELETE FROM workflows WHERE project_id = ?`)
+	_, err = tx.ExecContext(ctx, deleteWorkflows, id)
 	if err != nil {
 		r.log.WithError(err).WithField("project_id", id).Error("Failed to delete project workflows")
 		return fmt.Errorf("failed to delete project workflows: %w", err)
 	}
 
 	// Delete the project
-	result, err := tx.ExecContext(ctx, `DELETE FROM projects WHERE id = $1`, id)
+	deleteProject := r.db.Rebind(`DELETE FROM projects WHERE id = ?`)
+	result, err := tx.ExecContext(ctx, deleteProject, id)
 	if err != nil {
 		r.log.WithError(err).WithField("id", id).Error("Failed to delete project")
 		return fmt.Errorf("failed to delete project: %w", err)
@@ -143,7 +145,7 @@ func (r *repository) DeleteProject(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repository) ListProjects(ctx context.Context, limit, offset int) ([]*Project, error) {
-	query := `SELECT * FROM projects ORDER BY updated_at DESC LIMIT $1 OFFSET $2`
+	query := r.db.Rebind(`SELECT * FROM projects ORDER BY updated_at DESC LIMIT ? OFFSET ?`)
 
 	var projects []*Project
 	err := r.db.SelectContext(ctx, &projects, query, limit, offset)
@@ -160,7 +162,8 @@ func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (
 
 	// Get workflow count
 	var workflowCount int
-	err := r.db.GetContext(ctx, &workflowCount, `SELECT COUNT(*) FROM workflows WHERE project_id = $1`, projectID)
+	countWorkflows := r.db.Rebind(`SELECT COUNT(*) FROM workflows WHERE project_id = ?`)
+	err := r.db.GetContext(ctx, &workflowCount, countWorkflows, projectID)
 	if err != nil {
 		r.log.WithError(err).WithField("project_id", projectID).Error("Failed to get workflow count")
 		return nil, fmt.Errorf("failed to get workflow count: %w", err)
@@ -169,10 +172,11 @@ func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (
 
 	// Get execution count
 	var executionCount int
-	err = r.db.GetContext(ctx, &executionCount, `
+	executionQuery := r.db.Rebind(`
 		SELECT COUNT(e.*) FROM executions e
 		JOIN workflows w ON e.workflow_id = w.id
-		WHERE w.project_id = $1`, projectID)
+		WHERE w.project_id = ?`)
+	err = r.db.GetContext(ctx, &executionCount, executionQuery, projectID)
 	if err != nil {
 		r.log.WithError(err).WithField("project_id", projectID).Error("Failed to get execution count")
 		return nil, fmt.Errorf("failed to get execution count: %w", err)
@@ -181,10 +185,11 @@ func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (
 
 	// Get last execution date
 	var lastExecution *time.Time
-	err = r.db.GetContext(ctx, &lastExecution, `
+	lastExecQuery := r.db.Rebind(`
 		SELECT MAX(e.started_at) FROM executions e
 		JOIN workflows w ON e.workflow_id = w.id
-		WHERE w.project_id = $1`, projectID)
+		WHERE w.project_id = ?`)
+	err = r.db.GetContext(ctx, &lastExecution, lastExecQuery, projectID)
 	if err != nil && err.Error() != "sql: no rows in result set" {
 		r.log.WithError(err).WithField("project_id", projectID).Error("Failed to get last execution date")
 		return nil, fmt.Errorf("failed to get last execution date: %w", err)
@@ -200,32 +205,23 @@ func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUI
 		return results, nil
 	}
 
-	query := `
-WITH workflow_counts AS (
-	SELECT project_id, COUNT(*) AS workflow_count
-	FROM workflows
-	WHERE project_id = ANY($1)
-	GROUP BY project_id
-), execution_stats AS (
-	SELECT w.project_id,
-	       COUNT(e.*) AS execution_count,
-	       MAX(e.started_at) AS last_execution
-	FROM workflows w
-	LEFT JOIN executions e ON e.workflow_id = w.id
-	WHERE w.project_id = ANY($1)
-	GROUP BY w.project_id
-)
+	query, args, err := sqlx.In(`
 SELECT p.id AS project_id,
-	COALESCE(wc.workflow_count, 0) AS workflow_count,
-	COALESCE(es.execution_count, 0) AS execution_count,
-	es.last_execution
+       COUNT(DISTINCT w.id) AS workflow_count,
+       COUNT(DISTINCT e.id) AS execution_count,
+       MAX(e.started_at) AS last_execution
 FROM projects p
-LEFT JOIN workflow_counts wc ON wc.project_id = p.id
-LEFT JOIN execution_stats es ON es.project_id = p.id
-WHERE p.id = ANY($1)`
+LEFT JOIN workflows w ON w.project_id = p.id
+LEFT JOIN executions e ON e.workflow_id = w.id
+WHERE p.id IN (?)
+GROUP BY p.id`, projectIDs)
+	if err != nil {
+		return nil, fmt.Errorf("build project stats query: %w", err)
+	}
+	query = r.db.Rebind(query)
 
 	var rows []*ProjectStats
-	if err := r.db.SelectContext(ctx, &rows, query, pq.Array(projectIDs)); err != nil {
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		r.log.WithError(err).Error("Failed to get bulk project stats")
 		return nil, fmt.Errorf("failed to get bulk project stats: %w", err)
 	}

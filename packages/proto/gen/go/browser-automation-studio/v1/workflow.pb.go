@@ -126,10 +126,16 @@ type WorkflowNode struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Node type (navigate, click, assert, subflow, etc.).
 	Type StepType `protobuf:"varint,2,opt,name=type,proto3,enum=browser_automation_studio.v1.StepType" json:"type,omitempty"`
-	// Node-specific configuration payload.
+	// Node-specific configuration payload (legacy); prefer config.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 	Data *structpb.Struct `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	// Strongly typed node configuration; prefer over Struct when possible.
-	DataTyped     *JsonObject `protobuf:"bytes,4,opt,name=data_typed,json=dataTyped,proto3" json:"data_typed,omitempty"`
+	// Typed node configuration (legacy); prefer config.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
+	DataTyped *JsonObject `protobuf:"bytes,4,opt,name=data_typed,json=dataTyped,proto3" json:"data_typed,omitempty"`
+	// Discriminated node configuration matching StepType; prefer over Struct/JsonObject.
+	Config        *WorkflowNodeConfig `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -178,6 +184,7 @@ func (x *WorkflowNode) GetType() StepType {
 	return StepType_STEP_TYPE_UNSPECIFIED
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 func (x *WorkflowNode) GetData() *structpb.Struct {
 	if x != nil {
 		return x.Data
@@ -185,9 +192,17 @@ func (x *WorkflowNode) GetData() *structpb.Struct {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 func (x *WorkflowNode) GetDataTyped() *JsonObject {
 	if x != nil {
 		return x.DataTyped
+	}
+	return nil
+}
+
+func (x *WorkflowNode) GetConfig() *WorkflowNodeConfig {
+	if x != nil {
+		return x.Config
 	}
 	return nil
 }
@@ -456,6 +471,643 @@ func (x *WorkflowSettings) GetExtras() map[string]*structpb.Value {
 	return nil
 }
 
+// WorkflowNodeConfig captures typed settings for common node kinds.
+type WorkflowNodeConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Config:
+	//
+	//	*WorkflowNodeConfig_Navigate
+	//	*WorkflowNodeConfig_Click
+	//	*WorkflowNodeConfig_Input
+	//	*WorkflowNodeConfig_Assert
+	//	*WorkflowNodeConfig_Subflow
+	//	*WorkflowNodeConfig_Custom
+	//	*WorkflowNodeConfig_Wait
+	Config        isWorkflowNodeConfig_Config `protobuf_oneof:"config"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowNodeConfig) Reset() {
+	*x = WorkflowNodeConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowNodeConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowNodeConfig) ProtoMessage() {}
+
+func (x *WorkflowNodeConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowNodeConfig.ProtoReflect.Descriptor instead.
+func (*WorkflowNodeConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *WorkflowNodeConfig) GetConfig() isWorkflowNodeConfig_Config {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *WorkflowNodeConfig) GetNavigate() *NavigateStepConfig {
+	if x != nil {
+		if x, ok := x.Config.(*WorkflowNodeConfig_Navigate); ok {
+			return x.Navigate
+		}
+	}
+	return nil
+}
+
+func (x *WorkflowNodeConfig) GetClick() *ClickStepConfig {
+	if x != nil {
+		if x, ok := x.Config.(*WorkflowNodeConfig_Click); ok {
+			return x.Click
+		}
+	}
+	return nil
+}
+
+func (x *WorkflowNodeConfig) GetInput() *InputStepConfig {
+	if x != nil {
+		if x, ok := x.Config.(*WorkflowNodeConfig_Input); ok {
+			return x.Input
+		}
+	}
+	return nil
+}
+
+func (x *WorkflowNodeConfig) GetAssert() *AssertStepConfig {
+	if x != nil {
+		if x, ok := x.Config.(*WorkflowNodeConfig_Assert); ok {
+			return x.Assert
+		}
+	}
+	return nil
+}
+
+func (x *WorkflowNodeConfig) GetSubflow() *SubflowStepConfig {
+	if x != nil {
+		if x, ok := x.Config.(*WorkflowNodeConfig_Subflow); ok {
+			return x.Subflow
+		}
+	}
+	return nil
+}
+
+func (x *WorkflowNodeConfig) GetCustom() *CustomStepConfig {
+	if x != nil {
+		if x, ok := x.Config.(*WorkflowNodeConfig_Custom); ok {
+			return x.Custom
+		}
+	}
+	return nil
+}
+
+func (x *WorkflowNodeConfig) GetWait() *WaitStepConfig {
+	if x != nil {
+		if x, ok := x.Config.(*WorkflowNodeConfig_Wait); ok {
+			return x.Wait
+		}
+	}
+	return nil
+}
+
+type isWorkflowNodeConfig_Config interface {
+	isWorkflowNodeConfig_Config()
+}
+
+type WorkflowNodeConfig_Navigate struct {
+	Navigate *NavigateStepConfig `protobuf:"bytes,1,opt,name=navigate,proto3,oneof"`
+}
+
+type WorkflowNodeConfig_Click struct {
+	Click *ClickStepConfig `protobuf:"bytes,2,opt,name=click,proto3,oneof"`
+}
+
+type WorkflowNodeConfig_Input struct {
+	Input *InputStepConfig `protobuf:"bytes,3,opt,name=input,proto3,oneof"`
+}
+
+type WorkflowNodeConfig_Assert struct {
+	Assert *AssertStepConfig `protobuf:"bytes,4,opt,name=assert,proto3,oneof"`
+}
+
+type WorkflowNodeConfig_Subflow struct {
+	Subflow *SubflowStepConfig `protobuf:"bytes,5,opt,name=subflow,proto3,oneof"`
+}
+
+type WorkflowNodeConfig_Custom struct {
+	Custom *CustomStepConfig `protobuf:"bytes,6,opt,name=custom,proto3,oneof"`
+}
+
+type WorkflowNodeConfig_Wait struct {
+	Wait *WaitStepConfig `protobuf:"bytes,7,opt,name=wait,proto3,oneof"`
+}
+
+func (*WorkflowNodeConfig_Navigate) isWorkflowNodeConfig_Config() {}
+
+func (*WorkflowNodeConfig_Click) isWorkflowNodeConfig_Config() {}
+
+func (*WorkflowNodeConfig_Input) isWorkflowNodeConfig_Config() {}
+
+func (*WorkflowNodeConfig_Assert) isWorkflowNodeConfig_Config() {}
+
+func (*WorkflowNodeConfig_Subflow) isWorkflowNodeConfig_Config() {}
+
+func (*WorkflowNodeConfig_Custom) isWorkflowNodeConfig_Config() {}
+
+func (*WorkflowNodeConfig_Wait) isWorkflowNodeConfig_Config() {}
+
+// NavigateStepConfig contains navigation fields.
+type NavigateStepConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Url   string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Optional selector to wait for after navigation.
+	WaitForSelector *string `protobuf:"bytes,2,opt,name=wait_for_selector,json=waitForSelector,proto3,oneof" json:"wait_for_selector,omitempty"`
+	// Timeout for navigation/wait in milliseconds.
+	TimeoutMs *int32 `protobuf:"varint,3,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	// Whether to capture a screenshot after navigation.
+	CaptureScreenshot *bool `protobuf:"varint,4,opt,name=capture_screenshot,json=captureScreenshot,proto3,oneof" json:"capture_screenshot,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *NavigateStepConfig) Reset() {
+	*x = NavigateStepConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigateStepConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigateStepConfig) ProtoMessage() {}
+
+func (x *NavigateStepConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigateStepConfig.ProtoReflect.Descriptor instead.
+func (*NavigateStepConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *NavigateStepConfig) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *NavigateStepConfig) GetWaitForSelector() string {
+	if x != nil && x.WaitForSelector != nil {
+		return *x.WaitForSelector
+	}
+	return ""
+}
+
+func (x *NavigateStepConfig) GetTimeoutMs() int32 {
+	if x != nil && x.TimeoutMs != nil {
+		return *x.TimeoutMs
+	}
+	return 0
+}
+
+func (x *NavigateStepConfig) GetCaptureScreenshot() bool {
+	if x != nil && x.CaptureScreenshot != nil {
+		return *x.CaptureScreenshot
+	}
+	return false
+}
+
+// ClickStepConfig contains click action metadata.
+type ClickStepConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// CSS selector to click.
+	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Mouse button (left, middle, right); defaults to left when empty.
+	Button string `protobuf:"bytes,2,opt,name=button,proto3" json:"button,omitempty"`
+	// Number of clicks to perform.
+	ClickCount *int32 `protobuf:"varint,3,opt,name=click_count,json=clickCount,proto3,oneof" json:"click_count,omitempty"`
+	// Delay between mousedown and mouseup in milliseconds.
+	DelayMs       *int32 `protobuf:"varint,4,opt,name=delay_ms,json=delayMs,proto3,oneof" json:"delay_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClickStepConfig) Reset() {
+	*x = ClickStepConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClickStepConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClickStepConfig) ProtoMessage() {}
+
+func (x *ClickStepConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClickStepConfig.ProtoReflect.Descriptor instead.
+func (*ClickStepConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ClickStepConfig) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *ClickStepConfig) GetButton() string {
+	if x != nil {
+		return x.Button
+	}
+	return ""
+}
+
+func (x *ClickStepConfig) GetClickCount() int32 {
+	if x != nil && x.ClickCount != nil {
+		return *x.ClickCount
+	}
+	return 0
+}
+
+func (x *ClickStepConfig) GetDelayMs() int32 {
+	if x != nil && x.DelayMs != nil {
+		return *x.DelayMs
+	}
+	return 0
+}
+
+// InputStepConfig contains text entry metadata.
+type InputStepConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// CSS selector to target.
+	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Value to type.
+	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	// Treat value as sensitive and mask in logs.
+	IsSensitive bool `protobuf:"varint,3,opt,name=is_sensitive,json=isSensitive,proto3" json:"is_sensitive,omitempty"`
+	// Whether to press Enter after input.
+	Submit        *bool `protobuf:"varint,4,opt,name=submit,proto3,oneof" json:"submit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InputStepConfig) Reset() {
+	*x = InputStepConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InputStepConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InputStepConfig) ProtoMessage() {}
+
+func (x *InputStepConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InputStepConfig.ProtoReflect.Descriptor instead.
+func (*InputStepConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *InputStepConfig) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *InputStepConfig) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *InputStepConfig) GetIsSensitive() bool {
+	if x != nil {
+		return x.IsSensitive
+	}
+	return false
+}
+
+func (x *InputStepConfig) GetSubmit() bool {
+	if x != nil && x.Submit != nil {
+		return *x.Submit
+	}
+	return false
+}
+
+// AssertStepConfig captures assertion configuration.
+type AssertStepConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Assertion mode (exists, visible, text_equals, etc.).
+	Mode string `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	// CSS selector being asserted on.
+	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Expected value for the assertion.
+	Expected *structpb.Value `protobuf:"bytes,3,opt,name=expected,proto3" json:"expected,omitempty"`
+	// Whether the assertion is negated.
+	Negated bool `protobuf:"varint,4,opt,name=negated,proto3" json:"negated,omitempty"`
+	// Case sensitivity flag.
+	CaseSensitive bool `protobuf:"varint,5,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
+	// Custom assertion message.
+	Message       *string `protobuf:"bytes,6,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssertStepConfig) Reset() {
+	*x = AssertStepConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssertStepConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssertStepConfig) ProtoMessage() {}
+
+func (x *AssertStepConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssertStepConfig.ProtoReflect.Descriptor instead.
+func (*AssertStepConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AssertStepConfig) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *AssertStepConfig) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *AssertStepConfig) GetExpected() *structpb.Value {
+	if x != nil {
+		return x.Expected
+	}
+	return nil
+}
+
+func (x *AssertStepConfig) GetNegated() bool {
+	if x != nil {
+		return x.Negated
+	}
+	return false
+}
+
+func (x *AssertStepConfig) GetCaseSensitive() bool {
+	if x != nil {
+		return x.CaseSensitive
+	}
+	return false
+}
+
+func (x *AssertStepConfig) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
+// SubflowStepConfig references another workflow.
+type SubflowStepConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Workflow ID to execute.
+	WorkflowId string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	// Optional workflow version.
+	Version *int32 `protobuf:"varint,2,opt,name=version,proto3,oneof" json:"version,omitempty"`
+	// Parameters to pass to the subflow (typed).
+	Parameters    map[string]*JsonValue `protobuf:"bytes,3,rep,name=parameters,proto3" json:"parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubflowStepConfig) Reset() {
+	*x = SubflowStepConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubflowStepConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubflowStepConfig) ProtoMessage() {}
+
+func (x *SubflowStepConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubflowStepConfig.ProtoReflect.Descriptor instead.
+func (*SubflowStepConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SubflowStepConfig) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *SubflowStepConfig) GetVersion() int32 {
+	if x != nil && x.Version != nil {
+		return *x.Version
+	}
+	return 0
+}
+
+func (x *SubflowStepConfig) GetParameters() map[string]*JsonValue {
+	if x != nil {
+		return x.Parameters
+	}
+	return nil
+}
+
+// WaitStepConfig captures a fixed delay between steps.
+type WaitStepConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Duration to wait in milliseconds.
+	DurationMs    int32 `protobuf:"varint,1,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitStepConfig) Reset() {
+	*x = WaitStepConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitStepConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitStepConfig) ProtoMessage() {}
+
+func (x *WaitStepConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitStepConfig.ProtoReflect.Descriptor instead.
+func (*WaitStepConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *WaitStepConfig) GetDurationMs() int32 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+// CustomStepConfig captures custom provider-specific payloads.
+type CustomStepConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Custom step kind identifier.
+	Kind string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Provider-specific payload; prefer over Struct in data.
+	Payload       *JsonObject `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomStepConfig) Reset() {
+	*x = CustomStepConfig{}
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomStepConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomStepConfig) ProtoMessage() {}
+
+func (x *CustomStepConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_workflow_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomStepConfig.ProtoReflect.Descriptor instead.
+func (*CustomStepConfig) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_workflow_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CustomStepConfig) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CustomStepConfig) GetPayload() *JsonObject {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
 var File_browser_automation_studio_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
@@ -473,13 +1125,14 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aS\n" +
 	"\rSettingsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xd0\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xa2\x02\n" +
 	"\fWorkflowNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12:\n" +
-	"\x04type\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.StepTypeR\x04type\x12+\n" +
-	"\x04data\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x04data\x12G\n" +
+	"\x04type\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.StepTypeR\x04type\x12/\n" +
+	"\x04data\x18\x03 \x01(\v2\x17.google.protobuf.StructB\x02\x18\x01R\x04data\x12K\n" +
 	"\n" +
-	"data_typed\x18\x04 \x01(\v2(.browser_automation_studio.v1.JsonObjectR\tdataTyped\"\xd8\x01\n" +
+	"data_typed\x18\x04 \x01(\v2(.browser_automation_studio.v1.JsonObjectB\x02\x18\x01R\tdataTyped\x12H\n" +
+	"\x06config\x18\x05 \x01(\v20.browser_automation_studio.v1.WorkflowNodeConfigR\x06config\"\xd8\x01\n" +
 	"\fWorkflowEdge\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n" +
@@ -507,7 +1160,66 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\x06extras\x18\a \x03(\v2:.browser_automation_studio.v1.WorkflowSettings.ExtrasEntryR\x06extras\x1aQ\n" +
 	"\vExtrasEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\xa1\x04\n" +
+	"\x12WorkflowNodeConfig\x12N\n" +
+	"\bnavigate\x18\x01 \x01(\v20.browser_automation_studio.v1.NavigateStepConfigH\x00R\bnavigate\x12E\n" +
+	"\x05click\x18\x02 \x01(\v2-.browser_automation_studio.v1.ClickStepConfigH\x00R\x05click\x12E\n" +
+	"\x05input\x18\x03 \x01(\v2-.browser_automation_studio.v1.InputStepConfigH\x00R\x05input\x12H\n" +
+	"\x06assert\x18\x04 \x01(\v2..browser_automation_studio.v1.AssertStepConfigH\x00R\x06assert\x12K\n" +
+	"\asubflow\x18\x05 \x01(\v2/.browser_automation_studio.v1.SubflowStepConfigH\x00R\asubflow\x12H\n" +
+	"\x06custom\x18\x06 \x01(\v2..browser_automation_studio.v1.CustomStepConfigH\x00R\x06custom\x12B\n" +
+	"\x04wait\x18\a \x01(\v2,.browser_automation_studio.v1.WaitStepConfigH\x00R\x04waitB\b\n" +
+	"\x06config\"\xeb\x01\n" +
+	"\x12NavigateStepConfig\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12/\n" +
+	"\x11wait_for_selector\x18\x02 \x01(\tH\x00R\x0fwaitForSelector\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"timeout_ms\x18\x03 \x01(\x05H\x01R\ttimeoutMs\x88\x01\x01\x122\n" +
+	"\x12capture_screenshot\x18\x04 \x01(\bH\x02R\x11captureScreenshot\x88\x01\x01B\x14\n" +
+	"\x12_wait_for_selectorB\r\n" +
+	"\v_timeout_msB\x15\n" +
+	"\x13_capture_screenshot\"\xa8\x01\n" +
+	"\x0fClickStepConfig\x12\x1a\n" +
+	"\bselector\x18\x01 \x01(\tR\bselector\x12\x16\n" +
+	"\x06button\x18\x02 \x01(\tR\x06button\x12$\n" +
+	"\vclick_count\x18\x03 \x01(\x05H\x00R\n" +
+	"clickCount\x88\x01\x01\x12\x1e\n" +
+	"\bdelay_ms\x18\x04 \x01(\x05H\x01R\adelayMs\x88\x01\x01B\x0e\n" +
+	"\f_click_countB\v\n" +
+	"\t_delay_ms\"\x8e\x01\n" +
+	"\x0fInputStepConfig\x12\x1a\n" +
+	"\bselector\x18\x01 \x01(\tR\bselector\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\x12!\n" +
+	"\fis_sensitive\x18\x03 \x01(\bR\visSensitive\x12\x1b\n" +
+	"\x06submit\x18\x04 \x01(\bH\x00R\x06submit\x88\x01\x01B\t\n" +
+	"\a_submit\"\xe2\x01\n" +
+	"\x10AssertStepConfig\x12\x12\n" +
+	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\x122\n" +
+	"\bexpected\x18\x03 \x01(\v2\x16.google.protobuf.ValueR\bexpected\x12\x18\n" +
+	"\anegated\x18\x04 \x01(\bR\anegated\x12%\n" +
+	"\x0ecase_sensitive\x18\x05 \x01(\bR\rcaseSensitive\x12\x1d\n" +
+	"\amessage\x18\x06 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
+	"\n" +
+	"\b_message\"\xa8\x02\n" +
+	"\x11SubflowStepConfig\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12\x1d\n" +
+	"\aversion\x18\x02 \x01(\x05H\x00R\aversion\x88\x01\x01\x12_\n" +
+	"\n" +
+	"parameters\x18\x03 \x03(\v2?.browser_automation_studio.v1.SubflowStepConfig.ParametersEntryR\n" +
+	"parameters\x1af\n" +
+	"\x0fParametersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12=\n" +
+	"\x05value\x18\x02 \x01(\v2'.browser_automation_studio.v1.JsonValueR\x05value:\x028\x01B\n" +
+	"\n" +
+	"\b_version\"1\n" +
+	"\x0eWaitStepConfig\x12\x1f\n" +
+	"\vduration_ms\x18\x01 \x01(\x05R\n" +
+	"durationMs\"j\n" +
+	"\x10CustomStepConfig\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12B\n" +
+	"\apayload\x18\x02 \x01(\v2(.browser_automation_studio.v1.JsonObjectR\apayloadBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_workflow_proto_rawDescOnce sync.Once
@@ -521,44 +1233,66 @@ func file_browser_automation_studio_v1_workflow_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_workflow_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_browser_automation_studio_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_browser_automation_studio_v1_workflow_proto_goTypes = []any{
 	(*WorkflowDefinition)(nil), // 0: browser_automation_studio.v1.WorkflowDefinition
 	(*WorkflowNode)(nil),       // 1: browser_automation_studio.v1.WorkflowNode
 	(*WorkflowEdge)(nil),       // 2: browser_automation_studio.v1.WorkflowEdge
 	(*WorkflowMetadata)(nil),   // 3: browser_automation_studio.v1.WorkflowMetadata
 	(*WorkflowSettings)(nil),   // 4: browser_automation_studio.v1.WorkflowSettings
-	nil,                        // 5: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
-	nil,                        // 6: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
-	nil,                        // 7: browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
-	nil,                        // 8: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
-	(StepType)(0),              // 9: browser_automation_studio.v1.StepType
-	(*structpb.Struct)(nil),    // 10: google.protobuf.Struct
-	(*JsonObject)(nil),         // 11: browser_automation_studio.v1.JsonObject
-	(*structpb.Value)(nil),     // 12: google.protobuf.Value
+	(*WorkflowNodeConfig)(nil), // 5: browser_automation_studio.v1.WorkflowNodeConfig
+	(*NavigateStepConfig)(nil), // 6: browser_automation_studio.v1.NavigateStepConfig
+	(*ClickStepConfig)(nil),    // 7: browser_automation_studio.v1.ClickStepConfig
+	(*InputStepConfig)(nil),    // 8: browser_automation_studio.v1.InputStepConfig
+	(*AssertStepConfig)(nil),   // 9: browser_automation_studio.v1.AssertStepConfig
+	(*SubflowStepConfig)(nil),  // 10: browser_automation_studio.v1.SubflowStepConfig
+	(*WaitStepConfig)(nil),     // 11: browser_automation_studio.v1.WaitStepConfig
+	(*CustomStepConfig)(nil),   // 12: browser_automation_studio.v1.CustomStepConfig
+	nil,                        // 13: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
+	nil,                        // 14: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
+	nil,                        // 15: browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
+	nil,                        // 16: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
+	nil,                        // 17: browser_automation_studio.v1.SubflowStepConfig.ParametersEntry
+	(StepType)(0),              // 18: browser_automation_studio.v1.StepType
+	(*structpb.Struct)(nil),    // 19: google.protobuf.Struct
+	(*JsonObject)(nil),         // 20: browser_automation_studio.v1.JsonObject
+	(*structpb.Value)(nil),     // 21: google.protobuf.Value
+	(*JsonValue)(nil),          // 22: browser_automation_studio.v1.JsonValue
 }
 var file_browser_automation_studio_v1_workflow_proto_depIdxs = []int32{
 	1,  // 0: browser_automation_studio.v1.WorkflowDefinition.nodes:type_name -> browser_automation_studio.v1.WorkflowNode
 	2,  // 1: browser_automation_studio.v1.WorkflowDefinition.edges:type_name -> browser_automation_studio.v1.WorkflowEdge
-	5,  // 2: browser_automation_studio.v1.WorkflowDefinition.metadata:type_name -> browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
-	6,  // 3: browser_automation_studio.v1.WorkflowDefinition.settings:type_name -> browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
+	13, // 2: browser_automation_studio.v1.WorkflowDefinition.metadata:type_name -> browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
+	14, // 3: browser_automation_studio.v1.WorkflowDefinition.settings:type_name -> browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
 	3,  // 4: browser_automation_studio.v1.WorkflowDefinition.metadata_typed:type_name -> browser_automation_studio.v1.WorkflowMetadata
 	4,  // 5: browser_automation_studio.v1.WorkflowDefinition.settings_typed:type_name -> browser_automation_studio.v1.WorkflowSettings
-	9,  // 6: browser_automation_studio.v1.WorkflowNode.type:type_name -> browser_automation_studio.v1.StepType
-	10, // 7: browser_automation_studio.v1.WorkflowNode.data:type_name -> google.protobuf.Struct
-	11, // 8: browser_automation_studio.v1.WorkflowNode.data_typed:type_name -> browser_automation_studio.v1.JsonObject
-	10, // 9: browser_automation_studio.v1.WorkflowEdge.data:type_name -> google.protobuf.Struct
-	11, // 10: browser_automation_studio.v1.WorkflowEdge.data_typed:type_name -> browser_automation_studio.v1.JsonObject
-	7,  // 11: browser_automation_studio.v1.WorkflowMetadata.labels:type_name -> browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
-	8,  // 12: browser_automation_studio.v1.WorkflowSettings.extras:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
-	12, // 13: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry.value:type_name -> google.protobuf.Value
-	12, // 14: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry.value:type_name -> google.protobuf.Value
-	12, // 15: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry.value:type_name -> google.protobuf.Value
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	18, // 6: browser_automation_studio.v1.WorkflowNode.type:type_name -> browser_automation_studio.v1.StepType
+	19, // 7: browser_automation_studio.v1.WorkflowNode.data:type_name -> google.protobuf.Struct
+	20, // 8: browser_automation_studio.v1.WorkflowNode.data_typed:type_name -> browser_automation_studio.v1.JsonObject
+	5,  // 9: browser_automation_studio.v1.WorkflowNode.config:type_name -> browser_automation_studio.v1.WorkflowNodeConfig
+	19, // 10: browser_automation_studio.v1.WorkflowEdge.data:type_name -> google.protobuf.Struct
+	20, // 11: browser_automation_studio.v1.WorkflowEdge.data_typed:type_name -> browser_automation_studio.v1.JsonObject
+	15, // 12: browser_automation_studio.v1.WorkflowMetadata.labels:type_name -> browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
+	16, // 13: browser_automation_studio.v1.WorkflowSettings.extras:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
+	6,  // 14: browser_automation_studio.v1.WorkflowNodeConfig.navigate:type_name -> browser_automation_studio.v1.NavigateStepConfig
+	7,  // 15: browser_automation_studio.v1.WorkflowNodeConfig.click:type_name -> browser_automation_studio.v1.ClickStepConfig
+	8,  // 16: browser_automation_studio.v1.WorkflowNodeConfig.input:type_name -> browser_automation_studio.v1.InputStepConfig
+	9,  // 17: browser_automation_studio.v1.WorkflowNodeConfig.assert:type_name -> browser_automation_studio.v1.AssertStepConfig
+	10, // 18: browser_automation_studio.v1.WorkflowNodeConfig.subflow:type_name -> browser_automation_studio.v1.SubflowStepConfig
+	12, // 19: browser_automation_studio.v1.WorkflowNodeConfig.custom:type_name -> browser_automation_studio.v1.CustomStepConfig
+	11, // 20: browser_automation_studio.v1.WorkflowNodeConfig.wait:type_name -> browser_automation_studio.v1.WaitStepConfig
+	21, // 21: browser_automation_studio.v1.AssertStepConfig.expected:type_name -> google.protobuf.Value
+	17, // 22: browser_automation_studio.v1.SubflowStepConfig.parameters:type_name -> browser_automation_studio.v1.SubflowStepConfig.ParametersEntry
+	20, // 23: browser_automation_studio.v1.CustomStepConfig.payload:type_name -> browser_automation_studio.v1.JsonObject
+	21, // 24: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry.value:type_name -> google.protobuf.Value
+	21, // 25: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry.value:type_name -> google.protobuf.Value
+	21, // 26: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry.value:type_name -> google.protobuf.Value
+	22, // 27: browser_automation_studio.v1.SubflowStepConfig.ParametersEntry.value:type_name -> browser_automation_studio.v1.JsonValue
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflow_proto_init() }
@@ -567,13 +1301,27 @@ func file_browser_automation_studio_v1_workflow_proto_init() {
 		return
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
+	file_browser_automation_studio_v1_workflow_proto_msgTypes[5].OneofWrappers = []any{
+		(*WorkflowNodeConfig_Navigate)(nil),
+		(*WorkflowNodeConfig_Click)(nil),
+		(*WorkflowNodeConfig_Input)(nil),
+		(*WorkflowNodeConfig_Assert)(nil),
+		(*WorkflowNodeConfig_Subflow)(nil),
+		(*WorkflowNodeConfig_Custom)(nil),
+		(*WorkflowNodeConfig_Wait)(nil),
+	}
+	file_browser_automation_studio_v1_workflow_proto_msgTypes[6].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_workflow_proto_msgTypes[7].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_workflow_proto_msgTypes[8].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_workflow_proto_msgTypes[9].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_workflow_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_workflow_proto_rawDesc), len(file_browser_automation_studio_v1_workflow_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

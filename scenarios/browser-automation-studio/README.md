@@ -11,6 +11,11 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 - Playwright: set `ENGINE=playwright` (or `ENGINE_OVERRIDE=playwright`). If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver from `resources/playwright` and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT:-39400}` automatically. Stop hooks clean it up.
 - Desktop/Electron: bundle `resources/playwright/driver/server.js`, spawn it from Electron main (allowing `PORT=0` for a free port), capture the port, and launch the bundled API with `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL=<captured>`. To avoid bundling another Chromium (~80–120 MB), align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to that binary.
 
+### Database backend (Postgres vs SQLite)
+- Default backend is Postgres (`BAS_DB_BACKEND` unset or `postgres`), using `DATABASE_URL` or the `POSTGRES_*` envs.
+- SQLite is available for desktop/Electron or lightweight runs: set `BAS_DB_BACKEND=sqlite` and optionally `BAS_SQLITE_PATH` (or `DATABASE_URL=file:/abs/path.db`). If unset, the path defaults to the shared sqlite resource path (`~/.vrooli/data/sqlite/databases/browser-automation-studio.db`) with resource-style pragmas (WAL, busy_timeout, cache_size, page_size, synchronous=NORMAL, temp_store=MEMORY, mmap).
+- On sqlite startup we best-effort call `resource-sqlite manage install` to prep directories; it’s safe to continue if the CLI isn’t present. Set `BAS_SKIP_SQLITE_TESTS=true` to skip sqlite smoke tests in CI.
+
 ### Screenshot storage
 - Default: local filesystem (`BAS_SCREENSHOT_STORAGE=local` or unset) rooted at `scenarios/browser-automation-studio/data/screenshots`. Override with `BAS_SCREENSHOTS_ROOT` for custom paths.
 - Object storage: set `BAS_SCREENSHOT_STORAGE=minio` and supply `MINIO_*` env vars. If MinIO init fails, the API automatically falls back to local storage so desktop/offline builds stay functional.

@@ -23,9 +23,11 @@ message Execution {
   // How the execution was triggered (manual, scheduled, api, webhook).
   TriggerType trigger_type = 5;
   // Trigger metadata payload.
-  map<string, google.protobuf.Value> trigger_metadata = 6;
+  map<string, google.protobuf.Value> trigger_metadata = 6 [deprecated = true];
+  // Strongly typed trigger metadata; prefer over Value maps.
+  map<string, JsonValue> trigger_metadata_typed = 19;
   // Runtime parameters passed to the execution.
-  map<string, google.protobuf.Value> parameters = 7;
+  map<string, google.protobuf.Value> parameters = 7 [deprecated = true];
   // Strongly typed runtime parameters; prefer over Value maps.
   map<string, JsonValue> parameters_typed = 17;
   // When the execution started.
@@ -37,7 +39,7 @@ message Execution {
   // Error message if the execution failed.
   optional string error = 11;
   // Structured result payload reported by the executor.
-  map<string, google.protobuf.Value> result = 12;
+  map<string, google.protobuf.Value> result = 12 [deprecated = true];
   // Strongly typed execution results; prefer over Value maps.
   map<string, JsonValue> result_typed = 18;
   // Progress percentage (0-100).
@@ -165,7 +167,7 @@ message ExecutionExportPreview {
   // Total duration in milliseconds of the replay.
   int32 total_duration_ms = 7;
   // Replay movie package encoded as JSON (movie spec).
-  google.protobuf.Struct package = 8;
+  google.protobuf.Struct package = 8 [deprecated = true];
   // Typed replay movie package; prefer over Struct when available.
   JsonObject package_typed = 9;
 }
@@ -193,7 +195,9 @@ message LogEvent {
   // Optional step context for the log.
   optional int32 step_index = 3;
   google.protobuf.Timestamp occurred_at = 4;
-  map<string, google.protobuf.Value> metadata = 5;
+  map<string, google.protobuf.Value> metadata = 5 [deprecated = true];
+  // Typed metadata; prefer over the Value map.
+  map<string, JsonValue> metadata_typed = 6;
 }
 
 // HeartbeatEvent reports liveness/progress signals.
@@ -201,11 +205,15 @@ message HeartbeatEvent {
   google.protobuf.Timestamp received_at = 1;
   int32 progress = 2;
   // Executor supplied metrics.
-  map<string, google.protobuf.Value> metrics = 3;
+  map<string, google.protobuf.Value> metrics = 3 [deprecated = true];
+  // Typed executor metrics; prefer over the Value map.
+  map<string, JsonValue> metrics_typed = 4;
 }
 
 // TelemetryEvent emits structured telemetry metrics.
 message TelemetryEvent {
-  map<string, google.protobuf.Value> metrics = 1;
+  map<string, google.protobuf.Value> metrics = 1 [deprecated = true];
   google.protobuf.Timestamp recorded_at = 2;
+  // Typed telemetry metrics; prefer over the Value map.
+  map<string, JsonValue> metrics_typed = 3;
 }

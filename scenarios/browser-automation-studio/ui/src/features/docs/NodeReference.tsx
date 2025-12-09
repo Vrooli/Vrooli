@@ -112,7 +112,7 @@ export function NodeReference({ initialNodeType, onSelectNode }: NodeReferencePr
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search nodes..."
-              className="w-full bg-gray-800/50 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
+            className="w-full bg-gray-800/50 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-sm text-surface placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
             />
           </div>
           <div className="mt-2 text-xs text-gray-500">
@@ -177,7 +177,7 @@ export function NodeReference({ initialNodeType, onSelectNode }: NodeReferencePr
                           <div className="min-w-0 flex-1">
                             <div
                               className={`text-sm font-medium ${
-                                isSelected ? "text-white" : "text-gray-300"
+                                isSelected ? "text-surface" : "text-gray-300"
                               }`}
                             >
                               {node.name}
@@ -217,7 +217,7 @@ export function NodeReference({ initialNodeType, onSelectNode }: NodeReferencePr
                 </div>
               )}
               <div>
-                <h1 className="text-2xl font-bold text-white">
+                <h1 className="text-2xl font-bold text-surface">
                   {selectedDoc.name}
                 </h1>
                 <div className="text-sm text-gray-400 mt-1">

@@ -1,3 +1,4 @@
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -33,6 +34,7 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_SUBFLOW: _ClassVar[StepType]
     STEP_TYPE_INPUT: _ClassVar[StepType]
     STEP_TYPE_CUSTOM: _ClassVar[StepType]
+    STEP_TYPE_WAIT: _ClassVar[StepType]
 
 class StepStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -98,6 +100,7 @@ STEP_TYPE_ASSERT: StepType
 STEP_TYPE_SUBFLOW: StepType
 STEP_TYPE_INPUT: StepType
 STEP_TYPE_CUSTOM: StepType
+STEP_TYPE_WAIT: StepType
 STEP_STATUS_UNSPECIFIED: StepStatus
 STEP_STATUS_PENDING: StepStatus
 STEP_STATUS_RUNNING: StepStatus
@@ -139,13 +142,17 @@ class JsonValue(_message.Message):
     STRING_VALUE_FIELD_NUMBER: _ClassVar[int]
     OBJECT_VALUE_FIELD_NUMBER: _ClassVar[int]
     LIST_VALUE_FIELD_NUMBER: _ClassVar[int]
+    NULL_VALUE_FIELD_NUMBER: _ClassVar[int]
+    BYTES_VALUE_FIELD_NUMBER: _ClassVar[int]
     bool_value: bool
     int_value: int
     double_value: float
     string_value: str
     object_value: JsonObject
     list_value: JsonList
-    def __init__(self, bool_value: _Optional[bool] = ..., int_value: _Optional[int] = ..., double_value: _Optional[float] = ..., string_value: _Optional[str] = ..., object_value: _Optional[_Union[JsonObject, _Mapping]] = ..., list_value: _Optional[_Union[JsonList, _Mapping]] = ...) -> None: ...
+    null_value: _struct_pb2.NullValue
+    bytes_value: bytes
+    def __init__(self, bool_value: _Optional[bool] = ..., int_value: _Optional[int] = ..., double_value: _Optional[float] = ..., string_value: _Optional[str] = ..., object_value: _Optional[_Union[JsonObject, _Mapping]] = ..., list_value: _Optional[_Union[JsonList, _Mapping]] = ..., null_value: _Optional[_Union[_struct_pb2.NullValue, str]] = ..., bytes_value: _Optional[bytes] = ...) -> None: ...
 
 class JsonObject(_message.Message):
     __slots__ = ()

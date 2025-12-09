@@ -2,6 +2,7 @@ import datetime
 
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.api import annotations_pb2 as _annotations_pb2
 from browser_automation_studio.v1 import workflow_pb2 as _workflow_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
@@ -104,6 +105,7 @@ class UpdateWorkflowRequest(_message.Message):
     CHANGE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     folder_path: str
@@ -112,7 +114,8 @@ class UpdateWorkflowRequest(_message.Message):
     change_description: str
     source: str
     expected_version: int
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., folder_path: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., change_description: _Optional[str] = ..., source: _Optional[str] = ..., expected_version: _Optional[int] = ...) -> None: ...
+    workflow_id: str
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., folder_path: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., change_description: _Optional[str] = ..., source: _Optional[str] = ..., expected_version: _Optional[int] = ..., workflow_id: _Optional[str] = ...) -> None: ...
 
 class UpdateWorkflowResponse(_message.Message):
     __slots__ = ()
@@ -131,11 +134,24 @@ class ExecuteWorkflowRequest(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    class ParametersTypedEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _shared_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_shared_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_TYPED_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
     parameters: _containers.MessageMap[str, _struct_pb2.Value]
+    parameters_typed: _containers.MessageMap[str, _shared_pb2.JsonValue]
     wait_for_completion: bool
-    def __init__(self, parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., wait_for_completion: _Optional[bool] = ...) -> None: ...
+    workflow_id: str
+    workflow_version: int
+    def __init__(self, parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., parameters_typed: _Optional[_Mapping[str, _shared_pb2.JsonValue]] = ..., wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ...) -> None: ...
 
 class ExecuteWorkflowResponse(_message.Message):
     __slots__ = ()

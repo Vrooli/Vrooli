@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,11 +18,14 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
+	_ "modernc.org/sqlite"
 )
 
 type DB struct {
 	*sqlx.DB
-	log *logrus.Logger
+	log     *logrus.Logger
+	backend string
+	dialect Dialect
 }
 
 func init() {
@@ -28,6 +34,8 @@ func init() {
 
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {
+	backend := parseDialect(os.Getenv("BAS_DB_BACKEND"))
+
 	// Check for individual PostgreSQL environment variables (preferred)
 	dbHost := os.Getenv("POSTGRES_HOST")
 	dbPort := os.Getenv("POSTGRES_PORT")
@@ -41,26 +49,6 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	}
 
 	var databaseURL string
-
-	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
-		// Construct URL from individual components
-		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-		log.WithFields(logrus.Fields{
-			"host":     dbHost,
-			"port":     dbPort,
-			"user":     dbUser,
-			"database": dbName,
-		}).Info("Using individual PostgreSQL environment variables")
-	} else {
-		// Fallback to DATABASE_URL if individual vars not available
-		databaseURL = os.Getenv("DATABASE_URL")
-		if databaseURL == "" {
-			return nil, fmt.Errorf("PostgreSQL configuration not found. Please set either DATABASE_URL or individual variables: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-		log.Info("Using DATABASE_URL environment variable")
-	}
-
 	var db *sqlx.DB
 	var err error
 
@@ -70,7 +58,38 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	maxDelay := 30 * time.Second
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		db, err = sqlx.Connect("postgres", databaseURL)
+		switch backend {
+		case DialectPostgres:
+			if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
+				databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+					dbUser, dbPassword, dbHost, dbPort, dbName)
+				log.WithFields(logrus.Fields{
+					"host":     dbHost,
+					"port":     dbPort,
+					"user":     dbUser,
+					"database": dbName,
+				}).Info("Using individual PostgreSQL environment variables")
+			} else {
+				databaseURL = os.Getenv("DATABASE_URL")
+				if databaseURL == "" {
+					return nil, fmt.Errorf("PostgreSQL configuration not found. Please set either DATABASE_URL or individual variables: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+				}
+				log.Info("Using DATABASE_URL environment variable")
+			}
+			db, err = sqlx.Connect("postgres", databaseURL)
+		case DialectSQLite:
+			databaseURL, err = sqliteDSN(log)
+			if err != nil {
+				return nil, err
+			}
+			if err := ensureSQLiteResource(log); err != nil {
+				log.WithError(err).Warn("SQLite resource install check failed; continuing with direct driver")
+			}
+			db, err = sqlx.Connect("sqlite", databaseURL)
+		default:
+			return nil, fmt.Errorf("unsupported BAS_DB_BACKEND: %s (expected postgres|sqlite)", backend)
+		}
+
 		if err == nil {
 			// Test the connection
 			ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseQueryTimeout)
@@ -78,7 +97,7 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 			cancel()
 
 			if err == nil {
-				log.Info("Successfully connected to database")
+				log.WithField("backend", backend).Info("Successfully connected to database")
 				break
 			}
 		}
@@ -112,11 +131,18 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	if backend == "sqlite" {
+		db.SetMaxOpenConns(1)
+	}
 
 	dbWrapper := &DB{
-		DB:  db,
-		log: log,
+		DB:      db,
+		log:     log,
+		backend: string(backend),
+		dialect: backend,
 	}
+	currentDialect = backend // legacy global for types still reading it
+	SetDialectProvider(dbWrapper)
 
 	// Initialize database schema
 	if err := dbWrapper.initSchema(); err != nil {
@@ -125,6 +151,14 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	}
 
 	return dbWrapper, nil
+}
+
+// Dialect returns the active dialect for this DB.
+func (db *DB) Dialect() Dialect {
+	if db == nil {
+		return DialectPostgres
+	}
+	return db.dialect
 }
 
 // Close closes the database connection
@@ -162,12 +196,16 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	return tx.Commit()
 }
 
-// initSchema initializes the database schema by loading and executing the schema.sql file.
+// initSchema initializes the database schema by loading and executing the schema file.
 // The schema file is loaded from disk at runtime and contains all table definitions,
 // indexes, and triggers required by the browser automation platform.
 func (db *DB) initSchema() error {
 	// Determine the schema file path relative to this source file
-	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), "schema.sql")
+	filename := "schema.sql"
+	if db.backend == "sqlite" {
+		filename = "schema_sqlite.sql"
+	}
+	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), filename)
 
 	// Read the schema file
 	schemaBytes, err := os.ReadFile(schemaPath)
@@ -200,10 +238,70 @@ func (db *DB) initSchema() error {
 }
 
 // getCurrentFilePath returns the path of the current source file.
-// This is used to locate the schema.sql file relative to connection.go.
+// This is used to locate the schema file relative to connection.go.
 func getCurrentFilePath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	return filename
+}
+
+func sqliteDSN(log *logrus.Logger) (string, error) {
+	root := strings.TrimSpace(os.Getenv("BAS_SQLITE_PATH"))
+	if root == "" {
+		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
+			// Allow explicit file URLs (desktop bundles can set this).
+			return custom, nil
+		}
+		dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
+		if dataRoot == "" {
+			dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+		}
+		if dataRoot == "" {
+			home, _ := os.UserHomeDir()
+			if home == "" {
+				home = "."
+			}
+			dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
+		}
+		root = filepath.Join(dataRoot, "browser-automation-studio.db")
+	}
+	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+
+	// Mirror resources/sqlite defaults; allow env override if caller provides a full DATABASE_URL=file:...
+	if log != nil {
+		log.WithFields(logrus.Fields{
+			"path":    root,
+			"backend": "sqlite",
+		}).Info("Using SQLite DSN derived from resource defaults")
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
+		root,
+	), nil
+}
+
+// ensureSQLiteResource best-effort invokes the sqlite resource install to align directories/permissions.
+func ensureSQLiteResource(log *logrus.Logger) error {
+	cli := strings.TrimSpace(os.Getenv("SQLITE_CLI_PATH"))
+	if cli == "" {
+		// Prefer the resource-local shim if present.
+		cli = filepath.Join("resources", "sqlite", "cli.sh")
+		if _, err := os.Stat(cli); err != nil {
+			cli = "resource-sqlite"
+		}
+	}
+	cmd := exec.Command(cli, "manage", "install")
+	// Run quietly; we only care about success/failure.
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	if err := cmd.Run(); err != nil {
+		if log != nil {
+			log.WithError(err).Debug("resource-sqlite manage install failed or missing")
+		}
+		return err
+	}
+	return nil
 }
 
 func (db *DB) seedDemoWorkflow() error {
@@ -234,18 +332,21 @@ func (db *DB) seedDemoWorkflow() error {
 		FolderPath string    `db:"folder_path"`
 	}
 
+	selectProject := db.Rebind(`SELECT id, folder_path FROM projects WHERE folder_path = ? LIMIT 1`)
 	var project projectRow
-	err = db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE folder_path = $1 LIMIT 1`, absDemoProjectFolder)
+	err = db.GetContext(ctx, &project, selectProject, absDemoProjectFolder)
 	switch {
 	case err == nil:
 		// Project already exists with this folder_path, use it
 	case err == sql.ErrNoRows:
 		project = projectRow{ID: uuid.New(), FolderPath: absDemoProjectFolder}
+		insertProject := db.Rebind(
+			`INSERT INTO projects (id, name, description, folder_path, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+			 ON CONFLICT (folder_path) DO NOTHING`)
 		if _, err := db.ExecContext(
 			ctx,
-			`INSERT INTO projects (id, name, description, folder_path, created_at, updated_at)
-			 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-			 ON CONFLICT (folder_path) DO NOTHING`,
+			insertProject,
 			project.ID,
 			demoProjectName,
 			demoProjectDescription,
@@ -254,7 +355,7 @@ func (db *DB) seedDemoWorkflow() error {
 			return fmt.Errorf("failed to seed demo project: %w", err)
 		}
 
-		if err := db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE folder_path = $1 LIMIT 1`, absDemoProjectFolder); err != nil {
+		if err := db.GetContext(ctx, &project, selectProject, absDemoProjectFolder); err != nil {
 			return fmt.Errorf("failed to confirm demo project id: %w", err)
 		}
 
@@ -269,11 +370,13 @@ func (db *DB) seedDemoWorkflow() error {
 	}
 
 	folderPath := demoWorkflowFolder
+	insertFolder := db.Rebind(
+		`INSERT INTO workflow_folders (id, path, name, description, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		 ON CONFLICT (path) DO NOTHING`)
 	if _, err := db.ExecContext(
 		ctx,
-		`INSERT INTO workflow_folders (id, path, name, description, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		 ON CONFLICT (path) DO NOTHING`,
+		insertFolder,
 		uuid.New(),
 		folderPath,
 		"Demo Workflows",
@@ -364,7 +467,8 @@ func (db *DB) seedDemoWorkflow() error {
 	}
 
 	var workflow workflowRow
-	err = db.GetContext(ctx, &workflow, `SELECT id, project_id, folder_path FROM workflows WHERE name = $1 LIMIT 1`, demoWorkflowName)
+	selectWorkflow := db.Rebind(`SELECT id, project_id, folder_path FROM workflows WHERE name = ? LIMIT 1`)
+	err = db.GetContext(ctx, &workflow, selectWorkflow, demoWorkflowName)
 	switch {
 	case err == nil:
 		needsUpdate := false
@@ -382,14 +486,8 @@ func (db *DB) seedDemoWorkflow() error {
 			needsUpdate = true
 		}
 		if needsUpdate {
-			if _, err := db.ExecContext(
-				ctx,
-				`UPDATE workflows SET project_id = $1, folder_path = $2, created_by = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
-				project.ID,
-				folderPath,
-				createdByValue,
-				workflow.ID,
-			); err != nil {
+			updateWorkflow := db.Rebind(`UPDATE workflows SET project_id = ?, folder_path = ?, created_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+			if _, err := db.ExecContext(ctx, updateWorkflow, project.ID, folderPath, createdByValue, workflow.ID); err != nil {
 				return fmt.Errorf("failed to update demo workflow metadata: %w", err)
 			}
 		}
@@ -401,32 +499,16 @@ func (db *DB) seedDemoWorkflow() error {
 	workflow.ID = uuid.New()
 	description := "Demo workflow that loads example.com, verifies the hero heading, and captures an annotated screenshot."
 
-	if _, err := db.ExecContext(
-		ctx,
-		`INSERT INTO workflows (id, project_id, name, folder_path, flow_definition, description, version, created_by, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, 1, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		workflow.ID,
-		project.ID,
-		demoWorkflowName,
-		folderPath,
-		flowDefinition,
-		description,
-		"seed",
-	); err != nil {
+	insertWorkflow := db.Rebind(`INSERT INTO workflows (id, project_id, name, folder_path, flow_definition, description, version, created_by, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
+	if _, err := db.ExecContext(ctx, insertWorkflow, workflow.ID, project.ID, demoWorkflowName, folderPath, flowDefinition, description, "seed"); err != nil {
 		return fmt.Errorf("failed to seed demo workflow: %w", err)
 	}
 
-	if _, err := db.ExecContext(
-		ctx,
-		`INSERT INTO workflow_versions (id, workflow_id, version, flow_definition, change_description, created_by, created_at)
-		 VALUES ($1, $2, 1, $3, $4, $5, CURRENT_TIMESTAMP)
-		 ON CONFLICT (workflow_id, version) DO NOTHING`,
-		uuid.New(),
-		workflow.ID,
-		flowDefinition,
-		"Initial demo workflow seed",
-		"seed",
-	); err != nil {
+	insertVersion := db.Rebind(`INSERT INTO workflow_versions (id, workflow_id, version, flow_definition, change_description, created_by, created_at)
+		 VALUES (?, ?, 1, ?, ?, ?, CURRENT_TIMESTAMP)
+		 ON CONFLICT (workflow_id, version) DO NOTHING`)
+	if _, err := db.ExecContext(ctx, insertVersion, uuid.New(), workflow.ID, flowDefinition, "Initial demo workflow seed", "seed"); err != nil {
 		return fmt.Errorf("failed to seed demo workflow version: %w", err)
 	}
 

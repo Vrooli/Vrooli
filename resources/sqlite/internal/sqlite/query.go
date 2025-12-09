@@ -30,7 +30,7 @@ func (s *Service) QueryInsert(ctx context.Context, dbName, table string, pairs [
 		return err
 	}
 	cols := make([]string, 0, len(pairs))
-	vals := make([]string, 0, len(pairs))
+	vals := make([]any, 0, len(pairs))
 	for _, p := range pairs {
 		parts := strings.SplitN(p, "=", 2)
 		if len(parts) != 2 {
@@ -40,10 +40,20 @@ func (s *Service) QueryInsert(ctx context.Context, dbName, table string, pairs [
 			return err
 		}
 		cols = append(cols, parts[0])
-		vals = append(vals, fmt.Sprintf("'%s'", strings.ReplaceAll(parts[1], "'", "''")))
+		vals = append(vals, parts[1])
 	}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(cols, ","), strings.Join(vals, ","))
-	_, err := s.Execute(ctx, dbName, query)
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(cols)), ",")
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(cols, ","), placeholders)
+	path, err := s.databasePath(dbName)
+	if err != nil {
+		return err
+	}
+	db, err := s.openDatabase(ctx, path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.ExecContext(ctx, query, vals...)
 	return err
 }
 
@@ -53,6 +63,7 @@ func (s *Service) QueryUpdate(ctx context.Context, dbName, table string, pairs [
 		return err
 	}
 	assignments := make([]string, 0, len(pairs))
+	args := make([]any, 0, len(pairs))
 	for _, p := range pairs {
 		parts := strings.SplitN(p, "=", 2)
 		if len(parts) != 2 {
@@ -61,13 +72,23 @@ func (s *Service) QueryUpdate(ctx context.Context, dbName, table string, pairs [
 		if err := validateIdentifier(parts[0]); err != nil {
 			return err
 		}
-		assignments = append(assignments, fmt.Sprintf("%s='%s'", parts[0], strings.ReplaceAll(parts[1], "'", "''")))
+		assignments = append(assignments, fmt.Sprintf("%s = ?", parts[0]))
+		args = append(args, parts[1])
 	}
 	query := fmt.Sprintf("UPDATE %s SET %s", table, strings.Join(assignments, ","))
 	if strings.TrimSpace(where) != "" {
 		query += " WHERE " + where
 	}
-	_, err := s.Execute(ctx, dbName, query)
+	path, err := s.databasePath(dbName)
+	if err != nil {
+		return err
+	}
+	db, err := s.openDatabase(ctx, path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.ExecContext(ctx, query, args...)
 	return err
 }
 

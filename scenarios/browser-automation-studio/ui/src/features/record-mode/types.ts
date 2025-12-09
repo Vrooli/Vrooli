@@ -69,6 +69,15 @@ export type ActionType =
   | 'blur'
   | 'keypress';
 
+export type RecordedActionKind =
+  | 'RECORDED_ACTION_TYPE_UNSPECIFIED'
+  | 'RECORDED_ACTION_TYPE_NAVIGATE'
+  | 'RECORDED_ACTION_TYPE_CLICK'
+  | 'RECORDED_ACTION_TYPE_INPUT'
+  | 'RECORDED_ACTION_TYPE_WAIT'
+  | 'RECORDED_ACTION_TYPE_ASSERT'
+  | 'RECORDED_ACTION_TYPE_CUSTOM_SCRIPT';
+
 /**
  * Payload data for recorded actions.
  */
@@ -105,6 +114,52 @@ export interface ActionPayload {
   [key: string]: unknown;
 }
 
+export type TypedActionPayload =
+  | { navigate: NavigateActionPayload }
+  | { click: ClickActionPayload }
+  | { input: InputActionPayload }
+  | { wait: WaitActionPayload }
+  | { assert: AssertActionPayload }
+  | { customScript: CustomScriptActionPayload };
+
+export interface NavigateActionPayload {
+  url: string;
+  waitForSelector?: string;
+  timeoutMs?: number;
+}
+
+export interface ClickActionPayload {
+  selector?: string;
+  button?: 'left' | 'right' | 'middle';
+  clickCount?: number;
+  delayMs?: number;
+  scrollIntoView?: boolean;
+}
+
+export interface InputActionPayload {
+  selector?: string;
+  value: string;
+  isSensitive?: boolean;
+  submit?: boolean;
+}
+
+export interface WaitActionPayload {
+  durationMs: number;
+}
+
+export interface AssertActionPayload {
+  mode: string;
+  selector: string;
+  expected?: unknown;
+  negated?: boolean;
+  caseSensitive?: boolean;
+}
+
+export interface CustomScriptActionPayload {
+  language?: string;
+  source: string;
+}
+
 /**
  * A single recorded user action.
  */
@@ -115,11 +170,15 @@ export interface RecordedAction {
   timestamp: string;
   durationMs?: number;
   actionType: ActionType;
+   /** Proto-aligned action kind; prefer over actionType for downstream typing. */
+  actionKind?: RecordedActionKind;
   confidence: number;
   selector?: SelectorSet;
   elementMeta?: ElementMeta;
   boundingBox?: BoundingBox;
   payload?: ActionPayload;
+  /** Typed action payloads; prefer over payload when present. */
+  typedAction?: TypedActionPayload;
   url: string;
   frameId?: string;
   cursorPos?: Point;

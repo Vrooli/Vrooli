@@ -6,7 +6,7 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { JsonObject as JsonObject$1, StepType } from "./shared_pb";
+import type { JsonObject as JsonObject$1, JsonValue, StepType } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
@@ -14,7 +14,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/workflow.proto.
  */
 export const file_browser_automation_studio_v1_workflow: GenFile = /*@__PURE__*/
-  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxItgEChJXb3JrZmxvd0RlZmluaXRpb24SOQoFbm9kZXMYASADKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93Tm9kZRI5CgVlZGdlcxgCIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dFZGdlElQKCG1ldGFkYXRhGAMgAygLMj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb24uTWV0YWRhdGFFbnRyeUICGAESVAoIc2V0dGluZ3MYBCADKAsyPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvbi5TZXR0aW5nc0VudHJ5QgIYARJGCg5tZXRhZGF0YV90eXBlZBgFIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dNZXRhZGF0YRJGCg5zZXR0aW5nc190eXBlZBgGIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncxpHCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaRwoNU2V0dGluZ3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIrUBCgxXb3JrZmxvd05vZGUSCgoCaWQYASABKAkSNAoEdHlwZRgCIAEoDjImLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RlcFR5cGUSJQoEZGF0YRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPAoKZGF0YV90eXBlZBgEIAEoCzIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSnNvbk9iamVjdCKtAQoMV29ya2Zsb3dFZGdlEgoKAmlkGAEgASgJEg4KBnNvdXJjZRgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDAoEdHlwZRgEIAEoCRIlCgRkYXRhGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBI8CgpkYXRhX3R5cGVkGAYgASgLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Kc29uT2JqZWN0IsEBChBXb3JrZmxvd01ldGFkYXRhEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSSgoGbGFiZWxzGAMgAygLMjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd01ldGFkYXRhLkxhYmVsc0VudHJ5Eg8KB3ZlcnNpb24YBCABKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKlAgoQV29ya2Zsb3dTZXR0aW5ncxIWCg52aWV3cG9ydF93aWR0aBgBIAEoBRIXCg92aWV3cG9ydF9oZWlnaHQYAiABKAUSEgoKdXNlcl9hZ2VudBgDIAEoCRIOCgZsb2NhbGUYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFEhAKCGhlYWRsZXNzGAYgASgIEkoKBmV4dHJhcxgHIAMoCzI6LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncy5FeHRyYXNFbnRyeRpFCgtFeHRyYXNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_browser_automation_studio_v1_shared]);
+  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxItgEChJXb3JrZmxvd0RlZmluaXRpb24SOQoFbm9kZXMYASADKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93Tm9kZRI5CgVlZGdlcxgCIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dFZGdlElQKCG1ldGFkYXRhGAMgAygLMj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb24uTWV0YWRhdGFFbnRyeUICGAESVAoIc2V0dGluZ3MYBCADKAsyPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvbi5TZXR0aW5nc0VudHJ5QgIYARJGCg5tZXRhZGF0YV90eXBlZBgFIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dNZXRhZGF0YRJGCg5zZXR0aW5nc190eXBlZBgGIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncxpHCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaRwoNU2V0dGluZ3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIv8BCgxXb3JrZmxvd05vZGUSCgoCaWQYASABKAkSNAoEdHlwZRgCIAEoDjImLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RlcFR5cGUSKQoEZGF0YRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCAhgBEkAKCmRhdGFfdHlwZWQYBCABKAsyKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkpzb25PYmplY3RCAhgBEkAKBmNvbmZpZxgFIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dOb2RlQ29uZmlnIq0BCgxXb3JrZmxvd0VkZ2USCgoCaWQYASABKAkSDgoGc291cmNlGAIgASgJEg4KBnRhcmdldBgDIAEoCRIMCgR0eXBlGAQgASgJEiUKBGRhdGEYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjwKCmRhdGFfdHlwZWQYBiABKAsyKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkpzb25PYmplY3QiwQEKEFdvcmtmbG93TWV0YWRhdGESDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRJKCgZsYWJlbHMYAyADKAsyOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93TWV0YWRhdGEuTGFiZWxzRW50cnkSDwoHdmVyc2lvbhgEIAEoCRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqUCChBXb3JrZmxvd1NldHRpbmdzEhYKDnZpZXdwb3J0X3dpZHRoGAEgASgFEhcKD3ZpZXdwb3J0X2hlaWdodBgCIAEoBRISCgp1c2VyX2FnZW50GAMgASgJEg4KBmxvY2FsZRgEIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYBSABKAUSEAoIaGVhZGxlc3MYBiABKAgSSgoGZXh0cmFzGAcgAygLMjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1NldHRpbmdzLkV4dHJhc0VudHJ5GkUKC0V4dHJhc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEi6gMKEldvcmtmbG93Tm9kZUNvbmZpZxJECghuYXZpZ2F0ZRgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVTdGVwQ29uZmlnSAASPgoFY2xpY2sYAiABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNsaWNrU3RlcENvbmZpZ0gAEj4KBWlucHV0GAMgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5JbnB1dFN0ZXBDb25maWdIABJACgZhc3NlcnQYBCABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFzc2VydFN0ZXBDb25maWdIABJCCgdzdWJmbG93GAUgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdWJmbG93U3RlcENvbmZpZ0gAEkAKBmN1c3RvbRgGIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3VzdG9tU3RlcENvbmZpZ0gAEjwKBHdhaXQYByABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldhaXRTdGVwQ29uZmlnSABCCAoGY29uZmlnIrcBChJOYXZpZ2F0ZVN0ZXBDb25maWcSCwoDdXJsGAEgASgJEh4KEXdhaXRfZm9yX3NlbGVjdG9yGAIgASgJSACIAQESFwoKdGltZW91dF9tcxgDIAEoBUgBiAEBEh8KEmNhcHR1cmVfc2NyZWVuc2hvdBgEIAEoCEgCiAEBQhQKEl93YWl0X2Zvcl9zZWxlY3RvckINCgtfdGltZW91dF9tc0IVChNfY2FwdHVyZV9zY3JlZW5zaG90IoEBCg9DbGlja1N0ZXBDb25maWcSEAoIc2VsZWN0b3IYASABKAkSDgoGYnV0dG9uGAIgASgJEhgKC2NsaWNrX2NvdW50GAMgASgFSACIAQESFQoIZGVsYXlfbXMYBCABKAVIAYgBAUIOCgxfY2xpY2tfY291bnRCCwoJX2RlbGF5X21zImgKD0lucHV0U3RlcENvbmZpZxIQCghzZWxlY3RvchgBIAEoCRINCgV2YWx1ZRgCIAEoCRIUCgxpc19zZW5zaXRpdmUYAyABKAgSEwoGc3VibWl0GAQgASgISACIAQFCCQoHX3N1Ym1pdCKnAQoQQXNzZXJ0U3RlcENvbmZpZxIMCgRtb2RlGAEgASgJEhAKCHNlbGVjdG9yGAIgASgJEigKCGV4cGVjdGVkGAMgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEg8KB25lZ2F0ZWQYBCABKAgSFgoOY2FzZV9zZW5zaXRpdmUYBSABKAgSFAoHbWVzc2FnZRgGIAEoCUgAiAEBQgoKCF9tZXNzYWdlIvsBChFTdWJmbG93U3RlcENvbmZpZxITCgt3b3JrZmxvd19pZBgBIAEoCRIUCgd2ZXJzaW9uGAIgASgFSACIAQESUwoKcGFyYW1ldGVycxgDIAMoCzI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3ViZmxvd1N0ZXBDb25maWcuUGFyYW1ldGVyc0VudHJ5GloKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSNgoFdmFsdWUYAiABKAsyJy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkpzb25WYWx1ZToCOAFCCgoIX3ZlcnNpb24iJQoOV2FpdFN0ZXBDb25maWcSEwoLZHVyYXRpb25fbXMYASABKAUiWwoQQ3VzdG9tU3RlcENvbmZpZxIMCgRraW5kGAEgASgJEjkKB3BheWxvYWQYAiABKAsyKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkpzb25PYmplY3RCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_google_protobuf_struct, file_browser_automation_studio_v1_shared]);
 
 /**
  * WorkflowDefinition mirrors the JSON workflow definitions used by BAS.
@@ -95,18 +95,27 @@ export type WorkflowNode = Message<"browser_automation_studio.v1.WorkflowNode"> 
   type: StepType;
 
   /**
-   * Node-specific configuration payload.
+   * Node-specific configuration payload (legacy); prefer config.
    *
-   * @generated from field: google.protobuf.Struct data = 3;
+   * @generated from field: google.protobuf.Struct data = 3 [deprecated = true];
+   * @deprecated
    */
   data?: JsonObject;
 
   /**
-   * Strongly typed node configuration; prefer over Struct when possible.
+   * Typed node configuration (legacy); prefer config.
    *
-   * @generated from field: browser_automation_studio.v1.JsonObject data_typed = 4;
+   * @generated from field: browser_automation_studio.v1.JsonObject data_typed = 4 [deprecated = true];
+   * @deprecated
    */
   dataTyped?: JsonObject$1;
+
+  /**
+   * Discriminated node configuration matching StepType; prefer over Struct/JsonObject.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowNodeConfig config = 5;
+   */
+  config?: WorkflowNodeConfig;
 };
 
 /**
@@ -276,4 +285,329 @@ export type WorkflowSettings = Message<"browser_automation_studio.v1.WorkflowSet
  */
 export const WorkflowSettingsSchema: GenMessage<WorkflowSettings> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 4);
+
+/**
+ * WorkflowNodeConfig captures typed settings for common node kinds.
+ *
+ * @generated from message browser_automation_studio.v1.WorkflowNodeConfig
+ */
+export type WorkflowNodeConfig = Message<"browser_automation_studio.v1.WorkflowNodeConfig"> & {
+  /**
+   * @generated from oneof browser_automation_studio.v1.WorkflowNodeConfig.config
+   */
+  config: {
+    /**
+     * @generated from field: browser_automation_studio.v1.NavigateStepConfig navigate = 1;
+     */
+    value: NavigateStepConfig;
+    case: "navigate";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.ClickStepConfig click = 2;
+     */
+    value: ClickStepConfig;
+    case: "click";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.InputStepConfig input = 3;
+     */
+    value: InputStepConfig;
+    case: "input";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.AssertStepConfig assert = 4;
+     */
+    value: AssertStepConfig;
+    case: "assert";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.SubflowStepConfig subflow = 5;
+     */
+    value: SubflowStepConfig;
+    case: "subflow";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.CustomStepConfig custom = 6;
+     */
+    value: CustomStepConfig;
+    case: "custom";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.WaitStepConfig wait = 7;
+     */
+    value: WaitStepConfig;
+    case: "wait";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.WorkflowNodeConfig.
+ * Use `create(WorkflowNodeConfigSchema)` to create a new message.
+ */
+export const WorkflowNodeConfigSchema: GenMessage<WorkflowNodeConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 5);
+
+/**
+ * NavigateStepConfig contains navigation fields.
+ *
+ * @generated from message browser_automation_studio.v1.NavigateStepConfig
+ */
+export type NavigateStepConfig = Message<"browser_automation_studio.v1.NavigateStepConfig"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * Optional selector to wait for after navigation.
+   *
+   * @generated from field: optional string wait_for_selector = 2;
+   */
+  waitForSelector?: string;
+
+  /**
+   * Timeout for navigation/wait in milliseconds.
+   *
+   * @generated from field: optional int32 timeout_ms = 3;
+   */
+  timeoutMs?: number;
+
+  /**
+   * Whether to capture a screenshot after navigation.
+   *
+   * @generated from field: optional bool capture_screenshot = 4;
+   */
+  captureScreenshot?: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.NavigateStepConfig.
+ * Use `create(NavigateStepConfigSchema)` to create a new message.
+ */
+export const NavigateStepConfigSchema: GenMessage<NavigateStepConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 6);
+
+/**
+ * ClickStepConfig contains click action metadata.
+ *
+ * @generated from message browser_automation_studio.v1.ClickStepConfig
+ */
+export type ClickStepConfig = Message<"browser_automation_studio.v1.ClickStepConfig"> & {
+  /**
+   * CSS selector to click.
+   *
+   * @generated from field: string selector = 1;
+   */
+  selector: string;
+
+  /**
+   * Mouse button (left, middle, right); defaults to left when empty.
+   *
+   * @generated from field: string button = 2;
+   */
+  button: string;
+
+  /**
+   * Number of clicks to perform.
+   *
+   * @generated from field: optional int32 click_count = 3;
+   */
+  clickCount?: number;
+
+  /**
+   * Delay between mousedown and mouseup in milliseconds.
+   *
+   * @generated from field: optional int32 delay_ms = 4;
+   */
+  delayMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ClickStepConfig.
+ * Use `create(ClickStepConfigSchema)` to create a new message.
+ */
+export const ClickStepConfigSchema: GenMessage<ClickStepConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 7);
+
+/**
+ * InputStepConfig contains text entry metadata.
+ *
+ * @generated from message browser_automation_studio.v1.InputStepConfig
+ */
+export type InputStepConfig = Message<"browser_automation_studio.v1.InputStepConfig"> & {
+  /**
+   * CSS selector to target.
+   *
+   * @generated from field: string selector = 1;
+   */
+  selector: string;
+
+  /**
+   * Value to type.
+   *
+   * @generated from field: string value = 2;
+   */
+  value: string;
+
+  /**
+   * Treat value as sensitive and mask in logs.
+   *
+   * @generated from field: bool is_sensitive = 3;
+   */
+  isSensitive: boolean;
+
+  /**
+   * Whether to press Enter after input.
+   *
+   * @generated from field: optional bool submit = 4;
+   */
+  submit?: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.InputStepConfig.
+ * Use `create(InputStepConfigSchema)` to create a new message.
+ */
+export const InputStepConfigSchema: GenMessage<InputStepConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 8);
+
+/**
+ * AssertStepConfig captures assertion configuration.
+ *
+ * @generated from message browser_automation_studio.v1.AssertStepConfig
+ */
+export type AssertStepConfig = Message<"browser_automation_studio.v1.AssertStepConfig"> & {
+  /**
+   * Assertion mode (exists, visible, text_equals, etc.).
+   *
+   * @generated from field: string mode = 1;
+   */
+  mode: string;
+
+  /**
+   * CSS selector being asserted on.
+   *
+   * @generated from field: string selector = 2;
+   */
+  selector: string;
+
+  /**
+   * Expected value for the assertion.
+   *
+   * @generated from field: google.protobuf.Value expected = 3;
+   */
+  expected?: Value;
+
+  /**
+   * Whether the assertion is negated.
+   *
+   * @generated from field: bool negated = 4;
+   */
+  negated: boolean;
+
+  /**
+   * Case sensitivity flag.
+   *
+   * @generated from field: bool case_sensitive = 5;
+   */
+  caseSensitive: boolean;
+
+  /**
+   * Custom assertion message.
+   *
+   * @generated from field: optional string message = 6;
+   */
+  message?: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.AssertStepConfig.
+ * Use `create(AssertStepConfigSchema)` to create a new message.
+ */
+export const AssertStepConfigSchema: GenMessage<AssertStepConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 9);
+
+/**
+ * SubflowStepConfig references another workflow.
+ *
+ * @generated from message browser_automation_studio.v1.SubflowStepConfig
+ */
+export type SubflowStepConfig = Message<"browser_automation_studio.v1.SubflowStepConfig"> & {
+  /**
+   * Workflow ID to execute.
+   *
+   * @generated from field: string workflow_id = 1;
+   */
+  workflowId: string;
+
+  /**
+   * Optional workflow version.
+   *
+   * @generated from field: optional int32 version = 2;
+   */
+  version?: number;
+
+  /**
+   * Parameters to pass to the subflow (typed).
+   *
+   * @generated from field: map<string, browser_automation_studio.v1.JsonValue> parameters = 3;
+   */
+  parameters: { [key: string]: JsonValue };
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.SubflowStepConfig.
+ * Use `create(SubflowStepConfigSchema)` to create a new message.
+ */
+export const SubflowStepConfigSchema: GenMessage<SubflowStepConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 10);
+
+/**
+ * WaitStepConfig captures a fixed delay between steps.
+ *
+ * @generated from message browser_automation_studio.v1.WaitStepConfig
+ */
+export type WaitStepConfig = Message<"browser_automation_studio.v1.WaitStepConfig"> & {
+  /**
+   * Duration to wait in milliseconds.
+   *
+   * @generated from field: int32 duration_ms = 1;
+   */
+  durationMs: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.WaitStepConfig.
+ * Use `create(WaitStepConfigSchema)` to create a new message.
+ */
+export const WaitStepConfigSchema: GenMessage<WaitStepConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 11);
+
+/**
+ * CustomStepConfig captures custom provider-specific payloads.
+ *
+ * @generated from message browser_automation_studio.v1.CustomStepConfig
+ */
+export type CustomStepConfig = Message<"browser_automation_studio.v1.CustomStepConfig"> & {
+  /**
+   * Custom step kind identifier.
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * Provider-specific payload; prefer over Struct in data.
+   *
+   * @generated from field: browser_automation_studio.v1.JsonObject payload = 2;
+   */
+  payload?: JsonObject$1;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.CustomStepConfig.
+ * Use `create(CustomStepConfigSchema)` to create a new message.
+ */
+export const CustomStepConfigSchema: GenMessage<CustomStepConfig> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow, 12);
 

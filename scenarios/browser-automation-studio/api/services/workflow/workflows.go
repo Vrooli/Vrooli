@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
 )
@@ -249,7 +248,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, workflowID uuid.UU
 	}
 
 	if input.Tags != nil {
-		tags := pq.StringArray(input.Tags)
+		tags := database.StringArray(input.Tags)
 		if !equalStringArrays(current.Tags, tags) {
 			current.Tags = tags
 			metadataChanged = true

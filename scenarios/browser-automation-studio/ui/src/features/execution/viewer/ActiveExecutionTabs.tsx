@@ -44,10 +44,10 @@ export function ActiveExecutionTabs({
           className={clsx(
             "flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2",
             activeTab === "replay"
-              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+              ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
               : hasTimeline
-                ? "text-gray-400 hover:text-white"
-                : "text-gray-500 hover:text-white/80",
+                ? "text-subtle hover:text-surface"
+                : "text-gray-500 hover:text-surface/80",
           )}
           onClick={() => onTabChange("replay")}
         >
@@ -59,8 +59,8 @@ export function ActiveExecutionTabs({
           className={clsx(
             "flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2",
             activeTab === "screenshots"
-              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
-              : "text-gray-400 hover:text-white",
+              ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
+              : "text-subtle hover:text-surface",
           )}
           onClick={() => onTabChange("screenshots")}
         >
@@ -72,8 +72,8 @@ export function ActiveExecutionTabs({
           className={clsx(
             "flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2",
             activeTab === "logs"
-              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
-              : "text-gray-400 hover:text-white",
+              ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
+              : "text-subtle hover:text-surface",
           )}
           onClick={() => onTabChange("logs")}
         >
@@ -86,8 +86,8 @@ export function ActiveExecutionTabs({
             className={clsx(
               "flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2",
               activeTab === "executions"
-                ? "bg-flow-bg text-white border-b-2 border-flow-accent"
-                : "text-gray-400 hover:text-white",
+                ? "bg-flow-bg text-surface border-b-2 border-flow-accent"
+                : "text-subtle hover:text-surface",
             )}
             onClick={() => onTabChange("executions")}
           >

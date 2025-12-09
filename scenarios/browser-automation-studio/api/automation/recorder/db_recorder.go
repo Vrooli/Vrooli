@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -525,7 +525,11 @@ func (r *DBRecorder) recoverMissingExecution(ctx context.Context, plan contracts
 
 func isForeignKeyViolation(err error) bool {
 	var pqErr *pq.Error
-	return errors.As(err, &pqErr) && pqErr.Code == "23503"
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "23503"
+	}
+	// SQLite reports constraint violations via message; keep best-effort check.
+	return strings.Contains(strings.ToLower(err.Error()), "constraint") && strings.Contains(strings.ToLower(err.Error()), "foreign")
 }
 
 func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {

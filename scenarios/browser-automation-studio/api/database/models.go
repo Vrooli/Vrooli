@@ -17,6 +17,26 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
+// currentDialect is set by NewConnection; defaults to postgres for tests that bypass it.
+// Deprecated: prefer using DB.dialect; kept for value types that still rely on the global.
+var currentDialect Dialect = DialectPostgres
+
+// dialectProvider lets value encoders/decoders read the active dialect without a package-global.
+var dialectProvider DialectProvider
+
+// SetDialectProvider sets the provider used by value types; intended to be called once per process
+// by NewConnection. Falls back to currentDialect when nil.
+func SetDialectProvider(p DialectProvider) {
+	dialectProvider = p
+}
+
+func activeDialect() Dialect {
+	if dialectProvider != nil {
+		return dialectProvider.Dialect()
+	}
+	return currentDialect
+}
+
 // JSONMap represents a JSON object stored in the database
 type JSONMap map[string]any
 
@@ -71,6 +91,17 @@ func (ns *NullableString) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func normalizeString(src any) (string, bool) {
+	switch v := src.(type) {
+	case []byte:
+		return string(v), true
+	case string:
+		return v, true
+	default:
+		return "", false
+	}
+}
+
 // Project represents a project containing related workflows
 type Project struct {
 	ID          uuid.UUID `json:"id" db:"id"`
@@ -102,20 +133,20 @@ type WorkflowFolder struct {
 
 // Workflow represents a browser automation workflow
 type Workflow struct {
-	ID                    uuid.UUID      `json:"id" db:"id"`
-	ProjectID             *uuid.UUID     `json:"project_id,omitempty" db:"project_id"`
-	Name                  string         `json:"name" db:"name"`
-	FolderPath            string         `json:"folder_path" db:"folder_path"`
-	FlowDefinition        JSONMap        `json:"flow_definition" db:"flow_definition"`
-	Description           string         `json:"description,omitempty" db:"description"`
-	Tags                  pq.StringArray `json:"tags" db:"tags"`
-	Version               int            `json:"version" db:"version"`
-	IsTemplate            bool           `json:"is_template" db:"is_template"`
-	CreatedBy             string         `json:"created_by,omitempty" db:"created_by"`
-	LastChangeSource      string         `json:"last_change_source,omitempty" db:"last_change_source"`
-	LastChangeDescription string         `json:"last_change_description,omitempty" db:"last_change_description"`
-	CreatedAt             time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt             time.Time      `json:"updated_at" db:"updated_at"`
+	ID                    uuid.UUID   `json:"id" db:"id"`
+	ProjectID             *uuid.UUID  `json:"project_id,omitempty" db:"project_id"`
+	Name                  string      `json:"name" db:"name"`
+	FolderPath            string      `json:"folder_path" db:"folder_path"`
+	FlowDefinition        JSONMap     `json:"flow_definition" db:"flow_definition"`
+	Description           string      `json:"description,omitempty" db:"description"`
+	Tags                  StringArray `json:"tags" db:"tags"`
+	Version               int         `json:"version" db:"version"`
+	IsTemplate            bool        `json:"is_template" db:"is_template"`
+	CreatedBy             string      `json:"created_by,omitempty" db:"created_by"`
+	LastChangeSource      string      `json:"last_change_source,omitempty" db:"last_change_source"`
+	LastChangeDescription string      `json:"last_change_description,omitempty" db:"last_change_description"`
+	CreatedAt             time.Time   `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time   `json:"updated_at" db:"updated_at"`
 }
 
 // WorkflowVersion represents a version of a workflow
@@ -240,17 +271,56 @@ type WorkflowSchedule struct {
 
 // WorkflowTemplate represents a reusable workflow template
 type WorkflowTemplate struct {
-	ID                uuid.UUID      `json:"id" db:"id"`
-	Name              string         `json:"name" db:"name"`
-	Category          string         `json:"category" db:"category"`
-	Description       string         `json:"description,omitempty" db:"description"`
-	FlowDefinition    JSONMap        `json:"flow_definition" db:"flow_definition"`
-	Icon              string         `json:"icon,omitempty" db:"icon"`
-	ExampleParameters JSONMap        `json:"example_parameters,omitempty" db:"example_parameters"`
-	Tags              pq.StringArray `json:"tags" db:"tags"`
-	UsageCount        int            `json:"usage_count" db:"usage_count"`
-	CreatedAt         time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at" db:"updated_at"`
+	ID                uuid.UUID   `json:"id" db:"id"`
+	Name              string      `json:"name" db:"name"`
+	Category          string      `json:"category" db:"category"`
+	Description       string      `json:"description,omitempty" db:"description"`
+	FlowDefinition    JSONMap     `json:"flow_definition" db:"flow_definition"`
+	Icon              string      `json:"icon,omitempty" db:"icon"`
+	ExampleParameters JSONMap     `json:"example_parameters,omitempty" db:"example_parameters"`
+	Tags              StringArray `json:"tags" db:"tags"`
+	UsageCount        int         `json:"usage_count" db:"usage_count"`
+	CreatedAt         time.Time   `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time   `json:"updated_at" db:"updated_at"`
+}
+
+// StringArray stores string slices in a backend-friendly format.
+// - Postgres: uses pq array encoding.
+// - SQLite: stores as JSON text for compatibility.
+type StringArray []string
+
+func (s StringArray) Value() (driver.Value, error) {
+	// Dialect will be injected at runtime; see WithDialect.
+	if activeDialect().IsSQLite() {
+		return json.Marshal([]string(s))
+	}
+	return pq.StringArray(s).Value() // Postgres path
+}
+
+func (s *StringArray) Scan(src any) error {
+	if src == nil {
+		*s = nil
+		return nil
+	}
+	// Attempt Postgres array parsing first when dialect is Postgres.
+	if activeDialect().IsPostgres() {
+		var arr pq.StringArray
+		if err := arr.Scan(src); err == nil {
+			*s = StringArray(arr)
+			return nil
+		}
+	}
+	// Fallback to JSON string for SQLite or when array parsing fails.
+	raw, ok := normalizeString(src)
+	if !ok {
+		return fmt.Errorf("StringArray: unsupported scan type %T", src)
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return fmt.Errorf("StringArray: scan failed: %w", err)
+	}
+	*s = out
+	return nil
 }
 
 // AIGeneration represents an AI-generated workflow

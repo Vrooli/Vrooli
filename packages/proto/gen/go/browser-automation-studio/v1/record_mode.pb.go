@@ -23,6 +23,68 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// RecordedActionType enumerates supported action kinds captured during recording.
+type RecordedActionType int32
+
+const (
+	RecordedActionType_RECORDED_ACTION_TYPE_UNSPECIFIED   RecordedActionType = 0
+	RecordedActionType_RECORDED_ACTION_TYPE_NAVIGATE      RecordedActionType = 1
+	RecordedActionType_RECORDED_ACTION_TYPE_CLICK         RecordedActionType = 2
+	RecordedActionType_RECORDED_ACTION_TYPE_INPUT         RecordedActionType = 3
+	RecordedActionType_RECORDED_ACTION_TYPE_WAIT          RecordedActionType = 4
+	RecordedActionType_RECORDED_ACTION_TYPE_ASSERT        RecordedActionType = 5
+	RecordedActionType_RECORDED_ACTION_TYPE_CUSTOM_SCRIPT RecordedActionType = 6
+)
+
+// Enum value maps for RecordedActionType.
+var (
+	RecordedActionType_name = map[int32]string{
+		0: "RECORDED_ACTION_TYPE_UNSPECIFIED",
+		1: "RECORDED_ACTION_TYPE_NAVIGATE",
+		2: "RECORDED_ACTION_TYPE_CLICK",
+		3: "RECORDED_ACTION_TYPE_INPUT",
+		4: "RECORDED_ACTION_TYPE_WAIT",
+		5: "RECORDED_ACTION_TYPE_ASSERT",
+		6: "RECORDED_ACTION_TYPE_CUSTOM_SCRIPT",
+	}
+	RecordedActionType_value = map[string]int32{
+		"RECORDED_ACTION_TYPE_UNSPECIFIED":   0,
+		"RECORDED_ACTION_TYPE_NAVIGATE":      1,
+		"RECORDED_ACTION_TYPE_CLICK":         2,
+		"RECORDED_ACTION_TYPE_INPUT":         3,
+		"RECORDED_ACTION_TYPE_WAIT":          4,
+		"RECORDED_ACTION_TYPE_ASSERT":        5,
+		"RECORDED_ACTION_TYPE_CUSTOM_SCRIPT": 6,
+	}
+)
+
+func (x RecordedActionType) Enum() *RecordedActionType {
+	p := new(RecordedActionType)
+	*p = x
+	return p
+}
+
+func (x RecordedActionType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RecordedActionType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_record_mode_proto_enumTypes[0].Descriptor()
+}
+
+func (RecordedActionType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_record_mode_proto_enumTypes[0]
+}
+
+func (x RecordedActionType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RecordedActionType.Descriptor instead.
+func (RecordedActionType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{0}
+}
+
 // SelectorCandidate is a single selector with metadata.
 type SelectorCandidate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -384,17 +446,32 @@ type RecordedAction struct {
 	SequenceNum int32                  `protobuf:"varint,3,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`
 	Timestamp   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	DurationMs  int32                  `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	ActionType  string                 `protobuf:"bytes,6,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
-	Confidence  float64                `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
-	Selector    *SelectorSet           `protobuf:"bytes,8,opt,name=selector,proto3" json:"selector,omitempty"`
-	ElementMeta *ElementMeta           `protobuf:"bytes,9,opt,name=element_meta,json=elementMeta,proto3" json:"element_meta,omitempty"`
-	BoundingBox *RecordBoundingBox     `protobuf:"bytes,10,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
-	Payload     *structpb.Struct       `protobuf:"bytes,11,opt,name=payload,proto3" json:"payload,omitempty"`
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/record_mode.proto.
+	ActionType  string             `protobuf:"bytes,6,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
+	Confidence  float64            `protobuf:"fixed64,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	Selector    *SelectorSet       `protobuf:"bytes,8,opt,name=selector,proto3" json:"selector,omitempty"`
+	ElementMeta *ElementMeta       `protobuf:"bytes,9,opt,name=element_meta,json=elementMeta,proto3" json:"element_meta,omitempty"`
+	BoundingBox *RecordBoundingBox `protobuf:"bytes,10,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/record_mode.proto.
+	Payload *structpb.Struct `protobuf:"bytes,11,opt,name=payload,proto3" json:"payload,omitempty"`
 	// Typed payload; prefer over Struct when available.
-	PayloadTyped  *JsonObject  `protobuf:"bytes,15,opt,name=payload_typed,json=payloadTyped,proto3" json:"payload_typed,omitempty"`
-	Url           string       `protobuf:"bytes,12,opt,name=url,proto3" json:"url,omitempty"`
-	FrameId       string       `protobuf:"bytes,13,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
-	CursorPos     *RecordPoint `protobuf:"bytes,14,opt,name=cursor_pos,json=cursorPos,proto3" json:"cursor_pos,omitempty"`
+	PayloadTyped *JsonObject  `protobuf:"bytes,15,opt,name=payload_typed,json=payloadTyped,proto3" json:"payload_typed,omitempty"`
+	Url          string       `protobuf:"bytes,12,opt,name=url,proto3" json:"url,omitempty"`
+	FrameId      string       `protobuf:"bytes,13,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
+	CursorPos    *RecordPoint `protobuf:"bytes,14,opt,name=cursor_pos,json=cursorPos,proto3" json:"cursor_pos,omitempty"`
+	// Discrete action kind; prefer over the free-form action_type string.
+	ActionKind RecordedActionType `protobuf:"varint,16,opt,name=action_kind,json=actionKind,proto3,enum=browser_automation_studio.v1.RecordedActionType" json:"action_kind,omitempty"`
+	// Typed action payloads; prefer over payload/payload_typed.
+	//
+	// Types that are valid to be assigned to TypedAction:
+	//
+	//	*RecordedAction_Navigate
+	//	*RecordedAction_Click
+	//	*RecordedAction_Input
+	//	*RecordedAction_Wait
+	//	*RecordedAction_Assert
+	//	*RecordedAction_CustomScript
+	TypedAction   isRecordedAction_TypedAction `protobuf_oneof:"typed_action"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -464,6 +541,7 @@ func (x *RecordedAction) GetDurationMs() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/record_mode.proto.
 func (x *RecordedAction) GetActionType() string {
 	if x != nil {
 		return x.ActionType
@@ -499,6 +577,7 @@ func (x *RecordedAction) GetBoundingBox() *RecordBoundingBox {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/record_mode.proto.
 func (x *RecordedAction) GetPayload() *structpb.Struct {
 	if x != nil {
 		return x.Payload
@@ -534,6 +613,496 @@ func (x *RecordedAction) GetCursorPos() *RecordPoint {
 	return nil
 }
 
+func (x *RecordedAction) GetActionKind() RecordedActionType {
+	if x != nil {
+		return x.ActionKind
+	}
+	return RecordedActionType_RECORDED_ACTION_TYPE_UNSPECIFIED
+}
+
+func (x *RecordedAction) GetTypedAction() isRecordedAction_TypedAction {
+	if x != nil {
+		return x.TypedAction
+	}
+	return nil
+}
+
+func (x *RecordedAction) GetNavigate() *NavigateActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*RecordedAction_Navigate); ok {
+			return x.Navigate
+		}
+	}
+	return nil
+}
+
+func (x *RecordedAction) GetClick() *ClickActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*RecordedAction_Click); ok {
+			return x.Click
+		}
+	}
+	return nil
+}
+
+func (x *RecordedAction) GetInput() *InputActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*RecordedAction_Input); ok {
+			return x.Input
+		}
+	}
+	return nil
+}
+
+func (x *RecordedAction) GetWait() *WaitActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*RecordedAction_Wait); ok {
+			return x.Wait
+		}
+	}
+	return nil
+}
+
+func (x *RecordedAction) GetAssert() *AssertActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*RecordedAction_Assert); ok {
+			return x.Assert
+		}
+	}
+	return nil
+}
+
+func (x *RecordedAction) GetCustomScript() *CustomScriptActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*RecordedAction_CustomScript); ok {
+			return x.CustomScript
+		}
+	}
+	return nil
+}
+
+type isRecordedAction_TypedAction interface {
+	isRecordedAction_TypedAction()
+}
+
+type RecordedAction_Navigate struct {
+	Navigate *NavigateActionPayload `protobuf:"bytes,17,opt,name=navigate,proto3,oneof"`
+}
+
+type RecordedAction_Click struct {
+	Click *ClickActionPayload `protobuf:"bytes,18,opt,name=click,proto3,oneof"`
+}
+
+type RecordedAction_Input struct {
+	Input *InputActionPayload `protobuf:"bytes,19,opt,name=input,proto3,oneof"`
+}
+
+type RecordedAction_Wait struct {
+	Wait *WaitActionPayload `protobuf:"bytes,20,opt,name=wait,proto3,oneof"`
+}
+
+type RecordedAction_Assert struct {
+	Assert *AssertActionPayload `protobuf:"bytes,21,opt,name=assert,proto3,oneof"`
+}
+
+type RecordedAction_CustomScript struct {
+	CustomScript *CustomScriptActionPayload `protobuf:"bytes,22,opt,name=custom_script,json=customScript,proto3,oneof"`
+}
+
+func (*RecordedAction_Navigate) isRecordedAction_TypedAction() {}
+
+func (*RecordedAction_Click) isRecordedAction_TypedAction() {}
+
+func (*RecordedAction_Input) isRecordedAction_TypedAction() {}
+
+func (*RecordedAction_Wait) isRecordedAction_TypedAction() {}
+
+func (*RecordedAction_Assert) isRecordedAction_TypedAction() {}
+
+func (*RecordedAction_CustomScript) isRecordedAction_TypedAction() {}
+
+// NavigateActionPayload captures navigation inputs.
+type NavigateActionPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Url   string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Optional selector to wait for before proceeding.
+	WaitForSelector *string `protobuf:"bytes,2,opt,name=wait_for_selector,json=waitForSelector,proto3,oneof" json:"wait_for_selector,omitempty"`
+	// Timeout in milliseconds for the wait.
+	TimeoutMs     *int32 `protobuf:"varint,3,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NavigateActionPayload) Reset() {
+	*x = NavigateActionPayload{}
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NavigateActionPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NavigateActionPayload) ProtoMessage() {}
+
+func (x *NavigateActionPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NavigateActionPayload.ProtoReflect.Descriptor instead.
+func (*NavigateActionPayload) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *NavigateActionPayload) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *NavigateActionPayload) GetWaitForSelector() string {
+	if x != nil && x.WaitForSelector != nil {
+		return *x.WaitForSelector
+	}
+	return ""
+}
+
+func (x *NavigateActionPayload) GetTimeoutMs() int32 {
+	if x != nil && x.TimeoutMs != nil {
+		return *x.TimeoutMs
+	}
+	return 0
+}
+
+// ClickActionPayload captures pointer click configuration.
+type ClickActionPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Mouse button (left, middle, right); defaults to left when empty.
+	Button string `protobuf:"bytes,1,opt,name=button,proto3" json:"button,omitempty"`
+	// Number of clicks; defaults to 1.
+	ClickCount *int32 `protobuf:"varint,2,opt,name=click_count,json=clickCount,proto3,oneof" json:"click_count,omitempty"`
+	// Delay between mousedown and mouseup in milliseconds.
+	DelayMs *int32 `protobuf:"varint,3,opt,name=delay_ms,json=delayMs,proto3,oneof" json:"delay_ms,omitempty"`
+	// Whether to scroll element into view before clicking.
+	ScrollIntoView *bool `protobuf:"varint,4,opt,name=scroll_into_view,json=scrollIntoView,proto3,oneof" json:"scroll_into_view,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ClickActionPayload) Reset() {
+	*x = ClickActionPayload{}
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClickActionPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClickActionPayload) ProtoMessage() {}
+
+func (x *ClickActionPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClickActionPayload.ProtoReflect.Descriptor instead.
+func (*ClickActionPayload) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ClickActionPayload) GetButton() string {
+	if x != nil {
+		return x.Button
+	}
+	return ""
+}
+
+func (x *ClickActionPayload) GetClickCount() int32 {
+	if x != nil && x.ClickCount != nil {
+		return *x.ClickCount
+	}
+	return 0
+}
+
+func (x *ClickActionPayload) GetDelayMs() int32 {
+	if x != nil && x.DelayMs != nil {
+		return *x.DelayMs
+	}
+	return 0
+}
+
+func (x *ClickActionPayload) GetScrollIntoView() bool {
+	if x != nil && x.ScrollIntoView != nil {
+		return *x.ScrollIntoView
+	}
+	return false
+}
+
+// InputActionPayload captures text entry.
+type InputActionPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Value string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	// Treat value as sensitive and mask in logs.
+	IsSensitive bool `protobuf:"varint,2,opt,name=is_sensitive,json=isSensitive,proto3" json:"is_sensitive,omitempty"`
+	// Whether to press Enter after input.
+	Submit        *bool `protobuf:"varint,3,opt,name=submit,proto3,oneof" json:"submit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InputActionPayload) Reset() {
+	*x = InputActionPayload{}
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InputActionPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InputActionPayload) ProtoMessage() {}
+
+func (x *InputActionPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InputActionPayload.ProtoReflect.Descriptor instead.
+func (*InputActionPayload) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *InputActionPayload) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *InputActionPayload) GetIsSensitive() bool {
+	if x != nil {
+		return x.IsSensitive
+	}
+	return false
+}
+
+func (x *InputActionPayload) GetSubmit() bool {
+	if x != nil && x.Submit != nil {
+		return *x.Submit
+	}
+	return false
+}
+
+// WaitActionPayload captures a fixed wait.
+type WaitActionPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Duration to wait in milliseconds.
+	DurationMs    int32 `protobuf:"varint,1,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WaitActionPayload) Reset() {
+	*x = WaitActionPayload{}
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WaitActionPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WaitActionPayload) ProtoMessage() {}
+
+func (x *WaitActionPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WaitActionPayload.ProtoReflect.Descriptor instead.
+func (*WaitActionPayload) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WaitActionPayload) GetDurationMs() int32 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+// AssertActionPayload captures assertion metadata.
+type AssertActionPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Assertion mode (exists, visible, text_equals, etc.).
+	Mode string `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	// CSS selector being asserted on.
+	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Expected value for the assertion.
+	Expected *structpb.Value `protobuf:"bytes,3,opt,name=expected,proto3" json:"expected,omitempty"`
+	// Whether the assertion is negated.
+	Negated bool `protobuf:"varint,4,opt,name=negated,proto3" json:"negated,omitempty"`
+	// Case sensitivity flag.
+	CaseSensitive bool `protobuf:"varint,5,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssertActionPayload) Reset() {
+	*x = AssertActionPayload{}
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssertActionPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssertActionPayload) ProtoMessage() {}
+
+func (x *AssertActionPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssertActionPayload.ProtoReflect.Descriptor instead.
+func (*AssertActionPayload) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AssertActionPayload) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *AssertActionPayload) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *AssertActionPayload) GetExpected() *structpb.Value {
+	if x != nil {
+		return x.Expected
+	}
+	return nil
+}
+
+func (x *AssertActionPayload) GetNegated() bool {
+	if x != nil {
+		return x.Negated
+	}
+	return false
+}
+
+func (x *AssertActionPayload) GetCaseSensitive() bool {
+	if x != nil {
+		return x.CaseSensitive
+	}
+	return false
+}
+
+// CustomScriptActionPayload captures custom script execution data.
+type CustomScriptActionPayload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Language for the script (e.g., "javascript").
+	Language string `protobuf:"bytes,1,opt,name=language,proto3" json:"language,omitempty"`
+	// Source code to execute.
+	Source        string `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomScriptActionPayload) Reset() {
+	*x = CustomScriptActionPayload{}
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomScriptActionPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomScriptActionPayload) ProtoMessage() {}
+
+func (x *CustomScriptActionPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomScriptActionPayload.ProtoReflect.Descriptor instead.
+func (*CustomScriptActionPayload) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CustomScriptActionPayload) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *CustomScriptActionPayload) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
 // Recording session state.
 type RecordingState struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -548,7 +1117,7 @@ type RecordingState struct {
 
 func (x *RecordingState) Reset() {
 	*x = RecordingState{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +1129,7 @@ func (x *RecordingState) String() string {
 func (*RecordingState) ProtoMessage() {}
 
 func (x *RecordingState) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +1142,7 @@ func (x *RecordingState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordingState.ProtoReflect.Descriptor instead.
 func (*RecordingState) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RecordingState) GetIsRecording() bool {
@@ -623,7 +1192,7 @@ type CreateRecordingSessionRequest struct {
 
 func (x *CreateRecordingSessionRequest) Reset() {
 	*x = CreateRecordingSessionRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -635,7 +1204,7 @@ func (x *CreateRecordingSessionRequest) String() string {
 func (*CreateRecordingSessionRequest) ProtoMessage() {}
 
 func (x *CreateRecordingSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -648,7 +1217,7 @@ func (x *CreateRecordingSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRecordingSessionRequest.ProtoReflect.Descriptor instead.
 func (*CreateRecordingSessionRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateRecordingSessionRequest) GetViewportWidth() int32 {
@@ -683,7 +1252,7 @@ type CreateRecordingSessionResponse struct {
 
 func (x *CreateRecordingSessionResponse) Reset() {
 	*x = CreateRecordingSessionResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +1264,7 @@ func (x *CreateRecordingSessionResponse) String() string {
 func (*CreateRecordingSessionResponse) ProtoMessage() {}
 
 func (x *CreateRecordingSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +1277,7 @@ func (x *CreateRecordingSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRecordingSessionResponse.ProtoReflect.Descriptor instead.
 func (*CreateRecordingSessionResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{8}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateRecordingSessionResponse) GetSessionId() string {
@@ -736,7 +1305,7 @@ type StartRecordingRequest struct {
 
 func (x *StartRecordingRequest) Reset() {
 	*x = StartRecordingRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -748,7 +1317,7 @@ func (x *StartRecordingRequest) String() string {
 func (*StartRecordingRequest) ProtoMessage() {}
 
 func (x *StartRecordingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -761,7 +1330,7 @@ func (x *StartRecordingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRecordingRequest.ProtoReflect.Descriptor instead.
 func (*StartRecordingRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{9}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StartRecordingRequest) GetSessionId() string {
@@ -790,7 +1359,7 @@ type StartRecordingResponse struct {
 
 func (x *StartRecordingResponse) Reset() {
 	*x = StartRecordingResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -802,7 +1371,7 @@ func (x *StartRecordingResponse) String() string {
 func (*StartRecordingResponse) ProtoMessage() {}
 
 func (x *StartRecordingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -815,7 +1384,7 @@ func (x *StartRecordingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRecordingResponse.ProtoReflect.Descriptor instead.
 func (*StartRecordingResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *StartRecordingResponse) GetRecordingId() string {
@@ -852,7 +1421,7 @@ type StopRecordingResponse struct {
 
 func (x *StopRecordingResponse) Reset() {
 	*x = StopRecordingResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -864,7 +1433,7 @@ func (x *StopRecordingResponse) String() string {
 func (*StopRecordingResponse) ProtoMessage() {}
 
 func (x *StopRecordingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -877,7 +1446,7 @@ func (x *StopRecordingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRecordingResponse.ProtoReflect.Descriptor instead.
 func (*StopRecordingResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *StopRecordingResponse) GetRecordingId() string {
@@ -922,7 +1491,7 @@ type RecordingStatusResponse struct {
 
 func (x *RecordingStatusResponse) Reset() {
 	*x = RecordingStatusResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +1503,7 @@ func (x *RecordingStatusResponse) String() string {
 func (*RecordingStatusResponse) ProtoMessage() {}
 
 func (x *RecordingStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +1516,7 @@ func (x *RecordingStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordingStatusResponse.ProtoReflect.Descriptor instead.
 func (*RecordingStatusResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{12}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RecordingStatusResponse) GetSessionId() string {
@@ -997,7 +1566,7 @@ type GetActionsResponse struct {
 
 func (x *GetActionsResponse) Reset() {
 	*x = GetActionsResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1009,7 +1578,7 @@ func (x *GetActionsResponse) String() string {
 func (*GetActionsResponse) ProtoMessage() {}
 
 func (x *GetActionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1022,7 +1591,7 @@ func (x *GetActionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetActionsResponse.ProtoReflect.Descriptor instead.
 func (*GetActionsResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{13}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetActionsResponse) GetSessionId() string {
@@ -1061,7 +1630,7 @@ type GenerateWorkflowRequest struct {
 
 func (x *GenerateWorkflowRequest) Reset() {
 	*x = GenerateWorkflowRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1073,7 +1642,7 @@ func (x *GenerateWorkflowRequest) String() string {
 func (*GenerateWorkflowRequest) ProtoMessage() {}
 
 func (x *GenerateWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1086,7 +1655,7 @@ func (x *GenerateWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*GenerateWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{14}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GenerateWorkflowRequest) GetSessionId() string {
@@ -1145,7 +1714,7 @@ type GenerateWorkflowResponse struct {
 
 func (x *GenerateWorkflowResponse) Reset() {
 	*x = GenerateWorkflowResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1157,7 +1726,7 @@ func (x *GenerateWorkflowResponse) String() string {
 func (*GenerateWorkflowResponse) ProtoMessage() {}
 
 func (x *GenerateWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1170,7 +1739,7 @@ func (x *GenerateWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*GenerateWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{15}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GenerateWorkflowResponse) GetWorkflowId() string {
@@ -1222,7 +1791,7 @@ type ReplayPreviewRequest struct {
 
 func (x *ReplayPreviewRequest) Reset() {
 	*x = ReplayPreviewRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1234,7 +1803,7 @@ func (x *ReplayPreviewRequest) String() string {
 func (*ReplayPreviewRequest) ProtoMessage() {}
 
 func (x *ReplayPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1247,7 +1816,7 @@ func (x *ReplayPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayPreviewRequest.ProtoReflect.Descriptor instead.
 func (*ReplayPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{16}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ReplayPreviewRequest) GetSessionId() string {
@@ -1298,7 +1867,7 @@ type ActionReplayError struct {
 
 func (x *ActionReplayError) Reset() {
 	*x = ActionReplayError{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1310,7 +1879,7 @@ func (x *ActionReplayError) String() string {
 func (*ActionReplayError) ProtoMessage() {}
 
 func (x *ActionReplayError) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1323,7 +1892,7 @@ func (x *ActionReplayError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionReplayError.ProtoReflect.Descriptor instead.
 func (*ActionReplayError) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{17}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ActionReplayError) GetMessage() string {
@@ -1356,21 +1925,35 @@ func (x *ActionReplayError) GetSelector() string {
 
 // ActionReplayResult is the result of replaying a single action.
 type ActionReplayResult struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	ActionId          string                 `protobuf:"bytes,1,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
-	SequenceNum       int32                  `protobuf:"varint,2,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`
-	ActionType        string                 `protobuf:"bytes,3,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
-	Success           bool                   `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
-	DurationMs        int32                  `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	Error             *ActionReplayError     `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
-	ScreenshotOnError string                 `protobuf:"bytes,7,opt,name=screenshot_on_error,json=screenshotOnError,proto3" json:"screenshot_on_error,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	ActionId    string                 `protobuf:"bytes,1,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
+	SequenceNum int32                  `protobuf:"varint,2,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/record_mode.proto.
+	ActionType        string             `protobuf:"bytes,3,opt,name=action_type,json=actionType,proto3" json:"action_type,omitempty"`
+	Success           bool               `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
+	DurationMs        int32              `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Error             *ActionReplayError `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	ScreenshotOnError string             `protobuf:"bytes,7,opt,name=screenshot_on_error,json=screenshotOnError,proto3" json:"screenshot_on_error,omitempty"`
+	// Discrete action kind; prefer over the legacy action_type string.
+	ActionKind RecordedActionType `protobuf:"varint,8,opt,name=action_kind,json=actionKind,proto3,enum=browser_automation_studio.v1.RecordedActionType" json:"action_kind,omitempty"`
+	// Typed action payload that was replayed; prefer over action_type.
+	//
+	// Types that are valid to be assigned to TypedAction:
+	//
+	//	*ActionReplayResult_Navigate
+	//	*ActionReplayResult_Click
+	//	*ActionReplayResult_Input
+	//	*ActionReplayResult_Wait
+	//	*ActionReplayResult_Assert
+	//	*ActionReplayResult_CustomScript
+	TypedAction   isActionReplayResult_TypedAction `protobuf_oneof:"typed_action"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ActionReplayResult) Reset() {
 	*x = ActionReplayResult{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1382,7 +1965,7 @@ func (x *ActionReplayResult) String() string {
 func (*ActionReplayResult) ProtoMessage() {}
 
 func (x *ActionReplayResult) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1395,7 +1978,7 @@ func (x *ActionReplayResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionReplayResult.ProtoReflect.Descriptor instead.
 func (*ActionReplayResult) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{18}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ActionReplayResult) GetActionId() string {
@@ -1412,6 +1995,7 @@ func (x *ActionReplayResult) GetSequenceNum() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/record_mode.proto.
 func (x *ActionReplayResult) GetActionType() string {
 	if x != nil {
 		return x.ActionType
@@ -1447,6 +2031,114 @@ func (x *ActionReplayResult) GetScreenshotOnError() string {
 	return ""
 }
 
+func (x *ActionReplayResult) GetActionKind() RecordedActionType {
+	if x != nil {
+		return x.ActionKind
+	}
+	return RecordedActionType_RECORDED_ACTION_TYPE_UNSPECIFIED
+}
+
+func (x *ActionReplayResult) GetTypedAction() isActionReplayResult_TypedAction {
+	if x != nil {
+		return x.TypedAction
+	}
+	return nil
+}
+
+func (x *ActionReplayResult) GetNavigate() *NavigateActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*ActionReplayResult_Navigate); ok {
+			return x.Navigate
+		}
+	}
+	return nil
+}
+
+func (x *ActionReplayResult) GetClick() *ClickActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*ActionReplayResult_Click); ok {
+			return x.Click
+		}
+	}
+	return nil
+}
+
+func (x *ActionReplayResult) GetInput() *InputActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*ActionReplayResult_Input); ok {
+			return x.Input
+		}
+	}
+	return nil
+}
+
+func (x *ActionReplayResult) GetWait() *WaitActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*ActionReplayResult_Wait); ok {
+			return x.Wait
+		}
+	}
+	return nil
+}
+
+func (x *ActionReplayResult) GetAssert() *AssertActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*ActionReplayResult_Assert); ok {
+			return x.Assert
+		}
+	}
+	return nil
+}
+
+func (x *ActionReplayResult) GetCustomScript() *CustomScriptActionPayload {
+	if x != nil {
+		if x, ok := x.TypedAction.(*ActionReplayResult_CustomScript); ok {
+			return x.CustomScript
+		}
+	}
+	return nil
+}
+
+type isActionReplayResult_TypedAction interface {
+	isActionReplayResult_TypedAction()
+}
+
+type ActionReplayResult_Navigate struct {
+	Navigate *NavigateActionPayload `protobuf:"bytes,9,opt,name=navigate,proto3,oneof"`
+}
+
+type ActionReplayResult_Click struct {
+	Click *ClickActionPayload `protobuf:"bytes,10,opt,name=click,proto3,oneof"`
+}
+
+type ActionReplayResult_Input struct {
+	Input *InputActionPayload `protobuf:"bytes,11,opt,name=input,proto3,oneof"`
+}
+
+type ActionReplayResult_Wait struct {
+	Wait *WaitActionPayload `protobuf:"bytes,12,opt,name=wait,proto3,oneof"`
+}
+
+type ActionReplayResult_Assert struct {
+	Assert *AssertActionPayload `protobuf:"bytes,13,opt,name=assert,proto3,oneof"`
+}
+
+type ActionReplayResult_CustomScript struct {
+	CustomScript *CustomScriptActionPayload `protobuf:"bytes,14,opt,name=custom_script,json=customScript,proto3,oneof"`
+}
+
+func (*ActionReplayResult_Navigate) isActionReplayResult_TypedAction() {}
+
+func (*ActionReplayResult_Click) isActionReplayResult_TypedAction() {}
+
+func (*ActionReplayResult_Input) isActionReplayResult_TypedAction() {}
+
+func (*ActionReplayResult_Wait) isActionReplayResult_TypedAction() {}
+
+func (*ActionReplayResult_Assert) isActionReplayResult_TypedAction() {}
+
+func (*ActionReplayResult_CustomScript) isActionReplayResult_TypedAction() {}
+
 // ReplayPreviewResponse is the response from replay preview.
 type ReplayPreviewResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -1463,7 +2155,7 @@ type ReplayPreviewResponse struct {
 
 func (x *ReplayPreviewResponse) Reset() {
 	*x = ReplayPreviewResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1475,7 +2167,7 @@ func (x *ReplayPreviewResponse) String() string {
 func (*ReplayPreviewResponse) ProtoMessage() {}
 
 func (x *ReplayPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1488,7 +2180,7 @@ func (x *ReplayPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayPreviewResponse.ProtoReflect.Descriptor instead.
 func (*ReplayPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{19}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ReplayPreviewResponse) GetSuccess() bool {
@@ -1553,7 +2245,7 @@ type SelectorValidation struct {
 
 func (x *SelectorValidation) Reset() {
 	*x = SelectorValidation{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1565,7 +2257,7 @@ func (x *SelectorValidation) String() string {
 func (*SelectorValidation) ProtoMessage() {}
 
 func (x *SelectorValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1578,7 +2270,7 @@ func (x *SelectorValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectorValidation.ProtoReflect.Descriptor instead.
 func (*SelectorValidation) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{20}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *SelectorValidation) GetValid() bool {
@@ -1619,7 +2311,7 @@ type GenerateWorkflowRequest_ActionRange struct {
 
 func (x *GenerateWorkflowRequest_ActionRange) Reset() {
 	*x = GenerateWorkflowRequest_ActionRange{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1631,7 +2323,7 @@ func (x *GenerateWorkflowRequest_ActionRange) String() string {
 func (*GenerateWorkflowRequest_ActionRange) ProtoMessage() {}
 
 func (x *GenerateWorkflowRequest_ActionRange) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1644,7 +2336,7 @@ func (x *GenerateWorkflowRequest_ActionRange) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GenerateWorkflowRequest_ActionRange.ProtoReflect.Descriptor instead.
 func (*GenerateWorkflowRequest_ActionRange) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{14, 0}
+	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{20, 0}
 }
 
 func (x *GenerateWorkflowRequest_ActionRange) GetStart() int32 {
@@ -1705,7 +2397,8 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\x06height\x18\x04 \x01(\x01R\x06height\")\n" +
 	"\vRecordPoint\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\"\xe0\x05\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\xa6\n" +
+	"\n" +
 	"\x0eRecordedAction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1713,8 +2406,8 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\fsequence_num\x18\x03 \x01(\x05R\vsequenceNum\x128\n" +
 	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1f\n" +
 	"\vduration_ms\x18\x05 \x01(\x05R\n" +
-	"durationMs\x12\x1f\n" +
-	"\vaction_type\x18\x06 \x01(\tR\n" +
+	"durationMs\x12#\n" +
+	"\vaction_type\x18\x06 \x01(\tB\x02\x18\x01R\n" +
 	"actionType\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\a \x01(\x01R\n" +
@@ -1722,13 +2415,55 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\bselector\x18\b \x01(\v2).browser_automation_studio.v1.SelectorSetR\bselector\x12L\n" +
 	"\felement_meta\x18\t \x01(\v2).browser_automation_studio.v1.ElementMetaR\velementMeta\x12R\n" +
 	"\fbounding_box\x18\n" +
-	" \x01(\v2/.browser_automation_studio.v1.RecordBoundingBoxR\vboundingBox\x121\n" +
-	"\apayload\x18\v \x01(\v2\x17.google.protobuf.StructR\apayload\x12M\n" +
+	" \x01(\v2/.browser_automation_studio.v1.RecordBoundingBoxR\vboundingBox\x125\n" +
+	"\apayload\x18\v \x01(\v2\x17.google.protobuf.StructB\x02\x18\x01R\apayload\x12M\n" +
 	"\rpayload_typed\x18\x0f \x01(\v2(.browser_automation_studio.v1.JsonObjectR\fpayloadTyped\x12\x10\n" +
 	"\x03url\x18\f \x01(\tR\x03url\x12\x19\n" +
 	"\bframe_id\x18\r \x01(\tR\aframeId\x12H\n" +
 	"\n" +
-	"cursor_pos\x18\x0e \x01(\v2).browser_automation_studio.v1.RecordPointR\tcursorPos\"\xd3\x01\n" +
+	"cursor_pos\x18\x0e \x01(\v2).browser_automation_studio.v1.RecordPointR\tcursorPos\x12Q\n" +
+	"\vaction_kind\x18\x10 \x01(\x0e20.browser_automation_studio.v1.RecordedActionTypeR\n" +
+	"actionKind\x12Q\n" +
+	"\bnavigate\x18\x11 \x01(\v23.browser_automation_studio.v1.NavigateActionPayloadH\x00R\bnavigate\x12H\n" +
+	"\x05click\x18\x12 \x01(\v20.browser_automation_studio.v1.ClickActionPayloadH\x00R\x05click\x12H\n" +
+	"\x05input\x18\x13 \x01(\v20.browser_automation_studio.v1.InputActionPayloadH\x00R\x05input\x12E\n" +
+	"\x04wait\x18\x14 \x01(\v2/.browser_automation_studio.v1.WaitActionPayloadH\x00R\x04wait\x12K\n" +
+	"\x06assert\x18\x15 \x01(\v21.browser_automation_studio.v1.AssertActionPayloadH\x00R\x06assert\x12^\n" +
+	"\rcustom_script\x18\x16 \x01(\v27.browser_automation_studio.v1.CustomScriptActionPayloadH\x00R\fcustomScriptB\x0e\n" +
+	"\ftyped_action\"\xa3\x01\n" +
+	"\x15NavigateActionPayload\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12/\n" +
+	"\x11wait_for_selector\x18\x02 \x01(\tH\x00R\x0fwaitForSelector\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"timeout_ms\x18\x03 \x01(\x05H\x01R\ttimeoutMs\x88\x01\x01B\x14\n" +
+	"\x12_wait_for_selectorB\r\n" +
+	"\v_timeout_ms\"\xd3\x01\n" +
+	"\x12ClickActionPayload\x12\x16\n" +
+	"\x06button\x18\x01 \x01(\tR\x06button\x12$\n" +
+	"\vclick_count\x18\x02 \x01(\x05H\x00R\n" +
+	"clickCount\x88\x01\x01\x12\x1e\n" +
+	"\bdelay_ms\x18\x03 \x01(\x05H\x01R\adelayMs\x88\x01\x01\x12-\n" +
+	"\x10scroll_into_view\x18\x04 \x01(\bH\x02R\x0escrollIntoView\x88\x01\x01B\x0e\n" +
+	"\f_click_countB\v\n" +
+	"\t_delay_msB\x13\n" +
+	"\x11_scroll_into_view\"u\n" +
+	"\x12InputActionPayload\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\x12!\n" +
+	"\fis_sensitive\x18\x02 \x01(\bR\visSensitive\x12\x1b\n" +
+	"\x06submit\x18\x03 \x01(\bH\x00R\x06submit\x88\x01\x01B\t\n" +
+	"\a_submit\"4\n" +
+	"\x11WaitActionPayload\x12\x1f\n" +
+	"\vduration_ms\x18\x01 \x01(\x05R\n" +
+	"durationMs\"\xba\x01\n" +
+	"\x13AssertActionPayload\x12\x12\n" +
+	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\x122\n" +
+	"\bexpected\x18\x03 \x01(\v2\x16.google.protobuf.ValueR\bexpected\x12\x18\n" +
+	"\anegated\x18\x04 \x01(\bR\anegated\x12%\n" +
+	"\x0ecase_sensitive\x18\x05 \x01(\bR\rcaseSensitive\"O\n" +
+	"\x19CustomScriptActionPayload\x12\x1a\n" +
+	"\blanguage\x18\x01 \x01(\tR\blanguage\x12\x16\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\"\xd3\x01\n" +
 	"\x0eRecordingState\x12!\n" +
 	"\fis_recording\x18\x01 \x01(\bR\visRecording\x12!\n" +
 	"\frecording_id\x18\x02 \x01(\tR\vrecordingId\x12\x1d\n" +
@@ -1810,17 +2545,27 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1f\n" +
 	"\vmatch_count\x18\x03 \x01(\x05R\n" +
 	"matchCount\x12\x1a\n" +
-	"\bselector\x18\x04 \x01(\tR\bselector\"\xa7\x02\n" +
+	"\bselector\x18\x04 \x01(\tR\bselector\"\xe9\x06\n" +
 	"\x12ActionReplayResult\x12\x1b\n" +
 	"\taction_id\x18\x01 \x01(\tR\bactionId\x12!\n" +
-	"\fsequence_num\x18\x02 \x01(\x05R\vsequenceNum\x12\x1f\n" +
-	"\vaction_type\x18\x03 \x01(\tR\n" +
+	"\fsequence_num\x18\x02 \x01(\x05R\vsequenceNum\x12#\n" +
+	"\vaction_type\x18\x03 \x01(\tB\x02\x18\x01R\n" +
 	"actionType\x12\x18\n" +
 	"\asuccess\x18\x04 \x01(\bR\asuccess\x12\x1f\n" +
 	"\vduration_ms\x18\x05 \x01(\x05R\n" +
 	"durationMs\x12E\n" +
 	"\x05error\x18\x06 \x01(\v2/.browser_automation_studio.v1.ActionReplayErrorR\x05error\x12.\n" +
-	"\x13screenshot_on_error\x18\a \x01(\tR\x11screenshotOnError\"\xc1\x02\n" +
+	"\x13screenshot_on_error\x18\a \x01(\tR\x11screenshotOnError\x12Q\n" +
+	"\vaction_kind\x18\b \x01(\x0e20.browser_automation_studio.v1.RecordedActionTypeR\n" +
+	"actionKind\x12Q\n" +
+	"\bnavigate\x18\t \x01(\v23.browser_automation_studio.v1.NavigateActionPayloadH\x00R\bnavigate\x12H\n" +
+	"\x05click\x18\n" +
+	" \x01(\v20.browser_automation_studio.v1.ClickActionPayloadH\x00R\x05click\x12H\n" +
+	"\x05input\x18\v \x01(\v20.browser_automation_studio.v1.InputActionPayloadH\x00R\x05input\x12E\n" +
+	"\x04wait\x18\f \x01(\v2/.browser_automation_studio.v1.WaitActionPayloadH\x00R\x04wait\x12K\n" +
+	"\x06assert\x18\r \x01(\v21.browser_automation_studio.v1.AssertActionPayloadH\x00R\x06assert\x12^\n" +
+	"\rcustom_script\x18\x0e \x01(\v27.browser_automation_studio.v1.CustomScriptActionPayloadH\x00R\fcustomScriptB\x0e\n" +
+	"\ftyped_action\"\xc1\x02\n" +
 	"\x15ReplayPreviewResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
 	"\rtotal_actions\x18\x02 \x01(\x05R\ftotalActions\x12%\n" +
@@ -1834,7 +2579,15 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\vmatch_count\x18\x02 \x01(\x05R\n" +
 	"matchCount\x12\x1a\n" +
 	"\bselector\x18\x03 \x01(\tR\bselector\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05errorBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"\x05error\x18\x04 \x01(\tR\x05error*\x85\x02\n" +
+	"\x12RecordedActionType\x12$\n" +
+	" RECORDED_ACTION_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dRECORDED_ACTION_TYPE_NAVIGATE\x10\x01\x12\x1e\n" +
+	"\x1aRECORDED_ACTION_TYPE_CLICK\x10\x02\x12\x1e\n" +
+	"\x1aRECORDED_ACTION_TYPE_INPUT\x10\x03\x12\x1d\n" +
+	"\x19RECORDED_ACTION_TYPE_WAIT\x10\x04\x12\x1f\n" +
+	"\x1bRECORDED_ACTION_TYPE_ASSERT\x10\x05\x12&\n" +
+	"\"RECORDED_ACTION_TYPE_CUSTOM_SCRIPT\x10\x06BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_record_mode_proto_rawDescOnce sync.Once
@@ -1848,61 +2601,85 @@ func file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_record_mode_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_record_mode_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_browser_automation_studio_v1_record_mode_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_browser_automation_studio_v1_record_mode_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_browser_automation_studio_v1_record_mode_proto_goTypes = []any{
-	(*SelectorCandidate)(nil),                   // 0: browser_automation_studio.v1.SelectorCandidate
-	(*SelectorSet)(nil),                         // 1: browser_automation_studio.v1.SelectorSet
-	(*ElementMeta)(nil),                         // 2: browser_automation_studio.v1.ElementMeta
-	(*RecordBoundingBox)(nil),                   // 3: browser_automation_studio.v1.RecordBoundingBox
-	(*RecordPoint)(nil),                         // 4: browser_automation_studio.v1.RecordPoint
-	(*RecordedAction)(nil),                      // 5: browser_automation_studio.v1.RecordedAction
-	(*RecordingState)(nil),                      // 6: browser_automation_studio.v1.RecordingState
-	(*CreateRecordingSessionRequest)(nil),       // 7: browser_automation_studio.v1.CreateRecordingSessionRequest
-	(*CreateRecordingSessionResponse)(nil),      // 8: browser_automation_studio.v1.CreateRecordingSessionResponse
-	(*StartRecordingRequest)(nil),               // 9: browser_automation_studio.v1.StartRecordingRequest
-	(*StartRecordingResponse)(nil),              // 10: browser_automation_studio.v1.StartRecordingResponse
-	(*StopRecordingResponse)(nil),               // 11: browser_automation_studio.v1.StopRecordingResponse
-	(*RecordingStatusResponse)(nil),             // 12: browser_automation_studio.v1.RecordingStatusResponse
-	(*GetActionsResponse)(nil),                  // 13: browser_automation_studio.v1.GetActionsResponse
-	(*GenerateWorkflowRequest)(nil),             // 14: browser_automation_studio.v1.GenerateWorkflowRequest
-	(*GenerateWorkflowResponse)(nil),            // 15: browser_automation_studio.v1.GenerateWorkflowResponse
-	(*ReplayPreviewRequest)(nil),                // 16: browser_automation_studio.v1.ReplayPreviewRequest
-	(*ActionReplayError)(nil),                   // 17: browser_automation_studio.v1.ActionReplayError
-	(*ActionReplayResult)(nil),                  // 18: browser_automation_studio.v1.ActionReplayResult
-	(*ReplayPreviewResponse)(nil),               // 19: browser_automation_studio.v1.ReplayPreviewResponse
-	(*SelectorValidation)(nil),                  // 20: browser_automation_studio.v1.SelectorValidation
-	nil,                                         // 21: browser_automation_studio.v1.ElementMeta.AttributesEntry
-	(*GenerateWorkflowRequest_ActionRange)(nil), // 22: browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
-	(*timestamppb.Timestamp)(nil),               // 23: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                     // 24: google.protobuf.Struct
-	(*JsonObject)(nil),                          // 25: browser_automation_studio.v1.JsonObject
+	(RecordedActionType)(0),                     // 0: browser_automation_studio.v1.RecordedActionType
+	(*SelectorCandidate)(nil),                   // 1: browser_automation_studio.v1.SelectorCandidate
+	(*SelectorSet)(nil),                         // 2: browser_automation_studio.v1.SelectorSet
+	(*ElementMeta)(nil),                         // 3: browser_automation_studio.v1.ElementMeta
+	(*RecordBoundingBox)(nil),                   // 4: browser_automation_studio.v1.RecordBoundingBox
+	(*RecordPoint)(nil),                         // 5: browser_automation_studio.v1.RecordPoint
+	(*RecordedAction)(nil),                      // 6: browser_automation_studio.v1.RecordedAction
+	(*NavigateActionPayload)(nil),               // 7: browser_automation_studio.v1.NavigateActionPayload
+	(*ClickActionPayload)(nil),                  // 8: browser_automation_studio.v1.ClickActionPayload
+	(*InputActionPayload)(nil),                  // 9: browser_automation_studio.v1.InputActionPayload
+	(*WaitActionPayload)(nil),                   // 10: browser_automation_studio.v1.WaitActionPayload
+	(*AssertActionPayload)(nil),                 // 11: browser_automation_studio.v1.AssertActionPayload
+	(*CustomScriptActionPayload)(nil),           // 12: browser_automation_studio.v1.CustomScriptActionPayload
+	(*RecordingState)(nil),                      // 13: browser_automation_studio.v1.RecordingState
+	(*CreateRecordingSessionRequest)(nil),       // 14: browser_automation_studio.v1.CreateRecordingSessionRequest
+	(*CreateRecordingSessionResponse)(nil),      // 15: browser_automation_studio.v1.CreateRecordingSessionResponse
+	(*StartRecordingRequest)(nil),               // 16: browser_automation_studio.v1.StartRecordingRequest
+	(*StartRecordingResponse)(nil),              // 17: browser_automation_studio.v1.StartRecordingResponse
+	(*StopRecordingResponse)(nil),               // 18: browser_automation_studio.v1.StopRecordingResponse
+	(*RecordingStatusResponse)(nil),             // 19: browser_automation_studio.v1.RecordingStatusResponse
+	(*GetActionsResponse)(nil),                  // 20: browser_automation_studio.v1.GetActionsResponse
+	(*GenerateWorkflowRequest)(nil),             // 21: browser_automation_studio.v1.GenerateWorkflowRequest
+	(*GenerateWorkflowResponse)(nil),            // 22: browser_automation_studio.v1.GenerateWorkflowResponse
+	(*ReplayPreviewRequest)(nil),                // 23: browser_automation_studio.v1.ReplayPreviewRequest
+	(*ActionReplayError)(nil),                   // 24: browser_automation_studio.v1.ActionReplayError
+	(*ActionReplayResult)(nil),                  // 25: browser_automation_studio.v1.ActionReplayResult
+	(*ReplayPreviewResponse)(nil),               // 26: browser_automation_studio.v1.ReplayPreviewResponse
+	(*SelectorValidation)(nil),                  // 27: browser_automation_studio.v1.SelectorValidation
+	nil,                                         // 28: browser_automation_studio.v1.ElementMeta.AttributesEntry
+	(*GenerateWorkflowRequest_ActionRange)(nil), // 29: browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
+	(*timestamppb.Timestamp)(nil),               // 30: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                     // 31: google.protobuf.Struct
+	(*JsonObject)(nil),                          // 32: browser_automation_studio.v1.JsonObject
+	(*structpb.Value)(nil),                      // 33: google.protobuf.Value
 }
 var file_browser_automation_studio_v1_record_mode_proto_depIdxs = []int32{
-	0,  // 0: browser_automation_studio.v1.SelectorSet.candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
-	21, // 1: browser_automation_studio.v1.ElementMeta.attributes:type_name -> browser_automation_studio.v1.ElementMeta.AttributesEntry
-	23, // 2: browser_automation_studio.v1.RecordedAction.timestamp:type_name -> google.protobuf.Timestamp
-	1,  // 3: browser_automation_studio.v1.RecordedAction.selector:type_name -> browser_automation_studio.v1.SelectorSet
-	2,  // 4: browser_automation_studio.v1.RecordedAction.element_meta:type_name -> browser_automation_studio.v1.ElementMeta
-	3,  // 5: browser_automation_studio.v1.RecordedAction.bounding_box:type_name -> browser_automation_studio.v1.RecordBoundingBox
-	24, // 6: browser_automation_studio.v1.RecordedAction.payload:type_name -> google.protobuf.Struct
-	25, // 7: browser_automation_studio.v1.RecordedAction.payload_typed:type_name -> browser_automation_studio.v1.JsonObject
-	4,  // 8: browser_automation_studio.v1.RecordedAction.cursor_pos:type_name -> browser_automation_studio.v1.RecordPoint
-	23, // 9: browser_automation_studio.v1.RecordingState.started_at:type_name -> google.protobuf.Timestamp
-	23, // 10: browser_automation_studio.v1.CreateRecordingSessionResponse.created_at:type_name -> google.protobuf.Timestamp
-	23, // 11: browser_automation_studio.v1.StartRecordingResponse.started_at:type_name -> google.protobuf.Timestamp
-	23, // 12: browser_automation_studio.v1.StopRecordingResponse.stopped_at:type_name -> google.protobuf.Timestamp
-	23, // 13: browser_automation_studio.v1.RecordingStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	5,  // 14: browser_automation_studio.v1.GetActionsResponse.actions:type_name -> browser_automation_studio.v1.RecordedAction
-	22, // 15: browser_automation_studio.v1.GenerateWorkflowRequest.action_range:type_name -> browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
-	5,  // 16: browser_automation_studio.v1.GenerateWorkflowRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
-	5,  // 17: browser_automation_studio.v1.ReplayPreviewRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
-	17, // 18: browser_automation_studio.v1.ActionReplayResult.error:type_name -> browser_automation_studio.v1.ActionReplayError
-	18, // 19: browser_automation_studio.v1.ReplayPreviewResponse.results:type_name -> browser_automation_studio.v1.ActionReplayResult
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	1,  // 0: browser_automation_studio.v1.SelectorSet.candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
+	28, // 1: browser_automation_studio.v1.ElementMeta.attributes:type_name -> browser_automation_studio.v1.ElementMeta.AttributesEntry
+	30, // 2: browser_automation_studio.v1.RecordedAction.timestamp:type_name -> google.protobuf.Timestamp
+	2,  // 3: browser_automation_studio.v1.RecordedAction.selector:type_name -> browser_automation_studio.v1.SelectorSet
+	3,  // 4: browser_automation_studio.v1.RecordedAction.element_meta:type_name -> browser_automation_studio.v1.ElementMeta
+	4,  // 5: browser_automation_studio.v1.RecordedAction.bounding_box:type_name -> browser_automation_studio.v1.RecordBoundingBox
+	31, // 6: browser_automation_studio.v1.RecordedAction.payload:type_name -> google.protobuf.Struct
+	32, // 7: browser_automation_studio.v1.RecordedAction.payload_typed:type_name -> browser_automation_studio.v1.JsonObject
+	5,  // 8: browser_automation_studio.v1.RecordedAction.cursor_pos:type_name -> browser_automation_studio.v1.RecordPoint
+	0,  // 9: browser_automation_studio.v1.RecordedAction.action_kind:type_name -> browser_automation_studio.v1.RecordedActionType
+	7,  // 10: browser_automation_studio.v1.RecordedAction.navigate:type_name -> browser_automation_studio.v1.NavigateActionPayload
+	8,  // 11: browser_automation_studio.v1.RecordedAction.click:type_name -> browser_automation_studio.v1.ClickActionPayload
+	9,  // 12: browser_automation_studio.v1.RecordedAction.input:type_name -> browser_automation_studio.v1.InputActionPayload
+	10, // 13: browser_automation_studio.v1.RecordedAction.wait:type_name -> browser_automation_studio.v1.WaitActionPayload
+	11, // 14: browser_automation_studio.v1.RecordedAction.assert:type_name -> browser_automation_studio.v1.AssertActionPayload
+	12, // 15: browser_automation_studio.v1.RecordedAction.custom_script:type_name -> browser_automation_studio.v1.CustomScriptActionPayload
+	33, // 16: browser_automation_studio.v1.AssertActionPayload.expected:type_name -> google.protobuf.Value
+	30, // 17: browser_automation_studio.v1.RecordingState.started_at:type_name -> google.protobuf.Timestamp
+	30, // 18: browser_automation_studio.v1.CreateRecordingSessionResponse.created_at:type_name -> google.protobuf.Timestamp
+	30, // 19: browser_automation_studio.v1.StartRecordingResponse.started_at:type_name -> google.protobuf.Timestamp
+	30, // 20: browser_automation_studio.v1.StopRecordingResponse.stopped_at:type_name -> google.protobuf.Timestamp
+	30, // 21: browser_automation_studio.v1.RecordingStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	6,  // 22: browser_automation_studio.v1.GetActionsResponse.actions:type_name -> browser_automation_studio.v1.RecordedAction
+	29, // 23: browser_automation_studio.v1.GenerateWorkflowRequest.action_range:type_name -> browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
+	6,  // 24: browser_automation_studio.v1.GenerateWorkflowRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
+	6,  // 25: browser_automation_studio.v1.ReplayPreviewRequest.actions:type_name -> browser_automation_studio.v1.RecordedAction
+	24, // 26: browser_automation_studio.v1.ActionReplayResult.error:type_name -> browser_automation_studio.v1.ActionReplayError
+	0,  // 27: browser_automation_studio.v1.ActionReplayResult.action_kind:type_name -> browser_automation_studio.v1.RecordedActionType
+	7,  // 28: browser_automation_studio.v1.ActionReplayResult.navigate:type_name -> browser_automation_studio.v1.NavigateActionPayload
+	8,  // 29: browser_automation_studio.v1.ActionReplayResult.click:type_name -> browser_automation_studio.v1.ClickActionPayload
+	9,  // 30: browser_automation_studio.v1.ActionReplayResult.input:type_name -> browser_automation_studio.v1.InputActionPayload
+	10, // 31: browser_automation_studio.v1.ActionReplayResult.wait:type_name -> browser_automation_studio.v1.WaitActionPayload
+	11, // 32: browser_automation_studio.v1.ActionReplayResult.assert:type_name -> browser_automation_studio.v1.AssertActionPayload
+	12, // 33: browser_automation_studio.v1.ActionReplayResult.custom_script:type_name -> browser_automation_studio.v1.CustomScriptActionPayload
+	25, // 34: browser_automation_studio.v1.ReplayPreviewResponse.results:type_name -> browser_automation_studio.v1.ActionReplayResult
+	35, // [35:35] is the sub-list for method output_type
+	35, // [35:35] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_record_mode_proto_init() }
@@ -1911,18 +2688,38 @@ func file_browser_automation_studio_v1_record_mode_proto_init() {
 		return
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
+	file_browser_automation_studio_v1_record_mode_proto_msgTypes[5].OneofWrappers = []any{
+		(*RecordedAction_Navigate)(nil),
+		(*RecordedAction_Click)(nil),
+		(*RecordedAction_Input)(nil),
+		(*RecordedAction_Wait)(nil),
+		(*RecordedAction_Assert)(nil),
+		(*RecordedAction_CustomScript)(nil),
+	}
+	file_browser_automation_studio_v1_record_mode_proto_msgTypes[6].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_record_mode_proto_msgTypes[7].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_record_mode_proto_msgTypes[8].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_record_mode_proto_msgTypes[24].OneofWrappers = []any{
+		(*ActionReplayResult_Navigate)(nil),
+		(*ActionReplayResult_Click)(nil),
+		(*ActionReplayResult_Input)(nil),
+		(*ActionReplayResult_Wait)(nil),
+		(*ActionReplayResult_Assert)(nil),
+		(*ActionReplayResult_CustomScript)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_record_mode_proto_rawDesc), len(file_browser_automation_studio_v1_record_mode_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   23,
+			NumEnums:      1,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_browser_automation_studio_v1_record_mode_proto_goTypes,
 		DependencyIndexes: file_browser_automation_studio_v1_record_mode_proto_depIdxs,
+		EnumInfos:         file_browser_automation_studio_v1_record_mode_proto_enumTypes,
 		MessageInfos:      file_browser_automation_studio_v1_record_mode_proto_msgTypes,
 	}.Build()
 	File_browser_automation_studio_v1_record_mode_proto = out.File

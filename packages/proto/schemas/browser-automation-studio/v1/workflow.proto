@@ -29,10 +29,12 @@ message WorkflowNode {
   string id = 1;
   // Node type (navigate, click, assert, subflow, etc.).
   StepType type = 2;
-  // Node-specific configuration payload.
-  google.protobuf.Struct data = 3;
-  // Strongly typed node configuration; prefer over Struct when possible.
-  JsonObject data_typed = 4;
+  // Node-specific configuration payload (legacy); prefer config.
+  google.protobuf.Struct data = 3 [deprecated = true];
+  // Typed node configuration (legacy); prefer config.
+  JsonObject data_typed = 4 [deprecated = true];
+  // Discriminated node configuration matching StepType; prefer over Struct/JsonObject.
+  WorkflowNodeConfig config = 5;
 }
 
 // WorkflowEdge connects nodes within a workflow graph.
@@ -79,4 +81,92 @@ message WorkflowSettings {
   bool headless = 6;
   // Additional provider-specific settings not yet typed.
   map<string, google.protobuf.Value> extras = 7;
+}
+
+// WorkflowNodeConfig captures typed settings for common node kinds.
+message WorkflowNodeConfig {
+  oneof config {
+    NavigateStepConfig navigate = 1;
+    ClickStepConfig click = 2;
+    InputStepConfig input = 3;
+    AssertStepConfig assert = 4;
+    SubflowStepConfig subflow = 5;
+    CustomStepConfig custom = 6;
+    WaitStepConfig wait = 7;
+  }
+}
+
+// NavigateStepConfig contains navigation fields.
+message NavigateStepConfig {
+  string url = 1;
+  // Optional selector to wait for after navigation.
+  optional string wait_for_selector = 2;
+  // Timeout for navigation/wait in milliseconds.
+  optional int32 timeout_ms = 3;
+  // Whether to capture a screenshot after navigation.
+  optional bool capture_screenshot = 4;
+}
+
+// ClickStepConfig contains click action metadata.
+message ClickStepConfig {
+  // CSS selector to click.
+  string selector = 1;
+  // Mouse button (left, middle, right); defaults to left when empty.
+  string button = 2;
+  // Number of clicks to perform.
+  optional int32 click_count = 3;
+  // Delay between mousedown and mouseup in milliseconds.
+  optional int32 delay_ms = 4;
+}
+
+// InputStepConfig contains text entry metadata.
+message InputStepConfig {
+  // CSS selector to target.
+  string selector = 1;
+  // Value to type.
+  string value = 2;
+  // Treat value as sensitive and mask in logs.
+  bool is_sensitive = 3;
+  // Whether to press Enter after input.
+  optional bool submit = 4;
+}
+
+// AssertStepConfig captures assertion configuration.
+message AssertStepConfig {
+  // Assertion mode (exists, visible, text_equals, etc.).
+  string mode = 1;
+  // CSS selector being asserted on.
+  string selector = 2;
+  // Expected value for the assertion.
+  google.protobuf.Value expected = 3;
+  // Whether the assertion is negated.
+  bool negated = 4;
+  // Case sensitivity flag.
+  bool case_sensitive = 5;
+  // Custom assertion message.
+  optional string message = 6;
+}
+
+// SubflowStepConfig references another workflow.
+message SubflowStepConfig {
+  // Workflow ID to execute.
+  string workflow_id = 1;
+  // Optional workflow version.
+  optional int32 version = 2;
+  // Parameters to pass to the subflow (typed).
+  map<string, JsonValue> parameters = 3;
+}
+
+// WaitStepConfig captures a fixed delay between steps.
+message WaitStepConfig {
+  // Duration to wait in milliseconds.
+  int32 duration_ms = 1;
+}
+
+// CustomStepConfig captures custom provider-specific payloads.
+message CustomStepConfig {
+  // Custom step kind identifier.
+  string kind = 1;
+  // Provider-specific payload; prefer over Struct in data.
+  JsonObject payload = 2;
 }

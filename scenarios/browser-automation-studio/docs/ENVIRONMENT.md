@@ -15,6 +15,8 @@ These variables MUST be set for the scenario to function. There are NO fallback 
 
 #### PostgreSQL
 - `DATABASE_URL` - Full PostgreSQL connection string
+- `BAS_DB_BACKEND` - Database backend (`postgres` default, `sqlite` for desktop/electron)
+- `BAS_SQLITE_PATH` - Optional path to SQLite database file (defaults to `~/.vrooli/data/browser-automation-studio/bas.sqlite`)
 
 #### MinIO Storage
 - `MINIO_PORT` - MinIO service port

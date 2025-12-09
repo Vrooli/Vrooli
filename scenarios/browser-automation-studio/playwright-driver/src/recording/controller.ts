@@ -720,12 +720,15 @@ export class RecordModeController {
    * Normalize a raw browser event to a RecordedAction.
    */
   private normalizeEvent(raw: RawBrowserEvent): RecordedAction {
+    const actionType = this.normalizeActionType(raw.actionType);
+    const actionKind = this.toRecordedActionKind(actionType);
     const action: RecordedAction = {
       id: uuidv4(),
       sessionId: this.state.sessionId,
       sequenceNum: this.sequenceNum++,
       timestamp: new Date(raw.timestamp).toISOString(),
-      actionType: this.normalizeActionType(raw.actionType),
+      actionType,
+      actionKind,
       confidence: this.calculateActionConfidence(raw),
       selector: raw.selector,
       elementMeta: raw.elementMeta,
@@ -734,9 +737,79 @@ export class RecordModeController {
       url: raw.url,
       frameId: raw.frameId || undefined,
       payload: raw.payload as RecordedAction['payload'],
+      typedAction: this.buildTypedActionPayload(actionKind, raw),
     };
 
     return action;
+  }
+
+  /**
+   * Map actionType to proto-aligned RecordedActionKind.
+   */
+  private toRecordedActionKind(actionType: RecordedAction['actionType']): RecordedAction['actionKind'] {
+    switch (actionType) {
+      case 'navigate':
+        return 'RECORDED_ACTION_TYPE_NAVIGATE';
+      case 'click':
+      case 'focus':
+      case 'hover':
+      case 'blur':
+        return 'RECORDED_ACTION_TYPE_CLICK';
+      case 'type':
+      case 'keypress':
+        return 'RECORDED_ACTION_TYPE_INPUT';
+      default:
+        return 'RECORDED_ACTION_TYPE_UNSPECIFIED';
+    }
+  }
+
+  /**
+   * Build typed action payloads aligned with proto schemas.
+   */
+  private buildTypedActionPayload(
+    kind: RecordedAction['actionKind'],
+    raw: RawBrowserEvent
+  ): RecordedAction['typedAction'] {
+    const payload = (raw.payload || {}) as Record<string, unknown>;
+    switch (kind) {
+      case 'RECORDED_ACTION_TYPE_NAVIGATE': {
+        const url = (payload.targetUrl as string) || raw.url;
+        const typed = {
+          navigate: {
+            url,
+            waitForSelector: (payload.waitForSelector as string) || undefined,
+            timeoutMs: (payload.timeoutMs as number) || undefined,
+          },
+        };
+        return typed;
+      }
+      case 'RECORDED_ACTION_TYPE_CLICK': {
+        const typed = {
+          click: {
+            selector: raw.selector?.primary,
+            button: (payload.button as ClickActionPayload['button']) || undefined,
+            clickCount: (payload.clickCount as number) || undefined,
+            delayMs: (payload.delayMs as number) || (payload.delay as number) || undefined,
+            scrollIntoView: (payload.scrollIntoView as boolean) || undefined,
+          },
+        };
+        return typed;
+      }
+      case 'RECORDED_ACTION_TYPE_INPUT': {
+        const value = (payload.text as string) ?? (payload.value as string) ?? '';
+        const typed = {
+          input: {
+            selector: raw.selector?.primary,
+            value,
+            isSensitive: (payload.isSensitive as boolean) || (payload.sensitive as boolean) || false,
+            submit: (payload.submit as boolean) || undefined,
+          },
+        };
+        return typed;
+      }
+      default:
+        return undefined;
+    }
   }
 
   /**

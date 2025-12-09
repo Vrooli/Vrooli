@@ -22,62 +22,63 @@ func newApp(cfg config.Config, legacy *resourcecli.CLI, stale *cliutil.StaleChec
 		{
 			Title: "Resource",
 			Commands: []cliapp.Command{
-				{Name: "status", NeedsAPI: true, Description: "Show resource status", Run: passthrough(legacy, "status")},
-				{Name: "info", NeedsAPI: true, Description: "Show runtime info", Run: passthrough(legacy, "info")},
-				{Name: "logs", NeedsAPI: true, Description: "Logs (serverless no-op)", Run: passthrough(legacy, "logs")},
-				{Name: "manage", NeedsAPI: true, Description: "install|uninstall|start|stop|restart", Run: passthrough(legacy, "manage")},
+				{Name: "status", Description: "Show resource status", Run: passthrough(legacy, "status")},
+				{Name: "info", Description: "Show runtime info", Run: passthrough(legacy, "info")},
+				{Name: "logs", Description: "Logs (serverless no-op)", Run: passthrough(legacy, "logs")},
+				{Name: "manage", Description: "install|uninstall|start|stop|restart", Run: passthrough(legacy, "manage")},
 			},
 		},
 		{
 			Title: "Content",
 			Commands: []cliapp.Command{
-				{Name: "content", NeedsAPI: true, Description: "create|execute|list|get|backup|restore|remove|batch|import_csv|export_csv|encrypt|decrypt", Run: passthrough(legacy, "content")},
+				{Name: "content", Description: "create|execute|list|get|backup|restore|remove|batch|import_csv|export_csv|encrypt|decrypt", Run: passthrough(legacy, "content")},
 			},
 		},
 		{
 			Title: "Replication",
 			Commands: []cliapp.Command{
-				{Name: "replicate", NeedsAPI: true, Description: "add|remove|list|sync|verify|toggle", Run: passthrough(legacy, "replicate")},
+				{Name: "replicate", Description: "add|remove|list|sync|verify|toggle", Run: passthrough(legacy, "replicate")},
 			},
 		},
 		{
 			Title: "Migrations",
 			Commands: []cliapp.Command{
-				{Name: "migrate", NeedsAPI: true, Description: "init|create|up|status", Run: passthrough(legacy, "migrate")},
+				{Name: "migrate", Description: "init|create|up|status", Run: passthrough(legacy, "migrate")},
 			},
 		},
 		{
 			Title: "Query",
 			Commands: []cliapp.Command{
-				{Name: "query", NeedsAPI: true, Description: "select|insert|update helpers", Run: passthrough(legacy, "query")},
+				{Name: "query", Description: "select|insert|update helpers", Run: passthrough(legacy, "query")},
 			},
 		},
 		{
 			Title: "Stats",
 			Commands: []cliapp.Command{
-				{Name: "stats", NeedsAPI: true, Description: "enable|show|analyze|vacuum", Run: passthrough(legacy, "stats")},
+				{Name: "stats", Description: "enable|show|analyze|vacuum", Run: passthrough(legacy, "stats")},
 			},
 		},
 		{
 			Title: "Testing",
 			Commands: []cliapp.Command{
-				{Name: "test", NeedsAPI: true, Description: "smoke|integration|unit (go test ./...)", Run: passthrough(legacy, "test")},
+				{Name: "test", Description: "smoke|integration|unit (go test ./...)", Run: passthrough(legacy, "test")},
 			},
 		},
 	}
 
 	// Stale checker triggers auto-rebuilds when the binary is out of date.
-	var checker *cliutil.StaleChecker
-	if stale != nil && stale.BuildFingerprint != "" && stale.BuildFingerprint != "unknown" {
-		checker = stale
-	}
-
 	return cliapp.NewApp(cliapp.AppOptions{
 		Name:         appName,
 		Version:      appVersion,
 		Description:  "Serverless SQLite resource",
 		Commands:     commands,
-		StaleChecker: checker,
+		StaleChecker: stale,
+		Preflight: func(cmd cliapp.Command, global cliapp.GlobalOptions) error {
+			if stale != nil && stale.CheckAndMaybeRebuild() {
+				return exitError(0)
+			}
+			return nil
+		},
 	})
 }
 

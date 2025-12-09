@@ -2,9 +2,9 @@
 // @generated from file browser-automation-studio/v1/record_mode.proto (package browser_automation_studio.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp, Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonObject as JsonObject$1 } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
@@ -14,7 +14,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/record_mode.proto.
  */
 export const file_browser_automation_studio_v1_record_mode: GenFile = /*@__PURE__*/
-  fileDesc("Ci5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3JlY29yZF9tb2RlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIlkKEVNlbGVjdG9yQ2FuZGlkYXRlEgwKBHR5cGUYASABKAkSDQoFdmFsdWUYAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoARITCgtzcGVjaWZpY2l0eRgEIAEoBSJjCgtTZWxlY3RvclNldBIPCgdwcmltYXJ5GAEgASgJEkMKCmNhbmRpZGF0ZXMYAiADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yQ2FuZGlkYXRlIp8CCgtFbGVtZW50TWV0YRIQCgh0YWdfbmFtZRgBIAEoCRIKCgJpZBgCIAEoCRISCgpjbGFzc19uYW1lGAMgASgJEhIKCmlubmVyX3RleHQYBCABKAkSTQoKYXR0cmlidXRlcxgFIAMoCzI5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRWxlbWVudE1ldGEuQXR0cmlidXRlc0VudHJ5EhIKCmlzX3Zpc2libGUYBiABKAgSEgoKaXNfZW5hYmxlZBgHIAEoCBIMCgRyb2xlGAggASgJEhIKCmFyaWFfbGFiZWwYCSABKAkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSAoRUmVjb3JkQm91bmRpbmdCb3gSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoASIjCgtSZWNvcmRQb2ludBIJCgF4GAEgASgBEgkKAXkYAiABKAEiwQQKDlJlY29yZGVkQWN0aW9uEgoKAmlkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSFAoMc2VxdWVuY2VfbnVtGAMgASgFEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBSABKAUSEwoLYWN0aW9uX3R5cGUYBiABKAkSEgoKY29uZmlkZW5jZRgHIAEoARI7CghzZWxlY3RvchgIIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU2VsZWN0b3JTZXQSPwoMZWxlbWVudF9tZXRhGAkgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FbGVtZW50TWV0YRJFCgxib3VuZGluZ19ib3gYCiABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZEJvdW5kaW5nQm94EigKB3BheWxvYWQYCyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KDXBheWxvYWRfdHlwZWQYDyABKAsyKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkpzb25PYmplY3QSCwoDdXJsGAwgASgJEhAKCGZyYW1lX2lkGA0gASgJEj0KCmN1cnNvcl9wb3MYDiABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZFBvaW50IpYBCg5SZWNvcmRpbmdTdGF0ZRIUCgxpc19yZWNvcmRpbmcYASABKAgSFAoMcmVjb3JkaW5nX2lkGAIgASgJEhIKCnNlc3Npb25faWQYAyABKAkSFAoMYWN0aW9uX2NvdW50GAQgASgFEi4KCnN0YXJ0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wImUKHUNyZWF0ZVJlY29yZGluZ1Nlc3Npb25SZXF1ZXN0EhYKDnZpZXdwb3J0X3dpZHRoGAEgASgFEhcKD3ZpZXdwb3J0X2hlaWdodBgCIAEoBRITCgtpbml0aWFsX3VybBgDIAEoCSJkCh5DcmVhdGVSZWNvcmRpbmdTZXNzaW9uUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIuCgpjcmVhdGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJBChVTdGFydFJlY29yZGluZ1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxjYWxsYmFja191cmwYAiABKAkicgoWU3RhcnRSZWNvcmRpbmdSZXNwb25zZRIUCgxyZWNvcmRpbmdfaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIuCgpzdGFydGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKHAQoVU3RvcFJlY29yZGluZ1Jlc3BvbnNlEhQKDHJlY29yZGluZ19pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhQKDGFjdGlvbl9jb3VudBgDIAEoBRIuCgpzdG9wcGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKfAQoXUmVjb3JkaW5nU3RhdHVzUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpc19yZWNvcmRpbmcYAiABKAgSFAoMcmVjb3JkaW5nX2lkGAMgASgJEhQKDGFjdGlvbl9jb3VudBgEIAEoBRIuCgpzdGFydGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ2ChJHZXRBY3Rpb25zUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRI9CgdhY3Rpb25zGAIgAygLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRlZEFjdGlvbhINCgVjb3VudBgDIAEoBSKoAgoXR2VuZXJhdGVXb3JrZmxvd1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnByb2plY3RfaWQYAyABKAkSFAoMcHJvamVjdF9uYW1lGAQgASgJElcKDGFjdGlvbl9yYW5nZRgFIAEoCzJBLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2VuZXJhdGVXb3JrZmxvd1JlcXVlc3QuQWN0aW9uUmFuZ2USPQoHYWN0aW9ucxgGIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkZWRBY3Rpb24aKQoLQWN0aW9uUmFuZ2USDQoFc3RhcnQYASABKAUSCwoDZW5kGAIgASgFInsKGEdlbmVyYXRlV29ya2Zsb3dSZXNwb25zZRITCgt3b3JrZmxvd19pZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKbm9kZV9jb3VudBgEIAEoBRIUCgxhY3Rpb25fY291bnQYBSABKAUiqQEKFFJlcGxheVByZXZpZXdSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSPQoHYWN0aW9ucxgCIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkZWRBY3Rpb24SDQoFbGltaXQYAyABKAUSFwoPc3RvcF9vbl9mYWlsdXJlGAQgASgIEhYKDmFjdGlvbl90aW1lb3V0GAUgASgFIlkKEUFjdGlvblJlcGxheUVycm9yEg8KB21lc3NhZ2UYASABKAkSDAoEY29kZRgCIAEoCRITCgttYXRjaF9jb3VudBgDIAEoBRIQCghzZWxlY3RvchgEIAEoCSLVAQoSQWN0aW9uUmVwbGF5UmVzdWx0EhEKCWFjdGlvbl9pZBgBIAEoCRIUCgxzZXF1ZW5jZV9udW0YAiABKAUSEwoLYWN0aW9uX3R5cGUYAyABKAkSDwoHc3VjY2VzcxgEIAEoCBITCgtkdXJhdGlvbl9tcxgFIAEoBRI+CgVlcnJvchgGIAEoCzIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uUmVwbGF5RXJyb3ISGwoTc2NyZWVuc2hvdF9vbl9lcnJvchgHIAEoCSLkAQoVUmVwbGF5UHJldmlld1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSFQoNdG90YWxfYWN0aW9ucxgCIAEoBRIWCg5wYXNzZWRfYWN0aW9ucxgDIAEoBRIWCg5mYWlsZWRfYWN0aW9ucxgEIAEoBRJBCgdyZXN1bHRzGAUgAygLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25SZXBsYXlSZXN1bHQSGQoRdG90YWxfZHVyYXRpb25fbXMYBiABKAUSFQoNc3RvcHBlZF9lYXJseRgHIAEoCCJZChJTZWxlY3RvclZhbGlkYXRpb24SDQoFdmFsaWQYASABKAgSEwoLbWF0Y2hfY291bnQYAiABKAUSEAoIc2VsZWN0b3IYAyABKAkSDQoFZXJyb3IYBCABKAlCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_browser_automation_studio_v1_shared]);
+  fileDesc("Ci5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3JlY29yZF9tb2RlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIlkKEVNlbGVjdG9yQ2FuZGlkYXRlEgwKBHR5cGUYASABKAkSDQoFdmFsdWUYAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoARITCgtzcGVjaWZpY2l0eRgEIAEoBSJjCgtTZWxlY3RvclNldBIPCgdwcmltYXJ5GAEgASgJEkMKCmNhbmRpZGF0ZXMYAiADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yQ2FuZGlkYXRlIp8CCgtFbGVtZW50TWV0YRIQCgh0YWdfbmFtZRgBIAEoCRIKCgJpZBgCIAEoCRISCgpjbGFzc19uYW1lGAMgASgJEhIKCmlubmVyX3RleHQYBCABKAkSTQoKYXR0cmlidXRlcxgFIAMoCzI5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRWxlbWVudE1ldGEuQXR0cmlidXRlc0VudHJ5EhIKCmlzX3Zpc2libGUYBiABKAgSEgoKaXNfZW5hYmxlZBgHIAEoCBIMCgRyb2xlGAggASgJEhIKCmFyaWFfbGFiZWwYCSABKAkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSAoRUmVjb3JkQm91bmRpbmdCb3gSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoASIjCgtSZWNvcmRQb2ludBIJCgF4GAEgASgBEgkKAXkYAiABKAEixwgKDlJlY29yZGVkQWN0aW9uEgoKAmlkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSFAoMc2VxdWVuY2VfbnVtGAMgASgFEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBSABKAUSFwoLYWN0aW9uX3R5cGUYBiABKAlCAhgBEhIKCmNvbmZpZGVuY2UYByABKAESOwoIc2VsZWN0b3IYCCABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yU2V0Ej8KDGVsZW1lbnRfbWV0YRgJIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRWxlbWVudE1ldGESRQoMYm91bmRpbmdfYm94GAogASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRCb3VuZGluZ0JveBIsCgdwYXlsb2FkGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEICGAESPwoNcGF5bG9hZF90eXBlZBgPIAEoCzIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSnNvbk9iamVjdBILCgN1cmwYDCABKAkSEAoIZnJhbWVfaWQYDSABKAkSPQoKY3Vyc29yX3BvcxgOIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkUG9pbnQSRQoLYWN0aW9uX2tpbmQYECABKA4yMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZGVkQWN0aW9uVHlwZRJHCghuYXZpZ2F0ZRgRIAEoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVBY3Rpb25QYXlsb2FkSAASQQoFY2xpY2sYEiABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNsaWNrQWN0aW9uUGF5bG9hZEgAEkEKBWlucHV0GBMgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5JbnB1dEFjdGlvblBheWxvYWRIABI/CgR3YWl0GBQgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5XYWl0QWN0aW9uUGF5bG9hZEgAEkMKBmFzc2VydBgVIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0QWN0aW9uUGF5bG9hZEgAElAKDWN1c3RvbV9zY3JpcHQYFiABKAsyNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkN1c3RvbVNjcmlwdEFjdGlvblBheWxvYWRIAEIOCgx0eXBlZF9hY3Rpb24iggEKFU5hdmlnYXRlQWN0aW9uUGF5bG9hZBILCgN1cmwYASABKAkSHgoRd2FpdF9mb3Jfc2VsZWN0b3IYAiABKAlIAIgBARIXCgp0aW1lb3V0X21zGAMgASgFSAGIAQFCFAoSX3dhaXRfZm9yX3NlbGVjdG9yQg0KC190aW1lb3V0X21zIqYBChJDbGlja0FjdGlvblBheWxvYWQSDgoGYnV0dG9uGAEgASgJEhgKC2NsaWNrX2NvdW50GAIgASgFSACIAQESFQoIZGVsYXlfbXMYAyABKAVIAYgBARIdChBzY3JvbGxfaW50b192aWV3GAQgASgISAKIAQFCDgoMX2NsaWNrX2NvdW50QgsKCV9kZWxheV9tc0ITChFfc2Nyb2xsX2ludG9fdmlldyJZChJJbnB1dEFjdGlvblBheWxvYWQSDQoFdmFsdWUYASABKAkSFAoMaXNfc2Vuc2l0aXZlGAIgASgIEhMKBnN1Ym1pdBgDIAEoCEgAiAEBQgkKB19zdWJtaXQiKAoRV2FpdEFjdGlvblBheWxvYWQSEwoLZHVyYXRpb25fbXMYASABKAUiiAEKE0Fzc2VydEFjdGlvblBheWxvYWQSDAoEbW9kZRgBIAEoCRIQCghzZWxlY3RvchgCIAEoCRIoCghleHBlY3RlZBgDIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIPCgduZWdhdGVkGAQgASgIEhYKDmNhc2Vfc2Vuc2l0aXZlGAUgASgIIj0KGUN1c3RvbVNjcmlwdEFjdGlvblBheWxvYWQSEAoIbGFuZ3VhZ2UYASABKAkSDgoGc291cmNlGAIgASgJIpYBCg5SZWNvcmRpbmdTdGF0ZRIUCgxpc19yZWNvcmRpbmcYASABKAgSFAoMcmVjb3JkaW5nX2lkGAIgASgJEhIKCnNlc3Npb25faWQYAyABKAkSFAoMYWN0aW9uX2NvdW50GAQgASgFEi4KCnN0YXJ0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wImUKHUNyZWF0ZVJlY29yZGluZ1Nlc3Npb25SZXF1ZXN0EhYKDnZpZXdwb3J0X3dpZHRoGAEgASgFEhcKD3ZpZXdwb3J0X2hlaWdodBgCIAEoBRITCgtpbml0aWFsX3VybBgDIAEoCSJkCh5DcmVhdGVSZWNvcmRpbmdTZXNzaW9uUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIuCgpjcmVhdGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJBChVTdGFydFJlY29yZGluZ1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxjYWxsYmFja191cmwYAiABKAkicgoWU3RhcnRSZWNvcmRpbmdSZXNwb25zZRIUCgxyZWNvcmRpbmdfaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIuCgpzdGFydGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKHAQoVU3RvcFJlY29yZGluZ1Jlc3BvbnNlEhQKDHJlY29yZGluZ19pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhQKDGFjdGlvbl9jb3VudBgDIAEoBRIuCgpzdG9wcGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKfAQoXUmVjb3JkaW5nU3RhdHVzUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpc19yZWNvcmRpbmcYAiABKAgSFAoMcmVjb3JkaW5nX2lkGAMgASgJEhQKDGFjdGlvbl9jb3VudBgEIAEoBRIuCgpzdGFydGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ2ChJHZXRBY3Rpb25zUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRI9CgdhY3Rpb25zGAIgAygLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRlZEFjdGlvbhINCgVjb3VudBgDIAEoBSKoAgoXR2VuZXJhdGVXb3JrZmxvd1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnByb2plY3RfaWQYAyABKAkSFAoMcHJvamVjdF9uYW1lGAQgASgJElcKDGFjdGlvbl9yYW5nZRgFIAEoCzJBLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2VuZXJhdGVXb3JrZmxvd1JlcXVlc3QuQWN0aW9uUmFuZ2USPQoHYWN0aW9ucxgGIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkZWRBY3Rpb24aKQoLQWN0aW9uUmFuZ2USDQoFc3RhcnQYASABKAUSCwoDZW5kGAIgASgFInsKGEdlbmVyYXRlV29ya2Zsb3dSZXNwb25zZRITCgt3b3JrZmxvd19pZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKbm9kZV9jb3VudBgEIAEoBRIUCgxhY3Rpb25fY291bnQYBSABKAUiqQEKFFJlcGxheVByZXZpZXdSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSPQoHYWN0aW9ucxgCIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkZWRBY3Rpb24SDQoFbGltaXQYAyABKAUSFwoPc3RvcF9vbl9mYWlsdXJlGAQgASgIEhYKDmFjdGlvbl90aW1lb3V0GAUgASgFIlkKEUFjdGlvblJlcGxheUVycm9yEg8KB21lc3NhZ2UYASABKAkSDAoEY29kZRgCIAEoCRITCgttYXRjaF9jb3VudBgDIAEoBRIQCghzZWxlY3RvchgEIAEoCSLXBQoSQWN0aW9uUmVwbGF5UmVzdWx0EhEKCWFjdGlvbl9pZBgBIAEoCRIUCgxzZXF1ZW5jZV9udW0YAiABKAUSFwoLYWN0aW9uX3R5cGUYAyABKAlCAhgBEg8KB3N1Y2Nlc3MYBCABKAgSEwoLZHVyYXRpb25fbXMYBSABKAUSPgoFZXJyb3IYBiABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvblJlcGxheUVycm9yEhsKE3NjcmVlbnNob3Rfb25fZXJyb3IYByABKAkSRQoLYWN0aW9uX2tpbmQYCCABKA4yMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZGVkQWN0aW9uVHlwZRJHCghuYXZpZ2F0ZRgJIAEoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVBY3Rpb25QYXlsb2FkSAASQQoFY2xpY2sYCiABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNsaWNrQWN0aW9uUGF5bG9hZEgAEkEKBWlucHV0GAsgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5JbnB1dEFjdGlvblBheWxvYWRIABI/CgR3YWl0GAwgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5XYWl0QWN0aW9uUGF5bG9hZEgAEkMKBmFzc2VydBgNIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0QWN0aW9uUGF5bG9hZEgAElAKDWN1c3RvbV9zY3JpcHQYDiABKAsyNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkN1c3RvbVNjcmlwdEFjdGlvblBheWxvYWRIAEIOCgx0eXBlZF9hY3Rpb24i5AEKFVJlcGxheVByZXZpZXdSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEhUKDXRvdGFsX2FjdGlvbnMYAiABKAUSFgoOcGFzc2VkX2FjdGlvbnMYAyABKAUSFgoOZmFpbGVkX2FjdGlvbnMYBCABKAUSQQoHcmVzdWx0cxgFIAMoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uUmVwbGF5UmVzdWx0EhkKEXRvdGFsX2R1cmF0aW9uX21zGAYgASgFEhUKDXN0b3BwZWRfZWFybHkYByABKAgiWQoSU2VsZWN0b3JWYWxpZGF0aW9uEg0KBXZhbGlkGAEgASgIEhMKC21hdGNoX2NvdW50GAIgASgFEhAKCHNlbGVjdG9yGAMgASgJEg0KBWVycm9yGAQgASgJKoUCChJSZWNvcmRlZEFjdGlvblR5cGUSJAogUkVDT1JERURfQUNUSU9OX1RZUEVfVU5TUEVDSUZJRUQQABIhCh1SRUNPUkRFRF9BQ1RJT05fVFlQRV9OQVZJR0FURRABEh4KGlJFQ09SREVEX0FDVElPTl9UWVBFX0NMSUNLEAISHgoaUkVDT1JERURfQUNUSU9OX1RZUEVfSU5QVVQQAxIdChlSRUNPUkRFRF9BQ1RJT05fVFlQRV9XQUlUEAQSHwobUkVDT1JERURfQUNUSU9OX1RZUEVfQVNTRVJUEAUSJgoiUkVDT1JERURfQUNUSU9OX1RZUEVfQ1VTVE9NX1NDUklQVBAGQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_browser_automation_studio_v1_shared]);
 
 /**
  * SelectorCandidate is a single selector with metadata.
@@ -223,7 +223,8 @@ export type RecordedAction = Message<"browser_automation_studio.v1.RecordedActio
   durationMs: number;
 
   /**
-   * @generated from field: string action_type = 6;
+   * @generated from field: string action_type = 6 [deprecated = true];
+   * @deprecated
    */
   actionType: string;
 
@@ -248,7 +249,8 @@ export type RecordedAction = Message<"browser_automation_studio.v1.RecordedActio
   boundingBox?: RecordBoundingBox;
 
   /**
-   * @generated from field: google.protobuf.Struct payload = 11;
+   * @generated from field: google.protobuf.Struct payload = 11 [deprecated = true];
+   * @deprecated
    */
   payload?: JsonObject;
 
@@ -273,6 +275,56 @@ export type RecordedAction = Message<"browser_automation_studio.v1.RecordedActio
    * @generated from field: browser_automation_studio.v1.RecordPoint cursor_pos = 14;
    */
   cursorPos?: RecordPoint;
+
+  /**
+   * Discrete action kind; prefer over the free-form action_type string.
+   *
+   * @generated from field: browser_automation_studio.v1.RecordedActionType action_kind = 16;
+   */
+  actionKind: RecordedActionType;
+
+  /**
+   * Typed action payloads; prefer over payload/payload_typed.
+   *
+   * @generated from oneof browser_automation_studio.v1.RecordedAction.typed_action
+   */
+  typedAction: {
+    /**
+     * @generated from field: browser_automation_studio.v1.NavigateActionPayload navigate = 17;
+     */
+    value: NavigateActionPayload;
+    case: "navigate";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.ClickActionPayload click = 18;
+     */
+    value: ClickActionPayload;
+    case: "click";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.InputActionPayload input = 19;
+     */
+    value: InputActionPayload;
+    case: "input";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.WaitActionPayload wait = 20;
+     */
+    value: WaitActionPayload;
+    case: "wait";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.AssertActionPayload assert = 21;
+     */
+    value: AssertActionPayload;
+    case: "assert";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.CustomScriptActionPayload custom_script = 22;
+     */
+    value: CustomScriptActionPayload;
+    case: "customScript";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
@@ -281,6 +333,212 @@ export type RecordedAction = Message<"browser_automation_studio.v1.RecordedActio
  */
 export const RecordedActionSchema: GenMessage<RecordedAction> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_record_mode, 5);
+
+/**
+ * NavigateActionPayload captures navigation inputs.
+ *
+ * @generated from message browser_automation_studio.v1.NavigateActionPayload
+ */
+export type NavigateActionPayload = Message<"browser_automation_studio.v1.NavigateActionPayload"> & {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url: string;
+
+  /**
+   * Optional selector to wait for before proceeding.
+   *
+   * @generated from field: optional string wait_for_selector = 2;
+   */
+  waitForSelector?: string;
+
+  /**
+   * Timeout in milliseconds for the wait.
+   *
+   * @generated from field: optional int32 timeout_ms = 3;
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.NavigateActionPayload.
+ * Use `create(NavigateActionPayloadSchema)` to create a new message.
+ */
+export const NavigateActionPayloadSchema: GenMessage<NavigateActionPayload> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 6);
+
+/**
+ * ClickActionPayload captures pointer click configuration.
+ *
+ * @generated from message browser_automation_studio.v1.ClickActionPayload
+ */
+export type ClickActionPayload = Message<"browser_automation_studio.v1.ClickActionPayload"> & {
+  /**
+   * Mouse button (left, middle, right); defaults to left when empty.
+   *
+   * @generated from field: string button = 1;
+   */
+  button: string;
+
+  /**
+   * Number of clicks; defaults to 1.
+   *
+   * @generated from field: optional int32 click_count = 2;
+   */
+  clickCount?: number;
+
+  /**
+   * Delay between mousedown and mouseup in milliseconds.
+   *
+   * @generated from field: optional int32 delay_ms = 3;
+   */
+  delayMs?: number;
+
+  /**
+   * Whether to scroll element into view before clicking.
+   *
+   * @generated from field: optional bool scroll_into_view = 4;
+   */
+  scrollIntoView?: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ClickActionPayload.
+ * Use `create(ClickActionPayloadSchema)` to create a new message.
+ */
+export const ClickActionPayloadSchema: GenMessage<ClickActionPayload> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 7);
+
+/**
+ * InputActionPayload captures text entry.
+ *
+ * @generated from message browser_automation_studio.v1.InputActionPayload
+ */
+export type InputActionPayload = Message<"browser_automation_studio.v1.InputActionPayload"> & {
+  /**
+   * @generated from field: string value = 1;
+   */
+  value: string;
+
+  /**
+   * Treat value as sensitive and mask in logs.
+   *
+   * @generated from field: bool is_sensitive = 2;
+   */
+  isSensitive: boolean;
+
+  /**
+   * Whether to press Enter after input.
+   *
+   * @generated from field: optional bool submit = 3;
+   */
+  submit?: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.InputActionPayload.
+ * Use `create(InputActionPayloadSchema)` to create a new message.
+ */
+export const InputActionPayloadSchema: GenMessage<InputActionPayload> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 8);
+
+/**
+ * WaitActionPayload captures a fixed wait.
+ *
+ * @generated from message browser_automation_studio.v1.WaitActionPayload
+ */
+export type WaitActionPayload = Message<"browser_automation_studio.v1.WaitActionPayload"> & {
+  /**
+   * Duration to wait in milliseconds.
+   *
+   * @generated from field: int32 duration_ms = 1;
+   */
+  durationMs: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.WaitActionPayload.
+ * Use `create(WaitActionPayloadSchema)` to create a new message.
+ */
+export const WaitActionPayloadSchema: GenMessage<WaitActionPayload> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 9);
+
+/**
+ * AssertActionPayload captures assertion metadata.
+ *
+ * @generated from message browser_automation_studio.v1.AssertActionPayload
+ */
+export type AssertActionPayload = Message<"browser_automation_studio.v1.AssertActionPayload"> & {
+  /**
+   * Assertion mode (exists, visible, text_equals, etc.).
+   *
+   * @generated from field: string mode = 1;
+   */
+  mode: string;
+
+  /**
+   * CSS selector being asserted on.
+   *
+   * @generated from field: string selector = 2;
+   */
+  selector: string;
+
+  /**
+   * Expected value for the assertion.
+   *
+   * @generated from field: google.protobuf.Value expected = 3;
+   */
+  expected?: Value;
+
+  /**
+   * Whether the assertion is negated.
+   *
+   * @generated from field: bool negated = 4;
+   */
+  negated: boolean;
+
+  /**
+   * Case sensitivity flag.
+   *
+   * @generated from field: bool case_sensitive = 5;
+   */
+  caseSensitive: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.AssertActionPayload.
+ * Use `create(AssertActionPayloadSchema)` to create a new message.
+ */
+export const AssertActionPayloadSchema: GenMessage<AssertActionPayload> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 10);
+
+/**
+ * CustomScriptActionPayload captures custom script execution data.
+ *
+ * @generated from message browser_automation_studio.v1.CustomScriptActionPayload
+ */
+export type CustomScriptActionPayload = Message<"browser_automation_studio.v1.CustomScriptActionPayload"> & {
+  /**
+   * Language for the script (e.g., "javascript").
+   *
+   * @generated from field: string language = 1;
+   */
+  language: string;
+
+  /**
+   * Source code to execute.
+   *
+   * @generated from field: string source = 2;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.CustomScriptActionPayload.
+ * Use `create(CustomScriptActionPayloadSchema)` to create a new message.
+ */
+export const CustomScriptActionPayloadSchema: GenMessage<CustomScriptActionPayload> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 11);
 
 /**
  * Recording session state.
@@ -319,7 +577,7 @@ export type RecordingState = Message<"browser_automation_studio.v1.RecordingStat
  * Use `create(RecordingStateSchema)` to create a new message.
  */
 export const RecordingStateSchema: GenMessage<RecordingState> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 6);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 12);
 
 /**
  * CreateRecordingSessionRequest is the request body for creating a browser session for recording.
@@ -348,7 +606,7 @@ export type CreateRecordingSessionRequest = Message<"browser_automation_studio.v
  * Use `create(CreateRecordingSessionRequestSchema)` to create a new message.
  */
 export const CreateRecordingSessionRequestSchema: GenMessage<CreateRecordingSessionRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 7);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 13);
 
 /**
  * CreateRecordingSessionResponse is the response after creating a recording session.
@@ -372,7 +630,7 @@ export type CreateRecordingSessionResponse = Message<"browser_automation_studio.
  * Use `create(CreateRecordingSessionResponseSchema)` to create a new message.
  */
 export const CreateRecordingSessionResponseSchema: GenMessage<CreateRecordingSessionResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 8);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 14);
 
 /**
  * StartRecordingRequest is the request body for starting a live recording.
@@ -396,7 +654,7 @@ export type StartRecordingRequest = Message<"browser_automation_studio.v1.StartR
  * Use `create(StartRecordingRequestSchema)` to create a new message.
  */
 export const StartRecordingRequestSchema: GenMessage<StartRecordingRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 9);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 15);
 
 /**
  * StartRecordingResponse is the response after starting recording.
@@ -425,7 +683,7 @@ export type StartRecordingResponse = Message<"browser_automation_studio.v1.Start
  * Use `create(StartRecordingResponseSchema)` to create a new message.
  */
 export const StartRecordingResponseSchema: GenMessage<StartRecordingResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 10);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 16);
 
 /**
  * StopRecordingResponse is the response after stopping recording.
@@ -459,7 +717,7 @@ export type StopRecordingResponse = Message<"browser_automation_studio.v1.StopRe
  * Use `create(StopRecordingResponseSchema)` to create a new message.
  */
 export const StopRecordingResponseSchema: GenMessage<StopRecordingResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 11);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 17);
 
 /**
  * RecordingStatusResponse is the response for recording status.
@@ -498,7 +756,7 @@ export type RecordingStatusResponse = Message<"browser_automation_studio.v1.Reco
  * Use `create(RecordingStatusResponseSchema)` to create a new message.
  */
 export const RecordingStatusResponseSchema: GenMessage<RecordingStatusResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 12);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 18);
 
 /**
  * GetActionsResponse is the response for getting recorded actions.
@@ -527,7 +785,7 @@ export type GetActionsResponse = Message<"browser_automation_studio.v1.GetAction
  * Use `create(GetActionsResponseSchema)` to create a new message.
  */
 export const GetActionsResponseSchema: GenMessage<GetActionsResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 13);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 19);
 
 /**
  * GenerateWorkflowRequest is the request body for generating a workflow from recording.
@@ -571,7 +829,7 @@ export type GenerateWorkflowRequest = Message<"browser_automation_studio.v1.Gene
  * Use `create(GenerateWorkflowRequestSchema)` to create a new message.
  */
 export const GenerateWorkflowRequestSchema: GenMessage<GenerateWorkflowRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 14);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 20);
 
 /**
  * @generated from message browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange
@@ -593,7 +851,7 @@ export type GenerateWorkflowRequest_ActionRange = Message<"browser_automation_st
  * Use `create(GenerateWorkflowRequest_ActionRangeSchema)` to create a new message.
  */
 export const GenerateWorkflowRequest_ActionRangeSchema: GenMessage<GenerateWorkflowRequest_ActionRange> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 14, 0);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 20, 0);
 
 /**
  * GenerateWorkflowResponse is the response after generating a workflow.
@@ -632,7 +890,7 @@ export type GenerateWorkflowResponse = Message<"browser_automation_studio.v1.Gen
  * Use `create(GenerateWorkflowResponseSchema)` to create a new message.
  */
 export const GenerateWorkflowResponseSchema: GenMessage<GenerateWorkflowResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 15);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 21);
 
 /**
  * ReplayPreviewRequest is the request body for testing recorded actions.
@@ -671,7 +929,7 @@ export type ReplayPreviewRequest = Message<"browser_automation_studio.v1.ReplayP
  * Use `create(ReplayPreviewRequestSchema)` to create a new message.
  */
 export const ReplayPreviewRequestSchema: GenMessage<ReplayPreviewRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 16);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 22);
 
 /**
  * ActionReplayError contains error details for a failed action.
@@ -705,7 +963,7 @@ export type ActionReplayError = Message<"browser_automation_studio.v1.ActionRepl
  * Use `create(ActionReplayErrorSchema)` to create a new message.
  */
 export const ActionReplayErrorSchema: GenMessage<ActionReplayError> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 17);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 23);
 
 /**
  * ActionReplayResult is the result of replaying a single action.
@@ -724,7 +982,8 @@ export type ActionReplayResult = Message<"browser_automation_studio.v1.ActionRep
   sequenceNum: number;
 
   /**
-   * @generated from field: string action_type = 3;
+   * @generated from field: string action_type = 3 [deprecated = true];
+   * @deprecated
    */
   actionType: string;
 
@@ -747,6 +1006,56 @@ export type ActionReplayResult = Message<"browser_automation_studio.v1.ActionRep
    * @generated from field: string screenshot_on_error = 7;
    */
   screenshotOnError: string;
+
+  /**
+   * Discrete action kind; prefer over the legacy action_type string.
+   *
+   * @generated from field: browser_automation_studio.v1.RecordedActionType action_kind = 8;
+   */
+  actionKind: RecordedActionType;
+
+  /**
+   * Typed action payload that was replayed; prefer over action_type.
+   *
+   * @generated from oneof browser_automation_studio.v1.ActionReplayResult.typed_action
+   */
+  typedAction: {
+    /**
+     * @generated from field: browser_automation_studio.v1.NavigateActionPayload navigate = 9;
+     */
+    value: NavigateActionPayload;
+    case: "navigate";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.ClickActionPayload click = 10;
+     */
+    value: ClickActionPayload;
+    case: "click";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.InputActionPayload input = 11;
+     */
+    value: InputActionPayload;
+    case: "input";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.WaitActionPayload wait = 12;
+     */
+    value: WaitActionPayload;
+    case: "wait";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.AssertActionPayload assert = 13;
+     */
+    value: AssertActionPayload;
+    case: "assert";
+  } | {
+    /**
+     * @generated from field: browser_automation_studio.v1.CustomScriptActionPayload custom_script = 14;
+     */
+    value: CustomScriptActionPayload;
+    case: "customScript";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
@@ -754,7 +1063,7 @@ export type ActionReplayResult = Message<"browser_automation_studio.v1.ActionRep
  * Use `create(ActionReplayResultSchema)` to create a new message.
  */
 export const ActionReplayResultSchema: GenMessage<ActionReplayResult> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 18);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 24);
 
 /**
  * ReplayPreviewResponse is the response from replay preview.
@@ -803,7 +1112,7 @@ export type ReplayPreviewResponse = Message<"browser_automation_studio.v1.Replay
  * Use `create(ReplayPreviewResponseSchema)` to create a new message.
  */
 export const ReplayPreviewResponseSchema: GenMessage<ReplayPreviewResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 19);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 25);
 
 /**
  * SelectorValidation result from driver.
@@ -837,5 +1146,53 @@ export type SelectorValidation = Message<"browser_automation_studio.v1.SelectorV
  * Use `create(SelectorValidationSchema)` to create a new message.
  */
 export const SelectorValidationSchema: GenMessage<SelectorValidation> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 20);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 26);
+
+/**
+ * RecordedActionType enumerates supported action kinds captured during recording.
+ *
+ * @generated from enum browser_automation_studio.v1.RecordedActionType
+ */
+export enum RecordedActionType {
+  /**
+   * @generated from enum value: RECORDED_ACTION_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RECORDED_ACTION_TYPE_NAVIGATE = 1;
+   */
+  NAVIGATE = 1,
+
+  /**
+   * @generated from enum value: RECORDED_ACTION_TYPE_CLICK = 2;
+   */
+  CLICK = 2,
+
+  /**
+   * @generated from enum value: RECORDED_ACTION_TYPE_INPUT = 3;
+   */
+  INPUT = 3,
+
+  /**
+   * @generated from enum value: RECORDED_ACTION_TYPE_WAIT = 4;
+   */
+  WAIT = 4,
+
+  /**
+   * @generated from enum value: RECORDED_ACTION_TYPE_ASSERT = 5;
+   */
+  ASSERT = 5,
+
+  /**
+   * @generated from enum value: RECORDED_ACTION_TYPE_CUSTOM_SCRIPT = 6;
+   */
+  CUSTOM_SCRIPT = 6,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.RecordedActionType.
+ */
+export const RecordedActionTypeSchema: GenEnum<RecordedActionType> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_record_mode, 0);
 

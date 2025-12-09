@@ -236,8 +236,8 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.id
-                ? "border-flow-accent text-white"
-                : "border-transparent text-gray-400 hover:text-gray-300"
+                ? "border-flow-accent text-surface"
+                : "border-transparent text-subtle hover:text-surface"
             }`}
           >
             {tab.label}
@@ -270,7 +270,7 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
                 <FileJson size={24} className="text-amber-400" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">
+                <h2 className="text-xl font-bold text-surface">
                   {schema.title as string || "Workflow Schema"}
                 </h2>
                 <p className="text-sm text-gray-400">
@@ -287,7 +287,7 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
               </div>
             </div>
 
-            <h3 className="text-lg font-semibold text-white mb-3">Properties</h3>
+            <h3 className="text-lg font-semibold text-surface mb-3">Properties</h3>
             <div className="bg-gray-900/50 rounded-lg border border-gray-800 p-4">
               {properties &&
                 Object.entries(properties).map(([name, propSchema]) => (
@@ -304,7 +304,7 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
 
         {activeTab === "definitions" && (
           <div className="max-w-4xl">
-            <h2 className="text-xl font-bold text-white mb-4">Type Definitions</h2>
+            <h2 className="text-xl font-bold text-surface mb-4">Type Definitions</h2>
             <p className="text-gray-400 mb-6">
               These are the reusable type definitions referenced throughout the schema.
             </p>
@@ -321,7 +321,7 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
                       key={name}
                       className="bg-gray-900/50 rounded-lg border border-gray-800 p-4"
                     >
-                      <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-surface mb-2 flex items-center gap-2">
                         <code className="text-cyan-400">#{name}</code>
                         {typeof def.type === "string" && (
                           <span className="text-xs text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded">

@@ -262,7 +262,7 @@
   }
 
   .toolbar-button {
-    @apply rounded-md bg-flow-bg hover:bg-flow-node-hover transition-colors text-gray-400 hover:text-white;
+    @apply rounded-md bg-flow-bg hover:bg-flow-node-hover transition-colors text-subtle hover:text-surface;
     padding: var(--space-2);
   }
 
@@ -305,7 +305,7 @@
 }
 
 .react-flow__controls-button {
-  @apply bg-flow-bg border-gray-700 text-gray-400 hover:bg-flow-node-hover hover:text-white;
+  @apply bg-flow-bg border-gray-700 text-subtle hover:bg-flow-node-hover hover:text-surface;
 }
 
 .react-flow__minimap {

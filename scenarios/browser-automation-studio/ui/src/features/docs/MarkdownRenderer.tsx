@@ -67,14 +67,14 @@ const components: Components = {
   },
   h1({ children }) {
     return (
-      <h1 className="text-2xl font-bold text-white mb-4 mt-6 first:mt-0">
+      <h1 className="text-2xl font-bold text-surface mb-4 mt-6 first:mt-0">
         {children}
       </h1>
     );
   },
   h2({ children }) {
     return (
-      <h2 className="text-xl font-semibold text-white mb-3 mt-6 pb-2 border-b border-gray-800">
+      <h2 className="text-xl font-semibold text-surface mb-3 mt-6 pb-2 border-b border-gray-800">
         {children}
       </h2>
     );
@@ -128,7 +128,7 @@ const components: Components = {
     return <hr className="my-6 border-gray-800" />;
   },
   strong({ children }) {
-    return <strong className="font-semibold text-white">{children}</strong>;
+    return <strong className="font-semibold text-surface">{children}</strong>;
   },
   em({ children }) {
     return <em className="italic text-gray-400">{children}</em>;

@@ -31,7 +31,7 @@ func (r *repository) CreateScreenshot(ctx context.Context, screenshot *Screensho
 }
 
 func (r *repository) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*Screenshot, error) {
-	query := `SELECT * FROM screenshots WHERE execution_id = $1 ORDER BY timestamp ASC`
+	query := r.db.Rebind(`SELECT * FROM screenshots WHERE execution_id = ? ORDER BY timestamp ASC`)
 
 	var screenshots []*Screenshot
 	err := r.db.SelectContext(ctx, &screenshots, query, executionID)
@@ -63,7 +63,7 @@ func (r *repository) CreateExecutionLog(ctx context.Context, log *ExecutionLog) 
 }
 
 func (r *repository) GetExecutionLogs(ctx context.Context, executionID uuid.UUID) ([]*ExecutionLog, error) {
-	query := `SELECT * FROM execution_logs WHERE execution_id = $1 ORDER BY timestamp ASC`
+	query := r.db.Rebind(`SELECT * FROM execution_logs WHERE execution_id = ? ORDER BY timestamp ASC`)
 
 	var logs []*ExecutionLog
 	err := r.db.SelectContext(ctx, &logs, query, executionID)
@@ -95,7 +95,7 @@ func (r *repository) CreateExtractedData(ctx context.Context, data *ExtractedDat
 }
 
 func (r *repository) GetExecutionExtractedData(ctx context.Context, executionID uuid.UUID) ([]*ExtractedData, error) {
-	query := `SELECT * FROM extracted_data WHERE execution_id = $1 ORDER BY timestamp ASC`
+	query := r.db.Rebind(`SELECT * FROM extracted_data WHERE execution_id = ? ORDER BY timestamp ASC`)
 
 	var data []*ExtractedData
 	err := r.db.SelectContext(ctx, &data, query, executionID)
