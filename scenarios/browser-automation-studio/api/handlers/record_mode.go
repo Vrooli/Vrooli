@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -192,6 +193,37 @@ type ReplayPreviewResponse struct {
 	Results         []ActionReplayResult `json:"results"`
 	TotalDurationMs int                  `json:"total_duration_ms"`
 	StoppedEarly    bool                 `json:"stopped_early"`
+}
+
+// NavigateRecordingRequest is the request body for navigating the recording session.
+type NavigateRecordingRequest struct {
+	URL       string `json:"url"`
+	WaitUntil string `json:"wait_until,omitempty"`
+	TimeoutMs int    `json:"timeout_ms,omitempty"`
+	Capture   bool   `json:"capture,omitempty"`
+}
+
+// NavigateRecordingResponse is the response from navigating the recording session.
+type NavigateRecordingResponse struct {
+	SessionID  string `json:"session_id"`
+	URL        string `json:"url"`
+	Screenshot string `json:"screenshot,omitempty"`
+}
+
+// RecordingScreenshotResponse is the response for capturing a screenshot from the recording session.
+type RecordingScreenshotResponse struct {
+	SessionID  string `json:"session_id"`
+	Screenshot string `json:"screenshot"`
+}
+
+// RecordingFrameResponse is the response for lightweight frame previews.
+type RecordingFrameResponse struct {
+	SessionID  string `json:"session_id"`
+	Mime       string `json:"mime"`
+	Image      string `json:"image"`
+	Width      int    `json:"width"`
+	Height     int    `json:"height"`
+	CapturedAt string `json:"captured_at"`
 }
 
 const (
@@ -1492,4 +1524,277 @@ func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	h.respondSuccess(w, http.StatusOK, replayResp)
+}
+
+// NavigateRecordingSession handles POST /api/v1/recordings/live/{sessionId}/navigate
+// Navigates the Playwright recording session to a URL and optionally returns a screenshot.
+func (h *Handler) NavigateRecordingSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var req NavigateRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	if strings.TrimSpace(req.URL) == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "url",
+		}))
+		return
+	}
+
+	driverURL := fmt.Sprintf("%s/session/%s/record/navigate", getPlaywrightDriverURL(), sessionID)
+	body, _ := json.Marshal(map[string]interface{}{
+		"url":        req.URL,
+		"wait_until": req.WaitUntil,
+		"timeout_ms": req.TimeoutMs,
+		"capture":    req.Capture,
+	})
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(body))
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for navigate")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(bodyBytes),
+		}))
+		return
+	}
+
+	var driverResp NavigateRecordingResponse
+	if err := json.Unmarshal(bodyBytes, &driverResp); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse driver response",
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// CaptureRecordingScreenshot handles POST /api/v1/recordings/live/{sessionId}/screenshot
+// Captures a screenshot from the current recording page.
+func (h *Handler) CaptureRecordingScreenshot(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	driverURL := fmt.Sprintf("%s/session/%s/record/screenshot", getPlaywrightDriverURL(), sessionID)
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Failed to read request body: " + err.Error(),
+		}))
+		return
+	}
+	if len(bodyBytes) == 0 {
+		bodyBytes = []byte("{}")
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for screenshot")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(respBody),
+		}))
+		return
+	}
+
+	var driverResp RecordingScreenshotResponse
+	if err := json.Unmarshal(respBody, &driverResp); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse driver response",
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// ForwardRecordingInput handles POST /api/v1/recordings/live/{sessionId}/input
+// Forwards pointer/keyboard/wheel events to the Playwright driver.
+func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Failed to read request body: " + err.Error(),
+		}))
+		return
+	}
+	if len(bodyBytes) == 0 {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Empty request body",
+		}))
+		return
+	}
+
+	driverURL := fmt.Sprintf("%s/session/%s/record/input", getPlaywrightDriverURL(), sessionID)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for record input")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(body),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status": "ok",
+	})
+}
+
+// GetRecordingFrame handles GET /api/v1/recordings/live/{sessionId}/frame
+// Retrieves a lightweight frame preview from the driver.
+func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	driverURL := fmt.Sprintf("%s/session/%s/record/frame", getPlaywrightDriverURL(), sessionID)
+	if rawQuery := r.URL.RawQuery; rawQuery != "" {
+		driverURL += "?" + rawQuery
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, driverURL, nil)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for frame")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(bodyBytes),
+		}))
+		return
+	}
+
+	var driverResp RecordingFrameResponse
+	if err := json.Unmarshal(bodyBytes, &driverResp); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse driver response",
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
 }

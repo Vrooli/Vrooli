@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLivePreview } from './hooks/useLivePreview';
 import type { RecordedAction } from './types';
 import type { PreviewMode } from './hooks/usePreviewMode';
 import type { SnapshotPreviewState } from './hooks/useSnapshotPreview';
+import { PlaywrightView } from './components/PlaywrightView';
 
 interface RecordPreviewPanelProps {
   mode: PreviewMode;
@@ -12,6 +12,7 @@ interface RecordPreviewPanelProps {
   snapshot: SnapshotPreviewState;
   onLiveBlocked: () => void;
   actions: RecordedAction[];
+  sessionId?: string | null;
 }
 
 export function RecordPreviewPanel({
@@ -22,6 +23,7 @@ export function RecordPreviewPanel({
   snapshot,
   onLiveBlocked,
   actions,
+  sessionId,
 }: RecordPreviewPanelProps) {
   const lastUrl = useMemo(() => {
     if (actions.length === 0) return '';
@@ -31,6 +33,7 @@ export function RecordPreviewPanel({
   const effectiveUrl = previewUrl || lastUrl;
 
   const [urlInput, setUrlInput] = useState(previewUrl);
+  const [liveRefreshToken, setLiveRefreshToken] = useState(0);
 
   // Keep input in sync with upstream changes
   useEffect(() => {
@@ -47,12 +50,6 @@ export function RecordPreviewPanel({
     return () => clearTimeout(debounce);
   }, [urlInput, previewUrl, onPreviewUrlChange]);
 
-  const { liveState, iframeKey, iframeRef, handleIframeLoad, handleIframeError, reload } = useLivePreview({
-    mode,
-    url: effectiveUrl || null,
-    onBlocked: onLiveBlocked,
-  });
-
   return (
     <div className="flex flex-col h-full">
       {/* Header with mode toggle and URL input */}
@@ -62,7 +59,7 @@ export function RecordPreviewPanel({
             className={`px-3 py-1.5 rounded-md transition-colors ${mode === 'live' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500'}`}
             onClick={() => onModeChange('live')}
           >
-            Live iframe
+            Live browser
           </button>
           <button
             className={`px-3 py-1.5 rounded-md transition-colors ${mode === 'snapshot' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500'}`}
@@ -85,7 +82,7 @@ export function RecordPreviewPanel({
               if (mode === 'snapshot') {
                 void snapshot.refresh();
               } else {
-                reload();
+                setLiveRefreshToken((t) => t + 1);
               }
             }}
           >
@@ -95,34 +92,25 @@ export function RecordPreviewPanel({
       </div>
 
       {/* Body */}
+      {sessionId && (
+        <div className="px-4 py-2 text-[11px] text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+          Recording session is synced to this URL. Interactions are executed in the Playwright browser session.
+        </div>
+      )}
       <div className="flex-1 overflow-hidden">
         {mode === 'live' ? (
-          effectiveUrl ? (
-            <div className="relative h-full">
-              <iframe
-                key={iframeKey}
-                src={effectiveUrl}
-                className="w-full h-full bg-white"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-pointer-lock allow-modals"
-                ref={iframeRef}
-                onError={handleIframeError}
-                onLoad={handleIframeLoad}
-                title="Live preview"
+          sessionId ? (
+            effectiveUrl ? (
+              <PlaywrightView
+                sessionId={sessionId}
+                refreshToken={liveRefreshToken}
+                onStreamError={() => onLiveBlocked()}
               />
-              {liveState === 'loading' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm text-xs text-gray-600 dark:text-gray-300">
-                  Attempting live preview… switching to snapshot if it doesn’t load.
-                </div>
-              )}
-              {liveState === 'blocked' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-center px-4 gap-2 text-sm">
-                  <p className="font-medium text-gray-800 dark:text-gray-100">Live preview blocked or slow</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">We’ll use Snapshot mode instead.</p>
-                </div>
-              )}
-            </div>
+            ) : (
+              <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
+            )
           ) : (
-            <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the page directly. Some sites may block embedding." />
+            <EmptyState title="Start a recording session" subtitle="Create or resume a recording session to view the live browser." />
           )
         ) : (
           <SnapshotView snapshot={snapshot} url={effectiveUrl} />

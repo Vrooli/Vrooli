@@ -28,6 +28,7 @@ import { useRecordMode } from './hooks/useRecordMode';
 import { useSnapshotPreview } from './hooks/useSnapshotPreview';
 import { useTimelinePanel } from './hooks/useTimelinePanel';
 import { RecordPreviewPanel } from './RecordPreviewPanel';
+import { getConfig } from '@/config';
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -118,8 +119,43 @@ export function RecordModePage({
 
   const snapshotState = useSnapshotPreview({
     url: previewUrl || lastActionUrl || null,
+    sessionId,
     enabled: previewMode === 'snapshot',
   });
+
+  useEffect(() => {
+    if (!previewUrl) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    let cancelled = false;
+
+    const syncPreviewToSession = async () => {
+      try {
+        const activeSessionId = sessionId ?? (await ensureSession());
+        if (!activeSessionId || cancelled) return;
+
+        const config = await getConfig();
+        await fetch(`${config.API_URL}/recordings/live/${activeSessionId}/navigate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: previewUrl }),
+          signal: abortController.signal,
+        });
+      } catch (err) {
+        if (abortController.signal.aborted || cancelled) return;
+        console.warn('Failed to sync preview URL to recording session', err);
+      }
+    };
+
+    void syncPreviewToSession();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, [sessionId, previewUrl, ensureSession]);
 
   const handleStartRecording = useCallback(async () => {
     setPendingStart(true);
@@ -260,6 +296,7 @@ export function RecordModePage({
             mode={previewMode}
             onModeChange={(mode) => setPreviewMode(mode)}
             previewUrl={previewUrl}
+            sessionId={sessionId}
             onPreviewUrlChange={(url) => {
               setPreviewUrl(url);
               setLiveBlocked(false);
@@ -277,11 +314,11 @@ export function RecordModePage({
             }}
             actions={actions}
           />
-          {liveBlocked && previewMode === 'live' && (
-            <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-xs text-yellow-800 dark:text-yellow-200 border-t border-yellow-200 dark:border-yellow-800">
-              This site may block embedding in an iframe. Use the banner above to switch modes.
-            </div>
-          )}
+      {liveBlocked && previewMode === 'live' && (
+        <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-xs text-yellow-800 dark:text-yellow-200 border-t border-yellow-200 dark:border-yellow-800">
+          Live streaming is temporarily unavailable. Use the banner above to switch modes or try refreshing.
+        </div>
+      )}
         </div>
       </div>
 

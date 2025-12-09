@@ -60,5 +60,16 @@ describe('Body Parser', () => {
 
       expect(result).toEqual({ test: 'value' });
     });
+
+    it('should default size limits when server config is missing', async () => {
+      const mockReq = createMockHttpRequest({
+        headers: { 'content-type': 'application/json' },
+        body: { ok: true },
+      });
+
+      const result = await parseJsonBody(mockReq, {} as any);
+
+      expect(result).toEqual({ ok: true });
+    });
   });
 });

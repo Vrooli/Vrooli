@@ -76,6 +76,58 @@ interface ReplayPreviewResponse {
   stopped_early: boolean;
 }
 
+interface NavigateRequest {
+  url: string;
+  wait_until?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+  timeout_ms?: number;
+  capture?: boolean;
+}
+
+interface NavigateResponse {
+  session_id: string;
+  url: string;
+  screenshot?: string;
+}
+
+interface ScreenshotRequest {
+  full_page?: boolean;
+  quality?: number;
+}
+
+interface ScreenshotResponse {
+  session_id: string;
+  screenshot: string;
+}
+
+type PointerAction = 'move' | 'down' | 'up' | 'click';
+type InputType = 'pointer' | 'keyboard' | 'wheel';
+
+interface InputRequest {
+  type: InputType;
+  session_id?: string;
+  // Pointer
+  action?: PointerAction;
+  x?: number;
+  y?: number;
+  button?: 'left' | 'right' | 'middle';
+  modifiers?: string[];
+  // Keyboard
+  key?: string;
+  text?: string;
+  // Wheel
+  delta_x?: number;
+  delta_y?: number;
+}
+
+interface FrameResponse {
+  session_id: string;
+  mime: 'image/jpeg';
+  image: string;
+  width: number;
+  height: number;
+  captured_at: string;
+}
+
 /** Collected actions waiting to be fetched */
 const actionBuffers: Map<string, RecordedAction[]> = new Map();
 
@@ -118,6 +170,11 @@ export async function handleRecordStart(
     // Initialize action buffer for this session
     actionBuffers.set(sessionId, []);
 
+    logger.info('Starting record-mode', {
+      sessionId,
+      callbackUrl: request.callback_url,
+    });
+
     // Start recording with callback to buffer actions
     const recordingId = await session.recordingController.startRecording({
       sessionId,
@@ -127,6 +184,13 @@ export async function handleRecordStart(
         if (buffer) {
           buffer.push(action);
         }
+
+        logger.info('Buffered recorded action', {
+          sessionId,
+          recordingId,
+          actionType: action.actionType,
+          sequenceNum: action.sequenceNum,
+        });
 
         // If callback URL provided, stream to it
         if (request.callback_url) {
@@ -430,6 +494,233 @@ export async function handleReplayPreview(
 }
 
 /**
+ * Navigate the recording session to a URL and optionally return a screenshot.
+ *
+ * POST /session/:id/record/navigate
+ */
+export async function handleRecordNavigate(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const request = body as unknown as NavigateRequest;
+
+    if (!request.url || typeof request.url !== 'string') {
+      sendJson(res, 400, {
+        error: 'MISSING_URL',
+        message: 'url field is required',
+      });
+      return;
+    }
+
+    const waitUntil: NavigateRequest['wait_until'] = request.wait_until || 'load';
+    const timeoutMs = request.timeout_ms ?? 15000;
+
+    await session.page.goto(request.url, { waitUntil, timeout: timeoutMs });
+
+    let screenshot: string | undefined;
+    if (request.capture) {
+      try {
+        const buffer = await session.page.screenshot({
+          fullPage: true,
+          type: 'jpeg',
+          quality: 70,
+        });
+        screenshot = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+      } catch (err) {
+        logger.warn('Failed to capture navigation screenshot', {
+          sessionId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    const response: NavigateResponse = {
+      session_id: sessionId,
+      url: session.page.url(),
+      screenshot,
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/navigate`);
+  }
+}
+
+/**
+ * Capture a screenshot from the current recording page.
+ *
+ * POST /session/:id/record/screenshot
+ */
+export async function handleRecordScreenshot(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const request = body as unknown as ScreenshotRequest;
+
+    const fullPage = request.full_page !== false;
+    const quality = request.quality ?? 70;
+
+    const buffer = await session.page.screenshot({
+      fullPage,
+      type: 'jpeg',
+      quality,
+    });
+
+    const response: ScreenshotResponse = {
+      session_id: sessionId,
+      screenshot: `data:image/jpeg;base64,${buffer.toString('base64')}`,
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/screenshot`);
+  }
+}
+
+/**
+ * Forward live input events to the active Playwright page.
+ *
+ * POST /session/:id/record/input
+ */
+export async function handleRecordInput(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const body = await parseJsonBody(req, config);
+    const request = body as unknown as InputRequest;
+
+    if (!request?.type) {
+      sendJson(res, 400, {
+        error: 'MISSING_TYPE',
+        message: 'type field is required',
+      });
+      return;
+    }
+
+    const page = session.page;
+    const modifiers = request.modifiers || [];
+
+    switch (request.type) {
+      case 'pointer': {
+        const x = request.x ?? 0;
+        const y = request.y ?? 0;
+        const button = request.button || 'left';
+        const action: PointerAction = request.action || 'move';
+
+        if (action === 'move') {
+          await page.mouse.move(x, y);
+        } else if (action === 'down') {
+          await page.mouse.move(x, y);
+          await page.mouse.down({ button });
+        } else if (action === 'up') {
+          await page.mouse.move(x, y);
+          await page.mouse.up({ button });
+        } else if (action === 'click') {
+          await page.mouse.click(x, y, { button });
+        } else {
+          sendJson(res, 400, {
+            error: 'INVALID_ACTION',
+            message: `Unsupported pointer action: ${action}`,
+          });
+          return;
+        }
+        break;
+      }
+      case 'wheel': {
+        await page.mouse.wheel(request.delta_x ?? 0, request.delta_y ?? 0);
+        break;
+      }
+      case 'keyboard': {
+        if (request.text) {
+          await page.keyboard.type(request.text);
+        } else if (request.key) {
+          const combo = modifiers.length > 0 ? `${modifiers.join('+')}+${request.key}` : request.key;
+          await page.keyboard.press(combo);
+        } else {
+          sendJson(res, 400, {
+            error: 'MISSING_KEYBOARD_DATA',
+            message: 'Provide key or text for keyboard input',
+          });
+          return;
+        }
+        break;
+      }
+      default:
+        sendJson(res, 400, {
+          error: 'INVALID_TYPE',
+          message: `Unsupported input type: ${request.type}`,
+        });
+        return;
+    }
+
+    sendJson(res, 200, {
+      status: 'ok',
+    });
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/input`);
+  }
+}
+
+/**
+ * Get a lightweight frame preview from the active Playwright page.
+ *
+ * GET /session/:id/record/frame
+ */
+export async function handleRecordFrame(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  _config: Config
+): Promise<void> {
+  try {
+    const session = sessionManager.getSession(sessionId);
+    const url = new URL(req.url || '', `http://localhost`);
+
+    const quality = Number(url.searchParams.get('quality')) || 60;
+    const fullPage = url.searchParams.get('full_page') === 'true';
+
+    const buffer = await session.page.screenshot({
+      type: 'jpeg',
+      fullPage,
+      quality,
+    });
+
+    const viewport = session.page.viewportSize();
+
+    const response: FrameResponse = {
+      session_id: sessionId,
+      mime: 'image/jpeg',
+      image: `data:image/jpeg;base64,${buffer.toString('base64')}`,
+      width: viewport?.width || 0,
+      height: viewport?.height || 0,
+      captured_at: new Date().toISOString(),
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/frame`);
+  }
+}
+
+/**
  * Stream an action to a callback URL
  */
 async function streamActionToCallback(callbackUrl: string, action: RecordedAction): Promise<void> {
@@ -444,6 +735,13 @@ async function streamActionToCallback(callbackUrl: string, action: RecordedActio
   if (!response.ok) {
     throw new Error(`Callback returned ${response.status}: ${response.statusText}`);
   }
+
+  logger.info('Streamed recorded action to callback', {
+    callbackUrl,
+    status: response.status,
+    actionType: action.actionType,
+    sequenceNum: action.sequenceNum,
+  });
 }
 
 /**

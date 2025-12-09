@@ -7,17 +7,20 @@ import { logger } from '../utils';
  */
 export async function parseJsonBody(
   req: IncomingMessage,
-  config: Config
+  config: Partial<Config> | Config
 ): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let body = '';
     let size = 0;
 
+    // Allow callers that do not have full config (e.g., record-mode routes currently pass {})
+    const maxRequestSize = config?.server?.maxRequestSize ?? 5 * 1024 * 1024; // 5MB default
+
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
 
-      if (size > config.server.maxRequestSize) {
-        reject(new Error(`Request body too large: ${size} bytes (max: ${config.server.maxRequestSize})`));
+      if (size > maxRequestSize) {
+        reject(new Error(`Request body too large: ${size} bytes (max: ${maxRequestSize})`));
         return;
       }
 

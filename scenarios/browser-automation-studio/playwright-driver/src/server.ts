@@ -34,6 +34,10 @@ import {
   handleRecordActions,
   handleValidateSelector,
   handleReplayPreview,
+  handleRecordNavigate,
+  handleRecordScreenshot,
+  handleRecordInput,
+  handleRecordFrame,
 } from './routes';
 import { send404, send405, sendError } from './middleware';
 import { createLogger, setLogger, logger, metrics } from './utils';
@@ -151,6 +155,18 @@ async function main() {
       } else if (pathname.match(/^\/session\/[^/]+\/record\/replay-preview$/) && method === 'POST') {
         const sessionId = pathname.split('/')[2];
         await handleReplayPreview(req, res, sessionId, sessionManager, config);
+      } else if (pathname.match(/^\/session\/[^/]+\/record\/navigate$/) && method === 'POST') {
+        const sessionId = pathname.split('/')[2];
+        await handleRecordNavigate(req, res, sessionId, sessionManager, config);
+      } else if (pathname.match(/^\/session\/[^/]+\/record\/screenshot$/) && method === 'POST') {
+        const sessionId = pathname.split('/')[2];
+        await handleRecordScreenshot(req, res, sessionId, sessionManager, config);
+      } else if (pathname.match(/^\/session\/[^/]+\/record\/input$/) && method === 'POST') {
+        const sessionId = pathname.split('/')[2];
+        await handleRecordInput(req, res, sessionId, sessionManager, config);
+      } else if (pathname.match(/^\/session\/[^/]+\/record\/frame$/) && method === 'GET') {
+        const sessionId = pathname.split('/')[2];
+        await handleRecordFrame(req, res, sessionId, sessionManager, config);
       } else if (pathname === '/health' && method !== 'GET') {
         send405(res, ['GET']);
       } else if (pathname === '/session/start' && method !== 'POST') {

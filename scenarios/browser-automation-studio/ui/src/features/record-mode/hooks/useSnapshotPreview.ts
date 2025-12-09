@@ -5,6 +5,7 @@ import { logger } from '@/utils/logger';
 interface SnapshotPreviewOptions {
   url: string | null;
   enabled?: boolean;
+  sessionId?: string | null;
 }
 
 interface SnapshotPreviewState {
@@ -18,7 +19,7 @@ interface SnapshotPreviewState {
 /**
  * Lightweight snapshot fetcher that reuses the existing preview-screenshot API.
  */
-export function useSnapshotPreview({ url, enabled = true }: SnapshotPreviewOptions): SnapshotPreviewState {
+export function useSnapshotPreview({ url, enabled = true, sessionId }: SnapshotPreviewOptions): SnapshotPreviewState {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,10 +44,16 @@ export function useSnapshotPreview({ url, enabled = true }: SnapshotPreviewOptio
 
     try {
       const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/preview-screenshot`, {
+      const endpoint = sessionId
+        ? `${config.API_URL}/recordings/live/${sessionId}/screenshot`
+        : `${config.API_URL}/preview-screenshot`;
+
+      const body = sessionId ? JSON.stringify({}) : JSON.stringify({ url });
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body,
         signal: abortController.signal,
       });
 
@@ -73,7 +80,7 @@ export function useSnapshotPreview({ url, enabled = true }: SnapshotPreviewOptio
       setIsLoading(false);
       inFlightRef.current = null;
     }
-  }, [url, enabled]);
+  }, [url, enabled, sessionId]);
 
   useEffect(() => {
     if (enabled && url) {

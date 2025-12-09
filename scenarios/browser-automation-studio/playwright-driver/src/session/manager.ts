@@ -171,6 +171,13 @@ export class SessionManager {
       });
     });
 
+    page.on('pageerror', (err) => {
+      logger.warn('Page error', {
+        sessionId,
+        error: err.message,
+      });
+    });
+
     // Setup network event collection
     page.on('request', (request) => {
       logger.debug('Network request', {
