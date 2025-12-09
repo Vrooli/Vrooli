@@ -13,6 +13,8 @@ cd resources/sqlite
 ./install.sh            # wraps packages/cli-core/install.sh
 # Windows (PowerShell)
 ./install.ps1
+# From an installed CLI: `resource-sqlite manage install` will attempt to rebuild and install
+# the Go binary into ${VROOLI_BIN:-~/.vrooli/bin} when Go is available.
 ```
 
 A compatibility wrapper lives at `resources/sqlite/cli.sh` and will use a local build, an installed binary in `~/.vrooli/bin`, or a PATH binary. There is no `go run` fallback at runtime; build once via the install scripts.
@@ -67,7 +69,7 @@ resource-sqlite stats analyze <db>
 resource-sqlite stats vacuum <db>
 
 # tests
-resource-sqlite test smoke|integration|unit   # runs go test ./... inside resources/sqlite (requires Go)
+resource-sqlite test smoke|integration|unit   # runs go test ./... inside resources/sqlite (requires Go toolchain)
 resource-sqlite content remove <name> [--force]
 ```
 

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/resources/sqlite/internal/config"
 	"github.com/vrooli/resources/sqlite/internal/sqlite"
 )
@@ -22,15 +23,17 @@ type CLI struct {
 	Config      config.Config
 	RuntimePath string
 	RuntimeData []byte
+	SourceRoot  string
 	Now         func() time.Time
 }
 
-func New(cfg config.Config, runtimePath string, runtimeData []byte) *CLI {
+func New(cfg config.Config, runtimePath string, runtimeData []byte, sourceRoot string) *CLI {
 	return &CLI{
 		Service:     sqlite.NewService(cfg),
 		Config:      cfg,
 		RuntimePath: runtimePath,
 		RuntimeData: runtimeData,
+		SourceRoot:  sourceRoot,
 		Now:         time.Now,
 	}
 }
@@ -91,7 +94,12 @@ func (c *CLI) handleManage(args []string) int {
 		if err := c.Config.EnsureDirectories(); err != nil {
 			return fail(err)
 		}
-		fmt.Println("SQLite resource ready (Go binary, no external installer needed).")
+		if err := c.rebuildBinary(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+			fmt.Println("SQLite data directories prepared; existing binary left unchanged.")
+			return 0
+		}
+		fmt.Println("SQLite resource installed (Go binary rebuilt and data directories prepared).")
 		return 0
 	case "uninstall":
 		fmt.Println("Uninstall is a no-op for the portable Go binary. Remove the binary and data directory to clean up.")
@@ -751,4 +759,54 @@ func fail(err error) int {
 func toJSON(v any) string {
 	data, _ := json.MarshalIndent(v, "", "  ")
 	return string(data)
+}
+
+// rebuildBinary attempts to rebuild and install the CLI using cli-core's installer.
+// It is best-effort: failures are surfaced but do not abort manage install.
+func (c *CLI) rebuildBinary() error {
+	if _, err := exec.LookPath("go"); err != nil {
+		return fmt.Errorf("Go toolchain not found; skipping binary rebuild")
+	}
+
+	srcRoot := cliutil.ResolveSourceRoot(c.SourceRoot, "SQLITE_CLI_SOURCE_ROOT", "VROOLI_CLI_SOURCE_ROOT")
+	installDir := os.Getenv("VROOLI_BIN")
+	if strings.TrimSpace(installDir) == "" {
+		home, _ := os.UserHomeDir()
+		if home == "" {
+			home = "."
+		}
+		installDir = filepath.Join(home, ".vrooli", "bin")
+	}
+	if err := os.MkdirAll(installDir, 0o755); err != nil {
+		return fmt.Errorf("prepare install dir: %w", err)
+	}
+	target := filepath.Join(installDir, "resource-sqlite")
+
+	if srcRoot == "" {
+		return fmt.Errorf("unable to locate SQLite source root; set SQLITE_CLI_SOURCE_ROOT or VROOLI_CLI_SOURCE_ROOT")
+	}
+
+	tmp, err := os.CreateTemp(installDir, "resource-sqlite-build-*")
+	if err != nil {
+		return fmt.Errorf("create temp binary: %w", err)
+	}
+	tmpPath := tmp.Name()
+	_ = tmp.Close()
+	defer os.Remove(tmpPath)
+
+	cmd := exec.Command("go", "build", "-o", tmpPath, "./cmd/resource-sqlite")
+	cmd.Dir = srcRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to build resource-sqlite binary: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, target); err != nil {
+		return fmt.Errorf("install binary: %w", err)
+	}
+	_ = os.Chmod(target, 0o755)
+	return nil
 }

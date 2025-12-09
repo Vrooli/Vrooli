@@ -38,7 +38,7 @@ func main() {
 	stale := cliutil.NewStaleChecker(appName, buildFingerprint, buildTimestamp, buildSourceRoot,
 		"SQLITE_CLI_SOURCE_ROOT", "VROOLI_CLI_SOURCE_ROOT")
 
-	legacy := cli.New(cfg, runtimePath, runtimeinfo.RuntimeJSON)
+	legacy := cli.New(cfg, runtimePath, runtimeinfo.RuntimeJSON, buildSourceRoot)
 	app := newApp(cfg, legacy, stale)
 
 	if err := app.Run(os.Args[1:]); err != nil {
