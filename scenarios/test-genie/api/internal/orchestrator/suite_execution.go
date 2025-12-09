@@ -156,6 +156,7 @@ type SuiteOrchestrator struct {
 	phaseTimeout  time.Duration
 	catalog       *phases.Catalog
 	requirements  requirements.Syncer
+	phaseToggles  *phaseToggleStore
 }
 
 // SuiteExecutionRequest configures a single test execution run.
@@ -185,6 +186,7 @@ type SuiteExecutionResult struct {
 	PresetUsed     string                 `json:"preset,omitempty"`
 	Phases         []PhaseExecutionResult `json:"phases"`
 	PhaseSummary   PhaseSummary           `json:"phaseSummary"`
+	Warnings       []string               `json:"warnings,omitempty"`
 }
 
 type PhaseExecutionResult = phases.ExecutionResult
@@ -255,6 +257,7 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		phaseTimeout:  defaultPhaseTimeout,
 		catalog:       phases.NewDefaultCatalog(defaultPhaseTimeout),
 		requirements:  requirements.NewNodeSyncer(filepath.Dir(absRoot)),
+		phaseToggles:  newPhaseToggleStore(filepath.Dir(absRoot)),
 	}, nil
 }
 
@@ -307,9 +310,10 @@ func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionReque
 		ScenarioName: scenario,
 		StartedAt:    time.Now().UTC(),
 		PresetUsed:   plan.PresetUsed,
+		Warnings:     buildPlanWarnings(plan),
 	}
 
-	phaseResults, anyFailure := o.runSelectedPhases(ctx, env, runLogDir, plan.Selected, req.FailFast)
+	phaseResults, anyFailure := o.runSelectedPhases(ctx, env, runLogDir, plan.Selected, req.FailFast, buildPhaseWarningMap(plan))
 
 	result.CompletedAt = time.Now().UTC()
 	result.Success = !anyFailure
@@ -375,9 +379,10 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 		ScenarioName: scenario,
 		StartedAt:    time.Now().UTC(),
 		PresetUsed:   plan.PresetUsed,
+		Warnings:     buildPlanWarnings(plan),
 	}
 
-	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(ctx, env, runLogDir, plan.Selected, req.FailFast, emit)
+	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(ctx, env, runLogDir, plan.Selected, req.FailFast, emit, buildPhaseWarningMap(plan))
 
 	result.CompletedAt = time.Now().UTC()
 	result.Success = !anyFailure
@@ -408,6 +413,7 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 	runLogDir string,
 	defs []phases.Definition,
 	failFast bool,
+	warnings map[string][]phases.Observation,
 ) ([]PhaseExecutionResult, bool) {
 	if len(defs) == 0 {
 		return nil, false
@@ -415,7 +421,7 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 	results := make([]PhaseExecutionResult, 0, len(defs))
 	anyFailure := false
 	for _, phase := range defs {
-		phaseResult := o.runPhase(ctx, env, runLogDir, phase)
+		phaseResult := o.runPhase(ctx, env, runLogDir, phase, warnings[phase.Name.Key()])
 		if phaseResult.Status != "passed" {
 			anyFailure = true
 		}
@@ -434,6 +440,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	defs []phases.Definition,
 	failFast bool,
 	emit ExecutionEventCallback,
+	warnings map[string][]phases.Observation,
 ) ([]PhaseExecutionResult, bool) {
 	if len(defs) == 0 {
 		return nil, false
@@ -454,7 +461,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 			})
 		}
 
-		phaseResult := o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit)
+		phaseResult := o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, warnings[phase.Name.Key()])
 
 		// Emit phase end event
 		if emit != nil {
@@ -573,9 +580,14 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environmen
 	return defs, nil
 }
 
-func selectPhases(defs []phases.Definition, presets map[string][]string, req SuiteExecutionRequest) ([]phases.Definition, string, error) {
+type phaseSelectionNotices struct {
+	Skipped  []phaseDisableNotice
+	Explicit []phaseDisableNotice
+}
+
+func selectPhases(defs []phases.Definition, presets map[string][]string, req SuiteExecutionRequest, toggles PhaseToggleConfig) ([]phases.Definition, string, phaseSelectionNotices, error) {
 	if len(defs) == 0 {
-		return nil, "", nil
+		return nil, "", phaseSelectionNotices{}, nil
 	}
 	index := make(map[string]phases.Definition, len(defs))
 	for _, def := range defs {
@@ -584,13 +596,29 @@ func selectPhases(defs []phases.Definition, presets map[string][]string, req Sui
 
 	desired, presetUsed, err := resolveDesiredPhaseList(req, presets)
 	if err != nil {
-		return nil, "", err
+		return nil, "", phaseSelectionNotices{}, err
 	}
 
+	var notices phaseSelectionNotices
 	var resolved []phases.Definition
+	isDisabled := func(name string) (PhaseToggle, bool) {
+		if toggles.Phases == nil {
+			return PhaseToggle{}, false
+		}
+		toggle, ok := toggles.Phases[name]
+		return toggle, ok && toggle.Disabled
+	}
+
 	if len(desired) == 0 {
-		resolved = append(resolved, defs...)
+		for _, def := range defs {
+			if toggle, disabled := isDisabled(def.Name.Key()); disabled {
+				notices.Skipped = append(notices.Skipped, phaseDisableNotice{Name: def.Name.String(), Toggle: toggle})
+				continue
+			}
+			resolved = append(resolved, def)
+		}
 	} else {
+		explicitRequest := len(req.Phases) > 0
 		for _, phase := range desired {
 			normalized := normalizePhaseName(phase)
 			if normalized == "" {
@@ -598,13 +626,20 @@ func selectPhases(defs []phases.Definition, presets map[string][]string, req Sui
 			}
 			def, ok := index[normalized]
 			if !ok {
-				return nil, "", shared.NewValidationError(fmt.Sprintf("phase '%s' is not defined", phase))
+				return nil, "", phaseSelectionNotices{}, shared.NewValidationError(fmt.Sprintf("phase '%s' is not defined", phase))
+			}
+			if toggle, disabled := isDisabled(def.Name.Key()); disabled && !explicitRequest {
+				notices.Skipped = append(notices.Skipped, phaseDisableNotice{Name: def.Name.String(), Toggle: toggle})
+				continue
+			}
+			if toggle, disabled := isDisabled(def.Name.Key()); disabled && explicitRequest {
+				notices.Explicit = append(notices.Explicit, phaseDisableNotice{Name: def.Name.String(), Toggle: toggle})
 			}
 			resolved = append(resolved, def)
 		}
 	}
 
-	return applySkipFilters(resolved, req.Skip), presetUsed, nil
+	return applySkipFilters(resolved, req.Skip), presetUsed, notices, nil
 }
 
 func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
@@ -622,7 +657,7 @@ func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
 	}
 }
 
-func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition) PhaseExecutionResult {
+func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, preObservations []phases.Observation) PhaseExecutionResult {
 	start := time.Now()
 	logPath := filepath.Join(runLogDir, fmt.Sprintf("%s.log", def.Name.String()))
 	logFile, err := os.Create(logPath)
@@ -647,6 +682,14 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Envir
 
 	if env.AppRoot == "" {
 		env.AppRoot = workspacepkg.AppRootFromScenario(env.ScenarioDir)
+	}
+
+	if len(preObservations) > 0 {
+		for _, obs := range preObservations {
+			if obsStr := obs.String(); obsStr != "" {
+				_, _ = fmt.Fprintln(logFile, obsStr)
+			}
+		}
 	}
 
 	report := def.Runner(phaseCtx, env, logFile)
@@ -684,7 +727,7 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Envir
 		logPath = relLog
 	}
 
-	return PhaseExecutionResult{
+	result := PhaseExecutionResult{
 		Name:            def.Name.String(),
 		Status:          status,
 		DurationSeconds: duration,
@@ -694,10 +737,14 @@ func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Envir
 		Remediation:     remediation,
 		Observations:    report.Observations,
 	}
+	if len(preObservations) > 0 {
+		result.Observations = append(preObservations, result.Observations...)
+	}
+	return result
 }
 
 // runPhaseWithEvents is like runPhase but emits observation events during execution.
-func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, emit ExecutionEventCallback) PhaseExecutionResult {
+func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, emit ExecutionEventCallback, preObservations []phases.Observation) PhaseExecutionResult {
 	start := time.Now()
 	logPath := filepath.Join(runLogDir, fmt.Sprintf("%s.log", def.Name.String()))
 	logFile, err := os.Create(logPath)
@@ -731,6 +778,14 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 			underlying: logFile,
 			emit:       emit,
 			phase:      def.Name.String(),
+		}
+	}
+
+	if len(preObservations) > 0 {
+		for _, obs := range preObservations {
+			if obsStr := obs.String(); obsStr != "" {
+				_, _ = fmt.Fprintln(logWriter, obsStr)
+			}
 		}
 	}
 
@@ -772,7 +827,7 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 		logPath = relLog
 	}
 
-	return PhaseExecutionResult{
+	result := PhaseExecutionResult{
 		Name:            def.Name.String(),
 		Status:          status,
 		DurationSeconds: duration,
@@ -782,6 +837,10 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 		Remediation:     remediation,
 		Observations:    report.Observations,
 	}
+	if len(preObservations) > 0 {
+		result.Observations = append(preObservations, result.Observations...)
+	}
+	return result
 }
 
 func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID string, startedAt, completedAt time.Time, results []PhaseExecutionResult) error {
@@ -990,6 +1049,50 @@ func (o *SuiteOrchestrator) DescribePhases() []phases.Descriptor {
 	return o.catalog.Descriptors()
 }
 
+// GlobalPhaseToggles returns the persisted global phase toggle configuration.
+func (o *SuiteOrchestrator) GlobalPhaseToggles() (PhaseToggleConfig, error) {
+	if o == nil || o.phaseToggles == nil {
+		return PhaseToggleConfig{Phases: map[string]PhaseToggle{}}, nil
+	}
+	return o.phaseToggles.Load()
+}
+
+// SaveGlobalPhaseToggles persists the provided toggle configuration, preserving
+// the original AddedAt timestamp when a phase remains disabled.
+func (o *SuiteOrchestrator) SaveGlobalPhaseToggles(cfg PhaseToggleConfig) (PhaseToggleConfig, error) {
+	if o == nil || o.phaseToggles == nil {
+		return normalizePhaseToggleConfig(cfg, time.Now().UTC()), nil
+	}
+	current, err := o.phaseToggles.Load()
+	if err != nil {
+		return PhaseToggleConfig{}, err
+	}
+
+	now := time.Now().UTC()
+	normalized := normalizePhaseToggleConfig(cfg, now)
+	if normalized.Phases == nil {
+		normalized.Phases = map[string]PhaseToggle{}
+	}
+
+	for name, existing := range current.Phases {
+		updated, ok := normalized.Phases[name]
+		if !ok {
+			// Missing entries mean "enabled by default"—skip
+			continue
+		}
+		if updated.Disabled && updated.AddedAt.IsZero() {
+			if !existing.AddedAt.IsZero() {
+				updated.AddedAt = existing.AddedAt
+			} else {
+				updated.AddedAt = now
+			}
+		}
+		normalized.Phases[name] = updated
+	}
+
+	return o.phaseToggles.Save(normalized)
+}
+
 func (o *SuiteOrchestrator) applyTestingConfig(defs []phases.Definition, cfg *workspacepkg.Config) []phases.Definition {
 	if cfg == nil || len(cfg.Phases) == 0 {
 		return defs
@@ -1110,4 +1213,57 @@ func applySkipFilters(selected []phases.Definition, skip []string) []phases.Defi
 		filtered = append(filtered, def)
 	}
 	return filtered
+}
+
+func buildPlanWarnings(plan *phasePlan) []string {
+	if plan == nil {
+		return nil
+	}
+	var warnings []string
+	for _, notice := range plan.DisabledByDefault {
+		warnings = append(warnings, formatSkipWarning(notice))
+	}
+	for _, notice := range plan.ExplicitDisabled {
+		warnings = append(warnings, formatExplicitWarning(notice))
+	}
+	return warnings
+}
+
+func buildPhaseWarningMap(plan *phasePlan) map[string][]phases.Observation {
+	warnings := make(map[string][]phases.Observation)
+	if plan == nil {
+		return warnings
+	}
+	for _, notice := range plan.ExplicitDisabled {
+		text := formatExplicitWarning(notice)
+		warnings[normalizePhaseName(notice.Name)] = []phases.Observation{phases.NewWarningObservation(text)}
+	}
+	return warnings
+}
+
+func formatSkipWarning(notice phaseDisableNotice) string {
+	base := fmt.Sprintf("Phase '%s' is globally disabled and was skipped by default.", notice.Name)
+	return base + formatToggleContext(notice.Toggle)
+}
+
+func formatExplicitWarning(notice phaseDisableNotice) string {
+	base := fmt.Sprintf("Phase '%s' is globally disabled but was explicitly requested; results may be unstable.", notice.Name)
+	return base + formatToggleContext(notice.Toggle)
+}
+
+func formatToggleContext(toggle PhaseToggle) string {
+	var parts []string
+	if toggle.Reason != "" {
+		parts = append(parts, fmt.Sprintf("reason: %s", toggle.Reason))
+	}
+	if toggle.Owner != "" {
+		parts = append(parts, fmt.Sprintf("owner: %s", toggle.Owner))
+	}
+	if !toggle.AddedAt.IsZero() {
+		parts = append(parts, fmt.Sprintf("disabledAt: %s", toggle.AddedAt.UTC().Format("2006-01-02")))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return " (" + strings.Join(parts, "; ") + ")"
 }

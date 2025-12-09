@@ -8,7 +8,8 @@ export const DASHBOARD_TABS: DashboardTab[] = [
   { key: "dashboard", label: "Dashboard", description: "Quick actions and health overview" },
   { key: "runs", label: "Runs", description: "Scenarios and test history" },
   { key: "generate", label: "Generate", description: "AI-powered test generation" },
-  { key: "docs", label: "Docs", description: "Documentation browser" }
+  { key: "docs", label: "Docs", description: "Documentation browser" },
+  { key: "settings", label: "Settings", description: "Global phase toggles and safety rails" }
 ];
 
 export const RUNS_SUBTABS: RunsSubtab[] = [

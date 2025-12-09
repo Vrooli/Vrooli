@@ -32,10 +32,19 @@ type Response struct {
 	CompletedAt   string         `json:"completedAt"`
 	PhaseSummary  PhaseSummary   `json:"phaseSummary"`
 	Phases        []Phase        `json:"phases"`
+	Warnings      []string       `json:"warnings"`
 	Error         string         `json:"error"`
 	ErrorMessages []string       `json:"errors"`
 	Links         map[string]any `json:"links"`
 	Metadata      map[string]any `json:"metadata"`
+}
+
+// PhaseToggle mirrors the API payload for global phase toggles.
+type PhaseToggle struct {
+	Disabled bool   `json:"disabled"`
+	Reason   string `json:"reason,omitempty"`
+	Owner    string `json:"owner,omitempty"`
+	AddedAt  string `json:"addedAt,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.

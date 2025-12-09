@@ -27,6 +27,7 @@ type Printer struct {
 	failFast             bool
 	descriptorMap        map[string]phases.Descriptor
 	targetDurationByKey  map[string]time.Duration
+	disabled             map[string]execTypes.PhaseToggle
 	streamedObservations bool // true if observations were already streamed via SSE (live output shown)
 }
 
@@ -39,8 +40,17 @@ func New(
 	requestedSkip []string,
 	failFast bool,
 	descriptors []phases.Descriptor,
+	toggles map[string]execTypes.PhaseToggle,
 ) *Printer {
 	descMap, targets := phases.MakeDescriptorMaps(descriptors)
+	disabled := make(map[string]execTypes.PhaseToggle)
+	for name, toggle := range toggles {
+		key := phases.NormalizeAlias(phases.NormalizeName(name))
+		if key == "" || !toggle.Disabled {
+			continue
+		}
+		disabled[key] = toggle
+	}
 	return &Printer{
 		w:                   w,
 		color:               NewColor(w),
@@ -51,6 +61,7 @@ func New(
 		failFast:            failFast,
 		descriptorMap:       descMap,
 		targetDurationByKey: targets,
+		disabled:            disabled,
 	}
 }
 
@@ -146,11 +157,15 @@ func (p *Printer) printPrePlan(phaseNames []string) {
 		target := p.targetDuration(name)
 		desc := p.lookupPhaseDescription(name)
 		doc := p.phaseDocHint(name)
+		disabled := p.disabled[phases.NormalizeAlias(phases.NormalizeName(name))]
 		targetText := ""
 		if target != "" {
 			targetText = fmt.Sprintf("(±%s)", target)
 		}
 		line := fmt.Sprintf("  [%d/%d] %-14s %-10s", idx+1, len(phaseNames), name, targetText)
+		if disabled.Disabled {
+			line += " [globally disabled]"
+		}
 		if desc != "" {
 			line = fmt.Sprintf("%s → %s", line, desc)
 		}

@@ -138,6 +138,7 @@ func TestApplyScenarioMetadataCopiesTags(t *testing.T) {
 }
 
 func TestScenarioDirectoryServiceDecoratesTestingCapabilities(t *testing.T) {
+	t.Setenv("TEST_GENIE_DISABLE", "1")
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
 	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
@@ -163,6 +164,7 @@ func TestScenarioDirectoryServiceDecoratesTestingCapabilities(t *testing.T) {
 }
 
 func TestScenarioDirectoryServiceRunScenarioTests(t *testing.T) {
+	t.Setenv("TEST_GENIE_DISABLE", "1")
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
 	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {

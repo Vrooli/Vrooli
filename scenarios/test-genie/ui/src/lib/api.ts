@@ -54,6 +54,27 @@ export interface PhaseExecutionResult {
   observations?: string[];
 }
 
+export interface PhaseDescriptor {
+  name: string;
+  optional: boolean;
+  description?: string;
+  source?: string;
+  defaultTimeoutSeconds?: number;
+}
+
+export interface PhaseToggle {
+  disabled: boolean;
+  reason?: string;
+  owner?: string;
+  addedAt?: string;
+}
+
+export interface PhaseSettingsResponse {
+  items: PhaseDescriptor[];
+  count: number;
+  toggles?: Record<string, PhaseToggle>;
+}
+
 export interface SuiteExecutionResult {
   executionId?: string;
   suiteRequestId?: string;
@@ -202,6 +223,25 @@ export async function triggerSuiteExecution(input: ExecuteSuiteInput): Promise<S
     body: JSON.stringify(input)
   });
   return parseResponse<SuiteExecutionResult>(res);
+}
+
+export async function fetchPhaseSettings(): Promise<PhaseSettingsResponse> {
+  const url = buildApiUrl("/phases/settings", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<PhaseSettingsResponse>(res);
+}
+
+export async function updatePhaseSettings(phases: Record<string, PhaseToggle>): Promise<PhaseSettingsResponse> {
+  const url = buildApiUrl("/phases/settings", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phases })
+  });
+  return parseResponse<PhaseSettingsResponse>(res);
 }
 
 export async function fetchScenarioSummaries(): Promise<ScenarioSummary[]> {

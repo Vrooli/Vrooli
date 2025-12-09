@@ -24,6 +24,8 @@ type Bootstrapped struct {
 
 type phaseCatalogProvider interface {
 	DescribePhases() []phases.Descriptor
+	GlobalPhaseToggles() (orchestrator.PhaseToggleConfig, error)
+	SaveGlobalPhaseToggles(orchestrator.PhaseToggleConfig) (orchestrator.PhaseToggleConfig, error)
 }
 
 // BuildDependencies wires the runtime config into the persistence + orchestrator services.

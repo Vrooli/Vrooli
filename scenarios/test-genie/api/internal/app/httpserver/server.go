@@ -70,6 +70,8 @@ type scenarioDirectory interface {
 
 type phaseCatalog interface {
 	DescribePhases() []phases.Descriptor
+	GlobalPhaseToggles() (orchestrator.PhaseToggleConfig, error)
+	SaveGlobalPhaseToggles(orchestrator.PhaseToggleConfig) (orchestrator.PhaseToggleConfig, error)
 }
 
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
@@ -141,6 +143,8 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/suite-requests", s.handleListSuiteRequests).Methods("GET")
 	apiRouter.HandleFunc("/suite-requests/{id}", s.handleGetSuiteRequest).Methods("GET")
 	apiRouter.HandleFunc("/phases", s.handleListPhases).Methods("GET")
+	apiRouter.HandleFunc("/phases/settings", s.handleGetPhaseSettings).Methods("GET")
+	apiRouter.HandleFunc("/phases/settings", s.handleUpdatePhaseSettings).Methods("PUT")
 	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
 	apiRouter.HandleFunc("/executions/stream", s.handleExecuteSuiteStream).Methods("POST")
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")

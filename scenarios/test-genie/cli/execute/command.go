@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"test-genie/cli/execute/report"
+	execTypes "test-genie/cli/internal/execute"
 	"test-genie/cli/internal/phases"
 )
 
@@ -33,15 +34,17 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 	}
 
 	var phaseDescriptors []phases.Descriptor
+	var phaseToggles map[string]execTypes.PhaseToggle
 	if desc, err := client.ListPhases(); err == nil {
-		phaseDescriptors = desc
+		phaseDescriptors = desc.Items
+		phaseToggles = desc.Toggles
 	} else {
 		fmt.Fprintf(os.Stderr, "Warning: unable to load phase catalog (%v)\n", err)
 	}
 	durationTargets := phases.TargetDurations(phaseDescriptors)
 
 	// Determine which phases will run (for pre-execution display)
-	progressPhases := planPhaseOrder(parsed.Phases, parsed.Skip, phaseDescriptors)
+	progressPhases := planPhaseOrder(parsed.Phases, parsed.Skip, phaseDescriptors, phaseToggles)
 
 	// Create printer early for pre-execution output
 	pr := report.New(
@@ -52,6 +55,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		parsed.Skip,
 		req.FailFast,
 		phaseDescriptors,
+		phaseToggles,
 	)
 
 	// Print header and test plan IMMEDIATELY (before API call)
@@ -178,7 +182,14 @@ func ParseArgs(args []string) (Args, error) {
 	return out, nil
 }
 
-func planPhaseOrder(requested, skip []string, descriptors []phases.Descriptor) []string {
+func planPhaseOrder(requested, skip []string, descriptors []phases.Descriptor, toggles map[string]execTypes.PhaseToggle) []string {
+	disabled := make(map[string]bool, len(toggles))
+	for name, toggle := range toggles {
+		if toggle.Disabled {
+			disabled[phases.NormalizeAlias(phases.NormalizeName(name))] = true
+		}
+	}
+
 	// If user requested explicit phases, honor their order first.
 	if len(requested) > 0 {
 		return phases.ApplySkip(requested, skip)
@@ -189,7 +200,18 @@ func planPhaseOrder(requested, skip []string, descriptors []phases.Descriptor) [
 	if len(ordered) == 0 {
 		ordered = phases.AllowedPhases
 	}
-	return phases.ApplySkip(ordered, skip)
+	var filtered []string
+	for _, name := range ordered {
+		key := phases.NormalizeAlias(phases.NormalizeName(name))
+		if key == "" {
+			continue
+		}
+		if disabled[key] {
+			continue
+		}
+		filtered = append(filtered, key)
+	}
+	return phases.ApplySkip(filtered, skip)
 }
 
 // PrintError displays a formatted error box with debugging hints.

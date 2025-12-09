@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
+	execTypes "test-genie/cli/internal/execute"
 	"test-genie/cli/internal/phases"
 )
 
@@ -91,19 +92,25 @@ func (c *Client) Run(req Request) (Response, []byte, error) {
 	return result, body, nil
 }
 
-// ListPhases retrieves the phase catalog from the server.
-func (c *Client) ListPhases() ([]phases.Descriptor, error) {
+type PhaseSettings struct {
+	Items   []phases.Descriptor              `json:"items"`
+	Toggles map[string]execTypes.PhaseToggle `json:"toggles"`
+}
+
+// ListPhases retrieves the phase catalog and toggle metadata from the server.
+func (c *Client) ListPhases() (PhaseSettings, error) {
+	var payload PhaseSettings
 	body, err := c.api.Get("/api/v1/phases", nil)
 	if err != nil {
-		return nil, err
-	}
-	var payload struct {
-		Items []phases.Descriptor `json:"items"`
+		return payload, err
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, fmt.Errorf("parse phase descriptors: %w", err)
+		return PhaseSettings{}, fmt.Errorf("parse phase descriptors: %w", err)
 	}
-	return payload.Items, nil
+	if payload.Toggles == nil {
+		payload.Toggles = map[string]execTypes.PhaseToggle{}
+	}
+	return payload, nil
 }
 
 // resolveBaseURL gets the base URL from the configured HTTP client.

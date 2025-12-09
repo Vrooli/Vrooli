@@ -80,7 +80,7 @@ function parseHash(hash: string): Partial<Pick<UIState, "activeTab" | "runsSubta
 
   if (parts.length > 0) {
     const tab = parts[0];
-    if (["dashboard", "runs", "generate", "docs"].includes(tab)) {
+    if (["dashboard", "runs", "generate", "docs", "settings"].includes(tab)) {
       result.activeTab = tab as DashboardTabKey;
     }
   }

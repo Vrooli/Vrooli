@@ -5,7 +5,7 @@
 import type { SuiteRequest, SuiteExecutionResult } from "./lib/api";
 
 // Navigation types
-export type DashboardTabKey = "dashboard" | "runs" | "generate" | "docs";
+export type DashboardTabKey = "dashboard" | "runs" | "generate" | "docs" | "settings";
 export type RunsSubtabKey = "scenarios" | "history";
 export type ScenarioDetailTabKey = "overview" | "requirements" | "history";
 

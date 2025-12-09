@@ -629,7 +629,7 @@ func TestSelectPhases(t *testing.T) {
 	}
 
 	t.Run("defaults to all phases when no hints provided", func(t *testing.T) {
-		selected, preset, err := selectPhases(defs, presets, SuiteExecutionRequest{})
+		selected, preset, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{}, PhaseToggleConfig{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -639,10 +639,13 @@ func TestSelectPhases(t *testing.T) {
 		if len(selected) != len(defs) {
 			t.Fatalf("expected %d phases, got %d", len(defs), len(selected))
 		}
+		if len(notices.Skipped) != 0 || len(notices.Explicit) != 0 {
+			t.Fatalf("expected no disabled notices, got %#v", notices)
+		}
 	})
 
 	t.Run("resolves presets case-insensitively", func(t *testing.T) {
-		selected, preset, err := selectPhases(defs, presets, SuiteExecutionRequest{Preset: "Quick"})
+		selected, preset, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{Preset: "Quick"}, PhaseToggleConfig{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -652,17 +655,20 @@ func TestSelectPhases(t *testing.T) {
 		if len(selected) != 2 || selected[0].Name != PhaseStructure || selected[1].Name != PhaseUnit {
 			t.Fatalf("unexpected preset selection: %#v", selected)
 		}
+		if len(notices.Skipped) != 0 {
+			t.Fatalf("expected no skipped phases, got %#v", notices.Skipped)
+		}
 	})
 
 	t.Run("errors when requested phase missing", func(t *testing.T) {
-		_, _, err := selectPhases(defs, presets, SuiteExecutionRequest{Phases: []string{"structure", "invalid"}})
+		_, _, _, err := selectPhases(defs, presets, SuiteExecutionRequest{Phases: []string{"structure", "invalid"}}, PhaseToggleConfig{})
 		if err == nil {
 			t.Fatalf("expected error for invalid phase selection")
 		}
 	})
 
 	t.Run("applies skip list", func(t *testing.T) {
-		selected, _, err := selectPhases(defs, presets, SuiteExecutionRequest{Skip: []string{"dependencies"}})
+		selected, _, _, err := selectPhases(defs, presets, SuiteExecutionRequest{Skip: []string{"dependencies"}}, PhaseToggleConfig{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -670,6 +676,48 @@ func TestSelectPhases(t *testing.T) {
 			if def.Name == PhaseDependencies {
 				t.Fatalf("dependency phase should have been skipped")
 			}
+		}
+	})
+
+	t.Run("honors global disabled phases", func(t *testing.T) {
+		toggles := PhaseToggleConfig{
+			Phases: map[string]PhaseToggle{
+				"unit": {Disabled: true, Reason: "flaky"},
+			},
+		}
+		selected, preset, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{}, toggles)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if preset != "" {
+			t.Fatalf("expected empty preset usage, got %s", preset)
+		}
+		if len(selected) != 2 {
+			t.Fatalf("expected 2 phases after disabling unit, got %d", len(selected))
+		}
+		if len(notices.Skipped) != 1 || notices.Skipped[0].Name != "unit" {
+			t.Fatalf("expected unit to be skipped with notice, got %#v", notices)
+		}
+	})
+
+	t.Run("allows explicitly requesting disabled phases with notice", func(t *testing.T) {
+		toggles := PhaseToggleConfig{
+			Phases: map[string]PhaseToggle{
+				"unit": {Disabled: true, Reason: "investigating"},
+			},
+		}
+		selected, preset, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{Phases: []string{"unit"}}, toggles)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if preset != "" {
+			t.Fatalf("expected empty preset usage, got %s", preset)
+		}
+		if len(selected) != 1 || selected[0].Name != PhaseUnit {
+			t.Fatalf("expected only unit to be selected, got %#v", selected)
+		}
+		if len(notices.Explicit) != 1 || notices.Explicit[0].Name != "unit" {
+			t.Fatalf("expected explicit notice for unit, got %#v", notices)
 		}
 	})
 }

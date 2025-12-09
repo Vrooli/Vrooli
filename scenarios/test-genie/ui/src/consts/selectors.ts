@@ -265,7 +265,8 @@ const literalSelectors: LiteralSelectorTree = {
     dashboard: "test-genie-tab-dashboard",
     runs: "test-genie-tab-runs",
     generate: "test-genie-tab-generate",
-    docs: "test-genie-tab-docs"
+    docs: "test-genie-tab-docs",
+    settings: "test-genie-tab-settings"
   },
   // Dashboard page
   dashboard: {
@@ -322,6 +323,13 @@ const literalSelectors: LiteralSelectorTree = {
     copyPath: "test-genie-docs-copy-path",
     searchInput: "test-genie-docs-search"
   },
+  // Settings page
+  settings: {
+    panel: "test-genie-settings-panel",
+    warning: "test-genie-settings-warning",
+    saveButton: "test-genie-settings-save",
+    resetButton: "test-genie-settings-reset"
+  },
   // Forms (used in Dashboard and Runs detail)
   forms: {
     queueForm: "test-genie-queue-form",
@@ -361,6 +369,7 @@ export const selectors = registry.selectors as unknown as {
     runs: string;
     generate: string;
     docs: string;
+    settings: string;
   };
   dashboard: {
     continueSection: string;
@@ -411,6 +420,12 @@ export const selectors = registry.selectors as unknown as {
     viewer: string;
     copyPath: string;
     searchInput: string;
+  };
+  settings: {
+    panel: string;
+    warning: string;
+    saveButton: string;
+    resetButton: string;
   };
   forms: {
     queueForm: string;

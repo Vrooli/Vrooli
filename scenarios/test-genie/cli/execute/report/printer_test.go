@@ -40,7 +40,7 @@ func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	pr := New(&buf, "demo-scenario", "", nil, nil, false, nil)
+	pr := New(&buf, "demo-scenario", "", nil, nil, false, nil, nil)
 	pr.Print(resp)
 
 	out := buf.String()
@@ -81,7 +81,7 @@ func TestPrintResultsCondensedReplay(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	pr := New(&buf, "demo", "", nil, nil, false, nil)
+	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
 	pr.SetStreamedObservations(true)
 	pr.PrintResults(resp)
 
@@ -106,7 +106,7 @@ func TestPrintResultsCondensedReplay(t *testing.T) {
 
 func TestPrintPrePlanShowsDocs(t *testing.T) {
 	var buf bytes.Buffer
-	pr := New(&buf, "demo", "", nil, nil, false, nil)
+	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
 	pr.PrintPreExecution([]string{"lint"})
 
 	out := buf.String()
@@ -141,7 +141,7 @@ func TestPassedPhaseWarningsAreSurfaced(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	pr := New(&buf, "demo", "", nil, nil, false, nil)
+	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
 	pr.Print(resp)
 
 	out := buf.String()

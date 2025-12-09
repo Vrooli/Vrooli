@@ -4,6 +4,7 @@ import { DashboardPage } from "./pages/Dashboard";
 import { RunsPage } from "./pages/Runs";
 import { GeneratePage } from "./pages/Generate";
 import { DocsPage } from "./pages/Docs";
+import { SettingsPage } from "./pages/Settings";
 import { useUIStore } from "./stores/uiStore";
 
 const queryClient = new QueryClient({
@@ -31,6 +32,7 @@ function AppContent() {
                 {activeTab === "runs" && "Scenarios and test history"}
                 {activeTab === "generate" && "AI-powered test generation"}
                 {activeTab === "docs" && "Documentation browser"}
+                {activeTab === "settings" && "Global phase toggles and safeguards"}
               </p>
             </div>
             <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
@@ -43,6 +45,7 @@ function AppContent() {
           {activeTab === "runs" && <RunsPage />}
           {activeTab === "generate" && <GeneratePage />}
           {activeTab === "docs" && <DocsPage />}
+          {activeTab === "settings" && <SettingsPage />}
         </main>
       </div>
     </div>
