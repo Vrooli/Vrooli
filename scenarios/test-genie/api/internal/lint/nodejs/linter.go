@@ -199,6 +199,7 @@ func (l *Linter) runTsc(ctx context.Context) *Result {
 	cmd.Dir = l.config.Dir
 
 	output, err := cmd.CombinedOutput()
+	rawOutput := string(output)
 
 	if err != nil {
 		// tsc exits with non-zero if there are errors
@@ -208,13 +209,14 @@ func (l *Linter) runTsc(ctx context.Context) *Result {
 
 		if len(issues) > 0 {
 			logNodeIssues(l.logWriter, issues, 20)
+			writeRawBlock(l.logWriter, "tsc raw output:", rawOutput)
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("Node: tsc found %d type error(s)", len(issues))))
 		} else {
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("tsc failed: %v", err)))
 			if len(output) > 0 {
-				shared.LogError(l.logWriter, "tsc output:\n%s", string(output))
+				writeRawBlock(l.logWriter, "tsc raw output:", rawOutput)
 			}
 		}
 		return result
@@ -287,6 +289,7 @@ func (l *Linter) runEslint(ctx context.Context) *Result {
 	cmd.Dir = l.config.Dir
 
 	output, err := cmd.Output()
+	rawOutput := output
 
 	// eslint exits with 1 if there are issues
 	if err != nil {
@@ -295,6 +298,7 @@ func (l *Linter) runEslint(ctx context.Context) *Result {
 				// Issues found, parse them
 				if len(output) == 0 {
 					output = exitErr.Stderr
+					rawOutput = exitErr.Stderr
 				}
 			} else if exitErr.ExitCode() == 2 {
 				// Configuration error
@@ -315,6 +319,9 @@ func (l *Linter) runEslint(ctx context.Context) *Result {
 			shared.NewSuccessObservation("Node: eslint found no issues"))
 	} else {
 		logNodeIssues(l.logWriter, issues, 20)
+		if len(rawOutput) > 0 {
+			writeRawBlock(l.logWriter, "eslint raw output:", string(rawOutput))
+		}
 		result.Observations = append(result.Observations,
 			shared.NewWarningObservation(fmt.Sprintf("Node: eslint found %d issue(s)", len(issues))))
 	}
@@ -411,4 +418,16 @@ func logNodeIssues(w io.Writer, issues []Issue, limit int) {
 	if len(issues) > limit {
 		shared.LogInfo(w, "... %d more issue(s) not shown", len(issues)-limit)
 	}
+}
+
+// writeRawBlock appends unstructured command output to the log without stream markers.
+func writeRawBlock(w io.Writer, header string, content string) {
+	if w == nil {
+		return
+	}
+	if strings.TrimSpace(content) == "" {
+		return
+	}
+	fmt.Fprintln(w, header)
+	fmt.Fprintln(w, content)
 }

@@ -771,14 +771,19 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 		env.AppRoot = workspacepkg.AppRootFromScenario(env.ScenarioDir)
 	}
 
-	// Create an observation-emitting writer that wraps the log file
+	// Create a writer that always captures full logs to disk, but only streams
+	// select lines as observations. MultiWriter duplicates writes so the stream
+	// path can stay minimal while the log captures everything.
 	var logWriter io.Writer = logFile
 	if emit != nil {
-		logWriter = &observationEmitter{
-			underlying: logFile,
-			emit:       emit,
-			phase:      def.Name.String(),
-		}
+		logWriter = io.MultiWriter(
+			logFile,
+			&observationEmitter{
+				underlying: io.Discard,
+				emit:       emit,
+				phase:      def.Name.String(),
+			},
+		)
 	}
 
 	if len(preObservations) > 0 {
@@ -947,27 +952,14 @@ func (e *observationEmitter) isSignificantLine(line string) bool {
 		return false
 	}
 
-	// Emit lines that contain progress indicators
+	// Only emit lines that use explicit structured markers intended for the stream.
+	// Raw command output still goes to the log file but will not be streamed.
 	significantPrefixes := []string{
-		"✅", "❌", "⚠️", "🔍", "✓", "✗",
-		"[SUCCESS]", "[ERROR]", "[WARNING]", "[INFO]",
-		"PASS", "FAIL", "ok ", "--- FAIL", "--- PASS",
-		"validated", "verified", "checking", "running",
+		"[SUCCESS]", "[ERROR]",
+		"✅", "❌", "🧪", "SECTION",
 	}
-	lower := strings.ToLower(trimmed)
 	for _, prefix := range significantPrefixes {
-		if strings.HasPrefix(trimmed, prefix) || strings.HasPrefix(lower, strings.ToLower(prefix)) {
-			return true
-		}
-	}
-
-	// Also emit lines with certain keywords
-	keywords := []string{
-		"passed", "failed", "error:", "success", "complete",
-		"directories validated", "files validated", "json files validated",
-	}
-	for _, kw := range keywords {
-		if strings.Contains(lower, kw) {
+		if strings.HasPrefix(trimmed, prefix) {
 			return true
 		}
 	}
