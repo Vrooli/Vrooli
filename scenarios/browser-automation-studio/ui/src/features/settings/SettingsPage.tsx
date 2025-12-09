@@ -60,10 +60,11 @@ import { BrandingTab } from './components/branding';
 import { WatermarkSettings } from '../execution/replay/WatermarkSettings';
 import { IntroCardSettings } from '../execution/replay/IntroCardSettings';
 import { OutroCardSettings } from '../execution/replay/OutroCardSettings';
+import { SessionProfilesTab } from './components/SessionProfilesTab';
 
 const ReplayPlayer = lazy(() => import('../execution/ReplayPlayer'));
 
-type SettingsTab = 'display' | 'replay' | 'branding' | 'workflow' | 'apikeys' | 'data';
+type SettingsTab = 'display' | 'replay' | 'branding' | 'workflow' | 'apikeys' | 'data' | 'sessions';
 
 const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
   { id: 'linear', label: 'Linear', description: 'Consistent motion between frames' },
@@ -297,6 +298,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNo
   { id: 'branding', label: 'Branding', icon: <ImageIcon size={18} />, description: 'Logos and backgrounds' },
   { id: 'workflow', label: 'Workflow Defaults', icon: <Wrench size={18} />, description: 'Default workflow settings' },
   { id: 'apikeys', label: 'API Keys', icon: <Key size={18} />, description: 'Manage API integrations' },
+  { id: 'sessions', label: 'Sessions', icon: <Clock size={18} />, description: 'Persist Playwright sessions' },
   { id: 'data', label: 'Data', icon: <Database size={18} />, description: 'Manage and clear data' },
 ];
 
@@ -1788,6 +1790,7 @@ function SettingsPage({ onBack }: SettingsPageProps) {
           {activeTab === 'branding' && <BrandingTab />}
           {activeTab === 'workflow' && renderWorkflowSettings()}
           {activeTab === 'apikeys' && renderApiKeysSettings()}
+          {activeTab === 'sessions' && <SessionProfilesTab />}
           {activeTab === 'data' && renderDataManagementSettings()}
         </div>
 

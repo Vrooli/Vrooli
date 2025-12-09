@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,6 +43,9 @@ type Handler struct {
 	recordingService  recording.RecordingServiceInterface
 	recordingsRoot    string
 	replayRenderer    replayRenderer
+	sessionProfiles   *recording.SessionProfileStore
+	activeSessions    map[string]string // sessionID -> profileID
+	activeSessionsMu  sync.Mutex
 	log               *logrus.Logger
 	upgrader          websocket.Upgrader
 	wsAllowAll        bool
@@ -88,6 +92,7 @@ type HandlerDeps struct {
 	RecordingService  recording.RecordingServiceInterface
 	RecordingsRoot    string
 	ReplayRenderer    replayRenderer
+	SessionProfiles   *recording.SessionProfileStore
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -101,6 +106,7 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
 	recordingService := recording.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
+	sessionProfiles := recording.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
@@ -132,6 +138,7 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 		RecordingService:  recordingService,
 		RecordingsRoot:    recordingsRoot,
 		ReplayRenderer:    replay.NewReplayRenderer(log, recordingsRoot),
+		SessionProfiles:   sessionProfiles,
 	}
 }
 
@@ -158,6 +165,8 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		recordingService:  deps.RecordingService,
 		recordingsRoot:    deps.RecordingsRoot,
 		replayRenderer:    deps.ReplayRenderer,
+		sessionProfiles:   deps.SessionProfiles,
+		activeSessions:    make(map[string]string),
 		log:               log,
 		wsAllowAll:        allowAllOrigins,
 		wsAllowedOrigins:  allowedCopy,

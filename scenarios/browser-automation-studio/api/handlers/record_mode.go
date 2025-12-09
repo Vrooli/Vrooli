@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	"github.com/vrooli/browser-automation-studio/services/recording"
 )
 
 // RecordedAction represents a single user action captured during recording.
@@ -83,12 +84,17 @@ type CreateRecordingSessionRequest struct {
 	ViewportHeight int `json:"viewport_height,omitempty"`
 	// Initial URL to navigate to (optional)
 	InitialURL string `json:"initial_url,omitempty"`
+	// Optional persisted session profile to load cookies/storage from
+	SessionProfileID string `json:"session_profile_id,omitempty"`
 }
 
 // CreateRecordingSessionResponse is the response after creating a recording session.
 type CreateRecordingSessionResponse struct {
-	SessionID string `json:"session_id"`
-	CreatedAt string `json:"created_at"`
+	SessionID          string `json:"session_id"`
+	CreatedAt          string `json:"created_at"`
+	SessionProfileID   string `json:"session_profile_id,omitempty"`
+	SessionProfileName string `json:"session_profile_name,omitempty"`
+	LastUsedAt         string `json:"last_used_at,omitempty"`
 }
 
 // CloseRecordingSessionRequest is the request body for closing a recording session.
@@ -270,6 +276,22 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		viewportHeight = 720
 	}
 
+	var profileID, profileName, profileLastUsed string
+	var storageState json.RawMessage
+	if h.sessionProfiles != nil {
+		profile, err := h.resolveSessionProfile(req.SessionProfileID)
+		if err != nil {
+			h.respondError(w, err)
+			return
+		}
+		if profile != nil {
+			profileID = profile.ID
+			profileName = profile.Name
+			profileLastUsed = profile.LastUsedAt.Format(time.RFC3339)
+			storageState = profile.StorageState
+		}
+	}
+
 	// Build request to playwright-driver
 	driverURL := fmt.Sprintf("%s/session/start", getPlaywrightDriverURL())
 
@@ -282,6 +304,10 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		"labels": map[string]string{
 			"purpose": "record-mode",
 		},
+	}
+	if len(storageState) > 0 {
+		// Pass through persisted storage state to reuse authentication
+		driverReq["storage_state"] = json.RawMessage(storageState)
 	}
 
 	jsonBody, err := json.Marshal(driverReq)
@@ -337,6 +363,16 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if profileID != "" && h.sessionProfiles != nil {
+		if updated, err := h.sessionProfiles.Touch(profileID); err != nil {
+			h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to update session profile usage")
+		} else if updated != nil {
+			profileName = updated.Name
+			profileLastUsed = updated.LastUsedAt.Format(time.RFC3339)
+		}
+		h.setActiveSessionProfile(driverResp.SessionID, profileID)
+	}
+
 	// If initial URL provided, navigate to it
 	if req.InitialURL != "" {
 		navURL := fmt.Sprintf("%s/session/%s/run", getPlaywrightDriverURL(), driverResp.SessionID)
@@ -360,8 +396,11 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := CreateRecordingSessionResponse{
-		SessionID: driverResp.SessionID,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		SessionID:          driverResp.SessionID,
+		CreatedAt:          time.Now().UTC().Format(time.RFC3339),
+		SessionProfileID:   profileID,
+		SessionProfileName: profileName,
+		LastUsedAt:         profileLastUsed,
 	}
 
 	if pb, err := protoconv.RecordingSessionToProto(response); err == nil && pb != nil {
@@ -383,6 +422,19 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 			"field": "sessionId",
 		}))
 		return
+	}
+
+	var storageState json.RawMessage
+	profileID := h.getActiveSessionProfile(sessionID)
+	if profileID != "" && h.sessionProfiles != nil {
+		if state, err := h.fetchSessionStorageState(ctx, sessionID); err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"session_id": sessionID,
+				"profile_id": profileID,
+			}).Warn("Failed to capture storage state before closing session")
+		} else {
+			storageState = state
+		}
 	}
 
 	// Call playwright-driver to close the session
@@ -421,6 +473,17 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		}))
 		return
 	}
+
+	if profileID != "" && h.sessionProfiles != nil && len(storageState) > 0 {
+		if _, err := h.sessionProfiles.SaveStorageState(profileID, storageState); err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"profile_id": profileID,
+				"session_id": sessionID,
+			}).Warn("Failed to persist session profile storage state")
+		}
+	}
+
+	h.clearActiveSessionProfile(sessionID)
 
 	h.respondSuccess(w, http.StatusOK, map[string]string{
 		"session_id": sessionID,
@@ -590,6 +653,10 @@ func (h *Handler) StopLiveRecording(w http.ResponseWriter, r *http.Request) {
 			"error": "Failed to parse driver response",
 		}))
 		return
+	}
+
+	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile after stop")
 	}
 
 	if pb, err := protoconv.StopRecordingToProto(driverResp); err == nil && pb != nil {
@@ -820,6 +887,10 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 			"error": "No actions to convert to workflow",
 		}))
 		return
+	}
+
+	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile before workflow generation")
 	}
 
 	// Convert actions to workflow nodes
@@ -1877,4 +1948,153 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// PersistRecordingSession handles POST /api/v1/recordings/live/{sessionId}/persist
+// Captures current storage state and saves it to the active session profile without closing the session.
+func (h *Handler) PersistRecordingSession(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	if err := h.persistSessionProfile(ctx, sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to persist session profile")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]string{
+		"status":     "persisted",
+		"session_id": sessionID,
+	})
+}
+
+func (h *Handler) resolveSessionProfile(requestedID string) (*recording.SessionProfile, *APIError) {
+	if h == nil || h.sessionProfiles == nil {
+		return nil, nil
+	}
+
+	id := strings.TrimSpace(requestedID)
+	if id != "" {
+		profile, err := h.sessionProfiles.Get(id)
+		if err != nil {
+			return nil, ErrExecutionNotFound.WithMessage("Session profile not found")
+		}
+		return profile, nil
+	}
+
+	profile, err := h.sessionProfiles.MostRecent()
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).Error("Failed to list session profiles")
+		}
+		return nil, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to load session profiles",
+		})
+	}
+
+	if profile != nil {
+		return profile, nil
+	}
+
+	profile, err = h.sessionProfiles.Create("")
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).Error("Failed to create default session profile")
+		}
+		return nil, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create session profile",
+		})
+	}
+	return profile, nil
+}
+
+func (h *Handler) setActiveSessionProfile(sessionID, profileID string) {
+	h.activeSessionsMu.Lock()
+	defer h.activeSessionsMu.Unlock()
+	if h.activeSessions == nil {
+		h.activeSessions = make(map[string]string)
+	}
+	if sessionID != "" && profileID != "" {
+		h.activeSessions[sessionID] = profileID
+	}
+}
+
+func (h *Handler) clearActiveSessionProfile(sessionID string) string {
+	h.activeSessionsMu.Lock()
+	defer h.activeSessionsMu.Unlock()
+	if h.activeSessions == nil {
+		return ""
+	}
+	profileID := h.activeSessions[sessionID]
+	delete(h.activeSessions, sessionID)
+	return profileID
+}
+
+func (h *Handler) getActiveSessionProfile(sessionID string) string {
+	h.activeSessionsMu.Lock()
+	defer h.activeSessionsMu.Unlock()
+	if h.activeSessions == nil {
+		return ""
+	}
+	return h.activeSessions[sessionID]
+}
+
+func (h *Handler) fetchSessionStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
+	driverURL := fmt.Sprintf("%s/session/%s/storage-state", getPlaywrightDriverURL(), sessionID)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, driverURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build storage state request: %w", err)
+	}
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request storage state: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("driver returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var payload struct {
+		StorageState json.RawMessage `json:"storage_state"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("parse storage state: %w", err)
+	}
+	return payload.StorageState, nil
+}
+
+func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) error {
+	if h.sessionProfiles == nil {
+		return nil
+	}
+	profileID := h.getActiveSessionProfile(sessionID)
+	if profileID == "" {
+		return nil
+	}
+
+	state, err := h.fetchSessionStorageState(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if len(state) == 0 {
+		return nil
+	}
+
+	_, err = h.sessionProfiles.SaveStorageState(profileID, state)
+	return err
 }

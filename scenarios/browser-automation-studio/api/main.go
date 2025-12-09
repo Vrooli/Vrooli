@@ -186,6 +186,12 @@ func main() {
 		r.Get("/scenarios", handler.ListScenarios)
 		r.Get("/scenarios/{name}/port", handler.GetScenarioPort)
 
+		// Recording session profiles
+		r.Get("/recordings/sessions", handler.ListRecordingSessionProfiles)
+		r.Post("/recordings/sessions", handler.CreateRecordingSessionProfile)
+		r.Patch("/recordings/sessions/{profileId}", handler.UpdateRecordingSessionProfile)
+		r.Delete("/recordings/sessions/{profileId}", handler.DeleteRecordingSessionProfile)
+
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
@@ -223,6 +229,7 @@ func main() {
 		r.Post("/recordings/live/{sessionId}/generate-workflow", handler.GenerateWorkflowFromRecording)
 		r.Post("/recordings/live/{sessionId}/validate-selector", handler.ValidateSelector)
 		r.Post("/recordings/live/{sessionId}/replay-preview", handler.ReplayRecordingPreview)
+		r.Post("/recordings/live/{sessionId}/persist", handler.PersistRecordingSession)
 
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)

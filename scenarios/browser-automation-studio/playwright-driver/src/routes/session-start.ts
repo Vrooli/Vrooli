@@ -30,6 +30,7 @@ export async function handleSessionStart(
       base_url: request.base_url,
       labels: request.labels,
       required_capabilities: request.required_capabilities,
+      storage_state: request.storage_state,
     };
 
     logger.info('Starting session', {

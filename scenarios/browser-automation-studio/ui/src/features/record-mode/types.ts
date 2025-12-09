@@ -136,6 +136,15 @@ export interface RecordingState {
   startedAt?: string;
 }
 
+export interface RecordingSessionProfile {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt: string;
+  hasStorageState: boolean;
+}
+
 /**
  * Response from start recording endpoint.
  */

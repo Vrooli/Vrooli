@@ -5,6 +5,7 @@ import { logger } from '@/utils/logger';
 interface UseRecordingSessionOptions {
   initialSessionId: string | null;
   onSessionReady?: (sessionId: string) => void;
+  initialSessionProfileId?: string | null;
 }
 
 interface ViewportSize {
@@ -14,26 +15,31 @@ interface ViewportSize {
 
 interface UseRecordingSessionReturn {
   sessionId: string | null;
+  sessionProfileId: string | null;
   isCreatingSession: boolean;
   sessionError: string | null;
-  ensureSession: (viewport?: ViewportSize | null) => Promise<string | null>;
+  ensureSession: (viewport?: ViewportSize | null, profileId?: string | null) => Promise<string | null>;
+  setSessionProfileId: (profileId: string | null) => void;
   resetSessionError: () => void;
 }
 
 export function useRecordingSession({
   initialSessionId,
   onSessionReady,
+  initialSessionProfileId = null,
 }: UseRecordingSessionOptions): UseRecordingSessionReturn {
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId ?? null);
+  const [sessionProfileId, setSessionProfileId] = useState<string | null>(initialSessionProfileId ?? null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     setSessionId(initialSessionId ?? null);
+    setSessionProfileId(initialSessionProfileId ?? null);
     setSessionError(null);
-  }, [initialSessionId]);
+  }, [initialSessionId, initialSessionProfileId]);
 
-  const ensureSession = useCallback(async (viewport?: ViewportSize | null): Promise<string | null> => {
+  const ensureSession = useCallback(async (viewport?: ViewportSize | null, profileId?: string | null): Promise<string | null> => {
     if (sessionId) {
       return sessionId;
     }
@@ -49,6 +55,7 @@ export function useRecordingSession({
         body: JSON.stringify({
           viewport_width: viewport?.width && viewport.width > 0 ? Math.round(viewport.width) : 1280,
           viewport_height: viewport?.height && viewport.height > 0 ? Math.round(viewport.height) : 720,
+          session_profile_id: profileId ?? sessionProfileId ?? undefined,
         }),
       });
 
@@ -58,13 +65,16 @@ export function useRecordingSession({
       }
 
       const data = await response.json();
-      const newSessionId = data.session_id;
+      const newSessionId = data.session_id as string | undefined;
 
       if (!newSessionId) {
         throw new Error('No session ID returned from server');
       }
 
       setSessionId(newSessionId);
+      if (data.session_profile_id) {
+        setSessionProfileId(data.session_profile_id as string);
+      }
       if (onSessionReady) {
         onSessionReady(newSessionId);
       }
@@ -77,15 +87,17 @@ export function useRecordingSession({
     } finally {
       setIsCreatingSession(false);
     }
-  }, [sessionId, onSessionReady]);
+  }, [sessionId, sessionProfileId, onSessionReady]);
 
   const resetSessionError = useCallback(() => setSessionError(null), []);
 
   return {
     sessionId,
+    sessionProfileId,
     isCreatingSession,
     sessionError,
     ensureSession,
+    setSessionProfileId,
     resetSessionError,
   };
 }

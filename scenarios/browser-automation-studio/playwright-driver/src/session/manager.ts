@@ -245,6 +245,14 @@ export class SessionManager {
   }
 
   /**
+   * Export the current storage state (cookies/localStorage/etc) for a session.
+   */
+  async getStorageState(sessionId: string): Promise<unknown> {
+    const session = this.getSession(sessionId);
+    return session.context.storageState();
+  }
+
+  /**
    * Update session activity timestamp without retrieving full session
    * Silently ignores non-existent sessions
    */

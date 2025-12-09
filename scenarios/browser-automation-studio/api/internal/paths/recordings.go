@@ -50,3 +50,44 @@ func ResolveRecordingsRoot(log *logrus.Logger) string {
 	}
 	return root
 }
+
+// ResolveSessionProfilesRoot returns an absolute path for storing persisted browser session profiles.
+func ResolveSessionProfilesRoot(log *logrus.Logger) string {
+	if value := strings.TrimSpace(os.Getenv("BAS_SESSION_PROFILES_ROOT")); value != "" {
+		if abs, err := filepath.Abs(value); err == nil {
+			return abs
+		}
+		if log != nil {
+			log.WithField("path", value).Warn("Using BAS_SESSION_PROFILES_ROOT without normalization")
+		}
+		return value
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		if log != nil {
+			log.WithError(err).Warn("Failed to resolve working directory for session profiles root; using relative default")
+		}
+		return filepath.Join("scenarios", scenarioRoot, "data", "session-profiles")
+	}
+
+	absCwd, err := filepath.Abs(cwd)
+	if err == nil {
+		for dir := absCwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+			parent := filepath.Dir(dir)
+			if filepath.Base(dir) == scenarioRoot && filepath.Base(parent) == "scenarios" {
+				root := filepath.Join(dir, "data", "session-profiles")
+				if abs, err := filepath.Abs(root); err == nil {
+					return abs
+				}
+				return root
+			}
+		}
+	}
+
+	root := filepath.Join(absCwd, "scenarios", scenarioRoot, "data", "session-profiles")
+	if abs, err := filepath.Abs(root); err == nil {
+		return abs
+	}
+	return root
+}

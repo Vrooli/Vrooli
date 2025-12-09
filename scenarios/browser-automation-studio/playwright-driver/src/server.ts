@@ -28,6 +28,7 @@ import {
   handleSessionRun,
   handleSessionReset,
   handleSessionClose,
+  handleSessionStorageState,
   handleRecordStart,
   handleRecordStop,
   handleRecordStatus,
@@ -132,6 +133,9 @@ async function main() {
           appLogger,
           metrics
         );
+      } else if (pathname.match(/^\/session\/[^/]+\/storage-state$/) && method === 'GET') {
+        const sessionId = pathname.split('/')[2];
+        await handleSessionStorageState(req, res, sessionId, sessionManager);
       } else if (pathname.match(/^\/session\/[^/]+\/reset$/) && method === 'POST') {
         const sessionId = pathname.split('/')[2];
         await handleSessionReset(req, res, sessionId, sessionManager);

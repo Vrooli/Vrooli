@@ -24,6 +24,7 @@ import {
 import type { ReplayPreviewResponse } from './types';
 import { usePreviewMode } from './hooks/usePreviewMode';
 import { useRecordingSession } from './hooks/useRecordingSession';
+import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode } from './hooks/useRecordMode';
 import { useSnapshotPreview } from './hooks/useSnapshotPreview';
 import { useTimelinePanel } from './hooks/useTimelinePanel';
@@ -47,11 +48,16 @@ export function RecordModePage({
   onSessionReady,
   onClose,
 }: RecordModePageProps) {
+  const sessionProfiles = useSessionProfiles();
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+
   const {
     sessionId,
+    sessionProfileId,
     isCreatingSession,
     sessionError,
     ensureSession,
+    setSessionProfileId,
     resetSessionError,
   } = useRecordingSession({ initialSessionId, onSessionReady });
   const [pendingStart, setPendingStart] = useState(false);
@@ -114,6 +120,32 @@ export function RecordModePage({
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
   useEffect(() => {
+    const maybeDefault = sessionProfileId ?? sessionProfiles.getDefaultProfileId();
+    if (!selectedProfileId && maybeDefault) {
+      setSelectedProfileId(maybeDefault);
+      setSessionProfileId(maybeDefault);
+    }
+  }, [selectedProfileId, sessionProfileId, sessionProfiles.getDefaultProfileId, setSessionProfileId]);
+
+  useEffect(() => {
+    if (sessionProfileId && sessionProfileId !== selectedProfileId) {
+      setSelectedProfileId(sessionProfileId);
+    }
+  }, [sessionProfileId, selectedProfileId]);
+
+  useEffect(() => {
+    if (
+      selectedProfileId &&
+      sessionProfiles.profiles.length > 0 &&
+      !sessionProfiles.profiles.some((p) => p.id === selectedProfileId)
+    ) {
+      const fallback = sessionProfiles.getDefaultProfileId();
+      setSelectedProfileId(fallback);
+      setSessionProfileId(fallback);
+    }
+  }, [selectedProfileId, sessionProfiles.getDefaultProfileId, sessionProfiles.profiles, setSessionProfileId]);
+
+  useEffect(() => {
     if (!previewUrl && lastActionUrl) {
       setPreviewUrl(lastActionUrl);
     }
@@ -135,7 +167,8 @@ export function RecordModePage({
 
     const syncPreviewToSession = async () => {
       try {
-        const activeSessionId = sessionId ?? (await ensureSession(previewViewport));
+        const activeSessionId =
+          sessionId ?? (await ensureSession(previewViewport, selectedProfileId ?? sessionProfileId ?? null));
         if (!activeSessionId || cancelled) return;
 
         const config = await getConfig();
@@ -157,7 +190,7 @@ export function RecordModePage({
       cancelled = true;
       abortController.abort();
     };
-  }, [sessionId, previewUrl, ensureSession, previewViewport]);
+  }, [sessionId, previewUrl, ensureSession, previewViewport, selectedProfileId, sessionProfileId]);
 
   useEffect(() => {
     if (!sessionId || !previewViewport || previewMode !== 'live') {
@@ -194,7 +227,7 @@ export function RecordModePage({
   const handleStartRecording = useCallback(async () => {
     setPendingStart(true);
     resetSessionError();
-    const ensuredSession = await ensureSession(previewViewport);
+    const ensuredSession = await ensureSession(previewViewport, selectedProfileId ?? sessionProfileId ?? null);
     if (!ensuredSession) {
       setPendingStart(false);
       return;
@@ -206,7 +239,7 @@ export function RecordModePage({
     } finally {
       setPendingStart(false);
     }
-  }, [ensureSession, resetSessionError, startRecording]);
+  }, [ensureSession, previewViewport, resetSessionError, startRecording, selectedProfileId, sessionProfileId]);
 
   const handleStopRecording = useCallback(async () => {
     try {
@@ -215,6 +248,53 @@ export function RecordModePage({
       console.error('Failed to stop recording:', err);
     }
   }, [stopRecording]);
+
+  const handleSelectSessionProfile = useCallback(
+    (profileId: string | null) => {
+      setSelectedProfileId(profileId);
+      setSessionProfileId(profileId);
+    },
+    [setSessionProfileId]
+  );
+
+  const handleCreateSessionProfile = useCallback(async () => {
+    const created = await sessionProfiles.create();
+    if (created) {
+      setSelectedProfileId(created.id);
+      setSessionProfileId(created.id);
+    }
+  }, [sessionProfiles, setSessionProfileId]);
+
+  // Flush session state when leaving the page or closing the tab
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const persist = async () => {
+      try {
+        const config = await getConfig();
+        const url = `${config.API_URL}/recordings/live/${sessionId}/persist`;
+        if (navigator.sendBeacon) {
+          const blob = new Blob([], { type: 'application/json' });
+          navigator.sendBeacon(url, blob);
+        } else {
+          await fetch(url, { method: 'POST', keepalive: true });
+        }
+      } catch (err) {
+        console.warn('Failed to persist session before unload', err);
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      void persist();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      void persist();
+    };
+  }, [sessionId]);
 
   const handleClearActions = useCallback(() => {
     clearActions();
@@ -313,6 +393,11 @@ export function RecordModePage({
             timelineWidth={timelineWidth}
             isResizingSidebar={isResizingSidebar}
             onResizeStart={handleSidebarResizeStart}
+            sessionProfiles={sessionProfiles.profiles}
+            sessionProfilesLoading={sessionProfiles.loading}
+            selectedSessionProfileId={selectedProfileId}
+            onSelectSessionProfile={handleSelectSessionProfile}
+            onCreateSessionProfile={handleCreateSessionProfile}
             onStartRecording={handleStartRecording}
             onStopRecording={handleStopRecording}
             onClearRequested={() => setShowClearConfirm(true)}

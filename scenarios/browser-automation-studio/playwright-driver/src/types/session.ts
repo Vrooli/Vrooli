@@ -116,6 +116,7 @@ export interface StartSessionRequest {
     viewport_width?: number;
     viewport_height?: number;
   };
+  storage_state?: SessionSpec['storage_state'];
 }
 
 export interface StartSessionResponse {
