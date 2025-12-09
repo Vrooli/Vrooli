@@ -52,8 +52,18 @@ deployment-manager analyze picker-wheel
 deployment-manager fitness picker-wheel --tier 2  # Desktop tier
 deployment-manager profiles list
 
+> The CLI is now implemented in Go using `packages/cli-core` for consistent cross-platform behavior. Install with `./packages/cli-core/install.sh scenarios/deployment-manager/cli --name deployment-manager` (or run the bundled `install.sh`). The legacy Bash CLI is preserved at `scenarios/deployment-manager/cli-old/` for reference only.
+
 # Run tests
 make test  # All phases: dependencies, structure, CLI, API, UI
+
+## CLI cheat sheet (agent-friendly)
+- Global output: prefix any command with `--json` or `--format table` (consumed once, applies to nested commands).
+- Discovery: `deployment-manager status`, `deployment-manager analyze <scenario>`, `deployment-manager fitness <scenario> --tier 3`.
+- Profiles: `profiles` (list), `profile create <name> <scenario> --tier <n>`, `profile export <id> --output /path`, `profile diff <id>`, `profile rollback <id> --version <n>`.
+- Swaps: `swaps list <scenario>`, `swaps analyze <from> <to>`, `swaps apply <profile> <from> <to> --show-fitness`.
+- Deployments: `deploy <profile> --dry-run`, `validate <profile> --verbose`, `estimate-cost <profile> --verbose`, `package <profile> --packager <scenario-to-*>`, `logs <profile> --level error --format table`.
+- Secrets: `secrets identify <profile>`, `secrets template <profile> --format env`, `secrets validate <profile>`.
 ```
 
 ## Architecture
@@ -61,7 +71,7 @@ make test  # All phases: dependencies, structure, CLI, API, UI
 **Stack**:
 - **API**: Go (orchestration, fitness scoring, profile management)
 - **UI**: React + TypeScript + Vite + TailwindCSS + shadcn + React Flow (graphs) + Recharts (metrics)
-- **CLI**: Bash wrapper calling API endpoints
+- **CLI**: Go + `packages/cli-core` (cross-platform binary; auto-discovers API base via lifecycle)
 - **Storage**: PostgreSQL (profiles, audit logs, fitness rules, swap database)
 - **Caching**: Redis (optional, for fitness score caching)
 - **Real-time**: WebSocket (deployment log streaming)
