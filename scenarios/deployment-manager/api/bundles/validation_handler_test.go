@@ -10,7 +10,7 @@ import (
 )
 
 func TestHandleValidateBundleAcceptsSampleManifest(t *testing.T) {
-	h := NewHandler(nil, func(msg string, fields map[string]interface{}) {})
+	h := NewHandler(nil, nil, func(msg string, fields map[string]interface{}) {})
 
 	samplePath := filepath.Join("..", "..", "..", "..", "docs", "deployment", "examples", "manifests", "desktop-happy.json")
 	data, err := os.ReadFile(samplePath)
@@ -29,7 +29,7 @@ func TestHandleValidateBundleAcceptsSampleManifest(t *testing.T) {
 }
 
 func TestHandleValidateBundleRejectsInvalidManifest(t *testing.T) {
-	h := NewHandler(nil, func(msg string, fields map[string]interface{}) {})
+	h := NewHandler(nil, nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/validate", bytes.NewReader([]byte(`{"schema_version":"v0.1"}`)))
 	rec := httptest.NewRecorder()

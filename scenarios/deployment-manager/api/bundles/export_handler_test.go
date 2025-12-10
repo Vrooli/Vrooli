@@ -96,7 +96,7 @@ func TestHandleExportBundle(t *testing.T) {
 	defer secretsServer.Close()
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"export-test-app","tier":"tier-2-desktop"}`))
 	rec := httptest.NewRecorder()
@@ -190,7 +190,7 @@ func TestHandleExportBundleChecksumConsistency(t *testing.T) {
 	defer secretsServer.Close()
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"checksum-test","include_secrets":false}`))
 	rec := httptest.NewRecorder()
@@ -220,7 +220,7 @@ func TestHandleExportBundleChecksumConsistency(t *testing.T) {
 }
 
 func TestHandleExportBundleInvalidJSON(t *testing.T) {
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader("not valid json{"))
 	rec := httptest.NewRecorder()
@@ -236,7 +236,7 @@ func TestHandleExportBundleInvalidJSON(t *testing.T) {
 }
 
 func TestHandleExportBundleMissingScenario(t *testing.T) {
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	tests := []struct {
 		name    string
@@ -319,7 +319,7 @@ func TestHandleExportBundleFiltersInfrastructureSecrets(t *testing.T) {
 	defer secretsServer.Close()
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"filter-test"}`))
 	rec := httptest.NewRecorder()
@@ -396,7 +396,7 @@ func TestHandleExportBundleDefaultTier(t *testing.T) {
 	defer secretsServer.Close()
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	// Request without tier - should default to tier-2-desktop
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/export", strings.NewReader(`{"scenario":"tier-test"}`))

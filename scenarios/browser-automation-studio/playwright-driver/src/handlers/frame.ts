@@ -1,8 +1,9 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { CompiledInstruction } from '../types';
+import type { Frame } from 'playwright';
 import { FrameSwitchParamsSchema } from '../types/instruction';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
-import { normalizeError, FrameNotFoundError } from '../utils';
+import { normalizeError, FrameNotFoundError, validateTimeout, validateParams } from '../utils';
 
 /**
  * Frame handler
@@ -24,11 +25,13 @@ export class FrameHandler extends BaseHandler {
     const { page, logger, sessionId } = context;
 
     try {
-      // Validate parameters
-      const params = FrameSwitchParamsSchema.parse(instruction.params);
+      // Hardened: Validate params object exists
+      const rawParams = validateParams(instruction.params, 'frame-switch');
+      const params = FrameSwitchParamsSchema.parse(rawParams);
 
       const action = params.action;
-      const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
+      // Hardened: Validate timeout bounds
+      const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'frame-switch');
 
       logger.debug('Frame operation', {
         sessionId,
@@ -37,9 +40,12 @@ export class FrameHandler extends BaseHandler {
         frameId: params.frameId,
       });
 
-      // Get session to access frame stack
-      // Note: Frame stack is stored in SessionState and passed via context
-      const frameStack = (context as any).frameStack || [];
+      // Hardened: Access frame stack with type safety
+      // Frame stack is stored in SessionState and passed via context
+      const frameStack: Frame[] = Array.isArray(context.frameStack) ? context.frameStack : [];
+      if (!Array.isArray(context.frameStack)) {
+        logger.warn('Frame stack not found in context, using empty stack', { sessionId });
+      }
 
       switch (action) {
         case 'enter': {

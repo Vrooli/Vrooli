@@ -1,3 +1,20 @@
+/**
+ * Instruction schemas
+ *
+ * Zod schemas for validating instruction parameters.
+ *
+ * STABILITY: VOLATILE (by design)
+ *
+ * This module evolves frequently as new instruction types are added.
+ * Changes here are expected and safe - each schema is independent.
+ *
+ * CHANGE AXIS: Adding New Instruction Types
+ * 1. Add Zod schema here (e.g., NewInstructionParamsSchema)
+ * 2. Export schema from this file
+ * 3. Create handler in handlers/ that uses the schema
+ * 4. Register handler in server.ts
+ */
+
 import { z } from 'zod';
 
 /**

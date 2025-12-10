@@ -44,9 +44,9 @@ func setupTestServer(t *testing.T) (*Server, sqlmock.Sqlmock) {
 		TelemetryHandler:    telemetry.NewHandler(logFn),
 		SecretsHandler:      secrets.NewHandler(profilesRepo, logFn),
 		DependenciesHandler: dependencies.NewHandler(logFn),
-		SwapsHandler:        swaps.NewHandler(logFn),
+		SwapsHandler:        swaps.NewHandler(profilesRepo, logFn),
 		DeploymentsHandler:  deployments.NewHandler(logFn),
-		BundlesHandler:      bundles.NewHandler(secrets.NewClient(), logFn),
+		BundlesHandler:      bundles.NewHandler(secrets.NewClient(), profilesRepo, logFn),
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 	}
 	srv.setupRoutes()

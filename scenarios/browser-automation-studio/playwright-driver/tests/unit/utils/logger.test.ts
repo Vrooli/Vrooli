@@ -64,8 +64,13 @@ describe('Logger', () => {
   });
 
   describe('logger singleton', () => {
-    it('should export a logger instance', () => {
-      expect(logger).toBeInstanceOf(winston.Logger);
+    it('should export a logger-like object', () => {
+      // Logger is a proxy that delegates to the actual winston.Logger instance
+      // We verify it has the expected methods rather than instanceof check
+      expect(typeof logger.info).toBe('function');
+      expect(typeof logger.error).toBe('function');
+      expect(typeof logger.warn).toBe('function');
+      expect(typeof logger.debug).toBe('function');
     });
 
     it('should have standard logging methods', () => {

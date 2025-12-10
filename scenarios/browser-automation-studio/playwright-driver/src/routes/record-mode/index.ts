@@ -1,0 +1,65 @@
+/**
+ * Record Mode Routes
+ *
+ * Public API for Record Mode functionality. This module re-exports all
+ * record mode handlers organized by responsibility:
+ *
+ * - recording-lifecycle: Start/stop/status/actions management
+ * - recording-validation: Selector validation and replay preview
+ * - recording-interaction: Browser interaction during recording
+ */
+
+// Types
+export type {
+  StartRecordingRequest,
+  StartRecordingResponse,
+  StopRecordingResponse,
+  RecordingStatusResponse,
+  ValidateSelectorRequest,
+  ValidateSelectorResponse,
+  ReplayPreviewRequest,
+  ReplayPreviewResponse,
+  NavigateRequest,
+  NavigateResponse,
+  ScreenshotRequest,
+  ScreenshotResponse,
+  InputRequest,
+  InputType,
+  PointerAction,
+  FrameResponse,
+  ViewportRequest,
+  ViewportResponse,
+} from './types';
+
+// Recording lifecycle handlers
+export {
+  handleRecordStart,
+  handleRecordStop,
+  handleRecordStatus,
+  handleRecordActions,
+} from './recording-lifecycle';
+
+// Recording validation handlers
+export {
+  handleValidateSelector,
+  handleReplayPreview,
+} from './recording-validation';
+
+// Recording interaction handlers
+export {
+  handleRecordNavigate,
+  handleRecordScreenshot,
+  handleRecordInput,
+  handleRecordFrame,
+  handleRecordViewport,
+} from './recording-interaction';
+
+// Cleanup utility
+import { removeRecordedActions } from '../../recording/buffer';
+
+/**
+ * Clean up action buffer for a session
+ */
+export function cleanupSessionRecording(sessionId: string): void {
+  removeRecordedActions(sessionId);
+}

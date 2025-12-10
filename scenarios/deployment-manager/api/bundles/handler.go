@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"deployment-manager/codesigning"
+	"deployment-manager/codesigning/generation"
+	"deployment-manager/profiles"
 	"deployment-manager/secrets"
 )
 
@@ -26,6 +29,7 @@ type MergeSecretsRequest struct {
 type AssembleBundleRequest struct {
 	Scenario       string `json:"scenario"`
 	Tier           string `json:"tier"`
+	ProfileID      string `json:"profile_id,omitempty"`
 	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
 }
 
@@ -33,6 +37,7 @@ type AssembleBundleRequest struct {
 type ExportBundleRequest struct {
 	Scenario       string `json:"scenario"`
 	Tier           string `json:"tier"`
+	ProfileID      string `json:"profile_id,omitempty"`
 	IncludeSecrets *bool  `json:"include_secrets,omitempty"`
 }
 
@@ -50,12 +55,31 @@ type ExportBundleResponse struct {
 // Handler handles bundle-related requests.
 type Handler struct {
 	secretsClient *secrets.Client
+	profileRepo   profiles.Repository
+	signingRepo   codesigning.Repository
+	signingGen    generation.Generator
 	log           func(string, map[string]interface{})
 }
 
 // NewHandler creates a new bundles handler.
-func NewHandler(secretsClient *secrets.Client, log func(string, map[string]interface{})) *Handler {
-	return &Handler{secretsClient: secretsClient, log: log}
+func NewHandler(secretsClient *secrets.Client, profileRepo profiles.Repository, log func(string, map[string]interface{})) *Handler {
+	return &Handler{
+		secretsClient: secretsClient,
+		profileRepo:   profileRepo,
+		signingGen:    generation.NewGenerator(nil),
+		log:           log,
+	}
+}
+
+// NewHandlerWithSigning creates a new bundles handler with signing support.
+func NewHandlerWithSigning(secretsClient *secrets.Client, profileRepo profiles.Repository, signingRepo codesigning.Repository, log func(string, map[string]interface{})) *Handler {
+	return &Handler{
+		secretsClient: secretsClient,
+		profileRepo:   profileRepo,
+		signingRepo:   signingRepo,
+		signingGen:    generation.NewGenerator(nil),
+		log:           log,
+	}
 }
 
 // ValidateBundle validates a desktop bundle manifest.
@@ -152,6 +176,30 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Apply swaps from profile if provided
+	if req.ProfileID != "" && h.profileRepo != nil {
+		profileSwaps, err := h.profileRepo.GetSwaps(ctx, req.ProfileID)
+		if err != nil && err != profiles.ErrNotFound {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to load profile swaps: %v"}`, err), http.StatusBadGateway)
+			return
+		}
+		if len(profileSwaps) > 0 {
+			h.applySwapsToManifest(manifest, profileSwaps)
+		}
+	}
+
+	// Apply signing config from profile if available
+	if req.ProfileID != "" {
+		if err := h.loadSigningConfig(ctx, req.ProfileID, manifest); err != nil {
+			h.log("warn", map[string]interface{}{
+				"msg":        "failed to load signing config, continuing without",
+				"profile_id": req.ProfileID,
+				"error":      err.Error(),
+			})
+			// Non-fatal: continue without signing config
+		}
+	}
+
 	if includeSecrets {
 		secretPlans, err := h.secretsClient.FetchBundleSecrets(ctx, req.Scenario, req.Tier)
 		if err != nil {
@@ -177,6 +225,18 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 		"schema":   "desktop.v0.1",
 		"manifest": manifest,
 	})
+}
+
+// applySwapsToManifest adds profile swaps to the manifest's swap list.
+func (h *Handler) applySwapsToManifest(manifest *Manifest, profileSwaps []profiles.Swap) {
+	for _, ps := range profileSwaps {
+		manifest.Swaps = append(manifest.Swaps, ManifestSwap{
+			Original:    ps.From,
+			Replacement: ps.To,
+			Reason:      ps.Reason,
+			Limitations: ps.Limitations,
+		})
+	}
 }
 
 // ExportBundle assembles and exports a signed bundle manifest with checksum.
@@ -206,6 +266,30 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"failed to build bundle","details":"%s"}`, err.Error()), http.StatusBadGateway)
 		return
+	}
+
+	// Apply swaps from profile if provided
+	if req.ProfileID != "" && h.profileRepo != nil {
+		profileSwaps, err := h.profileRepo.GetSwaps(ctx, req.ProfileID)
+		if err != nil && err != profiles.ErrNotFound {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to load profile swaps: %v"}`, err), http.StatusBadGateway)
+			return
+		}
+		if len(profileSwaps) > 0 {
+			h.applySwapsToManifest(manifest, profileSwaps)
+		}
+	}
+
+	// Apply signing config from profile if available
+	if req.ProfileID != "" {
+		if err := h.loadSigningConfig(ctx, req.ProfileID, manifest); err != nil {
+			h.log("warn", map[string]interface{}{
+				"msg":        "failed to load signing config, continuing without",
+				"profile_id": req.ProfileID,
+				"error":      err.Error(),
+			})
+			// Non-fatal: continue without signing config
+		}
 	}
 
 	if includeSecrets {
@@ -249,4 +333,134 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+// GenerateSigningConfigRequest is the request body for signing config generation.
+type GenerateSigningConfigRequest struct {
+	ProfileID    string   `json:"profile_id"`
+	Capabilities []string `json:"capabilities,omitempty"`
+}
+
+// GenerateSigningConfigResponse is the response for signing config generation.
+type GenerateSigningConfigResponse struct {
+	Status               string                                 `json:"status"`
+	ProfileID            string                                 `json:"profile_id"`
+	ElectronBuilderConfig map[string]interface{}                `json:"electron_builder_config,omitempty"`
+	Files                map[string]string                      `json:"files,omitempty"`
+	Message              string                                 `json:"message,omitempty"`
+}
+
+// GenerateSigningConfig generates electron-builder signing configuration and supporting files.
+// This endpoint takes a profile ID and generates the electron-builder config,
+// entitlements.plist, and notarize script based on the profile's signing settings.
+// POST /api/v1/bundles/signing-config
+func (h *Handler) GenerateSigningConfig(w http.ResponseWriter, r *http.Request) {
+	var req GenerateSigningConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"invalid JSON: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+
+	if req.ProfileID == "" {
+		http.Error(w, `{"error":"profile_id is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	// Check if signing repository is available
+	if h.signingRepo == nil {
+		http.Error(w, `{"error":"signing configuration not available"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	// Fetch signing config from repository
+	signingConfig, err := h.signingRepo.Get(ctx, req.ProfileID)
+	if err != nil {
+		h.log("error", map[string]interface{}{
+			"msg":        "failed to get signing config",
+			"profile_id": req.ProfileID,
+			"error":      err.Error(),
+		})
+		http.Error(w, `{"error":"failed to retrieve signing configuration"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if signingConfig == nil || !signingConfig.Enabled {
+		h.writeJSON(w, http.StatusOK, GenerateSigningConfigResponse{
+			Status:    "disabled",
+			ProfileID: req.ProfileID,
+			Message:   "Code signing is not enabled for this profile",
+		})
+		return
+	}
+
+	// Generate electron-builder config
+	ebConfig, err := generation.GenerateElectronBuilderJSON(signingConfig, nil)
+	if err != nil {
+		h.log("error", map[string]interface{}{
+			"msg":   "failed to generate electron-builder config",
+			"error": err.Error(),
+		})
+		http.Error(w, `{"error":"failed to generate electron-builder config"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Generate all supporting files (entitlements, notarize script)
+	generatedFiles, err := h.signingGen.GenerateAll(signingConfig)
+	if err != nil {
+		h.log("error", map[string]interface{}{
+			"msg":   "failed to generate signing files",
+			"error": err.Error(),
+		})
+		http.Error(w, `{"error":"failed to generate signing files"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Convert byte slices to strings for JSON response
+	files := make(map[string]string)
+	for path, content := range generatedFiles {
+		files[path] = string(content)
+	}
+
+	h.log("info", map[string]interface{}{
+		"msg":         "generated signing config",
+		"profile_id":  req.ProfileID,
+		"files_count": len(files),
+	})
+
+	h.writeJSON(w, http.StatusOK, GenerateSigningConfigResponse{
+		Status:               "generated",
+		ProfileID:            req.ProfileID,
+		ElectronBuilderConfig: ebConfig,
+		Files:                files,
+		Message:              fmt.Sprintf("Generated %d signing file(s)", len(files)),
+	})
+}
+
+// writeJSON writes a JSON response.
+func (h *Handler) writeJSON(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+// LoadSigningConfig loads signing configuration for a profile and applies it to the manifest.
+// This is called during AssembleBundle and ExportBundle when a profile has signing configured.
+func (h *Handler) loadSigningConfig(ctx context.Context, profileID string, manifest *Manifest) error {
+	if h.signingRepo == nil || profileID == "" {
+		return nil
+	}
+
+	signingConfig, err := h.signingRepo.Get(ctx, profileID)
+	if err != nil {
+		return fmt.Errorf("failed to load signing config: %w", err)
+	}
+
+	if signingConfig != nil && signingConfig.Enabled {
+		manifest.CodeSigning = signingConfig
+	}
+
+	return nil
 }

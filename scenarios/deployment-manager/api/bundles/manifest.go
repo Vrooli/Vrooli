@@ -1,18 +1,21 @@
 // Package bundles provides bundle validation, assembly, and secret merging.
 package bundles
 
+import "deployment-manager/codesigning"
+
 // Manifest mirrors the v0.1 desktop bundle schema enough for
 // lightweight validation without pulling in external schema validators.
 type Manifest struct {
-	SchemaVersion string            `json:"schema_version"`
-	Target        string            `json:"target"`
-	App           ManifestApp       `json:"app"`
-	IPC           ManifestIPC       `json:"ipc"`
-	Telemetry     ManifestTelemetry `json:"telemetry"`
-	Ports         *ManifestPorts    `json:"ports,omitempty"`
-	Swaps         []ManifestSwap    `json:"swaps,omitempty"`
-	Secrets       []ManifestSecret  `json:"secrets,omitempty"`
-	Services      []ServiceEntry    `json:"services"`
+	SchemaVersion string                     `json:"schema_version"`
+	Target        string                     `json:"target"`
+	App           ManifestApp                `json:"app"`
+	IPC           ManifestIPC                `json:"ipc"`
+	Telemetry     ManifestTelemetry          `json:"telemetry"`
+	Ports         *ManifestPorts             `json:"ports,omitempty"`
+	Swaps         []ManifestSwap             `json:"swaps,omitempty"`
+	Secrets       []ManifestSecret           `json:"secrets,omitempty"`
+	Services      []ServiceEntry             `json:"services"`
+	CodeSigning   *codesigning.SigningConfig `json:"code_signing,omitempty"`
 }
 
 // ManifestApp holds application metadata.
@@ -86,6 +89,7 @@ type ServiceEntry struct {
 	Type         string                   `json:"type"`
 	Description  string                   `json:"description"`
 	Binaries     map[string]ServiceBinary `json:"binaries"`
+	Build        *BuildConfig             `json:"build,omitempty"`
 	Env          map[string]string        `json:"env,omitempty"`
 	Secrets      []string                 `json:"secrets,omitempty"`
 	DataDirs     []string                 `json:"data_dirs,omitempty"`
@@ -98,6 +102,24 @@ type ServiceEntry struct {
 	Assets       []Asset                  `json:"assets,omitempty"`
 	GPU          *GPUConfig               `json:"gpu,omitempty"`
 	Critical     *bool                    `json:"critical,omitempty"`
+}
+
+// BuildConfig specifies how to compile a service binary when not pre-built.
+// This enables automatic cross-compilation during bundle packaging.
+type BuildConfig struct {
+	// Type is the build system: "go", "rust", "npm", "python", or "custom"
+	Type string `json:"type"`
+	// SourceDir is the relative path to the source code directory
+	SourceDir string `json:"source_dir"`
+	// EntryPoint is the build entry point (e.g., "./cmd/api" for Go, "src/main.rs" for Rust)
+	EntryPoint string `json:"entry_point,omitempty"`
+	// OutputPattern is the output path pattern with {{platform}} and {{ext}} placeholders
+	// e.g., "bin/{{platform}}/api{{ext}}" -> "bin/linux-x64/api" or "bin/win-x64/api.exe"
+	OutputPattern string `json:"output_pattern,omitempty"`
+	// Args are additional build arguments
+	Args []string `json:"args,omitempty"`
+	// Env are additional environment variables for the build
+	Env map[string]string `json:"env,omitempty"`
 }
 
 // ServiceBinary defines a platform-specific binary.

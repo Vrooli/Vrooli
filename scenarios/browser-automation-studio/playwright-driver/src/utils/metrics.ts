@@ -1,5 +1,14 @@
 import { Registry, Counter, Histogram, Gauge } from 'prom-client';
 
+/**
+ * Prometheus metrics for observability.
+ *
+ * Key metrics for operators to monitor:
+ * - playwright_driver_sessions: Current session load
+ * - playwright_driver_instruction_duration_ms: Instruction performance
+ * - playwright_driver_instruction_errors_total: Error rates by type
+ * - playwright_driver_recording_actions_total: Recording activity
+ */
 export class Metrics {
   private registry: Registry;
 
@@ -9,13 +18,23 @@ export class Metrics {
   public screenshotSize: Histogram<never>;
   public sessionDuration: Histogram<never>;
   public cleanupFailures: Counter<'operation'>;
+  /** Total recorded actions across all sessions */
+  public recordingActionsTotal: Counter<never>;
+  /** Active recording sessions */
+  public recordingSessionsActive: Gauge<never>;
+  /** Telemetry capture failures (screenshot, DOM) */
+  public telemetryFailures: Counter<'type'>;
+  /** Recording callback streaming failures */
+  public recordingCallbackFailures: Counter<'reason'>;
+  /** Circuit breaker state changes */
+  public circuitBreakerStateChanges: Counter<'session_id' | 'state'>;
 
   constructor() {
     this.registry = new Registry();
 
     this.sessionCount = new Gauge({
       name: 'playwright_driver_sessions',
-      help: 'Current number of sessions by state',
+      help: 'Current number of sessions by state (active, total, idle)',
       labelNames: ['state'] as const,
       registers: [this.registry],
     });
@@ -30,7 +49,7 @@ export class Metrics {
 
     this.instructionErrors = new Counter({
       name: 'playwright_driver_instruction_errors_total',
-      help: 'Total number of instruction errors',
+      help: 'Total number of instruction errors by type and error kind',
       labelNames: ['type', 'error_kind'] as const,
       registers: [this.registry],
     });
@@ -51,8 +70,41 @@ export class Metrics {
 
     this.cleanupFailures = new Counter({
       name: 'playwright_driver_cleanup_failures_total',
-      help: 'Total number of cleanup failures by operation type (page_close, context_close, tracing_stop, browser_close)',
+      help: 'Total number of cleanup failures by operation type (page_close, context_close, tracing_stop, browser_close, recording_stop)',
       labelNames: ['operation'] as const,
+      registers: [this.registry],
+    });
+
+    this.recordingActionsTotal = new Counter({
+      name: 'playwright_driver_recording_actions_total',
+      help: 'Total number of user actions recorded across all sessions',
+      registers: [this.registry],
+    });
+
+    this.recordingSessionsActive = new Gauge({
+      name: 'playwright_driver_recording_sessions_active',
+      help: 'Current number of sessions with active recording',
+      registers: [this.registry],
+    });
+
+    this.telemetryFailures = new Counter({
+      name: 'playwright_driver_telemetry_failures_total',
+      help: 'Total number of telemetry capture failures (screenshot, dom)',
+      labelNames: ['type'] as const,
+      registers: [this.registry],
+    });
+
+    this.recordingCallbackFailures = new Counter({
+      name: 'playwright_driver_recording_callback_failures_total',
+      help: 'Total number of recording callback streaming failures by reason (network, timeout, http_error)',
+      labelNames: ['reason'] as const,
+      registers: [this.registry],
+    });
+
+    this.circuitBreakerStateChanges = new Counter({
+      name: 'playwright_driver_circuit_breaker_state_changes_total',
+      help: 'Circuit breaker state changes for recording callbacks (opened, closed)',
+      labelNames: ['session_id', 'state'] as const,
       registers: [this.registry],
     });
   }

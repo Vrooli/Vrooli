@@ -1,6 +1,23 @@
 import winston from 'winston';
 import type { Config } from '../config';
 
+/**
+ * Log context categories for consistent signal prefixing.
+ * Use these to ensure logs are easily searchable and categorized.
+ */
+export const LogContext = {
+  SERVER: 'server',
+  SESSION: 'session',
+  BROWSER: 'browser',
+  INSTRUCTION: 'instruction',
+  RECORDING: 'recording',
+  CLEANUP: 'cleanup',
+  TELEMETRY: 'telemetry',
+  HEALTH: 'health',
+} as const;
+
+export type LogContextType = (typeof LogContext)[keyof typeof LogContext];
+
 export function createLogger(config: Config): winston.Logger {
   const format =
     config.logging.format === 'json'
@@ -39,8 +56,24 @@ let loggerInstance: winston.Logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-export const logger = loggerInstance;
+/**
+ * Logger proxy that always delegates to the current loggerInstance.
+ * This ensures that setLogger updates are reflected in all module imports.
+ */
+export const logger: winston.Logger = new Proxy({} as winston.Logger, {
+  get(_target, prop) {
+    return (loggerInstance as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});
 
 export function setLogger(newLogger: winston.Logger): void {
   loggerInstance = newLogger;
+}
+
+/**
+ * Create a scoped log message with consistent prefix.
+ * Example: scopedLog('session', 'created') => 'session: created'
+ */
+export function scopedLog(context: LogContextType, event: string): string {
+  return `${context}: ${event}`;
 }

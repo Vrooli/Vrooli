@@ -2,7 +2,11 @@ package shared
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 )
 
 // HTTPClient defines the interface for making HTTP requests.
@@ -25,4 +29,49 @@ func GetHTTPClient(ctx context.Context) HTTPClient {
 		return client
 	}
 	return http.DefaultClient
+}
+
+// GetScenarioDependencies fetches the resource dependencies for a scenario from the analyzer.
+func GetScenarioDependencies(ctx context.Context, scenario string) ([]string, error) {
+	baseURL, err := GetConfigResolver().ResolveAnalyzerURL()
+	if err != nil {
+		return nil, fmt.Errorf("resolve analyzer URL: %w", err)
+	}
+
+	target, err := url.Parse(fmt.Sprintf("%s/api/v1/analyze/%s", baseURL, url.PathEscape(scenario)))
+	if err != nil {
+		return nil, fmt.Errorf("build analyzer URL: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	res, err := GetHTTPClient(ctx).Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call analyzer: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<15))
+		return nil, fmt.Errorf("analyzer returned %d: %s", res.StatusCode, string(body))
+	}
+
+	// Parse the response to extract resource names
+	var response struct {
+		Resources []struct {
+			DependencyName string `json:"dependency_name"`
+		} `json:"resources"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("decode analyzer response: %w", err)
+	}
+
+	deps := make([]string, 0, len(response.Resources))
+	for _, r := range response.Resources {
+		deps = append(deps, r.DependencyName)
+	}
+	return deps, nil
 }

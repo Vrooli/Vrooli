@@ -1,7 +1,7 @@
 import { chromium, Browser } from 'playwright';
-import type { SessionSpec, SessionState } from '../types';
+import type { SessionSpec, SessionState, SessionPhase } from '../types';
 import type { Config } from '../config';
-import { logger, metrics, SessionNotFoundError, ResourceLimitError } from '../utils';
+import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
 import { buildContext } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { removeRecordedActions } from '../recording/buffer';
@@ -15,6 +15,11 @@ import { removeRecordedActions } from '../recording/buffer';
  * - Resource limit enforcement
  * - Idle timeout tracking
  * - Browser process management
+ *
+ * Hardened assumptions:
+ * - closeSession may be called concurrently (from idle cleanup and explicit requests)
+ * - Session cleanup must be idempotent
+ * - Browser may disconnect unexpectedly
  */
 export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
@@ -23,6 +28,9 @@ export class SessionManager {
 
   private browserVerified = false;
   private browserError: string | null = null;
+
+  /** Track sessions currently being closed to prevent double-close */
+  private closingSessionIds: Set<string> = new Set();
 
   constructor(config: Config) {
     this.config = config;
@@ -119,10 +127,17 @@ export class SessionManager {
 
   /**
    * Start a new session
+   *
+   * @returns Object with session ID and whether it was reused
    */
-  async startSession(spec: SessionSpec): Promise<string> {
+  async startSession(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date }> {
     // Check resource limits
     if (this.sessions.size >= this.config.session.maxConcurrent) {
+      logger.warn(scopedLog(LogContext.SESSION, 'resource limit reached'), {
+        maxSessions: this.config.session.maxConcurrent,
+        currentSessions: this.sessions.size,
+        hint: 'Close unused sessions or increase MAX_SESSIONS configuration',
+      });
       throw new ResourceLimitError(
         `Maximum concurrent sessions reached: ${this.config.session.maxConcurrent}`,
         { maxSessions: this.config.session.maxConcurrent, currentSessions: this.sessions.size }
@@ -133,9 +148,11 @@ export class SessionManager {
     if (spec.reuse_mode !== 'fresh') {
       const existingSession = this.findReusableSession(spec);
       if (existingSession) {
-        logger.info('session: reusing existing', {
+        logger.info(scopedLog(LogContext.SESSION, 'reusing existing'), {
           sessionId: existingSession.id,
           reuseMode: spec.reuse_mode,
+          previousPhase: existingSession.phase,
+          instructionCount: existingSession.instructionCount,
         });
 
         if (spec.reuse_mode === 'clean') {
@@ -143,13 +160,23 @@ export class SessionManager {
         }
 
         existingSession.lastUsedAt = new Date();
+        existingSession.phase = 'ready';
         metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-        return existingSession.id;
+        return { sessionId: existingSession.id, reused: true, createdAt: existingSession.createdAt };
       }
     }
 
     // Create new session
     const sessionId = uuidv4();
+    const createdAt = new Date();
+
+    logger.info(scopedLog(LogContext.SESSION, 'initializing'), {
+      sessionId,
+      executionId: spec.execution_id,
+      reuseMode: spec.reuse_mode,
+      viewport: spec.viewport,
+    });
+
     const browser = await this.getBrowser();
 
     // Build context
@@ -164,16 +191,17 @@ export class SessionManager {
 
     // Log page errors (warn level - these are important signals for debugging)
     page.on('pageerror', (err) => {
-      logger.warn('page: error', {
+      logger.warn(scopedLog(LogContext.BROWSER, 'page error'), {
         sessionId,
         error: err.message,
+        hint: 'Check the page JavaScript for errors that may affect automation',
       });
     });
 
     // Log console errors (warn level - only errors, not all console output)
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
-        logger.warn('page: console error', {
+        logger.warn(scopedLog(LogContext.BROWSER, 'console error'), {
           sessionId,
           text: msg.text(),
         });
@@ -190,13 +218,15 @@ export class SessionManager {
       context,
       page,
       spec,
-      createdAt: new Date(),
+      createdAt,
       lastUsedAt: new Date(),
       tracing: !!tracePath,
       video: !!videoDir,
       harPath,
       tracePath,
       videoDir,
+      phase: 'ready',
+      instructionCount: 0,
       frameStack: [],
       pages: [page],
       currentPageIndex: 0,
@@ -205,10 +235,10 @@ export class SessionManager {
 
     this.sessions.set(sessionId, session);
 
-    logger.info('session: created', {
+    logger.info(scopedLog(LogContext.SESSION, 'ready'), {
       sessionId,
       executionId: spec.execution_id,
-      reuseMode: spec.reuse_mode,
+      phase: 'ready',
       totalSessions: this.sessions.size,
       viewport: spec.viewport,
     });
@@ -217,7 +247,7 @@ export class SessionManager {
     metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
     metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
 
-    return sessionId;
+    return { sessionId, reused: false, createdAt };
   }
 
   /**
@@ -253,12 +283,88 @@ export class SessionManager {
   }
 
   /**
+   * Update session phase.
+   * Used to track session lifecycle transitions for observability.
+   */
+  setSessionPhase(sessionId: string, phase: SessionPhase): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      const previousPhase = session.phase;
+      session.phase = phase;
+      logger.debug(scopedLog(LogContext.SESSION, 'phase transition'), {
+        sessionId,
+        from: previousPhase,
+        to: phase,
+      });
+    }
+  }
+
+  /**
+   * Increment instruction count for a session.
+   * Called after each instruction execution for metrics tracking.
+   */
+  incrementInstructionCount(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.instructionCount++;
+    }
+  }
+
+  /**
+   * Get session info for status endpoints.
+   * Returns a summary without exposing internal Playwright objects.
+   *
+   * Hardened assumptions:
+   * - session.page is always defined per SessionState type, but we protect against
+   *   edge cases where page might have been closed/detached unexpectedly
+   * - page.url() can throw if page has navigated to an error state or been closed
+   */
+  getSessionInfo(sessionId: string): {
+    id: string;
+    phase: SessionPhase;
+    instructionCount: number;
+    createdAt: string;
+    lastUsedAt: string;
+    isRecording: boolean;
+    url: string;
+  } {
+    const session = this.getSession(sessionId);
+
+    // Hardened: page.url() can throw if page is in an error state
+    let currentUrl = 'about:blank';
+    try {
+      if (session.page && !session.page.isClosed()) {
+        currentUrl = session.page.url();
+      }
+    } catch {
+      // Page may have crashed or been detached - use fallback
+      currentUrl = 'about:blank';
+    }
+
+    return {
+      id: session.id,
+      phase: session.phase,
+      instructionCount: session.instructionCount,
+      createdAt: session.createdAt.toISOString(),
+      lastUsedAt: session.lastUsedAt.toISOString(),
+      isRecording: session.recordingController?.isRecording() ?? false,
+      url: currentUrl,
+    };
+  }
+
+  /**
    * Reset session (navigate to about:blank, clear state)
    */
   async resetSession(sessionId: string): Promise<void> {
     const session = this.getSession(sessionId);
+    const previousPhase = session.phase;
 
-    logger.info('session: resetting', { sessionId });
+    session.phase = 'resetting';
+    logger.info(scopedLog(LogContext.SESSION, 'resetting'), {
+      sessionId,
+      previousPhase,
+      instructionCount: session.instructionCount,
+    });
 
     // Navigate to blank page
     await session.page.goto('about:blank');
@@ -283,7 +389,10 @@ export class SessionManager {
       const extraPages = session.pages.slice(1);
       for (const page of extraPages) {
         await page.close().catch((err) => {
-          logger.warn('Failed to close page during reset', { sessionId, error: err.message });
+          logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
+            sessionId,
+            error: err.message,
+          });
           metrics.cleanupFailures.inc({ operation: 'page_close' });
         });
       }
@@ -295,20 +404,51 @@ export class SessionManager {
     session.activeMocks.clear();
 
     session.lastUsedAt = new Date();
+    session.phase = 'ready';
 
-    logger.info('session: reset complete', { sessionId });
+    logger.info(scopedLog(LogContext.SESSION, 'reset complete'), {
+      sessionId,
+      phase: 'ready',
+    });
   }
 
   /**
    * Close session and cleanup resources
+   *
+   * Hardened to be idempotent - safe to call concurrently from multiple sources
+   * (e.g., explicit close and idle cleanup).
    */
   async closeSession(sessionId: string): Promise<void> {
+    // Check if session exists
     const session = this.sessions.get(sessionId);
     if (!session) {
+      // Session doesn't exist - may have been closed already
+      if (this.closingSessionIds.has(sessionId)) {
+        // Another call is closing this session - just return
+        logger.debug(scopedLog(LogContext.SESSION, 'already closing'), { sessionId });
+        return;
+      }
       throw new SessionNotFoundError(sessionId);
     }
 
-    logger.info('session: closing', { sessionId });
+    // Check if already being closed (concurrent close protection)
+    if (this.closingSessionIds.has(sessionId)) {
+      logger.debug(scopedLog(LogContext.SESSION, 'close already in progress'), { sessionId });
+      return;
+    }
+
+    // Mark as closing to prevent concurrent close attempts
+    this.closingSessionIds.add(sessionId);
+
+    const previousPhase = session.phase;
+    session.phase = 'closing';
+
+    logger.info(scopedLog(LogContext.SESSION, 'closing'), {
+      sessionId,
+      previousPhase,
+      instructionCount: session.instructionCount,
+      lifetimeMs: Date.now() - session.createdAt.getTime(),
+    });
 
     const startTime = Date.now();
 
@@ -316,7 +456,10 @@ export class SessionManager {
       // Stop recording if active
       if (session.recordingController?.isRecording()) {
         await session.recordingController.stopRecording().catch((err) => {
-          logger.warn('Failed to stop recording during session close', { sessionId, error: err.message });
+          logger.warn(scopedLog(LogContext.CLEANUP, 'recording stop failed'), {
+            sessionId,
+            error: err.message,
+          });
           metrics.cleanupFailures.inc({ operation: 'recording_stop' });
         });
       }
@@ -327,7 +470,10 @@ export class SessionManager {
       // Stop tracing if enabled
       if (session.tracing && session.tracePath) {
         await session.context.tracing.stop({ path: session.tracePath }).catch((err) => {
-          logger.warn('Failed to stop tracing', { sessionId, error: err.message });
+          logger.warn(scopedLog(LogContext.CLEANUP, 'tracing stop failed'), {
+            sessionId,
+            error: err.message,
+          });
           metrics.cleanupFailures.inc({ operation: 'tracing_stop' });
         });
       }
@@ -335,33 +481,41 @@ export class SessionManager {
       // Close all pages
       for (const page of session.pages) {
         await page.close().catch((err) => {
-          logger.warn('Failed to close page', { sessionId, error: err.message });
+          logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
+            sessionId,
+            error: err.message,
+          });
           metrics.cleanupFailures.inc({ operation: 'page_close' });
         });
       }
 
       // Close context
       await session.context.close().catch((err) => {
-        logger.warn('Failed to close context', { sessionId, error: err.message });
+        logger.warn(scopedLog(LogContext.CLEANUP, 'context close failed'), {
+          sessionId,
+          error: err.message,
+        });
         metrics.cleanupFailures.inc({ operation: 'context_close' });
       });
 
       const duration = Date.now() - startTime;
       metrics.sessionDuration.observe(duration);
 
-      logger.info('session: closed', {
+      logger.info(scopedLog(LogContext.SESSION, 'closed'), {
         sessionId,
-        lifetimeMs: duration,
-        createdAt: session.createdAt.toISOString(),
-        lastUsedAt: session.lastUsedAt.toISOString(),
+        cleanupDurationMs: duration,
+        totalLifetimeMs: Date.now() - session.createdAt.getTime(),
+        instructionCount: session.instructionCount,
       });
     } catch (error) {
-      logger.error('session: close failed', {
+      logger.error(scopedLog(LogContext.SESSION, 'close failed'), {
         sessionId,
         error: error instanceof Error ? error.message : String(error),
+        hint: 'Session cleanup may be incomplete; browser resources may leak',
       });
     } finally {
       this.sessions.delete(sessionId);
+      this.closingSessionIds.delete(sessionId);
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
       metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
     }

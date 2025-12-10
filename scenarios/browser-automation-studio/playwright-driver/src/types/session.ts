@@ -52,6 +52,21 @@ export interface SessionSpec {
   };
 }
 
+/**
+ * Session lifecycle phases.
+ * These phases represent the high-level state of a session and are exposed
+ * in API responses and logs for observability.
+ *
+ * Phase meanings:
+ * - 'initializing': Session is being created, browser context not yet ready
+ * - 'ready': Session is ready to accept instructions
+ * - 'executing': An instruction is currently running
+ * - 'recording': Record mode is active, capturing user actions
+ * - 'resetting': Session state is being reset (clearing cookies, storage, etc.)
+ * - 'closing': Session is being torn down, resources being freed
+ */
+export type SessionPhase = 'initializing' | 'ready' | 'executing' | 'recording' | 'resetting' | 'closing';
+
 export interface SessionState {
   id: string;
   browser: Browser;
@@ -65,6 +80,18 @@ export interface SessionState {
   harPath?: string;
   tracePath?: string;
   videoDir?: string;
+
+  /**
+   * Current session lifecycle phase.
+   * Used for observability and debugging - exposed in status endpoints and logs.
+   */
+  phase: SessionPhase;
+
+  /**
+   * Count of instructions executed in this session.
+   * Useful for tracking session activity and debugging.
+   */
+  instructionCount: number;
 
   // Frame navigation stack (for frame-switch)
   frameStack: Frame[];
@@ -121,15 +148,48 @@ export interface StartSessionRequest {
 
 export interface StartSessionResponse {
   session_id: string;
+  /** Session phase after creation (always 'ready' for new sessions) */
+  phase: SessionPhase;
+  /** ISO 8601 timestamp when session was created */
+  created_at: string;
+  /** Whether this was a reused session (only true if reuse_mode != 'fresh' and match found) */
+  reused?: boolean;
 }
 
+/**
+ * Health check component status
+ */
+export interface HealthCheck {
+  /** pass: healthy, fail: unhealthy */
+  status: 'pass' | 'fail';
+  /** Human-readable status message */
+  message: string;
+  /** Actionable hint for operators when status is 'fail' */
+  hint?: string;
+}
+
+/**
+ * Health endpoint response
+ *
+ * Semantic meaning:
+ * - status='ok' + ready=true: Accept traffic, fully operational
+ * - status='degraded' + ready=false: Functional but with issues
+ * - status='error': Critical failure, do not route traffic
+ */
 export interface HealthResponse {
+  /** Overall health: ok (healthy), degraded (issues), error (critical) */
   status: 'ok' | 'degraded' | 'error';
+  /** True when driver is ready to accept new sessions */
+  ready: boolean;
+  /** ISO 8601 timestamp of health check */
   timestamp: string;
+  /** Number of active sessions */
   sessions: number;
   /** Number of sessions with active recording */
   active_recordings?: number;
+  /** Driver version */
   version?: string;
+  /** Browser subsystem health */
   browser?: {
     healthy: boolean;
     version?: string;
@@ -137,4 +197,10 @@ export interface HealthResponse {
   };
   /** Server uptime in milliseconds */
   uptime_ms?: number;
+  /** Individual component checks for debugging */
+  checks?: {
+    browser: HealthCheck;
+    sessions: HealthCheck;
+    recordings: HealthCheck;
+  };
 }

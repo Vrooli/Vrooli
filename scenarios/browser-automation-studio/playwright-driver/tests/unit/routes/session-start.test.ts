@@ -61,6 +61,11 @@ describe('Session Start Route', () => {
     const json = (mockRes as any).getJSON();
     expect(json.session_id).toBeDefined();
     expect(typeof json.session_id).toBe('string');
+    // New response fields from signal improvements
+    expect(json.phase).toBe('ready');
+    expect(json.created_at).toBeDefined();
+    // reused should be undefined for fresh sessions
+    expect(json.reused).toBeUndefined();
   });
 
   it('should return error for invalid body', async () => {

@@ -3,6 +3,11 @@ import type { Config } from '../config';
 import { MAX_SCREENSHOT_SIZE_BYTES } from '../constants';
 import { logger, metrics } from '../utils';
 
+/** Track screenshot capture failures in metrics */
+function trackScreenshotFailure(): void {
+  metrics.telemetryFailures.inc({ type: 'screenshot' });
+}
+
 /**
  * Internal screenshot representation for the driver
  */
@@ -90,8 +95,13 @@ export async function captureScreenshot(
       height: viewport?.height || 0,
     };
   } catch (error) {
-    logger.error('Failed to capture screenshot', {
+    // Surface telemetry capture failures with context for debugging
+    // This is important signal - telemetry failures can indicate page issues
+    trackScreenshotFailure();
+    logger.warn('telemetry: screenshot capture failed', {
       error: error instanceof Error ? error.message : String(error),
+      hint: 'Page may have navigated, crashed, or become unresponsive',
+      fullPage: config.telemetry.screenshot.fullPage,
     });
     return undefined;
   }
@@ -140,8 +150,11 @@ export async function captureCompressedScreenshot(
       height: viewport?.height || 0,
     };
   } catch (error) {
-    logger.error('Failed to capture compressed screenshot', {
+    trackScreenshotFailure();
+    logger.warn('telemetry: compressed screenshot capture failed', {
       error: error instanceof Error ? error.message : String(error),
+      quality,
+      fullPage,
     });
     return undefined;
   }

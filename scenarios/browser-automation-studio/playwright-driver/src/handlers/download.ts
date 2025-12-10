@@ -2,7 +2,9 @@ import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { CompiledInstruction } from '../types';
 import { DownloadParamsSchema } from '../types/instruction';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
-import { normalizeError } from '../utils';
+import { normalizeError, validateTimeout, validateParams } from '../utils';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 /**
  * Download handler
@@ -21,10 +23,12 @@ export class DownloadHandler extends BaseHandler {
     const { page, logger } = context;
 
     try {
-      // Validate parameters
-      const params = DownloadParamsSchema.parse(instruction.params);
+      // Hardened: Validate params object exists
+      const rawParams = validateParams(instruction.params, 'download');
+      const params = DownloadParamsSchema.parse(rawParams);
 
-      const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
+      // Hardened: Validate timeout bounds
+      const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'download');
       const selector = params.selector;
       const targetURL = params.url;
 
@@ -74,8 +78,24 @@ export class DownloadHandler extends BaseHandler {
         };
       }
 
-      // Save download to default temp path
-      const savePath = `/tmp/download-${Date.now()}-${download.suggestedFilename()}`;
+      // Hardened: Verify /tmp is writable before saving
+      const downloadDir = '/tmp';
+      const savePath = path.join(downloadDir, `download-${Date.now()}-${download.suggestedFilename()}`);
+
+      try {
+        await fs.access(downloadDir, fs.constants.W_OK);
+      } catch {
+        return {
+          success: false,
+          error: {
+            message: `Download directory not writable: ${downloadDir}`,
+            code: 'FILESYSTEM_ERROR',
+            kind: 'infra',
+            retryable: false,
+          },
+        };
+      }
+
       await download.saveAs(savePath);
 
       logger.info('Download successful', {

@@ -1,7 +1,13 @@
 import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { UploadHandler } from '../../../src/handlers/upload';
-import type { HandlerContext } from '../../../src/types';
+import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
+
+// Mock fs/promises to allow file access checks to pass in tests
+jest.mock('fs/promises', () => ({
+  access: jest.fn().mockResolvedValue(undefined),
+  constants: { R_OK: 4 },
+}));
 
 describe('UploadHandler', () => {
   let handler: UploadHandler;

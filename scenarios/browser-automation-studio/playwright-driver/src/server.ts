@@ -223,6 +223,17 @@ async function main() {
       url: `http://${config.server.host}:${config.server.port}`,
       requestTimeout: config.server.requestTimeout,
     });
+
+    // Emit explicit "ready" signal for operators/orchestrators
+    // This is the key signal that the driver is operational and accepting traffic
+    logger.info('server: ready', {
+      status: browserError ? 'degraded' : 'ok',
+      healthEndpoint: `http://${config.server.host}:${config.server.port}/health`,
+      metricsEndpoint: config.metrics.enabled
+        ? `http://${config.server.host}:${config.metrics.port}/metrics`
+        : 'disabled',
+      browserVerified: !browserError,
+    });
   });
 
   // Graceful shutdown

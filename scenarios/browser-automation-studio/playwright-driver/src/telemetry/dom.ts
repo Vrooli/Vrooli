@@ -1,7 +1,12 @@
 import type { Page } from 'playwright';
 import type { DOMSnapshot } from '../types';
 import type { Config } from '../config';
-import { logger } from '../utils';
+import { logger, metrics } from '../utils';
+
+/** Track DOM capture failures in metrics */
+function trackDOMFailure(): void {
+  metrics.telemetryFailures.inc({ type: 'dom' });
+}
 
 /**
  * Capture DOM snapshot from page
@@ -49,8 +54,11 @@ export async function captureDOMSnapshot(
       collected_at: new Date().toISOString(),
     };
   } catch (error) {
-    logger.error('Failed to capture DOM snapshot', {
+    // DOM capture failures are informational - page may have navigated away
+    trackDOMFailure();
+    logger.warn('telemetry: DOM snapshot capture failed', {
       error: error instanceof Error ? error.message : String(error),
+      hint: 'Page content may be inaccessible or page navigated',
     });
     return undefined;
   }
@@ -92,9 +100,11 @@ export async function captureElementSnapshot(
       collected_at: new Date().toISOString(),
     };
   } catch (error) {
-    logger.error('Failed to capture element snapshot', {
+    trackDOMFailure();
+    logger.warn('telemetry: element snapshot capture failed', {
       selector,
       error: error instanceof Error ? error.message : String(error),
+      hint: 'Element may not exist or be detached from DOM',
     });
     return undefined;
   }

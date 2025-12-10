@@ -12,6 +12,7 @@
 
 import type { HandlerResult } from '../handlers/base';
 import type { CompiledInstruction, StepOutcome, DriverOutcome, Screenshot, DOMSnapshot } from '../types';
+import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
 
 /**
  * Parameters for building a step outcome
@@ -47,17 +48,21 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
     networkEvents,
   } = params;
 
+  // Hardened: Validate step index and calculate safe duration
+  const validatedIndex = validateStepIndex(instruction.index, 'buildStepOutcome');
+  const durationMs = safeDuration(startedAt, completedAt);
+
   const outcome: StepOutcome = {
     schema_version: 'automation-step-outcome-v1',
     payload_version: '1',
-    step_index: instruction.index,
+    step_index: validatedIndex,
     attempt: 1, // TODO: Track actual attempt number when retry logic is implemented
     node_id: instruction.node_id,
     step_type: instruction.type,
     success: result.success,
     started_at: startedAt.toISOString(),
     completed_at: completedAt.toISOString(),
-    duration_ms: completedAt.getTime() - startedAt.getTime(),
+    duration_ms: durationMs,
     final_url: finalUrl,
   };
 
@@ -88,8 +93,9 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
   }
 
   // Add extracted data from handler
+  // Hardened: Ensure extracted data is JSON-serializable
   if (result.extracted_data) {
-    outcome.extracted_data = result.extracted_data;
+    outcome.extracted_data = safeSerializable(result.extracted_data, 'extracted_data');
   }
 
   // Add focused element info
@@ -102,8 +108,16 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
 
   // Add failure details
   if (!result.success && result.error) {
+    // Hardened: Validate that error.kind is a valid FailureKind value
+    // Invalid kinds default to 'engine' to prevent type errors downstream
+    const validFailureKinds = ['engine', 'infra', 'orchestration', 'user', 'timeout', 'cancelled'] as const;
+    const rawKind = result.error.kind;
+    const kind: typeof validFailureKinds[number] = (
+      rawKind && validFailureKinds.includes(rawKind as typeof validFailureKinds[number])
+    ) ? (rawKind as typeof validFailureKinds[number]) : 'engine';
+
     outcome.failure = {
-      kind: (result.error.kind as 'engine' | 'infra' | 'orchestration' | 'user' | 'timeout' | 'cancelled') || 'engine',
+      kind,
       code: result.error.code,
       message: result.error.message,
       retryable: result.error.retryable || false,

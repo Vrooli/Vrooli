@@ -136,16 +136,28 @@ describe('Config', () => {
       expect(config.metrics.port).toBe(8080);
     });
 
-    it('should throw error for invalid port number', () => {
+    it('should use default port for invalid port number', () => {
+      // Invalid port falls back to default with warning (graceful degradation)
       process.env.PLAYWRIGHT_DRIVER_PORT = 'invalid';
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      expect(() => loadConfig()).toThrow();
+      const config = loadConfig();
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid numeric config value'));
+      expect(config.server.port).toBe(39400); // Default port
+      warnSpy.mockRestore();
     });
 
-    it('should throw error for invalid max sessions', () => {
+    it('should use default max sessions for invalid value', () => {
+      // Invalid max sessions falls back to default with warning (graceful degradation)
       process.env.MAX_SESSIONS = 'invalid';
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      expect(() => loadConfig()).toThrow();
+      const config = loadConfig();
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid numeric config value'));
+      expect(config.session.maxConcurrent).toBe(10); // Default max sessions
+      warnSpy.mockRestore();
     });
   });
 });

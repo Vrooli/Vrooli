@@ -9,24 +9,37 @@ export function createMockRequest(options?: {
   url?: string;
   headers?: Record<string, string>;
   body?: unknown;
+  /** Delay before emitting body (ms). Used to test streaming behavior. */
+  bodyDelay?: number;
 }): jest.Mocked<IncomingMessage> {
   const req = new EventEmitter() as jest.Mocked<IncomingMessage>;
 
   req.method = options?.method || 'GET';
   req.url = options?.url || '/';
   req.headers = options?.headers || {};
+  // Add destroyed property to match IncomingMessage interface
+  (req as any).destroyed = false;
+  // Add destroy method to match IncomingMessage interface (required by hardened body-parser)
+  (req as any).destroy = jest.fn(() => {
+    (req as any).destroyed = true;
+    req.emit('close');
+  });
+
+  const delay = options?.bodyDelay ?? 0;
 
   // Simulate body streaming
   if (options?.body) {
-    process.nextTick(() => {
+    setTimeout(() => {
+      if ((req as any).destroyed) return;
       const bodyStr = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
       req.emit('data', Buffer.from(bodyStr));
       req.emit('end');
-    });
+    }, delay);
   } else {
-    process.nextTick(() => {
+    setTimeout(() => {
+      if ((req as any).destroyed) return;
       req.emit('end');
-    });
+    }, delay);
   }
 
   return req;

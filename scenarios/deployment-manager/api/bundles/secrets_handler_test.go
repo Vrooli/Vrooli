@@ -72,7 +72,7 @@ func TestHandleMergeBundleSecrets(t *testing.T) {
 	}
 	body, _ := json.Marshal(payload)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/merge-secrets", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
@@ -94,7 +94,7 @@ func TestHandleMergeBundleSecrets(t *testing.T) {
 }
 
 func TestHandleMergeBundleSecretsInvalidJSON(t *testing.T) {
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/merge-secrets", strings.NewReader("not valid json{"))
 	rec := httptest.NewRecorder()
@@ -110,7 +110,7 @@ func TestHandleMergeBundleSecretsInvalidJSON(t *testing.T) {
 }
 
 func TestHandleMergeBundleSecretsMissingScenario(t *testing.T) {
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	manifest := Manifest{
 		SchemaVersion: "v0.1",
@@ -153,7 +153,7 @@ func TestHandleMergeBundleSecretsMissingScenario(t *testing.T) {
 func TestHandleMergeBundleSecretsSecretsManagerUnavailable(t *testing.T) {
 	t.Setenv("SECRETS_MANAGER_URL", "http://localhost:59997")
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	manifest := Manifest{
 		SchemaVersion: "v0.1",
@@ -203,7 +203,7 @@ func TestHandleMergeBundleSecretsDefaultTier(t *testing.T) {
 	defer sm.Close()
 	t.Setenv("SECRETS_MANAGER_URL", sm.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	manifest := Manifest{
 		SchemaVersion: "v0.1",
@@ -269,7 +269,7 @@ func TestHandleMergeBundleSecretsMultipleSecrets(t *testing.T) {
 	defer sm.Close()
 	t.Setenv("SECRETS_MANAGER_URL", sm.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	manifest := Manifest{
 		SchemaVersion: "v0.1",
@@ -340,7 +340,7 @@ func TestHandleMergeBundleSecretsPreservesManifestFields(t *testing.T) {
 	defer sm.Close()
 	t.Setenv("SECRETS_MANAGER_URL", sm.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	manifest := Manifest{
 		SchemaVersion: "v0.1",
@@ -412,7 +412,7 @@ func TestHandleMergeBundleSecretsEmptySecrets(t *testing.T) {
 	defer sm.Close()
 	t.Setenv("SECRETS_MANAGER_URL", sm.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	manifest := Manifest{
 		SchemaVersion: "v0.1",

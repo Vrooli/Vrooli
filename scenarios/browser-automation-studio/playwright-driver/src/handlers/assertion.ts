@@ -322,7 +322,22 @@ export class AssertionHandler extends BaseHandler {
     let message = '';
 
     if (mode === 'matches') {
-      const regex = new RegExp(expected);
+      // Hardened: RegExp construction can throw on invalid patterns
+      // Handle gracefully with a clear error message instead of crashing
+      let regex: RegExp;
+      try {
+        regex = new RegExp(expected);
+      } catch (regexError) {
+        const errorMsg = regexError instanceof Error ? regexError.message : String(regexError);
+        return {
+          mode,
+          selector,
+          expected,
+          actual,
+          success: false,
+          message: `Invalid regex pattern "${expected}": ${errorMsg}`,
+        };
+      }
       success = regex.test(actual);
       message = success ? '' : `expected "${actual}" to match /${expected}/`;
     } else if (mode === 'contains') {

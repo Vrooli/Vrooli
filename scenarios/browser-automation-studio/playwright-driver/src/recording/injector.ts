@@ -6,15 +6,23 @@
  * via exposed functions.
  *
  * The script is designed to be stringified and injected via page.evaluate().
+ *
+ * IMPORTANT: Configuration is imported from selector-config.ts to maintain
+ * a single source of truth. When modifying selector behavior, update
+ * selector-config.ts first.
  */
 
 import type { RawBrowserEvent } from './types';
+import { serializeConfigForBrowser } from './selector-config';
 
 /**
  * Generate the recording script that will be injected into pages.
  * This returns a string containing self-contained JavaScript.
  */
 export function getRecordingScript(): string {
+  // Get serialized configuration from the single source of truth
+  const serializedConfig = serializeConfigForBrowser();
+
   return `
 (function() {
   'use strict';
@@ -28,29 +36,32 @@ export function getRecordingScript(): string {
   console.log('[Recording] Injected recording script');
 
   // ============================================================================
-  // Configuration
+  // Configuration (imported from selector-config.ts)
   // ============================================================================
 
+  const SHARED_CONFIG = ${serializedConfig};
+
+  // Flatten config for easier access
   const CONFIG = {
     // Debounce timings
-    INPUT_DEBOUNCE_MS: 500,
-    SCROLL_DEBOUNCE_MS: 150,
-    RESIZE_DEBOUNCE_MS: 200,
+    INPUT_DEBOUNCE_MS: SHARED_CONFIG.RECORDING_DEBOUNCE.input,
+    SCROLL_DEBOUNCE_MS: SHARED_CONFIG.RECORDING_DEBOUNCE.scroll,
+    RESIZE_DEBOUNCE_MS: SHARED_CONFIG.RECORDING_DEBOUNCE.resize,
 
     // Limits
-    MAX_TEXT_LENGTH: 100,
-    MAX_SELECTOR_DEPTH: 5,
+    MAX_TEXT_LENGTH: SHARED_CONFIG.SELECTOR_DEFAULTS.maxTextLength,
+    MAX_SELECTOR_DEPTH: SHARED_CONFIG.SELECTOR_DEFAULTS.maxCssDepth,
 
-    // Unstable class patterns to filter out
-    UNSTABLE_CLASS_PATTERNS: [
-      /^css-[a-z0-9]+$/i,      // CSS-in-JS (Emotion, etc.)
-      /^sc-[a-zA-Z]+$/,        // styled-components
-      /^_[a-zA-Z0-9]+$/,       // CSS modules
-      /^[a-zA-Z]+-[0-9]+$/,    // Generic hash patterns
-      /^jsx-[a-z0-9]+$/i,      // Next.js styled-jsx
-      /^svelte-[a-z0-9]+$/i,   // Svelte scoped styles
-      /^v-[a-z0-9]+$/i,        // Vue scoped styles
-    ],
+    // Patterns from shared config
+    UNSTABLE_CLASS_PATTERNS: SHARED_CONFIG.UNSTABLE_CLASS_PATTERNS,
+    DYNAMIC_ID_PATTERNS: SHARED_CONFIG.DYNAMIC_ID_PATTERNS,
+    SEMANTIC_CLASS_PATTERNS: SHARED_CONFIG.SEMANTIC_CLASS_PATTERNS,
+    TEST_ID_ATTRIBUTES: SHARED_CONFIG.TEST_ID_ATTRIBUTES,
+    TEXT_CONTENT_TAGS: SHARED_CONFIG.TEXT_CONTENT_TAGS,
+
+    // Confidence scores
+    CONFIDENCE: SHARED_CONFIG.CONFIDENCE_SCORES,
+    SPECIFICITY: SHARED_CONFIG.SPECIFICITY_SCORES,
   };
 
   // ============================================================================
@@ -111,14 +122,12 @@ export function getRecordingScript(): string {
   }
 
   function generateTestIdSelector(element) {
-    const testIdAttrs = ['data-testid', 'data-test-id', 'data-test', 'data-cy', 'data-qa'];
-
-    for (const attr of testIdAttrs) {
+    for (const attr of CONFIG.TEST_ID_ATTRIBUTES) {
       const value = element.getAttribute(attr);
       if (value) {
         const selector = '[' + attr + '="' + escapeCssAttr(value) + '"]';
         if (isUniqueSelector(selector)) {
-          return { type: 'data-testid', value: selector, confidence: 0.98, specificity: 100 };
+          return { type: 'data-testid', value: selector, confidence: CONFIG.CONFIDENCE.dataTestId, specificity: CONFIG.SPECIFICITY.dataTestId };
         }
       }
     }
@@ -136,8 +145,8 @@ export function getRecordingScript(): string {
       return {
         type: 'id',
         value: selector,
-        confidence: isDynamic ? 0.6 : 0.95,
-        specificity: 95,
+        confidence: isDynamic ? CONFIG.CONFIDENCE.idDynamic : CONFIG.CONFIDENCE.id,
+        specificity: CONFIG.SPECIFICITY.id,
       };
     }
     return null;
@@ -148,7 +157,7 @@ export function getRecordingScript(): string {
     if (ariaLabel) {
       const selector = '[aria-label="' + escapeCssAttr(ariaLabel) + '"]';
       if (isUniqueSelector(selector)) {
-        return { type: 'aria', value: selector, confidence: 0.85, specificity: 80 };
+        return { type: 'aria', value: selector, confidence: CONFIG.CONFIDENCE.ariaLabel, specificity: CONFIG.SPECIFICITY.ariaLabel };
       }
     }
     return null;
@@ -159,16 +168,20 @@ export function getRecordingScript(): string {
     if (!tag) return null;
 
     const text = getVisibleText(element);
-    if (!text || text.length < 3 || text.length > 50) return null;
+    const minLen = SHARED_CONFIG.SELECTOR_DEFAULTS.minTextLength;
+    const maxLen = SHARED_CONFIG.SELECTOR_DEFAULTS.maxTextLengthForSelector;
+    const truncateLen = SHARED_CONFIG.SELECTOR_DEFAULTS.selectorTextMaxLength;
 
-    // Truncate text to first 30 chars for selector stability
-    const selectorText = text.length > 30 ? text.slice(0, 30) : text;
+    if (!text || text.length < minLen || text.length > maxLen) return null;
+
+    // Truncate text for selector stability
+    const selectorText = text.length > truncateLen ? text.slice(0, truncateLen) : text;
     const selector = tag + ':has-text("' + selectorText.replace(/"/g, '\\\\"') + '")';
     return {
       type: 'text',
       value: selector,
-      confidence: text.length > 15 ? 0.6 : 0.55,
-      specificity: 50,
+      confidence: text.length > 15 ? CONFIG.CONFIDENCE.textLong : CONFIG.CONFIDENCE.textShort,
+      specificity: CONFIG.SPECIFICITY.text,
     };
   }
 
@@ -182,7 +195,7 @@ export function getRecordingScript(): string {
 
       const selector = '[' + attr.name + '="' + escapeCssAttr(attr.value) + '"]';
       if (isUniqueSelector(selector)) {
-        return { type: 'data-attr', value: selector, confidence: 0.7, specificity: 65 };
+        return { type: 'data-attr', value: selector, confidence: CONFIG.CONFIDENCE.dataAttr, specificity: CONFIG.SPECIFICITY.dataAttr };
       }
     }
     return null;
@@ -210,7 +223,7 @@ export function getRecordingScript(): string {
           type: 'css',
           value: selector,
           confidence: assessCssStability(selector, stableClasses),
-          specificity: 60 - depth * 5,
+          specificity: CONFIG.SPECIFICITY.cssPath - depth * 5,
         };
       }
 
@@ -246,7 +259,7 @@ export function getRecordingScript(): string {
 
       const selector = parts.join(' > ');
       if (isUniqueSelector(selector)) {
-        return { type: 'css', value: selector, confidence: 0.5, specificity: 40 - depth * 5 };
+        return { type: 'css', value: selector, confidence: CONFIG.CONFIDENCE.cssNthChild, specificity: CONFIG.SPECIFICITY.cssNthChild - depth * 5 };
       }
 
       current = parent;
@@ -258,12 +271,13 @@ export function getRecordingScript(): string {
   function generateXPathSelector(element) {
     const tag = element.tagName.toLowerCase();
     const text = getVisibleText(element);
+    const maxLen = SHARED_CONFIG.SELECTOR_DEFAULTS.maxTextLengthForSelector;
 
-    if (text && text.length > 0 && text.length <= 50) {
+    if (text && text.length > 0 && text.length <= maxLen) {
       const escapedText = escapeXPathString(text);
       const xpath = '//' + tag + '[contains(text(), ' + escapedText + ')]';
       if (isUniqueXPath(xpath)) {
-        return { type: 'xpath', value: xpath, confidence: 0.55, specificity: 35 };
+        return { type: 'xpath', value: xpath, confidence: CONFIG.CONFIDENCE.xpathText, specificity: CONFIG.SPECIFICITY.xpathText };
       }
     }
 
@@ -271,8 +285,8 @@ export function getRecordingScript(): string {
     return {
       type: 'xpath',
       value: generatePositionalXPath(element),
-      confidence: 0.4,
-      specificity: 25,
+      confidence: CONFIG.CONFIDENCE.xpathPositional,
+      specificity: CONFIG.SPECIFICITY.xpathPositional,
     };
   }
 
@@ -365,16 +379,7 @@ export function getRecordingScript(): string {
   }
 
   function isDynamicId(id) {
-    const patterns = [
-      /^[a-f0-9]{8,}$/i,
-      /^\\d+$/,
-      /:r[0-9]+:/,
-      /^:r/,
-      /^ember\\d+$/,
-      /^___gatsby/,
-      /_\\d{10,}/,
-    ];
-    return patterns.some(p => p.test(id));
+    return CONFIG.DYNAMIC_ID_PATTERNS.some(p => p.test(id));
   }
 
   function getStableClasses(element) {
@@ -385,11 +390,10 @@ export function getRecordingScript(): string {
   }
 
   function assessCssStability(selector, stableClasses) {
-    let score = 0.65;
+    let score = CONFIG.CONFIDENCE.cssPath;
 
-    const semanticPatterns = [/^btn-/, /^button-/, /^nav-/, /^form-/, /^input-/];
     for (const cls of stableClasses) {
-      if (semanticPatterns.some(p => p.test(cls))) score += 0.1;
+      if (CONFIG.SEMANTIC_CLASS_PATTERNS.some(p => p.test(cls))) score += 0.1;
     }
 
     if (selector.includes('nth-child') || selector.includes('nth-of-type')) score -= 0.15;
@@ -404,8 +408,7 @@ export function getRecordingScript(): string {
     // Return CSS tag name for use with :has-text()
     const tag = element.tagName.toLowerCase();
     // Only return for elements that commonly have meaningful text
-    const textTags = ['button', 'a', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'label', 'li', 'td', 'th'];
-    return textTags.includes(tag) ? tag : null;
+    return CONFIG.TEXT_CONTENT_TAGS.includes(tag) ? tag : null;
   }
 
   function inferRole(element) {

@@ -6,6 +6,8 @@
  * and generating reliable selectors.
  */
 
+import type { SelectorStrategyType } from './selector-config';
+
 /**
  * SelectorCandidate represents a single selector strategy with metadata.
  */
@@ -22,15 +24,9 @@ export interface SelectorCandidate {
 
 /**
  * Supported selector types, in order of preference.
+ * Derived from SELECTOR_STRATEGIES in selector-config.ts.
  */
-export type SelectorType =
-  | 'data-testid'  // Explicit test ID (highest confidence)
-  | 'id'           // Unique DOM ID
-  | 'aria'         // ARIA labels/attributes
-  | 'text'         // Tag + text content (Playwright :has-text())
-  | 'data-attr'    // Other data-* attributes
-  | 'css'          // CSS selector path
-  | 'xpath';       // XPath (fallback)
+export type SelectorType = SelectorStrategyType;
 
 /**
  * SelectorSet contains multiple selector strategies for resilience.
@@ -302,11 +298,15 @@ export interface SelectorGeneratorOptions {
 
 /**
  * Default options for selector generation.
+ * Values derived from selector-config.ts (single source of truth).
  */
 export const DEFAULT_SELECTOR_OPTIONS: Required<SelectorGeneratorOptions> = {
   maxCssDepth: 5,
   includeXPath: true,
   preferTestIds: true,
+  // Note: These patterns are duplicated here for backwards compatibility.
+  // The canonical source is UNSTABLE_CLASS_PATTERNS in selector-config.ts.
+  // TODO: Refactor consumers to use getUnstableClassPatterns() directly.
   unstableClassPatterns: [
     /^css-[a-z0-9]+$/i,      // CSS-in-JS (Emotion, etc.)
     /^sc-[a-zA-Z]+$/,        // styled-components

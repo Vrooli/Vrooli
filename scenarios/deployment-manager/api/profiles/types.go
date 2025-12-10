@@ -45,6 +45,16 @@ type Version struct {
 	ChangeDescription string
 }
 
+// Swap represents a dependency swap stored in a profile.
+type Swap struct {
+	From            string   `json:"from"`
+	To              string   `json:"to"`
+	Reason          string   `json:"reason"`
+	Limitations     string   `json:"limitations,omitempty"`
+	ApplicableTiers []string `json:"applicable_tiers,omitempty"`
+	AppliedAt       string   `json:"applied_at"`
+}
+
 // Repository defines the interface for profile storage operations.
 // This seam allows tests to substitute the real database with mocks.
 type Repository interface {
@@ -68,4 +78,10 @@ type Repository interface {
 
 	// GetScenarioAndTier retrieves just the scenario name and tier count for a profile.
 	GetScenarioAndTier(ctx context.Context, idOrName string) (scenario string, tierCount int, err error)
+
+	// AddSwap adds a swap to a profile's swap list.
+	AddSwap(ctx context.Context, idOrName string, swap Swap) error
+
+	// GetSwaps returns the swaps configured for a profile.
+	GetSwaps(ctx context.Context, idOrName string) ([]Swap, error)
 }

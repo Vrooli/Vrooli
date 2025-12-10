@@ -55,12 +55,14 @@ export class InteractionHandler extends BaseHandler {
           };
       }
     } catch (error) {
-      logger.error('Interaction failed', {
-        type: instruction.type,
-        error: error instanceof Error ? error.message : String(error),
-      });
-
       const driverError = normalizeError(error);
+      logger.warn('instruction: interaction failed', {
+        type: instruction.type,
+        selector: (instruction.params as Record<string, unknown>).selector,
+        errorCode: driverError.code,
+        errorMessage: driverError.message,
+        retryable: driverError.retryable,
+      });
 
       return {
         success: false,
@@ -97,7 +99,7 @@ export class InteractionHandler extends BaseHandler {
 
     const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
 
-    logger.debug('Clicking element', {
+    logger.debug('instruction: click starting', {
       selector: params.selector,
       timeout,
     });
@@ -108,8 +110,9 @@ export class InteractionHandler extends BaseHandler {
     // Click element
     await page.click(params.selector, { timeout });
 
-    logger.info('Click successful', {
+    logger.debug('instruction: click completed', {
       selector: params.selector,
+      hasBoundingBox: !!boundingBox,
     });
 
     return {
@@ -144,7 +147,7 @@ export class InteractionHandler extends BaseHandler {
 
     const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
 
-    logger.debug('Hovering element', {
+    logger.debug('instruction: hover starting', {
       selector: params.selector,
       timeout,
     });
@@ -155,7 +158,7 @@ export class InteractionHandler extends BaseHandler {
     // Hover element
     await page.hover(params.selector, { timeout });
 
-    logger.info('Hover successful', {
+    logger.debug('instruction: hover completed', {
       selector: params.selector,
     });
 
@@ -192,7 +195,7 @@ export class InteractionHandler extends BaseHandler {
     const text = params.text || params.value || '';
     const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
 
-    logger.debug('Typing text', {
+    logger.debug('instruction: type starting', {
       selector: params.selector,
       textLength: text.length,
       timeout,
@@ -204,7 +207,7 @@ export class InteractionHandler extends BaseHandler {
     // Fill element with text
     await page.fill(params.selector, text, { timeout });
 
-    logger.info('Type successful', {
+    logger.debug('instruction: type completed', {
       selector: params.selector,
       textLength: text.length,
     });
@@ -241,7 +244,7 @@ export class InteractionHandler extends BaseHandler {
 
     const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
 
-    logger.debug('Focusing element', {
+    logger.debug('instruction: focus starting', {
       selector: params.selector,
       timeout,
     });
@@ -252,7 +255,7 @@ export class InteractionHandler extends BaseHandler {
     // Focus element
     await page.focus(params.selector, { timeout });
 
-    logger.info('Focus successful', {
+    logger.debug('instruction: focus completed', {
       selector: params.selector,
     });
 
@@ -274,8 +277,8 @@ export class InteractionHandler extends BaseHandler {
     // Validate parameters
     const params = BlurParamsSchema.parse(instruction.params);
 
-    logger.debug('Blurring element', {
-      selector: params.selector,
+    logger.debug('instruction: blur starting', {
+      selector: params.selector || '(active element)',
     });
 
     if (params.selector) {
@@ -290,7 +293,7 @@ export class InteractionHandler extends BaseHandler {
         }
       }, params.selector);
 
-      logger.info('Blur successful', {
+      logger.debug('instruction: blur completed', {
         selector: params.selector,
       });
     } else {
@@ -303,7 +306,9 @@ export class InteractionHandler extends BaseHandler {
         }
       });
 
-      logger.info('Blur successful (active element)');
+      logger.debug('instruction: blur completed', {
+        selector: '(active element)',
+      });
     }
 
     return {

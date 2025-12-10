@@ -1,6 +1,6 @@
 import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { NavigationHandler } from '../../../src/handlers/navigation';
-import type { HandlerContext } from '../../../src/types';
+import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
 
 describe('NavigationHandler', () => {
@@ -41,8 +41,9 @@ describe('NavigationHandler', () => {
 
       const result = await handler.execute(instruction, context);
 
+      // Note: URL is normalized (trailing slash added by URL.href)
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com',
+        'https://example.com/',
         expect.objectContaining({
           waitUntil: 'networkidle',
         })
@@ -72,8 +73,9 @@ describe('NavigationHandler', () => {
 
       await handler.execute(instruction, context);
 
+      // Note: URL is normalized (trailing slash added by URL.href)
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com',
+        'https://example.com/',
         expect.objectContaining({
           timeout: 60000,
         })
@@ -89,8 +91,9 @@ describe('NavigationHandler', () => {
 
       await handler.execute(instruction, context);
 
+      // Note: URL is normalized (trailing slash added by URL.href)
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com',
+        'https://example.com/',
         expect.objectContaining({
           waitUntil: 'load',
         })
@@ -106,8 +109,9 @@ describe('NavigationHandler', () => {
 
       await handler.execute(instruction, context);
 
+      // Note: URL is normalized (trailing slash added by URL.href)
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com',
+        'https://example.com/',
         expect.objectContaining({
           waitUntil: 'domcontentloaded',
         })
@@ -167,8 +171,9 @@ describe('NavigationHandler', () => {
 
       await handler.execute(instruction, context);
 
+      // Note: URL is normalized (trailing slash added by URL.href)
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com',
+        'https://example.com/',
         expect.objectContaining({
           timeout: expect.any(Number),
         })
@@ -184,8 +189,9 @@ describe('NavigationHandler', () => {
 
       await handler.execute(instruction, context);
 
+      // Note: URL is normalized (trailing slash added by URL.href)
       expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com',
+        'https://example.com/',
         expect.objectContaining({
           waitUntil: 'networkidle',
         })

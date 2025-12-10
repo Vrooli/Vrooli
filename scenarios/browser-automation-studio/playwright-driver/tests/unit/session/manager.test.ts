@@ -48,11 +48,13 @@ describe('SessionManager', () => {
     };
 
     it('should create a new session', async () => {
-      const sessionId = await manager.startSession(sessionSpec);
+      const result = await manager.startSession(sessionSpec);
 
-      expect(sessionId).toBeDefined();
-      expect(typeof sessionId).toBe('string');
-      expect(sessionId.length).toBeGreaterThan(0);
+      expect(result.sessionId).toBeDefined();
+      expect(typeof result.sessionId).toBe('string');
+      expect(result.sessionId.length).toBeGreaterThan(0);
+      expect(result.reused).toBe(false);
+      expect(result.createdAt).toBeInstanceOf(Date);
     });
 
     it('should launch browser on first session', async () => {
@@ -98,48 +100,51 @@ describe('SessionManager', () => {
     });
 
     it('should reuse session with reuse mode', async () => {
-      const sessionId1 = await manager.startSession(sessionSpec);
+      const result1 = await manager.startSession(sessionSpec);
 
       const reuseSpec: SessionSpec = {
         ...sessionSpec,
         reuse_mode: 'reuse',
       };
-      const sessionId2 = await manager.startSession(reuseSpec);
+      const result2 = await manager.startSession(reuseSpec);
 
-      expect(sessionId2).toBe(sessionId1);
+      expect(result2.sessionId).toBe(result1.sessionId);
+      expect(result2.reused).toBe(true);
     });
 
     it('should create new session with fresh mode even if reusable exists', async () => {
-      const sessionId1 = await manager.startSession(sessionSpec);
+      const result1 = await manager.startSession(sessionSpec);
 
       const freshSpec: SessionSpec = {
         ...sessionSpec,
         reuse_mode: 'fresh',
       };
-      const sessionId2 = await manager.startSession(freshSpec);
+      const result2 = await manager.startSession(freshSpec);
 
-      expect(sessionId2).not.toBe(sessionId1);
+      expect(result2.sessionId).not.toBe(result1.sessionId);
+      expect(result2.reused).toBe(false);
     });
 
     it('should reset session with clean mode', async () => {
-      const sessionId1 = await manager.startSession(sessionSpec);
+      const result1 = await manager.startSession(sessionSpec);
 
       const cleanSpec: SessionSpec = {
         ...sessionSpec,
         reuse_mode: 'clean',
       };
-      const sessionId2 = await manager.startSession(cleanSpec);
+      const result2 = await manager.startSession(cleanSpec);
 
-      expect(sessionId2).toBe(sessionId1);
+      expect(result2.sessionId).toBe(result1.sessionId);
+      expect(result2.reused).toBe(true);
       expect(mockContext.clearCookies).toHaveBeenCalled();
     });
 
     it('should set creation time on session', async () => {
       const before = Date.now();
-      const sessionId = await manager.startSession(sessionSpec);
+      const result = await manager.startSession(sessionSpec);
       const after = Date.now();
 
-      const session = manager.getSession(sessionId);
+      const session = manager.getSession(result.sessionId);
       expect(session.createdAt.getTime()).toBeGreaterThanOrEqual(before);
       expect(session.createdAt.getTime()).toBeLessThanOrEqual(after);
     });
@@ -155,7 +160,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       const session = manager.getSession(sessionId);
 
@@ -178,7 +183,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       await manager.resetSession(sessionId);
 
@@ -195,7 +200,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -225,7 +230,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       await manager.closeSession(sessionId);
 
@@ -241,7 +246,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       await manager.closeSession(sessionId);
 
@@ -257,7 +262,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       await manager.closeSession(sessionId);
 
@@ -277,7 +282,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       mockPage.close.mockRejectedValueOnce(new Error('Page already closed'));
 
@@ -300,7 +305,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await managerShortIdle.startSession(spec);
+      const { sessionId } = await managerShortIdle.startSession(spec);
 
       // Wait for session to become idle
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -321,7 +326,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       await manager.cleanupIdleSessions();
 
@@ -348,8 +353,8 @@ describe('SessionManager', () => {
         required_capabilities: {},
       };
 
-      const sessionId1 = await manager.startSession(spec1);
-      const sessionId2 = await manager.startSession(spec2);
+      const { sessionId: sessionId1 } = await manager.startSession(spec1);
+      const { sessionId: sessionId2 } = await manager.startSession(spec2);
 
       await manager.shutdown();
 
@@ -389,7 +394,7 @@ describe('SessionManager', () => {
         reuse_mode: 'fresh',
         required_capabilities: {},
       };
-      const sessionId = await manager.startSession(spec);
+      const { sessionId } = await manager.startSession(spec);
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 10));

@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 
+	"deployment-manager/cli/bundles"
 	"deployment-manager/cli/cmdutil"
 	"deployment-manager/cli/deployments"
 	"deployment-manager/cli/overview"
 	"deployment-manager/cli/profiles"
+	"deployment-manager/cli/signing"
 	"deployment-manager/cli/swaps"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -35,6 +37,8 @@ type App struct {
 	profiles    *profiles.Commands
 	swaps       *swaps.Commands
 	deployments *deployments.Commands
+	bundles     *bundles.Commands
+	signing     *signing.Commands
 }
 
 // NewApp constructs the CLI application.
@@ -70,6 +74,8 @@ func NewApp() (*App, error) {
 		profiles:    profiles.New(core.APIClient),
 		swaps:       swaps.New(core.APIClient),
 		deployments: deployments.New(core.APIClient),
+		bundles:     bundles.New(core.APIClient),
+		signing:     signing.New(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
@@ -156,6 +162,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "package", NeedsAPI: true, Description: "Package a profile", Run: a.deployments.PackageProfile},
 			{Name: "validate", NeedsAPI: true, Description: "Validate deployment profile", Run: a.deployments.Validate},
 			{Name: "estimate-cost", NeedsAPI: true, Description: "Estimate deployment costs", Run: a.deployments.EstimateCost},
+			{Name: "bundle", NeedsAPI: true, Description: "Bundle manifest operations (assemble, export, validate)", Run: a.bundles.Run},
 		},
 	}
 
@@ -166,6 +173,13 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	signing := cliapp.CommandGroup{
+		Title: "Code Signing",
+		Commands: []cliapp.Command{
+			{Name: "signing", NeedsAPI: true, Description: "Configure code signing for deployments", Run: a.signing.Run},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -173,7 +187,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, config}
+	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, signing, config}
 }
 
 // applyGlobalFormat consumes leading global format flags (--json, --format <fmt>)

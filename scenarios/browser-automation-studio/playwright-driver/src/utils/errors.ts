@@ -1,4 +1,33 @@
 import type { FailureKind } from '../types';
+import { ZodError } from 'zod';
+
+/**
+ * Error codes for playwright driver.
+ *
+ * These codes are STABLE and can be relied upon for automation and error handling.
+ * Each code maps to a specific error class and has clear semantics:
+ *
+ * Error Kind Semantics:
+ * - 'engine': Error in the browser engine or driver - often retryable
+ * - 'orchestration': Invalid request from the caller - fix the input
+ * - 'infra': Resource or infrastructure issue - check system limits
+ * - 'timeout': Operation timed out - may succeed with longer timeout or retry
+ * - 'user': User-initiated cancellation
+ * - 'cancelled': Operation was cancelled
+ *
+ * Error Code Reference:
+ * - SESSION_NOT_FOUND: Session ID doesn't exist (create a new session)
+ * - INVALID_INSTRUCTION: Malformed instruction (fix the instruction)
+ * - UNSUPPORTED_INSTRUCTION: Unknown instruction type (check supported types)
+ * - SELECTOR_NOT_FOUND: Element not found (verify selector, consider wait)
+ * - TIMEOUT: Operation timed out (retry or increase timeout)
+ * - NAVIGATION_ERROR: Page navigation failed (check URL, network)
+ * - RESOURCE_LIMIT: System limit reached (wait and retry later)
+ * - CONFIGURATION_ERROR: Invalid configuration (fix config)
+ * - FRAME_NOT_FOUND: Frame not found (verify frame exists)
+ * - PLAYWRIGHT_ERROR: Generic Playwright error (check logs)
+ * - UNKNOWN_ERROR: Unexpected error (check logs, report if persistent)
+ */
 
 /**
  * Base error for all playwright driver errors
@@ -127,11 +156,55 @@ export class FrameNotFoundError extends PlaywrightDriverError {
 }
 
 /**
+ * Format Zod validation errors into a human-readable message.
+ * Groups errors by path for cleaner output.
+ */
+function formatZodError(error: ZodError): string {
+  const issues = error.issues;
+  if (issues.length === 0) {
+    return 'Validation failed';
+  }
+
+  if (issues.length === 1) {
+    const issue = issues[0];
+    const path = issue.path.length > 0 ? issue.path.join('.') : 'value';
+    return `${path}: ${issue.message}`;
+  }
+
+  // Multiple issues - format as list
+  const formatted = issues.map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join('.') : 'value';
+    return `${path}: ${issue.message}`;
+  });
+
+  return `Validation errors: ${formatted.join('; ')}`;
+}
+
+/**
  * Convert Playwright error to driver error
+ *
+ * Handles various error types:
+ * - PlaywrightDriverError: Pass through as-is
+ * - ZodError: Convert to InvalidInstructionError with formatted message
+ * - Playwright-specific errors: Map based on message content
+ * - Generic errors: Wrap as PLAYWRIGHT_ERROR
+ * - Unknown values: Wrap as UNKNOWN_ERROR
  */
 export function normalizeError(error: unknown): PlaywrightDriverError {
   if (error instanceof PlaywrightDriverError) {
     return error;
+  }
+
+  // Handle Zod validation errors specifically
+  if (error instanceof ZodError) {
+    const message = formatZodError(error);
+    return new InvalidInstructionError(message, {
+      zodIssues: error.issues.map((issue) => ({
+        path: issue.path,
+        message: issue.message,
+        code: issue.code,
+      })),
+    });
   }
 
   if (error instanceof Error) {

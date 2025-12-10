@@ -2,6 +2,7 @@ import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { CompiledInstruction } from '../types';
 import { NetworkMockParamsSchema, type NetworkMockParams } from '../types/instruction';
 import { normalizeError } from '../utils/errors';
+import { validateParams, logger } from '../utils';
 
 /**
  * NetworkHandler implements request interception and response mocking
@@ -32,10 +33,10 @@ export class NetworkHandler extends BaseHandler {
     instruction: CompiledInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { logger } = context;
-
     try {
-      const validated = NetworkMockParamsSchema.parse(instruction.params);
+      // Hardened: Validate params object exists
+      const rawParams = validateParams(instruction.params, 'network-mock');
+      const validated = NetworkMockParamsSchema.parse(rawParams);
 
       logger.debug('Executing network operation', {
         operation: validated.operation,
@@ -318,7 +319,9 @@ export class NetworkHandler extends BaseHandler {
   }
 
   /**
-   * Compile URL pattern to Playwright-compatible format
+   * Compile URL pattern to Playwright-compatible format.
+   *
+   * Hardened: Validates regex patterns and catches invalid patterns.
    */
   private compileUrlPattern(pattern: string | RegExp): string | RegExp {
     if (pattern instanceof RegExp) {
@@ -330,8 +333,21 @@ export class NetworkHandler extends BaseHandler {
       return pattern;
     }
 
-    // Otherwise, treat as substring match
-    return new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    // Otherwise, treat as substring match - escape and wrap in regex
+    try {
+      const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped);
+      // Validate the regex is usable
+      regex.test('');
+      return regex;
+    } catch (error) {
+      logger.warn('Invalid URL pattern, using as literal string', {
+        pattern,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Fall back to the escaped string pattern for glob matching
+      return `*${pattern}*`;
+    }
   }
 
   /**

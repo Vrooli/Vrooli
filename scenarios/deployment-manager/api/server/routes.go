@@ -27,8 +27,12 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/deployments/{deployment_id}", s.DeploymentsHandler.Status).Methods("GET")
 
 	// Swap analysis endpoints
+	s.Router.HandleFunc("/api/v1/swaps/suggest/{scenario}", s.SwapsHandler.List).Methods("GET")
+	s.Router.HandleFunc("/api/v1/swaps/list/{scenario}", s.SwapsHandler.List).Methods("GET") // Alias
 	s.Router.HandleFunc("/api/v1/swaps/analyze/{from}/{to}", s.SwapsHandler.Analyze).Methods("GET")
 	s.Router.HandleFunc("/api/v1/swaps/cascade/{from}/{to}", s.SwapsHandler.Cascade).Methods("GET")
+	s.Router.HandleFunc("/api/v1/swaps/apply", s.SwapsHandler.Apply).Methods("POST")
+	s.Router.HandleFunc("/api/v1/profiles/{id}/swaps", s.SwapsHandler.ApplyToProfile).Methods("POST")
 
 	// Validation endpoints
 	s.Router.HandleFunc("/api/v1/profiles/{id}/validate", s.ProfilesHandler.Validate).Methods("GET")
@@ -46,8 +50,19 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/bundles/merge-secrets", s.BundlesHandler.MergeBundleSecrets).Methods("POST")
 	s.Router.HandleFunc("/api/v1/bundles/assemble", s.BundlesHandler.AssembleBundle).Methods("POST")
 	s.Router.HandleFunc("/api/v1/bundles/export", s.BundlesHandler.ExportBundle).Methods("POST")
+	s.Router.HandleFunc("/api/v1/bundles/signing-config", s.BundlesHandler.GenerateSigningConfig).Methods("POST")
 
 	// Telemetry ingestion and summaries
 	s.Router.HandleFunc("/api/v1/telemetry", s.TelemetryHandler.List).Methods("GET")
 	s.Router.HandleFunc("/api/v1/telemetry/upload", s.TelemetryHandler.Upload).Methods("POST")
+
+	// Code signing configuration endpoints
+	s.Router.HandleFunc("/api/v1/profiles/{id}/signing", s.SigningHandler.GetSigning).Methods("GET")
+	s.Router.HandleFunc("/api/v1/profiles/{id}/signing", s.SigningHandler.SetSigning).Methods("PUT")
+	s.Router.HandleFunc("/api/v1/profiles/{id}/signing/{platform}", s.SigningHandler.SetPlatformSigning).Methods("PATCH")
+	s.Router.HandleFunc("/api/v1/profiles/{id}/signing", s.SigningHandler.DeleteSigning).Methods("DELETE")
+	s.Router.HandleFunc("/api/v1/profiles/{id}/signing/{platform}", s.SigningHandler.DeletePlatformSigning).Methods("DELETE")
+	s.Router.HandleFunc("/api/v1/profiles/{id}/signing/validate", s.SigningHandler.ValidateSigning).Methods("POST")
+	s.Router.HandleFunc("/api/v1/signing/prerequisites", s.SigningHandler.CheckPrerequisites).Methods("GET")
+	s.Router.HandleFunc("/api/v1/signing/discover/{platform}", s.SigningHandler.DiscoverCertificates).Methods("GET")
 }

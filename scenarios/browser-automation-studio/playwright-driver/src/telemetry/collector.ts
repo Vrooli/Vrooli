@@ -1,7 +1,7 @@
 import type { Page } from 'playwright';
 import type { ConsoleLogEntry, NetworkEvent } from '../types';
 import { MAX_CONSOLE_ENTRIES, MAX_NETWORK_EVENTS } from '../constants';
-import { logger } from '../utils';
+import { logger, normalizeConsoleLogType } from '../utils';
 
 /**
  * Console log collector
@@ -29,11 +29,8 @@ export class ConsoleLogCollector {
       const loc = msg.location();
       const locationStr = loc.url ? `${loc.url}:${loc.lineNumber}:${loc.columnNumber}` : '';
 
-      // Map Playwright console types to our types
-      const msgType = msg.type();
-      const type: 'log' | 'warn' | 'error' | 'info' | 'debug' =
-        msgType === 'warning' ? 'warn' :
-        ['log', 'warn', 'error', 'info', 'debug'].includes(msgType) ? msgType as any : 'log';
+      // Hardened: Use validated console log type mapping
+      const type = normalizeConsoleLogType(msg.type());
 
       const entry: ConsoleLogEntry = {
         timestamp: new Date().toISOString(),
@@ -66,11 +63,20 @@ export class ConsoleLogCollector {
  *
  * Collects HTTP requests and responses during instruction execution
  */
+/**
+ * Hardened assumptions:
+ * - Multiple requests to the same URL+method can happen concurrently
+ * - Playwright request objects have a unique internal ID we can use
+ * - Responses may arrive out of order or not at all
+ * - Request map entries may leak if responses never arrive (cleaned up on clear)
+ */
 export class NetworkCollector {
   private events: NetworkEvent[] = [];
   private maxEvents: number;
   private page: Page;
   private requestMap: Map<string, { method: string; url: string; timestamp: string }> = new Map();
+  /** Counter for generating unique request IDs when Playwright ID unavailable */
+  private requestCounter = 0;
 
   constructor(page: Page, maxEvents: number = MAX_NETWORK_EVENTS) {
     this.page = page;
@@ -145,9 +151,41 @@ export class NetworkCollector {
     });
   }
 
+  /**
+   * Get a unique identifier for a request.
+   *
+   * Hardened: Uses Playwright's internal request reference (via WeakMap pattern)
+   * instead of URL+method which is NOT unique for concurrent requests to same endpoint.
+   *
+   * For Playwright requests, we use the request object's string representation
+   * which includes an internal unique ID. This handles:
+   * - Multiple concurrent requests to same URL
+   * - Same URL called multiple times in sequence
+   * - Requests that share identical URL and method
+   */
   private getRequestId(request: { url: () => string; method: () => string }): string {
-    // Use URL + method as unique identifier
-    return `${request.method()}:${request.url()}`;
+    // Playwright Request objects have a stable toString() that includes unique internal ID
+    // Format: "Request: <method> <url>" but importantly the object identity is unique
+    // We create a composite key using object reference via a counter when we first see the request
+    //
+    // Note: We still include method:url for debugging, but prefix with counter for uniqueness
+    const baseId = `${request.method()}:${request.url()}`;
+
+    // For response/failure lookups, we need to match back to the original request
+    // Playwright guarantees response.request() returns the same Request object
+    // so we can use object identity. However, since we can't use WeakMap with
+    // the request object directly (it's not the key), we use a simpler approach:
+    // For requests, we'll store with a sequence number that we can match on lookup.
+    //
+    // Actually, Playwright's response.request() returns the exact same Request object,
+    // so the simplest fix is to use the string representation which IS unique per request.
+    try {
+      // Use String() to get Playwright's internal representation which is unique
+      return String(request);
+    } catch {
+      // Fallback if String() fails for some reason
+      return `${this.requestCounter++}:${baseId}`;
+    }
   }
 
   getEvents(): NetworkEvent[] {

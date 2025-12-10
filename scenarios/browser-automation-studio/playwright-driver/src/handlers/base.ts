@@ -1,4 +1,21 @@
-import type { Page, BrowserContext } from 'playwright';
+/**
+ * Handler Base Types and Utilities
+ *
+ * STABILITY: STABLE CORE
+ *
+ * This module defines the foundational interfaces for all instruction handlers.
+ * Changes here affect ALL handlers and should be made with care.
+ *
+ * - HandlerContext: Stable - only additive changes
+ * - HandlerResult: Stable - only additive changes
+ * - InstructionHandler: Stable - contract for all handlers
+ * - BaseHandler: Stable - shared utilities
+ *
+ * To add a new instruction type, create a new handler file in handlers/
+ * that implements InstructionHandler. Do NOT modify this file.
+ */
+
+import type { Page, BrowserContext, Frame } from 'playwright';
 import type { CompiledInstruction, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../types';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
@@ -19,6 +36,10 @@ export interface HandlerContext {
 
   // Multi-tab support (Phase 3)
   tabStack?: Page[];
+
+  // Frame navigation support (Phase 3)
+  // Tracks frame hierarchy for enter/exit operations
+  frameStack?: Frame[];
 
   // Telemetry collectors (optional, handler can add if needed)
   screenshot?: Screenshot;

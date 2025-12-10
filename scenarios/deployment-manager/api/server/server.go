@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"deployment-manager/bundles"
+	"deployment-manager/codesigning"
+	"deployment-manager/codesigning/validation"
 	"deployment-manager/dependencies"
 	"deployment-manager/deployments"
 	"deployment-manager/fitness"
@@ -43,9 +45,11 @@ type Server struct {
 	DeploymentsHandler  *deployments.Handler
 	BundlesHandler      *bundles.Handler
 	ProfilesHandler     *profiles.Handler
+	SigningHandler      *codesigning.Handler
 
-	// Repository
+	// Repositories
 	ProfilesRepo profiles.Repository
+	SigningRepo  *codesigning.SQLRepository
 }
 
 // New initializes configuration, database, and routes.
@@ -69,28 +73,42 @@ func New() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Create repository
+	// Create repositories
 	profilesRepo := profiles.NewSQLRepository(db)
+	signingRepo := codesigning.NewSQLRepository(db)
+
+	// Ensure signing schema is up to date
+	if err := signingRepo.EnsureSchema(context.Background()); err != nil {
+		LogStructured("warning: failed to ensure signing schema", map[string]interface{}{"error": err.Error()})
+		// Non-fatal - signing endpoints will fail gracefully
+	}
 
 	// Create domain handlers
 	logFn := func(msg string, fields map[string]interface{}) {
 		LogStructured(msg, fields)
 	}
 
+	// Create signing validators for pre-deployment checks
+	signingValidator := validation.NewValidator()
+	signingChecker := validation.NewPrerequisiteChecker()
+	signingValidatorAdapter := deployments.NewSigningValidatorAdapter(signingRepo, signingValidator, signingChecker)
+
 	srv := &Server{
 		Config:              cfg,
 		DB:                  db,
 		Router:              mux.NewRouter(),
 		ProfilesRepo:        profilesRepo,
+		SigningRepo:         signingRepo,
 		HealthHandler:       health.NewHandler(db),
 		FitnessHandler:      fitness.NewHandler(logFn),
 		TelemetryHandler:    telemetry.NewHandler(logFn),
 		SecretsHandler:      secrets.NewHandler(profilesRepo, logFn),
 		DependenciesHandler: dependencies.NewHandler(logFn),
-		SwapsHandler:        swaps.NewHandler(logFn),
-		DeploymentsHandler:  deployments.NewHandler(logFn),
-		BundlesHandler:      bundles.NewHandler(secrets.NewClient(), logFn),
+		SwapsHandler:        swaps.NewHandler(profilesRepo, logFn),
+		DeploymentsHandler:  deployments.NewHandlerWithSigning(logFn, signingValidatorAdapter),
+		BundlesHandler:      bundles.NewHandler(secrets.NewClient(), profilesRepo, logFn),
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
+		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
 	}
 
 	srv.setupRoutes()

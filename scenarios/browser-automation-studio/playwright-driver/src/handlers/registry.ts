@@ -1,6 +1,6 @@
 import type { InstructionHandler } from './base';
 import type { CompiledInstruction } from '../types';
-import { UnsupportedInstructionError, logger } from '../utils';
+import { UnsupportedInstructionError, logger, normalizeInstructionType } from '../utils';
 
 /**
  * Handler registry
@@ -12,14 +12,21 @@ export class HandlerRegistry {
 
   /**
    * Register a handler
+   *
+   * Hardened: Normalizes instruction types to lowercase on registration
+   * to ensure consistent lookup regardless of case in source definitions.
    */
   register(handler: InstructionHandler): void {
     const types = handler.getSupportedTypes();
 
-    for (const type of types) {
+    for (const rawType of types) {
+      // Hardened: Normalize type on registration for consistent lookup
+      const type = normalizeInstructionType(rawType);
+
       if (this.handlers.has(type)) {
         logger.warn('Handler already registered for type, overwriting', {
           type,
+          rawType,
           handler: handler.constructor.name,
         });
       }

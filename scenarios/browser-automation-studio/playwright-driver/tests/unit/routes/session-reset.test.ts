@@ -43,7 +43,7 @@ describe('Session Reset Route', () => {
 
   it('should reset existing session', async () => {
     // Create session first
-    const sessionId = await sessionManager.startSession({
+    const { sessionId } = await sessionManager.startSession({
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',

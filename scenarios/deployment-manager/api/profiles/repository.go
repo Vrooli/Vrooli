@@ -226,3 +226,79 @@ func (r *SQLRepository) GetScenarioAndTier(ctx context.Context, idOrName string)
 
 	return scenario, tierCount, nil
 }
+
+// AddSwap adds a swap to a profile's swap list.
+func (r *SQLRepository) AddSwap(ctx context.Context, idOrName string, swap Swap) error {
+	// Get current swaps
+	var swapsJSON []byte
+	var profileID string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, COALESCE(swaps, '[]'::jsonb)
+		FROM profiles
+		WHERE id = $1 OR name = $1
+	`, idOrName).Scan(&profileID, &swapsJSON)
+
+	if err == sql.ErrNoRows {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	// Parse existing swaps
+	var swaps []Swap
+	if err := json.Unmarshal(swapsJSON, &swaps); err != nil {
+		swaps = []Swap{}
+	}
+
+	// Check if swap already exists (same from->to)
+	for i, existing := range swaps {
+		if existing.From == swap.From && existing.To == swap.To {
+			// Update existing swap
+			swaps[i] = swap
+			newSwapsJSON, _ := json.Marshal(swaps)
+			_, err = r.db.ExecContext(ctx, `
+				UPDATE profiles
+				SET swaps = $1, updated_at = NOW(), version = version + 1
+				WHERE id = $2
+			`, newSwapsJSON, profileID)
+			return err
+		}
+	}
+
+	// Add new swap
+	swaps = append(swaps, swap)
+	newSwapsJSON, _ := json.Marshal(swaps)
+
+	_, err = r.db.ExecContext(ctx, `
+		UPDATE profiles
+		SET swaps = $1, updated_at = NOW(), version = version + 1
+		WHERE id = $2
+	`, newSwapsJSON, profileID)
+
+	return err
+}
+
+// GetSwaps returns the swaps configured for a profile.
+func (r *SQLRepository) GetSwaps(ctx context.Context, idOrName string) ([]Swap, error) {
+	var swapsJSON []byte
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COALESCE(swaps, '[]'::jsonb)
+		FROM profiles
+		WHERE id = $1 OR name = $1
+	`, idOrName).Scan(&swapsJSON)
+
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var swaps []Swap
+	if err := json.Unmarshal(swapsJSON, &swaps); err != nil {
+		return []Swap{}, nil
+	}
+
+	return swaps, nil
+}

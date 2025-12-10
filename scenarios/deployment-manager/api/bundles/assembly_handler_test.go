@@ -101,7 +101,7 @@ func TestHandleAssembleBundle(t *testing.T) {
 	defer secretsServer.Close()
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/assemble", strings.NewReader(`{"scenario":"demo-app","tier":"tier-2-desktop"}`))
 	rec := httptest.NewRecorder()
@@ -136,7 +136,7 @@ func TestHandleAssembleBundle(t *testing.T) {
 }
 
 func TestHandleAssembleBundleInvalidJSON(t *testing.T) {
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/assemble", strings.NewReader("not valid json{"))
 	rec := httptest.NewRecorder()
@@ -152,7 +152,7 @@ func TestHandleAssembleBundleInvalidJSON(t *testing.T) {
 }
 
 func TestHandleAssembleBundleMissingScenario(t *testing.T) {
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	tests := []struct {
 		name    string
@@ -184,7 +184,7 @@ func TestHandleAssembleBundleAnalyzerUnavailable(t *testing.T) {
 	// Point to a port where nothing is listening
 	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", "59999")
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/assemble", strings.NewReader(`{"scenario":"test-app"}`))
 	rec := httptest.NewRecorder()
@@ -231,7 +231,7 @@ func TestHandleAssembleBundleSecretsManagerUnavailable(t *testing.T) {
 	// Point to unavailable secrets manager
 	t.Setenv("SECRETS_MANAGER_URL", "http://localhost:59998")
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/assemble", strings.NewReader(`{"scenario":"test-app"}`))
 	rec := httptest.NewRecorder()
@@ -278,7 +278,7 @@ func TestHandleAssembleBundleWithoutSecrets(t *testing.T) {
 	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
 	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	// Request with include_secrets=false
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/assemble", strings.NewReader(`{"scenario":"test-app","include_secrets":false}`))
@@ -350,7 +350,7 @@ func TestHandleAssembleBundleDefaultTier(t *testing.T) {
 	defer secretsServer.Close()
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	// Request without tier - should default to tier-2-desktop
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/assemble", strings.NewReader(`{"scenario":"test-app"}`))
@@ -402,7 +402,7 @@ func TestHandleAssembleBundleResponseStructure(t *testing.T) {
 	defer secretsServer.Close()
 	t.Setenv("SECRETS_MANAGER_URL", secretsServer.URL)
 
-	handler := NewHandler(secrets.NewClient(), func(msg string, fields map[string]interface{}) {})
+	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/bundles/assemble", strings.NewReader(`{"scenario":"test-app"}`))
 	rec := httptest.NewRecorder()

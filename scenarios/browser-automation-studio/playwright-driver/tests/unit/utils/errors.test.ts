@@ -1,3 +1,4 @@
+import { z, ZodError } from 'zod';
 import {
   PlaywrightDriverError,
   SessionNotFoundError,
@@ -214,6 +215,104 @@ describe('Errors', () => {
 
       expect(result).toBeInstanceOf(PlaywrightDriverError);
       expect(result.code).toBe('UNKNOWN_ERROR');
+    });
+
+    describe('Zod validation errors', () => {
+      it('should convert single-field ZodError to InvalidInstructionError', () => {
+        const schema = z.object({ selector: z.string() });
+        let zodError: ZodError | undefined;
+        try {
+          schema.parse({ selector: 123 });
+        } catch (err) {
+          zodError = err as ZodError;
+        }
+
+        expect(zodError).toBeInstanceOf(ZodError);
+        const result = normalizeError(zodError);
+
+        expect(result).toBeInstanceOf(InvalidInstructionError);
+        expect(result.code).toBe('INVALID_INSTRUCTION');
+        expect(result.kind).toBe('orchestration');
+        expect(result.retryable).toBe(false);
+        expect(result.message).toContain('selector');
+      });
+
+      it('should convert multi-field ZodError with multiple issues', () => {
+        const schema = z.object({
+          selector: z.string(),
+          timeout: z.number().min(100),
+        });
+        let zodError: ZodError | undefined;
+        try {
+          schema.parse({ selector: 123, timeout: 'invalid' });
+        } catch (err) {
+          zodError = err as ZodError;
+        }
+
+        expect(zodError).toBeInstanceOf(ZodError);
+        const result = normalizeError(zodError);
+
+        expect(result).toBeInstanceOf(InvalidInstructionError);
+        expect(result.message).toContain('Validation errors');
+        // Should include both field names
+        expect(result.message).toContain('selector');
+        expect(result.message).toContain('timeout');
+      });
+
+      it('should preserve zodIssues in error details', () => {
+        const schema = z.object({ url: z.string().url() });
+        let zodError: ZodError | undefined;
+        try {
+          schema.parse({ url: 'not-a-url' });
+        } catch (err) {
+          zodError = err as ZodError;
+        }
+
+        const result = normalizeError(zodError);
+        const details = result.details as { zodIssues?: Array<{ path: (string | number)[]; message: string; code: string }> };
+
+        expect(details.zodIssues).toBeDefined();
+        expect(details.zodIssues).toHaveLength(1);
+        expect(details.zodIssues?.[0].path).toEqual(['url']);
+        expect(details.zodIssues?.[0].code).toBe('invalid_string');
+      });
+
+      it('should handle ZodError with empty issues', () => {
+        // Create a ZodError with empty issues (edge case)
+        const emptyZodError = new ZodError([]);
+        const result = normalizeError(emptyZodError);
+
+        expect(result).toBeInstanceOf(InvalidInstructionError);
+        expect(result.message).toBe('Validation failed');
+      });
+
+      it('should handle deeply nested path in ZodError', () => {
+        const schema = z.object({
+          instruction: z.object({
+            params: z.object({
+              nested: z.object({
+                value: z.number(),
+              }),
+            }),
+          }),
+        });
+        let zodError: ZodError | undefined;
+        try {
+          schema.parse({
+            instruction: {
+              params: {
+                nested: { value: 'not-a-number' },
+              },
+            },
+          });
+        } catch (err) {
+          zodError = err as ZodError;
+        }
+
+        const result = normalizeError(zodError);
+
+        expect(result.message).toContain('instruction.params.nested.value');
+      });
     });
   });
 

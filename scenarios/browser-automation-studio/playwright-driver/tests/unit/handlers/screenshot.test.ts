@@ -1,6 +1,6 @@
 import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { ScreenshotHandler } from '../../../src/handlers/screenshot';
-import type { HandlerContext } from '../../../src/types';
+import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
 
 describe('ScreenshotHandler', () => {

@@ -43,7 +43,7 @@ describe('Session Close Route', () => {
 
   it('should close existing session', async () => {
     // Create session first
-    const sessionId = await sessionManager.startSession({
+    const { sessionId } = await sessionManager.startSession({
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',
@@ -73,7 +73,7 @@ describe('Session Close Route', () => {
 
   it('should remove session from manager', async () => {
     // Create session first
-    const sessionId = await sessionManager.startSession({
+    const { sessionId } = await sessionManager.startSession({
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
       base_url: 'https://example.com',

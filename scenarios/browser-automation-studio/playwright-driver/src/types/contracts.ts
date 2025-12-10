@@ -3,6 +3,19 @@
  * These must stay in sync with the Go contract definitions.
  *
  * Reference: api/automation/contracts/*.go
+ *
+ * STABILITY: STABLE CONTRACT
+ *
+ * These types define the wire format between the Playwright driver and the Go API.
+ * Changes here require coordinated updates to the Go contracts package.
+ *
+ * - CompiledInstruction: Stable - input from Go
+ * - StepOutcome: Stable - output to Go
+ * - DriverOutcome: Stable - wire format
+ * - Telemetry types: Stable - only additive changes
+ *
+ * Adding new fields is safe (Go uses omitempty).
+ * Removing or renaming fields is a BREAKING CHANGE.
  */
 
 export const STEP_OUTCOME_SCHEMA_VERSION = 'automation-step-outcome-v1';

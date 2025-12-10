@@ -20,6 +20,9 @@ const (
 
 	// ErrorValidation indicates a general validation failure.
 	ErrorValidation
+
+	// ErrorSigningValidation indicates code signing prerequisites are missing.
+	ErrorSigningValidation
 )
 
 // ValidationError represents a typed validation error.
@@ -104,6 +107,7 @@ func GenerateID() string {
 //   - ErrorMissingID -> 400 Bad Request (client didn't provide required field)
 //   - ErrorNotFound  -> 404 Not Found (resource doesn't exist)
 //   - ErrorValidation -> 400 Bad Request (validation failed)
+//   - ErrorSigningValidation -> 424 Failed Dependency (signing prerequisites missing)
 func HTTPStatusForErrorKind(kind ErrorKind) int {
 	switch kind {
 	case ErrorMissingID:
@@ -112,6 +116,8 @@ func HTTPStatusForErrorKind(kind ErrorKind) int {
 		return 404
 	case ErrorValidation:
 		return 400
+	case ErrorSigningValidation:
+		return 424 // Failed Dependency - signing prerequisites not met
 	default:
 		return 400 // Default to client error for unknown kinds
 	}
@@ -135,6 +141,15 @@ func FormatValidationError(validation ValidationResult) (int, map[string]interfa
 
 	case ErrorNotFound:
 		return status, map[string]interface{}{"error": firstError.Message}
+
+	case ErrorSigningValidation:
+		// Signing validation failure - provide detailed remediation
+		return status, map[string]interface{}{
+			"error":             "Code signing prerequisites not met",
+			"validation_errors": validation.ErrorMessages(),
+			"remediation":       validation.RecommendedFix,
+			"help":              "Run 'vrooli deploy signing validate --profile-id <id>' for details",
+		}
 
 	default:
 		// General validation failure - include all errors and remediation

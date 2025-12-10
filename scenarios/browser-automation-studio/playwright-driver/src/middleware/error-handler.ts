@@ -49,6 +49,11 @@ function getErrorHint(error: Error | PlaywrightDriverError): string | undefined 
     return 'Resource limit reached. Close unused sessions or wait for idle sessions to be cleaned up.';
   }
   if (error instanceof InvalidInstructionError) {
+    // Check if this is a Zod validation error for more specific hint
+    const details = error.details as Record<string, unknown> | undefined;
+    if (details?.zodIssues) {
+      return 'Instruction parameters failed validation. Check the error message for specific field issues.';
+    }
     return 'Check instruction parameters match the expected schema for this instruction type.';
   }
   if (error instanceof UnsupportedInstructionError) {

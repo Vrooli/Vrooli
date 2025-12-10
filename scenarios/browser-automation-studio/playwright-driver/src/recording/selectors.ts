@@ -29,7 +29,12 @@
  * 6. Stable CSS path - Filtered CSS classes
  * 7. XPath fallback - Text-based XPath
  *
+ * CONFIGURATION: All configuration values (confidence scores, patterns, etc.)
+ * are defined in selector-config.ts. This file uses those values to ensure
+ * consistency with the browser-injected code.
+ *
  * @see injector.ts for the actual runtime implementation
+ * @see selector-config.ts for configuration values
  */
 
 import type {
@@ -39,6 +44,16 @@ import type {
   ElementMeta,
 } from './types';
 import { DEFAULT_SELECTOR_OPTIONS } from './types';
+import {
+  TEST_ID_ATTRIBUTES,
+  TEXT_CONTENT_TAGS,
+  RELEVANT_ATTRIBUTES,
+  CONFIDENCE_SCORES,
+  SPECIFICITY_SCORES,
+  SELECTOR_DEFAULTS,
+  getDynamicIdPatterns,
+  getSemanticClassPatterns,
+} from './selector-config';
 
 /**
  * Generate selector set for an element.
@@ -123,10 +138,8 @@ export function generateSelectors(
  * Generate selector from data-testid or similar test attributes.
  */
 function generateTestIdSelector(element: Element): SelectorCandidate | null {
-  // Check common test ID attribute names
-  const testIdAttrs = ['data-testid', 'data-test-id', 'data-test', 'data-cy', 'data-qa'];
-
-  for (const attr of testIdAttrs) {
+  // Check common test ID attribute names (from shared config)
+  for (const attr of TEST_ID_ATTRIBUTES) {
     const value = element.getAttribute(attr);
     if (value) {
       const selector = `[${attr}="${escapeCssAttributeValue(value)}"]`;
@@ -134,8 +147,8 @@ function generateTestIdSelector(element: Element): SelectorCandidate | null {
         return {
           type: 'data-testid',
           value: selector,
-          confidence: 0.98,
-          specificity: 100,
+          confidence: CONFIDENCE_SCORES.dataTestId,
+          specificity: SPECIFICITY_SCORES.dataTestId,
         };
       }
     }
@@ -159,8 +172,8 @@ function generateIdSelector(element: Element): SelectorCandidate | null {
     return {
       type: 'id',
       value: selector,
-      confidence: isDynamic ? 0.6 : 0.95,
-      specificity: 95,
+      confidence: isDynamic ? CONFIDENCE_SCORES.idDynamic : CONFIDENCE_SCORES.id,
+      specificity: SPECIFICITY_SCORES.id,
     };
   }
 
@@ -179,8 +192,8 @@ function generateAriaSelector(element: Element): SelectorCandidate | null {
       return {
         type: 'aria',
         value: selector,
-        confidence: 0.85,
-        specificity: 80,
+        confidence: CONFIDENCE_SCORES.ariaLabel,
+        specificity: SPECIFICITY_SCORES.ariaLabel,
       };
     }
   }
@@ -193,8 +206,8 @@ function generateAriaSelector(element: Element): SelectorCandidate | null {
       return {
         type: 'aria',
         value: selector,
-        confidence: 0.8,
-        specificity: 75,
+        confidence: CONFIDENCE_SCORES.ariaLabelledby,
+        specificity: SPECIFICITY_SCORES.ariaLabelledby,
       };
     }
   }
@@ -207,8 +220,8 @@ function generateAriaSelector(element: Element): SelectorCandidate | null {
       return {
         type: 'aria',
         value: selector,
-        confidence: 0.75,
-        specificity: 70,
+        confidence: CONFIDENCE_SCORES.ariaDescribedby,
+        specificity: SPECIFICITY_SCORES.ariaDescribedby,
       };
     }
   }
@@ -227,26 +240,29 @@ function generateTextSelector(element: Element): SelectorCandidate | null {
   const tagName = element.tagName.toLowerCase();
 
   // Only generate text selectors for elements that commonly have meaningful text
-  const textTags = ['button', 'a', 'span', 'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'label', 'li', 'td', 'th'];
-  if (!textTags.includes(tagName)) return null;
+  if (!TEXT_CONTENT_TAGS.includes(tagName as typeof TEXT_CONTENT_TAGS[number])) return null;
 
   const text = getVisibleText(element);
-  if (!text || text.length < 3 || text.length > 50) return null;
+  const minLen = SELECTOR_DEFAULTS.minTextLength;
+  const maxLen = SELECTOR_DEFAULTS.maxTextLengthForSelector;
+  const truncateLen = SELECTOR_DEFAULTS.selectorTextMaxLength;
 
-  // Truncate text to first 30 chars for selector stability
-  const selectorText = text.length > 30 ? text.slice(0, 30) : text;
+  if (!text || text.length < minLen || text.length > maxLen) return null;
+
+  // Truncate text for selector stability
+  const selectorText = text.length > truncateLen ? text.slice(0, truncateLen) : text;
   const escapedText = selectorText.replace(/"/g, '\\"');
   const selector = `${tagName}:has-text("${escapedText}")`;
 
   // Can't easily validate Playwright selectors with querySelectorAll
   // Estimate uniqueness based on text specificity - lower confidence than other strategies
-  const confidence = text.length > 15 ? 0.6 : 0.55;
+  const confidence = text.length > 15 ? CONFIDENCE_SCORES.textLong : CONFIDENCE_SCORES.textShort;
 
   return {
     type: 'text',
     value: selector,
     confidence,
-    specificity: 50,
+    specificity: SPECIFICITY_SCORES.text,
   };
 }
 
@@ -268,8 +284,8 @@ function generateDataAttrSelector(element: Element): SelectorCandidate | null {
       return {
         type: 'data-attr',
         value: selector,
-        confidence: 0.7,
-        specificity: 65,
+        confidence: CONFIDENCE_SCORES.dataAttr,
+        specificity: SPECIFICITY_SCORES.dataAttr,
       };
     }
   }
@@ -311,7 +327,7 @@ function generateStableCssPath(
         type: 'css',
         value: selector,
         confidence: assessCssStability(selector, stableClasses),
-        specificity: 60 - depth * 5, // Shorter paths are better
+        specificity: SPECIFICITY_SCORES.cssPath - depth * 5, // Shorter paths are better
       };
     }
 
@@ -362,8 +378,8 @@ function generateCssPathWithNthChild(
       return {
         type: 'css',
         value: selector,
-        confidence: 0.5, // Lower confidence for nth-child
-        specificity: 40 - depth * 5,
+        confidence: CONFIDENCE_SCORES.cssNthChild,
+        specificity: SPECIFICITY_SCORES.cssNthChild - depth * 5,
       };
     }
 
@@ -379,18 +395,19 @@ function generateCssPathWithNthChild(
  */
 function generateXPathSelector(element: Element): SelectorCandidate | null {
   const tagName = element.tagName.toLowerCase();
+  const maxLen = SELECTOR_DEFAULTS.maxTextLengthForSelector;
 
   // Try text-based XPath first
   const text = getVisibleText(element);
-  if (text && text.length > 0 && text.length <= 50) {
+  if (text && text.length > 0 && text.length <= maxLen) {
     const escapedText = escapeXPathString(text);
     const xpath = `//${tagName}[contains(text(), ${escapedText})]`;
     if (isUniqueXPath(xpath)) {
       return {
         type: 'xpath',
         value: xpath,
-        confidence: 0.55,
-        specificity: 35,
+        confidence: CONFIDENCE_SCORES.xpathText,
+        specificity: SPECIFICITY_SCORES.xpathText,
       };
     }
   }
@@ -403,8 +420,8 @@ function generateXPathSelector(element: Element): SelectorCandidate | null {
       return {
         type: 'xpath',
         value: xpath,
-        confidence: isDynamicId(id) ? 0.45 : 0.6,
-        specificity: 40,
+        confidence: isDynamicId(id) ? CONFIDENCE_SCORES.xpathPositional + 0.05 : CONFIDENCE_SCORES.idDynamic,
+        specificity: SPECIFICITY_SCORES.cssNthChild, // Same as nth-child CSS
       };
     }
   }
@@ -415,8 +432,8 @@ function generateXPathSelector(element: Element): SelectorCandidate | null {
     return {
       type: 'xpath',
       value: positionalXPath,
-      confidence: 0.4,
-      specificity: 25,
+      confidence: CONFIDENCE_SCORES.xpathPositional,
+      specificity: SPECIFICITY_SCORES.xpathPositional,
     };
   }
 
@@ -512,20 +529,10 @@ function isUniqueXPath(xpath: string): boolean {
 
 /**
  * Check if an ID looks dynamic (contains patterns that might change).
+ * Uses patterns from selector-config.ts.
  */
 function isDynamicId(id: string): boolean {
-  // Common patterns for dynamic IDs
-  const dynamicPatterns = [
-    /^[a-f0-9]{8,}$/i,           // Hex hash
-    /^\d+$/,                      // Pure numbers
-    /:r[0-9]+:/,                  // React auto IDs
-    /^:r/,                        // React 18 useId
-    /^ember\d+$/,                 // Ember
-    /^___gatsby/,                 // Gatsby
-    /_\d{10,}/,                   // Timestamp-based
-    /^[a-z]+_[a-z0-9]{6,}$/i,    // Component_hash pattern
-  ];
-
+  const dynamicPatterns = getDynamicIdPatterns();
   return dynamicPatterns.some((pattern) => pattern.test(id));
 }
 
@@ -549,24 +556,13 @@ function getStableClasses(
 
 /**
  * Assess stability of a CSS selector based on its components.
+ * Uses semantic class patterns from selector-config.ts.
  */
 function assessCssStability(selector: string, stableClasses: string[]): number {
-  let score = 0.65; // Base score for CSS selectors
+  let score = CONFIDENCE_SCORES.cssPath; // Base score for CSS selectors
 
   // Boost for having stable semantic classes
-  const semanticClassPatterns = [
-    /^btn-/,
-    /^button-/,
-    /^nav-/,
-    /^header-/,
-    /^footer-/,
-    /^card-/,
-    /^form-/,
-    /^input-/,
-    /^modal-/,
-    /^sidebar-/,
-    /^menu-/,
-  ];
+  const semanticClassPatterns = getSemanticClassPatterns();
 
   for (const cls of stableClasses) {
     if (semanticClassPatterns.some((p) => p.test(cls))) {
@@ -696,25 +692,23 @@ export function extractElementMeta(element: Element): ElementMeta {
 
 /**
  * Get relevant attributes for element identification.
+ * Uses RELEVANT_ATTRIBUTES from selector-config.ts.
  */
 function getRelevantAttributes(element: Element): Record<string, string> {
   const relevant: Record<string, string> = {};
-  const interestingAttrs = [
-    'type', 'name', 'placeholder', 'title', 'alt', 'href', 'src',
-    'value', 'for', 'action', 'method', 'role', 'aria-label',
-  ];
+  const maxLen = SELECTOR_DEFAULTS.maxTextLength;
 
-  for (const attr of interestingAttrs) {
+  for (const attr of RELEVANT_ATTRIBUTES) {
     const value = element.getAttribute(attr);
     if (value) {
-      relevant[attr] = value.slice(0, 100); // Truncate long values
+      relevant[attr] = value.slice(0, maxLen); // Truncate long values
     }
   }
 
   // Also include data-* attributes
   for (const attr of element.attributes) {
     if (attr.name.startsWith('data-') && !relevant[attr.name]) {
-      relevant[attr.name] = attr.value.slice(0, 100);
+      relevant[attr.name] = attr.value.slice(0, maxLen);
     }
   }
 

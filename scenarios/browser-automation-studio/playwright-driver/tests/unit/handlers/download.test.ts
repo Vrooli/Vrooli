@@ -1,6 +1,6 @@
 import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { DownloadHandler } from '../../../src/handlers/download';
-import type { HandlerContext } from '../../../src/types';
+import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
 
 describe('DownloadHandler', () => {

@@ -2,7 +2,8 @@ import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { CompiledInstruction } from '../types';
 import { UploadFileParamsSchema } from '../types/instruction';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
-import { normalizeError } from '../utils';
+import { normalizeError, validateTimeout, validateParams } from '../utils';
+import * as fs from 'fs/promises';
 
 /**
  * Upload file handler
@@ -21,8 +22,9 @@ export class UploadHandler extends BaseHandler {
     const { page, logger } = context;
 
     try {
-      // Validate parameters
-      const params = UploadFileParamsSchema.parse(instruction.params);
+      // Hardened: Validate params object exists
+      const rawParams = validateParams(instruction.params, 'uploadfile');
+      const params = UploadFileParamsSchema.parse(rawParams);
 
       if (!params.selector) {
         return {
@@ -49,7 +51,27 @@ export class UploadHandler extends BaseHandler {
         };
       }
 
-      const timeout = params.timeoutMs || DEFAULT_TIMEOUT_MS;
+      // Hardened: Pre-validate file exists and is readable
+      // Note: filePath may be a string or string[] - only validate single files
+      const fileToCheck = Array.isArray(filePath) ? filePath[0] : filePath;
+      if (fileToCheck) {
+        try {
+          await fs.access(fileToCheck, fs.constants.R_OK);
+        } catch {
+          return {
+            success: false,
+            error: {
+              message: `File not accessible: ${fileToCheck}`,
+              code: 'FILE_NOT_FOUND',
+              kind: 'orchestration',
+              retryable: false,
+            },
+          };
+        }
+      }
+
+      // Hardened: Validate timeout bounds
+      const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'uploadfile');
 
       logger.debug('Uploading file', {
         selector: params.selector,

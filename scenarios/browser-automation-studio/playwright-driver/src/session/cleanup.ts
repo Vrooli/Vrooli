@@ -5,7 +5,8 @@ import { logger } from '../utils';
 /**
  * Background cleanup task for idle sessions
  *
- * Runs periodically to remove sessions that have exceeded idle timeout
+ * Runs periodically to remove sessions that have exceeded idle timeout.
+ * This is essential for resource management and prevents memory leaks.
  */
 export class SessionCleanup {
   private manager: SessionManager;
@@ -22,11 +23,13 @@ export class SessionCleanup {
    */
   start(): void {
     if (this.intervalId) {
-      logger.warn('Cleanup task already running');
+      logger.warn('cleanup: task already running', {
+        hint: 'Cleanup task was started multiple times',
+      });
       return;
     }
 
-    logger.info('Starting session cleanup task', {
+    logger.info('cleanup: task started', {
       intervalMs: this.config.session.cleanupIntervalMs,
       idleTimeoutMs: this.config.session.idleTimeoutMs,
     });
@@ -35,8 +38,9 @@ export class SessionCleanup {
       try {
         await this.manager.cleanupIdleSessions();
       } catch (error) {
-        logger.error('Error in cleanup task', {
+        logger.error('cleanup: task error', {
           error: error instanceof Error ? error.message : String(error),
+          hint: 'Cleanup may have failed to close some sessions',
         });
       }
     }, this.config.session.cleanupIntervalMs);
@@ -54,7 +58,7 @@ export class SessionCleanup {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      logger.info('Session cleanup task stopped');
+      logger.info('cleanup: task stopped');
     }
   }
 }

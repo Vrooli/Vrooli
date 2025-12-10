@@ -20,8 +20,17 @@ import type {
   ActionReplayResult,
   ReplayPreviewRequest,
   ReplayPreviewResponse,
-  ClickActionPayload,
 } from './types';
+import {
+  normalizeActionType,
+  toRecordedActionKind,
+  buildTypedActionPayload,
+  calculateActionConfidence,
+} from './action-types';
+import {
+  getActionExecutor,
+  type ActionExecutorContext,
+} from './action-executor';
 
 /**
  * Callback type for streaming recorded actions.
@@ -132,17 +141,51 @@ export class RecordModeController {
       // Inject recording script
       await this.injectRecordingScript();
 
-      // Re-inject on navigation
+      // Re-inject on navigation with robust error handling
       this.navigationHandler = (): void => {
-        if (this.state.isRecording) {
-          // Small delay to ensure page is ready
-          setTimeout(() => {
-            this.injectRecordingScript().catch((err: unknown) => {
-              const message = err instanceof Error ? err.message : String(err);
-              this.handleError(new Error(`Failed to re-inject on navigation: ${message}`));
-            });
-          }, 100);
-        }
+        if (!this.state.isRecording) return;
+
+        // Use multiple injection attempts with backoff
+        // This handles cases where page isn't fully ready after load event
+        const attemptInjection = async (attempt: number, maxAttempts: number): Promise<void> => {
+          if (!this.state.isRecording) return; // Check again - state may have changed
+
+          try {
+            await this.injectRecordingScript();
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+
+            // Ignore errors about page being closed/navigated away
+            if (
+              message.includes('closed') ||
+              message.includes('navigating') ||
+              message.includes('detached')
+            ) {
+              return; // Page is gone, nothing to do
+            }
+
+            if (attempt < maxAttempts) {
+              // Exponential backoff: 100ms, 200ms, 400ms
+              const delay = 100 * Math.pow(2, attempt);
+              setTimeout(() => {
+                attemptInjection(attempt + 1, maxAttempts).catch(() => {
+                  // Final fallback - just log, don't crash
+                });
+              }, delay);
+            } else {
+              this.handleError(
+                new Error(`Failed to re-inject recording script after ${maxAttempts} attempts: ${message}`)
+              );
+            }
+          }
+        };
+
+        // Small initial delay to ensure page is ready, then attempt injection
+        setTimeout(() => {
+          attemptInjection(0, 3).catch(() => {
+            // Swallow - errors already handled in attemptInjection
+          });
+        }, 100);
       };
       this.page.on('load', this.navigationHandler);
 
@@ -248,6 +291,14 @@ export class RecordModeController {
   /**
    * Execute a single recorded action.
    *
+   * CHANGE AXIS: Replay Execution for Action Types
+   *
+   * Action execution is now handled by the action-executor registry.
+   * When adding a new action type:
+   * 1. Add to ACTION_TYPES in action-types.ts (normalization, kind mapping)
+   * 2. Register executor in action-executor.ts using registerActionExecutor()
+   * 3. No changes needed here!
+   *
    * @param action - The action to execute
    * @param timeout - Timeout in ms
    * @returns Result of the action execution
@@ -262,44 +313,27 @@ export class RecordModeController {
     };
 
     try {
-      switch (action.actionType) {
-        case 'click':
-          return await this.executeClick(action, timeout, baseResult);
+      // Use the action executor registry
+      const executor = getActionExecutor(action.actionType);
 
-        case 'type':
-          return await this.executeType(action, timeout, baseResult);
-
-        case 'navigate':
-          return await this.executeNavigate(action, timeout, baseResult);
-
-        case 'scroll':
-          return await this.executeScroll(action, timeout, baseResult);
-
-        case 'select':
-          return await this.executeSelect(action, timeout, baseResult);
-
-        case 'keypress':
-          return await this.executeKeypress(action, timeout, baseResult);
-
-        case 'focus':
-          return await this.executeFocus(action, timeout, baseResult);
-
-        case 'hover':
-          return await this.executeHover(action, timeout, baseResult);
-
-        case 'blur':
-          // Blur doesn't need special handling, just skip
-          return { ...baseResult, success: true };
-
-        default:
-          return {
-            ...baseResult,
-            error: {
-              message: `Unsupported action type: ${action.actionType}`,
-              code: 'UNKNOWN',
-            },
-          };
+      if (!executor) {
+        return {
+          ...baseResult,
+          error: {
+            message: `Unsupported action type: ${action.actionType}`,
+            code: 'UNKNOWN',
+          },
+        };
       }
+
+      // Create executor context
+      const context: ActionExecutorContext = {
+        page: this.page,
+        timeout,
+        validateSelector: (selector: string) => this.validateSelector(selector),
+      };
+
+      return await executor(action, context, baseResult);
     } catch (error) {
       const errorResult = this.handleActionError(error, action, baseResult);
       // Capture screenshot on error
@@ -313,287 +347,9 @@ export class RecordModeController {
     }
   }
 
-  /**
-   * Execute a click action.
-   */
-  private async executeClick(
-    action: RecordedAction,
-    timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    if (!action.selector?.primary) {
-      return {
-        ...baseResult,
-        error: { message: 'Click action missing selector', code: 'UNKNOWN' },
-      };
-    }
-
-    const selector = action.selector.primary;
-    const validation = await this.validateSelector(selector);
-
-    if (!validation.valid) {
-      return {
-        ...baseResult,
-        error: {
-          message: validation.matchCount === 0
-            ? `Element not found: ${selector}`
-            : `Multiple elements found (${validation.matchCount}): ${selector}`,
-          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
-          matchCount: validation.matchCount,
-          selector,
-        },
-      };
-    }
-
-    await this.page.click(selector, { timeout });
-    return { ...baseResult, success: true };
-  }
-
-  /**
-   * Execute a type action.
-   */
-  private async executeType(
-    action: RecordedAction,
-    timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    if (!action.selector?.primary) {
-      return {
-        ...baseResult,
-        error: { message: 'Type action missing selector', code: 'UNKNOWN' },
-      };
-    }
-
-    const selector = action.selector.primary;
-    const text = action.payload?.text || '';
-
-    const validation = await this.validateSelector(selector);
-    if (!validation.valid) {
-      return {
-        ...baseResult,
-        error: {
-          message: validation.matchCount === 0
-            ? `Element not found: ${selector}`
-            : `Multiple elements found (${validation.matchCount}): ${selector}`,
-          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
-          matchCount: validation.matchCount,
-          selector,
-        },
-      };
-    }
-
-    await this.page.fill(selector, text, { timeout });
-    return { ...baseResult, success: true };
-  }
-
-  /**
-   * Execute a navigate action.
-   */
-  private async executeNavigate(
-    action: RecordedAction,
-    timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    const url = action.payload?.targetUrl || action.url;
-
-    if (!url) {
-      return {
-        ...baseResult,
-        error: { message: 'Navigate action missing URL', code: 'UNKNOWN' },
-      };
-    }
-
-    try {
-      await this.page.goto(url, { timeout, waitUntil: 'networkidle' });
-      return { ...baseResult, success: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        ...baseResult,
-        error: {
-          message: `Navigation failed: ${message}`,
-          code: 'NAVIGATION_FAILED',
-        },
-      };
-    }
-  }
-
-  /**
-   * Execute a scroll action.
-   */
-  private async executeScroll(
-    action: RecordedAction,
-    _timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    const scrollY = action.payload?.scrollY ?? 0;
-    const scrollX = action.payload?.scrollX ?? 0;
-
-    if (action.selector?.primary) {
-      // Scroll within element
-      const selector = action.selector.primary;
-      const validation = await this.validateSelector(selector);
-
-      if (!validation.valid) {
-        return {
-          ...baseResult,
-          error: {
-            message: validation.matchCount === 0
-              ? `Element not found: ${selector}`
-              : `Multiple elements found (${validation.matchCount}): ${selector}`,
-            code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
-            matchCount: validation.matchCount,
-            selector,
-          },
-        };
-      }
-
-      // Scroll within element - uses browser context
-      await this.page.evaluate(`
-        (function() {
-          const element = document.querySelector(${JSON.stringify(selector)});
-          if (element) {
-            element.scrollTo(${scrollX}, ${scrollY});
-          }
-        })()
-      `);
-    } else {
-      // Scroll window - uses browser context
-      await this.page.evaluate(`window.scrollTo(${scrollX}, ${scrollY})`);
-    }
-
-    return { ...baseResult, success: true };
-  }
-
-  /**
-   * Execute a select action.
-   */
-  private async executeSelect(
-    action: RecordedAction,
-    timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    if (!action.selector?.primary) {
-      return {
-        ...baseResult,
-        error: { message: 'Select action missing selector', code: 'UNKNOWN' },
-      };
-    }
-
-    const selector = action.selector.primary;
-    const value = action.payload?.value || '';
-
-    const validation = await this.validateSelector(selector);
-    if (!validation.valid) {
-      return {
-        ...baseResult,
-        error: {
-          message: validation.matchCount === 0
-            ? `Element not found: ${selector}`
-            : `Multiple elements found (${validation.matchCount}): ${selector}`,
-          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
-          matchCount: validation.matchCount,
-          selector,
-        },
-      };
-    }
-
-    await this.page.selectOption(selector, value, { timeout });
-    return { ...baseResult, success: true };
-  }
-
-  /**
-   * Execute a keypress action.
-   */
-  private async executeKeypress(
-    action: RecordedAction,
-    _timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    const key = action.payload?.key;
-
-    if (!key) {
-      return {
-        ...baseResult,
-        error: { message: 'Keypress action missing key', code: 'UNKNOWN' },
-      };
-    }
-
-    await this.page.keyboard.press(key);
-    return { ...baseResult, success: true };
-  }
-
-  /**
-   * Execute a focus action.
-   */
-  private async executeFocus(
-    action: RecordedAction,
-    timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    if (!action.selector?.primary) {
-      return {
-        ...baseResult,
-        error: { message: 'Focus action missing selector', code: 'UNKNOWN' },
-      };
-    }
-
-    const selector = action.selector.primary;
-    const validation = await this.validateSelector(selector);
-
-    if (!validation.valid) {
-      return {
-        ...baseResult,
-        error: {
-          message: validation.matchCount === 0
-            ? `Element not found: ${selector}`
-            : `Multiple elements found (${validation.matchCount}): ${selector}`,
-          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
-          matchCount: validation.matchCount,
-          selector,
-        },
-      };
-    }
-
-    await this.page.focus(selector, { timeout });
-    return { ...baseResult, success: true };
-  }
-
-  /**
-   * Execute a hover action.
-   */
-  private async executeHover(
-    action: RecordedAction,
-    timeout: number,
-    baseResult: ActionReplayResult
-  ): Promise<ActionReplayResult> {
-    if (!action.selector?.primary) {
-      return {
-        ...baseResult,
-        error: { message: 'Hover action missing selector', code: 'UNKNOWN' },
-      };
-    }
-
-    const selector = action.selector.primary;
-    const validation = await this.validateSelector(selector);
-
-    if (!validation.valid) {
-      return {
-        ...baseResult,
-        error: {
-          message: validation.matchCount === 0
-            ? `Element not found: ${selector}`
-            : `Multiple elements found (${validation.matchCount}): ${selector}`,
-          code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
-          matchCount: validation.matchCount,
-          selector,
-        },
-      };
-    }
-
-    await this.page.hover(selector, { timeout });
-    return { ...baseResult, success: true };
-  }
+  // NOTE: Individual execute* methods have been moved to action-executor.ts
+  // This reduces shotgun surgery when adding new action types.
+  // See action-executor.ts for the action executor registry pattern.
 
   /**
    * Handle action execution errors.
@@ -719,152 +475,71 @@ export class RecordModeController {
 
   /**
    * Normalize a raw browser event to a RecordedAction.
+   *
+   * Hardened assumptions:
+   * - raw.timestamp may be invalid (NaN, negative, or future date)
+   * - raw.selector may be missing or have empty primary
+   * - raw.url may be empty or malformed
    */
   private normalizeEvent(raw: RawBrowserEvent): RecordedAction {
-    const actionType = this.normalizeActionType(raw.actionType);
-    const actionKind = this.toRecordedActionKind(actionType);
+    // Use centralized action type normalization (see action-types.ts)
+    const actionType = normalizeActionType(raw.actionType);
+    const actionKind = toRecordedActionKind(actionType);
+
+    // Hardened: Validate and sanitize timestamp
+    let timestamp: string;
+    try {
+      const date = new Date(raw.timestamp);
+      // Check for Invalid Date (NaN check)
+      if (Number.isNaN(date.getTime())) {
+        timestamp = new Date().toISOString();
+      } else {
+        timestamp = date.toISOString();
+      }
+    } catch {
+      // Fallback to current time if Date construction fails
+      timestamp = new Date().toISOString();
+    }
+
+    // Hardened: Ensure selector has valid primary if selector object exists
+    let selector = raw.selector;
+    if (selector && (!selector.primary || selector.primary.trim() === '')) {
+      // If we have candidates but no primary, use the first candidate
+      if (selector.candidates && selector.candidates.length > 0) {
+        selector = {
+          ...selector,
+          primary: selector.candidates[0].value,
+        };
+      }
+      // Otherwise selector.primary will be empty, which handlers should check
+    }
+
     const action: RecordedAction = {
       id: uuidv4(),
       sessionId: this.state.sessionId,
       sequenceNum: this.sequenceNum++,
-      timestamp: new Date(raw.timestamp).toISOString(),
+      timestamp,
       actionType,
       actionKind,
-      confidence: this.calculateActionConfidence(raw),
-      selector: raw.selector,
+      // Use centralized confidence calculation (see action-types.ts)
+      confidence: calculateActionConfidence(actionType, selector),
+      selector,
       elementMeta: raw.elementMeta,
       boundingBox: raw.boundingBox,
       cursorPos: raw.cursorPos || undefined,
-      url: raw.url,
+      url: raw.url || '',
       frameId: raw.frameId || undefined,
       payload: raw.payload as RecordedAction['payload'],
-      typedAction: this.buildTypedActionPayload(actionKind, raw),
+      // Use centralized typed payload builder (see action-types.ts)
+      typedAction: buildTypedActionPayload(actionKind, raw),
     };
 
     return action;
   }
 
-  /**
-   * Map actionType to proto-aligned RecordedActionKind.
-   */
-  private toRecordedActionKind(actionType: RecordedAction['actionType']): RecordedAction['actionKind'] {
-    switch (actionType) {
-      case 'navigate':
-        return 'RECORDED_ACTION_TYPE_NAVIGATE';
-      case 'click':
-      case 'focus':
-      case 'hover':
-      case 'blur':
-        return 'RECORDED_ACTION_TYPE_CLICK';
-      case 'type':
-      case 'keypress':
-        return 'RECORDED_ACTION_TYPE_INPUT';
-      default:
-        return 'RECORDED_ACTION_TYPE_UNSPECIFIED';
-    }
-  }
-
-  /**
-   * Build typed action payloads aligned with proto schemas.
-   */
-  private buildTypedActionPayload(
-    kind: RecordedAction['actionKind'],
-    raw: RawBrowserEvent
-  ): RecordedAction['typedAction'] {
-    const payload = (raw.payload || {}) as Record<string, unknown>;
-    switch (kind) {
-      case 'RECORDED_ACTION_TYPE_NAVIGATE': {
-        const url = (payload.targetUrl as string) || raw.url;
-        const typed = {
-          navigate: {
-            url,
-            waitForSelector: (payload.waitForSelector as string) || undefined,
-            timeoutMs: (payload.timeoutMs as number) || undefined,
-          },
-        };
-        return typed;
-      }
-      case 'RECORDED_ACTION_TYPE_CLICK': {
-        const typed = {
-          click: {
-            selector: raw.selector?.primary,
-            button: (payload.button as ClickActionPayload['button']) || undefined,
-            clickCount: (payload.clickCount as number) || undefined,
-            delayMs: (payload.delayMs as number) || (payload.delay as number) || undefined,
-            scrollIntoView: (payload.scrollIntoView as boolean) || undefined,
-          },
-        };
-        return typed;
-      }
-      case 'RECORDED_ACTION_TYPE_INPUT': {
-        const value = (payload.text as string) ?? (payload.value as string) ?? '';
-        const typed = {
-          input: {
-            selector: raw.selector?.primary,
-            value,
-            isSensitive: (payload.isSensitive as boolean) || (payload.sensitive as boolean) || false,
-            submit: (payload.submit as boolean) || undefined,
-          },
-        };
-        return typed;
-      }
-      default:
-        return undefined;
-    }
-  }
-
-  /**
-   * Normalize action type string to valid ActionType.
-   */
-  private normalizeActionType(type: string): RecordedAction['actionType'] {
-    const validTypes = ['click', 'type', 'scroll', 'navigate', 'select', 'hover', 'focus', 'blur', 'keypress'];
-    const normalized = type.toLowerCase();
-
-    if (validTypes.includes(normalized)) {
-      return normalized as RecordedAction['actionType'];
-    }
-
-    // Map common variations
-    if (normalized === 'input') return 'type';
-    if (normalized === 'change') return 'select';
-    if (normalized === 'keydown' || normalized === 'keyup') return 'keypress';
-
-    // Default to click for unknown types
-    return 'click';
-  }
-
-  /**
-   * Calculate confidence score for an action based on selector quality.
-   */
-  private calculateActionConfidence(raw: RawBrowserEvent): number {
-    // Actions like scroll/navigate don't rely on selectors; skip noisy warnings.
-    const actionType = this.normalizeActionType(raw.actionType);
-    if (actionType === 'scroll' || actionType === 'navigate') {
-      return 1;
-    }
-
-    if (!raw.selector || !raw.selector.candidates || raw.selector.candidates.length === 0) {
-      return 0.5;
-    }
-
-    // Use the confidence of the primary selector
-    const primaryCandidate = raw.selector.candidates.find(
-      (c) => c.value === raw.selector.primary
-    );
-
-    if (!primaryCandidate) {
-      return 0.5;
-    }
-
-    // If we found a stable signal (data-testid/id/aria/data-*), bump to a safe floor
-    // to avoid flashing "unstable" warnings on otherwise solid selectors.
-    const strongTypes = ['data-testid', 'id', 'aria', 'data-attr'];
-    if (strongTypes.includes(primaryCandidate.type) && primaryCandidate.confidence < 0.85) {
-      return Math.max(primaryCandidate.confidence, 0.85);
-    }
-
-    return primaryCandidate.confidence ?? 0.5;
-  }
+  // NOTE: Action type normalization, kind mapping, typed payload building, and confidence
+  // calculation have been centralized in action-types.ts to reduce shotgun surgery
+  // when adding new action types. See the imports at the top of this file.
 
   /**
    * Handle errors during recording.
