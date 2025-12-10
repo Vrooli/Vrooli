@@ -1,4 +1,4 @@
-## 🧭 **Phase: Navigation Integrity Audit**
+## Steer focus: Navigation Integrity Audit
 
 Prioritize **navigation integrity**: every control that changes location, view, or mode should take the user where they reasonably expect to go, with honest labels and clear feedback.
 

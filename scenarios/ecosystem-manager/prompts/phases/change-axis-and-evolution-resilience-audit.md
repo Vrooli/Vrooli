@@ -1,4 +1,4 @@
-## 🔧 **Phase: Change Axis & Evolution Resilience Audit**
+## Steer focus: Change Axis & Evolution Resilience Audit
 
 Prioritize **making the scenario easier and safer to evolve over time**.
 
