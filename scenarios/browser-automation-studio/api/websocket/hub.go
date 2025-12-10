@@ -221,7 +221,7 @@ func (h *Hub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
 		ID:          uuid.New(),
 		Conn:        conn,
 		Send:        make(chan any, 256),
-		BinarySend:  make(chan []byte, 32), // Smaller buffer for binary frames (larger payloads)
+		BinarySend:  make(chan []byte, 64), // Buffer for binary frames - holds ~10 seconds at 6 FPS
 		Hub:         h,
 		ExecutionID: executionID,
 	}

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig } from "@/config";
 import { useWebSocket } from "@/contexts/WebSocketContext";
+import { mapClientToViewport } from "../utils/coordinateMapping";
 
 type PointerAction = "move" | "down" | "up" | "click";
 
@@ -44,6 +45,8 @@ interface PlaywrightViewProps {
   refreshToken?: number;
   /** Whether to use WebSocket for frame updates (default: true) */
   useWebSocketFrames?: boolean;
+  /** Logical viewport dimensions (for coordinate mapping, independent of device pixel ratio) */
+  viewport?: { width: number; height: number };
 }
 
 /**
@@ -54,6 +57,25 @@ interface PlaywrightViewProps {
  * 2. Polling (fallback): Polls for frames when WebSocket unavailable
  *
  * Also forwards user input (pointer/keyboard/wheel) back to the driver.
+ *
+ * ## Coordinate Mapping (IMPORTANT)
+ *
+ * The live preview displays JPEG screenshots captured by Playwright. These screenshots
+ * are captured at the device's pixel ratio (e.g., 2x on HiDPI/Retina displays), meaning
+ * a 900x700 viewport produces an 1800x1400 image.
+ *
+ * When the user clicks on the preview, we must map their click coordinates to the
+ * Playwright viewport coordinates, NOT the screenshot bitmap coordinates.
+ *
+ * Example:
+ * - Viewport: 900x700 (logical pixels)
+ * - Screenshot: 1800x1400 (physical pixels at 2x DPR)
+ * - User clicks at (450, 350) on the displayed preview
+ * - Correct: Send (450, 350) to Playwright
+ * - Wrong: Send (900, 700) to Playwright (2x scaled - clicks land off-screen!)
+ *
+ * The `viewport` prop provides the logical viewport dimensions for correct mapping.
+ * If not provided, falls back to frame dimensions (which may be wrong on HiDPI).
  */
 export function PlaywrightView({
   sessionId,
@@ -62,6 +84,7 @@ export function PlaywrightView({
   onStreamError,
   refreshToken,
   useWebSocketFrames = true,
+  viewport,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [frame, setFrame] = useState<FramePayload | null>(null);
@@ -167,59 +190,95 @@ export function PlaywrightView({
   }, [lastMessage, sessionId, useWebSocketFrames, isWsFrameActive]);
 
   // Handle WebSocket binary frames (raw JPEG data - more efficient)
-  // Use a ref to track the latest blob URL to avoid race conditions where
-  // a newer frame's blob URL gets revoked before the older frame finishes loading
+  // Uses requestAnimationFrame + createImageBitmap for optimal rendering performance:
+  // 1. createImageBitmap decodes off-main-thread (non-blocking)
+  // 2. requestAnimationFrame batches updates to vsync (no dropped frames)
+  // 3. Only one pending frame at a time - newer frames supersede older ones
   const pendingBlobUrlRef = useRef<string | null>(null);
+  const pendingBlobRef = useRef<Blob | null>(null);
+  const latestFrameIdRef = useRef<number>(0);
+  const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!lastBinaryFrame || !useWebSocketFrames || !isWsFrameActive) return;
 
-    // Create blob URL from binary data (no base64 decode needed!)
+    // Create blob from binary data
     const blob = new Blob([lastBinaryFrame], { type: "image/jpeg" });
-    const url = URL.createObjectURL(blob);
+    const frameId = Date.now(); // Use timestamp as frame ID for ordering
 
-    // Track the URL we're about to load - if a newer frame arrives before this loads,
-    // we'll skip updating state for this frame
-    const currentUrl = url;
-    pendingBlobUrlRef.current = url;
+    // Store as pending frame - this supersedes any previous pending frame
+    pendingBlobRef.current = blob;
+    latestFrameIdRef.current = frameId;
 
-    // Create frame data with blob URL
-    const frameData: FramePayload = {
-      image: url,
-      width: frame?.width || 1280,
-      height: frame?.height || 720,
-      captured_at: new Date().toISOString(),
-    };
+    // If we already have a RAF scheduled, it will pick up the new frame
+    if (rafIdRef.current !== null) return;
 
-    // Preload image before displaying
-    const img = new Image();
-    img.onload = () => {
-      // Only update if this is still the most recent frame
-      // (a newer frame might have arrived while we were loading)
-      if (pendingBlobUrlRef.current === currentUrl) {
-        // Revoke the OLD displayed blob URL now that we have a new one ready
-        if (blobUrlRef.current && blobUrlRef.current !== currentUrl) {
+    // Schedule frame processing on next animation frame
+    rafIdRef.current = requestAnimationFrame(async () => {
+      rafIdRef.current = null;
+
+      // Get the most recent pending frame
+      const pending = pendingBlobRef.current;
+      const processingFrameId = latestFrameIdRef.current;
+      if (!pending) return;
+
+      // Clear the pending blob (we're about to process it)
+      pendingBlobRef.current = null;
+
+      try {
+        // Use createImageBitmap for off-main-thread decoding (more efficient than new Image())
+        const bitmap = await createImageBitmap(pending);
+
+        // Create blob URL for the img element
+        const url = URL.createObjectURL(pending);
+
+        // Check if a newer frame arrived while we were decoding
+        if (latestFrameIdRef.current > processingFrameId) {
+          // Newer frame exists - discard this one
+          URL.revokeObjectURL(url);
+          bitmap.close();
+          return;
+        }
+
+        // Revoke old blob URL before setting new one
+        if (blobUrlRef.current && blobUrlRef.current !== url) {
           URL.revokeObjectURL(blobUrlRef.current);
         }
-        blobUrlRef.current = currentUrl;
+        blobUrlRef.current = url;
+        pendingBlobUrlRef.current = url;
+
+        // Create frame data
+        const frameData: FramePayload = {
+          image: url,
+          width: bitmap.width || frame?.width || 1280,
+          height: bitmap.height || frame?.height || 720,
+          captured_at: new Date().toISOString(),
+        };
+
+        // Clean up bitmap (we're using the blob URL for display)
+        bitmap.close();
+
+        // Update state - this triggers a single re-render with the ready-to-display frame
         setFrame(frameData);
         lastFrameRef.current = frameData;
         setError(null);
-      } else {
-        // This frame is stale - revoke its blob URL immediately
-        URL.revokeObjectURL(currentUrl);
+      } catch {
+        // Decode failed - only show error if no newer frame is pending
+        if (!pendingBlobRef.current) {
+          setError("Failed to decode binary frame");
+        }
       }
-    };
-    img.onerror = () => {
-      // Revoke the failed blob URL
-      URL.revokeObjectURL(currentUrl);
-      // Only show error if this was the most recent frame
-      if (pendingBlobUrlRef.current === currentUrl) {
-        setError("Failed to decode binary frame");
-      }
-    };
-    img.src = url;
+    });
   }, [lastBinaryFrame, useWebSocketFrames, isWsFrameActive, frame?.width, frame?.height]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -368,29 +427,25 @@ export function PlaywrightView({
   const getScaledPoint = useCallback(
     (clientX: number, clientY: number) => {
       const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect || !frame?.width || !frame?.height) return { x: 0, y: 0 };
-      const scale = Math.min(rect.width / frame.width, rect.height / frame.height);
-      const displayWidth = frame.width * scale;
-      const displayHeight = frame.height * scale;
-      const offsetX = (rect.width - displayWidth) / 2;
-      const offsetY = (rect.height - displayHeight) / 2;
-      const relativeX = clientX - rect.left - offsetX;
-      const relativeY = clientY - rect.top - offsetY;
-      const clampedX = Math.max(0, Math.min(displayWidth, relativeX));
-      const clampedY = Math.max(0, Math.min(displayHeight, relativeY));
-      const xRatio = frame.width / displayWidth;
-      const yRatio = frame.height / displayHeight;
-      return {
-        x: clampedX * xRatio,
-        y: clampedY * yRatio,
-      };
+      // Use logical viewport dimensions for coordinate mapping (not bitmap dimensions which include device pixel ratio)
+      // Fall back to frame dimensions if viewport not provided (may be incorrect on HiDPI - see coordinateMapping.ts)
+      const currentFrame = frame || lastFrameRef.current;
+      const targetWidth = viewport?.width || currentFrame?.width;
+      const targetHeight = viewport?.height || currentFrame?.height;
+      if (!rect || !targetWidth || !targetHeight) return { x: 0, y: 0 };
+
+      return mapClientToViewport(clientX, clientY, rect, targetWidth, targetHeight);
     },
-    [frame?.height, frame?.width]
+    [frame?.height, frame?.width, viewport?.height, viewport?.width]
   );
 
   const handlePointer = useCallback(
     (action: PointerAction, e: React.PointerEvent<HTMLDivElement>) => {
-      if (!frame) return;
+      // Use ref to avoid stale frame state in callbacks
+      const currentFrame = frame || lastFrameRef.current;
+      if (!currentFrame) {
+        return;
+      }
       if (action === "move") {
         const now = performance.now();
         if (now - lastMoveRef.current < 100) return; // throttle move (100ms = max 10 moves/sec)
@@ -466,7 +521,7 @@ export function PlaywrightView({
         <img
           src={(frame ?? lastFrameRef.current)?.image}
           alt="Live Playwright preview"
-          className="w-full h-full object-contain bg-white"
+          className="w-full h-full object-contain bg-white pointer-events-none"
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">

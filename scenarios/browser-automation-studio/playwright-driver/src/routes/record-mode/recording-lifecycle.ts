@@ -569,8 +569,6 @@ async function streamActionToCallback(callbackUrl: string, action: RecordedActio
 // Frame Streaming (WebSocket Binary)
 // =============================================================================
 
-import { createHash } from 'crypto';
-
 /** Minimal WebSocket interface - subset of ws module for our needs */
 interface FrameWebSocket {
   readyState: number;
@@ -596,12 +594,18 @@ interface FrameStreamState {
   abortController: AbortController;
   /** Last frame buffer for quick byte-level comparison */
   lastFrameBuffer: Buffer | null;
-  /** Last frame hash (only computed if buffer length matches) */
-  lastFrameHash: string | null;
   /** Frame quality (0-100) */
   quality: number;
-  /** Target FPS */
-  fps: number;
+  /** Target FPS (user-requested) */
+  targetFps: number;
+  /** Current adaptive FPS (may be lower than target if client is slow) */
+  currentFps: number;
+  /** Timestamp of last frame sent (for adaptive FPS calculation) */
+  lastFrameSentAt: number;
+  /** Rolling average of frame processing times (ms) */
+  avgFrameTime: number;
+  /** Number of frames sent (for averaging) */
+  frameCount: number;
   /** WebSocket connection to API */
   ws: FrameWebSocket | null;
   /** WebSocket URL for reconnection */
@@ -620,6 +624,17 @@ const MAX_FRAME_FAILURES = 3;
 
 /** WebSocket reconnection delay */
 const WS_RECONNECT_DELAY_MS = 1000;
+
+/** Minimum FPS floor for adaptive rate control */
+const MIN_ADAPTIVE_FPS = 2;
+/** Alpha for exponential moving average of frame times */
+const FRAME_TIME_EMA_ALPHA = 0.3;
+/** Threshold: if frame time exceeds target interval by this factor, reduce FPS */
+const SLOWDOWN_THRESHOLD = 1.2;
+/** Threshold: if frame time is below target interval by this factor, increase FPS */
+const SPEEDUP_THRESHOLD = 0.7;
+/** How often to log adaptive FPS changes (every N frames) */
+const ADAPTIVE_LOG_INTERVAL = 30;
 
 /**
  * Build WebSocket URL from HTTP callback URL.
@@ -663,9 +678,12 @@ export function startFrameStreaming(
     isStreaming: true,
     abortController: new AbortController(),
     lastFrameBuffer: null,
-    lastFrameHash: null,
     quality,
-    fps,
+    targetFps: fps,
+    currentFps: fps,
+    lastFrameSentAt: 0,
+    avgFrameTime: 0,
+    frameCount: 0,
     ws: null,
     wsUrl,
     consecutiveFailures: 0,
@@ -674,12 +692,14 @@ export function startFrameStreaming(
 
   frameStreamStates.set(sessionId, state);
 
-  logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started (WebSocket binary)'), {
+  logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started (WebSocket binary, adaptive FPS)'), {
     sessionId,
-    fps,
+    targetFps: fps,
     quality,
-    intervalMs,
+    initialIntervalMs: intervalMs,
     wsUrl,
+    adaptiveFpsEnabled: true,
+    minFps: MIN_ADAPTIVE_FPS,
   });
 
   // Connect WebSocket and start streaming loop
@@ -763,15 +783,19 @@ export function stopFrameStreaming(sessionId: string): void {
 /**
  * The main frame streaming loop.
  * Captures frames and sends via WebSocket as binary data.
+ * Uses adaptive FPS to match client processing capability.
  */
 async function runFrameStreamLoop(
   sessionId: string,
   sessionManager: SessionManager,
   state: FrameStreamState,
-  intervalMs: number
+  _initialIntervalMs: number
 ): Promise<void> {
   while (state.isStreaming && !state.abortController.signal.aborted) {
     const loopStart = performance.now();
+
+    // Calculate current interval from adaptive FPS
+    const currentIntervalMs = Math.floor(1000 / state.currentFps);
 
     try {
       // Check if session still exists
@@ -786,14 +810,14 @@ async function runFrameStreamLoop(
 
       // Skip if WebSocket not connected (readyState 1 = OPEN)
       if (!state.wsReady || !state.ws || state.ws.readyState !== 1) {
-        await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+        await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
         continue;
       }
 
       // Skip if too many consecutive failures (circuit breaker)
       if (state.consecutiveFailures >= MAX_FRAME_FAILURES) {
         // Wait longer before retrying
-        await sleep(intervalMs * 5, state.abortController.signal);
+        await sleep(currentIntervalMs * 5, state.abortController.signal);
         state.consecutiveFailures = 0; // Reset and retry
         continue;
       }
@@ -803,23 +827,74 @@ async function runFrameStreamLoop(
 
       if (!buffer) {
         // Page not ready or error, skip this frame
-        await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+        await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
         continue;
       }
 
       // Skip if frame content unchanged (fast buffer comparison)
       if (isFrameUnchanged(buffer, state)) {
-        await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+        await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
         continue;
       }
 
       // Update last frame state
       state.lastFrameBuffer = buffer;
-      state.lastFrameHash = createHash('md5').update(buffer).digest('hex');
 
       // Send raw binary frame over WebSocket (no JSON, no base64!)
       state.ws.send(buffer);
       state.consecutiveFailures = 0;
+
+      // Track frame timing for adaptive FPS
+      const now = performance.now();
+      if (state.lastFrameSentAt > 0) {
+        const actualFrameTime = now - state.lastFrameSentAt;
+        state.frameCount++;
+
+        // Update exponential moving average of frame time
+        if (state.avgFrameTime === 0) {
+          state.avgFrameTime = actualFrameTime;
+        } else {
+          state.avgFrameTime = FRAME_TIME_EMA_ALPHA * actualFrameTime +
+            (1 - FRAME_TIME_EMA_ALPHA) * state.avgFrameTime;
+        }
+
+        // Adaptive FPS adjustment every few frames to avoid oscillation
+        if (state.frameCount % 5 === 0) {
+          const targetInterval = 1000 / state.targetFps;
+          const avgFrameTime = state.avgFrameTime;
+
+          if (avgFrameTime > targetInterval * SLOWDOWN_THRESHOLD) {
+            // Frames taking too long - reduce FPS
+            const newFps = Math.max(MIN_ADAPTIVE_FPS, state.currentFps - 1);
+            if (newFps !== state.currentFps) {
+              state.currentFps = newFps;
+              if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
+                logger.debug(scopedLog(LogContext.RECORDING, 'adaptive FPS reduced'), {
+                  sessionId,
+                  currentFps: state.currentFps,
+                  targetFps: state.targetFps,
+                  avgFrameTimeMs: Math.round(avgFrameTime),
+                });
+              }
+            }
+          } else if (avgFrameTime < targetInterval * SPEEDUP_THRESHOLD && state.currentFps < state.targetFps) {
+            // Frames processing fast - increase FPS toward target
+            const newFps = Math.min(state.targetFps, state.currentFps + 1);
+            if (newFps !== state.currentFps) {
+              state.currentFps = newFps;
+              if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
+                logger.debug(scopedLog(LogContext.RECORDING, 'adaptive FPS increased'), {
+                  sessionId,
+                  currentFps: state.currentFps,
+                  targetFps: state.targetFps,
+                  avgFrameTimeMs: Math.round(avgFrameTime),
+                });
+              }
+            }
+          }
+        }
+      }
+      state.lastFrameSentAt = now;
 
     } catch (err) {
       if (state.abortController.signal.aborted) {
@@ -836,7 +911,7 @@ async function runFrameStreamLoop(
       });
     }
 
-    await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+    await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
   }
 }
 
@@ -858,9 +933,13 @@ function isFrameUnchanged(buffer: Buffer, state: FrameStreamState): boolean {
   return buffer.equals(state.lastFrameBuffer);
 }
 
+/** Screenshot timeout - slightly less than minimum frame interval to prevent blocking */
+const SCREENSHOT_TIMEOUT_MS = 150;
+
 /**
  * Capture a frame as raw JPEG buffer.
  * No base64 encoding - send raw bytes over WebSocket.
+ * Includes timeout to prevent blocking the frame loop if page is slow to render.
  */
 async function captureFrameBuffer(
   page: import('playwright').Page,
@@ -870,8 +949,10 @@ async function captureFrameBuffer(
     return await page.screenshot({
       type: 'jpeg',
       quality,
+      timeout: SCREENSHOT_TIMEOUT_MS,
     });
   } catch {
+    // Timeout or other error - skip this frame
     return null;
   }
 }

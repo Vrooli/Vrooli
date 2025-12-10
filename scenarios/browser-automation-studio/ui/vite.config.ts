@@ -304,6 +304,16 @@ export default defineConfig({
           poolOptions: THREADS_TWO,
         },
       }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'record-mode',
+          include: ['src/features/record-mode/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
     ],
   },
   server: {

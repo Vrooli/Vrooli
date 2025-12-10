@@ -28,6 +28,8 @@ export function RecordPreviewPanel({
   const [liveRefreshToken, setLiveRefreshToken] = useState(0);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const lastReportedViewportRef = useRef<{ width: number; height: number } | null>(null);
+  // Track viewport for passing to PlaywrightView (for coordinate mapping)
+  const [currentViewport, setCurrentViewport] = useState<{ width: number; height: number } | null>(null);
 
   // Keep input in sync with upstream changes
   useEffect(() => {
@@ -61,6 +63,7 @@ export function RecordPreviewPanel({
         return;
       }
       lastReportedViewportRef.current = size;
+      setCurrentViewport(size);
       if (onViewportChange) {
         onViewportChange(size);
       }
@@ -102,6 +105,7 @@ export function RecordPreviewPanel({
             <PlaywrightView
               sessionId={sessionId}
               refreshToken={liveRefreshToken}
+              viewport={currentViewport ?? undefined}
             />
           ) : (
             <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
