@@ -126,6 +126,62 @@ func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 	}
 }
 
+// RecordingFrame represents a frame pushed from the playwright-driver.
+type RecordingFrame struct {
+	SessionID   string `json:"session_id"`
+	Mime        string `json:"mime"`         // "image/webp" or "image/jpeg"
+	Image       string `json:"image"`        // base64 data URI
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	CapturedAt  string `json:"captured_at"`
+	ContentHash string `json:"content_hash"` // MD5 hash for client-side dedup
+}
+
+// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
+// This eliminates the need for clients to poll for frames.
+func (h *Hub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {
+	message := map[string]any{
+		"type":         "recording_frame",
+		"session_id":   sessionID,
+		"mime":         frame.Mime,
+		"image":        frame.Image,
+		"width":        frame.Width,
+		"height":       frame.Height,
+		"captured_at":  frame.CapturedAt,
+		"content_hash": frame.ContentHash,
+		"timestamp":    getCurrentTimestamp(),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this recording session
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip frame (non-blocking)
+				// This is acceptable - missing a frame is better than blocking
+			}
+		}
+	}
+}
+
+// HasRecordingSubscribers returns true if any clients are subscribed to the given session.
+// Used by the frame push loop to avoid capturing frames when no one is watching.
+func (h *Hub) HasRecordingSubscribers(sessionID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			return true
+		}
+	}
+	return false
+}
+
 // GetClientCount returns the number of connected clients.
 func (h *Hub) GetClientCount() int {
 	h.mu.RLock()

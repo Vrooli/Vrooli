@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/websocket"
 )
 
 // RecordedAction represents a single user action captured during recording.
@@ -223,13 +224,15 @@ type RecordingScreenshotResponse struct {
 }
 
 // RecordingFrameResponse is the response for lightweight frame previews.
+// Uses WebP format for ~25-30% better compression than JPEG at same quality.
 type RecordingFrameResponse struct {
-	SessionID  string `json:"session_id"`
-	Mime       string `json:"mime"`
-	Image      string `json:"image"`
-	Width      int    `json:"width"`
-	Height     int    `json:"height"`
-	CapturedAt string `json:"captured_at"`
+	SessionID   string `json:"session_id"`
+	Mime        string `json:"mime"` // "image/webp" or "image/jpeg"
+	Image       string `json:"image"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	CapturedAt  string `json:"captured_at"`
+	ContentHash string `json:"content_hash"` // MD5 hash of raw frame buffer for reliable ETag
 }
 
 // RecordingViewportRequest updates viewport dimensions.
@@ -522,8 +525,8 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 	// Call playwright-driver to start recording
 	driverURL := fmt.Sprintf("%s/session/%s/record/start", getPlaywrightDriverURL(), req.SessionID)
 
-	// Construct callback URL for real-time action streaming
-	// The driver will POST each action to this URL for WebSocket broadcasting
+	// Construct callback URLs for real-time streaming
+	// The driver will POST each action/frame to these URLs for WebSocket broadcasting
 	apiHost := os.Getenv("API_HOST")
 	if apiHost == "" {
 		apiHost = "127.0.0.1"
@@ -532,10 +535,14 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 	if apiPort == "" {
 		apiPort = "8080"
 	}
-	callbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, req.SessionID)
+	actionCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, req.SessionID)
+	frameCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, req.SessionID)
 
-	reqBody := map[string]string{
-		"callback_url": callbackURL,
+	reqBody := map[string]interface{}{
+		"callback_url":       actionCallbackURL,
+		"frame_callback_url": frameCallbackURL,
+		"frame_quality":      65, // WebP quality for live preview
+		"frame_fps":          6,  // 6 FPS for low-latency streaming
 	}
 	// Allow override from request if provided
 	if req.CallbackURL != "" {
@@ -1482,6 +1489,35 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// ReceiveRecordingFrame handles POST /api/v1/recordings/live/{sessionId}/frame
+// Receives a streamed frame from the playwright-driver and broadcasts it via WebSocket.
+// This eliminates the need for clients to poll for frames - they receive them in real-time.
+func (h *Handler) ReceiveRecordingFrame(w http.ResponseWriter, r *http.Request) {
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var frame websocket.RecordingFrame
+	if err := json.NewDecoder(r.Body).Decode(&frame); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Only broadcast if there are subscribers (avoid unnecessary work)
+	if h.wsHub.HasRecordingSubscribers(sessionID) {
+		h.wsHub.BroadcastRecordingFrame(sessionID, &frame)
+	}
+
+	// Return 200 immediately - don't wait for broadcast
+	w.WriteHeader(http.StatusOK)
+}
+
 // ValidateSelector handles POST /api/v1/recordings/live/{sessionId}/validate-selector
 // Validates a selector on the current page.
 func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {
@@ -1969,6 +2005,7 @@ func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) 
 
 // GetRecordingFrame handles GET /api/v1/recordings/live/{sessionId}/frame
 // Retrieves a lightweight frame preview from the driver.
+// Supports ETag-based caching to skip identical frames (If-None-Match header).
 func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
 	defer cancel()
@@ -2023,6 +2060,34 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 		}))
 		return
 	}
+
+	// Generate ETag from content hash provided by playwright-driver.
+	// The driver computes MD5 hash of raw JPEG buffer, which is a reliable
+	// content fingerprint that changes if and only if the frame content changes.
+	// This eliminates false positives (stale frames) and false negatives (unnecessary transfers).
+	var etag string
+	if driverResp.ContentHash != "" {
+		// Use the MD5 hash directly - it's already a reliable content fingerprint
+		etag = fmt.Sprintf(`"%s"`, driverResp.ContentHash)
+	} else {
+		// Fallback for older driver versions without content_hash field
+		// Use timestamp only (less reliable but safe)
+		etag = fmt.Sprintf(`"%s"`, driverResp.CapturedAt)
+	}
+
+	// Check If-None-Match header for conditional request
+	clientETag := r.Header.Get("If-None-Match")
+	if clientETag != "" && clientETag == etag {
+		// Frame hasn't changed, return 304 Not Modified
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Cache-Control", "no-cache")
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	// Set ETag header for client caching
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "no-cache")
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }

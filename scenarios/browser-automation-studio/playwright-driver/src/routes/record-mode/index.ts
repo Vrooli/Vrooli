@@ -52,14 +52,18 @@ export {
   handleRecordInput,
   handleRecordFrame,
   handleRecordViewport,
+  clearFrameCache,
+  clearAllFrameCaches,
 } from './recording-interaction';
 
 // Cleanup utility
 import { removeRecordedActions } from '../../recording/buffer';
+import { clearFrameCache } from './recording-interaction';
 
 /**
- * Clean up action buffer for a session
+ * Clean up action buffer and frame cache for a session
  */
 export function cleanupSessionRecording(sessionId: string): void {
   removeRecordedActions(sessionId);
+  clearFrameCache(sessionId);
 }

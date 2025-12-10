@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig } from "@/config";
+import { useWebSocket } from "@/contexts/WebSocketContext";
 
 type PointerAction = "move" | "down" | "up" | "click";
 
@@ -8,7 +9,32 @@ interface FramePayload {
   width: number;
   height: number;
   captured_at: string;
+  /** MD5 hash of the raw frame buffer - used by server for ETag generation */
+  content_hash?: string;
 }
+
+/** WebSocket message for frame updates */
+interface FrameMessage {
+  type: "recording_frame";
+  session_id: string;
+  image: string;
+  mime: string;
+  width: number;
+  height: number;
+  captured_at: string;
+  content_hash: string;
+  timestamp: string;
+}
+
+/** WebSocket message for subscription confirmation */
+interface RecordingSubscribedMessage {
+  type: "recording_subscribed";
+  session_id: string;
+  timestamp: string;
+}
+
+/** Union type for recording-related WebSocket messages */
+type RecordingMessage = FrameMessage | RecordingSubscribedMessage;
 
 interface PlaywrightViewProps {
   sessionId: string;
@@ -16,18 +42,26 @@ interface PlaywrightViewProps {
   fps?: number;
   onStreamError?: (message: string) => void;
   refreshToken?: number;
+  /** Whether to use WebSocket for frame updates (default: true) */
+  useWebSocketFrames?: boolean;
 }
 
 /**
- * Renders a live view of the Playwright session by polling lightweight JPEG frames
- * and forwards user input (pointer/keyboard/wheel) back to the driver.
+ * Renders a live view of the Playwright session.
+ *
+ * Frame delivery modes:
+ * 1. WebSocket (preferred): Receives frames pushed from server in real-time
+ * 2. Polling (fallback): Polls for frames when WebSocket unavailable
+ *
+ * Also forwards user input (pointer/keyboard/wheel) back to the driver.
  */
 export function PlaywrightView({
   sessionId,
-  quality = 35,
-  fps = 2,
+  quality = 65,
+  fps = 6,
   onStreamError,
   refreshToken,
+  useWebSocketFrames = true,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [frame, setFrame] = useState<FramePayload | null>(null);
@@ -37,10 +71,99 @@ export function PlaywrightView({
   const inFlightRef = useRef(false);
   const lastFrameRef = useRef<FramePayload | null>(null);
   const lastSessionRef = useRef<string | null>(null);
+  const lastETagRef = useRef<string | null>(null);
+  const lastContentHashRef = useRef<string | null>(null);
+  const [isTabVisible, setIsTabVisible] = useState(!document.hidden);
+  const wsSubscribedRef = useRef(false);
+  const [isWsFrameActive, setIsWsFrameActive] = useState(false);
+
+  // WebSocket for real-time frame updates
+  const { isConnected, lastMessage, send } = useWebSocket();
+
+  // Track tab visibility to pause polling when hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(!document.hidden);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const pollInterval = useMemo(() => Math.max(300, Math.floor(1000 / fps)), [fps]);
   const pollIntervalRef = useRef(pollInterval);
   pollIntervalRef.current = pollInterval;
+
+  // Subscribe to recording frames via WebSocket
+  useEffect(() => {
+    if (!useWebSocketFrames || !isConnected || !sessionId) {
+      return;
+    }
+
+    // Subscribe to recording updates for this session (includes frames)
+    if (!wsSubscribedRef.current) {
+      send({ type: "subscribe_recording", session_id: sessionId });
+      wsSubscribedRef.current = true;
+      console.log("[PlaywrightView] Subscribed to recording frames via WebSocket");
+    }
+
+    return () => {
+      if (wsSubscribedRef.current) {
+        send({ type: "unsubscribe_recording" });
+        wsSubscribedRef.current = false;
+        setIsWsFrameActive(false);
+        console.log("[PlaywrightView] Unsubscribed from recording frames");
+      }
+    };
+  }, [useWebSocketFrames, isConnected, sessionId, send]);
+
+  // Handle WebSocket frame messages
+  useEffect(() => {
+    if (!lastMessage || !useWebSocketFrames) return;
+
+    const msg = lastMessage as unknown as RecordingMessage;
+
+    // Handle recording_subscribed confirmation
+    if (msg.type === "recording_subscribed" && msg.session_id === sessionId) {
+      setIsWsFrameActive(true);
+      console.log("[PlaywrightView] WebSocket frame streaming active");
+      return;
+    }
+
+    // Handle frame updates
+    if (msg.type === "recording_frame" && msg.session_id === sessionId) {
+      // Skip if same content hash (shouldn't happen but be safe)
+      if (lastContentHashRef.current === msg.content_hash) {
+        return;
+      }
+      lastContentHashRef.current = msg.content_hash;
+
+      const frameData: FramePayload = {
+        image: msg.image,
+        width: msg.width,
+        height: msg.height,
+        captured_at: msg.captured_at,
+        content_hash: msg.content_hash,
+      };
+
+      // Preload the image before swapping to avoid flicker
+      const img = new Image();
+      img.onload = () => {
+        setFrame(frameData);
+        lastFrameRef.current = frameData;
+        setError(null);
+        // Mark WebSocket frames as active once we receive the first frame
+        if (!isWsFrameActive) {
+          setIsWsFrameActive(true);
+        }
+      };
+      img.onerror = () => {
+        setError("Failed to decode WebSocket frame");
+      };
+      img.src = msg.image;
+    }
+  }, [lastMessage, sessionId, useWebSocketFrames, isWsFrameActive]);
 
   const fetchFrame = useCallback(async () => {
     if (inFlightRef.current) return;
@@ -49,11 +172,31 @@ export function PlaywrightView({
     const started = performance.now();
     try {
       const config = await getConfig();
-      const endpoint = `${config.API_URL}/recordings/live/${sessionId}/frame?quality=${quality}&t=${Date.now()}`;
-      const res = await fetch(endpoint);
+      // Remove cache-busting timestamp; use ETag for conditional requests instead
+      const endpoint = `${config.API_URL}/recordings/live/${sessionId}/frame?quality=${quality}`;
+      const headers: HeadersInit = {};
+      // Send If-None-Match header to skip identical frames
+      if (lastETagRef.current) {
+        headers["If-None-Match"] = lastETagRef.current;
+      }
+      const res = await fetch(endpoint, { headers });
+
+      // Handle 304 Not Modified - frame hasn't changed, skip update
+      if (res.status === 304) {
+        setError(null);
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(`Frame fetch failed (${res.status})`);
       }
+
+      // Store ETag for next request
+      const etag = res.headers.get("ETag");
+      if (etag) {
+        lastETagRef.current = etag;
+      }
+
       const data = (await res.json()) as FramePayload;
       // Preload the image before swapping to avoid flicker.
       const img = new Image();
@@ -85,30 +228,51 @@ export function PlaywrightView({
     }
   }, [fps, onStreamError, quality, sessionId, pollInterval]);
 
+  // Polling - runs as primary method, stops when WebSocket frames become active
+  // This ensures frames are always displayed, with WebSocket as an optimization
   useEffect(() => {
+    // Stop polling if WebSocket frames are active
+    if (isWsFrameActive) {
+      console.log("[PlaywrightView] Stopping polling - WebSocket frames active");
+      return;
+    }
+
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const tick = async () => {
-      if (cancelled) return;
-      await fetchFrame();
-      if (cancelled) return;
+      if (cancelled || isWsFrameActive) return;
+      // Skip frame fetch when tab is hidden to save bandwidth
+      if (isTabVisible) {
+        await fetchFrame();
+      }
+      if (cancelled || isWsFrameActive) return;
       const nextInterval = pollIntervalRef.current;
-      setTimeout(tick, nextInterval);
+      timeoutId = setTimeout(tick, nextInterval);
     };
 
+    // Start polling immediately - WebSocket will take over once active
+    console.log("[PlaywrightView] Starting frame polling");
     tick();
 
     return () => {
       cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
-  }, [fetchFrame, pollInterval, refreshToken]);
+  }, [fetchFrame, pollInterval, refreshToken, isTabVisible, isWsFrameActive]);
 
   useEffect(() => {
     if (lastSessionRef.current !== sessionId) {
       lastSessionRef.current = sessionId;
       setFrame(null);
       lastFrameRef.current = null;
+      lastETagRef.current = null; // Reset ETag for new session
+      lastContentHashRef.current = null; // Reset content hash for new session
       setError(null);
+      setIsWsFrameActive(false); // Reset WebSocket frame state for new session
+      wsSubscribedRef.current = false;
     }
   }, [sessionId]);
 
@@ -164,7 +328,7 @@ export function PlaywrightView({
       if (!frame) return;
       if (action === "move") {
         const now = performance.now();
-        if (now - lastMoveRef.current < 50) return; // throttle move
+        if (now - lastMoveRef.current < 100) return; // throttle move (100ms = max 10 moves/sec)
         lastMoveRef.current = now;
       }
 
@@ -245,10 +409,11 @@ export function PlaywrightView({
         </div>
       )}
 
-      <div className="absolute left-2 top-2 rounded-full bg-white/90 dark:bg-gray-900/80 px-3 py-1 text-[11px] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm">
-        Live Playwright session
+      <div className="absolute left-2 top-2 rounded-full bg-white/90 dark:bg-gray-900/80 px-3 py-1 text-[11px] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-2">
+        <span className={`w-2 h-2 rounded-full ${isWsFrameActive ? "bg-green-500" : "bg-yellow-500"}`} />
+        Live {isWsFrameActive ? "(WebSocket)" : "(polling)"}
         {(frame ?? lastFrameRef.current) && (
-          <span className="ml-2 text-gray-500 dark:text-gray-400">
+          <span className="text-gray-500 dark:text-gray-400">
             {new Date((frame ?? lastFrameRef.current)!.captured_at).toLocaleTimeString()}
           </span>
         )}

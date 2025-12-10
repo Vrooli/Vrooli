@@ -192,15 +192,23 @@ function useRecordingTransport({
     }
   }, [lastMessage, onActionsReceived, setActionsWithSync]);
 
+  // Only poll if WebSocket is NOT connected/subscribed (fallback mode)
+  // When WebSocket is working, we get real-time action updates without polling
   useEffect(() => {
-    const shouldPoll = isRecording && (pollInterval ?? 0) > 0;
+    const wsActive = useWebSocketUpdates && isConnected && wsSubscribedRef.current;
+    const shouldPoll = isRecording && (pollInterval ?? 0) > 0 && !wsActive;
     const intervalMs = pollInterval && pollInterval > 0 ? pollInterval : 2000;
 
     if (shouldPoll) {
       pollTimerRef.current = setInterval(() => {
         void refreshActions();
       }, intervalMs);
-      console.log('[useRecordMode] Started action polling');
+      console.log('[useRecordMode] Started action polling (WebSocket fallback)');
+    } else if (wsActive && pollTimerRef.current) {
+      // Clear polling if WebSocket became active
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+      console.log('[useRecordMode] Stopped action polling (WebSocket active)');
     }
 
     return () => {
@@ -209,7 +217,7 @@ function useRecordingTransport({
         pollTimerRef.current = null;
       }
     };
-  }, [isRecording, pollInterval, refreshActions]);
+  }, [isRecording, pollInterval, refreshActions, useWebSocketUpdates, isConnected]);
 
   const startRecording = useCallback(async (sessionIdOverride?: string) => {
     const currentSessionId = sessionIdOverride ?? sessionIdRef.current;

@@ -344,11 +344,21 @@ export async function handleRecordStart(
     // Update recording session metric
     metrics.recordingSessionsActive.inc();
 
+    // Start frame streaming if callback URL provided
+    if (request.frame_callback_url) {
+      startFrameStreaming(sessionId, sessionManager, {
+        callbackUrl: request.frame_callback_url,
+        quality: request.frame_quality,
+        fps: request.frame_fps,
+      });
+    }
+
     logger.info(scopedLog(LogContext.RECORDING, 'started'), {
       sessionId,
       recordingId,
       phase: 'recording',
       url: session.page?.url?.() || '(unknown)',
+      frameStreaming: !!request.frame_callback_url,
     });
 
     const response: StartRecordingResponse = {
@@ -410,6 +420,9 @@ export async function handleRecordStop(
 
     const recordingId = session.recordingId;
     const result = await session.recordingController.stopRecording();
+
+    // Stop frame streaming if active
+    stopFrameStreaming(sessionId);
 
     // Clean up circuit breaker state
     cleanupCircuitBreaker(sessionId);
@@ -550,4 +563,283 @@ async function streamActionToCallback(callbackUrl: string, action: RecordedActio
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+// =============================================================================
+// Frame Streaming
+// =============================================================================
+
+import { createHash } from 'crypto';
+
+/**
+ * Frame streaming state for a session.
+ * Manages the continuous capture and push of frames to API via callback.
+ */
+interface FrameStreamState {
+  /** Whether streaming is active */
+  isStreaming: boolean;
+  /** AbortController to stop the streaming loop */
+  abortController: AbortController;
+  /** Last frame hash to skip identical frames */
+  lastFrameHash: string | null;
+  /** Frame quality (0-100) */
+  quality: number;
+  /** Target FPS */
+  fps: number;
+  /** Callback URL for frame delivery */
+  callbackUrl: string;
+  /** Consecutive failure count for circuit breaker */
+  consecutiveFailures: number;
+}
+
+/** Per-session frame streaming state */
+const frameStreamStates = new Map<string, FrameStreamState>();
+
+/** Max consecutive frame callback failures before pausing */
+const MAX_FRAME_FAILURES = 3;
+
+/**
+ * Start frame streaming for a recording session.
+ * Frames are captured at the target FPS and pushed to the callback URL.
+ * Identical frames (same content hash) are skipped to save bandwidth.
+ */
+export function startFrameStreaming(
+  sessionId: string,
+  sessionManager: SessionManager,
+  options: {
+    callbackUrl: string;
+    quality?: number;
+    fps?: number;
+  }
+): void {
+  // Stop any existing stream for this session
+  stopFrameStreaming(sessionId);
+
+  const quality = options.quality ?? 65;
+  const fps = Math.min(Math.max(options.fps ?? 6, 1), 30); // Clamp 1-30 FPS
+  const intervalMs = Math.floor(1000 / fps);
+
+  const state: FrameStreamState = {
+    isStreaming: true,
+    abortController: new AbortController(),
+    lastFrameHash: null,
+    quality,
+    fps,
+    callbackUrl: options.callbackUrl,
+    consecutiveFailures: 0,
+  };
+
+  frameStreamStates.set(sessionId, state);
+
+  logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started'), {
+    sessionId,
+    fps,
+    quality,
+    intervalMs,
+  });
+
+  // Start the streaming loop
+  void runFrameStreamLoop(sessionId, sessionManager, state, intervalMs);
+}
+
+/**
+ * Stop frame streaming for a session.
+ */
+export function stopFrameStreaming(sessionId: string): void {
+  const state = frameStreamStates.get(sessionId);
+  if (state) {
+    state.isStreaming = false;
+    state.abortController.abort();
+    frameStreamStates.delete(sessionId);
+
+    logger.info(scopedLog(LogContext.RECORDING, 'frame streaming stopped'), {
+      sessionId,
+    });
+  }
+}
+
+/**
+ * The main frame streaming loop.
+ * Captures frames at target FPS and pushes to callback URL.
+ */
+async function runFrameStreamLoop(
+  sessionId: string,
+  sessionManager: SessionManager,
+  state: FrameStreamState,
+  intervalMs: number
+): Promise<void> {
+  while (state.isStreaming && !state.abortController.signal.aborted) {
+    const loopStart = performance.now();
+
+    try {
+      // Check if session still exists
+      let session;
+      try {
+        session = sessionManager.getSession(sessionId);
+      } catch {
+        // Session closed, stop streaming
+        stopFrameStreaming(sessionId);
+        return;
+      }
+
+      // Skip if too many consecutive failures (circuit breaker)
+      if (state.consecutiveFailures >= MAX_FRAME_FAILURES) {
+        // Wait longer before retrying
+        await sleep(intervalMs * 5, state.abortController.signal);
+        state.consecutiveFailures = 0; // Reset and retry
+        continue;
+      }
+
+      // Capture frame
+      const frameData = await captureFrameForStreaming(session.page, state.quality);
+
+      if (!frameData) {
+        // Page not ready or error, skip this frame
+        await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+        continue;
+      }
+
+      // Skip if frame content unchanged (same hash)
+      if (state.lastFrameHash === frameData.contentHash) {
+        await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+        continue;
+      }
+
+      state.lastFrameHash = frameData.contentHash;
+
+      // Push frame to callback
+      await pushFrameToCallback(state.callbackUrl, sessionId, frameData, state.abortController.signal);
+      state.consecutiveFailures = 0;
+
+    } catch (err) {
+      if (state.abortController.signal.aborted) {
+        return; // Normal shutdown
+      }
+
+      state.consecutiveFailures++;
+      const message = err instanceof Error ? err.message : String(err);
+
+      logger.warn(scopedLog(LogContext.RECORDING, 'frame streaming error'), {
+        sessionId,
+        error: message,
+        consecutiveFailures: state.consecutiveFailures,
+      });
+    }
+
+    await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+  }
+}
+
+/**
+ * Frame data structure for streaming.
+ */
+interface StreamingFrameData {
+  image: string; // base64 data URI
+  mime: string;
+  width: number;
+  height: number;
+  contentHash: string;
+  capturedAt: string;
+}
+
+/**
+ * Capture a frame for streaming.
+ * Uses JPEG format - Playwright only supports 'png' and 'jpeg' for screenshots.
+ * WebP is NOT supported despite better compression (~25% smaller).
+ * Do not attempt type: 'webp' - it fails at runtime with "expected one of (png|jpeg)".
+ */
+async function captureFrameForStreaming(
+  page: import('playwright').Page,
+  quality: number
+): Promise<StreamingFrameData | null> {
+  try {
+    const buffer = await page.screenshot({
+      type: 'jpeg',
+      quality,
+    });
+
+    const viewport = page.viewportSize();
+    const contentHash = createHash('md5').update(buffer).digest('hex');
+    const image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+
+    return {
+      image,
+      mime: 'image/jpeg',
+      width: viewport?.width || 0,
+      height: viewport?.height || 0,
+      contentHash,
+      capturedAt: new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Push a frame to the callback URL.
+ */
+async function pushFrameToCallback(
+  callbackUrl: string,
+  sessionId: string,
+  frame: StreamingFrameData,
+  signal: AbortSignal
+): Promise<void> {
+  const timeoutId = setTimeout(() => {
+    // No-op, AbortSignal handles this
+  }, CALLBACK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(callbackUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        session_id: sessionId,
+        mime: frame.mime,
+        image: frame.image,
+        width: frame.width,
+        height: frame.height,
+        captured_at: frame.capturedAt,
+        content_hash: frame.contentHash,
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Frame callback returned ${response.status}`);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Sleep until the next frame capture time.
+ */
+async function sleepUntilNextFrame(
+  loopStart: number,
+  intervalMs: number,
+  signal: AbortSignal
+): Promise<void> {
+  const elapsed = performance.now() - loopStart;
+  const sleepTime = Math.max(0, intervalMs - elapsed);
+  if (sleepTime > 0) {
+    await sleep(sleepTime, signal);
+  }
+}
+
+/**
+ * Sleep with abort signal support.
+ */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(resolve, ms);
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+        reject(new Error('Aborted'));
+      }, { once: true });
+    }
+  });
 }

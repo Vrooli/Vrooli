@@ -20,6 +20,12 @@ export interface StartRecordingRequest {
   recording_id?: string;
   /** Optional callback URL to stream actions to (for API integration) */
   callback_url?: string;
+  /** Optional callback URL to stream frames to (for WebSocket broadcasting) */
+  frame_callback_url?: string;
+  /** Frame quality (0-100), default 65 */
+  frame_quality?: number;
+  /** Target FPS for frame streaming, default 6 */
+  frame_fps?: number;
 }
 
 export interface StartRecordingResponse {
@@ -150,14 +156,21 @@ export interface InputRequest {
 
 /**
  * GET /session/:id/record/frame
+ *
+ * NOTE: Playwright only supports 'png' and 'jpeg' screenshot formats.
+ * WebP would provide ~25% better compression but is NOT supported.
+ * Do not attempt to use type: 'webp' - it fails at runtime.
  */
 export interface FrameResponse {
   session_id: string;
+  /** JPEG format - Playwright only supports png/jpeg, NOT webp */
   mime: 'image/jpeg';
   image: string;
   width: number;
   height: number;
   captured_at: string;
+  /** MD5 hash of the raw frame buffer for reliable ETag generation */
+  content_hash: string;
 }
 
 /**

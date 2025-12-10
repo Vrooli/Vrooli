@@ -18,6 +18,14 @@ type HubInterface interface {
 	// BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
 	BroadcastRecordingAction(sessionID string, action any)
 
+	// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
+	// This eliminates the need for clients to poll for frames.
+	BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
+
+	// HasRecordingSubscribers returns true if any clients are subscribed to the given session.
+	// Used by the frame push endpoint to avoid unnecessary work.
+	HasRecordingSubscribers(sessionID string) bool
+
 	// GetClientCount returns the number of currently connected clients
 	GetClientCount() int
 

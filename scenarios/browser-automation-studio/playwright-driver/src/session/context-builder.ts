@@ -29,6 +29,9 @@ export async function buildContext(
       width: spec.viewport.width,
       height: spec.viewport.height,
     },
+    // Use 2x device scale for crisp screenshots on HiDPI displays
+    // This renders at 2x resolution (e.g., 1280x720 viewport = 2560x1440 pixels)
+    deviceScaleFactor: 2,
     baseURL: spec.base_url,
     ignoreHTTPSErrors: config.browser.ignoreHTTPSErrors,
   };
