@@ -165,12 +165,13 @@ COMMANDS:
     version             Show version information
     status              Show desktop generation system status
     templates           List available desktop application templates
-    
+
     generate <scenario> Generate desktop application for a scenario
     build <path>        Build a desktop application project
     test <path>         Test desktop application functionality
     package <path>      Package desktop application for distribution
     telemetry           Collect and upload deployment telemetry from built apps
+    signing             Manage code signing configuration for scenarios
 
 GLOBAL OPTIONS:
     --verbose, -v       Enable verbose output
@@ -1134,6 +1135,522 @@ EXAMPLE:
 EOF
 }
 
+# =============================================================================
+# Code Signing Commands
+# =============================================================================
+
+cmd_signing() {
+    if [ $# -eq 0 ] || [[ $1 = "help" || $1 = "--help" || $1 = "-h" ]]; then
+        cmd_signing_help
+        return
+    fi
+
+    case $1 in
+        get)
+            shift
+            cmd_signing_get "$@"
+            ;;
+        set)
+            shift
+            cmd_signing_set "$@"
+            ;;
+        validate)
+            shift
+            cmd_signing_validate "$@"
+            ;;
+        detect)
+            shift
+            cmd_signing_detect "$@"
+            ;;
+        ready)
+            shift
+            cmd_signing_ready "$@"
+            ;;
+        *)
+            error "Unknown signing subcommand: $1"
+            cmd_signing_help
+            exit 1
+            ;;
+    esac
+}
+
+cmd_signing_help() {
+    cat << 'EOF'
+Code signing configuration commands
+
+USAGE:
+    scenario-to-desktop signing <SUBCOMMAND> [OPTIONS]
+
+SUBCOMMANDS:
+    get <scenario>          Get signing configuration for a scenario
+    set <scenario>          Configure signing for a scenario (interactive or from JSON)
+    validate <scenario>     Validate signing configuration
+    detect                  Detect available signing tools and certificates
+    ready <scenario>        Check if signing is ready for a scenario
+
+EXAMPLES:
+    # Get current signing config
+    scenario-to-desktop signing get picker-wheel
+
+    # Set signing config from JSON file
+    scenario-to-desktop signing set picker-wheel --file signing-config.json
+
+    # Set Windows signing interactively
+    scenario-to-desktop signing set picker-wheel --platform windows
+
+    # Validate signing configuration
+    scenario-to-desktop signing validate picker-wheel
+
+    # Detect available signing tools and certificates
+    scenario-to-desktop signing detect
+
+    # Check if ready for signed builds
+    scenario-to-desktop signing ready picker-wheel
+EOF
+}
+
+cmd_signing_get() {
+    local scenario=""
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing get <scenario> [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing get <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/${scenario}"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}/${platform}"
+    fi
+
+    local response
+    response=$(api_call "GET" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local enabled
+        enabled=$(echo "$response" | jq -r '.enabled // false')
+
+        echo -e "${WHITE}Signing Configuration: ${scenario}${NC}"
+        echo "================================="
+        echo "Enabled: $enabled"
+        echo
+
+        # Windows config
+        local win_config
+        win_config=$(echo "$response" | jq -r '.windows // empty')
+        if [ -n "$win_config" ] && [ "$win_config" != "null" ]; then
+            echo -e "${WHITE}Windows (Authenticode):${NC}"
+            echo "  Certificate Source: $(echo "$win_config" | jq -r '.certificate_source // "not set"')"
+            echo "  Certificate File: $(echo "$win_config" | jq -r '.certificate_file // "not set"')"
+            echo "  Timestamp Server: $(echo "$win_config" | jq -r '.timestamp_server // "default"')"
+            echo
+        fi
+
+        # macOS config
+        local mac_config
+        mac_config=$(echo "$response" | jq -r '.macos // empty')
+        if [ -n "$mac_config" ] && [ "$mac_config" != "null" ]; then
+            echo -e "${WHITE}macOS (Developer ID):${NC}"
+            echo "  Identity: $(echo "$mac_config" | jq -r '.identity // "not set"')"
+            echo "  Team ID: $(echo "$mac_config" | jq -r '.team_id // "not set"')"
+            echo "  Hardened Runtime: $(echo "$mac_config" | jq -r '.hardened_runtime // false')"
+            echo "  Notarize: $(echo "$mac_config" | jq -r '.notarize // false')"
+            echo
+        fi
+
+        # Linux config
+        local linux_config
+        linux_config=$(echo "$response" | jq -r '.linux // empty')
+        if [ -n "$linux_config" ] && [ "$linux_config" != "null" ]; then
+            echo -e "${WHITE}Linux (GPG):${NC}"
+            echo "  GPG Key ID: $(echo "$linux_config" | jq -r '.gpg_key_id // "not set"')"
+            echo
+        fi
+    fi
+}
+
+cmd_signing_set() {
+    local scenario=""
+    local platform=""
+    local config_file=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --file|-f)
+                config_file="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing set <scenario> [--platform <windows|macos|linux>] [--file <config.json>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing set <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local config_json=""
+
+    if [ -n "$config_file" ]; then
+        if [ ! -f "$config_file" ]; then
+            error "Config file not found: $config_file"
+            exit 1
+        fi
+        config_json=$(cat "$config_file")
+    else
+        # Interactive mode
+        if [ -n "$platform" ]; then
+            config_json=$(cmd_signing_set_interactive_platform "$platform")
+        else
+            config_json=$(cmd_signing_set_interactive_full)
+        fi
+    fi
+
+    local endpoint="/api/v1/signing/${scenario}"
+    local method="PUT"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}/${platform}"
+        method="PATCH"
+    fi
+
+    local response
+    response=$(api_call "$method" "$endpoint" "$config_json")
+
+    local status
+    status=$(echo "$response" | jq -r '.status // empty')
+
+    if [ "$status" = "saved" ] || [ "$status" = "updated" ]; then
+        success "Signing configuration saved for $scenario"
+    else
+        error "Failed to save signing configuration"
+        echo "$response" | jq .
+        exit 1
+    fi
+}
+
+cmd_signing_set_interactive_platform() {
+    local platform="$1"
+
+    case "$platform" in
+        windows)
+            echo "Configuring Windows Authenticode signing..."
+            local cert_source cert_file cert_password_env timestamp_server
+            cert_source=$(prompt_for_value "Certificate source (file/store)")
+            cert_file=$(prompt_for_value "Certificate file path (.pfx)")
+            cert_password_env=$(prompt_for_value "Password environment variable name")
+            timestamp_server=$(prompt_for_value "Timestamp server URL (press Enter for default)")
+
+            cat << EOF
+{
+  "certificate_source": "${cert_source:-file}",
+  "certificate_file": "$cert_file",
+  "certificate_password_env": "${cert_password_env:-WIN_CSC_KEY_PASSWORD}",
+  "timestamp_server": "${timestamp_server:-http://timestamp.digicert.com}"
+}
+EOF
+            ;;
+        macos)
+            echo "Configuring macOS Developer ID signing..."
+            local identity team_id hardened notarize
+            identity=$(prompt_for_value "Signing identity (e.g., 'Developer ID Application: Name (TEAMID)')")
+            team_id=$(prompt_for_value "Team ID (10-character)")
+            hardened=$(prompt_for_value "Enable hardened runtime? (yes/no)")
+            notarize=$(prompt_for_value "Enable notarization? (yes/no)")
+
+            cat << EOF
+{
+  "identity": "$identity",
+  "team_id": "$team_id",
+  "hardened_runtime": $([[ "$hardened" == "yes" ]] && echo "true" || echo "false"),
+  "notarize": $([[ "$notarize" == "yes" ]] && echo "true" || echo "false")
+}
+EOF
+            ;;
+        linux)
+            echo "Configuring Linux GPG signing..."
+            local gpg_key_id
+            gpg_key_id=$(prompt_for_value "GPG Key ID or fingerprint")
+
+            cat << EOF
+{
+  "gpg_key_id": "$gpg_key_id"
+}
+EOF
+            ;;
+        *)
+            error "Unknown platform: $platform"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_signing_set_interactive_full() {
+    echo "Configuring code signing (press Enter to skip platforms)..."
+    echo
+
+    local enabled
+    enabled=$(prompt_for_value "Enable code signing? (yes/no)")
+
+    if [[ "$enabled" != "yes" ]]; then
+        echo '{"enabled": false}'
+        return
+    fi
+
+    cat << EOF
+{
+  "enabled": true,
+  "windows": null,
+  "macos": null,
+  "linux": null
+}
+EOF
+}
+
+cmd_signing_validate() {
+    local scenario=""
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing validate <scenario> [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing validate <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/${scenario}/validate"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}?platform=${platform}"
+    fi
+
+    local response
+    response=$(api_call "POST" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local valid
+        valid=$(echo "$response" | jq -r '.valid')
+
+        echo -e "${WHITE}Validation Results: ${scenario}${NC}"
+        echo "================================="
+
+        if [ "$valid" = "true" ]; then
+            success "Configuration is valid"
+        else
+            error "Configuration has errors"
+        fi
+        echo
+
+        # Show errors
+        local errors
+        errors=$(echo "$response" | jq -r '.errors[]? | "  ❌ [\(.code)] \(.message)"')
+        if [ -n "$errors" ]; then
+            echo -e "${RED}Errors:${NC}"
+            echo "$errors"
+            echo
+        fi
+
+        # Show warnings
+        local warnings
+        warnings=$(echo "$response" | jq -r '.warnings[]? | "  ⚠️  [\(.code)] \(.message)"')
+        if [ -n "$warnings" ]; then
+            echo -e "${YELLOW}Warnings:${NC}"
+            echo "$warnings"
+            echo
+        fi
+
+        # Show platform status
+        echo -e "${WHITE}Platform Status:${NC}"
+        echo "$response" | jq -r '.platforms | to_entries[]? | "  \(.key): \(if .value.configured then "configured" else "not configured" end)"'
+    fi
+}
+
+cmd_signing_detect() {
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing detect [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/detect"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}?platform=${platform}"
+    fi
+
+    local response
+    response=$(api_call "GET" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        echo -e "${WHITE}Signing Tools Detection${NC}"
+        echo "========================"
+        echo
+
+        # Show tools
+        echo "$response" | jq -r '.platforms[]? | "
+\u001b[1;37m\(.platform | ascii_upcase)\u001b[0m
+  Tools:
+\(.tools[]? | "    \(if .installed then "✅" else "❌" end) \(.tool)\(if .version then " (\(.version))" else "" end)\(if .error then " - \(.error)" else "" end)")
+
+  Certificates:
+\(.certificates[]? | "    📜 \(.name)\(if .is_expired then " [EXPIRED]" else "" end)\(if .days_to_expiry >= 0 then " (expires in \(.days_to_expiry) days)" else "" end)")
+"'
+    fi
+}
+
+cmd_signing_ready() {
+    local scenario=""
+    local platform=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing ready <scenario> [--platform <windows|macos|linux>]"
+                exit 0
+                ;;
+            *)
+                if [ -z "$scenario" ]; then
+                    scenario="$1"
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing ready <scenario>"
+        exit 1
+    fi
+
+    check_api_health
+
+    local endpoint="/api/v1/signing/${scenario}/ready"
+    if [ -n "$platform" ]; then
+        endpoint="${endpoint}?platform=${platform}"
+    fi
+
+    local response
+    response=$(api_call "GET" "$endpoint")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local ready
+        ready=$(echo "$response" | jq -r '.ready')
+
+        echo -e "${WHITE}Signing Readiness: ${scenario}${NC}"
+        echo "================================="
+
+        if [ "$ready" = "true" ]; then
+            success "Ready for signed builds!"
+        else
+            error "Not ready for signed builds"
+            echo
+            local issues
+            issues=$(echo "$response" | jq -r '.issues[]?')
+            if [ -n "$issues" ]; then
+                echo "Issues:"
+                echo "$issues" | while read -r issue; do
+                    echo "  - $issue"
+                done
+            fi
+        fi
+    fi
+}
+
 # Main function
 main() {
     # Global options
@@ -1212,6 +1729,9 @@ main() {
             ;;
         telemetry)
             cmd_telemetry "$@"
+            ;;
+        signing)
+            cmd_signing "$@"
             ;;
         *)
             error "Unknown command: $command"

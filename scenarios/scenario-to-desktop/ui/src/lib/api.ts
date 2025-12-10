@@ -563,3 +563,214 @@ export async function fetchScenarioPort(scenario: string, portName: string): Pro
   }
   return response.json();
 }
+
+// ==================== Code Signing API ====================
+
+export interface WindowsSigningConfig {
+  certificate_source: "file" | "store" | "azure_keyvault" | "aws_kms";
+  certificate_file?: string;
+  certificate_password_env?: string;
+  certificate_thumbprint?: string;
+  timestamp_server?: string;
+  sign_algorithm?: "sha256" | "sha384" | "sha512";
+  dual_sign?: boolean;
+}
+
+export interface MacOSSigningConfig {
+  identity: string;
+  team_id: string;
+  hardened_runtime: boolean;
+  notarize: boolean;
+  entitlements_file?: string;
+  provisioning_profile?: string;
+  gatekeeper_assess?: boolean;
+  apple_id_env?: string;
+  apple_id_password_env?: string;
+  apple_api_key_id?: string;
+  apple_api_key_file?: string;
+  apple_api_issuer_id?: string;
+}
+
+export interface LinuxSigningConfig {
+  gpg_key_id?: string;
+  gpg_passphrase_env?: string;
+  gpg_homedir?: string;
+}
+
+export interface SigningConfig {
+  schema_version?: string;
+  enabled: boolean;
+  windows?: WindowsSigningConfig;
+  macos?: MacOSSigningConfig;
+  linux?: LinuxSigningConfig;
+}
+
+export interface SigningConfigResponse {
+  scenario: string;
+  config: SigningConfig | null;
+  config_path: string;
+}
+
+export interface ValidationError {
+  code: string;
+  platform?: string;
+  field?: string;
+  message: string;
+  remediation?: string;
+}
+
+export interface ValidationWarning {
+  code: string;
+  platform?: string;
+  message: string;
+}
+
+export interface PlatformValidation {
+  configured: boolean;
+  tool_installed?: boolean;
+  tool_path?: string;
+  tool_version?: string;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  platforms: Record<string, PlatformValidation>;
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+}
+
+export interface PlatformStatus {
+  ready: boolean;
+  reason?: string;
+}
+
+export interface SigningReadinessResponse {
+  ready: boolean;
+  scenario: string;
+  issues?: string[];
+  platforms: Record<string, PlatformStatus>;
+}
+
+export interface ToolDetectionResult {
+  platform: string;
+  tool: string;
+  installed: boolean;
+  path?: string;
+  version?: string;
+  error?: string;
+  remediation?: string;
+}
+
+export interface DiscoveredCertificate {
+  id: string;
+  name: string;
+  subject?: string;
+  issuer?: string;
+  expires_at?: string;
+  days_to_expiry: number;
+  is_expired: boolean;
+  is_code_sign: boolean;
+  type?: string;
+  platform: string;
+  usage_hint?: string;
+}
+
+export async function fetchSigningConfig(scenario: string): Promise<SigningConfigResponse> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch signing config: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function saveSigningConfig(scenario: string, config: SigningConfig): Promise<SigningConfigResponse> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config)
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to save signing config");
+  }
+  return response.json();
+}
+
+export async function updatePlatformSigningConfig(
+  scenario: string,
+  platform: "windows" | "macos" | "linux",
+  config: WindowsSigningConfig | MacOSSigningConfig | LinuxSigningConfig
+): Promise<SigningConfigResponse> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/${platform}`), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config)
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to update platform signing config");
+  }
+  return response.json();
+}
+
+export async function deleteSigningConfig(scenario: string): Promise<{ status: string; scenario: string }> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`), {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete signing config: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function deletePlatformSigningConfig(
+  scenario: string,
+  platform: "windows" | "macos" | "linux"
+): Promise<{ status: string; scenario: string; platform: string }> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/${platform}`), {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete platform signing config: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function validateSigningConfig(scenario: string): Promise<ValidationResult> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/validate`), {
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to validate signing config: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function checkSigningReadiness(scenario: string): Promise<SigningReadinessResponse> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/ready`));
+  if (!response.ok) {
+    throw new Error(`Failed to check signing readiness: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchSigningPrerequisites(): Promise<{ tools: ToolDetectionResult[] }> {
+  const response = await fetch(buildUrl("/signing/prerequisites"));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch signing prerequisites: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function discoverCertificates(platform: "windows" | "macos" | "linux"): Promise<{
+  platform: string;
+  certificates: DiscoveredCertificate[];
+}> {
+  const response = await fetch(buildUrl(`/signing/discover/${platform}`));
+  if (!response.ok) {
+    throw new Error(`Failed to discover certificates: ${response.statusText}`);
+  }
+  return response.json();
+}

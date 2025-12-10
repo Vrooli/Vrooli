@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Book, List, Monitor, Zap, Folder, Info } from "lucide-react";
+import { Book, List, Monitor, Zap, Folder, Info, Shield } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { BuildStatus } from "./components/BuildStatus";
 import { GeneratorForm } from "./components/GeneratorForm";
@@ -7,6 +7,7 @@ import { ScenarioInventory } from "./components/scenario-inventory";
 import { DownloadButtons } from "./components/scenario-inventory/DownloadButtons";
 import { TelemetryUploadCard } from "./components/scenario-inventory/TelemetryUploadCard";
 import { DocsPanel } from "./components/docs/DocsPanel";
+import { SigningPage } from "./components/signing";
 import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scenario-inventory/types";
 import { StatsPanel } from "./components/StatsPanel";
 import { TemplateGrid } from "./components/TemplateGrid";
@@ -24,7 +25,7 @@ const queryClient = new QueryClient({
   }
 });
 
-type ViewMode = "generator" | "inventory" | "docs" | "records";
+type ViewMode = "generator" | "inventory" | "docs" | "records" | "signing";
 
 function AppContent() {
   const [selectedTemplate, setSelectedTemplate] = useState("basic");
@@ -166,6 +167,19 @@ function AppContent() {
               type="button"
               className={cn(
                 "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
+                viewMode === "signing"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
+                  : "text-slate-300 hover:text-white"
+              )}
+              onClick={() => setViewMode("signing")}
+            >
+              <Shield className="h-4 w-4" />
+              Signing
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
                 viewMode === "docs"
                   ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
                   : "text-slate-300 hover:text-white"
@@ -183,6 +197,8 @@ function AppContent() {
           <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
         ) : viewMode === "docs" ? (
           <DocsPanel />
+        ) : viewMode === "signing" ? (
+          <SigningPage />
         ) : viewMode === "records" ? (
           <RecordsManager
             onSwitchTemplate={(scenarioName, templateType) => {

@@ -16,6 +16,8 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+
+	"scenario-to-desktop-api/signing"
 )
 
 // Global logger for middleware and initialization code
@@ -135,6 +137,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/system/wine/check", s.checkWineHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/system/wine/install", s.installWineHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/system/wine/install/status/{install_id}", s.getWineInstallStatusHandler).Methods("GET")
+
+	// Code signing configuration and management
+	signingHandler := signing.NewHandler()
+	signingHandler.RegisterRoutes(s.router)
 
 	// Setup middleware - CORS must be registered before logging to handle OPTIONS requests correctly
 	s.router.Use(corsMiddleware)

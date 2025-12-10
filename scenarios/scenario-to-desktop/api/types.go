@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	signingtypes "scenario-to-desktop-api/signing/types"
+)
 
 // DesktopConfig represents the configuration for generating a desktop application
 type DesktopConfig struct {
@@ -62,70 +66,11 @@ type DesktopConfig struct {
 	BundleTelemetryUploadURL string           `json:"bundle_telemetry_upload_url,omitempty"`
 
 	// Code signing configuration (optional; recommended for production)
-	CodeSigning *CodeSigningConfig `json:"code_signing,omitempty"`
+	// Uses the full signing module types for comprehensive configuration.
+	CodeSigning *signingtypes.SigningConfig `json:"code_signing,omitempty"`
 
 	// Auto-update configuration (optional; recommended for distribution)
 	UpdateConfig *UpdateConfig `json:"update_config,omitempty"`
-}
-
-// CodeSigningConfig configures code signing for desktop installers.
-// Code signing is required for production distribution to avoid OS security warnings.
-type CodeSigningConfig struct {
-	// Enabled controls whether code signing is active (default: false)
-	Enabled bool `json:"enabled"`
-
-	// Windows code signing (Authenticode)
-	Windows *WindowsSigningConfig `json:"windows,omitempty"`
-
-	// macOS code signing and notarization
-	MacOS *MacOSSigningConfig `json:"macos,omitempty"`
-
-	// Linux GPG signing (optional)
-	Linux *LinuxSigningConfig `json:"linux,omitempty"`
-}
-
-// WindowsSigningConfig configures Windows Authenticode signing.
-type WindowsSigningConfig struct {
-	// CertificateFile is the path to the .pfx certificate file
-	CertificateFile string `json:"certificate_file,omitempty"`
-	// CertificatePasswordEnv is the environment variable containing the certificate password
-	CertificatePasswordEnv string `json:"certificate_password_env,omitempty"`
-	// CertificateSubjectName for signing with a certificate from the Windows certificate store
-	CertificateSubjectName string `json:"certificate_subject_name,omitempty"`
-	// CertificateSHA1 for signing with a specific certificate thumbprint
-	CertificateSHA1 string `json:"certificate_sha1,omitempty"`
-	// TimestampServer URL for timestamping (e.g., http://timestamp.digicert.com)
-	TimestampServer string `json:"timestamp_server,omitempty"`
-	// SignAndEditExecutable enables editing and signing (default: true when Enabled)
-	SignAndEditExecutable *bool `json:"sign_and_edit_executable,omitempty"`
-}
-
-// MacOSSigningConfig configures macOS code signing and notarization.
-type MacOSSigningConfig struct {
-	// Identity is the signing identity (e.g., "Developer ID Application: Your Name (TEAMID)")
-	Identity string `json:"identity,omitempty"`
-	// TeamID is the Apple Developer Team ID
-	TeamID string `json:"team_id,omitempty"`
-	// EntitlementsFile is the path to the entitlements.plist file
-	EntitlementsFile string `json:"entitlements_file,omitempty"`
-	// HardenedRuntime enables hardened runtime (required for notarization)
-	HardenedRuntime bool `json:"hardened_runtime"`
-	// GatekeeperAssess runs gatekeeper assessment after signing
-	GatekeeperAssess bool `json:"gatekeeper_assess"`
-	// Notarize enables Apple notarization (requires AppleID credentials)
-	Notarize bool `json:"notarize"`
-	// AppleIDEnv is the environment variable containing the Apple ID email
-	AppleIDEnv string `json:"apple_id_env,omitempty"`
-	// AppleIDPasswordEnv is the environment variable for the app-specific password
-	AppleIDPasswordEnv string `json:"apple_id_password_env,omitempty"`
-}
-
-// LinuxSigningConfig configures Linux GPG signing.
-type LinuxSigningConfig struct {
-	// GPGKeyID is the GPG key ID to sign with
-	GPGKeyID string `json:"gpg_key_id,omitempty"`
-	// GPGKeyPassphraseEnv is the environment variable containing the key passphrase
-	GPGKeyPassphraseEnv string `json:"gpg_key_passphrase_env,omitempty"`
 }
 
 // UpdateConfig configures auto-updates for the desktop application.
