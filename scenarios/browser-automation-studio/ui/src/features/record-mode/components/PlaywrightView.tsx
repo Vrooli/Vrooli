@@ -529,7 +529,10 @@ export function PlaywrightView({
         </div>
       )}
 
-      <div className="absolute left-2 top-2 rounded-full bg-white/90 dark:bg-gray-900/80 px-3 py-1 text-[11px] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-2">
+      <div
+        className="absolute left-2 top-2 rounded-full bg-white/90 dark:bg-gray-900/80 px-3 py-1 text-[11px] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-2 cursor-help group"
+        title="Recording session is synced to this URL. Interactions are executed in the Playwright browser session."
+      >
         <span className={`w-2 h-2 rounded-full ${isWsFrameActive ? "bg-green-500" : "bg-yellow-500"}`} />
         Live {isWsFrameActive ? "(WebSocket)" : "(polling)"}
         {(frame ?? lastFrameRef.current) && (
