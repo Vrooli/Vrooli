@@ -5,7 +5,6 @@ import type { RecordedAction, SelectorValidation, RecordingSessionProfile } from
 interface RecordActionsPanelProps {
   actions: RecordedAction[];
   isRecording: boolean;
-  isStartingRecording: boolean;
   isLoading: boolean;
   isReplaying: boolean;
   hasUnstableSelectors: boolean;
@@ -17,21 +16,24 @@ interface RecordActionsPanelProps {
   selectedSessionProfileId: string | null;
   onSelectSessionProfile: (profileId: string | null) => void;
   onCreateSessionProfile: () => void;
-  onStartRecording: () => void;
-  onStopRecording: () => void;
   onClearRequested: () => void;
-  onTestRecording: () => void;
-  onGenerateWorkflow: () => void;
+  onCreateWorkflow: () => void;
   onDeleteAction?: (index: number) => void;
   onValidateSelector?: (selector: string) => Promise<SelectorValidation>;
   onEditSelector?: (index: number, newSelector: string) => void;
   onEditPayload?: (index: number, payload: Record<string, unknown>) => void;
+  /** Selection mode state */
+  isSelectionMode: boolean;
+  selectedIndices: Set<number>;
+  onToggleSelectionMode: () => void;
+  onActionClick: (index: number, shiftKey: boolean, ctrlKey: boolean) => void;
+  onSelectAll: () => void;
+  onSelectNone: () => void;
 }
 
 export function RecordActionsPanel({
   actions,
   isRecording,
-  isStartingRecording,
   isLoading,
   isReplaying,
   hasUnstableSelectors,
@@ -43,15 +45,18 @@ export function RecordActionsPanel({
   selectedSessionProfileId,
   onSelectSessionProfile,
   onCreateSessionProfile,
-  onStartRecording,
-  onStopRecording,
   onClearRequested,
-  onTestRecording,
-  onGenerateWorkflow,
+  onCreateWorkflow,
   onDeleteAction,
   onValidateSelector,
   onEditSelector,
   onEditPayload,
+  isSelectionMode,
+  selectedIndices,
+  onToggleSelectionMode,
+  onActionClick,
+  onSelectAll,
+  onSelectNone,
 }: RecordActionsPanelProps) {
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
@@ -69,6 +74,8 @@ export function RecordActionsPanel({
     return date.toLocaleString();
   };
 
+  const selectionCount = selectedIndices.size;
+
   return (
     <div
       className="relative h-full flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
@@ -76,53 +83,60 @@ export function RecordActionsPanel({
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          {!isRecording ? (
-            <button
-              onClick={onStartRecording}
-              disabled={isStartingRecording}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 rounded-md hover:bg-red-600 disabled:opacity-50"
-            >
-              {isStartingRecording ? (
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="8" />
-                </svg>
-              )}
-              Record
-            </button>
-          ) : (
-            <button
-              onClick={onStopRecording}
-              disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-700 rounded-md hover:bg-gray-800 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="6" y="6" width="12" height="12" rx="1" />
-                </svg>
-              )}
-              Stop
-            </button>
+          {/* Recording indicator (always on when page is open) */}
+          {isRecording && (
+            <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-red-600 dark:text-red-400">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+              </span>
+              Recording
+            </div>
+          )}
+
+          {/* Select button - toggles selection mode */}
+          <button
+            onClick={onToggleSelectionMode}
+            disabled={actions.length === 0}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              isSelectionMode
+                ? 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-700'
+                : 'text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'
+            } disabled:opacity-50`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            {isSelectionMode ? 'Exit Select' : 'Select'}
+          </button>
+
+          {/* Selection actions when in selection mode */}
+          {isSelectionMode && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onSelectAll}
+                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                All
+              </button>
+              <button
+                onClick={onSelectNone}
+                className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                None
+              </button>
+            </div>
           )}
 
           {/* Session selector - combines dropdown with indicator */}
-          <div className="relative" onMouseLeave={() => setSessionMenuOpen(false)}>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => setSessionMenuOpen((open) => !open)}
-              disabled={isRecording}
-              title={isRecording ? 'Cannot change session while recording' : 'Select recording session'}
-            >
+          {!isSelectionMode && (
+            <div className="relative" onMouseLeave={() => setSessionMenuOpen(false)}>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setSessionMenuOpen((open) => !open)}
+                title="Select recording session"
+              >
               <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
@@ -134,7 +148,7 @@ export function RecordActionsPanel({
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
               </svg>
             </button>
-            {sessionMenuOpen && !isRecording && (
+            {sessionMenuOpen && (
               <div className="absolute top-full left-0 z-20 mt-1 w-72 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg">
                 <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
                   <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Recording sessions</p>
@@ -199,8 +213,9 @@ export function RecordActionsPanel({
               </div>
             )}
           </div>
+          )}
 
-          {actions.length > 0 && !isRecording && (
+          {actions.length > 0 && !isSelectionMode && (
             <button
               onClick={onClearRequested}
               className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-1"
@@ -211,7 +226,12 @@ export function RecordActionsPanel({
         </div>
 
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          {actions.length > 0 && hasUnstableSelectors && !isRecording && (
+          {isSelectionMode && selectionCount > 0 && (
+            <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full font-medium">
+              {selectionCount} selected
+            </span>
+          )}
+          {!isSelectionMode && actions.length > 0 && hasUnstableSelectors && (
             <span className="px-2 py-0.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 rounded-full">
               Review selectors
             </span>
@@ -230,27 +250,43 @@ export function RecordActionsPanel({
           onValidateSelector={onValidateSelector}
           onEditSelector={onEditSelector}
           onEditPayload={onEditPayload}
+          isSelectionMode={isSelectionMode}
+          selectedIndices={selectedIndices}
+          onActionClick={onActionClick}
         />
       </div>
 
-      {actions.length > 0 && !isRecording && (
+      {/* Footer: Create Workflow button when actions exist */}
+      {actions.length > 0 && (
         <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-          <div className="flex gap-2">
-            <button
-              onClick={onTestRecording}
-              disabled={isReplaying || isLoading}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
-            >
-              {isReplaying ? 'Testing…' : 'Test'}
-            </button>
-            <button
-              onClick={onGenerateWorkflow}
-              disabled={isReplaying || isLoading}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:opacity-50"
-            >
-              Generate
-            </button>
-          </div>
+          <button
+            onClick={onCreateWorkflow}
+            disabled={isReplaying || isLoading || (isSelectionMode && selectionCount === 0)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSelectionMode && selectionCount > 0 ? (
+              <>
+                Create Workflow ({selectionCount} steps)
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </>
+            ) : isSelectionMode ? (
+              'Select steps to create workflow'
+            ) : (
+              <>
+                Create Workflow
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </>
+            )}
+          </button>
+          {!isSelectionMode && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+              Use <span className="font-medium">Select</span> to choose specific steps
+            </p>
+          )}
         </div>
       )}
 

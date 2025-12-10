@@ -9,6 +9,7 @@
  * - Selector editing with the SelectorEditor component
  * - Action payload editing
  * - Delete functionality
+ * - Selection mode with checkboxes and range selection
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -29,6 +30,12 @@ interface ActionTimelineProps {
   onEditSelector?: (index: number, newSelector: string) => void;
   /** Callback when action payload is edited */
   onEditPayload?: (index: number, payload: Record<string, unknown>) => void;
+  /** Whether selection mode is active */
+  isSelectionMode?: boolean;
+  /** Set of selected indices */
+  selectedIndices?: Set<number>;
+  /** Callback when an action is clicked (for selection) */
+  onActionClick?: (index: number, shiftKey: boolean, ctrlKey: boolean) => void;
 }
 
 /** Confidence thresholds */
@@ -44,6 +51,9 @@ export function ActionTimeline({
   onValidateSelector,
   onEditSelector,
   onEditPayload,
+  isSelectionMode = false,
+  selectedIndices = new Set(),
+  onActionClick,
 }: ActionTimelineProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -76,8 +86,15 @@ export function ActionTimeline({
     return map;
   }, [actions, mergedActions]);
 
-  const handleToggleExpand = (index: number) => {
+  const handleToggleExpand = (index: number, event?: React.MouseEvent) => {
     if (editingIndex !== null) return; // Don't toggle while editing
+
+    // In selection mode, clicking toggles selection instead of expanding
+    if (isSelectionMode && onActionClick) {
+      onActionClick(index, event?.shiftKey ?? false, event?.ctrlKey ?? event?.metaKey ?? false);
+      return;
+    }
+
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
@@ -358,23 +375,47 @@ export function ActionTimeline({
         const warnable = shouldWarnOnSelector(action);
         const mergedAction = action as MergedAction;
         const mergeInfo = getMergeDescription(mergedAction._merged);
+        const isSelected = selectedIndices.has(index);
 
         return (
           <div
             key={action.id}
             className={`py-2 px-3 transition-colors ${
               isExpanded ? 'bg-gray-50 dark:bg-gray-800/50' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-            } ${confidenceLevel === 'low' ? 'border-l-2 border-l-red-400' : ''}`}
+            } ${confidenceLevel === 'low' ? 'border-l-2 border-l-red-400' : ''} ${
+              isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-l-blue-500' : ''
+            }`}
           >
             {/* Action header */}
             <div
               className={`flex items-center gap-3 ${!isEditing ? 'cursor-pointer' : ''}`}
-              onClick={() => handleToggleExpand(index)}
+              onClick={(e) => handleToggleExpand(index, e)}
             >
-              {/* Index */}
-              <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-xs font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 rounded">
-                {index + 1}
-              </span>
+              {/* Checkbox (selection mode) or Index */}
+              {isSelectionMode ? (
+                <label
+                  className="flex-shrink-0 flex items-center justify-center w-6 h-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      if (onActionClick) {
+                        // Cast native event to InputEvent which has modifier key properties
+                        const evt = e.nativeEvent as InputEvent & { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean };
+                        onActionClick(index, evt.shiftKey ?? false, evt.ctrlKey ?? evt.metaKey ?? false);
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                </label>
+              ) : (
+                <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-xs font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 rounded">
+                  {index + 1}
+                </span>
+              )}
 
               {/* Icon */}
               <span className="flex-shrink-0 text-gray-600 dark:text-gray-400">

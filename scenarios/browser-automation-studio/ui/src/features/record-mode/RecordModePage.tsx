@@ -4,27 +4,34 @@
  * Main page for Record Mode - allows users to record browser actions
  * and generate workflows from them.
  *
- * Phase 2 Features:
+ * UX Flow (redesigned):
+ * 1. Recording starts automatically when page opens (no Record/Stop buttons)
+ * 2. Timeline shows all recorded actions
+ * 3. User can select steps using checkboxes (shift+click for range)
+ * 4. "Create Workflow →" button switches right panel to workflow creation form
+ * 5. Form allows naming workflow, selecting project, testing, and generating
+ * 6. Back button returns to Live Preview
+ *
+ * Features:
+ * - Auto-recording (continuous while page is open)
+ * - Step selection with range support (shift+click)
+ * - Workflow creation form in right panel
  * - Confidence warnings for unstable selectors
  * - Action editing (selector and payload)
- * - Improved error states with recovery guidance
- * - Visual polish (loading states, confirmation dialogs)
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RecordActionsPanel } from './components/RecordActionsPanel';
 import { RecordingHeader } from './components/RecordingHeader';
 import { ErrorBanner, UnstableSelectorsBanner } from './components/RecordModeBanners';
-import {
-  ClearActionsModal,
-  GenerateWorkflowModal,
-  ReplayResultsModal,
-} from './components/RecordModeModals';
+import { ClearActionsModal } from './components/RecordModeModals';
+import { WorkflowCreationForm } from './components/WorkflowCreationForm';
 import type { ReplayPreviewResponse } from './types';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode } from './hooks/useRecordMode';
 import { useTimelinePanel } from './hooks/useTimelinePanel';
+import { useActionSelection } from './hooks/useActionSelection';
 import { RecordPreviewPanel } from './RecordPreviewPanel';
 import { getConfig } from '@/config';
 
@@ -39,6 +46,9 @@ interface RecordModePageProps {
   onClose?: () => void;
 }
 
+/** Right panel view state */
+type RightPanelView = 'preview' | 'create-workflow';
+
 export function RecordModePage({
   sessionId: initialSessionId,
   onWorkflowGenerated,
@@ -51,23 +61,20 @@ export function RecordModePage({
   const {
     sessionId,
     sessionProfileId,
-    isCreatingSession,
     sessionError,
     ensureSession,
     setSessionProfileId,
-    resetSessionError,
   } = useRecordingSession({ initialSessionId, onSessionReady });
-  const [pendingStart, setPendingStart] = useState(false);
-  const [workflowName, setWorkflowName] = useState('');
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
+
+  // Right panel view state
+  const [rightPanelView, setRightPanelView] = useState<RightPanelView>('preview');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-  const [showReplayResults, setShowReplayResults] = useState(false);
-  const [replayResults, setReplayResults] = useState<ReplayPreviewResponse | null>(null);
-  const [replayError, setReplayError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
   const viewportSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoStartedRef = useRef(false);
+
   const {
     isSidebarOpen,
     timelineWidth,
@@ -82,7 +89,6 @@ export function RecordModePage({
     isLoading,
     error,
     startRecording,
-    stopRecording,
     clearActions,
     deleteAction,
     updateSelector,
@@ -100,6 +106,18 @@ export function RecordModePage({
       console.log('New actions received:', newActions.length);
     },
   });
+
+  // Selection state for multi-step workflow creation
+  const {
+    selectedIndices,
+    selectedIndicesArray,
+    isSelectionMode,
+    toggleSelectionMode,
+    handleActionClick,
+    selectAll,
+    selectNone,
+    exitSelectionMode,
+  } = useActionSelection({ actionCount: actions.length });
 
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
@@ -202,30 +220,22 @@ export function RecordModePage({
     };
   }, [previewViewport, sessionId]);
 
-  const handleStartRecording = useCallback(async () => {
-    setPendingStart(true);
-    resetSessionError();
-    const ensuredSession = await ensureSession(previewViewport, selectedProfileId ?? sessionProfileId ?? null);
-    if (!ensuredSession) {
-      setPendingStart(false);
-      return;
+  // Auto-start recording when session is ready
+  useEffect(() => {
+    if (sessionId && !isRecording && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      startRecording(sessionId).catch((err) => {
+        console.error('Failed to auto-start recording:', err);
+      });
     }
-    try {
-      await startRecording(ensuredSession);
-    } catch (err) {
-      console.error('Failed to start recording:', err);
-    } finally {
-      setPendingStart(false);
-    }
-  }, [ensureSession, previewViewport, resetSessionError, startRecording, selectedProfileId, sessionProfileId]);
+  }, [sessionId, isRecording, startRecording]);
 
-  const handleStopRecording = useCallback(async () => {
-    try {
-      await stopRecording();
-    } catch (err) {
-      console.error('Failed to stop recording:', err);
-    }
-  }, [stopRecording]);
+  // Reset state when session changes
+  useEffect(() => {
+    autoStartedRef.current = false;
+    exitSelectionMode(); // Clear selection when switching sessions
+    setRightPanelView('preview'); // Return to preview mode
+  }, [sessionId, exitSelectionMode]);
 
   const handleSelectSessionProfile = useCallback(
     (profileId: string | null) => {
@@ -276,29 +286,9 @@ export function RecordModePage({
 
   const handleClearActions = useCallback(() => {
     clearActions();
+    exitSelectionMode();
     setShowClearConfirm(false);
-  }, [clearActions]);
-
-  const handleGenerateWorkflow = useCallback(async () => {
-    if (!workflowName.trim()) {
-      return;
-    }
-
-    setGenerateError(null);
-
-    try {
-      const result = await generateWorkflow(workflowName.trim());
-      setShowGenerateModal(false);
-      setWorkflowName('');
-
-      if (onWorkflowGenerated) {
-        onWorkflowGenerated(result.workflow_id, result.project_id);
-      }
-    } catch (err) {
-      console.error('Failed to generate workflow:', err);
-      setGenerateError(err instanceof Error ? err.message : 'Failed to generate workflow');
-    }
-  }, [workflowName, generateWorkflow, onWorkflowGenerated]);
+  }, [clearActions, exitSelectionMode]);
 
   const handleEditSelector = useCallback(
     (index: number, newSelector: string) => {
@@ -314,23 +304,61 @@ export function RecordModePage({
     [updatePayload]
   );
 
-  const handleTestRecording = useCallback(async () => {
-    setReplayError(null);
-    setReplayResults(null);
-    setShowReplayResults(true);
-
-    try {
-      const results = await replayPreview({ stopOnFailure: true });
-      setReplayResults(results);
-    } catch (err) {
-      console.error('Failed to test recording:', err);
-      setReplayError(err instanceof Error ? err.message : 'Failed to test recording');
+  // Navigate to workflow creation form
+  const handleCreateWorkflow = useCallback(() => {
+    // If not in selection mode and clicking "Create Workflow",
+    // select all actions by default
+    if (!isSelectionMode || selectedIndicesArray.length === 0) {
+      selectAll();
     }
-  }, [replayPreview]);
+    setRightPanelView('create-workflow');
+  }, [isSelectionMode, selectedIndicesArray.length, selectAll]);
+
+  // Handle back from workflow creation form
+  const handleBackToPreview = useCallback(() => {
+    setRightPanelView('preview');
+  }, []);
+
+  // Test selected actions
+  const handleTestSelectedActions = useCallback(
+    async (_actionIndices: number[]): Promise<ReplayPreviewResponse> => {
+      // TODO: API should support selective replay - for now replay all actions
+      const results = await replayPreview({ stopOnFailure: true });
+      return results;
+    },
+    [replayPreview]
+  );
+
+  // Generate workflow from selected actions
+  const handleGenerateFromSelection = useCallback(
+    async (params: {
+      name: string;
+      projectId: string;
+      defaultSessionId: string | null;
+      actionIndices: number[];
+    }) => {
+      setIsGenerating(true);
+      try {
+        // TODO: API should support generating from subset of actions
+        // For now, generate from all actions
+        const result = await generateWorkflow(params.name, params.projectId);
+
+        // Reset state
+        setRightPanelView('preview');
+        exitSelectionMode();
+
+        if (onWorkflowGenerated) {
+          onWorkflowGenerated(result.workflow_id, result.project_id);
+        }
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [generateWorkflow, exitSelectionMode, onWorkflowGenerated]
+  );
 
   const hasUnstableSelectors = lowConfidenceCount > 0 || mediumConfidenceCount > 0;
   const displayError = sessionError ?? error;
-  const isStartingRecording = isLoading || isCreatingSession || pendingStart;
 
   return (
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
@@ -350,13 +378,12 @@ export function RecordModePage({
         <UnstableSelectorsBanner lowConfidenceCount={lowConfidenceCount} />
       )}
 
-      {/* Main content split: timeline + preview */}
+      {/* Main content split: timeline + right panel (preview or workflow form) */}
       <div className="flex-1 overflow-hidden flex">
         {isSidebarOpen && (
           <RecordActionsPanel
             actions={actions}
             isRecording={isRecording}
-            isStartingRecording={isStartingRecording}
             isLoading={isLoading}
             isReplaying={isReplaying}
             hasUnstableSelectors={hasUnstableSelectors}
@@ -368,30 +395,47 @@ export function RecordModePage({
             selectedSessionProfileId={selectedProfileId}
             onSelectSessionProfile={handleSelectSessionProfile}
             onCreateSessionProfile={handleCreateSessionProfile}
-            onStartRecording={handleStartRecording}
-            onStopRecording={handleStopRecording}
             onClearRequested={() => setShowClearConfirm(true)}
-            onTestRecording={handleTestRecording}
-            onGenerateWorkflow={() => setShowGenerateModal(true)}
+            onCreateWorkflow={handleCreateWorkflow}
             onDeleteAction={deleteAction}
             onValidateSelector={validateSelector}
             onEditSelector={handleEditSelector}
             onEditPayload={handleEditPayload}
+            isSelectionMode={isSelectionMode}
+            selectedIndices={selectedIndices}
+            onToggleSelectionMode={toggleSelectionMode}
+            onActionClick={handleActionClick}
+            onSelectAll={selectAll}
+            onSelectNone={selectNone}
           />
         )}
 
         <div className="flex-1 h-full">
-          <RecordPreviewPanel
-            previewUrl={previewUrl}
-            sessionId={sessionId}
-            onPreviewUrlChange={setPreviewUrl}
-            onViewportChange={(size) => setPreviewViewport(size)}
-            actions={actions}
-          />
+          {rightPanelView === 'preview' ? (
+            <RecordPreviewPanel
+              previewUrl={previewUrl}
+              sessionId={sessionId}
+              onPreviewUrlChange={setPreviewUrl}
+              onViewportChange={(size) => setPreviewViewport(size)}
+              actions={actions}
+            />
+          ) : (
+            <WorkflowCreationForm
+              actions={actions}
+              selectedIndices={selectedIndicesArray}
+              sessionProfiles={sessionProfiles.profiles}
+              sessionProfilesLoading={sessionProfiles.loading}
+              isReplaying={isReplaying}
+              isGenerating={isGenerating}
+              onBack={handleBackToPreview}
+              onTest={handleTestSelectedActions}
+              onGenerate={handleGenerateFromSelection}
+              lowConfidenceCount={lowConfidenceCount}
+              mediumConfidenceCount={mediumConfidenceCount}
+            />
+          )}
         </div>
       </div>
-
-      {/* Footer removed (actions now inside timeline footer) */}
 
       {/* Clear confirmation modal */}
       <ClearActionsModal
@@ -399,36 +443,6 @@ export function RecordModePage({
         actionCount={actions.length}
         onCancel={() => setShowClearConfirm(false)}
         onConfirm={handleClearActions}
-      />
-
-      {/* Generate workflow modal */}
-      <GenerateWorkflowModal
-        open={showGenerateModal}
-        workflowName={workflowName}
-        onWorkflowNameChange={setWorkflowName}
-        hasUnstableSelectors={hasUnstableSelectors}
-        actionCount={actions.length}
-        generateError={generateError}
-        isLoading={isLoading}
-        onCancel={() => {
-          setShowGenerateModal(false);
-          setWorkflowName('');
-          setGenerateError(null);
-        }}
-        onGenerate={handleGenerateWorkflow}
-      />
-
-      {/* Replay results modal */}
-      <ReplayResultsModal
-        open={showReplayResults}
-        isReplaying={isReplaying}
-        replayResults={replayResults}
-        replayError={replayError}
-        onClose={() => {
-          setShowReplayResults(false);
-          setReplayResults(null);
-          setReplayError(null);
-        }}
       />
     </div>
   );
