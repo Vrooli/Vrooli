@@ -150,7 +150,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		summary.LocalLinks, summary.ExternalLinks, summary.BrokenLinks,
 		summary.AbsolutePathHits, summary.AbsoluteFailures,
 	)
-	shared.LogInfo(r.log, summaryLine)
+	shared.LogInfo(r.log, "%s", summaryLine)
 	fmt.Fprintln(r.log, summaryLine)
 
 	if success {

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	pq "github.com/lib/pq"
+
+	"test-genie/internal/security"
 )
 
 // PostgresAgentRepository persists agents to PostgreSQL.
@@ -435,7 +437,7 @@ func (r *PostgresAgentRepository) CheckConflicts(ctx context.Context, scenario s
 	var conflicts []ConflictDetail
 	for _, requestedPath := range paths {
 		for _, lock := range locks {
-			if pathsOverlap(requestedPath, lock.Path) {
+			if security.PathsOverlap(requestedPath, lock.Path) {
 				agent := agentMap[lock.AgentID]
 				var startedAt time.Time
 				if agent != nil {
@@ -458,19 +460,8 @@ func (r *PostgresAgentRepository) CheckConflicts(ctx context.Context, scenario s
 	return conflicts, nil
 }
 
-// pathsOverlap checks if two paths overlap (one is a prefix of the other or they're equal).
-func pathsOverlap(a, b string) bool {
-	a = strings.TrimSuffix(a, "/")
-	b = strings.TrimSuffix(b, "/")
-
-	if a == b {
-		return true
-	}
-	if strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/") {
-		return true
-	}
-	return false
-}
+// pathsOverlap is now provided by the security package.
+// This alias is kept for backward compatibility with any code that references it directly.
 
 type rowScanner interface {
 	Scan(dest ...interface{}) error
@@ -932,20 +923,9 @@ func (r *PostgresAgentRepository) CheckSpawnSessionConflicts(ctx context.Context
 }
 
 // scopesOverlap checks if two scope arrays have any overlapping paths.
+// This is a wrapper around security.PathSetsOverlap for backward compatibility.
 func scopesOverlap(a, b []string) bool {
-	// Empty scope means "entire scenario" - conflicts with everything
-	if len(a) == 0 || len(b) == 0 {
-		return true
-	}
-
-	for _, pathA := range a {
-		for _, pathB := range b {
-			if pathsOverlap(pathA, pathB) {
-				return true
-			}
-		}
-	}
-	return false
+	return security.PathSetsOverlap(a, b)
 }
 
 // UpdateSpawnSessionStatus updates the status of a spawn session.

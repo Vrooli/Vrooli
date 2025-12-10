@@ -6,7 +6,102 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
+
+// --- Environment Variable Parsing Utilities ---
+// These provide consistent parsing of environment variables across all config packages.
+// Each function documents the decision criteria for parsing.
+
+// ParseBool interprets a string as a boolean value.
+// This is the central decision point for boolean environment variable parsing.
+//
+// Decision criteria:
+//   - "true", "1", "yes", "on" (case-insensitive) → true
+//   - "false", "0", "no", "off" (case-insensitive) → false
+//   - Any other value → defaultVal
+func ParseBool(s string, defaultVal bool) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "true", "1", "yes", "on":
+		return true
+	case "false", "0", "no", "off":
+		return false
+	default:
+		return defaultVal
+	}
+}
+
+// EnvBool reads a boolean environment variable with a default.
+// Returns defaultVal if the variable is not set or cannot be parsed.
+func EnvBool(key string, defaultVal bool) bool {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	return ParseBool(val, defaultVal)
+}
+
+// EnvInt reads an integer environment variable with a default.
+// Returns defaultVal if the variable is not set or cannot be parsed.
+func EnvInt(key string, defaultVal int) int {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	i, err := strconv.Atoi(val)
+	if err != nil {
+		return defaultVal
+	}
+	return i
+}
+
+// EnvInt64 reads an int64 environment variable with a default.
+// Returns defaultVal if the variable is not set or cannot be parsed.
+func EnvInt64(key string, defaultVal int64) int64 {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	i, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return defaultVal
+	}
+	return i
+}
+
+// EnvString reads a string environment variable with a default.
+// Returns defaultVal if the variable is not set.
+func EnvString(key string, defaultVal string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	return val
+}
+
+// ClampInt constrains an integer value to be within [min, max].
+// This is the decision point for "is this value within acceptable bounds?"
+func ClampInt(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+// ClampInt64 constrains an int64 value to be within [min, max].
+func ClampInt64(value, min, max int64) int64 {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
 
 // TestingConfigPath returns the path to the testing.json config file.
 func TestingConfigPath(scenarioDir string) string {

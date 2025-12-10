@@ -24,6 +24,7 @@ import (
 
 	"test-genie/internal/agents"
 	"test-genie/internal/containment"
+	"test-genie/internal/security"
 	"test-genie/internal/shared"
 )
 
@@ -241,13 +242,6 @@ type agentSpawnRequest struct {
 	NetworkEnabled  bool     `json:"networkEnabled"`  // Enable network access for agents (default: false)
 }
 
-const (
-	// DefaultMaxFilesChanged is the default limit on files an agent can modify per run.
-	DefaultMaxFilesChanged = 50
-	// DefaultMaxBytesWritten is the default limit on total bytes an agent can write per run (1MB).
-	DefaultMaxBytesWritten = 1024 * 1024
-)
-
 type agentSpawnResult struct {
 	PromptIndex int    `json:"promptIndex"`
 	AgentID     string `json:"agentId,omitempty"`
@@ -266,6 +260,23 @@ type agentSpawnResponse struct {
 	Idempotent      bool               `json:"idempotent,omitempty"` // True if this is a replayed response
 }
 
+// handleSpawnAgents spawns one or more agents to execute prompts.
+//
+// PROCESSING FLOW (in order):
+// 1. Parse & Field Validation - Decode JSON, validate required fields (prompts, model, scenario)
+// 2. Security Validation - Check tools allowlist, prompt content, scope paths (via SpawnSecurityValidator)
+// 3. Preamble Injection - Generate and inject server-authoritative security preamble into prompts
+// 4. Idempotency Check - Handle duplicate requests via idempotency key (optional)
+// 5. Conflict Detection - Check for scope conflicts with running agents
+// 6. Spawn Session Tracking - Prevent duplicate spawns across browser tabs
+// 7. Agent Execution - Spawn agents concurrently (up to config.MaxConcurrentAgents)
+// 8. Result Aggregation - Collect results, update spawn intent, return response
+//
+// CHANGE_AXIS: Spawn Request Handling
+// This handler orchestrates spawn request processing but delegates security
+// validation to SpawnSecurityValidator. To modify security policy, see:
+//   - internal/agents/spawn_security_validator.go (consolidated security checks)
+//   - internal/agents/spawn_validator.go (field validation)
 func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var payload agentSpawnRequest
@@ -274,19 +285,17 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate prompts
-	prompts := make([]string, 0, len(payload.Prompts))
-	for _, p := range payload.Prompts {
-		trimmed := strings.TrimSpace(p)
-		if trimmed != "" {
-			prompts = append(prompts, trimmed)
-		}
-	}
+	// --- Field Validation (non-security) ---
+	// Sanitize and validate prompts
+	prompts := agents.SanitizePrompts(payload.Prompts)
 	if len(prompts) == 0 {
 		s.writeError(w, http.StatusBadRequest, "at least one prompt is required")
 		return
 	}
-	const maxPrompts = 20
+
+	// Use config for max prompts limit
+	agentCfg := s.agentService.GetConfig()
+	maxPrompts := agentCfg.MaxPromptsPerSpawn
 	capped := false
 	if len(prompts) > maxPrompts {
 		prompts = prompts[:maxPrompts]
@@ -311,53 +320,65 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// SECURITY: Block skipPermissions for spawned agents
-	if payload.SkipPermissions {
-		s.log("rejected skipPermissions for spawned agent", map[string]interface{}{"scenario": scenario})
-		s.writeError(w, http.StatusBadRequest, "skipPermissions is not allowed for spawned agents; this would bypass all safety controls")
-		return
-	}
-
-	// SECURITY: Validate and sanitize allowed tools
-	allowedTools := payload.AllowedTools
-	if len(allowedTools) == 0 {
-		allowedTools = DefaultSafeTools()
-	}
-	sanitizedTools, err := SanitizeAllowedTools(allowedTools)
-	if err != nil {
-		s.writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid allowed tools: %s", err.Error()))
-		return
-	}
-
-	// SECURITY: Validate prompts don't contain obviously dangerous commands
-	validator := NewDestructiveCommandValidator()
-	for i, prompt := range prompts {
-		if err := validator.ValidatePrompt(prompt); err != nil {
-			s.writeError(w, http.StatusBadRequest, fmt.Sprintf("prompt %d contains blocked content: %s", i+1, err.Error()))
-			return
-		}
-	}
-
-	// SECURITY: Validate scope paths are within the scenario directory
-	// This prevents path traversal attacks where an agent could access files outside its scope
-	if len(payload.Scope) > 0 {
-		if err := ValidateScopePaths(scenario, payload.Scope, ""); err != nil {
-			s.log("rejected scope paths for spawned agent", map[string]interface{}{
-				"scenario": scenario,
-				"scope":    payload.Scope,
-				"error":    err.Error(),
-			})
-			s.writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid scope paths: %s", err.Error()))
-			return
-		}
-	}
-
-	// SECURITY: Generate and validate the safety preamble server-side
-	// This ensures clients cannot tamper with or omit security constraints
+	// --- Security Validation (consolidated in SpawnSecurityValidator) ---
+	// CHANGE_AXIS: All security policy decisions are in spawn_security_validator.go
 	repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	maxFiles := payload.MaxFilesChanged
-	maxBytes := payload.MaxBytesWritten
-	serverPreamble := generateSafetyPreamble(scenario, payload.Scope, repoRoot, maxFiles, maxBytes, payload.NetworkEnabled)
+
+	securityInput := agents.SpawnSecurityInput{
+		Prompts:         prompts,
+		AllowedTools:    payload.AllowedTools,
+		SkipPermissions: payload.SkipPermissions,
+		Scenario:        scenario,
+		ScopePaths:      payload.Scope,
+		RepoRoot:        repoRoot,
+	}
+
+	securityResult := agents.ValidateSpawnSecurity(securityInput)
+	if !securityResult.Valid {
+		// Log security validation failures for audit trail
+		s.log("spawn security validation failed", map[string]interface{}{
+			"scenario":     scenario,
+			"error":        securityResult.FirstError,
+			"failedChecks": len(securityResult.GetFailedChecks()),
+		})
+		s.writeError(w, http.StatusBadRequest, securityResult.FirstError)
+		return
+	}
+
+	// Use sanitized tools from security validation, or defaults
+	sanitizedTools := securityResult.SanitizedTools
+	if len(sanitizedTools) == 0 {
+		sanitizedTools = agents.GetDefaultSafeTools()
+	}
+
+	// --- Preamble Generation (server-authoritative) ---
+	// CHANGE_COUPLE: Preamble uses BashCommandValidator.GetAllowedCommands()
+	// See internal/security/preamble.go for preamble generation logic
+	// This ensures clients cannot tamper with or omit security constraints
+
+	// Apply execution defaults from config when not specified in request
+	maxFilesChanged := payload.MaxFilesChanged
+	if maxFilesChanged <= 0 {
+		maxFilesChanged = agentCfg.DefaultMaxFilesChanged
+	}
+	maxBytesWritten := payload.MaxBytesWritten
+	if maxBytesWritten <= 0 {
+		maxBytesWritten = agentCfg.DefaultMaxBytesWritten
+	}
+	// NetworkEnabled is a toggle, so we use the request value or fall back to config default
+	networkEnabled := payload.NetworkEnabled
+	if !payload.NetworkEnabled && agentCfg.DefaultNetworkEnabled {
+		networkEnabled = true
+	}
+
+	serverPreamble := security.GenerateSafetyPreamble(security.PreambleConfig{
+		Scenario:       scenario,
+		Scope:          payload.Scope,
+		RepoRoot:       repoRoot,
+		MaxFiles:       maxFilesChanged,
+		MaxBytes:       maxBytesWritten,
+		NetworkEnabled: networkEnabled,
+	})
 
 	// If client provided a preamble, validate it matches (modulo whitespace)
 	if payload.Preamble != "" {
@@ -391,7 +412,8 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 	// If idempotencyKey is provided, acquire a spawn intent lock to prevent race conditions
 	idempotencyKey := strings.TrimSpace(payload.IdempotencyKey)
 	if idempotencyKey != "" {
-		const spawnIntentTTL = 30 * time.Minute // Intent locks expire after 30 minutes
+		// Use config for idempotency TTL
+		spawnIntentTTL := agentCfg.IdempotencyTTL()
 
 		intent, isNew, err := s.agentService.AcquireSpawnIntent(r.Context(), idempotencyKey, scenario, payload.Scope, spawnIntentTTL)
 		if err != nil {
@@ -399,47 +421,47 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if !isNew {
-			// This is a duplicate request - return cached result or current status
-			s.log("duplicate spawn request detected", map[string]interface{}{
-				"idempotencyKey": idempotencyKey,
-				"scenario":       scenario,
-				"intentStatus":   intent.Status,
-			})
+		// Use the centralized idempotency decision function
+		decision := agents.ClassifyIdempotencyAction(intent, isNew)
 
-			switch intent.Status {
-			case "completed":
-				// Return the cached result
-				if intent.ResultJSON != "" {
-					var cachedResponse agentSpawnResponse
-					if err := json.Unmarshal([]byte(intent.ResultJSON), &cachedResponse); err == nil {
-						cachedResponse.Idempotent = true
-						s.writeJSON(w, http.StatusOK, cachedResponse)
-						return
-					}
+		s.log("idempotency decision", map[string]interface{}{
+			"idempotencyKey": idempotencyKey,
+			"scenario":       scenario,
+			"action":         string(decision.Action),
+			"reason":         decision.Reason,
+		})
+
+		switch decision.Action {
+		case agents.IdempotencyActionReturnCached:
+			// Return the cached result
+			if decision.CachedResult != "" {
+				var cachedResponse agentSpawnResponse
+				if err := json.Unmarshal([]byte(decision.CachedResult), &cachedResponse); err == nil {
+					cachedResponse.Idempotent = true
+					s.writeJSON(w, http.StatusOK, cachedResponse)
+					return
 				}
-				// Fallthrough if no cached result
-				s.writeJSON(w, http.StatusOK, agentSpawnResponse{
-					Items:      []agentSpawnResult{},
-					Count:      0,
-					Idempotent: true,
-				})
-				return
-
-			case "pending":
-				// Another request is still processing - return 409 to indicate in-progress
-				s.writeJSON(w, http.StatusConflict, agentSpawnResponse{
-					Items:           []agentSpawnResult{},
-					Count:           0,
-					ValidationError: fmt.Sprintf("spawn request with key %s is already in progress", idempotencyKey),
-					Idempotent:      true,
-				})
-				return
-
-			case "failed":
-				// Previous attempt failed - allow retry by continuing with new spawn
-				// (We'll update the intent status as we go)
 			}
+			// Fallthrough if no cached result
+			s.writeJSON(w, http.StatusOK, agentSpawnResponse{
+				Items:      []agentSpawnResult{},
+				Count:      0,
+				Idempotent: true,
+			})
+			return
+
+		case agents.IdempotencyActionConflict:
+			// Another request is still processing - return 409 to indicate in-progress
+			s.writeJSON(w, http.StatusConflict, agentSpawnResponse{
+				Items:           []agentSpawnResult{},
+				Count:           0,
+				ValidationError: fmt.Sprintf("spawn request with key %s is already in progress", idempotencyKey),
+				Idempotent:      true,
+			})
+			return
+
+		case agents.IdempotencyActionRetry, agents.IdempotencyActionProceed:
+			// Continue with spawn - either new request or retry after failure
 		}
 	}
 
@@ -488,13 +510,13 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Normalize concurrency
+	// Normalize concurrency using config limits
 	concurrency := payload.Concurrency
 	if concurrency <= 0 {
-		concurrency = 3
+		concurrency = agentCfg.DefaultConcurrency
 	}
-	if concurrency > 10 {
-		concurrency = 10
+	if concurrency > agentCfg.MaxConcurrentAgents {
+		concurrency = agentCfg.MaxConcurrentAgents
 	}
 	if concurrency > len(prompts) {
 		concurrency = len(prompts)
@@ -548,14 +570,24 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 				s.wsManager.BroadcastAgentUpdate(agentToActiveAgent(updatedAgent))
 			}
 
+			// Apply execution defaults for timeout and maxTurns
+			timeoutSeconds := payload.TimeoutSeconds
+			if timeoutSeconds <= 0 {
+				timeoutSeconds = agentCfg.DefaultTimeoutSeconds
+			}
+			maxTurns := payload.MaxTurns
+			if maxTurns <= 0 {
+				maxTurns = agentCfg.DefaultMaxTurns
+			}
+
 			// Run the agent
 			res := s.runAgentPromptWithService(ctx, agentSpawnRequest{
 				Model:          model,
-				MaxTurns:       payload.MaxTurns,
-				TimeoutSeconds: payload.TimeoutSeconds,
+				MaxTurns:       maxTurns,
+				TimeoutSeconds: timeoutSeconds,
 				AllowedTools:   sanitizedTools,
 				Scenario:       scenario,
-				NetworkEnabled: payload.NetworkEnabled,
+				NetworkEnabled: networkEnabled,
 			}, text, i, agent.ID)
 
 			// Update service with result
@@ -591,7 +623,7 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 			Scope:          payload.Scope,
 			Phases:         payload.Phases,
 			AgentIDs:       agentIDs,
-			TTL:            30 * time.Minute, // Sessions expire after 30 minutes
+			TTL:            agentCfg.SpawnSessionTTL(), // Use config for session TTL
 		})
 		if err != nil {
 			s.log("failed to create spawn session", map[string]interface{}{
@@ -677,13 +709,8 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 
 	// SECURITY: Use containment system when available
 	// This provides OS-level isolation (Docker, bubblewrap) in addition to tool-level restrictions
-	dockerProvider := containment.NewDockerProvider()
-	fallbackProvider := containment.NewFallbackProvider()
-	containmentMgr := containment.NewManager(
-		[]containment.Provider{dockerProvider},
-		fallbackProvider,
-	)
-	provider := containmentMgr.SelectProvider(runCtx)
+	// The containment selector is injected via the server for testability
+	provider := s.containmentSelector.SelectProvider(runCtx)
 
 	// Build environment variables for agent context
 	envVars := map[string]string{}
@@ -715,6 +742,10 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 	// Build the full command with resource-opencode
 	fullCommand := append([]string{"resource-opencode"}, args...)
 
+	// Get containment config for resource limits
+	// Use defaults from containment.DefaultConfig() which can be overridden via env vars
+	containmentCfg := containment.LoadConfigFromEnv()
+
 	// Configure containment execution
 	execConfig := containment.ExecutionConfig{
 		WorkingDir: scenarioDir,
@@ -722,12 +753,12 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 		AllowedPaths: []string{}, // Working dir is already allowed
 		ReadOnlyPaths: []string{
 			"/usr/bin", "/usr/local/bin", // For test tools
-			"/etc/ssl",                   // For HTTPS
+			"/etc/ssl", // For HTTPS
 		},
 		Environment: envVars,
-		// SECURITY: Resource limits to prevent runaway agents
-		MaxMemoryMB:   2048, // 2GB memory limit
-		MaxCPUPercent: 200,  // 2 CPU cores max
+		// SECURITY: Resource limits from config to prevent runaway agents
+		MaxMemoryMB:   containmentCfg.MaxMemoryMB,
+		MaxCPUPercent: containmentCfg.MaxCPUPercent,
 		// Network access controlled by user toggle (default: false)
 		// When disabled, agents cannot make outbound network requests
 		NetworkAccess:  payload.NetworkEnabled,
@@ -925,13 +956,14 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 var sessionIDPattern = regexp.MustCompile(`Created OpenCode session:\s*([A-Za-z0-9\-\_]+)`)
 
 // runHeartbeatLoop periodically renews locks for an agent while it's running.
-// It runs every HeartbeatInterval (5 minutes) to prevent lock expiration.
-// If heartbeat fails 3 consecutive times, the agent is stopped to prevent orphaned locks.
+// It runs every HeartbeatInterval to prevent lock expiration.
+// If heartbeat fails consecutively (per config), the agent is stopped to prevent orphaned locks.
 func (s *Server) runHeartbeatLoop(ctx context.Context, agentID string) {
-	ticker := time.NewTicker(agents.HeartbeatInterval)
+	agentCfg := s.agentService.GetConfig()
+	ticker := time.NewTicker(agentCfg.HeartbeatInterval())
 	defer ticker.Stop()
 
-	const maxConsecutiveFailures = 3
+	maxConsecutiveFailures := agentCfg.MaxHeartbeatFailures
 	consecutiveFailures := 0
 
 	for {
@@ -980,77 +1012,6 @@ func (s *Server) runHeartbeatLoop(ctx context.Context, agentID string) {
 			})
 		}
 	}
-}
-
-// generateSafetyPreamble creates the immutable safety preamble server-side.
-// This ensures the preamble cannot be tampered with by the client.
-func generateSafetyPreamble(scenario string, scope []string, repoRoot string, maxFiles int, maxBytes int64, networkEnabled bool) string {
-	if scenario == "" || repoRoot == "" {
-		return ""
-	}
-
-	scenarioPath := filepath.Join(repoRoot, "scenarios", scenario)
-	hasScope := len(scope) > 0
-
-	var scopeDescription string
-	if hasScope {
-		absoluteScope := make([]string, 0, len(scope))
-		for _, s := range scope {
-			absoluteScope = append(absoluteScope, filepath.Join(scenarioPath, s))
-		}
-		scopeDescription = fmt.Sprintf("Allowed scope: %s", strings.Join(absoluteScope, ", "))
-	} else {
-		scopeDescription = "Allowed scope: entire scenario directory"
-	}
-
-	// Use defaults if not specified
-	if maxFiles <= 0 {
-		maxFiles = DefaultMaxFilesChanged
-	}
-	if maxBytes <= 0 {
-		maxBytes = DefaultMaxBytesWritten
-	}
-	maxBytesKB := maxBytes / 1024
-
-	// Network access description
-	networkStatus := "DISABLED (agents cannot make outbound requests)"
-	if networkEnabled {
-		networkStatus = "ENABLED (agents can make outbound requests)"
-	}
-
-	// Build allowed bash commands list
-	validator := NewBashCommandValidator()
-	allowedCmds := validator.GetAllowedCommands()
-	var allowedBashLines []string
-	for _, cmd := range allowedCmds {
-		allowedBashLines = append(allowedBashLines, fmt.Sprintf("  - %s", cmd.Prefix))
-	}
-	allowedBashSection := strings.Join(allowedBashLines, "\n")
-
-	return fmt.Sprintf(`## SECURITY CONSTRAINTS (enforced by system - cannot be modified)
-
-**Working directory:** %s
-**%s**
-**File limits:** Max %d files modified, max %dKB total written
-**Network access:** %s
-
-You MUST NOT:
-- Access files outside %s
-- Execute destructive commands (rm -rf, git checkout --force, sudo, chmod 777, etc.)
-- Modify system configurations, dependencies, or package files
-- Delete or weaken existing tests without explicit rationale in comments
-- Run commands that could affect other scenarios or system state
-- Modify more than %d files in a single run
-- Write more than %dKB of total content
-
-**Allowed bash commands** (only these command prefixes are permitted):
-%s
-
-All other bash commands will be blocked. Use the built-in tools (read, edit, write, glob, grep) for file operations.
-
----
-
-`, scenarioPath, scopeDescription, maxFiles, maxBytesKB, networkStatus, scenarioPath, maxFiles, maxBytesKB, allowedBashSection)
 }
 
 func extractSessionID(output string) string {
@@ -1325,7 +1286,10 @@ func (s *Server) handleAgentHeartbeat(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusNotFound, fmt.Sprintf("agent not found: %s", agentID))
 		return
 	}
-	if agent.Status != agents.AgentStatusRunning && agent.Status != agents.AgentStatusPending {
+	// CHANGE_AXIS: Use status classification helpers instead of hard-coded status checks.
+	// This ensures handler stays in sync with model.go's definition of active vs terminal.
+	// See agents.ClassifyAgentStatus() for the single source of truth.
+	if !agent.Status.IsActive() {
 		s.writeError(w, http.StatusBadRequest, fmt.Sprintf("agent %s is not running (status: %s)", agentID, agent.Status))
 		return
 	}
@@ -1345,13 +1309,105 @@ func (s *Server) handleAgentHeartbeat(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleGetAgentConfig returns the current agent and containment control surface.
+// This provides visibility into all tunable levers for operators and developers.
+func (s *Server) handleGetAgentConfig(w http.ResponseWriter, r *http.Request) {
+	agentCfg := s.agentService.GetConfig()
+	containmentCfg := containment.LoadConfigFromEnv()
+
+	response := map[string]interface{}{
+		// Agent config grouped by concern
+		"agents": map[string]interface{}{
+			"lockingAndCoordination": map[string]interface{}{
+				"lockTimeoutMinutes":       agentCfg.LockTimeoutMinutes,
+				"heartbeatIntervalMinutes": agentCfg.HeartbeatIntervalMinutes,
+				"maxHeartbeatFailures":     agentCfg.MaxHeartbeatFailures,
+			},
+			"executionDefaults": map[string]interface{}{
+				"defaultTimeoutSeconds":  agentCfg.DefaultTimeoutSeconds,
+				"defaultMaxTurns":        agentCfg.DefaultMaxTurns,
+				"defaultMaxFilesChanged": agentCfg.DefaultMaxFilesChanged,
+				"defaultMaxBytesWritten": agentCfg.DefaultMaxBytesWritten,
+				"defaultNetworkEnabled":  agentCfg.DefaultNetworkEnabled,
+			},
+			"spawnLimits": map[string]interface{}{
+				"maxPromptsPerSpawn":  agentCfg.MaxPromptsPerSpawn,
+				"maxConcurrentAgents": agentCfg.MaxConcurrentAgents,
+				"defaultConcurrency":  agentCfg.DefaultConcurrency,
+			},
+			"retentionAndCleanup": map[string]interface{}{
+				"retentionDays":          agentCfg.RetentionDays,
+				"cleanupIntervalMinutes": agentCfg.CleanupIntervalMinutes,
+			},
+			"sessionManagement": map[string]interface{}{
+				"spawnSessionTTLMinutes": agentCfg.SpawnSessionTTLMinutes,
+				"idempotencyTTLMinutes":  agentCfg.IdempotencyTTLMinutes,
+			},
+		},
+		// Containment config
+		"containment": map[string]interface{}{
+			"containerImage": containmentCfg.DockerImage,
+			"resourceLimits": map[string]interface{}{
+				"maxMemoryMB":   containmentCfg.MaxMemoryMB,
+				"maxCPUPercent": containmentCfg.MaxCPUPercent,
+			},
+			"availability": map[string]interface{}{
+				"timeoutSeconds": containmentCfg.AvailabilityTimeoutSeconds,
+				"preferDocker":   containmentCfg.PreferDocker,
+				"allowFallback":  containmentCfg.AllowFallback,
+			},
+			"securityHardening": map[string]interface{}{
+				"dropAllCapabilities": containmentCfg.DropAllCapabilities,
+				"noNewPrivileges":     containmentCfg.NoNewPrivileges,
+				"readOnlyRootFS":      containmentCfg.ReadOnlyRootFS,
+			},
+		},
+		// Environment variable reference
+		"environmentVariables": map[string]interface{}{
+			"agents": []string{
+				"AGENT_LOCK_TIMEOUT_MINUTES",
+				"AGENT_HEARTBEAT_INTERVAL_MINUTES",
+				"AGENT_MAX_HEARTBEAT_FAILURES",
+				"AGENT_DEFAULT_TIMEOUT_SECONDS",
+				"AGENT_DEFAULT_MAX_TURNS",
+				"AGENT_DEFAULT_MAX_FILES",
+				"AGENT_DEFAULT_MAX_BYTES",
+				"AGENT_DEFAULT_NETWORK_ENABLED",
+				"AGENT_RETENTION_DAYS",
+				"AGENT_CLEANUP_INTERVAL_MINUTES",
+				"AGENT_MAX_PROMPTS",
+				"AGENT_MAX_CONCURRENT",
+				"AGENT_DEFAULT_CONCURRENCY",
+				"AGENT_SPAWN_SESSION_TTL_MINUTES",
+				"AGENT_IDEMPOTENCY_TTL_MINUTES",
+			},
+			"containment": []string{
+				"CONTAINMENT_DOCKER_IMAGE",
+				"CONTAINMENT_MAX_MEMORY_MB",
+				"CONTAINMENT_MAX_CPU_PERCENT",
+				"CONTAINMENT_AVAILABILITY_TIMEOUT_SECONDS",
+				"CONTAINMENT_PREFER_DOCKER",
+				"CONTAINMENT_ALLOW_FALLBACK",
+				"CONTAINMENT_DROP_ALL_CAPABILITIES",
+				"CONTAINMENT_NO_NEW_PRIVILEGES",
+				"CONTAINMENT_READ_ONLY_ROOT_FS",
+			},
+		},
+		"note": "All levers can be tuned via environment variables. " +
+			"Values are validated and clamped to safe ranges on load. " +
+			"See the config package documentation for detailed tradeoff descriptions.",
+	}
+	s.writeJSON(w, http.StatusOK, response)
+}
+
 // handleGetBlockedCommands returns command validation info (allowlist and blocklist).
 func (s *Server) handleGetBlockedCommands(w http.ResponseWriter, r *http.Request) {
-	validator := NewBashCommandValidator()
+	validator := security.NewBashCommandValidator()
 
 	// Get allowed commands (primary - allowlist)
-	allowedCommands := make([]map[string]string, 0, len(validator.allowedCommands))
-	for _, ac := range validator.GetAllowedCommands() {
+	allowedCmds := validator.GetAllowedCommands()
+	allowedCommands := make([]map[string]string, 0, len(allowedCmds))
+	for _, ac := range allowedCmds {
 		allowedCommands = append(allowedCommands, map[string]string{
 			"prefix":      ac.Prefix,
 			"description": ac.Description,
@@ -1359,8 +1415,9 @@ func (s *Server) handleGetBlockedCommands(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get blocked patterns (secondary - defense in depth for prompt scanning)
-	blockedPatterns := make([]map[string]string, 0, len(validator.blockedPatterns))
-	for _, bp := range validator.blockedPatterns {
+	blockedPats := validator.GetBlockedPatterns()
+	blockedPatterns := make([]map[string]string, 0, len(blockedPats))
+	for _, bp := range blockedPats {
 		blockedPatterns = append(blockedPatterns, map[string]string{
 			"pattern":     bp.Pattern.String(),
 			"description": bp.Description,
@@ -1370,8 +1427,8 @@ func (s *Server) handleGetBlockedCommands(w http.ResponseWriter, r *http.Request
 	response := map[string]interface{}{
 		"allowedBashCommands": allowedCommands,
 		"blockedPatterns":     blockedPatterns,
-		"safeDefaults":        DefaultSafeTools(),
-		"safeBashPatterns":    SafeBashPatterns(),
+		"safeDefaults":        security.DefaultSafeTools(),
+		"safeBashPatterns":    security.SafeBashPatterns(),
 		"securityModel":       "allowlist",
 		"note":                "Bash commands must start with an allowed prefix. The blocklist is used for defense-in-depth prompt scanning only.",
 	}
@@ -1383,18 +1440,11 @@ func (s *Server) handleGetBlockedCommands(w http.ResponseWriter, r *http.Request
 func (s *Server) handleContainmentStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Create containment manager with available providers
-	dockerProvider := containment.NewDockerProvider()
-	fallbackProvider := containment.NewFallbackProvider()
-	manager := containment.NewManager(
-		[]containment.Provider{dockerProvider},
-		fallbackProvider,
-	)
-
-	status := manager.GetStatus(ctx)
+	// Use the injected containment selector for testability
+	status := s.containmentSelector.GetStatus(ctx)
 
 	// Get provider info for all registered providers
-	providerInfos := manager.ListProviders(ctx)
+	providerInfos := s.containmentSelector.ListProviders(ctx)
 	providers := make([]map[string]interface{}, 0, len(providerInfos))
 	for _, info := range providerInfos {
 		providers = append(providers, map[string]interface{}{
@@ -1412,6 +1462,9 @@ func (s *Server) handleContainmentStatus(w http.ResponseWriter, r *http.Request)
 		available = append(available, string(p))
 	}
 
+	// Get current containment configuration for display
+	containmentCfg := containment.LoadConfigFromEnv()
+
 	response := map[string]interface{}{
 		"activeProvider":     string(status.ActiveProvider),
 		"availableProviders": available,
@@ -1419,9 +1472,22 @@ func (s *Server) handleContainmentStatus(w http.ResponseWriter, r *http.Request)
 		"maxSecurityLevel":   10,
 		"warnings":           status.Warnings,
 		"providers":          providers,
+		// Expose current containment config as control surface
+		"config": map[string]interface{}{
+			"dockerImage":                containmentCfg.DockerImage,
+			"maxMemoryMB":                containmentCfg.MaxMemoryMB,
+			"maxCPUPercent":              containmentCfg.MaxCPUPercent,
+			"availabilityTimeoutSeconds": containmentCfg.AvailabilityTimeoutSeconds,
+			"preferDocker":               containmentCfg.PreferDocker,
+			"allowFallback":              containmentCfg.AllowFallback,
+			"dropAllCapabilities":        containmentCfg.DropAllCapabilities,
+			"noNewPrivileges":            containmentCfg.NoNewPrivileges,
+			"readOnlyRootFS":             containmentCfg.ReadOnlyRootFS,
+		},
 		"note": "Containment provides OS-level isolation for agent execution. " +
 			"Higher security levels provide stronger isolation. " +
-			"Docker (level 7) is recommended for production use.",
+			"Docker (level 7) is recommended for production use. " +
+			"Config values can be overridden via CONTAINMENT_* environment variables.",
 	}
 	s.writeJSON(w, http.StatusOK, response)
 }

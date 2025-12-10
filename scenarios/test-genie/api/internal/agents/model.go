@@ -7,6 +7,15 @@ import (
 )
 
 // AgentStatus represents the current state of a spawned agent.
+//
+// CHANGE_AXIS: Agent Lifecycle States
+// When adding a new agent status:
+//  1. Add the constant below
+//  2. Update ClassifyAgentStatus() to handle the new status
+//  3. Update repository SQL enums if using database constraints
+//  4. Consider if the new status is terminal (agent done) or active (still working)
+//
+// Terminal states release locks; active states hold locks.
 type AgentStatus string
 
 const (
@@ -18,10 +27,79 @@ const (
 	AgentStatusStopped   AgentStatus = "stopped"
 )
 
+// StatusClassification describes whether an agent status is terminal or active.
+type StatusClassification struct {
+	IsTerminal bool
+	IsActive   bool
+	Reason     string
+}
+
+// ClassifyAgentStatus determines whether an agent has reached a final state.
+// This is the central decision point for status-based behavior.
+//
+// Decision criteria:
+//   - Pending/Running: ACTIVE - agent is still working, locks should be held
+//   - Completed/Failed/Timeout/Stopped: TERMINAL - agent is done, locks can be released
+//
+// Terminal states indicate the agent will never produce more work.
+// Active states indicate the agent may still be executing.
+func ClassifyAgentStatus(status AgentStatus) StatusClassification {
+	switch status {
+	case AgentStatusPending:
+		return StatusClassification{
+			IsTerminal: false,
+			IsActive:   true,
+			Reason:     "agent is queued and waiting to start",
+		}
+	case AgentStatusRunning:
+		return StatusClassification{
+			IsTerminal: false,
+			IsActive:   true,
+			Reason:     "agent is actively executing",
+		}
+	case AgentStatusCompleted:
+		return StatusClassification{
+			IsTerminal: true,
+			IsActive:   false,
+			Reason:     "agent finished successfully",
+		}
+	case AgentStatusFailed:
+		return StatusClassification{
+			IsTerminal: true,
+			IsActive:   false,
+			Reason:     "agent encountered an error",
+		}
+	case AgentStatusTimeout:
+		return StatusClassification{
+			IsTerminal: true,
+			IsActive:   false,
+			Reason:     "agent exceeded time limit",
+		}
+	case AgentStatusStopped:
+		return StatusClassification{
+			IsTerminal: true,
+			IsActive:   false,
+			Reason:     "agent was manually stopped",
+		}
+	default:
+		// Unknown status - treat as terminal for safety (release locks)
+		return StatusClassification{
+			IsTerminal: true,
+			IsActive:   false,
+			Reason:     "unknown status treated as terminal",
+		}
+	}
+}
+
 // IsTerminal returns true if the status represents a final state.
+// For detailed classification including reasons, use ClassifyAgentStatus.
 func (s AgentStatus) IsTerminal() bool {
-	return s == AgentStatusCompleted || s == AgentStatusFailed ||
-		s == AgentStatusTimeout || s == AgentStatusStopped
+	return ClassifyAgentStatus(s).IsTerminal
+}
+
+// IsActive returns true if the status represents an agent that is still working.
+func (s AgentStatus) IsActive() bool {
+	return ClassifyAgentStatus(s).IsActive
 }
 
 // SpawnedAgent represents an agent tracked in the database.
@@ -122,6 +200,84 @@ type SpawnIntent struct {
 	CreatedAt  time.Time `json:"createdAt"`
 	ExpiresAt  time.Time `json:"expiresAt"`
 	ResultJSON string    `json:"resultJson,omitempty"` // Cached spawn result for replay
+}
+
+// SpawnIntentStatus constants define the possible states of a spawn intent.
+const (
+	SpawnIntentStatusPending   = "pending"
+	SpawnIntentStatusCompleted = "completed"
+	SpawnIntentStatusFailed    = "failed"
+)
+
+// IdempotencyAction describes what action to take for a spawn request.
+type IdempotencyAction string
+
+const (
+	// IdempotencyActionProceed means this is a new request, proceed with spawning.
+	IdempotencyActionProceed IdempotencyAction = "proceed"
+
+	// IdempotencyActionReturnCached means return the cached successful result.
+	IdempotencyActionReturnCached IdempotencyAction = "return_cached"
+
+	// IdempotencyActionConflict means another request with this key is in progress.
+	IdempotencyActionConflict IdempotencyAction = "conflict"
+
+	// IdempotencyActionRetry means the previous attempt failed, allow a retry.
+	IdempotencyActionRetry IdempotencyAction = "retry"
+)
+
+// IdempotencyDecision describes how to handle a spawn request based on its idempotency status.
+type IdempotencyDecision struct {
+	Action       IdempotencyAction
+	Reason       string
+	CachedResult string // Only set for ActionReturnCached
+}
+
+// ClassifyIdempotencyAction determines what action to take for a spawn intent.
+// This is the central decision point for idempotency handling.
+//
+// Decision criteria:
+//   - New intent (isNew=true): Proceed with spawn
+//   - Existing intent with status "completed": Return cached result
+//   - Existing intent with status "pending": Return conflict (in progress)
+//   - Existing intent with status "failed": Allow retry (proceed)
+func ClassifyIdempotencyAction(intent *SpawnIntent, isNew bool) IdempotencyDecision {
+	// New request - proceed with spawning
+	if isNew {
+		return IdempotencyDecision{
+			Action: IdempotencyActionProceed,
+			Reason: "new idempotency key",
+		}
+	}
+
+	// Existing intent - decide based on status
+	switch intent.Status {
+	case SpawnIntentStatusCompleted:
+		return IdempotencyDecision{
+			Action:       IdempotencyActionReturnCached,
+			Reason:       "returning cached result from completed spawn",
+			CachedResult: intent.ResultJSON,
+		}
+
+	case SpawnIntentStatusPending:
+		return IdempotencyDecision{
+			Action: IdempotencyActionConflict,
+			Reason: "spawn request with this key is already in progress",
+		}
+
+	case SpawnIntentStatusFailed:
+		return IdempotencyDecision{
+			Action: IdempotencyActionRetry,
+			Reason: "previous attempt failed, allowing retry",
+		}
+
+	default:
+		// Unknown status - treat as retry to be safe
+		return IdempotencyDecision{
+			Action: IdempotencyActionRetry,
+			Reason: "unknown intent status, allowing retry",
+		}
+	}
 }
 
 // FileOperation represents a tracked file operation by an agent.

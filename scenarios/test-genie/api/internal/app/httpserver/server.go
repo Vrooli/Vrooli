@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"test-genie/internal/agents"
+	"test-genie/internal/containment"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -38,14 +39,15 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
-	DB           *sql.DB
-	SuiteQueue   suiteRequestQueue
-	Executions   execution.ExecutionHistory
-	ExecutionSvc suiteExecutor
-	Scenarios    scenarioDirectory
-	PhaseCatalog phaseCatalog
-	AgentService *agents.AgentService
-	Logger       Logger
+	DB                  *sql.DB
+	SuiteQueue          suiteRequestQueue
+	Executions          execution.ExecutionHistory
+	ExecutionSvc        suiteExecutor
+	Scenarios           scenarioDirectory
+	PhaseCatalog        phaseCatalog
+	AgentService        *agents.AgentService
+	ContainmentSelector containment.ProviderSelector // Optional: defaults to containment.DefaultManager()
+	Logger              Logger
 }
 
 type suiteRequestQueue interface {
@@ -78,17 +80,18 @@ type phaseCatalog interface {
 
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
-	config           Config
-	db               *sql.DB
-	router           *mux.Router
-	suiteRequests    suiteRequestQueue
-	executionHistory execution.ExecutionHistory
-	executionSvc     suiteExecutor
-	scenarios        scenarioDirectory
-	phaseCatalog     phaseCatalog
-	logger           Logger
-	agentService     *agents.AgentService
-	wsManager        *WebSocketManager
+	config              Config
+	db                  *sql.DB
+	router              *mux.Router
+	suiteRequests       suiteRequestQueue
+	executionHistory    execution.ExecutionHistory
+	executionSvc        suiteExecutor
+	scenarios           scenarioDirectory
+	phaseCatalog        phaseCatalog
+	logger              Logger
+	agentService        *agents.AgentService
+	containmentSelector containment.ProviderSelector
+	wsManager           *WebSocketManager
 }
 
 // New creates a configured HTTP server instance.
@@ -123,20 +126,27 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		logger = log.Default()
 	}
 
+	// Use provided containment selector or default to standard Docker+Fallback
+	containmentSel := deps.ContainmentSelector
+	if containmentSel == nil {
+		containmentSel = containment.DefaultManager()
+	}
+
 	wsManager := NewWebSocketManager()
 
 	srv := &Server{
-		config:           config,
-		db:               deps.DB,
-		router:           mux.NewRouter(),
-		suiteRequests:    deps.SuiteQueue,
-		executionHistory: deps.Executions,
-		executionSvc:     deps.ExecutionSvc,
-		scenarios:        deps.Scenarios,
-		phaseCatalog:     deps.PhaseCatalog,
-		logger:           logger,
-		agentService:     deps.AgentService,
-		wsManager:        wsManager,
+		config:              config,
+		db:                  deps.DB,
+		router:              mux.NewRouter(),
+		suiteRequests:       deps.SuiteQueue,
+		executionHistory:    deps.Executions,
+		executionSvc:        deps.ExecutionSvc,
+		scenarios:           deps.Scenarios,
+		phaseCatalog:        deps.PhaseCatalog,
+		logger:              logger,
+		agentService:        deps.AgentService,
+		containmentSelector: containmentSel,
+		wsManager:           wsManager,
 	}
 
 	srv.setupRoutes()
@@ -176,6 +186,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
 	apiRouter.HandleFunc("/agents/cleanup", s.handleCleanupAgents).Methods("POST")
 	apiRouter.HandleFunc("/agents/containment-status", s.handleContainmentStatus).Methods("GET")
+	apiRouter.HandleFunc("/agents/config", s.handleGetAgentConfig).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}/stop", s.handleStopAgent).Methods("POST")
 	apiRouter.HandleFunc("/agents/{id}/heartbeat", s.handleAgentHeartbeat).Methods("POST")

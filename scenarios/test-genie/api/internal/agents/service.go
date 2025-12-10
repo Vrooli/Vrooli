@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -14,21 +13,77 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	// DefaultLockTimeout is the default duration before a scope lock expires.
-	DefaultLockTimeout = 20 * time.Minute
+// ProcessChecker is a seam for checking if OS processes are alive.
+// This interface enables testing without making actual syscalls.
+type ProcessChecker interface {
+	IsAlive(pid int) bool
+}
 
-	// DefaultRetentionDays is the default number of days to keep completed agents.
-	DefaultRetentionDays = 7
+// EnvironmentProvider is a seam for accessing environment variables.
+// This enables testing configuration without modifying actual environment.
+type EnvironmentProvider interface {
+	Getenv(key string) string
+	Hostname() (string, error)
+}
 
-	// HeartbeatInterval is how often agents should send heartbeats.
-	HeartbeatInterval = 5 * time.Minute
-)
+// TimeProvider is a seam for time-dependent operations.
+// This enables deterministic testing of time-based logic.
+type TimeProvider interface {
+	Now() time.Time
+}
+
+// --- Default implementations ---
+
+// OSProcessChecker checks process existence using OS signals.
+type OSProcessChecker struct{}
+
+// IsAlive checks if a process is running using signal 0.
+func (c *OSProcessChecker) IsAlive(pid int) bool {
+	return isProcessAlive(pid)
+}
+
+// OSEnvironmentProvider uses the real OS environment.
+type OSEnvironmentProvider struct{}
+
+// Getenv returns an environment variable value.
+func (p *OSEnvironmentProvider) Getenv(key string) string {
+	return os.Getenv(key)
+}
+
+// Hostname returns the system hostname.
+func (p *OSEnvironmentProvider) Hostname() (string, error) {
+	return os.Hostname()
+}
+
+// RealTimeProvider uses actual system time.
+type RealTimeProvider struct{}
+
+// Now returns the current time.
+func (p *RealTimeProvider) Now() time.Time {
+	return time.Now()
+}
+
+// DefaultLockTimeout is the default duration before a scope lock expires.
+// Deprecated: Use Config.LockTimeout() instead.
+const DefaultLockTimeout = 20 * time.Minute
+
+// DefaultRetentionDays is the default number of days to keep completed agents.
+// Deprecated: Use Config.RetentionDays instead.
+const DefaultRetentionDays = 7
+
+// HeartbeatInterval is how often agents should send heartbeats.
+// This is now derived from Config.HeartbeatInterval() for new code.
+var HeartbeatInterval = 5 * time.Minute
 
 // AgentService manages agent lifecycle and coordination.
 type AgentService struct {
-	repo        AgentRepository
-	lockTimeout time.Duration
+	repo   AgentRepository
+	config Config
+
+	// Seams for testability - allow substitution of OS-level dependencies
+	processChecker ProcessChecker
+	envProvider    EnvironmentProvider
+	timeProvider   TimeProvider
 
 	// In-memory tracking of runtime state (cancel functions, commands)
 	// These are not persisted but are needed for stopping agents.
@@ -42,21 +97,60 @@ type runtimeState struct {
 	Cmd    interface{} // *exec.Cmd, kept as interface to avoid import cycle
 }
 
+// AgentServiceOption configures an AgentService during construction.
+type AgentServiceOption func(*AgentService)
+
+// WithProcessChecker sets a custom process checker for testing.
+func WithProcessChecker(pc ProcessChecker) AgentServiceOption {
+	return func(s *AgentService) {
+		s.processChecker = pc
+	}
+}
+
+// WithEnvironmentProvider sets a custom environment provider for testing.
+func WithEnvironmentProvider(ep EnvironmentProvider) AgentServiceOption {
+	return func(s *AgentService) {
+		s.envProvider = ep
+	}
+}
+
+// WithTimeProvider sets a custom time provider for testing.
+func WithTimeProvider(tp TimeProvider) AgentServiceOption {
+	return func(s *AgentService) {
+		s.timeProvider = tp
+	}
+}
+
+// WithConfig sets a custom configuration for the agent service.
+func WithConfig(cfg Config) AgentServiceOption {
+	return func(s *AgentService) {
+		s.config = cfg
+	}
+}
+
 // NewAgentService creates a new agent service with the given repository.
-func NewAgentService(repo AgentRepository) *AgentService {
-	lockTimeout := DefaultLockTimeout
-	if envTimeout := os.Getenv("AGENT_LOCK_TIMEOUT_MINUTES"); envTimeout != "" {
-		if minutes, err := strconv.Atoi(envTimeout); err == nil && minutes > 0 {
-			lockTimeout = time.Duration(minutes) * time.Minute
-		}
+// Optional functional options can customize seam implementations for testing.
+func NewAgentService(repo AgentRepository, opts ...AgentServiceOption) *AgentService {
+	s := &AgentService{
+		repo:           repo,
+		config:         LoadConfigFromEnv(),
+		runtime:        make(map[string]*runtimeState),
+		cleanupC:       make(chan struct{}),
+		processChecker: &OSProcessChecker{},
+		envProvider:    &OSEnvironmentProvider{},
+		timeProvider:   &RealTimeProvider{},
 	}
 
-	s := &AgentService{
-		repo:        repo,
-		lockTimeout: lockTimeout,
-		runtime:     make(map[string]*runtimeState),
-		cleanupC:    make(chan struct{}),
+	// Apply any provided options (may override config)
+	for _, opt := range opts {
+		opt(s)
 	}
+
+	// Validate config and apply any derived values
+	_ = s.config.Validate()
+
+	// Update the global HeartbeatInterval for backward compatibility
+	HeartbeatInterval = s.config.HeartbeatInterval()
 
 	// Clean up any orphaned agents from previous runs
 	// This marks agents that were running/pending as failed with an explanation
@@ -75,14 +169,7 @@ func (s *AgentService) Close() {
 
 // runCleanupLoop periodically removes old completed agents.
 func (s *AgentService) runCleanupLoop() {
-	retentionDays := DefaultRetentionDays
-	if envDays := os.Getenv("AGENT_RETENTION_DAYS"); envDays != "" {
-		if days, err := strconv.Atoi(envDays); err == nil && days > 0 {
-			retentionDays = days
-		}
-	}
-
-	ticker := time.NewTicker(1 * time.Hour)
+	ticker := time.NewTicker(s.config.CleanupInterval())
 	defer ticker.Stop()
 
 	for {
@@ -91,17 +178,63 @@ func (s *AgentService) runCleanupLoop() {
 			return
 		case <-ticker.C:
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			cutoff := time.Now().Add(-time.Duration(retentionDays) * 24 * time.Hour)
+			cutoff := s.timeProvider.Now().Add(-s.config.RetentionDuration())
 			_, _ = s.repo.DeleteOlderThan(ctx, cutoff)
 			cancel()
 		}
 	}
 }
 
+// OrphanClassification describes why an agent is considered orphaned or still alive.
+type OrphanClassification struct {
+	IsOrphaned bool
+	Reason     string
+}
+
+// ClassifyAgentOrphanStatus determines whether an agent should be considered orphaned.
+// An agent is orphaned if:
+//   - It has no PID recorded (legacy agent or registration failed before process start)
+//   - It's running on a different host than the current server
+//   - Its process ID is no longer alive on the current host
+//
+// An agent is NOT orphaned (still alive) if:
+//   - It has a valid PID on the current host AND the process is still running
+func (s *AgentService) ClassifyAgentOrphanStatus(agent *SpawnedAgent, currentHostname string) OrphanClassification {
+	// No PID recorded - agent never fully started or is legacy
+	if agent.PID <= 0 {
+		return OrphanClassification{
+			IsOrphaned: true,
+			Reason:     "Agent orphaned: server restarted while agent was active",
+		}
+	}
+
+	// Different host - we can't check if the process is alive
+	if agent.Hostname != currentHostname {
+		return OrphanClassification{
+			IsOrphaned: true,
+			Reason:     fmt.Sprintf("Agent orphaned: process %d no longer running (hostname: %s)", agent.PID, agent.Hostname),
+		}
+	}
+
+	// Same host - check if process is still running
+	if s.processChecker.IsAlive(agent.PID) {
+		return OrphanClassification{
+			IsOrphaned: false,
+			Reason:     "Process still running",
+		}
+	}
+
+	// Process is dead on this host
+	return OrphanClassification{
+		IsOrphaned: true,
+		Reason:     fmt.Sprintf("Agent orphaned: process %d no longer running (hostname: %s)", agent.PID, agent.Hostname),
+	}
+}
+
 // cleanupOrphanedAgents marks any agents that were running/pending as failed.
 // This should be called on startup to clean up agents from previous server runs
 // that were interrupted (e.g., server restart, crash).
-// Enhanced: Now checks PID validity to distinguish truly orphaned processes.
+// Uses ClassifyAgentOrphanStatus to determine which agents are truly orphaned.
 func (s *AgentService) cleanupOrphanedAgents() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -120,30 +253,23 @@ func (s *AgentService) cleanupOrphanedAgents() {
 		return
 	}
 
-	currentHostname, _ := os.Hostname()
+	currentHostname, _ := s.envProvider.Hostname()
 	orphanCount := 0
 	stillAliveCount := 0
 	failedStatus := AgentStatusFailed
 
 	for _, agent := range activeAgents {
-		// Check if the process is still alive
-		if agent.PID > 0 && agent.Hostname == currentHostname {
-			if isProcessAlive(agent.PID) {
-				// Process is still running - don't mark as orphaned
-				stillAliveCount++
-				continue
-			}
+		classification := s.ClassifyAgentOrphanStatus(agent, currentHostname)
+
+		if !classification.IsOrphaned {
+			stillAliveCount++
+			continue
 		}
 
-		// Agent is orphaned: either no PID recorded, different host, or process is dead
-		orphanError := "Agent orphaned: server restarted while agent was active"
-		if agent.PID > 0 {
-			orphanError = fmt.Sprintf("Agent orphaned: process %d no longer running (hostname: %s)", agent.PID, agent.Hostname)
-		}
-
+		// Mark orphaned agent as failed
 		err := s.repo.Update(ctx, agent.ID, UpdateAgentInput{
 			Status: &failedStatus,
-			Error:  &orphanError,
+			Error:  &classification.Reason,
 		})
 		if err != nil {
 			continue
@@ -201,34 +327,72 @@ var SharedDependencyFiles = []string{
 	"Cargo.lock",
 }
 
-// ExpandScopeWithImplicitPaths adds shared dependency files to the scope
-// if the agent might modify them (e.g., working on any path that could
-// trigger dependency changes). Returns the expanded scope.
-func ExpandScopeWithImplicitPaths(requestedScope []string) []string {
-	if len(requestedScope) == 0 {
-		// Entire scenario scope - implicit paths already covered
-		return requestedScope
+// ScopeExpansionDecision describes the outcome of scope expansion analysis.
+type ScopeExpansionDecision struct {
+	ShouldExpand  bool
+	Reason        string
+	ImplicitPaths []string
+	ExpandedScope []string
+	OriginalScope []string
+}
+
+// DecideScopeExpansion determines whether and how to expand the requested scope.
+// This is the central decision point for implicit path locking.
+//
+// Decision criteria:
+//   - Empty scope (entire scenario): NO EXPANSION - the full scenario already includes all files
+//   - Non-empty scope: EXPAND - add shared dependency files to prevent conflicts
+//
+// Why expand scope?
+// Dependency files (go.mod, package.json, etc.) can be modified by any code change.
+// If Agent A modifies api/handler.go and Agent B modifies cli/command.go, both might
+// trigger changes to go.mod. Without implicit locking, this causes merge conflicts.
+//
+// The expansion ensures agents automatically coordinate on shared resources without
+// requiring explicit specification of every potentially-affected file.
+func DecideScopeExpansion(requestedScope []string) ScopeExpansionDecision {
+	decision := ScopeExpansionDecision{
+		OriginalScope: requestedScope,
+		ImplicitPaths: SharedDependencyFiles,
 	}
 
-	// Create a map for deduplication
+	// Decision: Empty scope means full scenario access
+	if len(requestedScope) == 0 {
+		decision.ShouldExpand = false
+		decision.Reason = "full scenario scope already includes all files; no expansion needed"
+		decision.ExpandedScope = requestedScope
+		return decision
+	}
+
+	// Decision: Non-empty scope needs implicit dependency file protection
+	decision.ShouldExpand = true
+	decision.Reason = "adding shared dependency files to prevent concurrent modification conflicts"
+
+	// Build expanded scope with deduplication
 	scopeMap := make(map[string]bool)
 	for _, path := range requestedScope {
 		scopeMap[path] = true
 	}
-
-	// Add shared dependency files to the scope
-	// These are always at the root of the scenario, so just use the filename
 	for _, depFile := range SharedDependencyFiles {
 		scopeMap[depFile] = true
 	}
 
-	// Convert back to slice
 	expanded := make([]string, 0, len(scopeMap))
 	for path := range scopeMap {
 		expanded = append(expanded, path)
 	}
 
-	return expanded
+	decision.ExpandedScope = expanded
+	return decision
+}
+
+// ExpandScopeWithImplicitPaths adds shared dependency files to the scope
+// if the agent might modify them (e.g., working on any path that could
+// trigger dependency changes). Returns the expanded scope.
+//
+// For detailed decision information, use DecideScopeExpansion instead.
+func ExpandScopeWithImplicitPaths(requestedScope []string) []string {
+	return DecideScopeExpansion(requestedScope).ExpandedScope
 }
 
 // Register creates a new agent and acquires scope locks.
@@ -276,7 +440,7 @@ func (s *AgentService) Register(ctx context.Context, input CreateAgentInput) (*S
 
 	// Acquire scope locks using expanded scope (includes shared files)
 	if len(expandedScope) > 0 {
-		expiresAt := time.Now().Add(s.lockTimeout)
+		expiresAt := s.timeProvider.Now().Add(s.config.LockTimeout())
 		if err := s.repo.AcquireLocks(ctx, agent.ID, input.Scenario, expandedScope, expiresAt); err != nil {
 			// Clean up the agent if lock acquisition fails
 			_ = s.repo.Delete(ctx, agent.ID)
@@ -420,13 +584,13 @@ func (s *AgentService) GetActiveLocks(ctx context.Context) ([]*AgentScopeLock, e
 
 // RenewLocks extends the lock timeout for an agent (heartbeat).
 func (s *AgentService) RenewLocks(ctx context.Context, agentID string) error {
-	newExpiry := time.Now().Add(s.lockTimeout)
+	newExpiry := s.timeProvider.Now().Add(s.config.LockTimeout())
 	return s.repo.RenewLocks(ctx, agentID, newExpiry)
 }
 
 // CleanupCompleted removes completed agents older than the given duration.
 func (s *AgentService) CleanupCompleted(ctx context.Context, olderThan time.Duration) (int64, error) {
-	cutoff := time.Now().Add(-olderThan)
+	cutoff := s.timeProvider.Now().Add(-olderThan)
 	return s.repo.DeleteOlderThan(ctx, cutoff)
 }
 
@@ -444,7 +608,7 @@ func (s *AgentService) SetAgentProcess(id string, cancel context.CancelFunc, cmd
 // SetAgentPID records the process ID and hostname in the database for orphan detection.
 // Should be called after the process starts.
 func (s *AgentService) SetAgentPID(ctx context.Context, id string, pid int) error {
-	hostname, _ := os.Hostname()
+	hostname, _ := s.envProvider.Hostname()
 	return s.repo.Update(ctx, id, UpdateAgentInput{
 		PID:      &pid,
 		Hostname: &hostname,
@@ -465,7 +629,13 @@ func generateAgentID() string {
 
 // GetLockTimeout returns the configured lock timeout duration.
 func (s *AgentService) GetLockTimeout() time.Duration {
-	return s.lockTimeout
+	return s.config.LockTimeout()
+}
+
+// GetConfig returns the current agent configuration.
+// This allows callers to access tunable levers for operations that need them.
+func (s *AgentService) GetConfig() Config {
+	return s.config
 }
 
 // AcquireSpawnIntent atomically acquires a spawn intent lock for idempotency.

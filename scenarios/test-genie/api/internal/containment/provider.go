@@ -113,12 +113,29 @@ type ProviderInfo struct {
 	Requirements []string
 }
 
+// ProviderSelector is a seam for selecting containment providers.
+// This interface enables dependency injection and testing of containment selection logic.
+type ProviderSelector interface {
+	// SelectProvider returns the best available containment provider.
+	SelectProvider(ctx context.Context) Provider
+
+	// GetStatus returns the current containment status.
+	GetStatus(ctx context.Context) Status
+
+	// ListProviders returns information about all registered providers.
+	ListProviders(ctx context.Context) []ProviderInfo
+}
+
 // Manager selects and manages containment providers.
+// Manager implements ProviderSelector.
 type Manager struct {
 	providers    []Provider
 	fallback     Provider
 	preferDocker bool
 }
+
+// Ensure Manager implements ProviderSelector
+var _ ProviderSelector = (*Manager)(nil)
 
 // NewManager creates a containment manager with the given providers.
 // The first available provider will be used, with fallback as the last resort.
@@ -130,16 +147,86 @@ func NewManager(providers []Provider, fallback Provider) *Manager {
 	}
 }
 
-// SelectProvider returns the best available containment provider.
-// It checks each provider in order and returns the first available one.
-// If none are available, it returns the fallback provider.
-func (m *Manager) SelectProvider(ctx context.Context) Provider {
-	for _, p := range m.providers {
-		if p.IsAvailable(ctx) {
-			return p
-		}
+// DefaultManager creates a containment manager with Docker and Fallback providers.
+// This is the standard configuration for production use.
+func DefaultManager() *Manager {
+	return NewManager(
+		[]Provider{NewDockerProvider()}, // Uses OS defaults for command lookup/runner
+		NewFallbackProvider(),
+	)
+}
+
+// ProviderSelectionDecision describes why a particular provider was chosen.
+type ProviderSelectionDecision struct {
+	SelectedProvider Provider
+	SelectedType     ContainmentType
+	Reason           string
+	CheckedProviders []ProviderCheckResult
+	UsedFallback     bool
+}
+
+// ProviderCheckResult describes the availability check for a single provider.
+type ProviderCheckResult struct {
+	Type      ContainmentType
+	Available bool
+	Reason    string
+}
+
+// DecideProvider evaluates providers and selects the best available one.
+// This is the central decision point for containment strategy selection.
+//
+// Decision criteria (in order of preference):
+//  1. Check each registered provider in order (typically Docker first)
+//  2. Select the first available provider
+//  3. If no registered providers are available, use the fallback
+//
+// Selection rationale:
+//   - Docker is preferred because it provides strong isolation (security level 7/10)
+//   - Bubblewrap is acceptable for Linux-only deployments (security level 5/10)
+//   - Fallback (no containment) is last resort with security warnings (level 0/10)
+//
+// The fallback is always available but provides NO security isolation.
+// Production deployments should ensure at least one real provider is available.
+func (m *Manager) DecideProvider(ctx context.Context) ProviderSelectionDecision {
+	decision := ProviderSelectionDecision{
+		CheckedProviders: make([]ProviderCheckResult, 0, len(m.providers)),
 	}
-	return m.fallback
+
+	// Check each provider in preference order
+	for _, p := range m.providers {
+		checkResult := ProviderCheckResult{
+			Type:      p.Type(),
+			Available: p.IsAvailable(ctx),
+		}
+
+		if checkResult.Available {
+			checkResult.Reason = "provider is available and ready"
+			decision.CheckedProviders = append(decision.CheckedProviders, checkResult)
+
+			// First available provider wins
+			decision.SelectedProvider = p
+			decision.SelectedType = p.Type()
+			decision.Reason = "selected first available provider in preference order"
+			decision.UsedFallback = false
+			return decision
+		}
+
+		checkResult.Reason = "provider is not available"
+		decision.CheckedProviders = append(decision.CheckedProviders, checkResult)
+	}
+
+	// No registered providers available - use fallback
+	decision.SelectedProvider = m.fallback
+	decision.SelectedType = m.fallback.Type()
+	decision.Reason = "no preferred providers available; using fallback (WARNING: no security isolation)"
+	decision.UsedFallback = true
+	return decision
+}
+
+// SelectProvider returns the best available containment provider.
+// For detailed selection information, use DecideProvider instead.
+func (m *Manager) SelectProvider(ctx context.Context) Provider {
+	return m.DecideProvider(ctx).SelectedProvider
 }
 
 // ListProviders returns information about all registered providers.
@@ -174,6 +261,64 @@ type Status struct {
 	Warnings []string
 }
 
+// SecurityLevelThresholds defines the thresholds for security level warnings.
+// These are the decision points for what's considered acceptable security.
+const (
+	// SecurityLevelNone indicates no security isolation (0).
+	SecurityLevelNone = 0
+
+	// SecurityLevelMinimumAcceptable is the minimum level that doesn't trigger warnings.
+	// Below this level, we warn users to consider stronger isolation.
+	SecurityLevelMinimumAcceptable = 5
+
+	// SecurityLevelMaximum is the maximum possible security level (hardware isolation).
+	SecurityLevelMaximum = 10
+)
+
+// SecurityAssessment describes the security posture and any concerns.
+type SecurityAssessment struct {
+	Level    int
+	Adequate bool
+	Warnings []string
+}
+
+// AssessSecurityLevel evaluates a containment provider's security level and returns
+// appropriate warnings. This is the central decision point for security adequacy.
+//
+// Decision criteria:
+//   - Level 0 (no containment): Always warns - agents have full system access
+//   - Level 1-4 (weak isolation): Warns - some isolation but not production-ready
+//   - Level 5+ (adequate isolation): No warnings - acceptable for production
+func AssessSecurityLevel(providerType ContainmentType, securityLevel int) SecurityAssessment {
+	assessment := SecurityAssessment{
+		Level:    securityLevel,
+		Warnings: make([]string, 0),
+	}
+
+	switch {
+	case providerType == ContainmentTypeNone || securityLevel == SecurityLevelNone:
+		// No containment - always a concern
+		assessment.Adequate = false
+		assessment.Warnings = append(assessment.Warnings,
+			"No containment available. Agents will run without OS-level isolation. "+
+				"Consider installing Docker for improved security.")
+
+	case securityLevel < SecurityLevelMinimumAcceptable:
+		// Weak isolation - warn but allow
+		assessment.Adequate = false
+		assessment.Warnings = append(assessment.Warnings,
+			fmt.Sprintf("Using %s containment (security level %d/%d). "+
+				"Consider Docker for stronger isolation.",
+				providerType, securityLevel, SecurityLevelMaximum))
+
+	default:
+		// Adequate isolation
+		assessment.Adequate = true
+	}
+
+	return assessment
+}
+
 // GetStatus returns the current containment status.
 func (m *Manager) GetStatus(ctx context.Context) Status {
 	status := Status{
@@ -192,16 +337,9 @@ func (m *Manager) GetStatus(ctx context.Context) Status {
 	status.ActiveProvider = active.Type()
 	status.SecurityLevel = active.Info().SecurityLevel
 
-	if status.ActiveProvider == ContainmentTypeNone {
-		status.Warnings = append(status.Warnings,
-			"No containment available. Agents will run without OS-level isolation. "+
-				"Consider installing Docker for improved security.")
-	} else if status.SecurityLevel < 5 {
-		status.Warnings = append(status.Warnings,
-			fmt.Sprintf("Using %s containment (security level %d/10). "+
-				"Consider Docker for stronger isolation.",
-				status.ActiveProvider, status.SecurityLevel))
-	}
+	// Use the centralized security assessment decision
+	assessment := AssessSecurityLevel(status.ActiveProvider, status.SecurityLevel)
+	status.Warnings = assessment.Warnings
 
 	return status
 }
