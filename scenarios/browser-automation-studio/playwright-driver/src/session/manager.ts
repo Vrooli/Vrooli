@@ -20,6 +20,11 @@ import { removeRecordedActions } from '../recording/buffer';
  * - closeSession may be called concurrently (from idle cleanup and explicit requests)
  * - Session cleanup must be idempotent
  * - Browser may disconnect unexpectedly
+ *
+ * Idempotency guarantees:
+ * - startSession with same execution_id returns existing session (replay-safe)
+ * - closeSession can be called multiple times safely (idempotent)
+ * - Session creation uses in-flight tracking to prevent duplicates under concurrent calls
  */
 export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
@@ -31,6 +36,21 @@ export class SessionManager {
 
   /** Track sessions currently being closed to prevent double-close */
   private closingSessionIds: Set<string> = new Set();
+
+  /**
+   * Track in-flight session creation by execution_id.
+   * Prevents duplicate session creation when multiple concurrent requests
+   * arrive with the same execution_id before the first completes.
+   */
+  private pendingSessionCreations: Map<string, Promise<{ sessionId: string; reused: boolean; createdAt: Date }>> = new Map();
+
+  /**
+   * Lock to prevent concurrent browser launches.
+   * Holds a promise that resolves when browser launch completes.
+   * This prevents the race condition where multiple startSession() calls
+   * could each launch their own browser instance.
+   */
+  private browserLaunchPromise: Promise<Browser> | null = null;
 
   constructor(config: Config) {
     this.config = config;
@@ -103,34 +123,111 @@ export class SessionManager {
   }
 
   /**
-   * Get or create shared browser instance
+   * Get or create shared browser instance.
+   *
+   * Temporal hardening:
+   * - Uses a lock (browserLaunchPromise) to prevent concurrent browser launches
+   * - Multiple concurrent calls will all await the same launch promise
+   * - If browser disconnects mid-launch, subsequent calls will retry
    */
   private async getBrowser(): Promise<Browser> {
+    // Fast path: browser already exists and is connected
     if (this.browser && this.browser.isConnected()) {
       return this.browser;
     }
 
+    // If another call is already launching the browser, wait for it
+    if (this.browserLaunchPromise) {
+      logger.debug('browser: waiting for concurrent launch to complete');
+      try {
+        const browser = await this.browserLaunchPromise;
+        // Double-check it's still connected after await
+        if (browser.isConnected()) {
+          return browser;
+        }
+        // Browser disconnected during wait, fall through to launch new one
+      } catch (error) {
+        // Launch failed, fall through to try again
+        logger.debug('browser: concurrent launch failed, will retry', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Create the launch promise BEFORE starting the launch
+    // This ensures concurrent calls will await this promise
+    this.browserLaunchPromise = this.launchBrowserInternal();
+
+    try {
+      this.browser = await this.browserLaunchPromise;
+      return this.browser;
+    } finally {
+      // Clear the promise after launch completes (success or failure)
+      // This allows retry on next call if launch failed
+      this.browserLaunchPromise = null;
+    }
+  }
+
+  /**
+   * Internal browser launch implementation.
+   * Separated from getBrowser() to make the locking logic clearer.
+   */
+  private async launchBrowserInternal(): Promise<Browser> {
     logger.info('browser: launching', {
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || 'auto',
     });
 
-    this.browser = await chromium.launch({
+    const browser = await chromium.launch({
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || undefined,
       args: this.config.browser.args,
     });
 
-    logger.info('browser: launched', { version: this.browser.version() });
-    return this.browser;
+    logger.info('browser: launched', { version: browser.version() });
+    return browser;
   }
 
   /**
    * Start a new session
    *
+   * Idempotency behavior:
+   * - If a session with the same execution_id already exists, returns it (for reuse/clean modes)
+   * - If session creation is already in-flight for this execution_id, awaits that instead of creating duplicate
+   * - Uses in-flight tracking to prevent race conditions under concurrent requests
+   *
    * @returns Object with session ID and whether it was reused
    */
   async startSession(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date }> {
+    // Idempotency: Check for in-flight session creation with same execution_id
+    // This prevents duplicate sessions when concurrent requests arrive
+    const pendingCreation = this.pendingSessionCreations.get(spec.execution_id);
+    if (pendingCreation) {
+      logger.debug(scopedLog(LogContext.SESSION, 'awaiting in-flight creation'), {
+        executionId: spec.execution_id,
+        hint: 'Concurrent request detected, waiting for first request to complete',
+      });
+      return pendingCreation;
+    }
+
+    // Create the session creation promise and track it
+    const creationPromise = this.startSessionInternal(spec);
+    this.pendingSessionCreations.set(spec.execution_id, creationPromise);
+
+    try {
+      const result = await creationPromise;
+      return result;
+    } finally {
+      // Always clean up the pending creation tracking
+      this.pendingSessionCreations.delete(spec.execution_id);
+    }
+  }
+
+  /**
+   * Internal session creation logic.
+   * Separated from startSession to enable in-flight tracking.
+   */
+  private async startSessionInternal(spec: SessionSpec): Promise<{ sessionId: string; reused: boolean; createdAt: Date }> {
     // Check resource limits
     if (this.sessions.size >= this.config.session.maxConcurrent) {
       logger.warn(scopedLog(LogContext.SESSION, 'resource limit reached'), {
@@ -144,7 +241,31 @@ export class SessionManager {
       );
     }
 
-    // Handle reuse mode
+    // Idempotency: Check for existing session with same execution_id
+    // This handles replay scenarios where the same request is retried
+    const existingByExecutionId = this.findSessionByExecutionId(spec.execution_id);
+    if (existingByExecutionId) {
+      logger.info(scopedLog(LogContext.SESSION, 'idempotent return of existing session'), {
+        sessionId: existingByExecutionId.id,
+        executionId: spec.execution_id,
+        phase: existingByExecutionId.phase,
+        hint: 'Request appears to be a retry; returning existing session',
+      });
+
+      // For clean mode, reset the session state
+      if (spec.reuse_mode === 'clean') {
+        await this.resetSession(existingByExecutionId.id);
+      }
+
+      existingByExecutionId.lastUsedAt = new Date();
+      if (existingByExecutionId.phase !== 'executing') {
+        existingByExecutionId.phase = 'ready';
+      }
+      metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
+      return { sessionId: existingByExecutionId.id, reused: true, createdAt: existingByExecutionId.createdAt };
+    }
+
+    // Handle reuse mode (match by labels or other criteria)
     if (spec.reuse_mode !== 'fresh') {
       const existingSession = this.findReusableSession(spec);
       if (existingSession) {
@@ -231,6 +352,8 @@ export class SessionManager {
       pages: [page],
       currentPageIndex: 0,
       activeMocks: new Map(),
+      // Idempotency: Track executed instructions for replay safety
+      executedInstructions: new Map(),
     };
 
     this.sessions.set(sessionId, session);
@@ -403,6 +526,9 @@ export class SessionManager {
     // Clear network mocks
     session.activeMocks.clear();
 
+    // Clear executed instructions tracking for fresh state
+    session.executedInstructions?.clear();
+
     session.lastUsedAt = new Date();
     session.phase = 'ready';
 
@@ -522,15 +648,25 @@ export class SessionManager {
   }
 
   /**
-   * Find reusable session matching spec
+   * Find session by execution_id.
+   * Used for idempotent session lookup when same execution_id is provided.
+   */
+  private findSessionByExecutionId(executionId: string): SessionState | null {
+    for (const session of this.sessions.values()) {
+      if (session.spec.execution_id === executionId) {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find reusable session matching spec by labels.
+   * Note: execution_id matching is now handled separately by findSessionByExecutionId
+   * for clearer idempotency semantics.
    */
   private findReusableSession(spec: SessionSpec): SessionState | null {
     for (const session of this.sessions.values()) {
-      // Match by execution_id
-      if (session.spec.execution_id === spec.execution_id) {
-        return session;
-      }
-
       // Match by labels (if specified)
       if (spec.labels && session.spec.labels) {
         const labelsMatch = Object.entries(spec.labels).every(

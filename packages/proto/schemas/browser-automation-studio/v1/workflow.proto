@@ -3,6 +3,7 @@ syntax = "proto3";
 package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
+import "common/v1/types.proto";
 import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
@@ -32,7 +33,7 @@ message WorkflowNode {
   // Node-specific configuration payload (legacy); prefer config.
   google.protobuf.Struct data = 3 [deprecated = true];
   // Typed node configuration (legacy); prefer config.
-  JsonObject data_typed = 4 [deprecated = true];
+  common.v1.JsonObject data_typed = 4 [deprecated = true];
   // Discriminated node configuration matching StepType; prefer over Struct/JsonObject.
   WorkflowNodeConfig config = 5;
 }
@@ -48,9 +49,9 @@ message WorkflowEdge {
   // Edge type (e.g., smoothstep) when provided.
   string type = 4;
   // Provider-specific edge metadata.
-  google.protobuf.Struct data = 5;
+  google.protobuf.Struct data = 5 [deprecated = true];
   // Typed edge metadata; prefer over Struct when available.
-  JsonObject data_typed = 6;
+  common.v1.JsonObject data_typed = 6;
 }
 
 // WorkflowMetadata captures the most common workflow descriptors.
@@ -80,7 +81,9 @@ message WorkflowSettings {
   // Whether to run headless.
   bool headless = 6;
   // Additional provider-specific settings not yet typed.
-  map<string, google.protobuf.Value> extras = 7;
+  map<string, google.protobuf.Value> extras = 7 [deprecated = true];
+  // Typed provider-specific settings; prefer over the deprecated extras map.
+  map<string, common.v1.JsonValue> extras_typed = 8;
 }
 
 // WorkflowNodeConfig captures typed settings for common node kinds.
@@ -139,6 +142,8 @@ message AssertStepConfig {
   string selector = 2;
   // Expected value for the assertion.
   google.protobuf.Value expected = 3;
+  // Typed expected value; prefer over the Value field.
+  common.v1.JsonValue expected_typed = 8;
   // Whether the assertion is negated.
   bool negated = 4;
   // Case sensitivity flag.
@@ -154,7 +159,7 @@ message SubflowStepConfig {
   // Optional workflow version.
   optional int32 version = 2;
   // Parameters to pass to the subflow (typed).
-  map<string, JsonValue> parameters = 3;
+  map<string, common.v1.JsonValue> parameters = 3;
 }
 
 // WaitStepConfig captures a fixed delay between steps.
@@ -168,5 +173,5 @@ message CustomStepConfig {
   // Custom step kind identifier.
   string kind = 1;
   // Provider-specific payload; prefer over Struct in data.
-  JsonObject payload = 2;
+  common.v1.JsonObject payload = 2;
 }

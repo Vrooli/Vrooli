@@ -235,13 +235,17 @@ describe('Record Mode Routes', () => {
       expect(data.stopped_at).toBeDefined();
     });
 
-    it('should return 404 if not recording', async () => {
+    it('should return 200 (idempotent) if not recording', async () => {
+      // Idempotency: Calling stop when not recording is a successful no-op
+      // This allows safe retries when the first stop request succeeded
+      // but the response was lost due to network issues
       const mockController = {
         isRecording: jest.fn().mockReturnValue(false),
       };
 
       const mockSession = {
         recordingController: mockController,
+        recordingId: 'previous-recording', // From a prior recording
       };
 
       const sessionManager = createMockSessionManager(mockSession);
@@ -250,9 +254,12 @@ describe('Record Mode Routes', () => {
 
       await handleRecordStop(req, res, sessionId, sessionManager);
 
-      expect(res._getStatusCode()).toBe(404);
+      // Idempotent: Returns success with action_count: 0
+      expect(res._getStatusCode()).toBe(200);
       const data = JSON.parse(res._getData());
-      expect(data.error).toBe('NO_RECORDING');
+      expect(data.recording_id).toBe('previous-recording');
+      expect(data.action_count).toBe(0);
+      expect(data.stopped_at).toBeDefined();
     });
   });
 

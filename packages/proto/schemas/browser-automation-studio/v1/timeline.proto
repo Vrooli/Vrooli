@@ -4,6 +4,7 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
 import "browser-automation-studio/v1/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
@@ -62,7 +63,7 @@ message TimelineFrame {
   // Preview of extracted data (shape depends on workflow).
   google.protobuf.Value extracted_data_preview = 15;
   // Typed preview of extracted data; prefer over the Value when available.
-  JsonValue extracted_data_preview_typed = 34;
+  common.v1.JsonValue extracted_data_preview_typed = 34;
   // Highlight overlays applied to the screenshot.
   repeated HighlightRegion highlight_regions = 16;
   // Masked regions applied during capture.
@@ -138,9 +139,9 @@ message TimelineArtifact {
   // Step index associated with this artifact, if any.
   optional int32 step_index = 8;
   // Provider-specific payload describing the artifact.
-  map<string, google.protobuf.Value> payload = 9;
+  map<string, google.protobuf.Value> payload = 9 [deprecated = true];
   // Typed payload describing the artifact; prefer over the Value map.
-  map<string, JsonValue> payload_typed = 10;
+  map<string, common.v1.JsonValue> payload_typed = 10;
 }
 
 // RetryHistoryEntry captures the outcome of a retry attempt.
@@ -217,6 +218,10 @@ message AssertionOutcome {
   google.protobuf.Value expected = 3;
   // Actual value observed.
   google.protobuf.Value actual = 4;
+  // Typed expected value; prefer over the Value field.
+  common.v1.JsonValue expected_typed = 9;
+  // Typed actual value; prefer over the Value field.
+  common.v1.JsonValue actual_typed = 10;
   // True if the assertion succeeded.
   bool success = 5;
   // True if the assertion was negated.

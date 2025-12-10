@@ -4,6 +4,7 @@ package landing_page_react_vite.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
 
@@ -47,7 +48,9 @@ message Bundle {
   // Environment label (e.g., "production", "staging").
   string environment = 7;
   // Additional metadata passed through to clients.
-  map<string, google.protobuf.Value> metadata = 8;
+  map<string, google.protobuf.Value> metadata = 8 [deprecated = true];
+  // Typed metadata; prefer over the deprecated Value map.
+  map<string, common.v1.JsonValue> metadata_typed = 9;
 }
 
 // PlanOption represents a purchasable Stripe price for a bundle.
@@ -93,7 +96,9 @@ message PlanOption {
   // Weight for ordering within its interval group.
   int32 display_weight = 20;
   // Arbitrary structured metadata.
-  map<string, google.protobuf.Value> metadata = 21;
+  map<string, google.protobuf.Value> metadata = 21 [deprecated = true];
+  // Typed structured metadata; prefer over the deprecated Value map.
+  map<string, common.v1.JsonValue> metadata_typed = 22;
 }
 
 // PricingOverview groups bundle metadata with available plans.

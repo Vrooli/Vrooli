@@ -115,10 +115,14 @@ playwright-driver/
 │   │   ├── device.ts             # rotate (orientation)
 │   │   └── index.ts
 │   │
-│   ├── telemetry/                # Event collection
+│   ├── telemetry/                # Observability data collection
 │   │   ├── collector.ts          # Console/network collectors
 │   │   ├── screenshot.ts         # Screenshot capture
 │   │   ├── dom.ts                # DOM snapshot
+│   │   └── index.ts
+│   │
+│   ├── outcome/                  # Wire-format transformation
+│   │   ├── outcome-builder.ts    # HandlerResult → StepOutcome → DriverOutcome
 │   │   └── index.ts
 │   │
 │   ├── routes/                   # HTTP endpoints

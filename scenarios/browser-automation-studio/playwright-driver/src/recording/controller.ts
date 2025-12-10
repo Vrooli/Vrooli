@@ -79,6 +79,15 @@ export class RecordModeController {
   private exposedFunctionName = '__recordAction';
   private isExposed = false;
   private navigationHandler: (() => void) | null = null;
+  /** Track pending injection timeouts to cancel on stop */
+  private pendingInjectionTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+  /**
+   * Monotonically increasing recording generation counter.
+   * Used to detect stale async operations that started during a previous recording session.
+   * Each startRecording() increments this; async operations check their captured generation
+   * against current to detect if they should abort.
+   */
+  private recordingGeneration = 0;
 
   constructor(page: Page, sessionId: string) {
     this.page = page;
@@ -116,6 +125,10 @@ export class RecordModeController {
 
     const recordingId = options.recordingId || uuidv4();
 
+    // Increment generation to invalidate any stale async operations from previous recordings
+    this.recordingGeneration++;
+    const currentGeneration = this.recordingGeneration;
+
     // Update state
     this.state = {
       isRecording: true,
@@ -142,13 +155,20 @@ export class RecordModeController {
       await this.injectRecordingScript();
 
       // Re-inject on navigation with robust error handling
+      // Capture generation at handler creation time to detect staleness
       this.navigationHandler = (): void => {
         if (!this.state.isRecording) return;
+        // Check if this handler is from a stale recording session
+        if (this.recordingGeneration !== currentGeneration) return;
 
         // Use multiple injection attempts with backoff
         // This handles cases where page isn't fully ready after load event
         const attemptInjection = async (attempt: number, maxAttempts: number): Promise<void> => {
-          if (!this.state.isRecording) return; // Check again - state may have changed
+          // Check both recording state AND generation before each attempt
+          // Generation check catches the case where recording was stopped and restarted
+          if (!this.state.isRecording || this.recordingGeneration !== currentGeneration) {
+            return; // Stale operation, abort
+          }
 
           try {
             await this.injectRecordingScript();
@@ -167,11 +187,15 @@ export class RecordModeController {
             if (attempt < maxAttempts) {
               // Exponential backoff: 100ms, 200ms, 400ms
               const delay = 100 * Math.pow(2, attempt);
-              setTimeout(() => {
+              const timeoutId = setTimeout(() => {
+                this.pendingInjectionTimeouts.delete(timeoutId);
+                // Check generation again before retry (stop might have been called during delay)
+                if (this.recordingGeneration !== currentGeneration) return;
                 attemptInjection(attempt + 1, maxAttempts).catch(() => {
                   // Final fallback - just log, don't crash
                 });
               }, delay);
+              this.pendingInjectionTimeouts.add(timeoutId);
             } else {
               this.handleError(
                 new Error(`Failed to re-inject recording script after ${maxAttempts} attempts: ${message}`)
@@ -181,11 +205,15 @@ export class RecordModeController {
         };
 
         // Small initial delay to ensure page is ready, then attempt injection
-        setTimeout(() => {
+        const initialTimeoutId = setTimeout(() => {
+          this.pendingInjectionTimeouts.delete(initialTimeoutId);
+          // Check generation before starting injection attempts
+          if (this.recordingGeneration !== currentGeneration) return;
           attemptInjection(0, 3).catch(() => {
             // Swallow - errors already handled in attemptInjection
           });
         }, 100);
+        this.pendingInjectionTimeouts.add(initialTimeoutId);
       };
       this.page.on('load', this.navigationHandler);
 
@@ -213,6 +241,12 @@ export class RecordModeController {
     };
 
     try {
+      // Cancel any pending injection timeouts to prevent work after stop
+      for (const timeoutId of this.pendingInjectionTimeouts) {
+        clearTimeout(timeoutId);
+      }
+      this.pendingInjectionTimeouts.clear();
+
       // Remove navigation handler
       if (this.navigationHandler) {
         this.page.off('load', this.navigationHandler);
@@ -238,10 +272,21 @@ export class RecordModeController {
   }
 
   /**
+   * Track in-flight replay operations to prevent duplicate concurrent replays.
+   * Key: stable hash of action IDs being replayed.
+   */
+  private pendingReplays: Map<string, Promise<ReplayPreviewResponse>> = new Map();
+
+  /**
    * Replay recorded actions for preview/testing.
    *
    * Executes actions one by one and returns detailed results for each.
    * This allows users to test their recording before generating a workflow.
+   *
+   * Idempotency guarantees:
+   * - Concurrent replay requests with the same actions will await the first
+   * - Actions are identified by their stable ID, preventing duplicate execution
+   * - If the same replay is requested while in-flight, returns the same result
    *
    * @param request - Replay request with actions and options
    * @returns Detailed results for each action
@@ -257,6 +302,48 @@ export class RecordModeController {
     // Determine how many actions to replay
     const actionsToReplay = limit ? actions.slice(0, limit) : actions;
 
+    // Generate a stable key for this replay operation
+    // Uses action IDs and limit to create a unique identifier
+    const replayKey = this.generateReplayKey(actionsToReplay);
+
+    // Idempotency: Check for in-flight replay with same actions
+    const pendingReplay = this.pendingReplays.get(replayKey);
+    if (pendingReplay) {
+      // Return the same result as the in-flight replay
+      return pendingReplay;
+    }
+
+    // Create the replay promise and track it
+    const replayPromise = this.executeReplay(actionsToReplay, stopOnFailure, actionTimeout);
+    this.pendingReplays.set(replayKey, replayPromise);
+
+    try {
+      return await replayPromise;
+    } finally {
+      // Clean up tracking after completion
+      this.pendingReplays.delete(replayKey);
+    }
+  }
+
+  /**
+   * Generate a stable key for replay idempotency tracking.
+   * Uses action IDs to create a unique identifier for the replay set.
+   */
+  private generateReplayKey(actions: RecordedAction[]): string {
+    // Use a simple hash of action IDs and sequence numbers
+    const actionIds = actions.map((a) => `${a.id}:${a.sequenceNum}`).join('|');
+    return actionIds;
+  }
+
+  /**
+   * Internal replay execution logic.
+   * Separated from replayPreview to enable idempotency tracking.
+   */
+  private async executeReplay(
+    actionsToReplay: RecordedAction[],
+    stopOnFailure: boolean,
+    actionTimeout: number
+  ): Promise<ReplayPreviewResponse> {
     const results: ActionReplayResult[] = [];
     let stoppedEarly = false;
     const startTime = Date.now();

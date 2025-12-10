@@ -236,17 +236,46 @@ async function main() {
     });
   });
 
-  // Graceful shutdown
-  const shutdown = async (signal: string) => {
-    logger.info('server: shutdown initiated', { signal });
+  // Track active requests for graceful shutdown
+  let activeRequests = 0;
+  let isShuttingDown = false;
 
-    // Stop accepting new connections
+  // Wrap request handler to track active requests
+  const originalEmit = server.emit.bind(server);
+  server.emit = function (event: string, ...args: unknown[]) {
+    if (event === 'request') {
+      activeRequests++;
+      const res = args[1] as ServerResponse;
+      res.on('finish', () => {
+        activeRequests--;
+      });
+      res.on('close', () => {
+        // Handle aborted requests
+        if (!res.writableEnded) {
+          activeRequests--;
+        }
+      });
+    }
+    return originalEmit(event, ...args);
+  } as typeof server.emit;
+
+  // Graceful shutdown with request draining
+  const shutdown = async (signal: string) => {
+    if (isShuttingDown) {
+      logger.warn('server: shutdown already in progress, ignoring signal', { signal });
+      return;
+    }
+    isShuttingDown = true;
+
+    logger.info('server: shutdown initiated', { signal, activeRequests });
+
+    // Stop accepting new connections immediately
     server.close(() => {
-      logger.info('server: http closed');
+      logger.info('server: http closed (no longer accepting connections)');
     });
 
-    // Stop cleanup task
-    cleanup.stop();
+    // Stop cleanup task and wait for any in-flight cleanup to complete
+    await cleanup.stop();
 
     // Close metrics server
     if (metricsServer) {
@@ -255,7 +284,29 @@ async function main() {
       });
     }
 
-    // Shutdown session manager
+    // Wait for in-flight requests to complete (with timeout)
+    const drainTimeout = 30_000; // 30 seconds max drain time
+    const drainStart = Date.now();
+    const drainInterval = 100; // Check every 100ms
+
+    while (activeRequests > 0 && Date.now() - drainStart < drainTimeout) {
+      logger.debug('server: draining active requests', {
+        remaining: activeRequests,
+        elapsedMs: Date.now() - drainStart,
+      });
+      await new Promise((resolve) => setTimeout(resolve, drainInterval));
+    }
+
+    if (activeRequests > 0) {
+      logger.warn('server: drain timeout, proceeding with shutdown', {
+        remainingRequests: activeRequests,
+        drainTimeoutMs: drainTimeout,
+      });
+    } else {
+      logger.info('server: all requests drained');
+    }
+
+    // Shutdown session manager (close all browser sessions)
     await sessionManager.shutdown();
 
     logger.info('server: shutdown complete');

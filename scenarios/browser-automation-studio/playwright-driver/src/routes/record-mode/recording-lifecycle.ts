@@ -35,6 +35,10 @@ import type {
 /**
  * Circuit breaker state for callback streaming.
  * Prevents cascading failures when callback endpoint is unavailable.
+ *
+ * Temporal hardening:
+ * - halfOpenInProgress flag prevents multiple concurrent half-open attempts
+ * - State transitions are atomic (single mutation per check)
  */
 interface CallbackCircuitBreaker {
   consecutiveFailures: number;
@@ -42,6 +46,8 @@ interface CallbackCircuitBreaker {
   lastFailureTime: number | null;
   totalFailures: number;
   totalSuccesses: number;
+  /** Prevents multiple concurrent half-open attempts */
+  halfOpenInProgress: boolean;
 }
 
 // Circuit breaker configuration
@@ -63,6 +69,7 @@ function getCircuitBreaker(sessionId: string): CallbackCircuitBreaker {
       lastFailureTime: null,
       totalFailures: 0,
       totalSuccesses: 0,
+      halfOpenInProgress: false,
     };
     callbackCircuitBreakers.set(sessionId, breaker);
   }
@@ -71,23 +78,40 @@ function getCircuitBreaker(sessionId: string): CallbackCircuitBreaker {
 
 /**
  * Record a callback success - resets consecutive failure count.
+ *
+ * Temporal hardening: Also clears halfOpenInProgress flag since the
+ * half-open test succeeded and we're fully closed now.
  */
 function recordCallbackSuccess(sessionId: string): void {
   const breaker = getCircuitBreaker(sessionId);
   breaker.consecutiveFailures = 0;
   breaker.isOpen = false;
+  breaker.halfOpenInProgress = false;
   breaker.totalSuccesses++;
 }
 
 /**
  * Record a callback failure - may trip the circuit breaker.
  * Returns true if circuit is now open (should skip future callbacks).
+ *
+ * Temporal hardening: Also handles half-open failure by re-opening circuit.
  */
 function recordCallbackFailure(sessionId: string): boolean {
   const breaker = getCircuitBreaker(sessionId);
   breaker.consecutiveFailures++;
   breaker.totalFailures++;
   breaker.lastFailureTime = Date.now();
+
+  // If we were in half-open state and failed, re-open the circuit
+  if (breaker.halfOpenInProgress) {
+    breaker.halfOpenInProgress = false;
+    breaker.isOpen = true;
+    logger.info(scopedLog(LogContext.RECORDING, 'circuit breaker half-open failed, re-opening'), {
+      sessionId,
+      totalFailures: breaker.totalFailures,
+    });
+    return true;
+  }
 
   if (breaker.consecutiveFailures >= MAX_CALLBACK_FAILURES && !breaker.isOpen) {
     breaker.isOpen = true;
@@ -105,16 +129,45 @@ function recordCallbackFailure(sessionId: string): boolean {
 }
 
 /**
- * Check if circuit breaker should be reset (half-open state).
+ * Attempt to transition circuit breaker to half-open state.
+ *
+ * Temporal hardening: Uses atomic check-and-set pattern to prevent
+ * multiple concurrent callbacks from all entering half-open state.
+ * Only the first caller to enter half-open will return true.
+ *
+ * @returns true if this caller should attempt the half-open test
  */
-function shouldResetCircuitBreaker(sessionId: string): boolean {
+function tryEnterHalfOpen(sessionId: string): boolean {
   const breaker = getCircuitBreaker(sessionId);
-  if (!breaker.isOpen || !breaker.lastFailureTime) {
+
+  // Not open, no need for half-open
+  if (!breaker.isOpen) {
+    return false;
+  }
+
+  // Already attempting half-open
+  if (breaker.halfOpenInProgress) {
+    return false;
+  }
+
+  // Check if enough time has passed
+  if (!breaker.lastFailureTime) {
     return false;
   }
 
   const elapsed = Date.now() - breaker.lastFailureTime;
-  return elapsed >= CIRCUIT_RESET_MS;
+  if (elapsed < CIRCUIT_RESET_MS) {
+    return false;
+  }
+
+  // Atomically claim the half-open attempt
+  breaker.halfOpenInProgress = true;
+  logger.info(scopedLog(LogContext.RECORDING, 'circuit breaker entering half-open state'), {
+    sessionId,
+    lastFailureAge: elapsed,
+  });
+
+  return true;
 }
 
 /**
@@ -134,6 +187,11 @@ function cleanupCircuitBreaker(sessionId: string): void {
  * or streamed to a callback URL.
  *
  * Session phase transitions: ready -> recording
+ *
+ * Idempotency behavior:
+ * - If already recording with the same recording_id, returns success (no-op)
+ * - If already recording with a different recording_id, returns 409 Conflict
+ * - This allows safe retries of recording start requests
  */
 export async function handleRecordStart(
   req: IncomingMessage,
@@ -147,11 +205,31 @@ export async function handleRecordStart(
     const body = await parseJsonBody(req, config);
     const request = body as unknown as StartRecordingRequest;
 
-    // Check if already recording
+    // Idempotency: Check if already recording
     if (session.recordingController?.isRecording()) {
+      // If the same recording_id is provided, this is an idempotent retry - return success
+      if (request.recording_id && session.recordingId === request.recording_id) {
+        logger.info(scopedLog(LogContext.RECORDING, 'idempotent start - already recording'), {
+          sessionId,
+          recordingId: session.recordingId,
+          hint: 'Treating as successful retry of previous request',
+        });
+
+        const response: StartRecordingResponse = {
+          recording_id: session.recordingId || request.recording_id,
+          session_id: sessionId,
+          started_at: session.recordingController.getState().startedAt || new Date().toISOString(),
+        };
+
+        sendJson(res, 200, response);
+        return;
+      }
+
+      // Different recording_id or no recording_id provided - this is a conflict
       logger.warn(scopedLog(LogContext.RECORDING, 'already in progress'), {
         sessionId,
         recordingId: session.recordingId,
+        requestedRecordingId: request.recording_id,
         hint: 'Call /record/stop to end the current recording before starting a new one',
       });
       sendJson(res, 409, {
@@ -200,21 +278,16 @@ export async function handleRecordStart(
         if (request.callback_url) {
           const breaker = getCircuitBreaker(sessionId);
 
-          // Check if circuit breaker should be reset (half-open state)
-          if (breaker.isOpen && shouldResetCircuitBreaker(sessionId)) {
-            logger.info(scopedLog(LogContext.RECORDING, 'circuit breaker half-open, retrying'), {
-              sessionId,
-              lastFailureAge: Date.now() - (breaker.lastFailureTime || 0),
-            });
-            breaker.isOpen = false; // Try again
-          }
+          // Check if we should attempt half-open (atomically claims the attempt)
+          const attemptHalfOpen = tryEnterHalfOpen(sessionId);
 
-          // Skip if circuit is open
-          if (breaker.isOpen) {
+          // Skip if circuit is open and we're not the half-open attempt
+          if (breaker.isOpen && !attemptHalfOpen) {
             logger.debug(scopedLog(LogContext.RECORDING, 'skipping callback (circuit open)'), {
               sessionId,
               actionType: action.actionType,
               sequenceNum: action.sequenceNum,
+              halfOpenInProgress: breaker.halfOpenInProgress,
             });
             return;
           }
@@ -298,6 +371,11 @@ export async function handleRecordStart(
  * Stops the current recording session and returns summary.
  *
  * Session phase transitions: recording -> ready
+ *
+ * Idempotency behavior:
+ * - If recording is not active, returns success with action_count: 0
+ * - This allows safe retries of recording stop requests
+ * - Calling stop twice is safe and produces consistent results
  */
 export async function handleRecordStop(
   _req: IncomingMessage,
@@ -308,17 +386,25 @@ export async function handleRecordStop(
   try {
     const session = sessionManager.getSession(sessionId);
 
+    // Idempotency: If not recording, treat as successful no-op
+    // This handles retries where the first request succeeded but response was lost
     if (!session.recordingController?.isRecording()) {
-      logger.warn(scopedLog(LogContext.RECORDING, 'stop called with no recording'), {
+      logger.info(scopedLog(LogContext.RECORDING, 'idempotent stop - no active recording'), {
         sessionId,
         phase: session.phase,
-        hint: 'No recording is currently active for this session',
+        hint: 'No recording active, treating as successful stop (idempotent)',
       });
-      sendJson(res, 404, {
-        error: 'NO_RECORDING',
-        message: 'No recording in progress for this session',
-        hint: 'Call /record/start to begin recording before stopping',
-      });
+
+      // Return success with zero action count
+      // Use the last known recording ID if available
+      const response: StopRecordingResponse = {
+        recording_id: session.recordingId || 'unknown',
+        session_id: sessionId,
+        action_count: 0,
+        stopped_at: new Date().toISOString(),
+      };
+
+      sendJson(res, 200, response);
       return;
     }
 
@@ -429,25 +515,39 @@ export async function handleRecordActions(
   }
 }
 
+// Callback streaming timeout (5 seconds - callbacks should be fast)
+const CALLBACK_TIMEOUT_MS = 5_000;
+
 /**
- * Stream an action to a callback URL
+ * Stream an action to a callback URL with timeout.
+ *
+ * Hardened: Uses AbortController to enforce timeout and prevent
+ * indefinite hangs if the callback endpoint is slow or unresponsive.
  */
 async function streamActionToCallback(callbackUrl: string, action: RecordedAction): Promise<void> {
-  const response = await fetch(callbackUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(action),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CALLBACK_TIMEOUT_MS);
 
-  if (!response.ok) {
-    throw new Error(`Callback returned ${response.status}: ${response.statusText}`);
+  try {
+    const response = await fetch(callbackUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(action),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Callback returned ${response.status}: ${response.statusText}`);
+    }
+
+    logger.debug('recording: action streamed', {
+      status: response.status,
+      actionType: action.actionType,
+      sequenceNum: action.sequenceNum,
+    });
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  logger.debug('recording: action streamed', {
-    status: response.status,
-    actionType: action.actionType,
-    sequenceNum: action.sequenceNum,
-  });
 }

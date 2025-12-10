@@ -4,6 +4,7 @@ package landing_page_react_vite.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
 import "landing-page-react-vite/v1/pricing.proto";
 import "landing-page-react-vite/v1/settings.proto";
 
@@ -79,7 +80,9 @@ message CheckoutSession {
   // Creation timestamp.
   google.protobuf.Timestamp created_at = 15;
   // Additional structured metadata.
-  map<string, google.protobuf.Value> metadata = 16;
+  map<string, google.protobuf.Value> metadata = 16 [deprecated = true];
+  // Typed structured metadata; prefer over the deprecated Value map.
+  map<string, common.v1.JsonValue> metadata_typed = 17;
 }
 
 // CreateCheckoutSessionRequest starts a new checkout flow for a price.
@@ -95,7 +98,9 @@ message CreateCheckoutSessionRequest {
   // Intended session kind (defaults to subscription).
   SessionKind session_kind = 5;
   // Arbitrary metadata to associate with the session.
-  map<string, google.protobuf.Value> metadata = 6;
+  map<string, google.protobuf.Value> metadata = 6 [deprecated = true];
+  // Typed metadata; prefer over the deprecated Value map.
+  map<string, common.v1.JsonValue> metadata_typed = 7;
 }
 
 // CreateCheckoutSessionResponse returns the created checkout session.
@@ -133,7 +138,9 @@ message SubscriptionStatus {
   // Human-readable status message.
   optional string message = 10;
   // Additional metadata about the subscription.
-  map<string, google.protobuf.Value> metadata = 11;
+  map<string, google.protobuf.Value> metadata = 11 [deprecated = true];
+  // Typed metadata; prefer over the deprecated Value map.
+  map<string, common.v1.JsonValue> metadata_typed = 12;
 }
 
 // VerifySubscriptionResponse returns the current subscription status.
@@ -185,7 +192,9 @@ message CreditTransaction {
   // Typed transaction type; prefer over the deprecated string field.
   TransactionType type = 7;
   // Structured metadata describing the transaction.
-  map<string, google.protobuf.Value> metadata = 5;
+  map<string, google.protobuf.Value> metadata = 5 [deprecated = true];
+  // Typed metadata describing the transaction; prefer over the deprecated Value map.
+  map<string, common.v1.JsonValue> metadata_typed = 8;
   // Creation timestamp for the transaction.
   google.protobuf.Timestamp created_at = 6;
 }

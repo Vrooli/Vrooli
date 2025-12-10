@@ -15,8 +15,15 @@ import {
   normalizeInstructionType,
   isValidConsoleLogType,
   normalizeConsoleLogType,
+  validateTimestamp,
+  getMonotonicTimestamp,
+  isRecentTimestamp,
+  createIdempotencyKey,
+  isIdempotencyKeyValid,
   MIN_TIMEOUT_MS,
   MAX_TIMEOUT_MS,
+  MAX_CLOCK_DRIFT_MS,
+  IDEMPOTENCY_KEY_MAX_AGE_MS,
 } from '../../../src/utils/validation';
 
 // Mock the logger to prevent console output during tests
@@ -240,5 +247,200 @@ describe('normalizeConsoleLogType', () => {
   it('should default unknown types to log', () => {
     expect(normalizeConsoleLogType('trace')).toBe('log');
     expect(normalizeConsoleLogType('unknown')).toBe('log');
+  });
+});
+
+// ============================================================================
+// Timestamp Validation Tests for Idempotency & Replay Safety
+// ============================================================================
+
+describe('validateTimestamp', () => {
+  it('should accept timestamps within clock drift tolerance', () => {
+    const now = Date.now();
+    const result = validateTimestamp(now);
+
+    expect(result.valid).toBe(true);
+    expect(result.adjustedTimestamp).toBeDefined();
+    expect(result.driftMs).toBeDefined();
+    expect(Math.abs(result.driftMs!)).toBeLessThan(1000); // Within 1 second
+  });
+
+  it('should accept ISO 8601 string timestamps', () => {
+    const now = new Date();
+    const result = validateTimestamp(now.toISOString());
+
+    expect(result.valid).toBe(true);
+    expect(result.adjustedTimestamp).toBeInstanceOf(Date);
+  });
+
+  it('should accept Date objects', () => {
+    const now = new Date();
+    const result = validateTimestamp(now);
+
+    expect(result.valid).toBe(true);
+    expect(result.adjustedTimestamp).toBeInstanceOf(Date);
+  });
+
+  it('should reject timestamps too far in the future', () => {
+    const futureTime = Date.now() + MAX_CLOCK_DRIFT_MS + 10000;
+    const result = validateTimestamp(futureTime);
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('future');
+    expect(result.driftMs).toBeGreaterThan(MAX_CLOCK_DRIFT_MS);
+  });
+
+  it('should reject stale timestamps', () => {
+    const staleTime = Date.now() - IDEMPOTENCY_KEY_MAX_AGE_MS - 10000;
+    const result = validateTimestamp(staleTime);
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toBe('stale');
+  });
+
+  it('should respect custom maxAgeMs parameter', () => {
+    const slightlyOld = Date.now() - 5000;
+
+    // Should be valid with default maxAge
+    expect(validateTimestamp(slightlyOld).valid).toBe(true);
+
+    // Should be stale with 1 second maxAge
+    expect(validateTimestamp(slightlyOld, 1000).valid).toBe(false);
+  });
+
+  it('should reject invalid format', () => {
+    expect(validateTimestamp('not-a-date').valid).toBe(false);
+    expect(validateTimestamp('not-a-date').reason).toBe('invalid_format');
+  });
+
+  it('should handle edge cases', () => {
+    // @ts-expect-error - testing invalid input
+    expect(validateTimestamp(null).valid).toBe(false);
+    // @ts-expect-error - testing invalid input
+    expect(validateTimestamp({}).valid).toBe(false);
+  });
+});
+
+describe('getMonotonicTimestamp', () => {
+  it('should return a Date object', () => {
+    const result = getMonotonicTimestamp();
+    expect(result).toBeInstanceOf(Date);
+  });
+
+  it('should return timestamps that are close to current time', () => {
+    const before = Date.now();
+    const result = getMonotonicTimestamp();
+    const after = Date.now();
+
+    expect(result.getTime()).toBeGreaterThanOrEqual(before - 1);
+    expect(result.getTime()).toBeLessThanOrEqual(after + 1);
+  });
+
+  it('should return increasing timestamps for consecutive calls', () => {
+    const timestamps: number[] = [];
+
+    for (let i = 0; i < 10; i++) {
+      timestamps.push(getMonotonicTimestamp().getTime());
+    }
+
+    // Each timestamp should be >= the previous one
+    for (let i = 1; i < timestamps.length; i++) {
+      expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i - 1]);
+    }
+  });
+});
+
+describe('isRecentTimestamp', () => {
+  it('should return true for timestamps within default threshold', () => {
+    const now = Date.now();
+    expect(isRecentTimestamp(now)).toBe(true);
+    expect(isRecentTimestamp(new Date())).toBe(true);
+    expect(isRecentTimestamp(new Date().toISOString())).toBe(true);
+  });
+
+  it('should return false for old timestamps', () => {
+    const oldTime = Date.now() - 60000; // 1 minute ago
+    expect(isRecentTimestamp(oldTime, 30000)).toBe(false);
+  });
+
+  it('should respect custom maxAgeMs', () => {
+    const fiveSecondsAgo = Date.now() - 5000;
+
+    // 5 seconds ago is NOT recent with 1 second threshold
+    expect(isRecentTimestamp(fiveSecondsAgo, 1000)).toBe(false);
+
+    // 5 seconds ago IS recent with 10 second threshold
+    expect(isRecentTimestamp(fiveSecondsAgo, 10000)).toBe(true);
+  });
+});
+
+describe('createIdempotencyKey', () => {
+  it('should create metadata with correct key', () => {
+    const key = 'test-key-123';
+    const metadata = createIdempotencyKey(key);
+
+    expect(metadata.key).toBe(key);
+    expect(metadata.createdAt).toBeDefined();
+    expect(metadata.expiresAt).toBeDefined();
+  });
+
+  it('should set expiration based on TTL', () => {
+    const key = 'test-key';
+    const ttlMs = 60000; // 1 minute
+
+    const before = Date.now();
+    const metadata = createIdempotencyKey(key, ttlMs);
+    const after = Date.now();
+
+    // Expires should be TTL milliseconds after creation
+    expect(metadata.expiresAt - metadata.createdAt).toBe(ttlMs);
+    expect(metadata.createdAt).toBeGreaterThanOrEqual(before);
+    expect(metadata.createdAt).toBeLessThanOrEqual(after);
+  });
+
+  it('should use default TTL when not specified', () => {
+    const metadata = createIdempotencyKey('test');
+
+    expect(metadata.expiresAt - metadata.createdAt).toBe(IDEMPOTENCY_KEY_MAX_AGE_MS);
+  });
+});
+
+describe('isIdempotencyKeyValid', () => {
+  it('should return true for non-expired keys', () => {
+    const metadata = createIdempotencyKey('test', 60000);
+    expect(isIdempotencyKeyValid(metadata)).toBe(true);
+  });
+
+  it('should return false for expired keys', () => {
+    // Create a key that expired 1 second ago
+    const metadata = {
+      key: 'expired-test',
+      createdAt: Date.now() - 10000,
+      expiresAt: Date.now() - 1000,
+    };
+
+    expect(isIdempotencyKeyValid(metadata)).toBe(false);
+  });
+
+  it('should return false for keys expiring exactly now', () => {
+    const now = Date.now();
+    const metadata = {
+      key: 'edge-case',
+      createdAt: now - 1000,
+      expiresAt: now, // Expires exactly now
+    };
+
+    // At the exact expiration moment, key is considered invalid
+    expect(isIdempotencyKeyValid(metadata)).toBe(false);
+  });
+
+  it('should return true for keys about to expire', () => {
+    const metadata = {
+      key: 'almost-expired',
+      createdAt: Date.now() - 1000,
+      expiresAt: Date.now() + 1, // Expires in 1ms
+    };
+
+    expect(isIdempotencyKeyValid(metadata)).toBe(true);
   });
 });

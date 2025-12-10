@@ -112,7 +112,9 @@ describe('SessionManager', () => {
       expect(result2.reused).toBe(true);
     });
 
-    it('should create new session with fresh mode even if reusable exists', async () => {
+    it('should return existing session with fresh mode when execution_id matches (idempotent)', async () => {
+      // Idempotency: Same execution_id always returns existing session,
+      // regardless of reuse_mode, to ensure replay safety
       const result1 = await manager.startSession(sessionSpec);
 
       const freshSpec: SessionSpec = {
@@ -121,6 +123,22 @@ describe('SessionManager', () => {
       };
       const result2 = await manager.startSession(freshSpec);
 
+      // Same execution_id => same session (idempotent behavior)
+      expect(result2.sessionId).toBe(result1.sessionId);
+      expect(result2.reused).toBe(true);
+    });
+
+    it('should create new session with fresh mode when execution_id differs', async () => {
+      const result1 = await manager.startSession(sessionSpec);
+
+      const freshSpec: SessionSpec = {
+        ...sessionSpec,
+        execution_id: 'different-execution-id',
+        reuse_mode: 'fresh',
+      };
+      const result2 = await manager.startSession(freshSpec);
+
+      // Different execution_id => new session
       expect(result2.sessionId).not.toBe(result1.sessionId);
       expect(result2.reused).toBe(false);
     });

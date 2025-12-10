@@ -239,3 +239,190 @@ export function normalizeConsoleLogType(msgType: string): 'log' | 'warn' | 'erro
   if (isValidConsoleLogType(msgType)) return msgType;
   return 'log';
 }
+
+// ============================================================================
+// Timestamp Validation for Idempotency & Replay Safety
+// ============================================================================
+
+/**
+ * Maximum allowed clock drift between client and server (ms).
+ * Requests with timestamps outside this window are considered stale or from the future.
+ */
+export const MAX_CLOCK_DRIFT_MS = 60_000; // 1 minute
+
+/**
+ * Maximum age for idempotency keys before they're considered expired (ms).
+ * After this time, duplicate requests will be treated as new requests.
+ */
+export const IDEMPOTENCY_KEY_MAX_AGE_MS = 3600_000; // 1 hour
+
+/**
+ * Timestamp validation result.
+ */
+export interface TimestampValidation {
+  valid: boolean;
+  reason?: 'future' | 'stale' | 'invalid_format';
+  adjustedTimestamp?: Date;
+  driftMs?: number;
+}
+
+/**
+ * Validate a client-provided timestamp against server time.
+ *
+ * Temporal hardening:
+ * - Rejects timestamps too far in the future (potential replay attack)
+ * - Accepts timestamps within clock drift tolerance
+ * - Logs clock skew for monitoring
+ *
+ * @param timestamp - Client-provided timestamp (ISO 8601 string or Date)
+ * @param maxAgeMs - Maximum age allowed for the timestamp (default: IDEMPOTENCY_KEY_MAX_AGE_MS)
+ * @returns Validation result with adjusted timestamp if valid
+ */
+export function validateTimestamp(
+  timestamp: string | Date | number,
+  maxAgeMs: number = IDEMPOTENCY_KEY_MAX_AGE_MS
+): TimestampValidation {
+  const now = Date.now();
+
+  // Parse timestamp
+  let clientTime: number;
+  try {
+    if (timestamp instanceof Date) {
+      clientTime = timestamp.getTime();
+    } else if (typeof timestamp === 'number') {
+      clientTime = timestamp;
+    } else if (typeof timestamp === 'string') {
+      clientTime = new Date(timestamp).getTime();
+    } else {
+      return { valid: false, reason: 'invalid_format' };
+    }
+
+    if (isNaN(clientTime)) {
+      return { valid: false, reason: 'invalid_format' };
+    }
+  } catch {
+    return { valid: false, reason: 'invalid_format' };
+  }
+
+  const drift = clientTime - now;
+
+  // Reject timestamps too far in the future (with clock drift tolerance)
+  if (drift > MAX_CLOCK_DRIFT_MS) {
+    logger.warn('Timestamp from the future rejected', {
+      clientTimestamp: new Date(clientTime).toISOString(),
+      serverTime: new Date(now).toISOString(),
+      driftMs: drift,
+      maxDriftMs: MAX_CLOCK_DRIFT_MS,
+    });
+    return { valid: false, reason: 'future', driftMs: drift };
+  }
+
+  // Reject timestamps that are too old
+  const age = now - clientTime;
+  if (age > maxAgeMs) {
+    logger.debug('Stale timestamp rejected', {
+      clientTimestamp: new Date(clientTime).toISOString(),
+      serverTime: new Date(now).toISOString(),
+      ageMs: age,
+      maxAgeMs,
+    });
+    return { valid: false, reason: 'stale', driftMs: drift };
+  }
+
+  // Log significant clock drift for monitoring
+  if (Math.abs(drift) > 5000) {
+    logger.info('Significant clock drift detected', {
+      clientTimestamp: new Date(clientTime).toISOString(),
+      serverTime: new Date(now).toISOString(),
+      driftMs: drift,
+      hint: 'Consider NTP synchronization on clients',
+    });
+  }
+
+  return {
+    valid: true,
+    adjustedTimestamp: new Date(clientTime),
+    driftMs: drift,
+  };
+}
+
+/**
+ * Generate a monotonic timestamp that accounts for clock skew.
+ *
+ * Uses a high-resolution timer combined with the wall clock to ensure
+ * timestamps are always increasing within a process, even if the system
+ * clock is adjusted backwards.
+ */
+let lastTimestamp = 0;
+let lastHrTime = process.hrtime.bigint();
+
+export function getMonotonicTimestamp(): Date {
+  const now = Date.now();
+  const hrDiff = Number(process.hrtime.bigint() - lastHrTime) / 1_000_000; // Convert to ms
+
+  // If wall clock went backwards but hrtime advanced, use the calculated time
+  if (now < lastTimestamp && hrDiff > 0) {
+    const monotonic = Math.max(lastTimestamp + 1, Math.floor(lastTimestamp + hrDiff));
+    lastTimestamp = monotonic;
+    logger.debug('Clock went backwards, using monotonic time', {
+      wallClock: now,
+      monotonic,
+      hrDiffMs: hrDiff,
+    });
+    return new Date(monotonic);
+  }
+
+  // Normal case: wall clock is advancing
+  lastTimestamp = now;
+  lastHrTime = process.hrtime.bigint();
+  return new Date(now);
+}
+
+/**
+ * Check if a timestamp is recent enough to be from an active request.
+ * Used to detect retries vs new requests.
+ *
+ * @param timestamp - Timestamp to check
+ * @param maxAgeMs - Maximum age to consider "recent"
+ * @returns true if timestamp is recent
+ */
+export function isRecentTimestamp(timestamp: Date | string | number, maxAgeMs: number = 30_000): boolean {
+  const validation = validateTimestamp(timestamp, maxAgeMs);
+  return validation.valid;
+}
+
+/**
+ * Idempotency key metadata for tracking.
+ */
+export interface IdempotencyKeyMetadata {
+  key: string;
+  createdAt: number;
+  expiresAt: number;
+  result?: unknown;
+}
+
+/**
+ * Create an idempotency key with expiration tracking.
+ *
+ * @param key - The idempotency key
+ * @param ttlMs - Time to live in milliseconds
+ * @returns Metadata for the idempotency key
+ */
+export function createIdempotencyKey(
+  key: string,
+  ttlMs: number = IDEMPOTENCY_KEY_MAX_AGE_MS
+): IdempotencyKeyMetadata {
+  const now = Date.now();
+  return {
+    key,
+    createdAt: now,
+    expiresAt: now + ttlMs,
+  };
+}
+
+/**
+ * Check if an idempotency key is still valid (not expired).
+ */
+export function isIdempotencyKeyValid(metadata: IdempotencyKeyMetadata): boolean {
+  return Date.now() < metadata.expiresAt;
+}

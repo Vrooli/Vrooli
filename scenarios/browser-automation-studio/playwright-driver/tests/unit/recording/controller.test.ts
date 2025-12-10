@@ -182,6 +182,32 @@ describe('RecordModeController', () => {
       expect(state.actionCount).toBe(0);
       expect(state.recordingId).toBeUndefined();
     });
+
+    it('should cancel pending injection timeouts on stop', async () => {
+      // This tests the temporal flow fix: pending timeouts should be cancelled
+      // when recording stops to prevent work after stop
+      const onAction = jest.fn();
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+      await controller.startRecording({ sessionId, onAction });
+
+      // Simulate navigation load event which triggers setTimeout for injection
+      const loadHandler = (mockPage.on as jest.Mock).mock.calls.find(
+        ([event]: [string, unknown]) => event === 'load'
+      )?.[1] as (() => void) | undefined;
+
+      if (loadHandler) {
+        loadHandler();
+      }
+
+      // Stop recording - this should cancel any pending timeouts
+      await controller.stopRecording();
+
+      // Verify clearTimeout was called (at least once for the initial delay timeout)
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+
+      clearTimeoutSpy.mockRestore();
+    });
   });
 
   describe('validateSelector', () => {

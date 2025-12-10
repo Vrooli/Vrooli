@@ -77,6 +77,10 @@ export async function handleHealth(
   const browserStatus = sessionManager.getBrowserStatus();
 
   // Count active recordings
+  // Temporal hardening: getAllSessionIds() returns a snapshot array, and sessions
+  // can be closed concurrently by the cleanup task or explicit close requests.
+  // The try/catch handles SessionNotFoundError gracefully for sessions that
+  // close during iteration.
   const sessionIds = sessionManager.getAllSessionIds();
   let activeRecordings = 0;
   for (const id of sessionIds) {
@@ -86,7 +90,7 @@ export async function handleHealth(
         activeRecordings++;
       }
     } catch {
-      // Session may have been closed between getting IDs and checking
+      // Session closed between snapshot and access - expected during cleanup
     }
   }
 

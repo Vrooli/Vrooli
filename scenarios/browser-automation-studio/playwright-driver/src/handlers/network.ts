@@ -2,7 +2,51 @@ import { BaseHandler, HandlerContext, HandlerResult } from './base';
 import type { CompiledInstruction } from '../types';
 import { NetworkMockParamsSchema, type NetworkMockParams } from '../types/instruction';
 import { normalizeError } from '../utils/errors';
-import { validateParams, logger } from '../utils';
+import { validateParams, logger, scopedLog, LogContext } from '../utils';
+
+/**
+ * Track registered routes per session to enable idempotency.
+ * Key: sessionId
+ * Value: Map of routeKey -> route metadata
+ *
+ * Idempotency guarantee:
+ * - Re-registering the same URL pattern + method is a no-op
+ * - Prevents duplicate route handlers that would confuse Playwright
+ * - Routes are cleared when 'clear' operation is called
+ */
+interface RouteMetadata {
+  urlPattern: string;
+  method?: string;
+  operation: string;
+  registeredAt: number;
+}
+const sessionRoutes: Map<string, Map<string, RouteMetadata>> = new Map();
+
+/**
+ * Generate a stable key for route idempotency.
+ */
+function generateRouteKey(urlPattern: string, method: string | undefined, operation: string): string {
+  return `${operation}:${method || '*'}:${urlPattern}`;
+}
+
+/**
+ * Get or create route map for a session.
+ */
+function getSessionRouteMap(sessionId: string): Map<string, RouteMetadata> {
+  let routes = sessionRoutes.get(sessionId);
+  if (!routes) {
+    routes = new Map();
+    sessionRoutes.set(sessionId, routes);
+  }
+  return routes;
+}
+
+/**
+ * Clear all tracked routes for a session.
+ */
+function clearSessionRoutes(sessionId: string): void {
+  sessionRoutes.delete(sessionId);
+}
 
 /**
  * NetworkHandler implements request interception and response mocking
@@ -21,6 +65,12 @@ import { validateParams, logger } from '../utils';
  * - Active routes are stored in session context
  * - Routes persist across instructions until cleared
  * - Multiple routes can be active simultaneously
+ *
+ * Idempotency behavior:
+ * - Re-registering the same URL pattern + method + operation is a no-op
+ * - Returns success without re-adding the route handler
+ * - Prevents duplicate handlers that could cause unexpected behavior
+ * - 'clear' operation removes all routes for the session
  *
  * Phase 3 handler - Network mocking and interception
  */
@@ -87,14 +137,46 @@ export class NetworkHandler extends BaseHandler {
 
   /**
    * Mock response for matching requests
+   *
+   * Idempotency: If this exact mock is already registered, returns success
+   * without re-registering. This prevents duplicate handlers.
    */
   private async handleMockResponse(
     params: NetworkMockParams,
     context: HandlerContext,
-    logger: any
+    _logger: unknown
   ): Promise<HandlerResult> {
     const page = context.page;
+    const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
+    const urlPatternStr = params.urlPattern.toString();
+
+    // Idempotency check: See if this route is already registered
+    const routeKey = generateRouteKey(urlPatternStr, params.method, 'mock');
+    const routes = getSessionRouteMap(sessionId);
+
+    if (routes.has(routeKey)) {
+      const existing = routes.get(routeKey)!;
+      logger.debug(scopedLog(LogContext.INSTRUCTION, 'mock route already registered (idempotent)'), {
+        sessionId,
+        urlPattern: urlPatternStr,
+        method: params.method,
+        registeredAt: new Date(existing.registeredAt).toISOString(),
+      });
+
+      return {
+        success: true,
+        extracted_data: {
+          network: {
+            operation: 'mock',
+            urlPattern: urlPatternStr,
+            method: params.method,
+            statusCode: params.statusCode,
+            idempotent: true,
+          },
+        },
+      };
+    }
 
     logger.debug('Setting up mock response', {
       urlPattern: params.urlPattern,
@@ -110,22 +192,46 @@ export class NetworkHandler extends BaseHandler {
       }
 
       // Simulate delay if specified
+      // Temporal hardening: If the page closes during the delay, route.fulfill() will
+      // throw an error. We wrap the delay in a try-catch to handle page-closed gracefully.
       if (params.delayMs && params.delayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, params.delayMs));
       }
 
       // Fulfill with mock response
-      await route.fulfill({
-        status: params.statusCode || 200,
-        headers: params.headers || {},
-        body: this.serializeBody(params.body),
-        contentType: this.getContentType(params.body, params.headers),
-      });
+      // Temporal hardening: Page may have closed during delay - handle gracefully
+      try {
+        await route.fulfill({
+          status: params.statusCode || 200,
+          headers: params.headers || {},
+          body: this.serializeBody(params.body),
+          contentType: this.getContentType(params.body, params.headers),
+        });
 
-      logger.debug('Mock response fulfilled', {
-        url: route.request().url(),
-        status: params.statusCode,
-      });
+        logger.debug('Mock response fulfilled', {
+          url: route.request().url(),
+          status: params.statusCode,
+        });
+      } catch (err) {
+        // Page may have closed - this is expected during shutdown
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('closed') || message.includes('Target closed')) {
+          logger.debug('Mock response skipped - page closed', {
+            url: route.request().url(),
+          });
+        } else {
+          // Re-throw unexpected errors
+          throw err;
+        }
+      }
+    });
+
+    // Track this route registration for idempotency
+    routes.set(routeKey, {
+      urlPattern: urlPatternStr,
+      method: params.method,
+      operation: 'mock',
+      registeredAt: Date.now(),
     });
 
     return {
@@ -143,14 +249,45 @@ export class NetworkHandler extends BaseHandler {
 
   /**
    * Block requests matching pattern
+   *
+   * Idempotency: If this exact block is already registered, returns success
+   * without re-registering. This prevents duplicate handlers.
    */
   private async handleBlockRequest(
     params: NetworkMockParams,
     context: HandlerContext,
-    logger: any
+    _logger: unknown
   ): Promise<HandlerResult> {
     const page = context.page;
+    const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
+    const urlPatternStr = params.urlPattern.toString();
+
+    // Idempotency check: See if this route is already registered
+    const routeKey = generateRouteKey(urlPatternStr, params.method, 'block');
+    const routes = getSessionRouteMap(sessionId);
+
+    if (routes.has(routeKey)) {
+      const existing = routes.get(routeKey)!;
+      logger.debug(scopedLog(LogContext.INSTRUCTION, 'block route already registered (idempotent)'), {
+        sessionId,
+        urlPattern: urlPatternStr,
+        method: params.method,
+        registeredAt: new Date(existing.registeredAt).toISOString(),
+      });
+
+      return {
+        success: true,
+        extracted_data: {
+          network: {
+            operation: 'block',
+            urlPattern: urlPatternStr,
+            method: params.method,
+            idempotent: true,
+          },
+        },
+      };
+    }
 
     logger.debug('Setting up request blocking', {
       urlPattern: params.urlPattern,
@@ -173,6 +310,14 @@ export class NetworkHandler extends BaseHandler {
       });
     });
 
+    // Track this route registration for idempotency
+    routes.set(routeKey, {
+      urlPattern: urlPatternStr,
+      method: params.method,
+      operation: 'block',
+      registeredAt: Date.now(),
+    });
+
     return {
       success: true,
       extracted_data: {
@@ -187,14 +332,45 @@ export class NetworkHandler extends BaseHandler {
 
   /**
    * Modify request headers/body before sending
+   *
+   * Idempotency: If this exact modifier is already registered, returns success
+   * without re-registering. This prevents duplicate handlers.
    */
   private async handleModifyRequest(
     params: NetworkMockParams,
     context: HandlerContext,
-    logger: any
+    _logger: unknown
   ): Promise<HandlerResult> {
     const page = context.page;
+    const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
+    const urlPatternStr = params.urlPattern.toString();
+
+    // Idempotency check: See if this route is already registered
+    const routeKey = generateRouteKey(urlPatternStr, params.method, 'modifyRequest');
+    const routes = getSessionRouteMap(sessionId);
+
+    if (routes.has(routeKey)) {
+      const existing = routes.get(routeKey)!;
+      logger.debug(scopedLog(LogContext.INSTRUCTION, 'modifyRequest route already registered (idempotent)'), {
+        sessionId,
+        urlPattern: urlPatternStr,
+        method: params.method,
+        registeredAt: new Date(existing.registeredAt).toISOString(),
+      });
+
+      return {
+        success: true,
+        extracted_data: {
+          network: {
+            operation: 'modifyRequest',
+            urlPattern: urlPatternStr,
+            method: params.method,
+            idempotent: true,
+          },
+        },
+      };
+    }
 
     logger.debug('Setting up request modification', {
       urlPattern: params.urlPattern,
@@ -220,6 +396,14 @@ export class NetworkHandler extends BaseHandler {
       });
     });
 
+    // Track this route registration for idempotency
+    routes.set(routeKey, {
+      urlPattern: urlPatternStr,
+      method: params.method,
+      operation: 'modifyRequest',
+      registeredAt: Date.now(),
+    });
+
     return {
       success: true,
       extracted_data: {
@@ -237,14 +421,46 @@ export class NetworkHandler extends BaseHandler {
    *
    * Note: Playwright's route.fulfill() with modified response requires
    * fetching the original response first
+   *
+   * Idempotency: If this exact modifier is already registered, returns success
+   * without re-registering. This prevents duplicate handlers.
    */
   private async handleModifyResponse(
     params: NetworkMockParams,
     context: HandlerContext,
-    logger: any
+    _logger: unknown
   ): Promise<HandlerResult> {
     const page = context.page;
+    const sessionId = context.sessionId;
     const urlPattern = this.compileUrlPattern(params.urlPattern);
+    const urlPatternStr = params.urlPattern.toString();
+
+    // Idempotency check: See if this route is already registered
+    const routeKey = generateRouteKey(urlPatternStr, params.method, 'modifyResponse');
+    const routes = getSessionRouteMap(sessionId);
+
+    if (routes.has(routeKey)) {
+      const existing = routes.get(routeKey)!;
+      logger.debug(scopedLog(LogContext.INSTRUCTION, 'modifyResponse route already registered (idempotent)'), {
+        sessionId,
+        urlPattern: urlPatternStr,
+        method: params.method,
+        registeredAt: new Date(existing.registeredAt).toISOString(),
+      });
+
+      return {
+        success: true,
+        extracted_data: {
+          network: {
+            operation: 'modifyResponse',
+            urlPattern: urlPatternStr,
+            method: params.method,
+            statusCode: params.statusCode,
+            idempotent: true,
+          },
+        },
+      };
+    }
 
     logger.debug('Setting up response modification', {
       urlPattern: params.urlPattern,
@@ -282,6 +498,14 @@ export class NetworkHandler extends BaseHandler {
       });
     });
 
+    // Track this route registration for idempotency
+    routes.set(routeKey, {
+      urlPattern: urlPatternStr,
+      method: params.method,
+      operation: 'modifyResponse',
+      registeredAt: Date.now(),
+    });
+
     return {
       success: true,
       extracted_data: {
@@ -297,22 +521,40 @@ export class NetworkHandler extends BaseHandler {
 
   /**
    * Clear all active network mocks/routes
+   *
+   * Idempotency: This operation is inherently idempotent - clearing an already
+   * cleared state is a no-op and returns success.
    */
-  private async handleClearMocks(context: HandlerContext, logger: any): Promise<HandlerResult> {
+  private async handleClearMocks(context: HandlerContext, _logger: unknown): Promise<HandlerResult> {
     const page = context.page;
+    const sessionId = context.sessionId;
 
-    logger.debug('Clearing all network mocks');
+    // Get the route count before clearing for logging
+    const routes = getSessionRouteMap(sessionId);
+    const routeCount = routes.size;
+
+    logger.debug('Clearing all network mocks', {
+      sessionId,
+      trackedRouteCount: routeCount,
+    });
 
     // Unroute all handlers
     await page.unroute('**/*');
 
-    logger.info('Network mocks cleared');
+    // Clear tracked routes for this session
+    clearSessionRoutes(sessionId);
+
+    logger.info('Network mocks cleared', {
+      sessionId,
+      clearedRouteCount: routeCount,
+    });
 
     return {
       success: true,
       extracted_data: {
         network: {
           operation: 'clear',
+          clearedRouteCount: routeCount,
         },
       },
     };

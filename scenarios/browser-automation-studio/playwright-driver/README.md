@@ -110,19 +110,74 @@ See [docs/API.md](docs/API.md) for complete API specification.
 
 ## Architecture
 
-**TypeScript, modular design**:
+**Purpose-Driven Modular Design** - Each directory screams its responsibility:
+
 ```
 src/
-├── server.ts              # HTTP server
-├── config.ts              # Configuration
-├── types/                 # Type definitions
-├── session/               # Session lifecycle
-├── handlers/              # 28 instruction handlers
-├── telemetry/             # Event collection
-├── routes/                # HTTP endpoints
-├── middleware/            # Request processing
-└── utils/                 # Logging, metrics, errors
+├── server.ts              # Application entrypoint and bootstrap
+├── config.ts              # Configuration loading (environment → typed config)
+├── constants.ts           # Shared constants and defaults
+│
+├── types/                 # Type Definitions & Contracts
+│   ├── contracts.ts       # Go API wire format (StepOutcome, DriverOutcome)
+│   ├── session.ts         # Session domain types + HTTP request/response
+│   └── instruction.ts     # Zod schemas for instruction parameter validation
+│
+├── session/               # Session Lifecycle Management
+│   ├── manager.ts         # Session CRUD, browser pooling, resource limits
+│   ├── cleanup.ts         # Idle session reaper
+│   └── context-builder.ts # Playwright BrowserContext factory
+│
+├── handlers/              # Instruction Execution (28 types)
+│   ├── base.ts            # Handler interface and base utilities
+│   ├── registry.ts        # Handler lookup by instruction type
+│   ├── navigation.ts      # navigate
+│   ├── interaction.ts     # click, hover, type, focus, blur
+│   ├── wait.ts            # wait
+│   ├── assertion.ts       # assert
+│   └── ...                # extraction, screenshot, scroll, frame, etc.
+│
+├── recording/             # Record Mode Feature
+│   ├── controller.ts      # Recording lifecycle orchestration
+│   ├── buffer.ts          # In-memory action buffer
+│   ├── selectors.ts       # Multi-strategy selector generation
+│   ├── injector.ts        # Browser event listener injection
+│   └── types.ts           # RecordedAction, SelectorSet, etc.
+│
+├── telemetry/             # Observability Data Collection
+│   ├── screenshot.ts      # Screenshot capture with caching
+│   ├── dom.ts             # DOM snapshot extraction
+│   └── collector.ts       # Console logs, network events
+│
+├── outcome/               # Wire-Format Transformation
+│   └── outcome-builder.ts # HandlerResult → StepOutcome → DriverOutcome
+│
+├── routes/                # HTTP Transport Layer
+│   ├── router.ts          # Lightweight path-matching router
+│   ├── health.ts          # GET /health
+│   ├── session-start.ts   # POST /session/start
+│   ├── session-run.ts     # POST /session/:id/run
+│   └── record-mode/       # Recording API endpoints
+│       ├── recording-lifecycle.ts   # start/stop/status/actions
+│       ├── recording-validation.ts  # selector validation, replay
+│       └── recording-interaction.ts # navigation, input, screenshots
+│
+├── middleware/            # HTTP Request/Response Processing
+│   ├── body-parser.ts     # JSON body parsing with size limits
+│   └── error-handler.ts   # Error normalization and HTTP responses
+│
+└── utils/                 # Cross-Cutting Infrastructure
+    ├── logger.ts          # Winston logger with scoped contexts
+    ├── metrics.ts         # Prometheus metrics definitions
+    ├── metrics-server.ts  # Standalone metrics HTTP server
+    └── errors.ts          # Typed error classes (SessionNotFound, etc.)
 ```
+
+**Key Flows:**
+
+1. **Instruction Execution**: `routes/session-run.ts` → `handlers/` → `outcome/outcome-builder.ts` → HTTP response
+2. **Recording**: `routes/record-mode/` → `recording/controller.ts` → `recording/buffer.ts`
+3. **Session Lifecycle**: `routes/session-*.ts` → `session/manager.ts` → Playwright
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
 

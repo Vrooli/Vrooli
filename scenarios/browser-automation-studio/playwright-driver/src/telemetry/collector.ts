@@ -1,4 +1,4 @@
-import type { Page } from 'playwright';
+import type { Page, ConsoleMessage, Request, Response } from 'playwright';
 import type { ConsoleLogEntry, NetworkEvent } from '../types';
 import { MAX_CONSOLE_ENTRIES, MAX_NETWORK_EVENTS } from '../constants';
 import { logger, normalizeConsoleLogType } from '../utils';
@@ -6,12 +6,20 @@ import { logger, normalizeConsoleLogType } from '../utils';
 /**
  * Console log collector
  *
- * Collects browser console messages during instruction execution
+ * Collects browser console messages during instruction execution.
+ *
+ * Temporal hardening:
+ * - Event listener is stored and can be removed via dispose()
+ * - dispose() should be called when collector is no longer needed
  */
 export class ConsoleLogCollector {
   private logs: ConsoleLogEntry[] = [];
   private maxEntries: number;
   private page: Page;
+  /** Bound listener reference for cleanup */
+  private consoleHandler: ((msg: ConsoleMessage) => void) | null = null;
+  /** Track if collector has been disposed */
+  private disposed = false;
 
   constructor(page: Page, maxEntries: number = MAX_CONSOLE_ENTRIES) {
     this.page = page;
@@ -20,7 +28,10 @@ export class ConsoleLogCollector {
   }
 
   private setupListener(): void {
-    this.page.on('console', (msg) => {
+    // Store bound handler so we can remove it later
+    this.consoleHandler = (msg: ConsoleMessage): void => {
+      // Guard: Don't process events after dispose
+      if (this.disposed) return;
       if (this.logs.length >= this.maxEntries) {
         // Remove oldest entry when limit reached
         this.logs.shift();
@@ -40,7 +51,9 @@ export class ConsoleLogCollector {
       };
 
       this.logs.push(entry);
-    });
+    };
+
+    this.page.on('console', this.consoleHandler);
   }
 
   getLogs(): ConsoleLogEntry[] {
@@ -56,6 +69,24 @@ export class ConsoleLogCollector {
     this.clear();
     return logs;
   }
+
+  /**
+   * Dispose the collector and remove event listeners.
+   *
+   * Temporal hardening: Must be called to prevent memory leaks and
+   * stale event handlers when the collector is no longer needed.
+   */
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+
+    if (this.consoleHandler) {
+      this.page.off('console', this.consoleHandler);
+      this.consoleHandler = null;
+    }
+
+    this.logs = [];
+  }
 }
 
 /**
@@ -69,14 +100,29 @@ export class ConsoleLogCollector {
  * - Playwright request objects have a unique internal ID we can use
  * - Responses may arrive out of order or not at all
  * - Request map entries may leak if responses never arrive (cleaned up on clear)
+ *
+ * Temporal hardening:
+ * - Request map has bounded size to prevent memory leaks from orphaned requests
+ * - Old entries are evicted when map exceeds MAX_PENDING_REQUESTS
+ * - Request timestamps enable age-based eviction for stale entries
  */
 export class NetworkCollector {
   private events: NetworkEvent[] = [];
   private maxEvents: number;
   private page: Page;
-  private requestMap: Map<string, { method: string; url: string; timestamp: string }> = new Map();
+  private requestMap: Map<string, { method: string; url: string; timestamp: string; createdAt: number }> = new Map();
   /** Counter for generating unique request IDs when Playwright ID unavailable */
   private requestCounter = 0;
+  /** Maximum pending requests before evicting oldest */
+  private static readonly MAX_PENDING_REQUESTS = 500;
+  /** Maximum age for pending requests before considered stale (30 seconds) */
+  private static readonly MAX_REQUEST_AGE_MS = 30_000;
+  /** Bound listener references for cleanup */
+  private requestHandler: ((request: Request) => void) | null = null;
+  private responseHandler: ((response: Response) => void) | null = null;
+  private requestFailedHandler: ((request: Request) => void) | null = null;
+  /** Track if collector has been disposed */
+  private disposed = false;
 
   constructor(page: Page, maxEvents: number = MAX_NETWORK_EVENTS) {
     this.page = page;
@@ -86,17 +132,28 @@ export class NetworkCollector {
 
   private setupListeners(): void {
     // Track requests
-    this.page.on('request', (request) => {
+    this.requestHandler = (request: Request): void => {
+      // Guard: Don't process events after dispose
+      if (this.disposed) return;
       const id = this.getRequestId(request);
+      const now = Date.now();
+
+      // Evict stale entries before adding new one (prevents unbounded growth)
+      this.evictStaleRequests(now);
+
       this.requestMap.set(id, {
         method: request.method(),
         url: request.url(),
         timestamp: new Date().toISOString(),
+        createdAt: now,
       });
-    });
+    };
+    this.page.on('request', this.requestHandler);
 
     // Track responses
-    this.page.on('response', (response) => {
+    this.responseHandler = (response: Response): void => {
+      // Guard: Don't process events after dispose
+      if (this.disposed) return;
       const id = this.getRequestId(response.request());
       const requestData = this.requestMap.get(id);
 
@@ -122,10 +179,13 @@ export class NetworkCollector {
 
       this.events.push(event);
       this.requestMap.delete(id);
-    });
+    };
+    this.page.on('response', this.responseHandler);
 
     // Track failures
-    this.page.on('requestfailed', (request) => {
+    this.requestFailedHandler = (request: Request): void => {
+      // Guard: Don't process events after dispose
+      if (this.disposed) return;
       const id = this.getRequestId(request);
       const requestData = this.requestMap.get(id);
 
@@ -148,7 +208,8 @@ export class NetworkCollector {
 
       this.events.push(event);
       this.requestMap.delete(id);
-    });
+    };
+    this.page.on('requestfailed', this.requestFailedHandler);
   }
 
   /**
@@ -188,6 +249,45 @@ export class NetworkCollector {
     }
   }
 
+  /**
+   * Evict stale pending requests to prevent memory leaks.
+   *
+   * Called on each new request to maintain bounded memory usage.
+   * Evicts entries that are either:
+   * - Older than MAX_REQUEST_AGE_MS (likely orphaned)
+   * - When map exceeds MAX_PENDING_REQUESTS (FIFO eviction)
+   */
+  private evictStaleRequests(now: number): void {
+    // First pass: remove stale entries by age
+    for (const [id, data] of this.requestMap.entries()) {
+      if (now - data.createdAt > NetworkCollector.MAX_REQUEST_AGE_MS) {
+        this.requestMap.delete(id);
+        logger.debug('Evicted stale pending request', {
+          url: data.url.slice(0, 100),
+          ageMs: now - data.createdAt,
+        });
+      }
+    }
+
+    // Second pass: if still over limit, evict oldest by creation time
+    if (this.requestMap.size > NetworkCollector.MAX_PENDING_REQUESTS) {
+      const entries = Array.from(this.requestMap.entries())
+        .sort((a, b) => a[1].createdAt - b[1].createdAt);
+
+      const toEvict = entries.slice(0, this.requestMap.size - NetworkCollector.MAX_PENDING_REQUESTS);
+      for (const [id] of toEvict) {
+        this.requestMap.delete(id);
+      }
+
+      if (toEvict.length > 0) {
+        logger.debug('Evicted oldest pending requests due to size limit', {
+          evictedCount: toEvict.length,
+          remainingCount: this.requestMap.size,
+        });
+      }
+    }
+  }
+
   getEvents(): NetworkEvent[] {
     return [...this.events];
   }
@@ -195,11 +295,42 @@ export class NetworkCollector {
   clear(): void {
     this.events = [];
     this.requestMap.clear();
+    // Reset counter to prevent overflow on very long sessions
+    this.requestCounter = 0;
   }
 
   getAndClear(): NetworkEvent[] {
     const events = this.getEvents();
     this.clear();
     return events;
+  }
+
+  /**
+   * Dispose the collector and remove event listeners.
+   *
+   * Temporal hardening: Must be called to prevent memory leaks and
+   * stale event handlers when the collector is no longer needed.
+   */
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+
+    if (this.requestHandler) {
+      this.page.off('request', this.requestHandler);
+      this.requestHandler = null;
+    }
+
+    if (this.responseHandler) {
+      this.page.off('response', this.responseHandler);
+      this.responseHandler = null;
+    }
+
+    if (this.requestFailedHandler) {
+      this.page.off('requestfailed', this.requestFailedHandler);
+      this.requestFailedHandler = null;
+    }
+
+    this.events = [];
+    this.requestMap.clear();
   }
 }

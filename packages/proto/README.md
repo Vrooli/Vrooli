@@ -14,13 +14,14 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 ## Type-safety guidance
 
 - Prefer typed fields over raw `Struct` payloads wherever available. For BAS, use `metadata_typed` / `settings_typed` instead of the deprecated maps, and only rely on map/Struct fields for provider-specific extensions that are truly dynamic.
+- `JsonValue`/`JsonObject`/`JsonList` now live in `common.v1` so all scenarios can share the same typed JSON primitives; migrate imports accordingly.
 - Optional scalars (`optional string ...`, `optional int64 ...`) are present throughout the BAS timeline/billing contracts to distinguish “unset” from zero values. In generated code, check presence (e.g., `HasError` in Go or truthy `error` plus `hasError()` in TS) instead of assuming defaults.
 - `JsonValue` supports explicit nulls and raw bytes; use these when round-tripping JSON that contains `null` or binary blobs instead of dropping intent or coercing to zero values.
 - The `@vrooli/proto-types` package is ESM-only; CJS consumers should `import()` dynamically or transpile to ESM when wiring into Jest/older Node runtimes.
 
 ## JSON casing & compatibility
 
-- BAS APIs/WebSockets expect snake_case JSON. Use proto-name casing when marshaling/unmarshaling:
+- BAS APIs/WebSockets and landing-page APIs expect snake_case JSON. Use proto-name casing when marshaling/unmarshaling:
   - Go: `protojson.MarshalOptions{UseProtoNames: true}`, `protojson.UnmarshalOptions{DiscardUnknown: true}`
   - TypeScript: `{ jsonOptions: { useProtoNames: true } }` with `fromJson` / `toJsonString`
   - Python: `json_format.ParseDict(..., preserve_proto_field_name=True)`
@@ -40,6 +41,18 @@ const timeline = fromJson(ExecutionTimelineSchema, apiPayload, {
 const serialized = toJsonString(ExecutionTimelineSchema, timeline, {
   jsonOptions: { useProtoNames: true },
 });
+```
+
+### TypeScript (landing-page)
+```ts
+import { fromJson } from '@bufbuild/protobuf';
+import { GetPricingResponseSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/pricing_pb';
+
+const pricing = fromJson(GetPricingResponseSchema, payload, {
+  jsonOptions: { useProtoNames: true },
+});
+
+const monthlyPlanMetadata = pricing.pricing?.monthly[0]?.metadataTyped;
 ```
 
 ### Go
@@ -77,3 +90,8 @@ parsed = json_format.ParseDict(
 - `browser-automation-studio/v1/workflow.proto` provides typed `metadata_typed` / `settings_typed` and now `WorkflowNode.config` for discriminated per-step payloads (navigate/click/input/assert/subflow/custom). Prefer these over the legacy Struct-backed maps.
 - `record_mode.proto` exposes `action_kind` plus typed payloads (`typed_action`) for recorded actions (navigate/click/input/wait/assert/custom script) so clients can switch off the free-form `action_type` string and `Struct` payloads.
 - When migrating from legacy JSON, populate the typed fields first and copy only provider-specific spillover into the remaining `Struct`/`map<string, Value>` fields. This keeps the generated TS/Go/Python types strongly typed for the common path.
+
+## Landing-page schema notes
+
+- Pricing/billing metadata maps now include `metadata_typed` so clients can avoid `google.protobuf.Value` and stay type-safe across pricing, sessions, subscription status, and wallet transactions.
+- Use `common.v1.JsonValue` for flexible-yet-typed metadata instead of raw `Struct`/`Value`.

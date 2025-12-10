@@ -212,7 +212,11 @@ export function normalizeError(error: unknown): PlaywrightDriverError {
 
     // Timeout errors
     if (message.includes('timeout') || message.includes('exceeded')) {
-      return new TimeoutError(error.message, 30000);
+      // Try to extract timeout value from error message
+      // Common patterns: "Timeout 30000ms exceeded" or "waiting for selector: timeout 30000ms"
+      const timeoutMatch = error.message.match(/(\d+)\s*ms/i);
+      const extractedTimeout = timeoutMatch ? parseInt(timeoutMatch[1], 10) : undefined;
+      return new TimeoutError(error.message, extractedTimeout ?? 0);
     }
 
     // Selector errors

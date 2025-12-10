@@ -106,6 +106,28 @@ export interface SessionState {
   // Recording state (Record Mode)
   recordingController?: RecordModeController;
   recordingId?: string;
+
+  /**
+   * Instruction idempotency tracking.
+   * Maps instruction key (node_id:index) to last execution result.
+   * Enables replay-safe instruction execution.
+   */
+  executedInstructions?: Map<string, ExecutedInstructionRecord>;
+}
+
+/**
+ * Record of an executed instruction for idempotency tracking.
+ * Stores enough information to return the same result on replay.
+ */
+export interface ExecutedInstructionRecord {
+  /** Composite key: node_id:index */
+  key: string;
+  /** When the instruction was executed */
+  executedAt: Date;
+  /** Whether execution succeeded */
+  success: boolean;
+  /** Cached outcome for replay (optional, may be large) */
+  cachedOutcome?: unknown;
 }
 
 export interface MockRoute {

@@ -231,6 +231,9 @@ export const GestureParamsSchema = z.object({
 export type GestureParams = z.infer<typeof GestureParamsSchema>;
 
 // Network mock
+// Max network delay is 60 seconds - prevents abuse and indefinite waits
+const MAX_NETWORK_DELAY_MS = 60_000;
+
 export const NetworkMockParamsSchema = z.object({
   operation: z.enum(['mock', 'block', 'modifyRequest', 'modifyResponse', 'clear']),
   urlPattern: z.string(),
@@ -238,7 +241,7 @@ export const NetworkMockParamsSchema = z.object({
   statusCode: z.number().optional(),
   headers: z.record(z.string()).optional(),
   body: z.union([z.string(), z.record(z.unknown())]).optional(),
-  delayMs: z.number().optional(),
+  delayMs: z.number().min(0).max(MAX_NETWORK_DELAY_MS).optional(),
 });
 export type NetworkMockParams = z.infer<typeof NetworkMockParamsSchema>;
 

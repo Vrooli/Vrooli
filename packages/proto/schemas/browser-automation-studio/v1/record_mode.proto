@@ -4,7 +4,7 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
-import "browser-automation-studio/v1/shared.proto";
+import "common/v1/types.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
@@ -74,7 +74,7 @@ message RecordedAction {
   RecordBoundingBox bounding_box = 10;
   google.protobuf.Struct payload = 11 [deprecated = true];
   // Typed payload; prefer over Struct when available.
-  JsonObject payload_typed = 15;
+  common.v1.JsonObject payload_typed = 15;
   string url = 12;
   string frame_id = 13;
   RecordPoint cursor_pos = 14;
@@ -135,6 +135,8 @@ message AssertActionPayload {
   string selector = 2;
   // Expected value for the assertion.
   google.protobuf.Value expected = 3;
+  // Typed expected value; prefer over the Value field.
+  common.v1.JsonValue expected_typed = 7;
   // Whether the assertion is negated.
   bool negated = 4;
   // Case sensitivity flag.

@@ -4,6 +4,7 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
 import "browser-automation-studio/v1/shared.proto";
 import "browser-automation-studio/v1/timeline.proto";
 import "browser-automation-studio/v1/workflow.proto";
@@ -25,11 +26,11 @@ message Execution {
   // Trigger metadata payload.
   map<string, google.protobuf.Value> trigger_metadata = 6 [deprecated = true];
   // Strongly typed trigger metadata; prefer over Value maps.
-  map<string, JsonValue> trigger_metadata_typed = 19;
+  map<string, common.v1.JsonValue> trigger_metadata_typed = 19;
   // Runtime parameters passed to the execution.
   map<string, google.protobuf.Value> parameters = 7 [deprecated = true];
   // Strongly typed runtime parameters; prefer over Value maps.
-  map<string, JsonValue> parameters_typed = 17;
+  map<string, common.v1.JsonValue> parameters_typed = 17;
   // When the execution started.
   google.protobuf.Timestamp started_at = 8;
   // When the execution completed (null if still running).
@@ -41,7 +42,7 @@ message Execution {
   // Structured result payload reported by the executor.
   map<string, google.protobuf.Value> result = 12 [deprecated = true];
   // Strongly typed execution results; prefer over Value maps.
-  map<string, JsonValue> result_typed = 18;
+  map<string, common.v1.JsonValue> result_typed = 18;
   // Progress percentage (0-100).
   int32 progress = 13;
   // Human-readable description of the current step.
@@ -59,7 +60,7 @@ message ExecuteAdhocRequest {
   // Runtime parameters for the adhoc execution.
   map<string, google.protobuf.Value> parameters = 2;
   // Strongly typed runtime parameters; prefer over Value maps.
-  map<string, JsonValue> parameters_typed = 5;
+  map<string, common.v1.JsonValue> parameters_typed = 5;
   // Whether to wait for completion before responding.
   bool wait_for_completion = 3;
   // Optional metadata for labeling the execution.
@@ -169,7 +170,7 @@ message ExecutionExportPreview {
   // Replay movie package encoded as JSON (movie spec).
   google.protobuf.Struct package = 8 [deprecated = true];
   // Typed replay movie package; prefer over Struct when available.
-  JsonObject package_typed = 9;
+  common.v1.JsonObject package_typed = 9;
 }
 
 // StatusUpdateEvent carries execution-level status changes.
@@ -197,7 +198,7 @@ message LogEvent {
   google.protobuf.Timestamp occurred_at = 4;
   map<string, google.protobuf.Value> metadata = 5 [deprecated = true];
   // Typed metadata; prefer over the Value map.
-  map<string, JsonValue> metadata_typed = 6;
+  map<string, common.v1.JsonValue> metadata_typed = 6;
 }
 
 // HeartbeatEvent reports liveness/progress signals.
@@ -207,7 +208,7 @@ message HeartbeatEvent {
   // Executor supplied metrics.
   map<string, google.protobuf.Value> metrics = 3 [deprecated = true];
   // Typed executor metrics; prefer over the Value map.
-  map<string, JsonValue> metrics_typed = 4;
+  map<string, common.v1.JsonValue> metrics_typed = 4;
 }
 
 // TelemetryEvent emits structured telemetry metrics.
@@ -215,5 +216,5 @@ message TelemetryEvent {
   map<string, google.protobuf.Value> metrics = 1 [deprecated = true];
   google.protobuf.Timestamp recorded_at = 2;
   // Typed telemetry metrics; prefer over the Value map.
-  map<string, JsonValue> metrics_typed = 3;
+  map<string, common.v1.JsonValue> metrics_typed = 3;
 }

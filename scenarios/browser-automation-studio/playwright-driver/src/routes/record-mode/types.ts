@@ -11,6 +11,13 @@ import type { RecordedAction } from '../../recording/types';
  * POST /session/:id/record/start
  */
 export interface StartRecordingRequest {
+  /**
+   * Optional recording ID to use for this recording.
+   * If provided and recording is already active with this ID, the request is
+   * treated as idempotent (returns success without starting a new recording).
+   * This enables safe retries when network issues cause response loss.
+   */
+  recording_id?: string;
   /** Optional callback URL to stream actions to (for API integration) */
   callback_url?: string;
 }

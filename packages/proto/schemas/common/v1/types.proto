@@ -6,6 +6,33 @@ import "google/protobuf/struct.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
 
+// JsonValue models a typed JSON value for scenarios that need stronger typing
+// than google.protobuf.Value while retaining a JSON-compatible shape.
+message JsonValue {
+  oneof kind {
+    bool bool_value = 1;
+    int64 int_value = 2;
+    double double_value = 3;
+    string string_value = 4;
+    JsonObject object_value = 5;
+    JsonList list_value = 6;
+    // Explicit null to preserve intent when converting to/from JSON.
+    google.protobuf.NullValue null_value = 7;
+    // Raw bytes for cases where binary payloads are passed through.
+    bytes bytes_value = 8;
+  }
+}
+
+// JsonObject mirrors a JSON object with typed values.
+message JsonObject {
+  map<string, JsonValue> fields = 1;
+}
+
+// JsonList mirrors a JSON array with typed values.
+message JsonList {
+  repeated JsonValue values = 1;
+}
+
 // PaginationRequest represents limit/offset pagination inputs.
 message PaginationRequest {
   // Maximum number of items to return.
