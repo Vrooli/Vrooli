@@ -54,8 +54,22 @@ CREATE TABLE IF NOT EXISTS spawned_agents (
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Process tracking for orphan detection
+    pid INTEGER,  -- OS process ID when running
+    hostname TEXT  -- Host where the process runs (for multi-host deployments)
 );
+
+-- Migration: Add pid and hostname columns if they don't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='spawned_agents' AND column_name='pid') THEN
+        ALTER TABLE spawned_agents ADD COLUMN pid INTEGER;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='spawned_agents' AND column_name='hostname') THEN
+        ALTER TABLE spawned_agents ADD COLUMN hostname TEXT;
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_spawned_agents_scenario
     ON spawned_agents (scenario);
@@ -131,3 +145,35 @@ CREATE INDEX IF NOT EXISTS idx_agent_file_operations_scenario
 
 CREATE INDEX IF NOT EXISTS idx_agent_file_operations_recorded_at
     ON agent_file_operations (recorded_at DESC);
+
+-- Server-side spawn session tracking.
+-- Tracks spawn activity by user/IP to prevent duplicate spawns across browser tabs/sessions.
+-- This replaces the browser-only sessionStorage tracking for stronger guarantees.
+
+CREATE TABLE IF NOT EXISTS spawn_sessions (
+    id SERIAL PRIMARY KEY,
+    -- User identifier: IP address, API key, or user ID (depending on auth)
+    user_identifier TEXT NOT NULL,
+    scenario TEXT NOT NULL,
+    scope TEXT[] NOT NULL DEFAULT '{}',
+    phases TEXT[] NOT NULL DEFAULT '{}',
+    agent_ids TEXT[] NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL CHECK (status IN ('active', 'completed', 'failed', 'cleared')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Auto-expire sessions after 30 minutes of inactivity
+    expires_at TIMESTAMPTZ NOT NULL,
+    -- Last activity timestamp for session renewal
+    last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_spawn_sessions_user
+    ON spawn_sessions (user_identifier);
+
+CREATE INDEX IF NOT EXISTS idx_spawn_sessions_scenario
+    ON spawn_sessions (scenario);
+
+CREATE INDEX IF NOT EXISTS idx_spawn_sessions_expires
+    ON spawn_sessions (expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_spawn_sessions_status
+    ON spawn_sessions (status);

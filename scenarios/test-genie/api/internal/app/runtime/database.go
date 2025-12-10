@@ -60,7 +60,7 @@ func execSQLFile(db *sql.DB, path string) error {
 		return fmt.Errorf("failed to scan SQL file %s: %w", path, err)
 	}
 
-	statements := strings.Split(builder.String(), ";")
+	statements := splitSQLStatements(builder.String())
 	for _, stmt := range statements {
 		trimmed := strings.TrimSpace(stmt)
 		if trimmed == "" {
@@ -71,4 +71,62 @@ func execSQLFile(db *sql.DB, path string) error {
 		}
 	}
 	return nil
+}
+
+// splitSQLStatements splits SQL content by semicolons while respecting
+// dollar-quoted strings (e.g., DO $$ ... END $$;).
+func splitSQLStatements(content string) []string {
+	var statements []string
+	var current strings.Builder
+	inDollarQuote := false
+	dollarTag := ""
+
+	i := 0
+	for i < len(content) {
+		// Check for dollar quote start/end
+		if content[i] == '$' {
+			// Look for dollar quote tag (e.g., $$ or $tag$)
+			j := i + 1
+			for j < len(content) && (content[j] == '_' || (content[j] >= 'a' && content[j] <= 'z') || (content[j] >= 'A' && content[j] <= 'Z') || (content[j] >= '0' && content[j] <= '9')) {
+				j++
+			}
+			if j < len(content) && content[j] == '$' {
+				tag := content[i : j+1]
+				if !inDollarQuote {
+					// Start of dollar quote
+					inDollarQuote = true
+					dollarTag = tag
+					current.WriteString(tag)
+					i = j + 1
+					continue
+				} else if tag == dollarTag {
+					// End of dollar quote
+					inDollarQuote = false
+					dollarTag = ""
+					current.WriteString(tag)
+					i = j + 1
+					continue
+				}
+			}
+		}
+
+		// Check for statement terminator (only outside dollar quotes)
+		if content[i] == ';' && !inDollarQuote {
+			current.WriteByte(';')
+			statements = append(statements, current.String())
+			current.Reset()
+			i++
+			continue
+		}
+
+		current.WriteByte(content[i])
+		i++
+	}
+
+	// Add any remaining content as final statement
+	if current.Len() > 0 {
+		statements = append(statements, current.String())
+	}
+
+	return statements
 }

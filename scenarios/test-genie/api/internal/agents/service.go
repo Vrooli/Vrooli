@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -100,6 +101,7 @@ func (s *AgentService) runCleanupLoop() {
 // cleanupOrphanedAgents marks any agents that were running/pending as failed.
 // This should be called on startup to clean up agents from previous server runs
 // that were interrupted (e.g., server restart, crash).
+// Enhanced: Now checks PID validity to distinguish truly orphaned processes.
 func (s *AgentService) cleanupOrphanedAgents() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -118,13 +120,27 @@ func (s *AgentService) cleanupOrphanedAgents() {
 		return
 	}
 
+	currentHostname, _ := os.Hostname()
 	orphanCount := 0
+	stillAliveCount := 0
 	failedStatus := AgentStatusFailed
-	orphanError := "Agent orphaned: server restarted while agent was active"
 
 	for _, agent := range activeAgents {
-		// These agents were "running" or "pending" when the server stopped
-		// Since we're starting fresh, they're orphans - their processes are gone
+		// Check if the process is still alive
+		if agent.PID > 0 && agent.Hostname == currentHostname {
+			if isProcessAlive(agent.PID) {
+				// Process is still running - don't mark as orphaned
+				stillAliveCount++
+				continue
+			}
+		}
+
+		// Agent is orphaned: either no PID recorded, different host, or process is dead
+		orphanError := "Agent orphaned: server restarted while agent was active"
+		if agent.PID > 0 {
+			orphanError = fmt.Sprintf("Agent orphaned: process %d no longer running (hostname: %s)", agent.PID, agent.Hostname)
+		}
+
 		err := s.repo.Update(ctx, agent.ID, UpdateAgentInput{
 			Status: &failedStatus,
 			Error:  &orphanError,
@@ -141,6 +157,78 @@ func (s *AgentService) cleanupOrphanedAgents() {
 	// Note: We don't log here to avoid import cycle with logger
 	// The count can be observed via the active agents endpoint
 	_ = orphanCount
+	_ = stillAliveCount
+}
+
+// isProcessAlive checks if a process with the given PID is still running.
+// Uses kill -0 which doesn't send a signal but checks if the process exists.
+func isProcessAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	// os.FindProcess always succeeds on Unix, need to signal with 0 to check existence
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	// Signal 0 checks if the process exists without actually sending a signal
+	err = proc.Signal(os.Signal(syscall.Signal(0)))
+	return err == nil
+}
+
+// SharedDependencyFiles defines files that should be implicitly locked
+// when any agent works on a scenario. These files can cause conflicts
+// if modified concurrently by multiple agents.
+var SharedDependencyFiles = []string{
+	// Go dependency files
+	"go.mod",
+	"go.sum",
+	"go.work",
+	"go.work.sum",
+	// Node.js dependency files
+	"package.json",
+	"package-lock.json",
+	"pnpm-lock.yaml",
+	"yarn.lock",
+	// Python dependency files
+	"requirements.txt",
+	"pyproject.toml",
+	"poetry.lock",
+	"Pipfile",
+	"Pipfile.lock",
+	// Rust dependency files
+	"Cargo.toml",
+	"Cargo.lock",
+}
+
+// ExpandScopeWithImplicitPaths adds shared dependency files to the scope
+// if the agent might modify them (e.g., working on any path that could
+// trigger dependency changes). Returns the expanded scope.
+func ExpandScopeWithImplicitPaths(requestedScope []string) []string {
+	if len(requestedScope) == 0 {
+		// Entire scenario scope - implicit paths already covered
+		return requestedScope
+	}
+
+	// Create a map for deduplication
+	scopeMap := make(map[string]bool)
+	for _, path := range requestedScope {
+		scopeMap[path] = true
+	}
+
+	// Add shared dependency files to the scope
+	// These are always at the root of the scenario, so just use the filename
+	for _, depFile := range SharedDependencyFiles {
+		scopeMap[depFile] = true
+	}
+
+	// Convert back to slice
+	expanded := make([]string, 0, len(scopeMap))
+	for path := range scopeMap {
+		expanded = append(expanded, path)
+	}
+
+	return expanded
 }
 
 // Register creates a new agent and acquires scope locks.
@@ -151,9 +239,13 @@ func (s *AgentService) Register(ctx context.Context, input CreateAgentInput) (*S
 		input.ID = generateAgentID()
 	}
 
-	// Check for scope conflicts first
-	if len(input.Scope) > 0 {
-		conflicts, err := s.repo.CheckConflicts(ctx, input.Scenario, input.Scope)
+	// Expand scope to include implicit shared paths (dependency files)
+	// This prevents conflicts when multiple agents might modify shared files
+	expandedScope := ExpandScopeWithImplicitPaths(input.Scope)
+
+	// Check for scope conflicts first (using expanded scope)
+	if len(expandedScope) > 0 {
+		conflicts, err := s.repo.CheckConflicts(ctx, input.Scenario, expandedScope)
 		if err != nil {
 			return nil, fmt.Errorf("check conflicts: %w", err)
 		}
@@ -176,16 +268,16 @@ func (s *AgentService) Register(ctx context.Context, input CreateAgentInput) (*S
 		}
 	}
 
-	// Create the agent record
+	// Create the agent record (with original scope for display, not expanded)
 	agent, err := s.repo.Create(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("create agent: %w", err)
 	}
 
-	// Acquire scope locks if paths are specified
-	if len(input.Scope) > 0 {
+	// Acquire scope locks using expanded scope (includes shared files)
+	if len(expandedScope) > 0 {
 		expiresAt := time.Now().Add(s.lockTimeout)
-		if err := s.repo.AcquireLocks(ctx, agent.ID, input.Scenario, input.Scope, expiresAt); err != nil {
+		if err := s.repo.AcquireLocks(ctx, agent.ID, input.Scenario, expandedScope, expiresAt); err != nil {
 			// Clean up the agent if lock acquisition fails
 			_ = s.repo.Delete(ctx, agent.ID)
 			return nil, fmt.Errorf("acquire locks: %w", err)
@@ -339,7 +431,7 @@ func (s *AgentService) CleanupCompleted(ctx context.Context, olderThan time.Dura
 }
 
 // SetAgentProcess stores the cancel function and command for an agent.
-// This allows the agent to be stopped later.
+// This allows the agent to be stopped later. Also records PID in the database.
 func (s *AgentService) SetAgentProcess(id string, cancel context.CancelFunc, cmd interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -347,6 +439,16 @@ func (s *AgentService) SetAgentProcess(id string, cancel context.CancelFunc, cmd
 		Cancel: cancel,
 		Cmd:    cmd,
 	}
+}
+
+// SetAgentPID records the process ID and hostname in the database for orphan detection.
+// Should be called after the process starts.
+func (s *AgentService) SetAgentPID(ctx context.Context, id string, pid int) error {
+	hostname, _ := os.Hostname()
+	return s.repo.Update(ctx, id, UpdateAgentInput{
+		PID:      &pid,
+		Hostname: &hostname,
+	})
 }
 
 // HashPrompt creates a deterministic hash of a prompt for deduplication.
@@ -395,4 +497,34 @@ func (s *AgentService) GetFileOperations(ctx context.Context, agentID string) ([
 // GetFileOperationsForScenario returns file operations for a scenario.
 func (s *AgentService) GetFileOperationsForScenario(ctx context.Context, scenario string, limit int) ([]*FileOperation, error) {
 	return s.repo.GetFileOperationsForScenario(ctx, scenario, limit)
+}
+
+// CreateSpawnSession creates a new server-side spawn session for tracking.
+func (s *AgentService) CreateSpawnSession(ctx context.Context, input CreateSpawnSessionInput) (*SpawnSession, error) {
+	return s.repo.CreateSpawnSession(ctx, input)
+}
+
+// GetActiveSpawnSessions returns active spawn sessions for a user.
+func (s *AgentService) GetActiveSpawnSessions(ctx context.Context, userIdentifier, scenario string) ([]*SpawnSession, error) {
+	return s.repo.GetActiveSpawnSessions(ctx, userIdentifier, scenario)
+}
+
+// CheckSpawnSessionConflicts checks for conflicting spawn sessions (server-side).
+func (s *AgentService) CheckSpawnSessionConflicts(ctx context.Context, userIdentifier, scenario string, scope []string) ([]SpawnSessionConflict, error) {
+	return s.repo.CheckSpawnSessionConflicts(ctx, userIdentifier, scenario, scope)
+}
+
+// UpdateSpawnSessionStatus updates the status of a spawn session.
+func (s *AgentService) UpdateSpawnSessionStatus(ctx context.Context, sessionID int, status string) error {
+	return s.repo.UpdateSpawnSessionStatus(ctx, sessionID, status)
+}
+
+// ClearSpawnSessions clears all active spawn sessions for a user.
+func (s *AgentService) ClearSpawnSessions(ctx context.Context, userIdentifier string) (int64, error) {
+	return s.repo.ClearSpawnSessions(ctx, userIdentifier)
+}
+
+// CleanupExpiredSpawnSessions removes expired spawn sessions.
+func (s *AgentService) CleanupExpiredSpawnSessions(ctx context.Context) (int64, error) {
+	return s.repo.CleanupExpiredSpawnSessions(ctx)
 }

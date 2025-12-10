@@ -18,7 +18,11 @@ import {
   WifiOff,
   Search,
   Filter,
-  X
+  X,
+  FileText,
+  Copy,
+  Check,
+  RotateCcw
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
@@ -26,6 +30,7 @@ import {
   stopAgent,
   stopAllAgents,
   cleanupAgents,
+  spawnAgents,
   parseAgentStructuredOutput,
   hasStructuredOutput,
   type ActiveAgent,
@@ -227,6 +232,8 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [scenarioFilter, setScenarioFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewingPromptAgent, setViewingPromptAgent] = useState<ActiveAgent | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
   const queryClient = useQueryClient();
   const { isConnected } = useWebSocket();
 
@@ -284,6 +291,25 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
 
   const cleanupMutation = useMutation({
     mutationFn: () => cleanupAgents(60),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["active-agents"] });
+    }
+  });
+
+  // Retry mutation for re-spawning failed agents
+  const retryMutation = useMutation({
+    mutationFn: async (agent: ActiveAgent) => {
+      if (!agent.promptText) {
+        throw new Error("No prompt text available for retry");
+      }
+      return spawnAgents({
+        prompts: [agent.promptText],
+        model: agent.model,
+        scenario: agent.scenario,
+        scope: agent.scope,
+        phases: agent.phases,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["active-agents"] });
     }
@@ -615,6 +641,18 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {agent.promptText && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewingPromptAgent(agent)}
+                      className="text-slate-300 border-white/20 hover:bg-white/10"
+                      title="View prompt"
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      Prompt
+                    </Button>
+                  )}
                   {isActive && (
                     <Button
                       variant="outline"
@@ -625,6 +663,20 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
                     >
                       <Square className="h-3 w-3 mr-1" />
                       Stop
+                    </Button>
+                  )}
+                  {/* Retry button for failed/timeout/stopped agents */}
+                  {!isActive && agent.status !== "completed" && agent.promptText && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => retryMutation.mutate(agent)}
+                      disabled={retryMutation.isPending}
+                      className="text-amber-400 border-amber-400/50 hover:bg-amber-400/10"
+                      title="Retry this agent with the same prompt"
+                    >
+                      <RotateCcw className={cn("h-3 w-3 mr-1", retryMutation.isPending && "animate-spin")} />
+                      Retry
                     </Button>
                   )}
                   <Button
@@ -678,6 +730,28 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
                       <code className="ml-2 text-xs text-slate-300 bg-white/5 px-1 rounded">
                         {agent.sessionId}
                       </code>
+                    </div>
+                  )}
+
+                  {/* Process info for debugging */}
+                  {(agent.pid || agent.hostname) && (
+                    <div className="flex items-center gap-4">
+                      {agent.pid && (
+                        <div>
+                          <span className="text-xs text-slate-400">PID:</span>
+                          <code className="ml-2 text-xs text-slate-300 bg-white/5 px-1 rounded">
+                            {agent.pid}
+                          </code>
+                        </div>
+                      )}
+                      {agent.hostname && (
+                        <div>
+                          <span className="text-xs text-slate-400">Host:</span>
+                          <code className="ml-2 text-xs text-slate-300 bg-white/5 px-1 rounded">
+                            {agent.hostname}
+                          </code>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -746,6 +820,86 @@ export function ActiveAgentsPanel({ scenario, scope, onConflictDetected, onAgent
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Prompt Viewing Modal */}
+      {viewingPromptAgent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl max-h-[80vh] mx-4 rounded-2xl border border-white/20 bg-slate-900 shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-cyan-400" />
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Agent Prompt</h3>
+                  <p className="text-xs text-slate-400">
+                    {viewingPromptAgent.scenario} • Agent #{viewingPromptAgent.id}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (viewingPromptAgent.promptText) {
+                      navigator.clipboard.writeText(viewingPromptAgent.promptText);
+                      setPromptCopied(true);
+                      setTimeout(() => setPromptCopied(false), 2000);
+                    }
+                  }}
+                  className="text-slate-300 border-white/20 hover:bg-white/10"
+                >
+                  {promptCopied ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1 text-emerald-400" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewingPromptAgent(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Prompt Content */}
+            <div className="flex-1 overflow-auto p-4">
+              <pre className="text-sm text-slate-200 whitespace-pre-wrap font-mono leading-relaxed">
+                {viewingPromptAgent.promptText}
+              </pre>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-white/10 bg-white/[0.02]">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>
+                  Started: {new Date(viewingPromptAgent.startedAt).toLocaleString()}
+                </span>
+                <span>
+                  Status: <span className={cn(
+                    viewingPromptAgent.status === "completed" ? "text-emerald-400" :
+                    viewingPromptAgent.status === "failed" ? "text-rose-400" :
+                    viewingPromptAgent.status === "running" ? "text-cyan-400" :
+                    "text-slate-400"
+                  )}>
+                    {viewingPromptAgent.status}
+                  </span>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -3,6 +3,8 @@ package httpserver
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"test-genie/internal/agents"
+	"test-genie/internal/containment"
 	"test-genie/internal/shared"
 )
 
@@ -222,7 +225,7 @@ func normalizeAgentModels(models []agentModel) []agentModel {
 
 type agentSpawnRequest struct {
 	Prompts         []string `json:"prompts"`
-	Preamble        string   `json:"preamble"`         // Immutable safety preamble (server validates)
+	Preamble        string   `json:"preamble"` // Immutable safety preamble (server validates)
 	Model           string   `json:"model"`
 	Concurrency     int      `json:"concurrency"`
 	MaxTurns        int      `json:"maxTurns"`
@@ -232,9 +235,10 @@ type agentSpawnRequest struct {
 	Scenario        string   `json:"scenario"`
 	Scope           []string `json:"scope"`
 	Phases          []string `json:"phases"`
-	IdempotencyKey  string   `json:"idempotencyKey"`   // Client-provided key for deduplication
-	MaxFilesChanged int      `json:"maxFilesChanged"`  // Max files an agent can modify (0 = default 50)
-	MaxBytesWritten int64    `json:"maxBytesWritten"`  // Max total bytes written (0 = default 1MB)
+	IdempotencyKey  string   `json:"idempotencyKey"`  // Client-provided key for deduplication
+	MaxFilesChanged int      `json:"maxFilesChanged"` // Max files an agent can modify (0 = default 50)
+	MaxBytesWritten int64    `json:"maxBytesWritten"` // Max total bytes written (0 = default 1MB)
+	NetworkEnabled  bool     `json:"networkEnabled"`  // Enable network access for agents (default: false)
 }
 
 const (
@@ -353,7 +357,7 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 	repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
 	maxFiles := payload.MaxFilesChanged
 	maxBytes := payload.MaxBytesWritten
-	serverPreamble := generateSafetyPreamble(scenario, payload.Scope, repoRoot, maxFiles, maxBytes)
+	serverPreamble := generateSafetyPreamble(scenario, payload.Scope, repoRoot, maxFiles, maxBytes, payload.NetworkEnabled)
 
 	// If client provided a preamble, validate it matches (modulo whitespace)
 	if payload.Preamble != "" {
@@ -456,6 +460,34 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// SECURITY: Check for server-side spawn session conflicts
+	// This prevents duplicate spawns across browser tabs/windows
+	userIdentifier := getUserIdentifier(r)
+	sessionConflicts, err := s.agentService.CheckSpawnSessionConflicts(r.Context(), userIdentifier, scenario, payload.Scope)
+	if err != nil {
+		s.log("failed to check spawn session conflicts", map[string]interface{}{
+			"error":          err.Error(),
+			"userIdentifier": userIdentifier,
+			"scenario":       scenario,
+		})
+		// Non-fatal: continue with spawn even if session tracking fails
+	} else if len(sessionConflicts) > 0 {
+		// Return conflict info for UI to display
+		s.log("spawn session conflict detected", map[string]interface{}{
+			"userIdentifier": userIdentifier,
+			"scenario":       scenario,
+			"conflictCount":  len(sessionConflicts),
+		})
+		response := agentSpawnResponse{
+			Items:           []agentSpawnResult{},
+			Count:           0,
+			Capped:          capped,
+			ValidationError: fmt.Sprintf("You already have %d active spawn session(s) for this scenario. Clear them to spawn new agents.", len(sessionConflicts)),
+		}
+		s.writeJSON(w, http.StatusConflict, response)
+		return
+	}
+
 	// Normalize concurrency
 	concurrency := payload.Concurrency
 	if concurrency <= 0 {
@@ -523,6 +555,7 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 				TimeoutSeconds: payload.TimeoutSeconds,
 				AllowedTools:   sanitizedTools,
 				Scenario:       scenario,
+				NetworkEnabled: payload.NetworkEnabled,
 			}, text, i, agent.ID)
 
 			// Update service with result
@@ -541,6 +574,42 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 
 	wg.Wait()
 
+	// Collect agent IDs for session tracking
+	agentIDs := make([]string, 0, len(results))
+	for _, res := range results {
+		if res.AgentID != "" {
+			agentIDs = append(agentIDs, res.AgentID)
+		}
+	}
+
+	// Create server-side spawn session for tracking
+	// This enables cross-tab conflict detection
+	if len(agentIDs) > 0 {
+		_, err := s.agentService.CreateSpawnSession(r.Context(), agents.CreateSpawnSessionInput{
+			UserIdentifier: userIdentifier,
+			Scenario:       scenario,
+			Scope:          payload.Scope,
+			Phases:         payload.Phases,
+			AgentIDs:       agentIDs,
+			TTL:            30 * time.Minute, // Sessions expire after 30 minutes
+		})
+		if err != nil {
+			s.log("failed to create spawn session", map[string]interface{}{
+				"error":          err.Error(),
+				"userIdentifier": userIdentifier,
+				"scenario":       scenario,
+				"agentCount":     len(agentIDs),
+			})
+			// Non-fatal: spawn succeeded, just tracking failed
+		} else {
+			s.log("spawn session created", map[string]interface{}{
+				"userIdentifier": userIdentifier,
+				"scenario":       scenario,
+				"agentCount":     len(agentIDs),
+			})
+		}
+	}
+
 	response := agentSpawnResponse{
 		Items:  results,
 		Count:  len(results),
@@ -551,12 +620,6 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 	if idempotencyKey != "" {
 		// Serialize successful results for caching
 		resultJSON, _ := json.Marshal(response)
-		agentIDs := make([]string, 0, len(results))
-		for _, r := range results {
-			if r.AgentID != "" {
-				agentIDs = append(agentIDs, r.AgentID)
-			}
-		}
 		firstAgentID := ""
 		if len(agentIDs) > 0 {
 			firstAgentID = agentIDs[0]
@@ -584,7 +647,8 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 
 	// Determine the scenario directory for file access scoping
 	var scenarioDir string
-	if repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); repoRoot != "" {
+	repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	if repoRoot != "" {
 		if scenario := strings.TrimSpace(payload.Scenario); scenario != "" {
 			candidateDir := filepath.Join(repoRoot, "scenarios", scenario)
 			if info, err := os.Stat(candidateDir); err == nil && info.IsDir() {
@@ -611,25 +675,117 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 		runCtx, cancel = context.WithCancel(ctx)
 	}
 
-	cmd := exec.CommandContext(runCtx, "resource-opencode", args...)
-	// Set working directory to match the scoped directory
-	if scenarioDir != "" {
-		cmd.Dir = scenarioDir
-	}
+	// SECURITY: Use containment system when available
+	// This provides OS-level isolation (Docker, bubblewrap) in addition to tool-level restrictions
+	dockerProvider := containment.NewDockerProvider()
+	fallbackProvider := containment.NewFallbackProvider()
+	containmentMgr := containment.NewManager(
+		[]containment.Provider{dockerProvider},
+		fallbackProvider,
+	)
+	provider := containmentMgr.SelectProvider(runCtx)
 
-	// Inject environment variables for agent context
-	// This allows agents to use these in their commands without hardcoding paths
-	repoRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	cmd.Env = os.Environ() // Inherit existing environment
+	// Build environment variables for agent context
+	envVars := map[string]string{}
 	if repoRoot != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("VROOLI_ROOT=%s", repoRoot))
+		envVars["VROOLI_ROOT"] = repoRoot
 	}
 	if scenarioDir != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("SCENARIO_ROOT=%s", scenarioDir))
+		envVars["SCENARIO_ROOT"] = scenarioDir
 	}
 	if payload.Scenario != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("SCENARIO_NAME=%s", payload.Scenario))
+		envVars["SCENARIO_NAME"] = payload.Scenario
 	}
+	// Copy existing env vars that might be needed
+	for _, env := range os.Environ() {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) == 2 {
+			key := parts[0]
+			// Only copy specific vars to avoid leaking sensitive info
+			switch key {
+			case "PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "LC_ALL",
+				"OPENROUTER_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY":
+				if _, exists := envVars[key]; !exists {
+					envVars[key] = parts[1]
+				}
+			}
+		}
+	}
+
+	// Build the full command with resource-opencode
+	fullCommand := append([]string{"resource-opencode"}, args...)
+
+	// Configure containment execution
+	execConfig := containment.ExecutionConfig{
+		WorkingDir: scenarioDir,
+		// SECURITY: Only allow access to the scenario directory and common read-only paths
+		AllowedPaths: []string{}, // Working dir is already allowed
+		ReadOnlyPaths: []string{
+			"/usr/bin", "/usr/local/bin", // For test tools
+			"/etc/ssl",                   // For HTTPS
+		},
+		Environment: envVars,
+		// SECURITY: Resource limits to prevent runaway agents
+		MaxMemoryMB:   2048, // 2GB memory limit
+		MaxCPUPercent: 200,  // 2 CPU cores max
+		// Network access controlled by user toggle (default: false)
+		// When disabled, agents cannot make outbound network requests
+		NetworkAccess:  payload.NetworkEnabled,
+		Command:        fullCommand,
+		TimeoutSeconds: payload.TimeoutSeconds + 5,
+	}
+
+	var cmd *exec.Cmd
+	var containmentUsed string
+
+	// Use containment if available (Docker preferred)
+	if provider.Type() != containment.ContainmentTypeNone {
+		preparedCmd, err := provider.PrepareCommand(runCtx, execConfig)
+		if err != nil {
+			s.log("containment preparation failed, falling back", map[string]interface{}{
+				"error":    err.Error(),
+				"provider": string(provider.Type()),
+				"agentId":  agentID,
+			})
+			// Fall through to direct execution
+		} else {
+			cmd = preparedCmd
+			containmentUsed = string(provider.Type())
+			s.log("using containment for agent", map[string]interface{}{
+				"provider":      containmentUsed,
+				"agentId":       agentID,
+				"networkAccess": execConfig.NetworkAccess,
+				"memoryLimit":   execConfig.MaxMemoryMB,
+			})
+		}
+	}
+
+	// Fallback to direct execution if containment not available or failed
+	if cmd == nil {
+		cmd = exec.CommandContext(runCtx, "resource-opencode", args...)
+		containmentUsed = "none"
+		// Set working directory to match the scoped directory
+		if scenarioDir != "" {
+			cmd.Dir = scenarioDir
+		}
+		// Set environment variables directly
+		cmd.Env = os.Environ() // Inherit existing environment
+		for k, v := range envVars {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		}
+		s.log("running agent without containment", map[string]interface{}{
+			"agentId": agentID,
+			"warning": "No OS-level isolation - consider installing Docker",
+		})
+	}
+
+	// Log containment status for audit trail
+	s.log("agent execution config", map[string]interface{}{
+		"agentId":       agentID,
+		"containment":   containmentUsed,
+		"workingDir":    scenarioDir,
+		"networkAccess": execConfig.NetworkAccess,
+	})
 
 	// Store cancel and cmd in agent service for stop functionality
 	s.agentService.SetAgentProcess(agentID, cancel, cmd)
@@ -666,6 +822,14 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 			PromptIndex: index,
 			Status:      string(agents.AgentStatusFailed),
 			Error:       fmt.Sprintf("failed to start command: %v", err),
+		}
+	}
+
+	// Record PID in database for orphan detection on restart
+	if cmd.Process != nil {
+		if pidErr := s.agentService.SetAgentPID(ctx, agentID, cmd.Process.Pid); pidErr != nil {
+			// Log but don't fail - PID tracking is nice-to-have, not critical
+			s.logger.Printf("warning: failed to record PID %d for agent %s: %v", cmd.Process.Pid, agentID, pidErr)
 		}
 	}
 
@@ -820,7 +984,7 @@ func (s *Server) runHeartbeatLoop(ctx context.Context, agentID string) {
 
 // generateSafetyPreamble creates the immutable safety preamble server-side.
 // This ensures the preamble cannot be tampered with by the client.
-func generateSafetyPreamble(scenario string, scope []string, repoRoot string, maxFiles int, maxBytes int64) string {
+func generateSafetyPreamble(scenario string, scope []string, repoRoot string, maxFiles int, maxBytes int64, networkEnabled bool) string {
 	if scenario == "" || repoRoot == "" {
 		return ""
 	}
@@ -848,11 +1012,27 @@ func generateSafetyPreamble(scenario string, scope []string, repoRoot string, ma
 	}
 	maxBytesKB := maxBytes / 1024
 
+	// Network access description
+	networkStatus := "DISABLED (agents cannot make outbound requests)"
+	if networkEnabled {
+		networkStatus = "ENABLED (agents can make outbound requests)"
+	}
+
+	// Build allowed bash commands list
+	validator := NewBashCommandValidator()
+	allowedCmds := validator.GetAllowedCommands()
+	var allowedBashLines []string
+	for _, cmd := range allowedCmds {
+		allowedBashLines = append(allowedBashLines, fmt.Sprintf("  - %s", cmd.Prefix))
+	}
+	allowedBashSection := strings.Join(allowedBashLines, "\n")
+
 	return fmt.Sprintf(`## SECURITY CONSTRAINTS (enforced by system - cannot be modified)
 
 **Working directory:** %s
 **%s**
 **File limits:** Max %d files modified, max %dKB total written
+**Network access:** %s
 
 You MUST NOT:
 - Access files outside %s
@@ -863,11 +1043,14 @@ You MUST NOT:
 - Modify more than %d files in a single run
 - Write more than %dKB of total content
 
-These constraints are enforced at the tool level. Violations will be blocked.
+**Allowed bash commands** (only these command prefixes are permitted):
+%s
+
+All other bash commands will be blocked. Use the built-in tools (read, edit, write, glob, grep) for file operations.
 
 ---
 
-`, scenarioPath, scopeDescription, maxFiles, maxBytesKB, scenarioPath, maxFiles, maxBytesKB)
+`, scenarioPath, scopeDescription, maxFiles, maxBytesKB, networkStatus, scenarioPath, maxFiles, maxBytesKB, allowedBashSection)
 }
 
 func extractSessionID(output string) string {
@@ -895,8 +1078,11 @@ func agentToActiveAgent(a *agents.SpawnedAgent) *ActiveAgent {
 		CompletedAt: a.CompletedAt,
 		PromptHash:  a.PromptHash,
 		PromptIndex: a.PromptIndex,
+		PromptText:  a.PromptText,
 		Output:      a.Output,
 		Error:       a.Error,
+		PID:         a.PID,
+		Hostname:    a.Hostname,
 	}
 }
 
@@ -1192,6 +1378,54 @@ func (s *Server) handleGetBlockedCommands(w http.ResponseWriter, r *http.Request
 	s.writeJSON(w, http.StatusOK, response)
 }
 
+// handleContainmentStatus returns the current OS-level containment status.
+// This helps users understand what security measures are in place for agent execution.
+func (s *Server) handleContainmentStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Create containment manager with available providers
+	dockerProvider := containment.NewDockerProvider()
+	fallbackProvider := containment.NewFallbackProvider()
+	manager := containment.NewManager(
+		[]containment.Provider{dockerProvider},
+		fallbackProvider,
+	)
+
+	status := manager.GetStatus(ctx)
+
+	// Get provider info for all registered providers
+	providerInfos := manager.ListProviders(ctx)
+	providers := make([]map[string]interface{}, 0, len(providerInfos))
+	for _, info := range providerInfos {
+		providers = append(providers, map[string]interface{}{
+			"type":          string(info.Type),
+			"name":          info.Name,
+			"description":   info.Description,
+			"securityLevel": info.SecurityLevel,
+			"requirements":  info.Requirements,
+		})
+	}
+
+	// Convert available providers to strings
+	available := make([]string, 0, len(status.AvailableProviders))
+	for _, p := range status.AvailableProviders {
+		available = append(available, string(p))
+	}
+
+	response := map[string]interface{}{
+		"activeProvider":     string(status.ActiveProvider),
+		"availableProviders": available,
+		"securityLevel":      status.SecurityLevel,
+		"maxSecurityLevel":   10,
+		"warnings":           status.Warnings,
+		"providers":          providers,
+		"note": "Containment provides OS-level isolation for agent execution. " +
+			"Higher security levels provide stronger isolation. " +
+			"Docker (level 7) is recommended for production use.",
+	}
+	s.writeJSON(w, http.StatusOK, response)
+}
+
 // handleValidatePromptPaths validates that paths referenced in the prompt exist.
 // This is a pre-flight check before spawning agents to catch configuration errors early.
 func (s *Server) handleValidatePromptPaths(w http.ResponseWriter, r *http.Request) {
@@ -1288,11 +1522,213 @@ func (s *Server) handleValidatePromptPaths(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	// Check required commands exist (pre-flight command validation)
+	commandResults, commandWarnings, commandErrors := validateRequiredCommands(scenario)
+	results = append(results, commandResults...)
+	warnings = append(warnings, commandWarnings...)
+	errors = append(errors, commandErrors...)
+
 	response := map[string]interface{}{
 		"valid":    len(errors) == 0,
 		"paths":    results,
 		"warnings": warnings,
 		"errors":   errors,
+	}
+	s.writeJSON(w, http.StatusOK, response)
+}
+
+// validateRequiredCommands checks that commands the agent might need are available.
+// Returns results, warnings, and errors.
+func validateRequiredCommands(scenario string) ([]map[string]interface{}, []string, []string) {
+	results := make([]map[string]interface{}, 0)
+	warnings := make([]string, 0)
+	errors := make([]string, 0)
+
+	// Required commands that must exist for agent execution
+	requiredCommands := []struct {
+		Command     string
+		Description string
+		Required    bool // If true, blocks spawn; if false, just warns
+	}{
+		{"resource-opencode", "OpenCode CLI for agent execution", true},
+	}
+
+	// Optional commands that enhance agent capabilities (scenario-agnostic)
+	optionalCommands := []struct {
+		Command     string
+		Description string
+	}{
+		{"go", "Go toolchain (for Go scenarios)"},
+		{"pnpm", "pnpm package manager (for Node.js scenarios)"},
+		{"npm", "npm package manager (for Node.js scenarios)"},
+		{"vitest", "Vitest test runner"},
+		{"jest", "Jest test runner"},
+		{"bats", "BATS test runner (for bash tests)"},
+		{"pytest", "Python pytest runner"},
+		{"docker", "Docker (for containment)"},
+	}
+
+	// Check required commands
+	for _, cmd := range requiredCommands {
+		path, err := exec.LookPath(cmd.Command)
+		exists := err == nil
+
+		result := map[string]interface{}{
+			"path":        path,
+			"description": cmd.Description,
+			"exists":      exists,
+			"isDirectory": false,
+			"required":    cmd.Required,
+			"isCommand":   true,
+		}
+		results = append(results, result)
+
+		if !exists {
+			if cmd.Required {
+				errors = append(errors, fmt.Sprintf("%s not found: %s is required for agent execution", cmd.Description, cmd.Command))
+			} else {
+				warnings = append(warnings, fmt.Sprintf("%s not found: %s (some functionality may be limited)", cmd.Description, cmd.Command))
+			}
+		}
+	}
+
+	// Check optional commands (just informational, no errors)
+	availableOptional := make([]string, 0)
+	for _, cmd := range optionalCommands {
+		path, err := exec.LookPath(cmd.Command)
+		exists := err == nil
+
+		result := map[string]interface{}{
+			"path":        path,
+			"description": cmd.Description,
+			"exists":      exists,
+			"isDirectory": false,
+			"required":    false,
+			"isCommand":   true,
+		}
+		results = append(results, result)
+
+		if exists {
+			availableOptional = append(availableOptional, cmd.Command)
+		}
+	}
+
+	// Add a summary note about available tools
+	if len(availableOptional) > 0 {
+		warnings = append(warnings, fmt.Sprintf("Available test tools: %s", strings.Join(availableOptional, ", ")))
+	}
+
+	return results, warnings, errors
+}
+
+// getUserIdentifier extracts a user identifier from the request for session tracking.
+// Priority: X-User-ID header > X-API-Key header > X-Forwarded-For > RemoteAddr
+func getUserIdentifier(r *http.Request) string {
+	// Check for explicit user ID (from authenticated requests)
+	if userID := r.Header.Get("X-User-ID"); userID != "" {
+		return "user:" + userID
+	}
+
+	// Check for API key (from programmatic access)
+	if apiKey := r.Header.Get("X-API-Key"); apiKey != "" {
+		// Hash the API key to avoid storing it directly
+		h := sha256.New()
+		h.Write([]byte(apiKey))
+		return "apikey:" + hex.EncodeToString(h.Sum(nil))[:16]
+	}
+
+	// Fall back to IP address
+	ip := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		// Take the first IP in the chain (client IP)
+		parts := strings.Split(forwarded, ",")
+		ip = strings.TrimSpace(parts[0])
+	}
+
+	// Strip port if present
+	if idx := strings.LastIndex(ip, ":"); idx != -1 {
+		// Handle IPv6 addresses in brackets
+		if !strings.Contains(ip[idx:], "]") {
+			ip = ip[:idx]
+		}
+	}
+
+	return "ip:" + ip
+}
+
+// handleCheckSpawnSessionConflicts checks for server-side spawn session conflicts.
+func (s *Server) handleCheckSpawnSessionConflicts(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var payload struct {
+		Scenario string   `json:"scenario"`
+		Scope    []string `json:"scope"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "invalid JSON payload")
+		return
+	}
+
+	scenario := strings.TrimSpace(payload.Scenario)
+	if scenario == "" {
+		s.writeError(w, http.StatusBadRequest, "scenario is required")
+		return
+	}
+
+	userIdentifier := getUserIdentifier(r)
+
+	conflicts, err := s.agentService.CheckSpawnSessionConflicts(r.Context(), userIdentifier, scenario, payload.Scope)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to check spawn session conflicts: %s", err.Error()))
+		return
+	}
+
+	response := map[string]interface{}{
+		"hasConflicts":   len(conflicts) > 0,
+		"conflicts":      conflicts,
+		"userIdentifier": userIdentifier, // Return so UI knows which identifier is being used
+	}
+	s.writeJSON(w, http.StatusOK, response)
+}
+
+// handleGetSpawnSessions returns active spawn sessions for the current user.
+func (s *Server) handleGetSpawnSessions(w http.ResponseWriter, r *http.Request) {
+	scenario := r.URL.Query().Get("scenario")
+	userIdentifier := getUserIdentifier(r)
+
+	sessions, err := s.agentService.GetActiveSpawnSessions(r.Context(), userIdentifier, scenario)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to get spawn sessions: %s", err.Error()))
+		return
+	}
+
+	response := map[string]interface{}{
+		"sessions":       sessions,
+		"count":          len(sessions),
+		"userIdentifier": userIdentifier,
+	}
+	s.writeJSON(w, http.StatusOK, response)
+}
+
+// handleClearSpawnSessions clears all active spawn sessions for the current user.
+func (s *Server) handleClearSpawnSessions(w http.ResponseWriter, r *http.Request) {
+	userIdentifier := getUserIdentifier(r)
+
+	cleared, err := s.agentService.ClearSpawnSessions(r.Context(), userIdentifier)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to clear spawn sessions: %s", err.Error()))
+		return
+	}
+
+	s.log("spawn sessions cleared", map[string]interface{}{
+		"userIdentifier": userIdentifier,
+		"clearedCount":   cleared,
+	})
+
+	response := map[string]interface{}{
+		"message":        "spawn sessions cleared",
+		"clearedCount":   cleared,
+		"userIdentifier": userIdentifier,
 	}
 	s.writeJSON(w, http.StatusOK, response)
 }

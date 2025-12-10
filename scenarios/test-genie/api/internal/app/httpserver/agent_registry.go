@@ -39,10 +39,14 @@ type ActiveAgent struct {
 	CompletedAt *time.Time  `json:"completedAt,omitempty"`
 	PromptHash  string      `json:"promptHash"`
 	PromptIndex int         `json:"promptIndex"`
+	PromptText  string      `json:"promptText,omitempty"` // Full prompt text for display
 	Output      string      `json:"output,omitempty"`
 	Error       string      `json:"error,omitempty"`
-	cancel      context.CancelFunc
-	cmd         *exec.Cmd
+	// Process tracking for orphan detection
+	PID      int    `json:"pid,omitempty"`
+	Hostname string `json:"hostname,omitempty"`
+	cancel   context.CancelFunc
+	cmd      *exec.Cmd
 }
 
 // ScopeLock represents a lock on a set of paths within a scenario.
@@ -466,16 +470,15 @@ func NewBashCommandValidator() *BashCommandValidator {
 			{Prefix: "pnpm run typecheck", Description: "pnpm typecheck script"},
 			{Prefix: "tsc", Description: "TypeScript compiler"},
 			// Safe inspection commands
+			// SECURITY: cat, head, tail removed - they can read arbitrary files outside scope.
+			// Agents should use the Read tool which respects scope boundaries.
+			// SECURITY: echo removed - can write files via redirection (echo "x" > file).
+			// SECURITY: find removed from general allowlist - restricted via safeGlobPrefixes.
 			{Prefix: "ls", Description: "List directory"},
 			{Prefix: "pwd", Description: "Print working directory"},
 			{Prefix: "which", Description: "Locate command"},
-			{Prefix: "echo", Description: "Print text"},
-			{Prefix: "cat", Description: "Show file contents"},
-			{Prefix: "head", Description: "Show file head"},
-			{Prefix: "tail", Description: "Show file tail"},
 			{Prefix: "wc", Description: "Word count"},
 			{Prefix: "diff", Description: "Compare files"},
-			{Prefix: "find", Description: "Find files"},
 			// Git read-only commands
 			{Prefix: "git status", Description: "Git status"},
 			{Prefix: "git diff", Description: "Git diff"},
@@ -532,21 +535,23 @@ func NewBashCommandValidator() *BashCommandValidator {
 
 // safeGlobPrefixes defines which commands are safe to use with glob patterns.
 // These are isolated test runners that don't read arbitrary files.
+// SECURITY: Only test runners are allowed - they operate within the test framework's scope.
+// Commands like find are NOT included as they can traverse outside the allowed directory.
 var safeGlobPrefixes = map[string]bool{
-	"bats":              true,
-	"go test":           true,
-	"pytest":            true,
-	"python -m pytest":  true,
-	"vitest":            true,
-	"jest":              true,
-	"pnpm test":         true,
-	"npm test":          true,
-	"pnpm run test":     true,
-	"npm run test":      true,
-	"make test":         true,
-	"make check":        true,
-	"ls":                true, // ls with globs is safe
-	"find":              true, // find is designed for path traversal
+	"bats":             true,
+	"go test":          true,
+	"pytest":           true,
+	"python -m pytest": true,
+	"vitest":           true,
+	"jest":             true,
+	"pnpm test":        true,
+	"npm test":         true,
+	"pnpm run test":    true,
+	"npm run test":     true,
+	"make test":        true,
+	"make check":       true,
+	"ls":               true, // ls with globs is safe (shows filenames only)
+	// SECURITY: find removed - can traverse outside allowed paths and list sensitive directories
 }
 
 // ValidateBashPattern checks if a bash pattern from bash(...) syntax contains only allowed commands.

@@ -116,14 +116,14 @@ func New(config Config, opts ...Option) *Runner {
 	if r.cliValidator == nil && r.commandExecutor != nil && r.commandCapture != nil {
 		r.cliValidator = cli.New(
 			cli.Config{
-				ScenarioDir:          config.ScenarioDir,
-				ScenarioName:         config.ScenarioName,
-				HelpArgs:             config.CLI.HelpArgs,
-				VersionArgs:          config.CLI.VersionArgs,
+				ScenarioDir:           config.ScenarioDir,
+				ScenarioName:          config.ScenarioName,
+				HelpArgs:              config.CLI.HelpArgs,
+				VersionArgs:           config.CLI.VersionArgs,
 				RequireVersionKeyword: config.CLI.RequireVersionKeyword,
-				CheckUnknownCommand:  config.CLI.CheckUnknownCommand,
-				CheckNoArgs:          config.CLI.CheckNoArgs,
-				NoArgsTimeoutMs:      config.CLI.NoArgsTimeoutMs,
+				CheckUnknownCommand:   config.CLI.CheckUnknownCommand,
+				CheckNoArgs:           config.CLI.CheckNoArgs,
+				NoArgsTimeoutMs:       config.CLI.NoArgsTimeoutMs,
 			},
 			cli.WithLogger(r.logWriter),
 			cli.WithExecutor(cli.AdaptExecutor(r.commandExecutor)),

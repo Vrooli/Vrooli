@@ -172,10 +172,15 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/agents/validate-paths", s.handleValidatePromptPaths).Methods("POST")
 	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
 	apiRouter.HandleFunc("/agents/cleanup", s.handleCleanupAgents).Methods("POST")
+	apiRouter.HandleFunc("/agents/containment-status", s.handleContainmentStatus).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")
 	apiRouter.HandleFunc("/agents/{id}/stop", s.handleStopAgent).Methods("POST")
 	apiRouter.HandleFunc("/agents/{id}/heartbeat", s.handleAgentHeartbeat).Methods("POST")
 	apiRouter.HandleFunc("/agents/stop-all", s.handleStopAllAgents).Methods("POST")
+	// Server-side spawn session tracking (prevents duplicate spawns across browser tabs)
+	apiRouter.HandleFunc("/agents/spawn-sessions", s.handleGetSpawnSessions).Methods("GET")
+	apiRouter.HandleFunc("/agents/spawn-sessions/check-conflicts", s.handleCheckSpawnSessionConflicts).Methods("POST")
+	apiRouter.HandleFunc("/agents/spawn-sessions/clear", s.handleClearSpawnSessions).Methods("POST")
 
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")

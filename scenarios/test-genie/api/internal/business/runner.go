@@ -201,4 +201,3 @@ func (r *Runner) failFromResult(result Result, observations []Observation) *RunR
 		Observations: append(observations, result.Observations...),
 	}
 }
-

@@ -145,10 +145,10 @@ func TestLintSummary_String(t *testing.T) {
 		{
 			name: "multiple languages",
 			summary: LintSummary{
-				GoChecked:     true,
-				NodeChecked:   true,
-				GoIssues:      1,
-				NodeIssues:    3,
+				GoChecked:   true,
+				NodeChecked: true,
+				GoIssues:    1,
+				NodeIssues:  3,
 			},
 			contains: "Go: 1 issues",
 		},

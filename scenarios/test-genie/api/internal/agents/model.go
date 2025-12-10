@@ -44,6 +44,10 @@ type SpawnedAgent struct {
 	CreatedAt      time.Time   `json:"createdAt"`
 	UpdatedAt      time.Time   `json:"updatedAt"`
 
+	// Process tracking for orphan detection
+	PID      int    `json:"pid,omitempty"`      // OS process ID when running
+	Hostname string `json:"hostname,omitempty"` // Host where the process runs
+
 	// Runtime-only fields (not persisted)
 	Cancel context.CancelFunc `json:"-"`
 	Cmd    *exec.Cmd          `json:"-"`
@@ -94,6 +98,8 @@ type UpdateAgentInput struct {
 	SessionID *string
 	Output    *string
 	Error     *string
+	PID       *int    // Process ID for tracking
+	Hostname  *string // Host where process runs
 }
 
 // AgentListOptions controls filtering and pagination for agent queries.
@@ -140,6 +146,41 @@ type FileOperationInput struct {
 	ContentHash   string
 	ContentBefore string
 	ContentAfter  string
+}
+
+// SpawnSession represents a server-side session tracking spawn activity.
+// This replaces browser-only sessionStorage for cross-tab/browser conflict detection.
+type SpawnSession struct {
+	ID             int       `json:"id"`
+	UserIdentifier string    `json:"userIdentifier"` // IP address, API key, or user ID
+	Scenario       string    `json:"scenario"`
+	Scope          []string  `json:"scope"`
+	Phases         []string  `json:"phases"`
+	AgentIDs       []string  `json:"agentIds"`
+	Status         string    `json:"status"` // "active", "completed", "failed", "cleared"
+	CreatedAt      time.Time `json:"createdAt"`
+	ExpiresAt      time.Time `json:"expiresAt"`
+	LastActivityAt time.Time `json:"lastActivityAt"`
+}
+
+// CreateSpawnSessionInput contains data for creating a spawn session.
+type CreateSpawnSessionInput struct {
+	UserIdentifier string
+	Scenario       string
+	Scope          []string
+	Phases         []string
+	AgentIDs       []string
+	TTL            time.Duration
+}
+
+// SpawnSessionConflict provides details about a conflicting spawn session.
+type SpawnSessionConflict struct {
+	SessionID int       `json:"sessionId"`
+	Scenario  string    `json:"scenario"`
+	Scope     []string  `json:"scope"`
+	AgentIDs  []string  `json:"agentIds"`
+	CreatedAt time.Time `json:"createdAt"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 // AgentRepository defines the interface for agent persistence.
@@ -204,4 +245,22 @@ type AgentRepository interface {
 
 	// GetFileOperationsForScenario returns file operations for a scenario.
 	GetFileOperationsForScenario(ctx context.Context, scenario string, limit int) ([]*FileOperation, error)
+
+	// CreateSpawnSession creates a new server-side spawn session.
+	CreateSpawnSession(ctx context.Context, input CreateSpawnSessionInput) (*SpawnSession, error)
+
+	// GetActiveSpawnSessions returns active spawn sessions for a user/scenario.
+	GetActiveSpawnSessions(ctx context.Context, userIdentifier, scenario string) ([]*SpawnSession, error)
+
+	// CheckSpawnSessionConflicts checks for conflicting active spawn sessions.
+	CheckSpawnSessionConflicts(ctx context.Context, userIdentifier, scenario string, scope []string) ([]SpawnSessionConflict, error)
+
+	// UpdateSpawnSessionStatus updates the status of a spawn session.
+	UpdateSpawnSessionStatus(ctx context.Context, sessionID int, status string) error
+
+	// ClearSpawnSessions marks all active spawn sessions for a user as cleared.
+	ClearSpawnSessions(ctx context.Context, userIdentifier string) (int64, error)
+
+	// CleanupExpiredSpawnSessions removes expired spawn sessions.
+	CleanupExpiredSpawnSessions(ctx context.Context) (int64, error)
 }

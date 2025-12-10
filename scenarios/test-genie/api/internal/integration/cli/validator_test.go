@@ -46,8 +46,8 @@ func TestValidator_SuccessWithVersionKeyword(t *testing.T) {
 
 	v := New(
 		Config{
-			ScenarioDir:          h.scenarioDir,
-			ScenarioName:         h.scenarioName,
+			ScenarioDir:           h.scenarioDir,
+			ScenarioName:          h.scenarioName,
 			RequireVersionKeyword: true,
 		},
 		WithLogger(io.Discard),
@@ -238,10 +238,10 @@ func TestValidator_VersionOutputMissingKeyword(t *testing.T) {
 
 	v := New(
 		Config{
-			ScenarioDir:          h.scenarioDir,
-			ScenarioName:         h.scenarioName,
+			ScenarioDir:           h.scenarioDir,
+			ScenarioName:          h.scenarioName,
 			RequireVersionKeyword: true, // Require "version" keyword
-			CheckNoArgs:          false,
+			CheckNoArgs:           false,
 		},
 		WithLogger(io.Discard),
 		WithExecutor(successExecutor),

@@ -6,87 +6,17 @@ import { PresetSelector } from "./PresetSelector";
 import { ScenarioTargetDialog } from "./ScenarioTargetDialog";
 import { ActiveAgentsPanel } from "./ActiveAgentsPanel";
 import { ConflictPreview } from "./ConflictPreview";
+import { ContainmentBadge } from "./ContainmentBadge";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useUIStore } from "../../stores/uiStore";
 import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
-import { AgentModel, SpawnAgentsResult, ConflictDetail, fetchAgentModels, spawnAgents, checkScopeConflicts, fetchAppConfig, validatePromptPaths, type AppConfig, type ValidatePathsResponse } from "../../lib/api";
+import { AgentModel, SpawnAgentsResult, ConflictDetail, fetchAgentModels, spawnAgents, checkScopeConflicts, fetchAppConfig, validatePromptPaths, fetchContainmentStatus, type AppConfig, type ValidatePathsResponse, type ContainmentStatus } from "../../lib/api";
 
 const MAX_PROMPTS = 12;
 const RECENT_MODEL_STORAGE_KEY = "test-genie-recent-agent-models";
-const SESSION_SPAWNS_KEY = "test-genie-session-spawns";
-
-/**
- * Session-level spawn tracking to prevent accidentally re-spawning agents
- * for the same scope while they're still running or recently completed.
- */
-interface SessionSpawnRecord {
-  scenario: string;
-  scope: string[];
-  phases: string[];
-  agentIds: string[];
-  spawnedAt: string;
-  status: "active" | "completed" | "failed";
-}
-
-function loadSessionSpawns(): SessionSpawnRecord[] {
-  try {
-    const raw = sessionStorage.getItem(SESSION_SPAWNS_KEY);
-    if (raw) {
-      return JSON.parse(raw) as SessionSpawnRecord[];
-    }
-  } catch {
-    // Ignore storage errors
-  }
-  return [];
-}
-
-function saveSessionSpawns(spawns: SessionSpawnRecord[]): void {
-  try {
-    sessionStorage.setItem(SESSION_SPAWNS_KEY, JSON.stringify(spawns));
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-/**
- * Check if there are any session-level conflicts with the requested scope.
- * Returns the conflicting records if any exist.
- */
-function checkSessionConflicts(
-  scenario: string,
-  scope: string[],
-  spawns: SessionSpawnRecord[]
-): SessionSpawnRecord[] {
-  const activeSpawns = spawns.filter(
-    (s) => s.status === "active" && s.scenario === scenario
-  );
-
-  if (activeSpawns.length === 0) return [];
-
-  // If no scope specified (entire scenario), any active spawn for that scenario is a conflict
-  if (scope.length === 0) {
-    return activeSpawns;
-  }
-
-  // Check for path overlap
-  return activeSpawns.filter((spawn) => {
-    // If the previous spawn had no scope (entire scenario), it conflicts with everything
-    if (spawn.scope.length === 0) return true;
-
-    // Check for path overlap between scopes
-    return scope.some((requestedPath) =>
-      spawn.scope.some(
-        (existingPath) =>
-          requestedPath === existingPath ||
-          requestedPath.startsWith(existingPath + "/") ||
-          existingPath.startsWith(requestedPath + "/")
-      )
-    );
-  });
-}
 
 type PromptCombination = {
   id: string;
@@ -109,10 +39,26 @@ const comboId = (targets: string[], phases: string[]) =>
  * Build the immutable safety preamble that enforces constraints.
  * This section CANNOT be edited by users - it's enforced at the system level.
  */
+// Allowed bash command prefixes (must match server-side allowlist in agent_registry.go)
+const ALLOWED_BASH_COMMANDS = [
+  "pnpm test", "pnpm run test", "npm test", "npm run test",
+  "go test", "vitest", "jest", "bats", "make test", "make check",
+  "pytest", "python -m pytest",
+  "pnpm build", "pnpm run build", "npm run build", "go build", "make build", "make",
+  "pnpm lint", "pnpm run lint", "npm run lint", "eslint", "prettier",
+  "gofmt", "gofumpt", "golangci-lint",
+  "pnpm typecheck", "pnpm run typecheck", "tsc",
+  "ls", "pwd", "which", "wc", "diff",
+  "git status", "git diff", "git log", "git show", "git branch"
+];
+
 function buildSafetyPreamble(
   scenarioName: string,
   targetPaths: string[],
-  repoRoot: string
+  repoRoot: string,
+  networkEnabled: boolean = false,
+  maxFiles: number = 50,
+  maxBytes: number = 1024 * 1024
 ): string {
   if (!scenarioName || !repoRoot) {
     return "";
@@ -128,10 +74,19 @@ function buildSafetyPreamble(
     ? `Allowed scope: ${absoluteTargets.join(", ")}`
     : "Allowed scope: entire scenario directory";
 
+  const maxBytesKB = Math.floor(maxBytes / 1024);
+  const networkStatus = networkEnabled
+    ? "ENABLED (agents can make outbound requests)"
+    : "DISABLED (agents cannot make outbound requests)";
+
+  const allowedBashSection = ALLOWED_BASH_COMMANDS.map(cmd => `  - ${cmd}`).join("\n");
+
   return `## SECURITY CONSTRAINTS (enforced by system - cannot be modified)
 
 **Working directory:** ${scenarioPath}
 **${scopeDescription}**
+**File limits:** Max ${maxFiles} files modified, max ${maxBytesKB}KB total written
+**Network access:** ${networkStatus}
 
 You MUST NOT:
 - Access files outside ${scenarioPath}
@@ -139,8 +94,13 @@ You MUST NOT:
 - Modify system configurations, dependencies, or package files
 - Delete or weaken existing tests without explicit rationale in comments
 - Run commands that could affect other scenarios or system state
+- Modify more than ${maxFiles} files in a single run
+- Write more than ${maxBytesKB}KB of total content
 
-These constraints are enforced at the tool level. Violations will be blocked.
+**Allowed bash commands** (only these command prefixes are permitted):
+${allowedBashSection}
+
+All other bash commands will be blocked. Use the built-in tools (read, edit, write, glob, grep) for file operations.
 
 ---
 
@@ -347,11 +307,9 @@ export function GeneratePage() {
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [pathValidation, setPathValidation] = useState<ValidatePathsResponse | null>(null);
+  const [containmentStatus, setContainmentStatus] = useState<ContainmentStatus | null>(null);
+  const [networkEnabled, setNetworkEnabled] = useState(false); // Default: disabled for safety
   const conflictCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Session-level spawn tracking (persists across page reloads within session)
-  const [sessionSpawns, setSessionSpawns] = useState<SessionSpawnRecord[]>(() => loadSessionSpawns());
-  const [sessionConflicts, setSessionConflicts] = useState<SessionSpawnRecord[]>([]);
 
   const hasTargets = targetPaths.length > 0;
 
@@ -395,6 +353,19 @@ export function GeneratePage() {
       }
     };
     loadConfig();
+  }, []);
+
+  // Load containment status on mount
+  useEffect(() => {
+    const loadContainment = async () => {
+      try {
+        const status = await fetchContainmentStatus();
+        setContainmentStatus(status);
+      } catch (err) {
+        console.error("Failed to load containment status:", err);
+      }
+    };
+    loadContainment();
   }, []);
 
   useEffect(() => {
@@ -465,57 +436,6 @@ export function GeneratePage() {
     };
   }, [checkForConflicts]);
 
-  // Check for session-level conflicts when scenario/scope changes
-  useEffect(() => {
-    if (!focusScenario) {
-      setSessionConflicts([]);
-      return;
-    }
-    const conflicts = checkSessionConflicts(focusScenario, targetPaths, sessionSpawns);
-    setSessionConflicts(conflicts);
-  }, [focusScenario, targetPaths, sessionSpawns]);
-
-  // Update session spawns when agents complete (via WebSocket or polling)
-  const updateSessionSpawnStatus = useCallback((agentId: string, status: "completed" | "failed") => {
-    setSessionSpawns((prev) => {
-      const updated = prev.map((spawn) => {
-        if (spawn.agentIds.includes(agentId) && spawn.status === "active") {
-          // Check if all agents in this spawn are done
-          const allDone = spawn.agentIds.every((id) => id === agentId);
-          if (allDone) {
-            return { ...spawn, status };
-          }
-        }
-        return spawn;
-      });
-      saveSessionSpawns(updated);
-      return updated;
-    });
-  }, []);
-
-  // Clear completed/failed session spawns older than 30 minutes
-  useEffect(() => {
-    const cleanup = () => {
-      const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
-      setSessionSpawns((prev) => {
-        const filtered = prev.filter((spawn) => {
-          if (spawn.status === "active") return true;
-          const spawnTime = new Date(spawn.spawnedAt).getTime();
-          return spawnTime > thirtyMinutesAgo;
-        });
-        if (filtered.length !== prev.length) {
-          saveSessionSpawns(filtered);
-        }
-        return filtered;
-      });
-    };
-
-    // Run cleanup on mount and every 5 minutes
-    cleanup();
-    const interval = setInterval(cleanup, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const saveRecentModel = (model: string) => {
     if (!model) return;
     setRecentModels((prev) => {
@@ -570,8 +490,8 @@ export function GeneratePage() {
     const repoRoot = appConfig?.repoRoot ?? "";
     return cappedCombos.map((combo, index) => {
       const id = comboId(combo.targets, combo.phases);
-      // Preamble is immutable - computed from scenario/targets only
-      const preamble = buildSafetyPreamble(focusScenario, combo.targets, repoRoot);
+      // Preamble is immutable - computed from scenario/targets/network settings
+      const preamble = buildSafetyPreamble(focusScenario, combo.targets, repoRoot, networkEnabled);
       // Body is editable - contains task details
       const defaultBody = buildTaskBody(focusScenario, combo.phases, selectedPreset, combo.targets, repoRoot);
       const body = customPrompts[id] ?? defaultBody;
@@ -595,7 +515,7 @@ export function GeneratePage() {
         label: `Prompt ${index + 1} • ${targetLabel} • ${phaseLabel}`
       };
     });
-  }, [cappedCombos, customPrompts, focusScenario, selectedPreset, appConfig]);
+  }, [cappedCombos, customPrompts, focusScenario, selectedPreset, appConfig, networkEnabled]);
 
   useEffect(() => {
     if (!activePromptId && promptItems.length > 0) {
@@ -641,23 +561,6 @@ export function GeneratePage() {
     setScopeConflicts([]);
 
     try {
-      // Check for session-level conflicts first (local tracking)
-      if (focusScenario) {
-        const localConflicts = checkSessionConflicts(focusScenario, targetPaths, sessionSpawns);
-        if (localConflicts.length > 0) {
-          setSessionConflicts(localConflicts);
-          const scopeDescriptions = localConflicts.map((c) =>
-            c.scope.length > 0 ? c.scope.join(", ") : "entire scenario"
-          );
-          setSpawnStatus(
-            `Session conflict: You already spawned agents for overlapping scope in this session (${scopeDescriptions.join("; ")}). ` +
-            `Wait for them to complete, stop them, or clear session history.`
-          );
-          setSpawnBusy(false);
-          return;
-        }
-      }
-
       // Check for scope conflicts before spawning (server-side)
       if (focusScenario) {
         const conflictCheck = await checkScopeConflicts(focusScenario, targetPaths);
@@ -709,7 +612,8 @@ export function GeneratePage() {
         skipPermissions,
         scenario: focusScenario || undefined,
         scope: targetPaths.length > 0 ? targetPaths : undefined,
-        phases: selectedPhases.length > 0 ? selectedPhases : undefined
+        phases: selectedPhases.length > 0 ? selectedPhases : undefined,
+        networkEnabled
       });
 
       // Check for scope conflicts in the response (just agent IDs)
@@ -723,26 +627,6 @@ export function GeneratePage() {
 
       setSpawnResults(res.items ?? []);
       saveRecentModel(agentModel);
-
-      // Record this spawn in session storage for conflict tracking
-      const agentIds = res.items
-        .filter((item) => item.agentId)
-        .map((item) => item.agentId as string);
-      if (agentIds.length > 0 && focusScenario) {
-        const newSpawn: SessionSpawnRecord = {
-          scenario: focusScenario,
-          scope: targetPaths,
-          phases: selectedPhases,
-          agentIds,
-          spawnedAt: new Date().toISOString(),
-          status: "active",
-        };
-        setSessionSpawns((prev) => {
-          const updated = [...prev, newSpawn];
-          saveSessionSpawns(updated);
-          return updated;
-        });
-      }
 
       const cappedNote = res.capped ? " (first batch capped; narrow scope to spawn all)" : "";
       setSpawnStatus(`Spawned ${res.items.length} agent${res.items.length === 1 ? "" : "s"}${cappedNote}.`);
@@ -1103,8 +987,52 @@ export function GeneratePage() {
                 Destructive commands (git checkout, rm -rf, sudo, etc.) are blocked for safety.
               </p>
             </div>
+            <div>
+              <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Network access</label>
+              <div className="mt-1 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNetworkEnabled(!networkEnabled)}
+                  className={cn(
+                    "relative h-6 w-11 rounded-full transition-colors",
+                    networkEnabled
+                      ? "bg-amber-500"
+                      : "bg-slate-600"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                      networkEnabled ? "left-[22px]" : "left-0.5"
+                    )}
+                  />
+                </button>
+                <span className={cn(
+                  "text-sm",
+                  networkEnabled ? "text-amber-300" : "text-slate-400"
+                )}>
+                  {networkEnabled ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+              <p className={cn(
+                "mt-1 text-[11px]",
+                networkEnabled ? "text-amber-400" : "text-slate-400"
+              )}>
+                {networkEnabled
+                  ? "Agents can make outbound network requests. Only enable if needed for API testing."
+                  : "Agents cannot access the network. Safest option for most test generation tasks."
+                }
+              </p>
+            </div>
           </div>
         </div>
+
+        {/* Containment Warning Banner */}
+        {containmentStatus && (containmentStatus.activeProvider === "none" || containmentStatus.securityLevel === 0) && (
+          <div className="mt-4">
+            <ContainmentBadge showWarningBanner={true} />
+          </div>
+        )}
 
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
           <p className="font-semibold text-white">Dispatch summary</p>
@@ -1144,99 +1072,6 @@ export function GeneratePage() {
         </div>
       </section>
 
-      {/* Session Conflict Warning */}
-      {sessionConflicts.length > 0 && (
-        <section className="rounded-2xl border border-purple-400/50 bg-purple-950/20 p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 mt-0.5 text-purple-400">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-purple-100">
-                Session Spawn Conflict
-              </h3>
-              <p className="mt-1 text-sm text-purple-200/80">
-                You already spawned agents for overlapping paths in this browser session.
-                This prevents accidentally spawning duplicate agents.
-              </p>
-
-              <div className="mt-4 space-y-2">
-                {sessionConflicts.map((spawn, idx) => (
-                  <div
-                    key={`${spawn.scenario}-${spawn.spawnedAt}-${idx}`}
-                    className="rounded-xl border border-purple-400/30 bg-purple-950/30 p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-purple-100">
-                        {spawn.scenario}
-                      </span>
-                      <span className="text-xs text-purple-300/70">
-                        {new Date(spawn.spawnedAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {spawn.scope.length > 0 ? (
-                        spawn.scope.slice(0, 4).map((path) => (
-                          <span
-                            key={path}
-                            className="rounded-full border border-purple-400/30 bg-purple-400/10 px-2 py-0.5 text-[10px] text-purple-100 font-mono"
-                          >
-                            {path}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-purple-300/70 italic">
-                          Entire scenario
-                        </span>
-                      )}
-                      {spawn.scope.length > 4 && (
-                        <span className="text-xs text-purple-400/60">
-                          +{spawn.scope.length - 4} more
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 text-xs text-purple-300/60">
-                      Agents: {spawn.agentIds.join(", ")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Mark conflicting spawns as completed to allow re-spawning
-                    setSessionSpawns((prev) => {
-                      const updated = prev.map((spawn) => {
-                        const isConflicting = sessionConflicts.some(
-                          (c) => c.spawnedAt === spawn.spawnedAt && c.scenario === spawn.scenario
-                        );
-                        if (isConflicting) {
-                          return { ...spawn, status: "completed" as const };
-                        }
-                        return spawn;
-                      });
-                      saveSessionSpawns(updated);
-                      return updated;
-                    });
-                    setSessionConflicts([]);
-                  }}
-                  className="rounded-lg border border-purple-400/40 bg-purple-400/10 px-3 py-1.5 text-sm text-purple-100 hover:bg-purple-400/20 transition-colors"
-                >
-                  Clear conflicts & allow re-spawn
-                </button>
-                <span className="text-xs text-purple-300/60">
-                  Use if agents have completed or you want to spawn additional agents
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Pre-Spawn Conflict Preview */}
       <ConflictPreview
         conflicts={scopeConflicts}
@@ -1249,41 +1084,25 @@ export function GeneratePage() {
         scenario={focusScenario}
         scope={targetPaths}
         onConflictDetected={handleConflictDetected}
-        onAgentStatusChange={(agentId, status) => {
-          // Update session spawn tracking when agents complete
-          const terminalStatus: SessionSpawnRecord["status"] = status === "completed" ? "completed" : "failed";
-          setSessionSpawns((prev) => {
-            const updated: SessionSpawnRecord[] = prev.map((spawn) => {
-              if (spawn.agentIds.includes(agentId) && spawn.status === "active") {
-                // Remove this agent from the list
-                const remainingAgents = spawn.agentIds.filter((id) => id !== agentId);
-                // If no agents remain, mark the spawn as completed/failed
-                if (remainingAgents.length === 0) {
-                  return { ...spawn, status: terminalStatus, agentIds: remainingAgents };
-                }
-                // Otherwise just update the agent list
-                return { ...spawn, agentIds: remainingAgents };
-              }
-              return spawn;
-            });
-            saveSessionSpawns(updated);
-            return updated;
-          });
-        }}
       />
 
       {/* Action Buttons */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Actions</p>
-        <h3 className="mt-2 text-lg font-semibold">Use this prompt</h3>
-        <p className="mt-2 mb-4 text-sm text-slate-300">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Actions</p>
+            <h3 className="mt-2 text-lg font-semibold">Use this prompt</h3>
+          </div>
+          <ContainmentBadge />
+        </div>
+        <p className="mb-4 text-sm text-slate-300">
           Copy the prompt to use with Claude, ChatGPT, or another AI assistant.
         </p>
         <ActionButtons
           prompt={currentPromptItem?.prompt ?? ""}
           allPrompts={promptItems.map((item) => item.prompt)}
           disabled={isDisabled}
-          spawnDisabled={spawnDisabled || scopeConflicts.length > 0 || sessionConflicts.length > 0}
+          spawnDisabled={spawnDisabled || scopeConflicts.length > 0}
           spawnBusy={spawnBusy}
           onSpawnAll={handleSpawnAll}
         />

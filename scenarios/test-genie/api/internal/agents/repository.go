@@ -107,7 +107,7 @@ func (r *PostgresAgentRepository) Get(ctx context.Context, id string) (*SpawnedA
 SELECT
 	id, session_id, scenario, scope, phases, model, status,
 	prompt_hash, prompt_index, prompt_text, output, error,
-	started_at, completed_at, created_at, updated_at
+	started_at, completed_at, created_at, updated_at, pid, hostname
 FROM spawned_agents
 WHERE id = $1
 `
@@ -138,6 +138,10 @@ func (r *PostgresAgentRepository) Update(ctx context.Context, id string, input U
 			setClauses = append(setClauses, fmt.Sprintf("completed_at = $%d", argNum))
 			args = append(args, time.Now())
 			argNum++
+			// Clear PID when agent terminates
+			setClauses = append(setClauses, fmt.Sprintf("pid = $%d", argNum))
+			args = append(args, nil)
+			argNum++
 		}
 	}
 	if input.SessionID != nil {
@@ -153,6 +157,16 @@ func (r *PostgresAgentRepository) Update(ctx context.Context, id string, input U
 	if input.Error != nil {
 		setClauses = append(setClauses, fmt.Sprintf("error = $%d", argNum))
 		args = append(args, *input.Error)
+		argNum++
+	}
+	if input.PID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("pid = $%d", argNum))
+		args = append(args, *input.PID)
+		argNum++
+	}
+	if input.Hostname != nil {
+		setClauses = append(setClauses, fmt.Sprintf("hostname = $%d", argNum))
+		args = append(args, *input.Hostname)
 		argNum++
 	}
 
@@ -212,11 +226,11 @@ func (r *PostgresAgentRepository) List(ctx context.Context, opts AgentListOption
 
 	selectCols := `id, session_id, scenario, scope, phases, model, status,
 		prompt_hash, prompt_index, output, error,
-		started_at, completed_at, created_at, updated_at`
+		started_at, completed_at, created_at, updated_at, pid, hostname`
 	if opts.IncludeText {
 		selectCols = `id, session_id, scenario, scope, phases, model, status,
 			prompt_hash, prompt_index, prompt_text, output, error,
-			started_at, completed_at, created_at, updated_at`
+			started_at, completed_at, created_at, updated_at, pid, hostname`
 	}
 
 	q := fmt.Sprintf("SELECT %s FROM spawned_agents", selectCols)
@@ -464,10 +478,11 @@ type rowScanner interface {
 
 func scanAgent(scanner rowScanner, includeText bool) (*SpawnedAgent, error) {
 	agent := &SpawnedAgent{}
-	var sessionID, output, errStr, promptText sql.NullString
+	var sessionID, output, errStr, promptText, hostname sql.NullString
 	var completedAt sql.NullTime
 	var scope, phases pq.StringArray
 	var status string
+	var pid sql.NullInt32
 
 	var err error
 	if includeText {
@@ -475,12 +490,14 @@ func scanAgent(scanner rowScanner, includeText bool) (*SpawnedAgent, error) {
 			&agent.ID, &sessionID, &agent.Scenario, &scope, &phases, &agent.Model, &status,
 			&agent.PromptHash, &agent.PromptIndex, &promptText, &output, &errStr,
 			&agent.StartedAt, &completedAt, &agent.CreatedAt, &agent.UpdatedAt,
+			&pid, &hostname,
 		)
 	} else {
 		err = scanner.Scan(
 			&agent.ID, &sessionID, &agent.Scenario, &scope, &phases, &agent.Model, &status,
 			&agent.PromptHash, &agent.PromptIndex, &output, &errStr,
 			&agent.StartedAt, &completedAt, &agent.CreatedAt, &agent.UpdatedAt,
+			&pid, &hostname,
 		)
 	}
 	if err != nil {
@@ -505,6 +522,12 @@ func scanAgent(scanner rowScanner, includeText bool) (*SpawnedAgent, error) {
 	}
 	if completedAt.Valid {
 		agent.CompletedAt = &completedAt.Time
+	}
+	if pid.Valid {
+		agent.PID = int(pid.Int32)
+	}
+	if hostname.Valid {
+		agent.Hostname = hostname.String
 	}
 
 	return agent, nil
@@ -786,8 +809,179 @@ ORDER BY recorded_at DESC
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate file operations: %w", err)
+		return nil, fmt.Errorf("iterate file operations for scenario: %w", err)
 	}
 
 	return ops, nil
+}
+
+// CreateSpawnSession creates a new server-side spawn session.
+func (r *PostgresAgentRepository) CreateSpawnSession(ctx context.Context, input CreateSpawnSessionInput) (*SpawnSession, error) {
+	if input.Scope == nil {
+		input.Scope = []string{}
+	}
+	if input.Phases == nil {
+		input.Phases = []string{}
+	}
+	if input.AgentIDs == nil {
+		input.AgentIDs = []string{}
+	}
+	if input.TTL <= 0 {
+		input.TTL = 30 * time.Minute // Default 30 minute TTL
+	}
+
+	expiresAt := time.Now().Add(input.TTL)
+
+	const q = `
+INSERT INTO spawn_sessions (user_identifier, scenario, scope, phases, agent_ids, status, expires_at)
+VALUES ($1, $2, $3, $4, $5, 'active', $6)
+RETURNING id, created_at, last_activity_at
+`
+	session := &SpawnSession{
+		UserIdentifier: input.UserIdentifier,
+		Scenario:       input.Scenario,
+		Scope:          input.Scope,
+		Phases:         input.Phases,
+		AgentIDs:       input.AgentIDs,
+		Status:         "active",
+		ExpiresAt:      expiresAt,
+	}
+
+	err := r.db.QueryRowContext(ctx, q,
+		session.UserIdentifier,
+		session.Scenario,
+		pq.Array(session.Scope),
+		pq.Array(session.Phases),
+		pq.Array(session.AgentIDs),
+		session.ExpiresAt,
+	).Scan(&session.ID, &session.CreatedAt, &session.LastActivityAt)
+
+	if err != nil {
+		return nil, fmt.Errorf("create spawn session: %w", err)
+	}
+	return session, nil
+}
+
+// GetActiveSpawnSessions returns active spawn sessions for a user/scenario.
+func (r *PostgresAgentRepository) GetActiveSpawnSessions(ctx context.Context, userIdentifier, scenario string) ([]*SpawnSession, error) {
+	q := `
+SELECT id, user_identifier, scenario, scope, phases, agent_ids, status, created_at, expires_at, last_activity_at
+FROM spawn_sessions
+WHERE user_identifier = $1 AND status = 'active' AND expires_at > NOW()
+`
+	args := []interface{}{userIdentifier}
+	if scenario != "" {
+		q += " AND scenario = $2"
+		args = append(args, scenario)
+	}
+	q += " ORDER BY created_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get active spawn sessions: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []*SpawnSession
+	for rows.Next() {
+		session := &SpawnSession{}
+		var scope, phases, agentIDs pq.StringArray
+
+		if err := rows.Scan(
+			&session.ID, &session.UserIdentifier, &session.Scenario,
+			&scope, &phases, &agentIDs,
+			&session.Status, &session.CreatedAt, &session.ExpiresAt, &session.LastActivityAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan spawn session: %w", err)
+		}
+
+		session.Scope = append([]string(nil), scope...)
+		session.Phases = append([]string(nil), phases...)
+		session.AgentIDs = append([]string(nil), agentIDs...)
+		sessions = append(sessions, session)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate spawn sessions: %w", err)
+	}
+	return sessions, nil
+}
+
+// CheckSpawnSessionConflicts checks for conflicting active spawn sessions.
+func (r *PostgresAgentRepository) CheckSpawnSessionConflicts(ctx context.Context, userIdentifier, scenario string, scope []string) ([]SpawnSessionConflict, error) {
+	sessions, err := r.GetActiveSpawnSessions(ctx, userIdentifier, scenario)
+	if err != nil {
+		return nil, err
+	}
+
+	var conflicts []SpawnSessionConflict
+	for _, session := range sessions {
+		// Check if scopes overlap
+		if scopesOverlap(session.Scope, scope) {
+			conflicts = append(conflicts, SpawnSessionConflict{
+				SessionID: session.ID,
+				Scenario:  session.Scenario,
+				Scope:     session.Scope,
+				AgentIDs:  session.AgentIDs,
+				CreatedAt: session.CreatedAt,
+				ExpiresAt: session.ExpiresAt,
+			})
+		}
+	}
+	return conflicts, nil
+}
+
+// scopesOverlap checks if two scope arrays have any overlapping paths.
+func scopesOverlap(a, b []string) bool {
+	// Empty scope means "entire scenario" - conflicts with everything
+	if len(a) == 0 || len(b) == 0 {
+		return true
+	}
+
+	for _, pathA := range a {
+		for _, pathB := range b {
+			if pathsOverlap(pathA, pathB) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// UpdateSpawnSessionStatus updates the status of a spawn session.
+func (r *PostgresAgentRepository) UpdateSpawnSessionStatus(ctx context.Context, sessionID int, status string) error {
+	const q = `
+UPDATE spawn_sessions
+SET status = $2, last_activity_at = NOW()
+WHERE id = $1
+`
+	_, err := r.db.ExecContext(ctx, q, sessionID, status)
+	if err != nil {
+		return fmt.Errorf("update spawn session %d: %w", sessionID, err)
+	}
+	return nil
+}
+
+// ClearSpawnSessions marks all active spawn sessions for a user as cleared.
+func (r *PostgresAgentRepository) ClearSpawnSessions(ctx context.Context, userIdentifier string) (int64, error) {
+	const q = `
+UPDATE spawn_sessions
+SET status = 'cleared', last_activity_at = NOW()
+WHERE user_identifier = $1 AND status = 'active'
+`
+	res, err := r.db.ExecContext(ctx, q, userIdentifier)
+	if err != nil {
+		return 0, fmt.Errorf("clear spawn sessions: %w", err)
+	}
+	return res.RowsAffected()
+}
+
+// CleanupExpiredSpawnSessions removes expired spawn sessions.
+func (r *PostgresAgentRepository) CleanupExpiredSpawnSessions(ctx context.Context) (int64, error) {
+	const q = `DELETE FROM spawn_sessions WHERE expires_at < NOW()`
+	res, err := r.db.ExecContext(ctx, q)
+	if err != nil {
+		return 0, fmt.Errorf("cleanup expired spawn sessions: %w", err)
+	}
+	return res.RowsAffected()
 }

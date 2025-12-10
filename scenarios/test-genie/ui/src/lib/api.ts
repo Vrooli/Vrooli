@@ -438,6 +438,7 @@ export interface SpawnAgentsRequest {
   scenario?: string;
   scope?: string[];
   phases?: string[];
+  networkEnabled?: boolean;   // Enable network access for agents (default: false)
 }
 
 export interface SpawnAgentsResult {
@@ -469,8 +470,12 @@ export interface ActiveAgent {
   completedAt?: string;
   promptHash: string;
   promptIndex: number;
+  promptText?: string; // Full prompt text for display
   output?: string;
   error?: string;
+  // Process tracking for orphan detection
+  pid?: number;
+  hostname?: string;
 }
 
 export interface ScopeLock {
@@ -513,6 +518,24 @@ export interface BlockedCommandsResponse {
   safeBashPatterns: string[];
 }
 
+export interface ContainmentProviderInfo {
+  type: string;
+  name: string;
+  description: string;
+  securityLevel: number;
+  requirements: string[];
+}
+
+export interface ContainmentStatus {
+  activeProvider: string;
+  availableProviders: string[];
+  securityLevel: number;
+  maxSecurityLevel: number;
+  warnings: string[];
+  providers: ContainmentProviderInfo[];
+  note: string;
+}
+
 export async function fetchAgentModels(provider = "openrouter"): Promise<AgentModel[]> {
   const url = buildApiUrl("/agents/models", { baseUrl: API_BASE });
   const finalUrl = `${url}?provider=${encodeURIComponent(provider)}`;
@@ -522,6 +545,15 @@ export async function fetchAgentModels(provider = "openrouter"): Promise<AgentMo
   });
   const payload = await parseResponse<{ items: AgentModel[]; count: number }>(res);
   return payload.items ?? [];
+}
+
+export async function fetchContainmentStatus(): Promise<ContainmentStatus> {
+  const url = buildApiUrl("/agents/containment-status", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return parseResponse<ContainmentStatus>(res);
 }
 
 export async function spawnAgents(payload: SpawnAgentsRequest): Promise<SpawnAgentsResponse> {
