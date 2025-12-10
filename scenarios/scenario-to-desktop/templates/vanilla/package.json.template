@@ -70,7 +70,7 @@
       "gatekeeperAssess": false,
       "target": [
         {
-          "target": "pkg",
+          "target": "zip",
           "arch": ["x64", "arm64"]
         }
       ]
@@ -93,7 +93,7 @@
     "win": {
       "target": [
         {
-          "target": "msi",
+          "target": "nsis",
           "arch": ["x64"]
         }
       ],

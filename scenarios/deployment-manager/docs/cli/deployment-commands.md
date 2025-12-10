@@ -19,10 +19,12 @@ Each command is marked with its current implementation status:
 
 | Command | Status | Notes |
 |---------|--------|-------|
+| `deploy-desktop` | **Working** | Full end-to-end desktop deployment pipeline |
+| `build` | **Working** | Cross-compile service binaries for all platforms |
 | `validate` | **Working** | Full pre-flight validation |
-| `deploy` | **Stub** | Dry-run works; actual deployment not orchestrated |
+| `deploy` | **Stub** | Generic deploy (use `deploy-desktop` for tier 2) |
 | `deployment status` | **Stub** | Returns mock data |
-| `package` | **Partial** | Invokes packager but doesn't assemble manifest first |
+| `package` | **Partial** | Invokes packager (use `deploy-desktop` instead) |
 | `packagers list` | **Working** | Returns configured packagers |
 | `packagers discover` | **Stub** | Returns hardcoded list |
 | `logs` | **Working** | Full telemetry filtering |
@@ -30,6 +32,190 @@ Each command is marked with its current implementation status:
 | `bundle assemble` | **Working** | Assemble bundle manifest from scenario |
 | `bundle export` | **Working** | Export production-ready manifest with checksum |
 | `bundle validate` | **Working** | Validate bundle.json against schema |
+
+> **Recommended for Desktop Deployment**: Use `deploy-desktop` - it orchestrates the entire pipeline (manifest, binaries, Electron wrapper, installers) in a single command.
+
+---
+
+## deploy-desktop
+
+> **Status: Working** - Full end-to-end desktop deployment pipeline
+
+Orchestrate the complete bundled desktop deployment workflow. This is the **recommended command** for deploying scenarios as desktop applications.
+
+```bash
+deployment-manager deploy-desktop --profile <profile-id> [flags]
+```
+
+**Flags:**
+- `--profile <id>` - Profile ID (required)
+- `--output <dir>` - Output directory for bundle (default: scenario/platforms/electron/bundle)
+- `--platforms <list>` - Comma-separated platforms to build: win,mac,linux (default: all)
+- `--mode <mode>` - Deployment mode: bundled, external-server, cloud-api (default: bundled)
+- `--skip-build` - Skip service binary compilation
+- `--skip-validation` - Skip profile validation
+- `--skip-packaging` - Skip Electron wrapper generation (manifest + binaries only)
+- `--skip-installers` - Skip building platform installers (MSI/PKG/AppImage)
+- `--dry-run` - Show what would be done without executing
+- `--format json` - Output as JSON
+
+**Pipeline Steps:**
+
+The command executes a 7-step pipeline:
+
+1. **Load profile** - Load deployment profile configuration
+2. **Validate profile** - Check fitness score, secrets, dependencies
+3. **Assemble manifest** - Generate bundle.json with profile swaps applied
+4. **Export manifest** - Write manifest to output directory
+5. **Build binaries** - Cross-compile service binaries for all platforms
+6. **Generate desktop wrapper** - Create Electron app via scenario-to-desktop
+7. **Build platform installers** - Create MSI/PKG/AppImage/DEB packages
+
+**Example - Full Pipeline:**
+
+```bash
+# Create a profile first
+deployment-manager profile create my-profile my-scenario --tier 2
+
+# Run the full deployment
+deployment-manager deploy-desktop --profile my-profile
+```
+
+**Output:**
+
+```
+✓ Desktop Deployment: success
+  Profile:  my-profile
+  Scenario: my-scenario
+  Duration: 4m32s
+
+Steps:
+  ✓ Load profile - loaded profile for scenario my-scenario
+  ✓ Validate profile - profile validation passed
+  ✓ Assemble manifest - assembled manifest with 0 swaps
+  ✓ Export manifest - wrote manifest to .../bundle.json
+  ✓ Build binaries - built 1 service(s) for 5 platform(s)
+  ✓ Generate desktop wrapper - generated Electron wrapper at .../platforms/electron
+  ✓ Build platform installers - built installers for 3 platform(s)
+
+Manifest: /home/user/Vrooli/scenarios/my-scenario/bundle.json
+Binaries: 5/5 succeeded
+Desktop Wrapper: /home/user/Vrooli/scenarios/my-scenario/platforms/electron
+
+Installers:
+  win:     .../dist-electron/My App Setup 1.0.0.exe
+  mac:     .../dist-electron/My App-1.0.0-mac.zip
+  linux:   .../dist-electron/My App-1.0.0.AppImage
+```
+
+**Example - Partial Pipeline:**
+
+```bash
+# Preview without executing
+deployment-manager deploy-desktop --profile my-profile --dry-run
+
+# Build manifest and binaries only (no Electron packaging)
+deployment-manager deploy-desktop --profile my-profile --skip-packaging
+
+# Build for specific platforms
+deployment-manager deploy-desktop --profile my-profile --platforms win,linux
+
+# Generate wrapper but skip final installer builds
+deployment-manager deploy-desktop --profile my-profile --skip-installers
+```
+
+**Prerequisites:**
+- deployment-manager API running
+- scenario-to-desktop API running (for steps 6-7)
+- Go 1.21+ installed (for binary compilation)
+- Node.js 18+ installed (for Electron builds)
+
+**Related:**
+- [Hello Desktop Tutorial](../tutorials/hello-desktop-walkthrough.md) - Complete walkthrough with hello-desktop scenario
+- [Desktop Deployment Workflow](../workflows/desktop-deployment.md) - Detailed phase documentation
+
+---
+
+## build
+
+> **Status: Working** - Cross-compile service binaries for all platforms
+
+Cross-compile service binaries for desktop bundling. This command is automatically called by `deploy-desktop`, but can be used standalone.
+
+```bash
+deployment-manager build --profile <profile-id> [flags]
+```
+
+**Flags:**
+- `--profile <id>` - Profile ID (required unless --scenario specified)
+- `--scenario <name>` - Scenario name (optional if profile specified)
+- `--platforms <list>` - Comma-separated platforms: linux-x64,darwin-arm64,win-x64 (default: all)
+- `--services <list>` - Comma-separated service IDs to build (default: all with build config)
+- `--dry-run` - Show what would be built without building
+- `--format json` - Output as JSON
+
+**Supported Platforms:**
+- `linux-x64` - Linux x86_64
+- `linux-arm64` - Linux ARM64
+- `darwin-x64` - macOS Intel
+- `darwin-arm64` - macOS Apple Silicon
+- `win-x64` - Windows x86_64
+
+**Supported Build Types:**
+
+Build configuration is read from each service's `build` field in service.json or bundle.json:
+
+| Type | Description | Requirements |
+|------|-------------|--------------|
+| `go` | Go cross-compilation | Go 1.21+ |
+| `rust` | Cargo build with target triple | Rust toolchain |
+| `npm` | Node.js build (pkg, nexe, etc.) | Node.js 18+ |
+| `custom` | Arbitrary shell command | Depends on command |
+
+**Example Build Config:**
+
+```json
+{
+  "build": {
+    "type": "go",
+    "source_dir": "api",
+    "entry_point": "./cmd/api",
+    "output_pattern": "bin/{{platform}}/api{{ext}}",
+    "args": ["-ldflags", "-s -w"],
+    "env": {"CGO_ENABLED": "0"}
+  }
+}
+```
+
+**Example:**
+
+```bash
+# Build all services for all platforms
+deployment-manager build --profile my-profile
+
+# Build for specific platforms
+deployment-manager build --profile my-profile --platforms linux-x64,darwin-arm64
+
+# Build specific services
+deployment-manager build --profile my-profile --services api,worker
+
+# Dry run
+deployment-manager build --profile my-profile --dry-run
+```
+
+**Output:**
+
+```
+Build success for my-scenario
+Duration: 45s
+
+✓ Service: api
+  ✓ linux-x64      bin/linux-x64/api
+  ✓ linux-arm64    bin/linux-arm64/api
+  ✓ darwin-x64     bin/darwin-x64/api
+  ✓ darwin-arm64   bin/darwin-arm64/api
+  ✓ win-x64        bin/win-x64/api.exe
+```
 
 ---
 

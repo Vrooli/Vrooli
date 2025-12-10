@@ -1,18 +1,41 @@
 # 🖥️ Scenario-to-Desktop
 
-> ⚠️ **Current state:** scenario-to-desktop produces **thin-client** Electron wrappers that bundle the UI only. See [Deployment Hub › Tier 2](../../docs/deployment/tiers/tier-2-desktop.md) and the [scenario overview](../../docs/deployment/scenarios/scenario-to-desktop.md) for the full roadmap toward bundled apps.
+> **Two modes available:**
+> - **Thin Client** (UI only) - Bundles UI; connects to running Tier 1 server
+> - **Bundled App** (offline) - Full offline package with UI + API + runtime. Use `deployment-manager deploy-desktop` for the automated pipeline.
 
-Transform Vrooli scenarios into desktop-friendly experiences. Today that means quickly generating Electron shells that talk to the Vrooli server where your scenario is already running; the future vision is complete offline bundles once deployment-manager and dependency swapping land.
+Transform Vrooli scenarios into desktop applications. scenario-to-desktop generates Electron wrappers that can either connect to a remote Vrooli server (thin client) or run completely offline with bundled services (bundled mode).
 
-## ⚠ Current Limitations (v1 Thin Client)
+## Bundled Desktop Apps (Recommended)
 
-- **UI-only bundles** – we copy the existing `ui/dist` assets from the target scenario into the Electron wrapper.
-- **No API/resource bundling** – every desktop build still depends on the scenario's API and its entire dependency tree running elsewhere (usually the Vrooli server you already run via app-monitor/Cloudflare).
-- **Secrets live on the server** – the desktop wrapper forwards auth/session traffic to the running scenario; it does not ship secrets or credential storage yet.
-- **Offline mode unsupported** – disconnecting the machine running the desktop build from that server will break the app outright.
-- **Future-ready scaffolding** – the wrapper already exposes `SERVER_TYPE` options (external/static/node/executable) and `DEPLOYMENT_MODE` so deployment-manager can switch to bundled APIs once the dependency swapping story exists. Selecting `DEPLOYMENT_MODE=bundled` today shows a stubbed dialog that points you back to the Tier 2 roadmap until bundling is fully implemented.
+For complete offline desktop applications, use the **deployment-manager** orchestration:
 
-Keep these guardrails in mind when testing or distributing Windows/macOS/Linux builds; they're thin clients until deployment-manager powers true bundling (see [Deployment Hub › Tier 2](../../docs/deployment/tiers/tier-2-desktop.md)).
+```bash
+# Create a deployment profile
+deployment-manager profile create my-profile my-scenario --tier 2
+
+# Build everything (binaries, Electron wrapper, installers)
+deployment-manager deploy-desktop --profile my-profile
+```
+
+This handles:
+- Bundle manifest generation with dependency swaps
+- Cross-compilation of API binaries for all platforms
+- Electron wrapper generation
+- Platform installers (Windows/macOS/Linux)
+- Runtime supervisor bundling
+
+See [Hello Desktop Tutorial](../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
+
+## Thin Client Mode (Connect to Server)
+
+For UI-only builds that connect to a running Vrooli server:
+
+**Limitations:**
+- **UI-only bundles** – copies `ui/dist` assets into the Electron wrapper
+- **Requires server** – API and resources must run elsewhere
+- **Secrets on server** – auth/session traffic forwards to running scenario
+- **No offline mode** – requires network connection to server
 
 ## Thin-Client Workflow (connect to your Vrooli server)
 
@@ -77,9 +100,19 @@ The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl
 
 ### Installer outputs and updater channels
 
-- **Installer formats**: Windows builds now target `.msi`, macOS uses `.pkg`, and Linux ships `.AppImage` + `.deb`. Legacy `.exe` / `.dmg` artifacts still download if present, but the generator/UX prefers the installer formats for signing and enterprise deployment.
+**Default installer formats** (optimized for cross-platform builds on Linux):
+
+| Platform | Format | Extension | Notes |
+|----------|--------|-----------|-------|
+| **Linux** | AppImage | `.AppImage` | Portable, runs on any distro |
+| **Linux** | DEB | `.deb` | Debian/Ubuntu package |
+| **Windows** | NSIS | `Setup.exe` | Standard installer, works via Wine |
+| **macOS** | ZIP | `.zip` | Contains `.app` bundle, user drags to Applications |
+
+> **Why these formats?** NSIS and ZIP can be built on Linux via Wine, enabling single-machine cross-platform builds. For DMG/PKG/MSI installers, use macOS/Windows CI runners. See [Cross-Platform Builds Guide](docs/CROSS_PLATFORM_BUILDS.md) for details.
+
 - **Channel intent**: Auto-update hooks remain off by default. When you wire a publish target, stick to three channels (`dev`, `beta`, `stable`) and publish per-platform artifacts with signatures; the runtime/Electron wrapper should only enable updates when a channel URL and signing material are configured.
-- **Bundled mode impact**: Offline bundles will initially rely on manual installer refreshes; differential updates stay on the roadmap. Until then, treat each MSI/PKG/AppImage as a full reinstall and keep telemetry enabled so deployment-manager can flag upgrade pain.
+- **Bundled mode impact**: Offline bundles will initially rely on manual installer refreshes; differential updates stay on the roadmap. Until then, treat each installer as a full reinstall and keep telemetry enabled so deployment-manager can flag upgrade pain.
 
 ### Generator UI Upgrades
 
@@ -91,6 +124,7 @@ The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl
 ## 📚 Documentation
 - Docs manifest for UI tab: `docs/manifest.json`
 - Start here: `docs/QUICKSTART.md` and `docs/deployment-modes.md`
+- **Cross-platform builds: `docs/CROSS_PLATFORM_BUILDS.md`** - Build formats, Wine setup, CI/CD recommendations
 - Builds and troubleshooting: `docs/build-and-packaging.md`, `docs/DEBUGGING_WINDOWS.md`, `docs/WINE_INSTALLATION.md`
 - Feature cookbook: `docs/desktop-integration-guide.md`
 - Telemetry/ops: `docs/telemetry.md`

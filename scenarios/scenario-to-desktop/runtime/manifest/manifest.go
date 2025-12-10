@@ -79,6 +79,7 @@ type Service struct {
 	Type         string                 `json:"type"`
 	Description  string                 `json:"description,omitempty"`
 	Binaries     map[string]Binary      `json:"binaries"`
+	Build        *BuildConfig           `json:"build,omitempty"`
 	Env          map[string]string      `json:"env,omitempty"`
 	Secrets      []string               `json:"secrets,omitempty"`
 	DataDirs     []string               `json:"data_dirs,omitempty"`
@@ -92,6 +93,23 @@ type Service struct {
 	GPU          *GPURequirements       `json:"gpu,omitempty"`
 	Critical     *bool                  `json:"critical,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// BuildConfig specifies how to compile a service binary when not pre-built.
+type BuildConfig struct {
+	// Type is the build system: "go", "rust", "npm", "python", or "custom"
+	Type string `json:"type"`
+	// SourceDir is the relative path to the source code directory
+	SourceDir string `json:"source_dir"`
+	// EntryPoint is the build entry point (e.g., "./cmd/api" for Go, "src/main.rs" for Rust)
+	EntryPoint string `json:"entry_point,omitempty"`
+	// OutputPattern is the output path pattern with {{platform}} and {{ext}} placeholders
+	// e.g., "bin/{{platform}}/api{{ext}}" -> "bin/linux-x64/api" or "bin/win-x64/api.exe"
+	OutputPattern string `json:"output_pattern,omitempty"`
+	// Args are additional build arguments
+	Args []string `json:"args,omitempty"`
+	// Env are additional environment variables for the build
+	Env map[string]string `json:"env,omitempty"`
 }
 
 type GPURequirements struct {

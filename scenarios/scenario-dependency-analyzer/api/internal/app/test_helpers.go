@@ -174,7 +174,7 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 		Version: "2.0.0",
 		Service: struct {
 			Name        string   `json:"name"`
-			DisplayName string   `json:"displayName"`
+			DisplayName string   `json:"display_name"`
 			Description string   `json:"description"`
 			Version     string   `json:"version"`
 			Tags        []string `json:"tags"`

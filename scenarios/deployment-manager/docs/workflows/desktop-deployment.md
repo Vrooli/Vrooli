@@ -11,17 +11,17 @@ Before starting, determine which deployment mode fits your requirements:
 ```
 Do you need the app to work offline / without a server?
 │
-├── YES → Bundled Mode (Phase 6B)
+├── YES → Bundled Mode (Recommended: deploy-desktop command)
 │         • Self-contained: UI + API + resources in single installer
 │         • Works offline after first-run setup
 │         • Requires dependency swaps (postgres → sqlite, etc.)
-│         • Status: Manual assembly required (see Phase 6B)
+│         • Status: ✅ Fully automated via deploy-desktop
 │
 └── NO → Thin Client Mode (Phase 6A)
           • Bundles UI only; connects to running Tier 1 server
           • Requires network access to Vrooli server
           • No dependency swaps needed
-          • Status: Fully automated
+          • Status: ✅ Fully automated
 ```
 
 ### Quick Decision Matrix
@@ -31,8 +31,8 @@ Do you need the app to work offline / without a server?
 | Works offline | No | Yes |
 | Self-contained installer | Yes (UI only) | Yes (full app) |
 | Requires Tier 1 server | Yes | No |
-| Automation status | **Fully automated** | Manual assembly |
-| Setup complexity | Low | Medium-High |
+| Automation status | **Fully automated** | **Fully automated** |
+| Setup complexity | Low | Medium |
 | Bundle size | Small (~50MB) | Large (100MB-1GB+) |
 | Best for | Internal tools, connected environments | Distribution, offline use |
 
@@ -42,10 +42,17 @@ Do you need the app to work offline / without a server?
 
 | Mode | Status | Description |
 |------|--------|-------------|
-| **Thin Client** | Working | UI bundled in Electron; connects to running Tier 1 server |
-| **Bundled App** | Partial | UI + API + resources in single package; manual assembly required |
+| **Thin Client** | ✅ Working | UI bundled in Electron; connects to running Tier 1 server |
+| **Bundled App** | ✅ Working | UI + API + resources via `deploy-desktop` command |
 
-> **Current Reality**: The bundled desktop workflow requires manual steps because the deployment-manager → scenario-to-desktop pipeline is not yet fully automated. This guide documents both the ideal workflow and the current workarounds.
+> **Quick Start**: For bundled desktop apps, use the single-command approach:
+> ```bash
+> deployment-manager profile create my-profile my-scenario --tier 2
+> deployment-manager deploy-desktop --profile my-profile
+> ```
+> This orchestrates the entire 7-step pipeline automatically. See [deploy-desktop CLI reference](../cli/deployment-commands.md#deploy-desktop) for details.
+
+> **Reference Implementation**: The `hello-desktop` scenario demonstrates a complete working bundled desktop build. See [Hello Desktop Tutorial](../tutorials/hello-desktop-walkthrough.md).
 
 ## Prerequisites
 
@@ -520,7 +527,53 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/validate" \
 
 ## Phase 6: Build Desktop Installers
 
-### Option A: Thin Client (Working Today)
+### Option A: Bundled App (Recommended - Fully Automated)
+
+Use the `deploy-desktop` command to orchestrate the entire pipeline:
+
+```bash
+# Create a profile if you haven't already
+deployment-manager profile create picker-profile picker-wheel --tier 2
+
+# Run the full pipeline (builds binaries, generates Electron, creates installers)
+deployment-manager deploy-desktop --profile picker-profile
+```
+
+This single command:
+1. Loads and validates the profile
+2. Assembles the bundle manifest with profile swaps
+3. Exports the manifest to the scenario
+4. Cross-compiles API binaries for all platforms (linux-x64, darwin-arm64, darwin-x64, win-x64)
+5. Generates the Electron wrapper via scenario-to-desktop
+6. Builds platform installers (MSI, PKG, AppImage, DEB)
+
+**Partial pipeline options:**
+
+```bash
+# Dry-run to preview
+deployment-manager deploy-desktop --profile picker-profile --dry-run
+
+# Skip installer builds (just manifest + binaries + Electron)
+deployment-manager deploy-desktop --profile picker-profile --skip-installers
+
+# Build for specific platforms only
+deployment-manager deploy-desktop --profile picker-profile --platforms win,linux
+```
+
+**Output location:**
+
+```
+scenarios/picker-wheel/platforms/electron/dist-electron/
+├── Picker Wheel Setup 1.0.0.exe     # Windows NSIS installer
+├── Picker Wheel-1.0.0-mac.zip       # macOS app bundle
+├── Picker Wheel-1.0.0.AppImage      # Linux portable
+├── picker-wheel_1.0.0_amd64.deb     # Debian/Ubuntu package
+├── latest.yml                        # Windows update manifest
+├── latest-mac.yml                    # macOS update manifest
+└── latest-linux.yml                  # Linux update manifest
+```
+
+### Option B: Thin Client (UI Only)
 
 Bundles UI only; requires connection to Tier 1 server.
 
@@ -534,50 +587,41 @@ curl -X POST "http://localhost:${STD_PORT}/api/v1/desktop/generate/quick" \
   -d '{
     "scenario_name": "picker-wheel",
     "deployment_mode": "external-server",
-    "server_url": "https://your-vrooli-server.example.com",
-    "update_config": {
-      "channel": "stable",
-      "provider": "github",
-      "github": {"owner": "your-org", "repo": "picker-wheel-desktop"},
-      "auto_check": true
-    }
+    "server_url": "https://your-vrooli-server.example.com"
   }'
 ```
 
-### Option B: Bundled App (Manual Assembly Required)
+### Option C: Manual Assembly (Advanced/Debugging)
 
-> **Current Gap**: Full automation pending. Follow these manual steps.
+<details>
+<summary>Click to expand manual steps (not recommended for normal use)</summary>
+
+If automation fails or you need fine-grained control, you can manually assemble the bundle:
 
 #### Step 6.1: Prepare the Bundle Directory
 
 ```bash
-# Navigate to generated Electron app
 cd scenarios/picker-wheel/platforms/electron
-
-# Create bundle directory
 mkdir -p bundle
-
-# Copy bundle manifest
 cp /path/to/bundle.json bundle/
 ```
 
 #### Step 6.2: Build Platform Binaries
 
 ```bash
-# Build the API for each target platform
 cd scenarios/picker-wheel/api
 
 # Linux
-GOOS=linux GOARCH=amd64 go build -o ../platforms/electron/bundle/services/api/linux-x64/picker-wheel-api
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../platforms/electron/bundle/bin/linux-x64/picker-wheel-api
 
 # macOS (Intel)
-GOOS=darwin GOARCH=amd64 go build -o ../platforms/electron/bundle/services/api/macos-x64/picker-wheel-api
+GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o ../platforms/electron/bundle/bin/darwin-x64/picker-wheel-api
 
 # macOS (Apple Silicon)
-GOOS=darwin GOARCH=arm64 go build -o ../platforms/electron/bundle/services/api/macos-arm64/picker-wheel-api
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o ../platforms/electron/bundle/bin/darwin-arm64/picker-wheel-api
 
 # Windows
-GOOS=windows GOARCH=amd64 go build -o ../platforms/electron/bundle/services/api/windows-x64/picker-wheel-api.exe
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o ../platforms/electron/bundle/bin/win-x64/picker-wheel-api.exe
 ```
 
 #### Step 6.3: Build UI Bundle
@@ -592,31 +636,11 @@ cp -r dist ../platforms/electron/bundle/ui/
 
 ```bash
 cd scenarios/picker-wheel/platforms/electron
-
-# Install dependencies
 pnpm install
-
-# Build for all platforms
 pnpm run dist:all
-
-# Or build for specific platforms:
-pnpm run dist:win    # Windows MSI
-pnpm run dist:mac    # macOS PKG
-pnpm run dist:linux  # Linux AppImage + DEB
 ```
 
-#### Step 6.5: Locate Build Artifacts
-
-```
-dist-electron/
-├── picker-wheel-1.0.0.msi           # Windows installer
-├── picker-wheel-1.0.0-mac.pkg       # macOS installer
-├── picker-wheel-1.0.0.AppImage      # Linux portable
-├── picker-wheel-1.0.0_amd64.deb     # Debian/Ubuntu package
-├── latest.yml                        # Windows update manifest
-├── latest-mac.yml                    # macOS update manifest
-└── latest-linux.yml                  # Linux update manifest
-```
+</details>
 
 ---
 
@@ -725,29 +749,26 @@ Navigate to the deployment-manager UI and click on "Telemetry" in the navigation
 
 ## Known Gaps and Workarounds
 
-### ~~Gap 1: No CLI Command for Bundle Export~~ (RESOLVED)
+### Resolved Issues
 
-**Status**: CLI commands now available
+| Issue | Status | Resolution |
+|-------|--------|------------|
+| CLI bundle commands | ✅ Resolved | `bundle assemble`, `bundle export`, `bundle validate` available |
+| Automated binary compilation | ✅ Resolved | `deploy-desktop` command handles cross-compilation |
+| End-to-end pipeline validation | ✅ Resolved | `hello-desktop` scenario validates full workflow |
+| Runtime supervisor bundling | ✅ Resolved | Automatically included by `deploy-desktop` |
 
-The `bundle assemble`, `bundle export`, and `bundle validate` CLI commands are fully implemented. See Phase 5 above for usage.
+### Outstanding Gaps
 
-### Gap 2: No Automated Binary Compilation
+#### Gap 1: No Asset Procurement Automation
 
-**Status**: Manual cross-compilation required
+**Status**: Assets (model files, database seeds) must be manually placed
 
-**Workaround**: Build binaries manually per platform (documented in Phase 6)
-
-**Tracking**: scenario-to-desktop should compile binaries from manifest
-
-### Gap 3: No Asset Procurement Automation
-
-**Status**: Assets (Chromium, model files, seeds) must be manually placed
-
-**Workaround**: Download/build assets before packaging
+**Workaround**: Download/build assets before running `deploy-desktop`
 
 **Tracking**: Add asset download/verification step to packager
 
-### Gap 4: Code Signing Not Wired
+#### Gap 2: Code Signing Not Automated
 
 **Status**: Installers are unsigned by default
 
@@ -768,15 +789,15 @@ The `bundle assemble`, `bundle export`, and `bundle validate` CLI commands are f
 }
 ```
 
-**Tracking**: Add certificate configuration to generation flow
+**Tracking**: Add certificate configuration to deploy-desktop flow
 
-### Gap 5: End-to-End Pipeline Not Validated
+#### Gap 3: Clean-Machine Install Testing
 
-**Status**: No scenario has completed the full bundled workflow
+**Status**: No automated clean-machine validation
 
-**Workaround**: Use thin client mode for production today
+**Workaround**: Manual testing on fresh VM/container
 
-**Tracking**: Complete picker-wheel bundled build as reference implementation
+**Tracking**: Add CI step for clean-machine smoke test
 
 ---
 

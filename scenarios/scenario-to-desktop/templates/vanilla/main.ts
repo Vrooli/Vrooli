@@ -373,7 +373,7 @@ async function uploadTelemetryFile(filePath: string, uploadURL: string, reason: 
     }
 
     const payload = {
-        scenario_name: APP_CONFIG.SCENARIO_NAME || APP_CONFIG.APP_NAME,
+        scenario_name: LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME || APP_CONFIG.APP_NAME,
         deployment_mode: APP_CONFIG.DEPLOYMENT_MODE,
         source: "desktop-runtime",
         events,
@@ -404,7 +404,10 @@ async function autoUploadTelemetryIfConfigured(reason: string): Promise<boolean>
     if (!RUNTIME_CONTROL.ENABLED) return false;
     let telemetryInfo: RuntimeTelemetryResponse | null = null;
     try {
-        telemetryInfo = await runtimeRequest<RuntimeTelemetryResponse>("/telemetry");
+        const result = await runtimeRequest<RuntimeTelemetryResponse>("/telemetry");
+        if (typeof result !== "string") {
+            telemetryInfo = result;
+        }
     } catch (error) {
         console.warn("[Desktop App] Runtime telemetry endpoint unavailable:", error);
         return false;
@@ -496,11 +499,16 @@ async function waitForRuntimeControl(timeoutMs: number): Promise<void> {
 }
 
 async function collectRuntimeDiagnostics(): Promise<RuntimeDiagnostics> {
-    const [ready, ports, telemetryInfo] = await Promise.all([
+    const [readyResult, portsResult, telemetryResult] = await Promise.all([
         runtimeRequest<RuntimeReadyResponse>("/readyz"),
         runtimeRequest<RuntimePortsResponse>("/ports"),
         runtimeRequest<RuntimeTelemetryResponse>("/telemetry"),
     ]);
+
+    // Type guard the results
+    const ready: RuntimeReadyResponse = typeof readyResult === "string" ? { ready: false } : readyResult;
+    const ports: RuntimePortsResponse = typeof portsResult === "string" ? {} : portsResult;
+    const telemetryInfo: RuntimeTelemetryResponse | null = typeof telemetryResult === "string" ? null : telemetryResult;
 
     const logs: Record<string, string> = {};
     const services = new Set<string>();
@@ -518,14 +526,21 @@ async function collectRuntimeDiagnostics(): Promise<RuntimeDiagnostics> {
         }
     }
 
-    return {
+    const diagnostics: RuntimeDiagnostics = {
         ready,
         ports,
         logs,
-        gpu: ready.gpu,
-        telemetryPath: telemetryInfo?.path,
-        telemetryUploadUrl: telemetryInfo?.upload_url,
     };
+    if (ready.gpu) {
+        diagnostics.gpu = ready.gpu;
+    }
+    if (telemetryInfo?.path) {
+        diagnostics.telemetryPath = telemetryInfo.path;
+    }
+    if (telemetryInfo?.upload_url) {
+        diagnostics.telemetryUploadUrl = telemetryInfo.upload_url;
+    }
+    return diagnostics;
 }
 
 async function showRuntimeDiagnostics(): Promise<void> {
@@ -657,9 +672,7 @@ function escapeHTML(input: string): string {
 
 async function promptForSecretValue(secret: RuntimeSecret): Promise<string | null> {
     const channel = `secret-submit-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const parent = mainWindow ?? undefined;
-    const modal = new BrowserWindow({
-        parent,
+    const modalOptions: Electron.BrowserWindowConstructorOptions = {
         modal: true,
         width: 460,
         height: 320,
@@ -672,7 +685,11 @@ async function promptForSecretValue(secret: RuntimeSecret): Promise<string | nul
             contextIsolation: false,
         },
         show: false,
-    });
+    };
+    if (mainWindow) {
+        modalOptions.parent = mainWindow;
+    }
+    const modal = new BrowserWindow(modalOptions);
 
     const label = escapeHTML(secret.prompt?.label || secret.id);
     const description = escapeHTML(secret.prompt?.description || secret.description || "Enter a value for this secret.");
@@ -1474,7 +1491,7 @@ function createApplicationMenu() {
                 { type: "separator" },
                 { role: "togglefullscreen" },
                 ...(RUNTIME_CONTROL.ENABLED ? [
-                    { type: "separator" },
+                    { type: "separator" as const },
                     {
                         label: "Runtime Diagnostics",
                         click: () => {

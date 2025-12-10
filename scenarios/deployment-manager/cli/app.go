@@ -156,7 +156,9 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Title: "Deployments",
 		Commands: []cliapp.Command{
 			{Name: "deploy", NeedsAPI: true, Description: "Deploy a profile", Run: a.deployments.Deploy},
+			{Name: "deploy-desktop", NeedsAPI: true, Description: "Orchestrate complete bundled desktop deployment", Run: a.deployments.DeployDesktop},
 			{Name: "deployment", NeedsAPI: true, Description: "Manage deployment records", Run: a.deployments.Deployment},
+			{Name: "build", NeedsAPI: true, Description: "Cross-compile service binaries", Run: a.deployments.Build},
 			{Name: "logs", NeedsAPI: true, Description: "Fetch deployment logs", Run: a.deployments.Logs},
 			{Name: "packagers", NeedsAPI: true, Description: "Packager discovery", Run: a.deployments.Packagers},
 			{Name: "package", NeedsAPI: true, Description: "Package a profile", Run: a.deployments.PackageProfile},

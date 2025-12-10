@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -28,17 +29,21 @@ func packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*
 
 type runtimeResolver func() (string, error)
 type runtimeBuilder func(srcDir, outPath, goos, goarch, target string) error
+type serviceBinaryCompiler func(svc bundlemanifest.Service, platform, manifestRoot string) (string, error)
 
 type bundlePackager struct {
-	runtimeResolver runtimeResolver
-	runtimeBuilder  runtimeBuilder
+	runtimeResolver        runtimeResolver
+	runtimeBuilder         runtimeBuilder
+	serviceBinaryCompiler  serviceBinaryCompiler
 }
 
 func newBundlePackager() *bundlePackager {
-	return &bundlePackager{
+	bp := &bundlePackager{
 		runtimeResolver: findRuntimeSourceDir,
 		runtimeBuilder:  buildRuntimeBinary,
 	}
+	bp.serviceBinaryCompiler = bp.compileServiceBinary
+	return bp
 }
 
 func (p *bundlePackager) packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*bundlePackageResult, error) {
@@ -96,14 +101,51 @@ func (p *bundlePackager) packageBundle(appPath, manifestPath string, requestedPl
 	for _, svc := range m.Services {
 		for _, platform := range platforms {
 			bin, ok := resolveBinaryForPlatform(svc, platform)
-			if !ok {
-				return nil, fmt.Errorf("service %s missing binary for %s", svc.ID, platform)
+			var src string
+
+			if ok {
+				// Try to resolve existing binary
+				resolved, err := resolveManifestPath(manifestRoot, bin.Path)
+				if err != nil {
+					return nil, fmt.Errorf("resolve binary for %s: %w", svc.ID, err)
+				}
+				// Check if binary exists
+				if _, statErr := os.Stat(resolved); statErr == nil {
+					src = resolved
+				}
 			}
-			src, err := resolveManifestPath(manifestRoot, bin.Path)
-			if err != nil {
-				return nil, fmt.Errorf("resolve binary for %s: %w", svc.ID, err)
+
+			// If binary doesn't exist or wasn't in manifest, try to compile
+			if src == "" {
+				if svc.Build == nil {
+					if !ok {
+						return nil, fmt.Errorf("service %s missing binary for %s and no build config", svc.ID, platform)
+					}
+					return nil, fmt.Errorf("service %s binary not found at %s and no build config", svc.ID, bin.Path)
+				}
+
+				// Compile the service binary
+				compiledPath, err := p.serviceBinaryCompiler(svc, platform, manifestRoot)
+				if err != nil {
+					return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
+				}
+				src = compiledPath
+
+				// Update manifest binary path for this platform if not set
+				if !ok {
+					if svc.Binaries == nil {
+						svc.Binaries = make(map[string]bundlemanifest.Binary)
+					}
+					relPath, _ := filepath.Rel(manifestRoot, compiledPath)
+					svc.Binaries[platform] = bundlemanifest.Binary{Path: relPath}
+					bin = svc.Binaries[platform]
+				}
 			}
-			dst, err := resolveBundlePath(bundleDir, bin.Path)
+
+			// Normalize the destination path by stripping any parent directory traversal
+			// This ensures binaries from outside the manifest root are still staged inside the bundle
+			dstPath := normalizeBundlePath(bin.Path)
+			dst, err := resolveBundlePath(bundleDir, dstPath)
 			if err != nil {
 				return nil, fmt.Errorf("stage binary for %s: %w", svc.ID, err)
 			}
@@ -118,7 +160,9 @@ func (p *bundlePackager) packageBundle(appPath, manifestPath string, requestedPl
 			if err != nil {
 				return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
 			}
-			dst, err := resolveBundlePath(bundleDir, asset.Path)
+			// Normalize asset destination path like we do for binaries
+			assetDstPath := normalizeBundlePath(asset.Path)
+			dst, err := resolveBundlePath(bundleDir, assetDstPath)
 			if err != nil {
 				return nil, fmt.Errorf("stage asset %s: %w", asset.Path, err)
 			}
@@ -184,8 +228,10 @@ func validateManifestForPlatforms(m *bundlemanifest.Manifest, platforms []string
 	}
 	for _, svc := range m.Services {
 		for _, platform := range platforms {
-			if _, ok := resolveBinaryForPlatform(svc, platform); !ok {
-				return fmt.Errorf("service %s missing binary for %s", svc.ID, platform)
+			_, hasBinary := resolveBinaryForPlatform(svc, platform)
+			hasBuild := svc.Build != nil && svc.Build.Type != ""
+			if !hasBinary && !hasBuild {
+				return fmt.Errorf("service %s missing binary for %s and no build config", svc.ID, platform)
 			}
 		}
 	}
@@ -197,12 +243,43 @@ func resolveBinaryForPlatform(svc bundlemanifest.Service, platform string) (bund
 	if alias := aliasPlatformKey(platform); alias != "" {
 		keys = append(keys, alias)
 	}
+	// Try exact and aliased matches first
 	for _, key := range keys {
 		if bin, ok := svc.Binaries[key]; ok {
 			return bin, true
 		}
 	}
+	// For shorthand platforms (win, mac, linux), try architecture-specific keys
+	archKeys := expandShorthandPlatform(platform)
+	for _, key := range archKeys {
+		if bin, ok := svc.Binaries[key]; ok {
+			return bin, true
+		}
+	}
 	return bundlemanifest.Binary{}, false
+}
+
+// expandShorthandPlatform expands shorthand platform names to architecture-specific keys.
+// For example, "win" -> ["win-x64", "win-arm64", "windows-x64", "windows-arm64"]
+func expandShorthandPlatform(platform string) []string {
+	archs := []string{"x64", "arm64", "amd64", "aarch64"}
+	var keys []string
+
+	switch platform {
+	case "win", "windows":
+		for _, arch := range archs {
+			keys = append(keys, "win-"+arch, "windows-"+arch)
+		}
+	case "mac", "darwin":
+		for _, arch := range archs {
+			keys = append(keys, "darwin-"+arch, "mac-"+arch)
+		}
+	case "linux":
+		for _, arch := range archs {
+			keys = append(keys, "linux-"+arch)
+		}
+	}
+	return keys
 }
 
 func aliasPlatformKey(key string) string {
@@ -223,6 +300,16 @@ func aliasPlatformKey(key string) string {
 
 func parsePlatformKey(key string) (string, string, error) {
 	parts := strings.Split(key, "-")
+
+	// Handle shorthand platforms (win, mac, linux) without architecture
+	if len(parts) == 1 {
+		goos, goarch := expandShorthandToHostArch(key)
+		if goos != "" {
+			return goos, goarch, nil
+		}
+		return "", "", fmt.Errorf("invalid platform key %q", key)
+	}
+
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("invalid platform key %q", key)
 	}
@@ -250,11 +337,34 @@ func parsePlatformKey(key string) (string, string, error) {
 	return goos, goarch, nil
 }
 
-func resolveManifestPath(root, rel string) (string, error) {
-	clean := bundlemanifest.ResolvePath(root, rel)
-	if !withinBase(root, clean) {
-		return "", fmt.Errorf("path escapes manifest root: %s", rel)
+// expandShorthandToHostArch expands shorthand platform names to goos/goarch using host architecture.
+func expandShorthandToHostArch(platform string) (string, string) {
+	goarch := runtime.GOARCH
+	switch goarch {
+	case "amd64":
+		goarch = "amd64"
+	case "arm64":
+		goarch = "arm64"
+	default:
+		goarch = "amd64" // default fallback
 	}
+
+	switch platform {
+	case "win", "windows":
+		return "windows", goarch
+	case "mac", "darwin":
+		return "darwin", goarch
+	case "linux":
+		return "linux", goarch
+	}
+	return "", ""
+}
+
+func resolveManifestPath(root, rel string) (string, error) {
+	// Allow paths outside the manifest root for source files (binaries, assets)
+	// since they may be built elsewhere. The security boundary is enforced
+	// on destination paths via resolveBundlePath.
+	clean := bundlemanifest.ResolvePath(root, rel)
 	return clean, nil
 }
 
@@ -277,7 +387,38 @@ func withinBase(base, target string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
+// normalizeBundlePath strips leading parent directory traversals from a path.
+// For example: "../../../bin/linux-x64/api" becomes "bin/linux-x64/api"
+// This ensures files are always staged inside the bundle directory.
+func normalizeBundlePath(rel string) string {
+	// Convert to forward slashes for consistent handling
+	clean := filepath.ToSlash(rel)
+	// Remove leading "../" segments
+	for strings.HasPrefix(clean, "../") {
+		clean = strings.TrimPrefix(clean, "../")
+	}
+	// Also handle edge case of just ".."
+	if clean == ".." {
+		clean = ""
+	}
+	return clean
+}
+
 func copyFile(src, dst string) error {
+	// Resolve absolute paths to detect if src and dst are the same file
+	absSrc, err := filepath.Abs(src)
+	if err != nil {
+		return err
+	}
+	absDst, err := filepath.Abs(dst)
+	if err != nil {
+		return err
+	}
+	if absSrc == absDst {
+		// Source and destination are the same file, nothing to copy
+		return nil
+	}
+
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -466,4 +607,259 @@ func collectPlatforms(m bundlemanifest.Manifest) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// compileServiceBinary compiles a service binary for the specified platform.
+// It supports Go, Rust, npm (Node.js), and custom build commands.
+func (p *bundlePackager) compileServiceBinary(svc bundlemanifest.Service, platform, manifestRoot string) (string, error) {
+	if svc.Build == nil {
+		return "", errors.New("no build configuration")
+	}
+
+	build := svc.Build
+	goos, goarch, err := parsePlatformKey(platform)
+	if err != nil {
+		return "", err
+	}
+
+	// Resolve source directory
+	srcDir := filepath.Join(manifestRoot, build.SourceDir)
+	if _, err := os.Stat(srcDir); err != nil {
+		return "", fmt.Errorf("source directory not found: %s", srcDir)
+	}
+
+	// Determine output path
+	ext := ""
+	if goos == "windows" {
+		ext = ".exe"
+	}
+
+	outputPath := build.OutputPattern
+	if outputPath == "" {
+		// Default output pattern based on service ID
+		outputPath = fmt.Sprintf("bin/%s/%s%s", platform, svc.ID, ext)
+	} else {
+		// Replace placeholders in output pattern
+		outputPath = strings.ReplaceAll(outputPath, "{{platform}}", platform)
+		outputPath = strings.ReplaceAll(outputPath, "{{ext}}", ext)
+	}
+
+	absOutput := filepath.Join(srcDir, outputPath)
+	if err := os.MkdirAll(filepath.Dir(absOutput), 0o755); err != nil {
+		return "", fmt.Errorf("create output directory: %w", err)
+	}
+
+	// Build based on type
+	switch strings.ToLower(build.Type) {
+	case "go":
+		return absOutput, compileGoBinary(srcDir, absOutput, goos, goarch, build)
+	case "rust":
+		return absOutput, compileRustBinary(srcDir, absOutput, goos, goarch, build)
+	case "npm", "node":
+		return absOutput, compileNpmBinary(srcDir, absOutput, goos, goarch, build)
+	case "custom":
+		return absOutput, compileCustomBinary(srcDir, absOutput, goos, goarch, build)
+	default:
+		return "", fmt.Errorf("unsupported build type: %s", build.Type)
+	}
+}
+
+// compileGoBinary compiles a Go binary for the specified platform.
+func compileGoBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
+	args := []string{"build", "-o", outPath}
+
+	// Add any custom build args
+	if len(build.Args) > 0 {
+		args = append(args, build.Args...)
+	}
+
+	// Add entry point (default to current directory)
+	entryPoint := build.EntryPoint
+	if entryPoint == "" {
+		entryPoint = "."
+	}
+	args = append(args, entryPoint)
+
+	cmd := exec.Command("go", args...)
+	cmd.Dir = srcDir
+	cmd.Env = append(os.Environ(),
+		"CGO_ENABLED=0",
+		"GOOS="+goos,
+		"GOARCH="+goarch,
+	)
+
+	// Add custom environment variables
+	for k, v := range build.Env {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("go build failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+// compileRustBinary compiles a Rust binary for the specified platform.
+func compileRustBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
+	// Map Go OS/arch to Rust target triple
+	target, err := rustTarget(goos, goarch)
+	if err != nil {
+		return err
+	}
+
+	args := []string{"build", "--release", "--target", target}
+
+	// Add any custom build args
+	if len(build.Args) > 0 {
+		args = append(args, build.Args...)
+	}
+
+	cmd := exec.Command("cargo", args...)
+	cmd.Dir = srcDir
+
+	// Add custom environment variables
+	for k, v := range build.Env {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("cargo build failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	// Cargo outputs to target/<triple>/release/<binary>
+	// Find the binary and copy to outPath
+	binaryName := filepath.Base(srcDir)
+	if build.EntryPoint != "" {
+		binaryName = filepath.Base(build.EntryPoint)
+	}
+	if goos == "windows" {
+		binaryName += ".exe"
+	}
+
+	cargoOutput := filepath.Join(srcDir, "target", target, "release", binaryName)
+	if err := copyFile(cargoOutput, outPath); err != nil {
+		return fmt.Errorf("copy rust binary: %w", err)
+	}
+	return nil
+}
+
+// rustTarget returns the Rust target triple for the given OS/arch.
+func rustTarget(goos, goarch string) (string, error) {
+	targets := map[string]map[string]string{
+		"linux": {
+			"amd64": "x86_64-unknown-linux-gnu",
+			"arm64": "aarch64-unknown-linux-gnu",
+		},
+		"darwin": {
+			"amd64": "x86_64-apple-darwin",
+			"arm64": "aarch64-apple-darwin",
+		},
+		"windows": {
+			"amd64": "x86_64-pc-windows-msvc",
+			"arm64": "aarch64-pc-windows-msvc",
+		},
+	}
+
+	osTargets, ok := targets[goos]
+	if !ok {
+		return "", fmt.Errorf("unsupported OS for Rust: %s", goos)
+	}
+	target, ok := osTargets[goarch]
+	if !ok {
+		return "", fmt.Errorf("unsupported arch for Rust on %s: %s", goos, goarch)
+	}
+	return target, nil
+}
+
+// compileNpmBinary builds a Node.js application using npm/pkg or similar bundler.
+func compileNpmBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
+	// First, install dependencies
+	installCmd := exec.Command("npm", "install")
+	installCmd.Dir = srcDir
+	if output, err := installCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("npm install failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	// Build using the provided command or default to npm run build
+	buildArgs := []string{"run", "build"}
+	if len(build.Args) > 0 {
+		buildArgs = build.Args
+	}
+
+	buildCmd := exec.Command("npm", buildArgs...)
+	buildCmd.Dir = srcDir
+
+	// Add custom environment variables
+	for k, v := range build.Env {
+		buildCmd.Env = append(buildCmd.Env, k+"="+v)
+	}
+	// Set platform hints
+	buildCmd.Env = append(buildCmd.Env,
+		"TARGET_OS="+goos,
+		"TARGET_ARCH="+goarch,
+	)
+
+	if output, err := buildCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("npm build failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	// npm build typically outputs to dist/ - we need to check if output exists
+	// For Node.js single-binary bundlers like pkg, the output path should be configured via build.Args
+	if _, err := os.Stat(outPath); err != nil {
+		return fmt.Errorf("npm build did not produce expected output at %s - ensure build.args configures output path correctly", outPath)
+	}
+
+	return nil
+}
+
+// compileCustomBinary runs a custom build command.
+func compileCustomBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
+	if len(build.Args) == 0 {
+		return errors.New("custom build type requires args with command and arguments")
+	}
+
+	// First arg is the command, rest are arguments
+	cmdName := build.Args[0]
+	cmdArgs := build.Args[1:]
+
+	// Replace placeholders in arguments
+	for i, arg := range cmdArgs {
+		arg = strings.ReplaceAll(arg, "{{platform}}", goos+"-"+goarch)
+		arg = strings.ReplaceAll(arg, "{{goos}}", goos)
+		arg = strings.ReplaceAll(arg, "{{goarch}}", goarch)
+		arg = strings.ReplaceAll(arg, "{{output}}", outPath)
+		ext := ""
+		if goos == "windows" {
+			ext = ".exe"
+		}
+		arg = strings.ReplaceAll(arg, "{{ext}}", ext)
+		cmdArgs[i] = arg
+	}
+
+	cmd := exec.Command(cmdName, cmdArgs...)
+	cmd.Dir = srcDir
+	cmd.Env = append(os.Environ(),
+		"GOOS="+goos,
+		"GOARCH="+goarch,
+		"OUTPUT_PATH="+outPath,
+	)
+
+	// Add custom environment variables
+	for k, v := range build.Env {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("custom build failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	// Verify output was created
+	if _, err := os.Stat(outPath); err != nil {
+		return fmt.Errorf("custom build did not produce expected output at %s", outPath)
+	}
+
+	return nil
 }

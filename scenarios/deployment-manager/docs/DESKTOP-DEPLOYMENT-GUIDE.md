@@ -1,27 +1,39 @@
 # Desktop Deployment Guide (Tier 2)
 
-> **This guide has been consolidated into the workflows directory.**
->
-> See: **[workflows/desktop-deployment.md](workflows/desktop-deployment.md)** for the complete desktop deployment workflow.
+> **Quick path**: Use `deploy-desktop` for end-to-end bundled desktop builds in one command.
+
+## Quick Start (Recommended)
+
+```bash
+# Create a profile for your scenario
+deployment-manager profile create my-profile my-scenario --tier 2
+
+# Build everything: manifest, binaries, Electron wrapper, installers
+deployment-manager deploy-desktop --profile my-profile
+```
+
+This single command orchestrates the full 7-step pipeline. See [deploy-desktop CLI reference](cli/deployment-commands.md#deploy-desktop) for options.
 
 ## Quick Reference
 
 ```bash
-# Automated workflow
-./scripts/desktop-quick-start.sh <scenario-name>
+# Full automated pipeline (recommended)
+deployment-manager profile create my-desktop <scenario> --tier 2
+deployment-manager deploy-desktop --profile my-desktop
 
-# Manual workflow summary
-deployment-manager fitness <scenario> --tier 2           # Check compatibility
-deployment-manager profile create my-desktop <scenario> --tier 2  # Create profile
-deployment-manager swaps apply <profile-id> postgres sqlite       # Apply swaps
-deployment-manager bundle export <scenario> --output bundle.json  # Generate manifest
-cd scenarios/<scenario>/platforms/electron && pnpm run dist:all   # Build installers
+# Dry-run to preview
+deployment-manager deploy-desktop --profile my-desktop --dry-run
+
+# Partial pipeline options
+deployment-manager deploy-desktop --profile my-desktop --skip-installers  # No installers
+deployment-manager deploy-desktop --profile my-desktop --platforms win,linux  # Specific platforms
 ```
 
 ## Documentation Map
 
 | Topic | Location |
 |-------|----------|
+| **Tutorial** | [tutorials/hello-desktop-walkthrough.md](tutorials/hello-desktop-walkthrough.md) |
 | **Full Workflow** | [workflows/desktop-deployment.md](workflows/desktop-deployment.md) |
 | **CLI Commands** | [cli/deployment-commands.md](cli/deployment-commands.md) |
 | **Bundle Schema** | [guides/bundle-manifest-schema.md](guides/bundle-manifest-schema.md) |
@@ -30,12 +42,11 @@ cd scenarios/<scenario>/platforms/electron && pnpm run dist:all   # Build instal
 | **Troubleshooting** | [workflows/troubleshooting.md](workflows/troubleshooting.md) |
 | **Tier 2 Reference** | [tiers/tier-2-desktop.md](tiers/tier-2-desktop.md) |
 
-## Key Decision: Thin Client vs Bundled
+## Thin Client vs Bundled
 
-```
-Do you need the app to work offline?
-├── YES → Bundled Mode (full workflow)
-└── NO  → Thin Client Mode (simpler, connects to Tier 1 server)
-```
+| Mode | Use When | Command |
+|------|----------|---------|
+| **Bundled** | Offline use, distribution | `deploy-desktop --profile <id>` |
+| **Thin Client** | Internal tools, always online | scenario-to-desktop direct API |
 
-See the [full workflow guide](workflows/desktop-deployment.md#which-desktop-mode-do-you-need) for detailed comparison.
+See [workflow guide](workflows/desktop-deployment.md#which-desktop-mode-do-you-need) for detailed comparison.

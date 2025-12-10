@@ -91,16 +91,31 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Se
 		return nil
 	}
 
-	appName := cfg.Service.DisplayName
+	// Resolve app name from v2.0 flat fields first, then v1.x nested fields
+	appName := cfg.DisplayName
+	if appName == "" {
+		appName = cfg.Name
+	}
+	if appName == "" {
+		appName = cfg.Service.DisplayName
+	}
 	if appName == "" {
 		appName = cfg.Service.Name
 	}
 	if appName == "" {
 		appName = scenarioName
 	}
+
+	// Resolve version similarly
 	version := cfg.Service.Version
 	if version == "" {
 		version = "0.1.0"
+	}
+
+	// Resolve description
+	description := cfg.Description
+	if description == "" {
+		description = cfg.Service.Description
 	}
 
 	skeleton := &types.DesktopBundleSkeleton{
@@ -109,7 +124,7 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Se
 		App: types.BundleSkeletonApp{
 			Name:        appName,
 			Version:     version,
-			Description: cfg.Service.Description,
+			Description: description,
 		},
 		IPC: types.BundleSkeletonIPC{
 			Mode:          "loopback-http",
@@ -126,7 +141,7 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Se
 	}
 
 	skeleton.Swaps = deriveSwaps(nodes)
-	skeleton.Services = buildSkeletonServices(scenarioName, scenarioPath)
+	skeleton.Services = buildSkeletonServices(scenarioName, scenarioPath, cfg)
 
 	return skeleton
 }
@@ -159,9 +174,9 @@ func deriveSwaps(nodes []types.DeploymentDependencyNode) []types.BundleSkeletonS
 	return swaps
 }
 
-func buildSkeletonServices(scenarioName, scenarioPath string) []types.BundleSkeletonService {
+func buildSkeletonServices(scenarioName, scenarioPath string, cfg *types.ServiceConfig) []types.BundleSkeletonService {
 	services := []types.BundleSkeletonService{
-		buildAPISkeletonService(scenarioName, scenarioPath),
+		buildAPISkeletonService(scenarioName, scenarioPath, cfg),
 	}
 
 	if uiExists(scenarioPath) {
@@ -171,14 +186,14 @@ func buildSkeletonServices(scenarioName, scenarioPath string) []types.BundleSkel
 	return services
 }
 
-func buildAPISkeletonService(scenarioName, scenarioPath string) types.BundleSkeletonService {
+func buildAPISkeletonService(scenarioName, scenarioPath string, cfg *types.ServiceConfig) types.BundleSkeletonService {
 	defaultPath := filepath.ToSlash(filepath.Join("api", fmt.Sprintf("%s-api", scenarioName)))
 	apiBinary := defaultPath
 	if _, err := os.Stat(filepath.Join(scenarioPath, defaultPath)); err != nil {
 		apiBinary = filepath.ToSlash(filepath.Join("api", "server"))
 	}
 
-	return types.BundleSkeletonService{
+	service := types.BundleSkeletonService{
 		ID:          fmt.Sprintf("%s-api", scenarioName),
 		Type:        "api-binary",
 		Description: fmt.Sprintf("Bundled API process for %s", scenarioName),
@@ -213,6 +228,20 @@ func buildAPISkeletonService(scenarioName, scenarioPath string) types.BundleSkel
 		Migrations: []types.BundleSkeletonMigration{},
 		Assets:     []types.BundleSkeletonAsset{},
 	}
+
+	// Add build config from service.json if available
+	if cfg != nil && cfg.Deployment != nil && cfg.Deployment.BuildConfigs != nil {
+		if buildCfg, ok := cfg.Deployment.BuildConfigs["api"]; ok {
+			service.Build = &types.BundleSkeletonBuildConfig{
+				Type:          buildCfg.Type,
+				SourceDir:     buildCfg.SourceDir,
+				EntryPoint:    buildCfg.EntryPoint,
+				OutputPattern: buildCfg.OutputPattern,
+			}
+		}
+	}
+
+	return service
 }
 
 func buildUISkeletonService(scenarioPath string) types.BundleSkeletonService {

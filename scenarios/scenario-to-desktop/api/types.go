@@ -60,6 +60,104 @@ type DesktopConfig struct {
 	BundleUISvcID            string           `json:"bundle_ui_service_id,omitempty"`
 	BundleUIPortName         string           `json:"bundle_ui_port_name,omitempty"`
 	BundleTelemetryUploadURL string           `json:"bundle_telemetry_upload_url,omitempty"`
+
+	// Code signing configuration (optional; recommended for production)
+	CodeSigning *CodeSigningConfig `json:"code_signing,omitempty"`
+
+	// Auto-update configuration (optional; recommended for distribution)
+	UpdateConfig *UpdateConfig `json:"update_config,omitempty"`
+}
+
+// CodeSigningConfig configures code signing for desktop installers.
+// Code signing is required for production distribution to avoid OS security warnings.
+type CodeSigningConfig struct {
+	// Enabled controls whether code signing is active (default: false)
+	Enabled bool `json:"enabled"`
+
+	// Windows code signing (Authenticode)
+	Windows *WindowsSigningConfig `json:"windows,omitempty"`
+
+	// macOS code signing and notarization
+	MacOS *MacOSSigningConfig `json:"macos,omitempty"`
+
+	// Linux GPG signing (optional)
+	Linux *LinuxSigningConfig `json:"linux,omitempty"`
+}
+
+// WindowsSigningConfig configures Windows Authenticode signing.
+type WindowsSigningConfig struct {
+	// CertificateFile is the path to the .pfx certificate file
+	CertificateFile string `json:"certificate_file,omitempty"`
+	// CertificatePasswordEnv is the environment variable containing the certificate password
+	CertificatePasswordEnv string `json:"certificate_password_env,omitempty"`
+	// CertificateSubjectName for signing with a certificate from the Windows certificate store
+	CertificateSubjectName string `json:"certificate_subject_name,omitempty"`
+	// CertificateSHA1 for signing with a specific certificate thumbprint
+	CertificateSHA1 string `json:"certificate_sha1,omitempty"`
+	// TimestampServer URL for timestamping (e.g., http://timestamp.digicert.com)
+	TimestampServer string `json:"timestamp_server,omitempty"`
+	// SignAndEditExecutable enables editing and signing (default: true when Enabled)
+	SignAndEditExecutable *bool `json:"sign_and_edit_executable,omitempty"`
+}
+
+// MacOSSigningConfig configures macOS code signing and notarization.
+type MacOSSigningConfig struct {
+	// Identity is the signing identity (e.g., "Developer ID Application: Your Name (TEAMID)")
+	Identity string `json:"identity,omitempty"`
+	// TeamID is the Apple Developer Team ID
+	TeamID string `json:"team_id,omitempty"`
+	// EntitlementsFile is the path to the entitlements.plist file
+	EntitlementsFile string `json:"entitlements_file,omitempty"`
+	// HardenedRuntime enables hardened runtime (required for notarization)
+	HardenedRuntime bool `json:"hardened_runtime"`
+	// GatekeeperAssess runs gatekeeper assessment after signing
+	GatekeeperAssess bool `json:"gatekeeper_assess"`
+	// Notarize enables Apple notarization (requires AppleID credentials)
+	Notarize bool `json:"notarize"`
+	// AppleIDEnv is the environment variable containing the Apple ID email
+	AppleIDEnv string `json:"apple_id_env,omitempty"`
+	// AppleIDPasswordEnv is the environment variable for the app-specific password
+	AppleIDPasswordEnv string `json:"apple_id_password_env,omitempty"`
+}
+
+// LinuxSigningConfig configures Linux GPG signing.
+type LinuxSigningConfig struct {
+	// GPGKeyID is the GPG key ID to sign with
+	GPGKeyID string `json:"gpg_key_id,omitempty"`
+	// GPGKeyPassphraseEnv is the environment variable containing the key passphrase
+	GPGKeyPassphraseEnv string `json:"gpg_key_passphrase_env,omitempty"`
+}
+
+// UpdateConfig configures auto-updates for the desktop application.
+type UpdateConfig struct {
+	// Channel is the update channel: "dev", "beta", or "stable" (default: "stable")
+	Channel string `json:"channel,omitempty"`
+	// Provider is the update provider: "github", "generic", or "none" (default: "none")
+	Provider string `json:"provider,omitempty"`
+	// AutoCheck enables automatic update checks on app start (default: false)
+	AutoCheck bool `json:"auto_check"`
+	// GitHub configuration (when provider=github)
+	GitHub *GitHubUpdateConfig `json:"github,omitempty"`
+	// Generic server configuration (when provider=generic)
+	Generic *GenericUpdateConfig `json:"generic,omitempty"`
+}
+
+// GitHubUpdateConfig configures GitHub Releases as the update provider.
+type GitHubUpdateConfig struct {
+	// Owner is the GitHub organization or user
+	Owner string `json:"owner"`
+	// Repo is the GitHub repository name
+	Repo string `json:"repo"`
+	// Private indicates if this is a private repository (requires GH_TOKEN at runtime)
+	Private bool `json:"private"`
+}
+
+// GenericUpdateConfig configures a self-hosted update server.
+type GenericUpdateConfig struct {
+	// URL is the base URL of the update server
+	URL string `json:"url"`
+	// ChannelPath is the URL path pattern for channels (default: "/{channel}")
+	ChannelPath string `json:"channel_path,omitempty"`
 }
 
 // BundleIPCConfig captures runtime control surface hints derived from bundle.json.

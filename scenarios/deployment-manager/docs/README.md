@@ -30,11 +30,12 @@
 | I want to... | Status | Go to |
 |--------------|--------|-------|
 | **Deploy a scenario (start here)** | - | [Deployment Guide](DEPLOYMENT-GUIDE.md) |
+| **Desktop deployment in 5 minutes** | Working | [Desktop Quickstart](QUICKSTART.md) |
 | Get started in 5 minutes | - | [Quick Start](guides/quick-start.md) |
 | Copy-paste common commands | - | [Cheatsheet](CHEATSHEET.md) |
 | Learn CLI commands | Working | [CLI Reference](cli/README.md) |
 | Call REST APIs directly | Working | [API Reference](api/README.md) |
-| Deploy to desktop (Tier 2) | Partial | [Desktop Workflow](workflows/desktop-deployment.md) |
+| Deploy to desktop (Tier 2) | Working | [Desktop Workflow](workflows/desktop-deployment.md) |
 | Deploy to mobile (Tier 3) | Not Started | [Mobile Workflow](workflows/mobile-deployment.md) |
 | Deploy to cloud (Tier 4) | Not Started | [SaaS Workflow](workflows/saas-deployment.md) |
 | Understand deployment tiers | - | [Tier Overview](tiers/README.md) |
@@ -59,7 +60,7 @@ We validated during `scenario-to-desktop` that "build an Electron app" is useles
 | Tier | Description | Status | Doc |
 |------|-------------|--------|-----|
 | 1 | Full Vrooli stack + Cloudflare tunnel | Production Ready | [Local/Dev Stack](tiers/tier-1-local-dev.md) |
-| 2 | Desktop bundles (Windows/macOS/Linux) | Partial | [Desktop](tiers/tier-2-desktop.md) |
+| 2 | Desktop bundles (Windows/macOS/Linux) | Working | [Desktop](tiers/tier-2-desktop.md) |
 | 3 | Mobile packages (iOS/Android) | Not Started | [Mobile](tiers/tier-3-mobile.md) |
 | 4 | SaaS/Cloud installs | Not Started | [SaaS/Cloud](tiers/tier-4-saas.md) |
 | 5 | Enterprise/Hardware appliances | Vision | [Enterprise](tiers/tier-5-enterprise.md) |
@@ -97,11 +98,26 @@ deployment-manager secrets template <profile-id> --format env
 
 # Deployment
 deployment-manager validate <profile-id> --verbose    # Pre-flight checks
-deployment-manager package <profile-id> --packager scenario-to-desktop
+deployment-manager deploy-desktop --profile <id>      # Full desktop deployment
 deployment-manager logs <profile-id> --level error    # View telemetry
 ```
 
 See [CLI Reference](cli/README.md) for complete command documentation.
+
+## Reference Implementation
+
+**`hello-desktop`** is the reference scenario for desktop deployment validation:
+
+```bash
+# Quick test that the pipeline works
+deployment-manager profile create test hello-desktop --tier 2
+deployment-manager deploy-desktop --profile test --dry-run
+```
+
+Use it to:
+- Validate deployment pipeline changes
+- Copy structure for new desktop-ready scenarios
+- Test without heavy dependencies (no postgres, redis, ollama)
 
 ## Documentation Structure
 

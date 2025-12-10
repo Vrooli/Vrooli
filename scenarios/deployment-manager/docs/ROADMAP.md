@@ -14,11 +14,11 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| **CLI** | Working | Full command set implemented |
-| **API** | Working | Core routes functional |
+| **CLI** | ✅ Working | Full command set including `deploy-desktop` |
+| **API** | ✅ Working | Core routes functional |
 | **UI** | In Progress | Basic dashboard; swap UI pending |
-| **Thin Client Desktop** | Working | UI bundled; connects to Tier 1 |
-| **Bundled Desktop** | Partial | Components exist; integration pending |
+| **Thin Client Desktop** | ✅ Working | UI bundled; connects to Tier 1 |
+| **Bundled Desktop** | ✅ Working | Full pipeline via `deploy-desktop` command |
 | **Mobile (Tier 3)** | Not Started | Documentation placeholder |
 | **SaaS (Tier 4)** | Not Started | Documentation placeholder |
 | **Enterprise (Tier 5)** | Vision | Future hardware appliance |
@@ -105,9 +105,10 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 
 ### Integration
 
-- [ ] deployment-manager → scenario-to-desktop handoff
-  - **Current**: Manual bundle.json transfer required
-  - **Needed**: Direct API call or shared filesystem handoff
+- [x] deployment-manager → scenario-to-desktop handoff
+  - **Completed**: Direct API integration via `DeployDesktop` orchestrator
+  - **Implementation**: `api/deployments/orchestrator.go` and `api/deployments/desktop_client.go`
+  - **CLI**: `deploy-desktop` command now invokes scenario-to-desktop automatically
 
 ---
 
@@ -115,9 +116,10 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 
 ### Automation
 
-- [ ] Automated binary cross-compilation
-  - **Current**: Manual `GOOS/GOARCH` builds per platform
-  - **Needed**: scenario-to-desktop reads manifest and compiles from source
+- [x] Automated binary cross-compilation
+  - **Completed**: scenario-to-desktop reads manifest `build` config and compiles automatically
+  - **Supported**: Go, Rust, npm, and custom build types
+  - **Implementation**: `scenario-to-desktop/api/bundle_packager.go:compileServiceBinary()`
 
 - [ ] Asset procurement automation
   - **Current**: Assets (Chromium, models, seeds) manually placed
@@ -129,10 +131,16 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 
 ### Validation
 
-- [ ] End-to-end bundled build validation
-  - **Current**: No scenario has completed full pipeline
-  - **Needed**: picker-wheel or similar as reference implementation
-  - **Validation**: Install on clean machine, verify offline operation
+- [x] End-to-end bundled build validation
+  - **Completed**: `hello-desktop` scenario validates full pipeline
+  - **Location**: `scenarios/hello-desktop/`
+  - **Purpose**: Zero-dependency scenario for pipeline validation
+  - **Status**: ✅ Full end-to-end build complete with working installers (.exe, .AppImage, .deb, .zip)
+  - **Tutorial**: See [Hello Desktop Walkthrough](tutorials/hello-desktop-walkthrough.md)
+
+- [ ] Clean machine installation test
+  - **Current**: Not automated
+  - **Needed**: Install on clean VM, verify offline operation
 
 ### Tier 3 (Mobile)
 

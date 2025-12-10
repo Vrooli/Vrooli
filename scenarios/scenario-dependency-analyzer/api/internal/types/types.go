@@ -3,18 +3,32 @@ package types
 import "time"
 
 // ServiceConfig represents the full .vrooli/service.json structure for a scenario.
+// Supports both v1.x (service block) and v2.0 (flat structure) formats.
 type ServiceConfig struct {
 	Schema  string `json:"$schema"`
 	Version string `json:"version"`
+
+	// v1.x format uses a nested "service" block
 	Service struct {
 		Name        string   `json:"name"`
-		DisplayName string   `json:"displayName"`
+		DisplayName string   `json:"display_name"`
 		Description string   `json:"description"`
 		Version     string   `json:"version"`
 		Tags        []string `json:"tags"`
 	} `json:"service"`
-	Ports        map[string]interface{} `json:"ports"`
-	Resources    map[string]Resource    `json:"resources"`
+
+	// v2.0 format uses flat fields
+	Name        string                 `json:"name"`
+	DisplayName string                 `json:"display_name"`
+	Description string                 `json:"description"`
+	Category    string                 `json:"category"`
+	Tags        []string               `json:"tags"`
+	Ports       map[string]interface{} `json:"ports"`
+	Resources   map[string]Resource    `json:"resources"`
+	Scenarios   map[string]interface{} `json:"scenarios"`
+	Lifecycle   interface{}            `json:"lifecycle"`
+
+	// Common fields
 	Dependencies struct {
 		Resources map[string]Resource               `json:"resources"`
 		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
@@ -41,7 +55,9 @@ type ScenarioDependencySpec struct {
 }
 
 // ServiceDeployment stores deployment metadata and tier readiness.
+// Supports both v1.x (analyzer-generated) and v2.0 (user-defined) formats.
 type ServiceDeployment struct {
+	// v1.x analyzer-generated fields
 	MetadataVersion       int                         `json:"metadata_version"`
 	LastAnalyzedAt        string                      `json:"last_analyzed_at"`
 	Analyzer              *DeploymentAnalyzerInfo     `json:"analyzer"`
@@ -49,6 +65,21 @@ type ServiceDeployment struct {
 	Tiers                 map[string]DeploymentTier   `json:"tiers"`
 	Dependencies          DeploymentDependencyCatalog `json:"dependencies"`
 	Overrides             []DeploymentOverride        `json:"overrides"`
+
+	// v2.0 user-defined fields
+	SupportedTiers   []int                             `json:"supported_tiers"`
+	Platforms        []string                          `json:"platforms"`
+	DesktopReady     bool                              `json:"desktop_ready"`
+	MinimalResources []string                          `json:"minimal_resources"`
+	BuildConfigs     map[string]ServiceBuildConfig     `json:"build_configs"`
+}
+
+// ServiceBuildConfig specifies how to build a service component.
+type ServiceBuildConfig struct {
+	Type          string `json:"type"`           // "go", "rust", "npm", "python", "custom"
+	SourceDir     string `json:"source_dir"`     // relative path to source directory
+	EntryPoint    string `json:"entry_point"`    // main file or package (e.g., "." for Go)
+	OutputPattern string `json:"output_pattern"` // output path with {{platform}} and {{ext}} placeholders
 }
 
 // DeploymentAnalyzerInfo identifies the analyzer that produced the deployment block.
@@ -385,6 +416,7 @@ type BundleSkeletonService struct {
 	Type         string                                 `json:"type"`
 	Description  string                                 `json:"description,omitempty"`
 	Binaries     map[string]BundleSkeletonServiceBinary `json:"binaries"`
+	Build        *BundleSkeletonBuildConfig             `json:"build,omitempty"`
 	Env          map[string]string                      `json:"env,omitempty"`
 	Secrets      []string                               `json:"secrets,omitempty"`
 	DataDirs     []string                               `json:"data_dirs,omitempty"`
@@ -397,6 +429,25 @@ type BundleSkeletonService struct {
 	Assets       []BundleSkeletonAsset                  `json:"assets,omitempty"`
 	GPU          *BundleSkeletonGPU                     `json:"gpu,omitempty"`
 	Critical     *bool                                  `json:"critical,omitempty"`
+}
+
+// BundleSkeletonBuildConfig specifies how to compile a service binary when not pre-built.
+// This enables automatic cross-compilation during bundle packaging.
+type BundleSkeletonBuildConfig struct {
+	// Type is the build system: "go", "rust", "npm", "python", or "custom"
+	Type string `json:"type"`
+	// SourceDir is the relative path to the source code directory
+	SourceDir string `json:"source_dir"`
+	// EntryPoint is the main file or package (e.g., "." for Go, "src/main.rs" for Rust)
+	EntryPoint string `json:"entry_point,omitempty"`
+	// OutputPattern is the output path pattern with {{platform}} and {{ext}} placeholders
+	OutputPattern string `json:"output_pattern,omitempty"`
+	// BuildCommand is the custom build command (for type="custom")
+	BuildCommand string `json:"build_command,omitempty"`
+	// BuildArgs are additional arguments to pass to the build command
+	BuildArgs []string `json:"build_args,omitempty"`
+	// Env are environment variables to set during build
+	Env map[string]string `json:"env,omitempty"`
 }
 
 type BundleSkeletonServiceBinary struct {

@@ -97,6 +97,9 @@ Examples:
   # Export a signed bundle manifest to a file
   deployment-manager bundle export picker-wheel --output bundle.json
 
+  # Export with profile (inherits swaps, secrets, signing config)
+  deployment-manager bundle export picker-wheel --profile my-desktop-profile --output bundle.json
+
   # Validate an existing bundle manifest
   deployment-manager bundle validate ./bundle.json
 
@@ -110,6 +113,7 @@ Run 'deployment-manager bundle <command> --help' for command-specific help.
 func (c *Commands) Assemble(args []string) error {
 	fs := flag.NewFlagSet("bundle assemble", flag.ContinueOnError)
 	tier := fs.String("tier", "desktop", "target tier (desktop)")
+	profileID := fs.String("profile", "", "profile ID to inherit swaps, secrets, and signing config from")
 	includeSecrets := fs.Bool("include-secrets", true, "include secret configuration in manifest")
 	format := fs.String("format", "", "output format (json)")
 	output := fs.String("output", "", "write manifest to file instead of stdout")
@@ -129,6 +133,7 @@ Flags:
 Examples:
   deployment-manager bundle assemble picker-wheel
   deployment-manager bundle assemble picker-wheel --tier desktop --output manifest.json
+  deployment-manager bundle assemble picker-wheel --profile my-desktop-profile
   deployment-manager bundle assemble my-app --include-secrets=false
 `)
 	}
@@ -149,6 +154,9 @@ Examples:
 		"scenario":        scenario,
 		"tier":            tierValue,
 		"include_secrets": *includeSecrets,
+	}
+	if *profileID != "" {
+		payload["profile_id"] = *profileID
 	}
 
 	body, err := c.api.Request("POST", "/api/v1/bundles/assemble", nil, payload)
@@ -190,6 +198,7 @@ Examples:
 func (c *Commands) Export(args []string) error {
 	fs := flag.NewFlagSet("bundle export", flag.ContinueOnError)
 	tier := fs.String("tier", "desktop", "target tier (desktop)")
+	profileID := fs.String("profile", "", "profile ID to inherit swaps, secrets, and signing config from")
 	includeSecrets := fs.Bool("include-secrets", true, "include secret configuration in manifest")
 	format := fs.String("format", "", "output format (json)")
 	output := fs.String("output", "", "write manifest to file (recommended)")
@@ -204,6 +213,11 @@ packaging into a desktop application. The output includes:
   - Generation timestamp
   - Schema version
 
+When --profile is specified, the manifest inherits:
+  - Dependency swaps configured in the profile
+  - Code signing configuration
+  - Environment settings
+
 Usage:
   deployment-manager bundle export <scenario> [flags]
 
@@ -217,6 +231,9 @@ Flags:
 Examples:
   # Export to file (recommended for bundled apps)
   deployment-manager bundle export picker-wheel --output bundle.json
+
+  # Export with profile (inherits swaps and signing config)
+  deployment-manager bundle export picker-wheel --profile my-desktop-profile --output bundle.json
 
   # Export manifest only (for piping to other tools)
   deployment-manager bundle export picker-wheel --manifest-only > bundle.json
@@ -242,6 +259,9 @@ Examples:
 		"scenario":        scenario,
 		"tier":            tierValue,
 		"include_secrets": *includeSecrets,
+	}
+	if *profileID != "" {
+		payload["profile_id"] = *profileID
 	}
 
 	body, err := c.api.Request("POST", "/api/v1/bundles/export", nil, payload)
