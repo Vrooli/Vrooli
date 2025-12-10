@@ -187,6 +187,8 @@ deployment-manager fitness <scenario-name> --tier desktop
 | 40-59 | Fair | Address blockers in Phase 2 |
 | 0-39 | Poor | Significant swaps required |
 
+> **Important**: The `deploy-desktop` command will **fail validation** if blocking dependencies (postgres, redis, browserless, n8n, qdrant) are present without corresponding swaps applied to the profile. This prevents deploying desktop apps that won't work offline.
+
 ---
 
 ## Phase 2: Address Blocking Issues

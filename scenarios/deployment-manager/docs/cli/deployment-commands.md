@@ -64,12 +64,33 @@ deployment-manager deploy-desktop --profile <profile-id> [flags]
 The command executes a 7-step pipeline:
 
 1. **Load profile** - Load deployment profile configuration
-2. **Validate profile** - Check fitness score, secrets, dependencies
+2. **Validate profile** - Check fitness score, secrets, dependencies, and **blocker resolution**
 3. **Assemble manifest** - Generate bundle.json with profile swaps applied
 4. **Export manifest** - Write manifest to output directory
 5. **Build binaries** - Cross-compile service binaries for all platforms
 6. **Generate desktop wrapper** - Create Electron app via scenario-to-desktop
 7. **Build platform installers** - Create MSI/PKG/AppImage/DEB packages
+
+**Blocker Validation:**
+
+Step 2 automatically checks for blocking dependencies that cannot be bundled directly:
+
+| Blocking Dependency | Required Swap | Reason |
+|---------------------|---------------|--------|
+| `postgres` | `sqlite` | File-based storage without network dependency |
+| `redis` | `in-process` | Memory-only cache without separate process |
+| `browserless` | `playwright-driver` | Bundled Chromium for offline browser automation |
+| `n8n` | `embedded-workflows` | Pre-compiled workflow execution |
+| `qdrant` | `faiss-local` | File-based vector search |
+
+If blockers exist without swaps, validation fails with actionable guidance:
+```
+Error: unresolved blockers for desktop deployment: postgres (swap to sqlite), redis (swap to in-process).
+Run 'deployment-manager swaps list my-scenario' to see available swaps,
+then apply with 'deployment-manager swaps apply <profile-id> <from> <to>'
+```
+
+Use `--skip-validation` to bypass blocker checking (not recommended for production).
 
 **Example - Full Pipeline:**
 

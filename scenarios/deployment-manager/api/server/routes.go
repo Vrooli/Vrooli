@@ -24,6 +24,7 @@ func (s *Server) setupRoutes() {
 
 	// Deployment endpoints
 	s.Router.HandleFunc("/api/v1/deploy/{profile_id}", s.DeploymentsHandler.Deploy).Methods("POST")
+	s.Router.HandleFunc("/api/v1/deploy-desktop", s.Orchestrator.DeployDesktop).Methods("POST")
 	s.Router.HandleFunc("/api/v1/deployments/{deployment_id}", s.DeploymentsHandler.Status).Methods("GET")
 
 	// Swap analysis endpoints
@@ -65,4 +66,8 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/profiles/{id}/signing/validate", s.SigningHandler.ValidateSigning).Methods("POST")
 	s.Router.HandleFunc("/api/v1/signing/prerequisites", s.SigningHandler.CheckPrerequisites).Methods("GET")
 	s.Router.HandleFunc("/api/v1/signing/discover/{platform}", s.SigningHandler.DiscoverCertificates).Methods("GET")
+
+	// Build endpoints (cross-compilation)
+	s.Router.HandleFunc("/api/v1/build", s.BuildHandler.Build).Methods("POST")
+	s.Router.HandleFunc("/api/v1/build/{build_id}", s.BuildHandler.BuildStatus).Methods("GET")
 }

@@ -15,6 +15,8 @@ type ConfigResolver interface {
 	ResolveAnalyzerURL() (string, error)
 	// ResolveSecretsManagerURL returns the URL for the secrets-manager service.
 	ResolveSecretsManagerURL() (string, error)
+	// ResolveDesktopPackagerURL returns the URL for the scenario-to-desktop service.
+	ResolveDesktopPackagerURL() (string, error)
 	// ResolveTelemetryDir returns the directory for storing telemetry files.
 	ResolveTelemetryDir() string
 }
@@ -70,6 +72,33 @@ func (r *EnvConfigResolver) ResolveSecretsManagerURL() (string, error) {
 	port := strings.TrimSpace(string(output))
 	if port == "" {
 		return "", fmt.Errorf("SECRETS_MANAGER_URL/SECRETS_MANAGER_API_PORT not set and dynamic lookup returned empty output")
+	}
+	return fmt.Sprintf("http://127.0.0.1:%s", port), nil
+}
+
+// ResolveDesktopPackagerURL returns the URL for the scenario-to-desktop service.
+// It checks SCENARIO_TO_DESKTOP_URL first (for testing), then SCENARIO_TO_DESKTOP_API_PORT,
+// then falls back to dynamic lookup via the vrooli CLI.
+func (r *EnvConfigResolver) ResolveDesktopPackagerURL() (string, error) {
+	// Full URL override (useful for testing with mock servers)
+	if url := strings.TrimSpace(os.Getenv("SCENARIO_TO_DESKTOP_URL")); url != "" {
+		return url, nil
+	}
+
+	// Port-only override
+	if port := strings.TrimSpace(os.Getenv("SCENARIO_TO_DESKTOP_API_PORT")); port != "" {
+		return fmt.Sprintf("http://127.0.0.1:%s", port), nil
+	}
+
+	// Dynamic lookup via vrooli CLI
+	cmd := exec.Command("vrooli", "scenario", "port", "scenario-to-desktop", "API_PORT")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("SCENARIO_TO_DESKTOP_URL/SCENARIO_TO_DESKTOP_API_PORT not set and dynamic lookup failed: %w", err)
+	}
+	port := strings.TrimSpace(string(output))
+	if port == "" {
+		return "", fmt.Errorf("SCENARIO_TO_DESKTOP_URL/SCENARIO_TO_DESKTOP_API_PORT not set and dynamic lookup returned empty output")
 	}
 	return fmt.Sprintf("http://127.0.0.1:%s", port), nil
 }

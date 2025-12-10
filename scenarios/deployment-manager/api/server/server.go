@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"deployment-manager/build"
 	"deployment-manager/bundles"
 	"deployment-manager/codesigning"
 	"deployment-manager/codesigning/validation"
@@ -46,6 +47,8 @@ type Server struct {
 	BundlesHandler      *bundles.Handler
 	ProfilesHandler     *profiles.Handler
 	SigningHandler      *codesigning.Handler
+	BuildHandler        *build.Handler
+	Orchestrator        *deployments.Orchestrator
 
 	// Repositories
 	ProfilesRepo profiles.Repository
@@ -109,6 +112,8 @@ func New() (*Server, error) {
 		BundlesHandler:      bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn),
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
+		BuildHandler:        build.NewHandler(profilesRepo, logFn),
+		Orchestrator:        deployments.NewOrchestrator(profilesRepo, logFn),
 	}
 
 	srv.setupRoutes()
