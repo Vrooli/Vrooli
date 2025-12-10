@@ -114,6 +114,9 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	if deps.PhaseCatalog == nil {
 		return nil, fmt.Errorf("phase catalog dependency is required")
 	}
+	if deps.AgentService == nil {
+		return nil, fmt.Errorf("agent service dependency is required")
+	}
 
 	logger := deps.Logger
 	if logger == nil {
