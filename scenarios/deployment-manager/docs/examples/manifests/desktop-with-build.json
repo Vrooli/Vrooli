@@ -1,0 +1,206 @@
+{
+  "schema_version": "v0.1",
+  "target": "desktop",
+  "app": {
+    "name": "my-app",
+    "version": "1.0.0",
+    "description": "Example bundled desktop app with automatic binary compilation"
+  },
+  "ipc": {
+    "mode": "loopback-http",
+    "host": "127.0.0.1",
+    "port": 47710,
+    "auth_token_path": "runtime/auth-token"
+  },
+  "telemetry": {
+    "file": "telemetry/deployment-telemetry.jsonl",
+    "upload_url": "https://your-server.com/api/v1/telemetry/upload"
+  },
+  "ports": {
+    "default_range": { "min": 47000, "max": 47999 },
+    "reserved": [47710]
+  },
+  "swaps": [
+    {
+      "original": "postgres",
+      "replacement": "sqlite",
+      "reason": "Bundle-safe storage for offline desktop use",
+      "limitations": "Single-user file store; no replication"
+    }
+  ],
+  "secrets": [
+    {
+      "id": "jwt_secret",
+      "class": "per_install_generated",
+      "description": "JWT signing key - auto-generated on first run",
+      "format": "^[A-Za-z0-9]{32,}$",
+      "generator": {
+        "type": "random",
+        "length": 64,
+        "charset": "alnum"
+      },
+      "target": { "type": "env", "name": "JWT_SECRET" }
+    },
+    {
+      "id": "api_key",
+      "class": "user_prompt",
+      "description": "API key for external service integration",
+      "format": "^[A-Za-z0-9_-]{20,}$",
+      "prompt": {
+        "label": "API Key",
+        "description": "Enter your API key for the external service (get from settings page)"
+      },
+      "target": { "type": "env", "name": "EXTERNAL_API_KEY" }
+    }
+  ],
+  "services": [
+    {
+      "id": "api",
+      "type": "api-binary",
+      "description": "Main API server - compiled from Go source during packaging",
+      "binaries": {},
+      "build": {
+        "type": "go",
+        "source_dir": "api",
+        "entry_point": "./cmd/api",
+        "output_pattern": "bin/{{platform}}/my-app-api{{ext}}",
+        "args": ["-ldflags", "-s -w"],
+        "env": {
+          "CGO_ENABLED": "0"
+        }
+      },
+      "env": {
+        "HTTP_PORT": "${api.http}",
+        "DATABASE_URL": "file:${data}/my-app.db",
+        "LOG_LEVEL": "info"
+      },
+      "secrets": ["jwt_secret", "api_key"],
+      "data_dirs": ["data/my-app"],
+      "log_dir": "logs/api",
+      "ports": {
+        "requested": [
+          { "name": "http", "range": { "min": 47040, "max": 47060 } }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "path": "/healthz",
+        "port_name": "http",
+        "interval_ms": 1000,
+        "timeout_ms": 3000,
+        "retries": 5
+      },
+      "readiness": {
+        "type": "health_success",
+        "timeout_ms": 30000
+      },
+      "dependencies": [],
+      "migrations": [
+        {
+          "version": "2025-01-01T00:00:00Z",
+          "command": ["./my-app-api", "migrate", "--dsn", "file:${data}/my-app.db"],
+          "run_on": "install"
+        },
+        {
+          "version": "2025-02-01T00:00:00Z",
+          "command": ["./my-app-api", "migrate", "--dsn", "file:${data}/my-app.db"],
+          "run_on": "upgrade"
+        }
+      ],
+      "critical": true
+    },
+    {
+      "id": "ui",
+      "type": "ui-bundle",
+      "description": "Web UI - static files served by the runtime",
+      "binaries": {
+        "universal": { "path": "ui/dist" }
+      },
+      "env": {
+        "API_BASE_URL": "http://127.0.0.1:${api.http}"
+      },
+      "ports": {
+        "requested": [
+          { "name": "http", "range": { "min": 47010, "max": 47030 } }
+        ]
+      },
+      "health": {
+        "type": "http",
+        "path": "/",
+        "port_name": "http",
+        "interval_ms": 1000,
+        "timeout_ms": 2000,
+        "retries": 3
+      },
+      "readiness": {
+        "type": "dependencies_ready",
+        "timeout_ms": 30000
+      },
+      "dependencies": ["api"],
+      "critical": false
+    },
+    {
+      "id": "worker",
+      "type": "worker",
+      "description": "Background worker - compiled from Rust source",
+      "binaries": {},
+      "build": {
+        "type": "rust",
+        "source_dir": "worker",
+        "entry_point": "worker",
+        "output_pattern": "target/release/worker{{ext}}"
+      },
+      "env": {
+        "WORKER_THREADS": "2",
+        "DATABASE_URL": "file:${data}/my-app.db"
+      },
+      "health": {
+        "type": "command",
+        "command": ["./worker", "--health-check"],
+        "interval_ms": 5000,
+        "timeout_ms": 5000,
+        "retries": 3
+      },
+      "readiness": {
+        "type": "log_match",
+        "pattern": "Worker started successfully",
+        "timeout_ms": 30000
+      },
+      "dependencies": ["api"],
+      "critical": false
+    },
+    {
+      "id": "custom-tool",
+      "type": "resource",
+      "description": "Custom tool with custom build command",
+      "binaries": {},
+      "build": {
+        "type": "custom",
+        "source_dir": "tools/custom",
+        "output_pattern": "bin/{{platform}}/custom-tool{{ext}}",
+        "args": ["make", "build", "GOOS={{goos}}", "GOARCH={{goarch}}", "OUTPUT={{output}}"],
+        "env": {
+          "BUILD_MODE": "release"
+        }
+      },
+      "health": {
+        "type": "tcp",
+        "port_name": "grpc",
+        "interval_ms": 2000,
+        "timeout_ms": 3000,
+        "retries": 5
+      },
+      "readiness": {
+        "type": "port_open",
+        "port_name": "grpc",
+        "timeout_ms": 20000
+      },
+      "ports": {
+        "requested": [
+          { "name": "grpc", "range": { "min": 47100, "max": 47120 } }
+        ]
+      },
+      "critical": false
+    }
+  ]
+}

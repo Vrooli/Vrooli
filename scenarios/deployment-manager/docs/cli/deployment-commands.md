@@ -27,47 +27,9 @@ Each command is marked with its current implementation status:
 | `packagers discover` | **Stub** | Returns hardcoded list |
 | `logs` | **Working** | Full telemetry filtering |
 | `estimate-cost` | **Partial** | AWS only; basic estimates |
-| `bundle export` | **Planned** | Use REST API workaround |
-| `bundle assemble` | **Planned** | Use REST API workaround |
-| `bundle validate` | **Planned** | Use REST API workaround |
-
----
-
-## Planned Commands (Use REST API)
-
-The following commands are documented in workflows but not yet available in the CLI:
-
-| Planned Command | Purpose | Current Workaround |
-|-----------------|---------|-------------------|
-| `bundle export <profile-id>` | Export bundle manifest with checksum | Use REST API: `POST /api/v1/bundles/export` |
-| `bundle assemble <profile-id>` | Assemble bundle manifest from profile | Use REST API: `POST /api/v1/bundles/assemble` |
-| `bundle validate <path>` | Validate a bundle.json file | Use REST API: `POST /api/v1/bundles/validate` |
-
-**REST API Example:**
-
-```bash
-# Get API port
-API_PORT=$(vrooli scenario port deployment-manager API_PORT)
-
-# Assemble bundle manifest
-curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/assemble" \
-  -H "Content-Type: application/json" \
-  -d '{"scenario": "picker-wheel", "tier": "tier-2-desktop"}'
-
-# Export with checksum
-curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/export" \
-  -H "Content-Type: application/json" \
-  -d '{"scenario": "picker-wheel", "tier": "tier-2-desktop"}' > bundle.json
-
-# Validate manifest
-curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/validate" \
-  -H "Content-Type: application/json" \
-  -d @bundle.json
-```
-
-See [Desktop Workflow - Phase 5](../workflows/desktop-deployment.md#phase-5-generate-bundle-manifest) for complete examples.
-
-See [ROADMAP.md](../ROADMAP.md) for implementation tracking.
+| `bundle assemble` | **Working** | Assemble bundle manifest from scenario |
+| `bundle export` | **Working** | Export production-ready manifest with checksum |
+| `bundle validate` | **Working** | Validate bundle.json against schema |
 
 ---
 
@@ -511,6 +473,185 @@ deployment-manager estimate-cost profile-456 --verbose
 ```
 
 > **Note**: Cost estimation is currently available for AWS. Additional providers coming soon.
+
+---
+
+## bundle
+
+> **Status: Working** - All subcommands fully functional
+
+Bundle manifest operations for desktop deployments.
+
+```bash
+deployment-manager bundle <subcommand> [arguments]
+```
+
+**Subcommands:**
+- `assemble` - Generate bundle manifest from scenario
+- `export` - Export production-ready manifest with checksum
+- `validate` - Validate manifest file against schema
+
+---
+
+### bundle assemble
+
+> **Status: Working** - Fully functional
+
+Assemble a bundle manifest from a scenario.
+
+```bash
+deployment-manager bundle assemble <scenario> [--tier <tier>] [--include-secrets] [--output <file>]
+```
+
+**Arguments:**
+- `<scenario>` - Name of the scenario to bundle
+
+**Flags:**
+- `--tier <tier>` - Target tier (default: desktop). Options: desktop, mobile, saas, enterprise
+- `--include-secrets` - Include secret configuration in manifest (default: true)
+- `--output <file>` - Write manifest to file instead of stdout
+- `--format <fmt>` - Output format (json)
+
+**Example:**
+
+```bash
+# Assemble and print to stdout
+deployment-manager bundle assemble picker-wheel
+
+# Assemble and save to file
+deployment-manager bundle assemble picker-wheel --output manifest.json
+
+# Assemble without secrets (for debugging)
+deployment-manager bundle assemble picker-wheel --include-secrets=false
+```
+
+**Output:**
+
+```json
+{
+  "status": "assembled",
+  "schema": "desktop.v0.1",
+  "manifest": {
+    "schema_version": "v0.1",
+    "target": "desktop",
+    "app": {"name": "picker-wheel", "version": "1.2.3"},
+    "services": [...],
+    "secrets": [...],
+    "swaps": [...]
+  }
+}
+```
+
+---
+
+### bundle export
+
+> **Status: Working** - Fully functional
+
+Export a production-ready bundle manifest with SHA256 checksum.
+
+```bash
+deployment-manager bundle export <scenario> [--tier <tier>] [--output <file>] [--manifest-only]
+```
+
+**Arguments:**
+- `<scenario>` - Name of the scenario to export
+
+**Flags:**
+- `--tier <tier>` - Target tier (default: desktop)
+- `--include-secrets` - Include secret configuration (default: true)
+- `--output <file>` - Write manifest to file (recommended)
+- `--manifest-only` - Output only the manifest, without metadata wrapper
+- `--format <fmt>` - Output format (json)
+
+**Example:**
+
+```bash
+# Export to file (recommended for bundled apps)
+deployment-manager bundle export picker-wheel --output bundle.json
+
+# Export manifest only (for piping to other tools)
+deployment-manager bundle export picker-wheel --manifest-only > bundle.json
+
+# Export with full metadata to stdout
+deployment-manager bundle export picker-wheel
+```
+
+**Output (with --output):**
+
+```
+Bundle manifest exported to bundle.json
+  Scenario:    picker-wheel
+  Tier:        tier-2-desktop
+  Schema:      desktop.v0.1
+  Checksum:    a1b2c3d4e5f6...
+  Generated:   2025-01-15T12:00:00Z
+```
+
+**Output (JSON):**
+
+```json
+{
+  "status": "exported",
+  "schema": "desktop.v0.1",
+  "scenario": "picker-wheel",
+  "tier": "tier-2-desktop",
+  "manifest": {...},
+  "checksum": "a1b2c3d4e5f6...",
+  "generated_at": "2025-01-15T12:00:00Z"
+}
+```
+
+---
+
+### bundle validate
+
+> **Status: Working** - Fully functional
+
+Validate a bundle manifest file against the v0.1 schema.
+
+```bash
+deployment-manager bundle validate <file> [--format <fmt>]
+```
+
+**Arguments:**
+- `<file>` - Path to the bundle.json manifest file
+
+**Flags:**
+- `--format <fmt>` - Output format (json)
+
+**Example:**
+
+```bash
+# Validate a manifest file
+deployment-manager bundle validate ./bundle.json
+
+# Validate with JSON output
+deployment-manager bundle validate ./bundle.json --format json
+```
+
+**Output (success):**
+
+```
+Manifest is valid
+  File:   ./bundle.json
+  Schema: desktop.v0.1
+```
+
+**Output (failure):**
+
+```
+validation failed: api error (400): bundle failed validation: services array is empty
+```
+
+**Validation checks:**
+- Schema version is "v0.1"
+- Target is "desktop"
+- App name and version are present
+- At least one service is defined
+- Each service has valid health and readiness checks
+- Secret classes are valid (per_install_generated, user_prompt, remote_fetch)
+- IPC mode is "loopback-http"
 
 ---
 

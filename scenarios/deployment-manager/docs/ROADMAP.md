@@ -52,6 +52,9 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 - [x] Manifest export with checksum (`POST /api/v1/bundles/export`)
 - [x] Secrets merging into manifests (`POST /api/v1/bundles/merge-secrets`)
 - [x] Example manifests (desktop-happy.json, desktop-playwright.json)
+- [x] `bundle assemble` CLI command - Assemble manifest from scenario
+- [x] `bundle export` CLI command - Export production-ready manifest with checksum
+- [x] `bundle validate` CLI command - Validate manifest against schema
 
 ### Runtime Supervisor (scenario-to-desktop)
 
@@ -89,16 +92,6 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 ---
 
 ## In Progress
-
-### CLI Enhancements
-
-- [ ] `bundle export <profile-id>` CLI command
-  - **Current**: API endpoint exists; must use REST API directly
-  - **Needed**: Wire CLI to call `/api/v1/bundles/export`
-
-- [ ] `bundle assemble <profile-id>` CLI command
-  - **Current**: API endpoint exists; must use REST API directly
-  - **Needed**: Wire CLI to call `/api/v1/bundles/assemble`
 
 ### deployment-manager UI
 

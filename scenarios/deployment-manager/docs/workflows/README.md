@@ -28,7 +28,7 @@ The desktop workflow is **Partial** because:
 
 | Gap | Workaround | Tracking |
 |-----|------------|----------|
-| No CLI `bundle export` command | Use REST API directly | [ROADMAP.md](../ROADMAP.md) |
+| ~~No CLI `bundle export` command~~ | ~~Use REST API directly~~ **RESOLVED** - CLI commands available | - |
 | No automated binary compilation | Manual cross-compile per platform | [ROADMAP.md](../ROADMAP.md) |
 | No asset procurement automation | Manual download/placement | [ROADMAP.md](../ROADMAP.md) |
 | Code signing not wired | Manual certificate config | [ROADMAP.md](../ROADMAP.md) |

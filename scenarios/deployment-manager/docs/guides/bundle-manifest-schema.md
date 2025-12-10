@@ -548,6 +548,169 @@ Environment values can reference allocated ports and data directories:
 
 ---
 
+## Build Configuration
+
+When binaries don't exist for a platform, the packager can automatically compile them if a `build` configuration is provided.
+
+### Build Object
+
+```json
+{
+  "services": [{
+    "id": "api",
+    "binaries": { ... },
+    "build": {
+      "type": "go",
+      "source_dir": "api",
+      "entry_point": "./cmd/api",
+      "output_pattern": "bin/{{platform}}/my-api{{ext}}",
+      "args": ["-ldflags", "-s -w"],
+      "env": {
+        "CGO_ENABLED": "0"
+      }
+    }
+  }]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | **Yes** | Build system: `"go"`, `"rust"`, `"npm"`, `"custom"` |
+| `source_dir` | string | **Yes** | Path to source code relative to manifest |
+| `entry_point` | string | No | Entry point (default: `.` for Go, `Cargo.toml` for Rust) |
+| `output_pattern` | string | No | Output path pattern with placeholders |
+| `args` | array[string] | No | Additional build arguments |
+| `env` | object | No | Environment variables for build |
+
+### Build Types
+
+| Type | Tool | Notes |
+|------|------|-------|
+| `go` | `go build` | Sets `CGO_ENABLED=0`, `GOOS`, `GOARCH` automatically |
+| `rust` | `cargo build --release` | Maps to Rust target triples |
+| `npm` | `npm install && npm run build` | Requires bundler that outputs platform binaries |
+| `custom` | User-specified | First `args` element is the command |
+
+### Build Placeholders
+
+| Placeholder | Example Values | Description |
+|-------------|----------------|-------------|
+| `{{platform}}` | `linux-x64`, `darwin-arm64`, `win-x64` | Combined OS-arch key |
+| `{{goos}}` | `linux`, `darwin`, `windows` | Go OS identifier |
+| `{{goarch}}` | `amd64`, `arm64` | Go architecture identifier |
+| `{{ext}}` | `` (empty) or `.exe` | Platform-specific extension |
+| `{{output}}` | `/path/to/binary` | Full output path |
+
+### Go Build Example
+
+```json
+{
+  "build": {
+    "type": "go",
+    "source_dir": "api",
+    "entry_point": "./cmd/api",
+    "output_pattern": "bin/{{platform}}/my-api{{ext}}",
+    "args": ["-ldflags", "-s -w"],
+    "env": { "CGO_ENABLED": "0" }
+  }
+}
+```
+
+### Rust Build Example
+
+```json
+{
+  "build": {
+    "type": "rust",
+    "source_dir": "worker",
+    "entry_point": "worker",
+    "output_pattern": "target/release/worker{{ext}}"
+  }
+}
+```
+
+Rust target mapping:
+- `linux-x64` → `x86_64-unknown-linux-gnu`
+- `linux-arm64` → `aarch64-unknown-linux-gnu`
+- `darwin-x64` → `x86_64-apple-darwin`
+- `darwin-arm64` → `aarch64-apple-darwin`
+- `win-x64` → `x86_64-pc-windows-msvc`
+
+### Custom Build Example
+
+```json
+{
+  "build": {
+    "type": "custom",
+    "source_dir": "tools",
+    "output_pattern": "bin/{{platform}}/tool{{ext}}",
+    "args": ["make", "build", "GOOS={{goos}}", "GOARCH={{goarch}}", "OUTPUT={{output}}"]
+  }
+}
+```
+
+---
+
+## Code Signing (Future)
+
+> **Note**: Code signing configuration is planned but not yet implemented in v0.1. See [ROADMAP.md](../ROADMAP.md).
+
+When implemented, code signing will be configured as:
+
+```json
+{
+  "code_signing": {
+    "enabled": true,
+    "windows": {
+      "certificate_file": "./certs/windows.pfx",
+      "certificate_password_env": "WIN_CERT_PASSWORD",
+      "timestamp_server": "http://timestamp.digicert.com"
+    },
+    "macos": {
+      "identity": "Developer ID Application: Your Name (TEAMID)",
+      "team_id": "TEAMID",
+      "hardened_runtime": true,
+      "notarize": true,
+      "apple_id_env": "APPLE_ID",
+      "apple_id_password_env": "APPLE_APP_PASSWORD"
+    },
+    "linux": {
+      "gpg_key_id": "YOUR_GPG_KEY",
+      "gpg_key_passphrase_env": "GPG_PASSPHRASE"
+    }
+  }
+}
+```
+
+**Current workaround**: Configure signing directly in `package.json`:
+
+```json
+{
+  "build": {
+    "win": {
+      "certificateFile": "./cert.pfx",
+      "certificatePassword": "${WIN_CSC_KEY_PASSWORD}",
+      "signAndEditExecutable": true
+    },
+    "mac": {
+      "hardenedRuntime": true,
+      "gatekeeperAssess": true,
+      "entitlements": "build/entitlements.mac.plist"
+    }
+  }
+}
+```
+
+**Platform requirements:**
+
+| Platform | Requirement | Cost |
+|----------|-------------|------|
+| Windows | Authenticode certificate | $200-400/year |
+| macOS | Apple Developer account | $99/year |
+| Linux | GPG key (optional) | Free |
+
+---
+
 ## Complete Example
 
 See [desktop-happy.json](../examples/manifests/desktop-happy.json) for a complete working example.

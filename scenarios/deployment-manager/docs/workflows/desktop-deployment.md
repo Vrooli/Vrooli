@@ -411,8 +411,6 @@ deployment-manager secrets validate <profile-id>
 
 ## Phase 5: Generate Bundle Manifest
 
-> **Current Gap**: The CLI does not yet have a direct `bundle export` command. Use the REST API.
-
 ### Step 5.1: Validate Profile for Deployment
 
 ```bash
@@ -435,22 +433,14 @@ deployment-manager validate <profile-id> --verbose
 }
 ```
 
-### Step 5.2: Assemble Bundle Manifest (via API)
-
-> **Note**: Until CLI support is added, use the REST API directly.
+### Step 5.2: Assemble Bundle Manifest
 
 ```bash
-# Get the deployment-manager API port
-API_PORT=$(vrooli scenario port deployment-manager API_PORT)
+# Assemble the bundle manifest (preview without checksum)
+deployment-manager bundle assemble picker-wheel --tier desktop
 
-# Assemble the bundle manifest
-curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/assemble" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "scenario": "picker-wheel",
-    "tier": "tier-2-desktop",
-    "include_secrets": true
-  }'
+# Or output directly to a file
+deployment-manager bundle assemble picker-wheel --tier desktop --output manifest.json
 ```
 
 **Expected output:**
@@ -472,21 +462,59 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/assemble" \
 ### Step 5.3: Export Bundle Manifest with Checksum
 
 ```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/export" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "scenario": "picker-wheel",
-    "tier": "tier-2-desktop"
-  }' > bundle.json
+# Export production-ready manifest with SHA256 checksum
+deployment-manager bundle export picker-wheel --output bundle.json
+```
+
+**Expected output:**
+```
+Bundle manifest exported to bundle.json
+  Scenario:    picker-wheel
+  Tier:        tier-2-desktop
+  Schema:      desktop.v0.1
+  Checksum:    a1b2c3d4e5f6...
+  Generated:   2025-01-15T12:00:00Z
 ```
 
 ### Step 5.4: Validate Bundle Manifest
 
 ```bash
+deployment-manager bundle validate ./bundle.json
+```
+
+**Expected output:**
+```
+Manifest is valid
+  File:   ./bundle.json
+  Schema: desktop.v0.1
+```
+
+<details>
+<summary>Alternative: Using REST API directly</summary>
+
+If you prefer using the REST API instead of the CLI:
+
+```bash
+# Get the deployment-manager API port
+API_PORT=$(vrooli scenario port deployment-manager API_PORT)
+
+# Assemble manifest
+curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/assemble" \
+  -H "Content-Type: application/json" \
+  -d '{"scenario": "picker-wheel", "tier": "tier-2-desktop", "include_secrets": true}'
+
+# Export with checksum
+curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/export" \
+  -H "Content-Type: application/json" \
+  -d '{"scenario": "picker-wheel", "tier": "tier-2-desktop"}' > bundle.json
+
+# Validate
 curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/validate" \
   -H "Content-Type: application/json" \
   -d @bundle.json
 ```
+
+</details>
 
 ---
 
@@ -697,13 +725,11 @@ Navigate to the deployment-manager UI and click on "Telemetry" in the navigation
 
 ## Known Gaps and Workarounds
 
-### Gap 1: No CLI Command for Bundle Export
+### ~~Gap 1: No CLI Command for Bundle Export~~ (RESOLVED)
 
-**Status**: API exists, CLI command pending
+**Status**: CLI commands now available
 
-**Workaround**: Use REST API directly (documented in Phase 5)
-
-**Tracking**: Add CLI `deployment-manager bundle export <profile-id>` command
+The `bundle assemble`, `bundle export`, and `bundle validate` CLI commands are fully implemented. See Phase 5 above for usage.
 
 ### Gap 2: No Automated Binary Compilation
 

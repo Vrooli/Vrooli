@@ -106,7 +106,7 @@ func New() (*Server, error) {
 		DependenciesHandler: dependencies.NewHandler(logFn),
 		SwapsHandler:        swaps.NewHandler(profilesRepo, logFn),
 		DeploymentsHandler:  deployments.NewHandlerWithSigning(logFn, signingValidatorAdapter),
-		BundlesHandler:      bundles.NewHandler(secrets.NewClient(), profilesRepo, logFn),
+		BundlesHandler:      bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn),
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
 	}
