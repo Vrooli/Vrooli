@@ -13,6 +13,10 @@ export { SelectorEditor } from './SelectorEditor';
 // Hooks
 export { useRecordMode } from './hooks/useRecordMode';
 
+// Utilities
+export { mergeConsecutiveActions, getMergeDescription } from './mergeActions';
+export type { MergedAction, MergedActionMeta } from './mergeActions';
+
 // Types
 export type {
   RecordedAction,
