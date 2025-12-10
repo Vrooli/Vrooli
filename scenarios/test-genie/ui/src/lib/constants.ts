@@ -2,7 +2,10 @@
 
 import type { DashboardTab, RunsSubtab, PresetDetail, PhaseForGeneration } from "../types";
 
-export const REPO_ROOT = "/home/matthalloran8/Vrooli";
+// REPO_ROOT is now fetched dynamically from the API via fetchAppConfig()
+// This placeholder is kept for backward compatibility but should not be used directly.
+// Instead, use the useAppConfig hook or fetchAppConfig() to get the actual value.
+export const REPO_ROOT_PLACEHOLDER = "${REPO_ROOT}";
 
 export const DASHBOARD_TABS: DashboardTab[] = [
   { key: "dashboard", label: "Dashboard", description: "Quick actions and health overview" },

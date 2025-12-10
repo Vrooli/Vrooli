@@ -33,3 +33,101 @@ CREATE TABLE IF NOT EXISTS suite_executions (
 
 CREATE INDEX IF NOT EXISTS idx_suite_executions_scenario
     ON suite_executions (scenario_name);
+
+-- Agent spawning and tracking tables.
+-- Enables persistence across server restarts and historical analysis.
+
+CREATE TABLE IF NOT EXISTS spawned_agents (
+    id TEXT PRIMARY KEY,
+    idempotency_key TEXT UNIQUE,  -- Client-provided key for deduplication
+    session_id TEXT,
+    scenario TEXT NOT NULL,
+    scope TEXT[] NOT NULL DEFAULT '{}',
+    phases TEXT[] NOT NULL DEFAULT '{}',
+    model TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed', 'timeout', 'stopped')),
+    prompt_hash TEXT NOT NULL,
+    prompt_index INTEGER NOT NULL,
+    prompt_text TEXT NOT NULL,
+    output TEXT,
+    error TEXT,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_spawned_agents_scenario
+    ON spawned_agents (scenario);
+
+CREATE INDEX IF NOT EXISTS idx_spawned_agents_status
+    ON spawned_agents (status);
+
+CREATE INDEX IF NOT EXISTS idx_spawned_agents_started_at
+    ON spawned_agents (started_at DESC);
+
+-- Tracks path locks for conflict detection.
+-- Locks auto-expire but can be renewed via heartbeat.
+
+CREATE TABLE IF NOT EXISTS agent_scope_locks (
+    id SERIAL PRIMARY KEY,
+    agent_id TEXT NOT NULL REFERENCES spawned_agents(id) ON DELETE CASCADE,
+    scenario TEXT NOT NULL,
+    path TEXT NOT NULL,
+    acquired_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    renewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_scope_locks_scenario
+    ON agent_scope_locks (scenario);
+
+CREATE INDEX IF NOT EXISTS idx_agent_scope_locks_expires
+    ON agent_scope_locks (expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_agent_scope_locks_agent_id
+    ON agent_scope_locks (agent_id);
+
+-- Spawn intents table for idempotent spawn requests.
+-- Prevents duplicate spawns from race conditions or retries.
+
+CREATE TABLE IF NOT EXISTS spawn_intents (
+    key TEXT PRIMARY KEY,
+    scenario TEXT NOT NULL,
+    scope TEXT[] NOT NULL DEFAULT '{}',
+    agent_id TEXT REFERENCES spawned_agents(id) ON DELETE SET NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed')),
+    result_json TEXT,  -- Cached response for replaying to duplicate requests
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_spawn_intents_expires
+    ON spawn_intents (expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_spawn_intents_scenario
+    ON spawn_intents (scenario);
+
+-- Agent file operations audit log.
+-- Tracks all file changes made by agents for accountability and rollback capability.
+
+CREATE TABLE IF NOT EXISTS agent_file_operations (
+    id SERIAL PRIMARY KEY,
+    agent_id TEXT NOT NULL REFERENCES spawned_agents(id) ON DELETE CASCADE,
+    scenario TEXT NOT NULL,
+    operation TEXT NOT NULL CHECK (operation IN ('create', 'modify', 'delete')),
+    file_path TEXT NOT NULL,
+    content_hash TEXT,  -- SHA256 hash of content for deduplication
+    content_before TEXT,  -- Previous content (for modify/delete)
+    content_after TEXT,  -- New content (for create/modify)
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_file_operations_agent_id
+    ON agent_file_operations (agent_id);
+
+CREATE INDEX IF NOT EXISTS idx_agent_file_operations_scenario
+    ON agent_file_operations (scenario);
+
+CREATE INDEX IF NOT EXISTS idx_agent_file_operations_recorded_at
+    ON agent_file_operations (recorded_at DESC);

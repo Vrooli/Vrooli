@@ -3,6 +3,7 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 
 	"test-genie/internal/orchestrator"
@@ -85,4 +86,33 @@ func executionSummaryPayload(result *orchestrator.SuiteExecutionResult) map[stri
 		"phaseSummary": result.PhaseSummary,
 		"preset":       result.PresetUsed,
 	}
+}
+
+// handleGetConfig returns configuration values needed by the UI.
+// This includes paths that should NOT be hardcoded in the frontend.
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	// Get VROOLI_ROOT from environment, with a sensible fallback
+	repoRoot := os.Getenv("VROOLI_ROOT")
+	if repoRoot == "" {
+		// Fallback to HOME-based path if VROOLI_ROOT not set
+		home := os.Getenv("HOME")
+		if home != "" {
+			repoRoot = home + "/Vrooli"
+		}
+	}
+
+	response := map[string]interface{}{
+		"repoRoot":          repoRoot,
+		"testGeniePath":     repoRoot + "/scenarios/test-genie",
+		"testGenieCLI":      "test-genie", // CLI command name (should be on PATH)
+		"scenariosPath":     repoRoot + "/scenarios",
+		"timestamp":         time.Now().UTC().Format(time.RFC3339),
+		"securityModel":     "allowlist",
+		"directoryScoping":  true,
+		"pathValidation":    true,
+		"bashAllowlistOnly": true,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

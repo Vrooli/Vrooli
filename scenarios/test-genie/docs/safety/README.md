@@ -18,6 +18,7 @@ Before committing test scripts:
 |----------|-------------|
 | [GUIDELINES.md](GUIDELINES.md) | Complete safety rules and patterns |
 | [bats-teardown-bug.md](bats-teardown-bug.md) | Real incident case study |
+| [agent-spawning-security.md](agent-spawning-security.md) | Agent spawning security model and limitations |
 
 ## Critical Rules
 

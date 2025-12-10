@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
+	"test-genie/internal/agents"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -43,6 +44,7 @@ type Dependencies struct {
 	ExecutionSvc suiteExecutor
 	Scenarios    scenarioDirectory
 	PhaseCatalog phaseCatalog
+	AgentService *agents.AgentService
 	Logger       Logger
 }
 
@@ -85,6 +87,8 @@ type Server struct {
 	scenarios        scenarioDirectory
 	phaseCatalog     phaseCatalog
 	logger           Logger
+	agentService     *agents.AgentService
+	wsManager        *WebSocketManager
 }
 
 // New creates a configured HTTP server instance.
@@ -116,6 +120,8 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		logger = log.Default()
 	}
 
+	wsManager := NewWebSocketManager()
+
 	srv := &Server{
 		config:           config,
 		db:               deps.DB,
@@ -126,6 +132,8 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		scenarios:        deps.Scenarios,
 		phaseCatalog:     deps.PhaseCatalog,
 		logger:           logger,
+		agentService:     deps.AgentService,
+		wsManager:        wsManager,
 	}
 
 	srv.setupRoutes()
@@ -136,9 +144,12 @@ func (s *Server) setupRoutes() {
 	s.router.Use(s.loggingMiddleware)
 	// Health endpoint at root for infrastructure agents
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	// WebSocket endpoint at root level for real-time updates
+	s.router.HandleFunc("/ws", s.wsManager.HandleWebSocket)
 
 	apiRouter := s.router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/health", s.handleHealth).Methods("GET")
+	apiRouter.HandleFunc("/config", s.handleGetConfig).Methods("GET")
 	apiRouter.HandleFunc("/suite-requests", s.handleCreateSuiteRequest).Methods("POST")
 	apiRouter.HandleFunc("/suite-requests", s.handleListSuiteRequests).Methods("GET")
 	apiRouter.HandleFunc("/suite-requests/{id}", s.handleGetSuiteRequest).Methods("GET")
@@ -156,6 +167,15 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
 	apiRouter.HandleFunc("/agents/models", s.handleListAgentModels).Methods("GET")
 	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")
+	apiRouter.HandleFunc("/agents/active", s.handleListActiveAgents).Methods("GET")
+	apiRouter.HandleFunc("/agents/check-conflicts", s.handleCheckScopeConflicts).Methods("POST")
+	apiRouter.HandleFunc("/agents/validate-paths", s.handleValidatePromptPaths).Methods("POST")
+	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
+	apiRouter.HandleFunc("/agents/cleanup", s.handleCleanupAgents).Methods("POST")
+	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")
+	apiRouter.HandleFunc("/agents/{id}/stop", s.handleStopAgent).Methods("POST")
+	apiRouter.HandleFunc("/agents/{id}/heartbeat", s.handleAgentHeartbeat).Methods("POST")
+	apiRouter.HandleFunc("/agents/stop-all", s.handleStopAllAgents).Methods("POST")
 
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")

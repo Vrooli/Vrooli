@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"test-genie/internal/agents"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -20,6 +21,7 @@ type Bootstrapped struct {
 	ExecutionService *execution.SuiteExecutionService
 	ScenarioService  *scenarios.ScenarioDirectoryService
 	PhaseCatalog     phaseCatalogProvider
+	AgentService     *agents.AgentService
 }
 
 type phaseCatalogProvider interface {
@@ -59,6 +61,10 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 
 	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
 
+	// Create agent repository and service
+	agentRepo := agents.NewPostgresAgentRepository(db)
+	agentService := agents.NewAgentService(agentRepo)
+
 	return &Bootstrapped{
 		DB:               db,
 		SuiteRequests:    suiteRequestService,
@@ -67,5 +73,6 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		ExecutionService: executionSvc,
 		ScenarioService:  scenarioService,
 		PhaseCatalog:     runner,
+		AgentService:     agentService,
 	}, nil
 }
