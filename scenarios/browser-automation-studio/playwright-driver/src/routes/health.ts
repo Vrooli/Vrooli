@@ -13,7 +13,18 @@ import { VERSION } from '../constants';
  * - 'ok': All systems operational
  * - 'degraded': Functional but with issues (e.g., browser not verified yet)
  * - 'error': Critical failure (e.g., browser cannot launch)
+ *
+ * Response includes:
+ * - status: Overall health status
+ * - sessions: Current session count
+ * - active_recordings: Number of sessions with active recording
+ * - browser: Browser health details
+ * - uptime_ms: Server uptime in milliseconds
  */
+
+// Track server start time for uptime calculation
+const serverStartTime = Date.now();
+
 export async function handleHealth(
   _req: IncomingMessage,
   res: ServerResponse,
@@ -21,6 +32,20 @@ export async function handleHealth(
 ): Promise<void> {
   const sessionCount = sessionManager.getSessionCount();
   const browserStatus = sessionManager.getBrowserStatus();
+
+  // Count active recordings
+  const sessionIds = sessionManager.getAllSessionIds();
+  let activeRecordings = 0;
+  for (const id of sessionIds) {
+    try {
+      const session = sessionManager.getSession(id);
+      if (session.recordingController?.isRecording()) {
+        activeRecordings++;
+      }
+    } catch {
+      // Session may have been closed between getting IDs and checking
+    }
+  }
 
   // Determine overall health status
   let status: 'ok' | 'degraded' | 'error' = 'ok';
@@ -34,8 +59,10 @@ export async function handleHealth(
     status,
     timestamp: new Date().toISOString(),
     sessions: sessionCount,
+    active_recordings: activeRecordings,
     version: VERSION,
     browser: browserStatus,
+    uptime_ms: Date.now() - serverStartTime,
   };
 
   // Return 503 if in error state so load balancers can detect unhealthy instances

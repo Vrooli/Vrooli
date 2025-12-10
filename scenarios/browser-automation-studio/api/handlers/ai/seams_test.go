@@ -169,8 +169,10 @@ func TestSeams_AIAnalysisHandlerWithMocks(t *testing.T) {
 			WithAIAnalysisOllamaClient(mockOllama),
 		)
 
-		assert.NotNil(t, handler.domExtractor)
-		assert.NotNil(t, handler.ollamaClient)
+		analyzer, ok := handler.analyzer.(*AIElementAnalyzer)
+		require.True(t, ok, "handler should wire an AIElementAnalyzer")
+		assert.Equal(t, mockDOMExtractor, analyzer.domExtractor)
+		assert.Equal(t, mockOllama, analyzer.ollamaClient)
 	})
 
 	t.Run("[SEAM:AI-ANALYSIS] analyzes elements with mocked dependencies", func(t *testing.T) {

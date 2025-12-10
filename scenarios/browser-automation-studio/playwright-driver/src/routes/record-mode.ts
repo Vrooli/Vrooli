@@ -4,6 +4,14 @@ import type { Config } from '../config';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { logger } from '../utils';
 import { createRecordModeController } from '../recording/controller';
+import {
+  initRecordingBuffer,
+  bufferRecordedAction,
+  getRecordedActions,
+  getRecordedActionCount,
+  clearRecordedActions,
+  removeRecordedActions,
+} from '../recording/buffer';
 import type { RecordedAction } from '../recording/types';
 
 /**
@@ -139,9 +147,6 @@ interface ViewportResponse {
   height: number;
 }
 
-/** Collected actions waiting to be fetched */
-const actionBuffers: Map<string, RecordedAction[]> = new Map();
-
 /**
  * Start recording endpoint
  *
@@ -179,11 +184,11 @@ export async function handleRecordStart(
     }
 
     // Initialize action buffer for this session
-    actionBuffers.set(sessionId, []);
+    initRecordingBuffer(sessionId);
 
-    logger.info('Starting record-mode', {
+    logger.info('recording: starting', {
       sessionId,
-      callbackUrl: request.callback_url,
+      hasCallback: !!request.callback_url,
     });
 
     // Start recording with callback to buffer actions
@@ -191,14 +196,10 @@ export async function handleRecordStart(
       sessionId,
       onAction: async (action: RecordedAction) => {
         // Buffer the action
-        const buffer = actionBuffers.get(sessionId);
-        if (buffer) {
-          buffer.push(action);
-        }
+        bufferRecordedAction(sessionId, action);
 
-        logger.info('Buffered recorded action', {
+        logger.debug('recording: action captured', {
           sessionId,
-          recordingId,
           actionType: action.actionType,
           sequenceNum: action.sequenceNum,
         });
@@ -208,25 +209,16 @@ export async function handleRecordStart(
           try {
             await streamActionToCallback(request.callback_url, action);
           } catch (err) {
-            logger.warn('Failed to stream action to callback', {
+            logger.warn('recording: callback failed', {
               sessionId,
-              callbackUrl: request.callback_url,
               error: err instanceof Error ? err.message : String(err),
             });
           }
         }
-
-        logger.debug('Recorded action', {
-          sessionId,
-          recordingId,
-          actionType: action.actionType,
-          sequenceNum: action.sequenceNum,
-        });
       },
       onError: (error: Error) => {
-        logger.error('Recording error', {
+        logger.error('recording: error', {
           sessionId,
-          recordingId,
           error: error.message,
         });
       },
@@ -235,7 +227,7 @@ export async function handleRecordStart(
     // Store recording ID on session
     session.recordingId = recordingId;
 
-    logger.info('Recording started', {
+    logger.info('recording: started', {
       sessionId,
       recordingId,
     });
@@ -278,7 +270,7 @@ export async function handleRecordStop(
 
     const result = await session.recordingController.stopRecording();
 
-    logger.info('Recording stopped', {
+    logger.info('recording: stopped', {
       sessionId,
       recordingId: result.recordingId,
       actionCount: result.actionCount,
@@ -318,13 +310,13 @@ export async function handleRecordStatus(
     const session = sessionManager.getSession(sessionId);
 
     const state = session.recordingController?.getState();
-    const buffer = actionBuffers.get(sessionId);
+    const bufferedCount = getRecordedActionCount(sessionId);
 
     const response: RecordingStatusResponse = {
       session_id: sessionId,
       is_recording: state?.isRecording || false,
       recording_id: state?.recordingId,
-      action_count: buffer?.length || state?.actionCount || 0,
+      action_count: bufferedCount || state?.actionCount || 0,
       started_at: state?.startedAt,
     };
 
@@ -352,20 +344,20 @@ export async function handleRecordActions(
     // Verify session exists
     sessionManager.getSession(sessionId);
 
-    const buffer = actionBuffers.get(sessionId) || [];
+    const actions = getRecordedActions(sessionId);
 
     // Check for clear query param (parse URL manually since we don't have query parser)
     const url = new URL(req.url || '', `http://localhost`);
     const shouldClear = url.searchParams.get('clear') === 'true';
 
     if (shouldClear) {
-      actionBuffers.set(sessionId, []);
+      clearRecordedActions(sessionId);
     }
 
     sendJson(res, 200, {
       session_id: sessionId,
-      actions: buffer,
-      count: buffer.length,
+      actions,
+      count: actions.length,
     });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/actions`);
@@ -451,7 +443,7 @@ export async function handleReplayPreview(
       session.recordingController = createRecordModeController(session.page, sessionId);
     }
 
-    logger.info('Starting replay preview', {
+    logger.info('recording: replay started', {
       sessionId,
       actionCount: request.actions.length,
       limit: request.limit,
@@ -466,12 +458,12 @@ export async function handleReplayPreview(
       actionTimeout: request.action_timeout ?? 10000,
     });
 
-    logger.info('Replay preview complete', {
+    logger.info('recording: replay complete', {
       sessionId,
       success: result.success,
       passed: result.passedActions,
       failed: result.failedActions,
-      totalDurationMs: result.totalDurationMs,
+      durationMs: result.totalDurationMs,
     });
 
     // Convert to API response format (snake_case)
@@ -544,7 +536,7 @@ export async function handleRecordNavigate(
         });
         screenshot = `data:image/jpeg;base64,${buffer.toString('base64')}`;
       } catch (err) {
-        logger.warn('Failed to capture navigation screenshot', {
+        logger.warn('recording: screenshot capture failed', {
           sessionId,
           error: err instanceof Error ? err.message : String(err),
         });
@@ -790,8 +782,7 @@ async function streamActionToCallback(callbackUrl: string, action: RecordedActio
     throw new Error(`Callback returned ${response.status}: ${response.statusText}`);
   }
 
-  logger.info('Streamed recorded action to callback', {
-    callbackUrl,
+  logger.debug('recording: action streamed', {
     status: response.status,
     actionType: action.actionType,
     sequenceNum: action.sequenceNum,
@@ -802,5 +793,5 @@ async function streamActionToCallback(callbackUrl: string, action: RecordedActio
  * Clean up action buffer for a session
  */
 export function cleanupSessionRecording(sessionId: string): void {
-  actionBuffers.delete(sessionId);
+  removeRecordedActions(sessionId);
 }

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
@@ -50,7 +49,7 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 	}
 
 	if eventSink == nil {
-		eventSink = autoevents.NewWSHubSink(s.wsHub, s.log, autocontracts.DefaultEventBufferLimits)
+		eventSink = s.newEventSink()
 	}
 
 	req := autoexecutor.Request{

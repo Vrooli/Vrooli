@@ -7,7 +7,7 @@
   - Defaults to `~/.vrooli/data/sqlite/databases/browser-automation-studio.db` and applies resource-style pragmas (WAL, busy_timeout, cache_size, page_size, synchronous=NORMAL, temp_store=MEMORY, mmap).
   - Best-effort runs `resource-sqlite manage install` to prep directories. Safe to ignore if the CLI isn’t present.
   - Skip sqlite smoke tests with `BAS_SKIP_SQLITE_TESTS=true` (they’re opt-in and light).
-  - Run repository tests against SQLite by setting `BAS_TEST_BACKEND=sqlite` (uses a temp file DB and dialect-aware resets).
+  - Go tests pick the backend from `BAS_TEST_BACKEND` when set, otherwise from `BAS_DB_BACKEND` (default postgres). Set `BAS_TEST_BACKEND=sqlite` to force SQLite and skip docker in CI/local runs (uses a temp DB and dialect-aware resets).
 
 Other relevant envs:
 - `BAS_SKIP_DEMO_SEED=true` to skip demo data during tests/CI.

@@ -1,5 +1,5 @@
 import type { Page, BrowserContext } from 'playwright';
-import type { CompiledInstruction, StepOutcome, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../types';
+import type { CompiledInstruction, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../types';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import winston from 'winston';
@@ -78,6 +78,10 @@ export interface InstructionHandler {
 
 /**
  * Base handler implementation with common utilities
+ *
+ * Handlers are responsible for executing browser automation instructions.
+ * Outcome building is delegated to domain/outcome-builder.ts - handlers
+ * return HandlerResult which is transformed by the route layer.
  */
 export abstract class BaseHandler implements InstructionHandler {
   abstract getSupportedTypes(): string[];
@@ -85,68 +89,6 @@ export abstract class BaseHandler implements InstructionHandler {
     instruction: CompiledInstruction,
     context: HandlerContext
   ): Promise<HandlerResult>;
-
-  /**
-   * Build StepOutcome from handler result
-   */
-  protected buildOutcome(
-    instruction: CompiledInstruction,
-    result: HandlerResult,
-    startedAt: Date
-  ): StepOutcome {
-    const completedAt = new Date();
-
-    const outcome: StepOutcome = {
-      schema_version: 'automation-step-outcome-v1',
-      payload_version: '1',
-      step_index: instruction.index,
-      attempt: 1, // TODO: Track actual attempt number
-      node_id: instruction.node_id,
-      step_type: instruction.type,
-      success: result.success,
-      started_at: startedAt.toISOString(),
-      completed_at: completedAt.toISOString(),
-    };
-
-    // Add telemetry
-    if (result.screenshot) {
-      outcome.screenshot = result.screenshot;
-    }
-    if (result.domSnapshot) {
-      outcome.dom_snapshot = result.domSnapshot;
-    }
-    if (result.consoleLogs && result.consoleLogs.length > 0) {
-      outcome.console_logs = result.consoleLogs;
-    }
-    if (result.networkEvents && result.networkEvents.length > 0) {
-      outcome.network = result.networkEvents;
-    }
-
-    // Add extracted data
-    if (result.extracted_data) {
-      outcome.extracted_data = result.extracted_data;
-    }
-
-    // Add focused element
-    if (result.focus) {
-      outcome.focused_element = {
-        selector: result.focus.selector || '',
-        bounding_box: result.focus.bounding_box,
-      };
-    }
-
-    // Add failure
-    if (!result.success && result.error) {
-      outcome.failure = {
-        kind: (result.error.kind as 'engine' | 'infra' | 'orchestration' | 'user' | 'timeout' | 'cancelled') || 'engine',
-        code: result.error.code,
-        message: result.error.message,
-        retryable: result.error.retryable || false,
-      };
-    }
-
-    return outcome;
-  }
 
   /**
    * Wait for element with timeout

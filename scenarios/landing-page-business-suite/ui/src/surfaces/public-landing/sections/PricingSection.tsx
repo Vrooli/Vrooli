@@ -159,7 +159,9 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   const resolvePriceId = (ctaUrl?: string) => {
     if (!ctaUrl) return null;
     try {
-      const url = new URL(ctaUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+      // Use current origin if available, otherwise use a dummy base for relative URL parsing
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://example.com';
+      const url = new URL(ctaUrl, baseUrl);
       return url.searchParams.get('price_id');
     } catch (err) {
       return null;

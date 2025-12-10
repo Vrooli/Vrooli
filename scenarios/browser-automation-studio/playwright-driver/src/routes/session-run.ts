@@ -3,9 +3,10 @@ import type { SessionManager } from '../session';
 import type { HandlerRegistry } from '../handlers';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
-import type { CompiledInstruction, StepOutcome, DriverOutcome } from '../types';
+import type { CompiledInstruction } from '../types';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { captureScreenshot, captureDOMSnapshot, ConsoleLogCollector, NetworkCollector } from '../telemetry';
+import { buildStepOutcome, toDriverOutcome } from '../domain';
 import { logger } from '../utils';
 import winston from 'winston';
 
@@ -34,10 +35,11 @@ export async function handleSessionRun(
     const body = await parseJsonBody(req, config);
     const instruction = (body as any).instruction as CompiledInstruction;
 
-    logger.info('Running instruction', {
+    logger.info('instruction: executing', {
       sessionId,
       type: instruction.type,
       stepIndex: instruction.index,
+      nodeId: instruction.node_id,
     });
 
     // Get handler
@@ -89,65 +91,32 @@ export async function handleSessionRun(
       ? networkCollector.getAndClear()
       : undefined);
 
-    // Build step outcome
+    // Build step outcome using domain logic
     const completedAt = new Date();
-    const outcome: StepOutcome = {
-      schema_version: 'automation-step-outcome-v1',
-      payload_version: '1',
-      step_index: instruction.index,
-      attempt: 1, // TODO: Track actual attempt number
-      node_id: instruction.node_id,
-      step_type: instruction.type,
-      success: result.success,
-      started_at: startedAt.toISOString(),
-      completed_at: completedAt.toISOString(),
-      duration_ms: completedAt.getTime() - startedAt.getTime(),
-      final_url: session.page.url(),
-      screenshot,
-      dom_snapshot: domSnapshot,
-      console_logs: consoleLogs,
-      network: networkEvents,
-      extracted_data: result.extracted_data,
-    };
+    const outcome = buildStepOutcome({
+      instruction,
+      result,
+      startedAt,
+      completedAt,
+      finalUrl: session.page.url(),
+      screenshot: screenshot as Parameters<typeof buildStepOutcome>[0]['screenshot'],
+      domSnapshot,
+      consoleLogs,
+      networkEvents,
+    });
 
-    if (result.focus) {
-      outcome.focused_element = {
-        selector: result.focus.selector || '',
-        bounding_box: result.focus.bounding_box,
-      };
-    }
-
-    if (!result.success && result.error) {
-      outcome.failure = {
-        kind: (result.error.kind as any) || 'engine',
-        code: result.error.code,
-        message: result.error.message,
-        retryable: result.error.retryable || false,
-      };
-    }
-
-    logger.info('Instruction complete', {
+    logger.info('instruction: completed', {
       sessionId,
       type: instruction.type,
+      stepIndex: instruction.index,
       success: result.success,
-      duration: outcome.duration_ms,
+      durationMs: outcome.duration_ms,
+      ...(result.error && { error: result.error.code }),
     });
 
     // Convert to driver wire format (flat fields for screenshot/dom)
-    // Note: screenshot is ScreenshotCapture from telemetry which has base64
     const screenshotData = screenshot as { base64?: string; media_type?: string; width?: number; height?: number } | undefined;
-    const driverOutcome: DriverOutcome = {
-      ...outcome,
-      screenshot_base64: screenshotData?.base64,
-      screenshot_media_type: screenshotData?.media_type,
-      screenshot_width: screenshotData?.width,
-      screenshot_height: screenshotData?.height,
-      dom_html: domSnapshot?.html,
-      dom_preview: domSnapshot?.preview,
-    };
-    // Remove nested objects that are replaced by flat fields
-    delete (driverOutcome as any).screenshot;
-    delete (driverOutcome as any).dom_snapshot;
+    const driverOutcome = toDriverOutcome(outcome, screenshotData, domSnapshot);
 
     sendJson(res, 200, driverOutcome);
   } catch (error) {

@@ -127,10 +127,14 @@ export interface HealthResponse {
   status: 'ok' | 'degraded' | 'error';
   timestamp: string;
   sessions: number;
+  /** Number of sessions with active recording */
+  active_recordings?: number;
   version?: string;
   browser?: {
     healthy: boolean;
     version?: string;
     error?: string;
   };
+  /** Server uptime in milliseconds */
+  uptime_ms?: number;
 }

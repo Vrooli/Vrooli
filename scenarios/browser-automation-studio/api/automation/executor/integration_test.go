@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -27,28 +28,41 @@ var (
 	testDBMu sync.Mutex
 )
 
+func testBackend() database.Dialect {
+	backend := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_TEST_BACKEND")))
+	if backend == "" {
+		backend = strings.ToLower(strings.TrimSpace(os.Getenv("BAS_DB_BACKEND")))
+	}
+	if backend == "" {
+		backend = string(database.DialectPostgres)
+	}
+	return database.Dialect(backend)
+}
+
 func TestMain(m *testing.M) {
+	backend := testBackend()
 	ctx := context.Background()
 
-	handle, err := testdb.Start(ctx)
-	if err != nil {
-		fmt.Printf("skipping automation executor integration tests: %v\n", err)
-		os.Exit(0)
+	if backend == database.DialectPostgres {
+		handle, err := testdb.Start(ctx)
+		if err != nil {
+			fmt.Printf("skipping automation executor integration tests: %v\n", err)
+			os.Exit(0)
+		}
+		testDBHandle = handle
+
+		code := m.Run()
+
+		handle.Terminate(ctx)
+
+		os.Exit(code)
 	}
-	testDBHandle = handle
 
-	code := m.Run()
-
-	handle.Terminate(ctx)
-
-	os.Exit(code)
+	// SQLite or other dialects do not need the Postgres container.
+	os.Exit(m.Run())
 }
 
 func TestSimpleExecutorPersistsArtifactsAndEvents(t *testing.T) {
-	if testDBHandle == nil {
-		t.Skip("test database not initialized")
-	}
-
 	repo, db, cleanup := setupRepo(t)
 	defer cleanup()
 
@@ -101,10 +115,6 @@ func TestSimpleExecutorPersistsArtifactsAndEvents(t *testing.T) {
 }
 
 func TestSimpleExecutorProducesLegacyCompatibleArtifacts(t *testing.T) {
-	if testDBHandle == nil {
-		t.Skip("test database not initialized")
-	}
-
 	repo, db, cleanup := setupRepo(t)
 	defer cleanup()
 
@@ -364,9 +374,7 @@ func TestSimpleExecutorLinearGoldenEvents(t *testing.T) {
 func setupRepo(t *testing.T) (database.Repository, *database.DB, func()) {
 	t.Helper()
 
-	// Acquire exclusive access to the test database
-	testDBMu.Lock()
-
+	backend := testBackend()
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
@@ -378,36 +386,10 @@ func setupRepo(t *testing.T) (database.Repository, *database.DB, func()) {
 	oldUser := os.Getenv("POSTGRES_USER")
 	oldPass := os.Getenv("POSTGRES_PASSWORD")
 	oldDB := os.Getenv("POSTGRES_DB")
+	oldBackend := os.Getenv("BAS_DB_BACKEND")
+	oldSQLitePath := os.Getenv("BAS_SQLITE_PATH")
 
-	// Clear POSTGRES_* vars to ensure DATABASE_URL is used
-	_ = os.Unsetenv("POSTGRES_HOST")
-	_ = os.Unsetenv("POSTGRES_PORT")
-	_ = os.Unsetenv("POSTGRES_USER")
-	_ = os.Unsetenv("POSTGRES_PASSWORD")
-	_ = os.Unsetenv("POSTGRES_DB")
-
-	_ = os.Setenv("DATABASE_URL", testDBHandle.DSN)
-	_ = os.Setenv("BAS_SKIP_DEMO_SEED", "true")
-
-	db, err := database.NewConnection(log)
-	if err != nil {
-		testDBMu.Unlock()
-		t.Fatalf("failed to connect to test db: %v", err)
-	}
-
-	if err := truncateAllWithRetry(db, 3); err != nil {
-		_ = db.Close()
-		testDBMu.Unlock()
-		t.Fatalf("truncate test tables: %v", err)
-	}
-
-	repo := database.NewRepository(db, log)
-
-	cleanup := func() {
-		_ = truncateAll(db)
-		_ = db.Close()
-
-		// Restore environment variables
+	restoreEnv := func() {
 		if oldURL != "" {
 			_ = os.Setenv("DATABASE_URL", oldURL)
 		} else {
@@ -420,32 +402,137 @@ func setupRepo(t *testing.T) (database.Repository, *database.DB, func()) {
 		}
 		if oldHost != "" {
 			_ = os.Setenv("POSTGRES_HOST", oldHost)
+		} else {
+			_ = os.Unsetenv("POSTGRES_HOST")
 		}
 		if oldPort != "" {
 			_ = os.Setenv("POSTGRES_PORT", oldPort)
+		} else {
+			_ = os.Unsetenv("POSTGRES_PORT")
 		}
 		if oldUser != "" {
 			_ = os.Setenv("POSTGRES_USER", oldUser)
+		} else {
+			_ = os.Unsetenv("POSTGRES_USER")
 		}
 		if oldPass != "" {
 			_ = os.Setenv("POSTGRES_PASSWORD", oldPass)
+		} else {
+			_ = os.Unsetenv("POSTGRES_PASSWORD")
 		}
 		if oldDB != "" {
 			_ = os.Setenv("POSTGRES_DB", oldDB)
+		} else {
+			_ = os.Unsetenv("POSTGRES_DB")
 		}
-
-		// Release exclusive access
-		testDBMu.Unlock()
+		if oldBackend != "" {
+			_ = os.Setenv("BAS_DB_BACKEND", oldBackend)
+		} else {
+			_ = os.Unsetenv("BAS_DB_BACKEND")
+		}
+		if oldSQLitePath != "" {
+			_ = os.Setenv("BAS_SQLITE_PATH", oldSQLitePath)
+		} else {
+			_ = os.Unsetenv("BAS_SQLITE_PATH")
+		}
 	}
 
-	return repo, db, cleanup
+	switch backend {
+	case database.DialectPostgres:
+		if testDBHandle == nil {
+			t.Skip("postgres test database not initialized")
+		}
+
+		// Acquire exclusive access to the shared test database
+		testDBMu.Lock()
+
+		// Clear POSTGRES_* vars to ensure DATABASE_URL is used
+		_ = os.Unsetenv("POSTGRES_HOST")
+		_ = os.Unsetenv("POSTGRES_PORT")
+		_ = os.Unsetenv("POSTGRES_USER")
+		_ = os.Unsetenv("POSTGRES_PASSWORD")
+		_ = os.Unsetenv("POSTGRES_DB")
+
+		_ = os.Setenv("DATABASE_URL", testDBHandle.DSN)
+		_ = os.Setenv("BAS_SKIP_DEMO_SEED", "true")
+		_ = os.Setenv("BAS_DB_BACKEND", string(database.DialectPostgres))
+		_ = os.Unsetenv("BAS_SQLITE_PATH")
+
+		db, err := database.NewConnection(log)
+		if err != nil {
+			testDBMu.Unlock()
+			restoreEnv()
+			t.Fatalf("failed to connect to test db: %v", err)
+		}
+
+		if err := truncateAllWithRetry(db, 3); err != nil {
+			_ = db.Close()
+			testDBMu.Unlock()
+			restoreEnv()
+			t.Fatalf("truncate test tables: %v", err)
+		}
+
+		repo := database.NewRepository(db, log)
+
+		cleanup := func() {
+			_ = truncateAll(db)
+			_ = db.Close()
+			restoreEnv()
+			testDBMu.Unlock()
+		}
+
+		return repo, db, cleanup
+	case database.DialectSQLite:
+		tmpDir := t.TempDir()
+		sqlitePath := filepath.Join(tmpDir, "executor.db")
+
+		_ = os.Setenv("BAS_DB_BACKEND", string(database.DialectSQLite))
+		_ = os.Setenv("BAS_SQLITE_PATH", sqlitePath)
+		_ = os.Setenv("BAS_SKIP_DEMO_SEED", "true")
+		_ = os.Unsetenv("DATABASE_URL")
+		_ = os.Unsetenv("POSTGRES_HOST")
+		_ = os.Unsetenv("POSTGRES_PORT")
+		_ = os.Unsetenv("POSTGRES_USER")
+		_ = os.Unsetenv("POSTGRES_PASSWORD")
+		_ = os.Unsetenv("POSTGRES_DB")
+
+		db, err := database.NewConnection(log)
+		if err != nil {
+			restoreEnv()
+			t.Fatalf("failed to connect to sqlite test db: %v", err)
+		}
+
+		if err := truncateAll(db); err != nil {
+			_ = db.Close()
+			restoreEnv()
+			t.Fatalf("truncate sqlite tables: %v", err)
+		}
+
+		repo := database.NewRepository(db, log)
+		cleanup := func() {
+			_ = truncateAll(db)
+			_ = db.Close()
+			restoreEnv()
+		}
+		return repo, db, cleanup
+	default:
+		restoreEnv()
+		t.Fatalf("unsupported BAS_TEST_BACKEND %q", backend)
+		return nil, nil, nil
+	}
 }
 
 func truncateAll(db *database.DB) error {
-	// Use a single TRUNCATE statement with all tables to avoid deadlock issues
-	// and ensure atomicity of the cleanup operation.
-	// Tables are listed in reverse dependency order (children before parents).
-	query := `TRUNCATE
+	if db == nil {
+		return nil
+	}
+	ctx := context.Background()
+
+	if db.Dialect().IsPostgres() {
+		// Use a single TRUNCATE statement with all tables to avoid deadlock issues
+		// and ensure atomicity of the cleanup operation.
+		// Tables are listed in reverse dependency order (children before parents).
+		query := `TRUNCATE
 		exports,
 		ai_generations,
 		workflow_schedules,
@@ -462,11 +549,38 @@ func truncateAll(db *database.DB) error {
 		projects
 	CASCADE`
 
-	ctx := context.Background()
-	if _, err := db.ExecContext(ctx, query); err != nil {
-		return err
+		if _, err := db.ExecContext(ctx, query); err != nil {
+			return err
+		}
+		return nil
 	}
 
+	// SQLite: DELETE tables in dependency order and vacuum to reset autoincrement.
+	tables := []string{
+		"exports",
+		"ai_generations",
+		"workflow_schedules",
+		"workflow_templates",
+		"execution_artifacts",
+		"execution_steps",
+		"execution_logs",
+		"screenshots",
+		"extracted_data",
+		"executions",
+		"workflow_versions",
+		"workflows",
+		"workflow_folders",
+		"projects",
+	}
+	for _, table := range tables {
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+				continue
+			}
+			return err
+		}
+	}
+	_, _ = db.ExecContext(ctx, "VACUUM")
 	return nil
 }
 
@@ -531,14 +645,6 @@ func createWorkflowFixture(t *testing.T, repo database.Repository, db *database.
 	}
 	if err := repo.CreateExecution(ctx, execution); err != nil {
 		t.Fatalf("create execution: %v", err)
-	}
-
-	if _, err := db.ExecContext(ctx, `
-		INSERT INTO executions (id, workflow_id, workflow_version, status, trigger_type, started_at)
-		VALUES ($1, $2, $3, 'running', 'manual', NOW())
-		ON CONFLICT (id) DO NOTHING
-	`, executionID, workflowID, workflow.Version); err != nil {
-		t.Fatalf("ensure execution exists: %v", err)
 	}
 }
 
@@ -623,10 +729,6 @@ func assertEvents(t *testing.T, events []contracts.EventEnvelope, executionID uu
 // 3. Emits a StepFailed event with proper failure taxonomy
 // 4. Uses context.WithoutCancel for cleanup persistence (A15)
 func TestContextCancellationPersistsFailure(t *testing.T) {
-	if testDBHandle == nil {
-		t.Skip("test database not initialized")
-	}
-
 	repo, db, cleanup := setupRepo(t)
 	defer cleanup()
 

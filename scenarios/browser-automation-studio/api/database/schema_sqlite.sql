@@ -87,18 +87,15 @@ CREATE TABLE IF NOT EXISTS execution_steps (
 
 CREATE TABLE IF NOT EXISTS screenshots (
     id TEXT PRIMARY KEY,
-    execution_id TEXT REFERENCES executions(id) ON DELETE CASCADE,
-    step_name TEXT,
+    execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    step_name TEXT NOT NULL,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    level TEXT,
-    step_id TEXT,
-    message TEXT,
-    metadata TEXT,
-    storage_url TEXT,
+    storage_url TEXT NOT NULL,
     thumbnail_url TEXT,
     width INTEGER,
     height INTEGER,
-    size_bytes INTEGER
+    size_bytes INTEGER,
+    metadata TEXT DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS execution_logs (
@@ -162,7 +159,10 @@ CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
 CREATE INDEX IF NOT EXISTS idx_workflow_versions_workflow_id ON workflow_versions(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id ON execution_logs(execution_id);
+CREATE INDEX IF NOT EXISTS idx_screenshots_execution_id ON screenshots(execution_id);
 CREATE INDEX IF NOT EXISTS idx_execution_steps_execution_id ON execution_steps(execution_id);
+CREATE INDEX IF NOT EXISTS idx_extracted_data_execution_id ON extracted_data(execution_id);
 CREATE INDEX IF NOT EXISTS idx_execution_artifacts_execution_id ON execution_artifacts(execution_id);
 CREATE INDEX IF NOT EXISTS idx_exports_execution_id ON exports(execution_id);
 CREATE INDEX IF NOT EXISTS idx_exports_workflow_id ON exports(workflow_id);

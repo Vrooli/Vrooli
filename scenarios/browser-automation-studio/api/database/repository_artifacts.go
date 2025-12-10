@@ -31,7 +31,11 @@ func (r *repository) CreateScreenshot(ctx context.Context, screenshot *Screensho
 }
 
 func (r *repository) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*Screenshot, error) {
-	query := r.db.Rebind(`SELECT * FROM screenshots WHERE execution_id = ? ORDER BY timestamp ASC`)
+	query := r.db.Rebind(`
+		SELECT id, execution_id, step_name, timestamp, storage_url, thumbnail_url, width, height, size_bytes, metadata
+		FROM screenshots
+		WHERE execution_id = ?
+		ORDER BY timestamp ASC`)
 
 	var screenshots []*Screenshot
 	err := r.db.SelectContext(ctx, &screenshots, query, executionID)

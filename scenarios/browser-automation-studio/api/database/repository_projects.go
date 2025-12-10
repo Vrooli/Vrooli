@@ -173,7 +173,7 @@ func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (
 	// Get execution count
 	var executionCount int
 	executionQuery := r.db.Rebind(`
-		SELECT COUNT(e.*) FROM executions e
+		SELECT COUNT(*) FROM executions e
 		JOIN workflows w ON e.workflow_id = w.id
 		WHERE w.project_id = ?`)
 	err = r.db.GetContext(ctx, &executionCount, executionQuery, projectID)

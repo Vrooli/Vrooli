@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import { parse } from 'url';
 import { loadConfig } from './config';
 import { SessionManager, SessionCleanup } from './session';
 import { handlerRegistry } from './handlers';
@@ -23,6 +22,7 @@ import {
   DeviceHandler,
 } from './handlers';
 import {
+  createRouter,
   handleHealth,
   handleSessionStart,
   handleSessionRun,
@@ -41,8 +41,8 @@ import {
   handleRecordFrame,
   handleRecordViewport,
 } from './routes';
-import { send404, send405, sendError } from './middleware';
-import { createLogger, setLogger, logger, metrics } from './utils';
+import { sendError } from './middleware';
+import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 
 /**
  * Main Playwright Driver Server
@@ -57,7 +57,8 @@ async function main() {
   const appLogger = createLogger(config);
   setLogger(appLogger);
 
-  logger.info('Starting Playwright Driver v2.0', {
+  logger.info('server: starting', {
+    version: '2.0.0',
     port: config.server.port,
     host: config.server.host,
     logLevel: config.logging.level,
@@ -74,7 +75,7 @@ async function main() {
   // Verify browser can launch (P0 hardening - catch Chromium issues early)
   const browserError = await sessionManager.verifyBrowserLaunch();
   if (browserError) {
-    logger.error('⚠️  Browser launch verification failed - sessions will fail', {
+    logger.error('server: browser verification failed - sessions will fail', {
       error: browserError,
       hint: 'Common causes: missing Chromium, sandbox issues, insufficient memory',
     });
@@ -85,7 +86,7 @@ async function main() {
   // Register handlers
   registerHandlers();
 
-  logger.info('Registered handlers', {
+  logger.info('server: handlers registered', {
     count: handlerRegistry.getHandlerCount(),
     types: handlerRegistry.getSupportedTypes(),
   });
@@ -96,7 +97,7 @@ async function main() {
     try {
       metricsServer = await createMetricsServer(config.metrics.port);
     } catch (error) {
-      logger.warn('Failed to start metrics server, continuing without metrics', {
+      logger.warn('server: metrics server failed to start, continuing without metrics', {
         error: error instanceof Error ? error.message : String(error),
         port: config.metrics.port,
       });
@@ -104,86 +105,103 @@ async function main() {
     }
   }
 
+  // Setup router with all routes
+  const router = createRouter();
+
+  // Health check
+  router.get('/health', async (req, res) => {
+    await handleHealth(req, res, sessionManager);
+  });
+
+  // Session management
+  router.post('/session/start', async (req, res) => {
+    await handleSessionStart(req, res, sessionManager, config);
+  });
+
+  router.post('/session/:id/run', async (req, res, params) => {
+    await handleSessionRun(
+      req,
+      res,
+      params.id,
+      sessionManager,
+      handlerRegistry,
+      config,
+      appLogger,
+      metrics
+    );
+  });
+
+  router.get('/session/:id/storage-state', async (req, res, params) => {
+    await handleSessionStorageState(req, res, params.id, sessionManager);
+  });
+
+  router.post('/session/:id/reset', async (req, res, params) => {
+    await handleSessionReset(req, res, params.id, sessionManager);
+  });
+
+  router.post('/session/:id/close', async (req, res, params) => {
+    await handleSessionClose(req, res, params.id, sessionManager);
+  });
+
+  // Record mode
+  router.post('/session/:id/record/start', async (req, res, params) => {
+    await handleRecordStart(req, res, params.id, sessionManager, config);
+  });
+
+  router.post('/session/:id/record/stop', async (req, res, params) => {
+    await handleRecordStop(req, res, params.id, sessionManager);
+  });
+
+  router.get('/session/:id/record/status', async (req, res, params) => {
+    await handleRecordStatus(req, res, params.id, sessionManager);
+  });
+
+  router.get('/session/:id/record/actions', async (req, res, params) => {
+    await handleRecordActions(req, res, params.id, sessionManager);
+  });
+
+  router.post('/session/:id/record/validate-selector', async (req, res, params) => {
+    await handleValidateSelector(req, res, params.id, sessionManager, config);
+  });
+
+  router.post('/session/:id/record/replay-preview', async (req, res, params) => {
+    await handleReplayPreview(req, res, params.id, sessionManager, config);
+  });
+
+  router.post('/session/:id/record/navigate', async (req, res, params) => {
+    await handleRecordNavigate(req, res, params.id, sessionManager, config);
+  });
+
+  router.post('/session/:id/record/screenshot', async (req, res, params) => {
+    await handleRecordScreenshot(req, res, params.id, sessionManager, config);
+  });
+
+  router.post('/session/:id/record/input', async (req, res, params) => {
+    await handleRecordInput(req, res, params.id, sessionManager, config);
+  });
+
+  router.get('/session/:id/record/frame', async (req, res, params) => {
+    await handleRecordFrame(req, res, params.id, sessionManager, config);
+  });
+
+  router.post('/session/:id/record/viewport', async (req, res, params) => {
+    await handleRecordViewport(req, res, params.id, sessionManager, config);
+  });
+
   // Create main HTTP server
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    const parsedUrl = parse(req.url || '', true);
-    const pathname = parsedUrl.pathname || '/';
+    const pathname = new URL(req.url || '/', `http://localhost`).pathname;
     const method = req.method || 'GET';
 
-    logger.debug('Request received', {
+    logger.debug('request: received', {
       method,
       path: pathname,
     });
 
     try {
-      // Route handling
-      if (pathname === '/health' && method === 'GET') {
-        await handleHealth(req, res, sessionManager);
-      } else if (pathname === '/session/start' && method === 'POST') {
-        await handleSessionStart(req, res, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/run$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleSessionRun(
-          req,
-          res,
-          sessionId,
-          sessionManager,
-          handlerRegistry,
-          config,
-          appLogger,
-          metrics
-        );
-      } else if (pathname.match(/^\/session\/[^/]+\/storage-state$/) && method === 'GET') {
-        const sessionId = pathname.split('/')[2];
-        await handleSessionStorageState(req, res, sessionId, sessionManager);
-      } else if (pathname.match(/^\/session\/[^/]+\/reset$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleSessionReset(req, res, sessionId, sessionManager);
-      } else if (pathname.match(/^\/session\/[^/]+\/close$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleSessionClose(req, res, sessionId, sessionManager);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/start$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordStart(req, res, sessionId, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/stop$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordStop(req, res, sessionId, sessionManager);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/status$/) && method === 'GET') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordStatus(req, res, sessionId, sessionManager);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/actions$/) && method === 'GET') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordActions(req, res, sessionId, sessionManager);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/validate-selector$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleValidateSelector(req, res, sessionId, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/replay-preview$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleReplayPreview(req, res, sessionId, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/navigate$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordNavigate(req, res, sessionId, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/screenshot$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordScreenshot(req, res, sessionId, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/input$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordInput(req, res, sessionId, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/frame$/) && method === 'GET') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordFrame(req, res, sessionId, sessionManager, config);
-      } else if (pathname.match(/^\/session\/[^/]+\/record\/viewport$/) && method === 'POST') {
-        const sessionId = pathname.split('/')[2];
-        await handleRecordViewport(req, res, sessionId, sessionManager, config);
-      } else if (pathname === '/health' && method !== 'GET') {
-        send405(res, ['GET']);
-      } else if (pathname === '/session/start' && method !== 'POST') {
-        send405(res, ['POST']);
-      } else {
-        send404(res, `Path not found: ${pathname}`);
-      }
+      await router.handle(req, res);
     } catch (error) {
-      logger.error('Request handler error', {
+      logger.error('request: handler error', {
         method,
         path: pathname,
         error: error instanceof Error ? error.message : String(error),
@@ -199,7 +217,7 @@ async function main() {
 
   // Start listening
   server.listen(config.server.port, config.server.host, () => {
-    logger.info('Server listening', {
+    logger.info('server: listening', {
       port: config.server.port,
       host: config.server.host,
       url: `http://${config.server.host}:${config.server.port}`,
@@ -209,11 +227,11 @@ async function main() {
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
-    logger.info('Received shutdown signal', { signal });
+    logger.info('server: shutdown initiated', { signal });
 
     // Stop accepting new connections
     server.close(() => {
-      logger.info('HTTP server closed');
+      logger.info('server: http closed');
     });
 
     // Stop cleanup task
@@ -222,14 +240,14 @@ async function main() {
     // Close metrics server
     if (metricsServer) {
       metricsServer.close(() => {
-        logger.info('Metrics server closed');
+        logger.info('server: metrics closed');
       });
     }
 
     // Shutdown session manager
     await sessionManager.shutdown();
 
-    logger.info('Shutdown complete');
+    logger.info('server: shutdown complete');
     process.exit(0);
   };
 
@@ -238,7 +256,7 @@ async function main() {
 
   // Handle uncaught errors
   process.on('uncaughtException', (error) => {
-    logger.error('Uncaught exception', {
+    logger.error('server: uncaught exception', {
       error: error.message,
       stack: error.stack,
     });
@@ -246,7 +264,7 @@ async function main() {
   });
 
   process.on('unhandledRejection', (reason) => {
-    logger.error('Unhandled rejection', {
+    logger.error('server: unhandled rejection', {
       reason: String(reason),
     });
     shutdown('unhandledRejection');
@@ -279,40 +297,6 @@ function registerHandlers(): void {
   handlerRegistry.register(new TabHandler());
   handlerRegistry.register(new NetworkHandler());
   handlerRegistry.register(new DeviceHandler());
-}
-
-/**
- * Create metrics server
- */
-function createMetricsServer(port: number): Promise<ReturnType<typeof createServer>> {
-  return new Promise((resolve, reject) => {
-    const server = createServer(async (req, res) => {
-      if (req.url === '/metrics') {
-        res.setHeader('Content-Type', metrics.getRegistry().contentType);
-        const metricsOutput = await metrics.getMetrics();
-        res.end(metricsOutput);
-      } else {
-        res.statusCode = 404;
-        res.end('Not found');
-      }
-    });
-
-    server.on('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === 'EADDRINUSE') {
-        reject(new Error(`Metrics port ${port} is already in use`));
-      } else {
-        reject(error);
-      }
-    });
-
-    server.listen(port, '0.0.0.0', () => {
-      logger.info('Metrics server listening', {
-        port,
-        url: `http://0.0.0.0:${port}/metrics`,
-      });
-      resolve(server);
-    });
-  });
 }
 
 // Start server

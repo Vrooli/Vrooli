@@ -8,7 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -49,13 +51,13 @@ type WorkflowVersionSummary struct {
 // WorkflowService handles workflow business logic
 type WorkflowService struct {
 	repo             database.Repository
-	wsHub            *wsHub.Hub
 	log              *logrus.Logger
 	aiClient         ai.AIClient
 	executor         autoexec.Executor
 	engineFactory    autoengine.Factory
 	artifactRecorder autorecorder.Recorder
 	planCompiler     autoexec.PlanCompiler
+	eventSinkFactory func() autoevents.Sink
 	syncLocks        sync.Map
 	filePathCache    sync.Map
 	executionCancels sync.Map
@@ -103,7 +105,7 @@ type ExecutionExportPreview struct {
 }
 
 // NewWorkflowService creates a new workflow service
-func NewWorkflowService(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger) *WorkflowService {
+func NewWorkflowService(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger) *WorkflowService {
 	return NewWorkflowServiceWithDeps(repo, wsHub, log, WorkflowServiceOptions{})
 }
 
@@ -115,29 +117,56 @@ type WorkflowServiceOptions struct {
 	ArtifactRecorder autorecorder.Recorder
 	PlanCompiler     autoexec.PlanCompiler
 	AIClient         ai.AIClient
+	EventSinkFactory func() autoevents.Sink
 }
 
 // NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
 // abstraction work while keeping the legacy constructor stable.
-func NewWorkflowServiceWithDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, opts WorkflowServiceOptions) *WorkflowService {
+func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, opts WorkflowServiceOptions) *WorkflowService {
 	aiClient := opts.AIClient
 	if aiClient == nil {
 		aiClient = ai.NewOpenRouterClient(log)
 	}
 
+	eventSinkFactory := opts.EventSinkFactory
+	if eventSinkFactory == nil {
+		eventSinkFactory = func() autoevents.Sink {
+			return autoevents.NewWSHubSink(wsHub, log, autocontracts.DefaultEventBufferLimits)
+		}
+	}
+
 	svc := &WorkflowService{
 		repo:             repo,
-		wsHub:            wsHub,
 		log:              log,
 		aiClient:         aiClient,
 		executor:         opts.Executor,
 		engineFactory:    opts.EngineFactory,
 		artifactRecorder: opts.ArtifactRecorder,
 		planCompiler:     opts.PlanCompiler,
+		eventSinkFactory: eventSinkFactory,
 	}
 
 	return svc
 }
+
+// newEventSink constructs an event sink for automation lifecycle notifications.
+// The sink creation is intentionally deferred so orchestration code remains
+// agnostic to websocket implementation details.
+func (s *WorkflowService) newEventSink() autoevents.Sink {
+	if s == nil {
+		return nil
+	}
+	if s.eventSinkFactory != nil {
+		return s.eventSinkFactory()
+	}
+	return autoevents.NewWSHubSink(nil, s.log, autocontracts.DefaultEventBufferLimits)
+}
+
+var (
+	_ CatalogService   = (*WorkflowService)(nil)
+	_ ExecutionService = (*WorkflowService)(nil)
+	_ ExportService    = (*WorkflowService)(nil)
+)
 
 // cloneJSONMap creates a deep copy of a database.JSONMap using typeconv utilities.
 // Handles database.JSONMap and database.StringArray as special domain-specific types.

@@ -23,11 +23,19 @@ var (
 	testDBMu sync.Mutex
 )
 
-func TestMain(m *testing.M) {
+func testBackend() string {
 	backend := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_TEST_BACKEND")))
+	if backend == "" {
+		backend = strings.ToLower(strings.TrimSpace(os.Getenv("BAS_DB_BACKEND")))
+	}
 	if backend == "" {
 		backend = "postgres"
 	}
+	return backend
+}
+
+func TestMain(m *testing.M) {
+	backend := testBackend()
 	ctx := context.Background()
 
 	if backend == "postgres" {
@@ -52,9 +60,35 @@ func TestMain(m *testing.M) {
 // setupTestDB creates a test database connection using the testcontainer.
 // It acquires a mutex to ensure exclusive access to the shared test database.
 func setupTestDB(t *testing.T) (*DB, func()) {
-	backend := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_TEST_BACKEND")))
-	if backend == "" {
-		backend = "postgres"
+	backend := testBackend()
+
+	oldURL := os.Getenv("DATABASE_URL")
+	oldSkipDemo := os.Getenv("BAS_SKIP_DEMO_SEED")
+	oldHost := os.Getenv("POSTGRES_HOST")
+	oldPort := os.Getenv("POSTGRES_PORT")
+	oldUser := os.Getenv("POSTGRES_USER")
+	oldPass := os.Getenv("POSTGRES_PASSWORD")
+	oldDB := os.Getenv("POSTGRES_DB")
+	oldBackend := os.Getenv("BAS_DB_BACKEND")
+	oldSQLitePath := os.Getenv("BAS_SQLITE_PATH")
+
+	restoreEnv := func() {
+		restore := func(key, val string) {
+			if val == "" {
+				os.Unsetenv(key)
+				return
+			}
+			os.Setenv(key, val)
+		}
+		restore("DATABASE_URL", oldURL)
+		restore("BAS_SKIP_DEMO_SEED", oldSkipDemo)
+		restore("POSTGRES_HOST", oldHost)
+		restore("POSTGRES_PORT", oldPort)
+		restore("POSTGRES_USER", oldUser)
+		restore("POSTGRES_PASSWORD", oldPass)
+		restore("POSTGRES_DB", oldDB)
+		restore("BAS_DB_BACKEND", oldBackend)
+		restore("BAS_SQLITE_PATH", oldSQLitePath)
 	}
 
 	if backend == "postgres" {
@@ -64,14 +98,6 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 
 		testDBMu.Lock()
 
-		oldURL := os.Getenv("DATABASE_URL")
-		oldSkipDemo := os.Getenv("BAS_SKIP_DEMO_SEED")
-		oldHost := os.Getenv("POSTGRES_HOST")
-		oldPort := os.Getenv("POSTGRES_PORT")
-		oldUser := os.Getenv("POSTGRES_USER")
-		oldPass := os.Getenv("POSTGRES_PASSWORD")
-		oldDB := os.Getenv("POSTGRES_DB")
-
 		os.Unsetenv("POSTGRES_HOST")
 		os.Unsetenv("POSTGRES_PORT")
 		os.Unsetenv("POSTGRES_USER")
@@ -80,6 +106,8 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 
 		os.Setenv("DATABASE_URL", testDBHandle.DSN)
 		os.Setenv("BAS_SKIP_DEMO_SEED", "true")
+		os.Setenv("BAS_DB_BACKEND", "postgres")
+		os.Unsetenv("BAS_SQLITE_PATH")
 
 		log := logrus.New()
 		log.SetOutput(ioutil.Discard)
@@ -100,34 +128,7 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 			_ = truncateAll(db)
 			db.Close()
 
-			if oldURL != "" {
-				os.Setenv("DATABASE_URL", oldURL)
-			} else {
-				os.Unsetenv("DATABASE_URL")
-			}
-
-			if oldSkipDemo != "" {
-				os.Setenv("BAS_SKIP_DEMO_SEED", oldSkipDemo)
-			} else {
-				os.Unsetenv("BAS_SKIP_DEMO_SEED")
-			}
-
-			if oldHost != "" {
-				os.Setenv("POSTGRES_HOST", oldHost)
-			}
-			if oldPort != "" {
-				os.Setenv("POSTGRES_PORT", oldPort)
-			}
-			if oldUser != "" {
-				os.Setenv("POSTGRES_USER", oldUser)
-			}
-			if oldPass != "" {
-				os.Setenv("POSTGRES_PASSWORD", oldPass)
-			}
-			if oldDB != "" {
-				os.Setenv("POSTGRES_DB", oldDB)
-			}
-
+			restoreEnv()
 			testDBMu.Unlock()
 		}
 
@@ -141,6 +142,12 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	tmpDir := t.TempDir()
 	sqlitePath := filepath.Join(tmpDir, "test.db")
 
+	os.Unsetenv("DATABASE_URL")
+	os.Unsetenv("POSTGRES_HOST")
+	os.Unsetenv("POSTGRES_PORT")
+	os.Unsetenv("POSTGRES_USER")
+	os.Unsetenv("POSTGRES_PASSWORD")
+	os.Unsetenv("POSTGRES_DB")
 	os.Setenv("BAS_DB_BACKEND", "sqlite")
 	os.Setenv("BAS_SQLITE_PATH", sqlitePath)
 	os.Setenv("BAS_SKIP_DEMO_SEED", "true")
@@ -158,6 +165,7 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	cleanup := func() {
 		_ = truncateAll(db)
 		db.Close()
+		restoreEnv()
 	}
 
 	return db, cleanup
@@ -208,6 +216,9 @@ func truncateAll(db *DB) error {
 	}
 	for _, table := range tables {
 		if _, err := db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", table)); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "no such table") {
+				continue
+			}
 			return err
 		}
 	}
@@ -310,8 +321,11 @@ func TestCreateProject(t *testing.T) {
 			t.Error("Expected error for duplicate project name")
 		}
 		// Check for unique constraint violation
-		if err != nil && !strings.Contains(err.Error(), "duplicate key") && !strings.Contains(err.Error(), "unique constraint") {
-			t.Errorf("Expected unique constraint error, got: %v", err)
+		if err != nil {
+			errMsg := strings.ToLower(err.Error())
+			if !strings.Contains(errMsg, "duplicate key") && !strings.Contains(errMsg, "unique constraint") && !strings.Contains(errMsg, "constraint failed") {
+				t.Errorf("Expected unique constraint error, got: %v", err)
+			}
 		}
 	})
 }

@@ -4,7 +4,7 @@ import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError } from '../utils';
 import { buildContext } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
-import { cleanupSessionRecording } from '../routes/record-mode';
+import { removeRecordedActions } from '../recording/buffer';
 
 /**
  * SessionManager - Manages browser session lifecycle
@@ -39,7 +39,7 @@ export class SessionManager {
     }
 
     try {
-      logger.info('Verifying browser launch capability...');
+      logger.info('browser: verifying launch capability');
       const browser = await this.getBrowser();
 
       // Verify we can create a context and page
@@ -56,7 +56,7 @@ export class SessionManager {
       this.browserVerified = true;
       this.browserError = null;
 
-      logger.info('Browser launch verification successful', {
+      logger.info('browser: verification successful', {
         version: browser.version(),
       });
 
@@ -66,7 +66,7 @@ export class SessionManager {
       this.browserError = errorMessage;
       this.browserVerified = true; // Mark as verified (we checked, it failed)
 
-      logger.error('Browser launch verification failed', {
+      logger.error('browser: verification failed', {
         error: errorMessage,
         hint: 'Check that Chromium is installed and sandbox settings are correct',
       });
@@ -102,7 +102,7 @@ export class SessionManager {
       return this.browser;
     }
 
-    logger.info('Launching browser', {
+    logger.info('browser: launching', {
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || 'auto',
     });
@@ -113,7 +113,7 @@ export class SessionManager {
       args: this.config.browser.args,
     });
 
-    logger.info('Browser launched', { version: this.browser.version() });
+    logger.info('browser: launched', { version: this.browser.version() });
     return this.browser;
   }
 
@@ -133,7 +133,7 @@ export class SessionManager {
     if (spec.reuse_mode !== 'fresh') {
       const existingSession = this.findReusableSession(spec);
       if (existingSession) {
-        logger.info('Reusing existing session', {
+        logger.info('session: reusing existing', {
           sessionId: existingSession.id,
           reuseMode: spec.reuse_mode,
         });
@@ -162,38 +162,26 @@ export class SessionManager {
     // Create initial page
     const page = await context.newPage();
 
-    // Setup console log collection
-    page.on('console', (msg) => {
-      logger.debug('Browser console', {
-        sessionId,
-        type: msg.type(),
-        text: msg.text(),
-      });
-    });
-
+    // Log page errors (warn level - these are important signals for debugging)
     page.on('pageerror', (err) => {
-      logger.warn('Page error', {
+      logger.warn('page: error', {
         sessionId,
         error: err.message,
       });
     });
 
-    // Setup network event collection
-    page.on('request', (request) => {
-      logger.debug('Network request', {
-        sessionId,
-        url: request.url(),
-        method: request.method(),
-      });
+    // Log console errors (warn level - only errors, not all console output)
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        logger.warn('page: console error', {
+          sessionId,
+          text: msg.text(),
+        });
+      }
     });
 
-    page.on('response', (response) => {
-      logger.debug('Network response', {
-        sessionId,
-        url: response.url(),
-        status: response.status(),
-      });
-    });
+    // Network events are collected by telemetry, not logged individually
+    // (reduces noise while still capturing data for debugging)
 
     // Create session state
     const session: SessionState = {
@@ -217,11 +205,12 @@ export class SessionManager {
 
     this.sessions.set(sessionId, session);
 
-    logger.info('Session created', {
+    logger.info('session: created', {
       sessionId,
       executionId: spec.execution_id,
       reuseMode: spec.reuse_mode,
       totalSessions: this.sessions.size,
+      viewport: spec.viewport,
     });
 
     // Update metrics
@@ -269,7 +258,7 @@ export class SessionManager {
   async resetSession(sessionId: string): Promise<void> {
     const session = this.getSession(sessionId);
 
-    logger.info('Resetting session', { sessionId });
+    logger.info('session: resetting', { sessionId });
 
     // Navigate to blank page
     await session.page.goto('about:blank');
@@ -307,7 +296,7 @@ export class SessionManager {
 
     session.lastUsedAt = new Date();
 
-    logger.info('Session reset complete', { sessionId });
+    logger.info('session: reset complete', { sessionId });
   }
 
   /**
@@ -319,7 +308,7 @@ export class SessionManager {
       throw new SessionNotFoundError(sessionId);
     }
 
-    logger.info('Closing session', { sessionId });
+    logger.info('session: closing', { sessionId });
 
     const startTime = Date.now();
 
@@ -333,7 +322,7 @@ export class SessionManager {
       }
 
       // Clean up recording action buffer
-      cleanupSessionRecording(sessionId);
+      removeRecordedActions(sessionId);
 
       // Stop tracing if enabled
       if (session.tracing && session.tracePath) {
@@ -360,14 +349,14 @@ export class SessionManager {
       const duration = Date.now() - startTime;
       metrics.sessionDuration.observe(duration);
 
-      logger.info('Session closed', {
+      logger.info('session: closed', {
         sessionId,
-        duration,
-        createdAt: session.createdAt,
-        lastUsedAt: session.lastUsedAt,
+        lifetimeMs: duration,
+        createdAt: session.createdAt.toISOString(),
+        lastUsedAt: session.lastUsedAt.toISOString(),
       });
     } catch (error) {
-      logger.error('Error closing session', {
+      logger.error('session: close failed', {
         sessionId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -434,7 +423,7 @@ export class SessionManager {
     }
 
     if (idleSessions.length > 0) {
-      logger.info('Cleaning up idle sessions', {
+      logger.info('session: cleaning up idle', {
         count: idleSessions.length,
         idleTimeoutMs: this.config.session.idleTimeoutMs,
       });
@@ -465,7 +454,7 @@ export class SessionManager {
    * Shutdown manager and cleanup all sessions
    */
   async shutdown(): Promise<void> {
-    logger.info('Shutting down session manager', { sessionCount: this.sessions.size });
+    logger.info('session-manager: shutting down', { sessionCount: this.sessions.size });
 
     const sessionIds = Array.from(this.sessions.keys());
     for (const sessionId of sessionIds) {
@@ -480,6 +469,6 @@ export class SessionManager {
       this.browser = null;
     }
 
-    logger.info('Session manager shutdown complete');
+    logger.info('session-manager: shutdown complete');
   }
 }

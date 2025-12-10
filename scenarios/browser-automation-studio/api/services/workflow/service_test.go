@@ -642,11 +642,7 @@ func newTestService(repo database.Repository) *WorkflowService {
 	logger.SetOutput(io.Discard)
 	hub := wsHub.NewHub(logger)
 	go hub.Run()
-	return &WorkflowService{
-		repo:  repo,
-		log:   logger,
-		wsHub: hub,
-	}
+	return NewWorkflowService(repo, hub, logger)
 }
 
 func TestUpdateWorkflowSkipsNoOpSaves(t *testing.T) {

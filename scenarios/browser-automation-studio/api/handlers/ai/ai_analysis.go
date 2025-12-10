@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
@@ -18,64 +19,104 @@ type DOMExtractor interface {
 	ExtractDOMTree(ctx context.Context, url string) (string, error)
 }
 
-// AIAnalysisHandler handles AI-powered element analysis using Ollama
+// ElementAnalyzer owns the domain logic for interpreting DOM snapshots and user intent.
+// It is intentionally transport-agnostic so HTTP handlers remain thin.
+type ElementAnalyzer interface {
+	Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error)
+}
+
+// AIAnalysisHandler handles AI-powered element analysis using Ollama.
+// It focuses on HTTP concerns and delegates domain logic to an ElementAnalyzer.
 type AIAnalysisHandler struct {
-	log          *logrus.Logger
+	log      *logrus.Logger
+	analyzer ElementAnalyzer
+	timeout  time.Duration
+}
+
+type aiAnalysisConfig struct {
+	analyzer     ElementAnalyzer
 	domExtractor DOMExtractor
 	ollamaClient OllamaClient
 	model        string
+	timeout      time.Duration
 }
 
 // AIAnalysisOption configures the AIAnalysisHandler.
-type AIAnalysisOption func(*AIAnalysisHandler)
+type AIAnalysisOption func(*aiAnalysisConfig)
 
 // WithDOMExtractor sets a custom DOM extractor.
 func WithDOMExtractor(extractor DOMExtractor) AIAnalysisOption {
-	return func(h *AIAnalysisHandler) {
-		h.domExtractor = extractor
+	return func(cfg *aiAnalysisConfig) {
+		cfg.domExtractor = extractor
 	}
 }
 
 // WithAIAnalysisOllamaClient sets a custom Ollama client for AI analysis.
 func WithAIAnalysisOllamaClient(client OllamaClient) AIAnalysisOption {
-	return func(h *AIAnalysisHandler) {
-		h.ollamaClient = client
+	return func(cfg *aiAnalysisConfig) {
+		cfg.ollamaClient = client
 	}
 }
 
 // WithAIAnalysisModel sets the Ollama model to use for AI analysis.
 func WithAIAnalysisModel(model string) AIAnalysisOption {
-	return func(h *AIAnalysisHandler) {
-		h.model = model
+	return func(cfg *aiAnalysisConfig) {
+		cfg.model = model
+	}
+}
+
+// WithElementAnalyzer injects a fully configured analyzer, bypassing default wiring.
+func WithElementAnalyzer(analyzer ElementAnalyzer) AIAnalysisOption {
+	return func(cfg *aiAnalysisConfig) {
+		cfg.analyzer = analyzer
+	}
+}
+
+// WithAIAnalysisTimeout overrides the default analysis timeout, primarily for tests.
+func WithAIAnalysisTimeout(timeout time.Duration) AIAnalysisOption {
+	return func(cfg *aiAnalysisConfig) {
+		cfg.timeout = timeout
 	}
 }
 
 // NewAIAnalysisHandler creates a new AI analysis handler with optional configuration.
 func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AIAnalysisOption) *AIAnalysisHandler {
-	handler := &AIAnalysisHandler{
-		log:   log,
-		model: "llama3.2:3b",
+	cfg := aiAnalysisConfig{
+		model:   "llama3.2:3b",
+		timeout: constants.AIAnalysisTimeout,
 	}
 
-	// Apply options first
 	for _, opt := range opts {
-		opt(handler)
+		opt(&cfg)
 	}
 
-	// Use domHandler as the extractor if not provided via options
-	if handler.domExtractor == nil && domHandler != nil {
-		handler.domExtractor = domHandler
+	analyzer := cfg.analyzer
+	if analyzer == nil {
+		domExtractor := cfg.domExtractor
+		if domExtractor == nil && domHandler != nil {
+			domExtractor = domHandler
+		}
+		ollamaClient := cfg.ollamaClient
+		if ollamaClient == nil {
+			ollamaClient = NewDefaultOllamaClient(log)
+		}
+
+		analyzer = &AIElementAnalyzer{
+			log:          log,
+			domExtractor: domExtractor,
+			ollamaClient: ollamaClient,
+			model:        cfg.model,
+		}
 	}
 
-	// Create default Ollama client if not provided
-	if handler.ollamaClient == nil {
-		handler.ollamaClient = NewDefaultOllamaClient(log)
+	return &AIAnalysisHandler{
+		log:      log,
+		analyzer: analyzer,
+		timeout:  cfg.timeout,
 	}
-
-	return handler
 }
 
-// AIAnalyzeElements handles POST /api/v1/ai-analyze-elements
+// AIAnalyzeElements handles POST /api/v1/ai-analyze-elements.
 func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
 	var req AIAnalyzeRequest
 	if err := httpjson.Decode(w, r, &req); err != nil {
@@ -94,7 +135,7 @@ func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Req
 		"intent": req.Intent,
 	}).Info("AI analyzing elements")
 
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
 	suggestions, err := h.analyzeElementsWithAI(ctx, req.URL, req.Intent)
@@ -108,14 +149,30 @@ func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(suggestions)
 }
 
-// analyzeElementsWithAI uses Ollama to analyze the DOM and suggest elements
+// analyzeElementsWithAI delegates to the injected analyzer.
 func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, intent string) ([]ElementInfo, error) {
-	if h.domExtractor == nil {
+	if h.analyzer == nil {
+		return nil, fmt.Errorf("element analyzer not configured")
+	}
+	return h.analyzer.Analyze(ctx, url, intent)
+}
+
+// AIElementAnalyzer owns the domain logic for DOM extraction and Ollama prompting.
+type AIElementAnalyzer struct {
+	log          *logrus.Logger
+	domExtractor DOMExtractor
+	ollamaClient OllamaClient
+	model        string
+}
+
+// Analyze extracts the DOM for the given URL and asks the Ollama model for element suggestions.
+func (a *AIElementAnalyzer) Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error) {
+	if a.domExtractor == nil {
 		return nil, fmt.Errorf("DOM extractor not configured")
 	}
 
 	// First, extract the DOM tree from the page
-	domData, err := h.domExtractor.ExtractDOMTree(ctx, url)
+	domData, err := a.domExtractor.ExtractDOMTree(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract DOM tree: %w", err)
 	}
@@ -125,11 +182,13 @@ func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, inte
 	if len(domData) > 300 {
 		domPreview = domData[:300]
 	}
-	h.log.WithFields(logrus.Fields{
-		"url":         url,
-		"dom_length":  len(domData),
-		"dom_preview": domPreview,
-	}).Info("Extracted DOM tree")
+	if a.log != nil {
+		a.log.WithFields(logrus.Fields{
+			"url":         url,
+			"dom_length":  len(domData),
+			"dom_preview": domPreview,
+		}).Info("Extracted DOM tree")
+	}
 
 	// Create a prompt for Ollama to analyze the DOM and suggest elements
 	prompt := fmt.Sprintf(`You are an expert web automation assistant. Analyze this DOM tree and help identify the best elements to interact with based on the user's intent.
@@ -171,7 +230,7 @@ Example format:
 ]`, url, intent, domData)
 
 	// Query Ollama via the client interface
-	responseText, err := h.ollamaClient.Query(ctx, h.model, prompt)
+	responseText, err := a.ollamaClient.Query(ctx, a.model, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama API: %w", err)
 	}
@@ -181,11 +240,13 @@ Example format:
 	if len(responseText) < previewLen {
 		previewLen = len(responseText)
 	}
-	h.log.WithFields(logrus.Fields{
-		"model":            h.model,
-		"response_length":  len(responseText),
-		"response_preview": responseText[:previewLen],
-	}).Info("Received Ollama response")
+	if a.log != nil {
+		a.log.WithFields(logrus.Fields{
+			"model":            a.model,
+			"response_length":  len(responseText),
+			"response_preview": responseText[:previewLen],
+		}).Info("Received Ollama response")
+	}
 
 	// Parse the JSON response from the model
 	var suggestions []ElementInfo
@@ -219,10 +280,12 @@ Example format:
 				if len(jsonStr) > 300 {
 					cleanedPreview = jsonStr[:300]
 				}
-				h.log.WithError(err).WithFields(logrus.Fields{
-					"original_response": origPreview,
-					"cleaned_json":      cleanedPreview,
-				}).Error("Failed to parse AI response as JSON after cleaning")
+				if a.log != nil {
+					a.log.WithError(err).WithFields(logrus.Fields{
+						"original_response": origPreview,
+						"cleaned_json":      cleanedPreview,
+					}).Error("Failed to parse AI response as JSON after cleaning")
+				}
 
 				// Return a single fallback suggestion
 				return []ElementInfo{{
@@ -242,7 +305,9 @@ Example format:
 				}}, nil
 			}
 		} else {
-			h.log.WithField("response", responseText).Error("No valid JSON found in AI response")
+			if a.log != nil {
+				a.log.WithField("response", responseText).Error("No valid JSON found in AI response")
+			}
 			// Return debug info about what we received
 			respPreview := responseText
 			if len(responseText) > 100 {

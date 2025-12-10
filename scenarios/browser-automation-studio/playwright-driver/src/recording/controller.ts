@@ -20,6 +20,7 @@ import type {
   ActionReplayResult,
   ReplayPreviewRequest,
   ReplayPreviewResponse,
+  ClickActionPayload,
 } from './types';
 
 /**

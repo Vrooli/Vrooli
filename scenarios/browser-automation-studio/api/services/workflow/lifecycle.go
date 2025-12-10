@@ -106,7 +106,7 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 
 	var err error
 	selection := autoengine.FromEnv()
-	eventSink := autoevents.NewWSHubSink(s.wsHub, s.log, autocontracts.DefaultEventBufferLimits)
+	eventSink := s.newEventSink()
 	seq := autoevents.NewPerExecutionSequencer()
 	publishLifecycle := func(kind autocontracts.EventKind, payload any) {
 		if eventSink == nil {

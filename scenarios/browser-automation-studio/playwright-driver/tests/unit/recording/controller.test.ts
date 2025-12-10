@@ -369,8 +369,9 @@ describe('RecordModeController', () => {
     });
 
     it('should use default confidence when no selector candidates', () => {
+      // Use 'click' action type (not 'navigate') since navigate returns 1 for no-selector case
       const rawEvent = createRawEvent({
-        actionType: 'navigate',
+        actionType: 'click',
         selector: { primary: '', candidates: [] },
       });
 

@@ -19,7 +19,7 @@ export default function FactoryHome() {
             <div className="text-xl font-semibold">saas-landing-page</div>
             <p className="text-sm text-slate-300">
               Preview now happens inside the generated scenario (to avoid mixing factory and template logic here).
-              Generate, start, and view at <code className="px-1 py-0.5 rounded bg-slate-900">http://localhost:&lt;port&gt;</code>.
+              Generate, start, and view via <code className="px-1 py-0.5 rounded bg-slate-900">vrooli scenario start &lt;name&gt;</code>.
             </p>
           </div>
 

@@ -27,6 +27,37 @@ export function sendJson(
 }
 
 /**
+ * Get actionable hint for common error scenarios
+ */
+function getErrorHint(error: Error | PlaywrightDriverError): string | undefined {
+  if (error instanceof SessionNotFoundError) {
+    return 'Session may have timed out or been closed. Create a new session with POST /session/start';
+  }
+  if (error instanceof SelectorNotFoundError) {
+    return 'Element not found. Verify the selector is correct and the element exists on the page. Consider adding a wait instruction before this step.';
+  }
+  if (error instanceof TimeoutError) {
+    return 'Operation timed out. The page may be slow to load or the element may not exist. Try increasing the timeout or verifying the page state.';
+  }
+  if (error instanceof NavigationError) {
+    return 'Navigation failed. Verify the URL is correct and accessible. Check for network issues or authentication requirements.';
+  }
+  if (error instanceof FrameNotFoundError) {
+    return 'Frame not found. Verify the frame selector or URL pattern. The frame may have been removed or not yet loaded.';
+  }
+  if (error instanceof ResourceLimitError) {
+    return 'Resource limit reached. Close unused sessions or wait for idle sessions to be cleaned up.';
+  }
+  if (error instanceof InvalidInstructionError) {
+    return 'Check instruction parameters match the expected schema for this instruction type.';
+  }
+  if (error instanceof UnsupportedInstructionError) {
+    return 'This instruction type is not supported. Check available instruction types in the documentation.';
+  }
+  return undefined;
+}
+
+/**
  * Send error response
  */
 export function sendError(
@@ -73,7 +104,9 @@ export function sendError(
     retryable = error.retryable;
   }
 
-  logger.error('Request failed', {
+  const hint = getErrorHint(error);
+
+  logger.error('request: failed', {
     path: requestPath,
     statusCode,
     errorCode,
@@ -88,6 +121,7 @@ export function sendError(
       message,
       kind,
       retryable,
+      ...(hint && { hint }),
     },
   });
 }

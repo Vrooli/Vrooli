@@ -107,10 +107,10 @@ type ExecutionRepository interface {
 **Test Doubles:**
 - `executor/simple_executor_test.go`: `memoryRecorder`
 
-**Status:** Good
+**Status:** Strong
 - Narrow interface (ExecutionRepository) reduces coupling
-- DBRecorder uses interface, not full Repository
-- Need compile-time enforcement: `var _ Recorder = (*DBRecorder)(nil)`
+- DBRecorder uses the interface with compile-time enforcement
+- MemoryRecorder keeps executor tests hermetic
 
 ---
 
@@ -155,13 +155,31 @@ type Repository interface {
 - `handlers/handlers_test.go`: `mockRepository`
 
 **Status:** Good
-- Comprehensive interface
+- Comprehensive interface with compile-time enforcement on the concrete repository
 - Mock exists but is verbose (all methods return nil/error)
-- Consider: Interface segregation into smaller role interfaces
+- Consider: Interface segregation into smaller role interfaces to cut setup noise
 
 ---
 
-### 6. Storage Seam (Good)
+### 6. Database Backend Dialect Seam (Good)
+
+**Location:** `api/database/connection.go`, `api/database/dialect.go`, `api/automation/executor/integration_test.go`
+
+**Controls:**
+- `BAS_DB_BACKEND` selects runtime backend (`postgres` default, `sqlite` opt-in)
+- `BAS_TEST_BACKEND` toggles test backend (Postgres testcontainer vs SQLite temp file)
+- `database.Dialect` and `DialectProvider` drive placeholder rebinding and value encoding
+
+**Status:** Good
+- `NewConnection` provisions Postgres or SQLite and sets the dialect provider for value types
+- Executor and repository tests resolve the backend from `BAS_TEST_BACKEND` (preferred) or `BAS_DB_BACKEND`, so a sqlite runtime config no longer spins up a Postgres container by surprise
+- Dialect-aware truncate/reset logic keeps integration tests portable instead of relying on Postgres-only TRUNCATE/`$1` SQL
+- SQLite paths mirror resource defaults via `sqliteDSN`; Postgres path sticks to the container DSN
+- Test harness forces `BAS_DB_BACKEND` to the resolved backend and restores BAS/POSTGRES/SQLITE envs after each run to avoid leakage between suites
+
+---
+
+### 7. Storage Seam (Good)
 
 **Location:** `api/storage/interface.go`
 
@@ -175,14 +193,17 @@ type StorageInterface interface {
 }
 ```
 
-**Status:** Good
-- Clean interface for blob storage
-- No dedicated test double found
-- **Action Needed:** Add `MemoryStorage` test double
+**Test Doubles:**
+- `storage/memory.go`: `MemoryStorage`
+
+**Status:** Strong
+- Clean interface with compile-time checks on all implementations
+- In-memory double enables handler/service tests without filesystem or MinIO
+- Selector helpers keep naming/prefix decisions encapsulated
 
 ---
 
-### 7. WebSocket Hub Seam (Good)
+### 8. WebSocket Hub Seam (Good)
 
 **Location:** `api/websocket/interface.go`
 
@@ -204,85 +225,49 @@ type HubInterface interface {
 
 ---
 
-### 8. WorkflowService Seam (Weak)
+### 9. WorkflowService Seam (Weak)
 
 **Location:** `api/handlers/handler.go` and `api/services/workflow/service.go`
 
-**Interface:** Defined in `handler.go`
-```go
-type WorkflowService interface {
-    CreateWorkflowWithProject(ctx context.Context, ...) (*database.Workflow, error)
-    ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
-    // ... 20+ methods
-}
-```
+**Interface:** `api/services/workflow/interfaces.go` (CatalogService, ExecutionService, ExportService)
 
-**Status:** Weak
-- Interface is comprehensive
-- Handler constructs concrete `WorkflowService` internally
-- Test mock exists (`workflowServiceMock`) but requires all methods
-- **Action Needed:**
-  - Accept WorkflowService in Handler constructor
-  - Consider interface segregation
+**Status:** Good
+- Interfaces live in `api/services/workflow/interfaces.go` with compile-time checks on `WorkflowService`
+- Handler uses `NewHandlerWithDeps` to accept injected services, keeping transport thin
+- Event sink wiring now flows through an injected factory + `wsHub.HubInterface` rather than a concrete hub
+- Remaining risk: interface breadth (20+ methods) still high; consider narrowing by role
 
 ---
 
-### 9. AI Client Seam (Missing)
+### 10. AI Client Seam (Good)
 
 **Location:** `api/services/ai/client.go`
 
-**Current Implementation:**
-```go
-type OpenRouterClient struct {
-    log   *logrus.Logger
-    model string
-}
+**Interface:** `api/services/ai/interface.go`
+- `AIClient` with `ExecutePrompt` and `Model`
+- Compile-time enforcement on `OpenRouterClient` and `MockAIClient`
 
-func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (string, error) {
-    // Shells out to resource-openrouter command
-}
-```
-
-**Status:** Missing
-- No interface defined
-- Shells out directly to `resource-openrouter` executable
-- `WorkflowService` uses concrete type: `aiClient *ai.OpenRouterClient`
-- Impossible to unit test without real executable
-
-**Action Needed:**
-- Extract `AIClient` interface
-- Create `MockAIClient` for testing
-- Inject via `WorkflowServiceOptions`
+**Status:** Good
+- Shell-out integration is confined to `OpenRouterClient`
+- `MockAIClient` enables workflow tests without the executable
+- Injected via `WorkflowServiceOptions`
 
 ---
 
-### 10. HTTP Client Seam in PlaywrightEngine (Missing)
+### 11. HTTP Client Seam in PlaywrightEngine (Good)
 
 **Location:** `api/automation/engine/playwright_engine.go`
 
-**Current Implementation:**
-```go
-type PlaywrightEngine struct {
-    driverURL  string
-    httpClient *http.Client  // Hardcoded
-    log        *logrus.Logger
-}
-```
-
-**Status:** Missing
-- Uses `*http.Client` directly
-- Cannot mock HTTP calls for unit testing
-- Integration tests require running Playwright driver
-
-**Action Needed:**
-- Create `HTTPDoer` interface: `Do(req *http.Request) (*http.Response, error)`
-- Inject via constructor or use `httptest.Server` pattern
+**Status:** Good
+- `HTTPDoer` interface defined in `automation/engine/http.go` with compile check on `http.Client`
+- `NewPlaywrightEngineWithHTTPClient` accepts injected client for tests (can use `httptest.Server`)
+- Default constructor still wires a long-timeout client for real driver runs
 
 ---
 
 ## TypeScript Playwright-Driver Seams
 
-### 11. InstructionHandler Seam (Strong)
+### 12. InstructionHandler Seam (Strong)
 
 **Location:** `playwright-driver/src/handlers/base.ts`
 
@@ -301,7 +286,7 @@ interface InstructionHandler {
 
 ---
 
-### 12. SessionManager Seam (Weak)
+### 13. SessionManager Seam (Weak)
 
 **Location:** `playwright-driver/src/session/manager.ts`
 
@@ -325,6 +310,116 @@ class SessionManager {
 - Extract `BrowserFactory` interface
 - Inject browser creation dependency
 
+### 14. RecordingBuffer Seam (Strong)
+
+**Location:** `playwright-driver/src/recording/buffer.ts`
+
+**Interface:**
+```typescript
+// Pure functions for action buffer management
+initRecordingBuffer(sessionId: string): void
+bufferRecordedAction(sessionId: string, action: RecordedAction): void
+getRecordedActions(sessionId: string): RecordedAction[]
+getRecordedActionCount(sessionId: string): number
+clearRecordedActions(sessionId: string): void
+removeRecordedActions(sessionId: string): void
+```
+
+**Status:** Strong
+- Module-level state encapsulated in dedicated file
+- Clean functional interface
+- No dependencies on presentation layer (routes)
+- Session layer imports from recording, not routes
+
+**History:**
+- Previously, action buffering state lived in `routes/record-mode.ts` as a module-level Map
+- This caused `session/manager.ts` to import from `routes/` (presentation layer importing from route layer)
+- Refactored to move state to `recording/buffer.ts` where it belongs (domain/coordination layer)
+
+---
+
+### 15. AI Element Analyzer Seam (Good)
+
+**Location:** `api/handlers/ai/ai_analysis.go`
+
+**Interface:**
+```go
+type ElementAnalyzer interface {
+    Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error)
+}
+```
+
+**Status:** Good
+- HTTP handler now delegates to the analyzer, keeping transport separate from DOM extraction and Ollama prompting
+- Default implementation (`AIElementAnalyzer`) wires `DOMExtractor` and `OllamaClient`, but tests inject `mockElementAnalyzer` for isolated domain coverage
+- `WithElementAnalyzer` option allows swapping implementations without changing handler wiring
+
+---
+
+### 16. Playwright-Driver Router Seam (Strong)
+
+**Location:** `playwright-driver/src/routes/router.ts`
+
+**Interface:**
+```typescript
+type RouteHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  params: Record<string, string>
+) => Promise<void>;
+
+class Router {
+  get(path: string, handler: RouteHandler): void
+  post(path: string, handler: RouteHandler): void
+  handle(req: IncomingMessage, res: ServerResponse): Promise<boolean>
+}
+```
+
+**Status:** Strong
+- Clean declarative route registration
+- Path parameter extraction (`:id` → `params.id`)
+- Automatic 404/405 handling
+- Separates routing coordination from HTTP server setup
+
+---
+
+### 17. Playwright-Driver Outcome Builder Seam (Strong)
+
+**Location:** `playwright-driver/src/domain/outcome-builder.ts`
+
+**Interface:**
+```typescript
+function buildStepOutcome(params: BuildOutcomeParams): StepOutcome
+function toDriverOutcome(
+  outcome: StepOutcome,
+  screenshotData?: { base64?: string; ... },
+  domSnapshot?: DOMSnapshot
+): DriverOutcome
+```
+
+**Status:** Strong
+- Centralizes outcome construction logic
+- Separates domain transformation from route handling
+- Clean interface with explicit parameters
+- `routes/session-run.ts` delegates to these functions instead of inline building
+
+---
+
+### 18. Playwright-Driver Metrics Server Seam (Strong)
+
+**Location:** `playwright-driver/src/utils/metrics-server.ts`
+
+**Interface:**
+```typescript
+function createMetricsServer(port: number): Promise<Server>
+function closeMetricsServer(server: Server): Promise<void>
+```
+
+**Status:** Strong
+- Separates metrics endpoint from main HTTP server
+- Clean lifecycle functions for startup and shutdown
+- Infrastructure concern isolated from business logic
+
 ---
 
 ## Seam Enforcement Matrix
@@ -333,15 +428,21 @@ class SessionManager {
 |------|-----------|-------------|---------------|----------|
 | AutomationEngine | Yes | Yes | Yes | - |
 | Executor | Yes | Yes | Yes | - |
-| Recorder | Yes | Yes | **Missing** | High |
+| Recorder | Yes | Yes | Yes | - |
 | EventSink | Yes | Yes | Yes | - |
-| Repository | Yes | Yes | **Missing** | Medium |
-| Storage | Yes | **Missing** | **Missing** | High |
+| Repository | Yes | Yes | Yes | Medium |
+| Database Backend | Env flags `BAS_DB_BACKEND`/`BAS_TEST_BACKEND` + `database.Dialect` (tests default to `BAS_TEST_BACKEND` else `BAS_DB_BACKEND`) | Postgres testcontainer handle, SQLite temp DB in tests | N/A | Medium |
+| Storage | Yes | Yes (MemoryStorage) | Yes | - |
 | WebSocket Hub | Yes | **Partial** | **Missing** | Medium |
-| WorkflowService | Yes | Yes | **Missing** | High |
-| AI Client | **Missing** | **Missing** | N/A | Critical |
-| HTTP Client (Engine) | **Missing** | **Missing** | N/A | High |
+| WorkflowService | Yes | Yes | Yes | Medium |
+| AI Client | Yes | Yes | Yes | - |
+| HTTP Client (Engine) | Yes | Injectable HTTPDoer | Yes | Medium |
 | SessionManager (TS) | **Missing** | **Missing** | N/A | Medium |
+| RecordingBuffer (TS) | Yes | N/A (pure functions) | N/A | - |
+| AI Element Analyzer | Yes | Yes | Yes (interface injection) | Medium |
+| Router (TS) | Yes | N/A (coordination) | N/A | - |
+| OutcomeBuilder (TS) | Yes | N/A (pure functions) | N/A | - |
+| MetricsServer (TS) | Yes | N/A (infrastructure) | N/A | - |
 
 ---
 
@@ -349,47 +450,29 @@ class SessionManager {
 
 ### Critical Priority
 
-1. **AI Client Interface**
-   - Create `AIClient` interface in `api/services/ai/interface.go`
-   - Add `MockAIClient` in `api/services/ai/mock.go`
-   - Update `WorkflowServiceOptions` to accept interface
-
-2. **Storage Test Double**
-   - Create `MemoryStorage` in `api/storage/memory.go`
-   - Implement all `StorageInterface` methods
+*None currently marked critical.*
 
 ### High Priority
 
-3. **Compile-Time Enforcement**
-   ```go
-   // Add to each implementation file:
-   var _ Recorder = (*DBRecorder)(nil)
-   var _ Repository = (*repository)(nil)
-   var _ StorageInterface = (*Storage)(nil)
-   var _ WorkflowService = (*workflow.WorkflowService)(nil)
-   ```
-
-4. **HTTP Client Abstraction**
-   - Create `HTTPDoer` interface
-   - Update `PlaywrightEngine` constructor
-
-5. **Handler WorkflowService Injection**
-   - Modify `NewHandler` to accept optional `WorkflowService`
-   - Fall back to default construction if not provided
+1. **WebSocket Mock Hub**
+   - Create `MockHub` implementing `HubInterface`
+   - Use in handler/service tests to avoid goroutines and sockets
 
 ### Medium Priority
 
-6. **Interface Segregation for Repository**
+2. **Interface Segregation for Repository**
    - Split into `ProjectRepository`, `WorkflowRepository`, `ExecutionRepository`
    - Consumers depend only on what they need
 
-7. **WebSocket Mock Hub**
-   - Create `MockHub` implementing `HubInterface`
-   - Use in handler unit tests
+3. **WorkflowService Surface Trim**
+   - Consider narrowing Catalog/Execution/Export into smaller interfaces for handler deps and mocks
 
-8. **TypeScript BrowserFactory**
+4. **TypeScript BrowserFactory**
    - Extract browser launch into injectable factory
    - Enable session manager unit testing
+
+5. **HTTP Client Test Double**
+   - Add a lightweight `HTTPDoer` stub for Playwright engine unit tests when `httptest.Server` is overkill
 
 ---
 
@@ -450,6 +533,11 @@ When adding new dependencies:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2025-12-09 | Claude | Boundary of Responsibility Enforcement pass #2: Removed unused BaseHandler.buildOutcome (consolidated in domain/outcome-builder.ts); replaced any types with Page in assertion handler; replaced console.log with injected logger in assertNotExists |
+| 2025-12-09 | Claude | Boundary of Responsibility Enforcement: Added Router (#16), OutcomeBuilder (#17), MetricsServer (#18) seams; extracted domain/outcome-builder.ts, utils/metrics-server.ts, routes/router.ts; updated responsibility boundaries |
+| 2025-12-09 | Claude | Added RecordingBuffer seam (#14), Playwright-Driver Responsibility Boundaries section; moved action buffer state from routes to recording/buffer.ts |
+| 2025-12-09 | Assistant | Hardened test backend resolution (BAS_TEST_BACKEND -> BAS_DB_BACKEND fallback) and env reset to keep Postgres/SQLite toggles aligned |
+| 2025-12-09 | Assistant | Documented DB backend seam and executor test harness for Postgres/SQLite |
 | 2025-11-29 | Claude | Initial seam discovery and documentation |
 | 2025-11-29 | Claude | Added Responsibility Boundaries section, apierror package |
 
@@ -508,16 +596,94 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
 - Domain logic (DOM extraction, element analysis, selector generation)
 - Domain types (ElementInfo, SelectorOption, etc.)
 
-**Recommended restructuring:**
-1. Create `services/element_analysis/` for domain logic:
-   - Move `DOMExtractor` logic
-   - Move `ElementAnalysisHandler` logic
-   - Move domain types (ElementInfo, SelectorOption, etc.)
-2. Keep HTTP handlers in `handlers/ai/` that delegate to the service
-3. This enables testing domain logic independently of HTTP layer
+**Current mitigation:**
+- `AIAnalysisHandler` is now transport-only and defers to an injected `ElementAnalyzer` (defaulting to `AIElementAnalyzer`), so DOM extraction and Ollama prompting can be exercised without HTTP concerns.
+- Handler timeouts use `constants.AIAnalysisTimeout` rather than inlined durations to keep cross-cutting configuration centralized.
 
-**Why this wasn't done now:**
-- Per boundary-enforcement guidelines: avoid "broad, risky change"
-- The current handlers/ai package is well-tested with proper seams
-- Functionality works correctly; this is a maintainability improvement
-- Should be tackled in a dedicated restructuring phase
+**Remaining opportunity:**
+- Consider moving shared domain types and analysis helpers into a dedicated service package to further decouple HTTP routing from analysis internals, following the same analyzer seam pattern.
+
+---
+
+## Playwright-Driver Responsibility Boundaries
+
+### Architecture Layers
+
+| Layer | Location | Responsibility |
+|-------|----------|----------------|
+| **Entry/Presentation** | `routes/`, `server.ts`, `middleware/` | HTTP routing, request parsing, response formatting |
+| **Coordination** | `routes/session-run.ts`, `routes/router.ts` | Wiring handlers, routing dispatch, sequencing operations |
+| **Domain Rules** | `handlers/`, `domain/`, `recording/controller.ts`, `recording/selectors.ts` | Instruction execution, outcome building, action replay, selector generation |
+| **Integration** | `session/`, `telemetry/`, Playwright API | Browser management, context building, screenshot capture |
+| **Cross-cutting** | `utils/`, `config.ts`, `constants.ts` | Logging, errors, metrics, metrics server, configuration |
+
+### Key Design Decisions
+
+1. **Handlers follow Strategy Pattern**
+   - Each instruction type has a dedicated handler implementing `InstructionHandler`
+   - `HandlerRegistry` dispatches by type
+   - `BaseHandler` provides shared utilities
+
+2. **Recording Buffer in Domain Layer**
+   - Action buffering lives in `recording/buffer.ts` (domain/coordination)
+   - NOT in routes (presentation layer)
+   - Session layer can import from recording without circular dependency
+
+3. **Types Mirror Go Contracts**
+   - `types/contracts.ts` must stay in sync with Go `automation/contracts/*.go`
+   - Wire format types live in contracts, internal types elsewhere
+
+4. **Telemetry as Infrastructure**
+   - Screenshot/DOM capture are integration concerns
+   - Collectors live in `telemetry/` separate from route handling
+
+5. **Outcome Building in Domain Layer** (NEW)
+   - `domain/outcome-builder.ts` owns StepOutcome and DriverOutcome construction
+   - Routes call `buildStepOutcome()` and `toDriverOutcome()` instead of inline building
+   - Centralizes wire format transformation logic
+
+6. **Metrics Server Extracted to Utils** (NEW)
+   - `utils/metrics-server.ts` handles Prometheus metrics endpoint
+   - Separates infrastructure concern from main server entry point
+
+7. **Declarative Router** (NEW)
+   - `routes/router.ts` provides lightweight routing with path parameter extraction
+   - Routes registered declaratively with `router.get()` / `router.post()`
+   - Automatic 404/405 handling based on route registration
+   - Replaces large if/else chain in server.ts
+
+### Remaining Opportunities
+
+1. **Extract Route Registration**
+   - Route registration could move to a dedicated `routes/register.ts` module
+   - Would further slim down `server.ts` to pure startup orchestration
+
+2. **BrowserFactory Interface**
+   - `SessionManager` still has direct `chromium.launch()` dependency
+   - Extract to injectable factory for unit testing session logic
+
+3. **Handler Telemetry Abstraction**
+   - Handlers could optionally receive a `TelemetryContext` for screenshot/DOM capture
+   - Would allow handlers to capture telemetry without knowing infrastructure details
+
+4. **RecordModeController Separation**
+   - `recording/controller.ts` mixes domain logic (action normalization, confidence scoring) with integration (Playwright page interaction)
+   - Replay preview execution (~300 lines) could be extracted to a dedicated `ReplayExecutor` or moved closer to handlers
+   - Current design trades modularity for co-location of recording concerns
+
+### Enforced Boundaries (Completed)
+
+1. **Handler Type Safety**
+   - Private assertion methods now use proper `Page` type instead of `any`
+   - Type imports consolidated at top of file
+   - Enables IDE autocomplete and compile-time checking
+
+2. **Logging in Domain Layer**
+   - `assertNotExists` now receives logger via parameter injection instead of using `console.log`
+   - Debug output follows structured logging patterns consistent with rest of codebase
+   - Production logs are clean; debug info available via log level configuration
+
+3. **Outcome Building Consolidation**
+   - Removed duplicate `BaseHandler.buildOutcome()` method
+   - All outcome construction now flows through `domain/outcome-builder.ts`
+   - Single source of truth for wire format transformation

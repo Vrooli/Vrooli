@@ -1,3 +1,4 @@
+export * from './router';
 export * from './health';
 export * from './session-start';
 export * from './session-run';

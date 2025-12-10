@@ -1,3 +1,4 @@
+import type { Page } from 'playwright';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { CompiledInstruction, AssertionOutcome } from '../types';
 import { AssertParamsSchema } from '../types/instruction';
@@ -61,7 +62,7 @@ export class AssertionHandler extends BaseHandler {
         case 'notexists':
         case 'not_exists':
         case 'absent':
-          assertion = await this.assertNotExists(page, params.selector, timeout);
+          assertion = await this.assertNotExists(page, params.selector, timeout, logger);
           break;
 
         case 'visible':
@@ -166,7 +167,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertExists(
-    page: any,
+    page: Page,
     selector: string,
     _timeout: number
   ): Promise<AssertionOutcome> {
@@ -184,20 +185,21 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertNotExists(
-    page: any,
+    page: Page,
     selector: string,
-    timeout: number
+    timeout: number,
+    logger: HandlerContext['logger']
   ): Promise<AssertionOutcome> {
     try {
-      console.log(`[assertNotExists] Starting assertion for selector: ${selector}, timeout: ${timeout}ms`);
+      logger.debug('assertNotExists: Starting assertion', { selector, timeout });
 
       // First check if element exists at all
       const initialElement = await page.$(selector);
-      console.log(`[assertNotExists] Initial element query result:`, initialElement ? 'FOUND' : 'NOT FOUND');
+      logger.debug('assertNotExists: Initial element query', { found: !!initialElement });
 
       if (!initialElement) {
         // Element already doesn't exist - success
-        console.log(`[assertNotExists] Element absent from start - SUCCESS`);
+        logger.debug('assertNotExists: Element absent from start - SUCCESS');
         return {
           mode: 'notexists',
           selector,
@@ -210,12 +212,12 @@ export class AssertionHandler extends BaseHandler {
 
       // Element exists, wait for it to be removed using Playwright's locator API
       // This properly waits for DOM mutations
-      console.log(`[assertNotExists] Element present, using locator.waitFor({state: 'detached'})`);
+      logger.debug('assertNotExists: Element present, waiting for detachment');
       const locator = page.locator(selector);
       await locator.waitFor({ state: 'detached', timeout });
 
       // Element was successfully removed
-      console.log(`[assertNotExists] Element successfully detached - SUCCESS`);
+      logger.debug('assertNotExists: Element successfully detached - SUCCESS');
       return {
         mode: 'notexists',
         selector,
@@ -226,7 +228,9 @@ export class AssertionHandler extends BaseHandler {
       };
     } catch (error) {
       // Timeout - element still present
-      console.log(`[assertNotExists] Timeout waiting for detachment - FAILURE`, error instanceof Error ? error.message : error);
+      logger.debug('assertNotExists: Timeout waiting for detachment - FAILURE', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return {
         mode: 'notexists',
         selector,
@@ -239,7 +243,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertVisible(
-    page: any,
+    page: Page,
     selector: string,
     timeout: number
   ): Promise<AssertionOutcome> {
@@ -256,7 +260,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertHidden(
-    page: any,
+    page: Page,
     selector: string,
     timeout: number
   ): Promise<AssertionOutcome> {
@@ -274,7 +278,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertAttribute(
-    page: any,
+    page: Page,
     selector: string,
     attribute: string,
     expected: string,
@@ -306,7 +310,7 @@ export class AssertionHandler extends BaseHandler {
   }
 
   private async assertText(
-    page: any,
+    page: Page,
     selector: string,
     mode: string,
     expected: string,
