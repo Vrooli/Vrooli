@@ -1,46 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import { loadConfig } from './config';
+import { loadConfig, type Config } from './config';
 import { SessionManager, SessionCleanup } from './session';
-import { handlerRegistry } from './handlers';
-import {
-  NavigationHandler,
-  InteractionHandler,
-  WaitHandler,
-  AssertionHandler,
-  ExtractionHandler,
-  ScreenshotHandler,
-  UploadHandler,
-  DownloadHandler,
-  ScrollHandler,
-  FrameHandler,
-  SelectHandler,
-  KeyboardHandler,
-  CookieStorageHandler,
-  GestureHandler,
-  TabHandler,
-  NetworkHandler,
-  DeviceHandler,
-} from './handlers';
-import {
-  createRouter,
-  handleHealth,
-  handleSessionStart,
-  handleSessionRun,
-  handleSessionReset,
-  handleSessionClose,
-  handleSessionStorageState,
-  handleRecordStart,
-  handleRecordStop,
-  handleRecordStatus,
-  handleRecordActions,
-  handleValidateSelector,
-  handleReplayPreview,
-  handleRecordNavigate,
-  handleRecordScreenshot,
-  handleRecordInput,
-  handleRecordFrame,
-  handleRecordViewport,
-} from './routes';
+import * as handlers from './handlers';
+import * as routes from './routes';
 import { sendError } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 
@@ -83,12 +45,12 @@ async function main() {
     // This allows operators to diagnose via /health without restart loops
   }
 
-  // Register handlers
-  registerHandlers();
+  // Register instruction handlers
+  registerInstructionHandlers();
 
   logger.info('server: handlers registered', {
-    count: handlerRegistry.getHandlerCount(),
-    types: handlerRegistry.getSupportedTypes(),
+    count: handlers.handlerRegistry.getHandlerCount(),
+    types: handlers.handlerRegistry.getSupportedTypes(),
   });
 
   // Create metrics server if enabled
@@ -106,87 +68,7 @@ async function main() {
   }
 
   // Setup router with all routes
-  const router = createRouter();
-
-  // Health check
-  router.get('/health', async (req, res) => {
-    await handleHealth(req, res, sessionManager);
-  });
-
-  // Session management
-  router.post('/session/start', async (req, res) => {
-    await handleSessionStart(req, res, sessionManager, config);
-  });
-
-  router.post('/session/:id/run', async (req, res, params) => {
-    await handleSessionRun(
-      req,
-      res,
-      params.id,
-      sessionManager,
-      handlerRegistry,
-      config,
-      appLogger,
-      metrics
-    );
-  });
-
-  router.get('/session/:id/storage-state', async (req, res, params) => {
-    await handleSessionStorageState(req, res, params.id, sessionManager);
-  });
-
-  router.post('/session/:id/reset', async (req, res, params) => {
-    await handleSessionReset(req, res, params.id, sessionManager);
-  });
-
-  router.post('/session/:id/close', async (req, res, params) => {
-    await handleSessionClose(req, res, params.id, sessionManager);
-  });
-
-  // Record mode
-  router.post('/session/:id/record/start', async (req, res, params) => {
-    await handleRecordStart(req, res, params.id, sessionManager, config);
-  });
-
-  router.post('/session/:id/record/stop', async (req, res, params) => {
-    await handleRecordStop(req, res, params.id, sessionManager);
-  });
-
-  router.get('/session/:id/record/status', async (req, res, params) => {
-    await handleRecordStatus(req, res, params.id, sessionManager);
-  });
-
-  router.get('/session/:id/record/actions', async (req, res, params) => {
-    await handleRecordActions(req, res, params.id, sessionManager);
-  });
-
-  router.post('/session/:id/record/validate-selector', async (req, res, params) => {
-    await handleValidateSelector(req, res, params.id, sessionManager, config);
-  });
-
-  router.post('/session/:id/record/replay-preview', async (req, res, params) => {
-    await handleReplayPreview(req, res, params.id, sessionManager, config);
-  });
-
-  router.post('/session/:id/record/navigate', async (req, res, params) => {
-    await handleRecordNavigate(req, res, params.id, sessionManager, config);
-  });
-
-  router.post('/session/:id/record/screenshot', async (req, res, params) => {
-    await handleRecordScreenshot(req, res, params.id, sessionManager, config);
-  });
-
-  router.post('/session/:id/record/input', async (req, res, params) => {
-    await handleRecordInput(req, res, params.id, sessionManager, config);
-  });
-
-  router.get('/session/:id/record/frame', async (req, res, params) => {
-    await handleRecordFrame(req, res, params.id, sessionManager, config);
-  });
-
-  router.post('/session/:id/record/viewport', async (req, res, params) => {
-    await handleRecordViewport(req, res, params.id, sessionManager, config);
-  });
+  const router = setupRoutes(sessionManager, config, appLogger);
 
   // Create main HTTP server
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -333,32 +215,122 @@ async function main() {
   });
 }
 
+// =============================================================================
+// Route & Handler Registration
+// =============================================================================
+
 /**
- * Register all instruction handlers
+ * All instruction handlers, instantiated once.
+ * Handlers are stateless - they receive context per-execution.
  */
-function registerHandlers(): void {
-  // Phase 1 handlers (13 instruction types)
-  handlerRegistry.register(new NavigationHandler());
-  handlerRegistry.register(new InteractionHandler());
-  handlerRegistry.register(new WaitHandler());
-  handlerRegistry.register(new AssertionHandler());
-  handlerRegistry.register(new ExtractionHandler());
-  handlerRegistry.register(new ScreenshotHandler());
-  handlerRegistry.register(new UploadHandler());
-  handlerRegistry.register(new DownloadHandler());
-  handlerRegistry.register(new ScrollHandler());
+const INSTRUCTION_HANDLERS = [
+  // Core browser automation
+  new handlers.NavigationHandler(),
+  new handlers.InteractionHandler(),
+  new handlers.WaitHandler(),
+  new handlers.AssertionHandler(),
+  new handlers.ExtractionHandler(),
+  new handlers.ScreenshotHandler(),
+  new handlers.ScrollHandler(),
+  // File I/O
+  new handlers.UploadHandler(),
+  new handlers.DownloadHandler(),
+  // Advanced interaction
+  new handlers.FrameHandler(),
+  new handlers.SelectHandler(),
+  new handlers.KeyboardHandler(),
+  new handlers.CookieStorageHandler(),
+  new handlers.GestureHandler(),
+  new handlers.TabHandler(),
+  // Network & device
+  new handlers.NetworkHandler(),
+  new handlers.DeviceHandler(),
+];
 
-  // Phase 2 handlers (5 instruction types)
-  handlerRegistry.register(new FrameHandler());
-  handlerRegistry.register(new SelectHandler());
-  handlerRegistry.register(new KeyboardHandler());
-  handlerRegistry.register(new CookieStorageHandler());
+/**
+ * Register all instruction handlers with the global registry.
+ */
+function registerInstructionHandlers(): void {
+  for (const handler of INSTRUCTION_HANDLERS) {
+    handlers.handlerRegistry.register(handler);
+  }
+}
 
-  // Phase 3 handlers (10 instruction types)
-  handlerRegistry.register(new GestureHandler());
-  handlerRegistry.register(new TabHandler());
-  handlerRegistry.register(new NetworkHandler());
-  handlerRegistry.register(new DeviceHandler());
+/**
+ * Setup all HTTP routes.
+ *
+ * Route organization:
+ * - /health: Health check
+ * - /session/*: Session lifecycle (start, run, reset, close)
+ * - /session/:id/record/*: Record mode (start, stop, status, actions, validation)
+ */
+function setupRoutes(
+  sessionManager: SessionManager,
+  config: Config,
+  appLogger: typeof logger
+): routes.Router {
+  const router = routes.createRouter();
+
+  // Health check
+  router.get('/health', async (req, res) => {
+    await routes.handleHealth(req, res, sessionManager);
+  });
+
+  // Session lifecycle
+  router.post('/session/start', async (req, res) => {
+    await routes.handleSessionStart(req, res, sessionManager, config);
+  });
+  router.post('/session/:id/run', async (req, res, params) => {
+    await routes.handleSessionRun(req, res, params.id, sessionManager, handlers.handlerRegistry, config, appLogger, metrics);
+  });
+  router.get('/session/:id/storage-state', async (req, res, params) => {
+    await routes.handleSessionStorageState(req, res, params.id, sessionManager);
+  });
+  router.post('/session/:id/reset', async (req, res, params) => {
+    await routes.handleSessionReset(req, res, params.id, sessionManager);
+  });
+  router.post('/session/:id/close', async (req, res, params) => {
+    await routes.handleSessionClose(req, res, params.id, sessionManager);
+  });
+
+  // Record mode lifecycle
+  router.post('/session/:id/record/start', async (req, res, params) => {
+    await routes.handleRecordStart(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/stop', async (req, res, params) => {
+    await routes.handleRecordStop(req, res, params.id, sessionManager);
+  });
+  router.get('/session/:id/record/status', async (req, res, params) => {
+    await routes.handleRecordStatus(req, res, params.id, sessionManager);
+  });
+  router.get('/session/:id/record/actions', async (req, res, params) => {
+    await routes.handleRecordActions(req, res, params.id, sessionManager);
+  });
+
+  // Record mode validation & interaction
+  router.post('/session/:id/record/validate-selector', async (req, res, params) => {
+    await routes.handleValidateSelector(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/replay-preview', async (req, res, params) => {
+    await routes.handleReplayPreview(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/navigate', async (req, res, params) => {
+    await routes.handleRecordNavigate(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/screenshot', async (req, res, params) => {
+    await routes.handleRecordScreenshot(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/input', async (req, res, params) => {
+    await routes.handleRecordInput(req, res, params.id, sessionManager, config);
+  });
+  router.get('/session/:id/record/frame', async (req, res, params) => {
+    await routes.handleRecordFrame(req, res, params.id, sessionManager, config);
+  });
+  router.post('/session/:id/record/viewport', async (req, res, params) => {
+    await routes.handleRecordViewport(req, res, params.id, sessionManager, config);
+  });
+
+  return router;
 }
 
 // Start server

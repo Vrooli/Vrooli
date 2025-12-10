@@ -18,6 +18,55 @@ import * as path from 'path';
 const pendingDownloads: Map<string, Promise<HandlerResult>> = new Map();
 
 /**
+ * Cache completed download results for idempotent retries.
+ * Key: composite of sessionId + selector/url
+ * Value: { result, timestamp } for successful downloads
+ *
+ * Idempotency guarantee:
+ * - If a download was successful, subsequent requests return the cached result
+ * - Prevents re-downloading the same file on retry
+ * - Cache entries expire after DOWNLOAD_CACHE_TTL_MS
+ */
+interface CachedDownloadResult {
+  result: HandlerResult;
+  timestamp: number;
+}
+const completedDownloads: Map<string, CachedDownloadResult> = new Map();
+
+/**
+ * TTL for cached download results (5 minutes).
+ * Matches instruction idempotency cache TTL.
+ */
+const DOWNLOAD_CACHE_TTL_MS = 300_000;
+
+/**
+ * Clean up expired download cache entries.
+ */
+function cleanupDownloadCache(): void {
+  const now = Date.now();
+  for (const [key, value] of completedDownloads.entries()) {
+    if (now - value.timestamp > DOWNLOAD_CACHE_TTL_MS) {
+      completedDownloads.delete(key);
+    }
+  }
+}
+
+// Run cache cleanup every 2 minutes
+setInterval(cleanupDownloadCache, 120_000).unref();
+
+/**
+ * Clear download cache for a session.
+ * Exported for use by session reset operations.
+ */
+export function clearSessionDownloadCache(sessionId: string): void {
+  for (const key of completedDownloads.keys()) {
+    if (key.startsWith(`${sessionId}:`)) {
+      completedDownloads.delete(key);
+    }
+  }
+}
+
+/**
  * Download handler
  *
  * Handles file download operations
@@ -63,6 +112,19 @@ export class DownloadHandler extends BaseHandler {
       // Generate idempotency key from session + target
       const downloadKey = `${sessionId}:${selector || ''}:${targetURL || ''}`;
 
+      // Idempotency: Check for completed download with same key (retry case)
+      const cachedResult = completedDownloads.get(downloadKey);
+      if (cachedResult && Date.now() - cachedResult.timestamp < DOWNLOAD_CACHE_TTL_MS) {
+        logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached download result'), {
+          sessionId,
+          selector,
+          url: targetURL,
+          cacheAgeMs: Date.now() - cachedResult.timestamp,
+          hint: 'Download was previously successful; returning cached result (idempotent)',
+        });
+        return cachedResult.result;
+      }
+
       // Idempotency: Check for in-flight download with same key
       const pendingDownload = pendingDownloads.get(downloadKey);
       if (pendingDownload) {
@@ -76,13 +138,13 @@ export class DownloadHandler extends BaseHandler {
       }
 
       // Create the download promise and track it
-      const downloadPromise = this.executeDownload(page, selector, targetURL, timeout, sessionId);
+      const downloadPromise = this.executeDownload(page, selector, targetURL, timeout, sessionId, downloadKey);
       pendingDownloads.set(downloadKey, downloadPromise);
 
       try {
         return await downloadPromise;
       } finally {
-        // Clean up tracking
+        // Clean up in-flight tracking
         pendingDownloads.delete(downloadKey);
       }
     } catch (error) {
@@ -107,13 +169,16 @@ export class DownloadHandler extends BaseHandler {
   /**
    * Internal download execution logic.
    * Separated from execute() to enable idempotency tracking.
+   *
+   * @param downloadKey - Cache key for storing successful result
    */
   private async executeDownload(
     page: import('playwright').Page,
     selector: string | undefined,
     targetURL: string | undefined,
     timeout: number,
-    _sessionId: string
+    _sessionId: string,
+    downloadKey: string
   ): Promise<HandlerResult> {
     try {
       logger.debug('Starting download', {
@@ -193,7 +258,7 @@ export class DownloadHandler extends BaseHandler {
         savePath,
       });
 
-      return {
+      const result: HandlerResult = {
         success: true,
         extracted_data: {
           download_path: savePath,
@@ -201,6 +266,14 @@ export class DownloadHandler extends BaseHandler {
           url: download.url(),
         },
       };
+
+      // Cache successful download for idempotent retries
+      completedDownloads.set(downloadKey, {
+        result,
+        timestamp: Date.now(),
+      });
+
+      return result;
     } catch (error) {
       logger.error('Download failed', {
         error: error instanceof Error ? error.message : String(error),

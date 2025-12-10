@@ -1,5 +1,28 @@
 import { z } from 'zod';
 
+/**
+ * Playwright Driver Configuration Schema
+ *
+ * CONTROL SURFACE: This file defines the tunable levers for the Playwright Driver.
+ * Grouped by operational concern for easier navigation.
+ *
+ * ## Configuration Groups:
+ * - **server**: HTTP server settings (port, host, request limits)
+ * - **browser**: Browser launch options (headless, executable, args)
+ * - **session**: Session lifecycle (concurrency, timeouts, pooling)
+ * - **execution**: Instruction execution timeouts (the main performance/reliability tradeoff)
+ * - **recording**: Record mode settings (buffer size, selector confidence)
+ * - **telemetry**: Observability data collection (screenshots, DOM, network)
+ * - **logging**: Log output configuration
+ * - **metrics**: Prometheus metrics endpoint
+ *
+ * ## Adding New Levers:
+ * 1. Add to appropriate group in ConfigSchema
+ * 2. Add environment variable parsing in loadConfig()
+ * 3. Document the tradeoff in comments
+ * 4. Set a sane default that works for common usage
+ */
+
 const ConfigSchema = z.object({
   server: z.object({
     port: z.number().min(1).max(65535).default(39400),
@@ -18,6 +41,66 @@ const ConfigSchema = z.object({
     idleTimeoutMs: z.number().min(10000).max(3600000).default(300000),
     poolSize: z.number().min(1).max(50).default(5),
     cleanupIntervalMs: z.number().min(5000).max(600000).default(60000),
+  }),
+  /**
+   * Execution Timeouts
+   *
+   * These control the reliability vs speed tradeoff for instruction execution.
+   * Higher values = more tolerant of slow pages, but longer waits on failures.
+   * Lower values = faster failure detection, but may fail on slow networks/pages.
+   *
+   * Recommended tuning:
+   * - Fast local testing: reduce timeouts by 50%
+   * - Flaky/slow sites: increase timeouts by 50-100%
+   * - CI environments: use defaults or slightly higher
+   */
+  execution: z.object({
+    /** Default timeout for general operations (click, type, etc.) - ms */
+    defaultTimeoutMs: z.number().min(1000).max(300000).default(30000),
+    /** Navigation timeout (goto, reload) - typically longer due to network - ms */
+    navigationTimeoutMs: z.number().min(5000).max(300000).default(45000),
+    /** Wait timeout (waitForSelector, waitForTimeout) - ms */
+    waitTimeoutMs: z.number().min(1000).max(300000).default(30000),
+    /** Assertion timeout - typically shorter for faster feedback - ms */
+    assertionTimeoutMs: z.number().min(1000).max(120000).default(15000),
+    /** Replay action timeout during recording preview - ms */
+    replayActionTimeoutMs: z.number().min(1000).max(120000).default(10000),
+  }),
+  /**
+   * Recording Configuration
+   *
+   * Controls how Record Mode captures and processes user actions.
+   *
+   * Buffer size tradeoff: larger = more actions stored, higher memory usage.
+   * Selector confidence: higher = stricter selector selection, fewer candidates.
+   */
+  recording: z.object({
+    /** Maximum actions to buffer in memory per session (FIFO eviction when full) */
+    maxBufferSize: z.number().min(100).max(100000).default(10000),
+    /** Minimum confidence score (0-1) for selector candidates to be included */
+    minSelectorConfidence: z.number().min(0).max(1).default(0.3),
+    /** Default swipe gesture distance in pixels */
+    defaultSwipeDistance: z.number().min(50).max(1000).default(300),
+    /**
+     * Debounce timings for event capture (ms).
+     * Lower = more responsive, more events. Higher = more batching, fewer events.
+     */
+    debounce: z.object({
+      /** Input event debounce - batches keystrokes into single type actions */
+      inputMs: z.number().min(50).max(2000).default(500),
+      /** Scroll event debounce - reduces scroll event noise */
+      scrollMs: z.number().min(50).max(1000).default(150),
+    }),
+    /**
+     * Selector Generation Options
+     * Controls how selectors are generated for recorded elements.
+     */
+    selector: z.object({
+      /** Maximum CSS path depth for traversal (lower = shorter selectors, may be less unique) */
+      maxCssDepth: z.number().min(2).max(10).default(5),
+      /** Whether to include XPath as a fallback selector strategy */
+      includeXPath: z.boolean().default(true),
+    }),
   }),
   telemetry: z.object({
     screenshot: z.object({
@@ -115,6 +198,24 @@ function parseLogFormat(envVar: string | undefined): 'json' | 'text' {
   return format as 'json' | 'text';
 }
 
+/**
+ * Parse float from environment variable with validation
+ */
+function parseEnvFloat(envVar: string | undefined, defaultValue: number): number {
+  if (!envVar || envVar.trim() === '') {
+    return defaultValue;
+  }
+
+  const parsed = parseFloat(envVar);
+
+  if (Number.isNaN(parsed)) {
+    console.warn(`Invalid numeric config value: "${envVar}", using default: ${defaultValue}`);
+    return defaultValue;
+  }
+
+  return parsed;
+}
+
 export function loadConfig(): Config {
   const config = {
     server: {
@@ -143,6 +244,28 @@ export function loadConfig(): Config {
       idleTimeoutMs: parseEnvInt(process.env.SESSION_IDLE_TIMEOUT_MS, 300000),
       poolSize: parseEnvInt(process.env.SESSION_POOL_SIZE, 5),
       cleanupIntervalMs: parseEnvInt(process.env.CLEANUP_INTERVAL_MS, 60000),
+    },
+    // Execution timeouts - the main performance/reliability tradeoff
+    execution: {
+      defaultTimeoutMs: parseEnvInt(process.env.EXECUTION_DEFAULT_TIMEOUT_MS, 30000),
+      navigationTimeoutMs: parseEnvInt(process.env.EXECUTION_NAVIGATION_TIMEOUT_MS, 45000),
+      waitTimeoutMs: parseEnvInt(process.env.EXECUTION_WAIT_TIMEOUT_MS, 30000),
+      assertionTimeoutMs: parseEnvInt(process.env.EXECUTION_ASSERTION_TIMEOUT_MS, 15000),
+      replayActionTimeoutMs: parseEnvInt(process.env.EXECUTION_REPLAY_TIMEOUT_MS, 10000),
+    },
+    // Recording configuration
+    recording: {
+      maxBufferSize: parseEnvInt(process.env.RECORDING_MAX_BUFFER_SIZE, 10000),
+      minSelectorConfidence: parseEnvFloat(process.env.RECORDING_MIN_SELECTOR_CONFIDENCE, 0.3),
+      defaultSwipeDistance: parseEnvInt(process.env.RECORDING_DEFAULT_SWIPE_DISTANCE, 300),
+      debounce: {
+        inputMs: parseEnvInt(process.env.RECORDING_INPUT_DEBOUNCE_MS, 500),
+        scrollMs: parseEnvInt(process.env.RECORDING_SCROLL_DEBOUNCE_MS, 150),
+      },
+      selector: {
+        maxCssDepth: parseEnvInt(process.env.RECORDING_MAX_CSS_DEPTH, 5),
+        includeXPath: process.env.RECORDING_INCLUDE_XPATH !== 'false',
+      },
     },
     telemetry: {
       screenshot: {

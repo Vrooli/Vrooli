@@ -138,18 +138,39 @@ export const RELEVANT_ATTRIBUTES = [
 
 /**
  * Default configuration values for selector generation.
+ *
+ * NOTE: Several values are now configurable via config.ts (recording group):
+ * - minConfidence: config.recording.minSelectorConfidence (env: RECORDING_MIN_SELECTOR_CONFIDENCE)
+ * - maxCssDepth: config.recording.selector.maxCssDepth (env: RECORDING_MAX_CSS_DEPTH)
+ * - includeXPath: config.recording.selector.includeXPath (env: RECORDING_INCLUDE_XPATH)
+ *
+ * These compile-time defaults are used by the browser-injected script.
+ * For runtime configuration in Node.js code, use the config object.
  */
 export const SELECTOR_DEFAULTS = {
-  /** Maximum depth for CSS path traversal */
+  /**
+   * Maximum depth for CSS path traversal.
+   * Configurable via RECORDING_MAX_CSS_DEPTH (default: 5, range: 2-10)
+   * Lower = shorter selectors but may be less unique.
+   * Higher = more unique selectors but may be fragile.
+   */
   maxCssDepth: 5,
 
-  /** Whether to include XPath as fallback strategy */
+  /**
+   * Whether to include XPath as fallback strategy.
+   * Configurable via RECORDING_INCLUDE_XPATH (default: true)
+   * Set to false for CSS-only selector generation.
+   */
   includeXPath: true,
 
   /** Whether to prefer data-testid selectors */
   preferTestIds: true,
 
-  /** Minimum confidence threshold to include a candidate */
+  /**
+   * Minimum confidence threshold to include a candidate (default).
+   * Configurable via RECORDING_MIN_SELECTOR_CONFIDENCE (default: 0.3, range: 0-1)
+   * Higher = stricter, fewer candidates. Lower = more candidates.
+   */
   minConfidence: 0.3,
 
   /** Maximum text length to use in selectors */
@@ -230,12 +251,26 @@ export const SPECIFICITY_SCORES = {
 
 /**
  * Debounce timings for recording event capture (ms).
+ *
+ * NOTE: Input and scroll debounce are now configurable via config.ts:
+ * - input: config.recording.debounce.inputMs (env: RECORDING_INPUT_DEBOUNCE_MS)
+ * - scroll: config.recording.debounce.scrollMs (env: RECORDING_SCROLL_DEBOUNCE_MS)
+ *
+ * These compile-time defaults are used by the browser-injected script.
+ * Lower values = more responsive, more events captured.
+ * Higher values = more batching, fewer events.
  */
 export const RECORDING_DEBOUNCE = {
-  /** Debounce for input events to batch keystrokes */
+  /**
+   * Debounce for input events to batch keystrokes.
+   * Configurable via RECORDING_INPUT_DEBOUNCE_MS (default: 500, range: 50-2000)
+   */
   input: 500,
 
-  /** Debounce for scroll events */
+  /**
+   * Debounce for scroll events.
+   * Configurable via RECORDING_SCROLL_DEBOUNCE_MS (default: 150, range: 50-1000)
+   */
   scroll: 150,
 
   /** Debounce for resize events */

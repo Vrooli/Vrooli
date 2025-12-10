@@ -13,6 +13,8 @@ jest.mock('playwright', () => ({
           close: jest.fn().mockResolvedValue(undefined),
           evaluate: jest.fn().mockResolvedValue(undefined),
           viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
+          unroute: jest.fn().mockResolvedValue(undefined),
+          route: jest.fn().mockResolvedValue(undefined),
         }),
         clearCookies: jest.fn().mockResolvedValue(undefined),
         clearPermissions: jest.fn().mockResolvedValue(undefined),

@@ -32,6 +32,26 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
       poolSize: 5,
       cleanupIntervalMs: 60000,
     },
+    execution: {
+      defaultTimeoutMs: 30000,
+      navigationTimeoutMs: 45000,
+      waitTimeoutMs: 30000,
+      assertionTimeoutMs: 15000,
+      replayActionTimeoutMs: 10000,
+    },
+    recording: {
+      maxBufferSize: 10000,
+      minSelectorConfidence: 0.3,
+      defaultSwipeDistance: 300,
+      debounce: {
+        inputMs: 500,
+        scrollMs: 150,
+      },
+      selector: {
+        maxCssDepth: 5,
+        includeXPath: true,
+      },
+    },
     telemetry: {
       screenshot: {
         enabled: true,
@@ -81,6 +101,13 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
       args: (overrides?.browser?.args as string[]) ?? defaultConfig.browser.args,
     },
     session: { ...defaultConfig.session, ...overrides?.session },
+    execution: { ...defaultConfig.execution, ...overrides?.execution },
+    recording: {
+      ...defaultConfig.recording,
+      ...overrides?.recording,
+      debounce: { ...defaultConfig.recording.debounce, ...overrides?.recording?.debounce },
+      selector: { ...defaultConfig.recording.selector, ...overrides?.recording?.selector },
+    },
     telemetry: {
       screenshot: { ...defaultConfig.telemetry.screenshot, ...overrides?.telemetry?.screenshot },
       console: { ...defaultConfig.telemetry.console, ...overrides?.telemetry?.console },

@@ -52,7 +52,7 @@ export async function handleRecordNavigate(
     }
 
     const waitUntil: NavigateRequest['wait_until'] = request.wait_until || 'load';
-    const timeoutMs = request.timeout_ms ?? 15000;
+    const timeoutMs = request.timeout_ms ?? config.execution.navigationTimeoutMs;
 
     await session.page.goto(request.url, { waitUntil, timeout: timeoutMs });
 

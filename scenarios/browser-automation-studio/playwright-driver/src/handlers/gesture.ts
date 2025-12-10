@@ -98,7 +98,8 @@ export class GestureHandler extends BaseHandler {
     const validated = DragDropParamsSchema.parse(instruction.params);
     const { page, logger } = context;
 
-    const timeout = validated.timeoutMs || 30000;
+    // Prefer param timeout, fallback to config, then hard-coded default
+    const timeout = validated.timeoutMs || context.config.execution.defaultTimeoutMs || 30000;
 
     logger.debug('drag-drop: starting operation', {
       sourceSelector: validated.sourceSelector,
@@ -291,7 +292,7 @@ export class GestureHandler extends BaseHandler {
 
     switch (validated.type) {
       case 'swipe':
-        return this.handleSwipe(page, validated, logger);
+        return this.handleSwipe(page, validated, logger, context.config.recording.defaultSwipeDistance);
       case 'pinch':
       case 'zoom':
         return this.handlePinchZoom(page, validated, logger);
@@ -311,7 +312,7 @@ export class GestureHandler extends BaseHandler {
   /**
    * Execute swipe gesture
    */
-  private async handleSwipe(page: Page, params: GestureParams, logger: any): Promise<HandlerResult> {
+  private async handleSwipe(page: Page, params: GestureParams, logger: any, defaultDistance: number = 300): Promise<HandlerResult> {
     const viewport = page.viewportSize();
     if (!viewport) {
       return {
@@ -325,7 +326,8 @@ export class GestureHandler extends BaseHandler {
       };
     }
 
-    const distance = params.distance || 300;
+    // Prefer param distance, fallback to config default
+    const distance = params.distance || defaultDistance;
     const centerX = viewport.width / 2;
     const centerY = viewport.height / 2;
 

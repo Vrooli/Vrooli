@@ -37,7 +37,8 @@ export class AssertionHandler extends BaseHandler {
         };
       }
 
-      const timeout = params.timeoutMs || DEFAULT_ASSERTION_TIMEOUT_MS;
+      // Prefer config timeout, fallback to param, then constant default
+      const timeout = params.timeoutMs || context.config.execution.assertionTimeoutMs || DEFAULT_ASSERTION_TIMEOUT_MS;
 
       // Determine assertion mode
       const mode = (

@@ -29,6 +29,7 @@
  */
 
 export * from './router';
+export type { Router } from './router';
 export * from './health';
 export * from './session-start';
 export * from './session-run';

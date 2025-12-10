@@ -19,6 +19,8 @@ export const MIN_TIMEOUT_MS = 100;
 export const MAX_TIMEOUT_MS = 600_000; // 10 minutes
 
 // Recording buffer limits
+// NOTE: This is the default. For runtime configuration, use config.recording.maxBufferSize
+// See config.ts for the RECORDING_MAX_BUFFER_SIZE environment variable
 export const MAX_RECORDING_BUFFER_SIZE = 10_000;
 
 /**

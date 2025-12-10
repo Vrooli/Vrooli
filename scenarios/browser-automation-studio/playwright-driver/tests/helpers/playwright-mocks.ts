@@ -59,6 +59,8 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     isEnabled: jest.fn().mockResolvedValue(true),
     isDisabled: jest.fn().mockResolvedValue(false),
     getAttribute: jest.fn().mockResolvedValue(''),
+    route: jest.fn().mockResolvedValue(undefined),
+    unroute: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   } as unknown as jest.Mocked<Page>;
 

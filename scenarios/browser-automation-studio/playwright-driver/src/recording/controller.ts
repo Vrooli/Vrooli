@@ -1,12 +1,30 @@
 /**
- * Recording Controller
+ * Recording Controller - Orchestrates Record Mode
  *
- * Orchestrates Record Mode functionality:
- * - Manages recording session state
- * - Injects JavaScript event listeners into pages
- * - Receives events via page.exposeFunction()
- * - Normalizes raw events to RecordedAction
- * - Streams actions to callback for persistence
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │ WHAT THIS CLASS DOES:                                                  │
+ * │                                                                        │
+ * │ 1. RECORDING LIFECYCLE (startRecording, stopRecording)                 │
+ * │    - Injects event listener script into browser pages                  │
+ * │    - Receives raw events via page.exposeFunction()                     │
+ * │    - Re-injects script after navigation (pages lose injected JS)       │
+ * │                                                                        │
+ * │ 2. EVENT NORMALIZATION (handleRawEvent, normalizeEvent)                │
+ * │    - Converts raw browser events to typed RecordedAction objects       │
+ * │    - Calls onAction callback for each normalized action                │
+ * │                                                                        │
+ * │ 3. REPLAY PREVIEW (replayPreview)                                      │
+ * │    - Executes recorded actions to test them before saving              │
+ * │    - Uses action-executor.ts registry for type-specific execution      │
+ * │                                                                        │
+ * │ 4. SELECTOR VALIDATION (validateSelector)                              │
+ * │    - Checks if a selector matches exactly one element on the page      │
+ * └────────────────────────────────────────────────────────────────────────┘
+ *
+ * KEY CONCEPT - Recording Generation:
+ * A counter that increments each time recording starts. Used to detect and
+ * ignore stale async operations from previous recording sessions. Without this,
+ * callbacks from a stopped recording could affect a newly started one.
  */
 
 import type { Page } from 'playwright';
@@ -32,23 +50,25 @@ import {
   type ActionExecutorContext,
 } from './action-executor';
 
-/**
- * Callback type for streaming recorded actions.
- */
+// =============================================================================
+// Types
+// =============================================================================
+
+/** Callback invoked for each recorded action */
 export type RecordActionCallback = (action: RecordedAction) => void | Promise<void>;
 
-/**
- * Options for starting a recording session.
- */
+/** Options for starting a recording session */
 export interface StartRecordingOptions {
-  /** Session ID this recording is attached to */
   sessionId: string;
-  /** Optional recording ID (generated if not provided) */
   recordingId?: string;
-  /** Callback invoked for each recorded action */
   onAction: RecordActionCallback;
-  /** Optional error callback */
   onError?: (error: Error) => void;
+}
+
+/** Configuration for script injection retry logic */
+interface InjectionRetryConfig {
+  maxAttempts: number;
+  baseDelayMs: number;
 }
 
 /**
@@ -154,67 +174,8 @@ export class RecordModeController {
       // Inject recording script
       await this.injectRecordingScript();
 
-      // Re-inject on navigation with robust error handling
-      // Capture generation at handler creation time to detect staleness
-      this.navigationHandler = (): void => {
-        if (!this.state.isRecording) return;
-        // Check if this handler is from a stale recording session
-        if (this.recordingGeneration !== currentGeneration) return;
-
-        // Use multiple injection attempts with backoff
-        // This handles cases where page isn't fully ready after load event
-        const attemptInjection = async (attempt: number, maxAttempts: number): Promise<void> => {
-          // Check both recording state AND generation before each attempt
-          // Generation check catches the case where recording was stopped and restarted
-          if (!this.state.isRecording || this.recordingGeneration !== currentGeneration) {
-            return; // Stale operation, abort
-          }
-
-          try {
-            await this.injectRecordingScript();
-          } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-
-            // Ignore errors about page being closed/navigated away
-            if (
-              message.includes('closed') ||
-              message.includes('navigating') ||
-              message.includes('detached')
-            ) {
-              return; // Page is gone, nothing to do
-            }
-
-            if (attempt < maxAttempts) {
-              // Exponential backoff: 100ms, 200ms, 400ms
-              const delay = 100 * Math.pow(2, attempt);
-              const timeoutId = setTimeout(() => {
-                this.pendingInjectionTimeouts.delete(timeoutId);
-                // Check generation again before retry (stop might have been called during delay)
-                if (this.recordingGeneration !== currentGeneration) return;
-                attemptInjection(attempt + 1, maxAttempts).catch(() => {
-                  // Final fallback - just log, don't crash
-                });
-              }, delay);
-              this.pendingInjectionTimeouts.add(timeoutId);
-            } else {
-              this.handleError(
-                new Error(`Failed to re-inject recording script after ${maxAttempts} attempts: ${message}`)
-              );
-            }
-          }
-        };
-
-        // Small initial delay to ensure page is ready, then attempt injection
-        const initialTimeoutId = setTimeout(() => {
-          this.pendingInjectionTimeouts.delete(initialTimeoutId);
-          // Check generation before starting injection attempts
-          if (this.recordingGeneration !== currentGeneration) return;
-          attemptInjection(0, 3).catch(() => {
-            // Swallow - errors already handled in attemptInjection
-          });
-        }, 100);
-        this.pendingInjectionTimeouts.add(initialTimeoutId);
-      };
+      // Setup navigation handler to re-inject script after page loads
+      this.navigationHandler = this.createNavigationHandler(currentGeneration);
       this.page.on('load', this.navigationHandler);
 
       return recordingId;
@@ -223,6 +184,85 @@ export class RecordModeController {
       this.state.isRecording = false;
       throw error;
     }
+  }
+
+  /**
+   * Create a navigation handler that re-injects the recording script after page loads.
+   *
+   * The handler captures the recording generation at creation time to detect staleness.
+   * If the recording has been stopped and restarted, stale handlers won't run.
+   */
+  private createNavigationHandler(generation: number): () => void {
+    return (): void => {
+      // Guard: Only run if still recording and generation matches
+      if (!this.state.isRecording || this.recordingGeneration !== generation) {
+        return;
+      }
+
+      // Schedule injection with retry support
+      this.scheduleInjectionWithRetry(generation, { maxAttempts: 3, baseDelayMs: 100 });
+    };
+  }
+
+  /**
+   * Schedule script injection with exponential backoff retry.
+   *
+   * This handles cases where the page isn't fully ready after the load event.
+   * Each retry doubles the delay: 100ms → 200ms → 400ms.
+   */
+  private scheduleInjectionWithRetry(
+    generation: number,
+    config: InjectionRetryConfig,
+    attempt = 0
+  ): void {
+    // Guard: Abort if recording stopped or generation changed
+    if (!this.state.isRecording || this.recordingGeneration !== generation) {
+      return;
+    }
+
+    const delay = attempt === 0
+      ? config.baseDelayMs  // Initial delay before first attempt
+      : config.baseDelayMs * Math.pow(2, attempt);
+
+    const timeoutId = setTimeout(async () => {
+      this.pendingInjectionTimeouts.delete(timeoutId);
+
+      // Re-check guards after delay
+      if (!this.state.isRecording || this.recordingGeneration !== generation) {
+        return;
+      }
+
+      try {
+        await this.injectRecordingScript();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+
+        // Page closed/navigated - nothing to do
+        if (this.isPageGoneError(message)) {
+          return;
+        }
+
+        // Retry if attempts remaining
+        if (attempt < config.maxAttempts - 1) {
+          this.scheduleInjectionWithRetry(generation, config, attempt + 1);
+        } else {
+          this.handleError(
+            new Error(`Failed to re-inject recording script after ${config.maxAttempts} attempts: ${message}`)
+          );
+        }
+      }
+    }, delay);
+
+    this.pendingInjectionTimeouts.add(timeoutId);
+  }
+
+  /**
+   * Check if an error message indicates the page is gone (closed, navigating, detached).
+   */
+  private isPageGoneError(message: string): boolean {
+    return message.includes('closed') ||
+           message.includes('navigating') ||
+           message.includes('detached');
   }
 
   /**

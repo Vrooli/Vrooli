@@ -26,7 +26,8 @@ export class WaitHandler extends BaseHandler {
 
       if (params.selector) {
         // Wait for selector
-        const timeout = params.timeoutMs || DEFAULT_WAIT_TIMEOUT_MS;
+        // Prefer config timeout, fallback to param, then constant default
+        const timeout = params.timeoutMs || context.config.execution.waitTimeoutMs || DEFAULT_WAIT_TIMEOUT_MS;
 
         logger.debug('Waiting for selector', {
           selector: params.selector,

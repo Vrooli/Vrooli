@@ -2,13 +2,37 @@ import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { CompiledInstruction } from '../types';
 import { UploadFileParamsSchema } from '../types/instruction';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
-import { normalizeError, validateTimeout, validateParams } from '../utils';
+import { normalizeError, validateTimeout, validateParams, logger, scopedLog, LogContext } from '../utils';
 import * as fs from 'fs/promises';
+
+/**
+ * Track in-flight uploads to prevent duplicate concurrent upload operations.
+ * Key: composite of sessionId + selector + filePath
+ * Value: Promise that resolves to the handler result
+ *
+ * Idempotency guarantee:
+ * - Concurrent upload requests for the same selector/file will await the first
+ * - Prevents race conditions when retries or concurrent calls happen
+ */
+const pendingUploads: Map<string, Promise<HandlerResult>> = new Map();
+
+/**
+ * Generate upload operation key for idempotency tracking.
+ */
+function generateUploadKey(sessionId: string, selector: string, filePath: string | string[]): string {
+  const fileKey = Array.isArray(filePath) ? filePath.sort().join(':') : filePath;
+  return `${sessionId}:${selector}:${fileKey}`;
+}
 
 /**
  * Upload file handler
  *
  * Handles file upload operations
+ *
+ * Idempotency behavior:
+ * - Setting the same file to the same input is inherently idempotent (browser behavior)
+ * - Concurrent uploads for the same selector/file await the first operation
+ * - This prevents race conditions when requests are retried
  */
 export class UploadHandler extends BaseHandler {
   getSupportedTypes(): string[] {
@@ -19,7 +43,7 @@ export class UploadHandler extends BaseHandler {
     instruction: CompiledInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { page, sessionId } = context;
 
     try {
       // Hardened: Validate params object exists
@@ -73,25 +97,33 @@ export class UploadHandler extends BaseHandler {
       // Hardened: Validate timeout bounds
       const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'uploadfile');
 
-      logger.debug('Uploading file', {
-        selector: params.selector,
-        filePath,
-        timeout,
-      });
+      // Generate idempotency key for this upload operation
+      const uploadKey = generateUploadKey(sessionId, params.selector, filePath);
 
-      // Set input files
-      await page.setInputFiles(params.selector, filePath, { timeout });
+      // Idempotency: Check for in-flight upload with same parameters
+      const pendingUpload = pendingUploads.get(uploadKey);
+      if (pendingUpload) {
+        logger.debug(scopedLog(LogContext.INSTRUCTION, 'upload already in progress, waiting'), {
+          sessionId,
+          selector: params.selector,
+          hint: 'Concurrent upload request detected; waiting for in-flight operation',
+        });
+        return pendingUpload;
+      }
 
-      logger.info('File upload successful', {
-        selector: params.selector,
-        filePath,
-      });
+      // Create the upload promise and track it
+      const uploadPromise = this.executeUpload(page, params.selector, filePath, timeout, sessionId);
+      pendingUploads.set(uploadKey, uploadPromise);
 
-      return {
-        success: true,
-      };
+      try {
+        return await uploadPromise;
+      } finally {
+        // Clean up in-flight tracking
+        pendingUploads.delete(uploadKey);
+      }
     } catch (error) {
-      logger.error('Upload failed', {
+      logger.error(scopedLog(LogContext.INSTRUCTION, 'upload failed'), {
+        sessionId,
         error: error instanceof Error ? error.message : String(error),
       });
 
@@ -107,5 +139,37 @@ export class UploadHandler extends BaseHandler {
         },
       };
     }
+  }
+
+  /**
+   * Internal upload execution logic.
+   * Separated from execute() to enable idempotency tracking.
+   */
+  private async executeUpload(
+    page: import('playwright').Page,
+    selector: string,
+    filePath: string | string[],
+    timeout: number,
+    sessionId: string
+  ): Promise<HandlerResult> {
+    logger.debug(scopedLog(LogContext.INSTRUCTION, 'uploading file'), {
+      sessionId,
+      selector,
+      filePath,
+      timeout,
+    });
+
+    // Set input files
+    await page.setInputFiles(selector, filePath, { timeout });
+
+    logger.info(scopedLog(LogContext.INSTRUCTION, 'file upload successful'), {
+      sessionId,
+      selector,
+      filePath,
+    });
+
+    return {
+      success: true,
+    };
   }
 }

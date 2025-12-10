@@ -2,6 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../session';
 import { sendJson, sendError } from '../middleware';
 import { logger, scopedLog, LogContext } from '../utils';
+import { clearSessionIdempotencyCache } from './session-run';
+import { clearSessionDownloadCache } from '../handlers/download';
 
 /**
  * Track in-flight reset operations to prevent concurrent resets.
@@ -110,6 +112,10 @@ export async function handleSessionReset(
 
     try {
       await resetPromise;
+
+      // Clean up caches associated with this session (reset = fresh start)
+      clearSessionIdempotencyCache(sessionId);
+      clearSessionDownloadCache(sessionId);
 
       logger.info(scopedLog(LogContext.SESSION, 'reset completed'), {
         sessionId,

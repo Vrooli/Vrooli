@@ -1,32 +1,38 @@
 /**
- * Handlers Module
+ * Handlers Module - Instruction Execution for Browser Automation
  *
- * STABILITY: VOLATILE (by design)
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ FILE GUIDE:                                                             │
+ * │                                                                         │
+ * │ CORE (stable, rarely changes):                                          │
+ * │   base.ts      - InstructionHandler interface, HandlerContext/Result    │
+ * │   registry.ts  - Handler lookup by instruction type                     │
+ * │                                                                         │
+ * │ HANDLERS (one file per instruction category):                           │
+ * │   navigation.ts    - goto, goBack, goForward, reload                    │
+ * │   interaction.ts   - click, hover, type, focus, blur                    │
+ * │   wait.ts          - wait-for-selector, wait-for-timeout, etc.          │
+ * │   assertion.ts     - assert-element-exists, assert-text-contains, etc.  │
+ * │   extraction.ts    - extract-text, extract-attribute, etc.              │
+ * │   screenshot.ts    - screenshot                                         │
+ * │   scroll.ts        - scroll-to, scroll-by                               │
+ * │   frame.ts         - enter-frame, exit-frame                            │
+ * │   tab.ts           - new-tab, switch-tab, close-tab                     │
+ * │   select.ts        - select-option                                      │
+ * │   keyboard.ts      - press-key, type-text                               │
+ * │   cookie-storage.ts - get/set cookies, localStorage                     │
+ * │   gesture.ts       - drag, swipe                                        │
+ * │   upload.ts        - set-input-files                                    │
+ * │   download.ts      - download files                                     │
+ * │   network.ts       - network-mock, wait-for-response                    │
+ * │   device.ts        - set-viewport, emulate-device                       │
+ * └─────────────────────────────────────────────────────────────────────────┘
  *
- * CHANGE AXIS: Adding New Instruction Types
- *
- * This module is the PRIMARY extension point for browser automation capabilities.
- * Instruction handlers execute browser automation commands via Playwright.
- *
- * To add a new instruction type:
- * 1. Create a new handler file (e.g., `handlers/my-action.ts`)
- * 2. Implement InstructionHandler interface (see base.ts for contract)
- * 3. Add Zod schema to `types/instruction.ts` for parameter validation
- * 4. Export handler from this index file
- * 5. Register handler in `server.ts:registerHandlers()`
- *
- * Handlers:
- * - Parse and validate instruction parameters (use Zod schemas)
- * - Execute Playwright actions
- * - Return HandlerResult (success/failure + extracted data)
- *
- * The registry provides handler lookup by instruction type.
- *
- * STABLE DEPENDENCIES:
- * - base.ts: Handler interface (InstructionHandler, HandlerContext, HandlerResult)
- * - registry.ts: Handler registration and lookup
- *
- * These interfaces are stable - handlers can evolve independently.
+ * ADDING A NEW INSTRUCTION TYPE:
+ * 1. Create handler file implementing InstructionHandler (see base.ts)
+ * 2. Add Zod schema to types/instruction.ts for parameter validation
+ * 3. Export handler from this index file
+ * 4. Register handler in server.ts:registerHandlers()
  */
 
 // Core abstractions

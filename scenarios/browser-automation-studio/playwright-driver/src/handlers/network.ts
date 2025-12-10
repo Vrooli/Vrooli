@@ -43,8 +43,9 @@ function getSessionRouteMap(sessionId: string): Map<string, RouteMetadata> {
 
 /**
  * Clear all tracked routes for a session.
+ * Exported for use by session reset operations.
  */
-function clearSessionRoutes(sessionId: string): void {
+export function clearSessionRoutes(sessionId: string): void {
   sessionRoutes.delete(sessionId);
 }
 

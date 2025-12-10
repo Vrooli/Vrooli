@@ -1,5 +1,31 @@
+/**
+ * Session Run Route Handler
+ *
+ * POST /session/:id/run - Executes a single browser automation instruction.
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ REQUEST FLOW:                                                           │
+ * │                                                                         │
+ * │  Request ──▶ Idempotency Check ──▶ Session Lock ──▶ Validate           │
+ * │                    │                    │              │                │
+ * │                    │ (cached?)          │ (busy?)      │                │
+ * │                    ▼                    ▼              ▼                │
+ * │               Return cached        409 Conflict   400 Bad Request      │
+ * │                                                                         │
+ * │  ──▶ Replay Check ──▶ Execute ──▶ Collect Telemetry ──▶ Build Outcome  │
+ * │           │              │                                   │          │
+ * │           │ (seen?)      │                                   │          │
+ * │           ▼              │                                   ▼          │
+ * │      Return cached  ◀───┴───────────────────────────▶  Cache & Return   │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * CONCURRENCY: One instruction per session at a time (returns 409 if busy)
+ * IDEMPOTENCY: x-idempotency-key header enables safe retries
+ */
+
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../session';
+import type { SessionState } from '../types/session';
 import type { HandlerRegistry } from '../handlers';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
@@ -10,35 +36,31 @@ import { buildStepOutcome, toDriverOutcome } from '../outcome';
 import { logger, scopedLog, LogContext, isRecentTimestamp } from '../utils';
 import winston from 'winston';
 
-/**
- * Idempotency key header name.
- * When provided, the driver will cache and return the same result for
- * duplicate requests with the same key (within TTL).
- */
-const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
+// =============================================================================
+// Constants
+// =============================================================================
 
-/**
- * Cached results for idempotent requests.
- * Key: idempotency key from header
- * Value: cached response data
- */
+const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
+const IDEMPOTENCY_CACHE_TTL_MS = 300_000; // 5 minutes
+const MAX_IDEMPOTENCY_CACHE_SIZE = 10_000;
+const MAX_EXECUTED_INSTRUCTIONS = 1000;
+
+// =============================================================================
+// Idempotency Cache
+// =============================================================================
+
 interface CachedResult {
   response: unknown;
   timestamp: number;
   sessionId: string;
   instructionKey: string;
 }
-const idempotencyCache: Map<string, CachedResult> = new Map();
 
-/**
- * TTL for cached idempotent results (5 minutes).
- */
-const IDEMPOTENCY_CACHE_TTL_MS = 300_000;
+const idempotencyCache = new Map<string, CachedResult>();
 
-/**
- * Clean up expired entries from the idempotency cache.
- * Called periodically to prevent unbounded memory growth.
- */
+// Cleanup runs every minute
+setInterval(cleanupIdempotencyCache, 60_000).unref();
+
 function cleanupIdempotencyCache(): void {
   const now = Date.now();
   let expiredCount = 0;
@@ -50,29 +72,157 @@ function cleanupIdempotencyCache(): void {
     }
   }
 
+  enforceMaxCacheSize();
+
   if (expiredCount > 0) {
-    logger.debug('idempotency cache cleanup', {
-      expiredCount,
-      remainingCount: idempotencyCache.size,
-    });
+    logger.debug('idempotency cache cleanup', { expiredCount, remainingCount: idempotencyCache.size });
   }
 }
 
-// Run cache cleanup every minute
-setInterval(cleanupIdempotencyCache, 60_000).unref();
+function enforceMaxCacheSize(): void {
+  if (idempotencyCache.size <= MAX_IDEMPOTENCY_CACHE_SIZE) return;
+
+  const toEvict = idempotencyCache.size - MAX_IDEMPOTENCY_CACHE_SIZE;
+  let evicted = 0;
+  for (const key of idempotencyCache.keys()) {
+    if (evicted >= toEvict) break;
+    idempotencyCache.delete(key);
+    evicted++;
+  }
+  logger.warn(scopedLog(LogContext.INSTRUCTION, 'idempotency cache size limit reached'), {
+    maxSize: MAX_IDEMPOTENCY_CACHE_SIZE,
+    evictedForSize: evicted,
+  });
+}
+
+export function clearSessionIdempotencyCache(sessionId: string): void {
+  let clearedCount = 0;
+  for (const [key, value] of idempotencyCache.entries()) {
+    if (value.sessionId === sessionId) {
+      idempotencyCache.delete(key);
+      clearedCount++;
+    }
+  }
+  if (clearedCount > 0) {
+    logger.debug(scopedLog(LogContext.SESSION, 'cleared session idempotency cache'), { sessionId, clearedCount });
+  }
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
 
 /**
- * Maximum number of executed instructions to track per session.
- * Prevents unbounded memory growth for long-running sessions.
+ * Create a unique key for an instruction based on node_id and index.
+ * Used to track which instructions have been executed in a session.
  */
-const MAX_EXECUTED_INSTRUCTIONS = 1000;
-
-/**
- * Generate a unique key for instruction idempotency tracking.
- * Combines node_id and index to create a stable identifier.
- */
-function getInstructionKey(instruction: CompiledInstruction): string {
+function createInstructionKey(instruction: CompiledInstruction): string {
   return `${instruction.node_id}:${instruction.index}`;
+}
+
+/**
+ * Look up a cached response from a previous identical request.
+ *
+ * The idempotency cache allows clients to safely retry requests - if the same
+ * x-idempotency-key header is sent, we return the cached result instead of
+ * re-executing the instruction.
+ *
+ * @returns Cached response if found and valid, null otherwise
+ */
+function lookupIdempotencyCache(
+  idempotencyKey: string | undefined,
+  sessionId: string
+): unknown | null {
+  if (!idempotencyKey) return null;
+
+  const cached = idempotencyCache.get(idempotencyKey);
+  if (!cached || !isRecentTimestamp(cached.timestamp, IDEMPOTENCY_CACHE_TTL_MS)) return null;
+
+  // Security: Reject if key was used for a different session
+  if (cached.sessionId !== sessionId) {
+    logger.warn(scopedLog(LogContext.INSTRUCTION, 'idempotency key reused for different session'), {
+      sessionId,
+      cachedSessionId: cached.sessionId,
+      idempotencyKey,
+    });
+    return null;
+  }
+
+  logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached idempotent result'), {
+    sessionId,
+    idempotencyKey,
+    instructionKey: cached.instructionKey,
+    cacheAgeMs: Date.now() - cached.timestamp,
+  });
+
+  return cached.response;
+}
+
+/**
+ * Validate that a raw instruction object has all required fields.
+ *
+ * @returns Error message if invalid, null if valid
+ */
+function validateInstructionStructure(rawInstruction: unknown): string | null {
+  if (!rawInstruction || typeof rawInstruction !== 'object') {
+    return 'Missing or invalid instruction: must be an object';
+  }
+  const inst = rawInstruction as Record<string, unknown>;
+  if (typeof inst.index !== 'number') return 'Missing or invalid instruction.index: must be a number';
+  if (!inst.node_id || typeof inst.node_id !== 'string') return 'Missing or invalid instruction.node_id: must be a non-empty string';
+  if (!inst.type || typeof inst.type !== 'string') return 'Missing or invalid instruction.type: must be a non-empty string';
+  if (!inst.params || typeof inst.params !== 'object') return 'Missing or invalid instruction.params: must be an object';
+  return null;
+}
+
+/**
+ * Store a response in the idempotency cache for future identical requests.
+ */
+function storeInIdempotencyCache(
+  idempotencyKey: string | undefined,
+  sessionId: string,
+  instructionKey: string,
+  response: unknown
+): void {
+  if (!idempotencyKey) return;
+  idempotencyCache.set(idempotencyKey, { response, timestamp: Date.now(), sessionId, instructionKey });
+  logger.debug(scopedLog(LogContext.INSTRUCTION, 'cached idempotent result'), {
+    sessionId,
+    idempotencyKey,
+    instructionKey,
+    cacheSize: idempotencyCache.size,
+  });
+}
+
+/** Record an executed instruction in the session's tracking map. */
+function recordExecutedInstruction(
+  session: SessionState,
+  instructionKey: string,
+  driverOutcome: unknown,
+  success: boolean,
+  completedAt: Date
+): void {
+  if (!session.executedInstructions) return;
+
+  // Enforce max size by evicting oldest
+  if (session.executedInstructions.size >= MAX_EXECUTED_INSTRUCTIONS) {
+    const firstKey = session.executedInstructions.keys().next().value;
+    if (firstKey) {
+      session.executedInstructions.delete(firstKey);
+      logger.debug(scopedLog(LogContext.INSTRUCTION, 'evicted old instruction from tracking'), {
+        sessionId: session.id,
+        evictedKey: firstKey,
+        maxTracked: MAX_EXECUTED_INSTRUCTIONS,
+      });
+    }
+  }
+
+  session.executedInstructions.set(instructionKey, {
+    key: instructionKey,
+    executedAt: completedAt,
+    success,
+    cachedOutcome: driverOutcome,
+  } as ExecutedInstructionRecord);
 }
 
 /**
@@ -81,19 +231,9 @@ function getInstructionKey(instruction: CompiledInstruction): string {
  * POST /session/:id/run
  *
  * Executes a single instruction in the browser session.
- * Updates session phase during execution for observability.
  *
- * Signal flow:
- * 1. instruction: executing - start of execution with key params
- * 2. instruction: completed - outcome with success/failure details
- *
- * Phase transitions:
- * - ready -> executing -> ready (success)
- * - ready -> executing -> ready (failure, instruction failed but session ok)
- *
- * Concurrency guard:
- * - Only one instruction can execute at a time per session
- * - Returns 409 Conflict if session is already executing
+ * Flow: ready -> executing -> ready
+ * Concurrency: One instruction per session (returns 409 if busy)
  */
 export async function handleSessionRun(
   req: IncomingMessage,
@@ -106,347 +246,170 @@ export async function handleSessionRun(
   appMetrics: Metrics
 ): Promise<void> {
   const startedAt = new Date();
-
-  // Check for idempotency key header for cached result lookup
   const idempotencyKey = req.headers[IDEMPOTENCY_KEY_HEADER] as string | undefined;
 
-  // Idempotency: Check cache for existing result with this key
-  if (idempotencyKey) {
-    const cached = idempotencyCache.get(idempotencyKey);
-    if (cached && isRecentTimestamp(cached.timestamp, IDEMPOTENCY_CACHE_TTL_MS)) {
-      // Verify this cached result is for the same session
-      if (cached.sessionId === sessionId) {
-        logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached idempotent result'), {
-          sessionId,
-          idempotencyKey,
-          instructionKey: cached.instructionKey,
-          cacheAgeMs: Date.now() - cached.timestamp,
-        });
-
-        sendJson(res, 200, cached.response);
-        return;
-      } else {
-        // Different session - log warning but proceed with new execution
-        logger.warn(scopedLog(LogContext.INSTRUCTION, 'idempotency key reused for different session'), {
-          sessionId,
-          cachedSessionId: cached.sessionId,
-          idempotencyKey,
-          hint: 'Idempotency keys should be unique per session. Proceeding with new execution.',
-        });
-      }
-    }
+  // Fast path: Return cached result if available
+  const cachedResponse = lookupIdempotencyCache(idempotencyKey, sessionId);
+  if (cachedResponse) {
+    sendJson(res, 200, cachedResponse);
+    return;
   }
 
-  // Track whether we've entered the executing phase (for cleanup on error)
   let enteredExecutingPhase = false;
 
   try {
-    // Get session and check current phase
     const session = sessionManager.getSession(sessionId);
 
-    // Guard: Prevent concurrent execution on same session
-    // This protects against race conditions where two requests arrive simultaneously
+    // Guard: Prevent concurrent execution
     if (session.phase === 'executing') {
-      logger.warn(scopedLog(LogContext.INSTRUCTION, 'concurrent execution rejected'), {
-        sessionId,
-        phase: session.phase,
-        hint: 'Another instruction is already executing on this session. Wait for it to complete.',
-      });
+      logger.warn(scopedLog(LogContext.INSTRUCTION, 'concurrent execution rejected'), { sessionId, phase: session.phase });
       sendJson(res, 409, {
-        error: {
-          code: 'SESSION_BUSY',
-          message: 'Session is already executing an instruction',
-          kind: 'orchestration',
-          retryable: true,
-          hint: 'Wait for the current instruction to complete before sending another',
-        },
+        error: { code: 'SESSION_BUSY', message: 'Session is already executing an instruction', kind: 'orchestration', retryable: true },
       });
       return;
     }
 
-    // Update phase to executing
     sessionManager.setSessionPhase(sessionId, 'executing');
     enteredExecutingPhase = true;
 
-    // Parse instruction
+    // Parse and validate instruction
     const body = await parseJsonBody(req, config);
     const rawInstruction = (body as Record<string, unknown>).instruction;
-
-    // Validate instruction structure before proceeding
-    if (!rawInstruction || typeof rawInstruction !== 'object') {
+    const validationError = validateInstructionStructure(rawInstruction);
+    if (validationError) {
       sessionManager.setSessionPhase(sessionId, 'ready');
       sendJson(res, 400, {
-        error: {
-          code: 'INVALID_INSTRUCTION',
-          message: 'Missing or invalid instruction: must be an object',
-          kind: 'orchestration',
-          retryable: false,
-          hint: 'Ensure the request body contains an "instruction" object with type, index, node_id, and params',
-        },
+        error: { code: 'INVALID_INSTRUCTION', message: validationError, kind: 'orchestration', retryable: false },
       });
       return;
     }
 
     const instruction = rawInstruction as CompiledInstruction;
+    const instructionKey = createInstructionKey(instruction);
 
-    // Validate required instruction fields
-    if (typeof instruction.index !== 'number') {
-      sessionManager.setSessionPhase(sessionId, 'ready');
-      sendJson(res, 400, {
-        error: {
-          code: 'INVALID_INSTRUCTION',
-          message: 'Missing or invalid instruction.index: must be a number',
-          kind: 'orchestration',
-          retryable: false,
-        },
-      });
-      return;
-    }
-    if (!instruction.node_id || typeof instruction.node_id !== 'string') {
-      sessionManager.setSessionPhase(sessionId, 'ready');
-      sendJson(res, 400, {
-        error: {
-          code: 'INVALID_INSTRUCTION',
-          message: 'Missing or invalid instruction.node_id: must be a non-empty string',
-          kind: 'orchestration',
-          retryable: false,
-        },
-      });
-      return;
-    }
-    if (!instruction.type || typeof instruction.type !== 'string') {
-      sessionManager.setSessionPhase(sessionId, 'ready');
-      sendJson(res, 400, {
-        error: {
-          code: 'INVALID_INSTRUCTION',
-          message: 'Missing or invalid instruction.type: must be a non-empty string',
-          kind: 'orchestration',
-          retryable: false,
-        },
-      });
-      return;
-    }
-    if (!instruction.params || typeof instruction.params !== 'object') {
-      sessionManager.setSessionPhase(sessionId, 'ready');
-      sendJson(res, 400, {
-        error: {
-          code: 'INVALID_INSTRUCTION',
-          message: 'Missing or invalid instruction.params: must be an object',
-          kind: 'orchestration',
-          retryable: false,
-        },
-      });
-      return;
-    }
-
-    // Idempotency: Check if this instruction was already executed
-    // This handles replay scenarios where the same instruction is sent again
-    const instructionKey = getInstructionKey(instruction);
+    // Check session-level instruction cache (replay detection)
     const previousExecution = session.executedInstructions?.get(instructionKey);
+    if (previousExecution?.cachedOutcome) {
+      logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
+        sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.node_id,
+      });
+      sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
+      storeInIdempotencyCache(idempotencyKey, sessionId, instructionKey, previousExecution.cachedOutcome);
+      sendJson(res, 200, previousExecution.cachedOutcome);
+      return;
+    }
 
     if (previousExecution) {
-      // Instruction was already executed - check if we should return cached result
-      // We log but still re-execute to ensure fresh telemetry data
-      // The logging helps detect unintentional retries
-      logger.info(scopedLog(LogContext.INSTRUCTION, 'replay detected'), {
-        sessionId,
-        type: instruction.type,
-        stepIndex: instruction.index,
-        nodeId: instruction.node_id,
-        previousSuccess: previousExecution.success,
-        previousExecutedAt: previousExecution.executedAt.toISOString(),
-        hint: 'Instruction was previously executed; re-executing for fresh state',
+      logger.info(scopedLog(LogContext.INSTRUCTION, 'replay detected (no cached outcome)'), {
+        sessionId, type: instruction.type, stepIndex: instruction.index,
       });
     }
 
-    // Log instruction start with context for debugging
-    // Use consistent LogContext prefix for easy filtering
     logger.info(scopedLog(LogContext.INSTRUCTION, 'executing'), {
-      sessionId,
-      type: instruction.type,
-      stepIndex: instruction.index,
-      nodeId: instruction.node_id,
-      instructionCount: session.instructionCount,
-      isReplay: !!previousExecution,
-      // Include key params for debugging without exposing sensitive data
+      sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.node_id,
+      instructionCount: session.instructionCount, isReplay: !!previousExecution,
       selector: (instruction.params as Record<string, unknown>).selector,
       url: (instruction.params as Record<string, unknown>).url,
     });
 
-    // Get handler
+    // Execute instruction with telemetry
     const handler = handlerRegistry.getHandler(instruction);
-
-    // Setup telemetry collectors
-    // Temporal hardening: These collectors attach event listeners to the page.
-    // They MUST be disposed after use to prevent memory leaks and stale handlers.
-    const consoleCollector = new ConsoleLogCollector(session.page, config.telemetry.console.maxEntries);
-    const networkCollector = new NetworkCollector(session.page, config.telemetry.network.maxEvents);
-
-    // Declare variables that need to survive the try/finally block
-    let result;
-    let instructionDuration: number;
-    let consoleLogs: ReturnType<typeof consoleCollector.getAndClear> | undefined;
-    let networkEvents: ReturnType<typeof networkCollector.getAndClear> | undefined;
-
-    try {
-      // Execute handler
-      const instructionStart = Date.now();
-      result = await handler.execute(instruction, {
-        page: session.page,
-        context: session.context,
-        config,
-        logger: appLogger,
-        metrics: appMetrics,
-        sessionId,
-      });
-      instructionDuration = Date.now() - instructionStart;
-
-      // Capture collector data BEFORE disposing (must happen in try block)
-      // Handler may have already provided these, so only collect if not present
-      consoleLogs = result.consoleLogs || (config.telemetry.console.enabled
-        ? consoleCollector.getAndClear()
-        : undefined);
-
-      networkEvents = result.networkEvents || (config.telemetry.network.enabled
-        ? networkCollector.getAndClear()
-        : undefined);
-    } finally {
-      // Temporal hardening: Always dispose collectors to remove event listeners
-      // This prevents memory leaks and stale handlers if execution fails or succeeds
-      consoleCollector.dispose();
-      networkCollector.dispose();
-    }
-
-    // Increment instruction count
-    sessionManager.incrementInstructionCount(sessionId);
-
-    // Record metrics
-    appMetrics.instructionDuration.observe(
-      { type: instruction.type, success: String(result.success) },
-      instructionDuration
+    const { result, consoleLogs, networkEvents, instructionDuration } = await executeWithTelemetry(
+      handler, instruction, session, config, appLogger, appMetrics, sessionId
     );
 
-    if (!result.success) {
-      appMetrics.instructionErrors.inc({
-        type: instruction.type,
-        error_kind: result.error?.kind || 'unknown',
-      });
-    }
+    sessionManager.incrementInstructionCount(sessionId);
+    recordMetrics(appMetrics, instruction.type, result, instructionDuration);
 
-    // Capture remaining telemetry (if not already captured by handler)
-    const screenshot = result.screenshot || (config.telemetry.screenshot.enabled
-      ? await captureScreenshot(session.page, config)
-      : undefined);
+    // Capture remaining telemetry
+    const screenshot = result.screenshot || (config.telemetry.screenshot.enabled ? await captureScreenshot(session.page, config) : undefined);
+    const domSnapshot = result.domSnapshot || (config.telemetry.dom.enabled ? await captureDOMSnapshot(session.page, config) : undefined);
 
-    const domSnapshot = result.domSnapshot || (config.telemetry.dom.enabled
-      ? await captureDOMSnapshot(session.page, config)
-      : undefined);
-
-    // Build step outcome using domain logic
+    // Build and convert outcome
     const completedAt = new Date();
     const outcome = buildStepOutcome({
-      instruction,
-      result,
-      startedAt,
-      completedAt,
-      finalUrl: session.page.url(),
+      instruction, result, startedAt, completedAt, finalUrl: session.page.url(),
       screenshot: screenshot as Parameters<typeof buildStepOutcome>[0]['screenshot'],
-      domSnapshot,
-      consoleLogs,
-      networkEvents,
+      domSnapshot, consoleLogs, networkEvents,
     });
 
-    // Log completion with outcome summary
-    // This is the key signal for understanding instruction execution flow
     logger.info(scopedLog(LogContext.INSTRUCTION, result.success ? 'completed' : 'failed'), {
-      sessionId,
-      type: instruction.type,
-      stepIndex: instruction.index,
-      success: result.success,
-      durationMs: outcome.duration_ms,
-      finalUrl: session.page.url(),
-      instructionCount: session.instructionCount,
-      // Include failure details for debugging (if any)
-      ...(result.error && {
-        errorCode: result.error.code,
-        errorKind: result.error.kind,
-        errorMessage: result.error.message,
-        retryable: result.error.retryable,
-      }),
+      sessionId, type: instruction.type, stepIndex: instruction.index, success: result.success,
+      durationMs: outcome.duration_ms, finalUrl: session.page.url(), instructionCount: session.instructionCount,
+      ...(result.error && { errorCode: result.error.code, errorKind: result.error.kind, errorMessage: result.error.message }),
     });
 
-    // Idempotency: Record instruction execution for replay detection
-    if (session.executedInstructions) {
-      // Enforce maximum tracking size to prevent unbounded memory growth
-      if (session.executedInstructions.size >= MAX_EXECUTED_INSTRUCTIONS) {
-        // Evict oldest entry (first in map iteration order)
-        const firstKey = session.executedInstructions.keys().next().value;
-        if (firstKey) {
-          session.executedInstructions.delete(firstKey);
-          logger.debug(scopedLog(LogContext.INSTRUCTION, 'evicted old instruction from tracking'), {
-            sessionId,
-            evictedKey: firstKey,
-            maxTracked: MAX_EXECUTED_INSTRUCTIONS,
-          });
-        }
-      }
-
-      const executionRecord: ExecutedInstructionRecord = {
-        key: instructionKey,
-        executedAt: completedAt,
-        success: result.success,
-        // Don't cache full outcome to save memory - can be regenerated if needed
-      };
-      session.executedInstructions.set(instructionKey, executionRecord);
-    }
-
-    // Return session to ready state (or recording if recording was active)
-    const nextPhase = session.recordingController?.isRecording() ? 'recording' : 'ready';
-    sessionManager.setSessionPhase(sessionId, nextPhase);
-
-    // Convert to driver wire format (flat fields for screenshot/dom)
     const screenshotData = screenshot as { base64?: string; media_type?: string; width?: number; height?: number } | undefined;
     const driverOutcome = toDriverOutcome(outcome, screenshotData, domSnapshot);
 
-    // Cache result if idempotency key was provided
-    if (idempotencyKey) {
-      idempotencyCache.set(idempotencyKey, {
-        response: driverOutcome,
-        timestamp: Date.now(),
-        sessionId,
-        instructionKey,
-      });
-
-      logger.debug(scopedLog(LogContext.INSTRUCTION, 'cached idempotent result'), {
-        sessionId,
-        idempotencyKey,
-        instructionKey,
-        cacheSize: idempotencyCache.size,
-      });
-    }
+    // Record for replay detection and cache
+    recordExecutedInstruction(session, instructionKey, driverOutcome, result.success, completedAt);
+    sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
+    storeInIdempotencyCache(idempotencyKey, sessionId, instructionKey, driverOutcome);
 
     sendJson(res, 200, driverOutcome);
   } catch (error) {
-    // Return session to ready state on error (only if we entered executing phase)
-    // This prevents trying to set phase on a session that doesn't exist (SessionNotFoundError)
     if (enteredExecutingPhase) {
-      try {
-        sessionManager.setSessionPhase(sessionId, 'ready');
-      } catch {
-        // Session may have been closed during execution - ignore
-        logger.debug(scopedLog(LogContext.SESSION, 'could not reset phase on error'), {
-          sessionId,
-          hint: 'Session may have been closed during execution',
-        });
-      }
+      try { sessionManager.setSessionPhase(sessionId, 'ready'); } catch { /* Session may be closed */ }
     }
-
     sendError(res, error as Error, `/session/${sessionId}/run`);
+    appMetrics.instructionErrors.inc({ type: 'unknown', error_kind: 'engine' });
+  }
+}
 
-    // Record error metric
-    appMetrics.instructionErrors.inc({
-      type: 'unknown',
-      error_kind: 'engine',
-    });
+// =============================================================================
+// Execution Helpers
+// =============================================================================
+
+import type { HandlerResult, HandlerContext, InstructionHandler } from '../handlers/base';
+import type { StepOutcome } from '../types';
+
+type ConsoleLogEntry = NonNullable<StepOutcome['console_logs']>[number];
+type NetworkEvent = NonNullable<StepOutcome['network']>[number];
+
+async function executeWithTelemetry(
+  handler: InstructionHandler,
+  instruction: CompiledInstruction,
+  session: SessionState,
+  config: Config,
+  appLogger: winston.Logger,
+  appMetrics: Metrics,
+  sessionId: string
+): Promise<{
+  result: HandlerResult;
+  consoleLogs: ConsoleLogEntry[] | undefined;
+  networkEvents: NetworkEvent[] | undefined;
+  instructionDuration: number;
+}> {
+  const consoleCollector = new ConsoleLogCollector(session.page, config.telemetry.console.maxEntries);
+  const networkCollector = new NetworkCollector(session.page, config.telemetry.network.maxEvents);
+
+  try {
+    const instructionStart = Date.now();
+    const handlerContext: HandlerContext = {
+      page: session.page, context: session.context, config, logger: appLogger, metrics: appMetrics, sessionId,
+    };
+    const result = await handler.execute(instruction, handlerContext);
+    const instructionDuration = Date.now() - instructionStart;
+
+    const consoleLogs = result.consoleLogs || (config.telemetry.console.enabled ? consoleCollector.getAndClear() : undefined);
+    const networkEvents = result.networkEvents || (config.telemetry.network.enabled ? networkCollector.getAndClear() : undefined);
+
+    return { result, consoleLogs, networkEvents, instructionDuration };
+  } finally {
+    consoleCollector.dispose();
+    networkCollector.dispose();
+  }
+}
+
+function recordMetrics(
+  appMetrics: Metrics,
+  instructionType: string,
+  result: HandlerResult,
+  instructionDuration: number
+): void {
+  appMetrics.instructionDuration.observe({ type: instructionType, success: String(result.success) }, instructionDuration);
+  if (!result.success) {
+    appMetrics.instructionErrors.inc({ type: instructionType, error_kind: result.error?.kind || 'unknown' });
   }
 }

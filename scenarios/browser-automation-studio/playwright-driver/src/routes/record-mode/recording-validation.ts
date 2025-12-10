@@ -109,7 +109,7 @@ export async function handleReplayPreview(
       actions: request.actions,
       limit: request.limit,
       stopOnFailure: request.stop_on_failure ?? true,
-      actionTimeout: request.action_timeout ?? 10000,
+      actionTimeout: request.action_timeout ?? config.execution.replayActionTimeoutMs,
     });
 
     logger.info(scopedLog(LogContext.RECORDING, result.success ? 'replay completed' : 'replay failed'), {

@@ -7,6 +7,10 @@
  */
 
 import type { SelectorStrategyType } from './selector-config';
+import { SELECTOR_DEFAULTS, getUnstableClassPatterns } from './selector-config';
+// Re-export shared geometry types from contracts (single source of truth)
+import type { BoundingBox, Point } from '../types/contracts';
+export type { BoundingBox, Point };
 
 /**
  * SelectorCandidate represents a single selector strategy with metadata.
@@ -64,23 +68,8 @@ export interface ElementMeta {
   ariaLabel?: string;
 }
 
-/**
- * BoundingBox for element position on screen.
- */
-export interface BoundingBox {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * Point for cursor/click positions.
- */
-export interface Point {
-  x: number;
-  y: number;
-}
+// BoundingBox and Point are imported and re-exported from types/contracts.ts
+// This ensures a single source of truth for geometry types across the codebase.
 
 /**
  * RecordedAction represents a single user action captured during recording.
@@ -298,25 +287,15 @@ export interface SelectorGeneratorOptions {
 
 /**
  * Default options for selector generation.
- * Values derived from selector-config.ts (single source of truth).
+ * Derived from SELECTOR_DEFAULTS in selector-config.ts (single source of truth).
  */
 export const DEFAULT_SELECTOR_OPTIONS: Required<SelectorGeneratorOptions> = {
-  maxCssDepth: 5,
-  includeXPath: true,
-  preferTestIds: true,
-  // Note: These patterns are duplicated here for backwards compatibility.
-  // The canonical source is UNSTABLE_CLASS_PATTERNS in selector-config.ts.
-  // TODO: Refactor consumers to use getUnstableClassPatterns() directly.
-  unstableClassPatterns: [
-    /^css-[a-z0-9]+$/i,      // CSS-in-JS (Emotion, etc.)
-    /^sc-[a-zA-Z]+$/,        // styled-components
-    /^_[a-zA-Z0-9]+$/,       // CSS modules
-    /^[a-zA-Z]+-[0-9]+$/,    // Generic hash patterns
-    /^jsx-[a-z0-9]+$/i,      // Next.js styled-jsx
-    /^svelte-[a-z0-9]+$/i,   // Svelte scoped styles
-    /^v-[a-z0-9]+$/i,        // Vue scoped styles
-  ],
-  minConfidence: 0.3,
+  maxCssDepth: SELECTOR_DEFAULTS.maxCssDepth,
+  includeXPath: SELECTOR_DEFAULTS.includeXPath,
+  preferTestIds: SELECTOR_DEFAULTS.preferTestIds,
+  // Use the canonical source from selector-config.ts (converted to RegExp)
+  unstableClassPatterns: getUnstableClassPatterns(),
+  minConfidence: SELECTOR_DEFAULTS.minConfidence,
 };
 
 /**
@@ -358,7 +337,7 @@ export interface ReplayPreviewRequest {
   limit?: number;
   /** Whether to stop on first failure (default: true) */
   stopOnFailure?: boolean;
-  /** Action timeout in ms (default: 10000) */
+  /** Action timeout in ms (default: config.execution.replayActionTimeoutMs) */
   actionTimeout?: number;
 }
 

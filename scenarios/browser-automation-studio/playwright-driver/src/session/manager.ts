@@ -5,26 +5,38 @@ import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, L
 import { buildContext } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { removeRecordedActions } from '../recording/buffer';
+import { clearSessionRoutes } from '../handlers/network';
+import { clearSessionDownloadCache } from '../handlers/download';
 
 /**
- * SessionManager - Manages browser session lifecycle
+ * SessionManager - Browser Session Lifecycle Management
  *
- * Responsibilities:
- * - Session creation and deletion
- * - Session retrieval by ID
- * - Resource limit enforcement
- * - Idle timeout tracking
- * - Browser process management
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ SESSION LIFECYCLE:                                                      │
+ * │                                                                         │
+ * │   startSession() ──▶ ready ──▶ executing ──▶ ready ──▶ closeSession()  │
+ * │        │                │           │                        │          │
+ * │        │                │           │                        │          │
+ * │        ▼                ▼           ▼                        ▼          │
+ * │   Browser launch   Recording    Instruction          Context close     │
+ * │   Context create   if enabled   execution            Browser cleanup   │
+ * └─────────────────────────────────────────────────────────────────────────┘
  *
- * Hardened assumptions:
- * - closeSession may be called concurrently (from idle cleanup and explicit requests)
- * - Session cleanup must be idempotent
- * - Browser may disconnect unexpectedly
+ * KEY RESPONSIBILITIES:
+ * - Session CRUD (create, read, update, delete)
+ * - Resource limits (max concurrent sessions)
+ * - Idle timeout cleanup
+ * - Browser process management (single shared browser instance)
  *
- * Idempotency guarantees:
- * - startSession with same execution_id returns existing session (replay-safe)
- * - closeSession can be called multiple times safely (idempotent)
- * - Session creation uses in-flight tracking to prevent duplicates under concurrent calls
+ * IDEMPOTENCY GUARANTEES:
+ * - startSession with same execution_id returns existing session (safe for retries)
+ * - closeSession can be called multiple times safely
+ * - Concurrent session creation with same execution_id deduplicates
+ *
+ * CONCURRENCY SAFETY:
+ * - closeSession may be called from multiple sources (idle cleanup, explicit close)
+ * - Uses closingSessionIds Set to prevent double-close
+ * - Uses browserLaunchPromise to prevent multiple browser launches
  */
 export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
@@ -258,9 +270,23 @@ export class SessionManager {
       }
 
       existingByExecutionId.lastUsedAt = new Date();
-      if (existingByExecutionId.phase !== 'executing') {
+
+      // Phase recovery: If session is stuck in 'executing' phase (e.g., from a crash
+      // or timeout), reset to 'ready' to allow new instructions.
+      // This is safe because:
+      // 1. We're being called with the same execution_id, indicating a retry
+      // 2. The previous execution likely failed or timed out
+      // 3. Leaving in 'executing' would permanently block the session
+      if (existingByExecutionId.phase === 'executing') {
+        logger.warn(scopedLog(LogContext.SESSION, 'recovering from stuck executing phase'), {
+          sessionId: existingByExecutionId.id,
+          executionId: spec.execution_id,
+          previousPhase: 'executing',
+          hint: 'Session was stuck in executing phase, resetting to ready',
+        });
         existingByExecutionId.phase = 'ready';
       }
+
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
       return { sessionId: existingByExecutionId.id, reused: true, createdAt: existingByExecutionId.createdAt };
     }
@@ -269,6 +295,16 @@ export class SessionManager {
     if (spec.reuse_mode !== 'fresh') {
       const existingSession = this.findReusableSession(spec);
       if (existingSession) {
+        // Phase recovery: Log warning if session was stuck in executing phase
+        if (existingSession.phase === 'executing') {
+          logger.warn(scopedLog(LogContext.SESSION, 'recovering stuck session via reuse'), {
+            sessionId: existingSession.id,
+            reuseMode: spec.reuse_mode,
+            previousPhase: existingSession.phase,
+            hint: 'Session was stuck in executing phase, will reset to ready',
+          });
+        }
+
         logger.info(scopedLog(LogContext.SESSION, 'reusing existing'), {
           sessionId: existingSession.id,
           reuseMode: spec.reuse_mode,
@@ -523,8 +559,25 @@ export class SessionManager {
       session.currentPageIndex = 0;
     }
 
-    // Clear network mocks
+    // Clear network mocks from session state
     session.activeMocks.clear();
+
+    // Clear network route tracking (idempotency tracking for network handlers)
+    // This ensures replayed network-mock instructions don't incorrectly think
+    // routes are already registered after a reset
+    clearSessionRoutes(sessionId);
+
+    // Unroute all Playwright route handlers to match cleared state
+    await session.page.unroute('**/*').catch((err) => {
+      logger.warn(scopedLog(LogContext.CLEANUP, 'unroute failed'), {
+        sessionId,
+        error: err.message,
+      });
+    });
+
+    // Clear download cache (idempotency tracking for download handlers)
+    // This ensures replayed download instructions will actually download again
+    clearSessionDownloadCache(sessionId);
 
     // Clear executed instructions tracking for fresh state
     session.executedInstructions?.clear();

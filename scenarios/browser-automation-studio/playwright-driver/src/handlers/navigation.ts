@@ -111,7 +111,8 @@ export class NavigationHandler extends BaseHandler {
       }
 
       const normalizedUrl = urlValidation.normalized || url;
-      const timeout = params.timeoutMs || DEFAULT_NAVIGATION_TIMEOUT_MS;
+      // Prefer config timeout, fallback to param, then constant default
+      const timeout = params.timeoutMs || context.config.execution.navigationTimeoutMs || DEFAULT_NAVIGATION_TIMEOUT_MS;
       const waitUntil = params.waitUntil || 'networkidle';
 
       logger.debug('instruction: navigate starting', {
@@ -127,6 +128,21 @@ export class NavigationHandler extends BaseHandler {
       });
 
       const finalUrl = page.url();
+
+      // Frame stack invalidation: After navigation, any stored frame references
+      // become stale. Clear the frame stack to prevent replayed frame-switch
+      // instructions from targeting invalid frames.
+      // This is an idempotency safeguard: if the same workflow is replayed after
+      // a navigation failure and retry, we won't have stale frame references.
+      if (context.frameStack && context.frameStack.length > 0) {
+        const clearedFrames = context.frameStack.length;
+        context.frameStack.length = 0; // Clear in-place
+        logger.debug('instruction: navigate cleared stale frame stack', {
+          clearedFrames,
+          hint: 'Frame references invalidated after navigation',
+        });
+      }
+
       logger.info('instruction: navigate completed', {
         targetUrl: normalizedUrl,
         finalUrl,

@@ -2,19 +2,25 @@ import type { RecordedAction } from './types';
 import { MAX_RECORDING_BUFFER_SIZE, logger } from '../utils';
 
 /**
- * Recording Buffer
+ * Recording Buffer - In-Memory Action Storage
  *
- * In-memory action buffers keyed by session ID for record-mode endpoints.
+ * Stores recorded actions in memory during a recording session.
+ * Each session has its own buffer keyed by session ID.
  *
- * Hardened assumptions:
- * - Buffers have a maximum size to prevent memory exhaustion
- * - Old actions are evicted when buffer is full (FIFO)
- * - Buffer operations are O(1) or O(n) where n is bounded
+ * ┌─────────────────────────────────────────────────────────────────────────┐
+ * │ BUFFER BEHAVIOR:                                                        │
+ * │                                                                         │
+ * │   bufferRecordedAction()                                                │
+ * │        │                                                                │
+ * │        ├──▶ Duplicate? (same action.id) ──▶ Return false (no-op)        │
+ * │        │                                                                │
+ * │        ├──▶ Buffer full? ──▶ Evict oldest (FIFO), then add              │
+ * │        │                                                                │
+ * │        └──▶ Add to buffer, return true                                  │
+ * └─────────────────────────────────────────────────────────────────────────┘
  *
- * Idempotency guarantees:
- * - Actions are deduplicated by ID to prevent duplicate entries on replay
- * - Sequence numbers are validated to detect out-of-order delivery
- * - Same action ID inserted twice is a no-op (safe for retries)
+ * IDEMPOTENCY: Same action ID inserted twice is a no-op (safe for retries)
+ * MEMORY SAFETY: Buffer size is capped, oldest actions evicted when full
  */
 
 // In-memory action buffers keyed by session ID

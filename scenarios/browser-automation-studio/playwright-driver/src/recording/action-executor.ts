@@ -1,50 +1,48 @@
 /**
  * Action Executor Registry
  *
- * CHANGE AXIS: Recording Action Types - Replay Execution
+ * Centralizes replay execution for recorded actions. Each action type (click, type,
+ * navigate, etc.) has a registered executor function that knows how to replay it.
  *
- * This module centralizes replay execution for recorded actions.
- * When adding a new action type:
+ * EXTENSION POINT: Adding a new action type
  * 1. Add to ACTION_TYPES in action-types.ts (normalization, kind mapping)
  * 2. Register an executor here using registerActionExecutor()
  * 3. Add tests in tests/unit/recording/action-executor.test.ts
  *
- * This reduces shotgun surgery - no need to modify controller.ts switch statement.
+ * Benefits of the registry pattern:
+ * - No switch statements to modify when adding action types
+ * - Each executor is self-contained and testable
+ * - Easy to extend without touching controller.ts
  */
 
 import type { Page } from 'playwright';
 import type { RecordedAction, ActionReplayResult, SelectorValidation, ActionType } from './types';
 
-/**
- * Context provided to action executors.
- */
+// =============================================================================
+// Types
+// =============================================================================
+
+/** Context provided to action executors */
 export interface ActionExecutorContext {
   page: Page;
   timeout: number;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
 }
 
-/**
- * Function signature for action executors.
- * Returns ActionReplayResult with success status and optional error.
- */
+/** Function signature for action executors */
 export type ActionExecutor = (
   action: RecordedAction,
   context: ActionExecutorContext,
   baseResult: ActionReplayResult
 ) => Promise<ActionReplayResult>;
 
-/**
- * Registry of action executors keyed by action type.
- */
+// =============================================================================
+// Registry
+// =============================================================================
+
 const executorRegistry = new Map<ActionType, ActionExecutor>();
 
-/**
- * Register an executor for an action type.
- *
- * @param actionType - The action type to register
- * @param executor - The executor function
- */
+/** Register an executor for an action type */
 export function registerActionExecutor(actionType: ActionType, executor: ActionExecutor): void {
   if (executorRegistry.has(actionType)) {
     console.warn(`[ActionExecutor] Overwriting executor for action type: ${actionType}`);
@@ -52,73 +50,71 @@ export function registerActionExecutor(actionType: ActionType, executor: ActionE
   executorRegistry.set(actionType, executor);
 }
 
-/**
- * Get executor for an action type.
- * Returns undefined if no executor is registered.
- */
+/** Get executor for an action type (returns undefined if not registered) */
 export function getActionExecutor(actionType: ActionType): ActionExecutor | undefined {
   return executorRegistry.get(actionType);
 }
 
-/**
- * Check if an executor is registered for an action type.
- */
+/** Check if an executor is registered for an action type */
 export function hasActionExecutor(actionType: ActionType): boolean {
   return executorRegistry.has(actionType);
 }
 
-/**
- * Get all registered action types.
- */
+/** Get all registered action types */
 export function getRegisteredActionTypes(): ActionType[] {
   return Array.from(executorRegistry.keys());
 }
 
-// ============================================================================
-// Default Executors
-// ============================================================================
+// =============================================================================
+// Helpers
+// =============================================================================
 
-/**
- * Helper to create error result with selector validation error.
- */
-function selectorError(
+/** Create error result for selector validation failure */
+function createSelectorErrorResult(
   baseResult: ActionReplayResult,
   validation: SelectorValidation
 ): ActionReplayResult {
+  const isNotFound = validation.matchCount === 0;
   return {
     ...baseResult,
     error: {
-      message: validation.matchCount === 0
+      message: isNotFound
         ? `Element not found: ${validation.selector}`
         : `Multiple elements found (${validation.matchCount}): ${validation.selector}`,
-      code: validation.matchCount === 0 ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
+      code: isNotFound ? 'SELECTOR_NOT_FOUND' : 'SELECTOR_AMBIGUOUS',
       matchCount: validation.matchCount,
       selector: validation.selector,
     },
   };
 }
 
-/**
- * Helper to check if selector is missing or empty.
- */
-function isSelectorMissing(action: RecordedAction): boolean {
+/** Check if action is missing a required selector */
+function isMissingSelector(action: RecordedAction): boolean {
   return !action.selector?.primary || action.selector.primary.trim() === '';
 }
 
+/** Create error result for missing selector */
+function createMissingSelectorResult(baseResult: ActionReplayResult, actionType: string): ActionReplayResult {
+  return {
+    ...baseResult,
+    error: { message: `${actionType} action missing selector`, code: 'UNKNOWN' },
+  };
+}
+
+// =============================================================================
+// Executor Registrations
+// =============================================================================
+
 // Click executor
 registerActionExecutor('click', async (action, context, baseResult) => {
-  if (isSelectorMissing(action)) {
-    return {
-      ...baseResult,
-      error: { message: 'Click action missing selector', code: 'UNKNOWN' },
-    };
+  if (isMissingSelector(action)) {
+    return createMissingSelectorResult(baseResult, 'Click');
   }
 
   const selector = action.selector!.primary;
   const validation = await context.validateSelector(selector);
-
   if (!validation.valid) {
-    return selectorError(baseResult, validation);
+    return createSelectorErrorResult(baseResult, validation);
   }
 
   await context.page.click(selector, { timeout: context.timeout });
@@ -127,11 +123,8 @@ registerActionExecutor('click', async (action, context, baseResult) => {
 
 // Type executor
 registerActionExecutor('type', async (action, context, baseResult) => {
-  if (isSelectorMissing(action)) {
-    return {
-      ...baseResult,
-      error: { message: 'Type action missing selector', code: 'UNKNOWN' },
-    };
+  if (isMissingSelector(action)) {
+    return createMissingSelectorResult(baseResult, 'Type');
   }
 
   const selector = action.selector!.primary;
@@ -139,7 +132,7 @@ registerActionExecutor('type', async (action, context, baseResult) => {
 
   const validation = await context.validateSelector(selector);
   if (!validation.valid) {
-    return selectorError(baseResult, validation);
+    return createSelectorErrorResult(baseResult, validation);
   }
 
   await context.page.fill(selector, text, { timeout: context.timeout });
@@ -180,9 +173,8 @@ registerActionExecutor('scroll', async (action, context, baseResult) => {
   if (action.selector?.primary && action.selector.primary.trim() !== '') {
     const selector = action.selector.primary;
     const validation = await context.validateSelector(selector);
-
     if (!validation.valid) {
-      return selectorError(baseResult, validation);
+      return createSelectorErrorResult(baseResult, validation);
     }
 
     await context.page.evaluate(`
@@ -202,11 +194,8 @@ registerActionExecutor('scroll', async (action, context, baseResult) => {
 
 // Select executor
 registerActionExecutor('select', async (action, context, baseResult) => {
-  if (isSelectorMissing(action)) {
-    return {
-      ...baseResult,
-      error: { message: 'Select action missing selector', code: 'UNKNOWN' },
-    };
+  if (isMissingSelector(action)) {
+    return createMissingSelectorResult(baseResult, 'Select');
   }
 
   const selector = action.selector!.primary;
@@ -214,7 +203,7 @@ registerActionExecutor('select', async (action, context, baseResult) => {
 
   const validation = await context.validateSelector(selector);
   if (!validation.valid) {
-    return selectorError(baseResult, validation);
+    return createSelectorErrorResult(baseResult, validation);
   }
 
   await context.page.selectOption(selector, value, { timeout: context.timeout });
@@ -238,18 +227,14 @@ registerActionExecutor('keypress', async (action, context, baseResult) => {
 
 // Focus executor
 registerActionExecutor('focus', async (action, context, baseResult) => {
-  if (isSelectorMissing(action)) {
-    return {
-      ...baseResult,
-      error: { message: 'Focus action missing selector', code: 'UNKNOWN' },
-    };
+  if (isMissingSelector(action)) {
+    return createMissingSelectorResult(baseResult, 'Focus');
   }
 
   const selector = action.selector!.primary;
   const validation = await context.validateSelector(selector);
-
   if (!validation.valid) {
-    return selectorError(baseResult, validation);
+    return createSelectorErrorResult(baseResult, validation);
   }
 
   await context.page.focus(selector, { timeout: context.timeout });
@@ -258,18 +243,14 @@ registerActionExecutor('focus', async (action, context, baseResult) => {
 
 // Hover executor
 registerActionExecutor('hover', async (action, context, baseResult) => {
-  if (isSelectorMissing(action)) {
-    return {
-      ...baseResult,
-      error: { message: 'Hover action missing selector', code: 'UNKNOWN' },
-    };
+  if (isMissingSelector(action)) {
+    return createMissingSelectorResult(baseResult, 'Hover');
   }
 
   const selector = action.selector!.primary;
   const validation = await context.validateSelector(selector);
-
   if (!validation.valid) {
-    return selectorError(baseResult, validation);
+    return createSelectorErrorResult(baseResult, validation);
   }
 
   await context.page.hover(selector, { timeout: context.timeout });

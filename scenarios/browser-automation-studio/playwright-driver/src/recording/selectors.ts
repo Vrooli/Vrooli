@@ -1,40 +1,36 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-redundant-type-constituents, @typescript-eslint/no-unsafe-return, @typescript-eslint/restrict-template-expressions */
-// @ts-nocheck - This file uses DOM types (Element, document, window) but is meant
-// for BROWSER CONTEXT execution. The actual runtime code is in injector.ts as a
-// stringified script. This file serves as documentation and algorithm reference.
+// @ts-nocheck - DOM types used here are for documentation purposes only
 /* eslint-enable @typescript-eslint/ban-ts-comment */
 
 /**
- * Selector Generator - Reference Implementation
+ * Selector Generator - DOCUMENTATION ONLY
  *
- * @fileoverview
- * This file contains the REFERENCE IMPLEMENTATION of selector generation for Record Mode.
- * It uses DOM types (Element, document, window) and is meant to run in BROWSER CONTEXT.
+ * ⚠️  WARNING: This file is NOT executable code. It exists ONLY for documentation.
  *
- * IMPORTANT: This code is NOT executed directly from Node.js.
- * The actual runtime code is in `injector.ts` as a stringified script that gets
- * injected into pages via page.evaluate().
+ * The ACTUAL runtime code lives in `injector.ts` as a stringified JavaScript
+ * function that gets injected into browser pages via page.evaluate().
  *
- * This file exists for:
- * 1. Documentation - TypeScript code is easier to read than stringified JS
- * 2. Algorithm reference - Changes here should be synced to injector.ts
- * 3. Type definitions - Exports types used by the recording module
+ * WHY THIS FILE EXISTS:
+ * - TypeScript with types is easier to read than stringified JS in injector.ts
+ * - Serves as an algorithm reference when modifying selector generation
+ * - Exports type definitions used elsewhere in the recording module
  *
- * Strategy priority (highest confidence first):
- * 1. data-testid - Explicitly stable test IDs
- * 2. Unique ID - DOM IDs (if not dynamic)
- * 3. ARIA attributes - Semantic accessibility attributes
- * 4. Tag + text - Playwright :has-text() patterns
- * 5. Data attributes - Other data-* attributes
- * 6. Stable CSS path - Filtered CSS classes
- * 7. XPath fallback - Text-based XPath
+ * WHEN MODIFYING SELECTOR GENERATION:
+ * 1. Update the algorithm in injector.ts (the actual runtime code)
+ * 2. Optionally update this file to keep documentation in sync
+ * 3. Configuration values come from selector-config.ts
  *
- * CONFIGURATION: All configuration values (confidence scores, patterns, etc.)
- * are defined in selector-config.ts. This file uses those values to ensure
- * consistency with the browser-injected code.
+ * SELECTOR STRATEGY PRIORITY (highest confidence first):
+ * 1. data-testid - Explicitly stable test IDs (0.98)
+ * 2. Unique ID - DOM IDs if not dynamic (0.95, 0.6 if dynamic)
+ * 3. ARIA attributes - Semantic accessibility (0.85)
+ * 4. Tag + text - Playwright :has-text() patterns (0.55-0.6)
+ * 5. Data attributes - Other data-* attributes (0.7)
+ * 6. Stable CSS path - Filtered CSS classes (0.65)
+ * 7. XPath fallback - Text-based or positional (0.4-0.55)
  *
- * @see injector.ts for the actual runtime implementation
- * @see selector-config.ts for configuration values
+ * @see injector.ts - The actual runtime implementation
+ * @see selector-config.ts - Configuration values (single source of truth)
  */
 
 import type {

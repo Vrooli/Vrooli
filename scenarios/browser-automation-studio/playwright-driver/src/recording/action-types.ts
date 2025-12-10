@@ -18,11 +18,11 @@ import type { RawBrowserEvent } from './types';
 /**
  * All supported action types for recording.
  *
- * Note: This must be kept in sync with the ActionType union in types.ts.
- * The ActionType source of truth is in types.ts; this const provides
- * runtime access to the list.
+ * TypeScript ensures this array stays in sync with the ActionType union in types.ts.
+ * If you add a new action type to the union, TypeScript will error here until
+ * you add it to this array (and vice versa via the satisfies clause).
  */
-export const ACTION_TYPES: readonly ActionType[] = [
+export const ACTION_TYPES = [
   'click',
   'type',
   'scroll',
@@ -32,7 +32,7 @@ export const ACTION_TYPES: readonly ActionType[] = [
   'focus',
   'blur',
   'keypress',
-] as const;
+] as const satisfies readonly ActionType[];
 
 /**
  * Map from raw event type to normalized ActionType.

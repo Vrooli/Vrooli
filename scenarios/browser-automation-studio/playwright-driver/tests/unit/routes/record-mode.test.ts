@@ -36,6 +36,6 @@ describe('Record Mode Routes', () => {
     const payload = (mockRes as any).getJSON();
     expect(payload.url).toBe('https://example.com');
     expect(payload.screenshot).toContain('data:image/jpeg;base64,');
-    expect(mockPage.goto).toHaveBeenCalledWith('https://example.com', { waitUntil: 'load', timeout: 15000 });
+    expect(mockPage.goto).toHaveBeenCalledWith('https://example.com', { waitUntil: 'load', timeout: config.execution.navigationTimeoutMs });
   });
 });
