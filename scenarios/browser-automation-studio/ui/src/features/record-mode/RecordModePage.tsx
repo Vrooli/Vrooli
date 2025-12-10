@@ -16,17 +16,14 @@ import { RecordActionsPanel } from './components/RecordActionsPanel';
 import { RecordingHeader } from './components/RecordingHeader';
 import { ErrorBanner, UnstableSelectorsBanner } from './components/RecordModeBanners';
 import {
-  BlockedDialog,
   ClearActionsModal,
   GenerateWorkflowModal,
   ReplayResultsModal,
 } from './components/RecordModeModals';
 import type { ReplayPreviewResponse } from './types';
-import { usePreviewMode } from './hooks/usePreviewMode';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode } from './hooks/useRecordMode';
-import { useSnapshotPreview } from './hooks/useSnapshotPreview';
 import { useTimelinePanel } from './hooks/useTimelinePanel';
 import { RecordPreviewPanel } from './RecordPreviewPanel';
 import { getConfig } from '@/config';
@@ -70,8 +67,6 @@ export function RecordModePage({
   const [replayError, setReplayError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
-  const [liveBlocked, setLiveBlocked] = useState(false);
-  const [previewMode, setPreviewMode] = usePreviewMode();
   const viewportSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     isSidebarOpen,
@@ -80,17 +75,6 @@ export function RecordModePage({
     handleSidebarToggle,
     handleSidebarResizeStart,
   } = useTimelinePanel();
-  const [showBlockedDialog, setShowBlockedDialog] = useState(false);
-  const [suppressBlockedDialog, setSuppressBlockedDialog] = useState(false);
-  const [autoSwitchBlocked, setAutoSwitchBlocked] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const stored = window.localStorage.getItem('record-mode-auto-switch-blocked');
-      return stored === 'true';
-    } catch {
-      return false;
-    }
-  });
 
   const {
     isRecording,
@@ -151,12 +135,6 @@ export function RecordModePage({
     }
   }, [lastActionUrl, previewUrl]);
 
-  const snapshotState = useSnapshotPreview({
-    url: previewUrl || lastActionUrl || null,
-    sessionId,
-    enabled: previewMode === 'snapshot',
-  });
-
   useEffect(() => {
     if (!previewUrl) {
       return;
@@ -193,7 +171,7 @@ export function RecordModePage({
   }, [sessionId, previewUrl, ensureSession, previewViewport, selectedProfileId, sessionProfileId]);
 
   useEffect(() => {
-    if (!sessionId || !previewViewport || previewMode !== 'live') {
+    if (!sessionId || !previewViewport) {
       return;
     }
 
@@ -222,7 +200,7 @@ export function RecordModePage({
         clearTimeout(viewportSyncTimer.current);
       }
     };
-  }, [previewViewport, previewMode, sessionId]);
+  }, [previewViewport, sessionId]);
 
   const handleStartRecording = useCallback(async () => {
     setPendingStart(true);
@@ -354,14 +332,6 @@ export function RecordModePage({
   const displayError = sessionError ?? error;
   const isStartingRecording = isLoading || isCreatingSession || pendingStart;
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('record-mode-auto-switch-blocked', autoSwitchBlocked ? 'true' : 'false');
-    } catch {
-      // ignore
-    }
-  }, [autoSwitchBlocked]);
-
   return (
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
@@ -412,33 +382,12 @@ export function RecordModePage({
 
         <div className="flex-1 h-full">
           <RecordPreviewPanel
-            mode={previewMode}
-            onModeChange={(mode) => setPreviewMode(mode)}
             previewUrl={previewUrl}
             sessionId={sessionId}
-            onPreviewUrlChange={(url) => {
-              setPreviewUrl(url);
-              setLiveBlocked(false);
-            }}
+            onPreviewUrlChange={setPreviewUrl}
             onViewportChange={(size) => setPreviewViewport(size)}
-            snapshot={snapshotState}
-            onLiveBlocked={() => {
-              setLiveBlocked(true);
-              if (autoSwitchBlocked) {
-                setPreviewMode('snapshot');
-              } else {
-                if (!suppressBlockedDialog) {
-                  setShowBlockedDialog(true);
-                }
-              }
-            }}
             actions={actions}
           />
-      {liveBlocked && previewMode === 'live' && (
-        <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-xs text-yellow-800 dark:text-yellow-200 border-t border-yellow-200 dark:border-yellow-800">
-          Live streaming is temporarily unavailable. Use the banner above to switch modes or try refreshing.
-        </div>
-      )}
         </div>
       </div>
 
@@ -480,22 +429,6 @@ export function RecordModePage({
           setReplayResults(null);
           setReplayError(null);
         }}
-      />
-
-      {/* Blocked dialog */}
-      <BlockedDialog
-        open={showBlockedDialog}
-        autoSwitchBlocked={autoSwitchBlocked}
-        onStay={() => {
-          setSuppressBlockedDialog(true);
-          setShowBlockedDialog(false);
-        }}
-        onSwitch={() => {
-          setShowBlockedDialog(false);
-          setSuppressBlockedDialog(true);
-          setPreviewMode('snapshot');
-        }}
-        onAutoSwitchChange={(value: boolean) => setAutoSwitchBlocked(value)}
       />
     </div>
   );
