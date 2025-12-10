@@ -137,7 +137,8 @@ func main() {
 
 	// Routes
 	r.Get("/health", handler.Health)
-	r.Get("/ws", handler.HandleWebSocket) // WebSocket endpoint
+	r.Get("/ws", handler.HandleWebSocket)                                     // WebSocket endpoint for browser clients
+	r.Get("/ws/recording/{sessionId}/frames", handler.HandleDriverFrameStream) // WebSocket for playwright-driver binary frame streaming
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health endpoint under /api/v1 for consistency

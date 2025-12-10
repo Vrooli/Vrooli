@@ -566,42 +566,81 @@ async function streamActionToCallback(callbackUrl: string, action: RecordedActio
 }
 
 // =============================================================================
-// Frame Streaming
+// Frame Streaming (WebSocket Binary)
 // =============================================================================
 
 import { createHash } from 'crypto';
 
+/** Minimal WebSocket interface - subset of ws module for our needs */
+interface FrameWebSocket {
+  readyState: number;
+  send(data: Buffer): void;
+  close(): void;
+  on(event: 'open', listener: () => void): void;
+  on(event: 'close', listener: () => void): void;
+  on(event: 'error', listener: (err: Error) => void): void;
+}
+
+// Use dynamic require - ws is definitely installed as a dependency
+// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+const WS: new (url: string) => FrameWebSocket = require('ws');
+
 /**
  * Frame streaming state for a session.
- * Manages the continuous capture and push of frames to API via callback.
+ * Uses WebSocket for efficient binary frame delivery.
  */
 interface FrameStreamState {
   /** Whether streaming is active */
   isStreaming: boolean;
   /** AbortController to stop the streaming loop */
   abortController: AbortController;
-  /** Last frame hash to skip identical frames */
+  /** Last frame buffer for quick byte-level comparison */
+  lastFrameBuffer: Buffer | null;
+  /** Last frame hash (only computed if buffer length matches) */
   lastFrameHash: string | null;
   /** Frame quality (0-100) */
   quality: number;
   /** Target FPS */
   fps: number;
-  /** Callback URL for frame delivery */
-  callbackUrl: string;
+  /** WebSocket connection to API */
+  ws: FrameWebSocket | null;
+  /** WebSocket URL for reconnection */
+  wsUrl: string;
   /** Consecutive failure count for circuit breaker */
   consecutiveFailures: number;
+  /** Whether WebSocket is connected and ready */
+  wsReady: boolean;
 }
 
 /** Per-session frame streaming state */
 const frameStreamStates = new Map<string, FrameStreamState>();
 
-/** Max consecutive frame callback failures before pausing */
+/** Max consecutive frame failures before pausing */
 const MAX_FRAME_FAILURES = 3;
+
+/** WebSocket reconnection delay */
+const WS_RECONNECT_DELAY_MS = 1000;
+
+/**
+ * Build WebSocket URL from HTTP callback URL.
+ * Converts http://host:port/api/v1/recordings/live/{sessionId}/frame
+ * to ws://host:port/ws/recording/{sessionId}/frames
+ */
+function buildWebSocketUrl(callbackUrl: string, sessionId: string): string {
+  try {
+    const url = new URL(callbackUrl);
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${url.host}/ws/recording/${sessionId}/frames`;
+  } catch {
+    // Fallback: assume localhost API
+    return `ws://127.0.0.1:8080/ws/recording/${sessionId}/frames`;
+  }
+}
 
 /**
  * Start frame streaming for a recording session.
- * Frames are captured at the target FPS and pushed to the callback URL.
- * Identical frames (same content hash) are skipped to save bandwidth.
+ * Uses WebSocket for efficient binary frame delivery.
+ * Identical frames (same buffer content) are skipped to save bandwidth.
  */
 export function startFrameStreaming(
   sessionId: string,
@@ -618,28 +657,80 @@ export function startFrameStreaming(
   const quality = options.quality ?? 65;
   const fps = Math.min(Math.max(options.fps ?? 6, 1), 30); // Clamp 1-30 FPS
   const intervalMs = Math.floor(1000 / fps);
+  const wsUrl = buildWebSocketUrl(options.callbackUrl, sessionId);
 
   const state: FrameStreamState = {
     isStreaming: true,
     abortController: new AbortController(),
+    lastFrameBuffer: null,
     lastFrameHash: null,
     quality,
     fps,
-    callbackUrl: options.callbackUrl,
+    ws: null,
+    wsUrl,
     consecutiveFailures: 0,
+    wsReady: false,
   };
 
   frameStreamStates.set(sessionId, state);
 
-  logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started'), {
+  logger.info(scopedLog(LogContext.RECORDING, 'frame streaming started (WebSocket binary)'), {
     sessionId,
     fps,
     quality,
     intervalMs,
+    wsUrl,
   });
 
-  // Start the streaming loop
+  // Connect WebSocket and start streaming loop
+  connectFrameWebSocket(sessionId, state);
   void runFrameStreamLoop(sessionId, sessionManager, state, intervalMs);
+}
+
+/**
+ * Connect WebSocket for frame streaming.
+ */
+function connectFrameWebSocket(sessionId: string, state: FrameStreamState): void {
+  if (!state.isStreaming) return;
+
+  try {
+    const ws = new WS(state.wsUrl);
+    state.ws = ws;
+
+    ws.on('open', () => {
+      state.wsReady = true;
+      state.consecutiveFailures = 0;
+      logger.info(scopedLog(LogContext.RECORDING, 'frame WebSocket connected'), { sessionId });
+    });
+
+    ws.on('close', () => {
+      state.wsReady = false;
+      logger.debug(scopedLog(LogContext.RECORDING, 'frame WebSocket closed'), { sessionId });
+
+      // Reconnect if still streaming
+      if (state.isStreaming) {
+        setTimeout(() => connectFrameWebSocket(sessionId, state), WS_RECONNECT_DELAY_MS);
+      }
+    });
+
+    ws.on('error', (err: Error) => {
+      state.wsReady = false;
+      logger.warn(scopedLog(LogContext.RECORDING, 'frame WebSocket error'), {
+        sessionId,
+        error: err.message,
+      });
+    });
+  } catch (err) {
+    logger.warn(scopedLog(LogContext.RECORDING, 'failed to create frame WebSocket'), {
+      sessionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+
+    // Retry connection
+    if (state.isStreaming) {
+      setTimeout(() => connectFrameWebSocket(sessionId, state), WS_RECONNECT_DELAY_MS);
+    }
+  }
 }
 
 /**
@@ -650,6 +741,17 @@ export function stopFrameStreaming(sessionId: string): void {
   if (state) {
     state.isStreaming = false;
     state.abortController.abort();
+
+    // Close WebSocket connection
+    if (state.ws) {
+      try {
+        state.ws.close();
+      } catch {
+        // Ignore close errors
+      }
+      state.ws = null;
+    }
+
     frameStreamStates.delete(sessionId);
 
     logger.info(scopedLog(LogContext.RECORDING, 'frame streaming stopped'), {
@@ -660,7 +762,7 @@ export function stopFrameStreaming(sessionId: string): void {
 
 /**
  * The main frame streaming loop.
- * Captures frames at target FPS and pushes to callback URL.
+ * Captures frames and sends via WebSocket as binary data.
  */
 async function runFrameStreamLoop(
   sessionId: string,
@@ -668,6 +770,10 @@ async function runFrameStreamLoop(
   state: FrameStreamState,
   intervalMs: number
 ): Promise<void> {
+  let framesSent = 0;
+  let framesSkippedUnchanged = 0;
+  let framesSkippedWsNotReady = 0;
+
   while (state.isStreaming && !state.abortController.signal.aborted) {
     const loopStart = performance.now();
 
@@ -682,6 +788,13 @@ async function runFrameStreamLoop(
         return;
       }
 
+      // Skip if WebSocket not connected (readyState 1 = OPEN)
+      if (!state.wsReady || !state.ws || state.ws.readyState !== 1) {
+        framesSkippedWsNotReady++;
+        await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
+        continue;
+      }
+
       // Skip if too many consecutive failures (circuit breaker)
       if (state.consecutiveFailures >= MAX_FRAME_FAILURES) {
         // Wait longer before retrying
@@ -690,26 +803,42 @@ async function runFrameStreamLoop(
         continue;
       }
 
-      // Capture frame
-      const frameData = await captureFrameForStreaming(session.page, state.quality);
+      // Capture frame as raw buffer (no base64 encoding!)
+      const buffer = await captureFrameBuffer(session.page, state.quality);
 
-      if (!frameData) {
+      if (!buffer) {
         // Page not ready or error, skip this frame
         await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
         continue;
       }
 
-      // Skip if frame content unchanged (same hash)
-      if (state.lastFrameHash === frameData.contentHash) {
+      // Skip if frame content unchanged (fast buffer comparison)
+      if (isFrameUnchanged(buffer, state)) {
+        framesSkippedUnchanged++;
         await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
         continue;
       }
 
-      state.lastFrameHash = frameData.contentHash;
+      // Update last frame state
+      state.lastFrameBuffer = buffer;
+      state.lastFrameHash = createHash('md5').update(buffer).digest('hex');
 
-      // Push frame to callback
-      await pushFrameToCallback(state.callbackUrl, sessionId, frameData, state.abortController.signal);
+      // Send raw binary frame over WebSocket (no JSON, no base64!)
+      state.ws.send(buffer);
+      framesSent++;
       state.consecutiveFailures = 0;
+
+      // Log frame stats periodically (every 10 frames)
+      if (framesSent % 10 === 0) {
+        logger.debug(scopedLog(LogContext.RECORDING, 'frame streaming stats'), {
+          sessionId,
+          framesSent,
+          framesSkippedUnchanged,
+          framesSkippedWsNotReady,
+          frameSize: buffer.length,
+          wsReadyState: state.ws?.readyState,
+        });
+      }
 
     } catch (err) {
       if (state.abortController.signal.aborted) {
@@ -731,86 +860,38 @@ async function runFrameStreamLoop(
 }
 
 /**
- * Frame data structure for streaming.
+ * Check if frame is unchanged from last frame.
+ * Uses fast buffer length check before expensive byte comparison.
  */
-interface StreamingFrameData {
-  image: string; // base64 data URI
-  mime: string;
-  width: number;
-  height: number;
-  contentHash: string;
-  capturedAt: string;
+function isFrameUnchanged(buffer: Buffer, state: FrameStreamState): boolean {
+  if (!state.lastFrameBuffer) {
+    return false;
+  }
+
+  // Fast path: different length means different content
+  if (buffer.length !== state.lastFrameBuffer.length) {
+    return false;
+  }
+
+  // Same length: do byte comparison (still faster than MD5 for most cases)
+  return buffer.equals(state.lastFrameBuffer);
 }
 
 /**
- * Capture a frame for streaming.
- * Uses JPEG format - Playwright only supports 'png' and 'jpeg' for screenshots.
- * WebP is NOT supported despite better compression (~25% smaller).
- * Do not attempt type: 'webp' - it fails at runtime with "expected one of (png|jpeg)".
+ * Capture a frame as raw JPEG buffer.
+ * No base64 encoding - send raw bytes over WebSocket.
  */
-async function captureFrameForStreaming(
+async function captureFrameBuffer(
   page: import('playwright').Page,
   quality: number
-): Promise<StreamingFrameData | null> {
+): Promise<Buffer | null> {
   try {
-    const buffer = await page.screenshot({
+    return await page.screenshot({
       type: 'jpeg',
       quality,
     });
-
-    const viewport = page.viewportSize();
-    const contentHash = createHash('md5').update(buffer).digest('hex');
-    const image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-
-    return {
-      image,
-      mime: 'image/jpeg',
-      width: viewport?.width || 0,
-      height: viewport?.height || 0,
-      contentHash,
-      capturedAt: new Date().toISOString(),
-    };
   } catch {
     return null;
-  }
-}
-
-/**
- * Push a frame to the callback URL.
- */
-async function pushFrameToCallback(
-  callbackUrl: string,
-  sessionId: string,
-  frame: StreamingFrameData,
-  signal: AbortSignal
-): Promise<void> {
-  const timeoutId = setTimeout(() => {
-    // No-op, AbortSignal handles this
-  }, CALLBACK_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(callbackUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        mime: frame.mime,
-        image: frame.image,
-        width: frame.width,
-        height: frame.height,
-        captured_at: frame.capturedAt,
-        content_hash: frame.contentHash,
-      }),
-      signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Frame callback returned ${response.status}`);
-    }
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 

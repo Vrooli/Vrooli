@@ -22,6 +22,8 @@ export interface WebSocketMessage {
 interface WebSocketContextValue {
   isConnected: boolean;
   lastMessage: WebSocketMessage | null;
+  /** Last binary frame received (raw JPEG data for recording frames) */
+  lastBinaryFrame: ArrayBuffer | null;
   send: (message: unknown) => void;
   subscribe: (executionId: string) => void;
   unsubscribe: () => void;
@@ -51,6 +53,7 @@ function buildWebSocketUrl(): string {
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  const [lastBinaryFrame, setLastBinaryFrame] = useState<ArrayBuffer | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -77,7 +80,20 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
       };
 
+      // Enable binary message handling
+      ws.binaryType = 'arraybuffer';
+
+      let binaryFrameCount = 0;
       ws.onmessage = (event) => {
+        // Check if this is a binary message (recording frame)
+        if (event.data instanceof ArrayBuffer) {
+          binaryFrameCount++;
+          console.log(`[WebSocket] Binary frame received #${binaryFrameCount}, size: ${event.data.byteLength}`);
+          setLastBinaryFrame(event.data);
+          return;
+        }
+
+        // Text message (JSON)
         try {
           const message = JSON.parse(event.data) as WebSocketMessage;
           console.log('[WebSocket] Message received:', message.type);
@@ -178,6 +194,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const value: WebSocketContextValue = {
     isConnected,
     lastMessage,
+    lastBinaryFrame,
     send,
     subscribe,
     unsubscribe,

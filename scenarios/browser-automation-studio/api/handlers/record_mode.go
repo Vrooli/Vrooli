@@ -1518,6 +1518,74 @@ func (h *Handler) ReceiveRecordingFrame(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 }
 
+// HandleDriverFrameStream handles WebSocket connection for binary frame streaming from playwright-driver.
+// GET /ws/recording/{sessionId}/frames
+// This is more efficient than HTTP POST as it:
+// 1. Uses a persistent connection (no per-frame TCP overhead)
+// 2. Sends raw binary JPEG data (no base64 encoding = 33% smaller)
+// 3. Pass-through to browser clients (no JSON parsing/re-encoding)
+func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request) {
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.log.Error("Missing sessionId in driver frame stream request")
+		http.Error(w, "Missing sessionId", http.StatusBadRequest)
+		return
+	}
+
+	// Upgrade to WebSocket
+	conn, err := h.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to upgrade driver frame stream connection")
+		return
+	}
+	defer conn.Close()
+
+	h.log.WithField("session_id", sessionID).Info("Driver frame stream connected")
+
+	// Read binary frames from driver and broadcast to browser clients
+	frameCount := 0
+	for {
+		messageType, data, err := conn.ReadMessage()
+		if err != nil {
+			// Check for normal closure
+			if websocket.IsCloseError(err) {
+				h.log.WithField("session_id", sessionID).Debug("Driver frame stream closed normally")
+			} else {
+				h.log.WithError(err).WithField("session_id", sessionID).Warn("Driver frame stream read error")
+			}
+			break
+		}
+
+		// Only process binary messages (JPEG data)
+		if messageType != websocket.BinaryMessage {
+			h.log.WithFields(map[string]interface{}{
+				"session_id":   sessionID,
+				"message_type": messageType,
+			}).Debug("Ignoring non-binary message from driver frame stream")
+			continue
+		}
+
+		frameCount++
+		hasSubscribers := h.wsHub.HasRecordingSubscribers(sessionID)
+
+		// Log every frame for debugging (can remove later)
+		h.log.WithFields(map[string]interface{}{
+			"session_id":      sessionID,
+			"frame_count":     frameCount,
+			"frame_size":      len(data),
+			"has_subscribers": hasSubscribers,
+		}).Debug("Received binary frame from driver")
+
+		// Broadcast binary frame to subscribed browser clients
+		// This is a pass-through - no parsing, no re-encoding
+		if hasSubscribers {
+			h.wsHub.BroadcastBinaryFrame(sessionID, data)
+		}
+	}
+
+	h.log.WithField("session_id", sessionID).Info("Driver frame stream disconnected")
+}
+
 // ValidateSelector handles POST /api/v1/recordings/live/{sessionId}/validate-selector
 // Validates a selector on the current page.
 func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {

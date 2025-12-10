@@ -61,6 +61,18 @@ func (m *mockWebSocketHub) BroadcastRecordingAction(sessionID string, action any
 	// No-op for existing tests
 }
 
+func (m *mockWebSocketHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {
+	// No-op for existing tests
+}
+
+func (m *mockWebSocketHub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
+	// No-op for existing tests
+}
+
+func (m *mockWebSocketHub) HasRecordingSubscribers(sessionID string) bool {
+	return false
+}
+
 func setupWebSocketTestHandler(t *testing.T, hub wsHub.HubInterface) *Handler {
 	t.Helper()
 

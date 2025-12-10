@@ -5,6 +5,23 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Re-export gorilla/websocket constants for use by handlers
+const (
+	BinaryMessage = websocket.BinaryMessage
+	TextMessage   = websocket.TextMessage
+	CloseMessage  = websocket.CloseMessage
+)
+
+// IsCloseError checks if the error is a WebSocket close error.
+// Returns true for normal closure errors that don't need to be logged as errors.
+func IsCloseError(err error) bool {
+	return websocket.IsCloseError(err,
+		websocket.CloseNormalClosure,
+		websocket.CloseGoingAway,
+		websocket.CloseNoStatusReceived,
+	)
+}
+
 // HubInterface defines the interface for WebSocket hub operations
 // This interface allows for easier testing by enabling mock implementations
 type HubInterface interface {
@@ -21,6 +38,10 @@ type HubInterface interface {
 	// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
 	// This eliminates the need for clients to poll for frames.
 	BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
+
+	// BroadcastBinaryFrame sends raw binary frame data (JPEG bytes) to clients subscribed to a recording session.
+	// More efficient than BroadcastRecordingFrame as it avoids base64 encoding overhead.
+	BroadcastBinaryFrame(sessionID string, jpegData []byte)
 
 	// HasRecordingSubscribers returns true if any clients are subscribed to the given session.
 	// Used by the frame push endpoint to avoid unnecessary work.

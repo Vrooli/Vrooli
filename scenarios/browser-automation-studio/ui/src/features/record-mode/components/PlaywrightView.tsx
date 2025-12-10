@@ -77,8 +77,9 @@ export function PlaywrightView({
   const wsSubscribedRef = useRef(false);
   const [isWsFrameActive, setIsWsFrameActive] = useState(false);
 
-  // WebSocket for real-time frame updates
-  const { isConnected, lastMessage, send } = useWebSocket();
+  // WebSocket for real-time frame updates (including binary frames)
+  const { isConnected, lastMessage, lastBinaryFrame, send } = useWebSocket();
+  const blobUrlRef = useRef<string | null>(null);
 
   // Track tab visibility to pause polling when hidden
   useEffect(() => {
@@ -118,7 +119,7 @@ export function PlaywrightView({
     };
   }, [useWebSocketFrames, isConnected, sessionId, send]);
 
-  // Handle WebSocket frame messages
+  // Handle WebSocket text messages (JSON)
   useEffect(() => {
     if (!lastMessage || !useWebSocketFrames) return;
 
@@ -127,11 +128,11 @@ export function PlaywrightView({
     // Handle recording_subscribed confirmation
     if (msg.type === "recording_subscribed" && msg.session_id === sessionId) {
       setIsWsFrameActive(true);
-      console.log("[PlaywrightView] WebSocket frame streaming active");
+      console.log("[PlaywrightView] WebSocket frame streaming active (binary mode)");
       return;
     }
 
-    // Handle frame updates
+    // Handle legacy JSON frame updates (fallback for base64-encoded frames)
     if (msg.type === "recording_frame" && msg.session_id === sessionId) {
       // Skip if same content hash (shouldn't happen but be safe)
       if (lastContentHashRef.current === msg.content_hash) {
@@ -164,6 +165,70 @@ export function PlaywrightView({
       img.src = msg.image;
     }
   }, [lastMessage, sessionId, useWebSocketFrames, isWsFrameActive]);
+
+  // Handle WebSocket binary frames (raw JPEG data - more efficient)
+  // Use a ref to track the latest blob URL to avoid race conditions where
+  // a newer frame's blob URL gets revoked before the older frame finishes loading
+  const pendingBlobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!lastBinaryFrame || !useWebSocketFrames || !isWsFrameActive) return;
+
+    // Create blob URL from binary data (no base64 decode needed!)
+    const blob = new Blob([lastBinaryFrame], { type: "image/jpeg" });
+    const url = URL.createObjectURL(blob);
+
+    // Track the URL we're about to load - if a newer frame arrives before this loads,
+    // we'll skip updating state for this frame
+    const currentUrl = url;
+    pendingBlobUrlRef.current = url;
+
+    // Create frame data with blob URL
+    const frameData: FramePayload = {
+      image: url,
+      width: frame?.width || 1280,
+      height: frame?.height || 720,
+      captured_at: new Date().toISOString(),
+    };
+
+    // Preload image before displaying
+    const img = new Image();
+    img.onload = () => {
+      // Only update if this is still the most recent frame
+      // (a newer frame might have arrived while we were loading)
+      if (pendingBlobUrlRef.current === currentUrl) {
+        // Revoke the OLD displayed blob URL now that we have a new one ready
+        if (blobUrlRef.current && blobUrlRef.current !== currentUrl) {
+          URL.revokeObjectURL(blobUrlRef.current);
+        }
+        blobUrlRef.current = currentUrl;
+        setFrame(frameData);
+        lastFrameRef.current = frameData;
+        setError(null);
+      } else {
+        // This frame is stale - revoke its blob URL immediately
+        URL.revokeObjectURL(currentUrl);
+      }
+    };
+    img.onerror = () => {
+      // Revoke the failed blob URL
+      URL.revokeObjectURL(currentUrl);
+      // Only show error if this was the most recent frame
+      if (pendingBlobUrlRef.current === currentUrl) {
+        setError("Failed to decode binary frame");
+      }
+    };
+    img.src = url;
+  }, [lastBinaryFrame, useWebSocketFrames, isWsFrameActive, frame?.width, frame?.height]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+    };
+  }, []);
 
   const fetchFrame = useCallback(async () => {
     if (inFlightRef.current) return;

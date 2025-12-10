@@ -45,11 +45,15 @@ func waitForMessage(t *testing.T, ch <-chan any) any {
 
 type mockHub struct{}
 
-func (m *mockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {}
-func (m *mockHub) BroadcastEnvelope(event any)                          {}
-func (m *mockHub) GetClientCount() int                                  { return 0 }
-func (m *mockHub) Run()                                                 {}
-func (m *mockHub) CloseExecution(executionID uuid.UUID)                 {}
+func (m *mockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID)        {}
+func (m *mockHub) BroadcastEnvelope(event any)                                 {}
+func (m *mockHub) BroadcastRecordingAction(sessionID string, action any)       {}
+func (m *mockHub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {}
+func (m *mockHub) BroadcastBinaryFrame(sessionID string, jpegData []byte)      {}
+func (m *mockHub) HasRecordingSubscribers(sessionID string) bool               { return false }
+func (m *mockHub) GetClientCount() int                                         { return 0 }
+func (m *mockHub) Run()                                                        {}
+func (m *mockHub) CloseExecution(executionID uuid.UUID)                        {}
 
 func TestHubBroadcastsToRegisteredClients(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] broadcasts execution updates to all connected clients", func(t *testing.T) {

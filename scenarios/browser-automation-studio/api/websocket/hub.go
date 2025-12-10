@@ -15,6 +15,7 @@ type Client struct {
 	ID                 uuid.UUID
 	Conn               *websocket.Conn
 	Send               chan any
+	BinarySend         chan []byte // For binary frame data (recording frames)
 	Hub                *Hub
 	ExecutionID        *uuid.UUID // Optional: client can subscribe to specific execution
 	RecordingSessionID *string    // Optional: client can subscribe to recording session updates
@@ -168,6 +169,40 @@ func (h *Hub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {
 	}
 }
 
+// BroadcastBinaryFrame sends raw binary frame data (JPEG bytes) to clients subscribed to a recording session.
+// This is more efficient than BroadcastRecordingFrame as it avoids base64 encoding overhead.
+// The binary data is sent directly over WebSocket binary frames.
+func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	sentCount := 0
+	droppedCount := 0
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this recording session
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			select {
+			case client.BinarySend <- jpegData:
+				sentCount++
+			default:
+				// Client buffer full, skip frame (non-blocking)
+				// Missing a frame is better than blocking the broadcast
+				droppedCount++
+			}
+		}
+	}
+
+	if sentCount > 0 || droppedCount > 0 {
+		h.log.WithFields(logrus.Fields{
+			"session_id":    sessionID,
+			"frame_size":    len(jpegData),
+			"sent_count":    sentCount,
+			"dropped_count": droppedCount,
+		}).Debug("Broadcast binary frame")
+	}
+}
+
 // HasRecordingSubscribers returns true if any clients are subscribed to the given session.
 // Used by the frame push loop to avoid capturing frames when no one is watching.
 func (h *Hub) HasRecordingSubscribers(sessionID string) bool {
@@ -200,6 +235,7 @@ func (h *Hub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
 		ID:          uuid.New(),
 		Conn:        conn,
 		Send:        make(chan any, 256),
+		BinarySend:  make(chan []byte, 32), // Smaller buffer for binary frames (larger payloads)
 		Hub:         h,
 		ExecutionID: executionID,
 	}
@@ -277,17 +313,37 @@ func (c *Client) readPump() {
 }
 
 // writePump pumps messages from the hub to the websocket connection.
+// Handles both JSON (text) messages and binary frames.
 func (c *Client) writePump() {
 	defer c.Conn.Close()
 
+	binaryFramesSent := 0
 	for {
 		select {
+		case data, ok := <-c.BinarySend:
+			if !ok {
+				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			// Send raw binary frame (JPEG data)
+			if err := c.Conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
+				c.Hub.log.WithError(err).WithField("client_id", c.ID).Error("Failed to write binary WebSocket frame")
+				return
+			}
+			binaryFramesSent++
+			c.Hub.log.WithFields(logrus.Fields{
+				"client_id":           c.ID,
+				"binary_frames_sent":  binaryFramesSent,
+				"frame_size":          len(data),
+				"recording_session":   c.RecordingSessionID,
+			}).Debug("Sent binary frame to browser client")
+
 		case update, ok := <-c.Send:
 			if !ok {
 				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-
+			// Send JSON text message
 			if err := c.Conn.WriteJSON(update); err != nil {
 				c.Hub.log.WithError(err).Error("Failed to write WebSocket message")
 				return
