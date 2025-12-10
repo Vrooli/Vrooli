@@ -770,10 +770,6 @@ async function runFrameStreamLoop(
   state: FrameStreamState,
   intervalMs: number
 ): Promise<void> {
-  let framesSent = 0;
-  let framesSkippedUnchanged = 0;
-  let framesSkippedWsNotReady = 0;
-
   while (state.isStreaming && !state.abortController.signal.aborted) {
     const loopStart = performance.now();
 
@@ -790,7 +786,6 @@ async function runFrameStreamLoop(
 
       // Skip if WebSocket not connected (readyState 1 = OPEN)
       if (!state.wsReady || !state.ws || state.ws.readyState !== 1) {
-        framesSkippedWsNotReady++;
         await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
         continue;
       }
@@ -814,7 +809,6 @@ async function runFrameStreamLoop(
 
       // Skip if frame content unchanged (fast buffer comparison)
       if (isFrameUnchanged(buffer, state)) {
-        framesSkippedUnchanged++;
         await sleepUntilNextFrame(loopStart, intervalMs, state.abortController.signal);
         continue;
       }
@@ -825,20 +819,7 @@ async function runFrameStreamLoop(
 
       // Send raw binary frame over WebSocket (no JSON, no base64!)
       state.ws.send(buffer);
-      framesSent++;
       state.consecutiveFailures = 0;
-
-      // Log frame stats periodically (every 10 frames)
-      if (framesSent % 10 === 0) {
-        logger.debug(scopedLog(LogContext.RECORDING, 'frame streaming stats'), {
-          sessionId,
-          framesSent,
-          framesSkippedUnchanged,
-          framesSkippedWsNotReady,
-          frameSize: buffer.length,
-          wsReadyState: state.ws?.readyState,
-        });
-      }
 
     } catch (err) {
       if (state.abortController.signal.aborted) {

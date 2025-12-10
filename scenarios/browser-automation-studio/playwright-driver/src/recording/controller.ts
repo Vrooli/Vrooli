@@ -101,6 +101,8 @@ export class RecordModeController {
   private navigationHandler: (() => void) | null = null;
   /** Track pending injection timeouts to cancel on stop */
   private pendingInjectionTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+  /** Track the last URL to detect navigation changes */
+  private lastUrl: string | null = null;
   /**
    * Monotonically increasing recording generation counter.
    * Used to detect stale async operations that started during a previous recording session.
@@ -171,10 +173,15 @@ export class RecordModeController {
         this.isExposed = true;
       }
 
+      // Capture initial navigation action with current URL
+      // This ensures every timeline starts with where the user began
+      await this.captureInitialNavigation();
+
       // Inject recording script
       await this.injectRecordingScript();
 
       // Setup navigation handler to re-inject script after page loads
+      // and to capture navigation events
       this.navigationHandler = this.createNavigationHandler(currentGeneration);
       this.page.on('load', this.navigationHandler);
 
@@ -187,7 +194,8 @@ export class RecordModeController {
   }
 
   /**
-   * Create a navigation handler that re-injects the recording script after page loads.
+   * Create a navigation handler that re-injects the recording script after page loads
+   * and captures navigation events.
    *
    * The handler captures the recording generation at creation time to detect staleness.
    * If the recording has been stopped and restarted, stale handlers won't run.
@@ -197,6 +205,12 @@ export class RecordModeController {
       // Guard: Only run if still recording and generation matches
       if (!this.state.isRecording || this.recordingGeneration !== generation) {
         return;
+      }
+
+      // Capture the navigation event if URL changed
+      const newUrl = this.page.url();
+      if (newUrl && newUrl !== this.lastUrl) {
+        this.captureNavigation(newUrl);
       }
 
       // Schedule injection with retry support
@@ -309,6 +323,111 @@ export class RecordModeController {
     }
 
     return result;
+  }
+
+  /**
+   * Capture initial navigation action at the start of recording.
+   * This ensures the timeline begins with the URL where the user started.
+   */
+  private async captureInitialNavigation(): Promise<void> {
+    try {
+      const url = this.page.url();
+      this.lastUrl = url;
+
+      // Don't capture about:blank or empty URLs
+      if (!url || url === 'about:blank') {
+        return;
+      }
+
+      // Create a synthetic navigate action
+      const action: RecordedAction = {
+        id: uuidv4(),
+        sessionId: this.state.sessionId,
+        sequenceNum: this.sequenceNum++,
+        timestamp: new Date().toISOString(),
+        actionType: 'navigate',
+        actionKind: toRecordedActionKind('navigate'),
+        confidence: 1, // Navigation actions don't need selectors
+        url,
+        payload: {
+          targetUrl: url,
+        },
+        typedAction: {
+          navigate: {
+            url,
+          },
+        },
+      };
+
+      this.state.actionCount++;
+
+      // Invoke callback
+      if (this.actionCallback) {
+        const result = this.actionCallback(action);
+        if (result instanceof Promise) {
+          await result;
+        }
+      }
+    } catch (error) {
+      // Non-fatal: log but don't fail recording start
+      console.error('[RecordModeController] Failed to capture initial navigation:', error);
+    }
+  }
+
+  /**
+   * Capture a navigation action when URL changes during recording.
+   * Called from the navigation handler after detecting a new URL.
+   */
+  private captureNavigation(url: string): void {
+    if (!this.state.isRecording || !this.actionCallback || !this.state.recordingId) {
+      return;
+    }
+
+    // Skip if URL hasn't actually changed (can happen with SPA hash changes)
+    if (url === this.lastUrl) {
+      return;
+    }
+
+    this.lastUrl = url;
+
+    // Don't capture about:blank
+    if (url === 'about:blank') {
+      return;
+    }
+
+    try {
+      const action: RecordedAction = {
+        id: uuidv4(),
+        sessionId: this.state.sessionId,
+        sequenceNum: this.sequenceNum++,
+        timestamp: new Date().toISOString(),
+        actionType: 'navigate',
+        actionKind: toRecordedActionKind('navigate'),
+        confidence: 1,
+        url,
+        payload: {
+          targetUrl: url,
+        },
+        typedAction: {
+          navigate: {
+            url,
+          },
+        },
+      };
+
+      this.state.actionCount++;
+
+      // Invoke callback (may be async)
+      const result = this.actionCallback(action);
+      if (result instanceof Promise) {
+        result.catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          this.handleError(new Error(`Action callback failed: ${message}`));
+        });
+      }
+    } catch (error) {
+      this.handleError(error instanceof Error ? error : new Error(String(error)));
+    }
   }
 
   /**
@@ -584,6 +703,12 @@ export class RecordModeController {
     }
 
     try {
+      // For navigate events from the injected script, update lastUrl to prevent
+      // duplicate capture from the load handler
+      if (raw.actionType === 'navigate' && raw.payload?.targetUrl) {
+        this.lastUrl = raw.payload.targetUrl as string;
+      }
+
       const action = this.normalizeEvent(raw);
       this.state.actionCount++;
 

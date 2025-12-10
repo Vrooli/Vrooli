@@ -22,7 +22,7 @@ export interface MergedActionMeta {
   /** Original action IDs that were merged */
   mergedIds: string[];
   /** Type of merge applied */
-  mergeType: 'type' | 'scroll' | 'focus-removed' | null;
+  mergeType: 'type' | 'scroll' | 'navigate' | 'focus-removed' | null;
 }
 
 /**
@@ -145,6 +145,40 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
       }
     }
 
+    // Merge consecutive navigate actions (e.g., redirect chains, rapid navigations)
+    // Keep only the final URL, similar to scroll merging
+    if (action.actionType === 'navigate') {
+      let finalUrl = action.payload?.targetUrl as string | undefined;
+
+      // Look ahead for more navigate actions
+      while (i + 1 < actions.length) {
+        const next = actions[i + 1];
+        if (next.actionType !== 'navigate') {
+          break;
+        }
+        // Use the final URL from the chain
+        if (next.payload?.targetUrl) {
+          finalUrl = next.payload.targetUrl as string;
+        }
+        mergedIds.push(next.id);
+        i++; // Skip this action, we've merged it
+      }
+
+      // Update the action with final URL
+      if (mergedIds.length > 1) {
+        action.payload = {
+          ...action.payload,
+          targetUrl: finalUrl,
+        };
+        action.url = finalUrl || action.url;
+        action._merged = {
+          mergedCount: mergedIds.length,
+          mergedIds,
+          mergeType: 'navigate',
+        };
+      }
+    }
+
     // Check if the previous action was a focus that should be noted
     if (
       merged.length === 0 &&
@@ -180,6 +214,8 @@ export function getMergeDescription(meta?: MergedActionMeta): string | null {
       return `Merged ${meta.mergedCount} keystrokes`;
     case 'scroll':
       return `Merged ${meta.mergedCount} scroll events`;
+    case 'navigate':
+      return `Merged ${meta.mergedCount} navigation events`;
     case 'focus-removed':
       return 'Focus event removed (implicit)';
     default:

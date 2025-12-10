@@ -303,6 +303,19 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 	recordingExecutionID := uuid.New().String()
 	recordingWorkflowID := uuid.New().String()
 
+	// Construct frame callback URL for live preview streaming
+	// Frame streaming starts immediately when session is created (not when recording starts)
+	// The driver extracts the host from this URL and builds the WebSocket URL with the actual session ID
+	apiHost := os.Getenv("API_HOST")
+	if apiHost == "" {
+		apiHost = "127.0.0.1"
+	}
+	apiPort := os.Getenv("API_PORT")
+	if apiPort == "" {
+		apiPort = "8080"
+	}
+	frameCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/placeholder/frame", apiHost, apiPort)
+
 	driverReq := map[string]interface{}{
 		"execution_id": recordingExecutionID,
 		"workflow_id":  recordingWorkflowID,
@@ -313,6 +326,12 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		"reuse_mode": "fresh",
 		"labels": map[string]string{
 			"purpose": "record-mode",
+		},
+		// Enable frame streaming immediately for live preview
+		"frame_streaming": map[string]interface{}{
+			"callback_url": frameCallbackURL,
+			"quality":      65,
+			"fps":          6,
 		},
 	}
 	if len(storageState) > 0 {
@@ -1543,7 +1562,6 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 	h.log.WithField("session_id", sessionID).Info("Driver frame stream connected")
 
 	// Read binary frames from driver and broadcast to browser clients
-	frameCount := 0
 	for {
 		messageType, data, err := conn.ReadMessage()
 		if err != nil {
@@ -1558,27 +1576,12 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 
 		// Only process binary messages (JPEG data)
 		if messageType != websocket.BinaryMessage {
-			h.log.WithFields(map[string]interface{}{
-				"session_id":   sessionID,
-				"message_type": messageType,
-			}).Debug("Ignoring non-binary message from driver frame stream")
 			continue
 		}
 
-		frameCount++
-		hasSubscribers := h.wsHub.HasRecordingSubscribers(sessionID)
-
-		// Log every frame for debugging (can remove later)
-		h.log.WithFields(map[string]interface{}{
-			"session_id":      sessionID,
-			"frame_count":     frameCount,
-			"frame_size":      len(data),
-			"has_subscribers": hasSubscribers,
-		}).Debug("Received binary frame from driver")
-
 		// Broadcast binary frame to subscribed browser clients
 		// This is a pass-through - no parsing, no re-encoding
-		if hasSubscribers {
+		if h.wsHub.HasRecordingSubscribers(sessionID) {
 			h.wsHub.BroadcastBinaryFrame(sessionID, data)
 		}
 	}

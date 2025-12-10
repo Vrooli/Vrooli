@@ -83,12 +83,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       // Enable binary message handling
       ws.binaryType = 'arraybuffer';
 
-      let binaryFrameCount = 0;
       ws.onmessage = (event) => {
         // Check if this is a binary message (recording frame)
         if (event.data instanceof ArrayBuffer) {
-          binaryFrameCount++;
-          console.log(`[WebSocket] Binary frame received #${binaryFrameCount}, size: ${event.data.byteLength}`);
           setLastBinaryFrame(event.data);
           return;
         }
@@ -96,7 +93,6 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         // Text message (JSON)
         try {
           const message = JSON.parse(event.data) as WebSocketMessage;
-          console.log('[WebSocket] Message received:', message.type);
           setLastMessage(message);
         } catch (error) {
           console.error('[WebSocket] Failed to parse message:', error);

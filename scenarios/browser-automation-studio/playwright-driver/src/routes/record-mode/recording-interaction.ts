@@ -161,10 +161,20 @@ export async function handleRecordNavigate(
       return;
     }
 
+    // Normalize URL: add https:// if no protocol specified
+    let normalizedUrl = request.url.trim();
+    if (normalizedUrl && !normalizedUrl.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:/)) {
+      // No protocol found - add https://
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+
     const waitUntil: NavigateRequest['wait_until'] = request.wait_until || 'load';
     const timeoutMs = request.timeout_ms ?? config.execution.navigationTimeoutMs;
 
-    await session.page.goto(request.url, { waitUntil, timeout: timeoutMs });
+    await session.page.goto(normalizedUrl, { waitUntil, timeout: timeoutMs });
+
+    // Clear frame cache after navigation to ensure fresh frames are captured
+    clearFrameCache(sessionId);
 
     let screenshot: string | undefined;
     if (request.capture) {

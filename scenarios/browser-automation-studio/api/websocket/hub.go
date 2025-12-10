@@ -176,30 +176,16 @@ func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	sentCount := 0
-	droppedCount := 0
-
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
 			select {
 			case client.BinarySend <- jpegData:
-				sentCount++
 			default:
 				// Client buffer full, skip frame (non-blocking)
 				// Missing a frame is better than blocking the broadcast
-				droppedCount++
 			}
 		}
-	}
-
-	if sentCount > 0 || droppedCount > 0 {
-		h.log.WithFields(logrus.Fields{
-			"session_id":    sessionID,
-			"frame_size":    len(jpegData),
-			"sent_count":    sentCount,
-			"dropped_count": droppedCount,
-		}).Debug("Broadcast binary frame")
 	}
 }
 
@@ -317,7 +303,6 @@ func (c *Client) readPump() {
 func (c *Client) writePump() {
 	defer c.Conn.Close()
 
-	binaryFramesSent := 0
 	for {
 		select {
 		case data, ok := <-c.BinarySend:
@@ -330,13 +315,6 @@ func (c *Client) writePump() {
 				c.Hub.log.WithError(err).WithField("client_id", c.ID).Error("Failed to write binary WebSocket frame")
 				return
 			}
-			binaryFramesSent++
-			c.Hub.log.WithFields(logrus.Fields{
-				"client_id":           c.ID,
-				"binary_frames_sent":  binaryFramesSent,
-				"frame_size":          len(data),
-				"recording_session":   c.RecordingSessionID,
-			}).Debug("Sent binary frame to browser client")
 
 		case update, ok := <-c.Send:
 			if !ok {

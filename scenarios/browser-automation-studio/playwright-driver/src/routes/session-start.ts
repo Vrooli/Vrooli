@@ -4,6 +4,7 @@ import type { Config } from '../config';
 import type { StartSessionRequest, StartSessionResponse, SessionSpec } from '../types';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { InvalidInstructionError } from '../utils';
+import { startFrameStreaming } from './record-mode/recording-lifecycle';
 
 /**
  * Start session endpoint
@@ -83,6 +84,15 @@ export async function handleSessionStart(
 
     // Start session - returns session info including whether it was reused
     const { sessionId, reused, createdAt } = await sessionManager.startSession(spec);
+
+    // Start frame streaming if requested (for record mode live preview)
+    if (request.frame_streaming?.callback_url) {
+      startFrameStreaming(sessionId, sessionManager, {
+        callbackUrl: request.frame_streaming.callback_url,
+        quality: request.frame_streaming.quality,
+        fps: request.frame_streaming.fps,
+      });
+    }
 
     const response: StartSessionResponse = {
       session_id: sessionId,

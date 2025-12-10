@@ -166,6 +166,18 @@ export interface StartSessionRequest {
     viewport_height?: number;
   };
   storage_state?: SessionSpec['storage_state'];
+  /**
+   * Optional: Enable live frame streaming immediately when session is created.
+   * This allows viewing the browser before starting action recording.
+   */
+  frame_streaming?: {
+    /** Callback URL for frame delivery (API constructs WebSocket URL from this) */
+    callback_url: string;
+    /** JPEG quality 1-100 (default: 65) */
+    quality?: number;
+    /** Target FPS 1-30 (default: 6) */
+    fps?: number;
+  };
 }
 
 export interface StartSessionResponse {

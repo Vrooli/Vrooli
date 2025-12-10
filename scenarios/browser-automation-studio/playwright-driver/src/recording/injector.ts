@@ -649,6 +649,118 @@ export function getRecordingScript(): string {
     flushInput();
   });
 
+  // ============================================================================
+  // Navigation Event Handlers
+  // ============================================================================
+
+  // Track the current URL for navigation detection
+  let lastNavigationUrl = window.location.href;
+
+  /**
+   * Capture a navigation action.
+   */
+  function captureNavigation(targetUrl, cause) {
+    // Skip if URL hasn't changed or is about:blank
+    if (!targetUrl || targetUrl === 'about:blank' || targetUrl === lastNavigationUrl) {
+      return;
+    }
+
+    lastNavigationUrl = targetUrl;
+
+    // Create a minimal element for the action (document body as fallback)
+    const target = document.body || document.documentElement;
+
+    const action = {
+      actionType: 'navigate',
+      timestamp: Date.now(),
+      selector: null, // Navigation doesn't need a selector
+      elementMeta: {
+        tagName: 'document',
+        isVisible: true,
+        isEnabled: true,
+      },
+      boundingBox: null,
+      cursorPos: null,
+      url: targetUrl,
+      frameId: null,
+      payload: {
+        targetUrl: targetUrl,
+        cause: cause, // 'link', 'history', 'popstate', 'hash'
+      },
+    };
+
+    // Send to Playwright via exposed function
+    if (typeof window.__recordAction === 'function') {
+      window.__recordAction(action);
+    }
+  }
+
+  // Intercept link clicks that will navigate
+  // Note: We capture the intent - the actual navigation will be captured by the controller
+  // This provides a more complete picture when the link click causes navigation
+  document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href]');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    // Skip anchors, javascript:, and other non-navigating links
+    if (href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+      return;
+    }
+
+    // Skip links that open in new tabs/windows
+    const target = link.getAttribute('target');
+    if (target === '_blank') return;
+
+    // Skip if default prevented (handled by JS)
+    if (e.defaultPrevented) return;
+
+    // Skip if modifier keys held (user wants new tab)
+    if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+
+    // Build full URL
+    try {
+      const fullUrl = new URL(href, window.location.href).href;
+      captureNavigation(fullUrl, 'link');
+    } catch {
+      // Invalid URL, skip
+    }
+  }, true);
+
+  // Intercept History API calls
+  const originalPushState = window.history.pushState;
+  const originalReplaceState = window.history.replaceState;
+
+  window.history.pushState = function() {
+    const result = originalPushState.apply(this, arguments);
+    // After pushState, the URL has changed
+    setTimeout(function() {
+      captureNavigation(window.location.href, 'history');
+    }, 0);
+    return result;
+  };
+
+  window.history.replaceState = function() {
+    const result = originalReplaceState.apply(this, arguments);
+    // After replaceState, the URL might have changed
+    setTimeout(function() {
+      captureNavigation(window.location.href, 'history');
+    }, 0);
+    return result;
+  };
+
+  // Capture browser back/forward navigation
+  window.addEventListener('popstate', function() {
+    captureNavigation(window.location.href, 'popstate');
+  });
+
+  // Capture hash changes (SPA routing)
+  window.addEventListener('hashchange', function() {
+    captureNavigation(window.location.href, 'hash');
+  });
+
   // Expose generateSelectors for testing/debugging
   window.__generateSelectors = generateSelectors;
 
