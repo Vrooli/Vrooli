@@ -295,7 +295,14 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 	// Build request to playwright-driver
 	driverURL := fmt.Sprintf("%s/session/start", getPlaywrightDriverURL())
 
+	// Generate IDs for the recording session
+	// For record mode, we create ephemeral IDs since this isn't tied to a stored workflow/execution
+	recordingExecutionID := uuid.New().String()
+	recordingWorkflowID := uuid.New().String()
+
 	driverReq := map[string]interface{}{
+		"execution_id": recordingExecutionID,
+		"workflow_id":  recordingWorkflowID,
 		"viewport": map[string]int{
 			"width":  viewportWidth,
 			"height": viewportHeight,
