@@ -28,7 +28,8 @@
       "documents": [
         { "path": "build-and-packaging.md", "title": "Build Checklist", "description": "Prereqs, commands, and outputs" },
         { "path": "DEBUGGING_WINDOWS.md", "title": "Debugging Windows", "description": "Windows build/runtime troubleshooting" },
-        { "path": "WINE_INSTALLATION.md", "title": "Wine (No-Sudo)", "description": "Install Wine via Flatpak for Windows builds" }
+        { "path": "WINE_INSTALLATION.md", "title": "Wine (No-Sudo)", "description": "Install Wine via Flatpak for Windows builds" },
+        { "path": "SIGNING.md", "title": "Code Signing", "description": "Platform-specific signing setup and troubleshooting" }
       ]
     },
     {

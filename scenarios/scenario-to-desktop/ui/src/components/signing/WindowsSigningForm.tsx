@@ -1,5 +1,5 @@
-import { Monitor } from "lucide-react";
-import type { WindowsSigningConfig } from "../../lib/api";
+import { Monitor, AlertTriangle } from "lucide-react";
+import type { DiscoveredCertificate, WindowsSigningConfig } from "../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
@@ -9,6 +9,8 @@ import { Select } from "../ui/select";
 interface WindowsSigningFormProps {
   config?: WindowsSigningConfig;
   onChange: (config: WindowsSigningConfig | undefined) => void;
+  discovered?: DiscoveredCertificate[];
+  onApplyDiscovered?: (cert: DiscoveredCertificate) => void;
 }
 
 const TIMESTAMP_SERVERS = [
@@ -17,7 +19,7 @@ const TIMESTAMP_SERVERS = [
   { value: "http://timestamp.globalsign.com/tsa/r6advanced1", label: "GlobalSign" },
 ];
 
-export function WindowsSigningForm({ config, onChange }: WindowsSigningFormProps) {
+export function WindowsSigningForm({ config, onChange, discovered, onApplyDiscovered }: WindowsSigningFormProps) {
   const isConfigured = !!config;
 
   const handleChange = (updates: Partial<WindowsSigningConfig>) => {
@@ -61,6 +63,36 @@ export function WindowsSigningForm({ config, onChange }: WindowsSigningFormProps
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {discovered && discovered.length > 0 && onApplyDiscovered && (
+          <div className="rounded border border-slate-800 bg-slate-950/50 p-2 text-xs text-slate-200 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Discovered certificates:</span>
+              <select
+                className="flex-1 rounded border border-slate-700 bg-slate-900 px-2 py-1"
+                onChange={(e) => {
+                  const selected = discovered.find((c) => c.id === e.target.value);
+                  if (selected) {
+                    onApplyDiscovered(selected);
+                  }
+                }}
+                defaultValue=""
+              >
+                <option value="">Select to apply</option>
+                {discovered.map((cert) => (
+                  <option key={cert.id} value={cert.id}>
+                    {cert.name || cert.subject || cert.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {discovered.some((c) => c.days_to_expiry <= 30 && !c.is_expired) && (
+              <div className="flex items-center gap-1 text-amber-300">
+                <AlertTriangle className="h-3 w-3" />
+                <span>Some certificates expire within 30 days.</span>
+              </div>
+            )}
+          </div>
+        )}
         {isConfigured ? (
           <>
             {/* Certificate Source */}

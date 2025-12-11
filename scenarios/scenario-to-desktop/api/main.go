@@ -132,6 +132,7 @@ func (s *Server) setupRoutes() {
 	// Docs for in-app browser
 	s.router.HandleFunc("/api/v1/docs/manifest", s.docsManifestHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/content", s.docsContentHandler).Methods("GET")
+	s.router.HandleFunc("/docs/{docPath:.*}", s.docsFileHandler).Methods("GET")
 
 	// System capabilities and dependencies
 	s.router.HandleFunc("/api/v1/system/wine/check", s.checkWineHandler).Methods("GET")

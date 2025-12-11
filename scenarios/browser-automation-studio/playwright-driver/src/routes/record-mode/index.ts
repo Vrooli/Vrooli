@@ -29,6 +29,8 @@ export type {
   FrameResponse,
   ViewportRequest,
   ViewportResponse,
+  StreamSettingsRequest,
+  StreamSettingsResponse,
 } from './types';
 
 // Recording lifecycle handlers
@@ -37,6 +39,7 @@ export {
   handleRecordStop,
   handleRecordStatus,
   handleRecordActions,
+  handleStreamSettings,
 } from './recording-lifecycle';
 
 // Recording validation handlers

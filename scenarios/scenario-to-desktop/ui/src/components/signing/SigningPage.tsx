@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, AlertCircle, CheckCircle, XCircle, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle, XCircle, RefreshCw, Save, Trash2, Info, Wand2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   fetchSigningConfig,
@@ -8,10 +8,12 @@ import {
   checkSigningReadiness,
   fetchSigningPrerequisites,
   deleteSigningConfig,
+  discoverCertificates,
   type SigningConfig,
   type SigningReadinessResponse,
   type ValidationResult,
-  type ToolDetectionResult
+  type ToolDetectionResult,
+  type DiscoveredCertificate
 } from "../../lib/api";
 import type { ScenariosResponse } from "../scenario-inventory/types";
 import { fetchScenarioDesktopStatus } from "../../lib/api";
@@ -25,6 +27,7 @@ import { MacOSSigningForm } from "./MacOSSigningForm";
 import { LinuxSigningForm } from "./LinuxSigningForm";
 import { PrerequisitesPanel } from "./PrerequisitesPanel";
 import { cn } from "../../lib/utils";
+import { useMemo } from "react";
 
 interface SigningPageProps {
   initialScenario?: string;
@@ -38,6 +41,12 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
     enabled: false
   });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [discoverPlatform, setDiscoverPlatform] = useState<"windows" | "macos" | "linux">("windows");
+  const [discovered, setDiscovered] = useState<DiscoveredCertificate[]>([]);
+  const expiringSoon = useMemo(
+    () => discovered.filter((c) => !c.is_expired && c.days_to_expiry <= 30),
+    [discovered]
+  );
 
   // Fetch scenarios
   const { data: scenariosData } = useQuery<ScenariosResponse>({
@@ -92,6 +101,20 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
     }
   });
 
+  const discoverMutation = useMutation({
+    mutationFn: () => discoverCertificates(discoverPlatform),
+    onSuccess: (resp) => {
+      setDiscovered(resp.certificates || []);
+      if (typeof window !== "undefined") {
+        const soonest = (resp.certificates || []).find((c) => !c.is_expired && typeof c.days_to_expiry === "number");
+        if (soonest) {
+          const warning = `Signing certificate expires in ${soonest.days_to_expiry} days (${soonest.expires_at || "date unknown"}).`;
+          window.localStorage.setItem("std_signing_expiry_warning", warning);
+        }
+      }
+    }
+  });
+
   // Sync local state when config data changes
   useEffect(() => {
     if (configData?.config) {
@@ -112,6 +135,44 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
   const handleConfigChange = (updates: Partial<SigningConfig>) => {
     setLocalConfig(prev => ({ ...prev, ...updates }));
     setHasUnsavedChanges(true);
+  };
+
+  const applyCertificate = (cert: DiscoveredCertificate) => {
+    setHasUnsavedChanges(true);
+    setLocalConfig(prev => {
+      const next = { ...prev, enabled: true };
+      if (discoverPlatform === "windows") {
+        next.windows = {
+          certificate_source: "store",
+          certificate_thumbprint: cert.id || cert.name || "",
+          timestamp_server: prev.windows?.timestamp_server || "http://timestamp.digicert.com",
+          sign_algorithm: prev.windows?.sign_algorithm || "sha256",
+          dual_sign: prev.windows?.dual_sign
+        };
+      } else if (discoverPlatform === "macos") {
+        next.macos = {
+          identity: cert.name || cert.subject || "",
+          team_id: prev.macos?.team_id || "",
+          hardened_runtime: prev.macos?.hardened_runtime ?? true,
+          notarize: prev.macos?.notarize ?? false,
+          gatekeeper_assess: prev.macos?.gatekeeper_assess ?? true,
+          entitlements_file: prev.macos?.entitlements_file,
+          apple_api_key_id: prev.macos?.apple_api_key_id,
+          apple_api_issuer_id: prev.macos?.apple_api_issuer_id,
+          apple_api_key_file: prev.macos?.apple_api_key_file,
+          apple_id_env: prev.macos?.apple_id_env,
+          apple_id_password_env: prev.macos?.apple_id_password_env
+        };
+      } else if (discoverPlatform === "linux") {
+        next.linux = {
+          gpg_key_id: cert.id || cert.name || "",
+          keyring_path: prev.linux?.keyring_path,
+          deb_keyring_path: prev.linux?.deb_keyring_path,
+          rpm_keyring_path: prev.linux?.rpm_keyring_path
+        };
+      }
+      return next;
+    });
   };
 
   const handleSave = () => {
@@ -187,6 +248,8 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
         </CardContent>
       </Card>
 
+      <SigningPrimer />
+
       {selectedScenario && (
         <>
           {/* Readiness Status */}
@@ -218,18 +281,24 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
                     <WindowsSigningForm
                       config={localConfig.windows}
                       onChange={(windows) => handleConfigChange({ windows })}
+                      discovered={discovered.filter((c) => c.platform === "windows")}
+                      onApplyDiscovered={applyCertificate}
                     />
 
                     {/* macOS */}
                     <MacOSSigningForm
                       config={localConfig.macos}
                       onChange={(macos) => handleConfigChange({ macos })}
+                      discovered={discovered.filter((c) => c.platform === "macos")}
+                      onApplyDiscovered={applyCertificate}
                     />
 
                     {/* Linux */}
                     <LinuxSigningForm
                       config={localConfig.linux}
                       onChange={(linux) => handleConfigChange({ linux })}
+                      discovered={discovered.filter((c) => c.platform === "linux")}
+                      onApplyDiscovered={applyCertificate}
                     />
                   </div>
 
@@ -299,6 +368,15 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
             </CardContent>
           </Card>
 
+          <CertificateDiscovery
+            platform={discoverPlatform}
+            onPlatformChange={setDiscoverPlatform}
+            onDiscover={() => discoverMutation.mutate()}
+            loading={discoverMutation.isPending}
+            certificates={discovered}
+            onApply={applyCertificate}
+          />
+
           {/* Prerequisites Panel */}
           <PrerequisitesPanel tools={prerequisitesData?.tools || []} />
         </>
@@ -313,6 +391,61 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
         </Card>
       )}
     </div>
+  );
+}
+
+function SigningPrimer() {
+  return (
+    <Card className="border-slate-800/80 bg-slate-900/70">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Info className="h-5 w-5 text-blue-300" />
+          Signing Quickstart
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-3">
+          <p className="text-sm text-slate-300">
+            You can ship unsigned installers for local testing. Enable signing only when you&apos;re ready for users or
+            app stores.
+          </p>
+          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-200">
+            <li>Select a scenario, toggle <strong>Enable Signing</strong>, and fill only the platform you care about.</li>
+            <li>Use <strong>Validate</strong> to see missing items, then <strong>Save</strong>. The Signing Tools panel
+              below shows which CLIs are installed.</li>
+            <li>Return to <em>Generate Desktop App</em> and enable signing for that build to package with these settings.</li>
+            <li>
+              Need more detail? Read the full signing guide:
+              {" "}
+              <a
+                className="text-blue-300 underline"
+                href="/?view=docs&doc=SIGNING.md"
+                onClick={(e) => {
+                  if (typeof window === "undefined") return;
+                  e.preventDefault();
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("view", "docs");
+                  url.searchParams.set("doc", "SIGNING.md");
+                  window.history.pushState(null, "", url.toString());
+                  window.dispatchEvent(new PopStateEvent("popstate"));
+                }}
+              >
+                scenarios/scenario-to-desktop/docs/SIGNING.md
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-slate-100">Smallest thing you need per platform</p>
+          <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 space-y-2 text-xs text-slate-300">
+            <p><strong>Windows:</strong> A .pfx/.p12 file path and an env var name for the password (e.g. <code>WIN_CERT_PASSWORD</code>). If your cert lives in the Windows store, paste its thumbprint instead.</p>
+            <p><strong>macOS:</strong> Developer ID identity (see <code>security find-identity -v -p codesigning</code>) and Team ID. Notarization is optional until you publish.</p>
+            <p><strong>Linux:</strong> GPG key ID or fingerprint from <code>gpg --list-secret-keys</code>; optional keyring path if not default.</p>
+            <p className="text-slate-400">If you don&apos;t have these yet, leave signing off—the build will still work but installers will prompt users.</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -377,6 +510,104 @@ function ReadinessCard({ readiness }: { readiness?: SigningReadinessResponse }) 
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CertificateDiscovery({
+  platform,
+  onPlatformChange,
+  onDiscover,
+  loading,
+  certificates,
+  onApply
+}: {
+  platform: "windows" | "macos" | "linux";
+  onPlatformChange: (value: "windows" | "macos" | "linux") => void;
+  onDiscover: () => void;
+  loading: boolean;
+  certificates: DiscoveredCertificate[];
+  onApply: (cert: DiscoveredCertificate) => void;
+}) {
+  return (
+    <Card className="border-slate-800/80 bg-slate-900/70">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Wand2 className="h-5 w-5 text-blue-400" />
+          Discover Certificates
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <select
+            className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm"
+            value={platform}
+            onChange={(e) => onPlatformChange(e.target.value as "windows" | "macos" | "linux")}
+          >
+            <option value="windows">Windows</option>
+            <option value="macos">macOS</option>
+            <option value="linux">Linux</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={onDiscover} disabled={loading}>
+            {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Scan
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-slate-400">
+          Finds certificates or identities already on this machine so you can apply them without copy/paste.
+        </p>
+        {certificates.some((c) => c.days_to_expiry <= 30 && !c.is_expired) && (
+          <div className="rounded border border-amber-800 bg-amber-950/30 p-2 text-xs text-amber-200 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <span>One or more certificates expire within 30 days. Apply a newer one before publishing.</span>
+          </div>
+        )}
+        {certificates.length === 0 ? (
+          <div className="rounded border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-400">
+            {loading ? "Scanning…" : "No certificates found for this platform."}
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {certificates.map((cert) => (
+              <div
+                key={cert.id}
+                className="rounded border border-slate-800 bg-slate-950/50 p-3 space-y-2"
+              >
+                <div className="text-sm text-slate-100 font-semibold truncate" title={cert.name || cert.subject}>
+                  {cert.name || cert.subject || cert.id}
+                </div>
+                <div className="text-xs text-slate-400 space-y-1">
+                  {cert.subject && <p className="truncate" title={cert.subject}>Subject: {cert.subject}</p>}
+                  {cert.issuer && <p className="truncate" title={cert.issuer}>Issuer: {cert.issuer}</p>}
+                  {cert.expires_at && (
+                    <p className={cn(
+                      cert.is_expired || cert.days_to_expiry <= 7
+                        ? "text-red-300"
+                        : cert.days_to_expiry <= 30
+                        ? "text-amber-300"
+                        : "text-slate-400"
+                    )}>
+                      Expires: {cert.expires_at} ({cert.days_to_expiry} days)
+                    </p>
+                  )}
+                  {cert.usage_hint && <p>{cert.usage_hint}</p>}
+                  {!cert.is_code_sign && (
+                    <p className="text-amber-300">Not marked for code signing</p>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onApply(cert)}
+                  className="w-full"
+                >
+                  Apply to {platform}
+                </Button>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>

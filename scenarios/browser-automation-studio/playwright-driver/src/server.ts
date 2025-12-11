@@ -329,6 +329,9 @@ function setupRoutes(
   router.post('/session/:id/record/viewport', async (req, res, params) => {
     await routes.handleRecordViewport(req, res, params.id, sessionManager, config);
   });
+  router.post('/session/:id/record/stream-settings', async (req, res, params) => {
+    await routes.handleStreamSettings(req, res, params.id, sessionManager, config);
+  });
 
   return router;
 }

@@ -248,6 +248,28 @@ type RecordingViewportRequest struct {
 	Height int `json:"height"`
 }
 
+// UpdateStreamSettingsRequest is the request body for updating stream settings mid-session.
+type UpdateStreamSettingsRequest struct {
+	// Quality: JPEG quality 1-100
+	Quality *int `json:"quality,omitempty"`
+	// FPS: Target frames per second 1-30
+	FPS *int `json:"fps,omitempty"`
+	// Scale: "css" for 1x, "device" for devicePixelRatio (cannot change mid-session)
+	Scale string `json:"scale,omitempty"`
+}
+
+// UpdateStreamSettingsResponse is the response after updating stream settings.
+type UpdateStreamSettingsResponse struct {
+	SessionID    string `json:"session_id"`
+	Quality      int    `json:"quality"`
+	FPS          int    `json:"fps"`
+	CurrentFPS   int    `json:"current_fps"`
+	Scale        string `json:"scale"`
+	IsStreaming  bool   `json:"is_streaming"`
+	Updated      bool   `json:"updated"`
+	ScaleWarning string `json:"scale_warning,omitempty"`
+}
+
 const (
 	recordModeTimeout    = 30 * time.Second
 	playwrightDriverEnv  = "PLAYWRIGHT_DRIVER_URL"
@@ -2031,6 +2053,91 @@ func (h *Handler) UpdateRecordingViewport(w http.ResponseWriter, r *http.Request
 	h.respondSuccess(w, http.StatusOK, driverResp)
 }
 
+// UpdateStreamSettings handles POST /api/v1/recordings/live/{sessionId}/stream-settings
+// Updates stream settings (quality, fps) for an active recording session.
+// Quality and FPS can be updated immediately. Scale changes require a new session.
+func (h *Handler) UpdateStreamSettings(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), recordModeTimeout)
+	defer cancel()
+
+	sessionID := chi.URLParam(r, "sessionId")
+	if sessionID == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "sessionId",
+		}))
+		return
+	}
+
+	var reqBody UpdateStreamSettingsRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil && err.Error() != "EOF" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		}))
+		return
+	}
+
+	// Build request to playwright-driver
+	driverURL := fmt.Sprintf("%s/session/%s/record/stream-settings", getPlaywrightDriverURL(), sessionID)
+
+	// Forward the request body as-is
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to marshal request",
+		}))
+		return
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to create request to driver",
+		}))
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: recordModeTimeout}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to call playwright-driver for stream settings update")
+		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+			"error": "Playwright driver unavailable: " + err.Error(),
+		}))
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error":  "Driver returned error",
+			"status": fmt.Sprintf("%d", resp.StatusCode),
+			"body":   string(body),
+		}))
+		return
+	}
+
+	var driverResp UpdateStreamSettingsResponse
+	if err := json.Unmarshal(body, &driverResp); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"error": "Failed to parse driver response",
+		}))
+		return
+	}
+
+	h.log.WithFields(map[string]interface{}{
+		"session_id":  sessionID,
+		"quality":     driverResp.Quality,
+		"fps":         driverResp.FPS,
+		"current_fps": driverResp.CurrentFPS,
+		"updated":     driverResp.Updated,
+	}).Debug("Stream settings updated")
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
 // ForwardRecordingInput handles POST /api/v1/recordings/live/{sessionId}/input
 // Forwards pointer/keyboard/wheel events to the Playwright driver.
 func (h *Handler) ForwardRecordingInput(w http.ResponseWriter, r *http.Request) {
@@ -2336,9 +2443,28 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 
 // CreateInputForwarder returns a function that forwards input events to the playwright-driver.
 // This is used by the WebSocket hub to forward input messages without going through HTTP.
+//
+// Performance optimizations:
+// - Uses a shared HTTP client with connection pooling (reuses TCP connections)
+// - Keep-alive connections reduce latency by avoiding TCP handshake per request
+// - Connection pool sized for concurrent input events across sessions
 func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string]any) error {
+	// Shared HTTP client with connection pooling for all input forwarding.
+	// This dramatically reduces latency vs creating a new client per request.
+	// Keep-alive connections mean subsequent requests reuse existing TCP connections.
+	transport := &http.Transport{
+		MaxIdleConns:        100,             // Total pool size
+		MaxIdleConnsPerHost: 10,              // Per-driver connections (usually just one driver)
+		IdleConnTimeout:     90 * time.Second, // Keep connections warm
+		DisableKeepAlives:   false,           // Explicitly enable keep-alive
+	}
+	client := &http.Client{
+		Timeout:   5 * time.Second,
+		Transport: transport,
+	}
+
 	return func(sessionID string, input map[string]any) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // Tighter timeout for input
 		defer cancel()
 
 		driverURL := fmt.Sprintf("%s/session/%s/record/input", getPlaywrightDriverURL(), sessionID)
@@ -2354,16 +2480,17 @@ func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string
 		}
 		httpReq.Header.Set("Content-Type", "application/json")
 
-		client := &http.Client{Timeout: 5 * time.Second}
 		resp, err := client.Do(httpReq)
 		if err != nil {
 			return fmt.Errorf("forward input: %w", err)
 		}
 		defer resp.Body.Close()
 
+		// Drain the response body to enable connection reuse
+		_, _ = io.Copy(io.Discard, resp.Body)
+
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("driver returned %d: %s", resp.StatusCode, string(body))
+			return fmt.Errorf("driver returned %d", resp.StatusCode)
 		}
 
 		return nil

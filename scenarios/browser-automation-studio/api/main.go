@@ -230,6 +230,7 @@ func main() {
 		r.Post("/recordings/live/{sessionId}/navigate", handler.NavigateRecordingSession)
 		r.Post("/recordings/live/{sessionId}/viewport", handler.UpdateRecordingViewport)
 		r.Post("/recordings/live/{sessionId}/input", handler.ForwardRecordingInput)
+		r.Post("/recordings/live/{sessionId}/stream-settings", handler.UpdateStreamSettings)
 		r.Get("/recordings/live/{sessionId}/frame", handler.GetRecordingFrame)
 		r.Post("/recordings/live/{sessionId}/screenshot", handler.CaptureRecordingScreenshot)
 		r.Post("/recordings/live/{sessionId}/generate-workflow", handler.GenerateWorkflowFromRecording)

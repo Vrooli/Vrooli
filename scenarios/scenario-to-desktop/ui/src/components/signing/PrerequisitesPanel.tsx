@@ -25,6 +25,41 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   dpkg_sig: "Debian package signing utility"
 };
 
+function installHint(tool: ToolDetectionResult): string | undefined {
+  if (tool.installed) return;
+  if (tool.tool === "signtool") return "Install the Windows 10/11 SDK or Visual Studio (includes signtool.exe).";
+  if (tool.tool === "osslsigncode") return "Install osslsigncode (e.g., brew install osslsigncode or apt install osslsigncode).";
+  if (tool.tool === "codesign" || tool.tool === "notarytool" || tool.tool === "altool") {
+    return "Install Xcode Command Line Tools: xcode-select --install (macOS only).";
+  }
+  if (tool.tool === "gpg") return "Install GPG (e.g., brew install gnupg or apt install gnupg).";
+  if (tool.tool === "rpmsign") return "Install rpm-sign (e.g., yum install rpm-sign).";
+  if (tool.tool === "dpkg_sig") return "Install dpkg-sig (e.g., apt install dpkg-sig).";
+  return;
+}
+
+function installCommand(tool: ToolDetectionResult): string | undefined {
+  if (tool.installed) return;
+  switch (tool.tool) {
+    case "signtool":
+      return "Windows: Install Windows SDK (Visual Studio installer).";
+    case "osslsigncode":
+      return "macOS: brew install osslsigncode · Ubuntu/Debian: apt install osslsigncode";
+    case "codesign":
+    case "notarytool":
+    case "altool":
+      return "macOS: xcode-select --install";
+    case "gpg":
+      return "macOS: brew install gnupg · Ubuntu/Debian: apt install gnupg";
+    case "rpmsign":
+      return "RHEL/CentOS/Fedora: yum install rpm-sign";
+    case "dpkg_sig":
+      return "Ubuntu/Debian: apt install dpkg-sig";
+    default:
+      return;
+  }
+}
+
 export function PrerequisitesPanel({ tools }: PrerequisitesPanelProps) {
   if (!tools || tools.length === 0) {
     return (
@@ -35,14 +70,15 @@ export function PrerequisitesPanel({ tools }: PrerequisitesPanelProps) {
             Signing Tools
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-slate-400 text-center py-4">
-            No tool detection results available.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+      <CardContent>
+        <p className="text-sm text-slate-400 text-center py-4">
+          No signing tools detected yet. Install platform CLIs (signtool on Windows, codesign/notarytool on macOS, gpg on Linux)
+          and reopen this tab to refresh detection.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
   // Group tools by platform
   const toolsByPlatform = tools.reduce((acc, tool) => {
@@ -150,6 +186,12 @@ function ToolStatus({ tool }: { tool: ToolDetectionResult }) {
           )}
           {tool.remediation && !tool.installed && (
             <p className="text-xs text-slate-400 mt-1">{tool.remediation}</p>
+          )}
+          {!tool.installed && installHint(tool) && (
+            <p className="text-xs text-slate-400 mt-1">{installHint(tool)}</p>
+          )}
+          {!tool.installed && installCommand(tool) && (
+            <p className="text-xs text-slate-500 mt-1 font-mono">{installCommand(tool)}</p>
           )}
         </div>
       </div>

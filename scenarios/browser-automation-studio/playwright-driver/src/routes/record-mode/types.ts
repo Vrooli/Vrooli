@@ -186,3 +186,36 @@ export interface ViewportResponse {
   width: number;
   height: number;
 }
+
+/**
+ * POST /session/:id/record/stream-settings
+ *
+ * Updates stream settings for an active session.
+ * Quality and FPS can be updated live. Scale changes require session restart.
+ */
+export interface StreamSettingsRequest {
+  /** JPEG quality 1-100 */
+  quality?: number;
+  /** Target FPS 1-30 */
+  fps?: number;
+  /** Screenshot scale - can only be set at session start */
+  scale?: 'css' | 'device';
+}
+
+export interface StreamSettingsResponse {
+  session_id: string;
+  /** Current quality setting */
+  quality: number;
+  /** Target FPS */
+  fps: number;
+  /** Current adaptive FPS (may be lower than target) */
+  current_fps: number;
+  /** Scale setting (cannot be changed mid-session) */
+  scale: 'css' | 'device';
+  /** Whether stream is currently active */
+  is_streaming: boolean;
+  /** Whether any settings were actually changed */
+  updated: boolean;
+  /** Warning if scale change was requested (requires restart) */
+  scale_warning?: string;
+}

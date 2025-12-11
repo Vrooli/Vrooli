@@ -27,18 +27,61 @@ const queryClient = new QueryClient({
 
 type ViewMode = "generator" | "inventory" | "docs" | "records" | "signing";
 
+function parseSearchParams(): { view?: ViewMode; scenario?: string; doc?: string } {
+  if (typeof window === "undefined") return {};
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get("view") as ViewMode | null;
+  const scenario = params.get("scenario") || undefined;
+  const doc = params.get("doc") || undefined;
+  return { view: view || undefined, scenario, doc };
+}
+
 function AppContent() {
   const [selectedTemplate, setSelectedTemplate] = useState("basic");
   const [currentBuildId, setCurrentBuildId] = useState<string | null>(null);
   const [selectedScenarioName, setSelectedScenarioName] = useState("");
   const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("inventory");
+  const [docPath, setDocPath] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState(2);
   const [userPinnedStep, setUserPinnedStep] = useState(false);
   const overviewRef = useRef<HTMLDivElement>(null);
   const configureRef = useRef<HTMLDivElement>(null);
   const buildRef = useRef<HTMLDivElement>(null);
   const deliverRef = useRef<HTMLDivElement>(null);
+
+  // Sync view/scenario with URL hash for sharable routes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const { view, scenario } = parseSearchParams();
+    if (view) setViewMode(view);
+    if (scenario) setSelectedScenarioName(scenario);
+
+    const handleHashChange = () => {
+      const { view: nextView, scenario: nextScenario } = parseSearchParams();
+      if (nextView) setViewMode(nextView);
+      if (nextScenario !== undefined) {
+        setSelectedScenarioName(nextScenario);
+        setSelectionSource("manual");
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    params.set("view", viewMode);
+    if (selectedScenarioName) {
+      params.set("scenario", selectedScenarioName);
+    }
+    const newHash = `#${params.toString()}`;
+    if (window.location.hash !== newHash) {
+      window.history.replaceState(null, "", newHash);
+    }
+  }, [viewMode, selectedScenarioName]);
 
   const { data: scenariosData } = useQuery<ScenariosResponse>({
     queryKey: ["scenarios-desktop-status"],
@@ -58,6 +101,43 @@ function AppContent() {
     if (selectedScenarioName) return 2;
     return 1;
   }, [viewMode, selectedScenario?.build_artifacts?.length, currentBuildId, selectedScenarioName]);
+
+  // Sync view/scenario/doc from URL on load and back/forward
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const syncFromLocation = () => {
+      const { view, scenario, doc } = parseSearchParams();
+      if (view) setViewMode(view);
+      if (scenario !== undefined) setSelectedScenarioName(scenario);
+      if (doc !== undefined) setDocPath(doc);
+    };
+    syncFromLocation();
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
+  }, []);
+
+  // Persist view/scenario/doc to URL for shareable routing
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
+    params.set("view", viewMode);
+    if (selectedScenarioName) {
+      params.set("scenario", selectedScenarioName);
+    } else {
+      params.delete("scenario");
+    }
+    if (docPath) {
+      params.set("doc", docPath);
+    } else {
+      params.delete("doc");
+    }
+    url.search = params.toString();
+    const newUrl = url.toString();
+    if (window.location.href !== newUrl) {
+      window.history.replaceState(null, "", newUrl);
+    }
+  }, [viewMode, selectedScenarioName, docPath]);
 
   useEffect(() => {
     if (viewMode !== "generator") {
@@ -214,7 +294,14 @@ function AppContent() {
         {viewMode === "inventory" ? (
           <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
         ) : viewMode === "docs" ? (
-          <DocsPanel />
+          <DocsPanel
+            initialPath={docPath}
+            onPathChange={(path) => {
+              if (viewMode === "docs") {
+                setDocPath(path || null);
+              }
+            }}
+          />
         ) : viewMode === "signing" ? (
           <SigningPage
             initialScenario={selectedScenarioName}

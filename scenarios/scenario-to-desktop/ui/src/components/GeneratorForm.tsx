@@ -814,6 +814,15 @@ function SigningInlineSection({
   const ready = readiness?.ready;
   const readinessNote =
     readiness?.issues && readiness.issues.length > 0 ? readiness.issues[0] : undefined;
+  const [expiryWarning, setExpiryWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("std_signing_expiry_warning");
+    if (stored) {
+      setExpiryWarning(stored);
+    }
+  }, []);
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-3">
@@ -868,11 +877,30 @@ function SigningInlineSection({
           </div>
         )}
 
+        {signingEnabled && expiryWarning && (
+          <div className="flex items-center gap-2 text-amber-300">
+            <AlertTriangle className="h-4 w-4" />
+            {expiryWarning}
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           <Button type="button" size="sm" variant="outline" onClick={onRefresh} disabled={!scenarioName || loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
+          {!signingEnabled && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onToggleSigning(true)}
+              disabled={!scenarioName}
+              className="gap-1 text-blue-200 hover:text-blue-100"
+            >
+              Enable signing now
+            </Button>
+          )}
           <Button
             type="button"
             size="sm"

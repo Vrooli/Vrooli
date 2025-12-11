@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -135,4 +136,51 @@ func (s *Server) resolveDocsDir() string {
 	}
 
 	return filepath.Join(detectVrooliRoot(), "scenarios", "scenario-to-desktop", "docs")
+}
+
+// docsFileHandler serves raw documentation files for direct links (e.g., /docs/SIGNING.md).
+func (s *Server) docsFileHandler(w http.ResponseWriter, r *http.Request) {
+	rawPath := strings.TrimPrefix(r.URL.Path, "/docs/")
+	if rawPath == "" || rawPath == "/" {
+		http.Error(w, "document not found", http.StatusNotFound)
+		return
+	}
+
+	cleanPath := filepath.Clean(rawPath)
+	if filepath.IsAbs(cleanPath) || strings.Contains(cleanPath, "..") {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	docsDir := s.resolveDocsDir()
+	fullPath := filepath.Join(docsDir, cleanPath)
+
+	absDocsDir, _ := filepath.Abs(docsDir)
+	absFullPath, _ := filepath.Abs(fullPath)
+	if !strings.HasPrefix(absFullPath, absDocsDir) {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	file, err := os.Open(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "document not found", http.StatusNotFound)
+			return
+		}
+		s.logger.Error("failed to read doc file", "path", fullPath, "error", err)
+		http.Error(w, "failed to read document", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(fullPath))
+	switch ext {
+	case ".md", ".markdown":
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	default:
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, file)
 }

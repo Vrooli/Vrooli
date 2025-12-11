@@ -30,6 +30,8 @@ import type {
   StartRecordingResponse,
   StopRecordingResponse,
   RecordingStatusResponse,
+  StreamSettingsRequest,
+  StreamSettingsResponse,
 } from './types';
 
 /**
@@ -757,6 +759,167 @@ function connectFrameWebSocket(sessionId: string, state: FrameStreamState): void
     if (state.isStreaming) {
       setTimeout(() => connectFrameWebSocket(sessionId, state), WS_RECONNECT_DELAY_MS);
     }
+  }
+}
+
+/**
+ * Update frame streaming settings for an active session.
+ * Only updates quality and fps - scale changes require session restart.
+ *
+ * @returns true if settings were updated, false if no active stream
+ */
+export function updateFrameStreamSettings(
+  sessionId: string,
+  options: {
+    quality?: number;
+    fps?: number;
+  }
+): boolean {
+  const state = frameStreamStates.get(sessionId);
+  if (!state || !state.isStreaming) {
+    return false;
+  }
+
+  let changed = false;
+
+  if (options.quality !== undefined) {
+    const newQuality = Math.min(Math.max(options.quality, 1), 100);
+    if (newQuality !== state.quality) {
+      state.quality = newQuality;
+      changed = true;
+    }
+  }
+
+  if (options.fps !== undefined) {
+    const newFps = Math.min(Math.max(options.fps, 1), 30);
+    if (newFps !== state.targetFps) {
+      state.targetFps = newFps;
+      // Also update current FPS toward new target (adaptive will fine-tune)
+      state.currentFps = Math.min(state.currentFps, newFps);
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    logger.info(scopedLog(LogContext.RECORDING, 'frame stream settings updated'), {
+      sessionId,
+      quality: state.quality,
+      targetFps: state.targetFps,
+      currentFps: state.currentFps,
+      scale: state.scale,
+    });
+  }
+
+  return changed;
+}
+
+/**
+ * Get current frame streaming settings for a session.
+ * Returns null if no active stream.
+ */
+export function getFrameStreamSettings(sessionId: string): {
+  quality: number;
+  fps: number;
+  scale: 'css' | 'device';
+  currentFps: number;
+  isStreaming: boolean;
+} | null {
+  const state = frameStreamStates.get(sessionId);
+  if (!state) {
+    return null;
+  }
+
+  return {
+    quality: state.quality,
+    fps: state.targetFps,
+    scale: state.scale,
+    currentFps: state.currentFps,
+    isStreaming: state.isStreaming,
+  };
+}
+
+/**
+ * Update stream settings endpoint
+ *
+ * POST /session/:id/record/stream-settings
+ *
+ * Updates stream settings for an active session.
+ * Quality and FPS can be updated immediately. Scale changes require session restart.
+ */
+export async function handleStreamSettings(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  sessionManager: SessionManager,
+  config: Config
+): Promise<void> {
+  try {
+    // Verify session exists
+    sessionManager.getSession(sessionId);
+
+    const body = await parseJsonBody(req, config);
+    const request = body as unknown as StreamSettingsRequest;
+
+    // Get current settings (may be null if no stream active)
+    const currentSettings = getFrameStreamSettings(sessionId);
+
+    // Handle case where no stream is active
+    if (!currentSettings) {
+      logger.info(scopedLog(LogContext.RECORDING, 'stream settings update - no active stream'), {
+        sessionId,
+        requestedQuality: request.quality,
+        requestedFps: request.fps,
+      });
+
+      // Return a response indicating no active stream
+      const response: StreamSettingsResponse = {
+        session_id: sessionId,
+        quality: request.quality ?? 55,
+        fps: request.fps ?? 6,
+        current_fps: 0,
+        scale: request.scale ?? 'css',
+        is_streaming: false,
+        updated: false,
+      };
+
+      sendJson(res, 200, response);
+      return;
+    }
+
+    // Check if scale change was requested (we can't change it mid-session)
+    let scaleWarning: string | undefined;
+    if (request.scale !== undefined && request.scale !== currentSettings.scale) {
+      scaleWarning = `Scale cannot be changed mid-session. Current: ${currentSettings.scale}, Requested: ${request.scale}. Restart session to change scale.`;
+      logger.info(scopedLog(LogContext.RECORDING, 'stream settings - scale change rejected'), {
+        sessionId,
+        currentScale: currentSettings.scale,
+        requestedScale: request.scale,
+      });
+    }
+
+    // Apply the settings update (quality and fps only)
+    const updated = updateFrameStreamSettings(sessionId, {
+      quality: request.quality,
+      fps: request.fps,
+    });
+
+    // Get the updated settings
+    const newSettings = getFrameStreamSettings(sessionId);
+
+    const response: StreamSettingsResponse = {
+      session_id: sessionId,
+      quality: newSettings?.quality ?? currentSettings.quality,
+      fps: newSettings?.fps ?? currentSettings.fps,
+      current_fps: newSettings?.currentFps ?? currentSettings.currentFps,
+      scale: newSettings?.scale ?? currentSettings.scale,
+      is_streaming: newSettings?.isStreaming ?? currentSettings.isStreaming,
+      updated,
+      scale_warning: scaleWarning,
+    };
+
+    sendJson(res, 200, response);
+  } catch (error) {
+    sendError(res, error as Error, `/session/${sessionId}/record/stream-settings`);
   }
 }
 

@@ -126,8 +126,13 @@ function sanitizeHtml(html: string): string {
   return doc.body.innerHTML;
 }
 
-export function DocsPanel() {
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+interface DocsPanelProps {
+  initialPath?: string | null;
+  onPathChange?: (path: string | null) => void;
+}
+
+export function DocsPanel({ initialPath, onPathChange }: DocsPanelProps) {
+  const [selectedPath, setSelectedPath] = useState<string | null>(initialPath || null);
   const [searchQuery, setSearchQuery] = useState("");
   const [renderedHtml, setRenderedHtml] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -155,6 +160,12 @@ export function DocsPanel() {
       setSelectedPath(defaultDoc);
     }
   }, [defaultDoc, selectedPath]);
+
+  useEffect(() => {
+    if (initialPath) {
+      setSelectedPath(initialPath);
+    }
+  }, [initialPath]);
 
   const {
     data: content,
@@ -225,6 +236,12 @@ export function DocsPanel() {
     }
     renderMermaid();
   }, [renderedHtml]);
+
+  useEffect(() => {
+    if (onPathChange) {
+      onPathChange(selectedPath || null);
+    }
+  }, [selectedPath, onPathChange]);
 
   return (
     <div className="space-y-6">

@@ -9,6 +9,13 @@ export type { FrameStats } from "../hooks/useFrameStats";
 
 type PointerAction = "move" | "down" | "up" | "click";
 
+/** Frame dimensions stored in ref to avoid re-renders */
+interface FrameDimensions {
+  width: number;
+  height: number;
+  capturedAt: string;
+}
+
 interface FramePayload {
   image: string;
   width: number;
@@ -94,12 +101,18 @@ export function PlaywrightView({
   onStatsUpdate,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [frame, setFrame] = useState<FramePayload | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Store frame dimensions in ref to avoid re-renders on every frame
+  // Only trigger re-render when dimensions actually change (for layout) or when we get first frame
+  const frameDimensionsRef = useRef<FrameDimensions | null>(null);
+  const [hasFrame, setHasFrame] = useState(false);
+  const [displayDimensions, setDisplayDimensions] = useState<{ width: number; height: number } | null>(null);
+
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastMoveRef = useRef(0);
   const inFlightRef = useRef(false);
-  const lastFrameRef = useRef<FramePayload | null>(null);
   const lastSessionRef = useRef<string | null>(null);
   const lastETagRef = useRef<string | null>(null);
   const lastContentHashRef = useRef<string | null>(null);
@@ -109,12 +122,14 @@ export function PlaywrightView({
 
   // WebSocket for real-time frame updates (including binary frames)
   const { isConnected, lastMessage, lastBinaryFrame, send } = useWebSocket();
-  const blobUrlRef = useRef<string | null>(null);
 
   // Frame statistics tracking
   const { stats: frameStats, recordFrame, reset: resetStats } = useFrameStats();
   const onStatsUpdateRef = useRef(onStatsUpdate);
   onStatsUpdateRef.current = onStatsUpdate;
+
+  // Track displayed timestamp for UI (updated via ref to avoid re-renders)
+  const [displayedTimestamp, setDisplayedTimestamp] = useState<string | null>(null);
 
   // Track tab visibility to pause polling when hidden
   useEffect(() => {
@@ -182,20 +197,38 @@ export function PlaywrightView({
       }
       lastContentHashRef.current = msg.content_hash;
 
-      const frameData: FramePayload = {
-        image: msg.image,
-        width: msg.width,
-        height: msg.height,
-        captured_at: msg.captured_at,
-        content_hash: msg.content_hash,
-      };
-
-      // Preload the image before swapping to avoid flicker
+      // Preload the image and draw to canvas
       const img = new Image();
       img.onload = () => {
-        setFrame(frameData);
-        lastFrameRef.current = frameData;
+        // Draw to canvas
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext("2d", { alpha: false });
+          if (ctx) {
+            if (canvas.width !== img.width || canvas.height !== img.height) {
+              canvas.width = img.width;
+              canvas.height = img.height;
+            }
+            ctx.drawImage(img, 0, 0);
+          }
+        }
+
+        // Update ref and minimal state
+        frameDimensionsRef.current = {
+          width: msg.width,
+          height: msg.height,
+          capturedAt: msg.captured_at,
+        };
+
+        if (!hasFrame) {
+          setHasFrame(true);
+        }
+        if (!displayDimensions || displayDimensions.width !== msg.width || displayDimensions.height !== msg.height) {
+          setDisplayDimensions({ width: msg.width, height: msg.height });
+        }
+        setDisplayedTimestamp(msg.captured_at);
         setError(null);
+
         // Mark WebSocket frames as active once we receive the first frame
         if (!isWsFrameActive) {
           setIsWsFrameActive(true);
@@ -206,17 +239,39 @@ export function PlaywrightView({
       };
       img.src = msg.image;
     }
-  }, [lastMessage, sessionId, useWebSocketFrames, isWsFrameActive]);
+  }, [lastMessage, sessionId, useWebSocketFrames, isWsFrameActive, hasFrame, displayDimensions]);
 
   // Handle WebSocket binary frames (raw JPEG data - more efficient)
-  // Uses requestAnimationFrame + createImageBitmap for optimal rendering performance:
+  // Performance optimizations:
   // 1. createImageBitmap decodes off-main-thread (non-blocking)
   // 2. requestAnimationFrame batches updates to vsync (no dropped frames)
-  // 3. Only one pending frame at a time - newer frames supersede older ones
-  const pendingBlobUrlRef = useRef<string | null>(null);
+  // 3. Canvas drawImage is faster than img element (no Blob URL overhead)
+  // 4. Only re-render React when dimensions change, not every frame
   const pendingBlobRef = useRef<Blob | null>(null);
   const latestFrameIdRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
+
+  /**
+   * Draw a bitmap directly to canvas - bypasses Blob URL creation entirely.
+   * This is significantly faster than creating/revoking Blob URLs per frame.
+   */
+  const drawFrameToCanvas = useCallback((bitmap: ImageBitmap) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return false;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return false;
+
+    // Resize canvas if needed (only when dimensions change)
+    if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+    }
+
+    // Draw directly - no intermediate Blob URL needed
+    ctx.drawImage(bitmap, 0, 0);
+    return true;
+  }, []);
 
   useEffect(() => {
     if (!lastBinaryFrame || !useWebSocketFrames || !isWsFrameActive) return;
@@ -224,6 +279,7 @@ export function PlaywrightView({
     // Create blob from binary data
     const blob = new Blob([lastBinaryFrame], { type: "image/jpeg" });
     const frameId = Date.now(); // Use timestamp as frame ID for ordering
+    const frameSize = lastBinaryFrame.byteLength;
 
     // Store as pending frame - this supersedes any previous pending frame
     pendingBlobRef.current = blob;
@@ -245,45 +301,60 @@ export function PlaywrightView({
       pendingBlobRef.current = null;
 
       try {
-        // Use createImageBitmap for off-main-thread decoding (more efficient than new Image())
+        // Use createImageBitmap for off-main-thread decoding (non-blocking)
         const bitmap = await createImageBitmap(pending);
-
-        // Create blob URL for the img element
-        const url = URL.createObjectURL(pending);
 
         // Check if a newer frame arrived while we were decoding
         if (latestFrameIdRef.current > processingFrameId) {
           // Newer frame exists - discard this one
-          URL.revokeObjectURL(url);
           bitmap.close();
           return;
         }
 
-        // Revoke old blob URL before setting new one
-        if (blobUrlRef.current && blobUrlRef.current !== url) {
-          URL.revokeObjectURL(blobUrlRef.current);
+        // Draw directly to canvas (no Blob URL overhead!)
+        const drawn = drawFrameToCanvas(bitmap);
+        if (!drawn) {
+          bitmap.close();
+          return;
         }
-        blobUrlRef.current = url;
-        pendingBlobUrlRef.current = url;
 
-        // Create frame data
-        const frameData: FramePayload = {
-          image: url,
-          width: bitmap.width || frame?.width || 1280,
-          height: bitmap.height || frame?.height || 720,
-          captured_at: new Date().toISOString(),
+        // Update dimensions ref (no re-render triggered)
+        const newDimensions: FrameDimensions = {
+          width: bitmap.width,
+          height: bitmap.height,
+          capturedAt: new Date().toISOString(),
         };
 
-        // Clean up bitmap (we're using the blob URL for display)
+        // Only trigger re-render if this is first frame or dimensions changed
+        const prevDims = frameDimensionsRef.current;
+        const dimensionsChanged = !prevDims ||
+          prevDims.width !== bitmap.width ||
+          prevDims.height !== bitmap.height;
+
+        frameDimensionsRef.current = newDimensions;
+
+        // Clean up bitmap after drawing
         bitmap.close();
 
-        // Update state - this triggers a single re-render with the ready-to-display frame
-        setFrame(frameData);
-        lastFrameRef.current = frameData;
+        // Update React state only when necessary
+        if (!hasFrame) {
+          setHasFrame(true);
+        }
+        if (dimensionsChanged) {
+          setDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
+        }
+
+        // Update timestamp periodically (not every frame - reduces re-renders)
+        // Update every 500ms for UI display
+        const now = Date.now();
+        if (!displayedTimestamp || now % 500 < 100) {
+          setDisplayedTimestamp(newDimensions.capturedAt);
+        }
+
         setError(null);
 
-        // Record frame stats (use pending.size for accurate byte count)
-        recordFrame(pending.size);
+        // Record frame stats
+        recordFrame(frameSize);
       } catch {
         // Decode failed - only show error if no newer frame is pending
         if (!pendingBlobRef.current) {
@@ -291,22 +362,13 @@ export function PlaywrightView({
         }
       }
     });
-  }, [lastBinaryFrame, useWebSocketFrames, isWsFrameActive, frame?.width, frame?.height, recordFrame]);
+  }, [lastBinaryFrame, useWebSocketFrames, isWsFrameActive, drawFrameToCanvas, recordFrame, hasFrame, displayedTimestamp]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
     return () => {
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, []);
-
-  // Cleanup blob URL on unmount
-  useEffect(() => {
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
       }
     };
   }, []);
@@ -344,11 +406,36 @@ export function PlaywrightView({
       }
 
       const data = (await res.json()) as FramePayload;
-      // Preload the image before swapping to avoid flicker.
+      // Preload the image and draw to canvas
       const img = new Image();
       img.onload = () => {
-        setFrame(data);
-        lastFrameRef.current = data;
+        // Draw to canvas for polling mode too
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext("2d", { alpha: false });
+          if (ctx) {
+            if (canvas.width !== img.width || canvas.height !== img.height) {
+              canvas.width = img.width;
+              canvas.height = img.height;
+            }
+            ctx.drawImage(img, 0, 0);
+          }
+        }
+
+        // Update ref and state
+        frameDimensionsRef.current = {
+          width: img.width,
+          height: img.height,
+          capturedAt: data.captured_at,
+        };
+
+        if (!hasFrame) {
+          setHasFrame(true);
+        }
+        if (!displayDimensions || displayDimensions.width !== img.width || displayDimensions.height !== img.height) {
+          setDisplayDimensions({ width: img.width, height: img.height });
+        }
+        setDisplayedTimestamp(data.captured_at);
         setError(null);
       };
       img.onerror = () => {
@@ -372,7 +459,7 @@ export function PlaywrightView({
         pollIntervalRef.current = nextInterval;
       }
     }
-  }, [fps, onStreamError, quality, sessionId, pollInterval]);
+  }, [fps, onStreamError, quality, sessionId, pollInterval, hasFrame, displayDimensions]);
 
   // Polling - runs as primary method, stops when WebSocket frames become active
   // This ensures frames are always displayed, with WebSocket as an optimization
@@ -412,8 +499,19 @@ export function PlaywrightView({
   useEffect(() => {
     if (lastSessionRef.current !== sessionId) {
       lastSessionRef.current = sessionId;
-      setFrame(null);
-      lastFrameRef.current = null;
+      // Reset frame state
+      frameDimensionsRef.current = null;
+      setHasFrame(false);
+      setDisplayDimensions(null);
+      setDisplayedTimestamp(null);
+      // Clear canvas
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
       lastETagRef.current = null; // Reset ETag for new session
       lastContentHashRef.current = null; // Reset content hash for new session
       setError(null);
@@ -464,21 +562,20 @@ export function PlaywrightView({
       const rect = containerRef.current?.getBoundingClientRect();
       // Use logical viewport dimensions for coordinate mapping (not bitmap dimensions which include device pixel ratio)
       // Fall back to frame dimensions if viewport not provided (may be incorrect on HiDPI - see coordinateMapping.ts)
-      const currentFrame = frame || lastFrameRef.current;
-      const targetWidth = viewport?.width || currentFrame?.width;
-      const targetHeight = viewport?.height || currentFrame?.height;
+      const currentDims = frameDimensionsRef.current;
+      const targetWidth = viewport?.width || currentDims?.width;
+      const targetHeight = viewport?.height || currentDims?.height;
       if (!rect || !targetWidth || !targetHeight) return { x: 0, y: 0 };
 
       return mapClientToViewport(clientX, clientY, rect, targetWidth, targetHeight);
     },
-    [frame?.height, frame?.width, viewport?.height, viewport?.width]
+    [viewport?.height, viewport?.width]
   );
 
   const handlePointer = useCallback(
     (action: PointerAction, e: React.PointerEvent<HTMLDivElement>) => {
       // Use ref to avoid stale frame state in callbacks
-      const currentFrame = frame || lastFrameRef.current;
-      if (!currentFrame) {
+      if (!frameDimensionsRef.current) {
         return;
       }
       if (action === "move") {
@@ -499,12 +596,12 @@ export function PlaywrightView({
       e.preventDefault();
       e.stopPropagation();
     },
-    [frame, getScaledPoint, sendInput]
+    [getScaledPoint, sendInput]
   );
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLDivElement>) => {
-      if (!frame) return;
+      if (!frameDimensionsRef.current) return;
       void sendInput({
         type: "wheel",
         delta_x: e.deltaX,
@@ -513,12 +610,12 @@ export function PlaywrightView({
       e.preventDefault();
       e.stopPropagation();
     },
-    [frame, sendInput]
+    [sendInput]
   );
 
   const handleKey = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!frame) return;
+      if (!frameDimensionsRef.current) return;
       const modifiers = [
         e.altKey ? "Alt" : null,
         e.ctrlKey ? "Control" : null,
@@ -535,7 +632,7 @@ export function PlaywrightView({
       e.preventDefault();
       e.stopPropagation();
     },
-    [frame, sendInput]
+    [sendInput]
   );
 
   return (
@@ -552,13 +649,17 @@ export function PlaywrightView({
       onKeyDown={handleKey}
       className="relative h-full w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
-      {lastFrameRef.current ? (
-        <img
-          src={(frame ?? lastFrameRef.current)?.image}
-          alt="Live Playwright preview"
-          className="w-full h-full object-contain bg-white pointer-events-none"
-        />
-      ) : (
+      {/* Canvas for frame rendering - much faster than img + Blob URL */}
+      <canvas
+        ref={canvasRef}
+        className={`w-full h-full object-contain bg-white pointer-events-none ${hasFrame ? "" : "hidden"}`}
+        // Set initial dimensions, will be updated when frames arrive
+        width={displayDimensions?.width || 1280}
+        height={displayDimensions?.height || 720}
+      />
+
+      {/* Loading state - shown when no frame yet */}
+      {!hasFrame && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
           {isFetching ? "Connecting to live session…" : "Waiting for first frame…"}
         </div>
@@ -570,9 +671,9 @@ export function PlaywrightView({
       >
         <span className={`w-2 h-2 rounded-full ${isWsFrameActive ? "bg-green-500" : "bg-yellow-500"}`} />
         Live {isWsFrameActive ? "(WebSocket)" : "(polling)"}
-        {(frame ?? lastFrameRef.current) && (
+        {displayedTimestamp && (
           <span className="text-gray-500 dark:text-gray-400">
-            {new Date((frame ?? lastFrameRef.current)!.captured_at).toLocaleTimeString()}
+            {new Date(displayedTimestamp).toLocaleTimeString()}
           </span>
         )}
       </div>
