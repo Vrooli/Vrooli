@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -59,10 +59,10 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		EngineFactory:     s.engineFactory,
 		Recorder:          s.artifactRecorder,
 		EventSink:         eventSink,
-		HeartbeatInterval: 2 * time.Second,
+		HeartbeatInterval: config.Load().Execution.HeartbeatInterval,
 		WorkflowResolver:  s.repo,
 		PlanCompiler:      compiler,
-		MaxSubflowDepth:   5,
+		MaxSubflowDepth:   config.Load().Execution.MaxSubflowDepth,
 	}
 	return s.executor.Execute(ctx, req)
 }
@@ -110,10 +110,10 @@ func (s *WorkflowService) executeResumedWithAutomationEngine(ctx context.Context
 		EngineFactory:      s.engineFactory,
 		Recorder:           s.artifactRecorder,
 		EventSink:          eventSink,
-		HeartbeatInterval:  2 * time.Second,
+		HeartbeatInterval:  config.Load().Execution.HeartbeatInterval,
 		WorkflowResolver:   s.repo,
 		PlanCompiler:       compiler,
-		MaxSubflowDepth:    5,
+		MaxSubflowDepth:    config.Load().Execution.MaxSubflowDepth,
 		StartFromStepIndex: startFromStepIndex,
 		InitialVariables:   initialVars,
 		ResumedFromID:      &resumedFromID,

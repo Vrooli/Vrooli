@@ -7,13 +7,6 @@ declare global {
   }
 }
 
-const ensureTrailingSlash = (value: string): string => {
-  if (!value) {
-    return value
-  }
-  return value.endsWith('/') ? value : `${value}/`
-}
-
 const normalizeForUrlParsing = (value: string): string => {
   if (!value) {
     return value
@@ -68,12 +61,11 @@ const API_URL = resolveApiBase({
   explicitUrl: API_OVERRIDE,
 })
 
-const WS_ROOT = ensureTrailingSlash(
-  resolveWsBase({
-    appendSuffix: false,
-    explicitUrl: API_OVERRIDE,
-  })
-)
+const WS_ROOT = resolveWsBase({
+  appendSuffix: true,
+  apiSuffix: '/ws',
+  explicitUrl: API_OVERRIDE,
+})
 
 const runtimeConfig: Config = {
   API_URL,

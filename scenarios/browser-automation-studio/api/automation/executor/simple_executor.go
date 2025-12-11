@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
+	"github.com/vrooli/browser-automation-studio/config"
 )
 
 // SimpleExecutor provides a minimal sequential executor that delegates step
@@ -91,7 +92,10 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 	}
 	maxDepth := req.MaxSubflowDepth
 	if maxDepth <= 0 {
-		maxDepth = 5
+		maxDepth = config.Load().Execution.MaxSubflowDepth
+		if maxDepth <= 0 {
+			maxDepth = 5
+		}
 	}
 
 	eng, err := req.EngineFactory.Resolve(ctx, engineName)
@@ -1015,8 +1019,8 @@ func instructionTimeout(plan contracts.ExecutionPlan, instruction contracts.Comp
 	return time.Duration(ms) * time.Millisecond
 }
 
-// Timeout configuration constants for dynamic timeout calculation.
-// These can be adjusted based on operational experience.
+// Timeout configuration defaults for dynamic timeout calculation.
+// Values are overridden by config.Execution when present.
 const (
 	// baseExecutionTimeout is the minimum overhead for session setup, network round-trips, etc.
 	baseExecutionTimeout = 30 * time.Second
@@ -1062,9 +1066,32 @@ func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
 // Formula: base + (stepCount * perStepTimeout), clamped to [min, max]
 // This ensures complex workflows get proportionally more time while preventing unbounded timeouts.
 func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
+	execCfg := config.Load().Execution
+
+	base := execCfg.BaseTimeout
+	if base <= 0 {
+		base = baseExecutionTimeout
+	}
+	perStep := execCfg.PerStepTimeout
+	if perStep <= 0 {
+		perStep = perStepTimeout
+	}
+	perStepSubflow := execCfg.PerStepSubflowTimeout
+	if perStepSubflow <= 0 {
+		perStepSubflow = perStepTimeoutWithSubflows
+	}
+	minTimeout := execCfg.MinTimeout
+	if minTimeout <= 0 {
+		minTimeout = minExecutionTimeout
+	}
+	maxTimeout := execCfg.MaxTimeout
+	if maxTimeout <= 0 {
+		maxTimeout = maxExecutionTimeout
+	}
+
 	stepCount := len(plan.Instructions)
 	if stepCount == 0 {
-		return minExecutionTimeout
+		return minTimeout
 	}
 
 	// Determine if workflow has subflows (which need more time per step)
@@ -1077,22 +1104,19 @@ func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
 	}
 
 	// Calculate timeout based on step count
-	var perStep time.Duration
 	if hasSubflows {
-		perStep = perStepTimeoutWithSubflows
-	} else {
-		perStep = perStepTimeout
+		perStep = perStepSubflow
 	}
 
 	// Dynamic timeout: base + (stepCount * perStep)
-	timeout := baseExecutionTimeout + time.Duration(stepCount)*perStep
+	timeout := base + time.Duration(stepCount)*perStep
 
 	// Clamp to valid range
-	if timeout < minExecutionTimeout {
-		return minExecutionTimeout
+	if timeout < minTimeout {
+		return minTimeout
 	}
-	if timeout > maxExecutionTimeout {
-		return maxExecutionTimeout
+	if timeout > maxTimeout {
+		return maxTimeout
 	}
 	return timeout
 }

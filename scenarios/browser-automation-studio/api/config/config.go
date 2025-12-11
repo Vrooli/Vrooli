@@ -7,10 +7,14 @@
 //   - Database: Connection pooling and retry behavior
 //   - Execution: Workflow execution timeout calculation
 //   - WebSocket: Client connection and buffer settings
+//   - Events: Automation event backpressure limits
 //   - Recording: Record mode session settings
 //   - AI/DOM: AI analysis and DOM extraction limits
 //   - Replay: Video rendering and capture settings
 //   - Storage: Screenshot and artifact storage limits
+//   - HTTP: API request limits and pagination defaults
+//   - Entitlement: Subscription verification and feature gating
+//   - Performance: Debug performance mode for frame streaming
 //
 // # Adding New Levers
 //
@@ -51,6 +55,9 @@ type Config struct {
 
 	// WebSocket controls client connection and buffer settings.
 	WebSocket WebSocketConfig
+
+	// Events controls automation event backpressure limits.
+	Events EventsConfig
 
 	// Recording controls record mode session settings.
 	Recording RecordingConfig
@@ -223,6 +230,13 @@ type ExecutionConfig struct {
 	// AdhocRetentionPeriod is how long to retain completed adhoc workflows before cleanup.
 	// Env: BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS (default: 600000, 10 minutes)
 	AdhocRetentionPeriod time.Duration
+
+	// HeartbeatInterval controls the cadence of mid-step heartbeats emitted while
+	// instructions are running. Set to 0 to disable heartbeats (not recommended
+	// unless running in extremely constrained environments).
+	// Env: BAS_EXECUTION_HEARTBEAT_INTERVAL_MS (default: 2000)
+	// Alias: BROWSERLESS_HEARTBEAT_INTERVAL (Go duration string, e.g., "2s")
+	HeartbeatInterval time.Duration
 }
 
 // WebSocketConfig controls WebSocket hub settings.
@@ -239,6 +253,19 @@ type WebSocketConfig struct {
 	// ClientReadLimit is the maximum message size the client can send.
 	// Env: BAS_WS_CLIENT_READ_LIMIT (default: 512)
 	ClientReadLimit int64
+}
+
+// EventsConfig controls automation event buffering and drop policy thresholds.
+// These settings bound memory usage and govern when non-critical telemetry
+// (heartbeat/console/network) may be dropped under backpressure.
+type EventsConfig struct {
+	// PerExecutionBuffer limits the number of buffered events per execution.
+	// Env: BAS_EVENTS_PER_EXECUTION_BUFFER (default: 200)
+	PerExecutionBuffer int
+
+	// PerAttemptBuffer limits the number of buffered events per step attempt.
+	// Env: BAS_EVENTS_PER_ATTEMPT_BUFFER (default: 50)
+	PerAttemptBuffer int
 }
 
 // RecordingConfig controls record mode and recording session settings.
@@ -534,11 +561,16 @@ func loadFromEnv() *Config {
 			CompletionPollInterval: parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
 			AdhocCleanupInterval:   parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
 			AdhocRetentionPeriod:   parseDurationMs("BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS", 600000),
+			HeartbeatInterval:      parseDurationMsWithAlt("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000, "BROWSERLESS_HEARTBEAT_INTERVAL"),
 		},
 		WebSocket: WebSocketConfig{
 			ClientSendBufferSize:   parseInt("BAS_WS_CLIENT_SEND_BUFFER_SIZE", 256),
 			ClientBinaryBufferSize: parseInt("BAS_WS_CLIENT_BINARY_BUFFER_SIZE", 120),
 			ClientReadLimit:        parseInt64("BAS_WS_CLIENT_READ_LIMIT", 512),
+		},
+		Events: EventsConfig{
+			PerExecutionBuffer: parseInt("BAS_EVENTS_PER_EXECUTION_BUFFER", 200),
+			PerAttemptBuffer:   parseInt("BAS_EVENTS_PER_ATTEMPT_BUFFER", 50),
 		},
 		Recording: RecordingConfig{
 			DefaultViewportWidth:   parseInt("BAS_RECORDING_DEFAULT_VIEWPORT_WIDTH", 1280),
@@ -637,6 +669,9 @@ func (c *Config) Validate() error {
 	if c.Execution.DefaultBackoffFactor < 1 {
 		return fmt.Errorf("DefaultBackoffFactor must be at least 1, got %f", c.Execution.DefaultBackoffFactor)
 	}
+	if c.Execution.HeartbeatInterval < 0 {
+		return fmt.Errorf("HeartbeatInterval must be non-negative, got %v", c.Execution.HeartbeatInterval)
+	}
 
 	// WebSocket validation
 	if c.WebSocket.ClientSendBufferSize < 1 {
@@ -644,6 +679,14 @@ func (c *Config) Validate() error {
 	}
 	if c.WebSocket.ClientReadLimit < 1 {
 		return fmt.Errorf("ClientReadLimit must be at least 1, got %d", c.WebSocket.ClientReadLimit)
+	}
+
+	// Events validation
+	if c.Events.PerExecutionBuffer < 1 {
+		return fmt.Errorf("PerExecutionBuffer must be at least 1, got %d", c.Events.PerExecutionBuffer)
+	}
+	if c.Events.PerAttemptBuffer < 1 {
+		return fmt.Errorf("PerAttemptBuffer must be at least 1, got %d", c.Events.PerAttemptBuffer)
 	}
 
 	// Recording validation
@@ -747,6 +790,30 @@ func parseDurationMs(envVar string, defaultMs int) time.Duration {
 		return time.Duration(defaultMs) * time.Millisecond
 	}
 	return time.Duration(ms) * time.Millisecond
+}
+
+// parseDurationMsWithAlt parses a millisecond env var, falling back to an
+// alternate Go duration env var when the primary is unset.
+func parseDurationMsWithAlt(envVar string, defaultMs int, altDurationVar string) time.Duration {
+	value := strings.TrimSpace(os.Getenv(envVar))
+	if value != "" {
+		if ms, err := strconv.Atoi(value); err == nil && ms >= 0 {
+			return time.Duration(ms) * time.Millisecond
+		}
+	}
+
+	if altDurationVar != "" {
+		if alt := strings.TrimSpace(os.Getenv(altDurationVar)); alt != "" {
+			if d, err := time.ParseDuration(alt); err == nil && d >= 0 {
+				return d
+			}
+			if ms, err := strconv.Atoi(alt); err == nil && ms >= 0 {
+				return time.Duration(ms) * time.Millisecond
+			}
+		}
+	}
+
+	return time.Duration(defaultMs) * time.Millisecond
 }
 
 // parseInt parses an environment variable as an integer.

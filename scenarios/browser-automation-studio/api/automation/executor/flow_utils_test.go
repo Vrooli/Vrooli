@@ -2,7 +2,111 @@ package executor
 
 import (
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 )
+
+// ============================================================================
+// Graph routing decisions
+// ============================================================================
+
+func TestNextNodeIDConditionalAliases(t *testing.T) {
+	exec := &SimpleExecutor{}
+
+	tests := []struct {
+		name      string
+		condition bool
+		edges     []contracts.PlanEdge
+		want      string
+	}{
+		{
+			name:      "true branch matches success aliases",
+			condition: true,
+			edges: []contracts.PlanEdge{
+				{Target: "false-edge", Condition: "false"},
+				{Target: "true-edge", Condition: "pass"},
+			},
+			want: "true-edge",
+		},
+		{
+			name:      "false branch matches failure aliases",
+			condition: false,
+			edges: []contracts.PlanEdge{
+				{Target: "true-edge", Condition: "yes"},
+				{Target: "false-edge", Condition: "no"},
+			},
+			want: "false-edge",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			step := contracts.PlanStep{
+				Type:     "conditional",
+				Outgoing: tt.edges,
+			}
+			outcome := contracts.StepOutcome{
+				Success:   true,
+				Condition: &contracts.ConditionOutcome{Outcome: tt.condition},
+			}
+
+			got := exec.nextNodeID(step, outcome)
+			if got != tt.want {
+				t.Fatalf("nextNodeID = %s, want %s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNextNodeIDPrefersFailureOverSuccess(t *testing.T) {
+	exec := &SimpleExecutor{}
+	step := contracts.PlanStep{
+		Outgoing: []contracts.PlanEdge{
+			{Target: "success-edge", Condition: "success"},
+			{Target: "failure-edge", Condition: "failure"},
+		},
+	}
+	outcome := contracts.StepOutcome{
+		Success: false,
+		Failure: &contracts.StepFailure{Kind: contracts.FailureKindEngine},
+	}
+
+	got := exec.nextNodeID(step, outcome)
+	if got != "failure-edge" {
+		t.Fatalf("nextNodeID = %s, want failure-edge", got)
+	}
+}
+
+func TestNextNodeIDUsesImplicitSuccessRoute(t *testing.T) {
+	exec := &SimpleExecutor{}
+	step := contracts.PlanStep{
+		Outgoing: []contracts.PlanEdge{
+			{Target: "explicit-success", Condition: "success"},
+			{Target: "implicit-success", Condition: ""},
+		},
+	}
+	outcome := contracts.StepOutcome{Success: true}
+
+	got := exec.nextNodeID(step, outcome)
+	if got != "explicit-success" {
+		t.Fatalf("nextNodeID = %s, want explicit-success", got)
+	}
+}
+
+func TestNextNodeIDFallsBackToFirstEdge(t *testing.T) {
+	exec := &SimpleExecutor{}
+	step := contracts.PlanStep{
+		Outgoing: []contracts.PlanEdge{
+			{Target: "first", Condition: "maybe"},
+			{Target: "second", Condition: "later"},
+		},
+	}
+
+	got := exec.nextNodeID(step, contracts.StepOutcome{Success: false})
+	if got != "first" {
+		t.Fatalf("nextNodeID = %s, want first", got)
+	}
+}
 
 func TestEvaluateExpressionBoolLiteral(t *testing.T) {
 	if ok, valid := evaluateExpression("true", nil); !valid || !ok {

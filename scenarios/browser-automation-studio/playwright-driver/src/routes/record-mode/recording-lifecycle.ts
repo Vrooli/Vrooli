@@ -35,6 +35,15 @@ import type {
 } from './types';
 import { PerfCollector } from '../../performance';
 import { loadConfig } from '../../config';
+import {
+  createFpsController,
+  processFrame as processFpsFrame,
+  handleTimeout as handleFpsTimeout,
+  getIntervalMs,
+  getCurrentFps,
+  FpsControllerState,
+  FpsControllerConfig,
+} from '../../fps';
 
 /**
  * Circuit breaker state for callback streaming.
@@ -602,13 +611,7 @@ interface FrameStreamState {
   quality: number;
   /** Target FPS (user-requested) */
   targetFps: number;
-  /** Current adaptive FPS (may be lower than target if client is slow) */
-  currentFps: number;
-  /** Timestamp of last frame sent (for adaptive FPS calculation) */
-  lastFrameSentAt: number;
-  /** Rolling average of frame processing times (ms) - DEPRECATED, use avgCaptureTime */
-  avgFrameTime: number;
-  /** Number of frames sent (for averaging) */
+  /** Number of frames sent (for logging/metrics) */
   frameCount: number;
   /** WebSocket connection to API */
   ws: FrameWebSocket | null;
@@ -620,18 +623,14 @@ interface FrameStreamState {
   wsReady: boolean;
   /** Screenshot scale: 'css' for 1x, 'device' for devicePixelRatio */
   scale: 'css' | 'device';
-  /** Rolling average of screenshot capture times (ms) - the actual bottleneck */
-  avgCaptureTime: number;
-  /** Ring buffer of recent capture times for percentile analysis */
-  captureTimes: number[];
-  /** Count of consecutive slow captures (for immediate reaction) */
-  slowCaptureStreak: number;
-  /** Count of consecutive fast captures (for ramp-up) */
-  fastCaptureStreak: number;
   /** Performance collector for debug mode (null if disabled) */
   perfCollector: PerfCollector | null;
   /** Whether to include timing headers in frames */
   includePerfHeaders: boolean;
+  /** FPS controller state (handles adaptive FPS logic) */
+  fpsState: FpsControllerState;
+  /** FPS controller config */
+  fpsConfig: FpsControllerConfig;
 }
 
 /** Per-session frame streaming state */
@@ -643,26 +642,8 @@ const MAX_FRAME_FAILURES = 3;
 /** WebSocket reconnection delay */
 const WS_RECONNECT_DELAY_MS = 1000;
 
-/** Minimum FPS floor for adaptive rate control */
-const MIN_ADAPTIVE_FPS = 2;
-/** Alpha for exponential moving average of capture times */
-const CAPTURE_TIME_EMA_ALPHA = 0.3;
-/** How often to log adaptive FPS changes (every N frames) */
-const ADAPTIVE_LOG_INTERVAL = 30;
-
-// Capture-time-based adaptive FPS constants
-/** Size of ring buffer for capture time percentile analysis */
-const CAPTURE_TIME_BUFFER_SIZE = 20;
-/** Capture time (ms) below which we consider the page "fast" */
-const FAST_CAPTURE_MS = 60;
-/** Capture time (ms) above which we immediately reduce FPS */
-const SLOW_CAPTURE_MS = 120;
-/** Safety margin when calculating max achievable FPS from capture time */
-const CAPTURE_HEADROOM = 1.3;
-/** Number of consecutive fast captures before ramping up FPS */
-const FAST_STREAK_THRESHOLD = 3;
-/** Number of consecutive slow captures before aggressive FPS reduction */
-const SLOW_STREAK_THRESHOLD = 2;
+/** How often to log FPS changes (every N frames) */
+const FPS_LOG_INTERVAL = 30;
 
 /**
  * Build WebSocket URL from HTTP callback URL.
@@ -702,7 +683,6 @@ export function startFrameStreaming(
   const quality = options.quality ?? 65;
   const fps = Math.min(Math.max(options.fps ?? 6, 1), 60); // Clamp 1-60 FPS
   const scale = options.scale ?? 'css';
-  const intervalMs = Math.floor(1000 / fps);
   const wsUrl = buildWebSocketUrl(options.callbackUrl, sessionId);
 
   // Initialize performance collector if perf mode is enabled
@@ -712,27 +692,31 @@ export function startFrameStreaming(
     ? PerfCollector.fromConfig(sessionId, config, fps)
     : null;
 
+  // Initialize FPS controller with target-utilization based adaptive logic
+  const { state: fpsState, config: fpsConfig } = createFpsController(fps, {
+    minFps: 2,
+    maxFps: Math.min(60, fps * 2), // Allow up to 2x target, capped at 60
+    targetUtilization: 0.7, // Use 70% of frame time for capture
+    smoothing: 0.25, // Moderate responsiveness
+    adjustmentInterval: 3, // Evaluate every 3 frames
+  });
+
   const state: FrameStreamState = {
     isStreaming: true,
     abortController: new AbortController(),
     lastFrameBuffer: null,
     quality,
     targetFps: fps,
-    currentFps: fps,
-    lastFrameSentAt: 0,
-    avgFrameTime: 0,
     frameCount: 0,
     ws: null,
     wsUrl,
     consecutiveFailures: 0,
     wsReady: false,
     scale,
-    avgCaptureTime: 0,
-    captureTimes: [],
-    slowCaptureStreak: 0,
-    fastCaptureStreak: 0,
     perfCollector,
     includePerfHeaders: perfEnabled && config.performance.includeTimingHeaders,
+    fpsState,
+    fpsConfig,
   };
 
   frameStreamStates.set(sessionId, state);
@@ -742,17 +726,18 @@ export function startFrameStreaming(
     targetFps: fps,
     quality,
     scale,
-    initialIntervalMs: intervalMs,
+    initialIntervalMs: getIntervalMs(fpsState),
     wsUrl,
     adaptiveFpsEnabled: true,
-    minFps: MIN_ADAPTIVE_FPS,
+    minFps: fpsConfig.minFps,
+    maxFps: fpsConfig.maxFps,
     perfModeEnabled: perfEnabled,
     perfHeaders: state.includePerfHeaders,
   });
 
   // Connect WebSocket and start streaming loop
   connectFrameWebSocket(sessionId, state);
-  void runFrameStreamLoop(sessionId, sessionManager, state, intervalMs);
+  void runFrameStreamLoop(sessionId, sessionManager, state);
 }
 
 /**
@@ -834,8 +819,11 @@ export function updateFrameStreamSettings(
     const newFps = Math.min(Math.max(options.fps, 1), 60);
     if (newFps !== state.targetFps) {
       state.targetFps = newFps;
-      // Also update current FPS toward new target (adaptive will fine-tune)
-      state.currentFps = Math.min(state.currentFps, newFps);
+      // Update FPS config with new max (allow up to 2x target, capped at 60)
+      state.fpsConfig = {
+        ...state.fpsConfig,
+        maxFps: Math.min(60, newFps * 2),
+      };
       changed = true;
     }
   }
@@ -850,7 +838,7 @@ export function updateFrameStreamSettings(
       sessionId,
       quality: state.quality,
       targetFps: state.targetFps,
-      currentFps: state.currentFps,
+      currentFps: getCurrentFps(state.fpsState),
       scale: state.scale,
       perfMode: state.includePerfHeaders,
     });
@@ -880,7 +868,7 @@ export function getFrameStreamSettings(sessionId: string): {
     quality: state.quality,
     fps: state.targetFps,
     scale: state.scale,
-    currentFps: state.currentFps,
+    currentFps: getCurrentFps(state.fpsState),
     isStreaming: state.isStreaming,
     perfMode: state.includePerfHeaders,
   };
@@ -1002,35 +990,24 @@ export function stopFrameStreaming(sessionId: string): void {
 }
 
 /**
- * Calculate the Pth percentile from a sorted array.
- */
-function percentile(sortedArr: number[], p: number): number {
-  if (sortedArr.length === 0) return 0;
-  const index = Math.floor(sortedArr.length * p);
-  return sortedArr[Math.min(index, sortedArr.length - 1)];
-}
-
-/**
  * The main frame streaming loop.
  * Captures frames and sends via WebSocket as binary data.
  *
- * Uses capture-time-based adaptive FPS:
+ * Uses target-utilization based adaptive FPS via the fps controller:
  * - Measures actual screenshot capture time (the bottleneck)
- * - Immediately reacts to slow captures
- * - Uses P90 capture time for stable FPS ceiling calculation
- * - Ramps up quickly when captures are fast
+ * - Adjusts FPS to keep capture at ~70% of frame budget
+ * - Simple, single-mechanism feedback loop
  */
 async function runFrameStreamLoop(
   sessionId: string,
   sessionManager: SessionManager,
-  state: FrameStreamState,
-  _initialIntervalMs: number
+  state: FrameStreamState
 ): Promise<void> {
   while (state.isStreaming && !state.abortController.signal.aborted) {
     const loopStart = performance.now();
 
-    // Calculate current interval from adaptive FPS
-    const currentIntervalMs = Math.floor(1000 / state.currentFps);
+    // Get current interval from FPS controller
+    const currentIntervalMs = getIntervalMs(state.fpsState);
 
     try {
       // Check if session still exists
@@ -1063,108 +1040,43 @@ async function runFrameStreamLoop(
       const captureTime = performance.now() - captureStart;
 
       if (!buffer) {
-        // Timeout hit - this is a very slow page, reduce FPS aggressively
-        state.slowCaptureStreak++;
-        state.fastCaptureStreak = 0;
+        // Timeout hit - use FPS controller's timeout handler
+        const timeoutResult = handleFpsTimeout(state.fpsState, SCREENSHOT_TIMEOUT_MS, state.fpsConfig);
+        state.fpsState = timeoutResult.state;
 
         // Record timeout in perf metrics
         if (state.perfCollector) {
           metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'timeout' });
         }
 
-        if (state.slowCaptureStreak >= SLOW_STREAK_THRESHOLD) {
-          const newFps = Math.max(MIN_ADAPTIVE_FPS, state.currentFps - 2);
-          if (newFps !== state.currentFps) {
-            state.currentFps = newFps;
-            logger.debug(scopedLog(LogContext.RECORDING, 'FPS reduced (capture timeout)'), {
-              sessionId,
-              currentFps: state.currentFps,
-              slowStreak: state.slowCaptureStreak,
-            });
-          }
+        if (timeoutResult.adjusted && timeoutResult.diagnostics) {
+          logger.debug(scopedLog(LogContext.RECORDING, 'FPS reduced (capture timeout)'), {
+            sessionId,
+            previousFps: timeoutResult.diagnostics.previousFps,
+            currentFps: timeoutResult.newFps,
+          });
         }
+
         await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
         continue;
       }
 
-      // === TRACK CAPTURE TIME ===
-      state.captureTimes.push(captureTime);
-      if (state.captureTimes.length > CAPTURE_TIME_BUFFER_SIZE) {
-        state.captureTimes.shift();
-      }
-
-      // Update EMA of capture time
-      state.avgCaptureTime = state.avgCaptureTime === 0
-        ? captureTime
-        : CAPTURE_TIME_EMA_ALPHA * captureTime + (1 - CAPTURE_TIME_EMA_ALPHA) * state.avgCaptureTime;
-
-      // === IMMEDIATE REACTION TO SLOW/FAST CAPTURES ===
-      if (captureTime > SLOW_CAPTURE_MS) {
-        state.slowCaptureStreak++;
-        state.fastCaptureStreak = 0;
-
-        // Immediate FPS reduction on slow capture streak
-        if (state.slowCaptureStreak >= SLOW_STREAK_THRESHOLD) {
-          const newFps = Math.max(MIN_ADAPTIVE_FPS, state.currentFps - 1);
-          if (newFps !== state.currentFps) {
-            state.currentFps = newFps;
-            if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
-              logger.debug(scopedLog(LogContext.RECORDING, 'FPS reduced (slow capture)'), {
-                sessionId,
-                currentFps: state.currentFps,
-                captureTimeMs: Math.round(captureTime),
-                avgCaptureTimeMs: Math.round(state.avgCaptureTime),
-              });
-            }
-          }
-        }
-      } else if (captureTime < FAST_CAPTURE_MS) {
-        state.fastCaptureStreak++;
-        state.slowCaptureStreak = 0;
-
-        // Ramp up FPS on fast capture streak
-        if (state.fastCaptureStreak >= FAST_STREAK_THRESHOLD && state.currentFps < state.targetFps) {
-          const newFps = Math.min(state.targetFps, state.currentFps + 1);
-          if (newFps !== state.currentFps) {
-            state.currentFps = newFps;
-            if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
-              logger.debug(scopedLog(LogContext.RECORDING, 'FPS increased (fast capture)'), {
-                sessionId,
-                currentFps: state.currentFps,
-                captureTimeMs: Math.round(captureTime),
-                fastStreak: state.fastCaptureStreak,
-              });
-            }
-          }
-        }
-      } else {
-        // Normal capture time - reset streaks
-        state.slowCaptureStreak = 0;
-        state.fastCaptureStreak = 0;
-      }
-
-      // === PERIODIC P90-BASED FPS CEILING ===
+      // === UPDATE FPS CONTROLLER WITH CAPTURE TIME ===
+      const fpsResult = processFpsFrame(state.fpsState, captureTime, state.fpsConfig);
+      state.fpsState = fpsResult.state;
       state.frameCount++;
-      if (state.frameCount % 10 === 0 && state.captureTimes.length >= 5) {
-        const sorted = [...state.captureTimes].sort((a, b) => a - b);
-        const p90CaptureTime = percentile(sorted, 0.9);
 
-        // Calculate max achievable FPS with safety headroom
-        const maxAchievableFps = Math.floor(1000 / (p90CaptureTime * CAPTURE_HEADROOM));
-        const clampedMax = Math.max(MIN_ADAPTIVE_FPS, Math.min(state.targetFps, maxAchievableFps));
-
-        // If current FPS exceeds what's achievable, cap it
-        if (state.currentFps > clampedMax) {
-          state.currentFps = clampedMax;
-          if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
-            logger.debug(scopedLog(LogContext.RECORDING, 'FPS capped by P90 capture time'), {
-              sessionId,
-              currentFps: state.currentFps,
-              p90CaptureTimeMs: Math.round(p90CaptureTime),
-              maxAchievableFps,
-            });
-          }
-        }
+      // Log FPS changes periodically
+      if (fpsResult.adjusted && fpsResult.diagnostics && state.frameCount % FPS_LOG_INTERVAL === 0) {
+        const direction = fpsResult.diagnostics.reason === 'too_fast' ? 'increased' : 'reduced';
+        logger.debug(scopedLog(LogContext.RECORDING, `FPS ${direction}`), {
+          sessionId,
+          previousFps: fpsResult.diagnostics.previousFps,
+          currentFps: fpsResult.newFps,
+          avgCaptureMs: fpsResult.diagnostics.avgCaptureMs,
+          targetCaptureMs: fpsResult.diagnostics.targetCaptureMs,
+          reason: fpsResult.diagnostics.reason,
+        });
       }
 
       // === COMPARE WITH TIMING ===
@@ -1206,7 +1118,6 @@ async function runFrameStreamLoop(
 
       const wsSendTime = performance.now() - wsSendStart;
       state.consecutiveFailures = 0;
-      state.lastFrameSentAt = performance.now();
 
       // === RECORD PERFORMANCE DATA ===
       if (state.perfCollector) {
@@ -1233,8 +1144,8 @@ async function runFrameStreamLoop(
             capture_p90_ms: stats.capture_p90_ms,
             e2e_p50_ms: stats.e2e_p50_ms,
             e2e_p90_ms: stats.e2e_p90_ms,
-            actual_fps: stats.actual_fps,
-            target_fps: stats.target_fps,
+            actual_fps: getCurrentFps(state.fpsState),
+            target_fps: state.targetFps,
             bottleneck: stats.primary_bottleneck,
           });
         }
@@ -1255,7 +1166,7 @@ async function runFrameStreamLoop(
       });
     }
 
-    await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
+    await sleepUntilNextFrame(loopStart, getIntervalMs(state.fpsState), state.abortController.signal);
   }
 }
 

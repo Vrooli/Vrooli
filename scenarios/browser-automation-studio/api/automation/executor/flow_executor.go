@@ -179,6 +179,12 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	return normalized, session, nil
 }
 
+type loopExecutionResult struct {
+	iterations  int
+	lastOutcome contracts.StepOutcome
+	session     engine.EngineSession
+}
+
 func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {
 	loopType := strings.ToLower(strings.TrimSpace(stringValue(step.Params, "loopType")))
 	if loopType == "" {
@@ -190,82 +196,32 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 		maxIterations = 100
 	}
 
-	var lastOutcome contracts.StepOutcome
-	var iterations int
+	result := loopExecutionResult{session: session}
 	switch loopType {
 	case "repeat":
-		iterations = intValue(step.Params, "loopCount")
-		if iterations <= 0 {
-			return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s repeat requires loopCount > 0", step.NodeID)
+		r, err := e.runRepeatLoop(ctx, req, execCtx, eng, spec, session, step, state, reuseMode, maxIterations)
+		if err != nil {
+			return contracts.StepOutcome{}, session, err
 		}
-		iterations = minInt(iterations, maxIterations)
-		if iterations == 0 {
-			return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s has zero iterations after clamping", step.NodeID)
-		}
-		for i := 0; i < iterations; i++ {
-			control, session, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, session, step.Loop, state, reuseMode)
-			if err != nil {
-				return contracts.StepOutcome{}, session, err
-			}
-			lastOutcome = control.LastOutcome
-			if control.Break {
-				break
-			}
-		}
+		result = r
 	case "foreach":
 		items := extractLoopItems(step.Params, state)
-		if len(items) == 0 {
-			break
+		r, err := e.runForEachLoop(ctx, req, execCtx, eng, spec, session, step, state, reuseMode, maxIterations, items)
+		if err != nil {
+			return contracts.StepOutcome{}, session, err
 		}
-		maxIterations = minInt(maxIterations, len(items))
-		itemVar := stringValue(step.Params, "loopItemVariable")
-		if itemVar == "" {
-			itemVar = stringValue(step.Params, "itemVariable")
-		}
-		if itemVar == "" {
-			itemVar = defaultLoopItemVar
-		}
-		indexVar := stringValue(step.Params, "loopIndexVariable")
-		if indexVar == "" {
-			indexVar = stringValue(step.Params, "indexVariable")
-		}
-		if indexVar == "" {
-			indexVar = defaultLoopIndexVar
-		}
-		executed := 0
-		for i := 0; i < maxIterations; i++ {
-			state.set(itemVar, items[i])
-			state.set(indexVar, i)
-			control, session, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, session, step.Loop, state, reuseMode)
-			if err != nil {
-				return contracts.StepOutcome{}, session, err
-			}
-			executed++
-			lastOutcome = control.LastOutcome
-			if control.Break {
-				break
-			}
-		}
-		iterations = executed
+		result = r
 	case "while":
-		iterations = 0
-		for iterations < maxIterations {
-			if !evaluateLoopCondition(step.Params, state) {
-				break
-			}
-			control, session, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, session, step.Loop, state, reuseMode)
-			if err != nil {
-				return contracts.StepOutcome{}, session, err
-			}
-			lastOutcome = control.LastOutcome
-			iterations++
-			if control.Break {
-				break
-			}
+		r, err := e.runWhileLoop(ctx, req, execCtx, eng, spec, session, step, state, reuseMode, maxIterations)
+		if err != nil {
+			return contracts.StepOutcome{}, session, err
 		}
+		result = r
 	default:
 		return contracts.StepOutcome{}, session, fmt.Errorf("loop node %s uses unsupported loopType %s", step.NodeID, loopType)
 	}
+
+	session = result.session
 
 	// Record synthetic outcome for the loop node itself.
 	loopOutcome := contracts.StepOutcome{
@@ -282,12 +238,12 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 			return &t
 		}(),
 		Notes: map[string]string{
-			"iterations": fmt.Sprintf("%d", iterations),
+			"iterations": fmt.Sprintf("%d", result.iterations),
 		},
 	}
-	if lastOutcome.Failure != nil && !lastOutcome.Success {
+	if result.lastOutcome.Failure != nil && !result.lastOutcome.Success {
 		loopOutcome.Success = false
-		loopOutcome.Failure = lastOutcome.Failure
+		loopOutcome.Failure = result.lastOutcome.Failure
 	}
 
 	recordResult, recordErr := req.Recorder.RecordStepOutcome(ctx, req.Plan, loopOutcome)
@@ -304,6 +260,109 @@ func (e *SimpleExecutor) executeLoop(ctx context.Context, req Request, execCtx e
 	e.emitEvent(ctx, req, contracts.EventKindStepCompleted, &step.Index, intPtr(1), payload)
 
 	return loopOutcome, session, nil
+}
+
+func (e *SimpleExecutor) runRepeatLoop(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode, maxIterations int) (loopExecutionResult, error) {
+	result := loopExecutionResult{session: session}
+
+	desiredIterations := intValue(step.Params, "loopCount")
+	if desiredIterations <= 0 {
+		return result, fmt.Errorf("loop node %s repeat requires loopCount > 0", step.NodeID)
+	}
+
+	clampedIterations := minInt(desiredIterations, maxIterations)
+	if clampedIterations == 0 {
+		return result, fmt.Errorf("loop node %s has zero iterations after clamping", step.NodeID)
+	}
+
+	activeSession := session
+	for i := 0; i < clampedIterations; i++ {
+		control, nextSession, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, activeSession, step.Loop, state, reuseMode)
+		if err != nil {
+			return result, err
+		}
+		activeSession = nextSession
+		result.lastOutcome = control.LastOutcome
+		if control.Break {
+			break
+		}
+	}
+
+	result.iterations = clampedIterations
+	result.session = activeSession
+	return result, nil
+}
+
+func (e *SimpleExecutor) runForEachLoop(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode, maxIterations int, items []any) (loopExecutionResult, error) {
+	result := loopExecutionResult{session: session}
+	if len(items) == 0 {
+		return result, nil
+	}
+
+	itemVar := stringValue(step.Params, "loopItemVariable")
+	if itemVar == "" {
+		itemVar = stringValue(step.Params, "itemVariable")
+	}
+	if itemVar == "" {
+		itemVar = defaultLoopItemVar
+	}
+	indexVar := stringValue(step.Params, "loopIndexVariable")
+	if indexVar == "" {
+		indexVar = stringValue(step.Params, "indexVariable")
+	}
+	if indexVar == "" {
+		indexVar = defaultLoopIndexVar
+	}
+
+	activeSession := session
+	upperBound := minInt(maxIterations, len(items))
+	executed := 0
+	for i := 0; i < upperBound; i++ {
+		state.set(itemVar, items[i])
+		state.set(indexVar, i)
+
+		control, nextSession, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, activeSession, step.Loop, state, reuseMode)
+		if err != nil {
+			return result, err
+		}
+		activeSession = nextSession
+		executed++
+		result.lastOutcome = control.LastOutcome
+		if control.Break {
+			break
+		}
+	}
+
+	result.iterations = executed
+	result.session = activeSession
+	return result, nil
+}
+
+func (e *SimpleExecutor) runWhileLoop(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode, maxIterations int) (loopExecutionResult, error) {
+	result := loopExecutionResult{session: session}
+
+	activeSession := session
+	iterations := 0
+	for iterations < maxIterations {
+		if !evaluateLoopCondition(step.Params, state) {
+			break
+		}
+
+		control, nextSession, err := e.executeGraphIteration(ctx, req, execCtx, eng, spec, activeSession, step.Loop, state, reuseMode)
+		if err != nil {
+			return result, err
+		}
+		activeSession = nextSession
+		iterations++
+		result.lastOutcome = control.LastOutcome
+		if control.Break {
+			break
+		}
+	}
+
+	result.iterations = iterations
+	result.session = activeSession
+	return result, nil
 }
 
 func (e *SimpleExecutor) executeSubflow(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, step contracts.PlanStep, state *flowState, reuseMode engine.SessionReuseMode) (contracts.StepOutcome, engine.EngineSession, error) {

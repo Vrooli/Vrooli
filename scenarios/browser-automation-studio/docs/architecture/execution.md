@@ -121,7 +121,7 @@ Each executor calls `emit(ExecutionEvent)` multiple times: start, progress updat
 | `execution.failed`     | `error_code`, `message`, `stack`, `failing_step`                                                 |
 | `execution.completed`  | `duration_ms`, `success_count`, `failure_count`, `artifact_manifest`                             |
 
-The hub simply broadcasts the JSON; richer routing (per-execution subscriptions) remains via `Client.ExecutionID` filtering. Heartbeat cadence defaults to 2 s and can be tuned (or disabled with `0`) using the `BROWSERLESS_HEARTBEAT_INTERVAL` environment variable.
+The hub simply broadcasts the JSON; richer routing (per-execution subscriptions) remains via `Client.ExecutionID` filtering. Heartbeat cadence defaults to 2s and can be tuned (or disabled with `0`) using `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (alias `BROWSERLESS_HEARTBEAT_INTERVAL` for Go-duration strings).
 
 ### 5. Artifact Persistence
 

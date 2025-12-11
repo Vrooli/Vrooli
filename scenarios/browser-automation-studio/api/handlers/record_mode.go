@@ -829,7 +829,17 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 	// Check for clear query param
 	clearActions := r.URL.Query().Get("clear") == "true"
 
-	// Call playwright-driver to get actions
+	driverResp, apiErr := h.fetchRecordedActions(ctx, sessionID, clearActions)
+	if apiErr != nil {
+		h.respondError(w, apiErr)
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, driverResp)
+}
+
+// fetchRecordedActions centralizes the driver call and response normalization for recorded actions.
+func (h *Handler) fetchRecordedActions(ctx context.Context, sessionID string, clearActions bool) (*GetActionsResponse, *APIError) {
 	driverURL := fmt.Sprintf("%s/session/%s/record/actions", getPlaywrightDriverURL(), sessionID)
 	if clearActions {
 		driverURL += "?clear=true"
@@ -837,45 +847,43 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, driverURL, nil)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+		return nil, ErrInternalServer.WithDetails(map[string]string{
 			"error": "Failed to create request to driver",
-		}))
-		return
+		})
 	}
 
 	client := &http.Client{Timeout: recordModeTimeout}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		h.log.WithError(err).Error("Failed to call playwright-driver for recorded actions")
-		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
+		if h.log != nil {
+			h.log.WithError(err).Error("Failed to call playwright-driver for recorded actions")
+		}
+		return nil, ErrServiceUnavailable.WithDetails(map[string]string{
 			"error": "Playwright driver unavailable: " + err.Error(),
-		}))
-		return
+		})
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+		return nil, ErrInternalServer.WithDetails(map[string]string{
 			"error":  "Driver returned error",
 			"status": fmt.Sprintf("%d", resp.StatusCode),
-		}))
-		return
+		})
 	}
 
 	var driverResp GetActionsResponse
 	if err := json.Unmarshal(body, &driverResp); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+		return nil, ErrInternalServer.WithDetails(map[string]string{
 			"error": "Failed to parse driver response",
-		}))
-		return
+		})
 	}
 	if driverResp.Actions == nil {
 		driverResp.Actions = []RecordedAction{}
 	}
 
-	h.respondSuccess(w, http.StatusOK, driverResp)
+	return &driverResp, nil
 }
 
 // GenerateWorkflowFromRecording handles POST /api/v1/recordings/live/{sessionId}/generate-workflow
@@ -910,62 +918,16 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 	if len(req.Actions) > 0 {
 		actions = req.Actions
 	} else {
-		// Fall back to fetching from driver
-		actionsURL := fmt.Sprintf("%s/session/%s/record/actions", getPlaywrightDriverURL(), sessionID)
-
-		httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, actionsURL, nil)
-		if err != nil {
-			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-				"error": "Failed to create request to driver",
-			}))
+		resp, apiErr := h.fetchRecordedActions(ctx, sessionID, false)
+		if apiErr != nil {
+			h.respondError(w, apiErr)
 			return
 		}
 
-		client := &http.Client{Timeout: recordModeTimeout}
-		resp, err := client.Do(httpReq)
-		if err != nil {
-			h.log.WithError(err).Error("Failed to get recorded actions from driver")
-			h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
-				"error": "Playwright driver unavailable",
-			}))
-			return
-		}
-		defer resp.Body.Close()
-
-		body, _ := io.ReadAll(resp.Body)
-
-		if resp.StatusCode != http.StatusOK {
-			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-				"error": "Failed to get recorded actions",
-			}))
-			return
-		}
-
-		var actionsResp GetActionsResponse
-		if err := json.Unmarshal(body, &actionsResp); err != nil {
-			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-				"error": "Failed to parse actions response",
-			}))
-			return
-		}
-
-		actions = actionsResp.Actions
+		actions = resp.Actions
 	}
 
-	// Apply action range filter if specified
-	if req.ActionRange != nil {
-		start := req.ActionRange.Start
-		end := req.ActionRange.End
-		if start < 0 {
-			start = 0
-		}
-		if end >= len(actions) {
-			end = len(actions) - 1
-		}
-		if start <= end && start < len(actions) {
-			actions = actions[start : end+1]
-		}
-	}
+	actions = applyActionRange(actions, req.ActionRange)
 
 	if len(actions) == 0 {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
@@ -1015,6 +977,30 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		return
 	}
 	h.respondSuccess(w, http.StatusCreated, respPayload)
+}
+
+// applyActionRange returns the requested action subset, clamping indices to the available actions.
+func applyActionRange(actions []RecordedAction, actionRange *struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
+}) []RecordedAction {
+	if actionRange == nil || len(actions) == 0 {
+		return actions
+	}
+
+	start := actionRange.Start
+	end := actionRange.End
+
+	if start < 0 {
+		start = 0
+	}
+	if end >= len(actions) {
+		end = len(actions) - 1
+	}
+	if start <= end && start < len(actions) {
+		return actions[start : end+1]
+	}
+	return actions
 }
 
 // mergeConsecutiveActions optimizes recorded actions by merging:

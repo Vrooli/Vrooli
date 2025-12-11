@@ -1,8 +1,9 @@
 # UX Metrics Foundation Architecture Proposal
 
-> **Status**: Proposed
+> **Status**: Implemented (Phases 1-3)
 > **Author**: Claude (Architecture Design Session)
 > **Date**: 2025-12-11
+> **Implemented**: 2025-12-11
 > **Target**: browser-automation-studio scenario
 
 ## Executive Summary
@@ -2064,30 +2065,30 @@ if !ent.Tier.AtLeast(entitlement.TierPro) {
 
 ## 8. Migration Path
 
-### Phase 1: Foundation (This proposal)
-1. Create `/api/services/uxmetrics/` package structure
-2. Define contracts and interfaces
-3. Implement Collector (EventSink decorator)
-4. Implement PostgreSQL repository
-5. Add database migrations
-6. Wire into existing event pipeline
+### Phase 1: Foundation ✅ COMPLETE
+1. ✅ Create `/api/services/uxmetrics/` package structure
+2. ✅ Define contracts and interfaces
+3. ✅ Implement Collector (EventSink decorator)
+4. ✅ Implement PostgreSQL repository
+5. ✅ Add database migrations
+6. ✅ Wire into existing event pipeline
 
-### Phase 2: Analysis Engine
-1. Implement friction detection algorithms
-2. Implement cursor path analysis
-3. Add per-execution metric computation
-4. Add REST API endpoints
+### Phase 2: Analysis Engine ✅ COMPLETE
+1. ✅ Implement friction detection algorithms
+2. ✅ Implement cursor path analysis
+3. ✅ Add per-execution metric computation
+4. ✅ Add REST API endpoints
 
-### Phase 3: Real-Time & UI
-1. Add WebSocket event broadcasting
-2. Implement UI store
-3. Build UX Metrics panel component
-4. Add cursor path visualization
+### Phase 3: Real-Time & UI ✅ COMPLETE
+1. ⏳ Add WebSocket event broadcasting (store has handlers ready, needs WS integration)
+2. ✅ Implement UI store (`uxMetricsStore.ts`)
+3. ✅ Build UX Metrics panel component (`UXMetricsPanel.tsx` and supporting components)
+4. ⏳ Add cursor path visualization (CursorPathVisualizer planned for Phase 4)
 
-### Phase 4: Dashboard & Aggregates
-1. Add workflow-level aggregation queries
-2. Build dashboard widgets
-3. Add historical trend analysis
+### Phase 4: Dashboard & Aggregates (Future)
+1. ⏳ Add workflow-level aggregation queries (backend ready, UI pending)
+2. ⏳ Build dashboard widgets
+3. ⏳ Add historical trend analysis
 
 ---
 

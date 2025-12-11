@@ -886,7 +886,7 @@ function App() {
 
   useEffect(() => {
     const parseDashboardTab = (value: string | null): DashboardTab => {
-      if (value === "projects" || value === "executions" || value === "exports") {
+      if (value === "projects" || value === "executions" || value === "exports" || value === "schedules") {
         return value;
       }
       return "home";
@@ -901,6 +901,12 @@ function App() {
       if (normalized === "/") {
         console.log("[DEBUG] resolvePath: navigating to dashboard");
         navigateToDashboard({ replace, tab: requestedTab });
+        return;
+      }
+
+      if (normalized === "/schedules") {
+        console.log("[DEBUG] resolvePath: navigating to schedules tab");
+        navigateToDashboard({ replace, tab: "schedules" });
         return;
       }
 

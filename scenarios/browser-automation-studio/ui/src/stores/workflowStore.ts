@@ -665,6 +665,67 @@ interface WorkflowStore {
   acknowledgeSaveError: () => void;
 }
 
+type WorkflowLoadState = Pick<
+  WorkflowStore,
+  | 'currentWorkflow'
+  | 'nodes'
+  | 'edges'
+  | 'isDirty'
+  | 'isSaving'
+  | 'lastSavedAt'
+  | 'lastSavedFingerprint'
+  | 'draftFingerprint'
+  | 'hasVersionConflict'
+  | 'lastSaveError'
+  | 'versionHistory'
+  | 'versionHistoryLoadedFor'
+  | 'versionHistoryError'
+  | 'conflictWorkflow'
+  | 'conflictMetadata'
+>;
+
+const normalizeWorkflowPayloadOrThrow = (payload: unknown, action: string): Workflow => {
+  let normalized: Workflow | null = null;
+
+  try {
+    const proto = parseProtoStrict<WorkflowSummary>(WorkflowSummarySchema, payload);
+    normalized = parseWorkflowSummaryMessage(proto);
+  } catch (err) {
+    logger.error('Failed to parse workflow proto', { component: 'WorkflowStore', action }, err);
+  }
+
+  if (!normalized && payload && typeof payload === 'object') {
+    normalized = parseWorkflowSummaryMessage(payload as Record<string, unknown>);
+  }
+
+  if (!normalized) {
+    throw new Error('Failed to parse workflow payload');
+  }
+
+  return normalized;
+};
+
+const buildWorkflowLoadState = (workflow: Workflow, options: { lastSavedAt?: Date } = {}): WorkflowLoadState => {
+  const fingerprint = computeWorkflowFingerprint(workflow, workflow.nodes, workflow.edges);
+  return {
+    currentWorkflow: workflow,
+    nodes: workflow.nodes,
+    edges: workflow.edges,
+    isDirty: false,
+    isSaving: false,
+    lastSavedFingerprint: fingerprint,
+    draftFingerprint: fingerprint,
+    lastSavedAt: options.lastSavedAt ?? (workflow.updatedAt instanceof Date ? workflow.updatedAt : new Date()),
+    hasVersionConflict: false,
+    lastSaveError: null,
+    versionHistory: [],
+    versionHistoryLoadedFor: null,
+    versionHistoryError: null,
+    conflictWorkflow: null,
+    conflictMetadata: null,
+  };
+};
+
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   workflows: [],
   currentWorkflow: null,
@@ -730,58 +791,18 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
   
   loadWorkflow: async (id: string) => {
-    console.log("[DEBUG] loadWorkflow called", { workflowId: id });
     try {
       clearAutosaveTimer();
       const config = await getConfig();
-      console.log("[DEBUG] loadWorkflow: fetching from API", { url: `${config.API_URL}/workflows/${id}` });
       const response = await fetch(`${config.API_URL}/workflows/${id}`);
-      console.log("[DEBUG] loadWorkflow: response received", { ok: response.ok, status: response.status });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("[DEBUG] loadWorkflow: API error", { status: response.status, errorText });
-        throw new Error(`Failed to load workflow: ${response.status}`);
+        throw new Error(errorText || `Failed to load workflow: ${response.status}`);
       }
       const payload = await response.json();
-      let normalized: Workflow | null = null;
-      try {
-        const proto = parseProtoStrict<WorkflowSummary>(WorkflowSummarySchema, payload);
-        normalized = parseWorkflowSummaryMessage(proto);
-      } catch (err) {
-        logger.error('Failed to parse workflow proto', { component: 'WorkflowStore', action: 'loadWorkflow' }, err);
-        if (payload && typeof payload === 'object') {
-          try {
-            normalized = parseWorkflowSummaryMessage(payload as Record<string, unknown>);
-          } catch {
-            normalized = null;
-          }
-        }
-      }
-      if (!normalized) {
-        throw new Error('Failed to parse workflow payload');
-      }
-      console.log("[DEBUG] loadWorkflow: normalized workflow", { hasNodes: !!normalized.nodes, nodeCount: normalized.nodes?.length });
-      const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
-      set({
-        currentWorkflow: normalized,
-        nodes: normalized.nodes,
-        edges: normalized.edges,
-        isDirty: false,
-        isSaving: false,
-      lastSavedFingerprint: fingerprint,
-      draftFingerprint: fingerprint,
-      lastSavedAt: normalized.updatedAt instanceof Date ? normalized.updatedAt : new Date(),
-      hasVersionConflict: false,
-      lastSaveError: null,
-      versionHistory: [],
-      versionHistoryLoadedFor: null,
-      versionHistoryError: null,
-      conflictWorkflow: null,
-      conflictMetadata: null,
-    });
-      console.log("[DEBUG] loadWorkflow: SUCCESS, workflow loaded into store");
+      const normalized = normalizeWorkflowPayloadOrThrow(payload, 'loadWorkflow');
+      set(buildWorkflowLoadState(normalized));
     } catch (error) {
-      console.error("[DEBUG] loadWorkflow: FAILED", error);
       logger.error('Failed to load workflow', { component: 'WorkflowStore', action: 'loadWorkflow', workflowId: id }, error);
 
       // Set error state so UI knows loading failed
@@ -803,11 +824,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
   
   createWorkflow: async (name: string, folderPath: string, projectId?: string) => {
-    console.log("[DEBUG] createWorkflow called", { name, folderPath, projectId });
     try {
       clearAutosaveTimer();
       const config = await getConfig();
-      console.log("[DEBUG] createWorkflow: posting to API", { url: `${config.API_URL}/workflows/create` });
       const response = await fetch(`${config.API_URL}/workflows/create`, {
         method: 'POST',
         headers: {
@@ -823,10 +842,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           }
         }),
       });
-      console.log("[DEBUG] createWorkflow: response received", { ok: response.ok, status: response.status });
       if (!response.ok) {
         const message = await response.text();
-        console.error("[DEBUG] createWorkflow: API error", { status: response.status, message });
         throw new Error(message || `Failed to create workflow: ${response.status}`);
       }
       const payload = await response.json();
@@ -834,29 +851,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (!normalized) {
         throw new Error('Failed to parse created workflow payload');
       }
-      console.log("[DEBUG] createWorkflow: normalized workflow", { hasNormalized: !!normalized, normalizedId: normalized?.id });
-      const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
-      set({
-        currentWorkflow: normalized,
-        nodes: normalized.nodes,
-        edges: normalized.edges,
-        isDirty: false,
-        isSaving: false,
-        lastSavedFingerprint: fingerprint,
-        draftFingerprint: fingerprint,
-        lastSavedAt: new Date(),
-        hasVersionConflict: false,
-        lastSaveError: null,
-        versionHistory: [],
-        versionHistoryLoadedFor: null,
-        versionHistoryError: null,
-        conflictWorkflow: null,
-        conflictMetadata: null,
-      });
-      console.log("[DEBUG] createWorkflow: SUCCESS, returning normalized workflow");
+      set(buildWorkflowLoadState(normalized, { lastSavedAt: new Date() }));
       return normalized;
     } catch (error) {
-      console.error("[DEBUG] createWorkflow: FAILED", error);
       logger.error('Failed to create workflow', { component: 'WorkflowStore', action: 'createWorkflow', name, projectId }, error);
       throw error;
     }
@@ -1148,24 +1145,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (!normalized) {
         throw new Error('Failed to parse generated workflow payload');
       }
-      const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
-      set({
-        currentWorkflow: normalized,
-        nodes: normalized.nodes,
-        edges: normalized.edges,
-        isDirty: false,
-        isSaving: false,
-        lastSavedFingerprint: fingerprint,
-        draftFingerprint: fingerprint,
-        lastSavedAt: new Date(),
-        hasVersionConflict: false,
-        lastSaveError: null,
-        versionHistory: [],
-        versionHistoryLoadedFor: null,
-        versionHistoryError: null,
-        conflictWorkflow: null,
-        conflictMetadata: null,
-      });
+      set(buildWorkflowLoadState(normalized, { lastSavedAt: new Date() }));
       return normalized;
     } catch (error) {
       logger.error('Failed to generate workflow', { component: 'WorkflowStore', action: 'generateWorkflow', name, projectId }, error);
@@ -1201,24 +1181,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (!normalized) {
         throw new Error('Failed to parse modified workflow payload');
       }
-      const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
-      set({
-        currentWorkflow: normalized,
-        nodes: normalized.nodes,
-        edges: normalized.edges,
-        isDirty: false,
-        isSaving: false,
-        lastSavedFingerprint: fingerprint,
-        draftFingerprint: fingerprint,
-        lastSavedAt: new Date(),
-        hasVersionConflict: false,
-        lastSaveError: null,
-        versionHistory: [],
-        versionHistoryLoadedFor: null,
-        versionHistoryError: null,
-        conflictWorkflow: null,
-        conflictMetadata: null,
-      });
+      set(buildWorkflowLoadState(normalized, { lastSavedAt: new Date() }));
       return normalized;
     } catch (error) {
       logger.error('Failed to modify workflow', { component: 'WorkflowStore', action: 'modifyWorkflow', workflowId: currentWorkflow.id }, error);
@@ -1517,11 +1480,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to refresh workflow snapshot: ${response.status}`);
       }
       const payload = await response.json();
-      const proto = parseProtoStrict<WorkflowSummary>(WorkflowSummarySchema, payload);
-      const normalized = parseWorkflowSummaryMessage(proto);
-      if (!normalized) {
-        throw new Error('Failed to parse workflow snapshot');
-      }
+      const normalized = normalizeWorkflowPayloadOrThrow(payload, 'refreshConflictWorkflow');
       set({
         conflictWorkflow: normalized,
         conflictMetadata: {

@@ -79,6 +79,18 @@ func recordingImportTimeout() time.Duration {
 	return config.Load().Recording.ImportTimeout
 }
 
+// eventBufferLimits returns validated event buffer limits sourced from config.
+func eventBufferLimits() autocontracts.EventBufferLimits {
+	limits := autocontracts.EventBufferLimits{
+		PerExecution: config.Load().Events.PerExecutionBuffer,
+		PerAttempt:   config.Load().Events.PerAttemptBuffer,
+	}
+	if limits.Validate() != nil {
+		return autocontracts.DefaultEventBufferLimits
+	}
+	return limits
+}
+
 type workflowResponse struct {
 	*database.Workflow
 	WorkflowID uuid.UUID `json:"workflow_id"`
@@ -146,7 +158,7 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 		// Create UX metrics collector that wraps the WebSocket sink
 		// The collector passively captures interaction data while delegating events to the hub
 		eventSinkFactory = func() autoevents.Sink {
-			baseSink := autoevents.NewWSHubSink(wsHub, log, autocontracts.DefaultEventBufferLimits)
+			baseSink := autoevents.NewWSHubSink(wsHub, log, eventBufferLimits())
 			return uxcollector.NewCollector(baseSink, uxRepo)
 		}
 		log.Debug("UX metrics collector enabled in event pipeline")

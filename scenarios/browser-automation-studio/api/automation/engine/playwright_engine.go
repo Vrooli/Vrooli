@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -84,7 +85,7 @@ func (e *PlaywrightEngine) Capabilities(_ context.Context) (contracts.EngineCapa
 		Version:               "v1",
 		RequiresDocker:        false,
 		RequiresXvfb:          false,
-		MaxConcurrentSessions: 2,
+		MaxConcurrentSessions: resolveMaxConcurrentSessions(),
 		AllowsParallelTabs:    true,
 		SupportsHAR:           true,
 		SupportsVideo:         true,
@@ -167,6 +168,25 @@ func (e *PlaywrightDriverError) Error() string {
 
 func (e *PlaywrightDriverError) Unwrap() error {
 	return e.Cause
+}
+
+// resolveMaxConcurrentSessions aligns the engine capability with the driver pool limit.
+// Falls back to the driver default (10) when no override is provided, and clamps to a safe range.
+func resolveMaxConcurrentSessions() int {
+	const (
+		driverDefaultMaxSessions = 10
+		maxSessionsCeiling       = 100
+		minSessionsFloor         = 1
+	)
+
+	envVal := strings.TrimSpace(os.Getenv("MAX_SESSIONS"))
+	if envVal != "" {
+		if parsed, err := strconv.Atoi(envVal); err == nil && parsed >= minSessionsFloor && parsed <= maxSessionsCeiling {
+			return parsed
+		}
+	}
+
+	return driverDefaultMaxSessions
 }
 
 // StartSession asks the driver to create a new browser/context/page tuple.

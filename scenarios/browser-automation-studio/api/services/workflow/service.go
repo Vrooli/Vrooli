@@ -13,6 +13,7 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/ai"
@@ -130,8 +131,9 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 
 	eventSinkFactory := opts.EventSinkFactory
 	if eventSinkFactory == nil {
+		limits := eventBufferLimits()
 		eventSinkFactory = func() autoevents.Sink {
-			return autoevents.NewWSHubSink(wsHub, log, autocontracts.DefaultEventBufferLimits)
+			return autoevents.NewWSHubSink(wsHub, log, limits)
 		}
 	}
 
@@ -156,10 +158,22 @@ func (s *WorkflowService) newEventSink() autoevents.Sink {
 	if s == nil {
 		return nil
 	}
+	limits := eventBufferLimits()
 	if s.eventSinkFactory != nil {
 		return s.eventSinkFactory()
 	}
-	return autoevents.NewWSHubSink(nil, s.log, autocontracts.DefaultEventBufferLimits)
+	return autoevents.NewWSHubSink(nil, s.log, limits)
+}
+
+func eventBufferLimits() autocontracts.EventBufferLimits {
+	limits := autocontracts.EventBufferLimits{
+		PerExecution: config.Load().Events.PerExecutionBuffer,
+		PerAttempt:   config.Load().Events.PerAttemptBuffer,
+	}
+	if limits.Validate() != nil {
+		return autocontracts.DefaultEventBufferLimits
+	}
+	return limits
 }
 
 var (

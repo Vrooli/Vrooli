@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -17,6 +18,21 @@ var (
 	adhocExecutionRetentionPeriod = 10 * time.Minute
 	adhocExecutionCleanupTimeout  = 6 * time.Hour
 )
+
+func init() {
+	execCfg := config.Load().Execution
+	if execCfg.AdhocCleanupInterval > 0 {
+		adhocExecutionCleanupInterval = execCfg.AdhocCleanupInterval
+	}
+	if execCfg.AdhocRetentionPeriod > 0 {
+		adhocExecutionRetentionPeriod = execCfg.AdhocRetentionPeriod
+	}
+	// Keep a generous ceiling by default (6h), but allow operators to raise it via GlobalRequest.
+	globalTimeout := config.Load().Timeouts.GlobalRequest
+	if globalTimeout > adhocExecutionCleanupTimeout {
+		adhocExecutionCleanupTimeout = globalTimeout
+	}
+}
 
 // IsTerminalExecutionStatus reports whether the supplied status represents a terminal execution state.
 // Delegates to the canonical ExecutionStatus type in automation/contracts for consistency.

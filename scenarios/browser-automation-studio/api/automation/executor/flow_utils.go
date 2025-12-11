@@ -572,52 +572,66 @@ func (e *SimpleExecutor) nextNodeID(step contracts.PlanStep, outcome contracts.S
 		return ""
 	}
 
-	normalized := func(value string) string {
-		return strings.ToLower(strings.TrimSpace(value))
+	// Precedence: conditional outcome -> explicit failure path -> explicit success path -> first edge fallback.
+	if next := conditionalBranchTarget(step, outcome); next != "" {
+		return next
+	}
+	if next := failureBranchTarget(step, outcome); next != "" {
+		return next
+	}
+	if next := successBranchTarget(step, outcome); next != "" {
+		return next
 	}
 
-	if strings.EqualFold(step.Type, "conditional") && outcome.Condition != nil {
-		targetValue := "false"
-		if outcome.Condition.Outcome {
-			targetValue = "true"
-		}
-		for _, edge := range step.Outgoing {
-			cond := normalized(edge.Condition)
-			switch cond {
-			case targetValue:
-				return edge.Target
-			case "yes", "success", "ok", "pass":
-				if targetValue == "true" {
-					return edge.Target
-				}
-			case "no", "fail", "failure":
-				if targetValue == "false" {
-					return edge.Target
-				}
-			}
-		}
-	}
-
-	if outcome.Failure != nil {
-		for _, edge := range step.Outgoing {
-			cond := normalized(edge.Condition)
-			if cond == "failure" || cond == "error" || cond == "fail" {
-				return edge.Target
-			}
-		}
-	}
-
-	if outcome.Success {
-		for _, edge := range step.Outgoing {
-			cond := normalized(edge.Condition)
-			if cond == "success" || cond == "ok" || cond == "pass" || cond == "" {
-				return edge.Target
-			}
-		}
-	}
-
-	// Default: first edge wins.
 	return step.Outgoing[0].Target
+}
+
+func conditionalBranchTarget(step contracts.PlanStep, outcome contracts.StepOutcome) string {
+	if !strings.EqualFold(step.Type, "conditional") || outcome.Condition == nil {
+		return ""
+	}
+
+	if outcome.Condition.Outcome {
+		return findEdgeTarget(step.Outgoing, []string{"true", "yes", "success", "ok", "pass"})
+	}
+	return findEdgeTarget(step.Outgoing, []string{"false", "no", "fail", "failure"})
+}
+
+func failureBranchTarget(step contracts.PlanStep, outcome contracts.StepOutcome) string {
+	if outcome.Failure == nil {
+		return ""
+	}
+	return findEdgeTarget(step.Outgoing, []string{"failure", "error", "fail"})
+}
+
+func successBranchTarget(step contracts.PlanStep, outcome contracts.StepOutcome) string {
+	if !outcome.Success {
+		return ""
+	}
+	return findEdgeTarget(step.Outgoing, []string{"success", "ok", "pass", ""})
+}
+
+func findEdgeTarget(edges []contracts.PlanEdge, conditions []string) string {
+	for _, edge := range edges {
+		if matchesCondition(edge.Condition, conditions) {
+			return edge.Target
+		}
+	}
+	return ""
+}
+
+func matchesCondition(condition string, candidates []string) bool {
+	normalized := normalizeEdgeCondition(condition)
+	for _, candidate := range candidates {
+		if normalized == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeEdgeCondition(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func stringValue(m map[string]any, key string) string {
