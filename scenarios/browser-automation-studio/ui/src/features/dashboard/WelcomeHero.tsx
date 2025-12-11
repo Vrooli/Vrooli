@@ -8,6 +8,7 @@ import {
   BarChart3,
   ArrowRight,
   Circle,
+  ArrowDownToLine,
 } from 'lucide-react';
 import { selectors } from '@constants/selectors';
 import { FeatureShowcase } from './FeatureShowcase';
@@ -126,6 +127,13 @@ const FEATURES = [
     gradient: 'from-green-500/20 to-emerald-500/20',
     accentColor: 'green',
   },
+  {
+    icon: <ArrowDownToLine size={24} className="text-white" />,
+    title: 'Exports',
+    description: 'Style replays with themes, watermarks, captions, and CTAs—then export MP4, GIF, JSON, or HTML.',
+    gradient: 'from-amber-500/20 to-orange-500/20',
+    accentColor: 'amber',
+  },
 ];
 
 // ============================================
@@ -222,7 +230,7 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
         </div>
 
         {/* Feature cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
           {FEATURES.map((feature, index) => (
             <FeatureCard
               key={feature.title}

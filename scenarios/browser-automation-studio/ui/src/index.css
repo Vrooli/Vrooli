@@ -1073,6 +1073,22 @@
     0 4px 20px rgb(0 0 0 / 0.1);
 }
 
+/* Amber accent for Exports card */
+.feature-card-active.accent-amber.is-active::before {
+  background: linear-gradient(
+    135deg,
+    rgb(245 158 11) 0%,
+    rgb(251 191 36) 50%,
+    rgb(245 158 11) 100%
+  );
+}
+
+.feature-card-active.accent-amber.is-active > div {
+  box-shadow:
+    0 0 20px rgb(245 158 11 / 0.2),
+    0 4px 20px rgb(0 0 0 / 0.1);
+}
+
 /* Typing cursor blink */
 @keyframes cursor-blink {
   0%, 50% {
