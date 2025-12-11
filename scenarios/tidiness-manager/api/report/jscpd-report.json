@@ -1,10 +1,10 @@
 {
   "statistics": {
-    "detectionDate": "2025-12-03T18:00:16.130Z",
+    "detectionDate": "2025-12-11T22:00:02.487Z",
     "formats": {
       "tsx": {
         "sources": {
-          "/tmp/TestLightScanner_Integration_CompleteWorkflow1298447171/001/ui/src/App.tsx": {
+          "/tmp/TestLightScanner_Integration_CompleteWorkflow2374291315/001/ui/src/App.tsx": {
             "lines": 4,
             "tokens": 35,
             "sources": 1,

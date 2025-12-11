@@ -1189,10 +1189,36 @@ function isFrameUnchanged(buffer: Buffer, state: FrameStreamState): boolean {
 const SCREENSHOT_TIMEOUT_MS = 200;
 
 /**
- * Capture a frame as raw JPEG buffer.
+ * CDP session cache for frame capture.
+ * Reusing the CDP session avoids the overhead of creating a new one per frame.
+ * WeakMap ensures sessions are cleaned up when pages are garbage collected.
+ */
+const cdpSessionCache = new WeakMap<import('playwright').Page, import('playwright').CDPSession>();
+
+/**
+ * Get or create a CDP session for a page.
+ * CDP sessions are cached to avoid per-frame creation overhead.
+ */
+async function getCDPSession(page: import('playwright').Page): Promise<import('playwright').CDPSession> {
+  let session = cdpSessionCache.get(page);
+  if (!session) {
+    session = await page.context().newCDPSession(page);
+    cdpSessionCache.set(page, session);
+  }
+  return session;
+}
+
+/**
+ * Capture a frame as raw JPEG buffer using CDP directly.
+ * Uses Page.captureScreenshot with optimizeForSpeed for faster encoding.
+ *
  * Only captures the visible viewport (not full page) to reduce bandwidth and improve performance.
- * No base64 encoding - send raw bytes over WebSocket.
- * Includes timeout to prevent blocking the frame loop if page is slow to render.
+ * No base64 encoding overhead on our side - CDP returns base64 but we decode it once.
+ *
+ * Performance notes:
+ * - optimizeForSpeed uses faster zlib settings (q1/RLE) for ~2x speedup
+ * - CDP clip uses device pixels, so we scale viewport dimensions accordingly
+ * - Using 'css' scale (1x) produces smaller images, 'device' uses devicePixelRatio
  *
  * @param scale - 'css' captures at 1x logical pixels (smaller, faster),
  *                'device' captures at devicePixelRatio (sharper on HiDPI, but 4x larger on 2x displays)
@@ -1206,7 +1232,7 @@ async function captureFrameBuffer(
     // Get viewport dimensions for clipping - only capture what's visible
     const viewport = page.viewportSize();
     if (!viewport) {
-      // Fallback if viewport not available (shouldn't happen normally)
+      // Fallback to Playwright's screenshot if viewport not available
       return await page.screenshot({
         type: 'jpeg',
         quality,
@@ -1215,24 +1241,40 @@ async function captureFrameBuffer(
       });
     }
 
-    // Capture only the viewport area, not the full page
-    // This significantly reduces bandwidth for pages with scrollable content
-    // Using 'css' scale by default captures at 1x resolution (not devicePixelRatio)
-    // which is ~4x smaller on HiDPI displays while still looking good for preview
-    return await page.screenshot({
-      type: 'jpeg',
-      quality,
-      timeout: SCREENSHOT_TIMEOUT_MS,
-      scale,
-      clip: {
-        x: 0,
-        y: 0,
-        width: viewport.width,
-        height: viewport.height,
-      },
-    });
+    // Get or create CDP session (cached for performance)
+    const cdp = await getCDPSession(page);
+
+    // Use CDP Page.captureScreenshot directly with optimizeForSpeed
+    // This provides ~2x speedup on encoding by using faster compression settings
+    //
+    // Key settings:
+    // - captureBeyondViewport: false - only capture visible viewport (not full page)
+    // - fromSurface: true - capture from compositor surface (default, faster)
+    // - optimizeForSpeed: true - use faster encoding (zlib q1/RLE)
+    //
+    // Note: We don't use 'clip' because it captures a fixed page region, not the
+    // current viewport. With captureBeyondViewport: false, CDP captures exactly
+    // what's visible in the viewport, which is what we want for live streaming.
+    const result = await Promise.race([
+      cdp.send('Page.captureScreenshot', {
+        format: 'jpeg',
+        quality,
+        optimizeForSpeed: true, // Key optimization: faster encoding
+        captureBeyondViewport: false, // Only capture visible viewport
+        fromSurface: true, // Capture from compositor (faster)
+      }),
+      // Timeout handling
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), SCREENSHOT_TIMEOUT_MS)),
+    ]);
+
+    if (!result) {
+      return null; // Timeout
+    }
+
+    // CDP returns base64, decode to Buffer
+    return Buffer.from(result.data, 'base64');
   } catch {
-    // Timeout or other error - skip this frame
+    // CDP error or other failure - skip this frame
     return null;
   }
 }

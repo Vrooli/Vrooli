@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -13,6 +14,7 @@ type CreateAutoCampaignRequest struct {
 	Scenario           string `json:"scenario"`
 	MaxSessions        int    `json:"max_sessions"`
 	MaxFilesPerSession int    `json:"max_files_per_session"`
+	Category           string `json:"category,omitempty"`
 }
 
 // CampaignActionRequest represents pause/resume/terminate requests
@@ -27,33 +29,17 @@ func (s *Server) handleCreateCampaign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate inputs
-	if req.Scenario == "" {
+	// Basic validation before orchestration to avoid silently defaulting invalid values
+	if strings.TrimSpace(req.Scenario) == "" {
 		respondError(w, http.StatusBadRequest, "scenario is required")
 		return
 	}
-
-	// Security: Limit max sessions to prevent resource exhaustion
-	const maxAllowedSessions = 100
-	if req.MaxSessions <= 0 {
-		req.MaxSessions = 10 // Default
-	} else if req.MaxSessions > maxAllowedSessions {
-		respondError(w, http.StatusBadRequest, fmt.Sprintf("max_sessions cannot exceed %d", maxAllowedSessions))
+	if req.MaxSessions <= 0 || req.MaxFilesPerSession <= 0 {
+		respondError(w, http.StatusBadRequest, "max_sessions and max_files_per_session must be positive integers")
 		return
 	}
 
-	// Security: Limit max files per session
-	const maxAllowedFilesPerSession = 50
-	if req.MaxFilesPerSession <= 0 {
-		req.MaxFilesPerSession = 5 // Default
-	} else if req.MaxFilesPerSession > maxAllowedFilesPerSession {
-		respondError(w, http.StatusBadRequest, fmt.Sprintf("max_files_per_session cannot exceed %d", maxAllowedFilesPerSession))
-		return
-	}
-
-	// Create orchestrator
-	campaignMgr := NewCampaignManager()
-	orchestrator, err := NewAutoCampaignOrchestrator(s.db, campaignMgr)
+	orchestrator, err := s.getCampaignOrchestrator()
 	if err != nil {
 		s.log("failed to create orchestrator", map[string]interface{}{"error": err.Error()})
 		// Security: Don't leak internal error details
@@ -64,6 +50,12 @@ func (s *Server) handleCreateCampaign(w http.ResponseWriter, r *http.Request) {
 	// Create campaign
 	campaign, err := orchestrator.CreateAutoCampaign(req.Scenario, req.MaxSessions, req.MaxFilesPerSession)
 	if err != nil {
+		var validationErr *CampaignValidationError
+		if errors.As(err, &validationErr) {
+			respondError(w, http.StatusBadRequest, validationErr.Error())
+			return
+		}
+
 		s.log("failed to create campaign", map[string]interface{}{"error": err.Error(), "scenario": req.Scenario})
 		respondError(w, http.StatusInternalServerError, "failed to create campaign")
 		return
@@ -93,9 +85,7 @@ func (s *Server) handleCreateCampaign(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListCampaigns(w http.ResponseWriter, r *http.Request) {
 	statusFilter := r.URL.Query().Get("status")
 
-	// Create orchestrator
-	campaignMgr := NewCampaignManager()
-	orchestrator, err := NewAutoCampaignOrchestrator(s.db, campaignMgr)
+	orchestrator, err := s.getCampaignOrchestrator()
 	if err != nil {
 		s.log("failed to create orchestrator", map[string]interface{}{"error": err.Error()})
 		respondError(w, http.StatusInternalServerError, "failed to create campaign orchestrator")
@@ -126,9 +116,7 @@ func (s *Server) handleGetCampaign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create orchestrator
-	campaignMgr := NewCampaignManager()
-	orchestrator, err := NewAutoCampaignOrchestrator(s.db, campaignMgr)
+	orchestrator, err := s.getCampaignOrchestrator()
 	if err != nil {
 		s.log("failed to create orchestrator", map[string]interface{}{"error": err.Error()})
 		respondError(w, http.StatusInternalServerError, "failed to create campaign orchestrator")
@@ -163,9 +151,7 @@ func (s *Server) handleCampaignAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create orchestrator
-	campaignMgr := NewCampaignManager()
-	orchestrator, err := NewAutoCampaignOrchestrator(s.db, campaignMgr)
+	orchestrator, err := s.getCampaignOrchestrator()
 	if err != nil {
 		s.log("failed to create orchestrator", map[string]interface{}{"error": err.Error()})
 		respondError(w, http.StatusInternalServerError, "failed to create campaign orchestrator")

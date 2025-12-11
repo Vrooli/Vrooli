@@ -27,13 +27,14 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config            *Config
-	db                *sql.DB
-	router            *mux.Router
-	campaignMgr       *CampaignManager
-	scenarioCache     []string
-	scenarioCacheTime time.Time
-	scenarioCacheTTL  time.Duration
+	config               *Config
+	db                   *sql.DB
+	store                *TidinessStore
+	router               *mux.Router
+	campaignMgr          *CampaignManager
+	campaignOrchestrator *AutoCampaignOrchestrator
+	scanCoordinator      *ScanCoordinator
+	scenarioLocator      *ScenarioLocator
 }
 
 // NewServer initializes configuration, database, and routes
@@ -57,12 +58,31 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	store := NewTidinessStore(db)
 	srv := &Server{
-		config:           cfg,
-		db:               db,
-		router:           mux.NewRouter(),
-		campaignMgr:      NewCampaignManager(),
-		scenarioCacheTTL: 5 * time.Minute, // Cache scenario list for 5 minutes
+		config:          cfg,
+		db:              db,
+		store:           store,
+		router:          mux.NewRouter(),
+		campaignMgr:     NewCampaignManager(),
+		scenarioLocator: NewScenarioLocator(5 * time.Minute),
+	}
+
+	srv.scanCoordinator = NewScanCoordinator(
+		db,
+		srv.scenarioLocator,
+		srv.log,
+		srv.persistDetailedFileMetrics,
+		srv.persistFileMetrics,
+		srv.storeAIIssue,
+		srv.recordScanHistory,
+	)
+
+	// Best-effort creation; handlers will guard against nil orchestrator
+	if orchestrator, err := NewAutoCampaignOrchestrator(db, srv.campaignMgr); err == nil {
+		srv.campaignOrchestrator = orchestrator
+	} else {
+		srv.log("failed to initialize campaign orchestrator", map[string]interface{}{"error": err.Error()})
 	}
 
 	srv.setupRoutes()
@@ -225,6 +245,54 @@ func logJSON(fields map[string]interface{}) {
 	} else {
 		log.Printf("ERROR: failed to marshal log: %v", err)
 	}
+}
+
+// getCampaignOrchestrator returns a ready orchestrator, initializing it if needed.
+func (s *Server) getCampaignOrchestrator() (*AutoCampaignOrchestrator, error) {
+	if s.campaignOrchestrator != nil {
+		return s.campaignOrchestrator, nil
+	}
+
+	if s.campaignMgr == nil {
+		s.campaignMgr = NewCampaignManager()
+	}
+
+	if s.db == nil {
+		return nil, fmt.Errorf("campaign orchestrator dependencies missing")
+	}
+
+	orchestrator, err := NewAutoCampaignOrchestrator(s.db, s.campaignMgr)
+	if err != nil {
+		return nil, err
+	}
+
+	s.campaignOrchestrator = orchestrator
+	return orchestrator, nil
+}
+
+func (s *Server) ensureScanCoordinator() error {
+	if s.scanCoordinator != nil {
+		return nil
+	}
+
+	if s.scenarioLocator == nil {
+		s.scenarioLocator = NewScenarioLocator(5 * time.Minute)
+	}
+
+	if s.db == nil {
+		return fmt.Errorf("scan coordinator dependencies missing")
+	}
+
+	s.scanCoordinator = NewScanCoordinator(
+		s.db,
+		s.scenarioLocator,
+		s.log,
+		s.persistDetailedFileMetrics,
+		s.persistFileMetrics,
+		s.storeAIIssue,
+		s.recordScanHistory,
+	)
+	return nil
 }
 
 func requireEnv(key string) string {

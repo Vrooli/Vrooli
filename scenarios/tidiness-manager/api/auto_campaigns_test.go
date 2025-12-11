@@ -419,8 +419,8 @@ func TestAutoCampaign_InvalidSessionLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create campaign with zero sessions: %v", err)
 	}
-	if campaign1.MaxSessions != 0 {
-		t.Errorf("expected max_sessions=0 to be accepted, got %d", campaign1.MaxSessions)
+	if campaign1.MaxSessions != defaultMaxSessions {
+		t.Errorf("expected max_sessions to default to %d, got %d", defaultMaxSessions, campaign1.MaxSessions)
 	}
 
 	// Negative max sessions
@@ -428,8 +428,8 @@ func TestAutoCampaign_InvalidSessionLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create campaign with negative sessions: %v", err)
 	}
-	if campaign2.MaxSessions != -5 {
-		t.Errorf("expected max_sessions=-5 to be stored, got %d", campaign2.MaxSessions)
+	if campaign2.MaxSessions != defaultMaxSessions {
+		t.Errorf("expected negative max_sessions to default to %d, got %d", defaultMaxSessions, campaign2.MaxSessions)
 	}
 
 	// Zero files per session
@@ -437,8 +437,19 @@ func TestAutoCampaign_InvalidSessionLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create campaign with zero files: %v", err)
 	}
-	if campaign3.MaxFilesPerSession != 0 {
-		t.Errorf("expected max_files_per_session=0 to be accepted, got %d", campaign3.MaxFilesPerSession)
+	if campaign3.MaxFilesPerSession != defaultMaxFilesPerSession {
+		t.Errorf("expected max_files_per_session to default to %d, got %d", defaultMaxFilesPerSession, campaign3.MaxFilesPerSession)
+	}
+
+	// Above allowed limits should be rejected
+	_, err = aco.CreateAutoCampaign("test-over-limit-sessions", maxAllowedSessions+1, 5)
+	if err == nil {
+		t.Fatalf("expected error when max_sessions exceeds %d", maxAllowedSessions)
+	}
+
+	_, err = aco.CreateAutoCampaign("test-over-limit-files", 10, maxAllowedFilesPerSession+1)
+	if err == nil {
+		t.Fatalf("expected error when max_files_per_session exceeds %d", maxAllowedFilesPerSession)
 	}
 }
 

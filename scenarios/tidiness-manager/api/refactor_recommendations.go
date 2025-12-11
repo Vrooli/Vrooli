@@ -4,11 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -47,29 +43,6 @@ type RefactorRecommender struct {
 	db          *sql.DB
 	campaignMgr *CampaignManager
 	prioritizer *FilePrioritizer
-}
-
-// parseIntParam extracts and parses an integer query parameter with a default value
-func parseIntParam(r *http.Request, key string, defaultValue int) int {
-	if val := r.URL.Query().Get(key); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
-			return parsed
-		}
-	}
-	return defaultValue
-}
-
-// parseStringParam extracts a string query parameter with a default value
-func parseStringParam(r *http.Request, key, defaultValue string) string {
-	if val := r.URL.Query().Get(key); val != "" {
-		return val
-	}
-	return defaultValue
-}
-
-// parseBoolParam extracts and parses a boolean query parameter
-func parseBoolParam(r *http.Request, key string) bool {
-	return r.URL.Query().Get(key) == "true"
 }
 
 // toFloatPtr converts sql.NullFloat64 to *float64
@@ -323,115 +296,4 @@ func (rr *RefactorRecommender) sortRecommendations(recs []RefactorRecommendation
 			return recs[i].StalenessScore > recs[j].StalenessScore
 		})
 	}
-}
-
-// hasMetricsForScenario checks if we have any file metrics for the given scenario
-func (s *Server) hasMetricsForScenario(ctx context.Context, scenario string) (bool, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM file_metrics WHERE scenario = $1`
-	err := s.db.QueryRowContext(ctx, query, scenario).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
-
-// autoTriggerLightScan triggers a light scan for the scenario
-func (s *Server) autoTriggerLightScan(ctx context.Context, scenario string) error {
-	// Determine scenario path
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
-	scenarioPath := filepath.Join(vrooliRoot, "scenarios", scenario)
-
-	// Check if path exists
-	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-		return fmt.Errorf("scenario path does not exist: %s", scenarioPath)
-	}
-
-	// Create scanner and run light scan
-	scanner := NewLightScanner(scenarioPath, 120*time.Second)
-	result, err := scanner.Scan(ctx)
-	if err != nil {
-		return fmt.Errorf("light scan failed: %w", err)
-	}
-
-	// Persist file metrics
-	filePaths := make([]string, len(result.FileMetrics))
-	for i, fm := range result.FileMetrics {
-		filePaths[i] = fm.Path
-	}
-
-	detailedMetrics, err := CollectDetailedFileMetrics(scenarioPath, filePaths)
-	if err != nil {
-		// Fallback to basic metrics
-		return s.persistFileMetrics(ctx, scenario, result.FileMetrics)
-	}
-
-	return s.persistDetailedFileMetrics(ctx, scenario, detailedMetrics)
-}
-
-// HTTP handler for refactor recommendations endpoint
-func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Request) {
-	scenario := r.URL.Query().Get("scenario")
-	if scenario == "" {
-		respondError(w, http.StatusBadRequest, "scenario parameter is required")
-		return
-	}
-
-	// Parse query parameters using helper functions
-	limit := parseIntParam(r, "limit", 10)
-	sortBy := parseStringParam(r, "sort_by", "priority")
-	minLines := parseIntParam(r, "min_lines", 0)
-	maxVisits := parseIntParam(r, "max_visits", 0)
-	autoScan := parseBoolParam(r, "auto_scan")
-
-	// If auto_scan is enabled, check if we have metrics for this scenario
-	if autoScan {
-		hasMetrics, err := s.hasMetricsForScenario(r.Context(), scenario)
-		if err != nil {
-			s.log("failed to check metrics existence", map[string]interface{}{
-				"error":    err.Error(),
-				"scenario": scenario,
-			})
-			// Don't fail - proceed without auto-scan
-		} else if !hasMetrics {
-			// Trigger light scan automatically
-			s.log("auto-scan triggered for scenario with no metrics", map[string]interface{}{
-				"scenario": scenario,
-			})
-			if err := s.autoTriggerLightScan(r.Context(), scenario); err != nil {
-				s.log("auto-scan failed", map[string]interface{}{
-					"error":    err.Error(),
-					"scenario": scenario,
-				})
-				// Continue anyway - may return empty results but shouldn't fail
-			}
-		}
-	}
-
-	recommender := NewRefactorRecommender(s.db, s.campaignMgr)
-	recommendations, err := recommender.GetRecommendations(
-		r.Context(),
-		scenario,
-		limit,
-		sortBy,
-		minLines,
-		maxVisits,
-	)
-	if err != nil {
-		s.log("failed to get refactor recommendations", map[string]interface{}{
-			"error":    err.Error(),
-			"scenario": scenario,
-		})
-		respondError(w, http.StatusInternalServerError, "failed to get recommendations")
-		return
-	}
-
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"scenario":        scenario,
-		"recommendations": recommendations,
-		"count":           len(recommendations),
-	})
 }

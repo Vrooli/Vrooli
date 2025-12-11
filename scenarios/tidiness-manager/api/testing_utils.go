@@ -126,9 +126,21 @@ func setupTestServerNoData(t *testing.T) *Server {
 			Port:        "8080",
 			DatabaseURL: dbURL,
 		},
-		db:     db,
-		router: mux.NewRouter(),
+		db:              db,
+		store:           NewTidinessStore(db),
+		router:          mux.NewRouter(),
+		campaignMgr:     NewCampaignManager(),
+		scenarioLocator: NewScenarioLocator(5 * time.Minute),
 	}
+	srv.scanCoordinator = NewScanCoordinator(
+		db,
+		srv.scenarioLocator,
+		srv.log,
+		srv.persistDetailedFileMetrics,
+		srv.persistFileMetrics,
+		srv.storeAIIssue,
+		srv.recordScanHistory,
+	)
 	srv.setupRoutes()
 
 	return srv
@@ -229,6 +241,7 @@ func setupDBTest(t *testing.T) (*Server, *sql.DB) {
 	srv := &Server{
 		config: &Config{DatabaseURL: dbURL},
 		db:     db,
+		store:  NewTidinessStore(db),
 	}
 	return srv, db
 }

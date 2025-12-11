@@ -108,61 +108,8 @@ func (s *Server) persistDetailedFileMetrics(ctx context.Context, scenario string
 	if len(metrics) == 0 {
 		return nil
 	}
-
-	query := `
-		INSERT INTO file_metrics (
-			scenario, file_path, language, file_extension,
-			line_count, todo_count, fixme_count, hack_count,
-			import_count, function_count, code_lines, comment_lines,
-			comment_to_code_ratio, has_test_file,
-			complexity_avg, complexity_max, duplication_pct,
-			updated_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, CURRENT_TIMESTAMP)
-		ON CONFLICT (scenario, file_path)
-		DO UPDATE SET
-			language = EXCLUDED.language,
-			file_extension = EXCLUDED.file_extension,
-			line_count = EXCLUDED.line_count,
-			todo_count = EXCLUDED.todo_count,
-			fixme_count = EXCLUDED.fixme_count,
-			hack_count = EXCLUDED.hack_count,
-			import_count = EXCLUDED.import_count,
-			function_count = EXCLUDED.function_count,
-			code_lines = EXCLUDED.code_lines,
-			comment_lines = EXCLUDED.comment_lines,
-			comment_to_code_ratio = EXCLUDED.comment_to_code_ratio,
-			has_test_file = EXCLUDED.has_test_file,
-			complexity_avg = EXCLUDED.complexity_avg,
-			complexity_max = EXCLUDED.complexity_max,
-			duplication_pct = EXCLUDED.duplication_pct,
-			updated_at = CURRENT_TIMESTAMP
-	`
-
-	for _, metric := range metrics {
-		_, err := s.db.ExecContext(ctx, query,
-			scenario,
-			metric.FilePath,
-			metric.Language,
-			metric.FileExtension,
-			metric.LineCount,
-			metric.TodoCount,
-			metric.FixmeCount,
-			metric.HackCount,
-			metric.ImportCount,
-			metric.FunctionCount,
-			metric.CodeLines,
-			metric.CommentLines,
-			metric.CommentRatio,
-			metric.HasTestFile,
-			metric.ComplexityAvg,
-			metric.ComplexityMax,
-			metric.DuplicationPct,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to persist detailed metrics for %s: %w", metric.FilePath, err)
-		}
+	if s.store == nil {
+		return fmt.Errorf("store not initialized")
 	}
-
-	return nil
+	return s.store.PersistDetailedFileMetrics(ctx, scenario, metrics)
 }

@@ -37,12 +37,13 @@ func GetDefaultSmartScanConfig() SmartScanConfig {
 
 // SmartScanner orchestrates AI-powered code analysis
 type SmartScanner struct {
-	config        SmartScanConfig
-	resourceURL   string
-	sessionID     string
-	analyzedFiles map[string]bool
-	mu            sync.RWMutex
-	httpClient    *http.Client
+	config          SmartScanConfig
+	resourceURL     string
+	sessionID       string
+	analyzedFiles   map[string]bool
+	mu              sync.RWMutex
+	httpClient      *http.Client
+	scenarioLocator *ScenarioLocator
 }
 
 // NewSmartScanner creates a SmartScanner with given configuration
@@ -66,6 +67,12 @@ func NewSmartScanner(config SmartScanConfig) (*SmartScanner, error) {
 			Timeout: 120 * time.Second,
 		},
 	}, nil
+}
+
+// WithScenarioLocator allows callers to supply scenario path resolution without relying on env lookups.
+func (s *SmartScanner) WithScenarioLocator(locator *ScenarioLocator) *SmartScanner {
+	s.scenarioLocator = locator
+	return s
 }
 
 // SmartScanRequest represents a request to perform smart scanning
@@ -211,7 +218,7 @@ func (s *SmartScanner) processBatch(ctx context.Context, batchID int, files []st
 // readFileContent reads the content of a file from the scenario directory
 func (s *SmartScanner) readFileContent(scenario, filePath string) (string, error) {
 	// Security: Prevent path traversal attacks
-	scenarioPath := getScenarioPath(scenario)
+	scenarioPath := filepath.Clean(s.scenarioPath(scenario))
 	fullPath := filepath.Join(scenarioPath, filePath)
 
 	// Ensure the resolved path is within the scenario directory
@@ -327,6 +334,13 @@ func (s *SmartScanner) markFileAnalyzed(file string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.analyzedFiles[file] = true
+}
+
+func (s *SmartScanner) scenarioPath(scenario string) string {
+	if s.scenarioLocator != nil {
+		return s.scenarioLocator.ScenarioPath(scenario)
+	}
+	return defaultScenarioPath(scenario)
 }
 
 // createBatches splits files into batches

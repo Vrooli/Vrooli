@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -70,51 +68,11 @@ func (s *Server) handleAgentGetIssues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build query based on filters (TM-API-002, TM-API-003)
-	query := buildIssuesQuery(req)
-	args := buildIssuesArgs(req)
-
-	rows, err := s.db.QueryContext(r.Context(), query, args...)
+	issues, err := s.store.ListAgentIssues(r.Context(), req)
 	if err != nil {
-		s.logQueryError("query", err, query)
+		s.logQueryError("query issues", err)
 		respondError(w, http.StatusInternalServerError, "failed to query issues")
 		return
-	}
-	defer rows.Close()
-
-	issues := []AgentIssue{}
-	for rows.Next() {
-		var issue AgentIssue
-		var lineNum, colNum sql.NullInt64
-		var agentNotes, remediation sql.NullString
-
-		err := rows.Scan(
-			&issue.ID,
-			&issue.Scenario,
-			&issue.FilePath,
-			&issue.Category,
-			&issue.Severity,
-			&issue.Title,
-			&issue.Description,
-			&lineNum,
-			&colNum,
-			&agentNotes,
-			&remediation,
-			&issue.Status,
-			&issue.CreatedAt,
-		)
-		if err != nil {
-			s.logQueryError("scan", err)
-			continue
-		}
-
-		// Use helper functions to handle nullable fields
-		issue.LineNumber = assignNullInt(lineNum)
-		issue.ColumnNumber = assignNullInt(colNum)
-		issue.AgentNotes = assignNullString(agentNotes)
-		issue.RemediationSteps = assignNullString(remediation)
-
-		issues = append(issues, issue)
 	}
 
 	// Return plain array for simpler agent consumption (TM-API-001)
@@ -148,32 +106,27 @@ func (s *Server) handleAgentStoreIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := `
-		INSERT INTO issues (
-			scenario, file_path, category, severity, title, description,
-			line_number, column_number, agent_notes, remediation_steps,
-			campaign_id, session_id, resource_used
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		RETURNING id, created_at
-	`
-
-	var id int
-	var createdAt string
-	err := s.db.QueryRowContext(
-		r.Context(),
-		query,
-		issue.Scenario, issue.FilePath, issue.Category, issue.Severity,
-		issue.Title, issue.Description, issue.LineNumber, issue.ColumnNumber,
-		issue.AgentNotes, issue.RemediationSteps, issue.CampaignID,
-		issue.SessionID, issue.ResourceUsed,
-	).Scan(&id, &createdAt)
-
+	id, createdAt, err := s.store.InsertAgentIssue(r.Context(), AgentIssuePayload{
+		Scenario:         issue.Scenario,
+		FilePath:         issue.FilePath,
+		Category:         issue.Category,
+		Severity:         issue.Severity,
+		Title:            issue.Title,
+		Description:      issue.Description,
+		LineNumber:       issue.LineNumber,
+		ColumnNumber:     issue.ColumnNumber,
+		AgentNotes:       issue.AgentNotes,
+		RemediationSteps: issue.RemediationSteps,
+		CampaignID:       issue.CampaignID,
+		SessionID:        issue.SessionID,
+		ResourceUsed:     issue.ResourceUsed,
+	})
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
+		if errors.Is(err, ErrDuplicateIssue) {
 			respondError(w, http.StatusConflict, "duplicate issue")
 			return
 		}
-		s.logQueryError("insert", err)
+		s.logQueryError("insert issue", err)
 		respondError(w, http.StatusInternalServerError, "failed to store issue")
 		return
 	}
@@ -217,32 +170,21 @@ func (s *Server) handleAgentUpdateIssue(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Update the issue
-	query := `
-		UPDATE issues
-		SET status = $1, resolution_notes = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3
-		RETURNING id, status, updated_at
-	`
-
-	var returnedID int
-	var returnedStatus, updatedAt string
-	err = s.db.QueryRowContext(r.Context(), query, update.Status, update.ResolutionNotes, id).
-		Scan(&returnedID, &returnedStatus, &updatedAt)
-
+	result, err := s.store.UpdateIssueStatus(r.Context(), id, update.Status, update.ResolutionNotes)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			respondError(w, http.StatusNotFound, "issue not found")
 			return
 		}
-		s.logQueryError("update", err)
+		s.logQueryError("update issue", err)
 		respondError(w, http.StatusInternalServerError, "failed to update issue")
 		return
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"id":         returnedID,
-		"status":     returnedStatus,
-		"updated_at": updatedAt,
+		"id":         result.ID,
+		"status":     result.Status,
+		"updated_at": result.UpdatedAt,
 	})
 }
 
@@ -257,39 +199,10 @@ func (s *Server) handleAgentGetScenarios(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Get issue counts from database for scenarios that have issues
-	query := `
-		SELECT
-			scenario,
-			COUNT(*) as total_issues,
-			COUNT(CASE WHEN category = 'lint' THEN 1 END) as lint_issues,
-			COUNT(CASE WHEN category = 'type' THEN 1 END) as type_issues,
-			COUNT(CASE WHEN category = 'length' THEN 1 END) as long_files
-		FROM issues
-		WHERE status = 'open'
-		GROUP BY scenario
-	`
-
-	rows, err := s.db.QueryContext(r.Context(), query)
+	issueCounts, err := s.store.FetchIssueCounts(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to query issues")
 		return
-	}
-	defer rows.Close()
-
-	// Build map of scenario -> issue counts
-	issueCounts := make(map[string]map[string]interface{})
-	for rows.Next() {
-		var scenario string
-		var total, lint, typeIssues, longFiles int
-		if err := rows.Scan(&scenario, &total, &lint, &typeIssues, &longFiles); err != nil {
-			continue
-		}
-		issueCounts[scenario] = map[string]interface{}{
-			"total":      total,
-			"lint":       lint,
-			"type":       typeIssues,
-			"long_files": longFiles,
-		}
 	}
 
 	// Combine all scenarios with their issue counts (0 if no issues)
@@ -297,15 +210,15 @@ func (s *Server) handleAgentGetScenarios(w http.ResponseWriter, r *http.Request)
 	for _, scenarioName := range allScenarios {
 		counts, hasIssues := issueCounts[scenarioName]
 		if !hasIssues {
-			counts = makeZeroCounts()
+			counts = IssueCounts{}
 		}
 
 		scenario := map[string]interface{}{
 			"scenario":   scenarioName,
-			"total":      counts["total"],
-			"lint":       counts["lint"],
-			"type":       counts["type"],
-			"long_files": counts["long_files"],
+			"total":      counts.Total,
+			"lint":       counts.Lint,
+			"type":       counts.Type,
+			"long_files": counts.LongFiles,
 		}
 		scenarios = append(scenarios, scenario)
 	}
@@ -336,7 +249,7 @@ func parseAgentIssuesRequest(r *http.Request) ParsedRequest {
 		} else if v < 0 {
 			parseErr = &ValidationError{Field: "limit", Message: "must be non-negative"}
 		} else if v > maxLimit {
-			parseErr = &ValidationError{Field: "limit", Message: fmt.Sprintf("must not exceed %d", maxLimit)}
+			limit = maxLimit
 		} else if v > 0 {
 			limit = v
 		}
@@ -391,16 +304,6 @@ func (s *Server) logQueryError(operation string, err error, query ...string) {
 		logData["query"] = query[0]
 	}
 	s.log(operation+" failed", logData)
-}
-
-// makeZeroCounts returns a map with all issue counts set to zero
-func makeZeroCounts() map[string]interface{} {
-	return map[string]interface{}{
-		"total":      0,
-		"lint":       0,
-		"type":       0,
-		"long_files": 0,
-	}
 }
 
 // queryBuilder helps construct SQL queries with dynamic conditions
@@ -488,6 +391,10 @@ func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Req
 	vars := mux.Vars(r)
 	scenarioName := vars["name"]
 	if scenarioName == "" {
+		// Backward-compatibility for tests using "scenario" key
+		scenarioName = vars["scenario"]
+	}
+	if scenarioName == "" {
 		respondError(w, http.StatusBadRequest, "scenario name is required")
 		return
 	}
@@ -567,37 +474,9 @@ func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Req
 
 // getAllScenarios fetches all scenarios from the vrooli CLI with caching
 func (s *Server) getAllScenarios(parentCtx context.Context) ([]string, error) {
-	// Check if cache is still valid
-	if time.Since(s.scenarioCacheTime) < s.scenarioCacheTTL && len(s.scenarioCache) > 0 {
-		return s.scenarioCache, nil
+	if s.scenarioLocator == nil {
+		s.scenarioLocator = NewScenarioLocator(5 * time.Minute)
 	}
 
-	ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", "--json")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-
-	var resp struct {
-		Scenarios []map[string]interface{} `json:"scenarios"`
-	}
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, err
-	}
-
-	scenarios := []string{}
-	for _, scenario := range resp.Scenarios {
-		if name, ok := scenario["name"].(string); ok {
-			scenarios = append(scenarios, name)
-		}
-	}
-
-	// Update cache
-	s.scenarioCache = scenarios
-	s.scenarioCacheTime = time.Now()
-
-	return scenarios, nil
+	return s.scenarioLocator.List(parentCtx)
 }

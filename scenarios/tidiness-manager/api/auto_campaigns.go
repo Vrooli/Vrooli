@@ -3,8 +3,27 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
+
+const (
+	defaultMaxSessions        = 10
+	defaultMaxFilesPerSession = 5
+	maxAllowedSessions        = 100
+	maxAllowedFilesPerSession = 50
+)
+
+// CampaignValidationError distinguishes invalid inputs from orchestration failures.
+type CampaignValidationError struct {
+	Reason string
+}
+
+func (e *CampaignValidationError) Error() string {
+	return e.Reason
+}
 
 // AutoCampaignOrchestrator manages automatic tidiness campaigns across scenarios
 // Implements OT-P1-001 (Auto-tidiness campaigns) and OT-P1-002 (Campaign lifecycle)
@@ -50,6 +69,11 @@ type AutoCampaign struct {
 
 // CreateAutoCampaign creates a new auto-tidiness campaign [REQ:TM-AC-001]
 func (aco *AutoCampaignOrchestrator) CreateAutoCampaign(scenario string, maxSessions, maxFilesPerSession int) (*AutoCampaign, error) {
+	scenario, maxSessions, maxFilesPerSession, err := aco.normalizeCampaignConfig(scenario, maxSessions, maxFilesPerSession)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check concurrency limit [REQ:TM-AC-002]
 	activeCampaigns, err := aco.GetActiveCampaignCount()
 	if err != nil {
@@ -102,6 +126,33 @@ func (aco *AutoCampaignOrchestrator) CreateAutoCampaign(scenario string, maxSess
 	return campaign, nil
 }
 
+func (aco *AutoCampaignOrchestrator) normalizeCampaignConfig(scenario string, maxSessions, maxFilesPerSession int) (string, int, int, error) {
+	trimmedScenario := strings.TrimSpace(scenario)
+	if trimmedScenario == "" {
+		return "", 0, 0, &CampaignValidationError{Reason: "scenario is required"}
+	}
+
+	if maxSessions <= 0 {
+		maxSessions = defaultMaxSessions
+	}
+	if maxSessions > maxAllowedSessions {
+		return "", 0, 0, &CampaignValidationError{
+			Reason: fmt.Sprintf("max_sessions cannot exceed %d", maxAllowedSessions),
+		}
+	}
+
+	if maxFilesPerSession <= 0 {
+		maxFilesPerSession = defaultMaxFilesPerSession
+	}
+	if maxFilesPerSession > maxAllowedFilesPerSession {
+		return "", 0, 0, &CampaignValidationError{
+			Reason: fmt.Sprintf("max_files_per_session cannot exceed %d", maxAllowedFilesPerSession),
+		}
+	}
+
+	return trimmedScenario, maxSessions, maxFilesPerSession, nil
+}
+
 // GetActiveCampaignCount returns the number of active/paused campaigns [REQ:TM-AC-002]
 func (aco *AutoCampaignOrchestrator) GetActiveCampaignCount() (int, error) {
 	var count int
@@ -115,6 +166,8 @@ func (aco *AutoCampaignOrchestrator) GetActiveCampaignCount() (int, error) {
 // updateCampaignStatus updates campaign status with optional completion timestamp
 func (aco *AutoCampaignOrchestrator) updateCampaignStatus(campaignID int, newStatus string, fromStatuses []string, setCompleted bool) error {
 	var query string
+	var args []interface{}
+
 	if setCompleted {
 		query = `UPDATE campaigns SET status = $1, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
 	} else {
@@ -127,11 +180,13 @@ func (aco *AutoCampaignOrchestrator) updateCampaignStatus(campaignID int, newSta
 		} else {
 			query = `UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND status = ANY($3)`
 		}
-		_, err := aco.db.Exec(query, newStatus, campaignID, fromStatuses)
+		args = []interface{}{newStatus, campaignID, pq.Array(fromStatuses)}
+		_, err := aco.db.Exec(query, args...)
 		return err
 	}
 
-	_, err := aco.db.Exec(query, newStatus, campaignID)
+	args = []interface{}{newStatus, campaignID}
+	_, err := aco.db.Exec(query, args...)
 	return err
 }
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -219,68 +220,107 @@ func (ls *LightScanner) collectLanguageMetrics(ctx context.Context) (map[Languag
 
 // runMakeCommand executes a make target and captures output
 func (ls *LightScanner) runMakeCommand(ctx context.Context, target string) *CommandRun {
-	// Security: Validate make target to prevent command injection
-	// Only allow alphanumeric targets and hyphens (e.g. lint, type, type-check)
-	validTarget := true
-	for _, c := range target {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
-			validTarget = false
-			break
-		}
-	}
-	if !validTarget || len(target) == 0 || len(target) > 64 {
-		return &CommandRun{
-			Command:    fmt.Sprintf("make %s", target),
-			ExitCode:   -1,
-			Stderr:     "invalid make target format",
-			Duration:   0,
-			Success:    false,
-			Skipped:    true,
-			SkipReason: "target validation failed",
-		}
+	command := fmt.Sprintf("make %s", target)
+	if !isValidMakeTarget(target) {
+		return skippedCommandRun(command, "invalid make target format", "target validation failed", 0)
 	}
 
-	cmdCtx, cancel := context.WithTimeout(ctx, ls.timeout)
-	defer cancel()
-
-	startTime := time.Now()
-	cmd := exec.CommandContext(cmdCtx, "make", target)
+	cmd := exec.CommandContext(ctx, "make", target)
 	cmd.Dir = ls.scenarioPath
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	duration := time.Since(startTime)
+	if err := cmd.Start(); err != nil {
+		return skippedCommandRun(
+			command,
+			err.Error(),
+			fmt.Sprintf("target '%s' not available or failed to execute", target),
+			0,
+		)
+	}
 
-	exitCode := 0
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			// Command not found or other errors
-			return &CommandRun{
-				Command:    fmt.Sprintf("make %s", target),
-				ExitCode:   -1,
-				Stderr:     err.Error(),
-				Duration:   duration.Milliseconds(),
-				Success:    false,
-				Skipped:    true,
-				SkipReason: fmt.Sprintf("target '%s' not available or failed to execute", target),
-			}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	timer := time.NewTimer(ls.timeout)
+	defer timer.Stop()
+
+	startTime := time.Now()
+
+	select {
+	case err := <-done:
+		return buildCommandRun(command, target, err, &stdout, &stderr, startTime)
+	case <-ctx.Done():
+		_ = cmd.Process.Kill()
+		return skippedCommandRun(command, "command canceled", "context canceled", time.Since(startTime).Milliseconds())
+	case <-timer.C:
+		_ = cmd.Process.Kill()
+		return skippedCommandRun(command, "command timed out", "timeout exceeded", time.Since(startTime).Milliseconds())
+	}
+}
+
+func isValidMakeTarget(target string) bool {
+	if len(target) == 0 || len(target) > 64 {
+		return false
+	}
+
+	for _, c := range target {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+func skippedCommandRun(command, stderr, reason string, durationMs int64) *CommandRun {
+	return &CommandRun{
+		Command:    command,
+		ExitCode:   -1,
+		Stderr:     stderr,
+		Duration:   durationMs,
+		Success:    false,
+		Skipped:    true,
+		SkipReason: reason,
+	}
+}
+
+func buildCommandRun(command, target string, err error, stdout, stderr *bytes.Buffer, startTime time.Time) *CommandRun {
+	durationMs := time.Since(startTime).Milliseconds()
+
+	if err == nil {
+		return &CommandRun{
+			Command:  command,
+			ExitCode: 0,
+			Stdout:   stdout.String(),
+			Stderr:   stderr.String(),
+			Duration: durationMs,
+			Success:  true,
 		}
 	}
 
-	return &CommandRun{
-		Command:  fmt.Sprintf("make %s", target),
-		ExitCode: exitCode,
-		Stdout:   stdout.String(),
-		Stderr:   stderr.String(),
-		Duration: duration.Milliseconds(),
-		Success:  exitCode == 0,
-		Skipped:  false,
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return skippedCommandRun(command, err.Error(), "timeout exceeded", durationMs)
 	}
+
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		return &CommandRun{
+			Command:  command,
+			ExitCode: exitErr.ExitCode(),
+			Stdout:   stdout.String(),
+			Stderr:   stderr.String(),
+			Duration: durationMs,
+			Success:  false,
+		}
+	}
+
+	return skippedCommandRun(
+		command,
+		err.Error(),
+		fmt.Sprintf("target '%s' not available or failed to execute", target),
+		durationMs,
+	)
 }
 
 // collectFileMetrics walks source directories and counts lines
@@ -385,11 +425,7 @@ func (ls *LightScanner) getPreviousScans(ctx context.Context, db *sql.DB) (map[s
 
 // getSourceDirs returns the list of source directories to scan
 func (ls *LightScanner) getSourceDirs() []string {
-	return []string{
-		filepath.Join(ls.scenarioPath, "api"),
-		filepath.Join(ls.scenarioPath, "ui", "src"),
-		filepath.Join(ls.scenarioPath, "cli"),
-	}
+	return []string{ls.scenarioPath}
 }
 
 // getSupportedExtensions returns the map of file extensions to scan
@@ -400,6 +436,7 @@ func (ls *LightScanner) getSupportedExtensions() map[string]bool {
 		".tsx": true,
 		".js":  true,
 		".jsx": true,
+		".py":  true,
 	}
 }
 

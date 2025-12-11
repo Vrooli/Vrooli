@@ -320,6 +320,42 @@ func TestReadFileContent_Errors(t *testing.T) {
 	}
 }
 
+func TestSmartScanner_UsesScenarioLocator(t *testing.T) {
+	scanner := createTestScanner(t)
+
+	tmpRoot := t.TempDir()
+	locator := &ScenarioLocator{
+		vrooliRoot:   tmpRoot,
+		scenariosDir: filepath.Join(tmpRoot, "scenarios"),
+		cacheTTL:     time.Minute,
+	}
+
+	scenarioName := "locator-scenario"
+	scenarioDir := filepath.Join(locator.scenariosDir, scenarioName)
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatalf("Failed to create scenario dir: %v", err)
+	}
+
+	filePath := filepath.Join(scenarioDir, "main.go")
+	const fileContents = "package main\n"
+	if err := os.WriteFile(filePath, []byte(fileContents), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	originalRoot := os.Getenv("VROOLI_ROOT")
+	os.Setenv("VROOLI_ROOT", filepath.Join(tmpRoot, "wrong"))
+	t.Cleanup(func() { os.Setenv("VROOLI_ROOT", originalRoot) })
+
+	scanner.WithScenarioLocator(locator)
+	content, err := scanner.readFileContent(scenarioName, "main.go")
+	if err != nil {
+		t.Fatalf("Expected to read file via locator, got error: %v", err)
+	}
+	if content != fileContents {
+		t.Fatalf("Unexpected file contents: %q", content)
+	}
+}
+
 // [REQ:TM-SS-001] Test createBatches with extreme sizes
 func TestCreateBatches_ExtremeSizes(t *testing.T) {
 	tests := []struct {
