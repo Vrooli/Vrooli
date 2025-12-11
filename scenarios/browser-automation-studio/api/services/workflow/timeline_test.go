@@ -211,6 +211,43 @@ func (m *timelineRepositoryMock) GetResumableExecution(ctx context.Context, id u
 	return nil, -1, database.ErrNotFound
 }
 
+// Settings operations
+func (m *timelineRepositoryMock) GetSetting(ctx context.Context, key string) (string, error) {
+	return "", database.ErrNotFound
+}
+func (m *timelineRepositoryMock) SetSetting(ctx context.Context, key, value string) error {
+	return nil
+}
+func (m *timelineRepositoryMock) DeleteSetting(ctx context.Context, key string) error {
+	return nil
+}
+
+// Schedule operations
+func (m *timelineRepositoryMock) CreateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetSchedule(ctx context.Context, id uuid.UUID) (*database.WorkflowSchedule, error) {
+	return nil, database.ErrNotFound
+}
+func (m *timelineRepositoryMock) ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *timelineRepositoryMock) UpdateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *timelineRepositoryMock) DeleteSchedule(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetActiveSchedules(ctx context.Context) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *timelineRepositoryMock) UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error {
+	return nil
+}
+func (m *timelineRepositoryMock) UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error {
+	return nil
+}
+
 func TestGetExecutionTimeline(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] builds timeline from execution artifacts", func(t *testing.T) {
 		executionID := uuid.New()

@@ -21,34 +21,37 @@ interface DesktopTrayAPI {
   updateContextMenu: (items: TrayMenuItem[]) => Promise<{ success: boolean }>;
 }
 
-interface DesktopAPI {
-  tray?: DesktopTrayAPI;
-  notify?: (title: string, body: string, options?: NotificationOptions) => void;
-}
-
-interface NotificationOptions {
+interface TrayNotificationOptions {
   silent?: boolean;
   urgency?: 'low' | 'normal' | 'critical';
 }
 
-declare global {
-  interface Window {
-    desktop?: DesktopAPI;
-  }
+// Helper to get desktop API with tray support
+function getDesktopTray(): DesktopTrayAPI | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const desktop = (window as any).desktop;
+  return desktop?.tray as DesktopTrayAPI | undefined;
+}
+
+// Helper to get desktop notify function
+function getDesktopNotify(): ((title: string, body: string, options?: TrayNotificationOptions) => void) | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const desktop = (window as any).desktop;
+  return typeof desktop?.notify === 'function' ? desktop.notify : undefined;
 }
 
 /**
  * Check if running in Electron desktop environment.
  */
 export function isDesktopEnvironment(): boolean {
-  return typeof window !== 'undefined' && typeof window.desktop?.tray !== 'undefined';
+  return typeof window !== 'undefined' && getDesktopTray() !== undefined;
 }
 
 /**
  * Check if desktop notifications are available.
  */
 export function hasDesktopNotifications(): boolean {
-  return typeof window !== 'undefined' && typeof window.desktop?.notify === 'function';
+  return typeof window !== 'undefined' && getDesktopNotify() !== undefined;
 }
 
 /**
@@ -75,7 +78,7 @@ export async function updateTrayWithSchedules(schedules: WorkflowSchedule[]): Pr
   }
 
   try {
-    await window.desktop?.tray?.updateTooltip(tooltip);
+    await getDesktopTray()?.updateTooltip(tooltip);
   } catch (err) {
     console.warn('[Tray] Failed to update tooltip:', err);
   }
@@ -102,7 +105,7 @@ export async function updateTrayWithSchedules(schedules: WorkflowSchedule[]): Pr
   }
 
   try {
-    await window.desktop?.tray?.updateContextMenu(menuItems);
+    await getDesktopTray()?.updateContextMenu(menuItems);
   } catch (err) {
     console.warn('[Tray] Failed to update context menu:', err);
   }
@@ -115,7 +118,7 @@ export async function updateTrayBadge(pendingCount: number): Promise<void> {
   if (!isDesktopEnvironment()) return;
 
   try {
-    await window.desktop?.tray?.setBadge(pendingCount);
+    await getDesktopTray()?.setBadge(pendingCount);
   } catch (err) {
     console.warn('[Tray] Failed to update badge:', err);
   }
@@ -127,9 +130,10 @@ export async function updateTrayBadge(pendingCount: number): Promise<void> {
 export function showScheduleNotification(
   title: string,
   body: string,
-  options?: NotificationOptions
+  options?: TrayNotificationOptions
 ): void {
-  if (!hasDesktopNotifications()) {
+  const notify = getDesktopNotify();
+  if (!notify) {
     // Fallback to browser notifications if available
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(title, { body });
@@ -138,7 +142,7 @@ export function showScheduleNotification(
   }
 
   try {
-    window.desktop?.notify?.(title, body, options);
+    notify(title, body, options);
   } catch (err) {
     console.warn('[Desktop] Failed to show notification:', err);
   }

@@ -185,6 +185,43 @@ func (m *mockRepo) GetResumableExecution(ctx context.Context, id uuid.UUID) (*da
 	return nil, -1, nil
 }
 
+// Settings operations
+func (m *mockRepo) GetSetting(ctx context.Context, key string) (string, error) {
+	return "", database.ErrNotFound
+}
+func (m *mockRepo) SetSetting(ctx context.Context, key, value string) error {
+	return nil
+}
+func (m *mockRepo) DeleteSetting(ctx context.Context, key string) error {
+	return nil
+}
+
+// Schedule operations
+func (m *mockRepo) CreateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *mockRepo) GetSchedule(ctx context.Context, id uuid.UUID) (*database.WorkflowSchedule, error) {
+	return nil, database.ErrNotFound
+}
+func (m *mockRepo) ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *mockRepo) UpdateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *mockRepo) DeleteSchedule(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *mockRepo) GetActiveSchedules(ctx context.Context) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *mockRepo) UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error {
+	return nil
+}
+func (m *mockRepo) UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error {
+	return nil
+}
+
 func TestRecoverStaleExecutions_NoStaleExecutions(t *testing.T) {
 	t.Parallel()
 	repo := newMockRepo()

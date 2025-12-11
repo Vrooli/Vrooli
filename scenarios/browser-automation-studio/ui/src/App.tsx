@@ -36,6 +36,7 @@ import { useScenarioStore } from "@stores/scenarioStore";
 import { useDashboardStore, type RecentWorkflow } from "@stores/dashboardStore";
 import { useMediaQuery } from "@hooks/useMediaQuery";
 import { useEntitlementInit } from "@hooks/useEntitlement";
+import { useScheduleNotifications } from "@hooks/useScheduleNotifications";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import { selectors } from "@constants/selectors";
@@ -142,6 +143,9 @@ function App() {
 
   // Initialize entitlement state on app mount
   useEntitlementInit();
+
+  // Initialize schedule notifications (WebSocket + desktop tray updates)
+  useScheduleNotifications();
 
   const isExecutionViewerOpen = Boolean(viewerWorkflowId);
   const activeExecutionWorkflowId =

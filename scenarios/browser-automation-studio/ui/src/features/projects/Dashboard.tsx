@@ -20,6 +20,7 @@ import { HomeTab } from "@features/dashboard/HomeTab";
 import { ExecutionsTab } from "@features/dashboard/ExecutionsTab";
 import { ExportsTab } from "@features/dashboard/ExportsTab";
 import { ProjectsTab } from "@features/dashboard/ProjectsTab";
+import { SchedulesTab } from "@features/dashboard/SchedulesTab";
 import { RunningExecutionsBadge } from "@features/dashboard/RunningExecutionsBadge";
 import { WelcomeHero } from "@features/dashboard/WelcomeHero";
 
@@ -246,6 +247,13 @@ function Dashboard({
             onNavigateToWorkflow={handleNavigateToWorkflow}
             onRunWorkflow={handleRunWorkflow}
             onTryDemo={onTryDemo}
+          />
+        );
+      case 'schedules':
+        return (
+          <SchedulesTab
+            onNavigateToExecution={handleViewExecution}
+            onNavigateToHome={() => setActiveTab('home')}
           />
         );
       default:

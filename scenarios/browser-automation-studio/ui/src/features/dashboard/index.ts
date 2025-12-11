@@ -11,6 +11,7 @@ export { HomeTab } from './HomeTab';
 export { ExecutionsTab } from './ExecutionsTab';
 export { ExportsTab } from './ExportsTab';
 export { ProjectsTab } from './ProjectsTab';
+export { SchedulesTab } from './SchedulesTab';
 export { RunningExecutionsBadge } from './RunningExecutionsBadge';
 export { WelcomeHero } from './WelcomeHero';
 export { FeatureShowcase, FEATURE_CONFIGS } from './FeatureShowcase';

@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 type stubHub struct {
@@ -51,6 +52,12 @@ func (s *stubHub) CloseExecution(executionID uuid.UUID) {
 }
 
 func (s *stubHub) BroadcastRecordingAction(sessionID string, action any) {}
+
+func (s *stubHub) BroadcastBinaryFrame(executionID string, data []byte) {}
+
+func (s *stubHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
+
+func (s *stubHub) HasRecordingSubscribers(sessionID string) bool { return false }
 
 func (c *closingHub) CloseExecution(executionID uuid.UUID) {
 	c.stubHub.mu.Lock()
@@ -253,6 +260,12 @@ func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
 }
 
 func (b *blockingHub) BroadcastRecordingAction(sessionID string, action any) {}
+
+func (b *blockingHub) BroadcastBinaryFrame(executionID string, data []byte) {}
+
+func (b *blockingHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
+
+func (b *blockingHub) HasRecordingSubscribers(sessionID string) bool { return false }
 
 func (b *blockingHub) BroadcastEnvelope(event any) {
 	<-b.unblock

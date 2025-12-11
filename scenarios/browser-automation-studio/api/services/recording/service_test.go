@@ -171,6 +171,10 @@ func (r *fakeRecordingRepo) CreateExecutionLog(ctx context.Context, logEntry *da
 	return nil
 }
 
+func (r *fakeRecordingRepo) UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error {
+	return nil
+}
+
 func TestRecordingServiceImportArchive(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] imports recording archive and creates timeline artifacts", func(t *testing.T) {
 		t.Parallel()
