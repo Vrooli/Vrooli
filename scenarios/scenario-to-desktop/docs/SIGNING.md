@@ -1,40 +1,74 @@
 # Code Signing Guide (Windows, macOS, Linux)
 
-This guide gives step-by-step instructions for the minimum viable code signing setup per platform, with links to official references.
+This guide explains what must be signed for each platform, which OS can perform the signing, how to obtain certificates/keys, and how to configure signing in scenario-to-desktop.
 
-## Quick Checklist
-- Decide which platforms you will ship.
-- Gather the minimum inputs (below).
-- Install the platform tools.
-- Save config in scenario-to-desktop (Signing tab or `scenario-to-desktop signing set`).
-- Run **Validate**, then build with signing enabled.
+## Platform Summary (What to Sign, Where to Sign, Cost/Keys, Reuse)
+
+| Platform | What is signed | Where you must sign | Keys/certs & cost | Can reuse across scenarios? |
+|----------|----------------|---------------------|-------------------|-----------------------------|
+| Windows | Executables + installers (Authenticode) with timestamp | Windows host using SignTool (part of Windows SDK/VS). EV tokens require Windows. | Commercial code-signing cert (PFX or hardware token). ~$200–$400/yr (OV), ~$400–$700/yr (EV). Identity/business verification; issuance can take 1–3+ business days. | Yes. One org cert can sign many apps/installers. |
+| macOS | .app bundles + installers; notarization stapling | macOS host with `codesign` + `notarytool` (Xcode CLT). | Apple Developer Program ($99/yr) + Developer ID Application cert. Notarization uses App Store Connect API key. Approval may take hours–days (account + D‑U‑N‑S if org). | Yes. One Developer ID cert/API key per team can sign/notarize many apps. |
+| Linux | Packages (DEB/RPM) and AppImage via GPG signatures | Linux host with `gpg` + package signers (`dpkg-sig`/`rpm-sign`). | GPG key you generate yourself (free). Immediate use. | Yes. Same key can sign many packages. |
+
+**Can I sign everything from one machine?**  
+- Windows signing: realistically Windows only (SignTool + optional EV token).  
+- macOS signing/notarization: macOS only (needs `codesign`/`notarytool` and macOS keychain).  
+- Linux signing: Linux (or WSL) with GPG + packaging tools.  
+You can build unsigned elsewhere and sign on the target OS if needed.
+
+**Do keys have to be created on that OS?**  
+- Windows: CA issues a PFX or hardware token; importable elsewhere, but signing still runs on Windows.  
+- macOS: Developer ID cert is issued into a macOS keychain; exportable (.p12) but still must sign/notarize on macOS.  
+- Linux: GPG keys can be generated anywhere and copied.
+
+**Paying and approval timing**  
+- Windows CA certs: paid, identity vetting before issuance.  
+- Apple Developer ID: $99/yr; need approved developer account before generating cert and API key.  
+- Linux GPG: free, instant.
+
+## Workflow Overview
+- Decide platforms and formats (see `CROSS_PLATFORM_BUILDS.md` for build matrix).
+- Acquire the required cert/key per platform.
+- Install platform tools on the OS that will perform signing.
+- Configure signing in scenario-to-desktop (UI Signing tab or `scenario-to-desktop signing set`).
+- Run **Validate**, then build with signing enabled; notarize for macOS if required.
+
+## Signing Tools Panel (what it checks)
+- Runs local detection to confirm the OS-level CLIs are available before you try to sign:
+  - `signtool` (Windows SDK/VS), `osslsigncode` (Linux/macOS alternative for Windows EXE signing),
+  - `codesign`, `notarytool`, `altool` (macOS),
+  - `gpg`, `rpmsign`, `dpkg-sig` (Linux package signing).
+- Shows per-platform cards with status, version, and resolved path when found.
+- When missing, shows remediation text plus quick install commands (e.g., `xcode-select --install`, `apt install osslsigncode`, `brew install gnupg`).
+- If a tool errors, the panel surfaces the error text so you can fix PATH or reinstall.
+- Refresh by reopening the Signing tab or revisiting the page after installing tools.
 
 ## Windows (Authenticode)
 **What you need**
-- A code-signing certificate (`.pfx/.p12`) and its password, or a thumbprint for a cert in the Windows certificate store.
-- Timestamp server URL (defaults: DigiCert/Sectigo/GlobalSign).
+- Code-signing certificate (`.pfx/.p12` + password) or a thumbprint for a cert in the Windows certificate store.
+- Timestamp server URL (defaults provided).
 
 **Install tools**
-- SignTool ships with the Windows 10/11 SDK or Visual Studio. Install “Windows SDK” via the VS installer.
+- SignTool (comes with Windows 10/11 SDK or Visual Studio; install “Windows SDK” via VS installer).
 
 **How to list certificates**
 ```powershell
-# In PowerShell, list code-signing certs (CurrentUser\My store)
+# List code-signing certs (CurrentUser\My store)
 Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.EnhancedKeyUsageList -match "Code Signing" } |
   Select-Object Subject, Thumbprint, NotAfter
 ```
 
 **Save config**
-- In the Signing tab, choose **Windows → Store** and paste the thumbprint, or choose **File** and set `certificate_file` + password env var (e.g., `WIN_CERT_PASSWORD`).
+- In Signing tab, choose **Windows → Store** and paste the thumbprint, or choose **File** and set `certificate_file` + password env var (e.g., `WIN_CERT_PASSWORD`).
 
 **Reference**
 - Microsoft: Code signing certificates and SignTool — https://learn.microsoft.com/windows/win32/seccrypto/signtool
 
 ## macOS (Developer ID + Notarization)
 **What you need**
-- Developer ID Application certificate in your login keychain.
+- Developer ID Application certificate in your login keychain (from Apple Developer account).
 - Team ID (10 characters).
-- Optional notarization credentials (App Store Connect API key or Apple ID + app-specific password).
+- Optional notarization credentials (recommended): App Store Connect API key (Key ID, Issuer ID, `AuthKey_XXXX.p8`) or Apple ID + app-specific password.
 
 **Install tools**
 - Xcode Command Line Tools: `xcode-select --install`
@@ -75,10 +109,10 @@ gpg --list-secret-keys
 
 ## If You Don’t Have Certificates Yet
 - You can ship unsigned installers for local testing; OS will warn users.
-- For sandbox testing only:
-  - Windows: generate a PFX with OpenSSL, set `certificate_file` + password env var.
+- For sandbox-only tests:
+  - Windows: generate a PFX with OpenSSL; set `certificate_file` + password env var.
   - Linux: create a local GPG key with `gpg --quick-generate-key`.
-  - macOS: you must use a real Developer ID certificate for Gatekeeper trust.
+  - macOS: you need a real Developer ID cert for Gatekeeper trust (self-signed won’t satisfy users).
 
 ## Troubleshooting
 - **“Tool not found”**: Install platform CLI (signtool, codesign/notarytool, gpg/rpmsign/dpkg-sig) then click Refresh in Signing tab.

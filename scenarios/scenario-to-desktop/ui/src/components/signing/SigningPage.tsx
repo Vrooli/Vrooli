@@ -70,7 +70,11 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
   });
 
   // Fetch prerequisites
-  const { data: prerequisitesData } = useQuery<{ tools: ToolDetectionResult[] }>({
+  const {
+    data: prerequisitesData,
+    refetch: refetchPrerequisites,
+    isFetching: prerequisitesLoading
+  } = useQuery<{ tools: ToolDetectionResult[] }>({
     queryKey: ["signing-prerequisites"],
     queryFn: fetchSigningPrerequisites
   });
@@ -378,7 +382,11 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
           />
 
           {/* Prerequisites Panel */}
-          <PrerequisitesPanel tools={prerequisitesData?.tools || []} />
+          <PrerequisitesPanel
+            tools={prerequisitesData?.tools || []}
+            onRefresh={() => refetchPrerequisites()}
+            refreshing={prerequisitesLoading}
+          />
         </>
       )}
 

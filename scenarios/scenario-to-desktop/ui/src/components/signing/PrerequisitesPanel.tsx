@@ -1,10 +1,13 @@
-import { CheckCircle, XCircle, AlertCircle, Wrench } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle, XCircle, AlertCircle, Wrench, RefreshCw, Info } from "lucide-react";
 import type { ToolDetectionResult } from "../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { cn } from "../../lib/utils";
 
 interface PrerequisitesPanelProps {
   tools: ToolDetectionResult[];
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -12,6 +15,33 @@ const PLATFORM_LABELS: Record<string, string> = {
   macos: "macOS",
   linux: "Linux",
   all: "All Platforms"
+};
+
+const PLATFORM_INSTRUCTIONS: Record<
+  "windows" | "macos" | "linux",
+  { title: string; steps: string[]; command?: string; note?: string }
+> = {
+  windows: {
+    title: "Windows",
+    steps: [
+      "Install Windows SDK (includes signtool.exe)",
+      "Visual Studio installer -> Individual components -> Windows 10/11 SDK"
+    ],
+    command: "Download: https://aka.ms/vs/17/release/vs_buildtools.exe",
+    note: "Required for Authenticode signing; EV tokens must be used on Windows."
+  },
+  macos: {
+    title: "macOS",
+    steps: ["Install Xcode Command Line Tools for codesign/notarytool"],
+    command: "Run: xcode-select --install",
+    note: "codesign/notarytool only exist on macOS; needed for Gatekeeper trust."
+  },
+  linux: {
+    title: "Linux",
+    steps: ["Install GPG and package signers for DEB/RPM", "Install osslsigncode if signing Windows EXEs on Linux"],
+    command: "Debian/Ubuntu: sudo apt install gnupg dpkg-sig rpm-sign osslsigncode",
+    note: "GPG signs DEB/RPM/AppImage; osslsigncode can sign Windows EXEs from Linux/macOS."
+  }
 };
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -60,8 +90,22 @@ function installCommand(tool: ToolDetectionResult): string | undefined {
   }
 }
 
-export function PrerequisitesPanel({ tools }: PrerequisitesPanelProps) {
+type PlatformKey = "windows" | "macos" | "linux" | "all";
+
+function detectHostPlatform(): PlatformKey {
+  if (typeof navigator === "undefined") return "windows";
+  const ua = navigator.userAgent || "";
+  if (/Mac/.test(ua)) return "macos";
+  if (/Windows/.test(ua)) return "windows";
+  if (/Linux/.test(ua)) return "linux";
+  return "windows";
+}
+
+export function PrerequisitesPanel({ tools, onRefresh, refreshing }: PrerequisitesPanelProps) {
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformKey>(detectHostPlatform());
+
   if (!tools || tools.length === 0) {
+    const platforms: PlatformKey[] = ["windows", "macos", "linux"];
     return (
       <Card className="border-slate-800/80 bg-slate-900/70">
         <CardHeader>
@@ -70,15 +114,75 @@ export function PrerequisitesPanel({ tools }: PrerequisitesPanelProps) {
             Signing Tools
           </CardTitle>
         </CardHeader>
-      <CardContent>
-        <p className="text-sm text-slate-400 text-center py-4">
-          No signing tools detected yet. Install platform CLIs (signtool on Windows, codesign/notarytool on macOS, gpg on Linux)
-          and reopen this tab to refresh detection.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-amber-200 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Signing tools missing on this machine. Install the CLI for a platform, then re-scan.
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Auto-selected {PLATFORM_LABELS[selectedPlatform] || "platform"} based on your OS. You can view others to prep ahead.
+              </p>
+            </div>
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                className="inline-flex items-center gap-1 rounded border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                disabled={refreshing}
+              >
+                <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                {refreshing ? "Re-scanning..." : "Re-scan"}
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {platforms.map((p) => (
+              <button
+                key={p}
+                onClick={() => setSelectedPlatform(p)}
+                className={cn(
+                  "px-3 py-1 rounded-full border text-xs",
+                  selectedPlatform === p
+                    ? "border-blue-500 text-blue-100 bg-blue-900/40"
+                    : "border-slate-700 text-slate-200 hover:border-slate-500"
+                )}
+              >
+                {PLATFORM_LABELS[p]}
+              </button>
+            ))}
+          </div>
+
+          {selectedPlatform !== "all" && (
+            <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-slate-200">
+                <Info className="h-4 w-4 text-blue-300" />
+                {PLATFORM_INSTRUCTIONS[selectedPlatform].title} setup
+              </div>
+              <ul className="list-disc list-inside text-sm text-slate-300 space-y-1">
+                {PLATFORM_INSTRUCTIONS[selectedPlatform].steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ul>
+              {PLATFORM_INSTRUCTIONS[selectedPlatform].command && (
+                <p className="text-xs font-mono text-slate-400">
+                  {PLATFORM_INSTRUCTIONS[selectedPlatform].command}
+                </p>
+              )}
+              {PLATFORM_INSTRUCTIONS[selectedPlatform].note && (
+                <p className="text-xs text-slate-400">{PLATFORM_INSTRUCTIONS[selectedPlatform].note}</p>
+              )}
+            </div>
+          )}
+
+          <p className="text-xs text-slate-500">
+            Need full details? See SIGNING.md for platform requirements and notarization/EV notes.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Group tools by platform
   const toolsByPlatform = tools.reduce((acc, tool) => {
