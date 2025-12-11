@@ -11,16 +11,21 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
+	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
+	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/replay"
+	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
+	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -51,6 +56,9 @@ type Handler struct {
 	upgrader          websocket.Upgrader
 	wsAllowAll        bool
 	wsAllowedOrigins  []string
+
+	// Performance monitoring
+	perfRegistry *performance.CollectorRegistry
 
 	// AI subhandlers
 	screenshotHandler      *aihandlers.ScreenshotHandler
@@ -101,12 +109,20 @@ type HandlerDeps struct {
 	RecordingsRoot    string
 	ReplayRenderer    replayRenderer
 	SessionProfiles   *recording.SessionProfileStore
+	UXMetricsRepo     uxmetrics.Repository // Optional: enables UX metrics collection
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
 // This function is responsible for infrastructure wiring, keeping it separate
 // from handler construction for clearer responsibility boundaries.
 func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger) HandlerDeps {
+	return InitDefaultDepsWithUXMetrics(repo, wsHub, log, nil)
+}
+
+// InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
+// When uxRepo is provided, the UX metrics collector wraps the event sink to passively
+// capture interaction data during workflow executions.
+func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, uxRepo uxmetrics.Repository) HandlerDeps {
 	// Initialize screenshot storage (defaults to local filesystem, optionally MinIO)
 	screenshotRoot := paths.ResolveScreenshotsRoot(log)
 	storageClient := storage.NewScreenshotStorage(log, screenshotRoot)
@@ -124,11 +140,24 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 	}
 	autoRecorder := autorecorder.NewDBRecorder(repo, storageClient, log)
 
+	// Configure event sink factory - optionally wrap with UX metrics collector
+	var eventSinkFactory func() autoevents.Sink
+	if uxRepo != nil {
+		// Create UX metrics collector that wraps the WebSocket sink
+		// The collector passively captures interaction data while delegating events to the hub
+		eventSinkFactory = func() autoevents.Sink {
+			baseSink := autoevents.NewWSHubSink(wsHub, log, autocontracts.DefaultEventBufferLimits)
+			return uxcollector.NewCollector(baseSink, uxRepo)
+		}
+		log.Debug("UX metrics collector enabled in event pipeline")
+	}
+
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
 		Executor:         autoExecutor,
 		EngineFactory:    autoEngineFactory,
 		ArtifactRecorder: autoRecorder,
+		EventSinkFactory: eventSinkFactory,
 	})
 
 	// Create validator
@@ -147,6 +176,7 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 		RecordingsRoot:    recordingsRoot,
 		ReplayRenderer:    replay.NewReplayRenderer(log, recordingsRoot),
 		SessionProfiles:   sessionProfiles,
+		UXMetricsRepo:     uxRepo,
 	}
 }
 
@@ -161,6 +191,13 @@ func NewHandler(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Logger, 
 // This enables testing with mock dependencies and custom configurations.
 func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string, deps HandlerDeps) *Handler {
 	allowedCopy := append([]string(nil), allowedOrigins...)
+
+	// Initialize performance registry from config
+	cfg := config.Load()
+	perfRegistry := performance.NewCollectorRegistry(
+		cfg.Performance.LogSummaryInterval, // targetFps - used as broadcast interval
+		cfg.Performance.BufferSize,
+	)
 
 	handler := &Handler{
 		workflowCatalog:   deps.WorkflowCatalog,
@@ -179,6 +216,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		wsAllowAll:        allowAllOrigins,
 		wsAllowedOrigins:  allowedCopy,
 		upgrader:          websocket.Upgrader{},
+		perfRegistry:      perfRegistry,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
@@ -221,6 +259,11 @@ func (h *Handler) isOriginAllowed(r *http.Request) bool {
 // such as the scheduler service.
 func (h *Handler) GetExecutionService() workflow.ExecutionService {
 	return h.executionService
+}
+
+// GetPerfRegistry returns the performance collector registry for use by debug endpoints.
+func (h *Handler) GetPerfRegistry() *performance.CollectorRegistry {
+	return h.perfRegistry
 }
 
 func newWorkflowResponse(workflow *database.Workflow) workflowResponse {

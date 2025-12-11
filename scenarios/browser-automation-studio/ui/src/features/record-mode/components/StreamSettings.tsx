@@ -61,8 +61,10 @@ const DEFAULT_CUSTOM_SETTINGS: StreamSettingsValues = { quality: 55, fps: 20, sc
 const STORAGE_KEY = 'browser-automation-studio:stream-preset';
 const CUSTOM_SETTINGS_STORAGE_KEY = 'browser-automation-studio:stream-custom-settings';
 const SHOW_STATS_STORAGE_KEY = 'browser-automation-studio:show-stream-stats';
+const DEBUG_PERF_STORAGE_KEY = 'browser-automation-studio:debug-perf-mode';
 const DEFAULT_PRESET: StreamPreset = 'balanced';
 const DEFAULT_SHOW_STATS = false;
+const DEFAULT_DEBUG_PERF = false;
 
 /** Load preset from localStorage */
 function loadStoredPreset(): StreamPreset {
@@ -135,6 +137,28 @@ function saveShowStats(show: boolean): void {
   }
 }
 
+/** Load debugPerfMode preference from localStorage */
+function loadDebugPerfMode(): boolean {
+  try {
+    const stored = localStorage.getItem(DEBUG_PERF_STORAGE_KEY);
+    if (stored !== null) {
+      return stored === 'true';
+    }
+  } catch {
+    // localStorage may be unavailable
+  }
+  return DEFAULT_DEBUG_PERF;
+}
+
+/** Save debugPerfMode preference to localStorage */
+function saveDebugPerfMode(enabled: boolean): void {
+  try {
+    localStorage.setItem(DEBUG_PERF_STORAGE_KEY, String(enabled));
+  } catch {
+    // localStorage may be unavailable
+  }
+}
+
 interface StreamSettingsProps {
   /** Current session ID - enables live settings update when dropdown closes */
   sessionId?: string | null;
@@ -150,6 +174,10 @@ interface StreamSettingsProps {
   showStats?: boolean;
   /** Callback when showStats changes (controlled) */
   onShowStatsChange?: (show: boolean) => void;
+  /** Whether debug performance mode is enabled (controlled) */
+  debugPerfMode?: boolean;
+  /** Callback when debugPerfMode changes (controlled) */
+  onDebugPerfModeChange?: (enabled: boolean) => void;
 }
 
 export function StreamSettings({
@@ -160,10 +188,13 @@ export function StreamSettings({
   onPresetChange,
   showStats: controlledShowStats,
   onShowStatsChange,
+  debugPerfMode: controlledDebugPerfMode,
+  onDebugPerfModeChange,
 }: StreamSettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [internalPreset, setInternalPreset] = useState<StreamPreset>(loadStoredPreset);
   const [internalShowStats, setInternalShowStats] = useState<boolean>(loadShowStats);
+  const [internalDebugPerfMode, setInternalDebugPerfMode] = useState<boolean>(loadDebugPerfMode);
   const [customSettings, setCustomSettings] = useState<StreamSettingsValues>(loadCustomSettings);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -182,6 +213,10 @@ export function StreamSettings({
   // Use controlled showStats if provided, otherwise internal state
   const showStats = controlledShowStats ?? internalShowStats;
   const setShowStats = onShowStatsChange ?? setInternalShowStats;
+
+  // Use controlled debugPerfMode if provided, otherwise internal state
+  const debugPerfMode = controlledDebugPerfMode ?? internalDebugPerfMode;
+  const setDebugPerfMode = onDebugPerfModeChange ?? setInternalDebugPerfMode;
 
   // Get current effective settings based on preset
   const getCurrentSettings = useCallback((): StreamSettingsValues => {
@@ -296,6 +331,29 @@ export function StreamSettings({
     setShowStats(newValue);
     saveShowStats(newValue);
   }, [showStats, setShowStats]);
+
+  // Handle debug perf mode toggle with API call
+  const handleDebugPerfModeToggle = useCallback(async () => {
+    const newValue = !debugPerfMode;
+    setDebugPerfMode(newValue);
+    saveDebugPerfMode(newValue);
+
+    // Send to API if we have an active session
+    if (sessionId) {
+      try {
+        const response = await fetch(`/api/v1/recordings/live/${sessionId}/stream-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ perfMode: newValue }),
+        });
+        if (!response.ok) {
+          console.warn('Failed to update perfMode:', await response.text());
+        }
+      } catch (err) {
+        console.warn('Failed to update perfMode:', err);
+      }
+    }
+  }, [debugPerfMode, setDebugPerfMode, sessionId]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -524,6 +582,31 @@ export function StreamSettings({
             </button>
           </div>
 
+          {/* Debug performance mode toggle */}
+          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={handleDebugPerfModeToggle}
+              className="w-full flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 -mx-1 px-1 py-1 rounded transition-colors"
+            >
+              <div className="flex flex-col items-start">
+                <span className="text-sm text-gray-700 dark:text-gray-200">Debug performance</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">Instrument frame timing pipeline</span>
+              </div>
+              <span
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                  debugPerfMode ? 'bg-orange-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    debugPerfMode ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </span>
+            </button>
+          </div>
+
           {/* Application hint */}
           {effectiveHasActiveSession && (
             <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
@@ -550,6 +633,7 @@ export function useStreamSettings() {
   const [preset, setPreset] = useState<StreamPreset>(loadStoredPreset);
   const [customSettings, setCustomSettings] = useState<StreamSettingsValues>(loadCustomSettings);
   const [showStats, setShowStats] = useState<boolean>(loadShowStats);
+  const [debugPerfMode, setDebugPerfMode] = useState<boolean>(loadDebugPerfMode);
 
   // Compute effective settings based on preset
   const settings = preset === 'custom' ? customSettings : PRESETS[preset].settings;
@@ -569,14 +653,21 @@ export function useStreamSettings() {
     saveShowStats(show);
   }, []);
 
+  const handleDebugPerfModeChange = useCallback((enabled: boolean) => {
+    setDebugPerfMode(enabled);
+    saveDebugPerfMode(enabled);
+  }, []);
+
   return {
     preset,
     settings,
     customSettings,
     showStats,
+    debugPerfMode,
     setPreset: handlePresetChange,
     setCustomSettings: handleCustomSettingsChange,
     setShowStats: handleShowStatsChange,
+    setDebugPerfMode: handleDebugPerfModeChange,
   };
 }
 

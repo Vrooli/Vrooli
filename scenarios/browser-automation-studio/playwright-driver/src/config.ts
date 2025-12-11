@@ -139,6 +139,25 @@ const ConfigSchema = z.object({
     enabled: z.boolean().default(true),
     port: z.number().min(1).max(65535).default(9090),
   }),
+  /**
+   * Performance Debug Mode
+   *
+   * Controls timing instrumentation for the frame streaming pipeline.
+   * When enabled, detailed timing data is collected and can be sent
+   * to the API for aggregation and analysis.
+   *
+   * Tradeoff: Enabling adds ~1-2ms overhead per frame for timing collection.
+   */
+  performance: z.object({
+    /** Enable debug performance mode for frame streaming */
+    enabled: z.boolean().default(false),
+    /** Include timing data in WebSocket frame headers (prepended to JPEG) */
+    includeTimingHeaders: z.boolean().default(true),
+    /** Log performance summaries every N frames (0 = disabled) */
+    logSummaryInterval: z.number().min(0).max(1000).default(60),
+    /** Number of frame timings to retain for percentile analysis */
+    bufferSize: z.number().min(1).max(1000).default(100),
+  }),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -303,6 +322,12 @@ export function loadConfig(): Config {
     metrics: {
       enabled: process.env.METRICS_ENABLED !== 'false',
       port: parseEnvInt(process.env.METRICS_PORT, 9090),
+    },
+    performance: {
+      enabled: process.env.PLAYWRIGHT_DRIVER_PERF_ENABLED === 'true',
+      includeTimingHeaders: process.env.PLAYWRIGHT_DRIVER_PERF_INCLUDE_HEADERS !== 'false',
+      logSummaryInterval: parseEnvInt(process.env.PLAYWRIGHT_DRIVER_PERF_LOG_INTERVAL, 60),
+      bufferSize: parseEnvInt(process.env.PLAYWRIGHT_DRIVER_PERF_BUFFER_SIZE, 100),
     },
   };
 

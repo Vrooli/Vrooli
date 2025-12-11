@@ -204,6 +204,8 @@ export interface StreamSettingsRequest {
   fps?: number;
   /** Screenshot scale - can only be set at session start */
   scale?: 'css' | 'device';
+  /** Enable/disable debug performance mode for this session */
+  perfMode?: boolean;
 }
 
 export interface StreamSettingsResponse {
@@ -222,4 +224,6 @@ export interface StreamSettingsResponse {
   updated: boolean;
   /** Warning if scale change was requested (requires restart) */
   scale_warning?: string;
+  /** Whether debug performance mode is enabled */
+  perf_mode: boolean;
 }

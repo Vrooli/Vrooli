@@ -33,6 +33,8 @@ import type {
   StreamSettingsRequest,
   StreamSettingsResponse,
 } from './types';
+import { PerfCollector } from '../../performance';
+import { loadConfig } from '../../config';
 
 /**
  * Circuit breaker state for callback streaming.
@@ -626,6 +628,10 @@ interface FrameStreamState {
   slowCaptureStreak: number;
   /** Count of consecutive fast captures (for ramp-up) */
   fastCaptureStreak: number;
+  /** Performance collector for debug mode (null if disabled) */
+  perfCollector: PerfCollector | null;
+  /** Whether to include timing headers in frames */
+  includePerfHeaders: boolean;
 }
 
 /** Per-session frame streaming state */
@@ -699,6 +705,13 @@ export function startFrameStreaming(
   const intervalMs = Math.floor(1000 / fps);
   const wsUrl = buildWebSocketUrl(options.callbackUrl, sessionId);
 
+  // Initialize performance collector if perf mode is enabled
+  const config = loadConfig();
+  const perfEnabled = config.performance.enabled;
+  const perfCollector = perfEnabled
+    ? PerfCollector.fromConfig(sessionId, config, fps)
+    : null;
+
   const state: FrameStreamState = {
     isStreaming: true,
     abortController: new AbortController(),
@@ -718,6 +731,8 @@ export function startFrameStreaming(
     captureTimes: [],
     slowCaptureStreak: 0,
     fastCaptureStreak: 0,
+    perfCollector,
+    includePerfHeaders: perfEnabled && config.performance.includeTimingHeaders,
   };
 
   frameStreamStates.set(sessionId, state);
@@ -731,6 +746,8 @@ export function startFrameStreaming(
     wsUrl,
     adaptiveFpsEnabled: true,
     minFps: MIN_ADAPTIVE_FPS,
+    perfModeEnabled: perfEnabled,
+    perfHeaders: state.includePerfHeaders,
   });
 
   // Connect WebSocket and start streaming loop
@@ -795,6 +812,7 @@ export function updateFrameStreamSettings(
   options: {
     quality?: number;
     fps?: number;
+    perfMode?: boolean;
   }
 ): boolean {
   const state = frameStreamStates.get(sessionId);
@@ -822,6 +840,11 @@ export function updateFrameStreamSettings(
     }
   }
 
+  if (options.perfMode !== undefined && options.perfMode !== state.includePerfHeaders) {
+    state.includePerfHeaders = options.perfMode;
+    changed = true;
+  }
+
   if (changed) {
     logger.info(scopedLog(LogContext.RECORDING, 'frame stream settings updated'), {
       sessionId,
@@ -829,6 +852,7 @@ export function updateFrameStreamSettings(
       targetFps: state.targetFps,
       currentFps: state.currentFps,
       scale: state.scale,
+      perfMode: state.includePerfHeaders,
     });
   }
 
@@ -845,6 +869,7 @@ export function getFrameStreamSettings(sessionId: string): {
   scale: 'css' | 'device';
   currentFps: number;
   isStreaming: boolean;
+  perfMode: boolean;
 } | null {
   const state = frameStreamStates.get(sessionId);
   if (!state) {
@@ -857,6 +882,7 @@ export function getFrameStreamSettings(sessionId: string): {
     scale: state.scale,
     currentFps: state.currentFps,
     isStreaming: state.isStreaming,
+    perfMode: state.includePerfHeaders,
   };
 }
 
@@ -902,6 +928,7 @@ export async function handleStreamSettings(
         scale: request.scale ?? 'css',
         is_streaming: false,
         updated: false,
+        perf_mode: request.perfMode ?? false,
       };
 
       sendJson(res, 200, response);
@@ -919,10 +946,11 @@ export async function handleStreamSettings(
       });
     }
 
-    // Apply the settings update (quality and fps only)
+    // Apply the settings update (quality, fps, and perfMode)
     const updated = updateFrameStreamSettings(sessionId, {
       quality: request.quality,
       fps: request.fps,
+      perfMode: request.perfMode,
     });
 
     // Get the updated settings
@@ -937,6 +965,7 @@ export async function handleStreamSettings(
       is_streaming: newSettings?.isStreaming ?? currentSettings.isStreaming,
       updated,
       scale_warning: scaleWarning,
+      perf_mode: newSettings?.perfMode ?? currentSettings.perfMode,
     };
 
     sendJson(res, 200, response);
@@ -1037,6 +1066,12 @@ async function runFrameStreamLoop(
         // Timeout hit - this is a very slow page, reduce FPS aggressively
         state.slowCaptureStreak++;
         state.fastCaptureStreak = 0;
+
+        // Record timeout in perf metrics
+        if (state.perfCollector) {
+          metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'timeout' });
+        }
+
         if (state.slowCaptureStreak >= SLOW_STREAK_THRESHOLD) {
           const newFps = Math.max(MIN_ADAPTIVE_FPS, state.currentFps - 2);
           if (newFps !== state.currentFps) {
@@ -1132,8 +1167,18 @@ async function runFrameStreamLoop(
         }
       }
 
+      // === COMPARE WITH TIMING ===
+      const compareStart = performance.now();
+      const isUnchanged = isFrameUnchanged(buffer, state);
+      const compareTime = performance.now() - compareStart;
+
       // Skip if frame content unchanged (fast buffer comparison)
-      if (isFrameUnchanged(buffer, state)) {
+      if (isUnchanged) {
+        // Record skipped frame in perf collector
+        if (state.perfCollector) {
+          state.perfCollector.recordSkipped(captureTime, compareTime);
+          metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'unchanged' });
+        }
         await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
         continue;
       }
@@ -1141,10 +1186,59 @@ async function runFrameStreamLoop(
       // Update last frame state
       state.lastFrameBuffer = buffer;
 
-      // Send raw binary frame over WebSocket (no JSON, no base64!)
-      state.ws.send(buffer);
+      // === SEND WITH TIMING ===
+      const wsSendStart = performance.now();
+
+      // Send frame with or without perf header
+      if (state.includePerfHeaders && state.perfCollector) {
+        // Build and prepend binary header with timing data
+        const header = state.perfCollector.buildFrameHeader(
+          captureTime,
+          compareTime,
+          0, // wsSendMs will be measured after send
+          buffer.length
+        );
+        state.ws.send(Buffer.concat([header, buffer]));
+      } else {
+        // Send raw binary frame (no JSON, no base64!)
+        state.ws.send(buffer);
+      }
+
+      const wsSendTime = performance.now() - wsSendStart;
       state.consecutiveFailures = 0;
       state.lastFrameSentAt = performance.now();
+
+      // === RECORD PERFORMANCE DATA ===
+      if (state.perfCollector) {
+        state.perfCollector.recordFrame({
+          captureMs: captureTime,
+          compareMs: compareTime,
+          wsSendMs: wsSendTime,
+          frameBytes: buffer.length,
+          skipped: false,
+        });
+
+        // Record to Prometheus metrics
+        metrics.frameCaptureLatency.observe({ session_id: sessionId }, captureTime);
+        metrics.frameE2ELatency.observe({ session_id: sessionId }, captureTime + compareTime + wsSendTime);
+
+        // Log summary periodically
+        if (state.perfCollector.shouldLogSummary()) {
+          const stats = state.perfCollector.getAggregatedStats();
+          logger.info(scopedLog(LogContext.RECORDING, 'frame perf summary'), {
+            session_id: sessionId,
+            frame_count: stats.frame_count,
+            skipped_count: stats.skipped_count,
+            capture_p50_ms: stats.capture_p50_ms,
+            capture_p90_ms: stats.capture_p90_ms,
+            e2e_p50_ms: stats.e2e_p50_ms,
+            e2e_p90_ms: stats.e2e_p90_ms,
+            actual_fps: stats.actual_fps,
+            target_fps: stats.target_fps,
+            bottleneck: stats.primary_bottleneck,
+          });
+        }
+      }
 
     } catch (err) {
       if (state.abortController.signal.aborted) {

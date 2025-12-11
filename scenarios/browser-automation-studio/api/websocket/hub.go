@@ -215,6 +215,31 @@ func (h *Hub) HasRecordingSubscribers(sessionID string) bool {
 	return false
 }
 
+// BroadcastPerfStats sends performance statistics to clients subscribed to a recording session.
+// Used by the debug performance mode to stream aggregated timing data.
+func (h *Hub) BroadcastPerfStats(sessionID string, stats any) {
+	message := map[string]any{
+		"type":       "perf_stats",
+		"session_id": sessionID,
+		"stats":      stats,
+		"timestamp":  getCurrentTimestamp(),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this recording session
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip (non-blocking)
+			}
+		}
+	}
+}
+
 // GetClientCount returns the number of connected clients.
 func (h *Hub) GetClientCount() int {
 	h.mu.RLock()

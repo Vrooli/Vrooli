@@ -59,6 +59,8 @@ func (s *stubHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.Recordi
 
 func (s *stubHub) HasRecordingSubscribers(sessionID string) bool { return false }
 
+func (s *stubHub) BroadcastPerfStats(sessionID string, stats any) {}
+
 func (c *closingHub) CloseExecution(executionID uuid.UUID) {
 	c.stubHub.mu.Lock()
 	c.closed = append(c.closed, executionID)
@@ -266,6 +268,8 @@ func (b *blockingHub) BroadcastBinaryFrame(executionID string, data []byte) {}
 func (b *blockingHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
 
 func (b *blockingHub) HasRecordingSubscribers(sessionID string) bool { return false }
+
+func (b *blockingHub) BroadcastPerfStats(sessionID string, stats any) {}
 
 func (b *blockingHub) BroadcastEnvelope(event any) {
 	<-b.unblock

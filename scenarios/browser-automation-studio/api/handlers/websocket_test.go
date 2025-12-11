@@ -73,6 +73,10 @@ func (m *mockWebSocketHub) HasRecordingSubscribers(sessionID string) bool {
 	return false
 }
 
+func (m *mockWebSocketHub) BroadcastPerfStats(sessionID string, stats any) {
+	// No-op for existing tests
+}
+
 func setupWebSocketTestHandler(t *testing.T, hub wsHub.HubInterface) *Handler {
 	t.Helper()
 

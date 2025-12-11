@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,7 +14,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -258,6 +261,8 @@ type UpdateStreamSettingsRequest struct {
 	FPS *int `json:"fps,omitempty"`
 	// Scale: "css" for 1x, "device" for devicePixelRatio (cannot change mid-session)
 	Scale string `json:"scale,omitempty"`
+	// PerfMode: Enable/disable debug performance mode for this session
+	PerfMode *bool `json:"perfMode,omitempty"`
 }
 
 // UpdateStreamSettingsResponse is the response after updating stream settings.
@@ -270,6 +275,7 @@ type UpdateStreamSettingsResponse struct {
 	IsStreaming  bool   `json:"is_streaming"`
 	Updated      bool   `json:"updated"`
 	ScaleWarning string `json:"scale_warning,omitempty"`
+	PerfMode     bool   `json:"perf_mode"`
 }
 
 const (
@@ -1589,6 +1595,10 @@ func (h *Handler) ReceiveRecordingFrame(w http.ResponseWriter, r *http.Request) 
 // 1. Uses a persistent connection (no per-frame TCP overhead)
 // 2. Sends raw binary JPEG data (no base64 encoding = 33% smaller)
 // 3. Pass-through to browser clients (no JSON parsing/re-encoding)
+//
+// When performance mode is enabled, frames may include a performance header:
+// [4 bytes: header length (uint32 big-endian)][N bytes: JSON perf header][remaining: JPEG data]
+// Detection: If first 2 bytes are 0xFF 0xD8 (JPEG magic), no header present.
 func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "sessionId")
 	if sessionID == "" {
@@ -1607,8 +1617,16 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 
 	h.log.WithField("session_id", sessionID).Info("Driver frame stream connected")
 
+	// Get performance config (used for logging/broadcast intervals)
+	cfg := config.Load()
+
+	// Get or create performance collector for this session (always, for potential runtime enabling)
+	collector := h.perfRegistry.GetOrCreate(sessionID)
+
 	// Read binary frames from driver and broadcast to browser clients
 	for {
+		receiveStart := time.Now()
+
 		messageType, data, err := conn.ReadMessage()
 		if err != nil {
 			// Check for normal closure
@@ -1625,12 +1643,80 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 			continue
 		}
 
+		receiveMs := float64(time.Since(receiveStart).Microseconds()) / 1000.0
+
+		// Parse performance header if present
+		// Detection: JPEG files start with 0xFF 0xD8 magic bytes
+		var driverHeader *performance.FrameHeader
+		frameData := data
+		if len(data) > 4 && !(data[0] == 0xFF && data[1] == 0xD8) {
+			// Has performance header - parse it
+			headerLen := binary.BigEndian.Uint32(data[:4])
+			if int(headerLen) <= len(data)-4 {
+				headerJSON := data[4 : 4+headerLen]
+				var header performance.FrameHeader
+				if err := json.Unmarshal(headerJSON, &header); err == nil {
+					driverHeader = &header
+					frameData = data[4+headerLen:]
+				} else {
+					h.log.WithError(err).Debug("Failed to parse frame perf header")
+				}
+			}
+		}
+
 		// Broadcast binary frame to subscribed browser clients
-		// This is a pass-through - no parsing, no re-encoding
+		broadcastStart := time.Now()
 		if h.wsHub.HasRecordingSubscribers(sessionID) {
-			h.wsHub.BroadcastBinaryFrame(sessionID, data)
+			h.wsHub.BroadcastBinaryFrame(sessionID, frameData)
+		}
+		broadcastMs := float64(time.Since(broadcastStart).Microseconds()) / 1000.0
+
+		// Record performance data if driver sent a perf header
+		// (presence of header indicates per-session perf mode is enabled)
+		if driverHeader != nil {
+			timing := &performance.FrameTimings{
+				FrameID:         driverHeader.FrameID,
+				SessionID:       sessionID,
+				Timestamp:       time.Now(),
+				DriverCaptureMs: driverHeader.CaptureMs,
+				DriverCompareMs: driverHeader.CompareMs,
+				DriverWsSendMs:  driverHeader.WsSendMs,
+				DriverTotalMs:   driverHeader.CaptureMs + driverHeader.CompareMs + driverHeader.WsSendMs,
+				APIReceiveMs:    receiveMs,
+				APIBroadcastMs:  broadcastMs,
+				APITotalMs:      receiveMs + broadcastMs,
+				FrameBytes:      len(frameData),
+				Skipped:         false,
+			}
+			collector.Record(timing)
+
+			// Broadcast perf stats periodically (every 60 frames by default)
+			if cfg.Performance.StreamToWebSocket && collector.ShouldBroadcast() {
+				stats := collector.GetAggregated()
+				h.wsHub.BroadcastPerfStats(sessionID, stats)
+
+				// Log summary if enabled
+				if cfg.Performance.LogSummaryInterval > 0 {
+					h.log.WithFields(map[string]interface{}{
+						"session_id":      sessionID,
+						"frame_count":     stats.FrameCount,
+						"capture_p50_ms":  stats.CaptureP50Ms,
+						"capture_p90_ms":  stats.CaptureP90Ms,
+						"e2e_p50_ms":      stats.E2EP50Ms,
+						"e2e_p90_ms":      stats.E2EP90Ms,
+						"actual_fps":      stats.ActualFps,
+						"target_fps":      stats.TargetFps,
+						"bottleneck":      stats.PrimaryBottleneck,
+						"bandwidth_bps":   stats.BandwidthBytesPerSec,
+						"avg_frame_bytes": stats.AvgFrameBytes,
+					}).Info("recording: frame perf summary")
+				}
+			}
 		}
 	}
+
+	// Cleanup collector when stream disconnects
+	h.perfRegistry.Remove(sessionID)
 
 	h.log.WithField("session_id", sessionID).Info("Driver frame stream disconnected")
 }

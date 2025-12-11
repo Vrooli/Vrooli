@@ -47,6 +47,10 @@ type HubInterface interface {
 	// Used by the frame push endpoint to avoid unnecessary work.
 	HasRecordingSubscribers(sessionID string) bool
 
+	// BroadcastPerfStats sends performance statistics to clients subscribed to a recording session.
+	// Used by the debug performance mode to stream aggregated timing data.
+	BroadcastPerfStats(sessionID string, stats any)
+
 	// GetClientCount returns the number of currently connected clients
 	GetClientCount() int
 

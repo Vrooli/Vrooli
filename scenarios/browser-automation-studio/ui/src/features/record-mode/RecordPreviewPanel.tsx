@@ -4,6 +4,7 @@ import { PlaywrightView, type FrameStats, type PageMetadata } from './components
 import { StreamSettings, useStreamSettings, type StreamSettingsValues } from './components/StreamSettings';
 import { FrameStatsDisplay } from './components/FrameStatsDisplay';
 import { BrowserUrlBar } from './components/BrowserUrlBar';
+import { usePerfStats } from './hooks/usePerfStats';
 
 interface RecordPreviewPanelProps {
   previewUrl: string;
@@ -37,7 +38,10 @@ export function RecordPreviewPanel({
   const [currentViewport, setCurrentViewport] = useState<{ width: number; height: number } | null>(null);
 
   // Stream settings management
-  const { preset, settings: streamSettings, showStats, setPreset, setShowStats } = useStreamSettings();
+  const { preset, settings: streamSettings, showStats, debugPerfMode, setPreset, setShowStats, setDebugPerfMode } = useStreamSettings();
+
+  // Debug performance stats from server (when debug perf mode enabled)
+  const { stats: perfStats } = usePerfStats(sessionId ?? null, debugPerfMode);
 
   // Frame statistics from PlaywrightView
   const [frameStats, setFrameStats] = useState<FrameStats | null>(null);
@@ -111,7 +115,13 @@ export function RecordPreviewPanel({
         />
 
         {/* Frame stats display (conditionally shown) */}
-        {showStats && <FrameStatsDisplay stats={frameStats} targetFps={streamSettings.fps} />}
+        {showStats && (
+          <FrameStatsDisplay
+            stats={frameStats}
+            targetFps={streamSettings.fps}
+            debugStats={perfStats}
+          />
+        )}
 
         {/* Stream quality settings */}
         <StreamSettings
@@ -121,6 +131,8 @@ export function RecordPreviewPanel({
           onSettingsChange={(newSettings) => onStreamSettingsChange?.(newSettings)}
           showStats={showStats}
           onShowStatsChange={setShowStats}
+          debugPerfMode={debugPerfMode}
+          onDebugPerfModeChange={setDebugPerfMode}
         />
       </div>
       <div className="flex-1 overflow-hidden" ref={previewContainerRef}>

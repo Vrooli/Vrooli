@@ -29,6 +29,17 @@ export class Metrics {
   /** Circuit breaker state changes */
   public circuitBreakerStateChanges: Counter<'session_id' | 'state'>;
 
+  // Performance debug mode metrics
+
+  /** Frame capture latency histogram (screenshot time in ms) */
+  public frameCaptureLatency: Histogram<'session_id'>;
+
+  /** Frame end-to-end latency histogram (driver-side total in ms) */
+  public frameE2ELatency: Histogram<'session_id'>;
+
+  /** Frame skip counter (frames not sent due to unchanged content or timeout) */
+  public frameSkipCount: Counter<'session_id' | 'reason'>;
+
   constructor() {
     this.registry = new Registry();
 
@@ -105,6 +116,30 @@ export class Metrics {
       name: 'playwright_driver_circuit_breaker_state_changes_total',
       help: 'Circuit breaker state changes for recording callbacks (opened, closed)',
       labelNames: ['session_id', 'state'] as const,
+      registers: [this.registry],
+    });
+
+    // Performance debug mode metrics
+    this.frameCaptureLatency = new Histogram({
+      name: 'playwright_driver_frame_capture_latency_ms',
+      help: 'Time to capture screenshot from Playwright (page.screenshot()) in milliseconds',
+      labelNames: ['session_id'] as const,
+      buckets: [10, 25, 50, 75, 100, 150, 200, 300, 500, 1000],
+      registers: [this.registry],
+    });
+
+    this.frameE2ELatency = new Histogram({
+      name: 'playwright_driver_frame_e2e_latency_ms',
+      help: 'Driver-side end-to-end frame processing time (capture + compare + send) in milliseconds',
+      labelNames: ['session_id'] as const,
+      buckets: [20, 50, 100, 150, 200, 300, 500, 750, 1000, 2000],
+      registers: [this.registry],
+    });
+
+    this.frameSkipCount = new Counter({
+      name: 'playwright_driver_frame_skip_total',
+      help: 'Total frames skipped (not sent to API) by reason',
+      labelNames: ['session_id', 'reason'] as const,
       registers: [this.registry],
     });
   }

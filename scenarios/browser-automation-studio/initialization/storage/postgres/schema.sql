@@ -310,6 +310,72 @@ CREATE TABLE IF NOT EXISTS user_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- UX Metrics Schema Extension
+-- Raw interaction traces (write-heavy, append-only)
+CREATE TABLE IF NOT EXISTS ux_interaction_traces (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    step_index INTEGER NOT NULL,
+    action_type VARCHAR(50) NOT NULL,
+    element_id VARCHAR(255),
+    selector TEXT,
+    position_x DOUBLE PRECISION,
+    position_y DOUBLE PRECISION,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    duration_ms BIGINT,
+    success BOOLEAN NOT NULL DEFAULT true,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ux_traces_execution ON ux_interaction_traces(execution_id);
+CREATE INDEX IF NOT EXISTS idx_ux_traces_step ON ux_interaction_traces(execution_id, step_index);
+
+-- Cursor paths (one per step, stores full trajectory)
+CREATE TABLE IF NOT EXISTS ux_cursor_paths (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    step_index INTEGER NOT NULL,
+    points JSONB NOT NULL,  -- Array of {x, y, timestamp}
+    total_distance_px DOUBLE PRECISION,
+    direct_distance_px DOUBLE PRECISION,
+    duration_ms BIGINT,
+    directness DOUBLE PRECISION,
+    zigzag_score DOUBLE PRECISION,
+    average_speed DOUBLE PRECISION,
+    max_speed DOUBLE PRECISION,
+    hesitation_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ux_cursor_paths_execution_step_unique UNIQUE(execution_id, step_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ux_cursor_execution ON ux_cursor_paths(execution_id);
+
+-- Computed execution metrics (materialized for fast queries)
+CREATE TABLE IF NOT EXISTS ux_execution_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    computed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    total_duration_ms BIGINT,
+    step_count INTEGER,
+    successful_steps INTEGER,
+    failed_steps INTEGER,
+    total_retries INTEGER,
+    avg_step_duration_ms DOUBLE PRECISION,
+    total_cursor_distance DOUBLE PRECISION,
+    overall_friction_score DOUBLE PRECISION,
+    friction_signals JSONB DEFAULT '[]',
+    step_metrics JSONB DEFAULT '[]',
+    summary JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ux_execution_metrics_execution_unique UNIQUE(execution_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ux_metrics_workflow ON ux_execution_metrics(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_ux_metrics_friction ON ux_execution_metrics(overall_friction_score);
+CREATE INDEX IF NOT EXISTS idx_ux_metrics_computed_at ON ux_execution_metrics(computed_at DESC);
+
 -- Insert sample workflow templates
 INSERT INTO workflow_templates (name, category, description, flow_definition, icon, tags) VALUES
     ('Basic Navigation', 'getting-started', 'Simple navigation and screenshot workflow', 

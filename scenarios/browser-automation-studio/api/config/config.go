@@ -69,6 +69,10 @@ type Config struct {
 
 	// Entitlement controls subscription verification and feature gating.
 	Entitlement EntitlementConfig
+
+	// Performance controls debug performance mode for frame streaming diagnostics.
+	// When enabled, detailed timing data is collected and exposed for bottleneck analysis.
+	Performance PerformanceConfig
 }
 
 // TimeoutsConfig groups timeout-related settings.
@@ -445,6 +449,36 @@ type EntitlementConfig struct {
 	RecordingTiers []string
 }
 
+// PerformanceConfig controls debug performance mode for frame streaming diagnostics.
+// When enabled, timing data is collected at each stage of the streaming pipeline
+// to identify bottlenecks and track optimization progress.
+type PerformanceConfig struct {
+	// Enabled activates debug performance mode for frame streaming.
+	// When true, the API parses timing headers from driver frames and collects metrics.
+	// Env: BAS_PERF_ENABLED (default: false)
+	Enabled bool
+
+	// LogSummaryInterval controls how often performance summaries are logged (in frames).
+	// 0 disables periodic logging. Useful for continuous monitoring.
+	// Env: BAS_PERF_LOG_SUMMARY_INTERVAL (default: 60)
+	LogSummaryInterval int
+
+	// ExposeEndpoint enables the /debug/performance HTTP endpoint.
+	// When true, clients can query current performance stats via HTTP.
+	// Env: BAS_PERF_EXPOSE_ENDPOINT (default: true)
+	ExposeEndpoint bool
+
+	// BufferSize is the number of frame timings to retain for percentile analysis.
+	// Higher = more accurate percentiles, more memory. Ring buffer evicts oldest.
+	// Env: BAS_PERF_BUFFER_SIZE (default: 100)
+	BufferSize int
+
+	// StreamToWebSocket sends aggregated stats to subscribed UI clients.
+	// When true, perf_stats messages are broadcast periodically over WebSocket.
+	// Env: BAS_PERF_STREAM_TO_WEBSOCKET (default: true)
+	StreamToWebSocket bool
+}
+
 var (
 	globalConfig *Config
 	configOnce   sync.Once
@@ -560,6 +594,13 @@ func loadFromEnv() *Config {
 			WatermarkTiers:     parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
 			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "pro,studio,business"),
 			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
+		},
+		Performance: PerformanceConfig{
+			Enabled:            parseBool("BAS_PERF_ENABLED", false),
+			LogSummaryInterval: parseInt("BAS_PERF_LOG_SUMMARY_INTERVAL", 60),
+			ExposeEndpoint:     parseBool("BAS_PERF_EXPOSE_ENDPOINT", true),
+			BufferSize:         parseInt("BAS_PERF_BUFFER_SIZE", 100),
+			StreamToWebSocket:  parseBool("BAS_PERF_STREAM_TO_WEBSOCKET", true),
 		},
 	}
 }
@@ -682,6 +723,14 @@ func (c *Config) Validate() error {
 	}
 	if c.Entitlement.TierLimits == nil {
 		return fmt.Errorf("Entitlement.TierLimits cannot be nil")
+	}
+
+	// Performance validation
+	if c.Performance.LogSummaryInterval < 0 {
+		return fmt.Errorf("Performance.LogSummaryInterval must be non-negative, got %d", c.Performance.LogSummaryInterval)
+	}
+	if c.Performance.BufferSize < 1 {
+		return fmt.Errorf("Performance.BufferSize must be at least 1, got %d", c.Performance.BufferSize)
 	}
 
 	return nil

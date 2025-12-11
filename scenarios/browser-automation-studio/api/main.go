@@ -17,9 +17,13 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
 	"github.com/vrooli/browser-automation-studio/middleware"
+	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/recovery"
 	"github.com/vrooli/browser-automation-studio/services/scheduler"
+	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
+	uxanalyzer "github.com/vrooli/browser-automation-studio/services/uxmetrics/analyzer"
+	uxrepository "github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -128,11 +132,23 @@ func main() {
 		log.Info("⚠️  Entitlement system disabled - all features available without restrictions")
 	}
 
+	// Initialize UX metrics repository (used by both handler wiring and API endpoints)
+	uxRepo := uxrepository.NewPostgresRepository(db.DB)
+
 	// Resolve allowed origins before constructing handlers
 	corsCfg := middleware.GetCachedCorsConfig()
 
-	// Initialize handlers
-	handler := handlers.NewHandler(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins)
+	// Initialize handlers with UX metrics integration
+	// The UX metrics collector wraps the event sink to passively capture interaction data
+	deps := handlers.InitDefaultDepsWithUXMetrics(repo, hub, log, uxRepo)
+	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
+
+	// Initialize UX metrics service for API endpoints
+	// The collector is integrated in the workflow service via InitDefaultDepsWithUXMetrics
+	uxAnalyzer := uxanalyzer.NewAnalyzer(uxRepo, nil)
+	uxService := uxmetrics.NewService(nil, uxAnalyzer, uxRepo)
+	uxHandler := handlers.NewUXMetricsHandler(uxService, log)
+	log.Info("✅ UX metrics service initialized with event pipeline integration")
 
 	// Wire up WebSocket input forwarding for low-latency input events
 	// This allows the UI to send input via WebSocket instead of HTTP POST
@@ -291,6 +307,12 @@ func main() {
 		r.Get("/entitlement/usage", entitlementHandler.GetUsageSummary)
 		r.Post("/entitlement/refresh", entitlementHandler.RefreshEntitlement)
 
+		// UX metrics routes (Pro tier and above)
+		r.Get("/executions/{id}/ux-metrics", uxHandler.GetExecutionMetrics)
+		r.Get("/executions/{id}/ux-metrics/steps/{stepIndex}", uxHandler.GetStepMetrics)
+		r.Post("/executions/{id}/ux-metrics/compute", uxHandler.ComputeMetrics)
+		r.Get("/workflows/{id}/ux-metrics/aggregate", uxHandler.GetWorkflowMetricsAggregate)
+
 		// Schedule management routes
 		r.Post("/workflows/{workflowID}/schedules", handler.CreateSchedule)
 		r.Get("/workflows/{workflowID}/schedules", handler.ListWorkflowSchedules)
@@ -317,6 +339,13 @@ func main() {
 				log.WithError(err).Error("Failed to stop scheduler cleanly")
 			}
 		}()
+	}
+
+	// Register debug performance endpoints (when enabled in config)
+	if cfg.Performance.ExposeEndpoint {
+		perfEndpoints := performance.NewEndpoints(handler.GetPerfRegistry(), log)
+		perfEndpoints.RegisterRoutes(r)
+		log.Info("✅ Debug performance endpoints registered at /debug/performance")
 	}
 
 	// Get API host for logging
