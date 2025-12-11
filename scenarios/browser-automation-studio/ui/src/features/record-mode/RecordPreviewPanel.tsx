@@ -38,10 +38,10 @@ export function RecordPreviewPanel({
   const [currentViewport, setCurrentViewport] = useState<{ width: number; height: number } | null>(null);
 
   // Stream settings management
-  const { preset, settings: streamSettings, showStats, debugPerfMode, setPreset, setShowStats, setDebugPerfMode } = useStreamSettings();
+  const { preset, settings: streamSettings, showStats, setPreset, setShowStats } = useStreamSettings();
 
-  // Debug performance stats from server (when debug perf mode enabled)
-  const { stats: perfStats } = usePerfStats(sessionId ?? null, debugPerfMode);
+  // Debug performance stats from server (enabled when showStats is on)
+  const { stats: perfStats } = usePerfStats(sessionId ?? null, showStats);
 
   // Frame statistics from PlaywrightView
   const [frameStats, setFrameStats] = useState<FrameStats | null>(null);
@@ -131,8 +131,6 @@ export function RecordPreviewPanel({
           onSettingsChange={(newSettings) => onStreamSettingsChange?.(newSettings)}
           showStats={showStats}
           onShowStatsChange={setShowStats}
-          debugPerfMode={debugPerfMode}
-          onDebugPerfModeChange={setDebugPerfMode}
         />
       </div>
       <div className="flex-1 overflow-hidden" ref={previewContainerRef}>

@@ -623,9 +623,9 @@ interface FrameStreamState {
   wsReady: boolean;
   /** Screenshot scale: 'css' for 1x, 'device' for devicePixelRatio */
   scale: 'css' | 'device';
-  /** Performance collector for debug mode (null if disabled) */
-  perfCollector: PerfCollector | null;
-  /** Whether to include timing headers in frames */
+  /** Performance collector - always created for runtime perf mode toggling */
+  perfCollector: PerfCollector;
+  /** Whether to include timing headers in frames (toggled via UI) */
   includePerfHeaders: boolean;
   /** FPS controller state (handles adaptive FPS logic) */
   fpsState: FpsControllerState;
@@ -685,12 +685,11 @@ export function startFrameStreaming(
   const scale = options.scale ?? 'css';
   const wsUrl = buildWebSocketUrl(options.callbackUrl, sessionId);
 
-  // Initialize performance collector if perf mode is enabled
+  // Always create performance collector (it's cheap - just a ring buffer).
+  // The includePerfHeaders flag controls whether timing data is sent to the API.
+  // This allows perfMode to be enabled dynamically mid-session via the UI toggle.
   const config = loadConfig();
-  const perfEnabled = config.performance.enabled;
-  const perfCollector = perfEnabled
-    ? PerfCollector.fromConfig(sessionId, config, fps)
-    : null;
+  const perfCollector = PerfCollector.fromConfig(sessionId, config, fps);
 
   // Initialize FPS controller with target-utilization based adaptive logic
   const { state: fpsState, config: fpsConfig } = createFpsController(fps, {
@@ -714,7 +713,9 @@ export function startFrameStreaming(
     wsReady: false,
     scale,
     perfCollector,
-    includePerfHeaders: perfEnabled && config.performance.includeTimingHeaders,
+    // Start with perf headers disabled; UI can enable via "Show performance stats" toggle.
+    // The config.performance.enabled env var can force it on for CI/debugging.
+    includePerfHeaders: config.performance.enabled && config.performance.includeTimingHeaders,
     fpsState,
     fpsConfig,
   };
@@ -731,7 +732,6 @@ export function startFrameStreaming(
     adaptiveFpsEnabled: true,
     minFps: fpsConfig.minFps,
     maxFps: fpsConfig.maxFps,
-    perfModeEnabled: perfEnabled,
     perfHeaders: state.includePerfHeaders,
   });
 
@@ -1045,9 +1045,7 @@ async function runFrameStreamLoop(
         state.fpsState = timeoutResult.state;
 
         // Record timeout in perf metrics
-        if (state.perfCollector) {
-          metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'timeout' });
-        }
+        metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'timeout' });
 
         if (timeoutResult.adjusted && timeoutResult.diagnostics) {
           logger.debug(scopedLog(LogContext.RECORDING, 'FPS reduced (capture timeout)'), {
@@ -1087,10 +1085,8 @@ async function runFrameStreamLoop(
       // Skip if frame content unchanged (fast buffer comparison)
       if (isUnchanged) {
         // Record skipped frame in perf collector
-        if (state.perfCollector) {
-          state.perfCollector.recordSkipped(captureTime, compareTime);
-          metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'unchanged' });
-        }
+        state.perfCollector.recordSkipped(captureTime, compareTime);
+        metrics.frameSkipCount.inc({ session_id: sessionId, reason: 'unchanged' });
         await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
         continue;
       }
@@ -1102,7 +1098,7 @@ async function runFrameStreamLoop(
       const wsSendStart = performance.now();
 
       // Send frame with or without perf header
-      if (state.includePerfHeaders && state.perfCollector) {
+      if (state.includePerfHeaders) {
         // Build and prepend binary header with timing data
         const header = state.perfCollector.buildFrameHeader(
           captureTime,
@@ -1120,35 +1116,33 @@ async function runFrameStreamLoop(
       state.consecutiveFailures = 0;
 
       // === RECORD PERFORMANCE DATA ===
-      if (state.perfCollector) {
-        state.perfCollector.recordFrame({
-          captureMs: captureTime,
-          compareMs: compareTime,
-          wsSendMs: wsSendTime,
-          frameBytes: buffer.length,
-          skipped: false,
+      state.perfCollector.recordFrame({
+        captureMs: captureTime,
+        compareMs: compareTime,
+        wsSendMs: wsSendTime,
+        frameBytes: buffer.length,
+        skipped: false,
+      });
+
+      // Record to Prometheus metrics
+      metrics.frameCaptureLatency.observe({ session_id: sessionId }, captureTime);
+      metrics.frameE2ELatency.observe({ session_id: sessionId }, captureTime + compareTime + wsSendTime);
+
+      // Log summary periodically
+      if (state.perfCollector.shouldLogSummary()) {
+        const stats = state.perfCollector.getAggregatedStats();
+        logger.info(scopedLog(LogContext.RECORDING, 'frame perf summary'), {
+          session_id: sessionId,
+          frame_count: stats.frame_count,
+          skipped_count: stats.skipped_count,
+          capture_p50_ms: stats.capture_p50_ms,
+          capture_p90_ms: stats.capture_p90_ms,
+          e2e_p50_ms: stats.e2e_p50_ms,
+          e2e_p90_ms: stats.e2e_p90_ms,
+          actual_fps: getCurrentFps(state.fpsState),
+          target_fps: state.targetFps,
+          bottleneck: stats.primary_bottleneck,
         });
-
-        // Record to Prometheus metrics
-        metrics.frameCaptureLatency.observe({ session_id: sessionId }, captureTime);
-        metrics.frameE2ELatency.observe({ session_id: sessionId }, captureTime + compareTime + wsSendTime);
-
-        // Log summary periodically
-        if (state.perfCollector.shouldLogSummary()) {
-          const stats = state.perfCollector.getAggregatedStats();
-          logger.info(scopedLog(LogContext.RECORDING, 'frame perf summary'), {
-            session_id: sessionId,
-            frame_count: stats.frame_count,
-            skipped_count: stats.skipped_count,
-            capture_p50_ms: stats.capture_p50_ms,
-            capture_p90_ms: stats.capture_p90_ms,
-            e2e_p50_ms: stats.e2e_p50_ms,
-            e2e_p90_ms: stats.e2e_p90_ms,
-            actual_fps: getCurrentFps(state.fpsState),
-            target_fps: state.targetFps,
-            bottleneck: stats.primary_bottleneck,
-          });
-        }
       }
 
     } catch (err) {
