@@ -140,6 +140,21 @@ const ConfigSchema = z.object({
     port: z.number().min(1).max(65535).default(9090),
   }),
   /**
+   * Frame Streaming Configuration
+   *
+   * Controls how frames are captured and streamed during recording.
+   * The default uses CDP startScreencast for push-based frame delivery,
+   * with fallback to polling-based screenshot capture.
+   *
+   * CDP screencast provides 30-60 FPS vs 10-15 FPS with polling.
+   */
+  frameStreaming: z.object({
+    /** Use CDP screencast (true) or legacy polling (false) */
+    useScreencast: z.boolean().default(true),
+    /** Fall back to polling if screencast fails */
+    fallbackToPolling: z.boolean().default(true),
+  }),
+  /**
    * Performance Debug Mode
    *
    * Controls timing instrumentation for the frame streaming pipeline.
@@ -322,6 +337,10 @@ export function loadConfig(): Config {
     metrics: {
       enabled: process.env.METRICS_ENABLED !== 'false',
       port: parseEnvInt(process.env.METRICS_PORT, 9090),
+    },
+    frameStreaming: {
+      useScreencast: process.env.FRAME_STREAMING_USE_SCREENCAST !== 'false', // Default true
+      fallbackToPolling: process.env.FRAME_STREAMING_FALLBACK !== 'false', // Default true
     },
     performance: {
       enabled: process.env.PLAYWRIGHT_DRIVER_PERF_ENABLED === 'true',

@@ -89,6 +89,16 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
       enabled: true,
       port: 9090,
     },
+    frameStreaming: {
+      useScreencast: true,
+      fallbackToPolling: true,
+    },
+    performance: {
+      enabled: false,
+      includeTimingHeaders: true,
+      logSummaryInterval: 60,
+      bufferSize: 100,
+    },
   };
 
   return {
@@ -119,5 +129,7 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
     },
     logging: { ...defaultConfig.logging, ...overrides?.logging },
     metrics: { ...defaultConfig.metrics, ...overrides?.metrics },
+    frameStreaming: { ...defaultConfig.frameStreaming, ...overrides?.frameStreaming },
+    performance: { ...defaultConfig.performance, ...overrides?.performance },
   };
 }
