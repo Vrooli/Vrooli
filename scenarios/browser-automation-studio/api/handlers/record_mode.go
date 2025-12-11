@@ -87,6 +87,13 @@ type CreateRecordingSessionRequest struct {
 	InitialURL string `json:"initial_url,omitempty"`
 	// Optional persisted session profile to load cookies/storage from
 	SessionProfileID string `json:"session_profile_id,omitempty"`
+	// Stream quality settings (optional)
+	// Quality: JPEG quality 0-100 (default 55)
+	StreamQuality *int `json:"stream_quality,omitempty"`
+	// FPS: Frames per second 1-30 (default 6)
+	StreamFPS *int `json:"stream_fps,omitempty"`
+	// Scale: "css" for 1x scale, "device" for device pixel ratio (default "css")
+	StreamScale string `json:"stream_scale,omitempty"`
 }
 
 // CreateRecordingSessionResponse is the response after creating a recording session.
@@ -316,6 +323,20 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 	}
 	frameCallbackURL := fmt.Sprintf("http://%s:%s/api/v1/recordings/live/placeholder/frame", apiHost, apiPort)
 
+	// Apply stream settings with defaults
+	streamQuality := 55 // default
+	if req.StreamQuality != nil && *req.StreamQuality >= 1 && *req.StreamQuality <= 100 {
+		streamQuality = *req.StreamQuality
+	}
+	streamFPS := 6 // default
+	if req.StreamFPS != nil && *req.StreamFPS >= 1 && *req.StreamFPS <= 30 {
+		streamFPS = *req.StreamFPS
+	}
+	streamScale := "css" // default - 1x scale for efficiency
+	if req.StreamScale == "device" {
+		streamScale = "device"
+	}
+
 	driverReq := map[string]interface{}{
 		"execution_id": recordingExecutionID,
 		"workflow_id":  recordingWorkflowID,
@@ -330,8 +351,9 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		// Enable frame streaming immediately for live preview
 		"frame_streaming": map[string]interface{}{
 			"callback_url": frameCallbackURL,
-			"quality":      65,
-			"fps":          6,
+			"quality":      streamQuality,
+			"fps":          streamFPS,
+			"scale":        streamScale,
 		},
 	}
 	if len(storageState) > 0 {
@@ -2310,4 +2332,40 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 
 	_, err = h.sessionProfiles.SaveStorageState(profileID, state)
 	return err
+}
+
+// CreateInputForwarder returns a function that forwards input events to the playwright-driver.
+// This is used by the WebSocket hub to forward input messages without going through HTTP.
+func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string]any) error {
+	return func(sessionID string, input map[string]any) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		driverURL := fmt.Sprintf("%s/session/%s/record/input", getPlaywrightDriverURL(), sessionID)
+
+		jsonBody, err := json.Marshal(input)
+		if err != nil {
+			return fmt.Errorf("marshal input: %w", err)
+		}
+
+		httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(jsonBody))
+		if err != nil {
+			return fmt.Errorf("create request: %w", err)
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			return fmt.Errorf("forward input: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("driver returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		return nil
+	}
 }

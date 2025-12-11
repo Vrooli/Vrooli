@@ -78,6 +78,24 @@ function AppContent() {
     setUserPinnedStep(false);
   };
 
+  const openSigningTab = (scenario?: string) => {
+    if (scenario) {
+      setSelectedScenarioName(scenario);
+    }
+    setViewMode("signing");
+    setUserPinnedStep(false);
+  };
+
+  const openGeneratorForScenario = (scenario?: string) => {
+    if (scenario) {
+      setSelectedScenarioName(scenario);
+      setSelectionSource("inventory");
+    }
+    setViewMode("generator");
+    setUserPinnedStep(false);
+    setActiveStep(2);
+  };
+
   const scrollTargets: Record<number, RefObject<HTMLDivElement>> = useMemo(
     () => ({
       1: overviewRef,
@@ -198,17 +216,21 @@ function AppContent() {
         ) : viewMode === "docs" ? (
           <DocsPanel />
         ) : viewMode === "signing" ? (
-          <SigningPage />
+          <SigningPage
+            initialScenario={selectedScenarioName}
+            onScenarioChange={(name) => {
+              setSelectedScenarioName(name);
+              setSelectionSource("manual");
+            }}
+          />
         ) : viewMode === "records" ? (
           <RecordsManager
             onSwitchTemplate={(scenarioName, templateType) => {
-              setSelectedScenarioName(scenarioName);
+              openGeneratorForScenario(scenarioName);
               setSelectedTemplate(templateType || "basic");
-              setSelectionSource("inventory");
-              setViewMode("generator");
-              setUserPinnedStep(false);
-              setActiveStep(2);
             }}
+            onEditSigning={(scenarioName) => openSigningTab(scenarioName)}
+            onRebuildWithSigning={(scenarioName) => openGeneratorForScenario(scenarioName)}
           />
         ) : (
           <>
@@ -272,6 +294,7 @@ function AppContent() {
                         setActiveStep(name ? 2 : 1);
                       }}
                       selectionSource={selectionSource}
+                      onOpenSigningTab={openSigningTab}
                     />
                   </CardContent>
                 </Card>

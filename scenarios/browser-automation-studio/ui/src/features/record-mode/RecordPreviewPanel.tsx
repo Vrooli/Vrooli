@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RecordedAction } from './types';
-import { PlaywrightView } from './components/PlaywrightView';
+import { PlaywrightView, type FrameStats } from './components/PlaywrightView';
+import { StreamSettings, useStreamSettings, type StreamSettingsValues } from './components/StreamSettings';
+import { FrameStatsDisplay } from './components/FrameStatsDisplay';
 
 interface RecordPreviewPanelProps {
   previewUrl: string;
@@ -8,6 +10,8 @@ interface RecordPreviewPanelProps {
   actions: RecordedAction[];
   sessionId?: string | null;
   onViewportChange?: (size: { width: number; height: number }) => void;
+  /** Callback when stream settings change (for session creation) */
+  onStreamSettingsChange?: (settings: StreamSettingsValues) => void;
 }
 
 export function RecordPreviewPanel({
@@ -16,6 +20,7 @@ export function RecordPreviewPanel({
   actions,
   sessionId,
   onViewportChange,
+  onStreamSettingsChange,
 }: RecordPreviewPanelProps) {
   const lastUrl = useMemo(() => {
     if (actions.length === 0) return '';
@@ -30,6 +35,20 @@ export function RecordPreviewPanel({
   const lastReportedViewportRef = useRef<{ width: number; height: number } | null>(null);
   // Track viewport for passing to PlaywrightView (for coordinate mapping)
   const [currentViewport, setCurrentViewport] = useState<{ width: number; height: number } | null>(null);
+
+  // Stream settings management
+  const { preset, settings: streamSettings, showStats, setPreset, setShowStats } = useStreamSettings();
+
+  // Frame statistics from PlaywrightView
+  const [frameStats, setFrameStats] = useState<FrameStats | null>(null);
+  const handleStatsUpdate = useCallback((stats: FrameStats) => {
+    setFrameStats(stats);
+  }, []);
+
+  // Notify parent when stream settings change (for session creation)
+  useEffect(() => {
+    onStreamSettingsChange?.(streamSettings);
+  }, [streamSettings, onStreamSettingsChange]);
 
   // Keep input in sync with upstream changes
   useEffect(() => {
@@ -75,8 +94,8 @@ export function RecordPreviewPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with URL input */}
-      <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
+      {/* Header with URL input and settings */}
+      <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-2">
         <div className="flex-1 relative">
           <input
             className="w-full pl-4 pr-10 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -94,6 +113,19 @@ export function RecordPreviewPanel({
             </svg>
           </button>
         </div>
+
+        {/* Frame stats display (conditionally shown) */}
+        {showStats && <FrameStatsDisplay stats={frameStats} targetFps={streamSettings.fps} />}
+
+        {/* Stream quality settings */}
+        <StreamSettings
+          hasActiveSession={!!sessionId}
+          preset={preset}
+          onPresetChange={setPreset}
+          onSettingsChange={(newSettings) => onStreamSettingsChange?.(newSettings)}
+          showStats={showStats}
+          onShowStatsChange={setShowStats}
+        />
       </div>
       <div className="flex-1 overflow-hidden" ref={previewContainerRef}>
         {sessionId ? (
@@ -102,6 +134,9 @@ export function RecordPreviewPanel({
               sessionId={sessionId}
               refreshToken={liveRefreshToken}
               viewport={currentViewport ?? undefined}
+              quality={streamSettings.quality}
+              fps={streamSettings.fps}
+              onStatsUpdate={handleStatsUpdate}
             />
           ) : (
             <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />

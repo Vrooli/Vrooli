@@ -551,10 +551,13 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 			// Register agent (also acquires scope lock)
 			agent, err := s.agentService.Register(ctx, input)
 			if err != nil {
+				// Use structured failure classification for better error messages
+				failure := agents.ClassifyError(err)
+				decision := agents.DecideOnRegistrationFailure(failure)
 				results[i] = agentSpawnResult{
 					PromptIndex: i,
 					Status:      "failed",
-					Error:       fmt.Sprintf("registration failed: %s", err.Error()),
+					Error:       decision.WarningForUser,
 				}
 				return
 			}
@@ -829,30 +832,36 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		stopHeartbeat()
+		failure := agents.NewProcessPipeFailure("stdout", err)
+		decision := agents.DecideOnProcessFailure(failure)
 		return agentSpawnResult{
 			PromptIndex: index,
 			Status:      string(agents.AgentStatusFailed),
-			Error:       fmt.Sprintf("failed to create stdout pipe: %v", err),
+			Error:       decision.WarningForUser,
 		}
 	}
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		stopHeartbeat()
+		failure := agents.NewProcessPipeFailure("stderr", err)
+		decision := agents.DecideOnProcessFailure(failure)
 		return agentSpawnResult{
 			PromptIndex: index,
 			Status:      string(agents.AgentStatusFailed),
-			Error:       fmt.Sprintf("failed to create stderr pipe: %v", err),
+			Error:       decision.WarningForUser,
 		}
 	}
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		stopHeartbeat()
+		failure := agents.NewProcessStartFailure(err)
+		decision := agents.DecideOnProcessFailure(failure)
 		return agentSpawnResult{
 			PromptIndex: index,
 			Status:      string(agents.AgentStatusFailed),
-			Error:       fmt.Sprintf("failed to start command: %v", err),
+			Error:       decision.WarningForUser,
 		}
 	}
 
@@ -930,20 +939,29 @@ func (s *Server) runAgentPromptWithService(ctx context.Context, payload agentSpa
 
 	if cmdErr != nil {
 		if runCtx.Err() == context.DeadlineExceeded {
+			failure := agents.NewProcessTimeoutFailure(payload.TimeoutSeconds)
+			decision := agents.DecideOnProcessFailure(failure)
 			res.Status = string(agents.AgentStatusTimeout)
-			res.Error = "agent run exceeded timeout"
+			res.Error = decision.WarningForUser
 			return res
 		}
 		if runCtx.Err() == context.Canceled {
+			failure := agents.NewProcessCanceledFailure()
+			decision := agents.DecideOnProcessFailure(failure)
 			res.Status = string(agents.AgentStatusStopped)
-			res.Error = "agent was stopped"
+			res.Error = decision.WarningForUser
 			return res
 		}
+		// Process exited with error - use the output if available for context
+		failure := agents.NewProcessExitFailure(cmdErr, text)
+		decision := agents.DecideOnProcessFailure(failure)
 		res.Status = string(agents.AgentStatusFailed)
+		// For exit errors, prefer showing the actual output if available (contains error details)
+		// Otherwise use the structured decision warning
 		if text != "" {
-			res.Error = text
+			res.Error = failure.Message // Use the truncated message from the failure
 		} else {
-			res.Error = fmt.Sprintf("resource-opencode failed: %v", cmdErr)
+			res.Error = decision.WarningForUser
 		}
 		return res
 	}
@@ -975,19 +993,26 @@ func (s *Server) runHeartbeatLoop(ctx context.Context, agentID string) {
 			// Renew locks
 			if err := s.agentService.RenewLocks(ctx, agentID); err != nil {
 				consecutiveFailures++
+				failure := agents.ClassifyError(err)
+
+				// Use decision function for consistent handling
+				decision := agents.DecideOnHeartbeatFailure(consecutiveFailures, maxConsecutiveFailures, failure)
+
 				s.log("heartbeat renewal failed", map[string]interface{}{
 					"agentId":             agentID,
 					"error":               err.Error(),
 					"consecutiveFailures": consecutiveFailures,
 					"maxFailures":         maxConsecutiveFailures,
+					"shouldContinue":      decision.ShouldContinue,
+					"reason":              decision.Reason,
 				})
 
-				// Stop the agent after too many consecutive failures
-				// This prevents orphaned agents from holding locks forever
-				if consecutiveFailures >= maxConsecutiveFailures {
+				// Stop the agent if decision says we should not continue
+				if !decision.ShouldContinue {
 					s.log("stopping agent due to heartbeat failures", map[string]interface{}{
 						"agentId":             agentID,
 						"consecutiveFailures": consecutiveFailures,
+						"reason":              decision.Reason,
 					})
 					// Stop the agent - this will release locks and update status
 					if stopErr := s.agentService.Stop(ctx, agentID); stopErr != nil {

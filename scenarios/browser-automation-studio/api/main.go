@@ -110,6 +110,10 @@ func main() {
 	// Initialize handlers
 	handler := handlers.NewHandler(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins)
 
+	// Wire up WebSocket input forwarding for low-latency input events
+	// This allows the UI to send input via WebSocket instead of HTTP POST
+	hub.SetInputForwarder(handler.CreateInputForwarder())
+
 	// Startup health check - validate critical dependencies before accepting requests
 	// This prevents the scenario where the API starts but all workflow executions fail
 	if err := performStartupHealthCheck(log); err != nil {

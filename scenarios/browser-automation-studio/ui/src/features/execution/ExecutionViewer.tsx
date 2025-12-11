@@ -160,6 +160,7 @@ function ActiveExecutionViewer({
     createExport,
   });
   const {
+    composerApiBase,
     composerUrl,
     composerPreviewUrl,
     movieSpecError,

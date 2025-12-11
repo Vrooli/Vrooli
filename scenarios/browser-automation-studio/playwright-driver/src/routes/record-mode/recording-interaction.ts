@@ -375,15 +375,30 @@ export async function handleRecordFrame(
     // Cache miss or expired - capture new frame
     // NOTE: Playwright only supports 'png' and 'jpeg'. WebP would be ~25% smaller
     // but is not supported - do not use type: 'webp', it fails at runtime.
-    const buffer = await session.page.screenshot({
-      type: 'jpeg',
-      fullPage,
-      quality,
-    });
-
     const viewport = session.page.viewportSize();
     const width = viewport?.width || 0;
     const height = viewport?.height || 0;
+
+    // Use explicit clip for viewport-only capture to ensure consistent behavior
+    // and reduce bandwidth for pages with scrollable content
+    const screenshotOptions: Parameters<typeof session.page.screenshot>[0] = {
+      type: 'jpeg',
+      quality,
+    };
+
+    if (fullPage) {
+      screenshotOptions.fullPage = true;
+    } else if (viewport) {
+      // Clip to viewport for consistent, smaller frames
+      screenshotOptions.clip = {
+        x: 0,
+        y: 0,
+        width: viewport.width,
+        height: viewport.height,
+      };
+    }
+
+    const buffer = await session.page.screenshot(screenshotOptions);
 
     // Compute hash and check if content actually changed from last cached frame
     const newHash = computeFrameHash(buffer);

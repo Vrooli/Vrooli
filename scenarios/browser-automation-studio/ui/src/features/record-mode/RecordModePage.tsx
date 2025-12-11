@@ -34,6 +34,7 @@ import { useTimelinePanel } from './hooks/useTimelinePanel';
 import { useActionSelection } from './hooks/useActionSelection';
 import { RecordPreviewPanel } from './RecordPreviewPanel';
 import { getConfig } from '@/config';
+import type { StreamSettingsValues } from './components/StreamSettings';
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -74,6 +75,11 @@ export function RecordModePage({
   const [previewViewport, setPreviewViewport] = useState<{ width: number; height: number } | null>(null);
   const viewportSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoStartedRef = useRef(false);
+
+  // Stream settings for session creation
+  const [streamSettings, setStreamSettings] = useState<StreamSettingsValues | null>(null);
+  const streamSettingsRef = useRef<StreamSettingsValues | null>(null);
+  streamSettingsRef.current = streamSettings;
 
   const {
     isSidebarOpen,
@@ -164,7 +170,7 @@ export function RecordModePage({
     const syncPreviewToSession = async () => {
       try {
         const activeSessionId =
-          sessionId ?? (await ensureSession(previewViewport, selectedProfileId ?? sessionProfileId ?? null));
+          sessionId ?? (await ensureSession(previewViewport, selectedProfileId ?? sessionProfileId ?? null, streamSettingsRef.current));
         if (!activeSessionId || cancelled) return;
 
         const config = await getConfig();
@@ -417,6 +423,7 @@ export function RecordModePage({
               sessionId={sessionId}
               onPreviewUrlChange={setPreviewUrl}
               onViewportChange={(size) => setPreviewViewport(size)}
+              onStreamSettingsChange={setStreamSettings}
               actions={actions}
             />
           ) : (

@@ -26,7 +26,12 @@ import { LinuxSigningForm } from "./LinuxSigningForm";
 import { PrerequisitesPanel } from "./PrerequisitesPanel";
 import { cn } from "../../lib/utils";
 
-export function SigningPage() {
+interface SigningPageProps {
+  initialScenario?: string;
+  onScenarioChange?: (name: string) => void;
+}
+
+export function SigningPage({ initialScenario, onScenarioChange }: SigningPageProps) {
   const queryClient = useQueryClient();
   const [selectedScenario, setSelectedScenario] = useState<string>("");
   const [localConfig, setLocalConfig] = useState<SigningConfig>({
@@ -98,6 +103,12 @@ export function SigningPage() {
     }
   }, [configData]);
 
+  useEffect(() => {
+    if (initialScenario) {
+      setSelectedScenario(initialScenario);
+    }
+  }, [initialScenario]);
+
   const handleConfigChange = (updates: Partial<SigningConfig>) => {
     setLocalConfig(prev => ({ ...prev, ...updates }));
     setHasUnsavedChanges(true);
@@ -142,7 +153,10 @@ export function SigningPage() {
               <Select
                 id="scenario-select"
                 value={selectedScenario}
-                onChange={(e) => setSelectedScenario(e.target.value)}
+                onChange={(e) => {
+                  setSelectedScenario(e.target.value);
+                  onScenarioChange?.(e.target.value);
+                }}
                 className="mt-1"
               >
                 <option value="">Select a scenario...</option>

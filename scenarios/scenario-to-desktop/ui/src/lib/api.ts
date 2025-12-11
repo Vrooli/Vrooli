@@ -92,6 +92,7 @@ export interface DesktopConfig {
   external_server_url?: string;
   external_api_url?: string;
   bundle_manifest_path?: string;
+  code_signing?: SigningConfig;
 }
 
 export interface PlatformBuildResult {

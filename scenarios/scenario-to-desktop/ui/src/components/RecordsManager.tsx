@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Folder, RefreshCw, MoveRight, AlertCircle, CheckCircle2, Trash2 } from "lucide-react";
-import type { DesktopRecordResponse, TestArtifactSummary } from "../lib/api";
-import { cleanupTestArtifacts, deleteDesktopBuild, fetchDesktopRecords, fetchTestArtifacts, moveDesktopRecord } from "../lib/api";
+import type { DesktopRecordResponse, SigningReadinessResponse, TestArtifactSummary } from "../lib/api";
+import { checkSigningReadiness, cleanupTestArtifacts, deleteDesktopBuild, fetchDesktopRecords, fetchTestArtifacts, moveDesktopRecord } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -10,6 +10,8 @@ import { Input } from "./ui/input";
 
 interface RecordsManagerProps {
   onSwitchTemplate?: (scenarioName: string, templateType?: string) => void;
+  onEditSigning?: (scenarioName: string) => void;
+  onRebuildWithSigning?: (scenarioName: string) => void;
 }
 
 function pathLabel(record: DesktopRecordResponse["records"][number]) {
@@ -21,7 +23,7 @@ function pathLabel(record: DesktopRecordResponse["records"][number]) {
   return rec.output_path || rec.destination_path || "unknown";
 }
 
-export function RecordsManager({ onSwitchTemplate }: RecordsManagerProps) {
+export function RecordsManager({ onSwitchTemplate, onEditSigning, onRebuildWithSigning }: RecordsManagerProps) {
   const queryClient = useQueryClient();
   const [customDest, setCustomDest] = useState<Record<string, string>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -230,6 +232,7 @@ export function RecordsManager({ onSwitchTemplate }: RecordsManagerProps) {
                         <Badge variant="outline" className="capitalize">
                           {rec.location_mode || "proper"}
                         </Badge>
+                        <SigningBadge scenarioName={rec.scenario_name} />
                       </div>
                     </div>
                     {item.build_status && (
@@ -268,6 +271,21 @@ export function RecordsManager({ onSwitchTemplate }: RecordsManagerProps) {
                       </p>
                     </div>
                   </div>
+
+                  {(onEditSigning || onRebuildWithSigning) && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {onEditSigning && (
+                        <Button size="sm" variant="outline" onClick={() => onEditSigning(rec.scenario_name)} className="gap-2">
+                          Configure signing
+                        </Button>
+                      )}
+                      {onRebuildWithSigning && (
+                        <Button size="sm" onClick={() => onRebuildWithSigning(rec.scenario_name)} className="gap-2">
+                          Rebuild with signing
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <PathBlock label="Current path" value={pathLabel(item)} />
@@ -331,6 +349,40 @@ export function RecordsManager({ onSwitchTemplate }: RecordsManagerProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function SigningBadge({ scenarioName }: { scenarioName: string }) {
+  const { data, isFetching } = useQuery<SigningReadinessResponse>({
+    queryKey: ["signing-readiness-record", scenarioName],
+    queryFn: () => checkSigningReadiness(scenarioName),
+    enabled: Boolean(scenarioName),
+    staleTime: 30000
+  });
+
+  if (isFetching) {
+    return (
+      <Badge variant="outline" className="gap-1 border-slate-700 text-slate-200">
+        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+        Checking signing…
+      </Badge>
+    );
+  }
+
+  if (!data || !data.ready) {
+    return (
+      <Badge variant="outline" className="gap-1 border-amber-800 text-amber-200">
+        <AlertCircle className="h-3.5 w-3.5" />
+        Signing not ready
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="gap-1 border-green-800 text-green-200">
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      Signing ready
+    </Badge>
   );
 }
 

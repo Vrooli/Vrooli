@@ -13,12 +13,24 @@ interface ViewportSize {
   height: number;
 }
 
+/** Stream settings passed to session creation */
+export interface StreamSettings {
+  quality: number;
+  fps: number;
+  /** 'css' = 1x scale, 'device' = device pixel ratio */
+  scale: 'css' | 'device';
+}
+
 interface UseRecordingSessionReturn {
   sessionId: string | null;
   sessionProfileId: string | null;
   isCreatingSession: boolean;
   sessionError: string | null;
-  ensureSession: (viewport?: ViewportSize | null, profileId?: string | null) => Promise<string | null>;
+  ensureSession: (
+    viewport?: ViewportSize | null,
+    profileId?: string | null,
+    streamSettings?: StreamSettings | null
+  ) => Promise<string | null>;
   setSessionProfileId: (profileId: string | null) => void;
   resetSessionError: () => void;
 }
@@ -45,7 +57,11 @@ export function useRecordingSession({
     pendingSessionPromiseRef.current = null;
   }, [initialSessionId, initialSessionProfileId]);
 
-  const ensureSession = useCallback(async (viewport?: ViewportSize | null, profileId?: string | null): Promise<string | null> => {
+  const ensureSession = useCallback(async (
+    viewport?: ViewportSize | null,
+    profileId?: string | null,
+    streamSettings?: StreamSettings | null
+  ): Promise<string | null> => {
     if (sessionId) {
       return sessionId;
     }
@@ -68,6 +84,10 @@ export function useRecordingSession({
             viewport_width: viewport?.width && viewport.width > 0 ? Math.round(viewport.width) : 1280,
             viewport_height: viewport?.height && viewport.height > 0 ? Math.round(viewport.height) : 720,
             session_profile_id: profileId ?? sessionProfileId ?? undefined,
+            // Stream settings for frame streaming configuration
+            stream_quality: streamSettings?.quality,
+            stream_fps: streamSettings?.fps,
+            stream_scale: streamSettings?.scale,
           }),
         });
 

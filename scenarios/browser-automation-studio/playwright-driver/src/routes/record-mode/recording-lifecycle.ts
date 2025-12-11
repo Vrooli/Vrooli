@@ -614,6 +614,8 @@ interface FrameStreamState {
   consecutiveFailures: number;
   /** Whether WebSocket is connected and ready */
   wsReady: boolean;
+  /** Screenshot scale: 'css' for 1x, 'device' for devicePixelRatio */
+  scale: 'css' | 'device';
 }
 
 /** Per-session frame streaming state */
@@ -664,6 +666,8 @@ export function startFrameStreaming(
     callbackUrl: string;
     quality?: number;
     fps?: number;
+    /** Screenshot scale: 'css' for 1x (default), 'device' for devicePixelRatio */
+    scale?: 'css' | 'device';
   }
 ): void {
   // Stop any existing stream for this session
@@ -671,6 +675,7 @@ export function startFrameStreaming(
 
   const quality = options.quality ?? 65;
   const fps = Math.min(Math.max(options.fps ?? 6, 1), 30); // Clamp 1-30 FPS
+  const scale = options.scale ?? 'css';
   const intervalMs = Math.floor(1000 / fps);
   const wsUrl = buildWebSocketUrl(options.callbackUrl, sessionId);
 
@@ -688,6 +693,7 @@ export function startFrameStreaming(
     wsUrl,
     consecutiveFailures: 0,
     wsReady: false,
+    scale,
   };
 
   frameStreamStates.set(sessionId, state);
@@ -696,6 +702,7 @@ export function startFrameStreaming(
     sessionId,
     targetFps: fps,
     quality,
+    scale,
     initialIntervalMs: intervalMs,
     wsUrl,
     adaptiveFpsEnabled: true,
@@ -823,7 +830,7 @@ async function runFrameStreamLoop(
       }
 
       // Capture frame as raw buffer (no base64 encoding!)
-      const buffer = await captureFrameBuffer(session.page, state.quality);
+      const buffer = await captureFrameBuffer(session.page, state.quality, state.scale);
 
       if (!buffer) {
         // Page not ready or error, skip this frame
@@ -933,23 +940,54 @@ function isFrameUnchanged(buffer: Buffer, state: FrameStreamState): boolean {
   return buffer.equals(state.lastFrameBuffer);
 }
 
-/** Screenshot timeout - slightly less than minimum frame interval to prevent blocking */
-const SCREENSHOT_TIMEOUT_MS = 150;
+/**
+ * Screenshot timeout - generous to handle complex pages.
+ * The adaptive FPS system will reduce framerate if captures are slow.
+ */
+const SCREENSHOT_TIMEOUT_MS = 400;
 
 /**
  * Capture a frame as raw JPEG buffer.
+ * Only captures the visible viewport (not full page) to reduce bandwidth and improve performance.
  * No base64 encoding - send raw bytes over WebSocket.
  * Includes timeout to prevent blocking the frame loop if page is slow to render.
+ *
+ * @param scale - 'css' captures at 1x logical pixels (smaller, faster),
+ *                'device' captures at devicePixelRatio (sharper on HiDPI, but 4x larger on 2x displays)
  */
 async function captureFrameBuffer(
   page: import('playwright').Page,
-  quality: number
+  quality: number,
+  scale: 'css' | 'device' = 'css'
 ): Promise<Buffer | null> {
   try {
+    // Get viewport dimensions for clipping - only capture what's visible
+    const viewport = page.viewportSize();
+    if (!viewport) {
+      // Fallback if viewport not available (shouldn't happen normally)
+      return await page.screenshot({
+        type: 'jpeg',
+        quality,
+        timeout: SCREENSHOT_TIMEOUT_MS,
+        scale,
+      });
+    }
+
+    // Capture only the viewport area, not the full page
+    // This significantly reduces bandwidth for pages with scrollable content
+    // Using 'css' scale by default captures at 1x resolution (not devicePixelRatio)
+    // which is ~4x smaller on HiDPI displays while still looking good for preview
     return await page.screenshot({
       type: 'jpeg',
       quality,
       timeout: SCREENSHOT_TIMEOUT_MS,
+      scale,
+      clip: {
+        x: 0,
+        y: 0,
+        width: viewport.width,
+        height: viewport.height,
+      },
     });
   } catch {
     // Timeout or other error - skip this frame

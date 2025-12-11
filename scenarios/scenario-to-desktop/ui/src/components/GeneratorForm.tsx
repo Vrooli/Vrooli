@@ -6,10 +6,14 @@ import {
   fetchScenarioDesktopStatus,
   generateDesktop,
   fetchScenarioPort,
+  fetchSigningConfig,
+  checkSigningReadiness,
   probeEndpoints,
   type DesktopConfig,
   type ProbeResponse,
-  type ProxyHintsResponse
+  type ProxyHintsResponse,
+  type SigningConfig,
+  type SigningReadinessResponse
 } from "../lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
@@ -17,7 +21,7 @@ import { Label } from "./ui/label";
 import { Select } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
-import { Rocket } from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
 import type { DesktopConnectionConfig, ScenarioDesktopStatus, ScenariosResponse } from "./scenario-inventory/types";
 import {
   DEFAULT_DEPLOYMENT_MODE,
@@ -65,7 +69,8 @@ interface BuildDesktopConfigOptions {
   requiresRemoteConfig: boolean;
   resolvedEndpoints: EndpointResolution;
   locationMode: OutputLocation;
-  outputPath: string;
+  includeSigning: boolean;
+  codeSigning?: SigningConfig;
 }
 
 function getSelectedPlatforms(platforms: PlatformSelection): string[] {
@@ -161,7 +166,8 @@ function buildDesktopConfig(options: BuildDesktopConfigOptions): DesktopConfig {
     proxy_url: options.requiresRemoteConfig ? options.proxyUrl : undefined,
     external_server_url: options.requiresRemoteConfig ? options.proxyUrl : undefined,
     external_api_url: !options.requiresRemoteConfig && !options.isBundled ? options.resolvedEndpoints.apiEndpoint : undefined,
-    bundle_manifest_path: options.isBundled ? options.bundleManifestPath : undefined
+    bundle_manifest_path: options.isBundled ? options.bundleManifestPath : undefined,
+    code_signing: options.includeSigning ? options.codeSigning : { enabled: false }
   };
 }
 
@@ -783,6 +789,107 @@ function PlatformSelector({ platforms, onPlatformChange }: PlatformSelectorProps
   );
 }
 
+interface SigningInlineSectionProps {
+  scenarioName: string;
+  signingEnabled: boolean;
+  signingConfig?: SigningConfig | null;
+  readiness?: SigningReadinessResponse;
+  loading: boolean;
+  onToggleSigning: (enabled: boolean) => void;
+  onOpenSigning: () => void;
+  onRefresh: () => void;
+}
+
+function SigningInlineSection({
+  scenarioName,
+  signingEnabled,
+  signingConfig,
+  readiness,
+  loading,
+  onToggleSigning,
+  onOpenSigning,
+  onRefresh
+}: SigningInlineSectionProps) {
+  const hasConfig = Boolean(signingConfig);
+  const ready = readiness?.ready;
+  const readinessNote =
+    readiness?.issues && readiness.issues.length > 0 ? readiness.issues[0] : undefined;
+
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-slate-100">Signing (recommended for production)</p>
+          <p className="text-xs text-slate-400">
+            Signed installers avoid OS warnings. Configure details in the Signing tab or reuse saved config here.
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-100">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={signingEnabled}
+            disabled={!scenarioName}
+            onChange={(e) => onToggleSigning(e.target.checked)}
+          />
+          <span>{signingEnabled ? "Sign this build" : "Skip signing for this build"}</span>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+        {loading ? (
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 animate-spin text-blue-300" />
+            Checking signing status…
+          </div>
+        ) : signingEnabled ? (
+          hasConfig ? (
+            ready ? (
+              <div className="flex items-center gap-2 text-green-300">
+                <ShieldCheck className="h-4 w-4" />
+                Signing ready for at least one platform.
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-amber-300">
+                <AlertTriangle className="h-4 w-4" />
+                {readinessNote || "Signing config needs fixes before packaging."}
+              </div>
+            )
+          ) : (
+            <div className="flex items-center gap-2 text-amber-300">
+              <AlertTriangle className="h-4 w-4" />
+              No signing config saved yet. Open the Signing tab to add certificates.
+            </div>
+          )
+        ) : (
+          <div className="flex items-center gap-2 text-slate-300">
+            <AlertTriangle className="h-4 w-4 text-slate-400" />
+            Unsigned installers may trigger OS warnings. Enable signing when you&apos;re ready.
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={onRefresh} disabled={!scenarioName || loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onOpenSigning}
+            disabled={!scenarioName}
+            className="gap-1 text-blue-200 hover:text-blue-100"
+          >
+            Open Signing tab
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface OutputPathFieldProps {
   outputPath: string;
   onOutputPathChange: (value: string) => void;
@@ -868,6 +975,7 @@ interface GeneratorFormProps {
   scenarioName: string;
   onScenarioNameChange: (name: string) => void;
   selectionSource?: "inventory" | "manual" | null;
+  onOpenSigningTab: (scenario?: string) => void;
 }
 
 export function GeneratorForm({
@@ -876,7 +984,8 @@ export function GeneratorForm({
   onBuildStart,
   scenarioName,
   onScenarioNameChange,
-  selectionSource
+  selectionSource,
+  onOpenSigningTab
 }: GeneratorFormProps) {
   const [scenarioLocked, setScenarioLocked] = useState(selectionSource === "inventory");
   const [useDropdown, setUseDropdown] = useState(true);
@@ -909,6 +1018,7 @@ export function GeneratorForm({
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
+  const [signingEnabledForBuild, setSigningEnabledForBuild] = useState(false);
   const isUpdateMode = selectionSource === "inventory";
 
   const connectionDecision = useMemo(
@@ -1020,6 +1130,26 @@ export function GeneratorForm({
     staleTime: 1000 * 60,
   });
 
+  const { data: signingConfigResp, isFetching: loadingSigningConfig, refetch: refetchSigningConfig } = useQuery({
+    queryKey: ["signing-config-inline", scenarioName],
+    queryFn: () => fetchSigningConfig(scenarioName),
+    enabled: Boolean(scenarioName)
+  });
+
+  const { data: signingReadiness, isFetching: loadingSigningReadiness, refetch: refetchSigningReadiness } = useQuery<SigningReadinessResponse>({
+    queryKey: ["signing-readiness-inline", scenarioName],
+    queryFn: () => checkSigningReadiness(scenarioName),
+    enabled: Boolean(scenarioName)
+  });
+
+  useEffect(() => {
+    if (signingConfigResp?.config) {
+      setSigningEnabledForBuild(Boolean(signingConfigResp.config.enabled));
+    } else if (scenarioName) {
+      setSigningEnabledForBuild(false);
+    }
+  }, [scenarioName, signingConfigResp?.config]);
+
   const applySavedConnection = (config?: DesktopConnectionConfig | null) => {
     if (!config) return;
     setDeploymentMode((config.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
@@ -1096,6 +1226,19 @@ export function GeneratorForm({
       return;
     }
 
+    const signingConfig = signingConfigResp?.config;
+    if (signingEnabledForBuild) {
+      if (!signingConfig || !signingConfig.enabled) {
+        alert("Signing is enabled for this build but no signing config is saved. Open the Signing tab to add certificates first.");
+        return;
+      }
+      if (signingReadiness && !signingReadiness.ready) {
+        const issue = signingReadiness.issues?.[0] || "Resolve signing prerequisites before packaging.";
+        alert(`Signing is not ready: ${issue}`);
+        return;
+      }
+    }
+
     const config = buildDesktopConfig({
       scenarioName,
       selectedTemplate,
@@ -1115,7 +1258,9 @@ export function GeneratorForm({
       locationMode,
       appDisplayName,
       appDescription,
-      iconPath
+      iconPath,
+      includeSigning: signingEnabledForBuild,
+      codeSigning: signingEnabledForBuild ? signingConfig : { enabled: false }
     });
 
     generateMutation.mutate(config);
@@ -1264,6 +1409,22 @@ export function GeneratorForm({
           {connectionSection}
 
           <PlatformSelector platforms={platforms} onPlatformChange={handlePlatformChange} />
+
+          <SigningInlineSection
+            scenarioName={scenarioName}
+            signingEnabled={signingEnabledForBuild}
+            signingConfig={signingConfigResp?.config || null}
+            readiness={signingReadiness}
+            loading={loadingSigningConfig || loadingSigningReadiness}
+            onToggleSigning={setSigningEnabledForBuild}
+            onOpenSigning={() => onOpenSigningTab(scenarioName)}
+            onRefresh={() => {
+              if (scenarioName) {
+                refetchSigningConfig();
+                refetchSigningReadiness();
+              }
+            }}
+          />
 
           <OutputLocationSelector
             locationMode={locationMode}

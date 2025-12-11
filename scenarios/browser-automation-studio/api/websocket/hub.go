@@ -21,14 +21,19 @@ type Client struct {
 	RecordingSessionID *string    // Optional: client can subscribe to recording session updates
 }
 
+// InputForwarder is a function that forwards input events to the playwright-driver.
+// This allows the hub to forward WebSocket input messages without importing handlers.
+type InputForwarder func(sessionID string, input map[string]any) error
+
 // Hub maintains the set of active clients and broadcasts messages to them
 type Hub struct {
-	clients    map[*Client]bool
-	broadcast  chan any
-	register   chan *Client
-	unregister chan *Client
-	log        *logrus.Logger
-	mu         sync.RWMutex
+	clients        map[*Client]bool
+	broadcast      chan any
+	register       chan *Client
+	unregister     chan *Client
+	log            *logrus.Logger
+	mu             sync.RWMutex
+	inputForwarder InputForwarder // Optional: forwards input events to playwright-driver
 }
 
 // NewHub creates a new WebSocket hub
@@ -40,6 +45,12 @@ func NewHub(log *logrus.Logger) *Hub {
 		unregister: make(chan *Client),
 		log:        log,
 	}
+}
+
+// SetInputForwarder sets the function used to forward input events to the playwright-driver.
+// This should be called during server initialization.
+func (h *Hub) SetInputForwarder(forwarder InputForwarder) {
+	h.inputForwarder = forwarder
 }
 
 // Run starts the hub's main loop
@@ -293,6 +304,26 @@ func (c *Client) readPump() {
 			case "unsubscribe_recording":
 				c.RecordingSessionID = nil
 				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from recording updates")
+			case "recording_input":
+				// Forward input event to playwright-driver via the hub's forwarder
+				// This is much faster than HTTP POST for each input event
+				sessionID, hasSession := msg["session_id"].(string)
+				if !hasSession || sessionID == "" {
+					c.Hub.log.Warn("recording_input missing session_id")
+					continue
+				}
+				input, hasInput := msg["input"].(map[string]any)
+				if !hasInput {
+					c.Hub.log.Warn("recording_input missing input payload")
+					continue
+				}
+				if c.Hub.inputForwarder != nil {
+					go func(sid string, inp map[string]any) {
+						if err := c.Hub.inputForwarder(sid, inp); err != nil {
+							c.Hub.log.WithError(err).WithField("session_id", sid).Warn("Failed to forward input")
+						}
+					}(sessionID, input)
+				}
 			}
 		}
 	}

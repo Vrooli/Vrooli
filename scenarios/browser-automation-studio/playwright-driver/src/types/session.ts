@@ -177,6 +177,8 @@ export interface StartSessionRequest {
     quality?: number;
     /** Target FPS 1-30 (default: 6) */
     fps?: number;
+    /** Screenshot scale: 'css' for 1x scale (default), 'device' for device pixel ratio */
+    scale?: 'css' | 'device';
   };
 }
 

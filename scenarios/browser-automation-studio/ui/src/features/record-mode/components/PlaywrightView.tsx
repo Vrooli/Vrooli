@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getConfig } from "@/config";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { mapClientToViewport } from "../utils/coordinateMapping";
+import { useFrameStats, type FrameStats } from "../hooks/useFrameStats";
+
+// Re-export FrameStats type for consumers
+export type { FrameStats } from "../hooks/useFrameStats";
 
 type PointerAction = "move" | "down" | "up" | "click";
 
@@ -47,6 +51,8 @@ interface PlaywrightViewProps {
   useWebSocketFrames?: boolean;
   /** Logical viewport dimensions (for coordinate mapping, independent of device pixel ratio) */
   viewport?: { width: number; height: number };
+  /** Callback to receive frame statistics updates */
+  onStatsUpdate?: (stats: FrameStats) => void;
 }
 
 /**
@@ -85,6 +91,7 @@ export function PlaywrightView({
   refreshToken,
   useWebSocketFrames = true,
   viewport,
+  onStatsUpdate,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [frame, setFrame] = useState<FramePayload | null>(null);
@@ -104,6 +111,11 @@ export function PlaywrightView({
   const { isConnected, lastMessage, lastBinaryFrame, send } = useWebSocket();
   const blobUrlRef = useRef<string | null>(null);
 
+  // Frame statistics tracking
+  const { stats: frameStats, recordFrame, reset: resetStats } = useFrameStats();
+  const onStatsUpdateRef = useRef(onStatsUpdate);
+  onStatsUpdateRef.current = onStatsUpdate;
+
   // Track tab visibility to pause polling when hidden
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -114,6 +126,13 @@ export function PlaywrightView({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
+
+  // Push frame stats to parent when they change
+  useEffect(() => {
+    if (onStatsUpdateRef.current) {
+      onStatsUpdateRef.current(frameStats);
+    }
+  }, [frameStats]);
 
   const pollInterval = useMemo(() => Math.max(300, Math.floor(1000 / fps)), [fps]);
   const pollIntervalRef = useRef(pollInterval);
@@ -262,6 +281,9 @@ export function PlaywrightView({
         setFrame(frameData);
         lastFrameRef.current = frameData;
         setError(null);
+
+        // Record frame stats (use pending.size for accurate byte count)
+        recordFrame(pending.size);
       } catch {
         // Decode failed - only show error if no newer frame is pending
         if (!pendingBlobRef.current) {
@@ -269,7 +291,7 @@ export function PlaywrightView({
         }
       }
     });
-  }, [lastBinaryFrame, useWebSocketFrames, isWsFrameActive, frame?.width, frame?.height]);
+  }, [lastBinaryFrame, useWebSocketFrames, isWsFrameActive, frame?.width, frame?.height, recordFrame]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -397,11 +419,24 @@ export function PlaywrightView({
       setError(null);
       setIsWsFrameActive(false); // Reset WebSocket frame state for new session
       wsSubscribedRef.current = false;
+      resetStats(); // Reset frame stats for new session
     }
-  }, [sessionId]);
+  }, [sessionId, resetStats]);
 
+  // Send input via WebSocket for low latency (falls back to HTTP if WS unavailable)
   const sendInput = useCallback(
     async (payload: unknown) => {
+      // Prefer WebSocket for lower latency
+      if (isConnected && wsSubscribedRef.current) {
+        send({
+          type: "recording_input",
+          session_id: sessionId,
+          input: payload,
+        });
+        return;
+      }
+
+      // Fallback to HTTP POST if WebSocket not available
       try {
         const config = await getConfig();
         const res = await fetch(`${config.API_URL}/recordings/live/${sessionId}/input`, {
@@ -421,7 +456,7 @@ export function PlaywrightView({
         }
       }
     },
-    [onStreamError, sessionId]
+    [isConnected, onStreamError, send, sessionId]
   );
 
   const getScaledPoint = useCallback(
