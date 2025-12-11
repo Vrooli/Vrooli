@@ -66,6 +66,9 @@ type Config struct {
 
 	// HTTP controls API request limits and pagination defaults.
 	HTTP HTTPConfig
+
+	// Entitlement controls subscription verification and feature gating.
+	Entitlement EntitlementConfig
 }
 
 // TimeoutsConfig groups timeout-related settings.
@@ -390,6 +393,58 @@ type HTTPConfig struct {
 	CORSMaxAge int
 }
 
+// EntitlementConfig controls subscription verification and feature gating.
+// This enables the monetization model by connecting to the landing-page-business-suite
+// entitlement service to verify user subscriptions and enforce tier-based limits.
+type EntitlementConfig struct {
+	// Enabled controls whether entitlement checking is active.
+	// When false, all features are available without restrictions (development mode).
+	// Env: BAS_ENTITLEMENT_ENABLED (default: false)
+	Enabled bool
+
+	// ServiceURL is the base URL of the entitlement service (landing-page-business-suite).
+	// Must include protocol (https://) and no trailing slash.
+	// Env: BAS_ENTITLEMENT_SERVICE_URL (default: "")
+	ServiceURL string
+
+	// CacheTTL is how long to cache entitlement responses before re-checking.
+	// Tradeoff: Higher = fewer network calls, slower to reflect subscription changes.
+	// Lower = more responsive to upgrades/downgrades, more API load.
+	// Env: BAS_ENTITLEMENT_CACHE_TTL_MS (default: 300000, 5 minutes)
+	CacheTTL time.Duration
+
+	// RequestTimeout is the timeout for entitlement service requests.
+	// Should be short to avoid blocking user operations.
+	// Env: BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS (default: 5000)
+	RequestTimeout time.Duration
+
+	// OfflineGracePeriod is how long to allow operations when the entitlement service is unreachable.
+	// Uses cached entitlements during this period; after expiry, falls back to free tier.
+	// Env: BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS (default: 86400000, 24 hours)
+	OfflineGracePeriod time.Duration
+
+	// DefaultTier is the tier to use when no subscription is found or service is unavailable.
+	// Env: BAS_ENTITLEMENT_DEFAULT_TIER (default: "free")
+	DefaultTier string
+
+	// TierLimits defines the execution limits per tier per calendar month.
+	// Parsed from JSON: {"free": 50, "solo": 200, "pro": -1, "studio": -1, "business": -1}
+	// -1 means unlimited. These can be overridden via BAS_ENTITLEMENT_TIER_LIMITS_JSON.
+	TierLimits map[string]int
+
+	// WatermarkTiers lists tiers that should have watermarks applied to exports.
+	// Env: BAS_ENTITLEMENT_WATERMARK_TIERS (default: "free,solo")
+	WatermarkTiers []string
+
+	// AITiers lists tiers that have access to AI-powered features.
+	// Env: BAS_ENTITLEMENT_AI_TIERS (default: "pro,studio,business")
+	AITiers []string
+
+	// RecordingTiers lists tiers that have access to live recording features.
+	// Env: BAS_ENTITLEMENT_RECORDING_TIERS (default: "solo,pro,studio,business")
+	RecordingTiers []string
+}
+
 var (
 	globalConfig *Config
 	configOnce   sync.Once
@@ -493,6 +548,18 @@ func loadFromEnv() *Config {
 			DefaultPageLimit: parseInt("BAS_HTTP_DEFAULT_PAGE_LIMIT", 100),
 			MaxPageLimit:     parseInt("BAS_HTTP_MAX_PAGE_LIMIT", 500),
 			CORSMaxAge:       parseInt("BAS_HTTP_CORS_MAX_AGE", 300),
+		},
+		Entitlement: EntitlementConfig{
+			Enabled:            parseBool("BAS_ENTITLEMENT_ENABLED", false),
+			ServiceURL:         parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
+			CacheTTL:           parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
+			RequestTimeout:     parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
+			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 86400000),
+			DefaultTier:        parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
+			TierLimits:         parseTierLimits("BAS_ENTITLEMENT_TIER_LIMITS_JSON"),
+			WatermarkTiers:     parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
+			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "pro,studio,business"),
+			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
 		},
 	}
 }
@@ -601,6 +668,22 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("AdhocRetentionPeriod must be positive, got %v", c.Execution.AdhocRetentionPeriod)
 	}
 
+	// Entitlement validation
+	if c.Entitlement.Enabled {
+		if c.Entitlement.ServiceURL == "" {
+			return fmt.Errorf("Entitlement.ServiceURL is required when entitlements are enabled")
+		}
+		if c.Entitlement.CacheTTL <= 0 {
+			return fmt.Errorf("Entitlement.CacheTTL must be positive, got %v", c.Entitlement.CacheTTL)
+		}
+		if c.Entitlement.RequestTimeout <= 0 {
+			return fmt.Errorf("Entitlement.RequestTimeout must be positive, got %v", c.Entitlement.RequestTimeout)
+		}
+	}
+	if c.Entitlement.TierLimits == nil {
+		return fmt.Errorf("Entitlement.TierLimits cannot be nil")
+	}
+
 	return nil
 }
 
@@ -654,4 +737,91 @@ func parseFloat(envVar string, defaultVal float64) float64 {
 		return defaultVal
 	}
 	return v
+}
+
+// parseBool parses an environment variable as a boolean.
+func parseBool(envVar string, defaultVal bool) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(envVar)))
+	if value == "" {
+		return defaultVal
+	}
+	return value == "true" || value == "1" || value == "yes"
+}
+
+// parseString returns an environment variable value or a default.
+func parseString(envVar string, defaultVal string) string {
+	value := strings.TrimSpace(os.Getenv(envVar))
+	if value == "" {
+		return defaultVal
+	}
+	return value
+}
+
+// parseStringList parses a comma-separated environment variable into a slice.
+func parseStringList(envVar string, defaultVal string) []string {
+	value := strings.TrimSpace(os.Getenv(envVar))
+	if value == "" {
+		value = defaultVal
+	}
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+// parseTierLimits parses tier limits from JSON or returns defaults.
+// JSON format: {"free": 50, "solo": 200, "pro": -1}
+// -1 means unlimited.
+func parseTierLimits(envVar string) map[string]int {
+	defaults := map[string]int{
+		"free":     50,
+		"solo":     200,
+		"pro":      -1, // unlimited
+		"studio":   -1, // unlimited
+		"business": -1, // unlimited
+	}
+
+	value := strings.TrimSpace(os.Getenv(envVar))
+	if value == "" {
+		return defaults
+	}
+
+	// Try to parse as JSON
+	result := make(map[string]int)
+	// Simple JSON parsing without importing encoding/json to keep config lightweight
+	// Format: {"key": value, "key2": value2}
+	value = strings.Trim(value, "{}")
+	if value == "" {
+		return defaults
+	}
+
+	pairs := strings.Split(value, ",")
+	for _, pair := range pairs {
+		parts := strings.SplitN(pair, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
+		valStr := strings.TrimSpace(parts[1])
+		if val, err := strconv.Atoi(valStr); err == nil {
+			result[key] = val
+		}
+	}
+
+	// Merge with defaults (defaults take precedence for missing keys)
+	for k, v := range defaults {
+		if _, exists := result[k]; !exists {
+			result[k] = v
+		}
+	}
+
+	return result
 }

@@ -50,25 +50,25 @@ func NewService(repo database.Repository, log *logrus.Logger, opts ...Option) *S
 
 // RecoveryResult captures the outcome of a recovery operation.
 type RecoveryResult struct {
-	TotalStale   int                 `json:"total_stale"`
-	Recovered    int                 `json:"recovered"`
-	Failed       int                 `json:"failed"`
-	Resumable    int                 `json:"resumable"`
-	Executions   []ExecutionRecovery `json:"executions,omitempty"`
-	StartedAt    time.Time           `json:"started_at"`
-	CompletedAt  time.Time           `json:"completed_at"`
-	DurationMs   int64               `json:"duration_ms"`
+	TotalStale  int                 `json:"total_stale"`
+	Recovered   int                 `json:"recovered"`
+	Failed      int                 `json:"failed"`
+	Resumable   int                 `json:"resumable"`
+	Executions  []ExecutionRecovery `json:"executions,omitempty"`
+	StartedAt   time.Time           `json:"started_at"`
+	CompletedAt time.Time           `json:"completed_at"`
+	DurationMs  int64               `json:"duration_ms"`
 }
 
 // ExecutionRecovery captures recovery details for a single execution.
 type ExecutionRecovery struct {
-	ExecutionID      string `json:"execution_id"`
-	WorkflowID       string `json:"workflow_id"`
-	Status           string `json:"status"`
-	LastStepIndex    int    `json:"last_step_index"`
-	Resumable        bool   `json:"resumable"`
-	Error            string `json:"error,omitempty"`
-	RecoveryAction   string `json:"recovery_action"`
+	ExecutionID    string `json:"execution_id"`
+	WorkflowID     string `json:"workflow_id"`
+	Status         string `json:"status"`
+	LastStepIndex  int    `json:"last_step_index"`
+	Resumable      bool   `json:"resumable"`
+	Error          string `json:"error,omitempty"`
+	RecoveryAction string `json:"recovery_action"`
 }
 
 // RecoverStaleExecutions finds and marks all stale executions as interrupted.

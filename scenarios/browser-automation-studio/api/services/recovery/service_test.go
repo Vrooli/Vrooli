@@ -68,7 +68,7 @@ func (m *mockRepo) GetProjectByFolderPath(ctx context.Context, folderPath string
 	return nil, nil
 }
 func (m *mockRepo) UpdateProject(ctx context.Context, project *database.Project) error { return nil }
-func (m *mockRepo) DeleteProject(ctx context.Context, id uuid.UUID) error             { return nil }
+func (m *mockRepo) DeleteProject(ctx context.Context, id uuid.UUID) error              { return nil }
 func (m *mockRepo) ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error) {
 	return nil, nil
 }

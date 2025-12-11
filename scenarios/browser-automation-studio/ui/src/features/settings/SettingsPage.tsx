@@ -34,6 +34,8 @@ import {
   FileX,
   RefreshCw,
   Loader2,
+  CreditCard,
+  CalendarClock,
 } from 'lucide-react';
 import { useSettingsStore, BUILT_IN_PRESETS } from '@stores/settingsStore';
 import type { ApiKeySettings, ThemeMode, FontSize, FontFamily } from '@stores/settingsStore';
@@ -62,10 +64,12 @@ import { WatermarkSettings } from '../execution/replay/WatermarkSettings';
 import { IntroCardSettings } from '../execution/replay/IntroCardSettings';
 import { OutroCardSettings } from '../execution/replay/OutroCardSettings';
 import { SessionProfilesTab } from './components/SessionProfilesTab';
+import { SubscriptionTab } from './components/subscription';
+import { SchedulesTab } from './components/schedules';
 
 const ReplayPlayer = lazy(() => import('../execution/ReplayPlayer'));
 
-type SettingsTab = 'display' | 'replay' | 'branding' | 'workflow' | 'apikeys' | 'data' | 'sessions';
+type SettingsTab = 'display' | 'replay' | 'branding' | 'workflow' | 'apikeys' | 'data' | 'sessions' | 'subscription' | 'schedules';
 
 const SPEED_PROFILE_OPTIONS: Array<{ id: CursorSpeedProfile; label: string; description: string }> = [
   { id: 'linear', label: 'Linear', description: 'Consistent motion between frames' },
@@ -295,11 +299,13 @@ function OptionGrid<T extends string>({ options, value, onChange, columns = 3 }:
 // Tabs configuration
 const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNode; description: string }> = [
   { id: 'display', label: 'Display', icon: <Monitor size={18} />, description: 'Appearance and accessibility' },
+  { id: 'subscription', label: 'Subscription', icon: <CreditCard size={18} />, description: 'Manage your subscription' },
   { id: 'replay', label: 'Replay', icon: <Film size={18} />, description: 'Customize replay appearance' },
   { id: 'branding', label: 'Branding', icon: <ImageIcon size={18} />, description: 'Logos and backgrounds' },
   { id: 'workflow', label: 'Workflow Defaults', icon: <Wrench size={18} />, description: 'Default workflow settings' },
   { id: 'apikeys', label: 'API Keys', icon: <Key size={18} />, description: 'Manage API integrations' },
   { id: 'sessions', label: 'Sessions', icon: <Clock size={18} />, description: 'Persist Playwright sessions' },
+  { id: 'schedules', label: 'Schedules', icon: <CalendarClock size={18} />, description: 'Automate workflow runs' },
   { id: 'data', label: 'Data', icon: <Database size={18} />, description: 'Manage and clear data' },
 ];
 
@@ -1781,11 +1787,13 @@ function SettingsPage({ onBack }: SettingsPageProps) {
         {/* Settings Panel - constrain width only when preview is shown (Replay tab) */}
         <div className={`flex-1 overflow-y-auto p-4 sm:p-6 ${activeTab === 'replay' ? 'lg:max-w-2xl' : 'max-w-5xl w-full mx-auto'}`}>
           {activeTab === 'display' && renderDisplaySettings()}
+          {activeTab === 'subscription' && <SubscriptionTab />}
           {activeTab === 'replay' && renderReplaySettings()}
           {activeTab === 'branding' && <BrandingTab />}
           {activeTab === 'workflow' && renderWorkflowSettings()}
           {activeTab === 'apikeys' && renderApiKeysSettings()}
           {activeTab === 'sessions' && <SessionProfilesTab />}
+          {activeTab === 'schedules' && <SchedulesTab />}
           {activeTab === 'data' && renderDataManagementSettings()}
         </div>
 

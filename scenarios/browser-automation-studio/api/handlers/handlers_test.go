@@ -192,6 +192,43 @@ func (m *mockRepository) GetResumableExecution(ctx context.Context, id uuid.UUID
 	return nil, -1, nil
 }
 
+// Settings operations
+func (m *mockRepository) GetSetting(ctx context.Context, key string) (string, error) {
+	return "", nil
+}
+func (m *mockRepository) SetSetting(ctx context.Context, key, value string) error {
+	return nil
+}
+func (m *mockRepository) DeleteSetting(ctx context.Context, key string) error {
+	return nil
+}
+
+// Schedule operations
+func (m *mockRepository) CreateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *mockRepository) GetSchedule(ctx context.Context, id uuid.UUID) (*database.WorkflowSchedule, error) {
+	return nil, database.ErrNotFound
+}
+func (m *mockRepository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *mockRepository) UpdateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *mockRepository) DeleteSchedule(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *mockRepository) GetActiveSchedules(ctx context.Context) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *mockRepository) UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error {
+	return nil
+}
+func (m *mockRepository) UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error {
+	return nil
+}
+
 // Ensure mockRepository implements the interface at compile time
 var _ database.Repository = (*mockRepository)(nil)
 

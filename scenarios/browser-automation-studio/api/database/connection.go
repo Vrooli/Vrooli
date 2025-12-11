@@ -167,6 +167,12 @@ func (db *DB) Dialect() Dialect {
 	return db.dialect
 }
 
+// RawDB returns the underlying *sql.DB for direct database access.
+// Used by services that need raw SQL execution (e.g., entitlement usage tracking).
+func (db *DB) RawDB() *sql.DB {
+	return db.DB.DB
+}
+
 // Close closes the database connection
 func (db *DB) Close() error {
 	return db.DB.Close()

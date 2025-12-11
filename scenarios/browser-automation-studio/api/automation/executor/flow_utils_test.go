@@ -129,7 +129,7 @@ func TestFlowStateNilSafety(t *testing.T) {
 	if _, ok := nilState.resolve("key"); ok {
 		t.Error("nil state resolve should return false")
 	}
-	nilState.set("key", "value")                    // should not panic
+	nilState.set("key", "value")                   // should not panic
 	nilState.merge(map[string]any{"key": "value"}) // should not panic
 	nilState.markEntryChecked()                    // should not panic
 	if nilState.hasCheckedEntry() {

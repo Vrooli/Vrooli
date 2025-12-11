@@ -217,6 +217,12 @@ func (h *Handler) isOriginAllowed(r *http.Request) bool {
 	return false
 }
 
+// GetExecutionService returns the workflow execution service for use by other components
+// such as the scheduler service.
+func (h *Handler) GetExecutionService() workflow.ExecutionService {
+	return h.executionService
+}
+
 func newWorkflowResponse(workflow *database.Workflow) workflowResponse {
 	nodes, edges := normalizeWorkflowFlowDefinition(workflow)
 	if workflow == nil {

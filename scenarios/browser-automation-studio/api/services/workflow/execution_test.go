@@ -332,12 +332,12 @@ func TestExecuteWithAutomationEngine_UsesInjectedCompilerAndEngine(t *testing.T)
 // It only implements the methods required by ResumeExecution.
 type resumeRepositoryStub struct {
 	database.Repository
-	execution       *database.Execution
-	workflow        *database.Workflow
-	lastStepIndex   int
-	completedSteps  []*database.ExecutionStep
+	execution        *database.Execution
+	workflow         *database.Workflow
+	lastStepIndex    int
+	completedSteps   []*database.ExecutionStep
 	createdExecution *database.Execution
-	getError        error
+	getError         error
 }
 
 func (r *resumeRepositoryStub) GetResumableExecution(ctx context.Context, id uuid.UUID) (*database.Execution, int, error) {
@@ -384,10 +384,10 @@ func TestResumeExecution_CreatesCorrectTriggerMetadata(t *testing.T) {
 
 	repo := &resumeRepositoryStub{
 		execution: &database.Execution{
-			ID:          execID,
-			WorkflowID:  wfID,
-			Status:      "interrupted",
-			Progress:    50,
+			ID:         execID,
+			WorkflowID: wfID,
+			Status:     "interrupted",
+			Progress:   50,
 		},
 		workflow: &database.Workflow{
 			ID:      wfID,
@@ -485,9 +485,9 @@ func TestResumeExecution_FailsWhenWorkflowNotFound(t *testing.T) {
 
 	repo := &resumeRepositoryStub{
 		execution: &database.Execution{
-			ID:          execID,
-			WorkflowID:  wfID,
-			Status:      "interrupted",
+			ID:         execID,
+			WorkflowID: wfID,
+			Status:     "interrupted",
 		},
 		workflow:      nil, // Workflow not found
 		lastStepIndex: 1,

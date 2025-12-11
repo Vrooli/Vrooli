@@ -182,10 +182,10 @@ func buildHealthMetrics() map[string]any {
 	uptime := time.Since(startTime)
 
 	return map[string]any{
-		"goroutines":      runtime.NumGoroutine(),
-		"uptime_seconds":  int64(uptime.Seconds()),
-		"heap_alloc_mb":   float64(memStats.HeapAlloc) / (1024 * 1024),
-		"heap_inuse_mb":   float64(memStats.HeapInuse) / (1024 * 1024),
+		"goroutines":        runtime.NumGoroutine(),
+		"uptime_seconds":    int64(uptime.Seconds()),
+		"heap_alloc_mb":     float64(memStats.HeapAlloc) / (1024 * 1024),
+		"heap_inuse_mb":     float64(memStats.HeapInuse) / (1024 * 1024),
 		"gc_pause_total_ms": float64(memStats.PauseTotalNs) / 1e6,
 	}
 }

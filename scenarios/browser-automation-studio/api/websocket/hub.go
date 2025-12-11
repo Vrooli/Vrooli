@@ -142,8 +142,8 @@ func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 // RecordingFrame represents a frame pushed from the playwright-driver.
 type RecordingFrame struct {
 	SessionID   string `json:"session_id"`
-	Mime        string `json:"mime"`         // "image/webp" or "image/jpeg"
-	Image       string `json:"image"`        // base64 data URI
+	Mime        string `json:"mime"`  // "image/webp" or "image/jpeg"
+	Image       string `json:"image"` // base64 data URI
 	Width       int    `json:"width"`
 	Height      int    `json:"height"`
 	CapturedAt  string `json:"captured_at"`

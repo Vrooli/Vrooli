@@ -13,10 +13,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
 	"github.com/vrooli/browser-automation-studio/middleware"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/recovery"
+	"github.com/vrooli/browser-automation-studio/services/scheduler"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -105,6 +108,26 @@ func main() {
 	hub := wsHub.NewHub(log)
 	go hub.Run()
 
+	// Load configuration
+	cfg := config.Load()
+
+	// Initialize entitlement services
+	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
+	usageTracker := entitlement.NewUsageTracker(db.RawDB(), log)
+	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, usageTracker, repo)
+	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement)
+
+	if cfg.Entitlement.Enabled {
+		log.WithFields(logrus.Fields{
+			"service_url":     cfg.Entitlement.ServiceURL,
+			"cache_ttl":       cfg.Entitlement.CacheTTL,
+			"default_tier":    cfg.Entitlement.DefaultTier,
+			"watermark_tiers": cfg.Entitlement.WatermarkTiers,
+		}).Info("✅ Entitlement system enabled")
+	} else {
+		log.Info("⚠️  Entitlement system disabled - all features available without restrictions")
+	}
+
 	// Resolve allowed origins before constructing handlers
 	corsCfg := middleware.GetCachedCorsConfig()
 
@@ -154,9 +177,12 @@ func main() {
 	// CORS middleware - secure by default, configurable via environment
 	r.Use(middleware.CorsMiddleware(log))
 
+	// Entitlement middleware - injects user identity and entitlement into context
+	r.Use(entitlementMiddleware.InjectEntitlement)
+
 	// Routes
 	r.Get("/health", handler.Health)
-	r.Get("/ws", handler.HandleWebSocket)                                     // WebSocket endpoint for browser clients
+	r.Get("/ws", handler.HandleWebSocket)                                      // WebSocket endpoint for browser clients
 	r.Get("/ws/recording/{sessionId}/frames", handler.HandleDriverFrameStream) // WebSocket for playwright-driver binary frame streaming
 
 	r.Route("/api/v1", func(r chi.Router) {
@@ -242,7 +268,7 @@ func main() {
 		r.Get("/recordings/live/{sessionId}/status", handler.GetRecordingStatus)
 		r.Get("/recordings/live/{sessionId}/actions", handler.GetRecordedActions)
 		r.Post("/recordings/live/{sessionId}/action", handler.ReceiveRecordingAction) // Callback for driver action streaming
-		r.Post("/recordings/live/{sessionId}/frame", handler.ReceiveRecordingFrame)  // Callback for driver frame streaming
+		r.Post("/recordings/live/{sessionId}/frame", handler.ReceiveRecordingFrame)   // Callback for driver frame streaming
 		r.Post("/recordings/live/{sessionId}/navigate", handler.NavigateRecordingSession)
 		r.Post("/recordings/live/{sessionId}/viewport", handler.UpdateRecordingViewport)
 		r.Post("/recordings/live/{sessionId}/input", handler.ForwardRecordingInput)
@@ -256,7 +282,42 @@ func main() {
 
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
+
+		// Entitlement routes for subscription management
+		r.Get("/entitlement/status", entitlementHandler.GetEntitlementStatus)
+		r.Get("/entitlement/identity", entitlementHandler.GetUserIdentity)
+		r.Post("/entitlement/identity", entitlementHandler.SetUserIdentity)
+		r.Delete("/entitlement/identity", entitlementHandler.ClearUserIdentity)
+		r.Get("/entitlement/usage", entitlementHandler.GetUsageSummary)
+		r.Post("/entitlement/refresh", entitlementHandler.RefreshEntitlement)
+
+		// Schedule management routes
+		r.Post("/workflows/{workflowID}/schedules", handler.CreateSchedule)
+		r.Get("/workflows/{workflowID}/schedules", handler.ListWorkflowSchedules)
+		r.Get("/schedules", handler.ListAllSchedules)
+		r.Get("/schedules/{scheduleID}", handler.GetSchedule)
+		r.Patch("/schedules/{scheduleID}", handler.UpdateSchedule)
+		r.Delete("/schedules/{scheduleID}", handler.DeleteSchedule)
+		r.Post("/schedules/{scheduleID}/trigger", handler.TriggerSchedule)
+		r.Post("/schedules/{scheduleID}/toggle", handler.ToggleSchedule)
 	})
+
+	// Initialize and start the workflow scheduler
+	// The scheduler loads active schedules from the database and triggers workflow executions
+	// at the configured cron times
+	scheduleNotifier := scheduler.NewWSNotifier(hub, log)
+	schedulerSvc := scheduler.New(repo, handler.GetExecutionService(), scheduleNotifier, log)
+	if err := schedulerSvc.Start(); err != nil {
+		log.WithError(err).Warn("⚠️  Scheduler failed to start - scheduled workflows will not run")
+	} else {
+		log.WithField("scheduled_count", schedulerSvc.RegisteredCount()).Info("✅ Scheduler service started")
+		// Ensure scheduler stops gracefully on shutdown
+		defer func() {
+			if err := schedulerSvc.Stop(); err != nil {
+				log.WithError(err).Error("Failed to stop scheduler cleanly")
+			}
+		}()
+	}
 
 	// Get API host for logging
 	apiHost := os.Getenv("API_HOST")

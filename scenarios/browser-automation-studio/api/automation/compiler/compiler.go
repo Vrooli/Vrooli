@@ -886,9 +886,9 @@ func loadSelectorManifest() error {
 		// Try multiple paths to find the manifest, depending on working directory
 		// (working directory could be scenario root or api/ subdirectory)
 		manifestPaths := []string{
-			"ui/src/consts/selectors.manifest.json",      // When running from scenario root (legacy)
-			"ui/src/constants/selectors.manifest.json",   // When running from scenario root (current)
-			"../ui/src/consts/selectors.manifest.json",   // When running from api/ subdirectory
+			"ui/src/consts/selectors.manifest.json",       // When running from scenario root (legacy)
+			"ui/src/constants/selectors.manifest.json",    // When running from scenario root (current)
+			"../ui/src/consts/selectors.manifest.json",    // When running from api/ subdirectory
 			"../ui/src/constants/selectors.manifest.json", // When running from api/ subdirectory
 		}
 

@@ -8,3 +8,8 @@
 
 // Re-export UI components for convenience
 export * from '../ui';
+
+// Shared components
+export { default as SubscriptionBadge } from './SubscriptionBadge';
+export { default as FeatureGateModal } from './FeatureGateModal';
+export type { GatedFeature } from './FeatureGateModal';

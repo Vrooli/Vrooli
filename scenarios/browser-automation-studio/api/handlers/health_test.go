@@ -193,6 +193,43 @@ func (m *healthMockRepository) GetResumableExecution(ctx context.Context, id uui
 	return nil, -1, nil
 }
 
+// Settings operations
+func (m *healthMockRepository) GetSetting(ctx context.Context, key string) (string, error) {
+	return "", nil
+}
+func (m *healthMockRepository) SetSetting(ctx context.Context, key, value string) error {
+	return nil
+}
+func (m *healthMockRepository) DeleteSetting(ctx context.Context, key string) error {
+	return nil
+}
+
+// Schedule operations
+func (m *healthMockRepository) CreateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *healthMockRepository) GetSchedule(ctx context.Context, id uuid.UUID) (*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) UpdateSchedule(ctx context.Context, schedule *database.WorkflowSchedule) error {
+	return nil
+}
+func (m *healthMockRepository) DeleteSchedule(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+func (m *healthMockRepository) GetActiveSchedules(ctx context.Context) ([]*database.WorkflowSchedule, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error {
+	return nil
+}
+func (m *healthMockRepository) UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error {
+	return nil
+}
+
 func TestHealth(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(io.Discard)

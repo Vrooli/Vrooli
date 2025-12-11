@@ -33,6 +33,9 @@ var (
 	ErrInvalidWorkflowID        = apierror.ErrInvalidWorkflowID
 	ErrInvalidProjectID         = apierror.ErrInvalidProjectID
 	ErrInvalidExecutionID       = apierror.ErrInvalidExecutionID
+	ErrInvalidScheduleID        = apierror.ErrInvalidScheduleID
+	ErrInvalidCronExpression    = apierror.ErrInvalidCronExpression
+	ErrInvalidTimezone          = apierror.ErrInvalidTimezone
 	ErrMissingRequiredField     = apierror.ErrMissingRequiredField
 	ErrInvalidWorkflowPayload   = apierror.ErrInvalidWorkflowPayload
 	ErrWorkflowValidationFailed = apierror.ErrWorkflowValidationFailed
@@ -45,6 +48,7 @@ var (
 	ErrWorkflowVersionNotFound = apierror.ErrWorkflowVersionNotFound
 	ErrExecutionNotFound       = apierror.ErrExecutionNotFound
 	ErrScreenshotNotFound      = apierror.ErrScreenshotNotFound
+	ErrScheduleNotFound        = apierror.ErrScheduleNotFound
 )
 
 // 409 Conflict errors

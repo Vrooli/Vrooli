@@ -35,6 +35,7 @@ import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
 import { useScenarioStore } from "@stores/scenarioStore";
 import { useDashboardStore, type RecentWorkflow } from "@stores/dashboardStore";
 import { useMediaQuery } from "@hooks/useMediaQuery";
+import { useEntitlementInit } from "@hooks/useEntitlement";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import { selectors } from "@constants/selectors";
@@ -138,6 +139,9 @@ function App() {
   useEffect(() => {
     void fetchScenarios();
   }, [fetchScenarios]);
+
+  // Initialize entitlement state on app mount
+  useEntitlementInit();
 
   const isExecutionViewerOpen = Boolean(viewerWorkflowId);
   const activeExecutionWorkflowId =

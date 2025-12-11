@@ -59,10 +59,10 @@ func TestCoerceToInt(t *testing.T) {
 
 func TestCoerceToFloat(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     any
-		expected  float64
-		expectOK  bool
+		name     string
+		input    any
+		expected float64
+		expectOK bool
 	}{
 		// Float types
 		{"float64", float64(3.14159), 3.14159, true},

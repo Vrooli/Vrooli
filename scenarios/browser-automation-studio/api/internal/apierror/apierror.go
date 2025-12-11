@@ -80,6 +80,24 @@ var (
 		Message: "Invalid execution ID format",
 	}
 
+	ErrInvalidScheduleID = &APIError{
+		Status:  http.StatusBadRequest,
+		Code:    "INVALID_SCHEDULE_ID",
+		Message: "Invalid schedule ID format",
+	}
+
+	ErrInvalidCronExpression = &APIError{
+		Status:  http.StatusBadRequest,
+		Code:    "INVALID_CRON_EXPRESSION",
+		Message: "Invalid cron expression",
+	}
+
+	ErrInvalidTimezone = &APIError{
+		Status:  http.StatusBadRequest,
+		Code:    "INVALID_TIMEZONE",
+		Message: "Invalid timezone",
+	}
+
 	ErrMissingRequiredField = &APIError{
 		Status:  http.StatusBadRequest,
 		Code:    "MISSING_REQUIRED_FIELD",
@@ -129,6 +147,12 @@ var (
 		Status:  http.StatusNotFound,
 		Code:    "SCREENSHOT_NOT_FOUND",
 		Message: "Screenshot not found",
+	}
+
+	ErrScheduleNotFound = &APIError{
+		Status:  http.StatusNotFound,
+		Code:    "SCHEDULE_NOT_FOUND",
+		Message: "Schedule not found",
 	}
 )
 

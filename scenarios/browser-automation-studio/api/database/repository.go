@@ -80,6 +80,21 @@ type Repository interface {
 	UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error
 	GetCompletedSteps(ctx context.Context, executionID uuid.UUID) ([]*ExecutionStep, error)
 	GetResumableExecution(ctx context.Context, id uuid.UUID) (*Execution, int, error)
+
+	// Settings operations for user preferences and entitlement identity
+	GetSetting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
+	DeleteSetting(ctx context.Context, key string) error
+
+	// Schedule operations for workflow scheduling
+	CreateSchedule(ctx context.Context, schedule *WorkflowSchedule) error
+	GetSchedule(ctx context.Context, id uuid.UUID) (*WorkflowSchedule, error)
+	ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*WorkflowSchedule, error)
+	UpdateSchedule(ctx context.Context, schedule *WorkflowSchedule) error
+	DeleteSchedule(ctx context.Context, id uuid.UUID) error
+	GetActiveSchedules(ctx context.Context) ([]*WorkflowSchedule, error)
+	UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error
+	UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error
 }
 
 // repository implements the Repository interface

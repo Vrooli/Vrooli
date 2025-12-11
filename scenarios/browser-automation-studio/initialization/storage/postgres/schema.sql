@@ -283,6 +283,33 @@ INSERT INTO workflow_folders (path, name, description) VALUES
     ('/monitoring', 'Monitoring', 'Website and application monitoring workflows')
 ON CONFLICT (path) DO NOTHING;
 
+-- Entitlement usage tracking table
+-- Tracks workflow execution counts per user per billing month for tier limit enforcement
+CREATE TABLE IF NOT EXISTS entitlement_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_month VARCHAR(7) NOT NULL,  -- Format: YYYY-MM
+    execution_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_user_month UNIQUE (user_identity, billing_month)
+);
+
+-- Create indexes for entitlement usage lookups
+CREATE INDEX idx_entitlement_usage_user ON entitlement_usage(user_identity);
+CREATE INDEX idx_entitlement_usage_month ON entitlement_usage(billing_month);
+
+-- User identity storage table
+-- Stores the user's email for entitlement verification
+-- This is persisted locally so the user doesn't have to re-enter it
+CREATE TABLE IF NOT EXISTS user_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key VARCHAR(255) NOT NULL UNIQUE,
+    value TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert sample workflow templates
 INSERT INTO workflow_templates (name, category, description, flow_definition, icon, tags) VALUES
     ('Basic Navigation', 'getting-started', 'Simple navigation and screenshot workflow', 

@@ -24,6 +24,7 @@ import toast from "react-hot-toast";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import ResponsiveDialog from "./ResponsiveDialog";
 import { selectors } from "@constants/selectors";
+import { SubscriptionBadge } from "@shared/components";
 
 type HeaderWorkflow = Pick<
   Workflow,
@@ -48,6 +49,7 @@ interface HeaderProps {
   currentWorkflow?: HeaderWorkflow | null;
   showBackToProject?: boolean;
   onOpenHelp?: () => void;
+  onOpenSettings?: () => void;
 }
 
 function Header({
@@ -57,6 +59,7 @@ function Header({
   currentWorkflow: selectedWorkflow,
   showBackToProject,
   onOpenHelp,
+  onOpenSettings,
 }: HeaderProps) {
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
   const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
@@ -857,6 +860,7 @@ function Header({
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <SubscriptionBadge onClick={onOpenSettings} />
             {onOpenHelp && (
               <button
                 onClick={onOpenHelp}
