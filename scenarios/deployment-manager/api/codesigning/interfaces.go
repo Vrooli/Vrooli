@@ -76,6 +76,9 @@ type Repository interface {
 
 	// SaveForPlatform updates only a specific platform's config.
 	SaveForPlatform(ctx context.Context, profileID string, platform string, config interface{}) error
+
+	// DeleteForPlatform removes the signing config for a specific platform.
+	DeleteForPlatform(ctx context.Context, profileID string, platform string) error
 }
 
 // Validator validates signing configurations structurally.

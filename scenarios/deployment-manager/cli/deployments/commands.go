@@ -472,17 +472,19 @@ func (c *Commands) DeployDesktop(args []string) error {
 	deploymentMode := fs.String("mode", "bundled", "deployment mode: bundled (offline), external-server (thin client), cloud-api")
 	dryRun := fs.Bool("dry-run", false, "show what would be done without doing it")
 	format := fs.String("format", "", "output format (json)")
+	signingConfig := fs.String("signing-config", "", "path to JSON file with signing configuration (applies to scenario-to-desktop)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Orchestrate complete bundled desktop deployment.
 
 This command runs the full desktop deployment workflow:
   1. Load and validate the deployment profile
-  2. Assemble bundle manifest with profile swaps applied
-  3. Export manifest to bundle directory
-  4. Cross-compile service binaries for all platforms
-  5. Generate Electron wrapper via scenario-to-desktop
-  6. Build platform installers (MSI/PKG/AppImage)
-  7. Return installer paths and next steps
+  2. Apply signing configuration (if provided)
+  3. Assemble bundle manifest with profile swaps applied
+  4. Export manifest to bundle directory
+  5. Cross-compile service binaries for all platforms
+  6. Generate Electron wrapper via scenario-to-desktop
+  7. Build platform installers (MSI/PKG/AppImage)
+  8. Return installer paths and next steps
 
 Usage:
   deployment-manager deploy-desktop --profile <profile-id> [flags]
@@ -496,12 +498,20 @@ Deployment Modes:
   external-server  Thin client connecting to running Vrooli server
   cloud-api        Cloud-hosted API backend
 
+Signing Configuration:
+  Use --signing-config to provide a JSON file with signing settings.
+  The config is applied to scenario-to-desktop before building.
+  See 'scenario-to-desktop signing help' for config format.
+
 Examples:
   # Full end-to-end deployment (assembles manifest, builds binaries, generates Electron, builds installers)
   deployment-manager deploy-desktop --profile my-desktop-profile
 
   # Bundled offline app for specific platforms
   deployment-manager deploy-desktop --profile my-profile --platforms win,mac
+
+  # With signing configuration for signed installers
+  deployment-manager deploy-desktop --profile my-profile --signing-config ./signing.json
 
   # Thin client mode (UI only, connects to server)
   deployment-manager deploy-desktop --profile my-profile --mode external-server
@@ -552,6 +562,19 @@ Examples:
 			platformList[i] = strings.TrimSpace(p)
 		}
 		payload["platforms"] = platformList
+	}
+
+	// Load and include signing config if provided
+	if *signingConfig != "" {
+		signingData, err := os.ReadFile(*signingConfig)
+		if err != nil {
+			return fmt.Errorf("failed to read signing config file: %w", err)
+		}
+		var signingPayload map[string]interface{}
+		if err := json.Unmarshal(signingData, &signingPayload); err != nil {
+			return fmt.Errorf("failed to parse signing config JSON: %w", err)
+		}
+		payload["signing_config"] = signingPayload
 	}
 
 	body, err := c.api.Request("POST", "/api/v1/deploy-desktop", nil, payload)

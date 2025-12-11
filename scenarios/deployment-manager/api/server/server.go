@@ -52,7 +52,7 @@ type Server struct {
 
 	// Repositories
 	ProfilesRepo profiles.Repository
-	SigningRepo  *codesigning.SQLRepository
+	SigningRepo  codesigning.Repository // Interface to allow SQL or Proxy implementation
 }
 
 // New initializes configuration, database, and routes.
@@ -78,12 +78,23 @@ func New() (*Server, error) {
 
 	// Create repositories
 	profilesRepo := profiles.NewSQLRepository(db)
-	signingRepo := codesigning.NewSQLRepository(db)
 
-	// Ensure signing schema is up to date
-	if err := signingRepo.EnsureSchema(context.Background()); err != nil {
-		LogStructured("warning: failed to ensure signing schema", map[string]interface{}{"error": err.Error()})
-		// Non-fatal - signing endpoints will fail gracefully
+	// Determine signing repository based on configuration
+	// SIGNING_PROXY_ENABLED=true routes signing to scenario-to-desktop service
+	var signingRepo codesigning.Repository
+	if os.Getenv("SIGNING_PROXY_ENABLED") == "true" {
+		LogStructured("using proxy signing repository", map[string]interface{}{
+			"target": os.Getenv("SCENARIO_TO_DESKTOP_URL"),
+		})
+		signingRepo = codesigning.NewProxyRepository(profilesRepo)
+	} else {
+		sqlSigningRepo := codesigning.NewSQLRepository(db)
+		// Ensure signing schema is up to date (SQL mode only)
+		if err := sqlSigningRepo.EnsureSchema(context.Background()); err != nil {
+			LogStructured("warning: failed to ensure signing schema", map[string]interface{}{"error": err.Error()})
+			// Non-fatal - signing endpoints will fail gracefully
+		}
+		signingRepo = sqlSigningRepo
 	}
 
 	// Create domain handlers

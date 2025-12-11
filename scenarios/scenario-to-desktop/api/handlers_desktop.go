@@ -812,7 +812,14 @@ func (s *Server) packageDesktopHandler(w http.ResponseWriter, r *http.Request) {
 		"manifest":         result.ManifestPath,
 		"runtime_binaries": result.RuntimeBinaries,
 		"artifacts":        result.CopiedArtifacts,
+		"total_size_bytes": result.TotalSizeBytes,
+		"total_size_human": result.TotalSizeHuman,
 		"timestamp":        time.Now(),
+	}
+
+	// Include size warning if present
+	if result.SizeWarning != nil {
+		response["size_warning"] = result.SizeWarning
 	}
 
 	w.Header().Set("Content-Type", "application/json")

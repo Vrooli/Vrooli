@@ -12,6 +12,15 @@ import (
 )
 
 // Handler handles code signing HTTP requests.
+//
+// DEPRECATION NOTICE: The signing endpoints in deployment-manager are deprecated.
+// Signing configuration should be managed via scenario-to-desktop's signing API:
+//   - GET/PUT/DELETE /api/v1/signing/{scenario}
+//   - PATCH/DELETE /api/v1/signing/{scenario}/{platform}
+//
+// To migrate:
+// 1. Use scenario-to-desktop's signing CLI or API directly
+// 2. Or set SIGNING_PROXY_ENABLED=true in deployment-manager to auto-proxy
 type Handler struct {
 	repo      Repository
 	validator Validator
@@ -31,9 +40,21 @@ func NewHandler(repo Repository, validator Validator, checker PrerequisiteChecke
 	}
 }
 
+// addDeprecationHeaders adds HTTP headers indicating API deprecation.
+// The Deprecation header follows RFC 8594.
+func (h *Handler) addDeprecationHeaders(w http.ResponseWriter) {
+	w.Header().Set("Deprecation", "true")
+	w.Header().Set("Sunset", "2026-06-01")
+	w.Header().Set("X-Deprecation-Notice", "Use scenario-to-desktop signing API instead. See: /api/v1/signing/{scenario}")
+}
+
 // GetSigning handles GET /api/v1/profiles/{id}/signing
 // Returns the full signing configuration for a profile.
+//
+// Deprecated: Use scenario-to-desktop's GET /api/v1/signing/{scenario} instead.
 func (h *Handler) GetSigning(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 
@@ -63,7 +84,11 @@ func (h *Handler) GetSigning(w http.ResponseWriter, r *http.Request) {
 
 // SetSigning handles PUT /api/v1/profiles/{id}/signing
 // Replaces the full signing configuration for a profile.
+//
+// Deprecated: Use scenario-to-desktop's PUT /api/v1/signing/{scenario} instead.
 func (h *Handler) SetSigning(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 
@@ -121,7 +146,11 @@ func (h *Handler) SetSigning(w http.ResponseWriter, r *http.Request) {
 
 // SetPlatformSigning handles PATCH /api/v1/profiles/{id}/signing/{platform}
 // Updates only a specific platform's signing configuration.
+//
+// Deprecated: Use scenario-to-desktop's PATCH /api/v1/signing/{scenario}/{platform} instead.
 func (h *Handler) SetPlatformSigning(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 	platform := vars["platform"]
@@ -195,7 +224,11 @@ func (h *Handler) SetPlatformSigning(w http.ResponseWriter, r *http.Request) {
 
 // DeleteSigning handles DELETE /api/v1/profiles/{id}/signing
 // Removes all signing configuration for a profile.
+//
+// Deprecated: Use scenario-to-desktop's DELETE /api/v1/signing/{scenario} instead.
 func (h *Handler) DeleteSigning(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 
@@ -227,7 +260,11 @@ func (h *Handler) DeleteSigning(w http.ResponseWriter, r *http.Request) {
 
 // DeletePlatformSigning handles DELETE /api/v1/profiles/{id}/signing/{platform}
 // Removes signing configuration for a specific platform only.
+//
+// Deprecated: Use scenario-to-desktop's DELETE /api/v1/signing/{scenario}/{platform} instead.
 func (h *Handler) DeletePlatformSigning(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 	platform := vars["platform"]
@@ -241,14 +278,7 @@ func (h *Handler) DeletePlatformSigning(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Get SQL repository to use DeleteForPlatform
-	sqlRepo, ok := h.repo.(*SQLRepository)
-	if !ok {
-		h.writeError(w, http.StatusInternalServerError, "platform deletion not supported")
-		return
-	}
-
-	if err := sqlRepo.DeleteForPlatform(r.Context(), profileID, platform); err != nil {
+	if err := h.repo.DeleteForPlatform(r.Context(), profileID, platform); err != nil {
 		if errors.Is(err, ErrProfileNotFound) {
 			h.writeError(w, http.StatusNotFound, "profile not found: "+profileID)
 			return
@@ -273,7 +303,11 @@ func (h *Handler) DeletePlatformSigning(w http.ResponseWriter, r *http.Request) 
 
 // ValidateSigning handles POST /api/v1/profiles/{id}/signing/validate
 // Validates signing prerequisites (tools, certificates) for a profile.
+//
+// Deprecated: Use scenario-to-desktop's POST /api/v1/signing/{scenario}/validate instead.
 func (h *Handler) ValidateSigning(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	vars := mux.Vars(r)
 	profileID := vars["id"]
 
@@ -325,7 +359,11 @@ func (h *Handler) ValidateSigning(w http.ResponseWriter, r *http.Request) {
 
 // CheckPrerequisites handles GET /api/v1/signing/prerequisites
 // Checks available signing tools on the current system (no profile needed).
+//
+// Deprecated: Use scenario-to-desktop's GET /api/v1/signing/prerequisites instead.
 func (h *Handler) CheckPrerequisites(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	ctx, cancel := context.WithTimeout(r.Context(), 30000000000) // 30 seconds
 	defer cancel()
 
@@ -349,7 +387,11 @@ type CertificateDiscoverer interface {
 
 // DiscoverCertificates handles GET /api/v1/signing/discover/{platform}
 // Discovers available certificates/identities for a specific platform.
+//
+// Deprecated: Use scenario-to-desktop's GET /api/v1/signing/discover/{platform} instead.
 func (h *Handler) DiscoverCertificates(w http.ResponseWriter, r *http.Request) {
+	h.addDeprecationHeaders(w)
+
 	vars := mux.Vars(r)
 	platform := vars["platform"]
 

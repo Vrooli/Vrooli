@@ -37,6 +37,9 @@ type DeployDesktopRequest struct {
 	DeploymentMode string `json:"deployment_mode,omitempty"`
 	// DryRun shows what would be done without doing it
 	DryRun bool `json:"dry_run,omitempty"`
+	// SigningConfig is the optional signing configuration to apply before building
+	// This is passed directly to scenario-to-desktop's signing API
+	SigningConfig map[string]interface{} `json:"signing_config,omitempty"`
 }
 
 // DeployDesktopResponse is the response from orchestrated deployment.
@@ -58,7 +61,7 @@ type DeployDesktopResponse struct {
 // OrchestrationStep represents a single step in the orchestration.
 type OrchestrationStep struct {
 	Name     string `json:"name"`
-	Status   string `json:"status"` // pending, running, success, failed, skipped
+	Status   string `json:"status"` // pending, running, success, failed, skipped, warning
 	Duration string `json:"duration,omitempty"`
 	Message  string `json:"message,omitempty"`
 	Error    string `json:"error,omitempty"`
@@ -146,6 +149,44 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		step.Message = "validation skipped by request"
 		response.Steps = append(response.Steps, step)
 	}
+
+	// Step 2.5a: Apply signing config if provided
+	if len(req.SigningConfig) > 0 {
+		step = o.startStep("Apply signing configuration")
+		if req.DryRun {
+			step.Status = "skipped"
+			step.Message = "dry run - would apply signing config"
+		} else {
+			if err := o.applySigningConfig(ctx, profile.Scenario, req.SigningConfig); err != nil {
+				step.Status = "warning"
+				step.Message = fmt.Sprintf("failed to apply signing config: %v", err)
+				o.log("warn", map[string]interface{}{
+					"msg":      "signing config application failed",
+					"scenario": profile.Scenario,
+					"error":    err.Error(),
+				})
+			} else {
+				o.successStep(&step, "signing configuration applied to scenario-to-desktop")
+			}
+		}
+		response.Steps = append(response.Steps, step)
+	}
+
+	// Step 2.5b: Check signing readiness (warning only, non-blocking)
+	step = o.startStep("Check signing readiness")
+	signingWarnings := o.checkSigningReadiness(ctx, profile.Scenario)
+	if len(signingWarnings) > 0 {
+		step.Status = "warning"
+		step.Message = strings.Join(signingWarnings, "; ")
+		o.log("warn", map[string]interface{}{
+			"msg":      "signing not fully configured",
+			"scenario": profile.Scenario,
+			"issues":   signingWarnings,
+		})
+	} else {
+		o.successStep(&step, "signing configuration ready")
+	}
+	response.Steps = append(response.Steps, step)
 
 	// Step 3: Fetch bundle skeleton and apply profile settings
 	step = o.startStep("Assemble manifest")
@@ -575,4 +616,64 @@ func updateManifestBinaryPaths(manifest *bundles.Manifest, results []build.Build
 		// This prevents scenario-to-desktop from trying to recompile
 		svc.Build = nil
 	}
+}
+
+// applySigningConfig applies the provided signing configuration to scenario-to-desktop.
+// This allows deploy-desktop to configure signing in a single command.
+func (o *Orchestrator) applySigningConfig(ctx context.Context, scenarioName string, config map[string]interface{}) error {
+	desktopClient, err := NewDesktopPackagerClient(o.log)
+	if err != nil {
+		return fmt.Errorf("scenario-to-desktop unavailable: %w", err)
+	}
+
+	return desktopClient.SetSigningConfig(ctx, scenarioName, config)
+}
+
+// checkSigningReadiness checks if signing is configured for the scenario.
+// Returns a list of warnings (empty if signing is ready or not applicable).
+// This is non-blocking - it only returns warnings, never errors that stop the build.
+func (o *Orchestrator) checkSigningReadiness(ctx context.Context, scenarioName string) []string {
+	var warnings []string
+
+	// Try to create a desktop client to check signing
+	desktopClient, err := NewDesktopPackagerClient(o.log)
+	if err != nil {
+		// scenario-to-desktop not available - can't check signing, but don't warn
+		// The actual packaging step will handle this
+		o.log("debug", map[string]interface{}{
+			"msg":   "could not check signing readiness - scenario-to-desktop unavailable",
+			"error": err.Error(),
+		})
+		return nil
+	}
+
+	// Check signing readiness
+	readiness, err := desktopClient.CheckSigningReadiness(ctx, scenarioName)
+	if err != nil {
+		// API error - log but don't warn user (might be network issue)
+		o.log("debug", map[string]interface{}{
+			"msg":      "signing readiness check failed",
+			"scenario": scenarioName,
+			"error":    err.Error(),
+		})
+		return nil
+	}
+
+	// If signing is not ready, collect warnings
+	if !readiness.Ready {
+		if len(readiness.Issues) > 0 {
+			warnings = append(warnings, readiness.Issues...)
+		} else {
+			warnings = append(warnings, "Code signing not configured - installers will be unsigned")
+		}
+
+		// Add platform-specific warnings
+		for platform, status := range readiness.Platforms {
+			if !status.Ready && status.Reason != "" {
+				warnings = append(warnings, fmt.Sprintf("%s: %s", platform, status.Reason))
+			}
+		}
+	}
+
+	return warnings
 }

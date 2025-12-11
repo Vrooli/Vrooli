@@ -33,6 +33,24 @@ deployment-manager analyzes dependencies, scores platform fitness, guides users 
 - CLI automation for CI/CD pipelines
 - Visual dependency graph editor, deployment templates library
 
+## Quick Start: Desktop Deployment
+
+Deploy any scenario as a standalone Windows/macOS/Linux desktop app:
+
+```bash
+# 1. Create a deployment profile for your scenario
+deployment-manager profile create my-profile my-scenario --tier 2
+
+# 2. Build everything (manifest, binaries, Electron wrapper, installers)
+deployment-manager deploy-desktop --profile my-profile
+
+# Output: installers in scenarios/<scenario>/platforms/electron/dist-electron/
+```
+
+For complete walkthrough, see **[Desktop Deployment Guide](docs/DESKTOP-DEPLOYMENT-GUIDE.md)** or the **[Hello Desktop Tutorial](docs/tutorials/hello-desktop-walkthrough.md)**.
+
+---
+
 ## Quick Start
 
 ```bash

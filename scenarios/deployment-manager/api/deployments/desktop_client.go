@@ -266,3 +266,99 @@ func (c *DesktopPackagerClient) IsAvailable(ctx context.Context) bool {
 
 	return resp.StatusCode == http.StatusOK
 }
+
+// SigningReadinessResponse is the response from the signing readiness check.
+type SigningReadinessResponse struct {
+	Ready     bool                      `json:"ready"`
+	Scenario  string                    `json:"scenario"`
+	Issues    []string                  `json:"issues,omitempty"`
+	Platforms map[string]PlatformStatus `json:"platforms,omitempty"`
+}
+
+// PlatformStatus represents the signing status for a single platform.
+type PlatformStatus struct {
+	Ready  bool   `json:"ready"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// CheckSigningReadiness checks if signing is configured and ready for a scenario.
+// This is a non-blocking check - returns the status without failing.
+func (c *DesktopPackagerClient) CheckSigningReadiness(ctx context.Context, scenarioName string) (*SigningReadinessResponse, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/signing/"+scenarioName+"/ready", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	// 404 means no signing config exists - that's fine, just not ready
+	if resp.StatusCode == http.StatusNotFound {
+		return &SigningReadinessResponse{
+			Ready:    false,
+			Scenario: scenarioName,
+			Issues:   []string{"No signing configuration exists for this scenario"},
+		}, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("signing API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result SigningReadinessResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// SetSigningConfig sets the signing configuration for a scenario via scenario-to-desktop.
+// The config is a map containing platform-specific signing settings.
+func (c *DesktopPackagerClient) SetSigningConfig(ctx context.Context, scenarioName string, config map[string]interface{}) error {
+	c.log("info", map[string]interface{}{
+		"msg":      "applying signing configuration",
+		"scenario": scenarioName,
+	})
+
+	body, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "PUT", c.baseURL+"/api/v1/signing/"+scenarioName, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("signing API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	c.log("info", map[string]interface{}{
+		"msg":      "signing configuration applied successfully",
+		"scenario": scenarioName,
+	})
+
+	return nil
+}

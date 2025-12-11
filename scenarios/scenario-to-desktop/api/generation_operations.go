@@ -110,6 +110,14 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 					status.Metadata["bundle_dir"] = pkgResult.BundleDir
 					status.Metadata["bundle_manifest"] = pkgResult.ManifestPath
 					status.Metadata["runtime_binaries"] = pkgResult.RuntimeBinaries
+					status.Metadata["total_size_bytes"] = pkgResult.TotalSizeBytes
+					status.Metadata["total_size_human"] = pkgResult.TotalSizeHuman
+					if pkgResult.SizeWarning != nil {
+						status.Metadata["size_warning"] = pkgResult.SizeWarning
+						// Log size warnings
+						status.BuildLog = append(status.BuildLog,
+							fmt.Sprintf("[%s] %s", pkgResult.SizeWarning.Level, pkgResult.SizeWarning.Message))
+					}
 				}
 			}
 		}

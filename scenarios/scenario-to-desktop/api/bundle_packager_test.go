@@ -326,3 +326,92 @@ func TestCollectPlatformsDedupesAndSorts(t *testing.T) {
 		}
 	}
 }
+
+func TestHumanReadableSize(t *testing.T) {
+	tests := []struct {
+		bytes int64
+		want  string
+	}{
+		{0, "0 B"},
+		{500, "500 B"},
+		{1024, "1.0 KB"},
+		{1536, "1.5 KB"},
+		{1048576, "1.0 MB"},
+		{1073741824, "1.0 GB"},
+		{536870912, "512.0 MB"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d bytes", tt.bytes), func(t *testing.T) {
+			got := humanReadableSize(tt.bytes)
+			if got != tt.want {
+				t.Errorf("humanReadableSize(%d) = %s, want %s", tt.bytes, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCalculateBundleSize(t *testing.T) {
+	root := t.TempDir()
+
+	// Create files of various sizes
+	smallFile := filepath.Join(root, "small.txt")
+	if err := os.WriteFile(smallFile, make([]byte, 1000), 0o644); err != nil {
+		t.Fatalf("write small file: %v", err)
+	}
+
+	// Create a file over 10MB threshold
+	largeFile := filepath.Join(root, "large.bin")
+	if err := os.WriteFile(largeFile, make([]byte, 11*1024*1024), 0o644); err != nil {
+		t.Fatalf("write large file: %v", err)
+	}
+
+	totalSize, largeFiles := calculateBundleSize(root)
+
+	// Check total size is at least the sum of our files
+	expectedMin := int64(1000 + 11*1024*1024)
+	if totalSize < expectedMin {
+		t.Errorf("totalSize = %d, want at least %d", totalSize, expectedMin)
+	}
+
+	// Check large file was detected
+	if len(largeFiles) != 1 {
+		t.Errorf("expected 1 large file, got %d", len(largeFiles))
+	}
+	if len(largeFiles) > 0 && largeFiles[0].Path != "large.bin" {
+		t.Errorf("expected large file path 'large.bin', got %s", largeFiles[0].Path)
+	}
+}
+
+func TestCheckBundleSizeWarning(t *testing.T) {
+	tests := []struct {
+		name      string
+		size      int64
+		wantNil   bool
+		wantLevel string
+	}{
+		{"small bundle", 100 * 1024 * 1024, true, ""},                       // 100MB - no warning
+		{"warning threshold", 600 * 1024 * 1024, false, "warning"},          // 600MB - warning
+		{"critical threshold", 1200 * 1024 * 1024, false, "critical"},       // 1.2GB - critical
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warning := checkBundleSizeWarning(tt.size, nil)
+
+			if tt.wantNil {
+				if warning != nil {
+					t.Errorf("expected nil warning, got %+v", warning)
+				}
+				return
+			}
+
+			if warning == nil {
+				t.Fatalf("expected warning, got nil")
+			}
+			if warning.Level != tt.wantLevel {
+				t.Errorf("warning.Level = %s, want %s", warning.Level, tt.wantLevel)
+			}
+		})
+	}
+}
