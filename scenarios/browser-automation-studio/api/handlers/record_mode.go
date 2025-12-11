@@ -90,7 +90,7 @@ type CreateRecordingSessionRequest struct {
 	// Stream quality settings (optional)
 	// Quality: JPEG quality 0-100 (default 55)
 	StreamQuality *int `json:"stream_quality,omitempty"`
-	// FPS: Frames per second 1-30 (default 6)
+	// FPS: Frames per second 1-60 (default 6)
 	StreamFPS *int `json:"stream_fps,omitempty"`
 	// Scale: "css" for 1x scale, "device" for device pixel ratio (default "css")
 	StreamScale string `json:"stream_scale,omitempty"`
@@ -240,6 +240,8 @@ type RecordingFrameResponse struct {
 	Height      int    `json:"height"`
 	CapturedAt  string `json:"captured_at"`
 	ContentHash string `json:"content_hash"` // MD5 hash of raw frame buffer for reliable ETag
+	PageTitle   string `json:"page_title,omitempty"` // Current page title (document.title)
+	PageURL     string `json:"page_url,omitempty"`   // Current page URL
 }
 
 // RecordingViewportRequest updates viewport dimensions.
@@ -252,7 +254,7 @@ type RecordingViewportRequest struct {
 type UpdateStreamSettingsRequest struct {
 	// Quality: JPEG quality 1-100
 	Quality *int `json:"quality,omitempty"`
-	// FPS: Target frames per second 1-30
+	// FPS: Target frames per second 1-60
 	FPS *int `json:"fps,omitempty"`
 	// Scale: "css" for 1x, "device" for devicePixelRatio (cannot change mid-session)
 	Scale string `json:"scale,omitempty"`
@@ -351,7 +353,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		streamQuality = *req.StreamQuality
 	}
 	streamFPS := 6 // default
-	if req.StreamFPS != nil && *req.StreamFPS >= 1 && *req.StreamFPS <= 30 {
+	if req.StreamFPS != nil && *req.StreamFPS >= 1 && *req.StreamFPS <= 60 {
 		streamFPS = *req.StreamFPS
 	}
 	streamScale := "css" // default - 1x scale for efficiency

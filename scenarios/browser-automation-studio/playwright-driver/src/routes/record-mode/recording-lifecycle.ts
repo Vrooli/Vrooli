@@ -604,7 +604,7 @@ interface FrameStreamState {
   currentFps: number;
   /** Timestamp of last frame sent (for adaptive FPS calculation) */
   lastFrameSentAt: number;
-  /** Rolling average of frame processing times (ms) */
+  /** Rolling average of frame processing times (ms) - DEPRECATED, use avgCaptureTime */
   avgFrameTime: number;
   /** Number of frames sent (for averaging) */
   frameCount: number;
@@ -618,6 +618,14 @@ interface FrameStreamState {
   wsReady: boolean;
   /** Screenshot scale: 'css' for 1x, 'device' for devicePixelRatio */
   scale: 'css' | 'device';
+  /** Rolling average of screenshot capture times (ms) - the actual bottleneck */
+  avgCaptureTime: number;
+  /** Ring buffer of recent capture times for percentile analysis */
+  captureTimes: number[];
+  /** Count of consecutive slow captures (for immediate reaction) */
+  slowCaptureStreak: number;
+  /** Count of consecutive fast captures (for ramp-up) */
+  fastCaptureStreak: number;
 }
 
 /** Per-session frame streaming state */
@@ -631,14 +639,24 @@ const WS_RECONNECT_DELAY_MS = 1000;
 
 /** Minimum FPS floor for adaptive rate control */
 const MIN_ADAPTIVE_FPS = 2;
-/** Alpha for exponential moving average of frame times */
-const FRAME_TIME_EMA_ALPHA = 0.3;
-/** Threshold: if frame time exceeds target interval by this factor, reduce FPS */
-const SLOWDOWN_THRESHOLD = 1.2;
-/** Threshold: if frame time is below target interval by this factor, increase FPS */
-const SPEEDUP_THRESHOLD = 0.7;
+/** Alpha for exponential moving average of capture times */
+const CAPTURE_TIME_EMA_ALPHA = 0.3;
 /** How often to log adaptive FPS changes (every N frames) */
 const ADAPTIVE_LOG_INTERVAL = 30;
+
+// Capture-time-based adaptive FPS constants
+/** Size of ring buffer for capture time percentile analysis */
+const CAPTURE_TIME_BUFFER_SIZE = 20;
+/** Capture time (ms) below which we consider the page "fast" */
+const FAST_CAPTURE_MS = 60;
+/** Capture time (ms) above which we immediately reduce FPS */
+const SLOW_CAPTURE_MS = 120;
+/** Safety margin when calculating max achievable FPS from capture time */
+const CAPTURE_HEADROOM = 1.3;
+/** Number of consecutive fast captures before ramping up FPS */
+const FAST_STREAK_THRESHOLD = 3;
+/** Number of consecutive slow captures before aggressive FPS reduction */
+const SLOW_STREAK_THRESHOLD = 2;
 
 /**
  * Build WebSocket URL from HTTP callback URL.
@@ -676,7 +694,7 @@ export function startFrameStreaming(
   stopFrameStreaming(sessionId);
 
   const quality = options.quality ?? 65;
-  const fps = Math.min(Math.max(options.fps ?? 6, 1), 30); // Clamp 1-30 FPS
+  const fps = Math.min(Math.max(options.fps ?? 6, 1), 60); // Clamp 1-60 FPS
   const scale = options.scale ?? 'css';
   const intervalMs = Math.floor(1000 / fps);
   const wsUrl = buildWebSocketUrl(options.callbackUrl, sessionId);
@@ -696,6 +714,10 @@ export function startFrameStreaming(
     consecutiveFailures: 0,
     wsReady: false,
     scale,
+    avgCaptureTime: 0,
+    captureTimes: [],
+    slowCaptureStreak: 0,
+    fastCaptureStreak: 0,
   };
 
   frameStreamStates.set(sessionId, state);
@@ -791,7 +813,7 @@ export function updateFrameStreamSettings(
   }
 
   if (options.fps !== undefined) {
-    const newFps = Math.min(Math.max(options.fps, 1), 30);
+    const newFps = Math.min(Math.max(options.fps, 1), 60);
     if (newFps !== state.targetFps) {
       state.targetFps = newFps;
       // Also update current FPS toward new target (adaptive will fine-tune)
@@ -951,9 +973,23 @@ export function stopFrameStreaming(sessionId: string): void {
 }
 
 /**
+ * Calculate the Pth percentile from a sorted array.
+ */
+function percentile(sortedArr: number[], p: number): number {
+  if (sortedArr.length === 0) return 0;
+  const index = Math.floor(sortedArr.length * p);
+  return sortedArr[Math.min(index, sortedArr.length - 1)];
+}
+
+/**
  * The main frame streaming loop.
  * Captures frames and sends via WebSocket as binary data.
- * Uses adaptive FPS to match client processing capability.
+ *
+ * Uses capture-time-based adaptive FPS:
+ * - Measures actual screenshot capture time (the bottleneck)
+ * - Immediately reacts to slow captures
+ * - Uses P90 capture time for stable FPS ceiling calculation
+ * - Ramps up quickly when captures are fast
  */
 async function runFrameStreamLoop(
   sessionId: string,
@@ -992,13 +1028,108 @@ async function runFrameStreamLoop(
         continue;
       }
 
-      // Capture frame as raw buffer (no base64 encoding!)
+      // === CAPTURE FRAME WITH TIMING ===
+      const captureStart = performance.now();
       const buffer = await captureFrameBuffer(session.page, state.quality, state.scale);
+      const captureTime = performance.now() - captureStart;
 
       if (!buffer) {
-        // Page not ready or error, skip this frame
+        // Timeout hit - this is a very slow page, reduce FPS aggressively
+        state.slowCaptureStreak++;
+        state.fastCaptureStreak = 0;
+        if (state.slowCaptureStreak >= SLOW_STREAK_THRESHOLD) {
+          const newFps = Math.max(MIN_ADAPTIVE_FPS, state.currentFps - 2);
+          if (newFps !== state.currentFps) {
+            state.currentFps = newFps;
+            logger.debug(scopedLog(LogContext.RECORDING, 'FPS reduced (capture timeout)'), {
+              sessionId,
+              currentFps: state.currentFps,
+              slowStreak: state.slowCaptureStreak,
+            });
+          }
+        }
         await sleepUntilNextFrame(loopStart, currentIntervalMs, state.abortController.signal);
         continue;
+      }
+
+      // === TRACK CAPTURE TIME ===
+      state.captureTimes.push(captureTime);
+      if (state.captureTimes.length > CAPTURE_TIME_BUFFER_SIZE) {
+        state.captureTimes.shift();
+      }
+
+      // Update EMA of capture time
+      state.avgCaptureTime = state.avgCaptureTime === 0
+        ? captureTime
+        : CAPTURE_TIME_EMA_ALPHA * captureTime + (1 - CAPTURE_TIME_EMA_ALPHA) * state.avgCaptureTime;
+
+      // === IMMEDIATE REACTION TO SLOW/FAST CAPTURES ===
+      if (captureTime > SLOW_CAPTURE_MS) {
+        state.slowCaptureStreak++;
+        state.fastCaptureStreak = 0;
+
+        // Immediate FPS reduction on slow capture streak
+        if (state.slowCaptureStreak >= SLOW_STREAK_THRESHOLD) {
+          const newFps = Math.max(MIN_ADAPTIVE_FPS, state.currentFps - 1);
+          if (newFps !== state.currentFps) {
+            state.currentFps = newFps;
+            if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
+              logger.debug(scopedLog(LogContext.RECORDING, 'FPS reduced (slow capture)'), {
+                sessionId,
+                currentFps: state.currentFps,
+                captureTimeMs: Math.round(captureTime),
+                avgCaptureTimeMs: Math.round(state.avgCaptureTime),
+              });
+            }
+          }
+        }
+      } else if (captureTime < FAST_CAPTURE_MS) {
+        state.fastCaptureStreak++;
+        state.slowCaptureStreak = 0;
+
+        // Ramp up FPS on fast capture streak
+        if (state.fastCaptureStreak >= FAST_STREAK_THRESHOLD && state.currentFps < state.targetFps) {
+          const newFps = Math.min(state.targetFps, state.currentFps + 1);
+          if (newFps !== state.currentFps) {
+            state.currentFps = newFps;
+            if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
+              logger.debug(scopedLog(LogContext.RECORDING, 'FPS increased (fast capture)'), {
+                sessionId,
+                currentFps: state.currentFps,
+                captureTimeMs: Math.round(captureTime),
+                fastStreak: state.fastCaptureStreak,
+              });
+            }
+          }
+        }
+      } else {
+        // Normal capture time - reset streaks
+        state.slowCaptureStreak = 0;
+        state.fastCaptureStreak = 0;
+      }
+
+      // === PERIODIC P90-BASED FPS CEILING ===
+      state.frameCount++;
+      if (state.frameCount % 10 === 0 && state.captureTimes.length >= 5) {
+        const sorted = [...state.captureTimes].sort((a, b) => a - b);
+        const p90CaptureTime = percentile(sorted, 0.9);
+
+        // Calculate max achievable FPS with safety headroom
+        const maxAchievableFps = Math.floor(1000 / (p90CaptureTime * CAPTURE_HEADROOM));
+        const clampedMax = Math.max(MIN_ADAPTIVE_FPS, Math.min(state.targetFps, maxAchievableFps));
+
+        // If current FPS exceeds what's achievable, cap it
+        if (state.currentFps > clampedMax) {
+          state.currentFps = clampedMax;
+          if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
+            logger.debug(scopedLog(LogContext.RECORDING, 'FPS capped by P90 capture time'), {
+              sessionId,
+              currentFps: state.currentFps,
+              p90CaptureTimeMs: Math.round(p90CaptureTime),
+              maxAchievableFps,
+            });
+          }
+        }
       }
 
       // Skip if frame content unchanged (fast buffer comparison)
@@ -1013,58 +1144,7 @@ async function runFrameStreamLoop(
       // Send raw binary frame over WebSocket (no JSON, no base64!)
       state.ws.send(buffer);
       state.consecutiveFailures = 0;
-
-      // Track frame timing for adaptive FPS
-      const now = performance.now();
-      if (state.lastFrameSentAt > 0) {
-        const actualFrameTime = now - state.lastFrameSentAt;
-        state.frameCount++;
-
-        // Update exponential moving average of frame time
-        if (state.avgFrameTime === 0) {
-          state.avgFrameTime = actualFrameTime;
-        } else {
-          state.avgFrameTime = FRAME_TIME_EMA_ALPHA * actualFrameTime +
-            (1 - FRAME_TIME_EMA_ALPHA) * state.avgFrameTime;
-        }
-
-        // Adaptive FPS adjustment every few frames to avoid oscillation
-        if (state.frameCount % 5 === 0) {
-          const targetInterval = 1000 / state.targetFps;
-          const avgFrameTime = state.avgFrameTime;
-
-          if (avgFrameTime > targetInterval * SLOWDOWN_THRESHOLD) {
-            // Frames taking too long - reduce FPS
-            const newFps = Math.max(MIN_ADAPTIVE_FPS, state.currentFps - 1);
-            if (newFps !== state.currentFps) {
-              state.currentFps = newFps;
-              if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
-                logger.debug(scopedLog(LogContext.RECORDING, 'adaptive FPS reduced'), {
-                  sessionId,
-                  currentFps: state.currentFps,
-                  targetFps: state.targetFps,
-                  avgFrameTimeMs: Math.round(avgFrameTime),
-                });
-              }
-            }
-          } else if (avgFrameTime < targetInterval * SPEEDUP_THRESHOLD && state.currentFps < state.targetFps) {
-            // Frames processing fast - increase FPS toward target
-            const newFps = Math.min(state.targetFps, state.currentFps + 1);
-            if (newFps !== state.currentFps) {
-              state.currentFps = newFps;
-              if (state.frameCount % ADAPTIVE_LOG_INTERVAL === 0) {
-                logger.debug(scopedLog(LogContext.RECORDING, 'adaptive FPS increased'), {
-                  sessionId,
-                  currentFps: state.currentFps,
-                  targetFps: state.targetFps,
-                  avgFrameTimeMs: Math.round(avgFrameTime),
-                });
-              }
-            }
-          }
-        }
-      }
-      state.lastFrameSentAt = now;
+      state.lastFrameSentAt = performance.now();
 
     } catch (err) {
       if (state.abortController.signal.aborted) {
@@ -1104,10 +1184,10 @@ function isFrameUnchanged(buffer: Buffer, state: FrameStreamState): boolean {
 }
 
 /**
- * Screenshot timeout - generous to handle complex pages.
- * The adaptive FPS system will reduce framerate if captures are slow.
+ * Screenshot timeout - reduced to allow faster adaptation.
+ * If a page consistently hits this timeout, adaptive FPS will reduce framerate.
  */
-const SCREENSHOT_TIMEOUT_MS = 400;
+const SCREENSHOT_TIMEOUT_MS = 200;
 
 /**
  * Capture a frame as raw JPEG buffer.

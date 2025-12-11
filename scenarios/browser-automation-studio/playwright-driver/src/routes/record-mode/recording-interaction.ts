@@ -358,6 +358,10 @@ export async function handleRecordFrame(
     // Check cache first - avoid expensive screenshot if we have a recent frame
     const cached = getCachedFrame(sessionId, quality, fullPage);
     if (cached) {
+      // Still fetch current page metadata even for cached frames
+      const cachedPageTitle = await session.page.title().catch(() => '');
+      const cachedPageUrl = session.page.url();
+
       // Return cached frame without re-capturing
       const response: FrameResponse = {
         session_id: sessionId,
@@ -367,6 +371,8 @@ export async function handleRecordFrame(
         height: cached.height,
         captured_at: new Date(cached.capturedAt).toISOString(),
         content_hash: cached.hash,
+        page_title: cachedPageTitle,
+        page_url: cachedPageUrl,
       };
       sendJson(res, 200, response);
       return;
@@ -378,6 +384,10 @@ export async function handleRecordFrame(
     const viewport = session.page.viewportSize();
     const width = viewport?.width || 0;
     const height = viewport?.height || 0;
+
+    // Get page metadata for history/display purposes
+    const pageTitle = await session.page.title().catch(() => '');
+    const pageUrl = session.page.url();
 
     // Use explicit clip for viewport-only capture to ensure consistent behavior
     // and reduce bandwidth for pages with scrollable content
@@ -419,6 +429,8 @@ export async function handleRecordFrame(
         height: previousCached.height,
         captured_at: new Date(previousCached.capturedAt).toISOString(),
         content_hash: newHash,
+        page_title: pageTitle,
+        page_url: pageUrl,
       };
       sendJson(res, 200, response);
       return;
@@ -435,6 +447,8 @@ export async function handleRecordFrame(
       height: entry.height,
       captured_at: new Date(entry.capturedAt).toISOString(),
       content_hash: entry.hash,
+      page_title: pageTitle,
+      page_url: pageUrl,
     };
 
     sendJson(res, 200, response);

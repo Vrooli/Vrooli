@@ -171,6 +171,10 @@ export interface FrameResponse {
   captured_at: string;
   /** MD5 hash of the raw frame buffer for reliable ETag generation */
   content_hash: string;
+  /** Current page title (document.title) */
+  page_title?: string;
+  /** Current page URL */
+  page_url?: string;
 }
 
 /**
@@ -196,7 +200,7 @@ export interface ViewportResponse {
 export interface StreamSettingsRequest {
   /** JPEG quality 1-100 */
   quality?: number;
-  /** Target FPS 1-30 */
+  /** Target FPS 1-60 */
   fps?: number;
   /** Screenshot scale - can only be set at session start */
   scale?: 'css' | 'device';

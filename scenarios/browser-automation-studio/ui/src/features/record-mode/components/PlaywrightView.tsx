@@ -23,6 +23,16 @@ interface FramePayload {
   captured_at: string;
   /** MD5 hash of the raw frame buffer - used by server for ETag generation */
   content_hash?: string;
+  /** Current page title from document.title */
+  page_title?: string;
+  /** Current page URL */
+  page_url?: string;
+}
+
+/** Page metadata extracted from frames */
+export interface PageMetadata {
+  title: string;
+  url: string;
 }
 
 /** WebSocket message for frame updates */
@@ -60,6 +70,8 @@ interface PlaywrightViewProps {
   viewport?: { width: number; height: number };
   /** Callback to receive frame statistics updates */
   onStatsUpdate?: (stats: FrameStats) => void;
+  /** Callback when page metadata (title, url) changes */
+  onPageMetadataChange?: (metadata: PageMetadata) => void;
 }
 
 /**
@@ -99,6 +111,7 @@ export function PlaywrightView({
   useWebSocketFrames = true,
   viewport,
   onStatsUpdate,
+  onPageMetadataChange,
 }: PlaywrightViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -121,12 +134,17 @@ export function PlaywrightView({
   const [isWsFrameActive, setIsWsFrameActive] = useState(false);
 
   // WebSocket for real-time frame updates (including binary frames)
-  const { isConnected, lastMessage, lastBinaryFrame, send } = useWebSocket();
+  const { isConnected, lastMessage, send, subscribeToBinaryFrames } = useWebSocket();
 
   // Frame statistics tracking
   const { stats: frameStats, recordFrame, reset: resetStats } = useFrameStats();
   const onStatsUpdateRef = useRef(onStatsUpdate);
   onStatsUpdateRef.current = onStatsUpdate;
+
+  // Page metadata tracking (title, url)
+  const onPageMetadataChangeRef = useRef(onPageMetadataChange);
+  onPageMetadataChangeRef.current = onPageMetadataChange;
+  const lastPageMetadataRef = useRef<PageMetadata | null>(null);
 
   // Track displayed timestamp for UI (updated via ref to avoid re-renders)
   const [displayedTimestamp, setDisplayedTimestamp] = useState<string | null>(null);
@@ -243,13 +261,18 @@ export function PlaywrightView({
 
   // Handle WebSocket binary frames (raw JPEG data - more efficient)
   // Performance optimizations:
-  // 1. createImageBitmap decodes off-main-thread (non-blocking)
-  // 2. requestAnimationFrame batches updates to vsync (no dropped frames)
-  // 3. Canvas drawImage is faster than img element (no Blob URL overhead)
-  // 4. Only re-render React when dimensions change, not every frame
+  // 1. Direct callback subscription (no React state updates on each frame!)
+  // 2. createImageBitmap decodes off-main-thread (non-blocking)
+  // 3. requestAnimationFrame batches updates to vsync (no dropped frames)
+  // 4. Canvas drawImage is faster than img element (no Blob URL overhead)
+  // 5. Only re-render React when dimensions change, not every frame
   const pendingBlobRef = useRef<Blob | null>(null);
+  const pendingFrameSizeRef = useRef<number>(0);
   const latestFrameIdRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
+  // Track whether WS frames are active in a ref to avoid stale closures
+  const isWsFrameActiveRef = useRef(isWsFrameActive);
+  isWsFrameActiveRef.current = isWsFrameActive;
 
   /**
    * Draw a bitmap directly to canvas - bypasses Blob URL creation entirely.
@@ -273,96 +296,117 @@ export function PlaywrightView({
     return true;
   }, []);
 
-  useEffect(() => {
-    if (!lastBinaryFrame || !useWebSocketFrames || !isWsFrameActive) return;
+  /**
+   * Process a pending frame - called from requestAnimationFrame.
+   * This is extracted to avoid recreating the async function on each frame.
+   */
+  const processFrame = useCallback(async () => {
+    rafIdRef.current = null;
 
-    // Create blob from binary data
-    const blob = new Blob([lastBinaryFrame], { type: "image/jpeg" });
-    const frameId = Date.now(); // Use timestamp as frame ID for ordering
-    const frameSize = lastBinaryFrame.byteLength;
+    // Get the most recent pending frame
+    const pending = pendingBlobRef.current;
+    const frameSize = pendingFrameSizeRef.current;
+    const processingFrameId = latestFrameIdRef.current;
+    if (!pending) return;
 
-    // Store as pending frame - this supersedes any previous pending frame
-    pendingBlobRef.current = blob;
-    latestFrameIdRef.current = frameId;
+    // Clear the pending blob (we're about to process it)
+    pendingBlobRef.current = null;
 
-    // If we already have a RAF scheduled, it will pick up the new frame
-    if (rafIdRef.current !== null) return;
+    try {
+      // Use createImageBitmap for off-main-thread decoding (non-blocking)
+      const bitmap = await createImageBitmap(pending);
 
-    // Schedule frame processing on next animation frame
-    rafIdRef.current = requestAnimationFrame(async () => {
-      rafIdRef.current = null;
-
-      // Get the most recent pending frame
-      const pending = pendingBlobRef.current;
-      const processingFrameId = latestFrameIdRef.current;
-      if (!pending) return;
-
-      // Clear the pending blob (we're about to process it)
-      pendingBlobRef.current = null;
-
-      try {
-        // Use createImageBitmap for off-main-thread decoding (non-blocking)
-        const bitmap = await createImageBitmap(pending);
-
-        // Check if a newer frame arrived while we were decoding
-        if (latestFrameIdRef.current > processingFrameId) {
-          // Newer frame exists - discard this one
-          bitmap.close();
-          return;
-        }
-
-        // Draw directly to canvas (no Blob URL overhead!)
-        const drawn = drawFrameToCanvas(bitmap);
-        if (!drawn) {
-          bitmap.close();
-          return;
-        }
-
-        // Update dimensions ref (no re-render triggered)
-        const newDimensions: FrameDimensions = {
-          width: bitmap.width,
-          height: bitmap.height,
-          capturedAt: new Date().toISOString(),
-        };
-
-        // Only trigger re-render if this is first frame or dimensions changed
-        const prevDims = frameDimensionsRef.current;
-        const dimensionsChanged = !prevDims ||
-          prevDims.width !== bitmap.width ||
-          prevDims.height !== bitmap.height;
-
-        frameDimensionsRef.current = newDimensions;
-
-        // Clean up bitmap after drawing
+      // Check if a newer frame arrived while we were decoding
+      if (latestFrameIdRef.current > processingFrameId) {
+        // Newer frame exists - discard this one
         bitmap.close();
-
-        // Update React state only when necessary
-        if (!hasFrame) {
-          setHasFrame(true);
-        }
-        if (dimensionsChanged) {
-          setDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
-        }
-
-        // Update timestamp periodically (not every frame - reduces re-renders)
-        // Update every 500ms for UI display
-        const now = Date.now();
-        if (!displayedTimestamp || now % 500 < 100) {
-          setDisplayedTimestamp(newDimensions.capturedAt);
-        }
-
-        setError(null);
-
-        // Record frame stats
-        recordFrame(frameSize);
-      } catch {
-        // Decode failed - only show error if no newer frame is pending
-        if (!pendingBlobRef.current) {
-          setError("Failed to decode binary frame");
-        }
+        return;
       }
-    });
-  }, [lastBinaryFrame, useWebSocketFrames, isWsFrameActive, drawFrameToCanvas, recordFrame, hasFrame, displayedTimestamp]);
+
+      // Draw directly to canvas (no Blob URL overhead!)
+      const drawn = drawFrameToCanvas(bitmap);
+      if (!drawn) {
+        bitmap.close();
+        return;
+      }
+
+      // Update dimensions ref (no re-render triggered)
+      const newDimensions: FrameDimensions = {
+        width: bitmap.width,
+        height: bitmap.height,
+        capturedAt: new Date().toISOString(),
+      };
+
+      // Only trigger re-render if this is first frame or dimensions changed
+      const prevDims = frameDimensionsRef.current;
+      const dimensionsChanged = !prevDims ||
+        prevDims.width !== bitmap.width ||
+        prevDims.height !== bitmap.height;
+
+      frameDimensionsRef.current = newDimensions;
+
+      // Clean up bitmap after drawing
+      bitmap.close();
+
+      // Update React state only when necessary
+      setHasFrame(prev => prev || true);
+      if (dimensionsChanged) {
+        setDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
+      }
+
+      // Update timestamp periodically (not every frame - reduces re-renders)
+      // Update every 500ms for UI display
+      const now = Date.now();
+      if (now % 500 < 100) {
+        setDisplayedTimestamp(newDimensions.capturedAt);
+      }
+
+      setError(null);
+
+      // Record frame stats
+      recordFrame(frameSize);
+    } catch {
+      // Decode failed - only show error if no newer frame is pending
+      if (!pendingBlobRef.current) {
+        setError("Failed to decode binary frame");
+      }
+    }
+  }, [drawFrameToCanvas, recordFrame]);
+
+  // Subscribe to binary frames directly (avoids React state updates!)
+  useEffect(() => {
+    if (!useWebSocketFrames) return;
+
+    const handleBinaryFrame = (data: ArrayBuffer) => {
+      // Skip if WS frames not active yet (waiting for subscription confirmation)
+      if (!isWsFrameActiveRef.current) return;
+
+      // Create blob from binary data (JPEG format)
+      // Note: createImageBitmap auto-detects format from magic bytes
+      const blob = new Blob([data], { type: "image/jpeg" });
+      const frameId = Date.now(); // Use timestamp as frame ID for ordering
+
+      // Store as pending frame - this supersedes any previous pending frame
+      pendingBlobRef.current = blob;
+      pendingFrameSizeRef.current = data.byteLength;
+      latestFrameIdRef.current = frameId;
+
+      // If we already have a RAF scheduled, it will pick up the new frame
+      if (rafIdRef.current !== null) return;
+
+      // Schedule frame processing on next animation frame
+      rafIdRef.current = requestAnimationFrame(() => {
+        processFrame();
+      });
+    };
+
+    // Subscribe and get unsubscribe function
+    const unsubscribe = subscribeToBinaryFrames(handleBinaryFrame);
+
+    return () => {
+      unsubscribe();
+    };
+  }, [useWebSocketFrames, subscribeToBinaryFrames, processFrame]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -406,6 +450,23 @@ export function PlaywrightView({
       }
 
       const data = (await res.json()) as FramePayload;
+
+      // Notify about page metadata changes (title/url for history)
+      if (data.page_title !== undefined || data.page_url !== undefined) {
+        const newMetadata: PageMetadata = {
+          title: data.page_title || '',
+          url: data.page_url || '',
+        };
+        const lastMetadata = lastPageMetadataRef.current;
+        // Only notify if metadata actually changed
+        if (!lastMetadata || lastMetadata.title !== newMetadata.title || lastMetadata.url !== newMetadata.url) {
+          lastPageMetadataRef.current = newMetadata;
+          if (onPageMetadataChangeRef.current) {
+            onPageMetadataChangeRef.current(newMetadata);
+          }
+        }
+      }
+
       // Preload the image and draw to canvas
       const img = new Image();
       img.onload = () => {

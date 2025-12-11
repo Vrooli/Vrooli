@@ -190,6 +190,8 @@ interface BrowserUrlBarProps {
   placeholder?: string;
   /** Whether the bar should be disabled */
   disabled?: boolean;
+  /** Current page title (for history tracking) */
+  pageTitle?: string;
 }
 
 export function BrowserUrlBar({
@@ -199,6 +201,7 @@ export function BrowserUrlBar({
   onRefresh,
   placeholder = 'Search or enter URL',
   disabled = false,
+  pageTitle,
 }: BrowserUrlBarProps) {
   const [inputValue, setInputValue] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
@@ -276,6 +279,29 @@ export function BrowserUrlBar({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
+
+  // Update history entry with page title when it becomes available
+  useEffect(() => {
+    if (!value || !pageTitle) return;
+
+    // Find and update the history entry for the current URL
+    const currentUrl = value.toLowerCase();
+    const existingEntry = history.find((h) => h.url.toLowerCase() === currentUrl);
+
+    if (existingEntry && existingEntry.title !== pageTitle) {
+      // Update the title in history
+      const updatedHistory = history.map((h) =>
+        h.url.toLowerCase() === currentUrl ? { ...h, title: pageTitle } : h
+      );
+      setHistory(updatedHistory);
+      saveHistory(updatedHistory);
+    } else if (!existingEntry && pageTitle) {
+      // URL not in history yet but we have a title - add it
+      const updatedHistory = addToHistory(history, value, pageTitle);
+      setHistory(updatedHistory);
+      saveHistory(updatedHistory);
+    }
+  }, [value, pageTitle, history]);
 
   // Navigate to a URL
   const handleNavigate = useCallback(

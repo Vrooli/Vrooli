@@ -30,22 +30,22 @@ const PRESETS: Record<Exclude<StreamPreset, 'custom'>, { label: string; descript
   fast: {
     label: 'Fast',
     description: 'Lower quality, faster streaming',
-    settings: { quality: 40, fps: 4, scale: 'css' },
+    settings: { quality: 40, fps: 10, scale: 'css' },
   },
   balanced: {
     label: 'Balanced',
     description: 'Good quality and performance',
-    settings: { quality: 55, fps: 6, scale: 'css' },
+    settings: { quality: 55, fps: 20, scale: 'css' },
   },
   sharp: {
     label: 'Sharp',
     description: 'Higher quality preview',
-    settings: { quality: 70, fps: 6, scale: 'css' },
+    settings: { quality: 70, fps: 15, scale: 'css' },
   },
   hidpi: {
     label: 'HiDPI',
     description: 'Crisp on Retina displays',
-    settings: { quality: 60, fps: 4, scale: 'device' },
+    settings: { quality: 60, fps: 30, scale: 'device' },
   },
 };
 
@@ -56,7 +56,7 @@ const CUSTOM_PRESET_META = {
 };
 
 /** Default custom settings (used when switching to custom for the first time) */
-const DEFAULT_CUSTOM_SETTINGS: StreamSettingsValues = { quality: 55, fps: 6, scale: 'css' };
+const DEFAULT_CUSTOM_SETTINGS: StreamSettingsValues = { quality: 55, fps: 20, scale: 'css' };
 
 const STORAGE_KEY = 'browser-automation-studio:stream-preset';
 const CUSTOM_SETTINGS_STORAGE_KEY = 'browser-automation-studio:stream-custom-settings';
@@ -94,7 +94,7 @@ function loadCustomSettings(): StreamSettingsValues {
       const parsed = JSON.parse(stored) as Partial<StreamSettingsValues>;
       return {
         quality: typeof parsed.quality === 'number' ? Math.min(100, Math.max(1, parsed.quality)) : DEFAULT_CUSTOM_SETTINGS.quality,
-        fps: typeof parsed.fps === 'number' ? Math.min(30, Math.max(1, parsed.fps)) : DEFAULT_CUSTOM_SETTINGS.fps,
+        fps: typeof parsed.fps === 'number' ? Math.min(60, Math.max(1, parsed.fps)) : DEFAULT_CUSTOM_SETTINGS.fps,
         scale: parsed.scale === 'device' ? 'device' : 'css',
       };
     }
@@ -454,7 +454,7 @@ export function StreamSettings({
                   id="stream-fps"
                   type="range"
                   min={1}
-                  max={15}
+                  max={60}
                   step={1}
                   value={customSettings.fps}
                   onChange={(e) => handleCustomSettingChange('fps', parseInt(e.target.value, 10))}

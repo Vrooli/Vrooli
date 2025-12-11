@@ -19,15 +19,20 @@ export interface WebSocketMessage {
   timestamp?: string;
 }
 
+/** Callback type for binary frame subscribers */
+export type BinaryFrameCallback = (data: ArrayBuffer) => void;
+
 interface WebSocketContextValue {
   isConnected: boolean;
   lastMessage: WebSocketMessage | null;
-  /** Last binary frame received (raw JPEG data for recording frames) */
+  /** @deprecated Use subscribeToBinaryFrames instead to avoid React re-renders */
   lastBinaryFrame: ArrayBuffer | null;
   send: (message: unknown) => void;
   subscribe: (executionId: string) => void;
   unsubscribe: () => void;
   reconnect: () => void;
+  /** Subscribe to binary frames directly without triggering React state updates */
+  subscribeToBinaryFrames: (callback: BinaryFrameCallback) => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue | undefined>(undefined);
@@ -53,12 +58,16 @@ function buildWebSocketUrl(): string {
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  // Keep for backwards compatibility but deprecate
   const [lastBinaryFrame, setLastBinaryFrame] = useState<ArrayBuffer | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Set of callbacks for binary frame subscribers (avoids React state updates)
+  const binaryFrameCallbacksRef = useRef<Set<BinaryFrameCallback>>(new Set());
 
   const connect = useCallback(() => {
     const wsUrl = buildWebSocketUrl();
@@ -86,6 +95,19 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       ws.onmessage = (event) => {
         // Check if this is a binary message (recording frame)
         if (event.data instanceof ArrayBuffer) {
+          // Notify all subscribers directly without triggering React state
+          // This is much more efficient for high-frequency frame updates
+          const callbacks = binaryFrameCallbacksRef.current;
+          if (callbacks.size > 0) {
+            callbacks.forEach(callback => {
+              try {
+                callback(event.data);
+              } catch (err) {
+                console.error('[WebSocket] Binary frame callback error:', err);
+              }
+            });
+          }
+          // Also update state for backwards compatibility (deprecated)
           setLastBinaryFrame(event.data);
           return;
         }
@@ -172,6 +194,18 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     connect();
   }, [connect]);
 
+  /**
+   * Subscribe to binary frames directly without triggering React state updates.
+   * This is much more efficient for high-frequency frame updates (~6+ FPS).
+   * Returns an unsubscribe function.
+   */
+  const subscribeToBinaryFrames = useCallback((callback: BinaryFrameCallback) => {
+    binaryFrameCallbacksRef.current.add(callback);
+    return () => {
+      binaryFrameCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
   // Initial connection
   useEffect(() => {
     connect();
@@ -195,6 +229,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     subscribe,
     unsubscribe,
     reconnect,
+    subscribeToBinaryFrames,
   };
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;

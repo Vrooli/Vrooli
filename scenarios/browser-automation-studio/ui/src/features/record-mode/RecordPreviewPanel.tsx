@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RecordedAction } from './types';
-import { PlaywrightView, type FrameStats } from './components/PlaywrightView';
+import { PlaywrightView, type FrameStats, type PageMetadata } from './components/PlaywrightView';
 import { StreamSettings, useStreamSettings, type StreamSettingsValues } from './components/StreamSettings';
 import { FrameStatsDisplay } from './components/FrameStatsDisplay';
 import { BrowserUrlBar } from './components/BrowserUrlBar';
@@ -43,6 +43,12 @@ export function RecordPreviewPanel({
   const [frameStats, setFrameStats] = useState<FrameStats | null>(null);
   const handleStatsUpdate = useCallback((stats: FrameStats) => {
     setFrameStats(stats);
+  }, []);
+
+  // Page metadata (title, url) from PlaywrightView - used for history display
+  const [pageTitle, setPageTitle] = useState<string>('');
+  const handlePageMetadataChange = useCallback((metadata: PageMetadata) => {
+    setPageTitle(metadata.title);
   }, []);
 
   // Notify parent when stream settings change (for session creation)
@@ -101,6 +107,7 @@ export function RecordPreviewPanel({
           onNavigate={handleUrlNavigate}
           onRefresh={handleRefresh}
           placeholder={lastUrl || 'Search or enter URL'}
+          pageTitle={pageTitle}
         />
 
         {/* Frame stats display (conditionally shown) */}
@@ -126,6 +133,7 @@ export function RecordPreviewPanel({
               quality={streamSettings.quality}
               fps={streamSettings.fps}
               onStatsUpdate={handleStatsUpdate}
+              onPageMetadataChange={handlePageMetadataChange}
             />
           ) : (
             <EmptyState title="Add a URL to load the live preview" subtitle="Live preview renders the actual Playwright session." />
