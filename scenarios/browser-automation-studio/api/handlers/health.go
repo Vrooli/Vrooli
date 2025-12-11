@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/constants"
 )
+
+// startTime records when the handler package was initialized for uptime calculation.
+var startTime = time.Now()
 
 // Health handles GET /health and GET /api/v1/health
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -154,9 +158,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		Readiness:    readiness,
 		Version:      "1.0.0",
 		Dependencies: dependencies,
-		Metrics: map[string]any{
-			"goroutines": 0, // Could be populated with runtime.NumGoroutine() if needed
-		},
+		Metrics:      buildHealthMetrics(),
 	}
 
 	// Set appropriate HTTP status code
@@ -168,5 +170,22 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		h.log.WithError(err).Error("Failed to encode health response")
+	}
+}
+
+// buildHealthMetrics returns runtime metrics for the health endpoint.
+// These metrics help operators understand system resource usage at a glance.
+func buildHealthMetrics() map[string]any {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	uptime := time.Since(startTime)
+
+	return map[string]any{
+		"goroutines":      runtime.NumGoroutine(),
+		"uptime_seconds":  int64(uptime.Seconds()),
+		"heap_alloc_mb":   float64(memStats.HeapAlloc) / (1024 * 1024),
+		"heap_inuse_mb":   float64(memStats.HeapInuse) / (1024 * 1024),
+		"gc_pause_total_ms": float64(memStats.PauseTotalNs) / 1e6,
 	}
 }

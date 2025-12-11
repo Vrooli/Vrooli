@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/config"
 )
 
 // Client represents a WebSocket client
@@ -228,11 +229,12 @@ func (h *Hub) CloseExecution(executionID uuid.UUID) {
 
 // ServeWS handles WebSocket requests from clients.
 func (h *Hub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
+	cfg := config.Load()
 	client := &Client{
 		ID:          uuid.New(),
 		Conn:        conn,
-		Send:        make(chan any, 256),
-		BinarySend:  make(chan []byte, 120), // Buffer for binary frames - holds ~2 seconds at 60 FPS
+		Send:        make(chan any, cfg.WebSocket.ClientSendBufferSize),
+		BinarySend:  make(chan []byte, cfg.WebSocket.ClientBinaryBufferSize), // Buffer for binary frames
 		Hub:         h,
 		ExecutionID: executionID,
 	}
@@ -253,7 +255,8 @@ func (c *Client) readPump() {
 	}()
 
 	// Set read deadline and pong handler for keepalive
-	c.Conn.SetReadLimit(512)
+	cfg := config.Load()
+	c.Conn.SetReadLimit(cfg.WebSocket.ClientReadLimit)
 	c.Conn.SetPongHandler(func(string) error {
 		return nil
 	})

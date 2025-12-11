@@ -88,7 +88,7 @@ func readZipFile(entry *zip.File) ([]byte, string, error) {
 	defer reader.Close()
 
 	buf := bytes.NewBuffer(make([]byte, 0, entry.UncompressedSize64))
-	if _, err := io.Copy(buf, io.LimitReader(reader, maxRecordingAssetBytes+1)); err != nil {
+	if _, err := io.Copy(buf, io.LimitReader(reader, maxRecordingAssetBytes()+1)); err != nil {
 		return nil, "", err
 	}
 

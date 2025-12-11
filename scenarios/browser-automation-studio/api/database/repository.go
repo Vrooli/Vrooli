@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -71,6 +72,14 @@ type Repository interface {
 	ListExports(ctx context.Context, limit, offset int) ([]*ExportWithDetails, error)
 	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*Export, error)
 	ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*Export, error)
+
+	// Recovery operations for progress continuity
+	FindStaleExecutions(ctx context.Context, staleThreshold time.Duration) ([]*Execution, error)
+	MarkExecutionInterrupted(ctx context.Context, id uuid.UUID, reason string) error
+	GetLastSuccessfulStepIndex(ctx context.Context, executionID uuid.UUID) (int, error)
+	UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error
+	GetCompletedSteps(ctx context.Context, executionID uuid.UUID) ([]*ExecutionStep, error)
+	GetResumableExecution(ctx context.Context, id uuid.UUID) (*Execution, int, error)
 }
 
 // repository implements the Repository interface

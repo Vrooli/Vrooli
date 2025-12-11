@@ -190,6 +190,10 @@ func (m *mockWorkflowServiceForWorkflows) StopExecution(ctx context.Context, exe
 	return nil
 }
 
+func (m *mockWorkflowServiceForWorkflows) ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *mockWorkflowServiceForWorkflows) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
 	return errors.New("not implemented")
 }

@@ -22,7 +22,7 @@ func (h *Handler) ImportRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), recordingImportTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), recordingImportTimeout())
 	defer cancel()
 
 	archivePath, cleanup, err := h.persistRecordingArchive(r)
@@ -81,12 +81,12 @@ func (h *Handler) persistRecordingArchive(r *http.Request) (string, func(), erro
 		os.Remove(tmpFile.Name())
 	}
 
-	limit := int64(recordingUploadLimitBytes)
+	limit := recordingUploadLimitBytes()
 	contentType := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
 
 	var reader io.Reader
 	if strings.HasPrefix(contentType, "multipart/form-data") {
-		if err := r.ParseMultipartForm(recordingUploadLimitBytes); err != nil {
+		if err := r.ParseMultipartForm(recordingUploadLimitBytes()); err != nil {
 			tmpFile.Close()
 			cleanup()
 			return "", nil, fmt.Errorf("failed to parse multipart form: %w", err)

@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
 	"github.com/vrooli/browser-automation-studio/middleware"
+	"github.com/vrooli/browser-automation-studio/services/recovery"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -122,6 +123,20 @@ func main() {
 		// and provide diagnostic information even when the automation engine is unavailable
 	}
 
+	// Recover stale executions from previous runs (progress continuity)
+	recoverySvc := recovery.NewService(repo, log)
+	recoverCtx, recoverCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	if result, err := recoverySvc.RecoverStaleExecutions(recoverCtx); err != nil {
+		log.WithError(err).Warn("⚠️  Stale execution recovery failed - some executions may show incorrect status")
+	} else if result.TotalStale > 0 {
+		log.WithFields(logrus.Fields{
+			"recovered":   result.Recovered,
+			"resumable":   result.Resumable,
+			"total_stale": result.TotalStale,
+		}).Info("✅ Stale execution recovery completed")
+	}
+	recoverCancel()
+
 	// Get port configuration - required from lifecycle system
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -177,6 +192,7 @@ func main() {
 		r.Get("/executions/{id}/timeline", handler.GetExecutionTimeline)
 		r.Post("/executions/{id}/export", handler.PostExecutionExport)
 		r.Post("/executions/{id}/stop", handler.StopExecution)
+		r.Post("/executions/{id}/resume", handler.ResumeExecution)
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
 
 		// Export library routes

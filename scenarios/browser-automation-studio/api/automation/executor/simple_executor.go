@@ -165,6 +165,12 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 			seedVars[k] = v
 		}
 	}
+	// Merge initial variables from a resumed execution (takes precedence over plan defaults)
+	if req.InitialVariables != nil {
+		for k, v := range req.InitialVariables {
+			seedVars[k] = v
+		}
+	}
 	state := newFlowState(seedVars)
 
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
@@ -190,6 +196,17 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 
 func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx executionContext, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, state *flowState, reuseMode engine.SessionReuseMode) (engine.EngineSession, error) {
 	var err error
+
+	// Log resume context if resuming from a previous execution
+	if req.StartFromStepIndex > 0 {
+		logrus.WithFields(logrus.Fields{
+			"execution_id":          req.Plan.ExecutionID,
+			"start_from_step_index": req.StartFromStepIndex,
+			"resumed_from_id":       req.ResumedFromID,
+			"initial_vars_count":    len(req.InitialVariables),
+		}).Info("Resuming execution from checkpoint")
+	}
+
 	session, err = e.maybeRunEntrypointProbe(ctx, req.Plan, eng, spec, session, state)
 	if err != nil {
 		return session, err
@@ -200,6 +217,20 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 	}
 
 	for idx := range req.Plan.Instructions {
+		instruction := req.Plan.Instructions[idx]
+
+		// Skip steps that were already completed in a resumed execution.
+		// StartFromStepIndex represents the last completed step, so we skip all steps <= StartFromStepIndex.
+		if req.StartFromStepIndex > 0 && instruction.Index <= req.StartFromStepIndex {
+			logrus.WithFields(logrus.Fields{
+				"execution_id": req.Plan.ExecutionID,
+				"step_index":   instruction.Index,
+				"step_type":    instruction.Type,
+				"node_id":      instruction.NodeID,
+			}).Debug("Skipping already completed step (resume)")
+			continue
+		}
+
 		if session == nil {
 			s, err := eng.StartSession(ctx, spec)
 			if err != nil {
@@ -207,7 +238,6 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			}
 			session = s
 		}
-		instruction := req.Plan.Instructions[idx]
 		instruction = e.interpolateInstruction(instruction, state)
 
 		if strings.EqualFold(strings.TrimSpace(instruction.Type), "workflowcall") {
@@ -291,6 +321,18 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			eventKind = contracts.EventKindStepFailed
 		}
 		e.emitEvent(persistCtx, req, eventKind, &instruction.Index, &attempt, payload)
+
+		// Update checkpoint for progress continuity after successful steps
+		if normalized.Success {
+			totalSteps := len(req.Plan.Instructions)
+			if err := req.Recorder.UpdateCheckpoint(persistCtx, req.Plan.ExecutionID, instruction.Index, totalSteps); err != nil {
+				// Log but don't fail the execution - checkpoint is best-effort
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"execution_id": req.Plan.ExecutionID,
+					"step_index":   instruction.Index,
+				}).Warn("Failed to update execution checkpoint")
+			}
+		}
 
 		// Store extracted data to flowState if storeResult is specified
 		if normalized.Success && normalized.ExtractedData != nil {

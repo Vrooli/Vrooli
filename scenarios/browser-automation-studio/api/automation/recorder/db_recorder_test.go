@@ -627,6 +627,41 @@ func (m *recorderTestRepo) ListFolders(ctx context.Context) ([]*database.Workflo
 	return nil, nil
 }
 
+// Export operations
+func (m *recorderTestRepo) CreateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *recorderTestRepo) GetExport(ctx context.Context, id uuid.UUID) (*database.Export, error) {
+	return nil, database.ErrNotFound
+}
+func (m *recorderTestRepo) UpdateExport(ctx context.Context, export *database.Export) error {
+	return nil
+}
+func (m *recorderTestRepo) DeleteExport(ctx context.Context, id uuid.UUID) error { return nil }
+func (m *recorderTestRepo) ListExports(ctx context.Context, limit, offset int) ([]*database.ExportWithDetails, error) {
+	return nil, nil
+}
+func (m *recorderTestRepo) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*database.Export, error) {
+	return nil, nil
+}
+func (m *recorderTestRepo) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.Export, error) {
+	return nil, nil
+}
+
+// Recovery operations for progress continuity
+func (m *recorderTestRepo) FindStaleExecutions(ctx context.Context, staleThreshold time.Duration) ([]*database.Execution, error) {
+	return nil, nil
+}
+func (m *recorderTestRepo) MarkExecutionInterrupted(ctx context.Context, id uuid.UUID, reason string) error {
+	return nil
+}
+func (m *recorderTestRepo) GetLastSuccessfulStepIndex(ctx context.Context, executionID uuid.UUID) (int, error) {
+	return -1, nil
+}
+func (m *recorderTestRepo) UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error {
+	return nil
+}
+
 // =============================================================================
 // Nil/Empty Input Tests
 // =============================================================================

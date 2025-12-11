@@ -4,19 +4,28 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/browser-automation-studio/config"
 )
 
-const (
-	defaultPageLimit = 100
-	maxPageLimit     = 500
-)
+// getDefaultPageLimit returns the configured default page limit.
+// Configurable via BAS_HTTP_DEFAULT_PAGE_LIMIT (default: 100)
+func getDefaultPageLimit() int {
+	return config.Load().HTTP.DefaultPageLimit
+}
+
+// getMaxPageLimit returns the configured maximum page limit.
+// Configurable via BAS_HTTP_MAX_PAGE_LIMIT (default: 500)
+func getMaxPageLimit() int {
+	return config.Load().HTTP.MaxPageLimit
+}
 
 func parsePaginationParams(r *http.Request, defaultLimit, maxLimit int) (limit, offset int) {
 	if defaultLimit <= 0 {
-		defaultLimit = defaultPageLimit
+		defaultLimit = getDefaultPageLimit()
 	}
 	if maxLimit <= 0 {
-		maxLimit = maxPageLimit
+		maxLimit = getMaxPageLimit()
 	}
 
 	limit = defaultLimit

@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
 )
 
 type CorsConfig struct {
@@ -126,7 +128,7 @@ func CorsMiddleware(log *logrus.Logger) func(http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token, X-Requested-With")
 			}
 			w.Header().Set("Access-Control-Expose-Headers", "Link")
-			w.Header().Set("Access-Control-Max-Age", "300")
+			w.Header().Set("Access-Control-Max-Age", strconv.Itoa(config.Load().HTTP.CORSMaxAge))
 
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)

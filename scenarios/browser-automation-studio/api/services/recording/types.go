@@ -143,7 +143,7 @@ func (f *recordingFrame) TimestampMs() int {
 			return int(iv)
 		}
 	}
-	return f.Index * recordingDefaultFrameDurationMs
+	return f.Index * recordingDefaultFrameDurationMs()
 }
 
 // NodeID returns the node ID for this frame, generating one if not present.

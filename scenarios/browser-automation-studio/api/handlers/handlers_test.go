@@ -172,6 +172,26 @@ func (m *mockRepository) ListExportsByWorkflow(ctx context.Context, workflowID u
 	return nil, nil
 }
 
+// Recovery operations
+func (m *mockRepository) FindStaleExecutions(ctx context.Context, staleThreshold time.Duration) ([]*database.Execution, error) {
+	return nil, nil
+}
+func (m *mockRepository) MarkExecutionInterrupted(ctx context.Context, id uuid.UUID, reason string) error {
+	return nil
+}
+func (m *mockRepository) GetLastSuccessfulStepIndex(ctx context.Context, executionID uuid.UUID) (int, error) {
+	return -1, nil
+}
+func (m *mockRepository) UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error {
+	return nil
+}
+func (m *mockRepository) GetCompletedSteps(ctx context.Context, executionID uuid.UUID) ([]*database.ExecutionStep, error) {
+	return nil, nil
+}
+func (m *mockRepository) GetResumableExecution(ctx context.Context, id uuid.UUID) (*database.Execution, int, error) {
+	return nil, -1, nil
+}
+
 // Ensure mockRepository implements the interface at compile time
 var _ database.Repository = (*mockRepository)(nil)
 
@@ -181,6 +201,7 @@ type workflowServiceMock struct {
 	restoreWorkflowVersionFn  func(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
 	describeExecutionExportFn func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error)
 	executeAdhocWorkflowFn    func(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error)
+	resumeExecutionFn         func(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error)
 	automationHealthy         bool
 	automationErr             error
 }
@@ -267,6 +288,13 @@ func (m *workflowServiceMock) ListExecutions(ctx context.Context, workflowID *uu
 
 func (m *workflowServiceMock) StopExecution(ctx context.Context, executionID uuid.UUID) error {
 	return errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	if m.resumeExecutionFn != nil {
+		return m.resumeExecutionFn(ctx, executionID, parameters)
+	}
+	return nil, errors.New("not implemented")
 }
 
 func (m *workflowServiceMock) GetProjectByName(ctx context.Context, name string) (*database.Project, error) {

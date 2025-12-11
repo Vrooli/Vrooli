@@ -129,16 +129,16 @@ func (a *recordingAdapter) attachScreenshot(outcome *autocontracts.StepOutcome, 
 		return false, nil
 	}
 
-	if entry.UncompressedSize64 > maxRecordingAssetBytes {
-		return false, fmt.Errorf("frame screenshot exceeds maximum size (%d bytes)", maxRecordingAssetBytes)
+	if entry.UncompressedSize64 > uint64(maxRecordingAssetBytes()) {
+		return false, fmt.Errorf("frame screenshot exceeds maximum size (%d bytes)", maxRecordingAssetBytes())
 	}
 
 	data, contentType, err := readZipFile(entry)
 	if err != nil {
 		return false, fmt.Errorf("failed to read screenshot asset: %w", err)
 	}
-	if len(data) > maxRecordingAssetBytes {
-		return false, fmt.Errorf("frame screenshot exceeds maximum size (%d bytes)", maxRecordingAssetBytes)
+	if int64(len(data)) > maxRecordingAssetBytes() {
+		return false, fmt.Errorf("frame screenshot exceeds maximum size (%d bytes)", maxRecordingAssetBytes())
 	}
 
 	width, height := decodeDimensions(data)

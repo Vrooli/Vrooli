@@ -1,3 +1,59 @@
+// Package contracts defines the event and telemetry types for workflow execution.
+//
+// # Signal Surface Overview
+//
+// Browser Automation Studio emits structured signals to enable observability,
+// debugging, and automation. Signals fall into three categories:
+//
+// ## 1. Execution Lifecycle Events (EventKind)
+//
+// These events track workflow execution state transitions:
+//
+//   - execution.started: Workflow begins running (status: pending → running)
+//   - execution.progress: Periodic progress updates during execution
+//   - execution.completed: Workflow finished successfully (status: running → completed)
+//   - execution.failed: Workflow terminated with an error (status: running → failed)
+//   - execution.cancelled: User cancelled the execution (status: running → cancelled)
+//   - execution.interrupted: Recovered after crash/restart (status: running → interrupted)
+//
+// ## 2. Step-Level Events
+//
+// These events track individual step execution:
+//
+//   - step.started: Step begins execution
+//   - step.completed: Step finished successfully
+//   - step.failed: Step terminated with error (may trigger retry)
+//   - step.screenshot: Screenshot captured mid-step
+//   - step.telemetry: Mid-step telemetry (console, network, heartbeat)
+//   - step.heartbeat: Liveness signal during long-running steps
+//
+// ## 3. Execution Status Values
+//
+// The database.Execution.Status field uses these values:
+//
+//   - "pending": Created but not yet started
+//   - "running": Currently executing steps
+//   - "completed": All steps finished successfully
+//   - "failed": Stopped due to error
+//   - "cancelled": User-initiated cancellation
+//   - "interrupted": Recovered after service restart (resumable if checkpoint exists)
+//
+// ## 4. Health & Telemetry
+//
+// The /health endpoint exposes operational metrics:
+//
+//   - goroutines: Active goroutine count
+//   - uptime_seconds: Time since service start
+//   - heap_alloc_mb: Current heap allocation
+//   - gc_pause_total_ms: Total GC pause time
+//
+// Dependencies health checks include database, storage, and automation engine.
+//
+// ## Signal Stability Guarantees
+//
+// Event kinds and status values are stable identifiers. Changes to these values
+// constitute breaking changes. Payload shapes within events may evolve with
+// schema_version bumps.
 package contracts
 
 import (
@@ -8,21 +64,52 @@ import (
 )
 
 // EventKind enumerates structured events emitted by the executor/recorder layer.
+// These values are stable identifiers; changes are breaking.
 type EventKind string
 
 const (
-	EventKindExecutionStarted   EventKind = "execution.started"
-	EventKindExecutionProgress  EventKind = "execution.progress"
-	EventKindExecutionCompleted EventKind = "execution.completed"
-	EventKindExecutionFailed    EventKind = "execution.failed"
-	EventKindExecutionCancelled EventKind = "execution.cancelled"
-	EventKindStepStarted        EventKind = "step.started"
-	EventKindStepCompleted      EventKind = "step.completed"
-	EventKindStepFailed         EventKind = "step.failed"
-	EventKindStepScreenshot     EventKind = "step.screenshot"
-	EventKindStepTelemetry      EventKind = "step.telemetry"
-	EventKindStepHeartbeat      EventKind = "step.heartbeat"
+	EventKindExecutionStarted     EventKind = "execution.started"
+	EventKindExecutionProgress    EventKind = "execution.progress"
+	EventKindExecutionCompleted   EventKind = "execution.completed"
+	EventKindExecutionFailed      EventKind = "execution.failed"
+	EventKindExecutionCancelled   EventKind = "execution.cancelled"
+	EventKindExecutionInterrupted EventKind = "execution.interrupted" // Set when recovered after crash/restart
+	EventKindStepStarted          EventKind = "step.started"
+	EventKindStepCompleted        EventKind = "step.completed"
+	EventKindStepFailed           EventKind = "step.failed"
+	EventKindStepScreenshot       EventKind = "step.screenshot"
+	EventKindStepTelemetry        EventKind = "step.telemetry"
+	EventKindStepHeartbeat        EventKind = "step.heartbeat"
 )
+
+// ExecutionStatus defines the canonical status values for workflow executions.
+// These are stored in database.Execution.Status and emitted in event payloads.
+// Use these constants rather than string literals to ensure consistency.
+type ExecutionStatus string
+
+const (
+	ExecutionStatusPending     ExecutionStatus = "pending"
+	ExecutionStatusRunning     ExecutionStatus = "running"
+	ExecutionStatusCompleted   ExecutionStatus = "completed"
+	ExecutionStatusFailed      ExecutionStatus = "failed"
+	ExecutionStatusCancelled   ExecutionStatus = "cancelled"
+	ExecutionStatusInterrupted ExecutionStatus = "interrupted"
+)
+
+// IsTerminal returns true if the status represents a final execution state.
+func (s ExecutionStatus) IsTerminal() bool {
+	switch s {
+	case ExecutionStatusCompleted, ExecutionStatusFailed, ExecutionStatusCancelled, ExecutionStatusInterrupted:
+		return true
+	default:
+		return false
+	}
+}
+
+// String returns the string representation of the status.
+func (s ExecutionStatus) String() string {
+	return string(s)
+}
 
 // EventEnvelope wraps payloads with ordering/backpressure metadata. Sequence is
 // monotonic per execution; per-attempt ordering is enforced by EventSink

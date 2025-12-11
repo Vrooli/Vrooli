@@ -8,22 +8,25 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
 )
 
-const (
-	defaultCaptureInterval    = 40
-	defaultCaptureTailMs      = 320
-	defaultPresentationWidth  = 1280
-	defaultPresentationHeight = 720
-	maxCaptureFrames          = 720
+// Package-level accessors for config values used across the replay package.
+// These provide the values from the control surface for use in rendering and encoding.
+var (
+	defaultCaptureInterval    = config.Load().Replay.CaptureIntervalMs
+	defaultCaptureTailMs      = config.Load().Replay.CaptureTailMs
+	defaultPresentationWidth  = config.Load().Replay.PresentationWidth
+	defaultPresentationHeight = config.Load().Replay.PresentationHeight
+	maxCaptureFrames          = config.Load().Replay.MaxCaptureFrames
 )
 
 func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {
+	cfg := config.Load()
 	ffmpegPath := detectFFmpegBinary()
-	client := &http.Client{Timeout: 16 * time.Minute}
+	client := &http.Client{Timeout: cfg.Replay.RenderTimeout}
 	exportPageURL := strings.TrimSpace(os.Getenv("BAS_EXPORT_PAGE_URL"))
 	if exportPageURL == "" {
 		exportPageURL = strings.TrimSpace(os.Getenv("BAS_UI_EXPORT_URL"))
@@ -57,7 +60,8 @@ func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string) *ReplayR
 			exportPageURL = fmt.Sprintf("%s://%s%s", scheme, host, path)
 		}
 	}
-	captureInterval := defaultCaptureInterval
+	// Allow env var override for backward compatibility
+	captureInterval := cfg.Replay.CaptureIntervalMs
 	if intervalEnv := strings.TrimSpace(os.Getenv("BAS_EXPORT_FRAME_INTERVAL_MS")); intervalEnv != "" {
 		if parsed, err := strconv.Atoi(intervalEnv); err == nil && parsed > 0 {
 			captureInterval = parsed

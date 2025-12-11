@@ -82,7 +82,7 @@ func TestDecode(t *testing.T) {
 
 	t.Run("body size limit", func(t *testing.T) {
 		// Create a body larger than MaxBodyBytes (1MB)
-		largeBody := bytes.Repeat([]byte("x"), int(MaxBodyBytes)+1)
+		largeBody := bytes.Repeat([]byte("x"), int(MaxBodyBytes())+1)
 		req := httptest.NewRequest("POST", "/", bytes.NewReader(largeBody))
 		w := httptest.NewRecorder()
 
@@ -151,8 +151,9 @@ func TestDecodeAllowEmpty(t *testing.T) {
 }
 
 func TestMaxBodyBytes(t *testing.T) {
-	if MaxBodyBytes != 1<<20 {
-		t.Errorf("MaxBodyBytes = %d, expected %d (1MB)", MaxBodyBytes, 1<<20)
+	// Test that the default value is 1MB when no config is set
+	if MaxBodyBytes() != 1<<20 {
+		t.Errorf("MaxBodyBytes() = %d, expected %d (1MB)", MaxBodyBytes(), 1<<20)
 	}
 }
 

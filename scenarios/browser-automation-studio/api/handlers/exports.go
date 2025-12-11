@@ -63,7 +63,7 @@ func (h *Handler) ListExports(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
+	limit, offset := parsePaginationParams(r, 0, 0)
 
 	// Check for execution_id filter
 	executionIDStr := strings.TrimSpace(r.URL.Query().Get("execution_id"))

@@ -239,7 +239,7 @@ type RecordingFrameResponse struct {
 	Width       int    `json:"width"`
 	Height      int    `json:"height"`
 	CapturedAt  string `json:"captured_at"`
-	ContentHash string `json:"content_hash"` // MD5 hash of raw frame buffer for reliable ETag
+	ContentHash string `json:"content_hash"`         // MD5 hash of raw frame buffer for reliable ETag
 	PageTitle   string `json:"page_title,omitempty"` // Current page title (document.title)
 	PageURL     string `json:"page_url,omitempty"`   // Current page URL
 }
@@ -2455,10 +2455,10 @@ func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string
 	// This dramatically reduces latency vs creating a new client per request.
 	// Keep-alive connections mean subsequent requests reuse existing TCP connections.
 	transport := &http.Transport{
-		MaxIdleConns:        100,             // Total pool size
-		MaxIdleConnsPerHost: 10,              // Per-driver connections (usually just one driver)
+		MaxIdleConns:        100,              // Total pool size
+		MaxIdleConnsPerHost: 10,               // Per-driver connections (usually just one driver)
 		IdleConnTimeout:     90 * time.Second, // Keep connections warm
-		DisableKeepAlives:   false,           // Explicitly enable keep-alive
+		DisableKeepAlives:   false,            // Explicitly enable keep-alive
 	}
 	client := &http.Client{
 		Timeout:   5 * time.Second,

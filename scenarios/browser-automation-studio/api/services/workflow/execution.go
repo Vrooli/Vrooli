@@ -6,29 +6,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
-// Package-level configuration for terminal execution statuses and adhoc workflow cleanup.
+// Package-level configuration for adhoc workflow cleanup.
 // These are shared across execution lifecycle methods (see workflow_service_lifecycle.go and workflow_service_adhoc.go).
 var (
-	terminalExecutionStatuses = map[string]struct{}{
-		"completed": {},
-		"failed":    {},
-		"cancelled": {},
-	}
 	adhocExecutionCleanupInterval = 5 * time.Second
 	adhocExecutionRetentionPeriod = 10 * time.Minute
 	adhocExecutionCleanupTimeout  = 6 * time.Hour
 )
 
 // IsTerminalExecutionStatus reports whether the supplied status represents a terminal execution state.
+// Delegates to the canonical ExecutionStatus type in automation/contracts for consistency.
 func IsTerminalExecutionStatus(status string) bool {
 	if strings.TrimSpace(status) == "" {
 		return false
 	}
-	_, ok := terminalExecutionStatuses[strings.ToLower(status)]
-	return ok
+	return autocontracts.ExecutionStatus(strings.ToLower(status)).IsTerminal()
 }
 
 // ExecuteWorkflow executes a workflow.
@@ -59,12 +55,12 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 		ID:              uuid.New(),
 		WorkflowID:      workflowID,
 		WorkflowVersion: workflow.Version,
-		Status:          "pending",
+		Status:          autocontracts.ExecutionStatusPending.String(),
 		TriggerType:     "manual",
 		Parameters:      database.JSONMap(parameters),
 		StartedAt:       time.Now(),
 		Progress:        0,
-		CurrentStep:     "Initializing",
+		CurrentStep:     "Initializing workflow",
 	}
 
 	if err := s.repo.CreateExecution(ctx, execution); err != nil {

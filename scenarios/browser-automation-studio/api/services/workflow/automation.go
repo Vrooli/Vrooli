@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
@@ -62,6 +63,60 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		WorkflowResolver:  s.repo,
 		PlanCompiler:      compiler,
 		MaxSubflowDepth:   5,
+	}
+	return s.executor.Execute(ctx, req)
+}
+
+// executeResumedWithAutomationEngine executes a workflow from a specific step index.
+// This is used when resuming an interrupted execution.
+func (s *WorkflowService) executeResumedWithAutomationEngine(ctx context.Context, execution *database.Execution, workflow *database.Workflow, selection autoengine.SelectionConfig, eventSink autoevents.Sink, startFromStepIndex int, initialVars map[string]any, resumedFromID uuid.UUID) error {
+	if s == nil {
+		return errors.New("workflow service not configured")
+	}
+
+	engineName := selection.Resolve("")
+
+	compiler := s.planCompiler
+	if compiler == nil {
+		compiler = autoexecutor.PlanCompilerForEngine(engineName)
+	}
+
+	plan, _, err := autoexecutor.BuildContractsPlanWithCompiler(ctx, execution.ID, workflow, compiler)
+	if err != nil {
+		return err
+	}
+
+	if s.executor == nil {
+		s.executor = autoexecutor.NewSimpleExecutor(nil)
+	}
+	if s.engineFactory == nil {
+		factory, engErr := autoengine.DefaultFactory(s.log)
+		if engErr != nil {
+			return engErr
+		}
+		s.engineFactory = factory
+	}
+	if s.artifactRecorder == nil {
+		s.artifactRecorder = autorecorder.NewDBRecorder(s.repo, nil, s.log)
+	}
+
+	if eventSink == nil {
+		eventSink = s.newEventSink()
+	}
+
+	req := autoexecutor.Request{
+		Plan:               plan,
+		EngineName:         engineName,
+		EngineFactory:      s.engineFactory,
+		Recorder:           s.artifactRecorder,
+		EventSink:          eventSink,
+		HeartbeatInterval:  2 * time.Second,
+		WorkflowResolver:   s.repo,
+		PlanCompiler:       compiler,
+		MaxSubflowDepth:    5,
+		StartFromStepIndex: startFromStepIndex,
+		InitialVariables:   initialVars,
+		ResumedFromID:      &resumedFromID,
 	}
 	return s.executor.Execute(ctx, req)
 }

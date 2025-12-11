@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/replay"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -454,5 +457,208 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 	actual := stub.deadline.Sub(stub.invokedAt)
 	if actual < expected-500*time.Millisecond || actual > expected+2*time.Second {
 		t.Fatalf("render context deadline mismatch: expected ~%s, got %s", expected, actual)
+	}
+}
+
+func TestResumeExecution_Success(t *testing.T) {
+	originalExecID := uuid.New()
+	newExecID := uuid.New()
+	wfID := uuid.New()
+	now := time.Now()
+
+	svc := &workflowServiceMock{
+		resumeExecutionFn: func(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+			if executionID != originalExecID {
+				t.Fatalf("unexpected execution id %s, expected %s", executionID, originalExecID)
+			}
+			return &database.Execution{
+				ID:          newExecID,
+				WorkflowID:  wfID,
+				Status:      "pending",
+				TriggerType: "resume",
+				TriggerMetadata: database.JSONMap{
+					"resumed_from_execution_id": originalExecID.String(),
+					"resume_from_step_index":    5,
+				},
+				Parameters: database.JSONMap(parameters),
+				StartedAt:  now,
+			}, nil
+		},
+	}
+
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
+	}
+
+	body := `{"parameters": {"custom_var": "value"}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions/"+originalExecID.String()+"/resume", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", originalExecID.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	resp := httptest.NewRecorder()
+	h.ResumeExecution(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	// Parse protojson response
+	var result map[string]any
+	if err := json.Unmarshal(resp.Body.Bytes(), &result); err != nil {
+		t.Fatalf("failed to decode response: %v\nBody: %s", err, resp.Body.String())
+	}
+
+	// Proto field name is "execution_id" for the id field
+	if id, ok := result["execution_id"].(string); !ok || id != newExecID.String() {
+		t.Errorf("expected execution id %s, got %v (type=%T)", newExecID, result["execution_id"], result["execution_id"])
+	}
+	// Proto enum serializes as string name
+	if status := result["status"]; status != "EXECUTION_STATUS_PENDING" {
+		t.Errorf("expected status EXECUTION_STATUS_PENDING, got %v", status)
+	}
+	// Verify trigger_metadata contains resume info
+	triggerMeta, ok := result["trigger_metadata"].(map[string]any)
+	if !ok {
+		t.Errorf("expected trigger_metadata to be a map, got %T", result["trigger_metadata"])
+	} else {
+		if triggerMeta["resumed_from_execution_id"] != originalExecID.String() {
+			t.Errorf("expected resumed_from_execution_id %s, got %v", originalExecID, triggerMeta["resumed_from_execution_id"])
+		}
+	}
+}
+
+func TestResumeExecution_InvalidID(t *testing.T) {
+	svc := &workflowServiceMock{}
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions/not-a-uuid/resume", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "not-a-uuid")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	resp := httptest.NewRecorder()
+	h.ResumeExecution(resp, req)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", resp.Code)
+	}
+}
+
+func TestResumeExecution_NotResumable(t *testing.T) {
+	execID := uuid.New()
+
+	svc := &workflowServiceMock{
+		resumeExecutionFn: func(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+			return nil, errors.New("execution cannot be resumed: status \"completed\" is not resumable")
+		},
+	}
+
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions/"+execID.String()+"/resume", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", execID.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	resp := httptest.NewRecorder()
+	h.ResumeExecution(resp, req)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(resp.Body.Bytes(), &result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if details, ok := result["details"].(map[string]any); ok {
+		if !strings.Contains(details["error"].(string), "cannot be resumed") {
+			t.Errorf("expected error to mention 'cannot be resumed', got %v", details["error"])
+		}
+	}
+}
+
+func TestResumeExecution_NotInterrupted(t *testing.T) {
+	execID := uuid.New()
+
+	svc := &workflowServiceMock{
+		resumeExecutionFn: func(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+			return nil, errors.New("execution was not interrupted, cannot resume")
+		},
+	}
+
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions/"+execID.String()+"/resume", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", execID.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	resp := httptest.NewRecorder()
+	h.ResumeExecution(resp, req)
+
+	// This should return 500 since it's not explicitly a "cannot be resumed" error
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestResumeExecution_NoBody(t *testing.T) {
+	originalExecID := uuid.New()
+	newExecID := uuid.New()
+	wfID := uuid.New()
+
+	svc := &workflowServiceMock{
+		resumeExecutionFn: func(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+			// parameters should be nil or empty when no body provided
+			return &database.Execution{
+				ID:          newExecID,
+				WorkflowID:  wfID,
+				Status:      "pending",
+				TriggerType: "resume",
+				StartedAt:   time.Now(),
+			}, nil
+		},
+	}
+
+	h := &Handler{
+		workflowCatalog:  svc,
+		executionService: svc,
+		exportService:    svc,
+		log:              logrus.New(),
+	}
+
+	// No body, no Content-Type
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions/"+originalExecID.String()+"/resume", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", originalExecID.String())
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	resp := httptest.NewRecorder()
+	h.ResumeExecution(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", resp.Code, resp.Body.String())
 	}
 }

@@ -140,7 +140,7 @@ func deriveFrameDuration(frames []recordingFrame, index int) int {
 			return delta
 		}
 	}
-	return recordingDefaultFrameDurationMs
+	return recordingDefaultFrameDurationMs()
 }
 
 // intPointer creates a pointer to an int value (helper for optional fields).

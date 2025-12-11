@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -809,6 +810,9 @@ func (m *recordModeWorkflowServiceMock) ListExecutions(ctx context.Context, work
 }
 func (m *recordModeWorkflowServiceMock) StopExecution(ctx context.Context, executionID uuid.UUID) error {
 	return nil
+}
+func (m *recordModeWorkflowServiceMock) ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	return nil, errors.New("not implemented")
 }
 func (m *recordModeWorkflowServiceMock) GetProjectByName(ctx context.Context, name string) (*database.Project, error) {
 	return nil, nil

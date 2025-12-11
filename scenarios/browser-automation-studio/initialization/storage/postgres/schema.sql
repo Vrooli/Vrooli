@@ -88,6 +88,12 @@ CREATE INDEX idx_executions_started_at ON executions(started_at);
 CREATE INDEX idx_executions_trigger_type ON executions(trigger_type);
 CREATE INDEX idx_executions_last_heartbeat ON executions(last_heartbeat);
 
+-- Index for stale execution recovery (progress continuity)
+-- This enables efficient detection of executions left in running/pending state
+-- after service restarts or crashes
+CREATE INDEX idx_executions_stale_recovery ON executions(status, started_at, last_heartbeat)
+    WHERE status IN ('running', 'pending');
+
 -- Execution logs table
 CREATE TABLE IF NOT EXISTS execution_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -14,6 +14,7 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
@@ -58,10 +59,17 @@ type Handler struct {
 	aiAnalysisHandler      *aihandlers.AIAnalysisHandler
 }
 
-const (
-	recordingUploadLimitBytes = 200 * 1024 * 1024 // 200MB
-	recordingImportTimeout    = 2 * time.Minute
-)
+// recordingUploadLimitBytes returns the configured maximum upload size for recording archives.
+// Uses config.Load().Recording.MaxArchiveBytes - configurable via BAS_RECORDING_MAX_ARCHIVE_BYTES
+func recordingUploadLimitBytes() int64 {
+	return config.Load().Recording.MaxArchiveBytes
+}
+
+// recordingImportTimeout returns the configured timeout for recording imports.
+// Uses config.Load().Recording.ImportTimeout - configurable via BAS_RECORDING_IMPORT_TIMEOUT_MS
+func recordingImportTimeout() time.Duration {
+	return config.Load().Recording.ImportTimeout
+}
 
 type workflowResponse struct {
 	*database.Workflow

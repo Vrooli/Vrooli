@@ -719,5 +719,24 @@ func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, s
 	return payload
 }
 
+// UpdateCheckpoint persists the current execution progress to the database.
+// This enables progress continuity across restarts and supports resumption.
+func (r *DBRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
+	if r == nil || r.repo == nil {
+		return nil
+	}
+
+	progress := 0
+	if totalSteps > 0 && stepIndex >= 0 {
+		// Calculate progress as percentage (0-100)
+		progress = ((stepIndex + 1) * 100) / totalSteps
+		if progress > 100 {
+			progress = 100
+		}
+	}
+
+	return r.repo.UpdateExecutionCheckpoint(ctx, executionID, stepIndex, progress)
+}
+
 // Compile-time interface enforcement
 var _ Recorder = (*DBRecorder)(nil)

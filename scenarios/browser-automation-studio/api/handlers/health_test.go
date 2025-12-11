@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -170,6 +171,26 @@ func (m *healthMockRepository) ListExportsByExecution(ctx context.Context, execu
 }
 func (m *healthMockRepository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*database.Export, error) {
 	return nil, nil
+}
+
+// Recovery operations
+func (m *healthMockRepository) FindStaleExecutions(ctx context.Context, staleThreshold time.Duration) ([]*database.Execution, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) MarkExecutionInterrupted(ctx context.Context, id uuid.UUID, reason string) error {
+	return nil
+}
+func (m *healthMockRepository) GetLastSuccessfulStepIndex(ctx context.Context, executionID uuid.UUID) (int, error) {
+	return -1, nil
+}
+func (m *healthMockRepository) UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error {
+	return nil
+}
+func (m *healthMockRepository) GetCompletedSteps(ctx context.Context, executionID uuid.UUID) ([]*database.ExecutionStep, error) {
+	return nil, nil
+}
+func (m *healthMockRepository) GetResumableExecution(ctx context.Context, id uuid.UUID) (*database.Execution, int, error) {
+	return nil, -1, nil
 }
 
 func TestHealth(t *testing.T) {

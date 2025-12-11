@@ -225,7 +225,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	folderPath := r.URL.Query().Get("folder_path")
-	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
+	limit, offset := parsePaginationParams(r, 0, 0)
 
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
@@ -648,7 +648,7 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 // It is particularly useful for testing scenarios where workflow pollution should be avoided.
 func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	var req ExecuteAdhocWorkflowRequest
-	rawBody, err := readLimitedBody(w, r, httpjson.MaxBodyBytes)
+	rawBody, err := readLimitedBody(w, r, httpjson.MaxBodyBytes())
 	if err != nil {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {

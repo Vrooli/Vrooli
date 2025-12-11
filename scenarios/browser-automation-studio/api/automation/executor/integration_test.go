@@ -1165,6 +1165,10 @@ func (s *stubRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, fai
 	return nil
 }
 
+func (s *stubRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
+	return nil
+}
+
 func ptr[T any](v T) *T {
 	return &v
 }

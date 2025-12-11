@@ -216,6 +216,10 @@ func (m *mockWorkflowServiceForProjects) StopExecution(ctx context.Context, exec
 	return nil
 }
 
+func (m *mockWorkflowServiceForProjects) ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *mockWorkflowServiceForProjects) CheckAutomationHealth(ctx context.Context) (bool, error) {
 	return true, nil
 }

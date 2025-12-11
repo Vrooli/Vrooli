@@ -219,3 +219,7 @@ func (r *inMemoryCaptureRecorder) RecordTelemetry(_ context.Context, _ autocontr
 func (r *inMemoryCaptureRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ autocontracts.StepFailure) error {
 	return nil
 }
+
+func (r *inMemoryCaptureRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
+	return nil // In-memory recorder doesn't persist checkpoints
+}

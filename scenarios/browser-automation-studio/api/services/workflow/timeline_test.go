@@ -185,6 +185,32 @@ func (m *timelineRepositoryMock) ListExportsByWorkflow(ctx context.Context, work
 	return nil, nil
 }
 
+// Recovery operations
+func (m *timelineRepositoryMock) FindStaleExecutions(ctx context.Context, staleThreshold time.Duration) ([]*database.Execution, error) {
+	return nil, nil
+}
+func (m *timelineRepositoryMock) MarkExecutionInterrupted(ctx context.Context, id uuid.UUID, reason string) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetLastSuccessfulStepIndex(ctx context.Context, executionID uuid.UUID) (int, error) {
+	return -1, nil
+}
+func (m *timelineRepositoryMock) UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetCompletedSteps(ctx context.Context, executionID uuid.UUID) ([]*database.ExecutionStep, error) {
+	var completed []*database.ExecutionStep
+	for _, step := range m.steps {
+		if step.Status == "completed" {
+			completed = append(completed, step)
+		}
+	}
+	return completed, nil
+}
+func (m *timelineRepositoryMock) GetResumableExecution(ctx context.Context, id uuid.UUID) (*database.Execution, int, error) {
+	return nil, -1, database.ErrNotFound
+}
+
 func TestGetExecutionTimeline(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] builds timeline from execution artifacts", func(t *testing.T) {
 		executionID := uuid.New()

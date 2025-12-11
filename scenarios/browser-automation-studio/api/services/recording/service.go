@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -20,25 +21,50 @@ import (
 const (
 	defaultRecordingWorkflowFolder = "/recordings"
 	defaultRecordingWorkflowName   = "Extension Recording"
-
-	maxRecordingFrames              = 400
-	maxRecordingArchiveBytes        = 200 * 1024 * 1024 // 200MB
-	maxRecordingAssetBytes          = 12 * 1024 * 1024  // 12MB per frame
-	recordingDefaultFrameDurationMs = 1600
 )
+
+// maxRecordingFrames returns the configured maximum frame count.
+// Configurable via BAS_RECORDING_MAX_FRAMES (default: 400)
+func maxRecordingFrames() int {
+	return config.Load().Recording.MaxFrames
+}
+
+// maxRecordingArchiveBytes returns the configured maximum archive size.
+// Configurable via BAS_RECORDING_MAX_ARCHIVE_BYTES (default: 200MB)
+func maxRecordingArchiveBytes() int64 {
+	return config.Load().Recording.MaxArchiveBytes
+}
+
+// maxRecordingAssetBytes returns the configured maximum per-frame size.
+// Configurable via BAS_RECORDING_MAX_FRAME_BYTES (default: 12MB)
+func maxRecordingAssetBytes() int64 {
+	return config.Load().Recording.MaxFrameBytes
+}
+
+// recordingDefaultFrameDurationMs returns the configured default frame duration.
+// Configurable via BAS_RECORDING_DEFAULT_FRAME_DURATION_MS (default: 1600)
+func recordingDefaultFrameDurationMs() int {
+	return config.Load().Recording.DefaultFrameDurationMs
+}
 
 var (
 	errManifestMissingFrames = errors.New("recording manifest did not include any frames")
 	errManifestTooLarge      = errors.New("recording archive exceeds maximum allowed size")
-	errTooManyFrames         = fmt.Errorf("recording exceeds maximum frame count (%d)", maxRecordingFrames)
 )
+
+// errTooManyFrames returns an error with the current max frame limit.
+func errTooManyFrames() error {
+	return fmt.Errorf("recording exceeds maximum frame count (%d)", maxRecordingFrames())
+}
 
 // Exported error aliases for handler detection.
 var (
 	ErrRecordingManifestMissingFrames = errManifestMissingFrames
 	ErrRecordingArchiveTooLarge       = errManifestTooLarge
-	ErrRecordingTooManyFrames         = errTooManyFrames
 )
+
+// ErrRecordingTooManyFrames is checked via errors.Is by using a custom type.
+var ErrRecordingTooManyFrames = errors.New("recording exceeds maximum frame count")
 
 // RecordingRepository captures the repository functionality required for recording ingestion.
 type RecordingRepository interface {
@@ -60,6 +86,7 @@ type RecordingRepository interface {
 	UpdateExecutionStep(ctx context.Context, step *database.ExecutionStep) error
 	CreateExecutionArtifact(ctx context.Context, artifact *database.ExecutionArtifact) error
 	CreateExecutionLog(ctx context.Context, log *database.ExecutionLog) error
+	UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error
 }
 
 // RecordingImportOptions capture optional metadata supplied during ingestion.
@@ -133,7 +160,7 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 		return nil, fmt.Errorf("recording archive unavailable: %w", err)
 	}
 
-	if info.Size() > maxRecordingArchiveBytes {
+	if info.Size() > maxRecordingArchiveBytes() {
 		return nil, errManifestTooLarge
 	}
 
@@ -152,8 +179,8 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 		return nil, errManifestMissingFrames
 	}
 
-	if len(manifest.Frames) > maxRecordingFrames {
-		return nil, errTooManyFrames
+	if len(manifest.Frames) > maxRecordingFrames() {
+		return nil, errTooManyFrames()
 	}
 
 	project, projectCreated, err := s.resolveProject(ctx, manifest, opts)

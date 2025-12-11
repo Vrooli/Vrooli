@@ -31,6 +31,10 @@ func (r *recordingRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ contract
 	return nil
 }
 
+func (r *recordingRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
+	return nil
+}
+
 func TestFlowExecutorRoutesConditionalBranches(t *testing.T) {
 	execID := uuid.New()
 	workflowID := uuid.New()

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
@@ -127,6 +128,10 @@ func (m *markerRecorder) RecordStepOutcome(ctx context.Context, plan autocontrac
 }
 
 func (m *markerRecorder) RecordTelemetry(ctx context.Context, plan autocontracts.ExecutionPlan, telemetry autocontracts.StepTelemetry) error {
+	return nil
+}
+
+func (m *markerRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
 	return nil
 }
 
@@ -265,6 +270,10 @@ func (r *stubRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, fai
 	return nil
 }
 
+func (r *stubRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
+	return nil
+}
+
 // Verify executeWithAutomationEngine respects injected plan compiler / engine / recorder.
 func TestExecuteWithAutomationEngine_UsesInjectedCompilerAndEngine(t *testing.T) {
 	execID := uuid.New()
@@ -316,5 +325,226 @@ func TestExecuteWithAutomationEngine_UsesInjectedCompilerAndEngine(t *testing.T)
 	}
 	if events := eventSink.Events(); len(events) == 0 {
 		t.Fatalf("expected events emitted to sink")
+	}
+}
+
+// resumeRepositoryStub provides a minimal stub for testing resume execution.
+// It only implements the methods required by ResumeExecution.
+type resumeRepositoryStub struct {
+	database.Repository
+	execution       *database.Execution
+	workflow        *database.Workflow
+	lastStepIndex   int
+	completedSteps  []*database.ExecutionStep
+	createdExecution *database.Execution
+	getError        error
+}
+
+func (r *resumeRepositoryStub) GetResumableExecution(ctx context.Context, id uuid.UUID) (*database.Execution, int, error) {
+	if r.getError != nil {
+		return nil, -1, r.getError
+	}
+	if r.execution == nil {
+		return nil, -1, database.ErrNotFound
+	}
+	return r.execution, r.lastStepIndex, nil
+}
+
+func (r *resumeRepositoryStub) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
+	if r.workflow == nil {
+		return nil, database.ErrNotFound
+	}
+	return r.workflow, nil
+}
+
+func (r *resumeRepositoryStub) GetCompletedSteps(ctx context.Context, executionID uuid.UUID) ([]*database.ExecutionStep, error) {
+	return r.completedSteps, nil
+}
+
+func (r *resumeRepositoryStub) CreateExecution(ctx context.Context, execution *database.Execution) error {
+	r.createdExecution = execution
+	return nil
+}
+
+func (r *resumeRepositoryStub) UpdateExecution(ctx context.Context, execution *database.Execution) error {
+	return nil
+}
+
+func (r *resumeRepositoryStub) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
+	return nil, nil
+}
+
+func (r *resumeRepositoryStub) CreateWorkflow(ctx context.Context, workflow *database.Workflow) error {
+	return nil
+}
+
+func TestResumeExecution_CreatesCorrectTriggerMetadata(t *testing.T) {
+	execID := uuid.New()
+	wfID := uuid.New()
+
+	repo := &resumeRepositoryStub{
+		execution: &database.Execution{
+			ID:          execID,
+			WorkflowID:  wfID,
+			Status:      "interrupted",
+			Progress:    50,
+		},
+		workflow: &database.Workflow{
+			ID:      wfID,
+			Name:    "Test Workflow",
+			Version: 1,
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{"id": "1", "type": "navigate"},
+					map[string]any{"id": "2", "type": "click"},
+					map[string]any{"id": "3", "type": "click"},
+				},
+			},
+		},
+		lastStepIndex: 1,
+		completedSteps: []*database.ExecutionStep{
+			{
+				StepIndex: 0,
+				Output: database.JSONMap{
+					"stored_as": "result_0",
+					"value":     "test_value",
+				},
+			},
+		},
+	}
+
+	log := logrus.New()
+	log.SetLevel(logrus.ErrorLevel)
+	svc := NewWorkflowServiceWithDeps(repo, nil, log, WorkflowServiceOptions{})
+
+	newExec, err := svc.ResumeExecution(context.Background(), execID, map[string]any{"extra_param": "value"})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if newExec == nil {
+		t.Fatal("expected new execution to be created")
+	}
+
+	if newExec.TriggerType != "resume" {
+		t.Errorf("expected trigger type 'resume', got %s", newExec.TriggerType)
+	}
+
+	if newExec.WorkflowID != wfID {
+		t.Errorf("expected workflow id %s, got %s", wfID, newExec.WorkflowID)
+	}
+
+	// Verify trigger metadata
+	triggerMeta := newExec.TriggerMetadata
+	if triggerMeta == nil {
+		t.Fatal("expected trigger metadata to be set")
+	}
+	if triggerMeta["resumed_from_execution_id"] != execID.String() {
+		t.Errorf("expected resumed_from_execution_id %s, got %v", execID, triggerMeta["resumed_from_execution_id"])
+	}
+	if stepIndex, ok := triggerMeta["resume_from_step_index"].(int); !ok || stepIndex != 1 {
+		t.Errorf("expected resume_from_step_index 1, got %v", triggerMeta["resume_from_step_index"])
+	}
+
+	// Verify parameters include both restored variables and new parameters
+	params := newExec.Parameters
+	if params == nil {
+		t.Fatal("expected parameters to be set")
+	}
+	if params["result_0"] != "test_value" {
+		t.Errorf("expected result_0 to be restored, got %v", params["result_0"])
+	}
+	if params["extra_param"] != "value" {
+		t.Errorf("expected extra_param to be merged, got %v", params["extra_param"])
+	}
+}
+
+func TestResumeExecution_FailsForNonResumableExecution(t *testing.T) {
+	repo := &resumeRepositoryStub{
+		getError: database.ErrNotFound,
+	}
+
+	log := logrus.New()
+	log.SetLevel(logrus.ErrorLevel)
+	svc := NewWorkflowServiceWithDeps(repo, nil, log, WorkflowServiceOptions{})
+
+	_, err := svc.ResumeExecution(context.Background(), uuid.New(), nil)
+
+	if err == nil {
+		t.Fatal("expected error for non-resumable execution")
+	}
+	if !strings.Contains(err.Error(), "cannot be resumed") {
+		t.Errorf("expected error to mention 'cannot be resumed', got %v", err)
+	}
+}
+
+func TestResumeExecution_FailsWhenWorkflowNotFound(t *testing.T) {
+	execID := uuid.New()
+	wfID := uuid.New()
+
+	repo := &resumeRepositoryStub{
+		execution: &database.Execution{
+			ID:          execID,
+			WorkflowID:  wfID,
+			Status:      "interrupted",
+		},
+		workflow:      nil, // Workflow not found
+		lastStepIndex: 1,
+	}
+
+	log := logrus.New()
+	log.SetLevel(logrus.ErrorLevel)
+	svc := NewWorkflowServiceWithDeps(repo, nil, log, WorkflowServiceOptions{})
+
+	_, err := svc.ResumeExecution(context.Background(), execID, nil)
+
+	if err == nil {
+		t.Fatal("expected error for missing workflow")
+	}
+	if !strings.Contains(err.Error(), "workflow not found") {
+		t.Errorf("expected error to mention 'workflow not found', got %v", err)
+	}
+}
+
+func TestExtractVariablesFromCompletedSteps(t *testing.T) {
+	svc := &WorkflowService{
+		repo: &resumeRepositoryStub{
+			completedSteps: []*database.ExecutionStep{
+				{
+					StepIndex: 0,
+					Output: database.JSONMap{
+						"stored_as": "url",
+						"value":     "https://example.com",
+					},
+				},
+				{
+					StepIndex: 1,
+					Output: database.JSONMap{
+						"extracted_data": "Some text content",
+					},
+					Metadata: database.JSONMap{
+						"store_result": "page_content",
+					},
+				},
+				{
+					StepIndex: 2,
+					Output:    database.JSONMap{}, // No stored result
+				},
+			},
+		},
+	}
+
+	vars, err := svc.extractVariablesFromCompletedSteps(context.Background(), uuid.New())
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["url"] != "https://example.com" {
+		t.Errorf("expected url to be restored, got %v", vars["url"])
+	}
+	if vars["page_content"] != "Some text content" {
+		t.Errorf("expected page_content to be restored, got %v", vars["page_content"])
 	}
 }

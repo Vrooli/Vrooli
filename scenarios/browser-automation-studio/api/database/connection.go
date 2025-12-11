@@ -17,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/constants"
 	_ "modernc.org/sqlite"
 )
@@ -52,10 +53,14 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	var db *sqlx.DB
 	var err error
 
-	// Exponential backoff configuration
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
+	// Load configuration from control surface
+	cfg := config.Load()
+
+	// Exponential backoff configuration from control surface
+	maxRetries := cfg.Database.MaxRetries
+	baseDelay := cfg.Database.BaseRetryDelay
+	maxDelay := cfg.Database.MaxRetryDelay
+	jitterFactor := cfg.Database.RetryJitterFactor
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		switch backend {
@@ -109,7 +114,7 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		}
 
 		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
+		jitterRange := float64(delay) * jitterFactor
 		jitter := time.Duration(jitterRange * rand.Float64())
 		actualDelay := delay + jitter
 
@@ -127,11 +132,12 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
 	}
 
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	// Configure connection pool from control surface
+	db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
 	if backend == "sqlite" {
+		// SQLite only supports a single connection
 		db.SetMaxOpenConns(1)
 	}
 

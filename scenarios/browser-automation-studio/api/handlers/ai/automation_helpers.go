@@ -46,6 +46,10 @@ func (r *inMemoryRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ autocontr
 	return nil
 }
 
+func (r *inMemoryRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
+	return nil // In-memory recorder doesn't persist checkpoints
+}
+
 func (r *inMemoryRecorder) Outcomes() []autocontracts.StepOutcome {
 	r.mu.Lock()
 	defer r.mu.Unlock()

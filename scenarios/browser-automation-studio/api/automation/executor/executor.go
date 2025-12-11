@@ -27,6 +27,12 @@ type Request struct {
 	MaxSubflowDepth   int              // Optional; defaults to 5.
 	SubflowStack      []uuid.UUID      // Internal: call stack to avoid recursion.
 	EngineCaps        *contracts.EngineCapabilities
+
+	// Resume support: when set, execution starts from the step after StartFromStepIndex.
+	// InitialVariables provides state accumulated from previously completed steps.
+	StartFromStepIndex int            // -1 means start from beginning (default).
+	InitialVariables   map[string]any // Variables restored from previous execution.
+	ResumedFromID      *uuid.UUID     // ID of the original execution being resumed.
 }
 
 // Executor orchestrates plan execution using an engine, recorder, and event sink.

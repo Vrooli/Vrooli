@@ -276,7 +276,7 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
+	limit, offset := parsePaginationParams(r, 0, 0)
 
 	executions, err := h.executionService.ListExecutions(ctx, workflowID, limit, offset)
 	if err != nil {
@@ -326,4 +326,63 @@ func (h *Handler) StopExecution(w http.ResponseWriter, r *http.Request) {
 	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"status": "stopped",
 	})
+}
+
+// resumeExecutionRequest represents the request body for resuming an execution.
+type resumeExecutionRequest struct {
+	Parameters map[string]any `json:"parameters,omitempty"`
+}
+
+// ResumeExecution handles POST /api/v1/executions/{id}/resume
+// Resumes an interrupted execution from its last checkpoint.
+func (h *Handler) ResumeExecution(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.parseUUIDParam(w, r, "id", ErrInvalidExecutionID)
+	if !ok {
+		return
+	}
+
+	var body resumeExecutionRequest
+	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		if err := decodeJSONBodyAllowEmpty(w, r, &body); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid json payload"}))
+			return
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+	defer cancel()
+
+	newExecution, err := h.executionService.ResumeExecution(ctx, id, body.Parameters)
+	if err != nil {
+		h.log.WithError(err).WithField("id", id).Error("Failed to resume execution")
+		// Check if it's a "cannot be resumed" error vs a server error
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "cannot be resumed") || strings.Contains(errMsg, "not resumable") {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+				"operation":    "resume_execution",
+				"execution_id": id.String(),
+				"error":        errMsg,
+			}))
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"operation":    "resume_execution",
+			"execution_id": id.String(),
+		}))
+		return
+	}
+
+	pbExecution, err := protoconv.ExecutionToProto(newExecution)
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).WithField("execution_id", newExecution.ID).Error("Failed to convert resumed execution to proto")
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
+			"operation": "execution_to_proto",
+			"error":     err.Error(),
+		}))
+		return
+	}
+
+	h.respondProto(w, http.StatusOK, pbExecution)
 }

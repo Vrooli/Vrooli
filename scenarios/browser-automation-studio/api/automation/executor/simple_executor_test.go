@@ -1597,6 +1597,10 @@ func (m *memoryRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, f
 	return nil
 }
 
+func (m *memoryRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
+	return nil
+}
+
 type artifactRecorder struct {
 	result recorder.RecordResult
 }
@@ -1610,6 +1614,10 @@ func (a *artifactRecorder) RecordTelemetry(ctx context.Context, plan contracts.E
 }
 
 func (a *artifactRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
+	return nil
+}
+
+func (a *artifactRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
 	return nil
 }
 

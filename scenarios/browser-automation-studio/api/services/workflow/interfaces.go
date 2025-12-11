@@ -40,6 +40,7 @@ type ExecutionService interface {
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error)
 	GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
 	StopExecution(ctx context.Context, executionID uuid.UUID) error
+	ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.Execution, error)
 	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error)
 	GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*export.ExecutionTimeline, error)
 	CheckAutomationHealth(ctx context.Context) (bool, error)
