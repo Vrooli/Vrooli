@@ -159,7 +159,12 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.enforceProtoRequestShape(w, "create_workflow", req, &browser_automation_studio_v1.CreateWorkflowRequest{}) {
+	// Proto shape checks are valuable for typed fields, but workflow graphs are
+	// treated as flexible JSON payloads (node types are lower-case strings like "navigate").
+	// Strip flow_definition before proto validation to avoid rejecting valid UI payloads.
+	reqForProto := req
+	reqForProto.FlowDefinition = nil
+	if !h.enforceProtoRequestShape(w, "create_workflow", reqForProto, &browser_automation_studio_v1.CreateWorkflowRequest{}) {
 		return
 	}
 
@@ -308,7 +313,14 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		req.WorkflowID = id.String()
 	}
 
-	if !h.enforceProtoRequestShape(w, "update_workflow", req, &browser_automation_studio_v1.UpdateWorkflowRequest{}) {
+	// Proto shape checks are valuable for typed fields, but workflow graphs are
+	// treated as flexible JSON payloads (node types are lower-case strings like "navigate").
+	// Strip graph fields before proto validation to avoid rejecting valid UI payloads.
+	reqForProto := req
+	reqForProto.FlowDefinition = nil
+	reqForProto.Nodes = nil
+	reqForProto.Edges = nil
+	if !h.enforceProtoRequestShape(w, "update_workflow", reqForProto, &browser_automation_studio_v1.UpdateWorkflowRequest{}) {
 		return
 	}
 

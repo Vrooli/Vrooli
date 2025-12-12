@@ -113,10 +113,15 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		ProfileID: req.ProfileID,
 		Steps:     make([]OrchestrationStep, 0),
 	}
+	scenarioBaseDir := filepath.Join(o.vrooli, "scenarios")
 
 	effectiveTimeout := time.Duration(req.TimeoutSeconds) * time.Second
 	if effectiveTimeout <= 0 {
 		effectiveTimeout = 10 * time.Minute
+	}
+	deploymentMode := req.DeploymentMode
+	if deploymentMode == "" {
+		deploymentMode = "bundled"
 	}
 	buildPlatforms := resolveBuildPlatforms(req.Platforms)
 	installerTargets := resolveInstallerTargets(req.Platforms)
@@ -221,6 +226,36 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	o.successStep(&step, fmt.Sprintf("assembled manifest with %d swaps", len(manifest.Swaps)))
+	response.Steps = append(response.Steps, step)
+
+	// Step 3.5: Omit non-cross-platform CLI services with a warning
+	step = o.startStep("Normalize CLI services")
+	if manifest != nil {
+		pruned, err := pruneNonCrossPlatformCLIs(manifest, filepath.Join(scenarioBaseDir, profile.Scenario))
+		if err != nil {
+			step.Status = "warning"
+			step.Message = fmt.Sprintf("failed to normalize CLI services: %v", err)
+			o.log("warn", map[string]interface{}{
+				"msg":      "normalize cli services failed",
+				"scenario": profile.Scenario,
+				"error":    err.Error(),
+			})
+		} else if len(pruned) > 0 {
+			step.Status = "warning"
+			step.Message = fmt.Sprintf("omitted %d CLI service(s) not cross-platform: %s", len(pruned), strings.Join(pruned, ", "))
+			o.log("warn", map[string]interface{}{
+				"msg":       "omitted non-cross-platform cli services",
+				"scenario":  profile.Scenario,
+				"services":  strings.Join(pruned, ","),
+				"remediate": "make cli cross-platform (see test-genie) to include in bundle",
+			})
+		} else {
+			o.successStep(&step, "CLI services are cross-platform or none present")
+		}
+	} else {
+		step.Status = "warning"
+		step.Message = "manifest unavailable for CLI normalization"
+	}
 	response.Steps = append(response.Steps, step)
 
 	// Determine output directory for manifest
@@ -369,11 +404,6 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 					"error": err.Error(),
 				})
 			} else {
-				deploymentMode := req.DeploymentMode
-				if deploymentMode == "" {
-					deploymentMode = "bundled"
-				}
-
 				packCtx, cancel := context.WithTimeout(ctx, effectiveTimeout)
 				defer cancel()
 
@@ -408,6 +438,24 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		step = o.startStep("Generate desktop wrapper")
 		step.Status = "skipped"
 		step.Message = "packaging skipped by request"
+		response.Steps = append(response.Steps, step)
+	}
+
+	// Step 6.5: Validate runtime supervisor presence for bundled mode
+	if deploymentMode == "bundled" && response.DesktopPath != "" {
+		step = o.startStep("Validate runtime supervisor")
+		runtimePath := filepath.Join(response.DesktopPath, "bundle", "runtime")
+		info, err := os.Stat(runtimePath)
+		if err != nil || !info.IsDir() {
+			o.failStep(&step, fmt.Sprintf("runtime supervisor missing at %s", runtimePath))
+		} else {
+			entries, _ := os.ReadDir(runtimePath)
+			if len(entries) == 0 {
+				o.failStep(&step, fmt.Sprintf("runtime supervisor directory empty at %s", runtimePath))
+			} else {
+				o.successStep(&step, "runtime supervisor present")
+			}
+		}
 		response.Steps = append(response.Steps, step)
 	}
 
@@ -818,6 +866,70 @@ func findInstallerArtifact(distDir, platform string) (string, error) {
 	})
 
 	return candidates[0], nil
+}
+
+// pruneNonCrossPlatformCLIs removes CLI services that are not cross-platform (e.g., no Go/Rust sources to compile).
+// It returns the IDs of services pruned and leaves non-CLI services untouched.
+func pruneNonCrossPlatformCLIs(manifest *bundles.Manifest, scenarioDir string) ([]string, error) {
+	if manifest == nil {
+		return nil, nil
+	}
+
+	var kept []bundles.ServiceEntry
+	var pruned []string
+
+	for _, svc := range manifest.Services {
+		if !isCLIService(svc) {
+			kept = append(kept, svc)
+			continue
+		}
+
+		if isCrossPlatformCLIBuild(svc, scenarioDir) {
+			kept = append(kept, svc)
+			continue
+		}
+
+		pruned = append(pruned, svc.ID)
+	}
+
+	manifest.Services = kept
+	return pruned, nil
+}
+
+func isCLIService(svc bundles.ServiceEntry) bool {
+	id := strings.ToLower(svc.ID)
+	if strings.Contains(id, "cli") {
+		return true
+	}
+	if svc.Build != nil {
+		base := strings.ToLower(filepath.Base(svc.Build.SourceDir))
+		if base == "cli" {
+			return true
+		}
+	}
+	return false
+}
+
+func isCrossPlatformCLIBuild(svc bundles.ServiceEntry, scenarioDir string) bool {
+	if svc.Build == nil {
+		return false
+	}
+
+	switch svc.Build.Type {
+	case "go":
+		sourceDir := filepath.Join(scenarioDir, svc.Build.SourceDir)
+		matches, _ := filepath.Glob(filepath.Join(sourceDir, "*.go"))
+		return len(matches) > 0
+	case "rust":
+		sourceDir := filepath.Join(scenarioDir, svc.Build.SourceDir)
+		if _, err := os.Stat(filepath.Join(sourceDir, "Cargo.toml")); err == nil {
+			return true
+		}
+		matches, _ := filepath.Glob(filepath.Join(sourceDir, "*.rs"))
+		return len(matches) > 0
+	default:
+		return false
+	}
 }
 
 // updateManifestBinaryPaths updates manifest service binaries to point to actual build outputs.

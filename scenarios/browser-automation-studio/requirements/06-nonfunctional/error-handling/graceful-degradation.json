@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/06-nonfunctional/01-error-handling/invalid-selector-graceful-degradation.json",
+          "ref": "bas/cases/06-nonfunctional/01-error-handling/invalid-selector-graceful-degradation.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates graceful handling of invalid CSS selectors and malformed syntax with appropriate error messages"

@@ -13,21 +13,22 @@
   },
   "nodes": [
     {
-      "id": "call-open-project",
+      "id": "call-open-workflow",
       "type": "subflow",
       "data": {
-        "label": "Open Demo project via fixture",
-        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+        "label": "Open seeded demo workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
       }
     },
     {
-      "id": "hover-workflow-card",
-      "type": "hover",
+      "id": "assert-execute-visible",
+      "type": "assert",
       "data": {
-        "label": "Hover over workflow card to reveal actions",
-        "selector": "@selector/workflows.card:first-of-type",
-        "timeoutMs": 3000,
-        "waitForMs": 300
+        "label": "Execute button visible",
+        "selector": "@selector/workflowBuilder.executeButton",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Execute button should be visible once the builder has loaded"
       }
     },
     {
@@ -35,38 +36,44 @@
       "type": "click",
       "data": {
         "label": "Click execute button",
-        "selector": "@selector/workflowBuilder.executeButton:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
+        "selector": "@selector/workflowBuilder.executeButton",
+        "timeoutMs": 30000,
+        "waitForMs": 500,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.status, @selector/executions.list.item",
+          "successTimeoutMs": 30000
+        }
       }
     },
     {
-      "id": "check-execution-indicator",
-      "type": "evaluate",
+      "id": "assert-execution-visible",
+      "type": "assert",
       "data": {
-        "label": "Check for execution indicators",
-        "expression": "document.querySelector('@selector/executions.list.item, @selector/executions.viewer.status, @selector/executions.viewer.stopButton') !== null",
-        "storeResult": "executionStarted"
+        "label": "Execution indicators appear",
+        "selector": "@selector/executions.viewer.status, @selector/executions.list.item, @selector/executions.viewer.stopButton",
+        "assertMode": "exists",
+        "timeoutMs": 30000,
+        "failureMessage": "Execution status/entry should appear after executing"
       }
     }
   ],
   "edges": [
     {
-      "id": "e7",
-      "source": "hover-workflow-card",
+      "id": "e1",
+      "source": "call-open-workflow",
+      "target": "assert-execute-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "assert-execute-visible",
       "target": "click-execute",
       "type": "smoothstep"
     },
     {
-      "id": "e9",
+      "id": "e3",
       "source": "click-execute",
-      "target": "check-execution-indicator",
-      "type": "smoothstep"
-    },
-    {
-      "id": "call-open-project-to-capture-before-execution-bridge-e6",
-      "source": "call-open-project",
-      "target": "hover-workflow-card",
+      "target": "assert-execution-visible",
       "type": "smoothstep"
     }
   ]

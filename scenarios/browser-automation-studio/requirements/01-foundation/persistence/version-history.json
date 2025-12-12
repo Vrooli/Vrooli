@@ -68,7 +68,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-version-restore.json",
+          "ref": "bas/cases/01-foundation/02-workflows/workflow-version-restore.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "UI workflow validates version history modal, version listing, and restore functionality"

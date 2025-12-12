@@ -24,11 +24,11 @@ const (
 
 // BundleSizeWarning represents a warning about bundle size.
 type BundleSizeWarning struct {
-	Level       string `json:"level"`   // "warning" or "critical"
-	Message     string `json:"message"`
-	TotalBytes  int64  `json:"total_bytes"`
-	TotalHuman  string `json:"total_human"`
-	LargeFiles  []LargeFileInfo `json:"large_files,omitempty"`
+	Level      string          `json:"level"` // "warning" or "critical"
+	Message    string          `json:"message"`
+	TotalBytes int64           `json:"total_bytes"`
+	TotalHuman string          `json:"total_human"`
+	LargeFiles []LargeFileInfo `json:"large_files,omitempty"`
 }
 
 // LargeFileInfo describes a file contributing significantly to bundle size.
@@ -55,11 +55,13 @@ func packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*
 type runtimeResolver func() (string, error)
 type runtimeBuilder func(srcDir, outPath, goos, goarch, target string) error
 type serviceBinaryCompiler func(svc bundlemanifest.Service, platform, manifestRoot string) (string, error)
+type cliStager func(bundleRoot, runtimePlatform string) error
 
 type bundlePackager struct {
-	runtimeResolver        runtimeResolver
-	runtimeBuilder         runtimeBuilder
-	serviceBinaryCompiler  serviceBinaryCompiler
+	runtimeResolver       runtimeResolver
+	runtimeBuilder        runtimeBuilder
+	serviceBinaryCompiler serviceBinaryCompiler
+	cliStager             cliStager
 }
 
 func newBundlePackager() *bundlePackager {
@@ -68,12 +70,18 @@ func newBundlePackager() *bundlePackager {
 		runtimeBuilder:  buildRuntimeBinary,
 	}
 	bp.serviceBinaryCompiler = bp.compileServiceBinary
+	bp.cliStager = stageCLIs
 	return bp
 }
 
 func (p *bundlePackager) packageBundle(appPath, manifestPath string, requestedPlatforms []string) (*bundlePackageResult, error) {
 	if appPath == "" || manifestPath == "" {
 		return nil, errors.New("app_path and bundle_manifest_path are required")
+	}
+
+	cliStage := p.cliStager
+	if cliStage == nil {
+		cliStage = func(string, string) error { return nil }
 	}
 
 	appAbs, err := filepath.Abs(appPath)
@@ -198,6 +206,14 @@ func (p *bundlePackager) packageBundle(appPath, manifestPath string, requestedPl
 		}
 	}
 
+	// Stage CLI helpers (bin directory and vrooli shim) for each platform requested.
+	for _, platform := range platforms {
+		runtimePlatform := normalizeRuntimePlatform(platform)
+		if err := cliStage(bundleDir, runtimePlatform); err != nil {
+			return nil, fmt.Errorf("stage CLI helpers: %w", err)
+		}
+	}
+
 	runtimeDir, err := p.runtimeResolver()
 	if err != nil {
 		return nil, err
@@ -205,11 +221,12 @@ func (p *bundlePackager) packageBundle(appPath, manifestPath string, requestedPl
 
 	runtimeBinaries := map[string]string{}
 	for _, platform := range platforms {
-		goos, goarch, err := parsePlatformKey(platform)
+		runtimePlatform := normalizeRuntimePlatform(platform)
+		goos, goarch, err := parsePlatformKey(runtimePlatform)
 		if err != nil {
 			return nil, err
 		}
-		outDir := filepath.Join(bundleDir, "runtime", platform)
+		outDir := filepath.Join(bundleDir, "runtime", runtimePlatform)
 		if err := os.MkdirAll(outDir, 0o755); err != nil {
 			return nil, fmt.Errorf("create runtime dir: %w", err)
 		}
@@ -386,17 +403,15 @@ func expandShorthandToHostArch(platform string) (string, string) {
 		return "windows", goarch
 	case "mac", "darwin":
 		return "darwin", goarch
-	case "linux":
-		return "linux", goarch
 	}
 	return "", ""
 }
 
 func resolveManifestPath(root, rel string) (string, error) {
-	// Allow paths outside the manifest root for source files (binaries, assets)
-	// since they may be built elsewhere. The security boundary is enforced
-	// on destination paths via resolveBundlePath.
 	clean := bundlemanifest.ResolvePath(root, rel)
+	if !withinBase(root, clean) {
+		return "", fmt.Errorf("path escapes manifest root: %s", rel)
+	}
 	return clean, nil
 }
 
@@ -512,6 +527,124 @@ func copyDir(src, dst string, mode fs.FileMode) error {
 	})
 }
 
+// stageCLIs copies CLI binaries into bundle/bin and writes a thin vrooli shim for control API access.
+func stageCLIs(bundleRoot, platform string) error {
+	binDir := filepath.Join(bundleRoot, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		return err
+	}
+
+	cliDir := filepath.Join(bundleRoot, "cli")
+	if info, err := os.Stat(cliDir); err == nil && info.IsDir() {
+		if err := filepath.WalkDir(cliDir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			dst := filepath.Join(binDir, filepath.Base(path))
+			if err := copyPath(path, dst); err != nil {
+				return err
+			}
+			return os.Chmod(dst, 0o755)
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Only create the bash shim for non-Windows targets.
+	if strings.HasPrefix(platform, "win") {
+		return nil
+	}
+
+shim := filepath.Join(binDir, "vrooli")
+script := fmt.Sprintf(vrooliShimTemplate, platform)
+return os.WriteFile(shim, []byte(script), 0o755)
+}
+
+const vrooliShimTemplate = `#!/usr/bin/env bash
+set -euo pipefail
+
+bundle_root="$(cd "$(dirname "$0")"/.. && pwd)"
+manifest_path="$bundle_root/bundle.json"
+runtime_ctl="$bundle_root/runtime/%s/runtimectl"
+
+if [ ! -x "$runtime_ctl" ]; then
+  echo "runtimectl not found at $runtime_ctl" >&2
+  exit 1
+fi
+
+app_name=$(python3 - "$manifest_path" <<'PY'
+import json, re, sys
+m=json.load(open(sys.argv[1]))
+name=m.get("app", {}).get("name", "app")
+safe=re.sub(r'[^A-Za-z0-9]+', '-', name).strip('-').lower() or "app"
+print(safe)
+PY
+)
+config_root="${XDG_CONFIG_HOME:-$HOME/.config}"
+token_file="$config_root/${app_name}/runtime/auth_token"
+port_file="$config_root/${app_name}/runtime/ipc_port"
+ipc_port=$(python3 - "$manifest_path" <<'PY'
+import json, sys
+m=json.load(open(sys.argv[1]))
+print(m.get("ipc", {}).get("port", 39200))
+PY
+)
+if [ -f "$port_file" ]; then
+  maybe_port=$(cat "$port_file" | tr -d '[:space:]')
+  if [[ "$maybe_port" =~ ^[0-9]+$ ]]; then
+    ipc_port="$maybe_port"
+  fi
+fi
+
+cmd="${1:-}"
+shift || true
+
+if [ "$cmd" = "scenario" ] && [ "${1:-}" = "port" ]; then
+  scenario="${2:-}"
+  port_var="${3:-}"
+  if [ -z "$port_var" ]; then
+    echo "usage: vrooli scenario port <scenario> <API_PORT|UI_PORT>" >&2
+    exit 1
+  fi
+
+  svcType=""
+  case "$port_var" in
+    API_PORT) svcType="api-binary" ;;
+    UI_PORT) svcType="ui-bundle" ;;
+    *)
+      echo "unsupported port name: $port_var" >&2
+      exit 1
+      ;;
+  esac
+
+  read -r svcId portName <<'EOF' || true
+$(python3 - "$manifest_path" "$svcType" <<'PY'
+import json, sys
+m=json.load(open(sys.argv[1])); typ=sys.argv[2]
+for svc in m.get("services", []):
+    if svc.get("type") == typ:
+        svc_id = svc.get("id")
+        ports = (svc.get("ports") or {}).get("requested") or []
+        port_name = ports[0].get("name") if ports else "http"
+        print(f"{svc_id} {port_name}")
+        sys.exit(0)
+print("")
+PY
+)
+EOF
+
+  if [ -z "${svcId:-}" ]; then
+    echo "no service for type $svcType" >&2
+    exit 1
+  fi
+
+  exec "$runtime_ctl" --port "$ipc_port" --token-file "$token_file" port --service "$svcId" --port-name "$portName"
+fi
+
+# Fallback: pass through to runtimectl
+exec "$runtime_ctl" --port "$ipc_port" --token-file "$token_file" "$cmd" "$@"
+`
+
 func runtimeBinaryName(goos string) string {
 	if goos == "windows" {
 		return "runtime.exe"
@@ -524,6 +657,21 @@ func runtimeCtlBinaryName(goos string) string {
 		return "runtimectl.exe"
 	}
 	return "runtimectl"
+}
+
+// normalizeRuntimePlatform ensures the runtime/CLI staging uses arch-suffixed directories
+// that match the Electron runtimePlatformKey (e.g., linux-x64, win-x64, darwin-x64).
+func normalizeRuntimePlatform(platform string) string {
+	switch platform {
+	case "linux":
+		return "linux-x64"
+	case "mac", "darwin":
+		return "darwin-x64"
+	case "win", "windows":
+		return "win-x64"
+	default:
+		return platform
+	}
 }
 
 func buildRuntimeBinary(srcDir, outPath, goos, goarch, target string) error {

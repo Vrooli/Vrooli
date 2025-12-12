@@ -27,7 +27,7 @@
 - No dependency on BAS infrastructure
 - Better debugging (Playwright DevTools vs BAS logs)
 
-**Legacy playbooks**: test/playbooks/capabilities/*.json files remain for reference but are no longer used
+**Legacy playbooks**: Deprecated playbook references have been removed; use `bas/cases/` going forward
 
 ## Current Issues
 

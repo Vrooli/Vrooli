@@ -46,11 +46,11 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 - Generate a fresh snapshot with `vrooli scenario requirements report browser-automation-studio --format markdown` from the scenario root.
 
 ### Workflow Validation
-- Run `browser-automation-studio workflow lint test/playbooks/**/*.json --strict` to perform schema + lint checks via the API. Use `--json` for machine-readable output.
-- Alternatively, run the Go CLI locally: `(cd api && go run ./cmd/workflow-lint --strict ../test/playbooks/**/*.json)` to lint without the Bash CLI
+- Run `browser-automation-studio workflow lint bas/**/*.json --strict` to perform schema + lint checks via the API. Use `--json` for machine-readable output.
+- Alternatively, run the Go CLI locally: `(cd api && go run ./cmd/workflow-lint --strict ../bas/**/*.json)` to lint without the Bash CLI
 - The API exposes `POST /api/v1/workflows/validate` so the UI builder and external tooling can validate workflows without running them
 - `vrooli scenario test browser-automation-studio` now invokes the validator before executing any phase; export `WORKFLOW_LINT_STRICT=1` to fail on warnings or leave it unset to treat warnings as advisory. Pass `WORKFLOW_LINT_API=0` to temporarily skip the API-based lint inside the integration phase.
-- All scenarios automatically lint their `test/playbooks/**/*.json` files via the shared test runner. Set `WORKFLOW_LINT_PRECHECK=0` to skip the preflight entirely when debugging, or `WORKFLOW_LINT_STRICT=1` to promote warnings to errors.
+- All scenarios automatically lint their `bas/**/*.json` files via the shared test runner. Set `WORKFLOW_LINT_PRECHECK=0` to skip the preflight entirely when debugging, or `WORKFLOW_LINT_STRICT=1` to promote warnings to errors.
 - Selector references now resolve through `ui/src/consts/selectors.ts`. Use `@selector/<key>` tokens (or `@selector/<dynamicKey>(param=value)` for parameterized selectors like execution filters) in workflows instead of hardcoded `[data-testid="..."]`; the resolver expands them and the validator confirms every selector maps to a registered test id.
 
 ## ✨ Features
@@ -307,7 +307,7 @@ pnpm test:workflow-builder   # still memory hungry; pair with Browserless workfl
 > Note: The WorkflowBuilder Vitest suite currently requires >10GB of heap because of React Flow + Monaco mocks. The default `pnpm test` command runs the lighter shards and skips the builder suite to keep CI stable.
 
 # Run replay renderer automation
-testing::playbooks::bas::run_workflow --file test/playbooks/replay/render-check.json --folder /regression
+testing::playbooks::bas::run_workflow --file bas/cases/05-replay/01-automation/render-check.json --folder /regression
 ```
 
 ## 📊 Metrics
@@ -348,10 +348,10 @@ Planned controls:
 
 ## 📚 Documentation
 
-- [API Documentation](docs/api.md)
-- [CLI Reference](docs/cli.md)
-- [Workflow Schema](docs/workflow-schema.md)
-- [Integration Guide](docs/integration.md)
+- [Control Surface](docs/CONTROL_SURFACE.md)
+- [Environment & Setup](docs/ENVIRONMENT.md)
+- [Workflow Node Index](docs/NODE_INDEX.md)
+- [Progress Log](docs/PROGRESS.md)
 
 ## 🤝 Contributing
 

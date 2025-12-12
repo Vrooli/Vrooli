@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-zoom-in.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-zoom-in.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates zoom in button functionality and canvas zoom level increase"
@@ -33,7 +33,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-zoom-out.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-zoom-out.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates zoom out button functionality and canvas zoom level decrease"
@@ -50,7 +50,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-fit-view.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-fit-view.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates fit view centers canvas with all nodes visible"
@@ -67,7 +67,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-undo.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-undo.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates undo reverts node addition, deletion, and position changes"
@@ -84,7 +84,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-redo.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-redo.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates redo re-applies undone changes"
@@ -101,7 +101,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-lock-toggle.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-lock-toggle.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates lock prevents node dragging and unlock re-enables interaction"
@@ -118,7 +118,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-duplicate-nodes.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-duplicate-nodes.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates node duplication with proper positioning"
@@ -135,7 +135,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-delete-nodes.json",
+          "ref": "bas/cases/02-builder/04-toolbar/toolbar-delete-nodes.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates toolbar delete button removes selected nodes"

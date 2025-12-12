@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/05-header/header-title-edit.json",
+          "ref": "bas/cases/02-builder/05-header/header-title-edit.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates inline title editing with save/cancel affordances"
@@ -33,7 +33,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/05-header/header-execute-workflow.json",
+          "ref": "bas/cases/02-builder/05-header/header-execute-workflow.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates execute button triggers workflow execution with loading/success states"
@@ -50,7 +50,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/05-header/header-info-popover.json",
+          "ref": "bas/cases/02-builder/05-header/header-info-popover.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates info popover displays correct metadata and dismisses properly"
@@ -67,7 +67,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/05-header/header-save-status.json",
+          "ref": "bas/cases/02-builder/05-header/header-save-status.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates save status transitions through saving -> saved states"

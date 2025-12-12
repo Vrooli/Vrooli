@@ -1547,6 +1547,34 @@ function runtimePlatformKey(): string {
 	return `${os}-${arch}`;
 }
 
+async function isPortFree(host: string, port: number): Promise<boolean> {
+	return new Promise((resolve) => {
+		const server = net.createServer();
+		server.once("error", () => resolve(false));
+		server.once("listening", () => {
+			server.close(() => resolve(true));
+		});
+		server.listen(port, host);
+	});
+}
+
+async function findEphemeralPort(host: string): Promise<number> {
+	return new Promise((resolve, reject) => {
+		const server = net.createServer();
+		server.once("error", reject);
+		server.listen(0, host, () => {
+			const address = server.address();
+			const port = typeof address === "object" && address ? address.port : 0;
+			server.close(() => resolve(port));
+		});
+	});
+}
+
+async function allocateIpcPort(host: string, preferred: number): Promise<{ port: number; changed: boolean }> {
+	const port = await findEphemeralPort(host);
+	return { port, changed: port !== preferred };
+}
+
 async function resolveBundleRoot(): Promise<string | null> {
 	const bundleRoot = BUNDLED_RUNTIME.ROOT || "bundle";
 	const candidates = [
@@ -1639,9 +1667,36 @@ async function startBundledRuntime(): Promise<string> {
 		throw new Error(`Bundled manifest missing at ${manifestPath}`);
 	}
 
+	// Ensure IPC port is free; stage a writable manifest copy for runtime/shims.
+	let manifestContent: any;
+	try {
+		manifestContent = JSON.parse(await fs.readFile(manifestPath, "utf-8"));
+	} catch (err) {
+		throw new Error(`Failed to read bundle manifest: ${String(err)}`);
+	}
+	const ipcHost = manifestContent?.ipc?.host || "127.0.0.1";
+	const preferredPort = Number(manifestContent?.ipc?.port) || 39200;
+	const { port: runtimePort, changed } = await allocateIpcPort(ipcHost, preferredPort);
+	if (changed) {
+		console.log(`[Desktop App] IPC port ${preferredPort} was busy; using ${runtimePort} instead`);
+	}
+	manifestContent.ipc = manifestContent.ipc || {};
+	manifestContent.ipc.port = runtimePort;
+	RUNTIME_CONTROL.PORT = runtimePort;
+
+	const appData = path.join(app.getPath("userData"), "runtime");
+	await fs.mkdir(appData, { recursive: true });
+	runtimeAppDataRoot = appData;
+
+	const stagedManifestPath = path.join(appData, "bundle.json");
+	await fs.writeFile(stagedManifestPath, JSON.stringify(manifestContent, null, 2), "utf-8");
+	const portPath = path.join(appData, "runtime", "ipc_port");
+	await fs.mkdir(path.dirname(portPath), { recursive: true });
+	await fs.writeFile(portPath, `${runtimePort}`, "utf-8");
+
 	// Pre-flight validation: check manifest structure and required files before spawning runtime
 	console.log("[Desktop App] Performing pre-flight bundle validation...");
-	const validationResult = await validateBundlePreFlight(bundleRoot, manifestPath);
+	const validationResult = await validateBundlePreFlight(bundleRoot, stagedManifestPath);
 	if (!validationResult.valid) {
 		const errorDetails = formatValidationErrors(validationResult);
 		await recordTelemetry("bundle_validation_failed", {
@@ -1663,17 +1718,13 @@ async function startBundledRuntime(): Promise<string> {
 		throw new Error(`Bundled runtime binary not found for this platform (${runtimePath})`);
 	}
 
-	const appData = path.join(app.getPath("userData"), "runtime");
-	await fs.mkdir(appData, { recursive: true });
-	runtimeAppDataRoot = appData;
-
 	const tokenRel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
 	const tokenPath = path.join(appData, tokenRel);
 	RUNTIME_CONTROL.TOKEN_PATH_ENV = tokenPath;
 
 	const args = [
 		"--manifest",
-		manifestPath,
+		stagedManifestPath,
 		"--bundle-root",
 		bundleRoot,
 		"--app-data",

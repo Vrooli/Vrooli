@@ -35,8 +35,9 @@ func StandardScenarioEnv(appName string, opts ScenarioEnvOptions) ScenarioEnvVar
 			slug + "_API_URL",
 		},
 		APIPortEnvVars: []string{
+			// Avoid the generic API_PORT to prevent cross-scenario port leakage; rely on
+			// per-scenario env vars and the port detector instead.
 			slug + "_API_PORT",
-			"API_PORT",
 		},
 		ConfigDirEnvVars: []string{
 			slug + "_CONFIG_DIR",

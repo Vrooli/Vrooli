@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/03-palette/palette-search-filter.json",
+          "ref": "bas/cases/02-builder/03-palette/palette-search-filter.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates search filtering reduces visible nodes to matches only"
@@ -33,7 +33,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/03-palette/palette-favorite-toggle.json",
+          "ref": "bas/cases/02-builder/03-palette/palette-favorite-toggle.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates favoriting adds node to favorites section and persists across sessions"
@@ -50,7 +50,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/03-palette/palette-category-expand.json",
+          "ref": "bas/cases/02-builder/03-palette/palette-category-expand.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates category expand/collapse toggles node visibility"

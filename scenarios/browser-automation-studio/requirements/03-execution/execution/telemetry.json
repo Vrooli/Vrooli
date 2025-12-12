@@ -37,21 +37,21 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/01-automation/telemetry-smoke.json",
+          "ref": "bas/cases/03-execution/01-automation/telemetry-smoke.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "E2E validation of telemetry stream with screenshots, console, and network events"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-progress-tracking.json",
+          "ref": "bas/cases/03-execution/02-ui/execution-progress-tracking.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "Validates real-time execution progress tracking UI with indicators and state transitions"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-telemetry-display.json",
+          "ref": "bas/cases/03-execution/02-ui/execution-telemetry-display.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "Validates real-time telemetry display including screenshots, console, network tabs, and heartbeat timestamps"
@@ -75,7 +75,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/01-automation/telemetry-smoke.json",
+          "ref": "bas/cases/03-execution/01-automation/telemetry-smoke.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "BAS workflow validating telemetry stream (JSON export pending)."
@@ -106,7 +106,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/01-automation/heartbeat-stall.json",
+          "ref": "bas/cases/03-execution/01-automation/heartbeat-stall.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "BAS workflow validating heartbeat stall detection once exported."
@@ -137,7 +137,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/01-automation/telemetry-smoke.json",
+          "ref": "bas/cases/03-execution/01-automation/telemetry-smoke.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "Extend smoke workflow to assert CLI output once scripted checks are in place."
@@ -154,21 +154,21 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-stop-control.json",
+          "ref": "bas/cases/03-execution/02-ui/execution-stop-control.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates stop button appears for running executions and successfully cancels them"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/05-replay/02-ui/execution-result-export.json",
+          "ref": "bas/cases/05-replay/02-ui/execution-result-export.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates execution result export and replay artifacts availability"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-progress-tracking.json",
+          "ref": "bas/cases/03-execution/02-ui/execution-progress-tracking.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates execution progress tracking with state transitions and completion indicators"

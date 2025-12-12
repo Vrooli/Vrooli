@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -213,6 +215,9 @@ func (h *Handler) AssembleBundle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate assembled manifest to guarantee schema compliance before handing off.
+	if scenarioRoot := resolveScenarioRoot(req.Scenario); scenarioRoot != "" {
+		_ = populateAssetMetadata(manifest, scenarioRoot)
+	}
 	payload, _ := json.Marshal(manifest)
 	if err := ValidateManifestBytes(payload); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"assembled manifest failed validation","details":"%s"}`, err.Error()), http.StatusBadRequest)
@@ -305,6 +310,9 @@ func (h *Handler) ExportBundle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate assembled manifest before export.
+	if scenarioRoot := resolveScenarioRoot(req.Scenario); scenarioRoot != "" {
+		_ = populateAssetMetadata(manifest, scenarioRoot)
+	}
 	payload, err := json.Marshal(manifest)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"failed to serialize manifest: %v"}`, err), http.StatusInternalServerError)
@@ -343,11 +351,11 @@ type GenerateSigningConfigRequest struct {
 
 // GenerateSigningConfigResponse is the response for signing config generation.
 type GenerateSigningConfigResponse struct {
-	Status               string                                 `json:"status"`
-	ProfileID            string                                 `json:"profile_id"`
-	ElectronBuilderConfig map[string]interface{}                `json:"electron_builder_config,omitempty"`
-	Files                map[string]string                      `json:"files,omitempty"`
-	Message              string                                 `json:"message,omitempty"`
+	Status                string                 `json:"status"`
+	ProfileID             string                 `json:"profile_id"`
+	ElectronBuilderConfig map[string]interface{} `json:"electron_builder_config,omitempty"`
+	Files                 map[string]string      `json:"files,omitempty"`
+	Message               string                 `json:"message,omitempty"`
 }
 
 // GenerateSigningConfig generates electron-builder signing configuration and supporting files.
@@ -431,11 +439,11 @@ func (h *Handler) GenerateSigningConfig(w http.ResponseWriter, r *http.Request) 
 	})
 
 	h.writeJSON(w, http.StatusOK, GenerateSigningConfigResponse{
-		Status:               "generated",
-		ProfileID:            req.ProfileID,
+		Status:                "generated",
+		ProfileID:             req.ProfileID,
 		ElectronBuilderConfig: ebConfig,
-		Files:                files,
-		Message:              fmt.Sprintf("Generated %d signing file(s)", len(files)),
+		Files:                 files,
+		Message:               fmt.Sprintf("Generated %d signing file(s)", len(files)),
 	})
 }
 
@@ -463,4 +471,57 @@ func (h *Handler) loadSigningConfig(ctx context.Context, profileID string, manif
 	}
 
 	return nil
+}
+
+// resolveScenarioRoot returns the absolute scenario directory.
+func resolveScenarioRoot(scenario string) string {
+	if scenario == "" {
+		return ""
+	}
+	root := os.Getenv("VROOLI_ROOT")
+	if root == "" {
+		home, _ := os.UserHomeDir()
+		root = filepath.Join(home, "Vrooli")
+	}
+	return filepath.Join(root, "scenarios", scenario)
+}
+
+// populateAssetMetadata fills in missing/pending asset hashes and sizes using files on disk.
+func populateAssetMetadata(manifest *Manifest, scenarioRoot string) error {
+	if manifest == nil {
+		return nil
+	}
+	for svcIdx, svc := range manifest.Services {
+		for assetIdx, asset := range svc.Assets {
+			if asset.SHA256 != "" && asset.SHA256 != "pending" && asset.SizeBytes > 0 {
+				continue
+			}
+			abs := filepath.Join(scenarioRoot, filepath.FromSlash(asset.Path))
+			info, err := os.Stat(abs)
+			if err != nil || info.IsDir() {
+				continue
+			}
+			hash, size, hErr := hashFile(abs)
+			if hErr != nil {
+				continue
+			}
+			manifest.Services[svcIdx].Assets[assetIdx].SHA256 = hash
+			manifest.Services[svcIdx].Assets[assetIdx].SizeBytes = size
+		}
+	}
+	return nil
+}
+
+func hashFile(path string) (string, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		return "", 0, err
+	}
+	return hex.EncodeToString(h.Sum(nil)), n, nil
 }

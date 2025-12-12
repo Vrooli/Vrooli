@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-list-and-select.json",
+          "ref": "bas/cases/01-foundation/01-projects/project-list-and-select.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates project grid rendering and navigation to project detail view"
@@ -33,7 +33,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-search-filter.json",
+          "ref": "bas/cases/01-foundation/01-projects/project-search-filter.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Tests search filtering and clearing search to restore full list"
@@ -50,7 +50,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-edit.json",
+          "ref": "bas/cases/01-foundation/01-projects/project-edit.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates opening edit modal, updating fields, and persisting changes"
@@ -67,7 +67,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-create-and-load.json",
+          "ref": "bas/cases/01-foundation/02-workflows/workflow-create-and-load.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Tests workflow creation flow including AI modal bypass and builder loading"
@@ -84,7 +84,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-select-from-list.json",
+          "ref": "bas/cases/01-foundation/02-workflows/workflow-select-from-list.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates workflow list display and navigation to builder with selected workflow"
@@ -101,7 +101,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-history-view.json",
+          "ref": "bas/cases/01-foundation/03-executions/execution-history-view.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Tests tab navigation, execution list rendering, and execution viewer opening"
@@ -118,7 +118,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-from-project-detail.json",
+          "ref": "bas/cases/01-foundation/03-executions/execution-from-project-detail.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates execute button functionality and execution status feedback"
@@ -135,7 +135,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-detail-tab-switching.json",
+          "ref": "bas/cases/01-foundation/01-projects/project-detail-tab-switching.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates tab switching between workflows and executions in project detail view"
@@ -152,7 +152,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-viewer-replay-tab.json",
+          "ref": "bas/cases/01-foundation/03-executions/execution-viewer-replay-tab.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates replay tab display with timeline, screenshots, and controls"

@@ -1102,6 +1102,12 @@ func computeDynamicTimeout(plan contracts.ExecutionPlan) time.Duration {
 	if maxTimeout <= 0 {
 		maxTimeout = maxExecutionTimeout
 	}
+	// Hardening: misconfigured clamp windows (max < min) can silently create
+	// extremely short execution timeouts and cause spurious DeadlineExceeded.
+	// Prefer the safer interpretation: treat max as at least min.
+	if maxTimeout < minTimeout {
+		maxTimeout = minTimeout
+	}
 
 	stepCount := len(plan.Instructions)
 	if stepCount == 0 {

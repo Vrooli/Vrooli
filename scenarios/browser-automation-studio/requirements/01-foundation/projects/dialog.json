@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-dialog-open.json",
+          "ref": "bas/cases/01-foundation/01-projects/new-project-dialog-open.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "BAS workflow asserting modal visibility for each trigger once exported."
@@ -61,7 +61,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-dialog-close.json",
+          "ref": "bas/cases/01-foundation/01-projects/new-project-dialog-close.json",
           "phase": "integration",
           "status": "failing",
           "notes": "BAS workflow covering dismissal affordances (pending export)."
@@ -106,7 +106,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-create.json",
+          "ref": "bas/cases/01-foundation/01-projects/new-project-create.json",
           "phase": "integration",
           "status": "failing",
           "notes": "BAS workflow seeds unique project and checks API/UI consistency (pending export)."
@@ -144,7 +144,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-validation.json",
+          "ref": "bas/cases/01-foundation/01-projects/new-project-validation.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export)."

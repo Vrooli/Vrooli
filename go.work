@@ -35,6 +35,7 @@ use (
 	./scenarios/date-night-planner/api
 	./scenarios/db-schema-explorer/api
 	./scenarios/deployment-manager/api
+./scenarios/deployment-manager/cli
 	./scenarios/device-sync-hub/api
 	./scenarios/document-manager/api
 	./scenarios/ecosystem-manager/api
@@ -49,6 +50,7 @@ use (
 	./scenarios/game-dialog-generator/api
 	./scenarios/git-control-tower/api
 	./scenarios/graph-studio/api
+./scenarios/hello-desktop/api
 	./scenarios/home-automation/api
 	./scenarios/idea-generator/api
 	./scenarios/image-generation-pipeline/api

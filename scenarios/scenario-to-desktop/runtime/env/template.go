@@ -7,6 +7,8 @@
 package env
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -51,6 +53,18 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 	// Add standard bundle hints.
 	env["APP_DATA_DIR"] = r.AppData
 	env["BUNDLE_ROOT"] = r.BundlePath
+
+	// Prepend bundle-local bins to PATH so staged CLIs are discoverable.
+	pathSep := string(os.PathListSeparator)
+	binPaths := []string{
+		filepath.Join(r.BundlePath, "bin"),
+		filepath.Join(r.BundlePath, "cli"),
+	}
+	if currentPath, ok := env["PATH"]; ok && strings.TrimSpace(currentPath) != "" {
+		env["PATH"] = strings.Join(append(binPaths, currentPath), pathSep)
+	} else {
+		env["PATH"] = strings.Join(binPaths, pathSep)
+	}
 
 	// Apply service environment (with template expansion).
 	for k, v := range svc.Env {

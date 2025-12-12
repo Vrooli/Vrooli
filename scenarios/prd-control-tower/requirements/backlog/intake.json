@@ -29,7 +29,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/03-backlog/e2e/backlog-intake-and-convert.json",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
           "phase": "business",
           "status": "failing",
           "notes": "E2E validation of backlog intake and parsing"
@@ -53,7 +53,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/03-backlog/e2e/backlog-intake-and-convert.json",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
           "phase": "business",
           "status": "failing",
           "notes": "E2E validation of backlog preview panel"
@@ -84,7 +84,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/03-backlog/e2e/backlog-intake-and-convert.json",
+          "ref": "bas/cases/03-backlog/e2e/backlog-intake-and-convert.json",
           "phase": "business",
           "status": "failing",
           "notes": "E2E validation of backlog to draft conversion"

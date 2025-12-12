@@ -20,7 +20,7 @@
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/journeys/basic-chat-flow.json"
+          "ref": "bas/flows/basic-chat-flow.json"
         }
       ]
     },
@@ -42,7 +42,7 @@
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/journeys/basic-chat-flow.json"
+          "ref": "bas/flows/basic-chat-flow.json"
         }
       ]
     },

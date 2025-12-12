@@ -101,7 +101,7 @@ scenario::test::check_test_lifecycle() {
     # First check for legacy test format
     if [[ -f "$scenario_path/scenario-test.yaml" ]]; then
         # This is a legacy format scenario
-        echo '{"status": "legacy", "message": "⚠️  Legacy test format (scenario-test.yaml)", "recommendation": "Migrate to new phased testing architecture", "format": "legacy"}'
+        echo '{"status": "legacy", "message": "⚠️  Legacy test format (scenario-test.yaml)", "recommendation": "Migrate to test-genie (Go-native phased suite)", "format": "legacy"}'
         return
     fi
     
@@ -136,8 +136,9 @@ scenario::test::check_test_lifecycle() {
         fi
         
         if [[ "$test_script" != "null" && -n "$test_script" ]]; then
-            if [[ "$test_script" != *"test/run-tests.sh"* ]]; then
-                echo '{"status": "invalid", "message": "Test lifecycle does not invoke test/run-tests.sh", "script": "'"$test_script"'", "recommendation": "Point lifecycle.test to test/run-tests.sh"}'
+            # Scenarios should invoke test-genie directly (scenario-local test/run-tests.sh is deprecated).
+            if [[ "$test_script" != *"test-genie execute"* ]]; then
+                echo '{"status": "invalid", "message": "Test lifecycle does not invoke test-genie", "script": "'"$test_script"'", "recommendation": "Point lifecycle.test to `test-genie execute <scenario> --preset comprehensive` (or an appropriate preset)"}'
             else
                 echo '{"status": "present", "message": "Test lifecycle event defined", "script": "'"$test_script"'"}'
             fi
@@ -211,116 +212,60 @@ scenario::test::check_required_configs() {
     echo "{\"status\": \"$status\", \"message\": \"$message\", \"missing_items\": $missing_json, \"details\": $details_json, \"present\": $present_count, \"required\": $required_total}"
 }
 
-# Check phased testing structure
+# Check test directory structure (scenario playbooks + unit test runners)
 scenario::test::check_phased_structure() {
     local scenario_path="$1"
     local test_dir="$scenario_path/test"
-    
+
     local status="missing"
     local message=""
     local recommendations=()
     local found_components=()
-    
+
     # Check for test directory
     if [[ ! -d "$test_dir" ]]; then
-        echo '{"status": "missing", "message": "No test/ directory found", "recommendation": "Create test/ directory with phased testing structure", "components": []}'
+        echo '{"status": "missing", "message": "No test/ directory found", "recommendation": "Create test/ directory for scenario test assets", "components": []}'
         return
     fi
-    
+
     found_components+=("test_directory")
-    
-    # Check for main test runner
-    local runner_path="$test_dir/run-tests.sh"
-    if [[ -x "$runner_path" ]]; then
-        status="partial"
-        message="Basic test structure present"
-        if grep -q 'testing::suite::run' "$runner_path" 2>/dev/null; then
-            found_components+=("test_runner")
-        else
-            recommendations+=("Update test/run-tests.sh to invoke testing::suite::run")
-        fi
-    else
-        recommendations+=("Create executable test/run-tests.sh using the shared runner")
-    fi
-    
-    # Check for phases directory
-    if [[ -d "$test_dir/phases" ]]; then
-        found_components+=("phases_directory")
-        
-        # Check for specific phase scripts
-        local phases=("structure" "dependencies" "unit" "integration" "business" "performance")
-        declare -A helper_map=(
-            [structure]="testing::structure::validate_all"
-            [dependencies]="testing::dependencies::validate_all"
-            [unit]="testing::unit::validate_all"
-            [integration]="testing::integration::validate_all"
-            [business]="testing::business::validate_all"
-            [performance]="testing::performance::validate_all"
-        )
-        local found_phases=()
-        local missing_phases=()
-        local non_exec_phases=()
-        local helper_warnings=()
-        
-        for phase in "${phases[@]}"; do
-            local script_path="$test_dir/phases/test-${phase}.sh"
-            if [[ -f "$script_path" ]]; then
-                found_phases+=("$phase")
-                if [[ ! -x "$script_path" ]]; then
-                    non_exec_phases+=("$phase")
-                fi
-                local helper="${helper_map[$phase]}"
-                if [[ -n "$helper" ]] && ! grep -q "$helper" "$script_path" 2>/dev/null; then
-                    helper_warnings+=("$phase")
-                fi
-            else
-                missing_phases+=("$phase")
-            fi
-        done
-        
-        if [[ ${#found_phases[@]} -eq ${#phases[@]} ]]; then
-            found_components+=("phase_scripts")
+
+    # Scenario-local phased runners (test/run-tests.sh + test/phases/*) are deprecated in favor
+    # of test-genie's Go-native orchestrator. BAS automation assets live under bas/ (when used).
+    local bas_dir="$scenario_path/bas"
+    if [[ -d "$bas_dir" ]]; then
+        found_components+=("bas_directory")
+        local registry_path="$bas_dir/registry.json"
+        if [[ -f "$registry_path" ]]; then
+            found_components+=("bas_registry")
             status="complete"
-            message="All 6 phase scripts present"
+            message="BAS registry present"
         else
-            if [[ ${#found_phases[@]} -gt 0 ]]; then
-                found_components+=("phase_scripts")
-            fi
             status="partial"
-            message="Missing phases: ${missing_phases[*]}"
-        fi
-
-        if [[ ${#non_exec_phases[@]} -gt 0 ]]; then
-            recommendations+=("Make phase scripts executable: ${non_exec_phases[*]}")
-        fi
-
-        if [[ ${#helper_warnings[@]} -gt 0 ]]; then
-            recommendations+=("Ensure phases call shared helpers (missing in: ${helper_warnings[*]})")
-        fi
-
-        if [[ ${#missing_phases[@]} -gt 0 ]]; then
-            recommendations+=("Add missing phase scripts: ${missing_phases[*]}")
+            message="bas/ directory present, missing registry.json"
+            recommendations+=("Run 'test-genie registry build' from the scenario directory to generate bas/registry.json")
         fi
     else
-        recommendations+=("Create test/phases/ directory with phase scripts")
+        status="complete"
+        message="Test directory present (no bas)"
     fi
-    
+
     # Check for unit test runners
     if [[ -d "$test_dir/unit" ]]; then
         found_components+=("unit_runners")
     else
         recommendations+=("Create test/unit/ directory with language-specific runners")
     fi
-    
+
     # If no components found except test directory
     if [[ ${#found_components[@]} -eq 1 ]]; then
         status="empty"
-        message="Test directory exists but is empty"
+        message="Test directory exists but has no playbooks/unit runners"
     fi
-    
+
     local recommendations_json=$(printf '%s\n' "${recommendations[@]}" | jq -R . | jq -s .)
     local components_json=$(printf '%s\n' "${found_components[@]}" | jq -R . | jq -s .)
-    
+
     echo "{\"status\": \"$status\", \"message\": \"$message\", \"components\": $components_json, \"recommendations\": $recommendations_json}"
 }
 
@@ -405,7 +350,7 @@ scenario::test::check_ui_tests() {
     local scenario_path="$1"
     local has_ui_override="${2:-}"
     local ui_test_dir="$scenario_path/test/ui"
-    local workflow_dir="$scenario_path/test/playbooks"
+    local workflow_dir="$scenario_path/bas/cases"
     local found_workflows=()
     local status="none"
     local message="No UI automation tests found"
@@ -437,7 +382,7 @@ scenario::test::check_ui_tests() {
         message="BAS workflows available: $workflow_count"
     else
         status="missing"
-        message="Export workflows to test/playbooks/ for UI automation"
+        message="Export workflows to bas/ for UI automation"
     fi
     
     local workflows_json=$(printf '%s\n' "${found_workflows[@]}" | jq -R . | jq -s .)
@@ -507,7 +452,7 @@ scenario::test::calculate_overall_status() {
     local ui_tests="$6"
 
     local phased_docs_path
-    phased_docs_path=$(scenario::test::absolute_path "docs/testing/architecture/PHASED_TESTING.md")
+    phased_docs_path=$(scenario::test::absolute_path "scenarios/test-genie/docs/guides/phased-testing.md")
     
     local score=0
     local max_score=6
@@ -522,7 +467,7 @@ scenario::test::calculate_overall_status() {
     elif [[ "$lifecycle_status" == "legacy" ]]; then
         # Give partial credit for legacy format but recommend migration
         score=$((score + 0))  # No credit for legacy format
-        recommendations+=("⚠️  Migrate from legacy scenario-test.yaml to new phased testing architecture")
+        recommendations+=("⚠️  Migrate from legacy scenario-test.yaml to test-genie phased suite")
         recommendations+=("See ${phased_docs_path} for migration guide")
     else
         recommendations+=("Define test lifecycle event in .vrooli/service.json")
@@ -540,7 +485,7 @@ scenario::test::calculate_overall_status() {
             if [[ -n "$missing_configs" ]]; then
                 while IFS= read -r item; do
                     [[ -z "$item" ]] && continue
-                    recommendations+=("Add $item to align with phased testing architecture")
+                    recommendations+=("Add $item to align with test-genie configuration")
                 done <<< "$missing_configs"
             fi
             ;;
@@ -550,7 +495,7 @@ scenario::test::calculate_overall_status() {
             if [[ -n "$missing_configs" ]]; then
                 while IFS= read -r item; do
                     [[ -z "$item" ]] && continue
-                    recommendations+=("Add $item to align with phased testing architecture")
+                    recommendations+=("Add $item to align with test-genie configuration")
                 done <<< "$missing_configs"
             else
                 recommendations+=("Define required configs in .vrooli/ (testing.json, endpoints.json)")
@@ -562,7 +507,7 @@ scenario::test::calculate_overall_status() {
     case "$structure_status" in
         complete) ((score++)) ;;
         partial) score=$((score + 1)) ;; # Partial credit
-        *) recommendations+=("Implement phased testing structure in test/ directory") ;;
+        *) recommendations+=("Add playbooks and/or unit runners under test/") ;;
     esac
     
     local unit_status=$(echo "$unit_tests" | jq -r '.status')
@@ -620,7 +565,7 @@ scenario::test::display_validation() {
     local validation_data="$2"
 
     local phased_docs_path
-    phased_docs_path=$(scenario::test::absolute_path "docs/testing/architecture/PHASED_TESTING.md")
+    phased_docs_path=$(scenario::test::absolute_path "scenarios/test-genie/docs/guides/phased-testing.md")
 
     echo ""
     echo "🧪 Test Infrastructure:"

@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/journeys/01-new-user/happy-path-new-user.json",
+          "ref": "bas/flows/01-new-user/happy-path-new-user.json",
           "phase": "integration",
           "status": "failing",
           "notes": "41-step workflow covering: project creation → workflow building → node configuration → execution → history viewing → replay. Skips AI generation for deterministic testing."
@@ -30,7 +30,7 @@
       "title": "New user can create workflow using AI generation",
       "description": "Validates the AI-assisted workflow creation path: Create project → Use AI prompt to generate workflow → Review generated workflow → Execute → View results",
       "status": "pending",
-      "notes": "Automation playbook still pending (planned location: test/playbooks/journeys/happy-path-ai-generation.json)",
+      "notes": "Automation playbook still pending (planned location: bas/flows/happy-path-ai-generation.json)",
       "validation": []
     },
     {
@@ -40,7 +40,7 @@
       "title": "User can debug and fix a failed workflow execution",
       "description": "Validates debugging workflow: Execute workflow with failing assertion → View execution details → Identify failure point → Edit workflow → Re-execute → Verify success",
       "status": "pending",
-      "notes": "Automation playbook pending (planned: test/playbooks/journeys/debug-workflow-failure.json)",
+      "notes": "Automation playbook pending (planned: bas/flows/debug-workflow-failure.json)",
       "validation": []
     },
     {
@@ -50,7 +50,7 @@
       "title": "User can edit and re-run existing workflow",
       "description": "Validates workflow editing: Open existing workflow → Add/modify nodes → Create/modify connections → Save changes → Execute updated workflow → Compare execution results",
       "status": "pending",
-      "notes": "Automation playbook pending (planned: test/playbooks/journeys/edit-existing-workflow.json)",
+      "notes": "Automation playbook pending (planned: bas/flows/edit-existing-workflow.json)",
       "validation": []
     },
     {
@@ -60,7 +60,7 @@
       "title": "User can view version history and restore previous version",
       "description": "Validates version control workflow: Make changes to workflow → View version history → Compare versions → Restore previous version → Verify restoration",
       "status": "pending",
-      "notes": "Automation playbook pending (planned: test/playbooks/journeys/version-history-restore.json)",
+      "notes": "Automation playbook pending (planned: bas/flows/version-history-restore.json)",
       "validation": []
     }
   ]

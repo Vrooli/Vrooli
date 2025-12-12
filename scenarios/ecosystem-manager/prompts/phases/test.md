@@ -157,7 +157,7 @@ visited-tracker campaigns note \
 
 You may update or add:
 
-* unit, integration, and end-to-end tests (e2e tests handled by the test/playbooks/ workflows)
+* unit, integration, and end-to-end tests (e2e tests handled by the bas/ workflows)
 * test utilities, fixtures, and helpers
 * test naming, structure, and organization
 * coverage of error paths, edge cases, and critical workflows

@@ -372,16 +372,28 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	apiServer.RegisterHandlers(mux)
 
 	addr := fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, s.opts.Manifest.IPC.Port)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		// Fallback to ephemeral port when the requested port is unavailable.
+		ln, err = net.Listen("tcp", fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, 0))
+		if err != nil {
+			return fmt.Errorf("start control API on %s: %w", addr, err)
+		}
+	}
+	actualAddr := ln.Addr().(*net.TCPAddr)
+	s.opts.Manifest.IPC.Port = actualAddr.Port
+
+	// Persist IPC port alongside the auth token so shims can discover it.
+	portPath := filepath.Join(s.appData, "runtime", "ipc_port")
+	if err := s.fs.MkdirAll(filepath.Dir(portPath), 0o700); err == nil {
+		_ = s.fs.WriteFile(portPath, []byte(fmt.Sprintf("%d", actualAddr.Port)), 0o600)
+	}
+
 	server := &http.Server{
-		Addr:    addr,
+		Addr:    fmt.Sprintf("%s:%d", s.opts.Manifest.IPC.Host, actualAddr.Port),
 		Handler: apiServer.AuthMiddleware(mux),
 	}
 	s.server = server
-
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("start control API on %s: %w", addr, err)
-	}
 
 	s.started = true
 
@@ -638,4 +650,3 @@ func (s *Supervisor) GPUStatus() GPUStatus {
 func (s *Supervisor) PortMap() map[string]map[string]int {
 	return s.portAllocator.Map()
 }
-

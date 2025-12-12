@@ -106,13 +106,13 @@ Most untested functions require either:
      - PCT-FUNC-003 (needs API + E2E)
      - PCT-FUNC-004 (needs API + UI)
      - PCT-FUNC-005 (needs API + E2E)
-   - Missing: E2E playbooks in test/playbooks/
+   - Missing: E2E workflows in bas/cases/
 
 **Current Status:** ⚠️ **Playbook Logic Fixes In Progress, UI Instrumentation 70% Complete** (2025-11-27 - Session 2)
 - ✅ Created ui/src/consts/selectors.ts with 48 selectors (added backlog.selectAllButton)
 - ✅ Generated selectors.manifest.json via build-selector-manifest.js
 - ✅ Created 5 E2E playbooks covering all critical requirements
-- ✅ Established test/playbooks/ directory structure
+- ✅ Established bas/ directory structure
 - ✅ Updated all requirement validation refs with E2E test layer
 - ✅ Built playbooks registry
 - ✅ **Replaced all raw data-testid strings with @selector/ tokens in playbooks**

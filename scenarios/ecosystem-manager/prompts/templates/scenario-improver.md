@@ -24,7 +24,7 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 ## Working with PRD & Requirements
 - `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` is read-only unless the task explicitly grants edit access. Fix code/tests so the PRD reflects reality; don’t toggle checkboxes manually.
 - Operational targets (P0/P1/P2) gain ✅ status automatically when their linked requirements’ tests pass. Confirm each target you touch is mapped to requirement IDs in `requirements/index.json` under the numbered operational-target folders (e.g. `01-<first-target-name>`, `02-<second-target-name>`, …). Add/link requirements if needed and keep the filesystem mirror of the PRD targets intact (no duplicate compatibility shims).
-- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/test/playbooks/` mirrors the same target layout under `capabilities/<target>/<surface>/` plus an additional `journeys/` folder to validate user flows. When adding/editing workflows, place them in the correct folder, tag selectors via `ui/src/consts/selectors.ts`, refresh the README if the structure changes, and never leave temporary copies in legacy directories.
+- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/bas/` mirrors the same target layout under `cases/<target>/<surface>/` plus an additional `flows/` folder to validate user journeys. When adding/editing workflows, place them in the correct folder, tag selectors via `ui/src/consts/selectors.ts`, refresh the README if the structure changes, and never leave temporary copies in legacy directories.
 - When you run tests, ensure the commands cover the `[REQ:ID]` tags for the target you’re improving. Document the commands in PRD/Test Commands and your summary so future agents can reproduce the evidence. Running the full suite triggers automatic requirement sync.
 
 ## Documentation Updates
@@ -33,7 +33,7 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 - **docs/RESEARCH.md** – add any new references or learnings if you discover them while fixing the scenario.
 - **README.md** – update run/test instructions or dependencies if your change alters how the scenario operates.
 - **requirements/README.md** – keep module descriptions current when you add requirement files. If you reorganize modules, update the README and ensure the numbered folders still align with PRD targets without adding bridge directories.
-- **test/playbooks/README.md** – document any new surfaces or journey folders you add and ensure the per-target structure matches the requirements. Re-run the registry script (`node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario {{PROJECT_PATH}}/scenarios/{{TARGET}}`) after changes.
+- **bas/README.md** – document any new surfaces or flow folders you add and ensure the per-target structure matches the requirements. Re-run `test-genie registry build` after changes.
 These files are the canonical documentation sources for future scenario improvement agents to read.
 
 ## Implementation & Stack Expectations

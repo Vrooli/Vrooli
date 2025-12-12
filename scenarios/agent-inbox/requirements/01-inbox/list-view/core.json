@@ -26,13 +26,13 @@
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/01-inbox-list/ui/chat-list-display.json"
+          "ref": "bas/cases/01-inbox-list/ui/chat-list-display.json"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/journeys/basic-chat-flow.json"
+          "ref": "bas/flows/basic-chat-flow.json"
         }
       ]
     },
@@ -60,7 +60,7 @@
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/01-inbox-list/ui/read-unread-toggle.json"
+          "ref": "bas/cases/01-inbox-list/ui/read-unread-toggle.json"
         }
       ]
     },
@@ -88,7 +88,7 @@
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/01-inbox-list/ui/read-unread-toggle.json"
+          "ref": "bas/cases/01-inbox-list/ui/read-unread-toggle.json"
         }
       ]
     },
@@ -116,7 +116,7 @@
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/journeys/basic-chat-flow.json"
+          "ref": "bas/flows/basic-chat-flow.json"
         }
       ]
     },

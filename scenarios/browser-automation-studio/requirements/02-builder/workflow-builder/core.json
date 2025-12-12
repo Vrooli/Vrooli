@@ -68,7 +68,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/01-projects/demo-sanity.json",
+          "ref": "bas/cases/02-builder/01-projects/demo-sanity.json",
           "phase": "integration",
           "status": "failing",
           "notes": "BAS workflow ensuring demo seed parity via JSON playbook (pending export)."

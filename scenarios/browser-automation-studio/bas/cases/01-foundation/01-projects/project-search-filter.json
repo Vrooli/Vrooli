@@ -25,6 +25,24 @@
       }
     },
     {
+      "id": "dismiss-tutorial",
+      "type": "subflow",
+      "data": {
+        "label": "Dismiss onboarding tutorial if present",
+        "workflowId": "@fixture/dismiss-tutorial"
+      }
+    },
+    {
+      "id": "click-projects-tab",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Projects tab",
+        "selector": "@selector/dashboard.tabs.projects",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
       "id": "assert-projects-visible",
       "type": "assert",
       "data": {
@@ -40,7 +58,7 @@
       "type": "type",
       "data": {
         "label": "Search for nonexistent project",
-        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"] /*dup-1*/",
+        "selector": "@selector/projects.search.input",
         "text": "xyznonexistentproject12345",
         "clearFirst": true,
         "timeoutMs": 5000
@@ -84,6 +102,18 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
+      "target": "dismiss-tutorial",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e1a",
+      "source": "dismiss-tutorial",
+      "target": "click-projects-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e1b",
+      "source": "click-projects-tab",
       "target": "assert-projects-visible",
       "type": "smoothstep"
     },

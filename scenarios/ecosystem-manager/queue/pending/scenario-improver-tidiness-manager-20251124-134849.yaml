@@ -1,0 +1,35 @@
+id: scenario-improver-tidiness-manager-20251124-134849
+title: Improve scenario tidiness-manager
+type: scenario
+operation: improver
+target: tidiness-manager
+targets:
+    - tidiness-manager
+category: ""
+priority: high
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: ""
+started_at: ""
+completed_at: ""
+completion_count: 82
+last_completed_at: "2025-12-11T22:37:48-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-24T13:48:49-05:00"
+updated_at: "2025-12-11T22:40:58-05:00"
+tags: []
+notes: |-
+    This scenario is important for ecosystem-manager refactoring phases, as shown in the refactoring.md file. Make sure that the cli commands in that prompt work and provide accurate metrics.
+
+    NOTE: There seems to be (or at least recently was) an error with the scenario-completeness-scoring CLI in this environment specifically. If it doesn't work, please investigate and include an issue report in your final response. When I use it normally in a terminal, it works just fine.
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: true
+steer_mode: progress

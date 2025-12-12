@@ -1,17 +1,17 @@
-# Scenario Playbooks
+# BAS Automation
 
 Store automation workflows here. Keep it short:
 
-- `capabilities/<operational-target>/<surface>/` mirrors the PRD targets (rename folders as needed).
-- `journeys/` contains multi-surface flows (new user onboarding, AI happy path, etc.).
-- `__subflows/` hosts fixtures referenced via `@fixture/<slug>`.
-- `__seeds/` includes optional setup/cleanup scripts when deterministic data is required.
+- `cases/<operational-target>/<surface>/` mirrors operational targets (rename folders as needed).
+- `flows/` contains multi-surface user journeys.
+- `actions/` hosts fixtures referenced via `@fixture/<slug>`.
+- `seeds/` includes optional setup scripts when deterministic data is required.
 
 ## Directory Structure
 
 ```
-test/playbooks/
-├── capabilities/
+bas/
+├── cases/
 │   ├── 01-inbox-list/
 │   │   └── ui/
 │   │       ├── chat-list-display.json      # [REQ:INBOX-LIST-001]
@@ -19,10 +19,10 @@ test/playbooks/
 │   └── 02-chat-creation/
 │       └── ui/
 │           └── create-new-chat.json        # [REQ:BUBBLE-001]
-├── journeys/
+├── flows/
 │   └── basic-chat-flow.json                # Multi-requirement E2E flow
-├── __seeds/
-├── __subflows/
+├── seeds/
+├── actions/
 └── registry.json
 ```
 
@@ -44,4 +44,4 @@ Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. Aft
 test-genie registry build
 ```
 
-This regenerates `test/playbooks/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.
+This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.

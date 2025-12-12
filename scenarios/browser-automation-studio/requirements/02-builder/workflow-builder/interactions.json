@@ -16,7 +16,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/builder-add-node-from-palette.json",
+          "ref": "bas/cases/02-builder/02-canvas/builder-add-node-from-palette.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates drag-and-drop from node palette to canvas with proper positioning"
@@ -33,7 +33,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/builder-create-connection.json",
+          "ref": "bas/cases/02-builder/02-canvas/builder-create-connection.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates edge creation between nodes using React Flow connection handles"
@@ -50,7 +50,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/builder-delete-node-keyboard.json",
+          "ref": "bas/cases/02-builder/02-canvas/builder-delete-node-keyboard.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates node deletion via keyboard with cleanup of connected edges"
@@ -67,49 +67,49 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-properties-edit.json",
+          "ref": "bas/cases/02-builder/02-canvas/node-properties-edit.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates node property panel opens, fields are editable, and changes persist"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-navigate.json",
+          "ref": "bas/cases/02-builder/02-canvas/node-config-navigate.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates Navigate node property configuration including URL editing and persistence"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-click.json",
+          "ref": "bas/cases/02-builder/02-canvas/node-config-click.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates Click node selector configuration and persistence"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-wait.json",
+          "ref": "bas/cases/02-builder/02-canvas/node-config-wait.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates Wait node configuration with dynamic field visibility based on wait type"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-assert.json",
+          "ref": "bas/cases/02-builder/02-canvas/node-config-assert.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates Assert node configuration with mode-specific conditional fields"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-variable-flow.json",
+          "ref": "bas/cases/02-builder/02-canvas/node-config-variable-flow.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates SetVariable and UseVariable node configuration for data flow (camelCase regression test)"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-dragdrop.json",
+          "ref": "bas/cases/02-builder/02-canvas/node-config-dragdrop.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Validates DragDrop node configuration (regression test for camelCase compiler bug fix)"

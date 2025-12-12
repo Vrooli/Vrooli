@@ -23,7 +23,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
+          "ref": "bas/cases/05-replay/01-automation/render-check.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "E2E validation that replay artifacts are persisted and accessible for rendering"
@@ -54,14 +54,14 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
+          "ref": "bas/cases/05-replay/01-automation/render-check.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "End-to-end validation of replay export and rendering workflow."
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/05-replay/02-ui/execution-result-export.json",
+          "ref": "bas/cases/05-replay/02-ui/execution-result-export.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "Validates execution result export functionality and replay artifact availability in the UI"

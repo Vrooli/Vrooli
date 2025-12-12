@@ -29,7 +29,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/02-drafts/e2e/draft-create-edit-publish.json",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
           "phase": "business",
           "status": "implemented",
           "notes": "E2E validation of draft creation workflow"
@@ -60,7 +60,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/02-drafts/e2e/draft-create-edit-publish.json",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
           "phase": "business",
           "status": "implemented",
           "notes": "E2E validation of draft save workflow"
@@ -108,7 +108,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/02-drafts/e2e/draft-create-edit-publish.json",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
           "phase": "business",
           "status": "implemented",
           "notes": "E2E validation of complete draft lifecycle including publish"
@@ -139,7 +139,7 @@
         },
         {
           "type": "test",
-          "ref": "test/playbooks/capabilities/02-drafts/e2e/draft-create-edit-publish.json",
+          "ref": "bas/cases/02-drafts/e2e/draft-create-edit-publish.json",
           "phase": "business",
           "status": "implemented",
           "notes": "E2E validation of draft editor and content editing"

@@ -331,10 +331,10 @@ collect_resource_list_data() {
         local enabled="false"
         local registered="false"
         if [[ -f "$RESOURCES_CONFIG" ]]; then
-            local config_entry=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[$name] // null" "$RESOURCES_CONFIG" 2>/dev/null)
+            local config_entry=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[\$name] // null" "$RESOURCES_CONFIG" 2>/dev/null)
             if [[ "$config_entry" != "null" ]]; then
                 registered="true"
-                enabled=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[$name].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+                enabled=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[\$name].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
             fi
         fi
         
@@ -407,7 +407,7 @@ collect_resource_status_data() {
     # Check if enabled in config (flat structure)
     local enabled="false"
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        enabled=$(jq -r --arg res "$resource_name" "${JQ_RESOURCES_EXPR} | .[$res].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+        enabled=$(jq -r --arg res "$resource_name" "${JQ_RESOURCES_EXPR} | .[\$res].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
     fi
     
     # Check running status using resource CLI only
