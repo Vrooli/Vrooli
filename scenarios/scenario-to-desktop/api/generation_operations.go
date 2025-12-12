@@ -101,6 +101,12 @@ func (s *Server) performDesktopGeneration(buildID string, config *DesktopConfig)
 			status.Status = "ready"
 			status.Artifacts["config_path"] = configPath
 			status.Artifacts["output_path"] = config.OutputPath
+			// Sync scenario UI icon into Electron assets so installers get the real app icon.
+			if err := syncScenarioIcons(config.ScenarioName, config.OutputPath, func(msg string, fields map[string]interface{}) {
+				s.logger.Info(msg, "fields", fields)
+			}); err != nil {
+				status.BuildLog = append(status.BuildLog, fmt.Sprintf("Icon sync warning: %v", err))
+			}
 			if config.DeploymentMode == "bundled" && config.BundleManifestPath != "" {
 				pkgResult, pkgErr := packageBundle(config.OutputPath, config.BundleManifestPath, config.Platforms)
 				if pkgErr != nil {
