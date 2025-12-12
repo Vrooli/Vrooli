@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -592,6 +593,7 @@ Examples:
 
 	body, err := c.api.Request("POST", "/api/v1/deploy-desktop", nil, payload)
 	if err != nil {
+		c.printFallbackArtifacts(*profileID)
 		return fmt.Errorf("deploy-desktop failed: %w", err)
 	}
 
@@ -607,6 +609,41 @@ Examples:
 
 	cmdutil.PrintByFormat(formatVal, body)
 	return nil
+}
+
+// printFallbackArtifacts gives the user actionable next steps when the API call fails
+// (e.g., EOF/timeout) but artifacts may still exist on disk.
+func (c *Commands) printFallbackArtifacts(profileID string) {
+	// Try to resolve scenario name from profile
+	body, err := c.api.Get(fmt.Sprintf("/api/v1/profiles/%s", profileID), nil)
+	if err != nil {
+		return
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return
+	}
+	scenario, _ := resp["scenario"].(string)
+	if scenario == "" {
+		return
+	}
+
+	distDir := filepath.Join("scenarios", scenario, "platforms", "electron", "dist-electron")
+	patterns := []string{"*.AppImage", "*.deb", "*.rpm"}
+	var found []string
+	for _, p := range patterns {
+		matches, _ := filepath.Glob(filepath.Join(distDir, p))
+		found = append(found, matches...)
+	}
+	if len(found) == 0 {
+		fmt.Fprintf(os.Stderr, "⚠️  API call failed, and no local artifacts found under %s\n", distDir)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "⚠️  API call failed; check these locally-built artifacts (likely completed):\n")
+	for _, f := range found {
+		fmt.Fprintf(os.Stderr, "  - %s\n", f)
+	}
+	fmt.Fprintf(os.Stderr, "If present, import the public key from signing/gnupg or public-key.asc to verify signatures.\n")
 }
 
 func printDeployDesktopResults(resp DeployDesktopResponse) {

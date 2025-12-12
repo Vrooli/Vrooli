@@ -29,6 +29,7 @@ type generateLinuxKeyResult struct {
 	Fingerprint string
 	Homedir     string
 	PublicKey   string
+	PublicPath  string
 }
 
 func (h *Handler) generateLinuxKey(ctx context.Context, params generateLinuxKeyParams) (*generateLinuxKeyResult, error) {
@@ -111,17 +112,20 @@ func (h *Handler) generateLinuxKey(ctx context.Context, params generateLinuxKeyP
 	}
 
 	var pub string
+	var pubPath string
 	if params.ExportPublic {
 		pub, err = exportPublicKey(ctx, absHomedir, fpr)
 		if err != nil {
 			return nil, err
 		}
+		pubPath, _ = writePublicKey(params.Scenario, pub)
 	}
 
 	return &generateLinuxKeyResult{
 		Fingerprint: fpr,
 		Homedir:     absHomedir,
 		PublicKey:   pub,
+		PublicPath:  pubPath,
 	}, nil
 }
 
@@ -184,6 +188,21 @@ func exportPublicKey(ctx context.Context, homedir, fingerprint string) (string, 
 		return "", err
 	}
 	return string(out), nil
+}
+
+func writePublicKey(scenario, contents string) (string, error) {
+	if contents == "" {
+		return "", nil
+	}
+	base := filepath.Join(resolveVrooliRoot(), "scenarios", scenario, "signing")
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(base, "public-key.asc")
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func resolveVrooliRoot() string {

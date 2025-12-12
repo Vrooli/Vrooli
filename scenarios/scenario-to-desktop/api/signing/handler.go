@@ -354,6 +354,7 @@ type generateLinuxKeyResponse struct {
 	Homedir     string `json:"homedir"`
 	PublicKey   string `json:"public_key,omitempty"`
 	ConfigPath  string `json:"config_path,omitempty"`
+	PublicPath  string `json:"public_key_path,omitempty"`
 }
 
 // GenerateLinuxKey creates a new GPG key for Linux signing and updates signing.json.
@@ -421,6 +422,7 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 		Homedir:     result.Homedir,
 		PublicKey:   result.PublicKey,
 		ConfigPath:  h.repo.GetPath(scenario),
+		PublicPath:  result.PublicPath,
 	}
 	writeJSON(w, http.StatusCreated, resp)
 }

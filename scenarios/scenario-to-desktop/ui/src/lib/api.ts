@@ -685,6 +685,7 @@ export interface GenerateKeyResponse {
   homedir: string;
   public_key?: string;
   config_path?: string;
+  public_key_path?: string;
 }
 
 export async function fetchSigningConfig(scenario: string): Promise<SigningConfigResponse> {
