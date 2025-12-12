@@ -31,6 +31,7 @@ interface ExportsTabProps {
   onNavigateToExecutions?: () => void;
   onNavigateToHome?: () => void;
   onCreateWorkflow?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const formatConfig: Record<string, {
@@ -113,6 +114,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
   onNavigateToExecutions,
   onNavigateToHome,
   onCreateWorkflow,
+  onOpenSettings,
 }) => {
   const {
     exports,
@@ -455,11 +457,13 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
               (() => {}),
           }}
           secondaryCta={
-            hasExecutions && onNavigateToHome
-              ? { label: 'Run another workflow', onClick: onNavigateToHome }
-              : hasWorkflows && onCreateWorkflow
-                ? { label: 'Create another workflow', onClick: onCreateWorkflow }
-                : undefined
+            !hasExecutions && !hasWorkflows && onOpenSettings
+              ? { label: 'Open export settings', onClick: onOpenSettings }
+              : hasExecutions && onNavigateToHome
+                ? { label: 'Run another workflow', onClick: onNavigateToHome }
+                : hasWorkflows && onCreateWorkflow
+                  ? { label: 'Create another workflow', onClick: onCreateWorkflow }
+                  : undefined
           }
           progressPath={[
             { label: 'Create workflow', completed: hasWorkflows || hasExecutions },

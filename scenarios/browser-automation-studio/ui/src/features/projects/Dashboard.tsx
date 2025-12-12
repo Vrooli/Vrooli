@@ -235,6 +235,7 @@ function Dashboard({
             onNavigateToExecutions={() => setActiveTab('executions')}
             onNavigateToHome={() => setActiveTab('home')}
             onCreateWorkflow={onCreateProject}
+            onOpenSettings={handleOpenSettings}
           />
         );
       case 'projects':

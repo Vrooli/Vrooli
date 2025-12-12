@@ -140,30 +140,12 @@ Browser extension captures (zip archive containing `manifest.json` plus frame as
 ```bash
 curl -X POST "http://localhost:${API_PORT}/api/v1/recordings/import" \
   -F "file=@/path/to/extension-recording.zip" \
-  -F "project_name=Demo Browser Automations"
+  -F "project_name=My Automations"
 ```
 
-- If no project is supplied, the importer tries `project_id`, then `project_name`, falling back to the seeded **Demo Browser Automations** project or creating **Extension Recordings** on demand.
+- If no project is supplied, the importer tries `project_id`, then `project_name`, falling back to creating **Extension Recordings** on demand.
 - Assets are stored under `scenarios/browser-automation-studio/data/recordings/<execution-id>/frames/` and exposed via `/api/v1/recordings/assets/{executionID}/frames/{filename}` so the UI Replay tab and CLI renderer can fetch frames without touching MinIO.
 - Imported runs appear in the dashboard alongside Browserless executions with `trigger_type = extension`, complete with replay timeline, console/network artifacts, and export support.
-
-### Demo Workflow
-
-On first run (or whenever the database is empty) the API seeds a ready-to-run workflow named **Demo: Capture Example.com Hero** inside the `/demo` workflow folder. The seed run creates a project called **Demo Browser Automations** whose backing directory defaults to `scenarios/browser-automation-studio/data/projects/demo` (override with `BAS_DEMO_PROJECT_PATH`). The directory is created automatically so replay exports and rendered bundles have a safe place to land.
-
-- **From the UI:** Start the scenario, open the dashboard, and select **Demo Browser Automations**. The preloaded "Demo" folder contains the workflow—click **Run** to watch live telemetry. When the execution finishes, open the Replay tab to see the branded screenshots, cursor trail, and assertion summary.
-- **From the CLI:**
-
-  ```bash
-  # Execute the demo workflow and wait for completion
-  browser-automation-studio workflow execute "Demo: Capture Example.com Hero" --wait
-
-  # Stream the replay/telemetry for the most recent run
-  browser-automation-studio execution watch <execution-id>
-  ```
-
-  The `execute` command prints the execution ID so you can feed it directly into `execution watch`, `execution export`, or `execution render` to pull telemetry and marketing-ready assets.
-- **Playbook sanity check:** `testing::playbooks::bas::run_workflow --file test/playbooks/projects/demo-sanity.json` boots the scenario and verifies the demo project/workflow are exposed via the API—handy for CI keep-alive jobs or local smoke checks.
 
 ## Using the Playwright engine (optional)
 
