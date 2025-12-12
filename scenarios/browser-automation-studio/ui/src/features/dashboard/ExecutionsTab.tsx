@@ -311,6 +311,7 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
                 : 'Create a workflow, run it, and monitor every step with logs, screenshots, and metrics.'
             }
             preview={<ExecutionsEmptyPreview />}
+            variant="polished"
             primaryCta={{
               label: recentWorkflows.length > 0 ? 'Run a workflow' : 'Create your first workflow',
               onClick:

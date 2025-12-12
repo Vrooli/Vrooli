@@ -119,20 +119,30 @@ const NavigationDots: React.FC<NavigationDotsProps> = ({
 // ============================================
 
 interface FeatureShowcaseProps {
+  activeIndex?: number;
   onActiveIndexChange?: (index: number) => void;
 }
 
 export const FeatureShowcase: React.FC<FeatureShowcaseProps> = ({
+  activeIndex: controlledActiveIndex,
   onActiveIndexChange,
 }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [internalActiveIndex, setInternalActiveIndex] = useState(controlledActiveIndex ?? 0);
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const activeIndex = controlledActiveIndex ?? internalActiveIndex;
+
   useEffect(() => {
+    if (controlledActiveIndex === undefined) return;
+    setInternalActiveIndex(controlledActiveIndex);
+  }, [controlledActiveIndex]);
+
+  useEffect(() => {
+    if (controlledActiveIndex !== undefined) return;
     onActiveIndexChange?.(activeIndex);
-  }, [activeIndex, onActiveIndexChange]);
+  }, [activeIndex, controlledActiveIndex, onActiveIndexChange]);
 
   useEffect(() => {
     if (isPaused) {
@@ -146,7 +156,12 @@ export const FeatureShowcase: React.FC<FeatureShowcaseProps> = ({
     intervalRef.current = setInterval(() => {
       setIsTransitioning(true);
       setTimeout(() => {
-        setActiveIndex(prev => (prev + 1) % FEATURE_CONFIGS.length);
+        const nextIndex = (activeIndex + 1) % FEATURE_CONFIGS.length;
+        if (controlledActiveIndex === undefined) {
+          setInternalActiveIndex(nextIndex);
+        } else {
+          onActiveIndexChange?.(nextIndex);
+        }
         setIsTransitioning(false);
       }, ANIMATION_DURATION / 2);
     }, CYCLE_DURATION);
@@ -156,15 +171,19 @@ export const FeatureShowcase: React.FC<FeatureShowcaseProps> = ({
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPaused]);
+  }, [activeIndex, controlledActiveIndex, isPaused, onActiveIndexChange]);
 
   const handleManualSelect = useCallback((index: number) => {
     setIsTransitioning(true);
     setTimeout(() => {
-      setActiveIndex(index);
+      if (controlledActiveIndex === undefined) {
+        setInternalActiveIndex(index);
+      } else {
+        onActiveIndexChange?.(index);
+      }
       setIsTransitioning(false);
     }, ANIMATION_DURATION / 2);
-  }, []);
+  }, [controlledActiveIndex, onActiveIndexChange]);
 
   const handleMouseEnter = useCallback(() => {
     setIsPaused(true);

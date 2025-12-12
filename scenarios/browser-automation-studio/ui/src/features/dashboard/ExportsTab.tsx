@@ -442,6 +442,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
                 : 'Create your first workflow, run it, then export ready-to-share artifacts.'
           }
           preview={<ExportsEmptyPreview />}
+          variant="polished"
           primaryCta={{
             label: hasExecutions
               ? 'Open executions to export'

@@ -38,7 +38,6 @@ interface DashboardProps {
   onRunWorkflow?: (workflowId: string) => void;
   onViewAllWorkflows?: () => void;
   onViewAllExecutions?: () => void;
-  onTryDemo?: () => void;
   activeTab?: DashboardTab;
   onTabChange?: (tab: DashboardTab) => void;
   isGeneratingWorkflow?: boolean;
@@ -56,7 +55,6 @@ function Dashboard({
   onViewExecution,
   onAIGenerateWorkflow,
   onRunWorkflow,
-  onTryDemo,
   activeTab: activeTabProp,
   onTabChange,
   isGeneratingWorkflow = false,
@@ -246,7 +244,6 @@ function Dashboard({
             onCreateProject={onCreateProject}
             onNavigateToWorkflow={handleNavigateToWorkflow}
             onRunWorkflow={handleRunWorkflow}
-            onTryDemo={onTryDemo}
           />
         );
       case 'schedules':

@@ -340,6 +340,7 @@ export const SchedulesTab: React.FC<SchedulesTabProps> = ({
           title="Automate on autopilot"
           subtitle="Schedule workflows to run automatically at specific times or intervals."
           preview={<SchedulesEmptyPreview />}
+          variant="polished"
           primaryCta={{
             label: 'Create your first schedule',
             onClick: handleCreateSchedule,

@@ -47,52 +47,67 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   accentColor,
   isActive,
   onClick,
-}) => (
-  <div
-    className={`feature-card feature-card-active accent-${accentColor} animate-fade-in-up group h-full ${
-      isActive ? 'is-active' : ''
-    }`}
-    style={{ animationDelay: `${delay}ms` }}
-    onClick={onClick}
-    role={onClick ? 'button' : undefined}
-    tabIndex={onClick ? 0 : undefined}
-    onKeyDown={onClick ? (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        onClick();
-      }
-    } : undefined}
-  >
-    <div
-      className={`relative h-full p-5 rounded-xl border border-flow-border/50 bg-flow-surface/50 backdrop-blur-sm transition-all duration-300 ${
-        isActive
-          ? 'border-transparent'
-          : 'hover:border-flow-border'
-      } ${onClick ? 'cursor-pointer' : ''}`}
-    >
-      {/* Icon container with gradient background */}
-      <div
-        className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} mb-4 transition-transform duration-300 ${
-          isActive ? 'scale-110' : 'group-hover:scale-110'
-        }`}
-      >
-        {icon}
-      </div>
-      <h3 className="text-base font-semibold text-surface mb-2">{title}</h3>
-      <p className="text-sm text-flow-text-muted leading-relaxed">{description}</p>
+}) => {
+  const accentDotClass = getAccentDotClass(accentColor);
 
-      {/* Active indicator */}
-      {isActive && (
-        <div className="absolute top-3 right-3">
-          <span className="flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-flow-accent opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-flow-accent" />
-          </span>
+  return (
+    <div
+      className={`feature-card feature-card-active accent-${accentColor} animate-fade-in-up group h-full ${
+        isActive ? 'is-active' : ''
+      }`}
+      style={{ animationDelay: `${delay}ms` }}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      } : undefined}
+    >
+      <div
+        className={`relative h-full p-5 rounded-xl border border-flow-border/50 bg-flow-surface/50 backdrop-blur-sm transition-all duration-300 ${
+          isActive
+            ? 'border-transparent'
+            : 'hover:border-flow-border'
+        } ${onClick ? 'cursor-pointer' : ''}`}
+      >
+        {/* Icon container with gradient background */}
+        <div
+          className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} mb-4 transition-transform duration-300 ${
+            isActive ? 'scale-110' : 'group-hover:scale-110'
+          }`}
+        >
+          {icon}
         </div>
-      )}
+        <h3 className="text-base font-semibold text-surface mb-2">{title}</h3>
+        <p className="text-sm text-flow-text-muted leading-relaxed">{description}</p>
+
+        {/* Active indicator */}
+        {isActive && (
+          <div className="absolute top-3 right-3">
+            <span className="flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${accentDotClass}`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${accentDotClass}`} />
+            </span>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
+function getAccentDotClass(accentColor: string) {
+  const classes: Record<string, string> = {
+    purple: 'bg-purple-400',
+    red: 'bg-red-400',
+    blue: 'bg-blue-400',
+    green: 'bg-emerald-400',
+    amber: 'bg-amber-400',
+  };
+  return classes[accentColor] ?? 'bg-flow-accent';
+}
 
 // ============================================
 // FEATURE CONFIGURATION
@@ -150,6 +165,10 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
   const handleActiveIndexChange = useCallback((index: number) => {
     setActiveFeatureIndex(index);
   }, []);
+
+  const handleFeatureCardSelect = useCallback((index: number) => {
+    handleActiveIndexChange(index);
+  }, [handleActiveIndexChange]);
 
   return (
     <div className="relative flex-1 flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
@@ -241,13 +260,17 @@ export const WelcomeHero: React.FC<WelcomeHeroProps> = ({
               gradient={feature.gradient}
               accentColor={feature.accentColor}
               isActive={index === activeFeatureIndex}
+              onClick={() => handleFeatureCardSelect(index)}
             />
           ))}
         </div>
 
         {/* Feature showcase with cycling previews */}
         <div className="animate-fade-in-up" style={{ animationDelay: '600ms' }}>
-          <FeatureShowcase onActiveIndexChange={handleActiveIndexChange} />
+          <FeatureShowcase
+            activeIndex={activeFeatureIndex}
+            onActiveIndexChange={handleActiveIndexChange}
+          />
         </div>
 
         {/* Stats section */}
