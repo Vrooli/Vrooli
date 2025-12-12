@@ -39,8 +39,9 @@ const PLATFORM_INSTRUCTIONS: Record<
   linux: {
     title: "Linux",
     steps: ["Install GPG and package signers for DEB/RPM", "Install osslsigncode if signing Windows EXEs on Linux"],
-    command: "Debian/Ubuntu: sudo apt install gnupg dpkg-sig rpm-sign osslsigncode",
-    note: "GPG signs DEB/RPM/AppImage; osslsigncode can sign Windows EXEs from Linux/macOS."
+    command:
+      "Ubuntu/Debian: sudo apt update && sudo apt install gnupg rpm osslsigncode (optional: sudo apt install dpkg-sig if available) · Fedora/RHEL: sudo dnf install gnupg2 rpm-sign osslsigncode",
+    note: "GPG signs DEB/RPM/AppImage. Debian/Ubuntu provide rpmsign via the rpm package; dpkg-sig may require universe. Fedora/RHEL use rpm-sign. osslsigncode signs Windows EXEs from Linux/macOS."
   }
 };
 
@@ -63,7 +64,7 @@ function installHint(tool: ToolDetectionResult): string | undefined {
     return "Install Xcode Command Line Tools: xcode-select --install (macOS only).";
   }
   if (tool.tool === "gpg") return "Install GPG (e.g., brew install gnupg or apt install gnupg).";
-  if (tool.tool === "rpmsign") return "Install rpm-sign (e.g., yum install rpm-sign).";
+  if (tool.tool === "rpmsign") return "Install rpmsign (Fedora/RHEL: dnf install rpm-sign; Ubuntu/Debian: apt install rpm).";
   if (tool.tool === "dpkg_sig") return "Install dpkg-sig (e.g., apt install dpkg-sig).";
   return;
 }
@@ -82,7 +83,7 @@ function installCommand(tool: ToolDetectionResult): string | undefined {
     case "gpg":
       return "macOS: brew install gnupg · Ubuntu/Debian: apt install gnupg";
     case "rpmsign":
-      return "RHEL/CentOS/Fedora: yum install rpm-sign";
+      return "RHEL/CentOS/Fedora: dnf install rpm-sign · Ubuntu/Debian: apt install rpm";
     case "dpkg_sig":
       return "Ubuntu/Debian: apt install dpkg-sig";
     default:

@@ -60,13 +60,13 @@ deployment-manager swaps apply <profile-id> redis memory-cache
 
 ```bash
 # Full end-to-end deployment (manifest + binaries + Electron + installers)
-deployment-manager deploy-desktop --profile my-desktop-profile
+deployment-manager deploy-desktop --profile my-desktop-profile --timeout 10m
 ```
 
 **Options:**
 ```bash
 # Specific platforms only
-deployment-manager deploy-desktop --profile my-desktop-profile --platforms win,mac
+deployment-manager deploy-desktop --profile my-desktop-profile --platforms win,mac  # expands to mac x64+arm64
 
 # Skip installer builds (faster iteration)
 deployment-manager deploy-desktop --profile my-desktop-profile --skip-installers
@@ -76,6 +76,11 @@ deployment-manager deploy-desktop --profile my-desktop-profile --mode external-s
 
 # Preview without executing
 deployment-manager deploy-desktop --profile my-desktop-profile --dry-run
+
+# Notes
+# - pnpm is used for Electron builds by default (falls back to npm if pnpm is missing)
+# - Default platforms: win, mac (x64+arm64), linux (x64+arm64)
+# - Increase --timeout for heavier builds (default 10m)
 ```
 
 ## Step 4: Get Your Installers

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"deployment-manager/cli/cmdutil"
 
@@ -95,42 +96,37 @@ func (c *Commands) deploymentStatus(args []string) error {
 // Packagers
 
 func (c *Commands) Packagers(args []string) error {
-	if len(args) == 0 {
-		return c.packagersList(args)
-	}
-	sub := args[0]
-	rest := args[1:]
-	switch sub {
-	case "list":
-		return c.packagersList(rest)
-	case "discover":
-		return c.packagersDiscover(rest)
-	default:
-		return errors.New("unknown packagers subcommand: " + sub)
-	}
-}
-
-func (c *Commands) packagersList(args []string) error {
-	fs := flag.NewFlagSet("packagers list", flag.ContinueOnError)
+	fs := flag.NewFlagSet("packagers", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
 	_, _ = cmdutil.ParseArgs(fs, args)
-	body, err := c.api.Get("/api/v1/packagers", nil)
-	if err != nil {
-		return err
-	}
-	cmdutil.PrintByFormat(*format, body)
-	return nil
-}
 
-func (c *Commands) packagersDiscover(args []string) error {
-	fs := flag.NewFlagSet("packagers discover", flag.ContinueOnError)
-	format := fs.String("format", "", "output format (json)")
-	_, _ = cmdutil.ParseArgs(fs, args)
-	body, err := c.api.Request("POST", "/api/v1/packagers/discover", nil, map[string]interface{}{})
-	if err != nil {
-		return err
+	message := "Packager discovery is deprecated here; use deploy-desktop or scenario-to-* CLIs directly."
+	packagers := []string{
+		"scenario-to-desktop (desktop bundler)",
+		"scenario-to-ios (stub)",
+		"scenario-to-cloud (stub)",
 	}
-	cmdutil.PrintByFormat(*format, body)
+
+	resolvedFormat := cmdutil.ResolveFormat(*format)
+	if strings.ToLower(resolvedFormat) == "json" {
+		payload := map[string]interface{}{
+			"status":    "stubbed",
+			"message":   message,
+			"packagers": packagers,
+		}
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		cmdutil.PrintByFormat(resolvedFormat, data)
+		return nil
+	}
+
+	fmt.Println(message)
+	fmt.Println("Available packagers (stubbed):")
+	for _, p := range packagers {
+		fmt.Printf(" - %s\n", p)
+	}
 	return nil
 }
 
@@ -150,12 +146,27 @@ func (c *Commands) PackageProfile(args []string) error {
 		return errors.New("--packager is required")
 	}
 	id := remaining[0]
-	payload := map[string]interface{}{"packager": *packager, "dry_run": *dryRun}
-	body, err := c.api.Request("POST", "/api/v1/package/"+id, nil, payload)
-	if err != nil {
-		return err
+
+	resolvedFormat := cmdutil.ResolveFormat(*format)
+	response := map[string]interface{}{
+		"status":     "stubbed",
+		"profile_id": id,
+		"packager":   *packager,
+		"dry_run":    *dryRun,
+		"message":    "Package command is legacy-only; use deploy-desktop for end-to-end bundling.",
 	}
-	cmdutil.PrintByFormat(*format, body)
+	data, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Errorf("failed to marshal package response: %w", err)
+	}
+
+	if strings.ToLower(resolvedFormat) == "json" {
+		cmdutil.PrintByFormat(resolvedFormat, data)
+		return nil
+	}
+
+	fmt.Fprintf(os.Stdout, "Packager hand-off is deprecated; use deploy-desktop instead.\n")
+	fmt.Fprintf(os.Stdout, "Stubbed package request for profile %s via %s (dry-run=%t)\n", id, *packager, *dryRun)
 	return nil
 }
 
@@ -473,6 +484,7 @@ func (c *Commands) DeployDesktop(args []string) error {
 	dryRun := fs.Bool("dry-run", false, "show what would be done without doing it")
 	format := fs.String("format", "", "output format (json)")
 	signingConfig := fs.String("signing-config", "", "path to JSON file with signing configuration (applies to scenario-to-desktop)")
+	timeout := fs.Duration("timeout", 10*time.Minute, "timeout for the deploy operation (e.g. 10m, 15m)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Orchestrate complete bundled desktop deployment.
 
@@ -550,6 +562,7 @@ Examples:
 		"skip_installers": *skipInstallers,
 		"deployment_mode": *deploymentMode,
 		"dry_run":         *dryRun,
+		"timeout_seconds": int(timeout.Seconds()),
 	}
 
 	if *outputDir != "" {

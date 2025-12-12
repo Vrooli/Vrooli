@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -40,22 +42,24 @@ type DeployDesktopRequest struct {
 	// SigningConfig is the optional signing configuration to apply before building
 	// This is passed directly to scenario-to-desktop's signing API
 	SigningConfig map[string]interface{} `json:"signing_config,omitempty"`
+	// TimeoutSeconds allows callers to override the orchestration timeout window
+	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 }
 
 // DeployDesktopResponse is the response from orchestrated deployment.
 type DeployDesktopResponse struct {
-	Status          string                   `json:"status"`
-	ProfileID       string                   `json:"profile_id"`
-	Scenario        string                   `json:"scenario"`
-	Steps           []OrchestrationStep      `json:"steps"`
-	ManifestPath    string                   `json:"manifest_path,omitempty"`
-	BuildResults    *build.BuildAllResult    `json:"build_results,omitempty"`
-	DesktopBuildID  string                   `json:"desktop_build_id,omitempty"`
-	DesktopPath     string                   `json:"desktop_path,omitempty"`
-	InstallerBuildID string                  `json:"installer_build_id,omitempty"`
-	Installers      map[string]string        `json:"installers,omitempty"`
-	Duration        string                   `json:"duration,omitempty"`
-	NextSteps       []string                 `json:"next_steps,omitempty"`
+	Status           string                `json:"status"`
+	ProfileID        string                `json:"profile_id"`
+	Scenario         string                `json:"scenario"`
+	Steps            []OrchestrationStep   `json:"steps"`
+	ManifestPath     string                `json:"manifest_path,omitempty"`
+	BuildResults     *build.BuildAllResult `json:"build_results,omitempty"`
+	DesktopBuildID   string                `json:"desktop_build_id,omitempty"`
+	DesktopPath      string                `json:"desktop_path,omitempty"`
+	InstallerBuildID string                `json:"installer_build_id,omitempty"`
+	Installers       map[string]string     `json:"installers,omitempty"`
+	Duration         string                `json:"duration,omitempty"`
+	NextSteps        []string              `json:"next_steps,omitempty"`
 }
 
 // OrchestrationStep represents a single step in the orchestration.
@@ -109,6 +113,13 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		ProfileID: req.ProfileID,
 		Steps:     make([]OrchestrationStep, 0),
 	}
+
+	effectiveTimeout := time.Duration(req.TimeoutSeconds) * time.Second
+	if effectiveTimeout <= 0 {
+		effectiveTimeout = 10 * time.Minute
+	}
+	buildPlatforms := resolveBuildPlatforms(req.Platforms)
+	installerTargets := resolveInstallerTargets(req.Platforms)
 
 	// Step 1: Load profile
 	step := o.startStep("Load profile")
@@ -274,8 +285,19 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 			allSucceeded := true
 			var allResults []build.BuildResult
 
+			if len(buildPlatforms) == 0 {
+				o.failStep(&step, "no valid target platforms resolved")
+				response.Steps = append(response.Steps, step)
+				response.Status = "failed"
+				o.writeJSON(w, http.StatusBadRequest, response)
+				return
+			}
+
+			buildCtx, cancel := context.WithTimeout(ctx, effectiveTimeout)
+			defer cancel()
+
 			for _, svc := range buildableServices {
-				result, err := builder.BuildAll(ctx, svc.ID, svc.Build, req.Platforms)
+				result, err := builder.BuildAll(buildCtx, svc.ID, svc.Build, buildPlatforms)
 
 				if err != nil {
 					o.log("error", map[string]interface{}{
@@ -315,7 +337,7 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				o.successStep(&step, fmt.Sprintf("built %d service(s) for %d platform(s)", len(buildableServices), len(allResults)/len(buildableServices)))
+				o.successStep(&step, fmt.Sprintf("built %d service(s) for %d platform(s)", len(buildableServices), len(buildPlatforms)))
 			} else {
 				o.failStep(&step, "some builds failed")
 			}
@@ -352,20 +374,24 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 					deploymentMode = "bundled"
 				}
 
+				packCtx, cancel := context.WithTimeout(ctx, effectiveTimeout)
+				defer cancel()
+
 				genReq := &QuickGenerateRequest{
 					ScenarioName:       profile.Scenario,
 					TemplateType:       "universal",
 					DeploymentMode:     deploymentMode,
 					BundleManifestPath: response.ManifestPath,
+					Platforms:          installerTargets,
 				}
 
-				genResp, err := desktopClient.QuickGenerate(ctx, genReq)
+				genResp, err := desktopClient.QuickGenerate(packCtx, genReq)
 				if err != nil {
 					o.failStep(&step, fmt.Sprintf("desktop generation failed: %v", err))
 					response.Steps = append(response.Steps, step)
 				} else {
 					// Wait for generation to complete
-					buildStatus, err := desktopClient.WaitForBuild(ctx, genResp.BuildID, 3*time.Second)
+					buildStatus, err := desktopClient.WaitForBuild(packCtx, genResp.BuildID, 3*time.Second)
 					if err != nil {
 						o.failStep(&step, fmt.Sprintf("desktop generation timed out or failed: %v", err))
 						response.Steps = append(response.Steps, step)
@@ -386,6 +412,22 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 7: Build platform installers (unless skipped)
+	if !req.DryRun && !req.SkipPackaging && response.DesktopPath != "" && response.ManifestPath != "" {
+		step = o.startStep("Copy binaries into bundle")
+		manifestDir := filepath.Dir(response.ManifestPath)
+		bundleDir := filepath.Join(response.DesktopPath, "bundle")
+		missing, err := copyBuiltBinariesToBundle(manifest, manifestDir, bundleDir, buildPlatforms)
+		if err != nil {
+			o.failStep(&step, fmt.Sprintf("failed to copy binaries into bundle: %v", err))
+		} else if len(missing) > 0 {
+			step.Status = "warning"
+			step.Message = fmt.Sprintf("copied binaries with %d missing artifact(s): %s", len(missing), strings.Join(missing, ", "))
+		} else {
+			o.successStep(&step, "copied binaries into bundle/bin for target platforms")
+		}
+		response.Steps = append(response.Steps, step)
+	}
+
 	if !req.SkipInstallers && !req.SkipPackaging && response.DesktopPath != "" {
 		step = o.startStep("Build platform installers")
 
@@ -394,39 +436,17 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 			step.Message = "dry run - would build MSI/PKG/AppImage installers"
 			response.Steps = append(response.Steps, step)
 		} else {
-			desktopClient, err := NewDesktopPackagerClient(o.log)
+			installCtx, cancel := context.WithTimeout(ctx, effectiveTimeout)
+			defer cancel()
+
+			installers, err := o.buildInstallersWithPnpm(installCtx, response.DesktopPath, installerTargets)
 			if err != nil {
-				o.failStep(&step, fmt.Sprintf("failed to create desktop client: %v", err))
-				response.Steps = append(response.Steps, step)
+				o.failStep(&step, fmt.Sprintf("installer build failed: %v", err))
 			} else {
-				platforms := req.Platforms
-				if len(platforms) == 0 {
-					platforms = []string{"win", "mac", "linux"}
-				}
-
-				buildReq := &ScenarioBuildRequest{
-					Platforms: platforms,
-					Clean:     false,
-				}
-
-				buildResp, err := desktopClient.BuildScenario(ctx, profile.Scenario, buildReq)
-				if err != nil {
-					o.failStep(&step, fmt.Sprintf("installer build failed to start: %v", err))
-					response.Steps = append(response.Steps, step)
-				} else {
-					// Wait for build to complete
-					buildStatus, err := desktopClient.WaitForBuild(ctx, buildResp.BuildID, 10*time.Second)
-					if err != nil {
-						o.failStep(&step, fmt.Sprintf("installer build failed: %v", err))
-						response.Steps = append(response.Steps, step)
-					} else {
-						response.InstallerBuildID = buildResp.BuildID
-						response.Installers = buildStatus.Artifacts
-						o.successStep(&step, fmt.Sprintf("built installers for %d platform(s)", len(platforms)))
-						response.Steps = append(response.Steps, step)
-					}
-				}
+				response.Installers = installers
+				o.successStep(&step, fmt.Sprintf("built installers for %d platform(s)", len(installerTargets)))
 			}
+			response.Steps = append(response.Steps, step)
 		}
 	} else if !req.SkipInstallers {
 		step = o.startStep("Build platform installers")
@@ -558,6 +578,246 @@ func (o *Orchestrator) writeJSON(w http.ResponseWriter, status int, payload inte
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func resolveBuildPlatforms(inputs []string) []string {
+	defaultPlatforms := []string{"linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win-x64"}
+	if len(inputs) == 0 {
+		return defaultPlatforms
+	}
+
+	allowed := make(map[string]bool)
+	for _, p := range build.SupportedPlatforms {
+		allowed[p.Name] = true
+	}
+
+	var result []string
+	add := func(name string) {
+		if !allowed[name] {
+			return
+		}
+		for _, existing := range result {
+			if existing == name {
+				return
+			}
+		}
+		result = append(result, name)
+	}
+
+	for _, raw := range inputs {
+		switch strings.ToLower(raw) {
+		case "win", "windows", "win-x64":
+			add("win-x64")
+		case "mac":
+			add("darwin-x64")
+			add("darwin-arm64")
+		case "darwin-x64":
+			add("darwin-x64")
+		case "darwin-arm64":
+			add("darwin-arm64")
+		case "linux":
+			add("linux-x64")
+			add("linux-arm64")
+		case "linux-x64":
+			add("linux-x64")
+		case "linux-arm64":
+			add("linux-arm64")
+		default:
+			add(strings.ToLower(raw))
+		}
+	}
+
+	if len(result) == 0 {
+		return defaultPlatforms
+	}
+	return result
+}
+
+func resolveInstallerTargets(inputs []string) []string {
+	if len(inputs) == 0 {
+		return []string{"win", "mac", "linux"}
+	}
+	targetSet := map[string]bool{}
+	add := func(name string) {
+		targetSet[name] = true
+	}
+	for _, raw := range inputs {
+		switch strings.ToLower(raw) {
+		case "win", "windows", "win-x64":
+			add("win")
+		case "mac", "darwin", "darwin-arm64", "darwin-x64":
+			add("mac")
+		case "linux", "linux-x64", "linux-arm64":
+			add("linux")
+		}
+	}
+	if len(targetSet) == 0 {
+		return []string{"win", "mac", "linux"}
+	}
+	var out []string
+	for _, name := range []string{"win", "mac", "linux"} {
+		if targetSet[name] {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+func copyBuiltBinariesToBundle(manifest *bundles.Manifest, manifestDir, bundleDir string, platforms []string) ([]string, error) {
+	if manifest == nil {
+		return nil, fmt.Errorf("manifest is nil")
+	}
+	platformSet := make(map[string]bool)
+	for _, p := range platforms {
+		platformSet[p] = true
+	}
+
+	if err := os.MkdirAll(filepath.Join(bundleDir, "bin"), 0o755); err != nil {
+		return nil, err
+	}
+
+	var missing []string
+
+	for _, svc := range manifest.Services {
+		for platform, bin := range svc.Binaries {
+			if len(platformSet) > 0 && !platformSet[platform] {
+				continue
+			}
+
+			src := bin.Path
+			if !filepath.IsAbs(src) {
+				src = filepath.Join(manifestDir, filepath.FromSlash(bin.Path))
+			}
+
+			if _, err := os.Stat(src); err != nil {
+				missing = append(missing, fmt.Sprintf("%s:%s", svc.ID, platform))
+				continue
+			}
+
+			destDir := filepath.Join(bundleDir, "bin", platform)
+			if err := os.MkdirAll(destDir, 0o755); err != nil {
+				return missing, err
+			}
+
+			dest := filepath.Join(destDir, filepath.Base(src))
+			if err := copyFilePreserveMode(src, dest); err != nil {
+				return missing, err
+			}
+		}
+	}
+
+	return missing, nil
+}
+
+func copyFilePreserveMode(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	mode := os.FileMode(0o755)
+	if info, err := os.Stat(src); err == nil {
+		mode = info.Mode().Perm()
+	}
+	return os.WriteFile(dst, data, mode)
+}
+
+func (o *Orchestrator) buildInstallersWithPnpm(ctx context.Context, desktopPath string, platforms []string) (map[string]string, error) {
+	if len(platforms) == 0 {
+		platforms = []string{"win", "mac", "linux"}
+	}
+
+	packageManager := "pnpm"
+	if _, err := exec.LookPath(packageManager); err != nil {
+		o.log("warn", map[string]interface{}{
+			"msg":   "pnpm not found, falling back to npm",
+			"error": err.Error(),
+		})
+		packageManager = "npm"
+	}
+
+	if err := runCommandLogged(ctx, packageManager, []string{"install"}, desktopPath, o.log); err != nil {
+		return nil, err
+	}
+
+	distDir := filepath.Join(desktopPath, "dist-electron")
+	if err := os.MkdirAll(distDir, 0o755); err != nil {
+		return nil, err
+	}
+
+	installers := make(map[string]string)
+	for _, platform := range platforms {
+		cmd := []string{"run", fmt.Sprintf("dist:%s", platform)}
+		if err := runCommandLogged(ctx, packageManager, cmd, desktopPath, o.log); err != nil {
+			return installers, fmt.Errorf("%s build failed: %w", platform, err)
+		}
+
+		artifact, err := findInstallerArtifact(distDir, platform)
+		if err != nil {
+			o.log("warn", map[string]interface{}{
+				"msg":      "installer built but artifact not located",
+				"platform": platform,
+				"error":    err.Error(),
+			})
+			continue
+		}
+		installers[platform] = artifact
+	}
+
+	return installers, nil
+}
+
+func runCommandLogged(ctx context.Context, bin string, args []string, dir string, log func(string, map[string]interface{})) error {
+	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	log("info", map[string]interface{}{
+		"msg":  "command completed",
+		"cmd":  fmt.Sprintf("%s %s", bin, strings.Join(args, " ")),
+		"dir":  dir,
+		"ok":   err == nil,
+		"logs": string(output),
+	})
+	if err != nil {
+		return fmt.Errorf("%s %s failed: %v", bin, strings.Join(args, " "), err)
+	}
+	return nil
+}
+
+func findInstallerArtifact(distDir, platform string) (string, error) {
+	var patterns []string
+	switch platform {
+	case "win":
+		patterns = []string{"*.exe", "*.msi"}
+	case "mac":
+		patterns = []string{"*.dmg", "*.pkg", "*.zip"}
+	case "linux":
+		patterns = []string{"*.AppImage", "*.deb", "*.tar.gz"}
+	default:
+		return "", fmt.Errorf("unknown platform %s", platform)
+	}
+
+	var candidates []string
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(distDir, pattern))
+		if err == nil {
+			candidates = append(candidates, matches...)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("no installer artifacts matched for %s", platform)
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		infoI, _ := os.Stat(candidates[i])
+		infoJ, _ := os.Stat(candidates[j])
+		if infoI == nil || infoJ == nil {
+			return candidates[i] < candidates[j]
+		}
+		return infoI.ModTime().After(infoJ.ModTime())
+	})
+
+	return candidates[0], nil
 }
 
 // updateManifestBinaryPaths updates manifest service binaries to point to actual build outputs.

@@ -8,7 +8,7 @@ This guide explains what must be signed for each platform, which OS can perform 
 |----------|----------------|---------------------|-------------------|-----------------------------|
 | Windows | Executables + installers (Authenticode) with timestamp | Windows host using SignTool (part of Windows SDK/VS). EV tokens require Windows. | Commercial code-signing cert (PFX or hardware token). ~$200–$400/yr (OV), ~$400–$700/yr (EV). Identity/business verification; issuance can take 1–3+ business days. | Yes. One org cert can sign many apps/installers. |
 | macOS | .app bundles + installers; notarization stapling | macOS host with `codesign` + `notarytool` (Xcode CLT). | Apple Developer Program ($99/yr) + Developer ID Application cert. Notarization uses App Store Connect API key. Approval may take hours–days (account + D‑U‑N‑S if org). | Yes. One Developer ID cert/API key per team can sign/notarize many apps. |
-| Linux | Packages (DEB/RPM) and AppImage via GPG signatures | Linux host with `gpg` + package signers (`dpkg-sig`/`rpm-sign`). | GPG key you generate yourself (free). Immediate use. | Yes. Same key can sign many packages. |
+| Linux | Packages (DEB/RPM) and AppImage via GPG signatures | Linux host with `gpg` + package signers (`dpkg-sig` on Debian/Ubuntu; `rpm`/`rpm-sign` for rpmsign). | GPG key you generate yourself (free). Immediate use. | Yes. Same key can sign many packages. |
 
 **Can I sign everything from one machine?**  
 - Windows signing: realistically Windows only (SignTool + optional EV token).  
@@ -37,7 +37,7 @@ You can build unsigned elsewhere and sign on the target OS if needed.
 - Runs local detection to confirm the OS-level CLIs are available before you try to sign:
   - `signtool` (Windows SDK/VS), `osslsigncode` (Linux/macOS alternative for Windows EXE signing),
   - `codesign`, `notarytool`, `altool` (macOS),
-  - `gpg`, `rpmsign`, `dpkg-sig` (Linux package signing).
+  - `gpg`, `rpmsign` (via `rpm` or `rpm-sign`), `dpkg-sig` (Linux package signing).
 - Shows per-platform cards with status, version, and resolved path when found.
 - When missing, shows remediation text plus quick install commands (e.g., `xcode-select --install`, `apt install osslsigncode`, `brew install gnupg`).
 - If a tool errors, the panel surfaces the error text so you can fix PATH or reinstall.
@@ -92,8 +92,8 @@ security find-identity -v -p codesigning
 - Optional custom keyring paths if not using the default.
 
 **Install tools**
-- Debian/Ubuntu: `sudo apt install gnupg dpkg-sig`
-- RHEL/CentOS/Fedora: `sudo yum install gnupg rpm-sign`
+- Debian/Ubuntu: `sudo apt update && sudo apt install gnupg rpm osslsigncode` (rpmsign is provided by rpm); optionally `sudo apt install dpkg-sig` if available/enabled (universe)
+- RHEL/CentOS/Fedora: `sudo dnf install gnupg2 rpm-sign` (rpmsign), and add `osslsigncode` if you need Windows EXE signing from Linux
 
 **How to list keys**
 ```bash

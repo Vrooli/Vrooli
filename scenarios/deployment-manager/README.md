@@ -80,7 +80,7 @@ make test  # All phases: dependencies, structure, CLI, API, UI
 - Discovery: `deployment-manager status`, `deployment-manager analyze <scenario>`, `deployment-manager fitness <scenario> --tier 3`.
 - Profiles: `profiles` (list), `profile create <name> <scenario> --tier <n>`, `profile export <id> --output /path`, `profile diff <id>`, `profile rollback <id> --version <n>`.
 - Swaps: `swaps list <scenario>`, `swaps analyze <from> <to>`, `swaps apply <profile> <from> <to> --show-fitness`.
-- Deployments: `deploy <profile> --dry-run`, `validate <profile> --verbose`, `estimate-cost <profile> --verbose`, `package <profile> --packager <scenario-to-*>`, `logs <profile> --level error --format table`.
+- Deployments: `deploy <profile> --dry-run`, `deploy-desktop --profile <id> --dry-run`, `validate <profile> --verbose`, `estimate-cost <profile> --verbose`, `package <profile> --packager <scenario-to-*>` (legacy stub), `logs <profile> --level error --format table`.
 - Secrets: `secrets identify <profile>`, `secrets template <profile> --format env`, `secrets validate <profile>`.
 ```
 

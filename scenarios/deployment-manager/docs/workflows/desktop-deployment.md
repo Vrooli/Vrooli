@@ -48,9 +48,10 @@ Do you need the app to work offline / without a server?
 > **Quick Start**: For bundled desktop apps, use the single-command approach:
 > ```bash
 > deployment-manager profile create my-profile my-scenario --tier 2
-> deployment-manager deploy-desktop --profile my-profile
+> deployment-manager deploy-desktop --profile my-profile --timeout 10m
 > ```
 > This orchestrates the entire 7-step pipeline automatically. See [deploy-desktop CLI reference](../cli/deployment-commands.md#deploy-desktop) for details.
+> Defaults: pnpm is used for Electron builds (fallback to npm), installers are built by default, and platform selection expands `win,mac,linux` to the full x64/arm64 matrix. Extend `--timeout` for heavier builds.
 
 > **Reference Implementation**: The `hello-desktop` scenario demonstrates a complete working bundled desktop build. See [Hello Desktop Tutorial](../tutorials/hello-desktop-walkthrough.md).
 

@@ -18,16 +18,17 @@ import (
 )
 
 type quickGenerateRequest struct {
-	ScenarioName     string `json:"scenario_name"`
-	TemplateType     string `json:"template_type"`
-	DeploymentMode   string `json:"deployment_mode"`
-	AutoManageVrooli *bool  `json:"auto_manage_vrooli"`
-	LegacyAutoManage *bool  `json:"auto_manage_tier1"`
-	ProxyURL         string `json:"proxy_url"`
-	LegacyServerURL  string `json:"server_url"`
-	LegacyAPIURL     string `json:"api_url"`
-	BundleManifest   string `json:"bundle_manifest_path"`
-	VrooliBinary     string `json:"vrooli_binary_path"`
+	ScenarioName     string   `json:"scenario_name"`
+	TemplateType     string   `json:"template_type"`
+	DeploymentMode   string   `json:"deployment_mode"`
+	AutoManageVrooli *bool    `json:"auto_manage_vrooli"`
+	LegacyAutoManage *bool    `json:"auto_manage_tier1"`
+	ProxyURL         string   `json:"proxy_url"`
+	LegacyServerURL  string   `json:"server_url"`
+	LegacyAPIURL     string   `json:"api_url"`
+	BundleManifest   string   `json:"bundle_manifest_path"`
+	VrooliBinary     string   `json:"vrooli_binary_path"`
+	Platforms        []string `json:"platforms"`
 }
 
 // Quick generate desktop handler - auto-detects scenario configuration
@@ -302,6 +303,7 @@ func mergeQuickGenerateConfig(config *DesktopConfig, request quickGenerateReques
 	config.DeploymentMode = chooseDeploymentMode(request, savedConfig, config.DeploymentMode)
 	config.BundleManifestPath = chooseBundleManifestPath(request, savedConfig)
 	config.AutoManageVrooli = chooseAutoManage(request, savedConfig, config.AutoManageVrooli)
+	config.Platforms = choosePlatforms(request.Platforms, config.Platforms)
 
 	if config.OutputPath == "" {
 		config.OutputPath = defaultOutputPath
@@ -377,6 +379,16 @@ func chooseBundleManifestPath(request quickGenerateRequest, savedConfig *Desktop
 		return savedConfig.BundleManifestPath
 	}
 	return ""
+}
+
+func choosePlatforms(requested []string, existing []string) []string {
+	if len(requested) > 0 {
+		return requested
+	}
+	if len(existing) > 0 {
+		return existing
+	}
+	return nil
 }
 
 func chooseAutoManage(request quickGenerateRequest, savedConfig *DesktopConnectionConfig, existing bool) bool {

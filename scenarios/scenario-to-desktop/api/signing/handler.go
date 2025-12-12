@@ -34,6 +34,10 @@ func NewHandler() *Handler {
 
 // RegisterRoutes registers all signing routes on the given router.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
+	// System-level (no scenario context) — register before dynamic routes to avoid shadowing
+	r.HandleFunc("/api/v1/signing/prerequisites", h.GetPrerequisites).Methods("GET")
+	r.HandleFunc("/api/v1/signing/discover/{platform}", h.DiscoverCertificates).Methods("GET")
+
 	// Signing configuration CRUD
 	r.HandleFunc("/api/v1/signing/{scenario}", h.GetConfig).Methods("GET")
 	r.HandleFunc("/api/v1/signing/{scenario}", h.PutConfig).Methods("PUT")
@@ -44,10 +48,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Validation and checks
 	r.HandleFunc("/api/v1/signing/{scenario}/validate", h.ValidateConfig).Methods("POST")
 	r.HandleFunc("/api/v1/signing/{scenario}/ready", h.CheckReady).Methods("GET")
-
-	// System-level (no scenario context)
-	r.HandleFunc("/api/v1/signing/prerequisites", h.GetPrerequisites).Methods("GET")
-	r.HandleFunc("/api/v1/signing/discover/{platform}", h.DiscoverCertificates).Methods("GET")
 }
 
 // GetConfig returns the signing configuration for a scenario.

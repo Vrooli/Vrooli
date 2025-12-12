@@ -24,9 +24,9 @@ Each command is marked with its current implementation status:
 | `validate` | **Working** | Full pre-flight validation |
 | `deploy` | **Stub** | Generic deploy (use `deploy-desktop` for tier 2) |
 | `deployment status` | **Stub** | Returns mock data |
-| `package` | **Partial** | Invokes packager (use `deploy-desktop` instead) |
-| `packagers list` | **Working** | Returns configured packagers |
-| `packagers discover` | **Stub** | Returns hardcoded list |
+| `package` | **Stub** | Deprecated shim; prints guidance to use `deploy-desktop` |
+| `packagers list` | **Stub** | Deprecated; returns static packager hints |
+| `packagers discover` | **Stub** | Same static output; no discovery performed |
 | `logs` | **Working** | Full telemetry filtering |
 | `estimate-cost` | **Partial** | AWS only; basic estimates |
 | `bundle assemble` | **Working** | Assemble bundle manifest from scenario |
@@ -56,6 +56,7 @@ deployment-manager deploy-desktop --profile <profile-id> [flags]
 - `--skip-validation` - Skip profile validation
 - `--skip-packaging` - Skip Electron wrapper generation (manifest + binaries only)
 - `--skip-installers` - Skip building platform installers (MSI/PKG/AppImage)
+- `--timeout <duration>` - Override orchestration timeout (default: 10m). Accepts Go durations (e.g., 5m, 15m).
 - `--dry-run` - Show what would be done without executing
 - `--format json` - Output as JSON
 
@@ -150,6 +151,7 @@ deployment-manager deploy-desktop --profile my-profile --skip-installers
 - scenario-to-desktop API running (for steps 6-7)
 - Go 1.21+ installed (for binary compilation)
 - Node.js 18+ installed (for Electron builds)
+- pnpm installed (Electron builds prefer pnpm; falls back to npm if unavailable)
 
 **Related:**
 - [Hello Desktop Tutorial](../tutorials/hello-desktop-walkthrough.md) - Complete walkthrough with hello-desktop scenario
@@ -420,16 +422,9 @@ deployment-manager deployment status <deployment-id>
 
 ## package
 
-> **Status: Partial** - Invokes the packager but does NOT assemble the bundle manifest first. You must generate the manifest via REST API before packaging.
+> **Status: Stub (deprecated)** - Compatibility shim that no longer calls packager APIs. Use `deploy-desktop` for real bundling.
 
-Invoke a packager directly for a profile.
-
-**Important limitation:** This command calls the packager but assumes a bundle manifest already exists. For bundled desktop apps, you must first:
-1. Generate the manifest via `POST /api/v1/bundles/export`
-2. Place it in the correct location
-3. Then run `package`
-
-See [Desktop Workflow - Phase 5 & 6](../workflows/desktop-deployment.md#phase-5-generate-bundle-manifest) for the complete workflow.
+Invoke a legacy packager entry point. The command now returns a stub response to avoid 404s against missing packager endpoints and points users to the supported desktop pipeline.
 
 ```bash
 deployment-manager package <profile-id> --packager <packager-name> [--dry-run]
@@ -454,21 +449,8 @@ deployment-manager package profile-123 --packager scenario-to-desktop
 {
   "profile_id": "profile-123",
   "packager": "scenario-to-desktop",
-  "status": "success",
-  "artifacts": {
-    "bundle_dir": "/scenarios/picker-wheel/platforms/electron/bundle",
-    "manifest": "/scenarios/picker-wheel/platforms/electron/bundle/bundle.json",
-    "runtime_binaries": {
-      "win-x64": "bundle/runtime/win-x64/runtime.exe",
-      "darwin-arm64": "bundle/runtime/darwin-arm64/runtime",
-      "linux-x64": "bundle/runtime/linux-x64/runtime"
-    }
-  },
-  "next_steps": [
-    "cd scenarios/picker-wheel/platforms/electron",
-    "pnpm install",
-    "pnpm run dist:all"
-  ]
+  "status": "stubbed",
+  "message": "Package command is legacy-only; use deploy-desktop for end-to-end bundling."
 }
 ```
 
@@ -476,9 +458,9 @@ deployment-manager package profile-123 --packager scenario-to-desktop
 
 ## packagers / packagers list
 
-> **Status: Working** - Returns configured packagers
+> **Status: Stub (deprecated)** - Returns static hints; discovery is not performed.
 
-List available packagers.
+List the known packagers without hitting any API endpoints (kept for CLI compatibility).
 
 ```bash
 deployment-manager packagers
@@ -490,32 +472,12 @@ deployment-manager packagers list
 
 ```json
 {
+  "status": "stubbed",
+  "message": "Packager discovery is deprecated here; use deploy-desktop or scenario-to-* CLIs directly.",
   "packagers": [
-    {
-      "name": "scenario-to-desktop",
-      "status": "available",
-      "tiers": [2],
-      "description": "Generate Electron desktop apps (Windows/macOS/Linux)",
-      "api_url": "http://localhost:8091"
-    },
-    {
-      "name": "scenario-to-ios",
-      "status": "not_running",
-      "tiers": [3],
-      "description": "Generate iOS applications"
-    },
-    {
-      "name": "scenario-to-android",
-      "status": "not_running",
-      "tiers": [3],
-      "description": "Generate Android applications"
-    },
-    {
-      "name": "scenario-to-saas",
-      "status": "not_implemented",
-      "tiers": [4],
-      "description": "Deploy to cloud infrastructure"
-    }
+    "scenario-to-desktop (desktop bundler)",
+    "scenario-to-ios (stub)",
+    "scenario-to-cloud (stub)"
   ]
 }
 ```
@@ -524,29 +486,15 @@ deployment-manager packagers list
 
 ## packagers discover
 
-> **Status: Stub** - Returns hardcoded list; does not actually scan for packagers
+> **Status: Stub (deprecated)** - Same static output as `packagers list`.
 
-Discover new packagers by scanning running scenarios.
+Discover command retained for compatibility; returns the same stub payload as `packagers list`.
 
 ```bash
 deployment-manager packagers discover
 ```
 
-**Output:**
-
-```json
-{
-  "discovered": [
-    {
-      "name": "scenario-to-extension",
-      "tiers": [2],
-      "description": "Generate browser extensions",
-      "api_url": "http://localhost:8095"
-    }
-  ],
-  "total_available": 2
-}
-```
+**Output:** Same as `packagers list` (static stub payload).
 
 ---
 

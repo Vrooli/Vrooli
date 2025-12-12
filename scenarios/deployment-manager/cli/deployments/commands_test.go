@@ -1,9 +1,11 @@
 package deployments
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -53,22 +55,27 @@ func TestLogsAcceptsFilters(t *testing.T) {
 	}
 }
 
-func TestPackagersDiscoverPosts(t *testing.T) {
-	var method string
-	var path string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		method = r.Method
-		path = r.URL.Path
-		io.WriteString(w, `{}`)
-	}))
-	defer server.Close()
-
-	cmd := New(testAPIClient(server.URL))
-	if err := cmd.Packagers([]string{"discover"}); err != nil {
-		t.Fatalf("packagers discover failed: %v", err)
+func TestPackagersStubOutputsMessage(t *testing.T) {
+	cmd := New(nil)
+	output := captureOutput(t, func() {
+		if err := cmd.Packagers([]string{"discover"}); err != nil {
+			t.Fatalf("packagers stub failed: %v", err)
+		}
+	})
+	if !strings.Contains(strings.ToLower(output), "packager") {
+		t.Fatalf("expected packager message, got %s", output)
 	}
-	if method != http.MethodPost || path != "/api/v1/packagers/discover" {
-		t.Fatalf("expected POST to discover endpoint, got %s %s", method, path)
+}
+
+func TestPackageStubbedResponse(t *testing.T) {
+	cmd := New(nil)
+	output := captureOutput(t, func() {
+		if err := cmd.PackageProfile([]string{"demo", "--packager", "scenario-to-desktop", "--dry-run"}); err != nil {
+			t.Fatalf("package stub failed: %v", err)
+		}
+	})
+	if !strings.Contains(strings.ToLower(output), "deploy-desktop") && !strings.Contains(strings.ToLower(output), "stub") {
+		t.Fatalf("expected stub messaging, got %s", output)
 	}
 }
 
@@ -78,4 +85,24 @@ func testAPIClient(base string) *cliutil.APIClient {
 		func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: base} },
 		func() string { return "" },
 	)
+}
+
+func captureOutput(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stdout = w
+	fn()
+	_ = w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
+	_ = r.Close()
+	return buf.String()
 }

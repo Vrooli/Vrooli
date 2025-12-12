@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"deployment-manager/cli/bundles"
 	"deployment-manager/cli/cmdutil"
@@ -60,6 +61,7 @@ func NewApp() (*App, error) {
 		BuildFingerprint:   buildFingerprint,
 		BuildTimestamp:     buildTimestamp,
 		BuildSourceRoot:    buildSourceRoot,
+		DefaultHTTPTimeout: 10 * time.Minute,
 		AllowAnonymous:     true,
 	})
 	if err != nil {

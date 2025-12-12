@@ -78,16 +78,6 @@ func ValidateProfile(profileID string) ValidationResult {
 		return result
 	}
 
-	// Decision: Are required packagers available? (simplified example)
-	if profileID == "missing-packager-profile" {
-		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{
-			Kind:    ErrorValidation,
-			Message: "Required packager 'scenario-to-desktop' not found",
-		})
-		result.RecommendedFix = "Install required packagers or update profile configuration"
-	}
-
 	return result
 }
 

@@ -38,10 +38,11 @@ func NewDesktopPackagerClient(log func(string, map[string]interface{})) (*Deskto
 
 // QuickGenerateRequest is the request for quick desktop generation.
 type QuickGenerateRequest struct {
-	ScenarioName       string `json:"scenario_name"`
-	TemplateType       string `json:"template_type,omitempty"`
-	DeploymentMode     string `json:"deployment_mode"`
-	BundleManifestPath string `json:"bundle_manifest_path,omitempty"`
+	ScenarioName       string   `json:"scenario_name"`
+	TemplateType       string   `json:"template_type,omitempty"`
+	DeploymentMode     string   `json:"deployment_mode"`
+	BundleManifestPath string   `json:"bundle_manifest_path,omitempty"`
+	Platforms          []string `json:"platforms,omitempty"`
 }
 
 // QuickGenerateResponse is the response from quick desktop generation.
@@ -56,18 +57,18 @@ type QuickGenerateResponse struct {
 
 // BuildStatusResponse is the response from build status polling.
 type BuildStatusResponse struct {
-	BuildID         string                        `json:"build_id"`
-	ScenarioName    string                        `json:"scenario_name"`
-	Status          string                        `json:"status"` // building, ready, failed
-	OutputPath      string                        `json:"output_path"`
-	Platforms       []string                      `json:"platforms"`
-	PlatformResults map[string]*PlatformResult    `json:"platform_results,omitempty"`
-	Artifacts       map[string]string             `json:"artifacts,omitempty"`
-	BuildLog        []string                      `json:"build_log,omitempty"`
-	ErrorLog        []string                      `json:"error_log,omitempty"`
-	Error           string                        `json:"error,omitempty"`
-	CreatedAt       time.Time                     `json:"created_at"`
-	CompletedAt     *time.Time                    `json:"completed_at,omitempty"`
+	BuildID         string                     `json:"build_id"`
+	ScenarioName    string                     `json:"scenario_name"`
+	Status          string                     `json:"status"` // building, ready, failed
+	OutputPath      string                     `json:"output_path"`
+	Platforms       []string                   `json:"platforms"`
+	PlatformResults map[string]*PlatformResult `json:"platform_results,omitempty"`
+	Artifacts       map[string]string          `json:"artifacts,omitempty"`
+	BuildLog        []string                   `json:"build_log,omitempty"`
+	ErrorLog        []string                   `json:"error_log,omitempty"`
+	Error           string                     `json:"error,omitempty"`
+	CreatedAt       time.Time                  `json:"created_at"`
+	CompletedAt     *time.Time                 `json:"completed_at,omitempty"`
 }
 
 // PlatformResult represents the build result for a single platform.
