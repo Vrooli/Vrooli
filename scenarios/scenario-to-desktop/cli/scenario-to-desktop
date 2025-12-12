@@ -1154,6 +1154,10 @@ cmd_signing() {
             shift
             cmd_signing_set "$@"
             ;;
+        generate-key)
+            shift
+            cmd_signing_generate_key "$@"
+            ;;
         validate)
             shift
             cmd_signing_validate "$@"
@@ -1184,6 +1188,7 @@ USAGE:
 SUBCOMMANDS:
     get <scenario>          Get signing configuration for a scenario
     set <scenario>          Configure signing for a scenario (interactive or from JSON)
+    generate-key <scenario> Generate a Linux GPG key and update signing config
     validate <scenario>     Validate signing configuration
     detect                  Detect available signing tools and certificates
     ready <scenario>        Check if signing is ready for a scenario
@@ -1206,6 +1211,9 @@ EXAMPLES:
 
     # Check if ready for signed builds
     scenario-to-desktop signing ready picker-wheel
+
+    # Generate a Linux GPG key for signing (stored under scenarios/<name>/signing/gnupg)
+    scenario-to-desktop signing generate-key picker-wheel --email you@example.com --name "Your Name"
 EOF
 }
 
@@ -1450,6 +1458,107 @@ cmd_signing_set_interactive_full() {
   "linux": null
 }
 EOF
+}
+
+cmd_signing_generate_key() {
+    local scenario=""
+    local name=""
+    local email=""
+    local passphrase=""
+    local passphrase_env="GPG_PASSPHRASE"
+    local homedir=""
+    local expiry="1y"
+    local force="false"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --email)
+                email="$2"
+                shift 2
+                ;;
+            --passphrase)
+                passphrase="$2"
+                shift 2
+                ;;
+            --prompt-passphrase)
+                read -rs -p "Enter GPG passphrase (input hidden): " passphrase
+                echo
+                shift
+                ;;
+            --passphrase-env)
+                passphrase_env="$2"
+                shift 2
+                ;;
+            --homedir)
+                homedir="$2"
+                shift 2
+                ;;
+            --expiry)
+                expiry="$2"
+                shift 2
+                ;;
+            --force)
+                force="true"
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-to-desktop signing generate-key <scenario> [--name <name>] [--email <email>] [--passphrase <value>|--prompt-passphrase] [--passphrase-env <ENV>] [--homedir <path>] [--expiry <1y>] [--force]"
+                return 0
+                ;;
+            *)
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                    shift
+                else
+                    error "Unknown option: $1"
+                    exit 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop signing generate-key <scenario> ..."
+        exit 1
+    fi
+
+    check_api_health
+
+    local body
+    body=$(jq -n \
+        --arg name "$name" \
+        --arg email "$email" \
+        --arg pass "$passphrase" \
+        --arg env "$passphrase_env" \
+        --arg homedir "$homedir" \
+        --arg expiry "$expiry" \
+        --argjson force $force \
+        '{name:$name,email:$email,passphrase:$pass,passphrase_env:$env,homedir:$homedir,expiry:$expiry,force:$force,export_public:true}')
+
+    local response
+    response=$(api_call "POST" "/api/v1/signing/${scenario}/linux/generate-key" "$body")
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+        return
+    fi
+
+    echo -e "${WHITE}Linux GPG key generated${NC}"
+    echo "$response" | jq -r '
+        "  Fingerprint: \(.fingerprint)",
+        "  Key ID:       \(.key_id)",
+        "  Homedir:      \(.homedir)",
+        (if .public_key then "  Public key exported below:" else "" end)
+    '
+    if echo "$response" | jq -e '.public_key' >/dev/null 2>&1; then
+        echo
+        echo "$response" | jq -r '.public_key'
+    fi
 }
 
 cmd_signing_validate() {

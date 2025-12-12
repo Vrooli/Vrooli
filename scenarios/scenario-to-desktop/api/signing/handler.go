@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -37,6 +38,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// System-level (no scenario context) — register before dynamic routes to avoid shadowing
 	r.HandleFunc("/api/v1/signing/prerequisites", h.GetPrerequisites).Methods("GET")
 	r.HandleFunc("/api/v1/signing/discover/{platform}", h.DiscoverCertificates).Methods("GET")
+	r.HandleFunc("/api/v1/signing/{scenario}/linux/generate-key", h.GenerateLinuxKey).Methods("POST")
 
 	// Signing configuration CRUD
 	r.HandleFunc("/api/v1/signing/{scenario}", h.GetConfig).Methods("GET")
@@ -331,6 +333,96 @@ func (h *Handler) CheckReady(w http.ResponseWriter, r *http.Request) {
 	response.Issues = issues
 
 	writeJSON(w, http.StatusOK, response)
+}
+
+type generateLinuxKeyRequest struct {
+	Name          string `json:"name"`
+	Email         string `json:"email"`
+	Passphrase    string `json:"passphrase,omitempty"`
+	PassphraseEnv string `json:"passphrase_env,omitempty"`
+	KeyType       string `json:"key_type,omitempty"`
+	Expiry        string `json:"expiry,omitempty"`
+	Homedir       string `json:"homedir,omitempty"`
+	Force         bool   `json:"force,omitempty"`
+	ExportPublic  bool   `json:"export_public,omitempty"`
+}
+
+type generateLinuxKeyResponse struct {
+	Status      string `json:"status"`
+	KeyID       string `json:"key_id"`
+	Fingerprint string `json:"fingerprint"`
+	Homedir     string `json:"homedir"`
+	PublicKey   string `json:"public_key,omitempty"`
+	ConfigPath  string `json:"config_path,omitempty"`
+}
+
+// GenerateLinuxKey creates a new GPG key for Linux signing and updates signing.json.
+// POST /api/v1/signing/{scenario}/linux/generate-key
+func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenario := vars["scenario"]
+
+	var req generateLinuxKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+
+	result, err := h.generateLinuxKey(ctx, generateLinuxKeyParams{
+		Name:           req.Name,
+		Email:          req.Email,
+		Passphrase:     req.Passphrase,
+		PassphraseEnv:  req.PassphraseEnv,
+		KeyType:        req.KeyType,
+		Expiry:         req.Expiry,
+		Homedir:        req.Homedir,
+		Force:          req.Force,
+		ExportPublic:   req.ExportPublic,
+		Scenario:       scenario,
+		WorkingDirRoot: resolveVrooliRoot(),
+	})
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	config, err := h.repo.Get(ctx, scenario)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load signing config: "+err.Error())
+		return
+	}
+	if config == nil {
+		config = NewSigningConfig()
+	}
+	config.Enabled = true
+	if config.Linux == nil {
+		config.Linux = &LinuxSigningConfig{}
+	}
+	config.Linux.GPGKeyID = result.Fingerprint
+	if req.PassphraseEnv != "" {
+		config.Linux.GPGPassphraseEnv = req.PassphraseEnv
+	}
+	if req.Homedir != "" {
+		config.Linux.GPGHomedir = result.Homedir
+	}
+
+	if err := h.repo.Save(ctx, scenario, config); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save signing config: "+err.Error())
+		return
+	}
+
+	resp := generateLinuxKeyResponse{
+		Status:      "created",
+		KeyID:       result.Fingerprint,
+		Fingerprint: result.Fingerprint,
+		Homedir:     result.Homedir,
+		PublicKey:   result.PublicKey,
+		ConfigPath:  h.repo.GetPath(scenario),
+	}
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 // GetPrerequisites returns available signing tools on the system.

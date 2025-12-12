@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -485,6 +488,49 @@ func TestHandler_DiscoverCertificates_Success(t *testing.T) {
 	assert.Len(t, certs, 1)
 }
 
+func TestHandler_GenerateLinuxKey_Smoke(t *testing.T) {
+	if _, err := exec.LookPath("gpg"); err != nil {
+		t.Skip("gpg not available")
+	}
+
+	th := newTestHandler()
+	// isolate artifacts under a temp dir
+	tempRoot := t.TempDir()
+	reqBody := map[string]interface{}{
+		"name":           "Test User",
+		"email":          "test@example.com",
+		"passphrase":     "test-passphrase",
+		"passphrase_env": "GPG_PASSPHRASE",
+		"export_public":  true,
+		"homedir":        filepath.Join(tempRoot, "gnupg"),
+	}
+
+	rr := makeRequest(t, th.handler.GenerateLinuxKey, "POST", "/api/v1/signing/test-scenario/linux/generate-key", reqBody, map[string]string{
+		"scenario": "test-scenario",
+	})
+
+	assert.Equal(t, http.StatusCreated, rr.Code, rr.Body.String())
+
+	var resp generateLinuxKeyResponse
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	assert.NotEmpty(t, resp.Fingerprint)
+	assert.NotEmpty(t, resp.Homedir)
+	assert.Contains(t, resp.PublicKey, "BEGIN PGP PUBLIC KEY BLOCK")
+
+	// Config should be persisted with the fingerprint
+	cfg, err := th.repo.Get(context.Background(), "test-scenario")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.NotNil(t, cfg.Linux)
+	assert.Equal(t, resp.Fingerprint, cfg.Linux.GPGKeyID)
+	assert.Equal(t, "GPG_PASSPHRASE", cfg.Linux.GPGPassphraseEnv)
+	assert.Equal(t, resp.Homedir, cfg.Linux.GPGHomedir)
+
+	t.Cleanup(func() {
+		_ = os.RemoveAll(filepath.Join("scenarios", "test-scenario"))
+	})
+}
+
 func TestHandler_RegisterRoutes(t *testing.T) {
 	handler := NewHandler()
 	router := mux.NewRouter()
@@ -502,6 +548,7 @@ func TestHandler_RegisterRoutes(t *testing.T) {
 		{"DELETE", "/api/v1/signing/test-scenario/windows"},
 		{"POST", "/api/v1/signing/test-scenario/validate"},
 		{"GET", "/api/v1/signing/test-scenario/ready"},
+		{"POST", "/api/v1/signing/test-scenario/linux/generate-key"},
 		{"GET", "/api/v1/signing/prerequisites"},
 		{"GET", "/api/v1/signing/discover/windows"},
 	}

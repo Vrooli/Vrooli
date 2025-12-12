@@ -9,6 +9,7 @@ import {
   fetchSigningPrerequisites,
   deleteSigningConfig,
   discoverCertificates,
+  generateLinuxSigningKey,
   type SigningConfig,
   type SigningReadinessResponse,
   type ValidationResult,
@@ -43,6 +44,7 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [discoverPlatform, setDiscoverPlatform] = useState<"windows" | "macos" | "linux">("windows");
   const [discovered, setDiscovered] = useState<DiscoveredCertificate[]>([]);
+  const [keygenMessage, setKeygenMessage] = useState<string | undefined>();
   const expiringSoon = useMemo(
     () => discovered.filter((c) => !c.is_expired && c.days_to_expiry <= 30),
     [discovered]
@@ -82,6 +84,20 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
   // Validation mutation
   const validateMutation = useMutation({
     mutationFn: () => validateSigningConfig(selectedScenario),
+  });
+
+  const generateKeyMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof generateLinuxSigningKey>[1]) => generateLinuxSigningKey(selectedScenario, payload),
+    onSuccess: (resp) => {
+      setHasUnsavedChanges(false);
+      setKeygenMessage(`Generated key ${resp.fingerprint} in ${resp.homedir}`);
+      queryClient.invalidateQueries({ queryKey: ["signing-config", selectedScenario] });
+      queryClient.invalidateQueries({ queryKey: ["signing-readiness", selectedScenario] });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      setKeygenMessage(message);
+    }
   });
 
   // Save mutation
@@ -136,9 +152,37 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
     }
   }, [initialScenario]);
 
+  useEffect(() => {
+    setKeygenMessage(undefined);
+  }, [selectedScenario]);
+
   const handleConfigChange = (updates: Partial<SigningConfig>) => {
     setLocalConfig(prev => ({ ...prev, ...updates }));
     setHasUnsavedChanges(true);
+  };
+
+  const handleGenerateKey = async () => {
+    if (!selectedScenario) return;
+    const name = typeof window !== "undefined" ? window.prompt("Name for GPG UID (required)", selectedScenario) : "";
+    if (name === null) return;
+    const email = typeof window !== "undefined" ? window.prompt("Email for GPG UID (optional)", "") : "";
+    if (email === null) return;
+    const passphrase = typeof window !== "undefined" ? window.prompt("Passphrase (optional, leave blank for none)", "") : "";
+
+    try {
+      await generateKeyMutation.mutateAsync({
+        name: name || undefined,
+        email: email || undefined,
+        passphrase: passphrase || undefined,
+        passphrase_env: "GPG_PASSPHRASE",
+        expiry: "1y",
+      });
+      await refetchConfig();
+      await refetchReadiness();
+    } catch (err) {
+      // message handled by mutation onError
+      console.error(err);
+    }
   };
 
   const applyCertificate = (cert: DiscoveredCertificate) => {
@@ -303,6 +347,9 @@ export function SigningPage({ initialScenario, onScenarioChange }: SigningPagePr
                       onChange={(linux) => handleConfigChange({ linux })}
                       discovered={discovered.filter((c) => c.platform === "linux")}
                       onApplyDiscovered={applyCertificate}
+                      onGenerate={localConfig.enabled ? handleGenerateKey : undefined}
+                      generating={generateKeyMutation.isPending}
+                      generationMessage={keygenMessage}
                     />
                   </div>
 

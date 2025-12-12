@@ -4,15 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
+import { Button } from "../ui/button";
 
 interface LinuxSigningFormProps {
   config?: LinuxSigningConfig;
   onChange: (config: LinuxSigningConfig | undefined) => void;
   discovered?: DiscoveredCertificate[];
   onApplyDiscovered?: (cert: DiscoveredCertificate) => void;
+  onGenerate?: () => void;
+  generating?: boolean;
+  generationMessage?: string;
 }
 
-export function LinuxSigningForm({ config, onChange, discovered, onApplyDiscovered }: LinuxSigningFormProps) {
+export function LinuxSigningForm({ config, onChange, discovered, onApplyDiscovered, onGenerate, generating, generationMessage }: LinuxSigningFormProps) {
   const isConfigured = !!config;
 
   const handleChange = (updates: Partial<LinuxSigningConfig>) => {
@@ -41,6 +45,16 @@ export function LinuxSigningForm({ config, onChange, discovered, onApplyDiscover
             Linux
           </span>
           <div className="flex items-center gap-2">
+            {onGenerate && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onGenerate}
+                disabled={generating}
+              >
+                {generating ? "Generating…" : "Generate GPG key"}
+              </Button>
+            )}
             <Checkbox
               id="linux-enabled"
               checked={isConfigured}
@@ -142,6 +156,11 @@ export function LinuxSigningForm({ config, onChange, discovered, onApplyDiscover
                 is available in the keyring on the build machine.
               </p>
             </div>
+            {generationMessage && (
+              <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700 text-xs text-slate-200">
+                {generationMessage}
+              </div>
+            )}
           </>
         ) : (
           <p className="text-xs text-slate-500 text-center py-4">

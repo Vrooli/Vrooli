@@ -678,6 +678,15 @@ export interface DiscoveredCertificate {
   usage_hint?: string;
 }
 
+export interface GenerateKeyResponse {
+  status: string;
+  key_id: string;
+  fingerprint: string;
+  homedir: string;
+  public_key?: string;
+  config_path?: string;
+}
+
 export async function fetchSigningConfig(scenario: string): Promise<SigningConfigResponse> {
   const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}`));
   if (!response.ok) {
@@ -774,4 +783,28 @@ export async function discoverCertificates(platform: "windows" | "macos" | "linu
     throw new Error(`Failed to discover certificates: ${response.statusText}`);
   }
   return response.json();
+}
+
+export async function generateLinuxSigningKey(
+  scenario: string,
+  payload: {
+    name?: string;
+    email?: string;
+    passphrase?: string;
+    passphrase_env?: string;
+    homedir?: string;
+    expiry?: string;
+    force?: boolean;
+  }
+): Promise<GenerateKeyResponse> {
+  const response = await fetch(buildUrl(`/signing/${encodeURIComponent(scenario)}/linux/generate-key`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, export_public: true })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.message || `Failed to generate key: ${response.statusText}`);
+  }
+  return data;
 }
