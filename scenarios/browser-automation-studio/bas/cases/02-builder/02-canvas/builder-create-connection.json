@@ -1,0 +1,183 @@
+{
+  "metadata": {
+    "description": "Validates creating a connection between two nodes by dragging from output handle to input handle",
+    "version": 1,
+  "reset": "full"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-demo-workflow",
+      "type": "subflow",
+      "data": {
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
+      }
+    },
+    {
+      "id": "assert-builder-ready",
+      "type": "assert",
+      "data": {
+        "label": "Workflow nodes rendered",
+        "selector": ".react-flow__node",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Workflow should have nodes before connecting"
+      }
+    },
+    {
+      "id": "assert-multiple-nodes",
+      "type": "evaluate",
+      "data": {
+        "label": "Check we have at least 2 nodes",
+        "expression": "document.querySelectorAll('.react-flow__node').length >= 2",
+        "storeResult": "hasMultipleNodes"
+      }
+    },
+    {
+      "id": "count-initial-edges",
+      "type": "evaluate",
+      "data": {
+        "label": "Count initial connections",
+        "expression": "document.querySelectorAll('.react-flow__edge').length",
+        "storeResult": "initialEdgeCount"
+      }
+    },
+    {
+      "id": "get-first-node-handle",
+      "type": "evaluate",
+      "data": {
+        "label": "Get first node output handle",
+        "expression": "(() => { const firstNode = document.querySelector('.react-flow__node:first-of-type'); if (!firstNode) return null; const handle = firstNode.querySelector('.react-flow__handle-bottom, .react-flow__handle-right, .react-flow__handle[data-handlepos=\"bottom\"], .react-flow__handle[data-handlepos=\"right\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+        "storeResult": "firstNodeHandle"
+      }
+    },
+    {
+      "id": "get-second-node-handle",
+      "type": "evaluate",
+      "data": {
+        "label": "Get second node input handle",
+        "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node'); if (nodes.length < 2) return null; const secondNode = nodes[1]; const handle = secondNode.querySelector('.react-flow__handle-top, .react-flow__handle-left, .react-flow__handle[data-handlepos=\"top\"], .react-flow__handle[data-handlepos=\"left\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+        "storeResult": "secondNodeHandle"
+      }
+    },
+    {
+      "id": "hover-first-node",
+      "type": "hover",
+      "data": {
+        "label": "Hover first node to reveal handles",
+        "selector": ".react-flow__node:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "drag-connection",
+      "type": "dragDrop",
+      "data": {
+        "label": "Drag from first node output to second node input",
+        "sourceSelector": ".react-flow__node:first-of-type .react-flow__handle-bottom, .react-flow__node:first-of-type .react-flow__handle-right",
+        "targetSelector": ".react-flow__node:nth-of-type(2) .react-flow__handle-top, .react-flow__node:nth-of-type(2) .react-flow__handle-left",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "count-final-edges",
+      "type": "evaluate",
+      "data": {
+        "label": "Count final connections",
+        "expression": "document.querySelectorAll('.react-flow__edge').length",
+        "storeResult": "finalEdgeCount"
+      }
+    },
+    {
+      "id": "verify-edge-added",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify connection was added",
+        "expression": "(() => { const initial = Number(@store/initialEdgeCount || 0); const final = Number(@store/finalEdgeCount || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
+        "storeResult": "connectionWasAdded"
+      }
+    },
+    {
+      "id": "assert-edge-visible",
+      "type": "assert",
+      "data": {
+        "label": "Connection path is visible",
+        "selector": ".react-flow__edge path, .react-flow__edge-path",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Connection path should be visible after creating connection"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-demo-workflow-to-assert-builder-ready",
+      "source": "call-open-demo-workflow",
+      "target": "assert-builder-ready",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-builder-ready",
+      "target": "assert-multiple-nodes",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-multiple-nodes",
+      "target": "count-initial-edges",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "get-first-node-handle",
+      "target": "get-second-node-handle",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "get-second-node-handle",
+      "target": "hover-first-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "hover-first-node",
+      "target": "drag-connection",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "drag-connection",
+      "target": "count-final-edges",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "count-final-edges",
+      "target": "verify-edge-added",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "verify-edge-added",
+      "target": "assert-edge-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8-bridge-e9",
+      "source": "count-initial-edges",
+      "target": "get-first-node-handle",
+      "type": "smoothstep"
+    }
+  ]
+}

@@ -115,6 +115,12 @@ var (
 		Code:    "WORKFLOW_VALIDATION_FAILED",
 		Message: "Workflow definition failed validation",
 	}
+
+	ErrCaseExpectationMissing = &APIError{
+		Status:  http.StatusBadRequest,
+		Code:    "CASE_EXPECTATION_MISSING",
+		Message: "Case workflows must include at least one assertion node or an expected outcome",
+	}
 )
 
 // Common errors - 404 Not Found
@@ -129,6 +135,12 @@ var (
 		Status:  http.StatusNotFound,
 		Code:    "PROJECT_NOT_FOUND",
 		Message: "Project not found",
+	}
+
+	ErrProjectFileNotFound = &APIError{
+		Status:  http.StatusNotFound,
+		Code:    "PROJECT_FILE_NOT_FOUND",
+		Message: "Project file not found",
 	}
 
 	ErrWorkflowVersionNotFound = &APIError{

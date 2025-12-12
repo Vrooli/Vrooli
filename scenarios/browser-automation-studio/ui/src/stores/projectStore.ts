@@ -47,7 +47,12 @@ interface ProjectState {
 
   // Actions
   fetchProjects: () => Promise<void>;
-  createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'stats'>) => Promise<Project>;
+  createProject: (
+    project: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'stats'> & {
+      preset?: string;
+      preset_paths?: string[];
+    },
+  ) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Pick<Project, 'name' | 'description' | 'folder_path'>>) => Promise<Project>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;

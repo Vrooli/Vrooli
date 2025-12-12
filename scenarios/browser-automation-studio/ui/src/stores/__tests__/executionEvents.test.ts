@@ -1,4 +1,6 @@
 import { EventKind, StepStatus } from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+import { create, toJson } from '@bufbuild/protobuf';
+import { ExecutionEventEnvelopeSchema } from '@vrooli/proto-types/browser-automation-studio/v1/execution_pb';
 import { describe, expect, it, vi } from 'vitest';
 import {
   envelopeToExecutionEvent,
@@ -59,13 +61,17 @@ describe('ExecutionEventsClient', () => {
     const client = new ExecutionEventsClient({ onEvent });
     const listener = client.createMessageListener();
 
-    const payload = JSON.stringify({
+    const envelope = create(ExecutionEventEnvelopeSchema, {
       executionId: 'exec-1',
       workflowId: 'wf-1',
       timestamp: baseTimestamp,
       kind: EventKind.STATUS_UPDATE,
-      payload: { case: 'statusUpdate', value: { status: 2 } },
-    });
+      payload: {
+        case: 'statusUpdate',
+        value: { status: 2 },
+      },
+    } as any);
+    const payload = JSON.stringify(toJson(ExecutionEventEnvelopeSchema, envelope));
 
     listener({ data: payload } as unknown as MessageEvent);
 

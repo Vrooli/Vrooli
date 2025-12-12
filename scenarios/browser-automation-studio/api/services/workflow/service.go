@@ -34,6 +34,7 @@ var ErrWorkflowVersionConflict = errors.New("workflow version conflict")
 var ErrWorkflowVersionNotFound = errors.New("workflow version not found")
 var ErrWorkflowRestoreProjectMismatch = errors.New("workflow does not belong to a project")
 var ErrWorkflowNameConflict = errors.New("workflow name already exists in this project")
+var ErrWorkflowCaseExpectationMissing = errors.New("case workflows must include at least one assertion node or an expected outcome")
 
 // WorkflowVersionSummary captures version metadata alongside high-level definition statistics so
 // the UI can render history timelines without rehydrating full workflow payloads on every row.

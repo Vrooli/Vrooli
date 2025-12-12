@@ -562,6 +562,12 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 
 	execution, err := h.executionService.ExecuteWorkflow(ctx, workflowID, req.Parameters)
 	if err != nil {
+		if errors.Is(err, workflow.ErrWorkflowCaseExpectationMissing) {
+			h.respondError(w, ErrCaseExpectationMissing.WithDetails(map[string]string{
+				"workflow_id": workflowID.String(),
+			}))
+			return
+		}
 		h.log.WithError(err).Error("Failed to execute workflow")
 		h.respondError(w, ErrWorkflowExecutionFailed.WithDetails(map[string]string{
 			"workflow_id": workflowID.String(),

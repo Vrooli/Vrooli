@@ -1,0 +1,164 @@
+{
+  "metadata": {
+    "description": "Navigates to the BAS dashboard and opens the seeded demo project",
+    "fixture_id": "open-demo-project",
+    "requirements": [
+      "BAS-WORKFLOW-DEMO-SEED"
+    ],
+    "parameters": [
+      {
+        "name": "projectId",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectId",
+        "description": "Project identifier created by the seed script"
+      },
+      {
+        "name": "projectName",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectName",
+        "description": "Project name created by the seed script"
+      },
+      {
+        "name": "projectFolder",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectFolder",
+        "description": "Seed project folder path"
+      }
+    ],
+    "reset": "none"
+  },
+  "nodes": [
+    {
+      "id": "fixture-seed-state",
+      "type": "subflow",
+      "data": {
+        "label": "Load seed metadata",
+        "workflowId": "@fixture/load-seed-state"
+      }
+    },
+    {
+      "id": "fixture-navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "fixture-dismiss-tutorial",
+      "type": "subflow",
+      "data": {
+        "label": "Dismiss onboarding tutorial if present",
+        "workflowId": "@fixture/dismiss-tutorial"
+      }
+    },
+    {
+      "id": "fixture-click-projects-tab",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Projects tab",
+        "selector": "@selector/dashboard.tabs.projects",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "fixture-wait-for-projects",
+      "type": "wait",
+      "data": {
+        "label": "Wait for Projects tab to load",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "fixture-assert-seed-project",
+      "type": "assert",
+      "data": {
+        "label": "Verify seed project exists",
+        "selector": "@selector/projects.cardById(id=\"${fixture.projectId}\")",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Seed project with ID ${fixture.projectId} should exist. Ensure seed script ran successfully."
+      }
+    },
+    {
+      "id": "fixture-click-demo",
+      "type": "click",
+      "data": {
+        "label": "Select demo project",
+        "selector": "@selector/projects.cardById(id=\"${fixture.projectId}\")",
+        "timeoutMs": 10000,
+        "resilience": {
+          "successSelector": "h1",
+          "successTimeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "fixture-assert-demo-heading",
+      "type": "assert",
+      "data": {
+        "label": "Verify project header",
+        "selector": "h1",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Project header should be visible"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "fixture-edge-0",
+      "source": "fixture-seed-state",
+      "target": "fixture-navigate-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-1",
+      "source": "fixture-navigate-dashboard",
+      "target": "fixture-dismiss-tutorial",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-1b",
+      "source": "fixture-dismiss-tutorial",
+      "target": "fixture-click-projects-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-1c",
+      "source": "fixture-click-projects-tab",
+      "target": "fixture-wait-for-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-1a",
+      "source": "fixture-wait-for-projects",
+      "target": "fixture-assert-seed-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-1b",
+      "source": "fixture-assert-seed-project",
+      "target": "fixture-click-demo",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-2",
+      "source": "fixture-click-demo",
+      "target": "fixture-assert-demo-heading",
+      "type": "smoothstep"
+    }
+  ]
+}

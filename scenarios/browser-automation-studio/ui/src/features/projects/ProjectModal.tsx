@@ -99,6 +99,10 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
   const titleId = useId();
 
   const isEditing = !!project;
+  const [preset, setPreset] = useState<"recommended" | "empty" | "custom">(
+    "recommended",
+  );
+  const [presetPathsText, setPresetPathsText] = useState("");
 
   useEffect(() => {
     if (project) {
@@ -110,8 +114,56 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
       setIsFolderPathDirty(true);
     } else {
       setIsFolderPathDirty(false);
+      setPreset("recommended");
+      setPresetPathsText("");
     }
   }, [project]);
+
+  const parsePresetPaths = (
+    raw: string,
+  ): { ok: true; paths: string[] } | { ok: false; error: string } => {
+    const normalized = raw.replace(/\r\n/g, "\n");
+    const lines = normalized
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const paths = lines.map((line) =>
+      trimLeadingSlash(trimTrailingSlash(normalizePath(line))),
+    );
+    for (const relPath of paths) {
+      if (!relPath) {
+        return { ok: false, error: "Preset paths contain empty entries." };
+      }
+      const parts = relPath.split("/");
+      for (const part of parts) {
+        const segment = part.trim();
+        if (!segment || segment === "." || segment === "..") {
+          return {
+            ok: false,
+            error: `Invalid preset path segment in "${relPath}".`,
+          };
+        }
+      }
+    }
+    return { ok: true, paths };
+  };
+
+  const presetPreview = useMemo(() => {
+    if (isEditing) {
+      return [];
+    }
+    if (preset === "empty") {
+      return [];
+    }
+    if (preset === "recommended") {
+      return ["actions", "flows", "cases", "assets"];
+    }
+    const parsed = parsePresetPaths(presetPathsText);
+    if (!parsed.ok) {
+      return [];
+    }
+    return parsed.paths;
+  }, [isEditing, preset, presetPathsText]);
 
   useEffect(() => {
     if (project) {
@@ -166,6 +218,13 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
       }
     }
 
+    if (!isEditing && preset === "custom") {
+      const parsed = parsePresetPaths(presetPathsText);
+      if (!parsed.ok) {
+        errors.preset_paths = parsed.error;
+      }
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -187,7 +246,16 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
         await new Promise((resolve) => setTimeout(resolve, 100));
         onSuccess?.(updated);
       } else {
-        const newProject = await createProject(formData);
+        const presetPaths =
+          preset === "custom" ? parsePresetPaths(presetPathsText) : null;
+        const newProject = await createProject({
+          ...formData,
+          preset,
+          preset_paths:
+            preset === "custom" && presetPaths && presetPaths.ok
+              ? presetPaths.paths
+              : undefined,
+        });
         onClose(); // Close modal before navigation
         // Small delay to ensure modal unmounts before navigation
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -311,6 +379,84 @@ function ProjectModal({ isOpen = true, onClose, project, onSuccess }: ProjectMod
             placeholder="Describe what this project is for..."
           />
         </div>
+
+        {!isEditing && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Project Preset
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-start gap-2 text-sm text-gray-300">
+                <input
+                  type="radio"
+                  name="projectPreset"
+                  checked={preset === "recommended"}
+                  onChange={() => setPreset("recommended")}
+                  className="mt-0.5"
+                />
+                <div>
+                  <div className="font-medium text-surface">Recommended</div>
+                  <div className="text-xs text-gray-500">
+                    Creates: actions/, flows/, cases/, assets/
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 text-sm text-gray-300">
+                <input
+                  type="radio"
+                  name="projectPreset"
+                  checked={preset === "empty"}
+                  onChange={() => setPreset("empty")}
+                  className="mt-0.5"
+                />
+                <div>
+                  <div className="font-medium text-surface">Empty</div>
+                  <div className="text-xs text-gray-500">Creates no folders</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 text-sm text-gray-300">
+                <input
+                  type="radio"
+                  name="projectPreset"
+                  checked={preset === "custom"}
+                  onChange={() => setPreset("custom")}
+                  className="mt-0.5"
+                />
+                <div className="w-full">
+                  <div className="font-medium text-surface">Custom</div>
+                  <div className="text-xs text-gray-500">
+                    One folder path per line (relative to project root)
+                  </div>
+                  {preset === "custom" && (
+                    <div className="mt-2">
+                      <textarea
+                        value={presetPathsText}
+                        onChange={(e) => setPresetPathsText(e.target.value)}
+                        rows={3}
+                        className={`w-full px-3 py-2 bg-flow-bg border rounded-lg text-surface placeholder-gray-500 focus:outline-none focus:border-flow-accent resize-none ${
+                          validationErrors.preset_paths
+                            ? "border-red-500"
+                            : "border-gray-700"
+                        }`}
+                        placeholder={"actions\nflows\ncases\nassets"}
+                      />
+                      {validationErrors.preset_paths && (
+                        <p className="mt-1 text-red-400 text-xs">
+                          {validationErrors.preset_paths}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </label>
+            </div>
+            {presetPreview.length > 0 && (
+              <p className="mt-2 text-xs text-gray-500">
+                Will create: {presetPreview.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Folder Path */}
         <div className="mb-6">

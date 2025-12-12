@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import {
   useState,
@@ -181,6 +182,22 @@ function ActiveExecutionViewer({
     dismissExportSuccess,
     replayFrames,
   } = exportController;
+
+  const selectedDimensions = useMemo(() => {
+    const fallback = { width: 1440, height: 900 };
+    const width =
+      preparedMovieSpec?.presentation?.canvas?.width ??
+      preparedMovieSpec?.presentation?.viewport?.width ??
+      fallback.width;
+    const height =
+      preparedMovieSpec?.presentation?.canvas?.height ??
+      preparedMovieSpec?.presentation?.viewport?.height ??
+      fallback.height;
+    return {
+      width: typeof width === "number" && width > 0 ? width : fallback.width,
+      height: typeof height === "number" && height > 0 ? height : fallback.height,
+    };
+  }, [preparedMovieSpec]);
   const {
     previewComposerRef,
     composerPreviewWindowRef,

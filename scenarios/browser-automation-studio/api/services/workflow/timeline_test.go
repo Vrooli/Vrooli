@@ -162,6 +162,23 @@ func (m *timelineRepositoryMock) ListFolders(ctx context.Context) ([]*database.W
 	return nil, nil
 }
 
+// Project file index operations
+func (m *timelineRepositoryMock) UpsertProjectEntry(ctx context.Context, entry *database.ProjectEntry) error {
+	return nil
+}
+func (m *timelineRepositoryMock) GetProjectEntry(ctx context.Context, projectID uuid.UUID, path string) (*database.ProjectEntry, error) {
+	return nil, database.ErrNotFound
+}
+func (m *timelineRepositoryMock) DeleteProjectEntry(ctx context.Context, projectID uuid.UUID, path string) error {
+	return nil
+}
+func (m *timelineRepositoryMock) DeleteProjectEntries(ctx context.Context, projectID uuid.UUID) error {
+	return nil
+}
+func (m *timelineRepositoryMock) ListProjectEntries(ctx context.Context, projectID uuid.UUID) ([]*database.ProjectEntry, error) {
+	return nil, nil
+}
+
 // Export operations
 func (m *timelineRepositoryMock) CreateExport(ctx context.Context, export *database.Export) error {
 	return nil

@@ -1,0 +1,273 @@
+{
+  "metadata": {
+    "description": "Validates that project creation form displays appropriate error messages for invalid inputs",
+    "version": 1,
+    "reset": "none"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 45000
+      }
+    },
+    {
+      "id": "dismiss-tutorial",
+      "type": "subflow",
+      "data": {
+        "label": "Dismiss onboarding tutorial if present",
+        "workflowId": "@fixture/dismiss-tutorial"
+      }
+    },
+    {
+      "id": "click-projects-tab",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Projects tab",
+        "selector": "@selector/dashboard.tabs.projects",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-for-projects",
+      "type": "wait",
+      "data": {
+        "label": "Wait for new project button",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000,
+        "waitForMs": 600,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-new-project",
+      "type": "click",
+      "data": {
+        "label": "Open new project modal",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000
+      }
+    },
+    {
+      "id": "assert-modal-visible",
+      "type": "assert",
+      "data": {
+        "label": "Project modal visible",
+        "selector": "@selector/dialogs.project.root",
+        "assertMode": "exists",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "submit-empty-form",
+      "type": "click",
+      "data": {
+        "label": "Try submitting empty form",
+        "selector": "@selector/dialogs.project.submitButton",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "assert-name-required-error",
+      "type": "assert",
+      "data": {
+        "label": "Name required error appears",
+        "selector": "@selector/dialogs.project.nameError:not([data-dedupe=\"required\"])",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Form should display error when project name is empty"
+      }
+    },
+    {
+      "id": "assert-modal-still-open-1",
+      "type": "assert",
+      "data": {
+        "label": "Modal remains open",
+        "selector": "@selector/dialogs.project.root /*dup-1*/",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Modal should stay open when validation fails"
+      }
+    },
+    {
+      "id": "fill-whitespace-only-name",
+      "type": "type",
+      "data": {
+        "label": "Enter whitespace-only name",
+        "selector": "@selector/dialogs.project.nameInput",
+        "text": "   ",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "submit-whitespace-name",
+      "type": "click",
+      "data": {
+        "label": "Submit whitespace-only name",
+        "selector": "@selector/dialogs.project.submitButton /*dup-1*/",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "assert-invalid-name-error",
+      "type": "assert",
+      "data": {
+        "label": "Invalid name error appears",
+        "selector": "@selector/dialogs.project.nameError:not([data-dedupe=\"invalid\"])",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Form should reject whitespace-only project names"
+      }
+    },
+    {
+      "id": "assert-modal-still-open-2",
+      "type": "assert",
+      "data": {
+        "label": "Modal remains open",
+        "selector": "@selector/dialogs.project.root /*dup-2*/",
+        "assertMode": "exists",
+        "timeoutMs": 3000
+      }
+    },
+    {
+      "id": "fill-very-long-name",
+      "type": "type",
+      "data": {
+        "label": "Enter excessively long name",
+        "selector": "@selector/dialogs.project.nameInput /*dup-1*/",
+        "text": "This is an extremely long project name that exceeds reasonable character limits and should be rejected by the validation logic because it is far too verbose for practical use in the user interface",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "submit-long-name",
+      "type": "click",
+      "data": {
+        "label": "Submit long name",
+        "selector": "@selector/dialogs.project.submitButton /*dup-2*/",
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "assert-length-error",
+      "type": "assert",
+      "data": {
+        "label": "Length error appears",
+        "selector": "@selector/dialogs.project.nameError:not([data-dedupe=\"length\"])",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Form should reject overly long project names"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "dismiss-tutorial",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e1a",
+      "source": "dismiss-tutorial",
+      "target": "click-projects-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e1b",
+      "source": "click-projects-tab",
+      "target": "wait-for-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-projects",
+      "target": "click-new-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-new-project",
+      "target": "assert-modal-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "assert-modal-visible",
+      "target": "submit-empty-form",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "submit-empty-form",
+      "target": "assert-name-required-error",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-name-required-error",
+      "target": "assert-modal-still-open-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-modal-still-open-1",
+      "target": "fill-whitespace-only-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "fill-whitespace-only-name",
+      "target": "submit-whitespace-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "submit-whitespace-name",
+      "target": "assert-invalid-name-error",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-invalid-name-error",
+      "target": "assert-modal-still-open-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "assert-modal-still-open-2",
+      "target": "fill-very-long-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "fill-very-long-name",
+      "target": "submit-long-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "submit-long-name",
+      "target": "assert-length-error",
+      "type": "smoothstep"
+    }
+  ]
+}

@@ -26,6 +26,8 @@ import {
   MoreVertical,
   Search,
   Circle,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 import { Project, useProjectStore } from "@stores/projectStore";
 import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
@@ -36,6 +38,7 @@ import ProjectModal from "./ProjectModal";
 import { ExecutionHistory, ExecutionViewer } from "@features/execution";
 import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import { selectors } from "@constants/selectors";
+import ResponsiveDialog from "@shared/layout/ResponsiveDialog";
 
 // Extended Workflow interface with API response fields
 interface WorkflowWithStats extends Workflow {
@@ -59,13 +62,50 @@ interface ProjectDetailProps {
   onStartRecording?: () => void;
 }
 
-interface FolderItem {
+type ProjectEntryKind = "folder" | "workflow_file" | "asset_file";
+
+interface ProjectEntry {
+  id: string;
+  project_id: string;
+  path: string;
+  kind: ProjectEntryKind;
+  workflow_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+type FileTreeNodeKind = "folder" | "workflow_file" | "asset_file";
+
+interface FileTreeNode {
+  kind: FileTreeNodeKind;
   path: string;
   name: string;
-  children?: FolderItem[];
-  workflows?: WorkflowWithStats[];
-  expanded?: boolean;
+  children?: FileTreeNode[];
+  workflowId?: string;
+  metadata?: Record<string, unknown>;
 }
+
+type FileTreeDragPayload = {
+  path: string;
+  kind: FileTreeNodeKind;
+};
+
+type ConfirmDialogState = {
+  title: string;
+  message?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+};
+
+type PromptDialogState = {
+  title: string;
+  message?: string;
+  label: string;
+  defaultValue?: string;
+  placeholder?: string;
+  submitLabel?: string;
+  cancelLabel?: string;
+};
 
 function ProjectDetail({
   project,
@@ -102,6 +142,29 @@ function ProjectDetail({
   const [showStatsPopover, setShowStatsPopover] = useState(false);
   const [showViewModeDropdown, setShowViewModeDropdown] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  const [selectedTreeFolder, setSelectedTreeFolder] = useState<string | null>(
+    null,
+  );
+  const [dragSourcePath, setDragSourcePath] = useState<string | null>(null);
+  const [dropTargetFolder, setDropTargetFolder] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(
+    null,
+  );
+  const confirmResolveRef = useRef<((value: boolean) => void) | null>(null);
+
+  const [promptDialog, setPromptDialog] = useState<PromptDialogState | null>(null);
+  const promptResolveRef = useRef<((value: string | null) => void) | null>(null);
+  const promptValidateRef = useRef<((value: string) => string | null) | null>(null);
+  const promptNormalizeRef = useRef<((value: string) => string) | null>(null);
+  const [promptValue, setPromptValue] = useState("");
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const [showNewFileMenu, setShowNewFileMenu] = useState(false);
+  const [projectEntries, setProjectEntries] = useState<ProjectEntry[]>([]);
+  const [projectEntriesLoading, setProjectEntriesLoading] = useState(false);
+  const [projectEntriesError, setProjectEntriesError] = useState<string | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const statsButtonRef = useRef<HTMLButtonElement | null>(null);
   const statsPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -109,6 +172,8 @@ function ProjectDetail({
   const viewModeDropdownRef = useRef<HTMLDivElement | null>(null);
   const moreMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const newFileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const newFileMenuRef = useRef<HTMLDivElement | null>(null);
   const { floatingStyles: statsPopoverStyles } = usePopoverPosition(
     statsButtonRef,
     statsPopoverRef,
@@ -134,13 +199,126 @@ function ProjectDetail({
       placementPriority: ["bottom-end", "top-end", "bottom-start", "top-start"],
     },
   );
+  const { floatingStyles: newFileMenuStyles } = usePopoverPosition(
+    newFileMenuButtonRef,
+    newFileMenuRef,
+    {
+      isOpen: showNewFileMenu,
+      placementPriority: ["bottom-end", "bottom-start", "top-end", "top-start"],
+    },
+  );
   const { deleteProject } = useProjectStore();
   const { bulkDeleteWorkflows } = useWorkflowStore();
+  const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
   const loadExecution = useExecutionStore((state) => state.loadExecution);
   const startExecution = useExecutionStore((state) => state.startExecution);
   const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
   const currentExecution = useExecutionStore((state) => state.currentExecution);
   const isExecutionViewerOpen = Boolean(currentExecution);
+
+  const normalizeProjectRelPathClient = useCallback((raw: string) => {
+    const trimmed = raw.trim().replace(/\\/g, "/");
+    const withoutLeading = trimmed.replace(/^\/+/, "").replace(/\/+$/, "");
+    if (!withoutLeading) {
+      return { ok: false as const, error: "Path is required." };
+    }
+    const parts: string[] = withoutLeading.split("/");
+    for (const part of parts) {
+      const segment = part.trim();
+      if (!segment || segment === "." || segment === "..") {
+        return { ok: false as const, error: "Path contains invalid segments." };
+      }
+    }
+    return {
+      ok: true as const,
+      path: parts.map((segment: string) => segment.trim()).join("/"),
+    };
+  }, []);
+
+  const fileBasename = useCallback((relPath: string) => {
+    const normalized = relPath.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+    const parts = normalized.split("/").filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : "";
+  }, []);
+
+  const parseDragPayload = useCallback(
+    (dt: DataTransfer | null): FileTreeDragPayload | null => {
+      if (!dt) return null;
+      try {
+        const raw = dt.getData("application/x-bas-project-entry");
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as Partial<FileTreeDragPayload>;
+        if (!parsed || typeof parsed.path !== "string" || typeof parsed.kind !== "string") {
+          return null;
+        }
+        if (
+          parsed.kind !== "folder" &&
+          parsed.kind !== "workflow_file" &&
+          parsed.kind !== "asset_file"
+        ) {
+          return null;
+        }
+        return { path: parsed.path, kind: parsed.kind };
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
+
+  const requestConfirm = useCallback(async (opts: ConfirmDialogState) => {
+    if (confirmResolveRef.current) {
+      confirmResolveRef.current(false);
+      confirmResolveRef.current = null;
+    }
+    return await new Promise<boolean>((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmDialog(opts);
+    });
+  }, []);
+
+  const closeConfirmDialog = useCallback((result: boolean) => {
+    const resolve = confirmResolveRef.current;
+    confirmResolveRef.current = null;
+    setConfirmDialog(null);
+    resolve?.(result);
+  }, []);
+
+  const requestPrompt = useCallback(
+    async (
+      opts: PromptDialogState,
+      config?: {
+        validate?: (value: string) => string | null;
+        normalize?: (value: string) => string;
+      },
+    ) => {
+      if (promptResolveRef.current) {
+        promptResolveRef.current(null);
+        promptResolveRef.current = null;
+      }
+
+      promptValidateRef.current = config?.validate ?? null;
+      promptNormalizeRef.current = config?.normalize ?? null;
+
+      setPromptError(null);
+      setPromptValue(opts.defaultValue ?? "");
+      return await new Promise<string | null>((resolve) => {
+        promptResolveRef.current = resolve;
+        setPromptDialog(opts);
+      });
+    },
+    [],
+  );
+
+  const closePromptDialog = useCallback((result: string | null) => {
+    const resolve = promptResolveRef.current;
+    promptResolveRef.current = null;
+    promptValidateRef.current = null;
+    promptNormalizeRef.current = null;
+    setPromptDialog(null);
+    setPromptError(null);
+    resolve?.(result);
+  }, []);
 
   // Memoize filtered workflows to prevent recalculation on every render
   const filteredWorkflows = useMemo(() => {
@@ -152,94 +330,6 @@ function ProjectDetail({
           .includes(searchTerm.toLowerCase()),
     );
   }, [workflows, searchTerm]);
-
-  // Build folder structure from workflows - memoized to prevent unnecessary recalculation
-  const buildFolderStructure = useCallback(
-    (workflowList: WorkflowWithStats[]): FolderItem[] => {
-      const folderMap = new Map<string, FolderItem>();
-
-      workflowList.forEach((workflow) => {
-        const pathParts =
-          (workflow.folder_path as string | undefined)
-            ?.split("/")
-            .filter(Boolean) || [];
-        let currentPath = "";
-        let parent: FolderItem | null = null;
-
-        pathParts.forEach((part: string) => {
-          currentPath += "/" + part;
-
-          if (!folderMap.has(currentPath)) {
-            const folder: FolderItem = {
-              path: currentPath,
-              name: part,
-              children: [],
-              workflows: [],
-            };
-            folderMap.set(currentPath, folder);
-
-            if (parent) {
-              if (!parent.children) parent.children = [];
-              if (!parent.children.find((c) => c.path === currentPath)) {
-                parent.children.push(folder);
-              }
-            }
-          }
-
-          parent = folderMap.get(currentPath) || null;
-        });
-
-        // Add workflow to the appropriate folder (only if we have a parent folder)
-        if (parent) {
-          const parentFolder = parent as FolderItem;
-          if (!parentFolder.workflows) {
-            parentFolder.workflows = [];
-          }
-          parentFolder.workflows.push(workflow);
-        } else if (pathParts.length === 0) {
-          // Workflow is at root level, create a default folder
-          const defaultFolder: FolderItem = {
-            path: "/workflows",
-            name: "Workflows",
-            workflows: [workflow],
-          };
-          if (!folderMap.has("/workflows")) {
-            folderMap.set("/workflows", defaultFolder);
-          } else {
-            const folder = folderMap.get("/workflows");
-            if (folder && folder.workflows) {
-              folder.workflows.push(workflow);
-            }
-          }
-        }
-      });
-
-      // Get root folders
-      const rootFolders: FolderItem[] = [];
-      folderMap.forEach((folder, path) => {
-        if (path.split("/").filter(Boolean).length === 1) {
-          rootFolders.push(folder);
-        }
-      });
-
-      // If no folder structure exists, create a default one
-      if (rootFolders.length === 0 && workflowList.length > 0) {
-        rootFolders.push({
-          path: "/workflows",
-          name: "All Workflows",
-          workflows: workflowList,
-        });
-      }
-
-      return rootFolders;
-    },
-    [],
-  );
-
-  // Memoize folder structure to avoid rebuilding on every render
-  const memoizedFolderStructure = useMemo(() => {
-    return buildFolderStructure(workflows);
-  }, [workflows, buildFolderStructure]);
 
   const fetchWorkflows = useCallback(async () => {
     setIsLoading(true);
@@ -273,11 +363,46 @@ function ProjectDetail({
     } finally {
       setIsLoading(false);
     }
-  }, [project.id, buildFolderStructure]);
+  }, [project.id]);
+
+  const fetchProjectEntries = useCallback(async () => {
+    setProjectEntriesLoading(true);
+    setProjectEntriesError(null);
+    try {
+      const config = await getConfig();
+      const response = await fetch(
+        `${config.API_URL}/projects/${project.id}/files/tree`,
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch project files: ${response.status}`);
+      }
+      const payload = (await response.json()) as { entries?: ProjectEntry[] };
+      setProjectEntries(Array.isArray(payload.entries) ? payload.entries : []);
+    } catch (error) {
+      logger.error(
+        "Failed to fetch project file tree",
+        {
+          component: "ProjectDetail",
+          action: "fetchProjectEntries",
+          projectId: project.id,
+        },
+        error,
+      );
+      setProjectEntriesError(
+        error instanceof Error ? error.message : "Failed to fetch project files",
+      );
+    } finally {
+      setProjectEntriesLoading(false);
+    }
+  }, [project.id]);
 
   useEffect(() => {
     fetchWorkflows();
   }, [fetchWorkflows]);
+
+  useEffect(() => {
+    fetchProjectEntries();
+  }, [fetchProjectEntries]);
 
   useEffect(() => {
     if (!showStatsPopover) {
@@ -342,6 +467,38 @@ function ProjectDetail({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [showViewModeDropdown]);
+
+  useEffect(() => {
+    if (!showNewFileMenu) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        newFileMenuRef.current &&
+        !newFileMenuRef.current.contains(target) &&
+        newFileMenuButtonRef.current &&
+        !newFileMenuButtonRef.current.contains(target)
+      ) {
+        setShowNewFileMenu(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowNewFileMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showNewFileMenu]);
 
   useEffect(() => {
     if (!showMoreMenu) {
@@ -482,9 +639,13 @@ function ProjectDetail({
       e.stopPropagation();
       setShowWorkflowActionsFor(null);
 
-      const confirmed = window.confirm(
-        `Delete "${workflowName}"? This action cannot be undone.`
-      );
+      const confirmed = await requestConfirm({
+        title: "Delete workflow?",
+        message: `Delete "${workflowName}"? This cannot be undone.`,
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        danger: true,
+      });
       if (!confirmed) {
         return;
       }
@@ -513,7 +674,7 @@ function ProjectDetail({
         setDeletingWorkflowId(null);
       }
     },
-    [project.id, bulkDeleteWorkflows]
+    [project.id, bulkDeleteWorkflows, requestConfirm]
   );
 
   const toggleSelectionMode = useCallback(() => {
@@ -552,9 +713,13 @@ function ProjectDetail({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete ${selectedWorkflows.size} workflow${selectedWorkflows.size === 1 ? "" : "s"}? This action cannot be undone.`,
-    );
+    const confirmed = await requestConfirm({
+      title: "Delete workflows?",
+      message: `Delete ${selectedWorkflows.size} workflow${selectedWorkflows.size === 1 ? "" : "s"}? This cannot be undone.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      danger: true,
+    });
     if (!confirmed) {
       return;
     }
@@ -592,13 +757,18 @@ function ProjectDetail({
     project.id,
     bulkDeleteWorkflows,
     workflows,
-    buildFolderStructure,
+    requestConfirm,
   ]);
 
   const handleDeleteProject = useCallback(async () => {
-    const confirmed = window.confirm(
-      "Delete this project and all associated workflows? This action cannot be undone.",
-    );
+    const confirmed = await requestConfirm({
+      title: "Delete project?",
+      message:
+        "Delete this project and all associated workflows? This cannot be undone.",
+      confirmLabel: "Delete Project",
+      cancelLabel: "Cancel",
+      danger: true,
+    });
     if (!confirmed) {
       return;
     }
@@ -622,7 +792,7 @@ function ProjectDetail({
     } finally {
       setIsDeletingProject(false);
     }
-  }, [project.id, deleteProject, onBack]);
+  }, [project.id, deleteProject, onBack, requestConfirm]);
 
   const handleSelectExecution = useCallback(
     async (execution: { id: string }) => {
@@ -711,153 +881,504 @@ function ProjectDetail({
     );
   };
 
-  interface TreeEntry {
-    kind: "folder" | "workflow";
-    folder?: FolderItem;
-    workflow?: WorkflowWithStats;
-  }
+  const fileTypeLabelFromPath = (relPath: string): string | null => {
+    const normalized = relPath.toLowerCase();
+    if (normalized.endsWith(".action.json")) return "Action";
+    if (normalized.endsWith(".flow.json")) return "Flow";
+    if (normalized.endsWith(".case.json")) return "Case";
+    return null;
+  };
 
-  // Tree View Component
-  const FolderTreeItem = ({
-    item,
+  const fileKindIcon = (node: FileTreeNode) => {
+    if (node.kind === "folder") {
+      return <FolderOpen size={14} className="text-yellow-500" />;
+    }
+    if (node.kind === "workflow_file") {
+      return <FileCode size={14} className="text-green-400" />;
+    }
+    return <FileText size={14} className="text-gray-400" />;
+  };
+
+  const buildFileTree = useCallback((entries: ProjectEntry[]): FileTreeNode[] => {
+    const folderMap = new Map<string, FileTreeNode>();
+
+    const ensureFolder = (folderPath: string): FileTreeNode => {
+      if (folderMap.has(folderPath)) {
+        return folderMap.get(folderPath)!;
+      }
+      const name = folderPath === "" ? "root" : folderPath.split("/").pop()!;
+      const node: FileTreeNode = {
+        kind: "folder",
+        path: folderPath,
+        name,
+        children: [],
+      };
+      folderMap.set(folderPath, node);
+      return node;
+    };
+
+    // Always create root
+    ensureFolder("");
+
+    for (const entry of entries) {
+      if (!entry?.path || typeof entry.path !== "string") continue;
+      const relPath = entry.path.replace(/^\/+/, "");
+      const parts = relPath.split("/").filter(Boolean);
+      if (parts.length === 0) continue;
+      const isDir = entry.kind === "folder";
+
+      let current = "";
+      for (let i = 0; i < parts.length - (isDir ? 0 : 1); i++) {
+        current = current ? `${current}/${parts[i]}` : parts[i];
+        ensureFolder(current);
+      }
+
+      if (isDir) {
+        ensureFolder(relPath);
+      } else {
+        const parentPath = parts.length > 1 ? parts.slice(0, -1).join("/") : "";
+        const parent = ensureFolder(parentPath);
+        parent.children = parent.children ?? [];
+        parent.children.push({
+          kind: entry.kind,
+          path: relPath,
+          name: parts[parts.length - 1],
+          workflowId: entry.workflow_id,
+          metadata: entry.metadata,
+        });
+      }
+    }
+
+    // Attach folder children to parents
+    const folders = Array.from(folderMap.values());
+    folders.sort((a, b) => a.path.localeCompare(b.path));
+    for (const folder of folders) {
+      if (folder.path === "") continue;
+      const parentPath = folder.path.includes("/")
+        ? folder.path.split("/").slice(0, -1).join("/")
+        : "";
+      const parent = ensureFolder(parentPath);
+      parent.children = parent.children ?? [];
+      if (!parent.children.find((c) => c.kind === "folder" && c.path === folder.path)) {
+        parent.children.push(folder);
+      }
+    }
+
+    const sortChildren = (node: FileTreeNode) => {
+      if (!node.children) return;
+      node.children.sort((a, b) => {
+        if (a.kind !== b.kind) {
+          if (a.kind === "folder") return -1;
+          if (b.kind === "folder") return 1;
+          if (a.kind === "workflow_file") return -1;
+          if (b.kind === "workflow_file") return 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+      node.children.forEach(sortChildren);
+    };
+
+    const root = ensureFolder("");
+    sortChildren(root);
+    return root.children ?? [];
+  }, []);
+
+  const memoizedFileTree = useMemo(() => {
+    return buildFileTree(projectEntries);
+  }, [buildFileTree, projectEntries]);
+
+  const filteredFileTree = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) {
+      return memoizedFileTree;
+    }
+
+    const filterNodes = (nodes: FileTreeNode[]): FileTreeNode[] => {
+      const out: FileTreeNode[] = [];
+      for (const node of nodes) {
+        const matches =
+          node.name.toLowerCase().includes(term) ||
+          node.path.toLowerCase().includes(term);
+        if (node.kind === "folder") {
+          const children = filterNodes(node.children ?? []);
+          if (matches || children.length > 0) {
+            out.push({ ...node, children });
+          }
+        } else if (matches) {
+          out.push(node);
+        }
+      }
+      return out;
+    };
+
+    return filterNodes(memoizedFileTree);
+  }, [memoizedFileTree, searchTerm]);
+
+  const resyncProjectFiles = useCallback(async () => {
+    try {
+      const config = await getConfig();
+      const response = await fetch(
+        `${config.API_URL}/projects/${project.id}/files/resync`,
+        { method: "POST" },
+      );
+      if (!response.ok) {
+        throw new Error(`Resync failed: ${response.status}`);
+      }
+      toast.success("Project files resynced");
+      await fetchProjectEntries();
+      await fetchWorkflows();
+    } catch (error) {
+      logger.error(
+        "Failed to resync project files",
+        { component: "ProjectDetail", action: "resyncProjectFiles", projectId: project.id },
+        error,
+      );
+      toast.error(error instanceof Error ? error.message : "Failed to resync");
+    }
+  }, [project.id, fetchProjectEntries, fetchWorkflows]);
+
+  const mkdirProjectPath = useCallback(
+    async (relPath: string) => {
+      const config = await getConfig();
+      const response = await fetch(
+        `${config.API_URL}/projects/${project.id}/files/mkdir`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: relPath }),
+        },
+      );
+      if (!response.ok) {
+        const msg = await response.text();
+        throw new Error(msg || `Failed to create folder: ${response.status}`);
+      }
+    },
+    [project.id],
+  );
+
+  const writeProjectWorkflowFile = useCallback(
+    async (relPath: string, type: "action" | "flow" | "case", name?: string) => {
+      const config = await getConfig();
+      const inferredName =
+        name?.trim() ||
+        relPath
+          .split("/")
+          .pop()
+          ?.replace(/\.action\.json$/i, "")
+          .replace(/\.flow\.json$/i, "")
+          .replace(/\.case\.json$/i, "") ||
+        "workflow";
+      const response = await fetch(
+        `${config.API_URL}/projects/${project.id}/files/write`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: relPath,
+            workflow: {
+              name: inferredName,
+              type,
+              flow_definition: { nodes: [], edges: [] },
+            },
+          }),
+        },
+      );
+      if (!response.ok) {
+        const msg = await response.text();
+        throw new Error(msg || `Failed to create workflow file: ${response.status}`);
+      }
+      const payload = (await response.json()) as {
+        workflowId?: string;
+        warnings?: string[];
+      };
+      if (payload.warnings && payload.warnings.length > 0) {
+        toast(payload.warnings[0] ?? "Created with warnings");
+      }
+      return payload.workflowId;
+    },
+    [project.id],
+  );
+
+  const moveProjectFile = useCallback(
+    async (fromPath: string, toPath: string) => {
+      const config = await getConfig();
+      const response = await fetch(
+        `${config.API_URL}/projects/${project.id}/files/move`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ from_path: fromPath, to_path: toPath }),
+        },
+      );
+      if (!response.ok) {
+        const msg = await response.text();
+        throw new Error(msg || `Failed to move: ${response.status}`);
+      }
+    },
+    [project.id],
+  );
+
+  const deleteProjectFile = useCallback(
+    async (relPath: string) => {
+      const config = await getConfig();
+      const response = await fetch(
+        `${config.API_URL}/projects/${project.id}/files/delete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: relPath }),
+        },
+      );
+      if (!response.ok) {
+        const msg = await response.text();
+        throw new Error(msg || `Failed to delete: ${response.status}`);
+      }
+    },
+    [project.id],
+  );
+
+  const handleDropMove = useCallback(
+    async (e: React.DragEvent, targetFolderPath: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const payload = parseDragPayload(e.dataTransfer);
+      setDropTargetFolder(null);
+      setDragSourcePath(null);
+      if (!payload) return;
+
+      const sourcePath = payload.path;
+      const baseName = fileBasename(sourcePath);
+      if (!baseName) return;
+
+      const destPath = targetFolderPath ? `${targetFolderPath}/${baseName}` : baseName;
+      if (destPath === sourcePath) return;
+
+      if (payload.kind === "folder") {
+        if (targetFolderPath === sourcePath || targetFolderPath.startsWith(`${sourcePath}/`)) {
+          toast.error("Cannot move a folder into itself.");
+          return;
+        }
+      }
+
+      try {
+        await moveProjectFile(sourcePath, destPath);
+        toast.success("Moved");
+        await fetchProjectEntries();
+        await fetchWorkflows();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Move failed");
+      }
+    },
+    [fetchProjectEntries, fetchWorkflows, fileBasename, moveProjectFile, parseDragPayload],
+  );
+
+  const FileTreeItem = ({
+    node,
     prefixParts = [],
   }: {
-    item: FolderItem;
+    node: FileTreeNode;
     prefixParts?: boolean[];
   }) => {
-    const isExpanded = expandedFolders.has(item.path);
-    const childFolders = item.children ?? [];
-    const workflowItems = item.workflows ?? [];
-    const hasChildren = childFolders.length > 0 || workflowItems.length > 0;
+    const isFolder = node.kind === "folder";
+    const isExpanded = isFolder && expandedFolders.has(node.path);
+    const children = node.children ?? [];
+    const hasChildren = isFolder && children.length > 0;
+    const typeLabel = node.kind === "workflow_file" ? fileTypeLabelFromPath(node.path) : null;
+    const isDropTarget = Boolean(
+      dragSourcePath !== null && dropTargetFolder !== null && dropTargetFolder === node.path,
+    );
 
-    const entries: TreeEntry[] = [
-      ...childFolders.map((child) => ({
-        kind: "folder" as const,
-        folder: child,
-      })),
-      ...workflowItems.map((workflow) => ({
-        kind: "workflow" as const,
-        workflow,
-      })),
-    ];
+    const handleToggle = () => {
+      if (!isFolder) return;
+      toggleFolder(node.path);
+    };
+
+    const handleOpenWorkflowFile = async () => {
+      if (node.kind !== "workflow_file" || !node.workflowId) {
+        return;
+      }
+      try {
+        await loadWorkflow(node.workflowId);
+        const wf = useWorkflowStore.getState().currentWorkflow;
+        if (wf) {
+          await onWorkflowSelect(wf);
+        }
+      } catch (err) {
+        toast.error("Failed to open workflow");
+      }
+    };
+
+    const handleDeleteNode = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const confirmed = await requestConfirm({
+        title: "Delete?",
+        message: `Delete "${node.path}"? This cannot be undone.`,
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        danger: true,
+      });
+      if (!confirmed) return;
+      try {
+        await deleteProjectFile(node.path);
+        toast.success("Deleted");
+        await fetchProjectEntries();
+        await fetchWorkflows();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Delete failed");
+      }
+    };
+
+    const handleRenameNode = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const next = await requestPrompt(
+        {
+          title: "Move / Rename",
+          label: "New path (relative to project root)",
+          defaultValue: node.path,
+          submitLabel: "Move",
+          cancelLabel: "Cancel",
+        },
+        {
+          validate: (value) => {
+            const normalized = normalizeProjectRelPathClient(value);
+            if (!normalized.ok) return normalized.error;
+            if (normalized.path === node.path) return "Path must be different.";
+            return null;
+          },
+          normalize: (value) => {
+            const normalized = normalizeProjectRelPathClient(value);
+            return normalized.ok ? normalized.path : value.trim();
+          },
+        },
+      );
+      if (!next) return;
+      try {
+        await moveProjectFile(node.path, next);
+        toast.success("Moved");
+        await fetchProjectEntries();
+        await fetchWorkflows();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Move failed");
+      }
+    };
+
+    const handleExecuteFromTree = async (e: React.MouseEvent) => {
+      if (node.kind !== "workflow_file" || !node.workflowId) {
+        e.stopPropagation();
+        return;
+      }
+      await handleExecuteWorkflow(e, node.workflowId);
+    };
 
     return (
       <div className="select-none">
         <div
-          className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-flow-node rounded cursor-pointer transition-colors"
-          onClick={() => toggleFolder(item.path)}
+          draggable={node.path !== ""}
+          onDragStart={(e) => {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData(
+              "application/x-bas-project-entry",
+              JSON.stringify({ path: node.path, kind: node.kind } as FileTreeDragPayload),
+            );
+            setDragSourcePath(node.path);
+          }}
+          onDragEnd={() => {
+            setDragSourcePath(null);
+            setDropTargetFolder(null);
+          }}
+          onDragOver={(e) => {
+            if (!isFolder) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = "move";
+            setDropTargetFolder(node.path);
+          }}
+          onDrop={(e) => {
+            if (!isFolder) return;
+            void handleDropMove(e, node.path);
+          }}
+          className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
+            isFolder && selectedTreeFolder === node.path ? "bg-flow-node" : "hover:bg-flow-node"
+          } ${isDropTarget ? "ring-1 ring-flow-accent bg-flow-node" : ""}`}
+          onClick={() => {
+            if (isFolder) {
+              setSelectedTreeFolder(node.path);
+              handleToggle();
+              return;
+            }
+            if (node.kind === "workflow_file") {
+              void handleOpenWorkflowFile();
+              return;
+            }
+            toast("Assets are read-only in v1");
+          }}
         >
           {renderTreePrefix(prefixParts)}
-          {hasChildren ? (
-            isExpanded ? (
-              <ChevronDown size={14} className="text-gray-400" />
+          {isFolder ? (
+            hasChildren ? (
+              isExpanded ? (
+                <ChevronDown size={14} className="text-gray-400" />
+              ) : (
+                <ChevronRight size={14} className="text-gray-400" />
+              )
             ) : (
-              <ChevronRight size={14} className="text-gray-400" />
+              <span className="inline-block w-3.5" aria-hidden="true" />
             )
           ) : (
             <span className="inline-block w-3.5" aria-hidden="true" />
           )}
-          <FolderOpen size={14} className="text-yellow-500" />
-          <span className="text-sm text-gray-300">{item.name}</span>
-          {workflowItems.length > 0 && (
-            <span className="ml-auto text-xs text-gray-500 mr-2">
-              {workflowItems.length} workflow
-              {workflowItems.length !== 1 ? "s" : ""}
-            </span>
-          )}
+          {fileKindIcon(node)}
+          <span className="text-sm text-gray-300">
+            {node.name}
+            {typeLabel ? (
+              <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">
+                {typeLabel}
+              </span>
+            ) : null}
+          </span>
+
+          <div className="ml-auto flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            {node.kind === "workflow_file" && node.workflowId ? (
+              <button
+                onClick={handleExecuteFromTree}
+                className="text-subtle hover:text-surface"
+                title={typeLabel === "Case" ? "Test" : "Run"}
+                aria-label={typeLabel === "Case" ? "Test workflow" : "Run workflow"}
+              >
+                {typeLabel === "Case" ? <ListChecks size={14} /> : <Play size={14} />}
+              </button>
+            ) : null}
+            <button
+              onClick={handleRenameNode}
+              className="text-subtle hover:text-surface"
+              title="Rename / Move"
+              aria-label="Rename / Move"
+            >
+              <PencilLine size={14} />
+            </button>
+            <button
+              onClick={handleDeleteNode}
+              className="text-subtle hover:text-red-300"
+              title="Delete"
+              aria-label="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
 
-        {isExpanded &&
-          entries.map((entry, index) => {
-            const isLastChild = index === entries.length - 1;
+        {isFolder &&
+          isExpanded &&
+          children.map((child, index) => {
+            const isLastChild = index === children.length - 1;
             const childPrefix = [...prefixParts, !isLastChild];
-
-            if (entry.kind === "folder" && entry.folder) {
-              return (
-                <FolderTreeItem
-                  key={entry.folder.path}
-                  item={entry.folder}
-                  prefixParts={childPrefix}
-                />
-              );
-            }
-
-            if (!entry.workflow) {
-              return null;
-            }
-
-            const workflow = entry.workflow;
-            const isSelected = selectedWorkflows.has(workflow.id);
-
-            const handleRowClick = async () => {
-              if (selectionMode) {
-                toggleWorkflowSelection(workflow.id);
-              } else {
-                await onWorkflowSelect(workflow);
-              }
-            };
-
             return (
-              <div
-                key={workflow.id}
-                data-testid={selectors.workflows.card}
-                data-workflow-id={workflow.id}
-                data-workflow-name={workflow.name}
-                onClick={handleRowClick}
-                className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
-                  selectionMode
-                    ? isSelected
-                      ? "bg-flow-node/80 border border-flow-accent"
-                      : "hover:bg-flow-node border border-transparent"
-                    : "hover:bg-flow-node"
-                }`}
-              >
-                {renderTreePrefix(childPrefix)}
-                {selectionMode ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleWorkflowSelection(workflow.id);
-                    }}
-                    className="text-subtle hover:text-surface"
-                    title={isSelected ? "Deselect workflow" : "Select workflow"}
-                    aria-label={
-                      isSelected ? "Deselect workflow" : "Select workflow"
-                    }
-                  >
-                    {isSelected ? (
-                      <CheckSquare size={14} />
-                    ) : (
-                      <Square size={14} />
-                    )}
-                  </button>
-                ) : (
-                  <FileCode size={14} className="text-green-400" />
-                )}
-                <span
-                  className={`text-sm ${selectionMode && isSelected ? "text-surface" : "text-subtle group-hover:text-surface"}`}
-                >
-                  {workflow.name}
-                </span>
-                {!selectionMode && (
-                  <div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      data-testid={selectors.workflowBuilder.executeButton}
-                      onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
-                      disabled={executionInProgress[workflow.id]}
-                      className="p-1.5 text-subtle hover:text-surface hover:bg-gray-700 rounded transition-colors"
-                      title="Execute Workflow"
-                      aria-label="Execute Workflow"
-                    >
-                      {executionInProgress[workflow.id] ? (
-                        <Loader size={14} className="animate-spin" />
-                      ) : (
-                        <PlayCircle size={14} />
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
+              <FileTreeItem
+                key={`${child.kind}:${child.path}`}
+                node={child}
+                prefixParts={childPrefix}
+              />
             );
           })}
       </div>
@@ -1116,14 +1637,206 @@ function ProjectDetail({
                         </div>
                       )}
                     </div>
-                    <button
-                      data-testid={selectors.workflows.newButton}
-                      onClick={onCreateWorkflow}
-                      className="hidden md:flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors md:ml-auto"
-                    >
-                      <Plus size={16} />
-                      <span>New Workflow</span>
-                    </button>
+                    {viewMode === "tree" ? (
+                      <div className="relative md:ml-auto">
+                        <button
+                          ref={newFileMenuButtonRef}
+                          data-testid={selectors.workflows.newButton}
+                          onClick={() => setShowNewFileMenu((prev) => !prev)}
+                          className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                          <Plus size={16} />
+                          <span className="hidden sm:inline">New</span>
+                        </button>
+                        {showNewFileMenu && (
+                          <div
+                            ref={newFileMenuRef}
+                            style={newFileMenuStyles}
+                            className="z-30 w-56 rounded-lg border border-gray-700 bg-flow-node shadow-lg overflow-hidden mt-2"
+                          >
+                            <button
+                              onClick={async () => {
+                                setShowNewFileMenu(false);
+                                const suggested =
+                                  selectedTreeFolder === null
+                                    ? "actions"
+                                    : selectedTreeFolder === ""
+                                      ? "new-folder"
+                                      : `${selectedTreeFolder}/new-folder`;
+                                const relPath = await requestPrompt(
+                                  {
+                                    title: "New Folder",
+                                    label: "Folder path (relative to project root)",
+                                    defaultValue: suggested,
+                                    submitLabel: "Create Folder",
+                                    cancelLabel: "Cancel",
+                                  },
+                                  {
+                                    validate: (value) => {
+                                      const normalized =
+                                        normalizeProjectRelPathClient(value);
+                                      if (!normalized.ok) return normalized.error;
+                                      return null;
+                                    },
+                                    normalize: (value) => {
+                                      const normalized =
+                                        normalizeProjectRelPathClient(value);
+                                      return normalized.ok
+                                        ? normalized.path
+                                        : value.trim();
+                                    },
+                                  },
+                                );
+                                if (!relPath) return;
+                                try {
+                                  await mkdirProjectPath(relPath);
+                                  toast.success("Folder created");
+                                  await fetchProjectEntries();
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof Error
+                                      ? err.message
+                                      : "Failed to create folder",
+                                  );
+                                }
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+                            >
+                              <FolderOpen size={16} />
+                              <span className="text-sm">New Folder</span>
+                            </button>
+                            {[
+                              {
+                                label: "New Action",
+                                type: "action",
+                                suffix: ".action.json",
+                              },
+                              { label: "New Flow", type: "flow", suffix: ".flow.json" },
+                              { label: "New Case", type: "case", suffix: ".case.json" },
+                            ].map((opt) => (
+                              <button
+                                key={opt.type}
+                                onClick={async () => {
+                                  setShowNewFileMenu(false);
+                                  const defaultDir =
+                                    selectedTreeFolder !== null
+                                      ? selectedTreeFolder
+                                      : opt.type === "action"
+                                        ? "actions"
+                                        : opt.type === "case"
+                                          ? "cases"
+                                          : "flows";
+                                  const suggested =
+                                    defaultDir === ""
+                                      ? `${opt.type}-example${opt.suffix}`
+                                      : `${defaultDir}/${opt.type}-example${opt.suffix}`;
+                                  const relPath = await requestPrompt(
+                                    {
+                                      title: opt.label,
+                                      label: `File path (relative to project root)`,
+                                      defaultValue: suggested,
+                                      submitLabel: "Create",
+                                      cancelLabel: "Cancel",
+                                    },
+                                    {
+                                      validate: (value) => {
+                                        const normalized =
+                                          normalizeProjectRelPathClient(value);
+                                        if (!normalized.ok) return normalized.error;
+                                        const lower = normalized.path.toLowerCase();
+                                        const typedSuffixes = [
+                                          ".action.json",
+                                          ".flow.json",
+                                          ".case.json",
+                                        ];
+                                        const hasTypedSuffix = typedSuffixes.some((s) =>
+                                          lower.endsWith(s),
+                                        );
+                                        if (hasTypedSuffix && !lower.endsWith(opt.suffix)) {
+                                          return `File extension must be ${opt.suffix}`;
+                                        }
+                                        return null;
+                                      },
+                                      normalize: (value) => {
+                                        const normalized =
+                                          normalizeProjectRelPathClient(value);
+                                        if (!normalized.ok) return value.trim();
+                                        const lower = normalized.path.toLowerCase();
+                                        if (lower.endsWith(opt.suffix)) return normalized.path;
+                                        if (
+                                          lower.endsWith(".json") &&
+                                          !lower.endsWith(".action.json") &&
+                                          !lower.endsWith(".flow.json") &&
+                                          !lower.endsWith(".case.json")
+                                        ) {
+                                          return `${normalized.path.slice(0, -".json".length)}${opt.suffix}`;
+                                        }
+                                        return `${normalized.path}${opt.suffix}`;
+                                      },
+                                    },
+                                  );
+                                  if (!relPath) return;
+                                  try {
+                                    const workflowId = await writeProjectWorkflowFile(
+                                      relPath,
+                                      opt.type as any,
+                                    );
+                                    toast.success(`${opt.label} created`);
+                                    await fetchProjectEntries();
+                                    await fetchWorkflows();
+                                    if (workflowId) {
+                                      await loadWorkflow(workflowId);
+                                      const wf =
+                                        useWorkflowStore.getState().currentWorkflow;
+                                      if (wf) {
+                                        await onWorkflowSelect(wf);
+                                      }
+                                    }
+                                  } catch (err) {
+                                    toast.error(
+                                      err instanceof Error
+                                        ? err.message
+                                        : `Failed to create ${opt.type}`,
+                                    );
+                                  }
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left"
+                              >
+                                <FileCode size={16} />
+                                <span className="text-sm">{opt.label}</span>
+                              </button>
+                            ))}
+                            <button
+                              onClick={async () => {
+                                setShowNewFileMenu(false);
+                                const confirmed = await requestConfirm({
+                                  title: "Resync from disk?",
+                                  message:
+                                    "This will rebuild the project file index from disk and may repair workflow files (id/type/version).",
+                                  confirmLabel: "Resync",
+                                  cancelLabel: "Cancel",
+                                });
+                                if (!confirmed) return;
+                                await resyncProjectFiles();
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-3 text-subtle hover:bg-flow-node-hover hover:text-surface transition-colors text-left border-t border-gray-700"
+                            >
+                              <RefreshCw size={16} />
+                              <span className="text-sm">Resync From Disk</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        data-testid={selectors.workflows.newButton}
+                        onClick={onCreateWorkflow}
+                        className="hidden md:flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors md:ml-auto"
+                      >
+                        <Plus size={16} />
+                        <span>New Workflow</span>
+                      </button>
+                    )}
                   </div>
                 </div>
                 <p className="hidden md:block text-gray-400">
@@ -1276,10 +1989,10 @@ function ProjectDetail({
                         ? "bg-flow-accent text-white"
                         : "text-subtle hover:text-surface"
                     }`}
-                    title="Tree View"
+                    title="File Tree View"
                   >
                     <FolderTree size={16} />
-                    <span className="text-sm">Tree</span>
+                    <span className="text-sm">Files</span>
                   </button>
                 </div>
                 {/* Mobile: Icon button with popover */}
@@ -1290,7 +2003,7 @@ function ProjectDetail({
                       setShowViewModeDropdown(!showViewModeDropdown)
                     }
                     className="p-2 bg-flow-node border border-gray-700 rounded-lg text-subtle hover:border-flow-accent hover:text-surface transition-colors"
-                    title={viewMode === "card" ? "Card View" : "Tree View"}
+                    title={viewMode === "card" ? "Card View" : "File Tree"}
                   >
                     {viewMode === "card" ? (
                       <LayoutGrid size={20} />
@@ -1330,7 +2043,7 @@ function ProjectDetail({
                         }`}
                       >
                         <FolderTree size={16} />
-                        <span className="text-sm">Tree View</span>
+                        <span className="text-sm">File Tree</span>
                       </button>
                     </div>
                   )}
@@ -1462,24 +2175,76 @@ function ProjectDetail({
                 </div>
               ) : viewMode === "tree" ? (
                 <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
-                  {memoizedFolderStructure.length === 0 ? (
+                  {projectEntriesLoading ? (
                     <div className="text-center text-gray-400 py-8">
-                      <FileCode size={48} className="mx-auto mb-4 opacity-50" />
-                      <p>No folder structure available</p>
+                      <Loader size={24} className="mx-auto mb-3 animate-spin" />
+                      <p>Loading project files…</p>
+                    </div>
+                  ) : projectEntriesError ? (
+                    <div className="text-center text-gray-400 py-8">
+                      <WifiOff size={40} className="mx-auto mb-3 opacity-50" />
+                      <p className="mb-3">{projectEntriesError}</p>
+                      <button
+                        onClick={fetchProjectEntries}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-flow-accent text-white hover:bg-blue-600 transition-colors"
+                      >
+                        <RefreshCw size={16} />
+                        <span>Retry</span>
+                      </button>
+                    </div>
+                  ) : memoizedFileTree.length === 0 ? (
+                    <div className="text-center text-gray-400 py-8">
+                      <FolderTree size={48} className="mx-auto mb-4 opacity-50" />
+                      <p>No files indexed yet.</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Use “New” to create folders/files, or resync from disk.
+                      </p>
+                    </div>
+                  ) : filteredFileTree.length === 0 ? (
+                    <div className="text-center text-gray-400 py-8">
+                      <FolderTree size={48} className="mx-auto mb-4 opacity-50" />
+                      <p>No files match &ldquo;{searchTerm}&rdquo;.</p>
+                      <button
+                        onClick={() => setSearchTerm("")}
+                        className="mt-3 text-flow-accent hover:text-blue-400 text-sm font-medium transition-colors"
+                      >
+                        Clear search
+                      </button>
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {memoizedFolderStructure.map((folder, index) => {
-                        const hasNextRoot =
-                          index < memoizedFolderStructure.length - 1;
-                        const rootPrefix =
-                          memoizedFolderStructure.length > 1
-                            ? [hasNextRoot]
-                            : [];
+                      <div
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors ${
+                          selectedTreeFolder === "" ? "bg-flow-node" : "hover:bg-flow-node"
+                        } ${
+                          dragSourcePath !== null && dropTargetFolder === ""
+                            ? "ring-1 ring-flow-accent bg-flow-node"
+                            : ""
+                        }`}
+                        onClick={() => setSelectedTreeFolder("")}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          e.dataTransfer.dropEffect = "move";
+                          setDropTargetFolder("");
+                        }}
+                        onDrop={(e) => {
+                          void handleDropMove(e, "");
+                        }}
+                      >
+                        <FolderOpen size={14} className="text-yellow-500" />
+                        <span className="text-sm text-gray-300">{project.name}</span>
+                        <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400">
+                          root
+                        </span>
+                      </div>
+                      {filteredFileTree.map((node, index) => {
+                        const hasNextRoot = index < filteredFileTree.length - 1;
+                        const rootPrefix = filteredFileTree.length > 1 ? [hasNextRoot] : [];
                         return (
-                          <FolderTreeItem
-                            key={folder.path}
-                            item={folder}
+                          <FileTreeItem
+                            key={`${node.kind}:${node.path}`}
+                            node={node}
                             prefixParts={rootPrefix}
                           />
                         );
@@ -1698,6 +2463,119 @@ function ProjectDetail({
           )}
         </div>
       </div>
+
+      <ResponsiveDialog
+        isOpen={Boolean(confirmDialog)}
+        onDismiss={() => closeConfirmDialog(false)}
+        ariaLabel={confirmDialog?.title ?? "Confirm"}
+        role="alertdialog"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-surface">
+            {confirmDialog?.title ?? "Confirm"}
+          </h2>
+          <button
+            type="button"
+            onClick={() => closeConfirmDialog(false)}
+            className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        {confirmDialog?.message ? (
+          <p className="text-sm text-gray-200">{confirmDialog.message}</p>
+        ) : null}
+        <div className="mt-6 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => closeConfirmDialog(false)}
+            className="px-4 py-2 rounded-lg border border-gray-700 text-subtle hover:text-surface hover:border-flow-accent transition-colors"
+          >
+            {confirmDialog?.cancelLabel ?? "Cancel"}
+          </button>
+          <button
+            type="button"
+            onClick={() => closeConfirmDialog(true)}
+            className={`px-4 py-2 rounded-lg text-white transition-colors ${
+              confirmDialog?.danger
+                ? "bg-red-600 hover:bg-red-500"
+                : "bg-flow-accent hover:bg-blue-600"
+            }`}
+          >
+            {confirmDialog?.confirmLabel ?? "Confirm"}
+          </button>
+        </div>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        isOpen={Boolean(promptDialog)}
+        onDismiss={() => closePromptDialog(null)}
+        ariaLabel={promptDialog?.title ?? "Input"}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const validate = promptValidateRef.current;
+            const normalize = promptNormalizeRef.current;
+            const errorMessage = validate ? validate(promptValue) : null;
+            if (errorMessage) {
+              setPromptError(errorMessage);
+              return;
+            }
+            const finalValue = normalize ? normalize(promptValue) : promptValue.trim();
+            closePromptDialog(finalValue);
+          }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-surface">
+              {promptDialog?.title ?? "Input"}
+            </h2>
+            <button
+              type="button"
+              onClick={() => closePromptDialog(null)}
+              className="p-1 text-subtle hover:text-surface hover:bg-gray-700 rounded-full transition-colors"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          {promptDialog?.message ? (
+            <p className="mb-3 text-sm text-gray-200">{promptDialog.message}</p>
+          ) : null}
+          <label className="block text-sm text-gray-300 mb-2">
+            {promptDialog?.label ?? "Value"}
+          </label>
+          <input
+            autoFocus
+            value={promptValue}
+            onChange={(e) => {
+              setPromptValue(e.target.value);
+              setPromptError(null);
+            }}
+            placeholder={promptDialog?.placeholder}
+            className="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-surface placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-flow-accent/60"
+          />
+          {promptError ? (
+            <p className="mt-2 text-sm text-red-300">{promptError}</p>
+          ) : null}
+          <div className="mt-6 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => closePromptDialog(null)}
+              className="px-4 py-2 rounded-lg border border-gray-700 text-subtle hover:text-surface hover:border-flow-accent transition-colors"
+            >
+              {promptDialog?.cancelLabel ?? "Cancel"}
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-lg bg-flow-accent text-white hover:bg-blue-600 transition-colors"
+            >
+              {promptDialog?.submitLabel ?? "OK"}
+            </button>
+          </div>
+        </form>
+      </ResponsiveDialog>
 
       {/* Floating Action Button (FAB) - Mobile only */}
       <button

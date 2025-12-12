@@ -55,13 +55,14 @@ func TestValidateWorkflow_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", rr.Code)
 	}
 
-	var result workflowvalidator.Result
+	var result map[string]any
 	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if !result.Valid {
-		t.Fatalf("expected workflow to be valid, got %+v", result.Errors)
+	valid, _ := result["valid"].(bool)
+	if !valid {
+		t.Fatalf("expected workflow to be valid, got %+v", result["errors"])
 	}
 }
 
@@ -96,24 +97,28 @@ func TestValidateWorkflow_StrictPromotesWarnings(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", rr.Code)
 	}
 
-	var result workflowvalidator.Result
+	var result map[string]any
 	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if result.Valid {
+	valid, _ := result["valid"].(bool)
+	if valid {
 		t.Fatal("expected validation to fail in strict mode")
 	}
 
 	foundStrict := false
-	for _, issue := range result.Errors {
-		if issue.Code == "WF_STRICT_WARNING" {
+	errorsAny, _ := result["errors"].([]any)
+	for _, issueAny := range errorsAny {
+		issue, _ := issueAny.(map[string]any)
+		code, _ := issue["code"].(string)
+		if code == "WF_STRICT_WARNING" {
 			foundStrict = true
 			break
 		}
 	}
 	if !foundStrict {
-		t.Fatalf("expected WF_STRICT_WARNING error, got %+v", result.Errors)
+		t.Fatalf("expected WF_STRICT_WARNING error, got %+v", result["errors"])
 	}
 }
 

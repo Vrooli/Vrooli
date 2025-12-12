@@ -89,6 +89,21 @@ func (m *mockRepository) UpdateSchedule(ctx context.Context, schedule *database.
 func (m *mockRepository) DeleteSchedule(ctx context.Context, id uuid.UUID) error { return nil }
 
 // Project operations - stubs
+func (m *mockRepository) UpsertProjectEntry(ctx context.Context, entry *database.ProjectEntry) error {
+	return nil
+}
+func (m *mockRepository) GetProjectEntry(ctx context.Context, projectID uuid.UUID, path string) (*database.ProjectEntry, error) {
+	return nil, nil
+}
+func (m *mockRepository) DeleteProjectEntry(ctx context.Context, projectID uuid.UUID, path string) error {
+	return nil
+}
+func (m *mockRepository) DeleteProjectEntries(ctx context.Context, projectID uuid.UUID) error {
+	return nil
+}
+func (m *mockRepository) ListProjectEntries(ctx context.Context, projectID uuid.UUID) ([]*database.ProjectEntry, error) {
+	return nil, nil
+}
 func (m *mockRepository) CreateProject(ctx context.Context, project *database.Project) error {
 	return nil
 }

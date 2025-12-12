@@ -57,6 +57,21 @@ func (m *mockRepo) UpdateExecutionCheckpoint(ctx context.Context, executionID uu
 }
 
 // Additional methods to satisfy full Repository interface (stubs)
+func (m *mockRepo) UpsertProjectEntry(ctx context.Context, entry *database.ProjectEntry) error {
+	return nil
+}
+func (m *mockRepo) GetProjectEntry(ctx context.Context, projectID uuid.UUID, path string) (*database.ProjectEntry, error) {
+	return nil, nil
+}
+func (m *mockRepo) DeleteProjectEntry(ctx context.Context, projectID uuid.UUID, path string) error {
+	return nil
+}
+func (m *mockRepo) DeleteProjectEntries(ctx context.Context, projectID uuid.UUID) error {
+	return nil
+}
+func (m *mockRepo) ListProjectEntries(ctx context.Context, projectID uuid.UUID) ([]*database.ProjectEntry, error) {
+	return nil, nil
+}
 func (m *mockRepo) CreateProject(ctx context.Context, project *database.Project) error { return nil }
 func (m *mockRepo) GetProject(ctx context.Context, id uuid.UUID) (*database.Project, error) {
 	return nil, nil

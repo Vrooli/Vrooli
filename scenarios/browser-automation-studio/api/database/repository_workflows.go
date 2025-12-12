@@ -28,8 +28,14 @@ func (r *repository) ListWorkflowsByProject(ctx context.Context, projectID uuid.
 
 func (r *repository) CreateWorkflow(ctx context.Context, workflow *Workflow) error {
 	query := `
-		INSERT INTO workflows (id, project_id, name, folder_path, flow_definition, description, tags, version, is_template, created_by, last_change_source, last_change_description)
-		VALUES (:id, :project_id, :name, :folder_path, :flow_definition, :description, :tags, :version, :is_template, :created_by, :last_change_source, :last_change_description)`
+		INSERT INTO workflows (
+			id, project_id, name, folder_path, workflow_type, flow_definition, inputs, outputs, expected_outcome, workflow_metadata,
+			description, tags, version, is_template, created_by, last_change_source, last_change_description
+		)
+		VALUES (
+			:id, :project_id, :name, :folder_path, :workflow_type, :flow_definition, :inputs, :outputs, :expected_outcome, :workflow_metadata,
+			:description, :tags, :version, :is_template, :created_by, :last_change_source, :last_change_description
+		)`
 
 	// Generate ID if not set
 	if workflow.ID == uuid.Nil {
@@ -39,6 +45,9 @@ func (r *repository) CreateWorkflow(ctx context.Context, workflow *Workflow) err
 	// Set defaults
 	if workflow.Version == 0 {
 		workflow.Version = 1
+	}
+	if workflow.WorkflowType == "" {
+		workflow.WorkflowType = "flow"
 	}
 
 	_, err := r.db.NamedExecContext(ctx, query, workflow)
@@ -107,10 +116,26 @@ func (r *repository) GetWorkflowByProjectAndName(ctx context.Context, projectID 
 func (r *repository) UpdateWorkflow(ctx context.Context, workflow *Workflow) error {
 	query := `
 		UPDATE workflows
-		SET project_id = :project_id, name = :name, folder_path = :folder_path, flow_definition = :flow_definition,
-		    description = :description, tags = :tags, version = :version, last_change_source = :last_change_source,
-		    last_change_description = :last_change_description, updated_at = CURRENT_TIMESTAMP
+		SET project_id = :project_id,
+		    name = :name,
+		    folder_path = :folder_path,
+		    workflow_type = :workflow_type,
+		    flow_definition = :flow_definition,
+		    inputs = :inputs,
+		    outputs = :outputs,
+		    expected_outcome = :expected_outcome,
+		    workflow_metadata = :workflow_metadata,
+		    description = :description,
+		    tags = :tags,
+		    version = :version,
+		    last_change_source = :last_change_source,
+		    last_change_description = :last_change_description,
+		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = :id`
+
+	if workflow.WorkflowType == "" {
+		workflow.WorkflowType = "flow"
+	}
 
 	_, err := r.db.NamedExecContext(ctx, query, workflow)
 	if err != nil {

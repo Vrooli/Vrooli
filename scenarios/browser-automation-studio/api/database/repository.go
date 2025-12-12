@@ -64,6 +64,13 @@ type Repository interface {
 	GetFolder(ctx context.Context, path string) (*WorkflowFolder, error)
 	ListFolders(ctx context.Context) ([]*WorkflowFolder, error)
 
+	// Project file index operations (hybrid DB+disk project tree)
+	UpsertProjectEntry(ctx context.Context, entry *ProjectEntry) error
+	GetProjectEntry(ctx context.Context, projectID uuid.UUID, path string) (*ProjectEntry, error)
+	DeleteProjectEntry(ctx context.Context, projectID uuid.UUID, path string) error
+	DeleteProjectEntries(ctx context.Context, projectID uuid.UUID) error
+	ListProjectEntries(ctx context.Context, projectID uuid.UUID) ([]*ProjectEntry, error)
+
 	// Export operations
 	CreateExport(ctx context.Context, export *Export) error
 	GetExport(ctx context.Context, id uuid.UUID) (*Export, error)

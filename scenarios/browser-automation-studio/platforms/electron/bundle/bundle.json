@@ -1,0 +1,223 @@
+{
+  "app": {
+    "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
+    "name": "browser-automation-studio",
+    "version": "1.0.0"
+  },
+  "ipc": {
+    "auth_token_path": "runtime/auth_token",
+    "host": "127.0.0.1",
+    "mode": "loopback-http",
+    "port": 39200
+  },
+  "ports": {
+    "default_range": {
+      "max": 24000,
+      "min": 20000
+    },
+    "reserved": null
+  },
+  "schema_version": "v0.1",
+  "services": [
+    {
+      "binaries": {
+        "darwin-x64": {
+          "path": "api/browser-automation-studio-api"
+        },
+        "linux-x64": {
+          "path": "api/browser-automation-studio-api"
+        },
+        "win-x64": {
+          "path": "api/browser-automation-studio-api.exe"
+        }
+      },
+      "build": {
+        "entry_point": ".",
+        "env": {
+          "CGO_ENABLED": "0"
+        },
+        "output_pattern": "bin/{{platform}}/browser-automation-studio-api{{ext}}",
+        "source_dir": "api",
+        "type": "go"
+      },
+      "data_dirs": [
+        "data/api"
+      ],
+      "description": "Bundled API process for browser-automation-studio",
+      "env": {
+        "API_PORT": "${browser-automation-studio-api.api}",
+        "BAS_DB_BACKEND": "sqlite",
+        "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
+        "VROOLI_LIFECYCLE_MANAGED": "true"
+      },
+      "health": {
+        "interval_ms": 2000,
+        "path": "/health",
+        "port_name": "api",
+        "retries": 5,
+        "timeout_ms": 15000,
+        "type": "http"
+      },
+      "id": "browser-automation-studio-api",
+      "log_dir": "logs/api",
+      "ports": {
+        "requested": [
+          {
+            "name": "api",
+            "range": {
+              "max": 23200,
+              "min": 23100
+            },
+            "requires_socket": false
+          }
+        ]
+      },
+      "readiness": {
+        "pattern": "",
+        "port_name": "api",
+        "timeout_ms": 30000,
+        "type": "port_open"
+      },
+      "type": "api-binary"
+    },
+    {
+      "assets": [
+        {
+          "path": "ui/dist/index.html",
+          "sha256": "54965d6ec3c1f2b18a3485add916bee1c5f390fd17a53af4f448b3eed3301397",
+          "size_bytes": 3189
+        }
+      ],
+      "binaries": {
+        "darwin-x64": {
+          "path": "ui/dist/index.html"
+        },
+        "linux-x64": {
+          "path": "ui/dist/index.html"
+        },
+        "win-x64": {
+          "path": "ui/dist/index.html"
+        }
+      },
+      "critical": true,
+      "description": "Production UI bundle served locally",
+      "env": {
+        "UI_PORT": "${ui.ui}",
+        "VROOLI_LIFECYCLE_MANAGED": "true"
+      },
+      "health": {
+        "interval_ms": 2000,
+        "path": "/",
+        "port_name": "ui",
+        "retries": 3,
+        "timeout_ms": 10000,
+        "type": "http"
+      },
+      "id": "ui",
+      "log_dir": "logs/ui",
+      "ports": {
+        "requested": [
+          {
+            "name": "ui",
+            "range": {
+              "max": 24200,
+              "min": 24100
+            },
+            "requires_socket": false
+          }
+        ]
+      },
+      "readiness": {
+        "pattern": "",
+        "port_name": "ui",
+        "timeout_ms": 20000,
+        "type": "health_success"
+      },
+      "type": "ui-bundle"
+    },
+    {
+      "assets": [
+        {
+          "path": "cli/browser-automation-studio",
+          "sha256": "dfe1eaf77d16a9c8f2712dbd8f600546cb63150c960a7e08e1f06c5a6e8b6ee4",
+          "size_bytes": 78740
+        }
+      ],
+      "binaries": {
+        "darwin-x64": {
+          "path": "cli/browser-automation-studio"
+        },
+        "linux-x64": {
+          "path": "cli/browser-automation-studio"
+        },
+        "win-x64": {
+          "path": "cli/browser-automation-studio.exe"
+        }
+      },
+      "build": {
+        "entry_point": ".",
+        "env": {
+          "CGO_ENABLED": "0"
+        },
+        "output_pattern": "bin/{{platform}}/browser-automation-studio{{ext}}",
+        "source_dir": "cli",
+        "type": "go"
+      },
+      "description": "CLI for browser-automation-studio scenario",
+      "env": {
+        "VROOLI_LIFECYCLE_MANAGED": "true"
+      },
+      "health": {
+        "command": [
+          "echo",
+          "healthy"
+        ],
+        "interval_ms": 10000,
+        "path": "",
+        "port_name": "",
+        "retries": 1,
+        "timeout_ms": 5000,
+        "type": "command"
+      },
+      "id": "browser-automation-studio-cli",
+      "readiness": {
+        "pattern": "",
+        "port_name": "http",
+        "timeout_ms": 5000,
+        "type": "health_success"
+      },
+      "type": "resource"
+    }
+  ],
+  "swaps": [
+    {
+      "limitations": "",
+      "original": "minio",
+      "reason": "Recommended bundle-safe alternative from dependency metadata",
+      "replacement": "filesystem-store"
+    },
+    {
+      "limitations": "",
+      "original": "ollama",
+      "reason": "Recommended bundle-safe alternative from dependency metadata",
+      "replacement": "openrouter"
+    },
+    {
+      "limitations": "",
+      "original": "postgres",
+      "reason": "Recommended bundle-safe alternative from dependency metadata",
+      "replacement": "sqlite"
+    },
+    {
+      "limitations": "",
+      "original": "redis",
+      "reason": "Recommended bundle-safe alternative from dependency metadata",
+      "replacement": "event-emitter"
+    }
+  ],
+  "target": "desktop",
+  "telemetry": {
+    "file": "telemetry/deployment-telemetry.jsonl",
+    "upload_url": ""
+  }
+}

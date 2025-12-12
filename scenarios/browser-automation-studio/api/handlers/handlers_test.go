@@ -149,6 +149,23 @@ func (m *mockRepository) ListFolders(ctx context.Context) ([]*database.WorkflowF
 	return nil, nil
 }
 
+// Project file index operations
+func (m *mockRepository) UpsertProjectEntry(ctx context.Context, entry *database.ProjectEntry) error {
+	return nil
+}
+func (m *mockRepository) GetProjectEntry(ctx context.Context, projectID uuid.UUID, path string) (*database.ProjectEntry, error) {
+	return nil, nil
+}
+func (m *mockRepository) DeleteProjectEntry(ctx context.Context, projectID uuid.UUID, path string) error {
+	return nil
+}
+func (m *mockRepository) DeleteProjectEntries(ctx context.Context, projectID uuid.UUID) error {
+	return nil
+}
+func (m *mockRepository) ListProjectEntries(ctx context.Context, projectID uuid.UUID) ([]*database.ProjectEntry, error) {
+	return nil, nil
+}
+
 // Export operations
 func (m *mockRepository) CreateExport(ctx context.Context, export *database.Export) error {
 	return nil

@@ -286,8 +286,59 @@ func TestCreateProject(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if pb.GetId() == "" {
-			t.Errorf("response missing project id, got: %v", pb)
+			if pb.GetId() == "" {
+				t.Errorf("response missing project id, response: %s", w.Body.String())
+			}
+		})
+
+	t.Run("creates recommended folders when preset provided", func(t *testing.T) {
+		rootDir := t.TempDir()
+		t.Setenv("VROOLI_ROOT", rootDir)
+		projectDir := filepath.Join(rootDir, "projects", "preset-project")
+
+		repo := newProjectFilesRepo()
+		var createdID uuid.UUID
+		service := &mockWorkflowServiceForProjects{
+			createProjectFn: func(ctx context.Context, project *database.Project) error {
+				project.ID = uuid.New()
+				createdID = project.ID
+				return nil
+			},
+		}
+		handler := setupProjectTestHandler(t, service)
+		handler.repo = repo
+
+		reqBody := `{
+			"name": "Preset Project",
+			"description": "With folders",
+			"folder_path": "` + projectDir + `",
+			"preset": "recommended"
+		}`
+
+		req := httptest.NewRequest("POST", "/api/v1/projects", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.CreateProject(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+		}
+		if createdID == uuid.Nil {
+			t.Fatalf("expected create project to assign id")
+		}
+
+		for _, folder := range []string{"actions", "flows", "cases", "assets"} {
+			if _, err := os.Stat(filepath.Join(projectDir, folder)); err != nil {
+				t.Fatalf("expected folder %s to exist: %v", folder, err)
+			}
+			entry, err := repo.GetProjectEntry(context.Background(), createdID, folder)
+			if err != nil {
+				t.Fatalf("expected project entry for %s: %v", folder, err)
+			}
+			if entry.Kind != database.ProjectEntryKindFolder {
+				t.Fatalf("expected folder entry for %s, got %s", folder, entry.Kind)
+			}
 		}
 	})
 

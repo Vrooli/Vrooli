@@ -468,6 +468,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
                     isDeleting ? 'opacity-50 pointer-events-none' : ''
                   }`}
                   data-testid={selectors.projects.card}
+                  data-project-id={project.id}
+                  data-project-name={project.name}
                 >
                   {/* Deleting Overlay */}
                   {isDeleting && (

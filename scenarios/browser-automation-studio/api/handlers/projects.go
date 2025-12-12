@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -16,9 +19,11 @@ import (
 
 // CreateProjectRequest represents the request to create a project
 type CreateProjectRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	FolderPath  string `json:"folder_path"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	FolderPath  string   `json:"folder_path"`
+	Preset      string   `json:"preset,omitempty"`
+	PresetPaths []string `json:"preset_paths,omitempty"`
 }
 
 // UpdateProjectRequest represents the request to update a project
@@ -100,7 +105,66 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.TrimSpace(req.Preset) != "" {
+		if err := h.applyProjectPreset(ctx, project, req.Preset, req.PresetPaths); err != nil {
+			h.log.WithError(err).WithFields(logrus.Fields{
+				"project_id": project.ID.String(),
+				"preset":     req.Preset,
+			}).Error("Failed to apply project preset")
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
+				"field": "preset",
+				"error": err.Error(),
+			}))
+			return
+		}
+	}
+
 	h.respondProto(w, http.StatusCreated, protoconv.ProjectToProto(project))
+}
+
+func (h *Handler) applyProjectPreset(ctx context.Context, project *database.Project, preset string, presetPaths []string) error {
+	if h == nil || project == nil {
+		return errors.New("invalid handler or project")
+	}
+	if project.ID == uuid.Nil {
+		return errors.New("project id missing")
+	}
+	if strings.TrimSpace(project.FolderPath) == "" {
+		return errors.New("project folder path missing")
+	}
+
+	preset = strings.ToLower(strings.TrimSpace(preset))
+	var folders []string
+	switch preset {
+	case "empty":
+		folders = nil
+	case "recommended":
+		folders = []string{"actions", "flows", "cases", "assets"}
+	case "custom":
+		folders = presetPaths
+	default:
+		return fmt.Errorf("unknown preset %q", preset)
+	}
+
+	for _, folder := range folders {
+		rel, ok := normalizeProjectRelPath(folder)
+		if !ok {
+			return fmt.Errorf("invalid preset path %q", folder)
+		}
+
+		abs := filepath.Join(project.FolderPath, filepath.FromSlash(rel))
+		if err := os.MkdirAll(abs, 0o755); err != nil {
+			return fmt.Errorf("failed to create folder %q: %w", rel, err)
+		}
+		if h.repo == nil {
+			continue
+		}
+		if err := indexProjectFolderPath(ctx, h.repo, project.ID, rel); err != nil {
+			return fmt.Errorf("failed to index folder %q: %w", rel, err)
+		}
+	}
+
+	return nil
 }
 
 // ListProjects handles GET /api/v1/projects

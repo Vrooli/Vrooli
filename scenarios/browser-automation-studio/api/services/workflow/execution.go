@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -63,6 +64,12 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 		}
 	}
 
+	if strings.EqualFold(strings.TrimSpace(workflow.WorkflowType), "case") {
+		if !workflowHasNodeType(workflow.FlowDefinition, "assert") && len(workflow.ExpectedOutcome) == 0 {
+			return nil, ErrWorkflowCaseExpectationMissing
+		}
+	}
+
 	if err := s.ensureWorkflowChangeMetadata(ctx, workflow); err != nil {
 		return nil, err
 	}
@@ -87,6 +94,35 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	s.startExecutionRunner(execution, workflow)
 
 	return execution, nil
+}
+
+func workflowHasNodeType(definition database.JSONMap, nodeType string) bool {
+	if definition == nil {
+		return false
+	}
+	rawNodes, ok := definition["nodes"]
+	if !ok {
+		return false
+	}
+	nodes, ok := rawNodes.([]any)
+	if !ok {
+		return false
+	}
+	want := strings.ToLower(strings.TrimSpace(nodeType))
+	for _, raw := range nodes {
+		node, ok := raw.(map[string]any)
+		if !ok {
+			if coerced, ok := raw.(database.JSONMap); ok {
+				node = map[string]any(coerced)
+			} else {
+				continue
+			}
+		}
+		if strings.ToLower(strings.TrimSpace(fmt.Sprint(node["type"]))) == want {
+			return true
+		}
+	}
+	return false
 }
 
 // GetExecutionScreenshots gets screenshots for an execution

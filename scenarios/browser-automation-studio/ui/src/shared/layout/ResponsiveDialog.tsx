@@ -54,10 +54,7 @@ export default function ResponsiveDialog({
     };
   }, [isOpen, onDismiss]);
 
-  console.log(`[DEBUG] ResponsiveDialog render - isOpen: ${isOpen}`);
-
   if (!isOpen) {
-    console.log("[DEBUG] ResponsiveDialog returning null (not rendering)");
     return null;
   }
 

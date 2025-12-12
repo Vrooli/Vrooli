@@ -131,13 +131,40 @@ type WorkflowFolder struct {
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+// ProjectEntryKind captures the logical role of an entry in the project's file tree.
+type ProjectEntryKind string
+
+const (
+	ProjectEntryKindFolder       ProjectEntryKind = "folder"
+	ProjectEntryKindWorkflowFile ProjectEntryKind = "workflow_file"
+	ProjectEntryKindAssetFile    ProjectEntryKind = "asset_file"
+)
+
+// ProjectEntry indexes a file-tree entry for a project, backed by disk but searchable via DB.
+// Paths are project-root-relative (no leading slash).
+type ProjectEntry struct {
+	ID         uuid.UUID        `json:"id" db:"id"`
+	ProjectID  uuid.UUID        `json:"project_id" db:"project_id"`
+	Path       string           `json:"path" db:"path"`
+	Kind       ProjectEntryKind `json:"kind" db:"kind"`
+	WorkflowID *uuid.UUID       `json:"workflow_id,omitempty" db:"workflow_id"`
+	Metadata   JSONMap          `json:"metadata,omitempty" db:"metadata"`
+	CreatedAt  time.Time        `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time        `json:"updated_at" db:"updated_at"`
+}
+
 // Workflow represents a browser automation workflow
 type Workflow struct {
 	ID                    uuid.UUID   `json:"id" db:"id"`
 	ProjectID             *uuid.UUID  `json:"project_id,omitempty" db:"project_id"`
 	Name                  string      `json:"name" db:"name"`
 	FolderPath            string      `json:"folder_path" db:"folder_path"`
+	WorkflowType          string      `json:"workflow_type" db:"workflow_type"`
 	FlowDefinition        JSONMap     `json:"flow_definition" db:"flow_definition"`
+	Inputs                JSONMap     `json:"inputs,omitempty" db:"inputs"`
+	Outputs               JSONMap     `json:"outputs,omitempty" db:"outputs"`
+	ExpectedOutcome       JSONMap     `json:"expected_outcome,omitempty" db:"expected_outcome"`
+	WorkflowMetadata      JSONMap     `json:"workflow_metadata,omitempty" db:"workflow_metadata"`
 	Description           string      `json:"description,omitempty" db:"description"`
 	Tags                  StringArray `json:"tags" db:"tags"`
 	Version               int         `json:"version" db:"version"`

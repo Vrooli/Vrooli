@@ -213,6 +213,13 @@ func main() {
 		r.Get("/projects/{id}/workflows", handler.GetProjectWorkflows)
 		r.Post("/projects/{id}/workflows/bulk-delete", handler.BulkDeleteProjectWorkflows)
 		r.Post("/projects/{id}/execute-all", handler.ExecuteAllProjectWorkflows)
+		r.Get("/projects/{id}/files/tree", handler.GetProjectFileTree)
+		r.Get("/projects/{id}/files/read", handler.ReadProjectFile)
+		r.Post("/projects/{id}/files/mkdir", handler.MkdirProjectPath)
+		r.Post("/projects/{id}/files/write", handler.WriteProjectWorkflowFile)
+		r.Post("/projects/{id}/files/move", handler.MoveProjectFile)
+		r.Post("/projects/{id}/files/delete", handler.DeleteProjectFile)
+		r.Post("/projects/{id}/files/resync", handler.ResyncProjectFiles)
 
 		// Workflow routes
 		r.Post("/workflows/create", handler.CreateWorkflow)

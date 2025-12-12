@@ -584,16 +584,30 @@ func entrySelectorFromPlan(plan contracts.ExecutionPlan) (string, int) {
 		return selector, readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
 	}
 
-	// Skip entry probe for workflows that start with navigation - the page context
-	// hasn't been established yet, so any selector checks would fail
+	// Skip entry probe whenever the first actionable instruction is navigation.
+	// Many workflows (especially playbooks) begin with bookkeeping steps (seed state,
+	// store variables, etc.) and then navigate. Probing selectors before navigation
+	// creates false timeouts because the page context doesn't exist yet.
 	if len(plan.Instructions) > 0 {
 		sorted := append([]contracts.CompiledInstruction{}, plan.Instructions...)
 		sort.Slice(sorted, func(i, j int) bool {
 			return sorted[i].Index < sorted[j].Index
 		})
-		if sorted[0].Type == "navigate" {
-			logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow starts with navigate")
-			return "", 0
+		for _, instr := range sorted {
+			if instr.Type == "navigate" {
+				logrus.WithField("execution_id", plan.ExecutionID).Debug("Skipping entry probe - workflow navigates before first selector-bearing instruction")
+				return "", 0
+			}
+			if selector := firstSelectorFromParams(instr.Params); selector != "" {
+				timeout := readInt(plan.Metadata, "entrySelectorTimeoutMs", "entryTimeoutMs")
+				logrus.WithFields(logrus.Fields{
+					"execution_id": plan.ExecutionID,
+					"selector":     selector,
+					"instruction":  instr.Type,
+					"source":       "instructions",
+				}).Debug("Extracted entry selector from first selector-bearing instruction")
+				return selector, timeout
+			}
 		}
 	}
 

@@ -39,12 +39,14 @@ var (
 	ErrMissingRequiredField     = apierror.ErrMissingRequiredField
 	ErrInvalidWorkflowPayload   = apierror.ErrInvalidWorkflowPayload
 	ErrWorkflowValidationFailed = apierror.ErrWorkflowValidationFailed
+	ErrCaseExpectationMissing   = apierror.ErrCaseExpectationMissing
 )
 
 // 404 Not Found errors
 var (
 	ErrWorkflowNotFound        = apierror.ErrWorkflowNotFound
 	ErrProjectNotFound         = apierror.ErrProjectNotFound
+	ErrProjectFileNotFound     = apierror.ErrProjectFileNotFound
 	ErrWorkflowVersionNotFound = apierror.ErrWorkflowVersionNotFound
 	ErrExecutionNotFound       = apierror.ErrExecutionNotFound
 	ErrScreenshotNotFound      = apierror.ErrScreenshotNotFound

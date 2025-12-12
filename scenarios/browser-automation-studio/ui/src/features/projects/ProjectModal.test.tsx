@@ -142,6 +142,7 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
         name: 'New Test Project',
         description: 'Test Description',
         folder_path: expect.stringContaining('/'),
+        preset: 'recommended',
       });
     });
 

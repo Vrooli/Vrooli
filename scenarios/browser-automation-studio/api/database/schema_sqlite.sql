@@ -25,7 +25,12 @@ CREATE TABLE IF NOT EXISTS workflows (
     project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     folder_path TEXT NOT NULL,
+    workflow_type TEXT NOT NULL DEFAULT 'flow',
     flow_definition TEXT DEFAULT '{}',
+    inputs TEXT DEFAULT '{}',
+    outputs TEXT DEFAULT '{}',
+    expected_outcome TEXT DEFAULT '{}',
+    workflow_metadata TEXT DEFAULT '{}',
     description TEXT,
     tags TEXT DEFAULT '[]',
     version INTEGER DEFAULT 1,
@@ -155,9 +160,24 @@ CREATE TABLE IF NOT EXISTS exports (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS project_entries (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    workflow_id TEXT REFERENCES workflows(id) ON DELETE SET NULL,
+    metadata TEXT DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, path)
+);
+
 CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
 CREATE INDEX IF NOT EXISTS idx_workflow_versions_workflow_id ON workflow_versions(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_project_entries_project_id ON project_entries(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_entries_kind ON project_entries(project_id, kind);
+CREATE INDEX IF NOT EXISTS idx_project_entries_workflow_id ON project_entries(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id ON execution_logs(execution_id);
 CREATE INDEX IF NOT EXISTS idx_screenshots_execution_id ON screenshots(execution_id);

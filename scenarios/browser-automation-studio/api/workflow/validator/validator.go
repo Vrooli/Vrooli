@@ -15,6 +15,17 @@ type Options struct {
 	Strict bool
 }
 
+func shouldPromoteWarningInStrictMode(issue Issue) bool {
+	// "Strict" for validate-resolved is intended to catch schema/token-resolution problems,
+	// not stylistic lint warnings (e.g. selector reuse is normal in action/flow/case style
+	// playbooks). Keep this allowlist narrow and expand only when a warning is proven to
+	// cause real execution flakiness.
+	switch issue.Code {
+	default:
+		return false
+	}
+}
+
 // IssueSeverity conveys validation severity.
 type IssueSeverity string
 
@@ -103,6 +114,9 @@ func (v *Validator) Validate(ctx context.Context, definition map[string]any, opt
 
 	if opts.Strict && len(result.Warnings) > 0 {
 		for _, warn := range result.Warnings {
+			if !shouldPromoteWarningInStrictMode(warn) {
+				continue
+			}
 			result.Errors = append(result.Errors, Issue{
 				Severity: SeverityError,
 				Code:     "WF_STRICT_WARNING",

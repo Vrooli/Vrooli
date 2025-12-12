@@ -1,0 +1,122 @@
+{
+  "metadata": {
+    "description": "Opens the dashboard and verifies that the New Project modal becomes visible.",
+    "version": 1,
+    "reset": "none"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 45000
+      }
+    },
+    {
+      "id": "dismiss-tutorial",
+      "type": "subflow",
+      "data": {
+        "label": "Dismiss onboarding tutorial if present",
+        "workflowId": "@fixture/dismiss-tutorial"
+      }
+    },
+    {
+      "id": "click-projects-tab",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Projects tab",
+        "selector": "@selector/dashboard.tabs.projects",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-for-projects",
+      "type": "wait",
+      "data": {
+        "label": "Wait for new project button",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000,
+        "waitForMs": 600,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-new-project",
+      "type": "click",
+      "data": {
+        "label": "Click New Project button",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000,
+        "waitForSelector": "@selector/dashboard.newProjectButton"
+      }
+    },
+    {
+      "id": "assert-modal-visible",
+      "type": "assert",
+      "data": {
+        "label": "Project modal appears",
+        "selector": "@selector/dialogs.project.root",
+        "assertMode": "exists",
+        "timeoutMs": 12000,
+        "failureMessage": "Project modal should be visible after clicking the New Project button"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-nav-wait",
+      "source": "navigate-dashboard",
+      "target": "dismiss-tutorial",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-dismiss-projects-tab",
+      "source": "dismiss-tutorial",
+      "target": "click-projects-tab",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-projects-tab-wait",
+      "source": "click-projects-tab",
+      "target": "wait-for-projects",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-click-assert",
+      "source": "click-new-project",
+      "target": "assert-modal-visible",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-wait-capture-bridge-edge-capture-click",
+      "source": "wait-for-projects",
+      "target": "click-new-project",
+      "type": "smoothstep"
+    }
+  ]
+}

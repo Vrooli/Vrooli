@@ -1,0 +1,210 @@
+{
+  "metadata": {
+    "description": "Creates a new project and verifies navigation to project detail page",
+    "version": 1,
+  "reset": "full"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle",
+        "timeoutMs": 45000,
+        "waitForMs": 1200
+      }
+    },
+    {
+      "id": "dismiss-tutorial",
+      "type": "subflow",
+      "data": {
+        "label": "Dismiss onboarding tutorial if present",
+        "workflowId": "@fixture/dismiss-tutorial"
+      }
+    },
+    {
+      "id": "click-projects-tab",
+      "type": "click",
+      "data": {
+        "label": "Navigate to Projects tab",
+        "selector": "@selector/dashboard.tabs.projects",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-new-project",
+      "type": "click",
+      "data": {
+        "label": "Open new project modal",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000,
+        "resilience": {
+          "successSelector": "@selector/dialogs.project.root",
+          "successTimeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "assert-modal-visible",
+      "type": "assert",
+      "data": {
+        "label": "Project modal visible",
+        "selector": "@selector/dialogs.project.root",
+        "assertMode": "exists",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "generate-project-name",
+      "type": "evaluate",
+      "data": {
+        "label": "Generate unique project name",
+        "expression": "`Test Project ${Date.now()}`",
+        "storeResult": "projectName"
+      }
+    },
+    {
+      "id": "fill-project-name",
+      "type": "type",
+      "data": {
+        "label": "Enter project name",
+        "selector": "@selector/dialogs.project.nameInput",
+        "text": "@store/projectName",
+        "clearFirst": true,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "fill-project-description",
+      "type": "type",
+      "data": {
+        "label": "Enter project description",
+        "selector": "@selector/dialogs.project.descriptionInput",
+        "text": "Automated test project created by workflow validation",
+        "clearFirst": true,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "click-create",
+      "type": "click",
+      "data": {
+        "label": "Click Create button",
+        "selector": "@selector/dialogs.project.submitButton",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-for-navigation",
+      "type": "wait",
+      "data": {
+        "label": "Wait for navigation and page render",
+        "waitType": "duration",
+        "durationMs": 2000
+      }
+    },
+    {
+      "id": "assert-workflows-tab-visible",
+      "type": "assert",
+      "data": {
+        "label": "Workflows tab is visible",
+        "selector": "@selector/workflows.tab",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Workflows tab should be visible on project detail page"
+      }
+    },
+    {
+      "id": "assert-new-workflow-button-visible",
+      "type": "assert",
+      "data": {
+        "label": "New workflow button is visible",
+        "selector": "@selector/workflows.newButton",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "New workflow button should be visible on workflows tab"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "navigate-dashboard",
+      "target": "dismiss-tutorial",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e1",
+      "source": "dismiss-tutorial",
+      "target": "click-projects-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-projects-tab",
+      "target": "click-new-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-new-project",
+      "target": "assert-modal-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "assert-modal-visible",
+      "target": "generate-project-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "generate-project-name",
+      "target": "fill-project-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "fill-project-name",
+      "target": "fill-project-description",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "fill-project-description",
+      "target": "click-create",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-create",
+      "target": "wait-for-navigation",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8b",
+      "source": "wait-for-navigation",
+      "target": "assert-workflows-tab-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-workflows-tab-visible",
+      "target": "assert-new-workflow-button-visible",
+      "type": "smoothstep"
+    }
+  ]
+}

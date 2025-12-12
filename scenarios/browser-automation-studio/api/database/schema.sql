@@ -29,7 +29,12 @@ CREATE TABLE IF NOT EXISTS workflows (
     project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     folder_path VARCHAR(500) NOT NULL,
+    workflow_type VARCHAR(20) NOT NULL DEFAULT 'flow',
     flow_definition JSONB DEFAULT '{}',
+    inputs JSONB DEFAULT '{}',
+    outputs JSONB DEFAULT '{}',
+    expected_outcome JSONB DEFAULT '{}',
+    workflow_metadata JSONB DEFAULT '{}',
     description TEXT,
     tags TEXT[] DEFAULT '{}',
     version INTEGER DEFAULT 1,
@@ -43,6 +48,32 @@ CREATE TABLE IF NOT EXISTS workflows (
 );
 
 -- Ensure newer workflow metadata columns exist for legacy databases
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS workflow_type VARCHAR(20) DEFAULT 'flow';
+ALTER TABLE workflows
+    ALTER COLUMN workflow_type SET DEFAULT 'flow';
+UPDATE workflows SET workflow_type = 'flow' WHERE workflow_type IS NULL OR workflow_type = '';
+
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS inputs JSONB DEFAULT '{}';
+ALTER TABLE workflows
+    ALTER COLUMN inputs SET DEFAULT '{}';
+
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS outputs JSONB DEFAULT '{}';
+ALTER TABLE workflows
+    ALTER COLUMN outputs SET DEFAULT '{}';
+
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS expected_outcome JSONB DEFAULT '{}';
+ALTER TABLE workflows
+    ALTER COLUMN expected_outcome SET DEFAULT '{}';
+
+ALTER TABLE workflows
+    ADD COLUMN IF NOT EXISTS workflow_metadata JSONB DEFAULT '{}';
+ALTER TABLE workflows
+    ALTER COLUMN workflow_metadata SET DEFAULT '{}';
+
 ALTER TABLE workflows
     ADD COLUMN IF NOT EXISTS last_change_source VARCHAR(255) DEFAULT 'manual';
 ALTER TABLE workflows
@@ -233,9 +264,26 @@ CREATE TABLE IF NOT EXISTS exports (
     CONSTRAINT chk_export_status CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
 );
 
+-- Project file tree index (hybrid DB+disk)
+CREATE TABLE IF NOT EXISTS project_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    path VARCHAR(1000) NOT NULL,
+    kind VARCHAR(50) NOT NULL,
+    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, path),
+    CONSTRAINT chk_project_entries_kind CHECK (kind IN ('folder', 'workflow_file', 'asset_file'))
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
+CREATE INDEX IF NOT EXISTS idx_project_entries_project_id ON project_entries(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_entries_kind ON project_entries(project_id, kind);
+CREATE INDEX IF NOT EXISTS idx_project_entries_workflow_id ON project_entries(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
 CREATE INDEX IF NOT EXISTS idx_executions_last_heartbeat ON executions(last_heartbeat);
@@ -284,3 +332,6 @@ CREATE TRIGGER update_execution_artifacts_updated_at BEFORE UPDATE ON execution_
 
 DROP TRIGGER IF EXISTS update_exports_updated_at ON exports;
 CREATE TRIGGER update_exports_updated_at BEFORE UPDATE ON exports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_project_entries_updated_at ON project_entries;
+CREATE TRIGGER update_project_entries_updated_at BEFORE UPDATE ON project_entries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

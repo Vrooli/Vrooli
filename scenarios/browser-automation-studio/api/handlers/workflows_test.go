@@ -479,6 +479,38 @@ func TestExecuteWorkflow(t *testing.T) {
 		}
 	})
 
+	t.Run("case expectation missing returns 400", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{
+			executeWorkflowFn: func(ctx context.Context, wfID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+				return nil, workflow.ErrWorkflowCaseExpectationMissing
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"wait_for_completion": false}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/"+workflowID.String()+"/execute", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+		handler.ExecuteWorkflow(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected status 400, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var payload map[string]any
+		if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+		if payload["code"] != "CASE_EXPECTATION_MISSING" {
+			t.Fatalf("expected code CASE_EXPECTATION_MISSING, got %v", payload["code"])
+		}
+	})
+
 	t.Run("wait_for_completion returns terminal status", func(t *testing.T) {
 		workflowID := uuid.New()
 		executionID := uuid.New()
