@@ -12,32 +12,32 @@ import (
 // TidinessScoreResponse is the response format expected by ecosystem-manager
 // See: scenarios/ecosystem-manager/api/pkg/autosteer/metrics_refactor.go:48-83
 type TidinessScoreResponse struct {
-	Scenario   string                 `json:"scenario"`
-	Score      float64                `json:"score"`
-	Violations int                    `json:"violations"`
-	LastScan   *time.Time             `json:"last_scan,omitempty"`
-	Breakdown  *TidinessBreakdown     `json:"breakdown,omitempty"`
+	Scenario   string                  `json:"scenario"`
+	Score      float64                 `json:"score"`
+	Violations int                     `json:"violations"`
+	LastScan   *time.Time              `json:"last_scan,omitempty"`
+	Breakdown  *TidinessBreakdown      `json:"breakdown,omitempty"`
 	Metrics    *TidinessMetricsSummary `json:"metrics,omitempty"`
 }
 
 // TidinessBreakdown provides detailed issue counts by category
 type TidinessBreakdown struct {
-	LintIssues       int `json:"lint_issues"`
-	TypeIssues       int `json:"type_issues"`
-	LongFiles        int `json:"long_files"`
-	ComplexFunctions int `json:"complex_functions"`
-	TechDebtMarkers  int `json:"tech_debt_markers"`
+	LintIssues        int `json:"lint_issues"`
+	TypeIssues        int `json:"type_issues"`
+	LongFiles         int `json:"long_files"`
+	ComplexFunctions  int `json:"complex_functions"`
+	TechDebtMarkers   int `json:"tech_debt_markers"`
 	DuplicationIssues int `json:"duplication_issues"`
 }
 
 // TidinessMetricsSummary provides aggregate code metrics
 type TidinessMetricsSummary struct {
-	TotalFiles       int     `json:"total_files"`
-	TotalLines       int     `json:"total_lines"`
-	AvgFileLength    float64 `json:"avg_file_length"`
-	MaxComplexity    int     `json:"max_complexity"`
-	AvgComplexity    float64 `json:"avg_complexity"`
-	DuplicationPct   float64 `json:"duplication_pct"`
+	TotalFiles     int     `json:"total_files"`
+	TotalLines     int     `json:"total_lines"`
+	AvgFileLength  float64 `json:"avg_file_length"`
+	MaxComplexity  int     `json:"max_complexity"`
+	AvgComplexity  float64 `json:"avg_complexity"`
+	DuplicationPct float64 `json:"duplication_pct"`
 }
 
 // TidinessScoreCalculator computes tidiness scores from database metrics
@@ -53,30 +53,30 @@ func NewTidinessScoreCalculator(db *sql.DB) *TidinessScoreCalculator {
 // ScoreWeights defines the penalty weights for each issue type
 // These are tuned to produce a 0-100 scale where 100 is perfectly clean
 var ScoreWeights = struct {
-	LintIssue        float64
-	TypeError        float64
-	LongFile         float64
-	HighComplexity   float64
-	TechDebtMarker   float64
-	MissingTests     float64
-	LowCommentRatio  float64
-	DuplicationPct   float64
+	LintIssue       float64
+	TypeError       float64
+	LongFile        float64
+	HighComplexity  float64
+	TechDebtMarker  float64
+	MissingTests    float64
+	LowCommentRatio float64
+	DuplicationPct  float64
 }{
-	LintIssue:        1.0,  // -1 per lint issue
-	TypeError:        2.0,  // -2 per type error (more severe)
-	LongFile:         3.0,  // -3 per file > threshold
-	HighComplexity:   2.0,  // -2 per function with complexity > 10
-	TechDebtMarker:   0.5,  // -0.5 per TODO/FIXME/HACK
-	MissingTests:     1.0,  // -1 per file without tests
-	LowCommentRatio:  0.5,  // -0.5 per file with < 5% comments
-	DuplicationPct:   0.5,  // -0.5 per 1% duplication
+	LintIssue:       1.0, // -1 per lint issue
+	TypeError:       2.0, // -2 per type error (more severe)
+	LongFile:        3.0, // -3 per file > threshold
+	HighComplexity:  2.0, // -2 per function with complexity > 10
+	TechDebtMarker:  0.5, // -0.5 per TODO/FIXME/HACK
+	MissingTests:    1.0, // -1 per file without tests
+	LowCommentRatio: 0.5, // -0.5 per file with < 5% comments
+	DuplicationPct:  0.5, // -0.5 per 1% duplication
 }
 
 // Thresholds for determining issues
 var Thresholds = struct {
-	LongFileLines     int
-	HighComplexity    int
-	LowCommentRatio   float64
+	LongFileLines   int
+	HighComplexity  int
+	LowCommentRatio float64
 }{
 	LongFileLines:   400,  // Files over 400 lines are flagged
 	HighComplexity:  10,   // Functions with complexity > 10 are flagged
@@ -109,11 +109,11 @@ func (c *TidinessScoreCalculator) Calculate(ctx context.Context, scenario string
 
 	// Build breakdown
 	breakdown := &TidinessBreakdown{
-		LintIssues:       issueCounts.Lint,
-		TypeIssues:       issueCounts.Type,
-		LongFiles:        fileMetrics.LongFileCount,
-		ComplexFunctions: fileMetrics.HighComplexityCount,
-		TechDebtMarkers:  fileMetrics.TechDebtMarkers,
+		LintIssues:        issueCounts.Lint,
+		TypeIssues:        issueCounts.Type,
+		LongFiles:         fileMetrics.LongFileCount,
+		ComplexFunctions:  fileMetrics.HighComplexityCount,
+		TechDebtMarkers:   fileMetrics.TechDebtMarkers,
 		DuplicationIssues: 0, // Derived from duplication_pct if available
 	}
 

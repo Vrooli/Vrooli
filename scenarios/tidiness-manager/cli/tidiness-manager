@@ -268,6 +268,10 @@ cmd_issues() {
                 limit="$2"
                 shift 2
                 ;;
+            --severity)
+                severity="$2"
+                shift 2
+                ;;
             --*)
                 echo -e "${YELLOW}⚠${NC} Unknown option: $1" >&2
                 shift
@@ -321,7 +325,37 @@ cmd_issues() {
 
 cmd_campaigns() {
     local subcommand="${1:-list}"
-    local scenario="${2:-}"
+    shift || true
+
+    local scenario=""
+    local max_sessions="10"
+    local max_files_per_session="5"
+    local campaign_id=""
+
+    # Parse remaining arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --max-sessions)
+                max_sessions="$2"
+                shift 2
+                ;;
+            --max-files|--max-files-per-session)
+                max_files_per_session="$2"
+                shift 2
+                ;;
+            --id)
+                campaign_id="$2"
+                shift 2
+                ;;
+            *)
+                # First positional arg is scenario name
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
 
     echo -e "${BLUE}Managing campaigns...${NC}"
 
@@ -334,31 +368,90 @@ cmd_campaigns() {
             fi
 
             echo -e "${GREEN}✓${NC} Campaigns retrieved"
-            echo "$response" | jq -r '
-                if type == "array" then
-                    "Total campaigns: \(length)",
-                    "",
-                    (if length > 0 then .[] | "  • \(.name) [\(.status)]: \(.scenario)" else "  No campaigns found" end)
-                else
-                    .
-                end
-            ' 2>/dev/null || echo "$response"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
             ;;
-        start|pause|stop)
+        start)
             if [[ -z "$scenario" ]]; then
-                echo -e "${RED}✗${NC} Scenario name required for $subcommand"
+                echo -e "${RED}✗${NC} Scenario name required for start"
+                echo "Usage: tidiness-manager campaigns start <scenario> [--max-sessions N] [--max-files N]"
                 return 1
             fi
 
+            # POST /campaigns with scenario, max_sessions, max_files_per_session
             local request_body
-            request_body=$(jq -n --arg scenario "$scenario" --arg action "$subcommand" \
-                '{scenario: $scenario, action: $action}')
+            request_body=$(jq -cn \
+                --arg scenario "$scenario" \
+                --argjson max_sessions "$max_sessions" \
+                --argjson max_files_per_session "$max_files_per_session" \
+                '{scenario: $scenario, max_sessions: $max_sessions, max_files_per_session: $max_files_per_session}')
 
             response=$(curl -s -X POST \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer ${API_TOKEN:-}" \
                 -d "$request_body" \
                 "${API_BASE}/campaigns" || true)
+
+            if [[ -z "$response" ]]; then
+                echo -e "${RED}✗${NC} API request failed"
+                return 1
+            fi
+
+            error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+            if [[ -n "$error" ]]; then
+                echo -e "${RED}✗${NC} Failed to start campaign: $error"
+                return 1
+            fi
+
+            echo -e "${GREEN}✓${NC} Campaign started successfully"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        pause|stop|resume)
+            # For pause/stop/resume, we need a campaign ID
+            # Try to find campaign by scenario if no ID provided
+            if [[ -z "$campaign_id" && -n "$scenario" ]]; then
+                # Look up campaign ID by scenario name using temp file (avoids pipe buffering issues)
+                local tmpfile
+                tmpfile=$(mktemp)
+                curl -s "${API_BASE}/campaigns" > "$tmpfile" 2>/dev/null
+
+                # Find campaign for this scenario (paused for resume, active for others)
+                if [[ "$subcommand" == "resume" ]]; then
+                    campaign_id=$(jq -r --arg scenario "$scenario" \
+                        '[.campaigns[]? | select(.scenario == $scenario and .status == "paused")] | first | .id // empty' "$tmpfile" 2>/dev/null)
+                else
+                    campaign_id=$(jq -r --arg scenario "$scenario" \
+                        '[.campaigns[]? | select(.scenario == $scenario and .status == "active")] | first | .id // empty' "$tmpfile" 2>/dev/null)
+                fi
+                rm -f "$tmpfile"
+
+                if [[ -z "$campaign_id" ]]; then
+                    echo -e "${RED}✗${NC} No suitable campaign found for scenario: $scenario"
+                    echo "Use 'tidiness-manager campaigns list' to see available campaigns"
+                    return 1
+                fi
+            fi
+
+            if [[ -z "$campaign_id" ]]; then
+                echo -e "${RED}✗${NC} Campaign ID or scenario name required for $subcommand"
+                echo "Usage: tidiness-manager campaigns $subcommand <scenario> [--id <campaign-id>]"
+                return 1
+            fi
+
+            # Map 'stop' to 'terminate' for API compatibility
+            local action="$subcommand"
+            if [[ "$subcommand" == "stop" ]]; then
+                action="terminate"
+            fi
+
+            # POST /campaigns/{id}/action with action
+            local request_body
+            request_body=$(jq -cn --arg action "$action" '{action: $action}')
+
+            response=$(curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer ${API_TOKEN:-}" \
+                -d "$request_body" \
+                "${API_BASE}/campaigns/${campaign_id}/action" || true)
 
             if [[ -z "$response" ]]; then
                 echo -e "${RED}✗${NC} API request failed"
@@ -376,7 +469,7 @@ cmd_campaigns() {
             ;;
         *)
             echo -e "${RED}✗${NC} Unknown campaign subcommand: $subcommand"
-            echo "Valid subcommands: list, start, pause, stop"
+            echo "Valid subcommands: list, start, pause, resume, stop"
             return 1
             ;;
     esac
@@ -564,6 +657,7 @@ cmd_visit() {
 
 cmd_exclude() {
     # Wrapper for visited-tracker exclude command with refactor tag
+    # Auto-tracks file first if not already tracked (better UX)
     if ! command -v visited-tracker >/dev/null 2>&1; then
         echo -e "${RED}✗${NC} visited-tracker CLI not found" >&2
         echo "Install visited-tracker scenario first" >&2
@@ -613,14 +707,21 @@ cmd_exclude() {
         echo -e "${YELLOW}⚠${NC} Warning: Scenario directory not found at $location" >&2
     fi
 
-    # Build visited-tracker command with absolute location path
-    local vt_cmd="visited-tracker exclude \"$file_path\" --location \"$location\" --tag refactor"
+    echo -e "${BLUE}Excluding $file_path from future recommendations...${NC}" >&2
+
+    # First, visit the file to ensure it's tracked (exclude only works on tracked files)
+    # Use the reason as the note for the visit
+    local visit_note="Excluded: ${reason:-No reason provided}"
+    local visit_cmd="visited-tracker visit \"$file_path\" --location \"$location\" --tag refactor --note \"$visit_note\""
+    eval "$visit_cmd" >/dev/null 2>&1
+
+    # Now exclude the file
+    local exclude_cmd="visited-tracker exclude \"$file_path\" --location \"$location\" --tag refactor"
     if [[ -n "$reason" ]]; then
-        vt_cmd="$vt_cmd --reason \"$reason\""
+        exclude_cmd="$exclude_cmd --reason \"$reason\""
     fi
 
-    echo -e "${BLUE}Excluding $file_path from future recommendations...${NC}" >&2
-    eval "$vt_cmd"
+    eval "$exclude_cmd"
 }
 
 cmd_campaign_note() {
@@ -751,15 +852,26 @@ COMMANDS
           tidiness-manager issues browser-automation-studio --category lint --limit 20
           tidiness-manager issues --category ai --severity error
 
-    campaigns [list|start|pause|stop] [SCENARIO]
+    campaigns [list|start|pause|resume|stop] [SCENARIO] [OPTIONS]
         Manage auto-tidiness campaigns for systematic scanning
         • list: Show all campaigns with status
         • start: Begin AI-powered campaign for scenario
         • pause: Temporarily halt campaign
+        • resume: Resume a paused campaign
         • stop: Terminate campaign
+
+        Start Options:
+          --max-sessions N     Maximum sessions to run (default: 10)
+          --max-files N        Files per session (default: 5)
+
+        Pause/Resume/Stop Options:
+          --id ID              Campaign ID (auto-detected from scenario if not provided)
+
         Example:
           tidiness-manager campaigns list
-          tidiness-manager campaigns start my-scenario --max-sessions 10
+          tidiness-manager campaigns start my-scenario --max-sessions 10 --max-files 5
+          tidiness-manager campaigns pause my-scenario
+          tidiness-manager campaigns stop my-scenario
 
     configure [KEY] [VALUE]
         View or update CLI configuration

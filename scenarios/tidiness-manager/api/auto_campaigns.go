@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -60,11 +61,36 @@ type AutoCampaign struct {
 	FilesVisited             int            `json:"files_visited"`
 	FilesTotal               int            `json:"files_total"`
 	ErrorCount               int            `json:"error_count"`
-	ErrorReason              sql.NullString `json:"error_reason,omitempty"`
-	VisitedTrackerCampaignID sql.NullInt64  `json:"visited_tracker_campaign_id,omitempty"`
+	ErrorReason              sql.NullString `json:"-"` // Use custom marshaling
+	VisitedTrackerCampaignID sql.NullInt64  `json:"-"` // Use custom marshaling
 	CreatedAt                time.Time      `json:"created_at"`
 	UpdatedAt                time.Time      `json:"updated_at"`
 	CompletedAt              *time.Time     `json:"completed_at,omitempty"`
+}
+
+// MarshalJSON implements custom JSON serialization to produce clean null values
+// instead of {"String": "", "Valid": false} for nullable fields
+func (c AutoCampaign) MarshalJSON() ([]byte, error) {
+	type Alias AutoCampaign // prevent recursion
+
+	// Build the response with properly nulled fields
+	aux := struct {
+		Alias
+		ErrorReason              *string `json:"error_reason,omitempty"`
+		VisitedTrackerCampaignID *int64  `json:"visited_tracker_campaign_id,omitempty"`
+	}{
+		Alias: Alias(c),
+	}
+
+	if c.ErrorReason.Valid && c.ErrorReason.String != "" {
+		aux.ErrorReason = &c.ErrorReason.String
+	}
+
+	if c.VisitedTrackerCampaignID.Valid {
+		aux.VisitedTrackerCampaignID = &c.VisitedTrackerCampaignID.Int64
+	}
+
+	return json.Marshal(aux)
 }
 
 // CreateAutoCampaign creates a new auto-tidiness campaign [REQ:TM-AC-001]

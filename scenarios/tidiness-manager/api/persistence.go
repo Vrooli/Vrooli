@@ -323,3 +323,84 @@ func (ts *TidinessStore) FetchIssueCounts(ctx context.Context) (map[string]Issue
 
 	return issueCounts, nil
 }
+
+// StoreLintTypeIssues persists parsed lint/type issues from light scans.
+// It uses ON CONFLICT with the idx_issues_dedup partial unique index to avoid duplicates.
+func (ts *TidinessStore) StoreLintTypeIssues(ctx context.Context, scenario string, issues []Issue) (int, error) {
+	if len(issues) == 0 {
+		return 0, nil
+	}
+
+	// Use a transaction for batch insert
+	tx, err := ts.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Use ON CONFLICT with the partial unique index (idx_issues_dedup)
+	// The index uses COALESCE to handle NULL line/column numbers
+	query := `
+		INSERT INTO issues (
+			scenario, file_path, category, severity, title, description,
+			line_number, column_number, resource_used, status
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'open')
+		ON CONFLICT (scenario, file_path, category, COALESCE(line_number, 0), COALESCE(column_number, 0))
+		WHERE status = 'open'
+		DO UPDATE SET
+			severity = EXCLUDED.severity,
+			title = EXCLUDED.title,
+			description = EXCLUDED.description,
+			updated_at = CURRENT_TIMESTAMP
+	`
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return 0, fmt.Errorf("failed to prepare statement: %w", err)
+	}
+	defer stmt.Close()
+
+	inserted := 0
+	for _, issue := range issues {
+		// Build title from rule or message
+		title := issue.Message
+		if len(title) > 100 {
+			title = title[:97] + "..."
+		}
+
+		// Resource is the tool that produced the issue
+		resource := "make " + issue.Category // e.g., "make lint" or "make type"
+
+		// Convert 0 to nil for proper COALESCE handling
+		var lineNum, colNum *int
+		if issue.Line > 0 {
+			lineNum = &issue.Line
+		}
+		if issue.Column > 0 {
+			colNum = &issue.Column
+		}
+
+		_, err := stmt.ExecContext(ctx,
+			scenario,
+			issue.File,
+			issue.Category,
+			issue.Severity,
+			title,
+			issue.Message,
+			lineNum,
+			colNum,
+			resource,
+		)
+		if err != nil {
+			// Log but continue - don't fail entire batch on one issue
+			continue
+		}
+		inserted++
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return inserted, nil
+}

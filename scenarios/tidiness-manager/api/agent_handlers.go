@@ -35,6 +35,7 @@ type AgentIssuesRequest struct {
 	File     string
 	Folder   string
 	Category string
+	Severity string
 	Limit    int
 	Force    bool
 }
@@ -262,6 +263,7 @@ func parseAgentIssuesRequest(r *http.Request) ParsedRequest {
 			File:     q.Get("file"),
 			Folder:   q.Get("folder"),
 			Category: q.Get("category"),
+			Severity: q.Get("severity"),
 			Limit:    limit,
 			Force:    q.Get("force") == "true",
 		},
@@ -350,6 +352,10 @@ func buildIssuesQuery(req AgentIssuesRequest) string {
 		qb.addCondition("AND category = $"+strconv.Itoa(qb.paramCount()+1), req.Category)
 	}
 
+	if req.Severity != "" {
+		qb.addCondition("AND severity = $"+strconv.Itoa(qb.paramCount()+1), req.Severity)
+	}
+
 	// TM-API-004: Rank by severity, then criticality
 	ordering := `
 		ORDER BY
@@ -380,6 +386,10 @@ func buildIssuesArgs(req AgentIssuesRequest) []interface{} {
 
 	if req.Category != "" {
 		qb.args = append(qb.args, req.Category)
+	}
+
+	if req.Severity != "" {
+		qb.args = append(qb.args, req.Severity)
 	}
 
 	qb.args = append(qb.args, req.Limit)

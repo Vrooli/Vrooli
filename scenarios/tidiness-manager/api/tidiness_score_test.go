@@ -15,11 +15,11 @@ func TestComputeScore(t *testing.T) {
 	calculator := &TidinessScoreCalculator{}
 
 	tests := []struct {
-		name           string
-		issues         *issueCountsResult
-		metrics        *fileMetricsResult
-		expectedMin    float64
-		expectedMax    float64
+		name        string
+		issues      *issueCountsResult
+		metrics     *fileMetricsResult
+		expectedMin float64
+		expectedMax float64
 	}{
 		{
 			name:        "perfect score - no issues",

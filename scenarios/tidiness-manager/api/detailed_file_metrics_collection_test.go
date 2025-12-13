@@ -368,11 +368,11 @@ func TestCollectDetailedFileMetrics_MixedLanguages(t *testing.T) {
 // [REQ:TM-LS-005] Test CollectDetailedFileMetrics comment ratio calculation
 func TestCollectDetailedFileMetrics_CommentRatio(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		filename             string
-		code                 string
-		expectComments       bool
-		expectNonZeroRatio   bool
+		name               string
+		filename           string
+		code               string
+		expectComments     bool
+		expectNonZeroRatio bool
 	}{
 		{
 			name:     "WithComments",

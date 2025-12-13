@@ -42,15 +42,15 @@ func writeCodeFile(t *testing.T, tmpDir, filename, content string) {
 
 // codeMetricsLanguageTestCase defines test data for language-specific code metrics analysis
 type codeMetricsLanguageTestCase struct {
-	name             string
-	language         Language
-	filename         string
-	code             string
-	expectedTodo     int
-	expectedFixme    int
-	expectedHack     int
-	expectedImports  float64
-	minFunctions     float64
+	name            string
+	language        Language
+	filename        string
+	code            string
+	expectedTodo    int
+	expectedFixme   int
+	expectedHack    int
+	expectedImports float64
+	minFunctions    float64
 }
 
 func TestCodeMetricsAnalyzer_AnalyzeFiles_Languages(t *testing.T) {

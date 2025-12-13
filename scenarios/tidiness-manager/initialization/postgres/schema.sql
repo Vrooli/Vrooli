@@ -81,6 +81,12 @@ CREATE INDEX IF NOT EXISTS idx_issues_scenario ON issues(scenario);
 CREATE INDEX IF NOT EXISTS idx_issues_category ON issues(category);
 CREATE INDEX IF NOT EXISTS idx_issues_severity ON issues(severity);
 CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status);
+
+-- unique index for deduplication of lint/type issues (without created_at)
+-- This enables ON CONFLICT upserts for repeated scans
+CREATE UNIQUE INDEX IF NOT EXISTS idx_issues_dedup
+    ON issues(scenario, file_path, category, COALESCE(line_number, 0), COALESCE(column_number, 0))
+    WHERE status = 'open';
 CREATE INDEX IF NOT EXISTS idx_campaigns_scenario ON campaigns(scenario);
 CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
 CREATE INDEX IF NOT EXISTS idx_file_metrics_scenario ON file_metrics(scenario);

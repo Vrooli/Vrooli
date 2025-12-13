@@ -129,13 +129,14 @@ func (e *ScanError) Error() string {
 // ScanCoordinator encapsulates light and smart scan orchestration so HTTP handlers
 // only translate requests and responses.
 type ScanCoordinator struct {
-	db              *sql.DB
-	scenarios       *ScenarioLocator
-	logFn           func(string, map[string]interface{})
-	persistDetailed func(context.Context, string, []DetailedFileMetrics) error
-	persistBasic    func(context.Context, string, []FileMetric) error
-	storeIssue      func(context.Context, string, AIIssue, string, *int) error
-	recordHistory   func(context.Context, string, string, *SmartScanResult, *int) error
+	db                    *sql.DB
+	scenarios             *ScenarioLocator
+	logFn                 func(string, map[string]interface{})
+	persistDetailed       func(context.Context, string, []DetailedFileMetrics) error
+	persistBasic          func(context.Context, string, []FileMetric) error
+	persistLintTypeIssues func(context.Context, string, []Issue) (int, error)
+	storeIssue            func(context.Context, string, AIIssue, string, *int) error
+	recordHistory         func(context.Context, string, string, *SmartScanResult, *int) error
 }
 
 // NewScanCoordinator wires dependencies required for scan flows.
@@ -145,17 +146,19 @@ func NewScanCoordinator(
 	logFn func(string, map[string]interface{}),
 	persistDetailed func(context.Context, string, []DetailedFileMetrics) error,
 	persistBasic func(context.Context, string, []FileMetric) error,
+	persistLintTypeIssues func(context.Context, string, []Issue) (int, error),
 	storeIssue func(context.Context, string, AIIssue, string, *int) error,
 	recordHistory func(context.Context, string, string, *SmartScanResult, *int) error,
 ) *ScanCoordinator {
 	return &ScanCoordinator{
-		db:              db,
-		scenarios:       scenarios,
-		logFn:           logFn,
-		persistDetailed: persistDetailed,
-		persistBasic:    persistBasic,
-		storeIssue:      storeIssue,
-		recordHistory:   recordHistory,
+		db:                    db,
+		scenarios:             scenarios,
+		logFn:                 logFn,
+		persistDetailed:       persistDetailed,
+		persistBasic:          persistBasic,
+		persistLintTypeIssues: persistLintTypeIssues,
+		storeIssue:            storeIssue,
+		recordHistory:         recordHistory,
 	}
 }
 
@@ -211,6 +214,40 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 			Status:  http.StatusInternalServerError,
 			Message: "scan failed - check server logs for details",
 			Err:     err,
+		}
+	}
+
+	// Parse and persist lint/type issues (OT-P0-001, OT-P0-007, OT-P0-008)
+	if sc.persistLintTypeIssues != nil {
+		var allIssues []Issue
+
+		// Parse lint output if present
+		if result.LintOutput != nil && result.LintOutput.Stdout != "" {
+			lintIssues := ParseLintOutput(result.Scenario, "lint", result.LintOutput.Stdout)
+			allIssues = append(allIssues, lintIssues...)
+		}
+
+		// Parse type output if present
+		if result.TypeOutput != nil && result.TypeOutput.Stdout != "" {
+			typeIssues := ParseTypeOutput(result.Scenario, "type", result.TypeOutput.Stdout)
+			allIssues = append(allIssues, typeIssues...)
+		}
+
+		if len(allIssues) > 0 {
+			inserted, persistErr := sc.persistLintTypeIssues(ctx, result.Scenario, allIssues)
+			if persistErr != nil {
+				sc.log("failed to persist lint/type issues", map[string]interface{}{
+					"error":    persistErr.Error(),
+					"scenario": result.Scenario,
+					"count":    len(allIssues),
+				})
+			} else {
+				sc.log("persisted lint/type issues", map[string]interface{}{
+					"scenario": result.Scenario,
+					"inserted": inserted,
+					"total":    len(allIssues),
+				})
+			}
 		}
 	}
 
