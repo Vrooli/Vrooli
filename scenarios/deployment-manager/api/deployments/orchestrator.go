@@ -573,6 +573,22 @@ func populateAssetMetadata(manifest *bundles.Manifest, scenarioDir string) error
 	var firstErr error
 	for si := range manifest.Services {
 		svc := &manifest.Services[si]
+
+		// Ensure API services allow loopback origin in the bundled desktop.
+		if strings.Contains(strings.ToLower(svc.ID), "-api") {
+			if svc.Env == nil {
+				svc.Env = make(map[string]string)
+			}
+			if _, ok := svc.Env["CORS_ALLOWED_ORIGINS"]; !ok {
+				// Desktop bundle runs UI on localhost; allow loopback origins.
+				svc.Env["CORS_ALLOWED_ORIGINS"] = "*"
+			}
+			if _, ok := svc.Env["UI_PORT"]; !ok {
+				// Hint for default CORS resolver in API when wildcard is replaced later.
+				svc.Env["UI_PORT"] = "${ui.ui}"
+			}
+		}
+
 		for ai := range svc.Assets {
 			asset := &svc.Assets[ai]
 			if asset == nil || asset.Path == "" {

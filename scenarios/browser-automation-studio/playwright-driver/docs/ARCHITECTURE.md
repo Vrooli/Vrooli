@@ -416,7 +416,7 @@ logger.info('Instruction executed', {
 - `MAX_SESSIONS` - Max concurrent sessions (default: 10)
 - `LOG_LEVEL` - Logging level (default: info)
 
-See [CONFIGURATION.md](CONFIGURATION.md) for full reference.
+See [CONTROL-SURFACE.md](../CONTROL-SURFACE.md) for full reference.
 
 ---
 
@@ -512,7 +512,7 @@ See [CONFIGURATION.md](CONFIGURATION.md) for full reference.
 ## References
 
 - [API Documentation](API.md)
-- [Handler Guide](HANDLERS.md)
-- [Configuration Reference](CONFIGURATION.md)
-- [Deployment Guide](DEPLOYMENT.md)
-- [Go AutomationEngine Contract](../../engine/README.md)
+- [Extending the Driver](EXTENDING.md)
+- [Driver Assumptions](ASSUMPTIONS.md)
+- [Deployment Notes](../../docs/playwright-driver-v2-implementation.md)
+- [Go AutomationEngine Contract](../../docs/automation-engine-analysis.md)

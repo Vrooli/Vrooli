@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -286,6 +288,14 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 		return err
 	}
 
+	// Try to resolve API service port for proxying /api and /ws.
+	apiPort := s.resolveAPIPort()
+	var apiProxy *httputil.ReverseProxy
+	if apiPort > 0 {
+		target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", apiPort))
+		apiProxy = httputil.NewSingleHostReverseProxy(target)
+	}
+
 	logWriter, logPath, err := s.logWriter(svc)
 	if err != nil {
 		return err
@@ -299,6 +309,12 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	// SPA-friendly file server: serve files when they exist; otherwise fallback to index.html for SPA routes.
 	fileServer := http.FileServer(http.Dir(serveRoot))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Proxy API/WS to the backend service if available.
+		if apiProxy != nil && (strings.HasPrefix(r.URL.Path, "/api") || strings.HasPrefix(strings.ToLower(r.URL.Path), "/ws")) {
+			apiProxy.ServeHTTP(w, r)
+			return
+		}
+
 		path := filepath.Join(serveRoot, filepath.Clean(r.URL.Path))
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
 			fileServer.ServeHTTP(w, r)
@@ -348,6 +364,28 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	})
 
 	return nil
+}
+
+// resolveAPIPort attempts to find a service that exposes an "api" port and returns its allocated value.
+func (s *Supervisor) resolveAPIPort() int {
+	ports := s.portAllocator.Map()
+
+	// Prefer a service with ID containing "-api".
+	for svcID, entries := range ports {
+		if strings.Contains(strings.ToLower(svcID), "-api") {
+			if port, ok := entries["api"]; ok {
+				return port
+			}
+		}
+	}
+
+	// Otherwise, return the first service that exposes "api".
+	for _, entries := range ports {
+		if port, ok := entries["api"]; ok {
+			return port
+		}
+	}
+	return 0
 }
 
 // stopServices stops all services in reverse dependency order.

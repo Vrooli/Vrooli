@@ -28,3 +28,4 @@
 - Thin-client quickstart: `docs/QUICKSTART.md`
 - Choosing deployment/server types: `docs/deployment-modes.md`
 - Build/troubleshoot: `docs/build-and-packaging.md`, `docs/DEBUGGING_WINDOWS.md`, `docs/WINE_INSTALLATION.md`
+- Bundled runtime logging/runbook (AppImage): `docs/workflows/logging-bundled-desktop.md`

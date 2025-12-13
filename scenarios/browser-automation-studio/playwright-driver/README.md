@@ -52,7 +52,7 @@ LOG_LEVEL=info                        # debug | info | warn | error
 METRICS_ENABLED=true                  # Enable Prometheus metrics
 ```
 
-See [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) for full configuration reference.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#configuration) for the full configuration reference.
 
 ## API Endpoints
 
@@ -206,8 +206,7 @@ npm run lint
 
 - [Architecture](docs/ARCHITECTURE.md) - System design and components
 - [API Specification](docs/API.md) - HTTP API reference
-- [Production Checklist](PRODUCTION_CHECKLIST.md) - Deployment guide
-- [Completion Summary](COMPLETION_SUMMARY.md) - Implementation summary
+- [Control Surface](CONTROL-SURFACE.md) - Deployment inputs and endpoints
 
 ## Performance
 
