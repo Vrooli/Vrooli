@@ -10,7 +10,6 @@ import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -25,7 +24,6 @@ const (
 )
 
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
-// It mirrors the existing BAS timeline JSON contract.
 type ExecutionTimeline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique identifier for this execution (UUID).
@@ -141,8 +139,8 @@ type TimelineFrame struct {
 	StepIndex int32 `protobuf:"varint,1,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
 	// Node ID from the workflow definition.
 	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// Node type (navigate, click, assert, etc.).
-	StepType StepType `protobuf:"varint,3,opt,name=step_type,json=stepType,proto3,enum=browser_automation_studio.v1.StepType" json:"step_type,omitempty"`
+	// Action type (navigate, click, assert, etc.) - from unified.proto.
+	ActionType ActionType `protobuf:"varint,3,opt,name=action_type,json=actionType,proto3,enum=browser_automation_studio.v1.ActionType" json:"action_type,omitempty"`
 	// Step execution status.
 	Status StepStatus `protobuf:"varint,4,opt,name=status,proto3,enum=browser_automation_studio.v1.StepStatus" json:"status,omitempty"`
 	// Whether this step succeeded.
@@ -165,30 +163,26 @@ type TimelineFrame struct {
 	ConsoleLogCount int32 `protobuf:"varint,13,opt,name=console_log_count,json=consoleLogCount,proto3" json:"console_log_count,omitempty"`
 	// Number of network events captured for this step.
 	NetworkEventCount int32 `protobuf:"varint,14,opt,name=network_event_count,json=networkEventCount,proto3" json:"network_event_count,omitempty"`
-	// Preview of extracted data (shape depends on workflow).
-	ExtractedDataPreview *structpb.Value `protobuf:"bytes,15,opt,name=extracted_data_preview,json=extractedDataPreview,proto3" json:"extracted_data_preview,omitempty"`
-	// Typed preview of extracted data; prefer over the Value when available.
-	ExtractedDataPreviewTyped *v1.JsonValue `protobuf:"bytes,34,opt,name=extracted_data_preview_typed,json=extractedDataPreviewTyped,proto3" json:"extracted_data_preview_typed,omitempty"`
-	// Highlight overlays applied to the screenshot.
+	// Highlight overlays applied to the screenshot - from unified.proto.
 	HighlightRegions []*HighlightRegion `protobuf:"bytes,16,rep,name=highlight_regions,json=highlightRegions,proto3" json:"highlight_regions,omitempty"`
-	// Masked regions applied during capture.
+	// Masked regions applied during capture - from unified.proto.
 	MaskRegions []*MaskRegion `protobuf:"bytes,17,rep,name=mask_regions,json=maskRegions,proto3" json:"mask_regions,omitempty"`
 	// Focused element metadata for the step.
 	FocusedElement *ElementFocus `protobuf:"bytes,18,opt,name=focused_element,json=focusedElement,proto3" json:"focused_element,omitempty"`
-	// Bounding box for the primary element interacted with.
+	// Bounding box for the primary element interacted with - from unified.proto.
 	ElementBoundingBox *BoundingBox `protobuf:"bytes,19,opt,name=element_bounding_box,json=elementBoundingBox,proto3" json:"element_bounding_box,omitempty"`
-	// Actual click coordinates used.
+	// Actual click coordinates used - from unified.proto.
 	ClickPosition *Point `protobuf:"bytes,20,opt,name=click_position,json=clickPosition,proto3" json:"click_position,omitempty"`
-	// Cursor trail captured during the step.
+	// Cursor trail captured during the step - from unified.proto.
 	CursorTrail []*Point `protobuf:"bytes,21,rep,name=cursor_trail,json=cursorTrail,proto3" json:"cursor_trail,omitempty"`
 	// Applied zoom factor during capture.
 	ZoomFactor float64 `protobuf:"fixed64,22,opt,name=zoom_factor,json=zoomFactor,proto3" json:"zoom_factor,omitempty"`
-	// Screenshot captured during/after this step.
+	// Screenshot captured during/after this step - from unified.proto.
 	Screenshot *TimelineScreenshot `protobuf:"bytes,23,opt,name=screenshot,proto3" json:"screenshot,omitempty"`
 	// Related artifacts (console logs, network traces, etc.).
 	Artifacts []*TimelineArtifact `protobuf:"bytes,24,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
-	// Assertion outcome for assert steps.
-	Assertion *AssertionOutcome `protobuf:"bytes,25,opt,name=assertion,proto3" json:"assertion,omitempty"`
+	// Assertion result for assert steps - from unified.proto.
+	Assertion *AssertionResultProto `protobuf:"bytes,25,opt,name=assertion,proto3" json:"assertion,omitempty"`
 	// Current retry attempt number (0 for first attempt).
 	RetryAttempt int32 `protobuf:"varint,26,opt,name=retry_attempt,json=retryAttempt,proto3" json:"retry_attempt,omitempty"`
 	// Max retries configured for this step.
@@ -204,9 +198,11 @@ type TimelineFrame struct {
 	// Truncated DOM snapshot preview text.
 	DomSnapshotPreview string `protobuf:"bytes,32,opt,name=dom_snapshot_preview,json=domSnapshotPreview,proto3" json:"dom_snapshot_preview,omitempty"`
 	// Artifact reference for the stored DOM snapshot.
-	DomSnapshot   *TimelineArtifact `protobuf:"bytes,33,opt,name=dom_snapshot,json=domSnapshot,proto3" json:"dom_snapshot,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DomSnapshot *TimelineArtifact `protobuf:"bytes,33,opt,name=dom_snapshot,json=domSnapshot,proto3" json:"dom_snapshot,omitempty"`
+	// Typed preview of extracted data.
+	ExtractedDataPreview *v1.JsonValue `protobuf:"bytes,34,opt,name=extracted_data_preview,json=extractedDataPreview,proto3" json:"extracted_data_preview,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *TimelineFrame) Reset() {
@@ -253,11 +249,11 @@ func (x *TimelineFrame) GetNodeId() string {
 	return ""
 }
 
-func (x *TimelineFrame) GetStepType() StepType {
+func (x *TimelineFrame) GetActionType() ActionType {
 	if x != nil {
-		return x.StepType
+		return x.ActionType
 	}
-	return StepType_STEP_TYPE_UNSPECIFIED
+	return ActionType_ACTION_TYPE_UNSPECIFIED
 }
 
 func (x *TimelineFrame) GetStatus() StepStatus {
@@ -337,20 +333,6 @@ func (x *TimelineFrame) GetNetworkEventCount() int32 {
 	return 0
 }
 
-func (x *TimelineFrame) GetExtractedDataPreview() *structpb.Value {
-	if x != nil {
-		return x.ExtractedDataPreview
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetExtractedDataPreviewTyped() *v1.JsonValue {
-	if x != nil {
-		return x.ExtractedDataPreviewTyped
-	}
-	return nil
-}
-
 func (x *TimelineFrame) GetHighlightRegions() []*HighlightRegion {
 	if x != nil {
 		return x.HighlightRegions
@@ -414,7 +396,7 @@ func (x *TimelineFrame) GetArtifacts() []*TimelineArtifact {
 	return nil
 }
 
-func (x *TimelineFrame) GetAssertion() *AssertionOutcome {
+func (x *TimelineFrame) GetAssertion() *AssertionResultProto {
 	if x != nil {
 		return x.Assertion
 	}
@@ -477,104 +459,11 @@ func (x *TimelineFrame) GetDomSnapshot() *TimelineArtifact {
 	return nil
 }
 
-// TimelineScreenshot describes screenshot metadata associated with a frame.
-type TimelineScreenshot struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique artifact ID for the screenshot.
-	ArtifactId string `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
-	// URL to download the full screenshot.
-	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
-	// URL to download a thumbnail.
-	ThumbnailUrl string `protobuf:"bytes,3,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`
-	// Image width in pixels.
-	Width int32 `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
-	// Image height in pixels.
-	Height int32 `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
-	// Image MIME type (e.g., image/png).
-	ContentType string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	// Optional size in bytes for the screenshot.
-	SizeBytes     *int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TimelineScreenshot) Reset() {
-	*x = TimelineScreenshot{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TimelineScreenshot) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TimelineScreenshot) ProtoMessage() {}
-
-func (x *TimelineScreenshot) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[2]
+func (x *TimelineFrame) GetExtractedDataPreview() *v1.JsonValue {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.ExtractedDataPreview
 	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TimelineScreenshot.ProtoReflect.Descriptor instead.
-func (*TimelineScreenshot) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *TimelineScreenshot) GetArtifactId() string {
-	if x != nil {
-		return x.ArtifactId
-	}
-	return ""
-}
-
-func (x *TimelineScreenshot) GetUrl() string {
-	if x != nil {
-		return x.Url
-	}
-	return ""
-}
-
-func (x *TimelineScreenshot) GetThumbnailUrl() string {
-	if x != nil {
-		return x.ThumbnailUrl
-	}
-	return ""
-}
-
-func (x *TimelineScreenshot) GetWidth() int32 {
-	if x != nil {
-		return x.Width
-	}
-	return 0
-}
-
-func (x *TimelineScreenshot) GetHeight() int32 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
-func (x *TimelineScreenshot) GetContentType() string {
-	if x != nil {
-		return x.ContentType
-	}
-	return ""
-}
-
-func (x *TimelineScreenshot) GetSizeBytes() int64 {
-	if x != nil && x.SizeBytes != nil {
-		return *x.SizeBytes
-	}
-	return 0
+	return nil
 }
 
 // TimelineArtifact exposes related artifacts such as console or network logs.
@@ -597,18 +486,14 @@ type TimelineArtifact struct {
 	// Step index associated with this artifact, if any.
 	StepIndex *int32 `protobuf:"varint,8,opt,name=step_index,json=stepIndex,proto3,oneof" json:"step_index,omitempty"`
 	// Provider-specific payload describing the artifact.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	Payload map[string]*structpb.Value `protobuf:"bytes,9,rep,name=payload,proto3" json:"payload,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed payload describing the artifact; prefer over the Value map.
-	PayloadTyped  map[string]*v1.JsonValue `protobuf:"bytes,10,rep,name=payload_typed,json=payloadTyped,proto3" json:"payload_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Payload       map[string]*v1.JsonValue `protobuf:"bytes,10,rep,name=payload,proto3" json:"payload,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TimelineArtifact) Reset() {
 	*x = TimelineArtifact{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -620,7 +505,7 @@ func (x *TimelineArtifact) String() string {
 func (*TimelineArtifact) ProtoMessage() {}
 
 func (x *TimelineArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -633,7 +518,7 @@ func (x *TimelineArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineArtifact.ProtoReflect.Descriptor instead.
 func (*TimelineArtifact) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *TimelineArtifact) GetId() string {
@@ -692,17 +577,9 @@ func (x *TimelineArtifact) GetStepIndex() int32 {
 	return 0
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineArtifact) GetPayload() map[string]*structpb.Value {
+func (x *TimelineArtifact) GetPayload() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Payload
-	}
-	return nil
-}
-
-func (x *TimelineArtifact) GetPayloadTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.PayloadTyped
 	}
 	return nil
 }
@@ -726,7 +603,7 @@ type RetryHistoryEntry struct {
 
 func (x *RetryHistoryEntry) Reset() {
 	*x = RetryHistoryEntry{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -738,7 +615,7 @@ func (x *RetryHistoryEntry) String() string {
 func (*RetryHistoryEntry) ProtoMessage() {}
 
 func (x *RetryHistoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -751,7 +628,7 @@ func (x *RetryHistoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryHistoryEntry.ProtoReflect.Descriptor instead.
 func (*RetryHistoryEntry) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RetryHistoryEntry) GetAttempt() int32 {
@@ -789,149 +666,12 @@ func (x *RetryHistoryEntry) GetError() string {
 	return ""
 }
 
-// HighlightRegion describes an overlay applied to the screenshot for emphasis.
-type HighlightRegion struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// CSS selector for the region.
-	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
-	// Bounding box for the highlighted area.
-	BoundingBox *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
-	// Padding in pixels around the region.
-	Padding int32 `protobuf:"varint,3,opt,name=padding,proto3" json:"padding,omitempty"`
-	// Highlight color (CSS string).
-	Color         string `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HighlightRegion) Reset() {
-	*x = HighlightRegion{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HighlightRegion) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HighlightRegion) ProtoMessage() {}
-
-func (x *HighlightRegion) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HighlightRegion.ProtoReflect.Descriptor instead.
-func (*HighlightRegion) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *HighlightRegion) GetSelector() string {
-	if x != nil {
-		return x.Selector
-	}
-	return ""
-}
-
-func (x *HighlightRegion) GetBoundingBox() *BoundingBox {
-	if x != nil {
-		return x.BoundingBox
-	}
-	return nil
-}
-
-func (x *HighlightRegion) GetPadding() int32 {
-	if x != nil {
-		return x.Padding
-	}
-	return 0
-}
-
-func (x *HighlightRegion) GetColor() string {
-	if x != nil {
-		return x.Color
-	}
-	return ""
-}
-
-// MaskRegion describes areas that were dimmed or masked during capture.
-type MaskRegion struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// CSS selector for the region to mask.
-	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
-	// Bounding box for the masked area.
-	BoundingBox *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
-	// Mask opacity value (0-1).
-	Opacity       float64 `protobuf:"fixed64,3,opt,name=opacity,proto3" json:"opacity,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MaskRegion) Reset() {
-	*x = MaskRegion{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MaskRegion) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MaskRegion) ProtoMessage() {}
-
-func (x *MaskRegion) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MaskRegion.ProtoReflect.Descriptor instead.
-func (*MaskRegion) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *MaskRegion) GetSelector() string {
-	if x != nil {
-		return x.Selector
-	}
-	return ""
-}
-
-func (x *MaskRegion) GetBoundingBox() *BoundingBox {
-	if x != nil {
-		return x.BoundingBox
-	}
-	return nil
-}
-
-func (x *MaskRegion) GetOpacity() float64 {
-	if x != nil {
-		return x.Opacity
-	}
-	return 0
-}
-
 // ElementFocus captures focus metadata for screenshot framing.
 type ElementFocus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector of the focused element.
 	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
-	// Bounding box for the focused element.
+	// Bounding box for the focused element - from unified.proto.
 	BoundingBox   *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -939,7 +679,7 @@ type ElementFocus struct {
 
 func (x *ElementFocus) Reset() {
 	*x = ElementFocus{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +691,7 @@ func (x *ElementFocus) String() string {
 func (*ElementFocus) ProtoMessage() {}
 
 func (x *ElementFocus) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,7 +704,7 @@ func (x *ElementFocus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ElementFocus.ProtoReflect.Descriptor instead.
 func (*ElementFocus) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ElementFocus) GetSelector() string {
@@ -979,261 +719,6 @@ func (x *ElementFocus) GetBoundingBox() *BoundingBox {
 		return x.BoundingBox
 	}
 	return nil
-}
-
-// BoundingBox captures the position of an element within the viewport.
-type BoundingBox struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// X coordinate in viewport pixels.
-	X float64 `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
-	// Y coordinate in viewport pixels.
-	Y float64 `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
-	// Width in viewport pixels.
-	Width float64 `protobuf:"fixed64,3,opt,name=width,proto3" json:"width,omitempty"`
-	// Height in viewport pixels.
-	Height        float64 `protobuf:"fixed64,4,opt,name=height,proto3" json:"height,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BoundingBox) Reset() {
-	*x = BoundingBox{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BoundingBox) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BoundingBox) ProtoMessage() {}
-
-func (x *BoundingBox) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BoundingBox.ProtoReflect.Descriptor instead.
-func (*BoundingBox) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *BoundingBox) GetX() float64 {
-	if x != nil {
-		return x.X
-	}
-	return 0
-}
-
-func (x *BoundingBox) GetY() float64 {
-	if x != nil {
-		return x.Y
-	}
-	return 0
-}
-
-func (x *BoundingBox) GetWidth() float64 {
-	if x != nil {
-		return x.Width
-	}
-	return 0
-}
-
-func (x *BoundingBox) GetHeight() float64 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
-// Point represents a 2D coordinate used for pointer highlights.
-type Point struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// X coordinate in viewport pixels.
-	X float64 `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
-	// Y coordinate in viewport pixels.
-	Y             float64 `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Point) Reset() {
-	*x = Point{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Point) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Point) ProtoMessage() {}
-
-func (x *Point) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Point.ProtoReflect.Descriptor instead.
-func (*Point) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *Point) GetX() float64 {
-	if x != nil {
-		return x.X
-	}
-	return 0
-}
-
-func (x *Point) GetY() float64 {
-	if x != nil {
-		return x.Y
-	}
-	return 0
-}
-
-// AssertionOutcome captures the outcome of an assert step.
-type AssertionOutcome struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Assertion mode (exists, visible, text_equals, etc.).
-	Mode string `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
-	// CSS selector being asserted on.
-	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
-	// Expected value for the assertion.
-	Expected *structpb.Value `protobuf:"bytes,3,opt,name=expected,proto3" json:"expected,omitempty"`
-	// Actual value observed.
-	Actual *structpb.Value `protobuf:"bytes,4,opt,name=actual,proto3" json:"actual,omitempty"`
-	// Typed expected value; prefer over the Value field.
-	ExpectedTyped *v1.JsonValue `protobuf:"bytes,9,opt,name=expected_typed,json=expectedTyped,proto3" json:"expected_typed,omitempty"`
-	// Typed actual value; prefer over the Value field.
-	ActualTyped *v1.JsonValue `protobuf:"bytes,10,opt,name=actual_typed,json=actualTyped,proto3" json:"actual_typed,omitempty"`
-	// True if the assertion succeeded.
-	Success bool `protobuf:"varint,5,opt,name=success,proto3" json:"success,omitempty"`
-	// True if the assertion was negated.
-	Negated bool `protobuf:"varint,6,opt,name=negated,proto3" json:"negated,omitempty"`
-	// True if the assertion was case sensitive.
-	CaseSensitive bool `protobuf:"varint,7,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
-	// Optional custom message for the assertion.
-	Message       string `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AssertionOutcome) Reset() {
-	*x = AssertionOutcome{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AssertionOutcome) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AssertionOutcome) ProtoMessage() {}
-
-func (x *AssertionOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AssertionOutcome.ProtoReflect.Descriptor instead.
-func (*AssertionOutcome) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *AssertionOutcome) GetMode() string {
-	if x != nil {
-		return x.Mode
-	}
-	return ""
-}
-
-func (x *AssertionOutcome) GetSelector() string {
-	if x != nil {
-		return x.Selector
-	}
-	return ""
-}
-
-func (x *AssertionOutcome) GetExpected() *structpb.Value {
-	if x != nil {
-		return x.Expected
-	}
-	return nil
-}
-
-func (x *AssertionOutcome) GetActual() *structpb.Value {
-	if x != nil {
-		return x.Actual
-	}
-	return nil
-}
-
-func (x *AssertionOutcome) GetExpectedTyped() *v1.JsonValue {
-	if x != nil {
-		return x.ExpectedTyped
-	}
-	return nil
-}
-
-func (x *AssertionOutcome) GetActualTyped() *v1.JsonValue {
-	if x != nil {
-		return x.ActualTyped
-	}
-	return nil
-}
-
-func (x *AssertionOutcome) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *AssertionOutcome) GetNegated() bool {
-	if x != nil {
-		return x.Negated
-	}
-	return false
-}
-
-func (x *AssertionOutcome) GetCaseSensitive() bool {
-	if x != nil {
-		return x.CaseSensitive
-	}
-	return false
-}
-
-func (x *AssertionOutcome) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
 }
 
 // TimelineLog captures execution log output for replay consumers.
@@ -1255,7 +740,7 @@ type TimelineLog struct {
 
 func (x *TimelineLog) Reset() {
 	*x = TimelineLog{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1267,7 +752,7 @@ func (x *TimelineLog) String() string {
 func (*TimelineLog) ProtoMessage() {}
 
 func (x *TimelineLog) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1280,7 +765,7 @@ func (x *TimelineLog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineLog.ProtoReflect.Descriptor instead.
 func (*TimelineLog) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TimelineLog) GetId() string {
@@ -1322,7 +807,7 @@ var File_browser_automation_studio_v1_timeline_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\n" +
-	"+browser-automation-studio/v1/timeline.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\"\xb8\x03\n" +
+	"+browser-automation-studio/v1/timeline.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a*browser-automation-studio/v1/unified.proto\"\xb8\x03\n" +
 	"\x11ExecutionTimeline\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -1333,12 +818,13 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
 	"\fcompleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12C\n" +
 	"\x06frames\x18\a \x03(\v2+.browser_automation_studio.v1.TimelineFrameR\x06frames\x12=\n" +
-	"\x04logs\x18\b \x03(\v2).browser_automation_studio.v1.TimelineLogR\x04logs\"\xd7\x0f\n" +
+	"\x04logs\x18\b \x03(\v2).browser_automation_studio.v1.TimelineLogR\x04logs\"\x8e\x0f\n" +
 	"\rTimelineFrame\x12\x1d\n" +
 	"\n" +
 	"step_index\x18\x01 \x01(\x05R\tstepIndex\x12\x17\n" +
-	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12C\n" +
-	"\tstep_type\x18\x03 \x01(\x0e2&.browser_automation_studio.v1.StepTypeR\bstepType\x12@\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12I\n" +
+	"\vaction_type\x18\x03 \x01(\x0e2(.browser_automation_studio.v1.ActionTypeR\n" +
+	"actionType\x12@\n" +
 	"\x06status\x18\x04 \x01(\x0e2(.browser_automation_studio.v1.StepStatusR\x06status\x12\x18\n" +
 	"\asuccess\x18\x05 \x01(\bR\asuccess\x12\x1f\n" +
 	"\vduration_ms\x18\x06 \x01(\x05R\n" +
@@ -1352,9 +838,7 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\tfinal_url\x18\v \x01(\tR\bfinalUrl\x12\x19\n" +
 	"\x05error\x18\f \x01(\tH\x00R\x05error\x88\x01\x01\x12*\n" +
 	"\x11console_log_count\x18\r \x01(\x05R\x0fconsoleLogCount\x12.\n" +
-	"\x13network_event_count\x18\x0e \x01(\x05R\x11networkEventCount\x12L\n" +
-	"\x16extracted_data_preview\x18\x0f \x01(\v2\x16.google.protobuf.ValueR\x14extractedDataPreview\x12U\n" +
-	"\x1cextracted_data_preview_typed\x18\" \x01(\v2\x14.common.v1.JsonValueR\x19extractedDataPreviewTyped\x12Z\n" +
+	"\x13network_event_count\x18\x0e \x01(\x05R\x11networkEventCount\x12Z\n" +
 	"\x11highlight_regions\x18\x10 \x03(\v2-.browser_automation_studio.v1.HighlightRegionR\x10highlightRegions\x12K\n" +
 	"\fmask_regions\x18\x11 \x03(\v2(.browser_automation_studio.v1.MaskRegionR\vmaskRegions\x12S\n" +
 	"\x0ffocused_element\x18\x12 \x01(\v2*.browser_automation_studio.v1.ElementFocusR\x0efocusedElement\x12[\n" +
@@ -1366,8 +850,8 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\n" +
 	"screenshot\x18\x17 \x01(\v20.browser_automation_studio.v1.TimelineScreenshotR\n" +
 	"screenshot\x12L\n" +
-	"\tartifacts\x18\x18 \x03(\v2..browser_automation_studio.v1.TimelineArtifactR\tartifacts\x12L\n" +
-	"\tassertion\x18\x19 \x01(\v2..browser_automation_studio.v1.AssertionOutcomeR\tassertion\x12#\n" +
+	"\tartifacts\x18\x18 \x03(\v2..browser_automation_studio.v1.TimelineArtifactR\tartifacts\x12P\n" +
+	"\tassertion\x18\x19 \x01(\v22.browser_automation_studio.v1.AssertionResultProtoR\tassertion\x12#\n" +
 	"\rretry_attempt\x18\x1a \x01(\x05R\fretryAttempt\x12,\n" +
 	"\x12retry_max_attempts\x18\x1b \x01(\x05R\x10retryMaxAttempts\x12.\n" +
 	"\x10retry_configured\x18\x1c \x01(\bH\x01R\x0fretryConfigured\x88\x01\x01\x12$\n" +
@@ -1375,20 +859,10 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\x14retry_backoff_factor\x18\x1e \x01(\x01R\x12retryBackoffFactor\x12T\n" +
 	"\rretry_history\x18\x1f \x03(\v2/.browser_automation_studio.v1.RetryHistoryEntryR\fretryHistory\x120\n" +
 	"\x14dom_snapshot_preview\x18  \x01(\tR\x12domSnapshotPreview\x12Q\n" +
-	"\fdom_snapshot\x18! \x01(\v2..browser_automation_studio.v1.TimelineArtifactR\vdomSnapshotB\b\n" +
+	"\fdom_snapshot\x18! \x01(\v2..browser_automation_studio.v1.TimelineArtifactR\vdomSnapshot\x12J\n" +
+	"\x16extracted_data_preview\x18\" \x01(\v2\x14.common.v1.JsonValueR\x14extractedDataPreviewB\b\n" +
 	"\x06_errorB\x13\n" +
-	"\x11_retry_configured\"\xf0\x01\n" +
-	"\x12TimelineScreenshot\x12\x1f\n" +
-	"\vartifact_id\x18\x01 \x01(\tR\n" +
-	"artifactId\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url\x12#\n" +
-	"\rthumbnail_url\x18\x03 \x01(\tR\fthumbnailUrl\x12\x14\n" +
-	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x05 \x01(\x05R\x06height\x12!\n" +
-	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\"\n" +
-	"\n" +
-	"size_bytes\x18\a \x01(\x03H\x00R\tsizeBytes\x88\x01\x01B\r\n" +
-	"\v_size_bytes\"\xda\x05\n" +
+	"\x11_retry_configuredJ\x04\b\x0f\x10\x10\"\x9c\x04\n" +
 	"\x10TimelineArtifact\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.browser_automation_studio.v1.ArtifactTypeR\x04type\x12\x19\n" +
@@ -1400,60 +874,27 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\n" +
 	"size_bytes\x18\a \x01(\x03H\x02R\tsizeBytes\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"step_index\x18\b \x01(\x05H\x03R\tstepIndex\x88\x01\x01\x12Y\n" +
-	"\apayload\x18\t \x03(\v2;.browser_automation_studio.v1.TimelineArtifact.PayloadEntryB\x02\x18\x01R\apayload\x12e\n" +
-	"\rpayload_typed\x18\n" +
-	" \x03(\v2@.browser_automation_studio.v1.TimelineArtifact.PayloadTypedEntryR\fpayloadTyped\x1aR\n" +
+	"step_index\x18\b \x01(\x05H\x03R\tstepIndex\x88\x01\x01\x12U\n" +
+	"\apayload\x18\n" +
+	" \x03(\v2;.browser_automation_studio.v1.TimelineArtifact.PayloadEntryR\apayload\x1aP\n" +
 	"\fPayloadEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aU\n" +
-	"\x11PayloadTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\b\n" +
 	"\x06_labelB\x10\n" +
 	"\x0e_thumbnail_urlB\r\n" +
 	"\v_size_bytesB\r\n" +
-	"\v_step_index\"\xa8\x01\n" +
+	"\v_step_indexJ\x04\b\t\x10\n" +
+	"\"\xa8\x01\n" +
 	"\x11RetryHistoryEntry\x12\x18\n" +
 	"\aattempt\x18\x01 \x01(\x05R\aattempt\x12\x18\n" +
 	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x1f\n" +
 	"\vduration_ms\x18\x03 \x01(\x05R\n" +
 	"durationMs\x12(\n" +
 	"\x10call_duration_ms\x18\x04 \x01(\x05R\x0ecallDurationMs\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\xab\x01\n" +
-	"\x0fHighlightRegion\x12\x1a\n" +
-	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
-	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\x12\x18\n" +
-	"\apadding\x18\x03 \x01(\x05R\apadding\x12\x14\n" +
-	"\x05color\x18\x04 \x01(\tR\x05color\"\x90\x01\n" +
-	"\n" +
-	"MaskRegion\x12\x1a\n" +
-	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
-	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\x12\x18\n" +
-	"\aopacity\x18\x03 \x01(\x01R\aopacity\"x\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"x\n" +
 	"\fElementFocus\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
-	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\"W\n" +
-	"\vBoundingBox\x12\f\n" +
-	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\x12\x14\n" +
-	"\x05width\x18\x03 \x01(\x01R\x05width\x12\x16\n" +
-	"\x06height\x18\x04 \x01(\x01R\x06height\"#\n" +
-	"\x05Point\x12\f\n" +
-	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\"\x91\x03\n" +
-	"\x10AssertionOutcome\x12\x12\n" +
-	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bselector\x18\x02 \x01(\tR\bselector\x122\n" +
-	"\bexpected\x18\x03 \x01(\v2\x16.google.protobuf.ValueR\bexpected\x12.\n" +
-	"\x06actual\x18\x04 \x01(\v2\x16.google.protobuf.ValueR\x06actual\x12;\n" +
-	"\x0eexpected_typed\x18\t \x01(\v2\x14.common.v1.JsonValueR\rexpectedTyped\x127\n" +
-	"\factual_typed\x18\n" +
-	" \x01(\v2\x14.common.v1.JsonValueR\vactualTyped\x12\x18\n" +
-	"\asuccess\x18\x05 \x01(\bR\asuccess\x12\x18\n" +
-	"\anegated\x18\x06 \x01(\bR\anegated\x12%\n" +
-	"\x0ecase_sensitive\x18\a \x01(\bR\rcaseSensitive\x12\x18\n" +
-	"\amessage\x18\b \x01(\tR\amessage\"\xdf\x01\n" +
+	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\"\xdf\x01\n" +
 	"\vTimelineLog\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12<\n" +
 	"\x05level\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.LogLevelR\x05level\x12\x18\n" +
@@ -1475,73 +916,62 @@ func file_browser_automation_studio_v1_timeline_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_timeline_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_browser_automation_studio_v1_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_browser_automation_studio_v1_timeline_proto_goTypes = []any{
 	(*ExecutionTimeline)(nil),     // 0: browser_automation_studio.v1.ExecutionTimeline
 	(*TimelineFrame)(nil),         // 1: browser_automation_studio.v1.TimelineFrame
-	(*TimelineScreenshot)(nil),    // 2: browser_automation_studio.v1.TimelineScreenshot
-	(*TimelineArtifact)(nil),      // 3: browser_automation_studio.v1.TimelineArtifact
-	(*RetryHistoryEntry)(nil),     // 4: browser_automation_studio.v1.RetryHistoryEntry
-	(*HighlightRegion)(nil),       // 5: browser_automation_studio.v1.HighlightRegion
-	(*MaskRegion)(nil),            // 6: browser_automation_studio.v1.MaskRegion
-	(*ElementFocus)(nil),          // 7: browser_automation_studio.v1.ElementFocus
-	(*BoundingBox)(nil),           // 8: browser_automation_studio.v1.BoundingBox
-	(*Point)(nil),                 // 9: browser_automation_studio.v1.Point
-	(*AssertionOutcome)(nil),      // 10: browser_automation_studio.v1.AssertionOutcome
-	(*TimelineLog)(nil),           // 11: browser_automation_studio.v1.TimelineLog
-	nil,                           // 12: browser_automation_studio.v1.TimelineArtifact.PayloadEntry
-	nil,                           // 13: browser_automation_studio.v1.TimelineArtifact.PayloadTypedEntry
-	(ExecutionStatus)(0),          // 14: browser_automation_studio.v1.ExecutionStatus
-	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
-	(StepType)(0),                 // 16: browser_automation_studio.v1.StepType
-	(StepStatus)(0),               // 17: browser_automation_studio.v1.StepStatus
-	(*structpb.Value)(nil),        // 18: google.protobuf.Value
-	(*v1.JsonValue)(nil),          // 19: common.v1.JsonValue
-	(ArtifactType)(0),             // 20: browser_automation_studio.v1.ArtifactType
-	(LogLevel)(0),                 // 21: browser_automation_studio.v1.LogLevel
+	(*TimelineArtifact)(nil),      // 2: browser_automation_studio.v1.TimelineArtifact
+	(*RetryHistoryEntry)(nil),     // 3: browser_automation_studio.v1.RetryHistoryEntry
+	(*ElementFocus)(nil),          // 4: browser_automation_studio.v1.ElementFocus
+	(*TimelineLog)(nil),           // 5: browser_automation_studio.v1.TimelineLog
+	nil,                           // 6: browser_automation_studio.v1.TimelineArtifact.PayloadEntry
+	(ExecutionStatus)(0),          // 7: browser_automation_studio.v1.ExecutionStatus
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(ActionType)(0),               // 9: browser_automation_studio.v1.ActionType
+	(StepStatus)(0),               // 10: browser_automation_studio.v1.StepStatus
+	(*HighlightRegion)(nil),       // 11: browser_automation_studio.v1.HighlightRegion
+	(*MaskRegion)(nil),            // 12: browser_automation_studio.v1.MaskRegion
+	(*BoundingBox)(nil),           // 13: browser_automation_studio.v1.BoundingBox
+	(*Point)(nil),                 // 14: browser_automation_studio.v1.Point
+	(*TimelineScreenshot)(nil),    // 15: browser_automation_studio.v1.TimelineScreenshot
+	(*AssertionResultProto)(nil),  // 16: browser_automation_studio.v1.AssertionResultProto
+	(*v1.JsonValue)(nil),          // 17: common.v1.JsonValue
+	(ArtifactType)(0),             // 18: browser_automation_studio.v1.ArtifactType
+	(LogLevel)(0),                 // 19: browser_automation_studio.v1.LogLevel
 }
 var file_browser_automation_studio_v1_timeline_proto_depIdxs = []int32{
-	14, // 0: browser_automation_studio.v1.ExecutionTimeline.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	15, // 1: browser_automation_studio.v1.ExecutionTimeline.started_at:type_name -> google.protobuf.Timestamp
-	15, // 2: browser_automation_studio.v1.ExecutionTimeline.completed_at:type_name -> google.protobuf.Timestamp
+	7,  // 0: browser_automation_studio.v1.ExecutionTimeline.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	8,  // 1: browser_automation_studio.v1.ExecutionTimeline.started_at:type_name -> google.protobuf.Timestamp
+	8,  // 2: browser_automation_studio.v1.ExecutionTimeline.completed_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: browser_automation_studio.v1.ExecutionTimeline.frames:type_name -> browser_automation_studio.v1.TimelineFrame
-	11, // 4: browser_automation_studio.v1.ExecutionTimeline.logs:type_name -> browser_automation_studio.v1.TimelineLog
-	16, // 5: browser_automation_studio.v1.TimelineFrame.step_type:type_name -> browser_automation_studio.v1.StepType
-	17, // 6: browser_automation_studio.v1.TimelineFrame.status:type_name -> browser_automation_studio.v1.StepStatus
-	15, // 7: browser_automation_studio.v1.TimelineFrame.started_at:type_name -> google.protobuf.Timestamp
-	15, // 8: browser_automation_studio.v1.TimelineFrame.completed_at:type_name -> google.protobuf.Timestamp
-	18, // 9: browser_automation_studio.v1.TimelineFrame.extracted_data_preview:type_name -> google.protobuf.Value
-	19, // 10: browser_automation_studio.v1.TimelineFrame.extracted_data_preview_typed:type_name -> common.v1.JsonValue
-	5,  // 11: browser_automation_studio.v1.TimelineFrame.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
-	6,  // 12: browser_automation_studio.v1.TimelineFrame.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
-	7,  // 13: browser_automation_studio.v1.TimelineFrame.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
-	8,  // 14: browser_automation_studio.v1.TimelineFrame.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	9,  // 15: browser_automation_studio.v1.TimelineFrame.click_position:type_name -> browser_automation_studio.v1.Point
-	9,  // 16: browser_automation_studio.v1.TimelineFrame.cursor_trail:type_name -> browser_automation_studio.v1.Point
-	2,  // 17: browser_automation_studio.v1.TimelineFrame.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	3,  // 18: browser_automation_studio.v1.TimelineFrame.artifacts:type_name -> browser_automation_studio.v1.TimelineArtifact
-	10, // 19: browser_automation_studio.v1.TimelineFrame.assertion:type_name -> browser_automation_studio.v1.AssertionOutcome
-	4,  // 20: browser_automation_studio.v1.TimelineFrame.retry_history:type_name -> browser_automation_studio.v1.RetryHistoryEntry
-	3,  // 21: browser_automation_studio.v1.TimelineFrame.dom_snapshot:type_name -> browser_automation_studio.v1.TimelineArtifact
-	20, // 22: browser_automation_studio.v1.TimelineArtifact.type:type_name -> browser_automation_studio.v1.ArtifactType
-	12, // 23: browser_automation_studio.v1.TimelineArtifact.payload:type_name -> browser_automation_studio.v1.TimelineArtifact.PayloadEntry
-	13, // 24: browser_automation_studio.v1.TimelineArtifact.payload_typed:type_name -> browser_automation_studio.v1.TimelineArtifact.PayloadTypedEntry
-	8,  // 25: browser_automation_studio.v1.HighlightRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	8,  // 26: browser_automation_studio.v1.MaskRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	8,  // 27: browser_automation_studio.v1.ElementFocus.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	18, // 28: browser_automation_studio.v1.AssertionOutcome.expected:type_name -> google.protobuf.Value
-	18, // 29: browser_automation_studio.v1.AssertionOutcome.actual:type_name -> google.protobuf.Value
-	19, // 30: browser_automation_studio.v1.AssertionOutcome.expected_typed:type_name -> common.v1.JsonValue
-	19, // 31: browser_automation_studio.v1.AssertionOutcome.actual_typed:type_name -> common.v1.JsonValue
-	21, // 32: browser_automation_studio.v1.TimelineLog.level:type_name -> browser_automation_studio.v1.LogLevel
-	15, // 33: browser_automation_studio.v1.TimelineLog.timestamp:type_name -> google.protobuf.Timestamp
-	18, // 34: browser_automation_studio.v1.TimelineArtifact.PayloadEntry.value:type_name -> google.protobuf.Value
-	19, // 35: browser_automation_studio.v1.TimelineArtifact.PayloadTypedEntry.value:type_name -> common.v1.JsonValue
-	36, // [36:36] is the sub-list for method output_type
-	36, // [36:36] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	5,  // 4: browser_automation_studio.v1.ExecutionTimeline.logs:type_name -> browser_automation_studio.v1.TimelineLog
+	9,  // 5: browser_automation_studio.v1.TimelineFrame.action_type:type_name -> browser_automation_studio.v1.ActionType
+	10, // 6: browser_automation_studio.v1.TimelineFrame.status:type_name -> browser_automation_studio.v1.StepStatus
+	8,  // 7: browser_automation_studio.v1.TimelineFrame.started_at:type_name -> google.protobuf.Timestamp
+	8,  // 8: browser_automation_studio.v1.TimelineFrame.completed_at:type_name -> google.protobuf.Timestamp
+	11, // 9: browser_automation_studio.v1.TimelineFrame.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
+	12, // 10: browser_automation_studio.v1.TimelineFrame.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
+	4,  // 11: browser_automation_studio.v1.TimelineFrame.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
+	13, // 12: browser_automation_studio.v1.TimelineFrame.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	14, // 13: browser_automation_studio.v1.TimelineFrame.click_position:type_name -> browser_automation_studio.v1.Point
+	14, // 14: browser_automation_studio.v1.TimelineFrame.cursor_trail:type_name -> browser_automation_studio.v1.Point
+	15, // 15: browser_automation_studio.v1.TimelineFrame.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
+	2,  // 16: browser_automation_studio.v1.TimelineFrame.artifacts:type_name -> browser_automation_studio.v1.TimelineArtifact
+	16, // 17: browser_automation_studio.v1.TimelineFrame.assertion:type_name -> browser_automation_studio.v1.AssertionResultProto
+	3,  // 18: browser_automation_studio.v1.TimelineFrame.retry_history:type_name -> browser_automation_studio.v1.RetryHistoryEntry
+	2,  // 19: browser_automation_studio.v1.TimelineFrame.dom_snapshot:type_name -> browser_automation_studio.v1.TimelineArtifact
+	17, // 20: browser_automation_studio.v1.TimelineFrame.extracted_data_preview:type_name -> common.v1.JsonValue
+	18, // 21: browser_automation_studio.v1.TimelineArtifact.type:type_name -> browser_automation_studio.v1.ArtifactType
+	6,  // 22: browser_automation_studio.v1.TimelineArtifact.payload:type_name -> browser_automation_studio.v1.TimelineArtifact.PayloadEntry
+	13, // 23: browser_automation_studio.v1.ElementFocus.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	19, // 24: browser_automation_studio.v1.TimelineLog.level:type_name -> browser_automation_studio.v1.LogLevel
+	8,  // 25: browser_automation_studio.v1.TimelineLog.timestamp:type_name -> google.protobuf.Timestamp
+	17, // 26: browser_automation_studio.v1.TimelineArtifact.PayloadEntry.value:type_name -> common.v1.JsonValue
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_timeline_proto_init() }
@@ -1550,17 +980,17 @@ func file_browser_automation_studio_v1_timeline_proto_init() {
 		return
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
+	file_browser_automation_studio_v1_unified_proto_init()
 	file_browser_automation_studio_v1_timeline_proto_msgTypes[1].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_timeline_proto_msgTypes[2].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_timeline_proto_msgTypes[3].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_timeline_proto_msgTypes[11].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_timeline_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_timeline_proto_rawDesc), len(file_browser_automation_studio_v1_timeline_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

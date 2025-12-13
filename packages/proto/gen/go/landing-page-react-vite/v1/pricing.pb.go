@@ -10,7 +10,6 @@ import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -198,11 +197,7 @@ type Bundle struct {
 	// Environment label (e.g., "production", "staging").
 	Environment string `protobuf:"bytes,7,opt,name=environment,proto3" json:"environment,omitempty"`
 	// Additional metadata passed through to clients.
-	//
-	// Deprecated: Marked as deprecated in landing-page-react-vite/v1/pricing.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,8,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed metadata; prefer over the deprecated Value map.
-	MetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,9,rep,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,9,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -286,17 +281,9 @@ func (x *Bundle) GetEnvironment() string {
 	return ""
 }
 
-// Deprecated: Marked as deprecated in landing-page-react-vite/v1/pricing.proto.
-func (x *Bundle) GetMetadata() map[string]*structpb.Value {
+func (x *Bundle) GetMetadata() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metadata
-	}
-	return nil
-}
-
-func (x *Bundle) GetMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetadataTyped
 	}
 	return nil
 }
@@ -345,11 +332,7 @@ type PlanOption struct {
 	// Weight for ordering within its interval group.
 	DisplayWeight int32 `protobuf:"varint,20,opt,name=display_weight,json=displayWeight,proto3" json:"display_weight,omitempty"`
 	// Arbitrary structured metadata.
-	//
-	// Deprecated: Marked as deprecated in landing-page-react-vite/v1/pricing.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,21,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed structured metadata; prefer over the deprecated Value map.
-	MetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,22,rep,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,22,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -524,17 +507,9 @@ func (x *PlanOption) GetDisplayWeight() int32 {
 	return 0
 }
 
-// Deprecated: Marked as deprecated in landing-page-react-vite/v1/pricing.proto.
-func (x *PlanOption) GetMetadata() map[string]*structpb.Value {
+func (x *PlanOption) GetMetadata() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metadata
-	}
-	return nil
-}
-
-func (x *PlanOption) GetMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetadataTyped
 	}
 	return nil
 }
@@ -717,7 +692,7 @@ var File_landing_page_react_vite_v1_pricing_proto protoreflect.FileDescriptor
 
 const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\n" +
-	"(landing-page-react-vite/v1/pricing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\"\x80\x05\n" +
+	"(landing-page-react-vite/v1/pricing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\"\xca\x03\n" +
 	"\x06Bundle\x12\x1d\n" +
 	"\n" +
 	"bundle_key\x18\x01 \x01(\tR\tbundleKey\x12\x12\n" +
@@ -726,16 +701,11 @@ const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\x0fcredits_per_usd\x18\x04 \x01(\x03R\rcreditsPerUsd\x12<\n" +
 	"\x1adisplay_credits_multiplier\x18\x05 \x01(\x01R\x18displayCreditsMultiplier\x122\n" +
 	"\x15display_credits_label\x18\x06 \x01(\tR\x13displayCreditsLabel\x12 \n" +
-	"\venvironment\x18\a \x01(\tR\venvironment\x12P\n" +
-	"\bmetadata\x18\b \x03(\v20.landing_page_react_vite.v1.Bundle.MetadataEntryB\x02\x18\x01R\bmetadata\x12\\\n" +
-	"\x0emetadata_typed\x18\t \x03(\v25.landing_page_react_vite.v1.Bundle.MetadataTypedEntryR\rmetadataTyped\x1aS\n" +
+	"\venvironment\x18\a \x01(\tR\venvironment\x12L\n" +
+	"\bmetadata\x18\t \x03(\v20.landing_page_react_vite.v1.Bundle.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aV\n" +
-	"\x12MetadataTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\"\x82\n" +
-	"\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\b\x10\t\"\xc8\b\n" +
 	"\n" +
 	"PlanOption\x12\x1b\n" +
 	"\tplan_name\x18\x01 \x01(\tR\bplanName\x12\x1b\n" +
@@ -761,16 +731,12 @@ const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\x0fdisplay_enabled\x18\x12 \x01(\bR\x0edisplayEnabled\x12\x1d\n" +
 	"\n" +
 	"bundle_key\x18\x13 \x01(\tR\tbundleKey\x12%\n" +
-	"\x0edisplay_weight\x18\x14 \x01(\x05R\rdisplayWeight\x12T\n" +
-	"\bmetadata\x18\x15 \x03(\v24.landing_page_react_vite.v1.PlanOption.MetadataEntryB\x02\x18\x01R\bmetadata\x12`\n" +
-	"\x0emetadata_typed\x18\x16 \x03(\v29.landing_page_react_vite.v1.PlanOption.MetadataTypedEntryR\rmetadataTyped\x1aS\n" +
+	"\x0edisplay_weight\x18\x14 \x01(\x05R\rdisplayWeight\x12P\n" +
+	"\bmetadata\x18\x16 \x03(\v24.landing_page_react_vite.v1.PlanOption.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aV\n" +
-	"\x12MetadataTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x15\n" +
-	"\x13_intro_amount_cents\"\x8a\x02\n" +
+	"\x13_intro_amount_centsJ\x04\b\x15\x10\x16\"\x8a\x02\n" +
 	"\x0fPricingOverview\x12:\n" +
 	"\x06bundle\x18\x01 \x01(\v2\".landing_page_react_vite.v1.BundleR\x06bundle\x12@\n" +
 	"\amonthly\x18\x02 \x03(\v2&.landing_page_react_vite.v1.PlanOptionR\amonthly\x12>\n" +
@@ -811,7 +777,7 @@ func file_landing_page_react_vite_v1_pricing_proto_rawDescGZIP() []byte {
 }
 
 var file_landing_page_react_vite_v1_pricing_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_landing_page_react_vite_v1_pricing_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_landing_page_react_vite_v1_pricing_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_landing_page_react_vite_v1_pricing_proto_goTypes = []any{
 	(PlanKind)(0),                 // 0: landing_page_react_vite.v1.PlanKind
 	(BillingInterval)(0),          // 1: landing_page_react_vite.v1.BillingInterval
@@ -822,35 +788,28 @@ var file_landing_page_react_vite_v1_pricing_proto_goTypes = []any{
 	(*GetPricingRequest)(nil),     // 6: landing_page_react_vite.v1.GetPricingRequest
 	(*GetPricingResponse)(nil),    // 7: landing_page_react_vite.v1.GetPricingResponse
 	nil,                           // 8: landing_page_react_vite.v1.Bundle.MetadataEntry
-	nil,                           // 9: landing_page_react_vite.v1.Bundle.MetadataTypedEntry
-	nil,                           // 10: landing_page_react_vite.v1.PlanOption.MetadataEntry
-	nil,                           // 11: landing_page_react_vite.v1.PlanOption.MetadataTypedEntry
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*structpb.Value)(nil),        // 13: google.protobuf.Value
-	(*v1.JsonValue)(nil),          // 14: common.v1.JsonValue
+	nil,                           // 9: landing_page_react_vite.v1.PlanOption.MetadataEntry
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*v1.JsonValue)(nil),          // 11: common.v1.JsonValue
 }
 var file_landing_page_react_vite_v1_pricing_proto_depIdxs = []int32{
 	8,  // 0: landing_page_react_vite.v1.Bundle.metadata:type_name -> landing_page_react_vite.v1.Bundle.MetadataEntry
-	9,  // 1: landing_page_react_vite.v1.Bundle.metadata_typed:type_name -> landing_page_react_vite.v1.Bundle.MetadataTypedEntry
-	1,  // 2: landing_page_react_vite.v1.PlanOption.billing_interval:type_name -> landing_page_react_vite.v1.BillingInterval
-	2,  // 3: landing_page_react_vite.v1.PlanOption.intro_type:type_name -> landing_page_react_vite.v1.IntroPricingType
-	0,  // 4: landing_page_react_vite.v1.PlanOption.kind:type_name -> landing_page_react_vite.v1.PlanKind
-	10, // 5: landing_page_react_vite.v1.PlanOption.metadata:type_name -> landing_page_react_vite.v1.PlanOption.MetadataEntry
-	11, // 6: landing_page_react_vite.v1.PlanOption.metadata_typed:type_name -> landing_page_react_vite.v1.PlanOption.MetadataTypedEntry
-	3,  // 7: landing_page_react_vite.v1.PricingOverview.bundle:type_name -> landing_page_react_vite.v1.Bundle
-	4,  // 8: landing_page_react_vite.v1.PricingOverview.monthly:type_name -> landing_page_react_vite.v1.PlanOption
-	4,  // 9: landing_page_react_vite.v1.PricingOverview.yearly:type_name -> landing_page_react_vite.v1.PlanOption
-	12, // 10: landing_page_react_vite.v1.PricingOverview.updated_at:type_name -> google.protobuf.Timestamp
-	5,  // 11: landing_page_react_vite.v1.GetPricingResponse.pricing:type_name -> landing_page_react_vite.v1.PricingOverview
-	13, // 12: landing_page_react_vite.v1.Bundle.MetadataEntry.value:type_name -> google.protobuf.Value
-	14, // 13: landing_page_react_vite.v1.Bundle.MetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	13, // 14: landing_page_react_vite.v1.PlanOption.MetadataEntry.value:type_name -> google.protobuf.Value
-	14, // 15: landing_page_react_vite.v1.PlanOption.MetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	1,  // 1: landing_page_react_vite.v1.PlanOption.billing_interval:type_name -> landing_page_react_vite.v1.BillingInterval
+	2,  // 2: landing_page_react_vite.v1.PlanOption.intro_type:type_name -> landing_page_react_vite.v1.IntroPricingType
+	0,  // 3: landing_page_react_vite.v1.PlanOption.kind:type_name -> landing_page_react_vite.v1.PlanKind
+	9,  // 4: landing_page_react_vite.v1.PlanOption.metadata:type_name -> landing_page_react_vite.v1.PlanOption.MetadataEntry
+	3,  // 5: landing_page_react_vite.v1.PricingOverview.bundle:type_name -> landing_page_react_vite.v1.Bundle
+	4,  // 6: landing_page_react_vite.v1.PricingOverview.monthly:type_name -> landing_page_react_vite.v1.PlanOption
+	4,  // 7: landing_page_react_vite.v1.PricingOverview.yearly:type_name -> landing_page_react_vite.v1.PlanOption
+	10, // 8: landing_page_react_vite.v1.PricingOverview.updated_at:type_name -> google.protobuf.Timestamp
+	5,  // 9: landing_page_react_vite.v1.GetPricingResponse.pricing:type_name -> landing_page_react_vite.v1.PricingOverview
+	11, // 10: landing_page_react_vite.v1.Bundle.MetadataEntry.value:type_name -> common.v1.JsonValue
+	11, // 11: landing_page_react_vite.v1.PlanOption.MetadataEntry.value:type_name -> common.v1.JsonValue
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_react_vite_v1_pricing_proto_init() }
@@ -865,7 +824,7 @@ func file_landing_page_react_vite_v1_pricing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_react_vite_v1_pricing_proto_rawDesc), len(file_landing_page_react_vite_v1_pricing_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   9,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

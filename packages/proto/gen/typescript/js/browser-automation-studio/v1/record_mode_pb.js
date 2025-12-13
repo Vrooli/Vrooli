@@ -2,223 +2,125 @@
 // @generated from file browser-automation-studio/v1/record_mode.proto (package browser_automation_studio.v1, syntax proto3)
 /* eslint-disable */
 
-import { enumDesc, fileDesc, messageDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
-import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import { file_common_v1_types } from "../../common/v1/types_pb.js";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { file_browser_automation_studio_v1_unified } from "./unified_pb.js";
 
 /**
  * Describes the file browser-automation-studio/v1/record_mode.proto.
  */
 export const file_browser_automation_studio_v1_record_mode = /*@__PURE__*/
-  fileDesc("Ci5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3JlY29yZF9tb2RlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIlkKEVNlbGVjdG9yQ2FuZGlkYXRlEgwKBHR5cGUYASABKAkSDQoFdmFsdWUYAiABKAkSEgoKY29uZmlkZW5jZRgDIAEoARITCgtzcGVjaWZpY2l0eRgEIAEoBSJjCgtTZWxlY3RvclNldBIPCgdwcmltYXJ5GAEgASgJEkMKCmNhbmRpZGF0ZXMYAiADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yQ2FuZGlkYXRlIp8CCgtFbGVtZW50TWV0YRIQCgh0YWdfbmFtZRgBIAEoCRIKCgJpZBgCIAEoCRISCgpjbGFzc19uYW1lGAMgASgJEhIKCmlubmVyX3RleHQYBCABKAkSTQoKYXR0cmlidXRlcxgFIAMoCzI5LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRWxlbWVudE1ldGEuQXR0cmlidXRlc0VudHJ5EhIKCmlzX3Zpc2libGUYBiABKAgSEgoKaXNfZW5hYmxlZBgHIAEoCBIMCgRyb2xlGAggASgJEhIKCmFyaWFfbGFiZWwYCSABKAkaMQoPQXR0cmlidXRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSAoRUmVjb3JkQm91bmRpbmdCb3gSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoASIjCgtSZWNvcmRQb2ludBIJCgF4GAEgASgBEgkKAXkYAiABKAEitAgKDlJlY29yZGVkQWN0aW9uEgoKAmlkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSFAoMc2VxdWVuY2VfbnVtGAMgASgFEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYBSABKAUSFwoLYWN0aW9uX3R5cGUYBiABKAlCAhgBEhIKCmNvbmZpZGVuY2UYByABKAESOwoIc2VsZWN0b3IYCCABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yU2V0Ej8KDGVsZW1lbnRfbWV0YRgJIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRWxlbWVudE1ldGESRQoMYm91bmRpbmdfYm94GAogASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRCb3VuZGluZ0JveBIsCgdwYXlsb2FkGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEICGAESLAoNcGF5bG9hZF90eXBlZBgPIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0EgsKA3VybBgMIAEoCRIQCghmcmFtZV9pZBgNIAEoCRI9CgpjdXJzb3JfcG9zGA4gASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRQb2ludBJFCgthY3Rpb25fa2luZBgQIAEoDjIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkZWRBY3Rpb25UeXBlEkcKCG5hdmlnYXRlGBEgASgLMjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5OYXZpZ2F0ZUFjdGlvblBheWxvYWRIABJBCgVjbGljaxgSIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ2xpY2tBY3Rpb25QYXlsb2FkSAASQQoFaW5wdXQYEyABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLklucHV0QWN0aW9uUGF5bG9hZEgAEj8KBHdhaXQYFCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldhaXRBY3Rpb25QYXlsb2FkSAASQwoGYXNzZXJ0GBUgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Bc3NlcnRBY3Rpb25QYXlsb2FkSAASUAoNY3VzdG9tX3NjcmlwdBgWIAEoCzI3LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3VzdG9tU2NyaXB0QWN0aW9uUGF5bG9hZEgAQg4KDHR5cGVkX2FjdGlvbiKCAQoVTmF2aWdhdGVBY3Rpb25QYXlsb2FkEgsKA3VybBgBIAEoCRIeChF3YWl0X2Zvcl9zZWxlY3RvchgCIAEoCUgAiAEBEhcKCnRpbWVvdXRfbXMYAyABKAVIAYgBAUIUChJfd2FpdF9mb3Jfc2VsZWN0b3JCDQoLX3RpbWVvdXRfbXMipgEKEkNsaWNrQWN0aW9uUGF5bG9hZBIOCgZidXR0b24YASABKAkSGAoLY2xpY2tfY291bnQYAiABKAVIAIgBARIVCghkZWxheV9tcxgDIAEoBUgBiAEBEh0KEHNjcm9sbF9pbnRvX3ZpZXcYBCABKAhIAogBAUIOCgxfY2xpY2tfY291bnRCCwoJX2RlbGF5X21zQhMKEV9zY3JvbGxfaW50b192aWV3IlkKEklucHV0QWN0aW9uUGF5bG9hZBINCgV2YWx1ZRgBIAEoCRIUCgxpc19zZW5zaXRpdmUYAiABKAgSEwoGc3VibWl0GAMgASgISACIAQFCCQoHX3N1Ym1pdCIoChFXYWl0QWN0aW9uUGF5bG9hZBITCgtkdXJhdGlvbl9tcxgBIAEoBSK2AQoTQXNzZXJ0QWN0aW9uUGF5bG9hZBIMCgRtb2RlGAEgASgJEhAKCHNlbGVjdG9yGAIgASgJEigKCGV4cGVjdGVkGAMgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEiwKDmV4cGVjdGVkX3R5cGVkGAcgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZRIPCgduZWdhdGVkGAQgASgIEhYKDmNhc2Vfc2Vuc2l0aXZlGAUgASgIIj0KGUN1c3RvbVNjcmlwdEFjdGlvblBheWxvYWQSEAoIbGFuZ3VhZ2UYASABKAkSDgoGc291cmNlGAIgASgJIpYBCg5SZWNvcmRpbmdTdGF0ZRIUCgxpc19yZWNvcmRpbmcYASABKAgSFAoMcmVjb3JkaW5nX2lkGAIgASgJEhIKCnNlc3Npb25faWQYAyABKAkSFAoMYWN0aW9uX2NvdW50GAQgASgFEi4KCnN0YXJ0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wImUKHUNyZWF0ZVJlY29yZGluZ1Nlc3Npb25SZXF1ZXN0EhYKDnZpZXdwb3J0X3dpZHRoGAEgASgFEhcKD3ZpZXdwb3J0X2hlaWdodBgCIAEoBRITCgtpbml0aWFsX3VybBgDIAEoCSJkCh5DcmVhdGVSZWNvcmRpbmdTZXNzaW9uUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIuCgpjcmVhdGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJBChVTdGFydFJlY29yZGluZ1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxjYWxsYmFja191cmwYAiABKAkicgoWU3RhcnRSZWNvcmRpbmdSZXNwb25zZRIUCgxyZWNvcmRpbmdfaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIuCgpzdGFydGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKHAQoVU3RvcFJlY29yZGluZ1Jlc3BvbnNlEhQKDHJlY29yZGluZ19pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhQKDGFjdGlvbl9jb3VudBgDIAEoBRIuCgpzdG9wcGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKfAQoXUmVjb3JkaW5nU3RhdHVzUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpc19yZWNvcmRpbmcYAiABKAgSFAoMcmVjb3JkaW5nX2lkGAMgASgJEhQKDGFjdGlvbl9jb3VudBgEIAEoBRIuCgpzdGFydGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ2ChJHZXRBY3Rpb25zUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRI9CgdhY3Rpb25zGAIgAygLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRlZEFjdGlvbhINCgVjb3VudBgDIAEoBSKoAgoXR2VuZXJhdGVXb3JrZmxvd1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnByb2plY3RfaWQYAyABKAkSFAoMcHJvamVjdF9uYW1lGAQgASgJElcKDGFjdGlvbl9yYW5nZRgFIAEoCzJBLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2VuZXJhdGVXb3JrZmxvd1JlcXVlc3QuQWN0aW9uUmFuZ2USPQoHYWN0aW9ucxgGIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkZWRBY3Rpb24aKQoLQWN0aW9uUmFuZ2USDQoFc3RhcnQYASABKAUSCwoDZW5kGAIgASgFInsKGEdlbmVyYXRlV29ya2Zsb3dSZXNwb25zZRITCgt3b3JrZmxvd19pZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKbm9kZV9jb3VudBgEIAEoBRIUCgxhY3Rpb25fY291bnQYBSABKAUiqQEKFFJlcGxheVByZXZpZXdSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSPQoHYWN0aW9ucxgCIAMoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmVjb3JkZWRBY3Rpb24SDQoFbGltaXQYAyABKAUSFwoPc3RvcF9vbl9mYWlsdXJlGAQgASgIEhYKDmFjdGlvbl90aW1lb3V0GAUgASgFIlkKEUFjdGlvblJlcGxheUVycm9yEg8KB21lc3NhZ2UYASABKAkSDAoEY29kZRgCIAEoCRITCgttYXRjaF9jb3VudBgDIAEoBRIQCghzZWxlY3RvchgEIAEoCSLXBQoSQWN0aW9uUmVwbGF5UmVzdWx0EhEKCWFjdGlvbl9pZBgBIAEoCRIUCgxzZXF1ZW5jZV9udW0YAiABKAUSFwoLYWN0aW9uX3R5cGUYAyABKAlCAhgBEg8KB3N1Y2Nlc3MYBCABKAgSEwoLZHVyYXRpb25fbXMYBSABKAUSPgoFZXJyb3IYBiABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvblJlcGxheUVycm9yEhsKE3NjcmVlbnNob3Rfb25fZXJyb3IYByABKAkSRQoLYWN0aW9uX2tpbmQYCCABKA4yMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZGVkQWN0aW9uVHlwZRJHCghuYXZpZ2F0ZRgJIAEoCzIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVBY3Rpb25QYXlsb2FkSAASQQoFY2xpY2sYCiABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNsaWNrQWN0aW9uUGF5bG9hZEgAEkEKBWlucHV0GAsgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5JbnB1dEFjdGlvblBheWxvYWRIABI/CgR3YWl0GAwgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5XYWl0QWN0aW9uUGF5bG9hZEgAEkMKBmFzc2VydBgNIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0QWN0aW9uUGF5bG9hZEgAElAKDWN1c3RvbV9zY3JpcHQYDiABKAsyNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkN1c3RvbVNjcmlwdEFjdGlvblBheWxvYWRIAEIOCgx0eXBlZF9hY3Rpb24i5AEKFVJlcGxheVByZXZpZXdSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEhUKDXRvdGFsX2FjdGlvbnMYAiABKAUSFgoOcGFzc2VkX2FjdGlvbnMYAyABKAUSFgoOZmFpbGVkX2FjdGlvbnMYBCABKAUSQQoHcmVzdWx0cxgFIAMoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uUmVwbGF5UmVzdWx0EhkKEXRvdGFsX2R1cmF0aW9uX21zGAYgASgFEhUKDXN0b3BwZWRfZWFybHkYByABKAgiWQoSU2VsZWN0b3JWYWxpZGF0aW9uEg0KBXZhbGlkGAEgASgIEhMKC21hdGNoX2NvdW50GAIgASgFEhAKCHNlbGVjdG9yGAMgASgJEg0KBWVycm9yGAQgASgJKoUCChJSZWNvcmRlZEFjdGlvblR5cGUSJAogUkVDT1JERURfQUNUSU9OX1RZUEVfVU5TUEVDSUZJRUQQABIhCh1SRUNPUkRFRF9BQ1RJT05fVFlQRV9OQVZJR0FURRABEh4KGlJFQ09SREVEX0FDVElPTl9UWVBFX0NMSUNLEAISHgoaUkVDT1JERURfQUNUSU9OX1RZUEVfSU5QVVQQAxIdChlSRUNPUkRFRF9BQ1RJT05fVFlQRV9XQUlUEAQSHwobUkVDT1JERURfQUNUSU9OX1RZUEVfQVNTRVJUEAUSJgoiUkVDT1JERURfQUNUSU9OX1RZUEVfQ1VTVE9NX1NDUklQVBAGQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_common_v1_types]);
-
-/**
- * Describes the message browser_automation_studio.v1.SelectorCandidate.
- * Use `create(SelectorCandidateSchema)` to create a new message.
- */
-export const SelectorCandidateSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 0);
-
-/**
- * Describes the message browser_automation_studio.v1.SelectorSet.
- * Use `create(SelectorSetSchema)` to create a new message.
- */
-export const SelectorSetSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 1);
-
-/**
- * Describes the message browser_automation_studio.v1.ElementMeta.
- * Use `create(ElementMetaSchema)` to create a new message.
- */
-export const ElementMetaSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 2);
-
-/**
- * Describes the message browser_automation_studio.v1.RecordBoundingBox.
- * Use `create(RecordBoundingBoxSchema)` to create a new message.
- */
-export const RecordBoundingBoxSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 3);
-
-/**
- * Describes the message browser_automation_studio.v1.RecordPoint.
- * Use `create(RecordPointSchema)` to create a new message.
- */
-export const RecordPointSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 4);
-
-/**
- * Describes the message browser_automation_studio.v1.RecordedAction.
- * Use `create(RecordedActionSchema)` to create a new message.
- */
-export const RecordedActionSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 5);
-
-/**
- * Describes the message browser_automation_studio.v1.NavigateActionPayload.
- * Use `create(NavigateActionPayloadSchema)` to create a new message.
- */
-export const NavigateActionPayloadSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 6);
-
-/**
- * Describes the message browser_automation_studio.v1.ClickActionPayload.
- * Use `create(ClickActionPayloadSchema)` to create a new message.
- */
-export const ClickActionPayloadSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 7);
-
-/**
- * Describes the message browser_automation_studio.v1.InputActionPayload.
- * Use `create(InputActionPayloadSchema)` to create a new message.
- */
-export const InputActionPayloadSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 8);
-
-/**
- * Describes the message browser_automation_studio.v1.WaitActionPayload.
- * Use `create(WaitActionPayloadSchema)` to create a new message.
- */
-export const WaitActionPayloadSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 9);
-
-/**
- * Describes the message browser_automation_studio.v1.AssertActionPayload.
- * Use `create(AssertActionPayloadSchema)` to create a new message.
- */
-export const AssertActionPayloadSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 10);
-
-/**
- * Describes the message browser_automation_studio.v1.CustomScriptActionPayload.
- * Use `create(CustomScriptActionPayloadSchema)` to create a new message.
- */
-export const CustomScriptActionPayloadSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 11);
+  fileDesc("Ci5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3JlY29yZF9tb2RlLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIpYBCg5SZWNvcmRpbmdTdGF0ZRIUCgxpc19yZWNvcmRpbmcYASABKAgSFAoMcmVjb3JkaW5nX2lkGAIgASgJEhIKCnNlc3Npb25faWQYAyABKAkSFAoMYWN0aW9uX2NvdW50GAQgASgFEi4KCnN0YXJ0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wImUKHUNyZWF0ZVJlY29yZGluZ1Nlc3Npb25SZXF1ZXN0EhYKDnZpZXdwb3J0X3dpZHRoGAEgASgFEhcKD3ZpZXdwb3J0X2hlaWdodBgCIAEoBRITCgtpbml0aWFsX3VybBgDIAEoCSJkCh5DcmVhdGVSZWNvcmRpbmdTZXNzaW9uUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIuCgpjcmVhdGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJBChVTdGFydFJlY29yZGluZ1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxjYWxsYmFja191cmwYAiABKAkicgoWU3RhcnRSZWNvcmRpbmdSZXNwb25zZRIUCgxyZWNvcmRpbmdfaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIuCgpzdGFydGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKHAQoVU3RvcFJlY29yZGluZ1Jlc3BvbnNlEhQKDHJlY29yZGluZ19pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhQKDGFjdGlvbl9jb3VudBgDIAEoBRIuCgpzdG9wcGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKfAQoXUmVjb3JkaW5nU3RhdHVzUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpc19yZWNvcmRpbmcYAiABKAgSFAoMcmVjb3JkaW5nX2lkGAMgASgJEhQKDGFjdGlvbl9jb3VudBgEIAEoBRIuCgpzdGFydGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ0ChJHZXRBY3Rpb25zUmVzcG9uc2USEgoKc2Vzc2lvbl9pZBgBIAEoCRI7CgZldmVudHMYAiADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRXZlbnQSDQoFY291bnQYAyABKAUiowIKF0dlbmVyYXRlV29ya2Zsb3dSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpwcm9qZWN0X2lkGAMgASgJEhQKDHByb2plY3RfbmFtZRgEIAEoCRJVCgtldmVudF9yYW5nZRgFIAEoCzJALmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2VuZXJhdGVXb3JrZmxvd1JlcXVlc3QuRXZlbnRSYW5nZRI7CgZldmVudHMYBiADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRXZlbnQaKAoKRXZlbnRSYW5nZRINCgVzdGFydBgBIAEoBRILCgNlbmQYAiABKAUiegoYR2VuZXJhdGVXb3JrZmxvd1Jlc3BvbnNlEhMKC3dvcmtmbG93X2lkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRISCgpub2RlX2NvdW50GAQgASgFEhMKC2V2ZW50X2NvdW50GAUgASgFIqoBChRSZXBsYXlQcmV2aWV3UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEjsKBmV2ZW50cxgCIAMoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVFdmVudBINCgVsaW1pdBgDIAEoBRIXCg9zdG9wX29uX2ZhaWx1cmUYBCABKAgSGQoRYWN0aW9uX3RpbWVvdXRfbXMYBSABKAUiWAoQUmVwbGF5RXZlbnRFcnJvchIPCgdtZXNzYWdlGAEgASgJEgwKBGNvZGUYAiABKAkSEwoLbWF0Y2hfY291bnQYAyABKAUSEAoIc2VsZWN0b3IYBCABKAki/QEKEVJlcGxheUV2ZW50UmVzdWx0EhAKCGV2ZW50X2lkGAEgASgJEhQKDHNlcXVlbmNlX251bRgCIAEoBRIPCgdzdWNjZXNzGAMgASgIEhMKC2R1cmF0aW9uX21zGAQgASgFEj0KBWVycm9yGAUgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZXBsYXlFdmVudEVycm9yEhsKE3NjcmVlbnNob3Rfb25fZXJyb3IYBiABKAkSPgoGYWN0aW9uGAcgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25EZWZpbml0aW9uIuABChVSZXBsYXlQcmV2aWV3UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIUCgx0b3RhbF9ldmVudHMYAiABKAUSFQoNcGFzc2VkX2V2ZW50cxgDIAEoBRIVCg1mYWlsZWRfZXZlbnRzGAQgASgFEkAKB3Jlc3VsdHMYBSADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlcGxheUV2ZW50UmVzdWx0EhkKEXRvdGFsX2R1cmF0aW9uX21zGAYgASgFEhUKDXN0b3BwZWRfZWFybHkYByABKAgiWQoSU2VsZWN0b3JWYWxpZGF0aW9uEg0KBXZhbGlkGAEgASgIEhMKC21hdGNoX2NvdW50GAIgASgFEhAKCHNlbGVjdG9yGAMgASgJEg0KBWVycm9yGAQgASgJQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_browser_automation_studio_v1_unified]);
 
 /**
  * Describes the message browser_automation_studio.v1.RecordingState.
  * Use `create(RecordingStateSchema)` to create a new message.
  */
 export const RecordingStateSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 12);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 0);
 
 /**
  * Describes the message browser_automation_studio.v1.CreateRecordingSessionRequest.
  * Use `create(CreateRecordingSessionRequestSchema)` to create a new message.
  */
 export const CreateRecordingSessionRequestSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 13);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 1);
 
 /**
  * Describes the message browser_automation_studio.v1.CreateRecordingSessionResponse.
  * Use `create(CreateRecordingSessionResponseSchema)` to create a new message.
  */
 export const CreateRecordingSessionResponseSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 14);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 2);
 
 /**
  * Describes the message browser_automation_studio.v1.StartRecordingRequest.
  * Use `create(StartRecordingRequestSchema)` to create a new message.
  */
 export const StartRecordingRequestSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 15);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 3);
 
 /**
  * Describes the message browser_automation_studio.v1.StartRecordingResponse.
  * Use `create(StartRecordingResponseSchema)` to create a new message.
  */
 export const StartRecordingResponseSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 16);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 4);
 
 /**
  * Describes the message browser_automation_studio.v1.StopRecordingResponse.
  * Use `create(StopRecordingResponseSchema)` to create a new message.
  */
 export const StopRecordingResponseSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 17);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 5);
 
 /**
  * Describes the message browser_automation_studio.v1.RecordingStatusResponse.
  * Use `create(RecordingStatusResponseSchema)` to create a new message.
  */
 export const RecordingStatusResponseSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 18);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 6);
 
 /**
  * Describes the message browser_automation_studio.v1.GetActionsResponse.
  * Use `create(GetActionsResponseSchema)` to create a new message.
  */
 export const GetActionsResponseSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 19);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 7);
 
 /**
  * Describes the message browser_automation_studio.v1.GenerateWorkflowRequest.
  * Use `create(GenerateWorkflowRequestSchema)` to create a new message.
  */
 export const GenerateWorkflowRequestSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 20);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 8);
 
 /**
- * Describes the message browser_automation_studio.v1.GenerateWorkflowRequest.ActionRange.
- * Use `create(GenerateWorkflowRequest_ActionRangeSchema)` to create a new message.
+ * Describes the message browser_automation_studio.v1.GenerateWorkflowRequest.EventRange.
+ * Use `create(GenerateWorkflowRequest_EventRangeSchema)` to create a new message.
  */
-export const GenerateWorkflowRequest_ActionRangeSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 20, 0);
+export const GenerateWorkflowRequest_EventRangeSchema = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 8, 0);
 
 /**
  * Describes the message browser_automation_studio.v1.GenerateWorkflowResponse.
  * Use `create(GenerateWorkflowResponseSchema)` to create a new message.
  */
 export const GenerateWorkflowResponseSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 21);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 9);
 
 /**
  * Describes the message browser_automation_studio.v1.ReplayPreviewRequest.
  * Use `create(ReplayPreviewRequestSchema)` to create a new message.
  */
 export const ReplayPreviewRequestSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 22);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 10);
 
 /**
- * Describes the message browser_automation_studio.v1.ActionReplayError.
- * Use `create(ActionReplayErrorSchema)` to create a new message.
+ * Describes the message browser_automation_studio.v1.ReplayEventError.
+ * Use `create(ReplayEventErrorSchema)` to create a new message.
  */
-export const ActionReplayErrorSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 23);
+export const ReplayEventErrorSchema = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 11);
 
 /**
- * Describes the message browser_automation_studio.v1.ActionReplayResult.
- * Use `create(ActionReplayResultSchema)` to create a new message.
+ * Describes the message browser_automation_studio.v1.ReplayEventResult.
+ * Use `create(ReplayEventResultSchema)` to create a new message.
  */
-export const ActionReplayResultSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 24);
+export const ReplayEventResultSchema = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_record_mode, 12);
 
 /**
  * Describes the message browser_automation_studio.v1.ReplayPreviewResponse.
  * Use `create(ReplayPreviewResponseSchema)` to create a new message.
  */
 export const ReplayPreviewResponseSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 25);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 13);
 
 /**
  * Describes the message browser_automation_studio.v1.SelectorValidation.
  * Use `create(SelectorValidationSchema)` to create a new message.
  */
 export const SelectorValidationSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_record_mode, 26);
-
-/**
- * Describes the enum browser_automation_studio.v1.RecordedActionType.
- */
-export const RecordedActionTypeSchema = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_record_mode, 0);
-
-/**
- * RecordedActionType enumerates supported action kinds captured during recording.
- *
- * @generated from enum browser_automation_studio.v1.RecordedActionType
- */
-export const RecordedActionType = /*@__PURE__*/
-  tsEnum(RecordedActionTypeSchema);
+  messageDesc(file_browser_automation_studio_v1_record_mode, 14);
 

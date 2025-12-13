@@ -22,15 +22,14 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 from common.v1 import types_pb2 as common_dot_v1_dot_types__pb2
 from browser_automation_studio.v1 import shared_pb2 as browser__automation__studio_dot_v1_dot_shared__pb2
 from browser_automation_studio.v1 import timeline_pb2 as browser__automation__studio_dot_v1_dot_timeline__pb2
-from browser_automation_studio.v1 import workflow_pb2 as browser__automation__studio_dot_v1_dot_workflow__pb2
+from browser_automation_studio.v1 import unified_pb2 as browser__automation__studio_dot_v1_dot_unified__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,browser-automation-studio/v1/execution.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15\x63ommon/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/timeline.proto\x1a+browser-automation-studio/v1/workflow.proto\"\x8c\x0e\n\tExecution\x12\x18\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x02id\x12\x1f\n\x0bworkflow_id\x18\x02 \x01(\tR\nworkflowId\x12)\n\x10workflow_version\x18\x03 \x01(\x05R\x0fworkflowVersion\x12\x45\n\x06status\x18\x04 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12L\n\x0ctrigger_type\x18\x05 \x01(\x0e\x32).browser_automation_studio.v1.TriggerTypeR\x0btriggerType\x12k\n\x10trigger_metadata\x18\x06 \x03(\x0b\x32<.browser_automation_studio.v1.Execution.TriggerMetadataEntryB\x02\x18\x01R\x0ftriggerMetadata\x12w\n\x16trigger_metadata_typed\x18\x13 \x03(\x0b\x32\x41.browser_automation_studio.v1.Execution.TriggerMetadataTypedEntryR\x14triggerMetadataTyped\x12[\n\nparameters\x18\x07 \x03(\x0b\x32\x37.browser_automation_studio.v1.Execution.ParametersEntryB\x02\x18\x01R\nparameters\x12g\n\x10parameters_typed\x18\x11 \x03(\x0b\x32<.browser_automation_studio.v1.Execution.ParametersTypedEntryR\x0fparametersTyped\x12\x39\n\nstarted_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n\x0c\x63ompleted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63ompletedAt\x12\x41\n\x0elast_heartbeat\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\rlastHeartbeat\x12\x19\n\x05\x65rror\x18\x0b \x01(\tH\x00R\x05\x65rror\x88\x01\x01\x12O\n\x06result\x18\x0c \x03(\x0b\x32\x33.browser_automation_studio.v1.Execution.ResultEntryB\x02\x18\x01R\x06result\x12[\n\x0cresult_typed\x18\x12 \x03(\x0b\x32\x38.browser_automation_studio.v1.Execution.ResultTypedEntryR\x0bresultTyped\x12\x1a\n\x08progress\x18\r \x01(\x05R\x08progress\x12!\n\x0c\x63urrent_step\x18\x0e \x01(\tR\x0b\x63urrentStep\x12\x39\n\ncreated_at\x18\x0f \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x10 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x1aZ\n\x14TriggerMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1a]\n\x19TriggerMetadataTypedEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x1aU\n\x0fParametersEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aX\n\x14ParametersTypedEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x1aQ\n\x0bResultEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aT\n\x10ResultTypedEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x42\x08\n\x06_error\"\xf4\x04\n\x13\x45xecuteAdhocRequest\x12Y\n\x0f\x66low_definition\x18\x01 \x01(\x0b\x32\x30.browser_automation_studio.v1.WorkflowDefinitionR\x0e\x66lowDefinition\x12\x61\n\nparameters\x18\x02 \x03(\x0b\x32\x41.browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntryR\nparameters\x12q\n\x10parameters_typed\x18\x05 \x03(\x0b\x32\x46.browser_automation_studio.v1.ExecuteAdhocRequest.ParametersTypedEntryR\x0fparametersTyped\x12.\n\x13wait_for_completion\x18\x03 \x01(\x08R\x11waitForCompletion\x12K\n\x08metadata\x18\x04 \x01(\x0b\x32/.browser_automation_studio.v1.ExecutionMetadataR\x08metadata\x1aU\n\x0fParametersEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aX\n\x14ParametersTypedEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\"I\n\x11\x45xecutionMetadata\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x02 \x01(\tR\x0b\x64\x65scription\"\xb4\x02\n\x14\x45xecuteAdhocResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x45\n\x06status\x18\x02 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12$\n\x0bworkflow_id\x18\x03 \x01(\tH\x00R\nworkflowId\x88\x01\x01\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12=\n\x0c\x63ompleted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63ompletedAt\x12\x19\n\x05\x65rror\x18\x06 \x01(\tH\x01R\x05\x65rror\x88\x01\x01\x42\x0e\n\x0c_workflow_idB\x08\n\x06_error\"\xc8\x02\n\nScreenshot\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\x12\x1b\n\tstep_name\x18\x03 \x01(\tR\x08stepName\x12\x1d\n\nstep_index\x18\x04 \x01(\x05R\tstepIndex\x12\x38\n\ttimestamp\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1f\n\x0bstorage_url\x18\x06 \x01(\tR\nstorageUrl\x12#\n\rthumbnail_url\x18\x07 \x01(\tR\x0cthumbnailUrl\x12\x14\n\x05width\x18\x08 \x01(\x05R\x05width\x12\x16\n\x06height\x18\t \x01(\x05R\x06height\x12\x1d\n\nsize_bytes\x18\n \x01(\x03R\tsizeBytes\"d\n\x16GetScreenshotsResponse\x12J\n\x0bscreenshots\x18\x01 \x03(\x0b\x32(.browser_automation_studio.v1.ScreenshotR\x0bscreenshots\"\xc5\x06\n\x16\x45xecutionEventEnvelope\x12%\n\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\'\n\x0fpayload_version\x18\x02 \x01(\tR\x0epayloadVersion\x12;\n\x04kind\x18\x03 \x01(\x0e\x32\'.browser_automation_studio.v1.EventKindR\x04kind\x12!\n\x0c\x65xecution_id\x18\x04 \x01(\tR\x0b\x65xecutionId\x12\x1f\n\x0bworkflow_id\x18\x05 \x01(\tR\nworkflowId\x12\"\n\nstep_index\x18\x06 \x01(\x05H\x01R\tstepIndex\x88\x01\x01\x12\x1d\n\x07\x61ttempt\x18\x07 \x01(\x05H\x02R\x07\x61ttempt\x88\x01\x01\x12\x1f\n\x08sequence\x18\x08 \x01(\x03H\x03R\x08sequence\x88\x01\x01\x12\x38\n\ttimestamp\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12V\n\rstatus_update\x18\x0b \x01(\x0b\x32/.browser_automation_studio.v1.StatusUpdateEventH\x00R\x0cstatusUpdate\x12Y\n\x0etimeline_frame\x18\x0c \x01(\x0b\x32\x30.browser_automation_studio.v1.TimelineFrameEventH\x00R\rtimelineFrame\x12:\n\x03log\x18\r \x01(\x0b\x32&.browser_automation_studio.v1.LogEventH\x00R\x03log\x12L\n\theartbeat\x18\x0e \x01(\x0b\x32,.browser_automation_studio.v1.HeartbeatEventH\x00R\theartbeat\x12L\n\ttelemetry\x18\x0f \x01(\x0b\x32,.browser_automation_studio.v1.TelemetryEventH\x00R\ttelemetryB\t\n\x07payloadB\r\n\x0b_step_indexB\n\n\x08_attemptB\x0b\n\t_sequence\"\xb7\x03\n\x16\x45xecutionExportPreview\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x17\n\x07spec_id\x18\x02 \x01(\tR\x06specId\x12\x42\n\x06status\x18\x03 \x01(\x0e\x32*.browser_automation_studio.v1.ExportStatusR\x06status\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x30\n\x14\x63\x61ptured_frame_count\x18\x05 \x01(\x05R\x12\x63\x61pturedFrameCount\x12\x32\n\x15\x61vailable_asset_count\x18\x06 \x01(\x05R\x13\x61vailableAssetCount\x12*\n\x11total_duration_ms\x18\x07 \x01(\x05R\x0ftotalDurationMs\x12\x35\n\x07package\x18\x08 \x01(\x0b\x32\x17.google.protobuf.StructB\x02\x18\x01R\x07package\x12:\n\rpackage_typed\x18\t \x01(\x0b\x32\x15.common.v1.JsonObjectR\x0cpackageTyped\"\x91\x02\n\x11StatusUpdateEvent\x12\x45\n\x06status\x18\x01 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12\x1a\n\x08progress\x18\x02 \x01(\x05R\x08progress\x12&\n\x0c\x63urrent_step\x18\x03 \x01(\tH\x00R\x0b\x63urrentStep\x88\x01\x01\x12\x19\n\x05\x65rror\x18\x04 \x01(\tH\x01R\x05\x65rror\x88\x01\x01\x12;\n\x0boccurred_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAtB\x0f\n\r_current_stepB\x08\n\x06_error\"W\n\x12TimelineFrameEvent\x12\x41\n\x05\x66rame\x18\x01 \x01(\x0b\x32+.browser_automation_studio.v1.TimelineFrameR\x05\x66rame\"\xb7\x04\n\x08LogEvent\x12<\n\x05level\x18\x01 \x01(\x0e\x32&.browser_automation_studio.v1.LogLevelR\x05level\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\"\n\nstep_index\x18\x03 \x01(\x05H\x00R\tstepIndex\x88\x01\x01\x12;\n\x0boccurred_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAt\x12T\n\x08metadata\x18\x05 \x03(\x0b\x32\x34.browser_automation_studio.v1.LogEvent.MetadataEntryB\x02\x18\x01R\x08metadata\x12`\n\x0emetadata_typed\x18\x06 \x03(\x0b\x32\x39.browser_automation_studio.v1.LogEvent.MetadataTypedEntryR\rmetadataTyped\x1aS\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aV\n\x12MetadataTypedEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x42\r\n\x0b_step_index\"\xd2\x03\n\x0eHeartbeatEvent\x12;\n\x0breceived_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreceivedAt\x12\x1a\n\x08progress\x18\x02 \x01(\x05R\x08progress\x12W\n\x07metrics\x18\x03 \x03(\x0b\x32\x39.browser_automation_studio.v1.HeartbeatEvent.MetricsEntryB\x02\x18\x01R\x07metrics\x12\x63\n\rmetrics_typed\x18\x04 \x03(\x0b\x32>.browser_automation_studio.v1.HeartbeatEvent.MetricsTypedEntryR\x0cmetricsTyped\x1aR\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aU\n\x11MetricsTypedEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\"\xb6\x03\n\x0eTelemetryEvent\x12W\n\x07metrics\x18\x01 \x03(\x0b\x32\x39.browser_automation_studio.v1.TelemetryEvent.MetricsEntryB\x02\x18\x01R\x07metrics\x12;\n\x0brecorded_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nrecordedAt\x12\x63\n\rmetrics_typed\x18\x03 \x03(\x0b\x32>.browser_automation_studio.v1.TelemetryEvent.MetricsTypedEntryR\x0cmetricsTyped\x1aR\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12,\n\x05value\x18\x02 \x01(\x0b\x32\x16.google.protobuf.ValueR\x05value:\x02\x38\x01\x1aU\n\x11MetricsTypedEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,browser-automation-studio/v1/execution.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15\x63ommon/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/timeline.proto\x1a*browser-automation-studio/v1/unified.proto\"\xbe\t\n\tExecution\x12\x18\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x02id\x12\x1f\n\x0bworkflow_id\x18\x02 \x01(\tR\nworkflowId\x12)\n\x10workflow_version\x18\x03 \x01(\x05R\x0fworkflowVersion\x12\x45\n\x06status\x18\x04 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12L\n\x0ctrigger_type\x18\x05 \x01(\x0e\x32).browser_automation_studio.v1.TriggerTypeR\x0btriggerType\x12\x39\n\nstarted_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n\x0c\x63ompleted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63ompletedAt\x12\x41\n\x0elast_heartbeat\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\rlastHeartbeat\x12\x19\n\x05\x65rror\x18\x0b \x01(\tH\x00R\x05\x65rror\x88\x01\x01\x12\x1a\n\x08progress\x18\r \x01(\x05R\x08progress\x12!\n\x0c\x63urrent_step\x18\x0e \x01(\tR\x0b\x63urrentStep\x12\x39\n\ncreated_at\x18\x0f \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x10 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12W\n\nparameters\x18\x11 \x03(\x0b\x32\x37.browser_automation_studio.v1.Execution.ParametersEntryR\nparameters\x12K\n\x06result\x18\x12 \x03(\x0b\x32\x33.browser_automation_studio.v1.Execution.ResultEntryR\x06result\x12g\n\x10trigger_metadata\x18\x13 \x03(\x0b\x32<.browser_automation_studio.v1.Execution.TriggerMetadataEntryR\x0ftriggerMetadata\x1aS\n\x0fParametersEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x1aO\n\x0bResultEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x1aX\n\x14TriggerMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x42\x08\n\x06_errorJ\x04\x08\x06\x10\x07J\x04\x08\x07\x10\x08J\x04\x08\x0c\x10\r\"\xad\x03\n\x13\x45xecuteAdhocRequest\x12[\n\x0f\x66low_definition\x18\x01 \x01(\x0b\x32\x32.browser_automation_studio.v1.WorkflowDefinitionV2R\x0e\x66lowDefinition\x12.\n\x13wait_for_completion\x18\x03 \x01(\x08R\x11waitForCompletion\x12K\n\x08metadata\x18\x04 \x01(\x0b\x32/.browser_automation_studio.v1.ExecutionMetadataR\x08metadata\x12\x61\n\nparameters\x18\x05 \x03(\x0b\x32\x41.browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntryR\nparameters\x1aS\n\x0fParametersEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01J\x04\x08\x02\x10\x03\"I\n\x11\x45xecutionMetadata\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x02 \x01(\tR\x0b\x64\x65scription\"\xb4\x02\n\x14\x45xecuteAdhocResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x45\n\x06status\x18\x02 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12$\n\x0bworkflow_id\x18\x03 \x01(\tH\x00R\nworkflowId\x88\x01\x01\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12=\n\x0c\x63ompleted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x0b\x63ompletedAt\x12\x19\n\x05\x65rror\x18\x06 \x01(\tH\x01R\x05\x65rror\x88\x01\x01\x42\x0e\n\x0c_workflow_idB\x08\n\x06_error\"\xc8\x02\n\nScreenshot\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\x12\x1b\n\tstep_name\x18\x03 \x01(\tR\x08stepName\x12\x1d\n\nstep_index\x18\x04 \x01(\x05R\tstepIndex\x12\x38\n\ttimestamp\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1f\n\x0bstorage_url\x18\x06 \x01(\tR\nstorageUrl\x12#\n\rthumbnail_url\x18\x07 \x01(\tR\x0cthumbnailUrl\x12\x14\n\x05width\x18\x08 \x01(\x05R\x05width\x12\x16\n\x06height\x18\t \x01(\x05R\x06height\x12\x1d\n\nsize_bytes\x18\n \x01(\x03R\tsizeBytes\"d\n\x16GetScreenshotsResponse\x12J\n\x0bscreenshots\x18\x01 \x03(\x0b\x32(.browser_automation_studio.v1.ScreenshotR\x0bscreenshots\"\xc5\x06\n\x16\x45xecutionEventEnvelope\x12%\n\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\'\n\x0fpayload_version\x18\x02 \x01(\tR\x0epayloadVersion\x12;\n\x04kind\x18\x03 \x01(\x0e\x32\'.browser_automation_studio.v1.EventKindR\x04kind\x12!\n\x0c\x65xecution_id\x18\x04 \x01(\tR\x0b\x65xecutionId\x12\x1f\n\x0bworkflow_id\x18\x05 \x01(\tR\nworkflowId\x12\"\n\nstep_index\x18\x06 \x01(\x05H\x01R\tstepIndex\x88\x01\x01\x12\x1d\n\x07\x61ttempt\x18\x07 \x01(\x05H\x02R\x07\x61ttempt\x88\x01\x01\x12\x1f\n\x08sequence\x18\x08 \x01(\x03H\x03R\x08sequence\x88\x01\x01\x12\x38\n\ttimestamp\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12V\n\rstatus_update\x18\x0b \x01(\x0b\x32/.browser_automation_studio.v1.StatusUpdateEventH\x00R\x0cstatusUpdate\x12Y\n\x0etimeline_frame\x18\x0c \x01(\x0b\x32\x30.browser_automation_studio.v1.TimelineFrameEventH\x00R\rtimelineFrame\x12:\n\x03log\x18\r \x01(\x0b\x32&.browser_automation_studio.v1.LogEventH\x00R\x03log\x12L\n\theartbeat\x18\x0e \x01(\x0b\x32,.browser_automation_studio.v1.HeartbeatEventH\x00R\theartbeat\x12L\n\ttelemetry\x18\x0f \x01(\x0b\x32,.browser_automation_studio.v1.TelemetryEventH\x00R\ttelemetryB\t\n\x07payloadB\r\n\x0b_step_indexB\n\n\x08_attemptB\x0b\n\t_sequence\"\xfb\x02\n\x16\x45xecutionExportPreview\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x17\n\x07spec_id\x18\x02 \x01(\tR\x06specId\x12\x42\n\x06status\x18\x03 \x01(\x0e\x32*.browser_automation_studio.v1.ExportStatusR\x06status\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x30\n\x14\x63\x61ptured_frame_count\x18\x05 \x01(\x05R\x12\x63\x61pturedFrameCount\x12\x32\n\x15\x61vailable_asset_count\x18\x06 \x01(\x05R\x13\x61vailableAssetCount\x12*\n\x11total_duration_ms\x18\x07 \x01(\x05R\x0ftotalDurationMs\x12/\n\x07package\x18\t \x01(\x0b\x32\x15.common.v1.JsonObjectR\x07packageJ\x04\x08\x08\x10\t\"\x91\x02\n\x11StatusUpdateEvent\x12\x45\n\x06status\x18\x01 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12\x1a\n\x08progress\x18\x02 \x01(\x05R\x08progress\x12&\n\x0c\x63urrent_step\x18\x03 \x01(\tH\x00R\x0b\x63urrentStep\x88\x01\x01\x12\x19\n\x05\x65rror\x18\x04 \x01(\tH\x01R\x05\x65rror\x88\x01\x01\x12;\n\x0boccurred_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAtB\x0f\n\r_current_stepB\x08\n\x06_error\"W\n\x12TimelineFrameEvent\x12\x41\n\x05\x66rame\x18\x01 \x01(\x0b\x32+.browser_automation_studio.v1.TimelineFrameR\x05\x66rame\"\xfd\x02\n\x08LogEvent\x12<\n\x05level\x18\x01 \x01(\x0e\x32&.browser_automation_studio.v1.LogLevelR\x05level\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\"\n\nstep_index\x18\x03 \x01(\x05H\x00R\tstepIndex\x88\x01\x01\x12;\n\x0boccurred_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAt\x12P\n\x08metadata\x18\x06 \x03(\x0b\x32\x34.browser_automation_studio.v1.LogEvent.MetadataEntryR\x08metadata\x1aQ\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x42\r\n\x0b_step_indexJ\x04\x08\x05\x10\x06\"\x96\x02\n\x0eHeartbeatEvent\x12;\n\x0breceived_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreceivedAt\x12\x1a\n\x08progress\x18\x02 \x01(\x05R\x08progress\x12S\n\x07metrics\x18\x04 \x03(\x0b\x32\x39.browser_automation_studio.v1.HeartbeatEvent.MetricsEntryR\x07metrics\x1aP\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01J\x04\x08\x03\x10\x04\"\xfa\x01\n\x0eTelemetryEvent\x12;\n\x0brecorded_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nrecordedAt\x12S\n\x07metrics\x18\x03 \x03(\x0b\x32\x39.browser_automation_studio.v1.TelemetryEvent.MetricsEntryR\x07metrics\x1aP\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01J\x04\x08\x01\x10\x02\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,100 +37,58 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'browser_automation_studio.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1'
-  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._loaded_options = None
-  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._serialized_options = b'8\001'
-  _globals['_EXECUTION_TRIGGERMETADATATYPEDENTRY']._loaded_options = None
-  _globals['_EXECUTION_TRIGGERMETADATATYPEDENTRY']._serialized_options = b'8\001'
   _globals['_EXECUTION_PARAMETERSENTRY']._loaded_options = None
   _globals['_EXECUTION_PARAMETERSENTRY']._serialized_options = b'8\001'
-  _globals['_EXECUTION_PARAMETERSTYPEDENTRY']._loaded_options = None
-  _globals['_EXECUTION_PARAMETERSTYPEDENTRY']._serialized_options = b'8\001'
   _globals['_EXECUTION_RESULTENTRY']._loaded_options = None
   _globals['_EXECUTION_RESULTENTRY']._serialized_options = b'8\001'
-  _globals['_EXECUTION_RESULTTYPEDENTRY']._loaded_options = None
-  _globals['_EXECUTION_RESULTTYPEDENTRY']._serialized_options = b'8\001'
-  _globals['_EXECUTION'].fields_by_name['trigger_metadata']._loaded_options = None
-  _globals['_EXECUTION'].fields_by_name['trigger_metadata']._serialized_options = b'\030\001'
-  _globals['_EXECUTION'].fields_by_name['parameters']._loaded_options = None
-  _globals['_EXECUTION'].fields_by_name['parameters']._serialized_options = b'\030\001'
-  _globals['_EXECUTION'].fields_by_name['result']._loaded_options = None
-  _globals['_EXECUTION'].fields_by_name['result']._serialized_options = b'\030\001'
+  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._loaded_options = None
+  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._serialized_options = b'8\001'
   _globals['_EXECUTEADHOCREQUEST_PARAMETERSENTRY']._loaded_options = None
   _globals['_EXECUTEADHOCREQUEST_PARAMETERSENTRY']._serialized_options = b'8\001'
-  _globals['_EXECUTEADHOCREQUEST_PARAMETERSTYPEDENTRY']._loaded_options = None
-  _globals['_EXECUTEADHOCREQUEST_PARAMETERSTYPEDENTRY']._serialized_options = b'8\001'
-  _globals['_EXECUTIONEXPORTPREVIEW'].fields_by_name['package']._loaded_options = None
-  _globals['_EXECUTIONEXPORTPREVIEW'].fields_by_name['package']._serialized_options = b'\030\001'
   _globals['_LOGEVENT_METADATAENTRY']._loaded_options = None
   _globals['_LOGEVENT_METADATAENTRY']._serialized_options = b'8\001'
-  _globals['_LOGEVENT_METADATATYPEDENTRY']._loaded_options = None
-  _globals['_LOGEVENT_METADATATYPEDENTRY']._serialized_options = b'8\001'
-  _globals['_LOGEVENT'].fields_by_name['metadata']._loaded_options = None
-  _globals['_LOGEVENT'].fields_by_name['metadata']._serialized_options = b'\030\001'
   _globals['_HEARTBEATEVENT_METRICSENTRY']._loaded_options = None
   _globals['_HEARTBEATEVENT_METRICSENTRY']._serialized_options = b'8\001'
-  _globals['_HEARTBEATEVENT_METRICSTYPEDENTRY']._loaded_options = None
-  _globals['_HEARTBEATEVENT_METRICSTYPEDENTRY']._serialized_options = b'8\001'
-  _globals['_HEARTBEATEVENT'].fields_by_name['metrics']._loaded_options = None
-  _globals['_HEARTBEATEVENT'].fields_by_name['metrics']._serialized_options = b'\030\001'
   _globals['_TELEMETRYEVENT_METRICSENTRY']._loaded_options = None
   _globals['_TELEMETRYEVENT_METRICSENTRY']._serialized_options = b'8\001'
-  _globals['_TELEMETRYEVENT_METRICSTYPEDENTRY']._loaded_options = None
-  _globals['_TELEMETRYEVENT_METRICSTYPEDENTRY']._serialized_options = b'8\001'
-  _globals['_TELEMETRYEVENT'].fields_by_name['metrics']._loaded_options = None
-  _globals['_TELEMETRYEVENT'].fields_by_name['metrics']._serialized_options = b'\030\001'
-  _globals['_EXECUTION']._serialized_start=298
-  _globals['_EXECUTION']._serialized_end=2102
-  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._serialized_start=1561
-  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._serialized_end=1651
-  _globals['_EXECUTION_TRIGGERMETADATATYPEDENTRY']._serialized_start=1653
-  _globals['_EXECUTION_TRIGGERMETADATATYPEDENTRY']._serialized_end=1746
-  _globals['_EXECUTION_PARAMETERSENTRY']._serialized_start=1748
-  _globals['_EXECUTION_PARAMETERSENTRY']._serialized_end=1833
-  _globals['_EXECUTION_PARAMETERSTYPEDENTRY']._serialized_start=1835
-  _globals['_EXECUTION_PARAMETERSTYPEDENTRY']._serialized_end=1923
-  _globals['_EXECUTION_RESULTENTRY']._serialized_start=1925
-  _globals['_EXECUTION_RESULTENTRY']._serialized_end=2006
-  _globals['_EXECUTION_RESULTTYPEDENTRY']._serialized_start=2008
-  _globals['_EXECUTION_RESULTTYPEDENTRY']._serialized_end=2092
-  _globals['_EXECUTEADHOCREQUEST']._serialized_start=2105
-  _globals['_EXECUTEADHOCREQUEST']._serialized_end=2733
-  _globals['_EXECUTEADHOCREQUEST_PARAMETERSENTRY']._serialized_start=1748
-  _globals['_EXECUTEADHOCREQUEST_PARAMETERSENTRY']._serialized_end=1833
-  _globals['_EXECUTEADHOCREQUEST_PARAMETERSTYPEDENTRY']._serialized_start=1835
-  _globals['_EXECUTEADHOCREQUEST_PARAMETERSTYPEDENTRY']._serialized_end=1923
-  _globals['_EXECUTIONMETADATA']._serialized_start=2735
-  _globals['_EXECUTIONMETADATA']._serialized_end=2808
-  _globals['_EXECUTEADHOCRESPONSE']._serialized_start=2811
-  _globals['_EXECUTEADHOCRESPONSE']._serialized_end=3119
-  _globals['_SCREENSHOT']._serialized_start=3122
-  _globals['_SCREENSHOT']._serialized_end=3450
-  _globals['_GETSCREENSHOTSRESPONSE']._serialized_start=3452
-  _globals['_GETSCREENSHOTSRESPONSE']._serialized_end=3552
-  _globals['_EXECUTIONEVENTENVELOPE']._serialized_start=3555
-  _globals['_EXECUTIONEVENTENVELOPE']._serialized_end=4392
-  _globals['_EXECUTIONEXPORTPREVIEW']._serialized_start=4395
-  _globals['_EXECUTIONEXPORTPREVIEW']._serialized_end=4834
-  _globals['_STATUSUPDATEEVENT']._serialized_start=4837
-  _globals['_STATUSUPDATEEVENT']._serialized_end=5110
-  _globals['_TIMELINEFRAMEEVENT']._serialized_start=5112
-  _globals['_TIMELINEFRAMEEVENT']._serialized_end=5199
-  _globals['_LOGEVENT']._serialized_start=5202
-  _globals['_LOGEVENT']._serialized_end=5769
-  _globals['_LOGEVENT_METADATAENTRY']._serialized_start=5583
-  _globals['_LOGEVENT_METADATAENTRY']._serialized_end=5666
-  _globals['_LOGEVENT_METADATATYPEDENTRY']._serialized_start=5668
-  _globals['_LOGEVENT_METADATATYPEDENTRY']._serialized_end=5754
-  _globals['_HEARTBEATEVENT']._serialized_start=5772
-  _globals['_HEARTBEATEVENT']._serialized_end=6238
-  _globals['_HEARTBEATEVENT_METRICSENTRY']._serialized_start=6069
-  _globals['_HEARTBEATEVENT_METRICSENTRY']._serialized_end=6151
-  _globals['_HEARTBEATEVENT_METRICSTYPEDENTRY']._serialized_start=6153
-  _globals['_HEARTBEATEVENT_METRICSTYPEDENTRY']._serialized_end=6238
-  _globals['_TELEMETRYEVENT']._serialized_start=6241
-  _globals['_TELEMETRYEVENT']._serialized_end=6679
-  _globals['_TELEMETRYEVENT_METRICSENTRY']._serialized_start=6069
-  _globals['_TELEMETRYEVENT_METRICSENTRY']._serialized_end=6151
-  _globals['_TELEMETRYEVENT_METRICSTYPEDENTRY']._serialized_start=6153
-  _globals['_TELEMETRYEVENT_METRICSTYPEDENTRY']._serialized_end=6238
+  _globals['_EXECUTION']._serialized_start=267
+  _globals['_EXECUTION']._serialized_end=1481
+  _globals['_EXECUTION_PARAMETERSENTRY']._serialized_start=1199
+  _globals['_EXECUTION_PARAMETERSENTRY']._serialized_end=1282
+  _globals['_EXECUTION_RESULTENTRY']._serialized_start=1284
+  _globals['_EXECUTION_RESULTENTRY']._serialized_end=1363
+  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._serialized_start=1365
+  _globals['_EXECUTION_TRIGGERMETADATAENTRY']._serialized_end=1453
+  _globals['_EXECUTEADHOCREQUEST']._serialized_start=1484
+  _globals['_EXECUTEADHOCREQUEST']._serialized_end=1913
+  _globals['_EXECUTEADHOCREQUEST_PARAMETERSENTRY']._serialized_start=1199
+  _globals['_EXECUTEADHOCREQUEST_PARAMETERSENTRY']._serialized_end=1282
+  _globals['_EXECUTIONMETADATA']._serialized_start=1915
+  _globals['_EXECUTIONMETADATA']._serialized_end=1988
+  _globals['_EXECUTEADHOCRESPONSE']._serialized_start=1991
+  _globals['_EXECUTEADHOCRESPONSE']._serialized_end=2299
+  _globals['_SCREENSHOT']._serialized_start=2302
+  _globals['_SCREENSHOT']._serialized_end=2630
+  _globals['_GETSCREENSHOTSRESPONSE']._serialized_start=2632
+  _globals['_GETSCREENSHOTSRESPONSE']._serialized_end=2732
+  _globals['_EXECUTIONEVENTENVELOPE']._serialized_start=2735
+  _globals['_EXECUTIONEVENTENVELOPE']._serialized_end=3572
+  _globals['_EXECUTIONEXPORTPREVIEW']._serialized_start=3575
+  _globals['_EXECUTIONEXPORTPREVIEW']._serialized_end=3954
+  _globals['_STATUSUPDATEEVENT']._serialized_start=3957
+  _globals['_STATUSUPDATEEVENT']._serialized_end=4230
+  _globals['_TIMELINEFRAMEEVENT']._serialized_start=4232
+  _globals['_TIMELINEFRAMEEVENT']._serialized_end=4319
+  _globals['_LOGEVENT']._serialized_start=4322
+  _globals['_LOGEVENT']._serialized_end=4703
+  _globals['_LOGEVENT_METADATAENTRY']._serialized_start=4601
+  _globals['_LOGEVENT_METADATAENTRY']._serialized_end=4682
+  _globals['_HEARTBEATEVENT']._serialized_start=4706
+  _globals['_HEARTBEATEVENT']._serialized_end=4984
+  _globals['_HEARTBEATEVENT_METRICSENTRY']._serialized_start=4898
+  _globals['_HEARTBEATEVENT_METRICSENTRY']._serialized_end=4978
+  _globals['_TELEMETRYEVENT']._serialized_start=4987
+  _globals['_TELEMETRYEVENT']._serialized_end=5237
+  _globals['_TELEMETRYEVENT_METRICSENTRY']._serialized_start=4898
+  _globals['_TELEMETRYEVENT_METRICSENTRY']._serialized_end=4978
 # @@protoc_insertion_point(module_scope)

@@ -2,8 +2,6 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from common.v1 import types_pb2 as _types_pb2
-from browser_automation_studio.v1 import record_mode_pb2 as _record_mode_pb2
-from browser_automation_studio.v1 import timeline_pb2 as _timeline_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -30,6 +28,61 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_FOCUS: _ClassVar[ActionType]
     ACTION_TYPE_BLUR: _ClassVar[ActionType]
 
+class MouseButton(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MOUSE_BUTTON_UNSPECIFIED: _ClassVar[MouseButton]
+    MOUSE_BUTTON_LEFT: _ClassVar[MouseButton]
+    MOUSE_BUTTON_RIGHT: _ClassVar[MouseButton]
+    MOUSE_BUTTON_MIDDLE: _ClassVar[MouseButton]
+
+class NavigateWaitEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NAVIGATE_WAIT_EVENT_UNSPECIFIED: _ClassVar[NavigateWaitEvent]
+    NAVIGATE_WAIT_EVENT_LOAD: _ClassVar[NavigateWaitEvent]
+    NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED: _ClassVar[NavigateWaitEvent]
+    NAVIGATE_WAIT_EVENT_NETWORKIDLE: _ClassVar[NavigateWaitEvent]
+
+class WaitState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WAIT_STATE_UNSPECIFIED: _ClassVar[WaitState]
+    WAIT_STATE_ATTACHED: _ClassVar[WaitState]
+    WAIT_STATE_DETACHED: _ClassVar[WaitState]
+    WAIT_STATE_VISIBLE: _ClassVar[WaitState]
+    WAIT_STATE_HIDDEN: _ClassVar[WaitState]
+
+class AssertionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ASSERTION_MODE_UNSPECIFIED: _ClassVar[AssertionMode]
+    ASSERTION_MODE_EXISTS: _ClassVar[AssertionMode]
+    ASSERTION_MODE_NOT_EXISTS: _ClassVar[AssertionMode]
+    ASSERTION_MODE_VISIBLE: _ClassVar[AssertionMode]
+    ASSERTION_MODE_HIDDEN: _ClassVar[AssertionMode]
+    ASSERTION_MODE_TEXT_EQUALS: _ClassVar[AssertionMode]
+    ASSERTION_MODE_TEXT_CONTAINS: _ClassVar[AssertionMode]
+    ASSERTION_MODE_ATTRIBUTE_EQUALS: _ClassVar[AssertionMode]
+    ASSERTION_MODE_ATTRIBUTE_CONTAINS: _ClassVar[AssertionMode]
+
+class ScrollBehavior(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCROLL_BEHAVIOR_UNSPECIFIED: _ClassVar[ScrollBehavior]
+    SCROLL_BEHAVIOR_AUTO: _ClassVar[ScrollBehavior]
+    SCROLL_BEHAVIOR_SMOOTH: _ClassVar[ScrollBehavior]
+
+class KeyAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    KEY_ACTION_UNSPECIFIED: _ClassVar[KeyAction]
+    KEY_ACTION_PRESS: _ClassVar[KeyAction]
+    KEY_ACTION_DOWN: _ClassVar[KeyAction]
+    KEY_ACTION_UP: _ClassVar[KeyAction]
+
+class KeyboardModifier(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    KEYBOARD_MODIFIER_UNSPECIFIED: _ClassVar[KeyboardModifier]
+    KEYBOARD_MODIFIER_CTRL: _ClassVar[KeyboardModifier]
+    KEYBOARD_MODIFIER_SHIFT: _ClassVar[KeyboardModifier]
+    KEYBOARD_MODIFIER_ALT: _ClassVar[KeyboardModifier]
+    KEYBOARD_MODIFIER_META: _ClassVar[KeyboardModifier]
+
 class TimelineMessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TIMELINE_MESSAGE_TYPE_UNSPECIFIED: _ClassVar[TimelineMessageType]
@@ -50,10 +103,153 @@ ACTION_TYPE_HOVER: ActionType
 ACTION_TYPE_SCREENSHOT: ActionType
 ACTION_TYPE_FOCUS: ActionType
 ACTION_TYPE_BLUR: ActionType
+MOUSE_BUTTON_UNSPECIFIED: MouseButton
+MOUSE_BUTTON_LEFT: MouseButton
+MOUSE_BUTTON_RIGHT: MouseButton
+MOUSE_BUTTON_MIDDLE: MouseButton
+NAVIGATE_WAIT_EVENT_UNSPECIFIED: NavigateWaitEvent
+NAVIGATE_WAIT_EVENT_LOAD: NavigateWaitEvent
+NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED: NavigateWaitEvent
+NAVIGATE_WAIT_EVENT_NETWORKIDLE: NavigateWaitEvent
+WAIT_STATE_UNSPECIFIED: WaitState
+WAIT_STATE_ATTACHED: WaitState
+WAIT_STATE_DETACHED: WaitState
+WAIT_STATE_VISIBLE: WaitState
+WAIT_STATE_HIDDEN: WaitState
+ASSERTION_MODE_UNSPECIFIED: AssertionMode
+ASSERTION_MODE_EXISTS: AssertionMode
+ASSERTION_MODE_NOT_EXISTS: AssertionMode
+ASSERTION_MODE_VISIBLE: AssertionMode
+ASSERTION_MODE_HIDDEN: AssertionMode
+ASSERTION_MODE_TEXT_EQUALS: AssertionMode
+ASSERTION_MODE_TEXT_CONTAINS: AssertionMode
+ASSERTION_MODE_ATTRIBUTE_EQUALS: AssertionMode
+ASSERTION_MODE_ATTRIBUTE_CONTAINS: AssertionMode
+SCROLL_BEHAVIOR_UNSPECIFIED: ScrollBehavior
+SCROLL_BEHAVIOR_AUTO: ScrollBehavior
+SCROLL_BEHAVIOR_SMOOTH: ScrollBehavior
+KEY_ACTION_UNSPECIFIED: KeyAction
+KEY_ACTION_PRESS: KeyAction
+KEY_ACTION_DOWN: KeyAction
+KEY_ACTION_UP: KeyAction
+KEYBOARD_MODIFIER_UNSPECIFIED: KeyboardModifier
+KEYBOARD_MODIFIER_CTRL: KeyboardModifier
+KEYBOARD_MODIFIER_SHIFT: KeyboardModifier
+KEYBOARD_MODIFIER_ALT: KeyboardModifier
+KEYBOARD_MODIFIER_META: KeyboardModifier
 TIMELINE_MESSAGE_TYPE_UNSPECIFIED: TimelineMessageType
 TIMELINE_MESSAGE_TYPE_EVENT: TimelineMessageType
 TIMELINE_MESSAGE_TYPE_STATUS: TimelineMessageType
 TIMELINE_MESSAGE_TYPE_HEARTBEAT: TimelineMessageType
+
+class BoundingBox(_message.Message):
+    __slots__ = ()
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    x: float
+    y: float
+    width: float
+    height: float
+    def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ..., width: _Optional[float] = ..., height: _Optional[float] = ...) -> None: ...
+
+class Point(_message.Message):
+    __slots__ = ()
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    x: float
+    y: float
+    def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ...) -> None: ...
+
+class SelectorCandidate(_message.Message):
+    __slots__ = ()
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    SPECIFICITY_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    value: str
+    confidence: float
+    specificity: int
+    def __init__(self, type: _Optional[str] = ..., value: _Optional[str] = ..., confidence: _Optional[float] = ..., specificity: _Optional[int] = ...) -> None: ...
+
+class SelectorSet(_message.Message):
+    __slots__ = ()
+    PRIMARY_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    primary: str
+    candidates: _containers.RepeatedCompositeFieldContainer[SelectorCandidate]
+    def __init__(self, primary: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[SelectorCandidate, _Mapping]]] = ...) -> None: ...
+
+class ElementMeta(_message.Message):
+    __slots__ = ()
+    class AttributesEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    TAG_NAME_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CLASS_NAME_FIELD_NUMBER: _ClassVar[int]
+    INNER_TEXT_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTES_FIELD_NUMBER: _ClassVar[int]
+    IS_VISIBLE_FIELD_NUMBER: _ClassVar[int]
+    IS_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    ARIA_LABEL_FIELD_NUMBER: _ClassVar[int]
+    tag_name: str
+    id: str
+    class_name: str
+    inner_text: str
+    attributes: _containers.ScalarMap[str, str]
+    is_visible: bool
+    is_enabled: bool
+    role: str
+    aria_label: str
+    def __init__(self, tag_name: _Optional[str] = ..., id: _Optional[str] = ..., class_name: _Optional[str] = ..., inner_text: _Optional[str] = ..., attributes: _Optional[_Mapping[str, str]] = ..., is_visible: _Optional[bool] = ..., is_enabled: _Optional[bool] = ..., role: _Optional[str] = ..., aria_label: _Optional[str] = ...) -> None: ...
+
+class HighlightRegion(_message.Message):
+    __slots__ = ()
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
+    PADDING_FIELD_NUMBER: _ClassVar[int]
+    COLOR_FIELD_NUMBER: _ClassVar[int]
+    selector: str
+    bounding_box: BoundingBox
+    padding: int
+    color: str
+    def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[BoundingBox, _Mapping]] = ..., padding: _Optional[int] = ..., color: _Optional[str] = ...) -> None: ...
+
+class MaskRegion(_message.Message):
+    __slots__ = ()
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
+    OPACITY_FIELD_NUMBER: _ClassVar[int]
+    selector: str
+    bounding_box: BoundingBox
+    opacity: float
+    def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[BoundingBox, _Mapping]] = ..., opacity: _Optional[float] = ...) -> None: ...
+
+class TimelineScreenshot(_message.Message):
+    __slots__ = ()
+    ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    THUMBNAIL_URL_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    artifact_id: str
+    url: str
+    thumbnail_url: str
+    width: int
+    height: int
+    content_type: str
+    size_bytes: int
+    def __init__(self, artifact_id: _Optional[str] = ..., url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ...) -> None: ...
 
 class ActionDefinition(_message.Message):
     __slots__ = ()
@@ -97,8 +293,8 @@ class NavigateParams(_message.Message):
     url: str
     wait_for_selector: str
     timeout_ms: int
-    wait_until: str
-    def __init__(self, url: _Optional[str] = ..., wait_for_selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., wait_until: _Optional[str] = ...) -> None: ...
+    wait_until: NavigateWaitEvent
+    def __init__(self, url: _Optional[str] = ..., wait_for_selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., wait_until: _Optional[_Union[NavigateWaitEvent, str]] = ...) -> None: ...
 
 class ClickParams(_message.Message):
     __slots__ = ()
@@ -110,13 +306,13 @@ class ClickParams(_message.Message):
     FORCE_FIELD_NUMBER: _ClassVar[int]
     SCROLL_INTO_VIEW_FIELD_NUMBER: _ClassVar[int]
     selector: str
-    button: str
+    button: MouseButton
     click_count: int
     delay_ms: int
-    modifiers: _containers.RepeatedScalarFieldContainer[str]
+    modifiers: _containers.RepeatedScalarFieldContainer[KeyboardModifier]
     force: bool
     scroll_into_view: bool
-    def __init__(self, selector: _Optional[str] = ..., button: _Optional[str] = ..., click_count: _Optional[int] = ..., delay_ms: _Optional[int] = ..., modifiers: _Optional[_Iterable[str]] = ..., force: _Optional[bool] = ..., scroll_into_view: _Optional[bool] = ...) -> None: ...
+    def __init__(self, selector: _Optional[str] = ..., button: _Optional[_Union[MouseButton, str]] = ..., click_count: _Optional[int] = ..., delay_ms: _Optional[int] = ..., modifiers: _Optional[_Iterable[_Union[KeyboardModifier, str]]] = ..., force: _Optional[bool] = ..., scroll_into_view: _Optional[bool] = ...) -> None: ...
 
 class InputParams(_message.Message):
     __slots__ = ()
@@ -142,9 +338,9 @@ class WaitParams(_message.Message):
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     duration_ms: int
     selector: str
-    state: str
+    state: WaitState
     timeout_ms: int
-    def __init__(self, duration_ms: _Optional[int] = ..., selector: _Optional[str] = ..., state: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+    def __init__(self, duration_ms: _Optional[int] = ..., selector: _Optional[str] = ..., state: _Optional[_Union[WaitState, str]] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class AssertParams(_message.Message):
     __slots__ = ()
@@ -157,14 +353,14 @@ class AssertParams(_message.Message):
     FAILURE_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     selector: str
-    mode: str
+    mode: AssertionMode
     expected: _types_pb2.JsonValue
     negated: bool
     case_sensitive: bool
     attribute_name: str
     failure_message: str
     timeout_ms: int
-    def __init__(self, selector: _Optional[str] = ..., mode: _Optional[str] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., attribute_name: _Optional[str] = ..., failure_message: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+    def __init__(self, selector: _Optional[str] = ..., mode: _Optional[_Union[AssertionMode, str]] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., attribute_name: _Optional[str] = ..., failure_message: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class ScrollParams(_message.Message):
     __slots__ = ()
@@ -177,10 +373,10 @@ class ScrollParams(_message.Message):
     selector: str
     x: int
     y: int
-    behavior: str
+    behavior: ScrollBehavior
     delta_x: int
     delta_y: int
-    def __init__(self, selector: _Optional[str] = ..., x: _Optional[int] = ..., y: _Optional[int] = ..., behavior: _Optional[str] = ..., delta_x: _Optional[int] = ..., delta_y: _Optional[int] = ...) -> None: ...
+    def __init__(self, selector: _Optional[str] = ..., x: _Optional[int] = ..., y: _Optional[int] = ..., behavior: _Optional[_Union[ScrollBehavior, str]] = ..., delta_x: _Optional[int] = ..., delta_y: _Optional[int] = ...) -> None: ...
 
 class SelectParams(_message.Message):
     __slots__ = ()
@@ -221,9 +417,9 @@ class KeyboardParams(_message.Message):
     ACTION_FIELD_NUMBER: _ClassVar[int]
     key: str
     keys: _containers.RepeatedScalarFieldContainer[str]
-    modifiers: _containers.RepeatedScalarFieldContainer[str]
-    action: str
-    def __init__(self, key: _Optional[str] = ..., keys: _Optional[_Iterable[str]] = ..., modifiers: _Optional[_Iterable[str]] = ..., action: _Optional[str] = ...) -> None: ...
+    modifiers: _containers.RepeatedScalarFieldContainer[KeyboardModifier]
+    action: KeyAction
+    def __init__(self, key: _Optional[str] = ..., keys: _Optional[_Iterable[str]] = ..., modifiers: _Optional[_Iterable[_Union[KeyboardModifier, str]]] = ..., action: _Optional[_Union[KeyAction, str]] = ...) -> None: ...
 
 class HoverParams(_message.Message):
     __slots__ = ()
@@ -270,12 +466,12 @@ class ActionMetadata(_message.Message):
     RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
     RECORDED_BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     label: str
-    selector_candidates: _containers.RepeatedCompositeFieldContainer[_record_mode_pb2.SelectorCandidate]
-    element_snapshot: _record_mode_pb2.ElementMeta
+    selector_candidates: _containers.RepeatedCompositeFieldContainer[SelectorCandidate]
+    element_snapshot: ElementMeta
     confidence: float
     recorded_at: _timestamp_pb2.Timestamp
-    recorded_bounding_box: _timeline_pb2.BoundingBox
-    def __init__(self, label: _Optional[str] = ..., selector_candidates: _Optional[_Iterable[_Union[_record_mode_pb2.SelectorCandidate, _Mapping]]] = ..., element_snapshot: _Optional[_Union[_record_mode_pb2.ElementMeta, _Mapping]] = ..., confidence: _Optional[float] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., recorded_bounding_box: _Optional[_Union[_timeline_pb2.BoundingBox, _Mapping]] = ...) -> None: ...
+    recorded_bounding_box: BoundingBox
+    def __init__(self, label: _Optional[str] = ..., selector_candidates: _Optional[_Iterable[_Union[SelectorCandidate, _Mapping]]] = ..., element_snapshot: _Optional[_Union[ElementMeta, _Mapping]] = ..., confidence: _Optional[float] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., recorded_bounding_box: _Optional[_Union[BoundingBox, _Mapping]] = ...) -> None: ...
 
 class ActionTelemetry(_message.Message):
     __slots__ = ()
@@ -295,19 +491,19 @@ class ActionTelemetry(_message.Message):
     NETWORK_EVENTS_FIELD_NUMBER: _ClassVar[int]
     url: str
     frame_id: str
-    screenshot: _timeline_pb2.TimelineScreenshot
+    screenshot: TimelineScreenshot
     dom_snapshot_preview: str
     dom_snapshot_html: str
-    element_bounding_box: _timeline_pb2.BoundingBox
-    click_position: _timeline_pb2.Point
-    cursor_position: _timeline_pb2.Point
-    cursor_trail: _containers.RepeatedCompositeFieldContainer[_timeline_pb2.Point]
-    highlight_regions: _containers.RepeatedCompositeFieldContainer[_timeline_pb2.HighlightRegion]
-    mask_regions: _containers.RepeatedCompositeFieldContainer[_timeline_pb2.MaskRegion]
+    element_bounding_box: BoundingBox
+    click_position: Point
+    cursor_position: Point
+    cursor_trail: _containers.RepeatedCompositeFieldContainer[Point]
+    highlight_regions: _containers.RepeatedCompositeFieldContainer[HighlightRegion]
+    mask_regions: _containers.RepeatedCompositeFieldContainer[MaskRegion]
     zoom_factor: float
     console_logs: _containers.RepeatedCompositeFieldContainer[ConsoleLogEntryUnified]
     network_events: _containers.RepeatedCompositeFieldContainer[NetworkEventUnified]
-    def __init__(self, url: _Optional[str] = ..., frame_id: _Optional[str] = ..., screenshot: _Optional[_Union[_timeline_pb2.TimelineScreenshot, _Mapping]] = ..., dom_snapshot_preview: _Optional[str] = ..., dom_snapshot_html: _Optional[str] = ..., element_bounding_box: _Optional[_Union[_timeline_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_timeline_pb2.Point, _Mapping]] = ..., cursor_position: _Optional[_Union[_timeline_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_timeline_pb2.Point, _Mapping]]] = ..., highlight_regions: _Optional[_Iterable[_Union[_timeline_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_timeline_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., console_logs: _Optional[_Iterable[_Union[ConsoleLogEntryUnified, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[NetworkEventUnified, _Mapping]]] = ...) -> None: ...
+    def __init__(self, url: _Optional[str] = ..., frame_id: _Optional[str] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., dom_snapshot_preview: _Optional[str] = ..., dom_snapshot_html: _Optional[str] = ..., element_bounding_box: _Optional[_Union[BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[Point, _Mapping]] = ..., cursor_position: _Optional[_Union[Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[Point, _Mapping]]] = ..., highlight_regions: _Optional[_Iterable[_Union[HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., console_logs: _Optional[_Iterable[_Union[ConsoleLogEntryUnified, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[NetworkEventUnified, _Mapping]]] = ...) -> None: ...
 
 class ConsoleLogEntryUnified(_message.Message):
     __slots__ = ()
@@ -370,10 +566,10 @@ class RecordingEventData(_message.Message):
     NEEDS_CONFIRMATION_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     session_id: str
-    selector_candidates: _containers.RepeatedCompositeFieldContainer[_record_mode_pb2.SelectorCandidate]
+    selector_candidates: _containers.RepeatedCompositeFieldContainer[SelectorCandidate]
     needs_confirmation: bool
     source: str
-    def __init__(self, session_id: _Optional[str] = ..., selector_candidates: _Optional[_Iterable[_Union[_record_mode_pb2.SelectorCandidate, _Mapping]]] = ..., needs_confirmation: _Optional[bool] = ..., source: _Optional[str] = ...) -> None: ...
+    def __init__(self, session_id: _Optional[str] = ..., selector_candidates: _Optional[_Iterable[_Union[SelectorCandidate, _Mapping]]] = ..., needs_confirmation: _Optional[bool] = ..., source: _Optional[str] = ...) -> None: ...
 
 class ExecutionEventData(_message.Message):
     __slots__ = ()

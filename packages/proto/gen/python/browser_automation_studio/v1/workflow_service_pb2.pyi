@@ -1,11 +1,10 @@
 import datetime
 
-from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.api import annotations_pb2 as _annotations_pb2
 from common.v1 import types_pb2 as _types_pb2
-from browser_automation_studio.v1 import workflow_pb2 as _workflow_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
+from browser_automation_studio.v1 import unified_pb2 as _unified_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -43,8 +42,8 @@ class WorkflowSummary(_message.Message):
     last_change_description: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    flow_definition: _workflow_pb2.WorkflowDefinition
-    def __init__(self, id: _Optional[str] = ..., project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., version: _Optional[int] = ..., is_template: _Optional[bool] = ..., created_by: _Optional[str] = ..., last_change_source: _Optional[str] = ..., last_change_description: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ...) -> None: ...
+    flow_definition: _unified_pb2.WorkflowDefinitionV2
+    def __init__(self, id: _Optional[str] = ..., project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., version: _Optional[int] = ..., is_template: _Optional[bool] = ..., created_by: _Optional[str] = ..., last_change_source: _Optional[str] = ..., last_change_description: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., flow_definition: _Optional[_Union[_unified_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
 
 class WorkflowVersion(_message.Message):
     __slots__ = ()
@@ -56,11 +55,11 @@ class WorkflowVersion(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     workflow_id: str
     version: int
-    flow_definition: _workflow_pb2.WorkflowDefinition
+    flow_definition: _unified_pb2.WorkflowDefinitionV2
     change_description: str
     created_by: str
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., change_description: _Optional[str] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ..., flow_definition: _Optional[_Union[_unified_pb2.WorkflowDefinitionV2, _Mapping]] = ..., change_description: _Optional[str] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class WorkflowList(_message.Message):
     __slots__ = ()
@@ -84,17 +83,17 @@ class CreateWorkflowRequest(_message.Message):
     project_id: str
     name: str
     folder_path: str
-    flow_definition: _workflow_pb2.WorkflowDefinition
+    flow_definition: _unified_pb2.WorkflowDefinitionV2
     ai_prompt: str
-    def __init__(self, project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., ai_prompt: _Optional[str] = ...) -> None: ...
+    def __init__(self, project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., flow_definition: _Optional[_Union[_unified_pb2.WorkflowDefinitionV2, _Mapping]] = ..., ai_prompt: _Optional[str] = ...) -> None: ...
 
 class CreateWorkflowResponse(_message.Message):
     __slots__ = ()
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     workflow: WorkflowSummary
-    flow_definition: _workflow_pb2.WorkflowDefinition
-    def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ...) -> None: ...
+    flow_definition: _unified_pb2.WorkflowDefinitionV2
+    def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_unified_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
 
 class UpdateWorkflowRequest(_message.Message):
     __slots__ = ()
@@ -111,20 +110,20 @@ class UpdateWorkflowRequest(_message.Message):
     description: str
     folder_path: str
     tags: _containers.RepeatedScalarFieldContainer[str]
-    flow_definition: _workflow_pb2.WorkflowDefinition
+    flow_definition: _unified_pb2.WorkflowDefinitionV2
     change_description: str
     source: str
     expected_version: int
     workflow_id: str
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., folder_path: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., change_description: _Optional[str] = ..., source: _Optional[str] = ..., expected_version: _Optional[int] = ..., workflow_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., folder_path: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., flow_definition: _Optional[_Union[_unified_pb2.WorkflowDefinitionV2, _Mapping]] = ..., change_description: _Optional[str] = ..., source: _Optional[str] = ..., expected_version: _Optional[int] = ..., workflow_id: _Optional[str] = ...) -> None: ...
 
 class UpdateWorkflowResponse(_message.Message):
     __slots__ = ()
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     workflow: WorkflowSummary
-    flow_definition: _workflow_pb2.WorkflowDefinition
-    def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ...) -> None: ...
+    flow_definition: _unified_pb2.WorkflowDefinitionV2
+    def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_unified_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
 
 class ExecuteWorkflowRequest(_message.Message):
     __slots__ = ()
@@ -133,26 +132,17 @@ class ExecuteWorkflowRequest(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class ParametersTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
-    PARAMETERS_TYPED_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
-    parameters: _containers.MessageMap[str, _struct_pb2.Value]
-    parameters_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
+    parameters: _containers.MessageMap[str, _types_pb2.JsonValue]
     wait_for_completion: bool
     workflow_id: str
     workflow_version: int
-    def __init__(self, parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., parameters_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ...) -> None: ...
+    def __init__(self, parameters: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ...) -> None: ...
 
 class ExecuteWorkflowResponse(_message.Message):
     __slots__ = ()

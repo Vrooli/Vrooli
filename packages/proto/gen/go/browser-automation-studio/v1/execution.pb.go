@@ -10,7 +10,6 @@ import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -24,7 +23,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Execution is returned by GET /api/v1/executions/{id}` and list APIs.
+// Execution is returned by GET /api/v1/executions/{id} and list APIs.
 type Execution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique execution ID (UUID). JSON name preserved as "id" for backwards compatibility.
@@ -37,18 +36,6 @@ type Execution struct {
 	Status ExecutionStatus `protobuf:"varint,4,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
 	// How the execution was triggered (manual, scheduled, api, webhook).
 	TriggerType TriggerType `protobuf:"varint,5,opt,name=trigger_type,json=triggerType,proto3,enum=browser_automation_studio.v1.TriggerType" json:"trigger_type,omitempty"`
-	// Trigger metadata payload.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-	TriggerMetadata map[string]*structpb.Value `protobuf:"bytes,6,rep,name=trigger_metadata,json=triggerMetadata,proto3" json:"trigger_metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Strongly typed trigger metadata; prefer over Value maps.
-	TriggerMetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,19,rep,name=trigger_metadata_typed,json=triggerMetadataTyped,proto3" json:"trigger_metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Runtime parameters passed to the execution.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-	Parameters map[string]*structpb.Value `protobuf:"bytes,7,rep,name=parameters,proto3" json:"parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Strongly typed runtime parameters; prefer over Value maps.
-	ParametersTyped map[string]*v1.JsonValue `protobuf:"bytes,17,rep,name=parameters_typed,json=parametersTyped,proto3" json:"parameters_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// When the execution started.
 	StartedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// When the execution completed (null if still running).
@@ -57,12 +44,6 @@ type Execution struct {
 	LastHeartbeat *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_heartbeat,json=lastHeartbeat,proto3" json:"last_heartbeat,omitempty"`
 	// Error message if the execution failed.
 	Error *string `protobuf:"bytes,11,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	// Structured result payload reported by the executor.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-	Result map[string]*structpb.Value `protobuf:"bytes,12,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Strongly typed execution results; prefer over Value maps.
-	ResultTyped map[string]*v1.JsonValue `protobuf:"bytes,18,rep,name=result_typed,json=resultTyped,proto3" json:"result_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Progress percentage (0-100).
 	Progress int32 `protobuf:"varint,13,opt,name=progress,proto3" json:"progress,omitempty"`
 	// Human-readable description of the current step.
@@ -70,9 +51,15 @@ type Execution struct {
 	// Creation timestamp for the execution record.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Last update timestamp for the execution record.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Runtime parameters passed to the execution.
+	Parameters map[string]*v1.JsonValue `protobuf:"bytes,17,rep,name=parameters,proto3" json:"parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Structured result payload reported by the executor.
+	Result map[string]*v1.JsonValue `protobuf:"bytes,18,rep,name=result,proto3" json:"result,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Trigger metadata payload.
+	TriggerMetadata map[string]*v1.JsonValue `protobuf:"bytes,19,rep,name=trigger_metadata,json=triggerMetadata,proto3" json:"trigger_metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Execution) Reset() {
@@ -140,36 +127,6 @@ func (x *Execution) GetTriggerType() TriggerType {
 	return TriggerType_TRIGGER_TYPE_UNSPECIFIED
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-func (x *Execution) GetTriggerMetadata() map[string]*structpb.Value {
-	if x != nil {
-		return x.TriggerMetadata
-	}
-	return nil
-}
-
-func (x *Execution) GetTriggerMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.TriggerMetadataTyped
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-func (x *Execution) GetParameters() map[string]*structpb.Value {
-	if x != nil {
-		return x.Parameters
-	}
-	return nil
-}
-
-func (x *Execution) GetParametersTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.ParametersTyped
-	}
-	return nil
-}
-
 func (x *Execution) GetStartedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.StartedAt
@@ -196,21 +153,6 @@ func (x *Execution) GetError() string {
 		return *x.Error
 	}
 	return ""
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-func (x *Execution) GetResult() map[string]*structpb.Value {
-	if x != nil {
-		return x.Result
-	}
-	return nil
-}
-
-func (x *Execution) GetResultTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.ResultTyped
-	}
-	return nil
 }
 
 func (x *Execution) GetProgress() int32 {
@@ -241,19 +183,38 @@ func (x *Execution) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Execution) GetParameters() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.Parameters
+	}
+	return nil
+}
+
+func (x *Execution) GetResult() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+func (x *Execution) GetTriggerMetadata() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.TriggerMetadata
+	}
+	return nil
+}
+
 // ExecuteAdhocRequest represents POST /api/v1/workflows/execute-adhoc.
 type ExecuteAdhocRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workflow definition to execute without persisting.
-	FlowDefinition *WorkflowDefinition `protobuf:"bytes,1,opt,name=flow_definition,json=flowDefinition,proto3" json:"flow_definition,omitempty"`
-	// Runtime parameters for the adhoc execution.
-	Parameters map[string]*structpb.Value `protobuf:"bytes,2,rep,name=parameters,proto3" json:"parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Strongly typed runtime parameters; prefer over Value maps.
-	ParametersTyped map[string]*v1.JsonValue `protobuf:"bytes,5,rep,name=parameters_typed,json=parametersTyped,proto3" json:"parameters_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Workflow definition to execute without persisting (V2 format).
+	FlowDefinition *WorkflowDefinitionV2 `protobuf:"bytes,1,opt,name=flow_definition,json=flowDefinition,proto3" json:"flow_definition,omitempty"`
 	// Whether to wait for completion before responding.
 	WaitForCompletion bool `protobuf:"varint,3,opt,name=wait_for_completion,json=waitForCompletion,proto3" json:"wait_for_completion,omitempty"`
 	// Optional metadata for labeling the execution.
-	Metadata      *ExecutionMetadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	Metadata *ExecutionMetadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	// Runtime parameters for the adhoc execution.
+	Parameters    map[string]*v1.JsonValue `protobuf:"bytes,5,rep,name=parameters,proto3" json:"parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -288,23 +249,9 @@ func (*ExecuteAdhocRequest) Descriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_execution_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ExecuteAdhocRequest) GetFlowDefinition() *WorkflowDefinition {
+func (x *ExecuteAdhocRequest) GetFlowDefinition() *WorkflowDefinitionV2 {
 	if x != nil {
 		return x.FlowDefinition
-	}
-	return nil
-}
-
-func (x *ExecuteAdhocRequest) GetParameters() map[string]*structpb.Value {
-	if x != nil {
-		return x.Parameters
-	}
-	return nil
-}
-
-func (x *ExecuteAdhocRequest) GetParametersTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.ParametersTyped
 	}
 	return nil
 }
@@ -319,6 +266,13 @@ func (x *ExecuteAdhocRequest) GetWaitForCompletion() bool {
 func (x *ExecuteAdhocRequest) GetMetadata() *ExecutionMetadata {
 	if x != nil {
 		return x.Metadata
+	}
+	return nil
+}
+
+func (x *ExecuteAdhocRequest) GetParameters() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.Parameters
 	}
 	return nil
 }
@@ -873,12 +827,8 @@ type ExecutionExportPreview struct {
 	AvailableAssetCount int32 `protobuf:"varint,6,opt,name=available_asset_count,json=availableAssetCount,proto3" json:"available_asset_count,omitempty"`
 	// Total duration in milliseconds of the replay.
 	TotalDurationMs int32 `protobuf:"varint,7,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
-	// Replay movie package encoded as JSON (movie spec).
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-	Package *structpb.Struct `protobuf:"bytes,8,opt,name=package,proto3" json:"package,omitempty"`
-	// Typed replay movie package; prefer over Struct when available.
-	PackageTyped  *v1.JsonObject `protobuf:"bytes,9,opt,name=package_typed,json=packageTyped,proto3" json:"package_typed,omitempty"`
+	// Replay movie package.
+	Package       *v1.JsonObject `protobuf:"bytes,9,opt,name=package,proto3" json:"package,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -962,30 +912,25 @@ func (x *ExecutionExportPreview) GetTotalDurationMs() int32 {
 	return 0
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-func (x *ExecutionExportPreview) GetPackage() *structpb.Struct {
+func (x *ExecutionExportPreview) GetPackage() *v1.JsonObject {
 	if x != nil {
 		return x.Package
 	}
 	return nil
 }
 
-func (x *ExecutionExportPreview) GetPackageTyped() *v1.JsonObject {
-	if x != nil {
-		return x.PackageTyped
-	}
-	return nil
-}
-
 // StatusUpdateEvent carries execution-level status changes.
 type StatusUpdateEvent struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Status   ExecutionStatus        `protobuf:"varint,1,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
-	Progress int32                  `protobuf:"varint,2,opt,name=progress,proto3" json:"progress,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current execution status.
+	Status ExecutionStatus `protobuf:"varint,1,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
+	// Progress percentage (0-100).
+	Progress int32 `protobuf:"varint,2,opt,name=progress,proto3" json:"progress,omitempty"`
 	// Current step description when available.
 	CurrentStep *string `protobuf:"bytes,3,opt,name=current_step,json=currentStep,proto3,oneof" json:"current_step,omitempty"`
 	// Error details when status is failed.
-	Error         *string                `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	Error *string `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	// When the status change occurred.
 	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1058,8 +1003,9 @@ func (x *StatusUpdateEvent) GetOccurredAt() *timestamppb.Timestamp {
 
 // TimelineFrameEvent transports timeline frame updates.
 type TimelineFrameEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Frame         *TimelineFrame         `protobuf:"bytes,1,opt,name=frame,proto3" json:"frame,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The timeline frame data.
+	Frame         *TimelineFrame `protobuf:"bytes,1,opt,name=frame,proto3" json:"frame,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1103,16 +1049,17 @@ func (x *TimelineFrameEvent) GetFrame() *TimelineFrame {
 
 // LogEvent captures execution log events.
 type LogEvent struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Level   LogLevel               `protobuf:"varint,1,opt,name=level,proto3,enum=browser_automation_studio.v1.LogLevel" json:"level,omitempty"`
-	Message string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Log level.
+	Level LogLevel `protobuf:"varint,1,opt,name=level,proto3,enum=browser_automation_studio.v1.LogLevel" json:"level,omitempty"`
+	// Log message.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// Optional step context for the log.
-	StepIndex  *int32                 `protobuf:"varint,3,opt,name=step_index,json=stepIndex,proto3,oneof" json:"step_index,omitempty"`
+	StepIndex *int32 `protobuf:"varint,3,opt,name=step_index,json=stepIndex,proto3,oneof" json:"step_index,omitempty"`
+	// When the log occurred.
 	OccurredAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed metadata; prefer over the Value map.
-	MetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,6,rep,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Log metadata.
+	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,6,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1175,32 +1122,22 @@ func (x *LogEvent) GetOccurredAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-func (x *LogEvent) GetMetadata() map[string]*structpb.Value {
+func (x *LogEvent) GetMetadata() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-func (x *LogEvent) GetMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetadataTyped
-	}
-	return nil
-}
-
 // HeartbeatEvent reports liveness/progress signals.
 type HeartbeatEvent struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the heartbeat was received.
 	ReceivedAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
-	Progress   int32                  `protobuf:"varint,2,opt,name=progress,proto3" json:"progress,omitempty"`
-	// Executor supplied metrics.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-	Metrics map[string]*structpb.Value `protobuf:"bytes,3,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed executor metrics; prefer over the Value map.
-	MetricsTyped  map[string]*v1.JsonValue `protobuf:"bytes,4,rep,name=metrics_typed,json=metricsTyped,proto3" json:"metrics_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Progress percentage.
+	Progress int32 `protobuf:"varint,2,opt,name=progress,proto3" json:"progress,omitempty"`
+	// Executor metrics.
+	Metrics       map[string]*v1.JsonValue `protobuf:"bytes,4,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1249,17 +1186,9 @@ func (x *HeartbeatEvent) GetProgress() int32 {
 	return 0
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-func (x *HeartbeatEvent) GetMetrics() map[string]*structpb.Value {
+func (x *HeartbeatEvent) GetMetrics() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metrics
-	}
-	return nil
-}
-
-func (x *HeartbeatEvent) GetMetricsTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetricsTyped
 	}
 	return nil
 }
@@ -1267,11 +1196,10 @@ func (x *HeartbeatEvent) GetMetricsTyped() map[string]*v1.JsonValue {
 // TelemetryEvent emits structured telemetry metrics.
 type TelemetryEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-	Metrics    map[string]*structpb.Value `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	RecordedAt *timestamppb.Timestamp     `protobuf:"bytes,2,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
-	// Typed telemetry metrics; prefer over the Value map.
-	MetricsTyped  map[string]*v1.JsonValue `protobuf:"bytes,3,rep,name=metrics_typed,json=metricsTyped,proto3" json:"metrics_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// When telemetry was recorded.
+	RecordedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	// Telemetry metrics.
+	Metrics       map[string]*v1.JsonValue `protobuf:"bytes,3,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1306,14 +1234,6 @@ func (*TelemetryEvent) Descriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_execution_proto_rawDescGZIP(), []int{12}
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
-func (x *TelemetryEvent) GetMetrics() map[string]*structpb.Value {
-	if x != nil {
-		return x.Metrics
-	}
-	return nil
-}
-
 func (x *TelemetryEvent) GetRecordedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.RecordedAt
@@ -1321,9 +1241,9 @@ func (x *TelemetryEvent) GetRecordedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *TelemetryEvent) GetMetricsTyped() map[string]*v1.JsonValue {
+func (x *TelemetryEvent) GetMetrics() map[string]*v1.JsonValue {
 	if x != nil {
-		return x.MetricsTyped
+		return x.Metrics
 	}
 	return nil
 }
@@ -1332,67 +1252,51 @@ var File_browser_automation_studio_v1_execution_proto protoreflect.FileDescripto
 
 const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
 	"\n" +
-	",browser-automation-studio/v1/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/timeline.proto\x1a+browser-automation-studio/v1/workflow.proto\"\x8c\x0e\n" +
+	",browser-automation-studio/v1/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/timeline.proto\x1a*browser-automation-studio/v1/unified.proto\"\xbe\t\n" +
 	"\tExecution\x12\x18\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
 	"workflowId\x12)\n" +
 	"\x10workflow_version\x18\x03 \x01(\x05R\x0fworkflowVersion\x12E\n" +
 	"\x06status\x18\x04 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12L\n" +
-	"\ftrigger_type\x18\x05 \x01(\x0e2).browser_automation_studio.v1.TriggerTypeR\vtriggerType\x12k\n" +
-	"\x10trigger_metadata\x18\x06 \x03(\v2<.browser_automation_studio.v1.Execution.TriggerMetadataEntryB\x02\x18\x01R\x0ftriggerMetadata\x12w\n" +
-	"\x16trigger_metadata_typed\x18\x13 \x03(\v2A.browser_automation_studio.v1.Execution.TriggerMetadataTypedEntryR\x14triggerMetadataTyped\x12[\n" +
-	"\n" +
-	"parameters\x18\a \x03(\v27.browser_automation_studio.v1.Execution.ParametersEntryB\x02\x18\x01R\n" +
-	"parameters\x12g\n" +
-	"\x10parameters_typed\x18\x11 \x03(\v2<.browser_automation_studio.v1.Execution.ParametersTypedEntryR\x0fparametersTyped\x129\n" +
+	"\ftrigger_type\x18\x05 \x01(\x0e2).browser_automation_studio.v1.TriggerTypeR\vtriggerType\x129\n" +
 	"\n" +
 	"started_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
 	"\fcompleted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12A\n" +
 	"\x0elast_heartbeat\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\rlastHeartbeat\x12\x19\n" +
-	"\x05error\x18\v \x01(\tH\x00R\x05error\x88\x01\x01\x12O\n" +
-	"\x06result\x18\f \x03(\v23.browser_automation_studio.v1.Execution.ResultEntryB\x02\x18\x01R\x06result\x12[\n" +
-	"\fresult_typed\x18\x12 \x03(\v28.browser_automation_studio.v1.Execution.ResultTypedEntryR\vresultTyped\x12\x1a\n" +
+	"\x05error\x18\v \x01(\tH\x00R\x05error\x88\x01\x01\x12\x1a\n" +
 	"\bprogress\x18\r \x01(\x05R\bprogress\x12!\n" +
 	"\fcurrent_step\x18\x0e \x01(\tR\vcurrentStep\x129\n" +
 	"\n" +
 	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1aZ\n" +
-	"\x14TriggerMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1a]\n" +
-	"\x19TriggerMetadataTypedEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aU\n" +
+	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12W\n" +
+	"\n" +
+	"parameters\x18\x11 \x03(\v27.browser_automation_studio.v1.Execution.ParametersEntryR\n" +
+	"parameters\x12K\n" +
+	"\x06result\x18\x12 \x03(\v23.browser_automation_studio.v1.Execution.ResultEntryR\x06result\x12g\n" +
+	"\x10trigger_metadata\x18\x13 \x03(\v2<.browser_automation_studio.v1.Execution.TriggerMetadataEntryR\x0ftriggerMetadata\x1aS\n" +
 	"\x0fParametersEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aX\n" +
-	"\x14ParametersTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aQ\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aO\n" +
 	"\vResultEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aT\n" +
-	"\x10ResultTypedEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aX\n" +
+	"\x14TriggerMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\b\n" +
-	"\x06_error\"\xf4\x04\n" +
-	"\x13ExecuteAdhocRequest\x12Y\n" +
-	"\x0fflow_definition\x18\x01 \x01(\v20.browser_automation_studio.v1.WorkflowDefinitionR\x0eflowDefinition\x12a\n" +
-	"\n" +
-	"parameters\x18\x02 \x03(\v2A.browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntryR\n" +
-	"parameters\x12q\n" +
-	"\x10parameters_typed\x18\x05 \x03(\v2F.browser_automation_studio.v1.ExecuteAdhocRequest.ParametersTypedEntryR\x0fparametersTyped\x12.\n" +
+	"\x06_errorJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\f\x10\r\"\xad\x03\n" +
+	"\x13ExecuteAdhocRequest\x12[\n" +
+	"\x0fflow_definition\x18\x01 \x01(\v22.browser_automation_studio.v1.WorkflowDefinitionV2R\x0eflowDefinition\x12.\n" +
 	"\x13wait_for_completion\x18\x03 \x01(\bR\x11waitForCompletion\x12K\n" +
-	"\bmetadata\x18\x04 \x01(\v2/.browser_automation_studio.v1.ExecutionMetadataR\bmetadata\x1aU\n" +
+	"\bmetadata\x18\x04 \x01(\v2/.browser_automation_studio.v1.ExecutionMetadataR\bmetadata\x12a\n" +
+	"\n" +
+	"parameters\x18\x05 \x03(\v2A.browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntryR\n" +
+	"parameters\x1aS\n" +
 	"\x0fParametersEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aX\n" +
-	"\x14ParametersTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\"I\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x02\x10\x03\"I\n" +
 	"\x11ExecutionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xb4\x02\n" +
@@ -1445,7 +1349,7 @@ const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
 	"\v_step_indexB\n" +
 	"\n" +
 	"\b_attemptB\v\n" +
-	"\t_sequence\"\xb7\x03\n" +
+	"\t_sequence\"\xfb\x02\n" +
 	"\x16ExecutionExportPreview\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x17\n" +
 	"\aspec_id\x18\x02 \x01(\tR\x06specId\x12B\n" +
@@ -1453,9 +1357,8 @@ const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x120\n" +
 	"\x14captured_frame_count\x18\x05 \x01(\x05R\x12capturedFrameCount\x122\n" +
 	"\x15available_asset_count\x18\x06 \x01(\x05R\x13availableAssetCount\x12*\n" +
-	"\x11total_duration_ms\x18\a \x01(\x05R\x0ftotalDurationMs\x125\n" +
-	"\apackage\x18\b \x01(\v2\x17.google.protobuf.StructB\x02\x18\x01R\apackage\x12:\n" +
-	"\rpackage_typed\x18\t \x01(\v2\x15.common.v1.JsonObjectR\fpackageTyped\"\x91\x02\n" +
+	"\x11total_duration_ms\x18\a \x01(\x05R\x0ftotalDurationMs\x12/\n" +
+	"\apackage\x18\t \x01(\v2\x15.common.v1.JsonObjectR\apackageJ\x04\b\b\x10\t\"\x91\x02\n" +
 	"\x11StatusUpdateEvent\x12E\n" +
 	"\x06status\x18\x01 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12\x1a\n" +
 	"\bprogress\x18\x02 \x01(\x05R\bprogress\x12&\n" +
@@ -1466,46 +1369,34 @@ const file_browser_automation_studio_v1_execution_proto_rawDesc = "" +
 	"\r_current_stepB\b\n" +
 	"\x06_error\"W\n" +
 	"\x12TimelineFrameEvent\x12A\n" +
-	"\x05frame\x18\x01 \x01(\v2+.browser_automation_studio.v1.TimelineFrameR\x05frame\"\xb7\x04\n" +
+	"\x05frame\x18\x01 \x01(\v2+.browser_automation_studio.v1.TimelineFrameR\x05frame\"\xfd\x02\n" +
 	"\bLogEvent\x12<\n" +
 	"\x05level\x18\x01 \x01(\x0e2&.browser_automation_studio.v1.LogLevelR\x05level\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\"\n" +
 	"\n" +
 	"step_index\x18\x03 \x01(\x05H\x00R\tstepIndex\x88\x01\x01\x12;\n" +
 	"\voccurred_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAt\x12T\n" +
-	"\bmetadata\x18\x05 \x03(\v24.browser_automation_studio.v1.LogEvent.MetadataEntryB\x02\x18\x01R\bmetadata\x12`\n" +
-	"\x0emetadata_typed\x18\x06 \x03(\v29.browser_automation_studio.v1.LogEvent.MetadataTypedEntryR\rmetadataTyped\x1aS\n" +
+	"occurredAt\x12P\n" +
+	"\bmetadata\x18\x06 \x03(\v24.browser_automation_studio.v1.LogEvent.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aV\n" +
-	"\x12MetadataTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\r\n" +
-	"\v_step_index\"\xd2\x03\n" +
+	"\v_step_indexJ\x04\b\x05\x10\x06\"\x96\x02\n" +
 	"\x0eHeartbeatEvent\x12;\n" +
 	"\vreceived_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"receivedAt\x12\x1a\n" +
-	"\bprogress\x18\x02 \x01(\x05R\bprogress\x12W\n" +
-	"\ametrics\x18\x03 \x03(\v29.browser_automation_studio.v1.HeartbeatEvent.MetricsEntryB\x02\x18\x01R\ametrics\x12c\n" +
-	"\rmetrics_typed\x18\x04 \x03(\v2>.browser_automation_studio.v1.HeartbeatEvent.MetricsTypedEntryR\fmetricsTyped\x1aR\n" +
+	"\bprogress\x18\x02 \x01(\x05R\bprogress\x12S\n" +
+	"\ametrics\x18\x04 \x03(\v29.browser_automation_studio.v1.HeartbeatEvent.MetricsEntryR\ametrics\x1aP\n" +
 	"\fMetricsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aU\n" +
-	"\x11MetricsTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\"\xb6\x03\n" +
-	"\x0eTelemetryEvent\x12W\n" +
-	"\ametrics\x18\x01 \x03(\v29.browser_automation_studio.v1.TelemetryEvent.MetricsEntryB\x02\x18\x01R\ametrics\x12;\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x03\x10\x04\"\xfa\x01\n" +
+	"\x0eTelemetryEvent\x12;\n" +
 	"\vrecorded_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"recordedAt\x12c\n" +
-	"\rmetrics_typed\x18\x03 \x03(\v2>.browser_automation_studio.v1.TelemetryEvent.MetricsTypedEntryR\fmetricsTyped\x1aR\n" +
+	"recordedAt\x12S\n" +
+	"\ametrics\x18\x03 \x03(\v29.browser_automation_studio.v1.TelemetryEvent.MetricsEntryR\ametrics\x1aP\n" +
 	"\fMetricsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aU\n" +
-	"\x11MetricsTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x01\x10\x02BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_execution_proto_rawDescOnce sync.Once
@@ -1519,7 +1410,7 @@ func file_browser_automation_studio_v1_execution_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_execution_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_browser_automation_studio_v1_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_browser_automation_studio_v1_execution_proto_goTypes = []any{
 	(*Execution)(nil),              // 0: browser_automation_studio.v1.Execution
 	(*ExecuteAdhocRequest)(nil),    // 1: browser_automation_studio.v1.ExecuteAdhocRequest
@@ -1534,97 +1425,73 @@ var file_browser_automation_studio_v1_execution_proto_goTypes = []any{
 	(*LogEvent)(nil),               // 10: browser_automation_studio.v1.LogEvent
 	(*HeartbeatEvent)(nil),         // 11: browser_automation_studio.v1.HeartbeatEvent
 	(*TelemetryEvent)(nil),         // 12: browser_automation_studio.v1.TelemetryEvent
-	nil,                            // 13: browser_automation_studio.v1.Execution.TriggerMetadataEntry
-	nil,                            // 14: browser_automation_studio.v1.Execution.TriggerMetadataTypedEntry
-	nil,                            // 15: browser_automation_studio.v1.Execution.ParametersEntry
-	nil,                            // 16: browser_automation_studio.v1.Execution.ParametersTypedEntry
-	nil,                            // 17: browser_automation_studio.v1.Execution.ResultEntry
-	nil,                            // 18: browser_automation_studio.v1.Execution.ResultTypedEntry
-	nil,                            // 19: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
-	nil,                            // 20: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersTypedEntry
-	nil,                            // 21: browser_automation_studio.v1.LogEvent.MetadataEntry
-	nil,                            // 22: browser_automation_studio.v1.LogEvent.MetadataTypedEntry
-	nil,                            // 23: browser_automation_studio.v1.HeartbeatEvent.MetricsEntry
-	nil,                            // 24: browser_automation_studio.v1.HeartbeatEvent.MetricsTypedEntry
-	nil,                            // 25: browser_automation_studio.v1.TelemetryEvent.MetricsEntry
-	nil,                            // 26: browser_automation_studio.v1.TelemetryEvent.MetricsTypedEntry
-	(ExecutionStatus)(0),           // 27: browser_automation_studio.v1.ExecutionStatus
-	(TriggerType)(0),               // 28: browser_automation_studio.v1.TriggerType
-	(*timestamppb.Timestamp)(nil),  // 29: google.protobuf.Timestamp
-	(*WorkflowDefinition)(nil),     // 30: browser_automation_studio.v1.WorkflowDefinition
-	(EventKind)(0),                 // 31: browser_automation_studio.v1.EventKind
-	(ExportStatus)(0),              // 32: browser_automation_studio.v1.ExportStatus
-	(*structpb.Struct)(nil),        // 33: google.protobuf.Struct
-	(*v1.JsonObject)(nil),          // 34: common.v1.JsonObject
-	(*TimelineFrame)(nil),          // 35: browser_automation_studio.v1.TimelineFrame
-	(LogLevel)(0),                  // 36: browser_automation_studio.v1.LogLevel
-	(*structpb.Value)(nil),         // 37: google.protobuf.Value
-	(*v1.JsonValue)(nil),           // 38: common.v1.JsonValue
+	nil,                            // 13: browser_automation_studio.v1.Execution.ParametersEntry
+	nil,                            // 14: browser_automation_studio.v1.Execution.ResultEntry
+	nil,                            // 15: browser_automation_studio.v1.Execution.TriggerMetadataEntry
+	nil,                            // 16: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
+	nil,                            // 17: browser_automation_studio.v1.LogEvent.MetadataEntry
+	nil,                            // 18: browser_automation_studio.v1.HeartbeatEvent.MetricsEntry
+	nil,                            // 19: browser_automation_studio.v1.TelemetryEvent.MetricsEntry
+	(ExecutionStatus)(0),           // 20: browser_automation_studio.v1.ExecutionStatus
+	(TriggerType)(0),               // 21: browser_automation_studio.v1.TriggerType
+	(*timestamppb.Timestamp)(nil),  // 22: google.protobuf.Timestamp
+	(*WorkflowDefinitionV2)(nil),   // 23: browser_automation_studio.v1.WorkflowDefinitionV2
+	(EventKind)(0),                 // 24: browser_automation_studio.v1.EventKind
+	(ExportStatus)(0),              // 25: browser_automation_studio.v1.ExportStatus
+	(*v1.JsonObject)(nil),          // 26: common.v1.JsonObject
+	(*TimelineFrame)(nil),          // 27: browser_automation_studio.v1.TimelineFrame
+	(LogLevel)(0),                  // 28: browser_automation_studio.v1.LogLevel
+	(*v1.JsonValue)(nil),           // 29: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_execution_proto_depIdxs = []int32{
-	27, // 0: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	28, // 1: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
-	13, // 2: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.Execution.TriggerMetadataEntry
-	14, // 3: browser_automation_studio.v1.Execution.trigger_metadata_typed:type_name -> browser_automation_studio.v1.Execution.TriggerMetadataTypedEntry
-	15, // 4: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.Execution.ParametersEntry
-	16, // 5: browser_automation_studio.v1.Execution.parameters_typed:type_name -> browser_automation_studio.v1.Execution.ParametersTypedEntry
-	29, // 6: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
-	29, // 7: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
-	29, // 8: browser_automation_studio.v1.Execution.last_heartbeat:type_name -> google.protobuf.Timestamp
-	17, // 9: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.Execution.ResultEntry
-	18, // 10: browser_automation_studio.v1.Execution.result_typed:type_name -> browser_automation_studio.v1.Execution.ResultTypedEntry
-	29, // 11: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
-	29, // 12: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
-	30, // 13: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinition
-	19, // 14: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
-	20, // 15: browser_automation_studio.v1.ExecuteAdhocRequest.parameters_typed:type_name -> browser_automation_studio.v1.ExecuteAdhocRequest.ParametersTypedEntry
-	2,  // 16: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
-	27, // 17: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	29, // 18: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
-	29, // 19: browser_automation_studio.v1.Screenshot.timestamp:type_name -> google.protobuf.Timestamp
-	4,  // 20: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.Screenshot
-	31, // 21: browser_automation_studio.v1.ExecutionEventEnvelope.kind:type_name -> browser_automation_studio.v1.EventKind
-	29, // 22: browser_automation_studio.v1.ExecutionEventEnvelope.timestamp:type_name -> google.protobuf.Timestamp
-	8,  // 23: browser_automation_studio.v1.ExecutionEventEnvelope.status_update:type_name -> browser_automation_studio.v1.StatusUpdateEvent
-	9,  // 24: browser_automation_studio.v1.ExecutionEventEnvelope.timeline_frame:type_name -> browser_automation_studio.v1.TimelineFrameEvent
-	10, // 25: browser_automation_studio.v1.ExecutionEventEnvelope.log:type_name -> browser_automation_studio.v1.LogEvent
-	11, // 26: browser_automation_studio.v1.ExecutionEventEnvelope.heartbeat:type_name -> browser_automation_studio.v1.HeartbeatEvent
-	12, // 27: browser_automation_studio.v1.ExecutionEventEnvelope.telemetry:type_name -> browser_automation_studio.v1.TelemetryEvent
-	32, // 28: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
-	33, // 29: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> google.protobuf.Struct
-	34, // 30: browser_automation_studio.v1.ExecutionExportPreview.package_typed:type_name -> common.v1.JsonObject
-	27, // 31: browser_automation_studio.v1.StatusUpdateEvent.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	29, // 32: browser_automation_studio.v1.StatusUpdateEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	35, // 33: browser_automation_studio.v1.TimelineFrameEvent.frame:type_name -> browser_automation_studio.v1.TimelineFrame
-	36, // 34: browser_automation_studio.v1.LogEvent.level:type_name -> browser_automation_studio.v1.LogLevel
-	29, // 35: browser_automation_studio.v1.LogEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	21, // 36: browser_automation_studio.v1.LogEvent.metadata:type_name -> browser_automation_studio.v1.LogEvent.MetadataEntry
-	22, // 37: browser_automation_studio.v1.LogEvent.metadata_typed:type_name -> browser_automation_studio.v1.LogEvent.MetadataTypedEntry
-	29, // 38: browser_automation_studio.v1.HeartbeatEvent.received_at:type_name -> google.protobuf.Timestamp
-	23, // 39: browser_automation_studio.v1.HeartbeatEvent.metrics:type_name -> browser_automation_studio.v1.HeartbeatEvent.MetricsEntry
-	24, // 40: browser_automation_studio.v1.HeartbeatEvent.metrics_typed:type_name -> browser_automation_studio.v1.HeartbeatEvent.MetricsTypedEntry
-	25, // 41: browser_automation_studio.v1.TelemetryEvent.metrics:type_name -> browser_automation_studio.v1.TelemetryEvent.MetricsEntry
-	29, // 42: browser_automation_studio.v1.TelemetryEvent.recorded_at:type_name -> google.protobuf.Timestamp
-	26, // 43: browser_automation_studio.v1.TelemetryEvent.metrics_typed:type_name -> browser_automation_studio.v1.TelemetryEvent.MetricsTypedEntry
-	37, // 44: browser_automation_studio.v1.Execution.TriggerMetadataEntry.value:type_name -> google.protobuf.Value
-	38, // 45: browser_automation_studio.v1.Execution.TriggerMetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	37, // 46: browser_automation_studio.v1.Execution.ParametersEntry.value:type_name -> google.protobuf.Value
-	38, // 47: browser_automation_studio.v1.Execution.ParametersTypedEntry.value:type_name -> common.v1.JsonValue
-	37, // 48: browser_automation_studio.v1.Execution.ResultEntry.value:type_name -> google.protobuf.Value
-	38, // 49: browser_automation_studio.v1.Execution.ResultTypedEntry.value:type_name -> common.v1.JsonValue
-	37, // 50: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry.value:type_name -> google.protobuf.Value
-	38, // 51: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersTypedEntry.value:type_name -> common.v1.JsonValue
-	37, // 52: browser_automation_studio.v1.LogEvent.MetadataEntry.value:type_name -> google.protobuf.Value
-	38, // 53: browser_automation_studio.v1.LogEvent.MetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	37, // 54: browser_automation_studio.v1.HeartbeatEvent.MetricsEntry.value:type_name -> google.protobuf.Value
-	38, // 55: browser_automation_studio.v1.HeartbeatEvent.MetricsTypedEntry.value:type_name -> common.v1.JsonValue
-	37, // 56: browser_automation_studio.v1.TelemetryEvent.MetricsEntry.value:type_name -> google.protobuf.Value
-	38, // 57: browser_automation_studio.v1.TelemetryEvent.MetricsTypedEntry.value:type_name -> common.v1.JsonValue
-	58, // [58:58] is the sub-list for method output_type
-	58, // [58:58] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	20, // 0: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	21, // 1: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
+	22, // 2: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
+	22, // 3: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
+	22, // 4: browser_automation_studio.v1.Execution.last_heartbeat:type_name -> google.protobuf.Timestamp
+	22, // 5: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
+	22, // 6: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 7: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.Execution.ParametersEntry
+	14, // 8: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.Execution.ResultEntry
+	15, // 9: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.Execution.TriggerMetadataEntry
+	23, // 10: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	2,  // 11: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
+	16, // 12: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry
+	20, // 13: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	22, // 14: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
+	22, // 15: browser_automation_studio.v1.Screenshot.timestamp:type_name -> google.protobuf.Timestamp
+	4,  // 16: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.Screenshot
+	24, // 17: browser_automation_studio.v1.ExecutionEventEnvelope.kind:type_name -> browser_automation_studio.v1.EventKind
+	22, // 18: browser_automation_studio.v1.ExecutionEventEnvelope.timestamp:type_name -> google.protobuf.Timestamp
+	8,  // 19: browser_automation_studio.v1.ExecutionEventEnvelope.status_update:type_name -> browser_automation_studio.v1.StatusUpdateEvent
+	9,  // 20: browser_automation_studio.v1.ExecutionEventEnvelope.timeline_frame:type_name -> browser_automation_studio.v1.TimelineFrameEvent
+	10, // 21: browser_automation_studio.v1.ExecutionEventEnvelope.log:type_name -> browser_automation_studio.v1.LogEvent
+	11, // 22: browser_automation_studio.v1.ExecutionEventEnvelope.heartbeat:type_name -> browser_automation_studio.v1.HeartbeatEvent
+	12, // 23: browser_automation_studio.v1.ExecutionEventEnvelope.telemetry:type_name -> browser_automation_studio.v1.TelemetryEvent
+	25, // 24: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
+	26, // 25: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
+	20, // 26: browser_automation_studio.v1.StatusUpdateEvent.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	22, // 27: browser_automation_studio.v1.StatusUpdateEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	27, // 28: browser_automation_studio.v1.TimelineFrameEvent.frame:type_name -> browser_automation_studio.v1.TimelineFrame
+	28, // 29: browser_automation_studio.v1.LogEvent.level:type_name -> browser_automation_studio.v1.LogLevel
+	22, // 30: browser_automation_studio.v1.LogEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	17, // 31: browser_automation_studio.v1.LogEvent.metadata:type_name -> browser_automation_studio.v1.LogEvent.MetadataEntry
+	22, // 32: browser_automation_studio.v1.HeartbeatEvent.received_at:type_name -> google.protobuf.Timestamp
+	18, // 33: browser_automation_studio.v1.HeartbeatEvent.metrics:type_name -> browser_automation_studio.v1.HeartbeatEvent.MetricsEntry
+	22, // 34: browser_automation_studio.v1.TelemetryEvent.recorded_at:type_name -> google.protobuf.Timestamp
+	19, // 35: browser_automation_studio.v1.TelemetryEvent.metrics:type_name -> browser_automation_studio.v1.TelemetryEvent.MetricsEntry
+	29, // 36: browser_automation_studio.v1.Execution.ParametersEntry.value:type_name -> common.v1.JsonValue
+	29, // 37: browser_automation_studio.v1.Execution.ResultEntry.value:type_name -> common.v1.JsonValue
+	29, // 38: browser_automation_studio.v1.Execution.TriggerMetadataEntry.value:type_name -> common.v1.JsonValue
+	29, // 39: browser_automation_studio.v1.ExecuteAdhocRequest.ParametersEntry.value:type_name -> common.v1.JsonValue
+	29, // 40: browser_automation_studio.v1.LogEvent.MetadataEntry.value:type_name -> common.v1.JsonValue
+	29, // 41: browser_automation_studio.v1.HeartbeatEvent.MetricsEntry.value:type_name -> common.v1.JsonValue
+	29, // 42: browser_automation_studio.v1.TelemetryEvent.MetricsEntry.value:type_name -> common.v1.JsonValue
+	43, // [43:43] is the sub-list for method output_type
+	43, // [43:43] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_proto_init() }
@@ -1634,7 +1501,7 @@ func file_browser_automation_studio_v1_execution_proto_init() {
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
 	file_browser_automation_studio_v1_timeline_proto_init()
-	file_browser_automation_studio_v1_workflow_proto_init()
+	file_browser_automation_studio_v1_unified_proto_init()
 	file_browser_automation_studio_v1_execution_proto_msgTypes[0].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_proto_msgTypes[3].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_proto_msgTypes[6].OneofWrappers = []any{
@@ -1652,7 +1519,7 @@ func file_browser_automation_studio_v1_execution_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_execution_proto_rawDesc), len(file_browser_automation_studio_v1_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   27,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

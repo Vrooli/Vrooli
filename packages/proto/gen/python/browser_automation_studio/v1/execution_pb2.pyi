@@ -1,11 +1,10 @@
 import datetime
 
-from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from common.v1 import types_pb2 as _types_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1 import timeline_pb2 as _timeline_pb2
-from browser_automation_studio.v1 import workflow_pb2 as _workflow_pb2
+from browser_automation_studio.v1 import unified_pb2 as _unified_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -16,28 +15,7 @@ DESCRIPTOR: _descriptor.FileDescriptor
 
 class Execution(_message.Message):
     __slots__ = ()
-    class TriggerMetadataEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class TriggerMetadataTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _types_pb2.JsonValue
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     class ParametersEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class ParametersTypedEntry(_message.Message):
         __slots__ = ()
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -49,9 +27,9 @@ class Execution(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class ResultTypedEntry(_message.Message):
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    class TriggerMetadataEntry(_message.Message):
         __slots__ = ()
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -63,40 +41,34 @@ class Execution(_message.Message):
     WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TRIGGER_TYPE_FIELD_NUMBER: _ClassVar[int]
-    TRIGGER_METADATA_FIELD_NUMBER: _ClassVar[int]
-    TRIGGER_METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
-    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
-    PARAMETERS_TYPED_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    RESULT_TYPED_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
     CURRENT_STEP_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_METADATA_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     workflow_id: str
     workflow_version: int
     status: _shared_pb2.ExecutionStatus
     trigger_type: _shared_pb2.TriggerType
-    trigger_metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    trigger_metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    parameters: _containers.MessageMap[str, _struct_pb2.Value]
-    parameters_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
     started_at: _timestamp_pb2.Timestamp
     completed_at: _timestamp_pb2.Timestamp
     last_heartbeat: _timestamp_pb2.Timestamp
     error: str
-    result: _containers.MessageMap[str, _struct_pb2.Value]
-    result_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
     progress: int
     current_step: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., trigger_type: _Optional[_Union[_shared_pb2.TriggerType, str]] = ..., trigger_metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., trigger_metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., parameters_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., result: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., result_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    parameters: _containers.MessageMap[str, _types_pb2.JsonValue]
+    result: _containers.MessageMap[str, _types_pb2.JsonValue]
+    trigger_metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., trigger_type: _Optional[_Union[_shared_pb2.TriggerType, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parameters: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., result: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., trigger_metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class ExecuteAdhocRequest(_message.Message):
     __slots__ = ()
@@ -105,26 +77,17 @@ class ExecuteAdhocRequest(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class ParametersTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
-    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
-    PARAMETERS_TYPED_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    flow_definition: _workflow_pb2.WorkflowDefinition
-    parameters: _containers.MessageMap[str, _struct_pb2.Value]
-    parameters_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    flow_definition: _unified_pb2.WorkflowDefinitionV2
     wait_for_completion: bool
     metadata: ExecutionMetadata
-    def __init__(self, flow_definition: _Optional[_Union[_workflow_pb2.WorkflowDefinition, _Mapping]] = ..., parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., parameters_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ...) -> None: ...
+    parameters: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, flow_definition: _Optional[_Union[_unified_pb2.WorkflowDefinitionV2, _Mapping]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ..., parameters: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class ExecutionMetadata(_message.Message):
     __slots__ = ()
@@ -222,7 +185,6 @@ class ExecutionExportPreview(_message.Message):
     AVAILABLE_ASSET_COUNT_FIELD_NUMBER: _ClassVar[int]
     TOTAL_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_TYPED_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     spec_id: str
     status: _shared_pb2.ExportStatus
@@ -230,9 +192,8 @@ class ExecutionExportPreview(_message.Message):
     captured_frame_count: int
     available_asset_count: int
     total_duration_ms: int
-    package: _struct_pb2.Struct
-    package_typed: _types_pb2.JsonObject
-    def __init__(self, execution_id: _Optional[str] = ..., spec_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExportStatus, str]] = ..., message: _Optional[str] = ..., captured_frame_count: _Optional[int] = ..., available_asset_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., package: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., package_typed: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...
+    package: _types_pb2.JsonObject
+    def __init__(self, execution_id: _Optional[str] = ..., spec_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExportStatus, str]] = ..., message: _Optional[str] = ..., captured_frame_count: _Optional[int] = ..., available_asset_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., package: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...
 
 class StatusUpdateEvent(_message.Message):
     __slots__ = ()
@@ -261,13 +222,6 @@ class LogEvent(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetadataTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     LEVEL_FIELD_NUMBER: _ClassVar[int]
@@ -275,25 +229,16 @@ class LogEvent(_message.Message):
     STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
     OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     level: _shared_pb2.LogLevel
     message: str
     step_index: int
     occurred_at: _timestamp_pb2.Timestamp
-    metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, level: _Optional[_Union[_shared_pb2.LogLevel, str]] = ..., message: _Optional[str] = ..., step_index: _Optional[int] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, level: _Optional[_Union[_shared_pb2.LogLevel, str]] = ..., message: _Optional[str] = ..., step_index: _Optional[int] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class HeartbeatEvent(_message.Message):
     __slots__ = ()
     class MetricsEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetricsTypedEntry(_message.Message):
         __slots__ = ()
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -303,12 +248,10 @@ class HeartbeatEvent(_message.Message):
     RECEIVED_AT_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
     METRICS_FIELD_NUMBER: _ClassVar[int]
-    METRICS_TYPED_FIELD_NUMBER: _ClassVar[int]
     received_at: _timestamp_pb2.Timestamp
     progress: int
-    metrics: _containers.MessageMap[str, _struct_pb2.Value]
-    metrics_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, received_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress: _Optional[int] = ..., metrics: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metrics_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metrics: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, received_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress: _Optional[int] = ..., metrics: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class TelemetryEvent(_message.Message):
     __slots__ = ()
@@ -317,19 +260,10 @@ class TelemetryEvent(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetricsTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
-    METRICS_FIELD_NUMBER: _ClassVar[int]
     RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
-    METRICS_TYPED_FIELD_NUMBER: _ClassVar[int]
-    metrics: _containers.MessageMap[str, _struct_pb2.Value]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
     recorded_at: _timestamp_pb2.Timestamp
-    metrics_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, metrics: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metrics_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metrics: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metrics: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...

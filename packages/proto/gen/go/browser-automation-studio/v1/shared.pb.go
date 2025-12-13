@@ -136,71 +136,6 @@ func (TriggerType) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{1}
 }
 
-// StepType categorizes workflow nodes/steps.
-type StepType int32
-
-const (
-	StepType_STEP_TYPE_UNSPECIFIED StepType = 0
-	StepType_STEP_TYPE_NAVIGATE    StepType = 1
-	StepType_STEP_TYPE_CLICK       StepType = 2
-	StepType_STEP_TYPE_ASSERT      StepType = 3
-	StepType_STEP_TYPE_SUBFLOW     StepType = 4
-	StepType_STEP_TYPE_INPUT       StepType = 5
-	StepType_STEP_TYPE_CUSTOM      StepType = 6
-	StepType_STEP_TYPE_WAIT        StepType = 7
-)
-
-// Enum value maps for StepType.
-var (
-	StepType_name = map[int32]string{
-		0: "STEP_TYPE_UNSPECIFIED",
-		1: "STEP_TYPE_NAVIGATE",
-		2: "STEP_TYPE_CLICK",
-		3: "STEP_TYPE_ASSERT",
-		4: "STEP_TYPE_SUBFLOW",
-		5: "STEP_TYPE_INPUT",
-		6: "STEP_TYPE_CUSTOM",
-		7: "STEP_TYPE_WAIT",
-	}
-	StepType_value = map[string]int32{
-		"STEP_TYPE_UNSPECIFIED": 0,
-		"STEP_TYPE_NAVIGATE":    1,
-		"STEP_TYPE_CLICK":       2,
-		"STEP_TYPE_ASSERT":      3,
-		"STEP_TYPE_SUBFLOW":     4,
-		"STEP_TYPE_INPUT":       5,
-		"STEP_TYPE_CUSTOM":      6,
-		"STEP_TYPE_WAIT":        7,
-	}
-)
-
-func (x StepType) Enum() *StepType {
-	p := new(StepType)
-	*p = x
-	return p
-}
-
-func (x StepType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (StepType) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[2].Descriptor()
-}
-
-func (StepType) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[2]
-}
-
-func (x StepType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use StepType.Descriptor instead.
-func (StepType) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{2}
-}
-
 // StepStatus captures the lifecycle of an individual step.
 type StepStatus int32
 
@@ -250,11 +185,11 @@ func (x StepStatus) String() string {
 }
 
 func (StepStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[3].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[2].Descriptor()
 }
 
 func (StepStatus) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[3]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[2]
 }
 
 func (x StepStatus) Number() protoreflect.EnumNumber {
@@ -263,7 +198,7 @@ func (x StepStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StepStatus.Descriptor instead.
 func (StepStatus) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{2}
 }
 
 // LogLevel is used for execution timeline logging.
@@ -306,11 +241,11 @@ func (x LogLevel) String() string {
 }
 
 func (LogLevel) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[4].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[3].Descriptor()
 }
 
 func (LogLevel) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[4]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[3]
 }
 
 func (x LogLevel) Number() protoreflect.EnumNumber {
@@ -319,7 +254,7 @@ func (x LogLevel) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LogLevel.Descriptor instead.
 func (LogLevel) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{3}
 }
 
 // ArtifactType categorizes stored artifacts emitted during execution.
@@ -371,11 +306,11 @@ func (x ArtifactType) String() string {
 }
 
 func (ArtifactType) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[5].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[4].Descriptor()
 }
 
 func (ArtifactType) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[5]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[4]
 }
 
 func (x ArtifactType) Number() protoreflect.EnumNumber {
@@ -384,7 +319,7 @@ func (x ArtifactType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArtifactType.Descriptor instead.
 func (ArtifactType) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{5}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{4}
 }
 
 // EventKind enumerates WebSocket event types.
@@ -430,11 +365,11 @@ func (x EventKind) String() string {
 }
 
 func (EventKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[6].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[5].Descriptor()
 }
 
 func (EventKind) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[6]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[5]
 }
 
 func (x EventKind) Number() protoreflect.EnumNumber {
@@ -443,7 +378,7 @@ func (x EventKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use EventKind.Descriptor instead.
 func (EventKind) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{5}
 }
 
 // ExportStatus indicates readiness for execution export.
@@ -486,11 +421,11 @@ func (x ExportStatus) String() string {
 }
 
 func (ExportStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[7].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[6].Descriptor()
 }
 
 func (ExportStatus) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[7]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[6]
 }
 
 func (x ExportStatus) Number() protoreflect.EnumNumber {
@@ -499,7 +434,7 @@ func (x ExportStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ExportStatus.Descriptor instead.
 func (ExportStatus) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{6}
 }
 
 var File_browser_automation_studio_v1_shared_proto protoreflect.FileDescriptor
@@ -519,16 +454,7 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\x13TRIGGER_TYPE_MANUAL\x10\x01\x12\x1a\n" +
 	"\x16TRIGGER_TYPE_SCHEDULED\x10\x02\x12\x14\n" +
 	"\x10TRIGGER_TYPE_API\x10\x03\x12\x18\n" +
-	"\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xbe\x01\n" +
-	"\bStepType\x12\x19\n" +
-	"\x15STEP_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
-	"\x12STEP_TYPE_NAVIGATE\x10\x01\x12\x13\n" +
-	"\x0fSTEP_TYPE_CLICK\x10\x02\x12\x14\n" +
-	"\x10STEP_TYPE_ASSERT\x10\x03\x12\x15\n" +
-	"\x11STEP_TYPE_SUBFLOW\x10\x04\x12\x13\n" +
-	"\x0fSTEP_TYPE_INPUT\x10\x05\x12\x14\n" +
-	"\x10STEP_TYPE_CUSTOM\x10\x06\x12\x12\n" +
-	"\x0eSTEP_TYPE_WAIT\x10\a*\xdc\x01\n" +
+	"\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xdc\x01\n" +
 	"\n" +
 	"StepStatus\x12\x1b\n" +
 	"\x17STEP_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -580,16 +506,15 @@ func file_browser_automation_studio_v1_shared_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_shared_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
 var file_browser_automation_studio_v1_shared_proto_goTypes = []any{
 	(ExecutionStatus)(0), // 0: browser_automation_studio.v1.ExecutionStatus
 	(TriggerType)(0),     // 1: browser_automation_studio.v1.TriggerType
-	(StepType)(0),        // 2: browser_automation_studio.v1.StepType
-	(StepStatus)(0),      // 3: browser_automation_studio.v1.StepStatus
-	(LogLevel)(0),        // 4: browser_automation_studio.v1.LogLevel
-	(ArtifactType)(0),    // 5: browser_automation_studio.v1.ArtifactType
-	(EventKind)(0),       // 6: browser_automation_studio.v1.EventKind
-	(ExportStatus)(0),    // 7: browser_automation_studio.v1.ExportStatus
+	(StepStatus)(0),      // 2: browser_automation_studio.v1.StepStatus
+	(LogLevel)(0),        // 3: browser_automation_studio.v1.LogLevel
+	(ArtifactType)(0),    // 4: browser_automation_studio.v1.ArtifactType
+	(EventKind)(0),       // 5: browser_automation_studio.v1.EventKind
+	(ExportStatus)(0),    // 6: browser_automation_studio.v1.ExportStatus
 }
 var file_browser_automation_studio_v1_shared_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -609,7 +534,7 @@ func file_browser_automation_studio_v1_shared_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_shared_proto_rawDesc), len(file_browser_automation_studio_v1_shared_proto_rawDesc)),
-			NumEnums:      8,
+			NumEnums:      7,
 			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,

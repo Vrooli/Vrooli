@@ -106,6 +106,396 @@ func (ActionType) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{0}
 }
 
+// MouseButton enumerates supported mouse buttons for click actions.
+type MouseButton int32
+
+const (
+	MouseButton_MOUSE_BUTTON_UNSPECIFIED MouseButton = 0
+	MouseButton_MOUSE_BUTTON_LEFT        MouseButton = 1
+	MouseButton_MOUSE_BUTTON_RIGHT       MouseButton = 2
+	MouseButton_MOUSE_BUTTON_MIDDLE      MouseButton = 3
+)
+
+// Enum value maps for MouseButton.
+var (
+	MouseButton_name = map[int32]string{
+		0: "MOUSE_BUTTON_UNSPECIFIED",
+		1: "MOUSE_BUTTON_LEFT",
+		2: "MOUSE_BUTTON_RIGHT",
+		3: "MOUSE_BUTTON_MIDDLE",
+	}
+	MouseButton_value = map[string]int32{
+		"MOUSE_BUTTON_UNSPECIFIED": 0,
+		"MOUSE_BUTTON_LEFT":        1,
+		"MOUSE_BUTTON_RIGHT":       2,
+		"MOUSE_BUTTON_MIDDLE":      3,
+	}
+)
+
+func (x MouseButton) Enum() *MouseButton {
+	p := new(MouseButton)
+	*p = x
+	return p
+}
+
+func (x MouseButton) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MouseButton) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[1].Descriptor()
+}
+
+func (MouseButton) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[1]
+}
+
+func (x MouseButton) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MouseButton.Descriptor instead.
+func (MouseButton) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{1}
+}
+
+// NavigateWaitEvent enumerates events to wait for after navigation.
+type NavigateWaitEvent int32
+
+const (
+	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED      NavigateWaitEvent = 0
+	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD             NavigateWaitEvent = 1
+	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED NavigateWaitEvent = 2
+	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE      NavigateWaitEvent = 3
+)
+
+// Enum value maps for NavigateWaitEvent.
+var (
+	NavigateWaitEvent_name = map[int32]string{
+		0: "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
+		1: "NAVIGATE_WAIT_EVENT_LOAD",
+		2: "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+		3: "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+	}
+	NavigateWaitEvent_value = map[string]int32{
+		"NAVIGATE_WAIT_EVENT_UNSPECIFIED":      0,
+		"NAVIGATE_WAIT_EVENT_LOAD":             1,
+		"NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED": 2,
+		"NAVIGATE_WAIT_EVENT_NETWORKIDLE":      3,
+	}
+)
+
+func (x NavigateWaitEvent) Enum() *NavigateWaitEvent {
+	p := new(NavigateWaitEvent)
+	*p = x
+	return p
+}
+
+func (x NavigateWaitEvent) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NavigateWaitEvent) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[2].Descriptor()
+}
+
+func (NavigateWaitEvent) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[2]
+}
+
+func (x NavigateWaitEvent) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NavigateWaitEvent.Descriptor instead.
+func (NavigateWaitEvent) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{2}
+}
+
+// WaitState enumerates element states for wait conditions.
+type WaitState int32
+
+const (
+	WaitState_WAIT_STATE_UNSPECIFIED WaitState = 0
+	WaitState_WAIT_STATE_ATTACHED    WaitState = 1
+	WaitState_WAIT_STATE_DETACHED    WaitState = 2
+	WaitState_WAIT_STATE_VISIBLE     WaitState = 3
+	WaitState_WAIT_STATE_HIDDEN      WaitState = 4
+)
+
+// Enum value maps for WaitState.
+var (
+	WaitState_name = map[int32]string{
+		0: "WAIT_STATE_UNSPECIFIED",
+		1: "WAIT_STATE_ATTACHED",
+		2: "WAIT_STATE_DETACHED",
+		3: "WAIT_STATE_VISIBLE",
+		4: "WAIT_STATE_HIDDEN",
+	}
+	WaitState_value = map[string]int32{
+		"WAIT_STATE_UNSPECIFIED": 0,
+		"WAIT_STATE_ATTACHED":    1,
+		"WAIT_STATE_DETACHED":    2,
+		"WAIT_STATE_VISIBLE":     3,
+		"WAIT_STATE_HIDDEN":      4,
+	}
+)
+
+func (x WaitState) Enum() *WaitState {
+	p := new(WaitState)
+	*p = x
+	return p
+}
+
+func (x WaitState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WaitState) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[3].Descriptor()
+}
+
+func (WaitState) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[3]
+}
+
+func (x WaitState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WaitState.Descriptor instead.
+func (WaitState) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{3}
+}
+
+// AssertionMode enumerates supported assertion types.
+type AssertionMode int32
+
+const (
+	AssertionMode_ASSERTION_MODE_UNSPECIFIED        AssertionMode = 0
+	AssertionMode_ASSERTION_MODE_EXISTS             AssertionMode = 1
+	AssertionMode_ASSERTION_MODE_NOT_EXISTS         AssertionMode = 2
+	AssertionMode_ASSERTION_MODE_VISIBLE            AssertionMode = 3
+	AssertionMode_ASSERTION_MODE_HIDDEN             AssertionMode = 4
+	AssertionMode_ASSERTION_MODE_TEXT_EQUALS        AssertionMode = 5
+	AssertionMode_ASSERTION_MODE_TEXT_CONTAINS      AssertionMode = 6
+	AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS   AssertionMode = 7
+	AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS AssertionMode = 8
+)
+
+// Enum value maps for AssertionMode.
+var (
+	AssertionMode_name = map[int32]string{
+		0: "ASSERTION_MODE_UNSPECIFIED",
+		1: "ASSERTION_MODE_EXISTS",
+		2: "ASSERTION_MODE_NOT_EXISTS",
+		3: "ASSERTION_MODE_VISIBLE",
+		4: "ASSERTION_MODE_HIDDEN",
+		5: "ASSERTION_MODE_TEXT_EQUALS",
+		6: "ASSERTION_MODE_TEXT_CONTAINS",
+		7: "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+		8: "ASSERTION_MODE_ATTRIBUTE_CONTAINS",
+	}
+	AssertionMode_value = map[string]int32{
+		"ASSERTION_MODE_UNSPECIFIED":        0,
+		"ASSERTION_MODE_EXISTS":             1,
+		"ASSERTION_MODE_NOT_EXISTS":         2,
+		"ASSERTION_MODE_VISIBLE":            3,
+		"ASSERTION_MODE_HIDDEN":             4,
+		"ASSERTION_MODE_TEXT_EQUALS":        5,
+		"ASSERTION_MODE_TEXT_CONTAINS":      6,
+		"ASSERTION_MODE_ATTRIBUTE_EQUALS":   7,
+		"ASSERTION_MODE_ATTRIBUTE_CONTAINS": 8,
+	}
+)
+
+func (x AssertionMode) Enum() *AssertionMode {
+	p := new(AssertionMode)
+	*p = x
+	return p
+}
+
+func (x AssertionMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssertionMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[4].Descriptor()
+}
+
+func (AssertionMode) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[4]
+}
+
+func (x AssertionMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssertionMode.Descriptor instead.
+func (AssertionMode) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{4}
+}
+
+// ScrollBehavior enumerates scroll animation behaviors.
+type ScrollBehavior int32
+
+const (
+	ScrollBehavior_SCROLL_BEHAVIOR_UNSPECIFIED ScrollBehavior = 0
+	ScrollBehavior_SCROLL_BEHAVIOR_AUTO        ScrollBehavior = 1
+	ScrollBehavior_SCROLL_BEHAVIOR_SMOOTH      ScrollBehavior = 2
+)
+
+// Enum value maps for ScrollBehavior.
+var (
+	ScrollBehavior_name = map[int32]string{
+		0: "SCROLL_BEHAVIOR_UNSPECIFIED",
+		1: "SCROLL_BEHAVIOR_AUTO",
+		2: "SCROLL_BEHAVIOR_SMOOTH",
+	}
+	ScrollBehavior_value = map[string]int32{
+		"SCROLL_BEHAVIOR_UNSPECIFIED": 0,
+		"SCROLL_BEHAVIOR_AUTO":        1,
+		"SCROLL_BEHAVIOR_SMOOTH":      2,
+	}
+)
+
+func (x ScrollBehavior) Enum() *ScrollBehavior {
+	p := new(ScrollBehavior)
+	*p = x
+	return p
+}
+
+func (x ScrollBehavior) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ScrollBehavior) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[5].Descriptor()
+}
+
+func (ScrollBehavior) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[5]
+}
+
+func (x ScrollBehavior) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ScrollBehavior.Descriptor instead.
+func (ScrollBehavior) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{5}
+}
+
+// KeyAction enumerates keyboard action types.
+type KeyAction int32
+
+const (
+	KeyAction_KEY_ACTION_UNSPECIFIED KeyAction = 0
+	KeyAction_KEY_ACTION_PRESS       KeyAction = 1
+	KeyAction_KEY_ACTION_DOWN        KeyAction = 2
+	KeyAction_KEY_ACTION_UP          KeyAction = 3
+)
+
+// Enum value maps for KeyAction.
+var (
+	KeyAction_name = map[int32]string{
+		0: "KEY_ACTION_UNSPECIFIED",
+		1: "KEY_ACTION_PRESS",
+		2: "KEY_ACTION_DOWN",
+		3: "KEY_ACTION_UP",
+	}
+	KeyAction_value = map[string]int32{
+		"KEY_ACTION_UNSPECIFIED": 0,
+		"KEY_ACTION_PRESS":       1,
+		"KEY_ACTION_DOWN":        2,
+		"KEY_ACTION_UP":          3,
+	}
+)
+
+func (x KeyAction) Enum() *KeyAction {
+	p := new(KeyAction)
+	*p = x
+	return p
+}
+
+func (x KeyAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (KeyAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[6].Descriptor()
+}
+
+func (KeyAction) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[6]
+}
+
+func (x KeyAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use KeyAction.Descriptor instead.
+func (KeyAction) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{6}
+}
+
+// KeyboardModifier enumerates keyboard modifier keys.
+type KeyboardModifier int32
+
+const (
+	KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED KeyboardModifier = 0
+	KeyboardModifier_KEYBOARD_MODIFIER_CTRL        KeyboardModifier = 1
+	KeyboardModifier_KEYBOARD_MODIFIER_SHIFT       KeyboardModifier = 2
+	KeyboardModifier_KEYBOARD_MODIFIER_ALT         KeyboardModifier = 3
+	KeyboardModifier_KEYBOARD_MODIFIER_META        KeyboardModifier = 4
+)
+
+// Enum value maps for KeyboardModifier.
+var (
+	KeyboardModifier_name = map[int32]string{
+		0: "KEYBOARD_MODIFIER_UNSPECIFIED",
+		1: "KEYBOARD_MODIFIER_CTRL",
+		2: "KEYBOARD_MODIFIER_SHIFT",
+		3: "KEYBOARD_MODIFIER_ALT",
+		4: "KEYBOARD_MODIFIER_META",
+	}
+	KeyboardModifier_value = map[string]int32{
+		"KEYBOARD_MODIFIER_UNSPECIFIED": 0,
+		"KEYBOARD_MODIFIER_CTRL":        1,
+		"KEYBOARD_MODIFIER_SHIFT":       2,
+		"KEYBOARD_MODIFIER_ALT":         3,
+		"KEYBOARD_MODIFIER_META":        4,
+	}
+)
+
+func (x KeyboardModifier) Enum() *KeyboardModifier {
+	p := new(KeyboardModifier)
+	*p = x
+	return p
+}
+
+func (x KeyboardModifier) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (KeyboardModifier) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[7].Descriptor()
+}
+
+func (KeyboardModifier) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[7]
+}
+
+func (x KeyboardModifier) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use KeyboardModifier.Descriptor instead.
+func (KeyboardModifier) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{7}
+}
+
+// TimelineMessageType enumerates WebSocket message types.
 type TimelineMessageType int32
 
 const (
@@ -142,11 +532,11 @@ func (x TimelineMessageType) String() string {
 }
 
 func (TimelineMessageType) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_unified_proto_enumTypes[1].Descriptor()
+	return file_browser_automation_studio_v1_unified_proto_enumTypes[8].Descriptor()
 }
 
 func (TimelineMessageType) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_unified_proto_enumTypes[1]
+	return &file_browser_automation_studio_v1_unified_proto_enumTypes[8]
 }
 
 func (x TimelineMessageType) Number() protoreflect.EnumNumber {
@@ -155,9 +545,625 @@ func (x TimelineMessageType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TimelineMessageType.Descriptor instead.
 func (TimelineMessageType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{8}
+}
+
+// BoundingBox captures the position and dimensions of a rectangular region.
+type BoundingBox struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// X coordinate in viewport pixels.
+	X float64 `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	// Y coordinate in viewport pixels.
+	Y float64 `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	// Width in viewport pixels.
+	Width float64 `protobuf:"fixed64,3,opt,name=width,proto3" json:"width,omitempty"`
+	// Height in viewport pixels.
+	Height        float64 `protobuf:"fixed64,4,opt,name=height,proto3" json:"height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BoundingBox) Reset() {
+	*x = BoundingBox{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoundingBox) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoundingBox) ProtoMessage() {}
+
+func (x *BoundingBox) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoundingBox.ProtoReflect.Descriptor instead.
+func (*BoundingBox) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *BoundingBox) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *BoundingBox) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *BoundingBox) GetWidth() float64 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *BoundingBox) GetHeight() float64 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+// Point represents a 2D coordinate.
+type Point struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// X coordinate in viewport pixels.
+	X float64 `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	// Y coordinate in viewport pixels.
+	Y             float64 `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Point) Reset() {
+	*x = Point{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Point) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Point) ProtoMessage() {}
+
+func (x *Point) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Point.ProtoReflect.Descriptor instead.
+func (*Point) Descriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{1}
 }
 
+func (x *Point) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *Point) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+// SelectorCandidate is a single selector with metadata.
+type SelectorCandidate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Selector strategy type: css, xpath, id, data-testid, aria, text, etc.
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	// The actual selector string.
+	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	// Confidence score (0.0-1.0) indicating selector reliability.
+	Confidence float64 `protobuf:"fixed64,3,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	// Specificity score for ranking selector candidates.
+	Specificity   int32 `protobuf:"varint,4,opt,name=specificity,proto3" json:"specificity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelectorCandidate) Reset() {
+	*x = SelectorCandidate{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelectorCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelectorCandidate) ProtoMessage() {}
+
+func (x *SelectorCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelectorCandidate.ProtoReflect.Descriptor instead.
+func (*SelectorCandidate) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SelectorCandidate) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *SelectorCandidate) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *SelectorCandidate) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
+func (x *SelectorCandidate) GetSpecificity() int32 {
+	if x != nil {
+		return x.Specificity
+	}
+	return 0
+}
+
+// SelectorSet contains multiple selector strategies for resilience.
+type SelectorSet struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Primary selector to use first.
+	Primary string `protobuf:"bytes,1,opt,name=primary,proto3" json:"primary,omitempty"`
+	// Alternative selector candidates ranked by preference.
+	Candidates    []*SelectorCandidate `protobuf:"bytes,2,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelectorSet) Reset() {
+	*x = SelectorSet{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelectorSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelectorSet) ProtoMessage() {}
+
+func (x *SelectorSet) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelectorSet.ProtoReflect.Descriptor instead.
+func (*SelectorSet) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SelectorSet) GetPrimary() string {
+	if x != nil {
+		return x.Primary
+	}
+	return ""
+}
+
+func (x *SelectorSet) GetCandidates() []*SelectorCandidate {
+	if x != nil {
+		return x.Candidates
+	}
+	return nil
+}
+
+// ElementMeta captures information about a DOM element.
+type ElementMeta struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// HTML tag name (e.g., "button", "input", "div").
+	TagName string `protobuf:"bytes,1,opt,name=tag_name,json=tagName,proto3" json:"tag_name,omitempty"`
+	// Element id attribute.
+	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	// Element class attribute.
+	ClassName string `protobuf:"bytes,3,opt,name=class_name,json=className,proto3" json:"class_name,omitempty"`
+	// Truncated inner text content.
+	InnerText string `protobuf:"bytes,4,opt,name=inner_text,json=innerText,proto3" json:"inner_text,omitempty"`
+	// Key-value pairs of element attributes.
+	Attributes map[string]string `protobuf:"bytes,5,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Whether the element is currently visible.
+	IsVisible bool `protobuf:"varint,6,opt,name=is_visible,json=isVisible,proto3" json:"is_visible,omitempty"`
+	// Whether the element is enabled (not disabled).
+	IsEnabled bool `protobuf:"varint,7,opt,name=is_enabled,json=isEnabled,proto3" json:"is_enabled,omitempty"`
+	// ARIA role attribute.
+	Role string `protobuf:"bytes,8,opt,name=role,proto3" json:"role,omitempty"`
+	// ARIA label attribute.
+	AriaLabel     string `protobuf:"bytes,9,opt,name=aria_label,json=ariaLabel,proto3" json:"aria_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ElementMeta) Reset() {
+	*x = ElementMeta{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ElementMeta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ElementMeta) ProtoMessage() {}
+
+func (x *ElementMeta) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ElementMeta.ProtoReflect.Descriptor instead.
+func (*ElementMeta) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ElementMeta) GetTagName() string {
+	if x != nil {
+		return x.TagName
+	}
+	return ""
+}
+
+func (x *ElementMeta) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ElementMeta) GetClassName() string {
+	if x != nil {
+		return x.ClassName
+	}
+	return ""
+}
+
+func (x *ElementMeta) GetInnerText() string {
+	if x != nil {
+		return x.InnerText
+	}
+	return ""
+}
+
+func (x *ElementMeta) GetAttributes() map[string]string {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+func (x *ElementMeta) GetIsVisible() bool {
+	if x != nil {
+		return x.IsVisible
+	}
+	return false
+}
+
+func (x *ElementMeta) GetIsEnabled() bool {
+	if x != nil {
+		return x.IsEnabled
+	}
+	return false
+}
+
+func (x *ElementMeta) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *ElementMeta) GetAriaLabel() string {
+	if x != nil {
+		return x.AriaLabel
+	}
+	return ""
+}
+
+// HighlightRegion describes an overlay applied to screenshots for emphasis.
+type HighlightRegion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// CSS selector for the region.
+	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Bounding box for the highlighted area.
+	BoundingBox *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
+	// Padding in pixels around the region.
+	Padding int32 `protobuf:"varint,3,opt,name=padding,proto3" json:"padding,omitempty"`
+	// Highlight color (CSS string).
+	Color         string `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HighlightRegion) Reset() {
+	*x = HighlightRegion{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HighlightRegion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HighlightRegion) ProtoMessage() {}
+
+func (x *HighlightRegion) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HighlightRegion.ProtoReflect.Descriptor instead.
+func (*HighlightRegion) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *HighlightRegion) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *HighlightRegion) GetBoundingBox() *BoundingBox {
+	if x != nil {
+		return x.BoundingBox
+	}
+	return nil
+}
+
+func (x *HighlightRegion) GetPadding() int32 {
+	if x != nil {
+		return x.Padding
+	}
+	return 0
+}
+
+func (x *HighlightRegion) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+// MaskRegion describes areas that were dimmed or masked during capture.
+type MaskRegion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// CSS selector for the region to mask.
+	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Bounding box for the masked area.
+	BoundingBox *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
+	// Mask opacity value (0-1).
+	Opacity       float64 `protobuf:"fixed64,3,opt,name=opacity,proto3" json:"opacity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MaskRegion) Reset() {
+	*x = MaskRegion{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MaskRegion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MaskRegion) ProtoMessage() {}
+
+func (x *MaskRegion) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MaskRegion.ProtoReflect.Descriptor instead.
+func (*MaskRegion) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *MaskRegion) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *MaskRegion) GetBoundingBox() *BoundingBox {
+	if x != nil {
+		return x.BoundingBox
+	}
+	return nil
+}
+
+func (x *MaskRegion) GetOpacity() float64 {
+	if x != nil {
+		return x.Opacity
+	}
+	return 0
+}
+
+// TimelineScreenshot describes screenshot metadata.
+type TimelineScreenshot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique artifact ID for the screenshot.
+	ArtifactId string `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
+	// URL to download the full screenshot.
+	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	// URL to download a thumbnail.
+	ThumbnailUrl string `protobuf:"bytes,3,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`
+	// Image width in pixels.
+	Width int32 `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
+	// Image height in pixels.
+	Height int32 `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
+	// Image MIME type (e.g., image/png).
+	ContentType string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Optional size in bytes for the screenshot.
+	SizeBytes     *int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimelineScreenshot) Reset() {
+	*x = TimelineScreenshot{}
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimelineScreenshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimelineScreenshot) ProtoMessage() {}
+
+func (x *TimelineScreenshot) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimelineScreenshot.ProtoReflect.Descriptor instead.
+func (*TimelineScreenshot) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *TimelineScreenshot) GetArtifactId() string {
+	if x != nil {
+		return x.ArtifactId
+	}
+	return ""
+}
+
+func (x *TimelineScreenshot) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *TimelineScreenshot) GetThumbnailUrl() string {
+	if x != nil {
+		return x.ThumbnailUrl
+	}
+	return ""
+}
+
+func (x *TimelineScreenshot) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *TimelineScreenshot) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *TimelineScreenshot) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *TimelineScreenshot) GetSizeBytes() int64 {
+	if x != nil && x.SizeBytes != nil {
+		return *x.SizeBytes
+	}
+	return 0
+}
+
+// ActionDefinition is THE unified action type used across:
+// - Recording (captured from user interactions)
+// - Workflows (stored definition)
+// - Execution (sent to playwright-driver)
+// - Timeline events (streamed to UI)
 type ActionDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Action type classification.
@@ -188,7 +1194,7 @@ type ActionDefinition struct {
 
 func (x *ActionDefinition) Reset() {
 	*x = ActionDefinition{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +1206,7 @@ func (x *ActionDefinition) String() string {
 func (*ActionDefinition) ProtoMessage() {}
 
 func (x *ActionDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -213,7 +1219,7 @@ func (x *ActionDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionDefinition.ProtoReflect.Descriptor instead.
 func (*ActionDefinition) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{0}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ActionDefinition) GetType() ActionType {
@@ -445,15 +1451,15 @@ type NavigateParams struct {
 	WaitForSelector *string `protobuf:"bytes,2,opt,name=wait_for_selector,json=waitForSelector,proto3,oneof" json:"wait_for_selector,omitempty"`
 	// Timeout in milliseconds for navigation and wait.
 	TimeoutMs *int32 `protobuf:"varint,3,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
-	// Event to wait for: load | domcontentloaded | networkidle.
-	WaitUntil     *string `protobuf:"bytes,4,opt,name=wait_until,json=waitUntil,proto3,oneof" json:"wait_until,omitempty"`
+	// Event to wait for before considering navigation complete.
+	WaitUntil     *NavigateWaitEvent `protobuf:"varint,4,opt,name=wait_until,json=waitUntil,proto3,enum=browser_automation_studio.v1.NavigateWaitEvent,oneof" json:"wait_until,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NavigateParams) Reset() {
 	*x = NavigateParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +1471,7 @@ func (x *NavigateParams) String() string {
 func (*NavigateParams) ProtoMessage() {}
 
 func (x *NavigateParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +1484,7 @@ func (x *NavigateParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NavigateParams.ProtoReflect.Descriptor instead.
 func (*NavigateParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{1}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *NavigateParams) GetUrl() string {
@@ -502,11 +1508,11 @@ func (x *NavigateParams) GetTimeoutMs() int32 {
 	return 0
 }
 
-func (x *NavigateParams) GetWaitUntil() string {
+func (x *NavigateParams) GetWaitUntil() NavigateWaitEvent {
 	if x != nil && x.WaitUntil != nil {
 		return *x.WaitUntil
 	}
-	return ""
+	return NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED
 }
 
 // ClickParams configures pointer click interactions.
@@ -514,14 +1520,14 @@ type ClickParams struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector for target element.
 	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
-	// Mouse button: left | right | middle (defaults to left).
-	Button *string `protobuf:"bytes,2,opt,name=button,proto3,oneof" json:"button,omitempty"`
+	// Mouse button (defaults to left if unspecified).
+	Button *MouseButton `protobuf:"varint,2,opt,name=button,proto3,enum=browser_automation_studio.v1.MouseButton,oneof" json:"button,omitempty"`
 	// Number of clicks (1=single, 2=double, 3=triple).
 	ClickCount *int32 `protobuf:"varint,3,opt,name=click_count,json=clickCount,proto3,oneof" json:"click_count,omitempty"`
 	// Delay between mousedown and mouseup in milliseconds.
 	DelayMs *int32 `protobuf:"varint,4,opt,name=delay_ms,json=delayMs,proto3,oneof" json:"delay_ms,omitempty"`
-	// Keyboard modifiers held during click: ctrl | shift | alt | meta.
-	Modifiers []string `protobuf:"bytes,5,rep,name=modifiers,proto3" json:"modifiers,omitempty"`
+	// Keyboard modifiers held during click.
+	Modifiers []KeyboardModifier `protobuf:"varint,5,rep,packed,name=modifiers,proto3,enum=browser_automation_studio.v1.KeyboardModifier" json:"modifiers,omitempty"`
 	// Force click even if element is not visible/actionable.
 	Force *bool `protobuf:"varint,6,opt,name=force,proto3,oneof" json:"force,omitempty"`
 	// Scroll element into view before clicking.
@@ -532,7 +1538,7 @@ type ClickParams struct {
 
 func (x *ClickParams) Reset() {
 	*x = ClickParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +1550,7 @@ func (x *ClickParams) String() string {
 func (*ClickParams) ProtoMessage() {}
 
 func (x *ClickParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +1563,7 @@ func (x *ClickParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClickParams.ProtoReflect.Descriptor instead.
 func (*ClickParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{2}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ClickParams) GetSelector() string {
@@ -567,11 +1573,11 @@ func (x *ClickParams) GetSelector() string {
 	return ""
 }
 
-func (x *ClickParams) GetButton() string {
+func (x *ClickParams) GetButton() MouseButton {
 	if x != nil && x.Button != nil {
 		return *x.Button
 	}
-	return ""
+	return MouseButton_MOUSE_BUTTON_UNSPECIFIED
 }
 
 func (x *ClickParams) GetClickCount() int32 {
@@ -588,7 +1594,7 @@ func (x *ClickParams) GetDelayMs() int32 {
 	return 0
 }
 
-func (x *ClickParams) GetModifiers() []string {
+func (x *ClickParams) GetModifiers() []KeyboardModifier {
 	if x != nil {
 		return x.Modifiers
 	}
@@ -630,7 +1636,7 @@ type InputParams struct {
 
 func (x *InputParams) Reset() {
 	*x = InputParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -642,7 +1648,7 @@ func (x *InputParams) String() string {
 func (*InputParams) ProtoMessage() {}
 
 func (x *InputParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -655,7 +1661,7 @@ func (x *InputParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InputParams.ProtoReflect.Descriptor instead.
 func (*InputParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *InputParams) GetSelector() string {
@@ -710,8 +1716,8 @@ type WaitParams struct {
 	//	*WaitParams_DurationMs
 	//	*WaitParams_Selector
 	WaitFor isWaitParams_WaitFor `protobuf_oneof:"wait_for"`
-	// Element state to wait for: attached | detached | visible | hidden.
-	State *string `protobuf:"bytes,3,opt,name=state,proto3,oneof" json:"state,omitempty"`
+	// Element state to wait for when using selector.
+	State *WaitState `protobuf:"varint,3,opt,name=state,proto3,enum=browser_automation_studio.v1.WaitState,oneof" json:"state,omitempty"`
 	// Timeout in milliseconds for selector waits.
 	TimeoutMs     *int32 `protobuf:"varint,4,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -720,7 +1726,7 @@ type WaitParams struct {
 
 func (x *WaitParams) Reset() {
 	*x = WaitParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -732,7 +1738,7 @@ func (x *WaitParams) String() string {
 func (*WaitParams) ProtoMessage() {}
 
 func (x *WaitParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -745,7 +1751,7 @@ func (x *WaitParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitParams.ProtoReflect.Descriptor instead.
 func (*WaitParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *WaitParams) GetWaitFor() isWaitParams_WaitFor {
@@ -773,11 +1779,11 @@ func (x *WaitParams) GetSelector() string {
 	return ""
 }
 
-func (x *WaitParams) GetState() string {
+func (x *WaitParams) GetState() WaitState {
 	if x != nil && x.State != nil {
 		return *x.State
 	}
-	return ""
+	return WaitState_WAIT_STATE_UNSPECIFIED
 }
 
 func (x *WaitParams) GetTimeoutMs() int32 {
@@ -810,8 +1816,8 @@ type AssertParams struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector for element to assert on.
 	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
-	// Assertion mode: exists | not_exists | visible | hidden | text_equals | text_contains | attribute_equals | attribute_contains.
-	Mode string `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	// Assertion mode to evaluate.
+	Mode AssertionMode `protobuf:"varint,2,opt,name=mode,proto3,enum=browser_automation_studio.v1.AssertionMode" json:"mode,omitempty"`
 	// Expected value for comparison assertions.
 	Expected *v1.JsonValue `protobuf:"bytes,3,opt,name=expected,proto3,oneof" json:"expected,omitempty"`
 	// Negate the assertion (expect opposite).
@@ -830,7 +1836,7 @@ type AssertParams struct {
 
 func (x *AssertParams) Reset() {
 	*x = AssertParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +1848,7 @@ func (x *AssertParams) String() string {
 func (*AssertParams) ProtoMessage() {}
 
 func (x *AssertParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +1861,7 @@ func (x *AssertParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssertParams.ProtoReflect.Descriptor instead.
 func (*AssertParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{5}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AssertParams) GetSelector() string {
@@ -865,11 +1871,11 @@ func (x *AssertParams) GetSelector() string {
 	return ""
 }
 
-func (x *AssertParams) GetMode() string {
+func (x *AssertParams) GetMode() AssertionMode {
 	if x != nil {
 		return x.Mode
 	}
-	return ""
+	return AssertionMode_ASSERTION_MODE_UNSPECIFIED
 }
 
 func (x *AssertParams) GetExpected() *v1.JsonValue {
@@ -923,8 +1929,8 @@ type ScrollParams struct {
 	X *int32 `protobuf:"varint,2,opt,name=x,proto3,oneof" json:"x,omitempty"`
 	// Vertical scroll position.
 	Y *int32 `protobuf:"varint,3,opt,name=y,proto3,oneof" json:"y,omitempty"`
-	// Scroll behavior: auto | smooth.
-	Behavior *string `protobuf:"bytes,4,opt,name=behavior,proto3,oneof" json:"behavior,omitempty"`
+	// Scroll animation behavior.
+	Behavior *ScrollBehavior `protobuf:"varint,4,opt,name=behavior,proto3,enum=browser_automation_studio.v1.ScrollBehavior,oneof" json:"behavior,omitempty"`
 	// Scroll delta X (relative scroll).
 	DeltaX *int32 `protobuf:"varint,5,opt,name=delta_x,json=deltaX,proto3,oneof" json:"delta_x,omitempty"`
 	// Scroll delta Y (relative scroll).
@@ -935,7 +1941,7 @@ type ScrollParams struct {
 
 func (x *ScrollParams) Reset() {
 	*x = ScrollParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -947,7 +1953,7 @@ func (x *ScrollParams) String() string {
 func (*ScrollParams) ProtoMessage() {}
 
 func (x *ScrollParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -960,7 +1966,7 @@ func (x *ScrollParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScrollParams.ProtoReflect.Descriptor instead.
 func (*ScrollParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ScrollParams) GetSelector() string {
@@ -984,11 +1990,11 @@ func (x *ScrollParams) GetY() int32 {
 	return 0
 }
 
-func (x *ScrollParams) GetBehavior() string {
+func (x *ScrollParams) GetBehavior() ScrollBehavior {
 	if x != nil && x.Behavior != nil {
 		return *x.Behavior
 	}
-	return ""
+	return ScrollBehavior_SCROLL_BEHAVIOR_UNSPECIFIED
 }
 
 func (x *ScrollParams) GetDeltaX() int32 {
@@ -1026,7 +2032,7 @@ type SelectParams struct {
 
 func (x *SelectParams) Reset() {
 	*x = SelectParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1038,7 +2044,7 @@ func (x *SelectParams) String() string {
 func (*SelectParams) ProtoMessage() {}
 
 func (x *SelectParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1051,7 +2057,7 @@ func (x *SelectParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectParams.ProtoReflect.Descriptor instead.
 func (*SelectParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SelectParams) GetSelector() string {
@@ -1142,7 +2148,7 @@ type EvaluateParams struct {
 
 func (x *EvaluateParams) Reset() {
 	*x = EvaluateParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1154,7 +2160,7 @@ func (x *EvaluateParams) String() string {
 func (*EvaluateParams) ProtoMessage() {}
 
 func (x *EvaluateParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1167,7 +2173,7 @@ func (x *EvaluateParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluateParams.ProtoReflect.Descriptor instead.
 func (*EvaluateParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{8}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *EvaluateParams) GetExpression() string {
@@ -1198,17 +2204,17 @@ type KeyboardParams struct {
 	Key *string `protobuf:"bytes,1,opt,name=key,proto3,oneof" json:"key,omitempty"`
 	// Sequence of keys to press.
 	Keys []string `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
-	// Keyboard modifiers: ctrl | shift | alt | meta.
-	Modifiers []string `protobuf:"bytes,3,rep,name=modifiers,proto3" json:"modifiers,omitempty"`
-	// Key action: press | down | up.
-	Action        *string `protobuf:"bytes,4,opt,name=action,proto3,oneof" json:"action,omitempty"`
+	// Keyboard modifiers to hold during the action.
+	Modifiers []KeyboardModifier `protobuf:"varint,3,rep,packed,name=modifiers,proto3,enum=browser_automation_studio.v1.KeyboardModifier" json:"modifiers,omitempty"`
+	// Type of keyboard action to perform.
+	Action        *KeyAction `protobuf:"varint,4,opt,name=action,proto3,enum=browser_automation_studio.v1.KeyAction,oneof" json:"action,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *KeyboardParams) Reset() {
 	*x = KeyboardParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1220,7 +2226,7 @@ func (x *KeyboardParams) String() string {
 func (*KeyboardParams) ProtoMessage() {}
 
 func (x *KeyboardParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1233,7 +2239,7 @@ func (x *KeyboardParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeyboardParams.ProtoReflect.Descriptor instead.
 func (*KeyboardParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{9}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *KeyboardParams) GetKey() string {
@@ -1250,18 +2256,18 @@ func (x *KeyboardParams) GetKeys() []string {
 	return nil
 }
 
-func (x *KeyboardParams) GetModifiers() []string {
+func (x *KeyboardParams) GetModifiers() []KeyboardModifier {
 	if x != nil {
 		return x.Modifiers
 	}
 	return nil
 }
 
-func (x *KeyboardParams) GetAction() string {
+func (x *KeyboardParams) GetAction() KeyAction {
 	if x != nil && x.Action != nil {
 		return *x.Action
 	}
-	return ""
+	return KeyAction_KEY_ACTION_UNSPECIFIED
 }
 
 // HoverParams configures hover interactions.
@@ -1277,7 +2283,7 @@ type HoverParams struct {
 
 func (x *HoverParams) Reset() {
 	*x = HoverParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +2295,7 @@ func (x *HoverParams) String() string {
 func (*HoverParams) ProtoMessage() {}
 
 func (x *HoverParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +2308,7 @@ func (x *HoverParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HoverParams.ProtoReflect.Descriptor instead.
 func (*HoverParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *HoverParams) GetSelector() string {
@@ -1334,7 +2340,7 @@ type ScreenshotParams struct {
 
 func (x *ScreenshotParams) Reset() {
 	*x = ScreenshotParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1346,7 +2352,7 @@ func (x *ScreenshotParams) String() string {
 func (*ScreenshotParams) ProtoMessage() {}
 
 func (x *ScreenshotParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1359,7 +2365,7 @@ func (x *ScreenshotParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScreenshotParams.ProtoReflect.Descriptor instead.
 func (*ScreenshotParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ScreenshotParams) GetFullPage() bool {
@@ -1398,7 +2404,7 @@ type FocusParams struct {
 
 func (x *FocusParams) Reset() {
 	*x = FocusParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1410,7 +2416,7 @@ func (x *FocusParams) String() string {
 func (*FocusParams) ProtoMessage() {}
 
 func (x *FocusParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1423,7 +2429,7 @@ func (x *FocusParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FocusParams.ProtoReflect.Descriptor instead.
 func (*FocusParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{12}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *FocusParams) GetSelector() string {
@@ -1460,7 +2466,7 @@ type BlurParams struct {
 
 func (x *BlurParams) Reset() {
 	*x = BlurParams{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1472,7 +2478,7 @@ func (x *BlurParams) String() string {
 func (*BlurParams) ProtoMessage() {}
 
 func (x *BlurParams) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1485,7 +2491,7 @@ func (x *BlurParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlurParams.ProtoReflect.Descriptor instead.
 func (*BlurParams) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{13}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *BlurParams) GetSelector() string {
@@ -1508,18 +2514,14 @@ type ActionMetadata struct {
 	// Human-readable label for the action.
 	Label *string `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
 	// Alternative selectors ranked by confidence (from recording).
-	// Enables automatic fallback when primary selector fails.
-	// Reuses SelectorCandidate from record_mode.proto.
 	SelectorCandidates []*SelectorCandidate `protobuf:"bytes,2,rep,name=selector_candidates,json=selectorCandidates,proto3" json:"selector_candidates,omitempty"`
 	// Element state snapshot when action was recorded.
-	// Reuses ElementMeta from record_mode.proto.
 	ElementSnapshot *ElementMeta `protobuf:"bytes,3,opt,name=element_snapshot,json=elementSnapshot,proto3,oneof" json:"element_snapshot,omitempty"`
 	// Recording confidence score (0.0-1.0).
 	Confidence *float64 `protobuf:"fixed64,4,opt,name=confidence,proto3,oneof" json:"confidence,omitempty"`
 	// When this action was originally recorded.
 	RecordedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=recorded_at,json=recordedAt,proto3,oneof" json:"recorded_at,omitempty"`
 	// Element bounding box when recorded.
-	// Reuses BoundingBox from timeline.proto.
 	RecordedBoundingBox *BoundingBox `protobuf:"bytes,6,opt,name=recorded_bounding_box,json=recordedBoundingBox,proto3,oneof" json:"recorded_bounding_box,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -1527,7 +2529,7 @@ type ActionMetadata struct {
 
 func (x *ActionMetadata) Reset() {
 	*x = ActionMetadata{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1539,7 +2541,7 @@ func (x *ActionMetadata) String() string {
 func (*ActionMetadata) ProtoMessage() {}
 
 func (x *ActionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1552,7 +2554,7 @@ func (x *ActionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionMetadata.ProtoReflect.Descriptor instead.
 func (*ActionMetadata) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{14}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ActionMetadata) GetLabel() string {
@@ -1598,19 +2600,17 @@ func (x *ActionMetadata) GetRecordedBoundingBox() *BoundingBox {
 }
 
 // ActionTelemetry captures observable data during action recording or execution.
-// This structure is identical for both modes, enabling unified UI rendering.
-// Reuses geometry and artifact types from timeline.proto.
 type ActionTelemetry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page URL at capture time.
 	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	// Frame ID if action occurred in iframe.
 	FrameId *string `protobuf:"bytes,2,opt,name=frame_id,json=frameId,proto3,oneof" json:"frame_id,omitempty"`
-	// Visual captures - reuses TimelineScreenshot from timeline.proto.
+	// Visual captures.
 	Screenshot         *TimelineScreenshot `protobuf:"bytes,10,opt,name=screenshot,proto3,oneof" json:"screenshot,omitempty"`
 	DomSnapshotPreview *string             `protobuf:"bytes,11,opt,name=dom_snapshot_preview,json=domSnapshotPreview,proto3,oneof" json:"dom_snapshot_preview,omitempty"`
 	DomSnapshotHtml    *string             `protobuf:"bytes,12,opt,name=dom_snapshot_html,json=domSnapshotHtml,proto3,oneof" json:"dom_snapshot_html,omitempty"`
-	// Element interaction data - reuses BoundingBox, Point from timeline.proto.
+	// Element interaction data.
 	ElementBoundingBox *BoundingBox       `protobuf:"bytes,20,opt,name=element_bounding_box,json=elementBoundingBox,proto3,oneof" json:"element_bounding_box,omitempty"`
 	ClickPosition      *Point             `protobuf:"bytes,21,opt,name=click_position,json=clickPosition,proto3,oneof" json:"click_position,omitempty"`
 	CursorPosition     *Point             `protobuf:"bytes,22,opt,name=cursor_position,json=cursorPosition,proto3,oneof" json:"cursor_position,omitempty"`
@@ -1627,7 +2627,7 @@ type ActionTelemetry struct {
 
 func (x *ActionTelemetry) Reset() {
 	*x = ActionTelemetry{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1639,7 +2639,7 @@ func (x *ActionTelemetry) String() string {
 func (*ActionTelemetry) ProtoMessage() {}
 
 func (x *ActionTelemetry) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[15]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1652,7 +2652,7 @@ func (x *ActionTelemetry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionTelemetry.ProtoReflect.Descriptor instead.
 func (*ActionTelemetry) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{15}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ActionTelemetry) GetUrl() string {
@@ -1772,7 +2772,7 @@ type ConsoleLogEntryUnified struct {
 
 func (x *ConsoleLogEntryUnified) Reset() {
 	*x = ConsoleLogEntryUnified{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1784,7 +2784,7 @@ func (x *ConsoleLogEntryUnified) String() string {
 func (*ConsoleLogEntryUnified) ProtoMessage() {}
 
 func (x *ConsoleLogEntryUnified) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[16]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1797,7 +2797,7 @@ func (x *ConsoleLogEntryUnified) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsoleLogEntryUnified.ProtoReflect.Descriptor instead.
 func (*ConsoleLogEntryUnified) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{16}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ConsoleLogEntryUnified) GetLevel() string {
@@ -1860,7 +2860,7 @@ type NetworkEventUnified struct {
 
 func (x *NetworkEventUnified) Reset() {
 	*x = NetworkEventUnified{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1872,7 +2872,7 @@ func (x *NetworkEventUnified) String() string {
 func (*NetworkEventUnified) ProtoMessage() {}
 
 func (x *NetworkEventUnified) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[17]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1885,7 +2885,7 @@ func (x *NetworkEventUnified) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkEventUnified.ProtoReflect.Descriptor instead.
 func (*NetworkEventUnified) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{17}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *NetworkEventUnified) GetType() string {
@@ -1944,6 +2944,7 @@ func (x *NetworkEventUnified) GetTimestamp() *timestamppb.Timestamp {
 	return nil
 }
 
+// TimelineEvent is streamed to the UI during BOTH recording and execution.
 type TimelineEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique event identifier.
@@ -1971,7 +2972,7 @@ type TimelineEvent struct {
 
 func (x *TimelineEvent) Reset() {
 	*x = TimelineEvent{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1983,7 +2984,7 @@ func (x *TimelineEvent) String() string {
 func (*TimelineEvent) ProtoMessage() {}
 
 func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[18]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1996,7 +2997,7 @@ func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineEvent.ProtoReflect.Descriptor instead.
 func (*TimelineEvent) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{18}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *TimelineEvent) GetId() string {
@@ -2088,7 +3089,6 @@ type RecordingEventData struct {
 	// Recording session ID.
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Selector candidates for user to choose from.
-	// Reuses SelectorCandidate from record_mode.proto.
 	SelectorCandidates []*SelectorCandidate `protobuf:"bytes,2,rep,name=selector_candidates,json=selectorCandidates,proto3" json:"selector_candidates,omitempty"`
 	// Whether user needs to confirm/edit this action.
 	NeedsConfirmation bool `protobuf:"varint,3,opt,name=needs_confirmation,json=needsConfirmation,proto3" json:"needs_confirmation,omitempty"`
@@ -2100,7 +3100,7 @@ type RecordingEventData struct {
 
 func (x *RecordingEventData) Reset() {
 	*x = RecordingEventData{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2112,7 +3112,7 @@ func (x *RecordingEventData) String() string {
 func (*RecordingEventData) ProtoMessage() {}
 
 func (x *RecordingEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[19]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2125,7 +3125,7 @@ func (x *RecordingEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordingEventData.ProtoReflect.Descriptor instead.
 func (*RecordingEventData) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{19}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RecordingEventData) GetSessionId() string {
@@ -2183,7 +3183,7 @@ type ExecutionEventData struct {
 
 func (x *ExecutionEventData) Reset() {
 	*x = ExecutionEventData{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2195,7 +3195,7 @@ func (x *ExecutionEventData) String() string {
 func (*ExecutionEventData) ProtoMessage() {}
 
 func (x *ExecutionEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[20]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2208,7 +3208,7 @@ func (x *ExecutionEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionEventData.ProtoReflect.Descriptor instead.
 func (*ExecutionEventData) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{20}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ExecutionEventData) GetExecutionId() string {
@@ -2297,18 +3297,22 @@ func (x *ExecutionEventData) GetExtractedData() map[string]*v1.JsonValue {
 
 // RetryAttemptProto captures a single retry attempt outcome.
 type RetryAttemptProto struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Attempt       int32                  `protobuf:"varint,1,opt,name=attempt,proto3" json:"attempt,omitempty"`
-	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
-	DurationMs    int32                  `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	Error         *string                `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Retry attempt number.
+	Attempt int32 `protobuf:"varint,1,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	// Whether this attempt succeeded.
+	Success bool `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
+	// Duration in milliseconds.
+	DurationMs int32 `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// Error message if failed.
+	Error         *string `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RetryAttemptProto) Reset() {
 	*x = RetryAttemptProto{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[21]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2320,7 +3324,7 @@ func (x *RetryAttemptProto) String() string {
 func (*RetryAttemptProto) ProtoMessage() {}
 
 func (x *RetryAttemptProto) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[21]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2333,7 +3337,7 @@ func (x *RetryAttemptProto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryAttemptProto.ProtoReflect.Descriptor instead.
 func (*RetryAttemptProto) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{21}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RetryAttemptProto) GetAttempt() int32 {
@@ -2366,22 +3370,30 @@ func (x *RetryAttemptProto) GetError() string {
 
 // AssertionResultProto captures assertion evaluation outcome.
 type AssertionResultProto struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mode          string                 `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
-	Selector      string                 `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
-	Expected      *v1.JsonValue          `protobuf:"bytes,3,opt,name=expected,proto3,oneof" json:"expected,omitempty"`
-	Actual        *v1.JsonValue          `protobuf:"bytes,4,opt,name=actual,proto3,oneof" json:"actual,omitempty"`
-	Success       bool                   `protobuf:"varint,5,opt,name=success,proto3" json:"success,omitempty"`
-	Negated       bool                   `protobuf:"varint,6,opt,name=negated,proto3" json:"negated,omitempty"`
-	CaseSensitive bool                   `protobuf:"varint,7,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
-	Message       *string                `protobuf:"bytes,8,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Assertion mode used.
+	Mode string `protobuf:"bytes,1,opt,name=mode,proto3" json:"mode,omitempty"`
+	// Selector that was asserted on.
+	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Expected value.
+	Expected *v1.JsonValue `protobuf:"bytes,3,opt,name=expected,proto3,oneof" json:"expected,omitempty"`
+	// Actual value observed.
+	Actual *v1.JsonValue `protobuf:"bytes,4,opt,name=actual,proto3,oneof" json:"actual,omitempty"`
+	// Whether the assertion passed.
+	Success bool `protobuf:"varint,5,opt,name=success,proto3" json:"success,omitempty"`
+	// Whether the assertion was negated.
+	Negated bool `protobuf:"varint,6,opt,name=negated,proto3" json:"negated,omitempty"`
+	// Whether comparison was case-sensitive.
+	CaseSensitive bool `protobuf:"varint,7,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
+	// Optional custom message.
+	Message       *string `protobuf:"bytes,8,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssertionResultProto) Reset() {
 	*x = AssertionResultProto{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2393,7 +3405,7 @@ func (x *AssertionResultProto) String() string {
 func (*AssertionResultProto) ProtoMessage() {}
 
 func (x *AssertionResultProto) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[22]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2406,7 +3418,7 @@ func (x *AssertionResultProto) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssertionResultProto.ProtoReflect.Descriptor instead.
 func (*AssertionResultProto) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{22}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *AssertionResultProto) GetMode() string {
@@ -2465,20 +3477,24 @@ func (x *AssertionResultProto) GetMessage() string {
 	return ""
 }
 
-// WorkflowDefinitionV2 is the next-generation workflow storage format.
+// WorkflowDefinitionV2 is the canonical workflow storage format.
 type WorkflowDefinitionV2 struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metadata      *WorkflowMetadataV2    `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	Settings      *WorkflowSettingsV2    `protobuf:"bytes,2,opt,name=settings,proto3" json:"settings,omitempty"`
-	Nodes         []*WorkflowNodeV2      `protobuf:"bytes,3,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	Edges         []*WorkflowEdgeV2      `protobuf:"bytes,4,rep,name=edges,proto3" json:"edges,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Workflow metadata.
+	Metadata *WorkflowMetadataV2 `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	// Browser/execution settings.
+	Settings *WorkflowSettingsV2 `protobuf:"bytes,2,opt,name=settings,proto3" json:"settings,omitempty"`
+	// Workflow nodes (steps).
+	Nodes []*WorkflowNodeV2 `protobuf:"bytes,3,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	// Workflow edges (connections).
+	Edges         []*WorkflowEdgeV2 `protobuf:"bytes,4,rep,name=edges,proto3" json:"edges,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowDefinitionV2) Reset() {
 	*x = WorkflowDefinitionV2{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[23]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2490,7 +3506,7 @@ func (x *WorkflowDefinitionV2) String() string {
 func (*WorkflowDefinitionV2) ProtoMessage() {}
 
 func (x *WorkflowDefinitionV2) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[23]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2503,7 +3519,7 @@ func (x *WorkflowDefinitionV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowDefinitionV2.ProtoReflect.Descriptor instead.
 func (*WorkflowDefinitionV2) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{23}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *WorkflowDefinitionV2) GetMetadata() *WorkflowMetadataV2 {
@@ -2536,20 +3552,26 @@ func (x *WorkflowDefinitionV2) GetEdges() []*WorkflowEdgeV2 {
 
 // WorkflowMetadataV2 captures workflow-level descriptors.
 type WorkflowMetadataV2 struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          *string                `protobuf:"bytes,1,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Labels        map[string]string      `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Version       *string                `protobuf:"bytes,4,opt,name=version,proto3,oneof" json:"version,omitempty"`
-	Requirement   *string                `protobuf:"bytes,5,opt,name=requirement,proto3,oneof" json:"requirement,omitempty"`
-	Owner         *string                `protobuf:"bytes,6,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Workflow name.
+	Name *string `protobuf:"bytes,1,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Workflow description.
+	Description *string `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Labels for categorization.
+	Labels map[string]string `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Version tag.
+	Version *string `protobuf:"bytes,4,opt,name=version,proto3,oneof" json:"version,omitempty"`
+	// Requirement ID if generated from a requirement.
+	Requirement *string `protobuf:"bytes,5,opt,name=requirement,proto3,oneof" json:"requirement,omitempty"`
+	// Owner identifier.
+	Owner         *string `protobuf:"bytes,6,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowMetadataV2) Reset() {
 	*x = WorkflowMetadataV2{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[24]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2561,7 +3583,7 @@ func (x *WorkflowMetadataV2) String() string {
 func (*WorkflowMetadataV2) ProtoMessage() {}
 
 func (x *WorkflowMetadataV2) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[24]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2574,7 +3596,7 @@ func (x *WorkflowMetadataV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowMetadataV2.ProtoReflect.Descriptor instead.
 func (*WorkflowMetadataV2) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{24}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *WorkflowMetadataV2) GetName() string {
@@ -2621,22 +3643,30 @@ func (x *WorkflowMetadataV2) GetOwner() string {
 
 // WorkflowSettingsV2 captures browser/execution configuration.
 type WorkflowSettingsV2 struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	ViewportWidth          *int32                 `protobuf:"varint,1,opt,name=viewport_width,json=viewportWidth,proto3,oneof" json:"viewport_width,omitempty"`
-	ViewportHeight         *int32                 `protobuf:"varint,2,opt,name=viewport_height,json=viewportHeight,proto3,oneof" json:"viewport_height,omitempty"`
-	UserAgent              *string                `protobuf:"bytes,3,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
-	Locale                 *string                `protobuf:"bytes,4,opt,name=locale,proto3,oneof" json:"locale,omitempty"`
-	TimeoutSeconds         *int32                 `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3,oneof" json:"timeout_seconds,omitempty"`
-	Headless               *bool                  `protobuf:"varint,6,opt,name=headless,proto3,oneof" json:"headless,omitempty"`
-	EntrySelector          *string                `protobuf:"bytes,7,opt,name=entry_selector,json=entrySelector,proto3,oneof" json:"entry_selector,omitempty"`
-	EntrySelectorTimeoutMs *int32                 `protobuf:"varint,8,opt,name=entry_selector_timeout_ms,json=entrySelectorTimeoutMs,proto3,oneof" json:"entry_selector_timeout_ms,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Viewport width in pixels.
+	ViewportWidth *int32 `protobuf:"varint,1,opt,name=viewport_width,json=viewportWidth,proto3,oneof" json:"viewport_width,omitempty"`
+	// Viewport height in pixels.
+	ViewportHeight *int32 `protobuf:"varint,2,opt,name=viewport_height,json=viewportHeight,proto3,oneof" json:"viewport_height,omitempty"`
+	// User agent string.
+	UserAgent *string `protobuf:"bytes,3,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
+	// Browser locale.
+	Locale *string `protobuf:"bytes,4,opt,name=locale,proto3,oneof" json:"locale,omitempty"`
+	// Overall timeout in seconds.
+	TimeoutSeconds *int32 `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3,oneof" json:"timeout_seconds,omitempty"`
+	// Run in headless mode.
+	Headless *bool `protobuf:"varint,6,opt,name=headless,proto3,oneof" json:"headless,omitempty"`
+	// Entry selector to wait for before starting.
+	EntrySelector *string `protobuf:"bytes,7,opt,name=entry_selector,json=entrySelector,proto3,oneof" json:"entry_selector,omitempty"`
+	// Timeout for entry selector in milliseconds.
+	EntrySelectorTimeoutMs *int32 `protobuf:"varint,8,opt,name=entry_selector_timeout_ms,json=entrySelectorTimeoutMs,proto3,oneof" json:"entry_selector_timeout_ms,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
 
 func (x *WorkflowSettingsV2) Reset() {
 	*x = WorkflowSettingsV2{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[25]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2648,7 +3678,7 @@ func (x *WorkflowSettingsV2) String() string {
 func (*WorkflowSettingsV2) ProtoMessage() {}
 
 func (x *WorkflowSettingsV2) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[25]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2661,7 +3691,7 @@ func (x *WorkflowSettingsV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowSettingsV2.ProtoReflect.Descriptor instead.
 func (*WorkflowSettingsV2) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{25}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *WorkflowSettingsV2) GetViewportWidth() int32 {
@@ -2725,9 +3755,9 @@ type WorkflowNodeV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique node identifier.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// The action to perform - THIS IS THE KEY UNIFICATION.
+	// The action to perform.
 	Action *ActionDefinition `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
-	// UI canvas position (optional, for visual editor).
+	// UI canvas position (optional).
 	Position *NodePosition `protobuf:"bytes,3,opt,name=position,proto3,oneof" json:"position,omitempty"`
 	// Per-node execution settings (optional).
 	ExecutionSettings *NodeExecutionSettings `protobuf:"bytes,4,opt,name=execution_settings,json=executionSettings,proto3,oneof" json:"execution_settings,omitempty"`
@@ -2737,7 +3767,7 @@ type WorkflowNodeV2 struct {
 
 func (x *WorkflowNodeV2) Reset() {
 	*x = WorkflowNodeV2{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2749,7 +3779,7 @@ func (x *WorkflowNodeV2) String() string {
 func (*WorkflowNodeV2) ProtoMessage() {}
 
 func (x *WorkflowNodeV2) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[26]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2762,7 +3792,7 @@ func (x *WorkflowNodeV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowNodeV2.ProtoReflect.Descriptor instead.
 func (*WorkflowNodeV2) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{26}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *WorkflowNodeV2) GetId() string {
@@ -2795,16 +3825,18 @@ func (x *WorkflowNodeV2) GetExecutionSettings() *NodeExecutionSettings {
 
 // NodePosition captures canvas placement for visual editors.
 type NodePosition struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
-	Y             float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// X coordinate.
+	X float64 `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	// Y coordinate.
+	Y             float64 `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NodePosition) Reset() {
 	*x = NodePosition{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2816,7 +3848,7 @@ func (x *NodePosition) String() string {
 func (*NodePosition) ProtoMessage() {}
 
 func (x *NodePosition) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[27]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2829,7 +3861,7 @@ func (x *NodePosition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodePosition.ProtoReflect.Descriptor instead.
 func (*NodePosition) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{27}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *NodePosition) GetX() float64 {
@@ -2863,7 +3895,7 @@ type NodeExecutionSettings struct {
 
 func (x *NodeExecutionSettings) Reset() {
 	*x = NodeExecutionSettings{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[28]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2875,7 +3907,7 @@ func (x *NodeExecutionSettings) String() string {
 func (*NodeExecutionSettings) ProtoMessage() {}
 
 func (x *NodeExecutionSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[28]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2888,7 +3920,7 @@ func (x *NodeExecutionSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeExecutionSettings.ProtoReflect.Descriptor instead.
 func (*NodeExecutionSettings) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{28}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *NodeExecutionSettings) GetTimeoutMs() int32 {
@@ -2921,23 +3953,32 @@ func (x *NodeExecutionSettings) GetResilience() *ResilienceConfig {
 
 // ResilienceConfig captures retry and precondition settings.
 type ResilienceConfig struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	MaxAttempts           *int32                 `protobuf:"varint,1,opt,name=max_attempts,json=maxAttempts,proto3,oneof" json:"max_attempts,omitempty"`
-	DelayMs               *int32                 `protobuf:"varint,2,opt,name=delay_ms,json=delayMs,proto3,oneof" json:"delay_ms,omitempty"`
-	BackoffFactor         *float64               `protobuf:"fixed64,3,opt,name=backoff_factor,json=backoffFactor,proto3,oneof" json:"backoff_factor,omitempty"`
-	PreconditionSelector  *string                `protobuf:"bytes,4,opt,name=precondition_selector,json=preconditionSelector,proto3,oneof" json:"precondition_selector,omitempty"`
-	PreconditionTimeoutMs *int32                 `protobuf:"varint,5,opt,name=precondition_timeout_ms,json=preconditionTimeoutMs,proto3,oneof" json:"precondition_timeout_ms,omitempty"`
-	PreconditionWaitMs    *int32                 `protobuf:"varint,6,opt,name=precondition_wait_ms,json=preconditionWaitMs,proto3,oneof" json:"precondition_wait_ms,omitempty"`
-	SuccessSelector       *string                `protobuf:"bytes,7,opt,name=success_selector,json=successSelector,proto3,oneof" json:"success_selector,omitempty"`
-	SuccessTimeoutMs      *int32                 `protobuf:"varint,8,opt,name=success_timeout_ms,json=successTimeoutMs,proto3,oneof" json:"success_timeout_ms,omitempty"`
-	SuccessWaitMs         *int32                 `protobuf:"varint,9,opt,name=success_wait_ms,json=successWaitMs,proto3,oneof" json:"success_wait_ms,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum retry attempts.
+	MaxAttempts *int32 `protobuf:"varint,1,opt,name=max_attempts,json=maxAttempts,proto3,oneof" json:"max_attempts,omitempty"`
+	// Delay between retries in milliseconds.
+	DelayMs *int32 `protobuf:"varint,2,opt,name=delay_ms,json=delayMs,proto3,oneof" json:"delay_ms,omitempty"`
+	// Backoff multiplier for retries.
+	BackoffFactor *float64 `protobuf:"fixed64,3,opt,name=backoff_factor,json=backoffFactor,proto3,oneof" json:"backoff_factor,omitempty"`
+	// Selector to check before executing step.
+	PreconditionSelector *string `protobuf:"bytes,4,opt,name=precondition_selector,json=preconditionSelector,proto3,oneof" json:"precondition_selector,omitempty"`
+	// Timeout for precondition check.
+	PreconditionTimeoutMs *int32 `protobuf:"varint,5,opt,name=precondition_timeout_ms,json=preconditionTimeoutMs,proto3,oneof" json:"precondition_timeout_ms,omitempty"`
+	// Wait after precondition succeeds.
+	PreconditionWaitMs *int32 `protobuf:"varint,6,opt,name=precondition_wait_ms,json=preconditionWaitMs,proto3,oneof" json:"precondition_wait_ms,omitempty"`
+	// Selector to verify step success.
+	SuccessSelector *string `protobuf:"bytes,7,opt,name=success_selector,json=successSelector,proto3,oneof" json:"success_selector,omitempty"`
+	// Timeout for success check.
+	SuccessTimeoutMs *int32 `protobuf:"varint,8,opt,name=success_timeout_ms,json=successTimeoutMs,proto3,oneof" json:"success_timeout_ms,omitempty"`
+	// Wait after success confirmed.
+	SuccessWaitMs *int32 `protobuf:"varint,9,opt,name=success_wait_ms,json=successWaitMs,proto3,oneof" json:"success_wait_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResilienceConfig) Reset() {
 	*x = ResilienceConfig{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[29]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2949,7 +3990,7 @@ func (x *ResilienceConfig) String() string {
 func (*ResilienceConfig) ProtoMessage() {}
 
 func (x *ResilienceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[29]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2962,7 +4003,7 @@ func (x *ResilienceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResilienceConfig.ProtoReflect.Descriptor instead.
 func (*ResilienceConfig) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{29}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ResilienceConfig) GetMaxAttempts() int32 {
@@ -3030,21 +4071,28 @@ func (x *ResilienceConfig) GetSuccessWaitMs() int32 {
 
 // WorkflowEdgeV2 connects nodes in the workflow graph.
 type WorkflowEdgeV2 struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Source        string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
-	Target        string                 `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
-	Type          *string                `protobuf:"bytes,4,opt,name=type,proto3,oneof" json:"type,omitempty"`
-	Label         *string                `protobuf:"bytes,5,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	SourceHandle  *string                `protobuf:"bytes,6,opt,name=source_handle,json=sourceHandle,proto3,oneof" json:"source_handle,omitempty"`
-	TargetHandle  *string                `protobuf:"bytes,7,opt,name=target_handle,json=targetHandle,proto3,oneof" json:"target_handle,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique edge identifier.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Source node ID.
+	Source string `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	// Target node ID.
+	Target string `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
+	// Edge type (e.g., smoothstep).
+	Type *string `protobuf:"bytes,4,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// Edge label.
+	Label *string `protobuf:"bytes,5,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	// Source handle position.
+	SourceHandle *string `protobuf:"bytes,6,opt,name=source_handle,json=sourceHandle,proto3,oneof" json:"source_handle,omitempty"`
+	// Target handle position.
+	TargetHandle  *string `protobuf:"bytes,7,opt,name=target_handle,json=targetHandle,proto3,oneof" json:"target_handle,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkflowEdgeV2) Reset() {
 	*x = WorkflowEdgeV2{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[30]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3056,7 +4104,7 @@ func (x *WorkflowEdgeV2) String() string {
 func (*WorkflowEdgeV2) ProtoMessage() {}
 
 func (x *WorkflowEdgeV2) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[30]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3069,7 +4117,7 @@ func (x *WorkflowEdgeV2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowEdgeV2.ProtoReflect.Descriptor instead.
 func (*WorkflowEdgeV2) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{30}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *WorkflowEdgeV2) GetId() string {
@@ -3138,7 +4186,7 @@ type TimelineStreamMessage struct {
 
 func (x *TimelineStreamMessage) Reset() {
 	*x = TimelineStreamMessage{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[31]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3150,7 +4198,7 @@ func (x *TimelineStreamMessage) String() string {
 func (*TimelineStreamMessage) ProtoMessage() {}
 
 func (x *TimelineStreamMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[31]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3163,7 +4211,7 @@ func (x *TimelineStreamMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineStreamMessage.ProtoReflect.Descriptor instead.
 func (*TimelineStreamMessage) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{31}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TimelineStreamMessage) GetType() TimelineMessageType {
@@ -3248,7 +4296,7 @@ type TimelineStatusUpdate struct {
 
 func (x *TimelineStatusUpdate) Reset() {
 	*x = TimelineStatusUpdate{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[32]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3260,7 +4308,7 @@ func (x *TimelineStatusUpdate) String() string {
 func (*TimelineStatusUpdate) ProtoMessage() {}
 
 func (x *TimelineStatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[32]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3273,7 +4321,7 @@ func (x *TimelineStatusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineStatusUpdate.ProtoReflect.Descriptor instead.
 func (*TimelineStatusUpdate) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{32}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *TimelineStatusUpdate) GetId() string {
@@ -3313,7 +4361,8 @@ func (x *TimelineStatusUpdate) GetError() string {
 
 // TimelineHeartbeat keeps WebSocket connection alive.
 type TimelineHeartbeat struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Heartbeat timestamp.
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Session ID for connection routing.
 	SessionId     string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -3323,7 +4372,7 @@ type TimelineHeartbeat struct {
 
 func (x *TimelineHeartbeat) Reset() {
 	*x = TimelineHeartbeat{}
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[33]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3335,7 +4384,7 @@ func (x *TimelineHeartbeat) String() string {
 func (*TimelineHeartbeat) ProtoMessage() {}
 
 func (x *TimelineHeartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[33]
+	mi := &file_browser_automation_studio_v1_unified_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3348,7 +4397,7 @@ func (x *TimelineHeartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineHeartbeat.ProtoReflect.Descriptor instead.
 func (*TimelineHeartbeat) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{33}
+	return file_browser_automation_studio_v1_unified_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TimelineHeartbeat) GetTimestamp() *timestamppb.Timestamp {
@@ -3369,7 +4418,68 @@ var File_browser_automation_studio_v1_unified_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_unified_proto_rawDesc = "" +
 	"\n" +
-	"*browser-automation-studio/v1/unified.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/record_mode.proto\x1a+browser-automation-studio/v1/timeline.proto\"\xc5\b\n" +
+	"*browser-automation-studio/v1/unified.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\"W\n" +
+	"\vBoundingBox\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\x12\x14\n" +
+	"\x05width\x18\x03 \x01(\x01R\x05width\x12\x16\n" +
+	"\x06height\x18\x04 \x01(\x01R\x06height\"#\n" +
+	"\x05Point\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\x7f\n" +
+	"\x11SelectorCandidate\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x03 \x01(\x01R\n" +
+	"confidence\x12 \n" +
+	"\vspecificity\x18\x04 \x01(\x05R\vspecificity\"x\n" +
+	"\vSelectorSet\x12\x18\n" +
+	"\aprimary\x18\x01 \x01(\tR\aprimary\x12O\n" +
+	"\n" +
+	"candidates\x18\x02 \x03(\v2/.browser_automation_studio.v1.SelectorCandidateR\n" +
+	"candidates\"\x81\x03\n" +
+	"\vElementMeta\x12\x19\n" +
+	"\btag_name\x18\x01 \x01(\tR\atagName\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"class_name\x18\x03 \x01(\tR\tclassName\x12\x1d\n" +
+	"\n" +
+	"inner_text\x18\x04 \x01(\tR\tinnerText\x12Y\n" +
+	"\n" +
+	"attributes\x18\x05 \x03(\v29.browser_automation_studio.v1.ElementMeta.AttributesEntryR\n" +
+	"attributes\x12\x1d\n" +
+	"\n" +
+	"is_visible\x18\x06 \x01(\bR\tisVisible\x12\x1d\n" +
+	"\n" +
+	"is_enabled\x18\a \x01(\bR\tisEnabled\x12\x12\n" +
+	"\x04role\x18\b \x01(\tR\x04role\x12\x1d\n" +
+	"\n" +
+	"aria_label\x18\t \x01(\tR\tariaLabel\x1a=\n" +
+	"\x0fAttributesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xab\x01\n" +
+	"\x0fHighlightRegion\x12\x1a\n" +
+	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
+	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\x12\x18\n" +
+	"\apadding\x18\x03 \x01(\x05R\apadding\x12\x14\n" +
+	"\x05color\x18\x04 \x01(\tR\x05color\"\x90\x01\n" +
+	"\n" +
+	"MaskRegion\x12\x1a\n" +
+	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
+	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\x12\x18\n" +
+	"\aopacity\x18\x03 \x01(\x01R\aopacity\"\xf0\x01\n" +
+	"\x12TimelineScreenshot\x12\x1f\n" +
+	"\vartifact_id\x18\x01 \x01(\tR\n" +
+	"artifactId\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\x12#\n" +
+	"\rthumbnail_url\x18\x03 \x01(\tR\fthumbnailUrl\x12\x14\n" +
+	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x05 \x01(\x05R\x06height\x12!\n" +
+	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\"\n" +
+	"\n" +
+	"size_bytes\x18\a \x01(\x03H\x00R\tsizeBytes\x88\x01\x01B\r\n" +
+	"\v_size_bytes\"\xc5\b\n" +
 	"\x10ActionDefinition\x12<\n" +
 	"\x04type\x18\x01 \x01(\x0e2(.browser_automation_studio.v1.ActionTypeR\x04type\x12J\n" +
 	"\bnavigate\x18\n" +
@@ -3389,24 +4499,24 @@ const file_browser_automation_studio_v1_unified_proto_rawDesc = "" +
 	"\x05focus\x18\x15 \x01(\v2).browser_automation_studio.v1.FocusParamsH\x00R\x05focus\x12>\n" +
 	"\x04blur\x18\x16 \x01(\v2(.browser_automation_studio.v1.BlurParamsH\x00R\x04blur\x12H\n" +
 	"\bmetadata\x18\x1e \x01(\v2,.browser_automation_studio.v1.ActionMetadataR\bmetadataB\b\n" +
-	"\x06params\"\xcf\x01\n" +
+	"\x06params\"\x80\x02\n" +
 	"\x0eNavigateParams\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12/\n" +
 	"\x11wait_for_selector\x18\x02 \x01(\tH\x00R\x0fwaitForSelector\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"timeout_ms\x18\x03 \x01(\x05H\x01R\ttimeoutMs\x88\x01\x01\x12\"\n" +
+	"timeout_ms\x18\x03 \x01(\x05H\x01R\ttimeoutMs\x88\x01\x01\x12S\n" +
 	"\n" +
-	"wait_until\x18\x04 \x01(\tH\x02R\twaitUntil\x88\x01\x01B\x14\n" +
+	"wait_until\x18\x04 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\x02R\twaitUntil\x88\x01\x01B\x14\n" +
 	"\x12_wait_for_selectorB\r\n" +
 	"\v_timeout_msB\r\n" +
-	"\v_wait_until\"\xbb\x02\n" +
+	"\v_wait_until\"\x96\x03\n" +
 	"\vClickParams\x12\x1a\n" +
-	"\bselector\x18\x01 \x01(\tR\bselector\x12\x1b\n" +
-	"\x06button\x18\x02 \x01(\tH\x00R\x06button\x88\x01\x01\x12$\n" +
+	"\bselector\x18\x01 \x01(\tR\bselector\x12F\n" +
+	"\x06button\x18\x02 \x01(\x0e2).browser_automation_studio.v1.MouseButtonH\x00R\x06button\x88\x01\x01\x12$\n" +
 	"\vclick_count\x18\x03 \x01(\x05H\x01R\n" +
 	"clickCount\x88\x01\x01\x12\x1e\n" +
-	"\bdelay_ms\x18\x04 \x01(\x05H\x02R\adelayMs\x88\x01\x01\x12\x1c\n" +
-	"\tmodifiers\x18\x05 \x03(\tR\tmodifiers\x12\x19\n" +
+	"\bdelay_ms\x18\x04 \x01(\x05H\x02R\adelayMs\x88\x01\x01\x12L\n" +
+	"\tmodifiers\x18\x05 \x03(\x0e2..browser_automation_studio.v1.KeyboardModifierR\tmodifiers\x12\x19\n" +
 	"\x05force\x18\x06 \x01(\bH\x03R\x05force\x88\x01\x01\x12-\n" +
 	"\x10scroll_into_view\x18\a \x01(\bH\x04R\x0escrollIntoView\x88\x01\x01B\t\n" +
 	"\a_buttonB\x0e\n" +
@@ -3425,22 +4535,22 @@ const file_browser_automation_studio_v1_unified_proto_rawDesc = "" +
 	"\r_is_sensitiveB\t\n" +
 	"\a_submitB\x0e\n" +
 	"\f_clear_firstB\v\n" +
-	"\t_delay_ms\"\xb1\x01\n" +
+	"\t_delay_ms\"\xda\x01\n" +
 	"\n" +
 	"WaitParams\x12!\n" +
 	"\vduration_ms\x18\x01 \x01(\x05H\x00R\n" +
 	"durationMs\x12\x1c\n" +
-	"\bselector\x18\x02 \x01(\tH\x00R\bselector\x12\x19\n" +
-	"\x05state\x18\x03 \x01(\tH\x01R\x05state\x88\x01\x01\x12\"\n" +
+	"\bselector\x18\x02 \x01(\tH\x00R\bselector\x12B\n" +
+	"\x05state\x18\x03 \x01(\x0e2'.browser_automation_studio.v1.WaitStateH\x01R\x05state\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"timeout_ms\x18\x04 \x01(\x05H\x02R\ttimeoutMs\x88\x01\x01B\n" +
 	"\n" +
 	"\bwait_forB\b\n" +
 	"\x06_stateB\r\n" +
-	"\v_timeout_ms\"\xa0\x03\n" +
+	"\v_timeout_ms\"\xcd\x03\n" +
 	"\fAssertParams\x12\x1a\n" +
-	"\bselector\x18\x01 \x01(\tR\bselector\x12\x12\n" +
-	"\x04mode\x18\x02 \x01(\tR\x04mode\x125\n" +
+	"\bselector\x18\x01 \x01(\tR\bselector\x12?\n" +
+	"\x04mode\x18\x02 \x01(\x0e2+.browser_automation_studio.v1.AssertionModeR\x04mode\x125\n" +
 	"\bexpected\x18\x03 \x01(\v2\x14.common.v1.JsonValueH\x00R\bexpected\x88\x01\x01\x12\x1d\n" +
 	"\anegated\x18\x04 \x01(\bH\x01R\anegated\x88\x01\x01\x12*\n" +
 	"\x0ecase_sensitive\x18\x05 \x01(\bH\x02R\rcaseSensitive\x88\x01\x01\x12*\n" +
@@ -3454,12 +4564,12 @@ const file_browser_automation_studio_v1_unified_proto_rawDesc = "" +
 	"\x0f_case_sensitiveB\x11\n" +
 	"\x0f_attribute_nameB\x12\n" +
 	"\x10_failure_messageB\r\n" +
-	"\v_timeout_ms\"\xf0\x01\n" +
+	"\v_timeout_ms\"\x9e\x02\n" +
 	"\fScrollParams\x12\x1f\n" +
 	"\bselector\x18\x01 \x01(\tH\x00R\bselector\x88\x01\x01\x12\x11\n" +
 	"\x01x\x18\x02 \x01(\x05H\x01R\x01x\x88\x01\x01\x12\x11\n" +
-	"\x01y\x18\x03 \x01(\x05H\x02R\x01y\x88\x01\x01\x12\x1f\n" +
-	"\bbehavior\x18\x04 \x01(\tH\x03R\bbehavior\x88\x01\x01\x12\x1c\n" +
+	"\x01y\x18\x03 \x01(\x05H\x02R\x01y\x88\x01\x01\x12M\n" +
+	"\bbehavior\x18\x04 \x01(\x0e2,.browser_automation_studio.v1.ScrollBehaviorH\x03R\bbehavior\x88\x01\x01\x12\x1c\n" +
 	"\adelta_x\x18\x05 \x01(\x05H\x04R\x06deltaX\x88\x01\x01\x12\x1c\n" +
 	"\adelta_y\x18\x06 \x01(\x05H\x05R\x06deltaY\x88\x01\x01B\v\n" +
 	"\t_selectorB\x04\n" +
@@ -3488,12 +4598,12 @@ const file_browser_automation_studio_v1_unified_proto_rawDesc = "" +
 	"\tArgsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x0f\n" +
-	"\r_store_result\"\x89\x01\n" +
+	"\r_store_result\"\xe2\x01\n" +
 	"\x0eKeyboardParams\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x00R\x03key\x88\x01\x01\x12\x12\n" +
-	"\x04keys\x18\x02 \x03(\tR\x04keys\x12\x1c\n" +
-	"\tmodifiers\x18\x03 \x03(\tR\tmodifiers\x12\x1b\n" +
-	"\x06action\x18\x04 \x01(\tH\x01R\x06action\x88\x01\x01B\x06\n" +
+	"\x04keys\x18\x02 \x03(\tR\x04keys\x12L\n" +
+	"\tmodifiers\x18\x03 \x03(\x0e2..browser_automation_studio.v1.KeyboardModifierR\tmodifiers\x12D\n" +
+	"\x06action\x18\x04 \x01(\x0e2'.browser_automation_studio.v1.KeyActionH\x01R\x06action\x88\x01\x01B\x06\n" +
 	"\x04_keyB\t\n" +
 	"\a_action\"\\\n" +
 	"\vHoverParams\x12\x1a\n" +
@@ -3780,7 +4890,48 @@ const file_browser_automation_studio_v1_unified_proto_rawDesc = "" +
 	"\x12\x1a\n" +
 	"\x16ACTION_TYPE_SCREENSHOT\x10\v\x12\x15\n" +
 	"\x11ACTION_TYPE_FOCUS\x10\f\x12\x14\n" +
-	"\x10ACTION_TYPE_BLUR\x10\r*\xa4\x01\n" +
+	"\x10ACTION_TYPE_BLUR\x10\r*s\n" +
+	"\vMouseButton\x12\x1c\n" +
+	"\x18MOUSE_BUTTON_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11MOUSE_BUTTON_LEFT\x10\x01\x12\x16\n" +
+	"\x12MOUSE_BUTTON_RIGHT\x10\x02\x12\x17\n" +
+	"\x13MOUSE_BUTTON_MIDDLE\x10\x03*\xa5\x01\n" +
+	"\x11NavigateWaitEvent\x12#\n" +
+	"\x1fNAVIGATE_WAIT_EVENT_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18NAVIGATE_WAIT_EVENT_LOAD\x10\x01\x12(\n" +
+	"$NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED\x10\x02\x12#\n" +
+	"\x1fNAVIGATE_WAIT_EVENT_NETWORKIDLE\x10\x03*\x88\x01\n" +
+	"\tWaitState\x12\x1a\n" +
+	"\x16WAIT_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13WAIT_STATE_ATTACHED\x10\x01\x12\x17\n" +
+	"\x13WAIT_STATE_DETACHED\x10\x02\x12\x16\n" +
+	"\x12WAIT_STATE_VISIBLE\x10\x03\x12\x15\n" +
+	"\x11WAIT_STATE_HIDDEN\x10\x04*\xae\x02\n" +
+	"\rAssertionMode\x12\x1e\n" +
+	"\x1aASSERTION_MODE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ASSERTION_MODE_EXISTS\x10\x01\x12\x1d\n" +
+	"\x19ASSERTION_MODE_NOT_EXISTS\x10\x02\x12\x1a\n" +
+	"\x16ASSERTION_MODE_VISIBLE\x10\x03\x12\x19\n" +
+	"\x15ASSERTION_MODE_HIDDEN\x10\x04\x12\x1e\n" +
+	"\x1aASSERTION_MODE_TEXT_EQUALS\x10\x05\x12 \n" +
+	"\x1cASSERTION_MODE_TEXT_CONTAINS\x10\x06\x12#\n" +
+	"\x1fASSERTION_MODE_ATTRIBUTE_EQUALS\x10\a\x12%\n" +
+	"!ASSERTION_MODE_ATTRIBUTE_CONTAINS\x10\b*g\n" +
+	"\x0eScrollBehavior\x12\x1f\n" +
+	"\x1bSCROLL_BEHAVIOR_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14SCROLL_BEHAVIOR_AUTO\x10\x01\x12\x1a\n" +
+	"\x16SCROLL_BEHAVIOR_SMOOTH\x10\x02*e\n" +
+	"\tKeyAction\x12\x1a\n" +
+	"\x16KEY_ACTION_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10KEY_ACTION_PRESS\x10\x01\x12\x13\n" +
+	"\x0fKEY_ACTION_DOWN\x10\x02\x12\x11\n" +
+	"\rKEY_ACTION_UP\x10\x03*\xa5\x01\n" +
+	"\x10KeyboardModifier\x12!\n" +
+	"\x1dKEYBOARD_MODIFIER_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16KEYBOARD_MODIFIER_CTRL\x10\x01\x12\x1b\n" +
+	"\x17KEYBOARD_MODIFIER_SHIFT\x10\x02\x12\x19\n" +
+	"\x15KEYBOARD_MODIFIER_ALT\x10\x03\x12\x1a\n" +
+	"\x16KEYBOARD_MODIFIER_META\x10\x04*\xa4\x01\n" +
 	"\x13TimelineMessageType\x12%\n" +
 	"!TIMELINE_MESSAGE_TYPE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bTIMELINE_MESSAGE_TYPE_EVENT\x10\x01\x12 \n" +
@@ -3799,123 +4950,144 @@ func file_browser_automation_studio_v1_unified_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_unified_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_unified_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_browser_automation_studio_v1_unified_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
+var file_browser_automation_studio_v1_unified_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
+var file_browser_automation_studio_v1_unified_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_browser_automation_studio_v1_unified_proto_goTypes = []any{
 	(ActionType)(0),                // 0: browser_automation_studio.v1.ActionType
-	(TimelineMessageType)(0),       // 1: browser_automation_studio.v1.TimelineMessageType
-	(*ActionDefinition)(nil),       // 2: browser_automation_studio.v1.ActionDefinition
-	(*NavigateParams)(nil),         // 3: browser_automation_studio.v1.NavigateParams
-	(*ClickParams)(nil),            // 4: browser_automation_studio.v1.ClickParams
-	(*InputParams)(nil),            // 5: browser_automation_studio.v1.InputParams
-	(*WaitParams)(nil),             // 6: browser_automation_studio.v1.WaitParams
-	(*AssertParams)(nil),           // 7: browser_automation_studio.v1.AssertParams
-	(*ScrollParams)(nil),           // 8: browser_automation_studio.v1.ScrollParams
-	(*SelectParams)(nil),           // 9: browser_automation_studio.v1.SelectParams
-	(*EvaluateParams)(nil),         // 10: browser_automation_studio.v1.EvaluateParams
-	(*KeyboardParams)(nil),         // 11: browser_automation_studio.v1.KeyboardParams
-	(*HoverParams)(nil),            // 12: browser_automation_studio.v1.HoverParams
-	(*ScreenshotParams)(nil),       // 13: browser_automation_studio.v1.ScreenshotParams
-	(*FocusParams)(nil),            // 14: browser_automation_studio.v1.FocusParams
-	(*BlurParams)(nil),             // 15: browser_automation_studio.v1.BlurParams
-	(*ActionMetadata)(nil),         // 16: browser_automation_studio.v1.ActionMetadata
-	(*ActionTelemetry)(nil),        // 17: browser_automation_studio.v1.ActionTelemetry
-	(*ConsoleLogEntryUnified)(nil), // 18: browser_automation_studio.v1.ConsoleLogEntryUnified
-	(*NetworkEventUnified)(nil),    // 19: browser_automation_studio.v1.NetworkEventUnified
-	(*TimelineEvent)(nil),          // 20: browser_automation_studio.v1.TimelineEvent
-	(*RecordingEventData)(nil),     // 21: browser_automation_studio.v1.RecordingEventData
-	(*ExecutionEventData)(nil),     // 22: browser_automation_studio.v1.ExecutionEventData
-	(*RetryAttemptProto)(nil),      // 23: browser_automation_studio.v1.RetryAttemptProto
-	(*AssertionResultProto)(nil),   // 24: browser_automation_studio.v1.AssertionResultProto
-	(*WorkflowDefinitionV2)(nil),   // 25: browser_automation_studio.v1.WorkflowDefinitionV2
-	(*WorkflowMetadataV2)(nil),     // 26: browser_automation_studio.v1.WorkflowMetadataV2
-	(*WorkflowSettingsV2)(nil),     // 27: browser_automation_studio.v1.WorkflowSettingsV2
-	(*WorkflowNodeV2)(nil),         // 28: browser_automation_studio.v1.WorkflowNodeV2
-	(*NodePosition)(nil),           // 29: browser_automation_studio.v1.NodePosition
-	(*NodeExecutionSettings)(nil),  // 30: browser_automation_studio.v1.NodeExecutionSettings
-	(*ResilienceConfig)(nil),       // 31: browser_automation_studio.v1.ResilienceConfig
-	(*WorkflowEdgeV2)(nil),         // 32: browser_automation_studio.v1.WorkflowEdgeV2
-	(*TimelineStreamMessage)(nil),  // 33: browser_automation_studio.v1.TimelineStreamMessage
-	(*TimelineStatusUpdate)(nil),   // 34: browser_automation_studio.v1.TimelineStatusUpdate
-	(*TimelineHeartbeat)(nil),      // 35: browser_automation_studio.v1.TimelineHeartbeat
-	nil,                            // 36: browser_automation_studio.v1.EvaluateParams.ArgsEntry
-	nil,                            // 37: browser_automation_studio.v1.ExecutionEventData.ExtractedDataEntry
-	nil,                            // 38: browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
-	(*v1.JsonValue)(nil),           // 39: common.v1.JsonValue
-	(*SelectorCandidate)(nil),      // 40: browser_automation_studio.v1.SelectorCandidate
-	(*ElementMeta)(nil),            // 41: browser_automation_studio.v1.ElementMeta
-	(*timestamppb.Timestamp)(nil),  // 42: google.protobuf.Timestamp
-	(*BoundingBox)(nil),            // 43: browser_automation_studio.v1.BoundingBox
-	(*TimelineScreenshot)(nil),     // 44: browser_automation_studio.v1.TimelineScreenshot
-	(*Point)(nil),                  // 45: browser_automation_studio.v1.Point
-	(*HighlightRegion)(nil),        // 46: browser_automation_studio.v1.HighlightRegion
-	(*MaskRegion)(nil),             // 47: browser_automation_studio.v1.MaskRegion
+	(MouseButton)(0),               // 1: browser_automation_studio.v1.MouseButton
+	(NavigateWaitEvent)(0),         // 2: browser_automation_studio.v1.NavigateWaitEvent
+	(WaitState)(0),                 // 3: browser_automation_studio.v1.WaitState
+	(AssertionMode)(0),             // 4: browser_automation_studio.v1.AssertionMode
+	(ScrollBehavior)(0),            // 5: browser_automation_studio.v1.ScrollBehavior
+	(KeyAction)(0),                 // 6: browser_automation_studio.v1.KeyAction
+	(KeyboardModifier)(0),          // 7: browser_automation_studio.v1.KeyboardModifier
+	(TimelineMessageType)(0),       // 8: browser_automation_studio.v1.TimelineMessageType
+	(*BoundingBox)(nil),            // 9: browser_automation_studio.v1.BoundingBox
+	(*Point)(nil),                  // 10: browser_automation_studio.v1.Point
+	(*SelectorCandidate)(nil),      // 11: browser_automation_studio.v1.SelectorCandidate
+	(*SelectorSet)(nil),            // 12: browser_automation_studio.v1.SelectorSet
+	(*ElementMeta)(nil),            // 13: browser_automation_studio.v1.ElementMeta
+	(*HighlightRegion)(nil),        // 14: browser_automation_studio.v1.HighlightRegion
+	(*MaskRegion)(nil),             // 15: browser_automation_studio.v1.MaskRegion
+	(*TimelineScreenshot)(nil),     // 16: browser_automation_studio.v1.TimelineScreenshot
+	(*ActionDefinition)(nil),       // 17: browser_automation_studio.v1.ActionDefinition
+	(*NavigateParams)(nil),         // 18: browser_automation_studio.v1.NavigateParams
+	(*ClickParams)(nil),            // 19: browser_automation_studio.v1.ClickParams
+	(*InputParams)(nil),            // 20: browser_automation_studio.v1.InputParams
+	(*WaitParams)(nil),             // 21: browser_automation_studio.v1.WaitParams
+	(*AssertParams)(nil),           // 22: browser_automation_studio.v1.AssertParams
+	(*ScrollParams)(nil),           // 23: browser_automation_studio.v1.ScrollParams
+	(*SelectParams)(nil),           // 24: browser_automation_studio.v1.SelectParams
+	(*EvaluateParams)(nil),         // 25: browser_automation_studio.v1.EvaluateParams
+	(*KeyboardParams)(nil),         // 26: browser_automation_studio.v1.KeyboardParams
+	(*HoverParams)(nil),            // 27: browser_automation_studio.v1.HoverParams
+	(*ScreenshotParams)(nil),       // 28: browser_automation_studio.v1.ScreenshotParams
+	(*FocusParams)(nil),            // 29: browser_automation_studio.v1.FocusParams
+	(*BlurParams)(nil),             // 30: browser_automation_studio.v1.BlurParams
+	(*ActionMetadata)(nil),         // 31: browser_automation_studio.v1.ActionMetadata
+	(*ActionTelemetry)(nil),        // 32: browser_automation_studio.v1.ActionTelemetry
+	(*ConsoleLogEntryUnified)(nil), // 33: browser_automation_studio.v1.ConsoleLogEntryUnified
+	(*NetworkEventUnified)(nil),    // 34: browser_automation_studio.v1.NetworkEventUnified
+	(*TimelineEvent)(nil),          // 35: browser_automation_studio.v1.TimelineEvent
+	(*RecordingEventData)(nil),     // 36: browser_automation_studio.v1.RecordingEventData
+	(*ExecutionEventData)(nil),     // 37: browser_automation_studio.v1.ExecutionEventData
+	(*RetryAttemptProto)(nil),      // 38: browser_automation_studio.v1.RetryAttemptProto
+	(*AssertionResultProto)(nil),   // 39: browser_automation_studio.v1.AssertionResultProto
+	(*WorkflowDefinitionV2)(nil),   // 40: browser_automation_studio.v1.WorkflowDefinitionV2
+	(*WorkflowMetadataV2)(nil),     // 41: browser_automation_studio.v1.WorkflowMetadataV2
+	(*WorkflowSettingsV2)(nil),     // 42: browser_automation_studio.v1.WorkflowSettingsV2
+	(*WorkflowNodeV2)(nil),         // 43: browser_automation_studio.v1.WorkflowNodeV2
+	(*NodePosition)(nil),           // 44: browser_automation_studio.v1.NodePosition
+	(*NodeExecutionSettings)(nil),  // 45: browser_automation_studio.v1.NodeExecutionSettings
+	(*ResilienceConfig)(nil),       // 46: browser_automation_studio.v1.ResilienceConfig
+	(*WorkflowEdgeV2)(nil),         // 47: browser_automation_studio.v1.WorkflowEdgeV2
+	(*TimelineStreamMessage)(nil),  // 48: browser_automation_studio.v1.TimelineStreamMessage
+	(*TimelineStatusUpdate)(nil),   // 49: browser_automation_studio.v1.TimelineStatusUpdate
+	(*TimelineHeartbeat)(nil),      // 50: browser_automation_studio.v1.TimelineHeartbeat
+	nil,                            // 51: browser_automation_studio.v1.ElementMeta.AttributesEntry
+	nil,                            // 52: browser_automation_studio.v1.EvaluateParams.ArgsEntry
+	nil,                            // 53: browser_automation_studio.v1.ExecutionEventData.ExtractedDataEntry
+	nil,                            // 54: browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
+	(*v1.JsonValue)(nil),           // 55: common.v1.JsonValue
+	(*timestamppb.Timestamp)(nil),  // 56: google.protobuf.Timestamp
 }
 var file_browser_automation_studio_v1_unified_proto_depIdxs = []int32{
-	0,  // 0: browser_automation_studio.v1.ActionDefinition.type:type_name -> browser_automation_studio.v1.ActionType
-	3,  // 1: browser_automation_studio.v1.ActionDefinition.navigate:type_name -> browser_automation_studio.v1.NavigateParams
-	4,  // 2: browser_automation_studio.v1.ActionDefinition.click:type_name -> browser_automation_studio.v1.ClickParams
-	5,  // 3: browser_automation_studio.v1.ActionDefinition.input:type_name -> browser_automation_studio.v1.InputParams
-	6,  // 4: browser_automation_studio.v1.ActionDefinition.wait:type_name -> browser_automation_studio.v1.WaitParams
-	7,  // 5: browser_automation_studio.v1.ActionDefinition.assert:type_name -> browser_automation_studio.v1.AssertParams
-	8,  // 6: browser_automation_studio.v1.ActionDefinition.scroll:type_name -> browser_automation_studio.v1.ScrollParams
-	9,  // 7: browser_automation_studio.v1.ActionDefinition.select_option:type_name -> browser_automation_studio.v1.SelectParams
-	10, // 8: browser_automation_studio.v1.ActionDefinition.evaluate:type_name -> browser_automation_studio.v1.EvaluateParams
-	11, // 9: browser_automation_studio.v1.ActionDefinition.keyboard:type_name -> browser_automation_studio.v1.KeyboardParams
-	12, // 10: browser_automation_studio.v1.ActionDefinition.hover:type_name -> browser_automation_studio.v1.HoverParams
-	13, // 11: browser_automation_studio.v1.ActionDefinition.screenshot:type_name -> browser_automation_studio.v1.ScreenshotParams
-	14, // 12: browser_automation_studio.v1.ActionDefinition.focus:type_name -> browser_automation_studio.v1.FocusParams
-	15, // 13: browser_automation_studio.v1.ActionDefinition.blur:type_name -> browser_automation_studio.v1.BlurParams
-	16, // 14: browser_automation_studio.v1.ActionDefinition.metadata:type_name -> browser_automation_studio.v1.ActionMetadata
-	39, // 15: browser_automation_studio.v1.AssertParams.expected:type_name -> common.v1.JsonValue
-	36, // 16: browser_automation_studio.v1.EvaluateParams.args:type_name -> browser_automation_studio.v1.EvaluateParams.ArgsEntry
-	40, // 17: browser_automation_studio.v1.ActionMetadata.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
-	41, // 18: browser_automation_studio.v1.ActionMetadata.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
-	42, // 19: browser_automation_studio.v1.ActionMetadata.recorded_at:type_name -> google.protobuf.Timestamp
-	43, // 20: browser_automation_studio.v1.ActionMetadata.recorded_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	44, // 21: browser_automation_studio.v1.ActionTelemetry.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	43, // 22: browser_automation_studio.v1.ActionTelemetry.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	45, // 23: browser_automation_studio.v1.ActionTelemetry.click_position:type_name -> browser_automation_studio.v1.Point
-	45, // 24: browser_automation_studio.v1.ActionTelemetry.cursor_position:type_name -> browser_automation_studio.v1.Point
-	45, // 25: browser_automation_studio.v1.ActionTelemetry.cursor_trail:type_name -> browser_automation_studio.v1.Point
-	46, // 26: browser_automation_studio.v1.ActionTelemetry.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
-	47, // 27: browser_automation_studio.v1.ActionTelemetry.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
-	18, // 28: browser_automation_studio.v1.ActionTelemetry.console_logs:type_name -> browser_automation_studio.v1.ConsoleLogEntryUnified
-	19, // 29: browser_automation_studio.v1.ActionTelemetry.network_events:type_name -> browser_automation_studio.v1.NetworkEventUnified
-	42, // 30: browser_automation_studio.v1.ConsoleLogEntryUnified.timestamp:type_name -> google.protobuf.Timestamp
-	42, // 31: browser_automation_studio.v1.NetworkEventUnified.timestamp:type_name -> google.protobuf.Timestamp
-	42, // 32: browser_automation_studio.v1.TimelineEvent.timestamp:type_name -> google.protobuf.Timestamp
-	2,  // 33: browser_automation_studio.v1.TimelineEvent.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	17, // 34: browser_automation_studio.v1.TimelineEvent.telemetry:type_name -> browser_automation_studio.v1.ActionTelemetry
-	21, // 35: browser_automation_studio.v1.TimelineEvent.recording:type_name -> browser_automation_studio.v1.RecordingEventData
-	22, // 36: browser_automation_studio.v1.TimelineEvent.execution:type_name -> browser_automation_studio.v1.ExecutionEventData
-	40, // 37: browser_automation_studio.v1.RecordingEventData.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
-	23, // 38: browser_automation_studio.v1.ExecutionEventData.retry_history:type_name -> browser_automation_studio.v1.RetryAttemptProto
-	24, // 39: browser_automation_studio.v1.ExecutionEventData.assertion:type_name -> browser_automation_studio.v1.AssertionResultProto
-	37, // 40: browser_automation_studio.v1.ExecutionEventData.extracted_data:type_name -> browser_automation_studio.v1.ExecutionEventData.ExtractedDataEntry
-	39, // 41: browser_automation_studio.v1.AssertionResultProto.expected:type_name -> common.v1.JsonValue
-	39, // 42: browser_automation_studio.v1.AssertionResultProto.actual:type_name -> common.v1.JsonValue
-	26, // 43: browser_automation_studio.v1.WorkflowDefinitionV2.metadata:type_name -> browser_automation_studio.v1.WorkflowMetadataV2
-	27, // 44: browser_automation_studio.v1.WorkflowDefinitionV2.settings:type_name -> browser_automation_studio.v1.WorkflowSettingsV2
-	28, // 45: browser_automation_studio.v1.WorkflowDefinitionV2.nodes:type_name -> browser_automation_studio.v1.WorkflowNodeV2
-	32, // 46: browser_automation_studio.v1.WorkflowDefinitionV2.edges:type_name -> browser_automation_studio.v1.WorkflowEdgeV2
-	38, // 47: browser_automation_studio.v1.WorkflowMetadataV2.labels:type_name -> browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
-	2,  // 48: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	29, // 49: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
-	30, // 50: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
-	31, // 51: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
-	1,  // 52: browser_automation_studio.v1.TimelineStreamMessage.type:type_name -> browser_automation_studio.v1.TimelineMessageType
-	20, // 53: browser_automation_studio.v1.TimelineStreamMessage.event:type_name -> browser_automation_studio.v1.TimelineEvent
-	34, // 54: browser_automation_studio.v1.TimelineStreamMessage.status:type_name -> browser_automation_studio.v1.TimelineStatusUpdate
-	35, // 55: browser_automation_studio.v1.TimelineStreamMessage.heartbeat:type_name -> browser_automation_studio.v1.TimelineHeartbeat
-	42, // 56: browser_automation_studio.v1.TimelineHeartbeat.timestamp:type_name -> google.protobuf.Timestamp
-	39, // 57: browser_automation_studio.v1.EvaluateParams.ArgsEntry.value:type_name -> common.v1.JsonValue
-	39, // 58: browser_automation_studio.v1.ExecutionEventData.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	59, // [59:59] is the sub-list for method output_type
-	59, // [59:59] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	11, // 0: browser_automation_studio.v1.SelectorSet.candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
+	51, // 1: browser_automation_studio.v1.ElementMeta.attributes:type_name -> browser_automation_studio.v1.ElementMeta.AttributesEntry
+	9,  // 2: browser_automation_studio.v1.HighlightRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	9,  // 3: browser_automation_studio.v1.MaskRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	0,  // 4: browser_automation_studio.v1.ActionDefinition.type:type_name -> browser_automation_studio.v1.ActionType
+	18, // 5: browser_automation_studio.v1.ActionDefinition.navigate:type_name -> browser_automation_studio.v1.NavigateParams
+	19, // 6: browser_automation_studio.v1.ActionDefinition.click:type_name -> browser_automation_studio.v1.ClickParams
+	20, // 7: browser_automation_studio.v1.ActionDefinition.input:type_name -> browser_automation_studio.v1.InputParams
+	21, // 8: browser_automation_studio.v1.ActionDefinition.wait:type_name -> browser_automation_studio.v1.WaitParams
+	22, // 9: browser_automation_studio.v1.ActionDefinition.assert:type_name -> browser_automation_studio.v1.AssertParams
+	23, // 10: browser_automation_studio.v1.ActionDefinition.scroll:type_name -> browser_automation_studio.v1.ScrollParams
+	24, // 11: browser_automation_studio.v1.ActionDefinition.select_option:type_name -> browser_automation_studio.v1.SelectParams
+	25, // 12: browser_automation_studio.v1.ActionDefinition.evaluate:type_name -> browser_automation_studio.v1.EvaluateParams
+	26, // 13: browser_automation_studio.v1.ActionDefinition.keyboard:type_name -> browser_automation_studio.v1.KeyboardParams
+	27, // 14: browser_automation_studio.v1.ActionDefinition.hover:type_name -> browser_automation_studio.v1.HoverParams
+	28, // 15: browser_automation_studio.v1.ActionDefinition.screenshot:type_name -> browser_automation_studio.v1.ScreenshotParams
+	29, // 16: browser_automation_studio.v1.ActionDefinition.focus:type_name -> browser_automation_studio.v1.FocusParams
+	30, // 17: browser_automation_studio.v1.ActionDefinition.blur:type_name -> browser_automation_studio.v1.BlurParams
+	31, // 18: browser_automation_studio.v1.ActionDefinition.metadata:type_name -> browser_automation_studio.v1.ActionMetadata
+	2,  // 19: browser_automation_studio.v1.NavigateParams.wait_until:type_name -> browser_automation_studio.v1.NavigateWaitEvent
+	1,  // 20: browser_automation_studio.v1.ClickParams.button:type_name -> browser_automation_studio.v1.MouseButton
+	7,  // 21: browser_automation_studio.v1.ClickParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
+	3,  // 22: browser_automation_studio.v1.WaitParams.state:type_name -> browser_automation_studio.v1.WaitState
+	4,  // 23: browser_automation_studio.v1.AssertParams.mode:type_name -> browser_automation_studio.v1.AssertionMode
+	55, // 24: browser_automation_studio.v1.AssertParams.expected:type_name -> common.v1.JsonValue
+	5,  // 25: browser_automation_studio.v1.ScrollParams.behavior:type_name -> browser_automation_studio.v1.ScrollBehavior
+	52, // 26: browser_automation_studio.v1.EvaluateParams.args:type_name -> browser_automation_studio.v1.EvaluateParams.ArgsEntry
+	7,  // 27: browser_automation_studio.v1.KeyboardParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
+	6,  // 28: browser_automation_studio.v1.KeyboardParams.action:type_name -> browser_automation_studio.v1.KeyAction
+	11, // 29: browser_automation_studio.v1.ActionMetadata.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
+	13, // 30: browser_automation_studio.v1.ActionMetadata.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
+	56, // 31: browser_automation_studio.v1.ActionMetadata.recorded_at:type_name -> google.protobuf.Timestamp
+	9,  // 32: browser_automation_studio.v1.ActionMetadata.recorded_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	16, // 33: browser_automation_studio.v1.ActionTelemetry.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
+	9,  // 34: browser_automation_studio.v1.ActionTelemetry.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	10, // 35: browser_automation_studio.v1.ActionTelemetry.click_position:type_name -> browser_automation_studio.v1.Point
+	10, // 36: browser_automation_studio.v1.ActionTelemetry.cursor_position:type_name -> browser_automation_studio.v1.Point
+	10, // 37: browser_automation_studio.v1.ActionTelemetry.cursor_trail:type_name -> browser_automation_studio.v1.Point
+	14, // 38: browser_automation_studio.v1.ActionTelemetry.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
+	15, // 39: browser_automation_studio.v1.ActionTelemetry.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
+	33, // 40: browser_automation_studio.v1.ActionTelemetry.console_logs:type_name -> browser_automation_studio.v1.ConsoleLogEntryUnified
+	34, // 41: browser_automation_studio.v1.ActionTelemetry.network_events:type_name -> browser_automation_studio.v1.NetworkEventUnified
+	56, // 42: browser_automation_studio.v1.ConsoleLogEntryUnified.timestamp:type_name -> google.protobuf.Timestamp
+	56, // 43: browser_automation_studio.v1.NetworkEventUnified.timestamp:type_name -> google.protobuf.Timestamp
+	56, // 44: browser_automation_studio.v1.TimelineEvent.timestamp:type_name -> google.protobuf.Timestamp
+	17, // 45: browser_automation_studio.v1.TimelineEvent.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	32, // 46: browser_automation_studio.v1.TimelineEvent.telemetry:type_name -> browser_automation_studio.v1.ActionTelemetry
+	36, // 47: browser_automation_studio.v1.TimelineEvent.recording:type_name -> browser_automation_studio.v1.RecordingEventData
+	37, // 48: browser_automation_studio.v1.TimelineEvent.execution:type_name -> browser_automation_studio.v1.ExecutionEventData
+	11, // 49: browser_automation_studio.v1.RecordingEventData.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
+	38, // 50: browser_automation_studio.v1.ExecutionEventData.retry_history:type_name -> browser_automation_studio.v1.RetryAttemptProto
+	39, // 51: browser_automation_studio.v1.ExecutionEventData.assertion:type_name -> browser_automation_studio.v1.AssertionResultProto
+	53, // 52: browser_automation_studio.v1.ExecutionEventData.extracted_data:type_name -> browser_automation_studio.v1.ExecutionEventData.ExtractedDataEntry
+	55, // 53: browser_automation_studio.v1.AssertionResultProto.expected:type_name -> common.v1.JsonValue
+	55, // 54: browser_automation_studio.v1.AssertionResultProto.actual:type_name -> common.v1.JsonValue
+	41, // 55: browser_automation_studio.v1.WorkflowDefinitionV2.metadata:type_name -> browser_automation_studio.v1.WorkflowMetadataV2
+	42, // 56: browser_automation_studio.v1.WorkflowDefinitionV2.settings:type_name -> browser_automation_studio.v1.WorkflowSettingsV2
+	43, // 57: browser_automation_studio.v1.WorkflowDefinitionV2.nodes:type_name -> browser_automation_studio.v1.WorkflowNodeV2
+	47, // 58: browser_automation_studio.v1.WorkflowDefinitionV2.edges:type_name -> browser_automation_studio.v1.WorkflowEdgeV2
+	54, // 59: browser_automation_studio.v1.WorkflowMetadataV2.labels:type_name -> browser_automation_studio.v1.WorkflowMetadataV2.LabelsEntry
+	17, // 60: browser_automation_studio.v1.WorkflowNodeV2.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	44, // 61: browser_automation_studio.v1.WorkflowNodeV2.position:type_name -> browser_automation_studio.v1.NodePosition
+	45, // 62: browser_automation_studio.v1.WorkflowNodeV2.execution_settings:type_name -> browser_automation_studio.v1.NodeExecutionSettings
+	46, // 63: browser_automation_studio.v1.NodeExecutionSettings.resilience:type_name -> browser_automation_studio.v1.ResilienceConfig
+	8,  // 64: browser_automation_studio.v1.TimelineStreamMessage.type:type_name -> browser_automation_studio.v1.TimelineMessageType
+	35, // 65: browser_automation_studio.v1.TimelineStreamMessage.event:type_name -> browser_automation_studio.v1.TimelineEvent
+	49, // 66: browser_automation_studio.v1.TimelineStreamMessage.status:type_name -> browser_automation_studio.v1.TimelineStatusUpdate
+	50, // 67: browser_automation_studio.v1.TimelineStreamMessage.heartbeat:type_name -> browser_automation_studio.v1.TimelineHeartbeat
+	56, // 68: browser_automation_studio.v1.TimelineHeartbeat.timestamp:type_name -> google.protobuf.Timestamp
+	55, // 69: browser_automation_studio.v1.EvaluateParams.ArgsEntry.value:type_name -> common.v1.JsonValue
+	55, // 70: browser_automation_studio.v1.ExecutionEventData.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	71, // [71:71] is the sub-list for method output_type
+	71, // [71:71] is the sub-list for method input_type
+	71, // [71:71] is the sub-list for extension type_name
+	71, // [71:71] is the sub-list for extension extendee
+	0,  // [0:71] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_unified_proto_init() }
@@ -3923,9 +5095,8 @@ func file_browser_automation_studio_v1_unified_proto_init() {
 	if File_browser_automation_studio_v1_unified_proto != nil {
 		return
 	}
-	file_browser_automation_studio_v1_record_mode_proto_init()
-	file_browser_automation_studio_v1_timeline_proto_init()
-	file_browser_automation_studio_v1_unified_proto_msgTypes[0].OneofWrappers = []any{
+	file_browser_automation_studio_v1_unified_proto_msgTypes[7].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[8].OneofWrappers = []any{
 		(*ActionDefinition_Navigate)(nil),
 		(*ActionDefinition_Click)(nil),
 		(*ActionDefinition_Input)(nil),
@@ -3940,56 +5111,56 @@ func file_browser_automation_studio_v1_unified_proto_init() {
 		(*ActionDefinition_Focus)(nil),
 		(*ActionDefinition_Blur)(nil),
 	}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[1].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[2].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[3].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[4].OneofWrappers = []any{
+	file_browser_automation_studio_v1_unified_proto_msgTypes[9].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[10].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[11].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[12].OneofWrappers = []any{
 		(*WaitParams_DurationMs)(nil),
 		(*WaitParams_Selector)(nil),
 	}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[5].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[6].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[7].OneofWrappers = []any{
+	file_browser_automation_studio_v1_unified_proto_msgTypes[13].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[14].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[15].OneofWrappers = []any{
 		(*SelectParams_Value)(nil),
 		(*SelectParams_Label)(nil),
 		(*SelectParams_Index)(nil),
 	}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[8].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[9].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[10].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[11].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[12].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[13].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[14].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[15].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[16].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[17].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[18].OneofWrappers = []any{
-		(*TimelineEvent_Recording)(nil),
-		(*TimelineEvent_Execution)(nil),
-	}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[18].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[19].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[20].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[21].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[22].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[23].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[24].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[25].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[26].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[26].OneofWrappers = []any{
+		(*TimelineEvent_Recording)(nil),
+		(*TimelineEvent_Execution)(nil),
+	}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[28].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[29].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_unified_proto_msgTypes[30].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[31].OneofWrappers = []any{
+	file_browser_automation_studio_v1_unified_proto_msgTypes[32].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[33].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[34].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[36].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[37].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[38].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[39].OneofWrappers = []any{
 		(*TimelineStreamMessage_Event)(nil),
 		(*TimelineStreamMessage_Status)(nil),
 		(*TimelineStreamMessage_Heartbeat)(nil),
 	}
-	file_browser_automation_studio_v1_unified_proto_msgTypes[32].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_unified_proto_msgTypes[40].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_unified_proto_rawDesc), len(file_browser_automation_studio_v1_unified_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   37,
+			NumEnums:      9,
+			NumMessages:   46,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

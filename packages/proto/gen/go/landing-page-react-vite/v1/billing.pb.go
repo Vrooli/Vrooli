@@ -10,7 +10,6 @@ import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -285,11 +284,7 @@ type CheckoutSession struct {
 	// Creation timestamp.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Additional structured metadata.
-	//
-	// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,16,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed structured metadata; prefer over the deprecated Value map.
-	MetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,17,rep,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,17,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -429,17 +424,9 @@ func (x *CheckoutSession) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-func (x *CheckoutSession) GetMetadata() map[string]*structpb.Value {
+func (x *CheckoutSession) GetMetadata() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metadata
-	}
-	return nil
-}
-
-func (x *CheckoutSession) GetMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetadataTyped
 	}
 	return nil
 }
@@ -458,11 +445,7 @@ type CreateCheckoutSessionRequest struct {
 	// Intended session kind (defaults to subscription).
 	SessionKind SessionKind `protobuf:"varint,5,opt,name=session_kind,json=sessionKind,proto3,enum=landing_page_react_vite.v1.SessionKind" json:"session_kind,omitempty"`
 	// Arbitrary metadata to associate with the session.
-	//
-	// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,6,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed metadata; prefer over the deprecated Value map.
-	MetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,7,rep,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -532,17 +515,9 @@ func (x *CreateCheckoutSessionRequest) GetSessionKind() SessionKind {
 	return SessionKind_SESSION_KIND_UNSPECIFIED
 }
 
-// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-func (x *CreateCheckoutSessionRequest) GetMetadata() map[string]*structpb.Value {
+func (x *CreateCheckoutSessionRequest) GetMetadata() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metadata
-	}
-	return nil
-}
-
-func (x *CreateCheckoutSessionRequest) GetMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetadataTyped
 	}
 	return nil
 }
@@ -663,11 +638,7 @@ type SubscriptionStatus struct {
 	// Human-readable status message.
 	Message *string `protobuf:"bytes,10,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	// Additional metadata about the subscription.
-	//
-	// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,11,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed metadata; prefer over the deprecated Value map.
-	MetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,12,rep,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,12,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -772,17 +743,9 @@ func (x *SubscriptionStatus) GetMessage() string {
 	return ""
 }
 
-// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-func (x *SubscriptionStatus) GetMetadata() map[string]*structpb.Value {
+func (x *SubscriptionStatus) GetMetadata() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metadata
-	}
-	return nil
-}
-
-func (x *SubscriptionStatus) GetMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetadataTyped
 	}
 	return nil
 }
@@ -1034,18 +997,10 @@ type CreditTransaction struct {
 	CustomerEmail string `protobuf:"bytes,2,opt,name=customer_email,json=customerEmail,proto3" json:"customer_email,omitempty"`
 	// Amount in credits (positive for additions, negative for debits).
 	AmountCredits int64 `protobuf:"varint,3,opt,name=amount_credits,json=amountCredits,proto3" json:"amount_credits,omitempty"`
-	// Transaction type (e.g., credit_topup, consumption).
-	//
-	// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-	TransactionType string `protobuf:"bytes,4,opt,name=transaction_type,json=transactionType,proto3" json:"transaction_type,omitempty"`
-	// Typed transaction type; prefer over the deprecated string field.
+	// Transaction type classification.
 	Type TransactionType `protobuf:"varint,7,opt,name=type,proto3,enum=landing_page_react_vite.v1.TransactionType" json:"type,omitempty"`
 	// Structured metadata describing the transaction.
-	//
-	// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed metadata describing the transaction; prefer over the deprecated Value map.
-	MetadataTyped map[string]*v1.JsonValue `protobuf:"bytes,8,rep,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata map[string]*v1.JsonValue `protobuf:"bytes,8,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Creation timestamp for the transaction.
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1103,14 +1058,6 @@ func (x *CreditTransaction) GetAmountCredits() int64 {
 	return 0
 }
 
-// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-func (x *CreditTransaction) GetTransactionType() string {
-	if x != nil {
-		return x.TransactionType
-	}
-	return ""
-}
-
 func (x *CreditTransaction) GetType() TransactionType {
 	if x != nil {
 		return x.Type
@@ -1118,17 +1065,9 @@ func (x *CreditTransaction) GetType() TransactionType {
 	return TransactionType_TRANSACTION_TYPE_UNSPECIFIED
 }
 
-// Deprecated: Marked as deprecated in landing-page-react-vite/v1/billing.proto.
-func (x *CreditTransaction) GetMetadata() map[string]*structpb.Value {
+func (x *CreditTransaction) GetMetadata() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Metadata
-	}
-	return nil
-}
-
-func (x *CreditTransaction) GetMetadataTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.MetadataTyped
 	}
 	return nil
 }
@@ -1245,7 +1184,7 @@ var File_landing_page_react_vite_v1_billing_proto protoreflect.FileDescriptor
 
 const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\n" +
-	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\xb9\b\n" +
+	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\xfa\x06\n" +
 	"\x0fCheckoutSession\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12J\n" +
@@ -1267,18 +1206,14 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\n" +
 	"cancel_url\x18\x0e \x01(\tR\tcancelUrl\x129\n" +
 	"\n" +
-	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12Y\n" +
-	"\bmetadata\x18\x10 \x03(\v29.landing_page_react_vite.v1.CheckoutSession.MetadataEntryB\x02\x18\x01R\bmetadata\x12e\n" +
-	"\x0emetadata_typed\x18\x11 \x03(\v2>.landing_page_react_vite.v1.CheckoutSession.MetadataTypedEntryR\rmetadataTyped\x1aS\n" +
+	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12U\n" +
+	"\bmetadata\x18\x11 \x03(\v29.landing_page_react_vite.v1.CheckoutSession.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aV\n" +
-	"\x12MetadataTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x14\n" +
 	"\x12_stripe_product_idB\x12\n" +
 	"\x10_subscription_idB\x0e\n" +
-	"\f_schedule_id\"\xf5\x04\n" +
+	"\f_schedule_idJ\x04\b\x10\x10\x11\"\xa9\x03\n" +
 	"\x1cCreateCheckoutSessionRequest\x12\x19\n" +
 	"\bprice_id\x18\x01 \x01(\tR\apriceId\x12%\n" +
 	"\x0ecustomer_email\x18\x02 \x01(\tR\rcustomerEmail\x12\x1f\n" +
@@ -1286,19 +1221,15 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"successUrl\x12\x1d\n" +
 	"\n" +
 	"cancel_url\x18\x04 \x01(\tR\tcancelUrl\x12J\n" +
-	"\fsession_kind\x18\x05 \x01(\x0e2'.landing_page_react_vite.v1.SessionKindR\vsessionKind\x12f\n" +
-	"\bmetadata\x18\x06 \x03(\v2F.landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntryB\x02\x18\x01R\bmetadata\x12r\n" +
-	"\x0emetadata_typed\x18\a \x03(\v2K.landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataTypedEntryR\rmetadataTyped\x1aS\n" +
+	"\fsession_kind\x18\x05 \x01(\x0e2'.landing_page_react_vite.v1.SessionKindR\vsessionKind\x12b\n" +
+	"\bmetadata\x18\a \x03(\v2F.landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aV\n" +
-	"\x12MetadataTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\"f\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\a\"f\n" +
 	"\x1dCreateCheckoutSessionResponse\x12E\n" +
 	"\asession\x18\x01 \x01(\v2+.landing_page_react_vite.v1.CheckoutSessionR\asession\"@\n" +
 	"\x19VerifySubscriptionRequest\x12#\n" +
-	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\x9c\a\n" +
+	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\xda\x05\n" +
 	"\x12SubscriptionStatus\x12C\n" +
 	"\x05state\x18\x01 \x01(\x0e2-.landing_page_react_vite.v1.SubscriptionStateR\x05state\x12,\n" +
 	"\x0fsubscription_id\x18\x02 \x01(\tH\x00R\x0esubscriptionId\x88\x01\x01\x12#\n" +
@@ -1313,13 +1244,9 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\vcanceled_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"canceledAt\x12\x1d\n" +
 	"\amessage\x18\n" +
-	" \x01(\tH\x04R\amessage\x88\x01\x01\x12\\\n" +
-	"\bmetadata\x18\v \x03(\v2<.landing_page_react_vite.v1.SubscriptionStatus.MetadataEntryB\x02\x18\x01R\bmetadata\x12h\n" +
-	"\x0emetadata_typed\x18\f \x03(\v2A.landing_page_react_vite.v1.SubscriptionStatus.MetadataTypedEntryR\rmetadataTyped\x1aS\n" +
+	" \x01(\tH\x04R\amessage\x88\x01\x01\x12X\n" +
+	"\bmetadata\x18\f \x03(\v2<.landing_page_react_vite.v1.SubscriptionStatus.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aV\n" +
-	"\x12MetadataTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x12\n" +
 	"\x10_subscription_idB\f\n" +
@@ -1328,7 +1255,7 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\x10_stripe_price_idB\r\n" +
 	"\v_bundle_keyB\n" +
 	"\n" +
-	"\b_message\"d\n" +
+	"\b_messageJ\x04\b\v\x10\f\"d\n" +
 	"\x1aVerifySubscriptionResponse\x12F\n" +
 	"\x06status\x18\x01 \x01(\v2..landing_page_react_vite.v1.SubscriptionStatusR\x06status\"@\n" +
 	"\x19CancelSubscriptionRequest\x12#\n" +
@@ -1348,23 +1275,18 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"bundle_key\x18\x02 \x01(\tR\tbundleKey\x12'\n" +
 	"\x0fbalance_credits\x18\x03 \x01(\x03R\x0ebalanceCredits\x129\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8f\x05\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa5\x03\n" +
 	"\x11CreditTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0ecustomer_email\x18\x02 \x01(\tR\rcustomerEmail\x12%\n" +
-	"\x0eamount_credits\x18\x03 \x01(\x03R\ramountCredits\x12-\n" +
-	"\x10transaction_type\x18\x04 \x01(\tB\x02\x18\x01R\x0ftransactionType\x12?\n" +
-	"\x04type\x18\a \x01(\x0e2+.landing_page_react_vite.v1.TransactionTypeR\x04type\x12[\n" +
-	"\bmetadata\x18\x05 \x03(\v2;.landing_page_react_vite.v1.CreditTransaction.MetadataEntryB\x02\x18\x01R\bmetadata\x12g\n" +
-	"\x0emetadata_typed\x18\b \x03(\v2@.landing_page_react_vite.v1.CreditTransaction.MetadataTypedEntryR\rmetadataTyped\x129\n" +
+	"\x0eamount_credits\x18\x03 \x01(\x03R\ramountCredits\x12?\n" +
+	"\x04type\x18\a \x01(\x0e2+.landing_page_react_vite.v1.TransactionTypeR\x04type\x12W\n" +
+	"\bmetadata\x18\b \x03(\v2;.landing_page_react_vite.v1.CreditTransaction.MetadataEntryR\bmetadata\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x1aS\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aV\n" +
-	"\x12MetadataTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\"\xad\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"\xad\x01\n" +
 	"\x12GetCreditsResponse\x12D\n" +
 	"\abalance\x18\x01 \x01(\v2*.landing_page_react_vite.v1.CreditsBalanceR\abalance\x12Q\n" +
 	"\ftransactions\x18\x02 \x03(\v2-.landing_page_react_vite.v1.CreditTransactionR\ftransactions\")\n" +
@@ -1417,7 +1339,7 @@ func file_landing_page_react_vite_v1_billing_proto_rawDescGZIP() []byte {
 }
 
 var file_landing_page_react_vite_v1_billing_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_landing_page_react_vite_v1_billing_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_landing_page_react_vite_v1_billing_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_landing_page_react_vite_v1_billing_proto_goTypes = []any{
 	(SubscriptionState)(0),                // 0: landing_page_react_vite.v1.SubscriptionState
 	(SessionKind)(0),                      // 1: landing_page_react_vite.v1.SessionKind
@@ -1436,73 +1358,60 @@ var file_landing_page_react_vite_v1_billing_proto_goTypes = []any{
 	(*GetCreditsResponse)(nil),            // 14: landing_page_react_vite.v1.GetCreditsResponse
 	(*BillingPortalResponse)(nil),         // 15: landing_page_react_vite.v1.BillingPortalResponse
 	nil,                                   // 16: landing_page_react_vite.v1.CheckoutSession.MetadataEntry
-	nil,                                   // 17: landing_page_react_vite.v1.CheckoutSession.MetadataTypedEntry
-	nil,                                   // 18: landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntry
-	nil,                                   // 19: landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataTypedEntry
-	nil,                                   // 20: landing_page_react_vite.v1.SubscriptionStatus.MetadataEntry
-	nil,                                   // 21: landing_page_react_vite.v1.SubscriptionStatus.MetadataTypedEntry
-	nil,                                   // 22: landing_page_react_vite.v1.CreditTransaction.MetadataEntry
-	nil,                                   // 23: landing_page_react_vite.v1.CreditTransaction.MetadataTypedEntry
-	(*timestamppb.Timestamp)(nil),         // 24: google.protobuf.Timestamp
-	(*structpb.Value)(nil),                // 25: google.protobuf.Value
-	(*v1.JsonValue)(nil),                  // 26: common.v1.JsonValue
-	(*GetPricingRequest)(nil),             // 27: landing_page_react_vite.v1.GetPricingRequest
-	(*GetStripeSettingsRequest)(nil),      // 28: landing_page_react_vite.v1.GetStripeSettingsRequest
-	(*UpdateStripeSettingsRequest)(nil),   // 29: landing_page_react_vite.v1.UpdateStripeSettingsRequest
-	(*GetPricingResponse)(nil),            // 30: landing_page_react_vite.v1.GetPricingResponse
-	(*GetStripeSettingsResponse)(nil),     // 31: landing_page_react_vite.v1.GetStripeSettingsResponse
-	(*UpdateStripeSettingsResponse)(nil),  // 32: landing_page_react_vite.v1.UpdateStripeSettingsResponse
+	nil,                                   // 17: landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntry
+	nil,                                   // 18: landing_page_react_vite.v1.SubscriptionStatus.MetadataEntry
+	nil,                                   // 19: landing_page_react_vite.v1.CreditTransaction.MetadataEntry
+	(*timestamppb.Timestamp)(nil),         // 20: google.protobuf.Timestamp
+	(*v1.JsonValue)(nil),                  // 21: common.v1.JsonValue
+	(*GetPricingRequest)(nil),             // 22: landing_page_react_vite.v1.GetPricingRequest
+	(*GetStripeSettingsRequest)(nil),      // 23: landing_page_react_vite.v1.GetStripeSettingsRequest
+	(*UpdateStripeSettingsRequest)(nil),   // 24: landing_page_react_vite.v1.UpdateStripeSettingsRequest
+	(*GetPricingResponse)(nil),            // 25: landing_page_react_vite.v1.GetPricingResponse
+	(*GetStripeSettingsResponse)(nil),     // 26: landing_page_react_vite.v1.GetStripeSettingsResponse
+	(*UpdateStripeSettingsResponse)(nil),  // 27: landing_page_react_vite.v1.UpdateStripeSettingsResponse
 }
 var file_landing_page_react_vite_v1_billing_proto_depIdxs = []int32{
 	1,  // 0: landing_page_react_vite.v1.CheckoutSession.session_kind:type_name -> landing_page_react_vite.v1.SessionKind
 	2,  // 1: landing_page_react_vite.v1.CheckoutSession.status:type_name -> landing_page_react_vite.v1.CheckoutSessionStatus
-	24, // 2: landing_page_react_vite.v1.CheckoutSession.created_at:type_name -> google.protobuf.Timestamp
+	20, // 2: landing_page_react_vite.v1.CheckoutSession.created_at:type_name -> google.protobuf.Timestamp
 	16, // 3: landing_page_react_vite.v1.CheckoutSession.metadata:type_name -> landing_page_react_vite.v1.CheckoutSession.MetadataEntry
-	17, // 4: landing_page_react_vite.v1.CheckoutSession.metadata_typed:type_name -> landing_page_react_vite.v1.CheckoutSession.MetadataTypedEntry
-	1,  // 5: landing_page_react_vite.v1.CreateCheckoutSessionRequest.session_kind:type_name -> landing_page_react_vite.v1.SessionKind
-	18, // 6: landing_page_react_vite.v1.CreateCheckoutSessionRequest.metadata:type_name -> landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntry
-	19, // 7: landing_page_react_vite.v1.CreateCheckoutSessionRequest.metadata_typed:type_name -> landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataTypedEntry
-	4,  // 8: landing_page_react_vite.v1.CreateCheckoutSessionResponse.session:type_name -> landing_page_react_vite.v1.CheckoutSession
-	0,  // 9: landing_page_react_vite.v1.SubscriptionStatus.state:type_name -> landing_page_react_vite.v1.SubscriptionState
-	24, // 10: landing_page_react_vite.v1.SubscriptionStatus.cached_at:type_name -> google.protobuf.Timestamp
-	24, // 11: landing_page_react_vite.v1.SubscriptionStatus.canceled_at:type_name -> google.protobuf.Timestamp
-	20, // 12: landing_page_react_vite.v1.SubscriptionStatus.metadata:type_name -> landing_page_react_vite.v1.SubscriptionStatus.MetadataEntry
-	21, // 13: landing_page_react_vite.v1.SubscriptionStatus.metadata_typed:type_name -> landing_page_react_vite.v1.SubscriptionStatus.MetadataTypedEntry
-	8,  // 14: landing_page_react_vite.v1.VerifySubscriptionResponse.status:type_name -> landing_page_react_vite.v1.SubscriptionStatus
-	0,  // 15: landing_page_react_vite.v1.CancelSubscriptionResponse.state:type_name -> landing_page_react_vite.v1.SubscriptionState
-	24, // 16: landing_page_react_vite.v1.CancelSubscriptionResponse.canceled_at:type_name -> google.protobuf.Timestamp
-	24, // 17: landing_page_react_vite.v1.CreditsBalance.updated_at:type_name -> google.protobuf.Timestamp
-	3,  // 18: landing_page_react_vite.v1.CreditTransaction.type:type_name -> landing_page_react_vite.v1.TransactionType
-	22, // 19: landing_page_react_vite.v1.CreditTransaction.metadata:type_name -> landing_page_react_vite.v1.CreditTransaction.MetadataEntry
-	23, // 20: landing_page_react_vite.v1.CreditTransaction.metadata_typed:type_name -> landing_page_react_vite.v1.CreditTransaction.MetadataTypedEntry
-	24, // 21: landing_page_react_vite.v1.CreditTransaction.created_at:type_name -> google.protobuf.Timestamp
-	12, // 22: landing_page_react_vite.v1.GetCreditsResponse.balance:type_name -> landing_page_react_vite.v1.CreditsBalance
-	13, // 23: landing_page_react_vite.v1.GetCreditsResponse.transactions:type_name -> landing_page_react_vite.v1.CreditTransaction
-	25, // 24: landing_page_react_vite.v1.CheckoutSession.MetadataEntry.value:type_name -> google.protobuf.Value
-	26, // 25: landing_page_react_vite.v1.CheckoutSession.MetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	25, // 26: landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntry.value:type_name -> google.protobuf.Value
-	26, // 27: landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	25, // 28: landing_page_react_vite.v1.SubscriptionStatus.MetadataEntry.value:type_name -> google.protobuf.Value
-	26, // 29: landing_page_react_vite.v1.SubscriptionStatus.MetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	25, // 30: landing_page_react_vite.v1.CreditTransaction.MetadataEntry.value:type_name -> google.protobuf.Value
-	26, // 31: landing_page_react_vite.v1.CreditTransaction.MetadataTypedEntry.value:type_name -> common.v1.JsonValue
-	5,  // 32: landing_page_react_vite.v1.LandingPagePaymentsService.CreateCheckoutSession:input_type -> landing_page_react_vite.v1.CreateCheckoutSessionRequest
-	7,  // 33: landing_page_react_vite.v1.LandingPagePaymentsService.VerifySubscription:input_type -> landing_page_react_vite.v1.VerifySubscriptionRequest
-	10, // 34: landing_page_react_vite.v1.LandingPagePaymentsService.CancelSubscription:input_type -> landing_page_react_vite.v1.CancelSubscriptionRequest
-	27, // 35: landing_page_react_vite.v1.LandingPagePaymentsService.GetPricing:input_type -> landing_page_react_vite.v1.GetPricingRequest
-	28, // 36: landing_page_react_vite.v1.LandingPagePaymentsService.GetStripeSettings:input_type -> landing_page_react_vite.v1.GetStripeSettingsRequest
-	29, // 37: landing_page_react_vite.v1.LandingPagePaymentsService.UpdateStripeSettings:input_type -> landing_page_react_vite.v1.UpdateStripeSettingsRequest
-	6,  // 38: landing_page_react_vite.v1.LandingPagePaymentsService.CreateCheckoutSession:output_type -> landing_page_react_vite.v1.CreateCheckoutSessionResponse
-	9,  // 39: landing_page_react_vite.v1.LandingPagePaymentsService.VerifySubscription:output_type -> landing_page_react_vite.v1.VerifySubscriptionResponse
-	11, // 40: landing_page_react_vite.v1.LandingPagePaymentsService.CancelSubscription:output_type -> landing_page_react_vite.v1.CancelSubscriptionResponse
-	30, // 41: landing_page_react_vite.v1.LandingPagePaymentsService.GetPricing:output_type -> landing_page_react_vite.v1.GetPricingResponse
-	31, // 42: landing_page_react_vite.v1.LandingPagePaymentsService.GetStripeSettings:output_type -> landing_page_react_vite.v1.GetStripeSettingsResponse
-	32, // 43: landing_page_react_vite.v1.LandingPagePaymentsService.UpdateStripeSettings:output_type -> landing_page_react_vite.v1.UpdateStripeSettingsResponse
-	38, // [38:44] is the sub-list for method output_type
-	32, // [32:38] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	1,  // 4: landing_page_react_vite.v1.CreateCheckoutSessionRequest.session_kind:type_name -> landing_page_react_vite.v1.SessionKind
+	17, // 5: landing_page_react_vite.v1.CreateCheckoutSessionRequest.metadata:type_name -> landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntry
+	4,  // 6: landing_page_react_vite.v1.CreateCheckoutSessionResponse.session:type_name -> landing_page_react_vite.v1.CheckoutSession
+	0,  // 7: landing_page_react_vite.v1.SubscriptionStatus.state:type_name -> landing_page_react_vite.v1.SubscriptionState
+	20, // 8: landing_page_react_vite.v1.SubscriptionStatus.cached_at:type_name -> google.protobuf.Timestamp
+	20, // 9: landing_page_react_vite.v1.SubscriptionStatus.canceled_at:type_name -> google.protobuf.Timestamp
+	18, // 10: landing_page_react_vite.v1.SubscriptionStatus.metadata:type_name -> landing_page_react_vite.v1.SubscriptionStatus.MetadataEntry
+	8,  // 11: landing_page_react_vite.v1.VerifySubscriptionResponse.status:type_name -> landing_page_react_vite.v1.SubscriptionStatus
+	0,  // 12: landing_page_react_vite.v1.CancelSubscriptionResponse.state:type_name -> landing_page_react_vite.v1.SubscriptionState
+	20, // 13: landing_page_react_vite.v1.CancelSubscriptionResponse.canceled_at:type_name -> google.protobuf.Timestamp
+	20, // 14: landing_page_react_vite.v1.CreditsBalance.updated_at:type_name -> google.protobuf.Timestamp
+	3,  // 15: landing_page_react_vite.v1.CreditTransaction.type:type_name -> landing_page_react_vite.v1.TransactionType
+	19, // 16: landing_page_react_vite.v1.CreditTransaction.metadata:type_name -> landing_page_react_vite.v1.CreditTransaction.MetadataEntry
+	20, // 17: landing_page_react_vite.v1.CreditTransaction.created_at:type_name -> google.protobuf.Timestamp
+	12, // 18: landing_page_react_vite.v1.GetCreditsResponse.balance:type_name -> landing_page_react_vite.v1.CreditsBalance
+	13, // 19: landing_page_react_vite.v1.GetCreditsResponse.transactions:type_name -> landing_page_react_vite.v1.CreditTransaction
+	21, // 20: landing_page_react_vite.v1.CheckoutSession.MetadataEntry.value:type_name -> common.v1.JsonValue
+	21, // 21: landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntry.value:type_name -> common.v1.JsonValue
+	21, // 22: landing_page_react_vite.v1.SubscriptionStatus.MetadataEntry.value:type_name -> common.v1.JsonValue
+	21, // 23: landing_page_react_vite.v1.CreditTransaction.MetadataEntry.value:type_name -> common.v1.JsonValue
+	5,  // 24: landing_page_react_vite.v1.LandingPagePaymentsService.CreateCheckoutSession:input_type -> landing_page_react_vite.v1.CreateCheckoutSessionRequest
+	7,  // 25: landing_page_react_vite.v1.LandingPagePaymentsService.VerifySubscription:input_type -> landing_page_react_vite.v1.VerifySubscriptionRequest
+	10, // 26: landing_page_react_vite.v1.LandingPagePaymentsService.CancelSubscription:input_type -> landing_page_react_vite.v1.CancelSubscriptionRequest
+	22, // 27: landing_page_react_vite.v1.LandingPagePaymentsService.GetPricing:input_type -> landing_page_react_vite.v1.GetPricingRequest
+	23, // 28: landing_page_react_vite.v1.LandingPagePaymentsService.GetStripeSettings:input_type -> landing_page_react_vite.v1.GetStripeSettingsRequest
+	24, // 29: landing_page_react_vite.v1.LandingPagePaymentsService.UpdateStripeSettings:input_type -> landing_page_react_vite.v1.UpdateStripeSettingsRequest
+	6,  // 30: landing_page_react_vite.v1.LandingPagePaymentsService.CreateCheckoutSession:output_type -> landing_page_react_vite.v1.CreateCheckoutSessionResponse
+	9,  // 31: landing_page_react_vite.v1.LandingPagePaymentsService.VerifySubscription:output_type -> landing_page_react_vite.v1.VerifySubscriptionResponse
+	11, // 32: landing_page_react_vite.v1.LandingPagePaymentsService.CancelSubscription:output_type -> landing_page_react_vite.v1.CancelSubscriptionResponse
+	25, // 33: landing_page_react_vite.v1.LandingPagePaymentsService.GetPricing:output_type -> landing_page_react_vite.v1.GetPricingResponse
+	26, // 34: landing_page_react_vite.v1.LandingPagePaymentsService.GetStripeSettings:output_type -> landing_page_react_vite.v1.GetStripeSettingsResponse
+	27, // 35: landing_page_react_vite.v1.LandingPagePaymentsService.UpdateStripeSettings:output_type -> landing_page_react_vite.v1.UpdateStripeSettingsResponse
+	30, // [30:36] is the sub-list for method output_type
+	24, // [24:30] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_react_vite_v1_billing_proto_init() }
@@ -1521,7 +1430,7 @@ func file_landing_page_react_vite_v1_billing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_react_vite_v1_billing_proto_rawDesc), len(file_landing_page_react_vite_v1_billing_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   20,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

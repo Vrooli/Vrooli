@@ -21,17 +21,6 @@ class TriggerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRIGGER_TYPE_API: _ClassVar[TriggerType]
     TRIGGER_TYPE_WEBHOOK: _ClassVar[TriggerType]
 
-class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    STEP_TYPE_UNSPECIFIED: _ClassVar[StepType]
-    STEP_TYPE_NAVIGATE: _ClassVar[StepType]
-    STEP_TYPE_CLICK: _ClassVar[StepType]
-    STEP_TYPE_ASSERT: _ClassVar[StepType]
-    STEP_TYPE_SUBFLOW: _ClassVar[StepType]
-    STEP_TYPE_INPUT: _ClassVar[StepType]
-    STEP_TYPE_CUSTOM: _ClassVar[StepType]
-    STEP_TYPE_WAIT: _ClassVar[StepType]
-
 class StepStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STEP_STATUS_UNSPECIFIED: _ClassVar[StepStatus]
@@ -89,14 +78,6 @@ TRIGGER_TYPE_MANUAL: TriggerType
 TRIGGER_TYPE_SCHEDULED: TriggerType
 TRIGGER_TYPE_API: TriggerType
 TRIGGER_TYPE_WEBHOOK: TriggerType
-STEP_TYPE_UNSPECIFIED: StepType
-STEP_TYPE_NAVIGATE: StepType
-STEP_TYPE_CLICK: StepType
-STEP_TYPE_ASSERT: StepType
-STEP_TYPE_SUBFLOW: StepType
-STEP_TYPE_INPUT: StepType
-STEP_TYPE_CUSTOM: StepType
-STEP_TYPE_WAIT: StepType
 STEP_STATUS_UNSPECIFIED: StepStatus
 STEP_STATUS_PENDING: StepStatus
 STEP_STATUS_RUNNING: StepStatus

@@ -4,23 +4,24 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp, Value } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonValue } from "../../common/v1/types_pb";
 import { file_common_v1_types } from "../../common/v1/types_pb";
-import type { ArtifactType, ExecutionStatus, LogLevel, StepStatus, StepType } from "./shared_pb";
+import type { ArtifactType, ExecutionStatus, LogLevel, StepStatus } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
+import type { ActionType, AssertionResultProto, BoundingBox, HighlightRegion, MaskRegion, Point, TimelineScreenshot } from "./unified_pb";
+import { file_browser_automation_studio_v1_unified } from "./unified_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/timeline.proto.
  */
 export const file_browser_automation_studio_v1_timeline: GenFile = /*@__PURE__*/
-  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIucCChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI7CgZmcmFtZXMYByADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRnJhbWUSNwoEbG9ncxgIIAMoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVMb2ci9QsKDVRpbWVsaW5lRnJhbWUSEgoKc3RlcF9pbmRleBgBIAEoBRIPCgdub2RlX2lkGAIgASgJEjkKCXN0ZXBfdHlwZRgDIAEoDjImLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RlcFR5cGUSOAoGc3RhdHVzGAQgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGVwU3RhdHVzEg8KB3N1Y2Nlc3MYBSABKAgSEwoLZHVyYXRpb25fbXMYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSEAoIcHJvZ3Jlc3MYCCABKAUSLgoKc3RhcnRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglmaW5hbF91cmwYCyABKAkSEgoFZXJyb3IYDCABKAlIAIgBARIZChFjb25zb2xlX2xvZ19jb3VudBgNIAEoBRIbChNuZXR3b3JrX2V2ZW50X2NvdW50GA4gASgFEjYKFmV4dHJhY3RlZF9kYXRhX3ByZXZpZXcYDyABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSOgocZXh0cmFjdGVkX2RhdGFfcHJldmlld190eXBlZBgiIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWUSSAoRaGlnaGxpZ2h0X3JlZ2lvbnMYECADKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkhpZ2hsaWdodFJlZ2lvbhI+CgxtYXNrX3JlZ2lvbnMYESADKAsyKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLk1hc2tSZWdpb24SQwoPZm9jdXNlZF9lbGVtZW50GBIgASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FbGVtZW50Rm9jdXMSRwoUZWxlbWVudF9ib3VuZGluZ19ib3gYEyABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkJvdW5kaW5nQm94EjsKDmNsaWNrX3Bvc2l0aW9uGBQgASgLMiMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Qb2ludBI5CgxjdXJzb3JfdHJhaWwYFSADKAsyIy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlBvaW50EhMKC3pvb21fZmFjdG9yGBYgASgBEkQKCnNjcmVlbnNob3QYFyABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lU2NyZWVuc2hvdBJBCglhcnRpZmFjdHMYGCADKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lQXJ0aWZhY3QSQQoJYXNzZXJ0aW9uGBkgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Bc3NlcnRpb25PdXRjb21lEhUKDXJldHJ5X2F0dGVtcHQYGiABKAUSGgoScmV0cnlfbWF4X2F0dGVtcHRzGBsgASgFEh0KEHJldHJ5X2NvbmZpZ3VyZWQYHCABKAhIAYgBARIWCg5yZXRyeV9kZWxheV9tcxgdIAEoBRIcChRyZXRyeV9iYWNrb2ZmX2ZhY3RvchgeIAEoARJGCg1yZXRyeV9oaXN0b3J5GB8gAygLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZXRyeUhpc3RvcnlFbnRyeRIcChRkb21fc25hcHNob3RfcHJldmlldxggIAEoCRJECgxkb21fc25hcHNob3QYISABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lQXJ0aWZhY3RCCAoGX2Vycm9yQhMKEV9yZXRyeV9jb25maWd1cmVkIqoBChJUaW1lbGluZVNjcmVlbnNob3QSEwoLYXJ0aWZhY3RfaWQYASABKAkSCwoDdXJsGAIgASgJEhUKDXRodW1ibmFpbF91cmwYAyABKAkSDQoFd2lkdGgYBCABKAUSDgoGaGVpZ2h0GAUgASgFEhQKDGNvbnRlbnRfdHlwZRgGIAEoCRIXCgpzaXplX2J5dGVzGAcgASgDSACIAQFCDQoLX3NpemVfYnl0ZXMi3QQKEFRpbWVsaW5lQXJ0aWZhY3QSCgoCaWQYASABKAkSOAoEdHlwZRgCIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXJ0aWZhY3RUeXBlEhIKBWxhYmVsGAMgASgJSACIAQESEwoLc3RvcmFnZV91cmwYBCABKAkSGgoNdGh1bWJuYWlsX3VybBgFIAEoCUgBiAEBEhQKDGNvbnRlbnRfdHlwZRgGIAEoCRIXCgpzaXplX2J5dGVzGAcgASgDSAKIAQESFwoKc3RlcF9pbmRleBgIIAEoBUgDiAEBElAKB3BheWxvYWQYCSADKAsyOy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lQXJ0aWZhY3QuUGF5bG9hZEVudHJ5QgIYARJXCg1wYXlsb2FkX3R5cGVkGAogAygLMkAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUFydGlmYWN0LlBheWxvYWRUeXBlZEVudHJ5GkYKDFBheWxvYWRFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkkKEVBheWxvYWRUeXBlZEVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBQggKBl9sYWJlbEIQCg5fdGh1bWJuYWlsX3VybEINCgtfc2l6ZV9ieXRlc0INCgtfc3RlcF9pbmRleCJzChFSZXRyeUhpc3RvcnlFbnRyeRIPCgdhdHRlbXB0GAEgASgFEg8KB3N1Y2Nlc3MYAiABKAgSEwoLZHVyYXRpb25fbXMYAyABKAUSGAoQY2FsbF9kdXJhdGlvbl9tcxgEIAEoBRINCgVlcnJvchgFIAEoCSKEAQoPSGlnaGxpZ2h0UmVnaW9uEhAKCHNlbGVjdG9yGAEgASgJEj8KDGJvdW5kaW5nX2JveBgCIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3gSDwoHcGFkZGluZxgDIAEoBRINCgVjb2xvchgEIAEoCSJwCgpNYXNrUmVnaW9uEhAKCHNlbGVjdG9yGAEgASgJEj8KDGJvdW5kaW5nX2JveBgCIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3gSDwoHb3BhY2l0eRgDIAEoASJhCgxFbGVtZW50Rm9jdXMSEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveCJCCgtCb3VuZGluZ0JveBIJCgF4GAEgASgBEgkKAXkYAiABKAESDQoFd2lkdGgYAyABKAESDgoGaGVpZ2h0GAQgASgBIh0KBVBvaW50EgkKAXgYASABKAESCQoBeRgCIAEoASKpAgoQQXNzZXJ0aW9uT3V0Y29tZRIMCgRtb2RlGAEgASgJEhAKCHNlbGVjdG9yGAIgASgJEigKCGV4cGVjdGVkGAMgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEiYKBmFjdHVhbBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIsCg5leHBlY3RlZF90eXBlZBgJIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWUSKgoMYWN0dWFsX3R5cGVkGAogASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZRIPCgdzdWNjZXNzGAUgASgIEg8KB25lZ2F0ZWQYBiABKAgSFgoOY2FzZV9zZW5zaXRpdmUYByABKAgSDwoHbWVzc2FnZRgIIAEoCSK2AQoLVGltZWxpbmVMb2cSCgoCaWQYASABKAkSNQoFbGV2ZWwYAiABKA4yJi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ0xldmVsEg8KB21lc3NhZ2UYAyABKAkSFgoJc3RlcF9uYW1lGAQgASgJSACIAQESLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIMCgpfc3RlcF9uYW1lQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared]);
+  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIucCChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI7CgZmcmFtZXMYByADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRnJhbWUSNwoEbG9ncxgIIAMoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVMb2cixQsKDVRpbWVsaW5lRnJhbWUSEgoKc3RlcF9pbmRleBgBIAEoBRIPCgdub2RlX2lkGAIgASgJEj0KC2FjdGlvbl90eXBlGAMgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25UeXBlEjgKBnN0YXR1cxgEIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RlcFN0YXR1cxIPCgdzdWNjZXNzGAUgASgIEhMKC2R1cmF0aW9uX21zGAYgASgFEhkKEXRvdGFsX2R1cmF0aW9uX21zGAcgASgFEhAKCHByb2dyZXNzGAggASgFEi4KCnN0YXJ0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJZmluYWxfdXJsGAsgASgJEhIKBWVycm9yGAwgASgJSACIAQESGQoRY29uc29sZV9sb2dfY291bnQYDSABKAUSGwoTbmV0d29ya19ldmVudF9jb3VudBgOIAEoBRJIChFoaWdobGlnaHRfcmVnaW9ucxgQIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSGlnaGxpZ2h0UmVnaW9uEj4KDG1hc2tfcmVnaW9ucxgRIAMoCzIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTWFza1JlZ2lvbhJDCg9mb2N1c2VkX2VsZW1lbnQYEiABKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkVsZW1lbnRGb2N1cxJHChRlbGVtZW50X2JvdW5kaW5nX2JveBgTIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3gSOwoOY2xpY2tfcG9zaXRpb24YFCABKAsyIy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlBvaW50EjkKDGN1cnNvcl90cmFpbBgVIAMoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnQSEwoLem9vbV9mYWN0b3IYFiABKAESRAoKc2NyZWVuc2hvdBgXIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVTY3JlZW5zaG90EkEKCWFydGlmYWN0cxgYIAMoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdBJFCglhc3NlcnRpb24YGSABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFzc2VydGlvblJlc3VsdFByb3RvEhUKDXJldHJ5X2F0dGVtcHQYGiABKAUSGgoScmV0cnlfbWF4X2F0dGVtcHRzGBsgASgFEh0KEHJldHJ5X2NvbmZpZ3VyZWQYHCABKAhIAYgBARIWCg5yZXRyeV9kZWxheV9tcxgdIAEoBRIcChRyZXRyeV9iYWNrb2ZmX2ZhY3RvchgeIAEoARJGCg1yZXRyeV9oaXN0b3J5GB8gAygLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZXRyeUhpc3RvcnlFbnRyeRIcChRkb21fc25hcHNob3RfcHJldmlldxggIAEoCRJECgxkb21fc25hcHNob3QYISABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lQXJ0aWZhY3QSNAoWZXh0cmFjdGVkX2RhdGFfcHJldmlldxgiIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWVCCAoGX2Vycm9yQhMKEV9yZXRyeV9jb25maWd1cmVkSgQIDxAQIrkDChBUaW1lbGluZUFydGlmYWN0EgoKAmlkGAEgASgJEjgKBHR5cGUYAiABKA4yKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFydGlmYWN0VHlwZRISCgVsYWJlbBgDIAEoCUgAiAEBEhMKC3N0b3JhZ2VfdXJsGAQgASgJEhoKDXRodW1ibmFpbF91cmwYBSABKAlIAYgBARIUCgxjb250ZW50X3R5cGUYBiABKAkSFwoKc2l6ZV9ieXRlcxgHIAEoA0gCiAEBEhcKCnN0ZXBfaW5kZXgYCCABKAVIA4gBARJMCgdwYXlsb2FkGAogAygLMjsuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUFydGlmYWN0LlBheWxvYWRFbnRyeRpECgxQYXlsb2FkRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCCAoGX2xhYmVsQhAKDl90aHVtYm5haWxfdXJsQg0KC19zaXplX2J5dGVzQg0KC19zdGVwX2luZGV4SgQICRAKInMKEVJldHJ5SGlzdG9yeUVudHJ5Eg8KB2F0dGVtcHQYASABKAUSDwoHc3VjY2VzcxgCIAEoCBITCgtkdXJhdGlvbl9tcxgDIAEoBRIYChBjYWxsX2R1cmF0aW9uX21zGAQgASgFEg0KBWVycm9yGAUgASgJImEKDEVsZW1lbnRGb2N1cxIQCghzZWxlY3RvchgBIAEoCRI/Cgxib3VuZGluZ19ib3gYAiABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkJvdW5kaW5nQm94IrYBCgtUaW1lbGluZUxvZxIKCgJpZBgBIAEoCRI1CgVsZXZlbBgCIAEoDjImLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTG9nTGV2ZWwSDwoHbWVzc2FnZRgDIAEoCRIWCglzdGVwX25hbWUYBCABKAlIAIgBARItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgwKCl9zdGVwX25hbWVCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_unified]);
 
 /**
  * ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
- * It mirrors the existing BAS timeline JSON contract.
  *
  * @generated from message browser_automation_studio.v1.ExecutionTimeline
  */
@@ -110,11 +111,11 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   nodeId: string;
 
   /**
-   * Node type (navigate, click, assert, etc.).
+   * Action type (navigate, click, assert, etc.) - from unified.proto.
    *
-   * @generated from field: browser_automation_studio.v1.StepType step_type = 3;
+   * @generated from field: browser_automation_studio.v1.ActionType action_type = 3;
    */
-  stepType: StepType;
+  actionType: ActionType;
 
   /**
    * Step execution status.
@@ -194,28 +195,14 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   networkEventCount: number;
 
   /**
-   * Preview of extracted data (shape depends on workflow).
-   *
-   * @generated from field: google.protobuf.Value extracted_data_preview = 15;
-   */
-  extractedDataPreview?: Value;
-
-  /**
-   * Typed preview of extracted data; prefer over the Value when available.
-   *
-   * @generated from field: common.v1.JsonValue extracted_data_preview_typed = 34;
-   */
-  extractedDataPreviewTyped?: JsonValue;
-
-  /**
-   * Highlight overlays applied to the screenshot.
+   * Highlight overlays applied to the screenshot - from unified.proto.
    *
    * @generated from field: repeated browser_automation_studio.v1.HighlightRegion highlight_regions = 16;
    */
   highlightRegions: HighlightRegion[];
 
   /**
-   * Masked regions applied during capture.
+   * Masked regions applied during capture - from unified.proto.
    *
    * @generated from field: repeated browser_automation_studio.v1.MaskRegion mask_regions = 17;
    */
@@ -229,21 +216,21 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   focusedElement?: ElementFocus;
 
   /**
-   * Bounding box for the primary element interacted with.
+   * Bounding box for the primary element interacted with - from unified.proto.
    *
    * @generated from field: browser_automation_studio.v1.BoundingBox element_bounding_box = 19;
    */
   elementBoundingBox?: BoundingBox;
 
   /**
-   * Actual click coordinates used.
+   * Actual click coordinates used - from unified.proto.
    *
    * @generated from field: browser_automation_studio.v1.Point click_position = 20;
    */
   clickPosition?: Point;
 
   /**
-   * Cursor trail captured during the step.
+   * Cursor trail captured during the step - from unified.proto.
    *
    * @generated from field: repeated browser_automation_studio.v1.Point cursor_trail = 21;
    */
@@ -257,7 +244,7 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   zoomFactor: number;
 
   /**
-   * Screenshot captured during/after this step.
+   * Screenshot captured during/after this step - from unified.proto.
    *
    * @generated from field: browser_automation_studio.v1.TimelineScreenshot screenshot = 23;
    */
@@ -271,11 +258,11 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   artifacts: TimelineArtifact[];
 
   /**
-   * Assertion outcome for assert steps.
+   * Assertion result for assert steps - from unified.proto.
    *
-   * @generated from field: browser_automation_studio.v1.AssertionOutcome assertion = 25;
+   * @generated from field: browser_automation_studio.v1.AssertionResultProto assertion = 25;
    */
-  assertion?: AssertionOutcome;
+  assertion?: AssertionResultProto;
 
   /**
    * Current retry attempt number (0 for first attempt).
@@ -332,6 +319,13 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
    * @generated from field: browser_automation_studio.v1.TimelineArtifact dom_snapshot = 33;
    */
   domSnapshot?: TimelineArtifact;
+
+  /**
+   * Typed preview of extracted data.
+   *
+   * @generated from field: common.v1.JsonValue extracted_data_preview = 34;
+   */
+  extractedDataPreview?: JsonValue;
 };
 
 /**
@@ -340,69 +334,6 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
  */
 export const TimelineFrameSchema: GenMessage<TimelineFrame> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline, 1);
-
-/**
- * TimelineScreenshot describes screenshot metadata associated with a frame.
- *
- * @generated from message browser_automation_studio.v1.TimelineScreenshot
- */
-export type TimelineScreenshot = Message<"browser_automation_studio.v1.TimelineScreenshot"> & {
-  /**
-   * Unique artifact ID for the screenshot.
-   *
-   * @generated from field: string artifact_id = 1;
-   */
-  artifactId: string;
-
-  /**
-   * URL to download the full screenshot.
-   *
-   * @generated from field: string url = 2;
-   */
-  url: string;
-
-  /**
-   * URL to download a thumbnail.
-   *
-   * @generated from field: string thumbnail_url = 3;
-   */
-  thumbnailUrl: string;
-
-  /**
-   * Image width in pixels.
-   *
-   * @generated from field: int32 width = 4;
-   */
-  width: number;
-
-  /**
-   * Image height in pixels.
-   *
-   * @generated from field: int32 height = 5;
-   */
-  height: number;
-
-  /**
-   * Image MIME type (e.g., image/png).
-   *
-   * @generated from field: string content_type = 6;
-   */
-  contentType: string;
-
-  /**
-   * Optional size in bytes for the screenshot.
-   *
-   * @generated from field: optional int64 size_bytes = 7;
-   */
-  sizeBytes?: bigint;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineScreenshot.
- * Use `create(TimelineScreenshotSchema)` to create a new message.
- */
-export const TimelineScreenshotSchema: GenMessage<TimelineScreenshot> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 2);
 
 /**
  * TimelineArtifact exposes related artifacts such as console or network logs.
@@ -469,17 +400,9 @@ export type TimelineArtifact = Message<"browser_automation_studio.v1.TimelineArt
   /**
    * Provider-specific payload describing the artifact.
    *
-   * @generated from field: map<string, google.protobuf.Value> payload = 9 [deprecated = true];
-   * @deprecated
+   * @generated from field: map<string, common.v1.JsonValue> payload = 10;
    */
-  payload: { [key: string]: Value };
-
-  /**
-   * Typed payload describing the artifact; prefer over the Value map.
-   *
-   * @generated from field: map<string, common.v1.JsonValue> payload_typed = 10;
-   */
-  payloadTyped: { [key: string]: JsonValue };
+  payload: { [key: string]: JsonValue };
 };
 
 /**
@@ -487,7 +410,7 @@ export type TimelineArtifact = Message<"browser_automation_studio.v1.TimelineArt
  * Use `create(TimelineArtifactSchema)` to create a new message.
  */
 export const TimelineArtifactSchema: GenMessage<TimelineArtifact> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 3);
+  messageDesc(file_browser_automation_studio_v1_timeline, 2);
 
 /**
  * RetryHistoryEntry captures the outcome of a retry attempt.
@@ -536,84 +459,7 @@ export type RetryHistoryEntry = Message<"browser_automation_studio.v1.RetryHisto
  * Use `create(RetryHistoryEntrySchema)` to create a new message.
  */
 export const RetryHistoryEntrySchema: GenMessage<RetryHistoryEntry> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 4);
-
-/**
- * HighlightRegion describes an overlay applied to the screenshot for emphasis.
- *
- * @generated from message browser_automation_studio.v1.HighlightRegion
- */
-export type HighlightRegion = Message<"browser_automation_studio.v1.HighlightRegion"> & {
-  /**
-   * CSS selector for the region.
-   *
-   * @generated from field: string selector = 1;
-   */
-  selector: string;
-
-  /**
-   * Bounding box for the highlighted area.
-   *
-   * @generated from field: browser_automation_studio.v1.BoundingBox bounding_box = 2;
-   */
-  boundingBox?: BoundingBox;
-
-  /**
-   * Padding in pixels around the region.
-   *
-   * @generated from field: int32 padding = 3;
-   */
-  padding: number;
-
-  /**
-   * Highlight color (CSS string).
-   *
-   * @generated from field: string color = 4;
-   */
-  color: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.HighlightRegion.
- * Use `create(HighlightRegionSchema)` to create a new message.
- */
-export const HighlightRegionSchema: GenMessage<HighlightRegion> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 5);
-
-/**
- * MaskRegion describes areas that were dimmed or masked during capture.
- *
- * @generated from message browser_automation_studio.v1.MaskRegion
- */
-export type MaskRegion = Message<"browser_automation_studio.v1.MaskRegion"> & {
-  /**
-   * CSS selector for the region to mask.
-   *
-   * @generated from field: string selector = 1;
-   */
-  selector: string;
-
-  /**
-   * Bounding box for the masked area.
-   *
-   * @generated from field: browser_automation_studio.v1.BoundingBox bounding_box = 2;
-   */
-  boundingBox?: BoundingBox;
-
-  /**
-   * Mask opacity value (0-1).
-   *
-   * @generated from field: double opacity = 3;
-   */
-  opacity: number;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.MaskRegion.
- * Use `create(MaskRegionSchema)` to create a new message.
- */
-export const MaskRegionSchema: GenMessage<MaskRegion> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 6);
+  messageDesc(file_browser_automation_studio_v1_timeline, 3);
 
 /**
  * ElementFocus captures focus metadata for screenshot framing.
@@ -629,7 +475,7 @@ export type ElementFocus = Message<"browser_automation_studio.v1.ElementFocus"> 
   selector: string;
 
   /**
-   * Bounding box for the focused element.
+   * Bounding box for the focused element - from unified.proto.
    *
    * @generated from field: browser_automation_studio.v1.BoundingBox bounding_box = 2;
    */
@@ -641,161 +487,7 @@ export type ElementFocus = Message<"browser_automation_studio.v1.ElementFocus"> 
  * Use `create(ElementFocusSchema)` to create a new message.
  */
 export const ElementFocusSchema: GenMessage<ElementFocus> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 7);
-
-/**
- * BoundingBox captures the position of an element within the viewport.
- *
- * @generated from message browser_automation_studio.v1.BoundingBox
- */
-export type BoundingBox = Message<"browser_automation_studio.v1.BoundingBox"> & {
-  /**
-   * X coordinate in viewport pixels.
-   *
-   * @generated from field: double x = 1;
-   */
-  x: number;
-
-  /**
-   * Y coordinate in viewport pixels.
-   *
-   * @generated from field: double y = 2;
-   */
-  y: number;
-
-  /**
-   * Width in viewport pixels.
-   *
-   * @generated from field: double width = 3;
-   */
-  width: number;
-
-  /**
-   * Height in viewport pixels.
-   *
-   * @generated from field: double height = 4;
-   */
-  height: number;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.BoundingBox.
- * Use `create(BoundingBoxSchema)` to create a new message.
- */
-export const BoundingBoxSchema: GenMessage<BoundingBox> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 8);
-
-/**
- * Point represents a 2D coordinate used for pointer highlights.
- *
- * @generated from message browser_automation_studio.v1.Point
- */
-export type Point = Message<"browser_automation_studio.v1.Point"> & {
-  /**
-   * X coordinate in viewport pixels.
-   *
-   * @generated from field: double x = 1;
-   */
-  x: number;
-
-  /**
-   * Y coordinate in viewport pixels.
-   *
-   * @generated from field: double y = 2;
-   */
-  y: number;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.Point.
- * Use `create(PointSchema)` to create a new message.
- */
-export const PointSchema: GenMessage<Point> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 9);
-
-/**
- * AssertionOutcome captures the outcome of an assert step.
- *
- * @generated from message browser_automation_studio.v1.AssertionOutcome
- */
-export type AssertionOutcome = Message<"browser_automation_studio.v1.AssertionOutcome"> & {
-  /**
-   * Assertion mode (exists, visible, text_equals, etc.).
-   *
-   * @generated from field: string mode = 1;
-   */
-  mode: string;
-
-  /**
-   * CSS selector being asserted on.
-   *
-   * @generated from field: string selector = 2;
-   */
-  selector: string;
-
-  /**
-   * Expected value for the assertion.
-   *
-   * @generated from field: google.protobuf.Value expected = 3;
-   */
-  expected?: Value;
-
-  /**
-   * Actual value observed.
-   *
-   * @generated from field: google.protobuf.Value actual = 4;
-   */
-  actual?: Value;
-
-  /**
-   * Typed expected value; prefer over the Value field.
-   *
-   * @generated from field: common.v1.JsonValue expected_typed = 9;
-   */
-  expectedTyped?: JsonValue;
-
-  /**
-   * Typed actual value; prefer over the Value field.
-   *
-   * @generated from field: common.v1.JsonValue actual_typed = 10;
-   */
-  actualTyped?: JsonValue;
-
-  /**
-   * True if the assertion succeeded.
-   *
-   * @generated from field: bool success = 5;
-   */
-  success: boolean;
-
-  /**
-   * True if the assertion was negated.
-   *
-   * @generated from field: bool negated = 6;
-   */
-  negated: boolean;
-
-  /**
-   * True if the assertion was case sensitive.
-   *
-   * @generated from field: bool case_sensitive = 7;
-   */
-  caseSensitive: boolean;
-
-  /**
-   * Optional custom message for the assertion.
-   *
-   * @generated from field: string message = 8;
-   */
-  message: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.AssertionOutcome.
- * Use `create(AssertionOutcomeSchema)` to create a new message.
- */
-export const AssertionOutcomeSchema: GenMessage<AssertionOutcome> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 10);
+  messageDesc(file_browser_automation_studio_v1_timeline, 4);
 
 /**
  * TimelineLog captures execution log output for replay consumers.
@@ -844,5 +536,5 @@ export type TimelineLog = Message<"browser_automation_studio.v1.TimelineLog"> & 
  * Use `create(TimelineLogSchema)` to create a new message.
  */
 export const TimelineLogSchema: GenMessage<TimelineLog> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 11);
+  messageDesc(file_browser_automation_studio_v1_timeline, 5);
 

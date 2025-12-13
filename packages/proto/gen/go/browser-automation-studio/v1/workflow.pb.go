@@ -24,24 +24,20 @@ const (
 )
 
 // WorkflowDefinition mirrors the JSON workflow definitions used by BAS.
+// DEPRECATED: Use WorkflowDefinitionV2 from unified.proto for new workflows.
+// V1 workflows are auto-converted to V2 on read. This type is retained for backward compatibility.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type WorkflowDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow nodes representing graph steps.
 	Nodes []*WorkflowNode `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
 	// Edges connecting workflow nodes.
 	Edges []*WorkflowEdge `protobuf:"bytes,2,rep,name=edges,proto3" json:"edges,omitempty"`
-	// Arbitrary metadata associated with the workflow.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-	Metadata map[string]*structpb.Value `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Execution settings for the workflow (e.g., viewport).
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-	Settings map[string]*structpb.Value `protobuf:"bytes,4,rep,name=settings,proto3" json:"settings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Strongly typed metadata; prefer over the deprecated Struct-backed map.
-	MetadataTyped *WorkflowMetadata `protobuf:"bytes,5,opt,name=metadata_typed,json=metadataTyped,proto3" json:"metadata_typed,omitempty"`
-	// Strongly typed execution settings; prefer over the deprecated Struct-backed map.
-	SettingsTyped *WorkflowSettings `protobuf:"bytes,6,opt,name=settings_typed,json=settingsTyped,proto3" json:"settings_typed,omitempty"`
+	// Workflow metadata (name, description, labels, version).
+	Metadata *WorkflowMetadata `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	// Execution settings for the workflow (viewport, user agent, etc.).
+	Settings      *WorkflowSettings `protobuf:"bytes,6,opt,name=settings,proto3" json:"settings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,52 +86,31 @@ func (x *WorkflowDefinition) GetEdges() []*WorkflowEdge {
 	return nil
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-func (x *WorkflowDefinition) GetMetadata() map[string]*structpb.Value {
+func (x *WorkflowDefinition) GetMetadata() *WorkflowMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-func (x *WorkflowDefinition) GetSettings() map[string]*structpb.Value {
+func (x *WorkflowDefinition) GetSettings() *WorkflowSettings {
 	if x != nil {
 		return x.Settings
 	}
 	return nil
 }
 
-func (x *WorkflowDefinition) GetMetadataTyped() *WorkflowMetadata {
-	if x != nil {
-		return x.MetadataTyped
-	}
-	return nil
-}
-
-func (x *WorkflowDefinition) GetSettingsTyped() *WorkflowSettings {
-	if x != nil {
-		return x.SettingsTyped
-	}
-	return nil
-}
-
 // WorkflowNode captures a single node in a workflow graph.
+// DEPRECATED: Use WorkflowNodeV2 from unified.proto for new workflows.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type WorkflowNode struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique node identifier.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Node type (navigate, click, assert, subflow, etc.).
 	Type StepType `protobuf:"varint,2,opt,name=type,proto3,enum=browser_automation_studio.v1.StepType" json:"type,omitempty"`
-	// Node-specific configuration payload (legacy); prefer config.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-	Data *structpb.Struct `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	// Typed node configuration (legacy); prefer config.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-	DataTyped *v1.JsonObject `protobuf:"bytes,4,opt,name=data_typed,json=dataTyped,proto3" json:"data_typed,omitempty"`
-	// Discriminated node configuration matching StepType; prefer over Struct/JsonObject.
+	// Discriminated node configuration matching StepType.
 	Config        *WorkflowNodeConfig `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -185,22 +160,6 @@ func (x *WorkflowNode) GetType() StepType {
 	return StepType_STEP_TYPE_UNSPECIFIED
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-func (x *WorkflowNode) GetData() *structpb.Struct {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-func (x *WorkflowNode) GetDataTyped() *v1.JsonObject {
-	if x != nil {
-		return x.DataTyped
-	}
-	return nil
-}
-
 func (x *WorkflowNode) GetConfig() *WorkflowNodeConfig {
 	if x != nil {
 		return x.Config
@@ -209,6 +168,9 @@ func (x *WorkflowNode) GetConfig() *WorkflowNodeConfig {
 }
 
 // WorkflowEdge connects nodes within a workflow graph.
+// DEPRECATED: Use WorkflowEdgeV2 from unified.proto for new workflows.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type WorkflowEdge struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique edge identifier.
@@ -220,11 +182,7 @@ type WorkflowEdge struct {
 	// Edge type (e.g., smoothstep) when provided.
 	Type string `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
 	// Provider-specific edge metadata.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-	Data *structpb.Struct `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
-	// Typed edge metadata; prefer over Struct when available.
-	DataTyped     *v1.JsonObject `protobuf:"bytes,6,opt,name=data_typed,json=dataTyped,proto3" json:"data_typed,omitempty"`
+	Data          *v1.JsonObject `protobuf:"bytes,6,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -287,22 +245,17 @@ func (x *WorkflowEdge) GetType() string {
 	return ""
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-func (x *WorkflowEdge) GetData() *structpb.Struct {
+func (x *WorkflowEdge) GetData() *v1.JsonObject {
 	if x != nil {
 		return x.Data
 	}
 	return nil
 }
 
-func (x *WorkflowEdge) GetDataTyped() *v1.JsonObject {
-	if x != nil {
-		return x.DataTyped
-	}
-	return nil
-}
-
 // WorkflowMetadata captures the most common workflow descriptors.
+// DEPRECATED: Use WorkflowMetadataV2 from unified.proto for new workflows.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type WorkflowMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-readable workflow name.
@@ -376,6 +329,9 @@ func (x *WorkflowMetadata) GetVersion() string {
 }
 
 // WorkflowSettings captures common browser/execution knobs.
+// DEPRECATED: Use WorkflowSettingsV2 from unified.proto for new workflows.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type WorkflowSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Viewport width in pixels.
@@ -390,12 +346,8 @@ type WorkflowSettings struct {
 	TimeoutSeconds int32 `protobuf:"varint,5,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
 	// Whether to run headless.
 	Headless bool `protobuf:"varint,6,opt,name=headless,proto3" json:"headless,omitempty"`
-	// Additional provider-specific settings not yet typed.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-	Extras map[string]*structpb.Value `protobuf:"bytes,7,rep,name=extras,proto3" json:"extras,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Typed provider-specific settings; prefer over the deprecated extras map.
-	ExtrasTyped   map[string]*v1.JsonValue `protobuf:"bytes,8,rep,name=extras_typed,json=extrasTyped,proto3" json:"extras_typed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Additional provider-specific settings.
+	Extras        map[string]*v1.JsonValue `protobuf:"bytes,8,rep,name=extras,proto3" json:"extras,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -472,22 +424,18 @@ func (x *WorkflowSettings) GetHeadless() bool {
 	return false
 }
 
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
-func (x *WorkflowSettings) GetExtras() map[string]*structpb.Value {
+func (x *WorkflowSettings) GetExtras() map[string]*v1.JsonValue {
 	if x != nil {
 		return x.Extras
 	}
 	return nil
 }
 
-func (x *WorkflowSettings) GetExtrasTyped() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.ExtrasTyped
-	}
-	return nil
-}
-
 // WorkflowNodeConfig captures typed settings for common node kinds.
+// DEPRECATED: Use ActionDefinition from unified.proto for new workflows.
+// ActionDefinition provides a more complete and unified action parameter system.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type WorkflowNodeConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Config:
@@ -651,6 +599,9 @@ func (*WorkflowNodeConfig_Custom) isWorkflowNodeConfig_Config() {}
 func (*WorkflowNodeConfig_Wait) isWorkflowNodeConfig_Config() {}
 
 // NavigateStepConfig contains navigation fields.
+// DEPRECATED: Use NavigateParams from unified.proto instead.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type NavigateStepConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Url   string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
@@ -723,6 +674,9 @@ func (x *NavigateStepConfig) GetCaptureScreenshot() bool {
 }
 
 // ClickStepConfig contains click action metadata.
+// DEPRECATED: Use ClickParams from unified.proto instead.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type ClickStepConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector to click.
@@ -796,6 +750,9 @@ func (x *ClickStepConfig) GetDelayMs() int32 {
 }
 
 // InputStepConfig contains text entry metadata.
+// DEPRECATED: Use InputParams from unified.proto instead.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type InputStepConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector to target.
@@ -869,6 +826,9 @@ func (x *InputStepConfig) GetSubmit() bool {
 }
 
 // AssertStepConfig captures assertion configuration.
+// DEPRECATED: Use AssertParams from unified.proto instead.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type AssertStepConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Assertion mode (exists, visible, text_equals, etc.).
@@ -876,6 +836,9 @@ type AssertStepConfig struct {
 	// CSS selector being asserted on.
 	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
 	// Expected value for the assertion.
+	// DEPRECATED: Use expected_typed instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 	Expected *structpb.Value `protobuf:"bytes,3,opt,name=expected,proto3" json:"expected,omitempty"`
 	// Typed expected value; prefer over the Value field.
 	ExpectedTyped *v1.JsonValue `protobuf:"bytes,8,opt,name=expected_typed,json=expectedTyped,proto3" json:"expected_typed,omitempty"`
@@ -933,6 +896,7 @@ func (x *AssertStepConfig) GetSelector() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 func (x *AssertStepConfig) GetExpected() *structpb.Value {
 	if x != nil {
 		return x.Expected
@@ -969,6 +933,10 @@ func (x *AssertStepConfig) GetMessage() string {
 }
 
 // SubflowStepConfig references another workflow.
+// NOTE: No direct equivalent in unified.proto yet; subflows are a V1-only concept.
+// Consider using WorkflowNodeV2 with custom action type for subflow-like behavior.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type SubflowStepConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow ID to execute.
@@ -1033,6 +1001,9 @@ func (x *SubflowStepConfig) GetParameters() map[string]*v1.JsonValue {
 }
 
 // WaitStepConfig captures a fixed delay between steps.
+// DEPRECATED: Use WaitParams from unified.proto instead.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type WaitStepConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Duration to wait in milliseconds.
@@ -1079,6 +1050,10 @@ func (x *WaitStepConfig) GetDurationMs() int32 {
 }
 
 // CustomStepConfig captures custom provider-specific payloads.
+// DEPRECATED: Use EvaluateParams from unified.proto for script execution,
+// or define a new ActionType for specific custom behaviors.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/workflow.proto.
 type CustomStepConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Custom step kind identifier.
@@ -1137,35 +1112,22 @@ var File_browser_automation_studio_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\n" +
-	"+browser-automation-studio/v1/workflow.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\"\xb0\x05\n" +
+	"+browser-automation-studio/v1/workflow.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\"\xc0\x02\n" +
 	"\x12WorkflowDefinition\x12@\n" +
 	"\x05nodes\x18\x01 \x03(\v2*.browser_automation_studio.v1.WorkflowNodeR\x05nodes\x12@\n" +
-	"\x05edges\x18\x02 \x03(\v2*.browser_automation_studio.v1.WorkflowEdgeR\x05edges\x12^\n" +
-	"\bmetadata\x18\x03 \x03(\v2>.browser_automation_studio.v1.WorkflowDefinition.MetadataEntryB\x02\x18\x01R\bmetadata\x12^\n" +
-	"\bsettings\x18\x04 \x03(\v2>.browser_automation_studio.v1.WorkflowDefinition.SettingsEntryB\x02\x18\x01R\bsettings\x12U\n" +
-	"\x0emetadata_typed\x18\x05 \x01(\v2..browser_automation_studio.v1.WorkflowMetadataR\rmetadataTyped\x12U\n" +
-	"\x0esettings_typed\x18\x06 \x01(\v2..browser_automation_studio.v1.WorkflowSettingsR\rsettingsTyped\x1aS\n" +
-	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aS\n" +
-	"\rSettingsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"\x8f\x02\n" +
+	"\x05edges\x18\x02 \x03(\v2*.browser_automation_studio.v1.WorkflowEdgeR\x05edges\x12J\n" +
+	"\bmetadata\x18\x05 \x01(\v2..browser_automation_studio.v1.WorkflowMetadataR\bmetadata\x12J\n" +
+	"\bsettings\x18\x06 \x01(\v2..browser_automation_studio.v1.WorkflowSettingsR\bsettings:\x02\x18\x01J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"\xb4\x01\n" +
 	"\fWorkflowNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12:\n" +
-	"\x04type\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.StepTypeR\x04type\x12/\n" +
-	"\x04data\x18\x03 \x01(\v2\x17.google.protobuf.StructB\x02\x18\x01R\x04data\x128\n" +
-	"\n" +
-	"data_typed\x18\x04 \x01(\v2\x15.common.v1.JsonObjectB\x02\x18\x01R\tdataTyped\x12H\n" +
-	"\x06config\x18\x05 \x01(\v20.browser_automation_studio.v1.WorkflowNodeConfigR\x06config\"\xc9\x01\n" +
+	"\x04type\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.StepTypeR\x04type\x12H\n" +
+	"\x06config\x18\x05 \x01(\v20.browser_automation_studio.v1.WorkflowNodeConfigR\x06config:\x02\x18\x01J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"\x97\x01\n" +
 	"\fWorkflowEdge\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n" +
 	"\x06target\x18\x03 \x01(\tR\x06target\x12\x12\n" +
-	"\x04type\x18\x04 \x01(\tR\x04type\x12/\n" +
-	"\x04data\x18\x05 \x01(\v2\x17.google.protobuf.StructB\x02\x18\x01R\x04data\x124\n" +
-	"\n" +
-	"data_typed\x18\x06 \x01(\v2\x15.common.v1.JsonObjectR\tdataTyped\"\xf1\x01\n" +
+	"\x04type\x18\x04 \x01(\tR\x04type\x12)\n" +
+	"\x04data\x18\x06 \x01(\v2\x15.common.v1.JsonObjectR\x04data:\x02\x18\x01J\x04\b\x05\x10\x06\"\xf5\x01\n" +
 	"\x10WorkflowMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12R\n" +
@@ -1173,7 +1135,7 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc3\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\x02\x18\x01\"\x8d\x03\n" +
 	"\x10WorkflowSettings\x12%\n" +
 	"\x0eviewport_width\x18\x01 \x01(\x05R\rviewportWidth\x12'\n" +
 	"\x0fviewport_height\x18\x02 \x01(\x05R\x0eviewportHeight\x12\x1d\n" +
@@ -1181,15 +1143,11 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"user_agent\x18\x03 \x01(\tR\tuserAgent\x12\x16\n" +
 	"\x06locale\x18\x04 \x01(\tR\x06locale\x12'\n" +
 	"\x0ftimeout_seconds\x18\x05 \x01(\x05R\x0etimeoutSeconds\x12\x1a\n" +
-	"\bheadless\x18\x06 \x01(\bR\bheadless\x12V\n" +
-	"\x06extras\x18\a \x03(\v2:.browser_automation_studio.v1.WorkflowSettings.ExtrasEntryB\x02\x18\x01R\x06extras\x12b\n" +
-	"\fextras_typed\x18\b \x03(\v2?.browser_automation_studio.v1.WorkflowSettings.ExtrasTypedEntryR\vextrasTyped\x1aQ\n" +
+	"\bheadless\x18\x06 \x01(\bR\bheadless\x12R\n" +
+	"\x06extras\x18\b \x03(\v2:.browser_automation_studio.v1.WorkflowSettings.ExtrasEntryR\x06extras\x1aO\n" +
 	"\vExtrasEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aT\n" +
-	"\x10ExtrasTypedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\"\xa1\x04\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01:\x02\x18\x01J\x04\b\a\x10\b\"\xa5\x04\n" +
 	"\x12WorkflowNodeConfig\x12N\n" +
 	"\bnavigate\x18\x01 \x01(\v20.browser_automation_studio.v1.NavigateStepConfigH\x00R\bnavigate\x12E\n" +
 	"\x05click\x18\x02 \x01(\v2-.browser_automation_studio.v1.ClickStepConfigH\x00R\x05click\x12E\n" +
@@ -1197,41 +1155,41 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"\x06assert\x18\x04 \x01(\v2..browser_automation_studio.v1.AssertStepConfigH\x00R\x06assert\x12K\n" +
 	"\asubflow\x18\x05 \x01(\v2/.browser_automation_studio.v1.SubflowStepConfigH\x00R\asubflow\x12H\n" +
 	"\x06custom\x18\x06 \x01(\v2..browser_automation_studio.v1.CustomStepConfigH\x00R\x06custom\x12B\n" +
-	"\x04wait\x18\a \x01(\v2,.browser_automation_studio.v1.WaitStepConfigH\x00R\x04waitB\b\n" +
-	"\x06config\"\xeb\x01\n" +
+	"\x04wait\x18\a \x01(\v2,.browser_automation_studio.v1.WaitStepConfigH\x00R\x04wait:\x02\x18\x01B\b\n" +
+	"\x06config\"\xef\x01\n" +
 	"\x12NavigateStepConfig\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12/\n" +
 	"\x11wait_for_selector\x18\x02 \x01(\tH\x00R\x0fwaitForSelector\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x01R\ttimeoutMs\x88\x01\x01\x122\n" +
-	"\x12capture_screenshot\x18\x04 \x01(\bH\x02R\x11captureScreenshot\x88\x01\x01B\x14\n" +
+	"\x12capture_screenshot\x18\x04 \x01(\bH\x02R\x11captureScreenshot\x88\x01\x01:\x02\x18\x01B\x14\n" +
 	"\x12_wait_for_selectorB\r\n" +
 	"\v_timeout_msB\x15\n" +
-	"\x13_capture_screenshot\"\xa8\x01\n" +
+	"\x13_capture_screenshot\"\xac\x01\n" +
 	"\x0fClickStepConfig\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12\x16\n" +
 	"\x06button\x18\x02 \x01(\tR\x06button\x12$\n" +
 	"\vclick_count\x18\x03 \x01(\x05H\x00R\n" +
 	"clickCount\x88\x01\x01\x12\x1e\n" +
-	"\bdelay_ms\x18\x04 \x01(\x05H\x01R\adelayMs\x88\x01\x01B\x0e\n" +
+	"\bdelay_ms\x18\x04 \x01(\x05H\x01R\adelayMs\x88\x01\x01:\x02\x18\x01B\x0e\n" +
 	"\f_click_countB\v\n" +
-	"\t_delay_ms\"\x8e\x01\n" +
+	"\t_delay_ms\"\x92\x01\n" +
 	"\x0fInputStepConfig\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x12!\n" +
 	"\fis_sensitive\x18\x03 \x01(\bR\visSensitive\x12\x1b\n" +
-	"\x06submit\x18\x04 \x01(\bH\x00R\x06submit\x88\x01\x01B\t\n" +
-	"\a_submit\"\x9f\x02\n" +
+	"\x06submit\x18\x04 \x01(\bH\x00R\x06submit\x88\x01\x01:\x02\x18\x01B\t\n" +
+	"\a_submit\"\xa7\x02\n" +
 	"\x10AssertStepConfig\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bselector\x18\x02 \x01(\tR\bselector\x122\n" +
-	"\bexpected\x18\x03 \x01(\v2\x16.google.protobuf.ValueR\bexpected\x12;\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\x126\n" +
+	"\bexpected\x18\x03 \x01(\v2\x16.google.protobuf.ValueB\x02\x18\x01R\bexpected\x12;\n" +
 	"\x0eexpected_typed\x18\b \x01(\v2\x14.common.v1.JsonValueR\rexpectedTyped\x12\x18\n" +
 	"\anegated\x18\x04 \x01(\bR\anegated\x12%\n" +
 	"\x0ecase_sensitive\x18\x05 \x01(\bR\rcaseSensitive\x12\x1d\n" +
-	"\amessage\x18\x06 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
+	"\amessage\x18\x06 \x01(\tH\x00R\amessage\x88\x01\x01:\x02\x18\x01B\n" +
 	"\n" +
-	"\b_message\"\x95\x02\n" +
+	"\b_message\"\x99\x02\n" +
 	"\x11SubflowStepConfig\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x1d\n" +
@@ -1241,15 +1199,15 @@ const file_browser_automation_studio_v1_workflow_proto_rawDesc = "" +
 	"parameters\x1aS\n" +
 	"\x0fParametersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01:\x02\x18\x01B\n" +
 	"\n" +
-	"\b_version\"1\n" +
+	"\b_version\"5\n" +
 	"\x0eWaitStepConfig\x12\x1f\n" +
 	"\vduration_ms\x18\x01 \x01(\x05R\n" +
-	"durationMs\"W\n" +
+	"durationMs:\x02\x18\x01\"[\n" +
 	"\x10CustomStepConfig\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12/\n" +
-	"\apayload\x18\x02 \x01(\v2\x15.common.v1.JsonObjectR\apayloadBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"\apayload\x18\x02 \x01(\v2\x15.common.v1.JsonObjectR\apayload:\x02\x18\x01BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_workflow_proto_rawDescOnce sync.Once
@@ -1263,7 +1221,7 @@ func file_browser_automation_studio_v1_workflow_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_workflow_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_browser_automation_studio_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_browser_automation_studio_v1_workflow_proto_goTypes = []any{
 	(*WorkflowDefinition)(nil), // 0: browser_automation_studio.v1.WorkflowDefinition
 	(*WorkflowNode)(nil),       // 1: browser_automation_studio.v1.WorkflowNode
@@ -1278,55 +1236,42 @@ var file_browser_automation_studio_v1_workflow_proto_goTypes = []any{
 	(*SubflowStepConfig)(nil),  // 10: browser_automation_studio.v1.SubflowStepConfig
 	(*WaitStepConfig)(nil),     // 11: browser_automation_studio.v1.WaitStepConfig
 	(*CustomStepConfig)(nil),   // 12: browser_automation_studio.v1.CustomStepConfig
-	nil,                        // 13: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
-	nil,                        // 14: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
-	nil,                        // 15: browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
-	nil,                        // 16: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
-	nil,                        // 17: browser_automation_studio.v1.WorkflowSettings.ExtrasTypedEntry
-	nil,                        // 18: browser_automation_studio.v1.SubflowStepConfig.ParametersEntry
-	(StepType)(0),              // 19: browser_automation_studio.v1.StepType
-	(*structpb.Struct)(nil),    // 20: google.protobuf.Struct
-	(*v1.JsonObject)(nil),      // 21: common.v1.JsonObject
-	(*structpb.Value)(nil),     // 22: google.protobuf.Value
-	(*v1.JsonValue)(nil),       // 23: common.v1.JsonValue
+	nil,                        // 13: browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
+	nil,                        // 14: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
+	nil,                        // 15: browser_automation_studio.v1.SubflowStepConfig.ParametersEntry
+	(StepType)(0),              // 16: browser_automation_studio.v1.StepType
+	(*v1.JsonObject)(nil),      // 17: common.v1.JsonObject
+	(*structpb.Value)(nil),     // 18: google.protobuf.Value
+	(*v1.JsonValue)(nil),       // 19: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_workflow_proto_depIdxs = []int32{
 	1,  // 0: browser_automation_studio.v1.WorkflowDefinition.nodes:type_name -> browser_automation_studio.v1.WorkflowNode
 	2,  // 1: browser_automation_studio.v1.WorkflowDefinition.edges:type_name -> browser_automation_studio.v1.WorkflowEdge
-	13, // 2: browser_automation_studio.v1.WorkflowDefinition.metadata:type_name -> browser_automation_studio.v1.WorkflowDefinition.MetadataEntry
-	14, // 3: browser_automation_studio.v1.WorkflowDefinition.settings:type_name -> browser_automation_studio.v1.WorkflowDefinition.SettingsEntry
-	3,  // 4: browser_automation_studio.v1.WorkflowDefinition.metadata_typed:type_name -> browser_automation_studio.v1.WorkflowMetadata
-	4,  // 5: browser_automation_studio.v1.WorkflowDefinition.settings_typed:type_name -> browser_automation_studio.v1.WorkflowSettings
-	19, // 6: browser_automation_studio.v1.WorkflowNode.type:type_name -> browser_automation_studio.v1.StepType
-	20, // 7: browser_automation_studio.v1.WorkflowNode.data:type_name -> google.protobuf.Struct
-	21, // 8: browser_automation_studio.v1.WorkflowNode.data_typed:type_name -> common.v1.JsonObject
-	5,  // 9: browser_automation_studio.v1.WorkflowNode.config:type_name -> browser_automation_studio.v1.WorkflowNodeConfig
-	20, // 10: browser_automation_studio.v1.WorkflowEdge.data:type_name -> google.protobuf.Struct
-	21, // 11: browser_automation_studio.v1.WorkflowEdge.data_typed:type_name -> common.v1.JsonObject
-	15, // 12: browser_automation_studio.v1.WorkflowMetadata.labels:type_name -> browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
-	16, // 13: browser_automation_studio.v1.WorkflowSettings.extras:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
-	17, // 14: browser_automation_studio.v1.WorkflowSettings.extras_typed:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasTypedEntry
-	6,  // 15: browser_automation_studio.v1.WorkflowNodeConfig.navigate:type_name -> browser_automation_studio.v1.NavigateStepConfig
-	7,  // 16: browser_automation_studio.v1.WorkflowNodeConfig.click:type_name -> browser_automation_studio.v1.ClickStepConfig
-	8,  // 17: browser_automation_studio.v1.WorkflowNodeConfig.input:type_name -> browser_automation_studio.v1.InputStepConfig
-	9,  // 18: browser_automation_studio.v1.WorkflowNodeConfig.assert:type_name -> browser_automation_studio.v1.AssertStepConfig
-	10, // 19: browser_automation_studio.v1.WorkflowNodeConfig.subflow:type_name -> browser_automation_studio.v1.SubflowStepConfig
-	12, // 20: browser_automation_studio.v1.WorkflowNodeConfig.custom:type_name -> browser_automation_studio.v1.CustomStepConfig
-	11, // 21: browser_automation_studio.v1.WorkflowNodeConfig.wait:type_name -> browser_automation_studio.v1.WaitStepConfig
-	22, // 22: browser_automation_studio.v1.AssertStepConfig.expected:type_name -> google.protobuf.Value
-	23, // 23: browser_automation_studio.v1.AssertStepConfig.expected_typed:type_name -> common.v1.JsonValue
-	18, // 24: browser_automation_studio.v1.SubflowStepConfig.parameters:type_name -> browser_automation_studio.v1.SubflowStepConfig.ParametersEntry
-	21, // 25: browser_automation_studio.v1.CustomStepConfig.payload:type_name -> common.v1.JsonObject
-	22, // 26: browser_automation_studio.v1.WorkflowDefinition.MetadataEntry.value:type_name -> google.protobuf.Value
-	22, // 27: browser_automation_studio.v1.WorkflowDefinition.SettingsEntry.value:type_name -> google.protobuf.Value
-	22, // 28: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry.value:type_name -> google.protobuf.Value
-	23, // 29: browser_automation_studio.v1.WorkflowSettings.ExtrasTypedEntry.value:type_name -> common.v1.JsonValue
-	23, // 30: browser_automation_studio.v1.SubflowStepConfig.ParametersEntry.value:type_name -> common.v1.JsonValue
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	3,  // 2: browser_automation_studio.v1.WorkflowDefinition.metadata:type_name -> browser_automation_studio.v1.WorkflowMetadata
+	4,  // 3: browser_automation_studio.v1.WorkflowDefinition.settings:type_name -> browser_automation_studio.v1.WorkflowSettings
+	16, // 4: browser_automation_studio.v1.WorkflowNode.type:type_name -> browser_automation_studio.v1.StepType
+	5,  // 5: browser_automation_studio.v1.WorkflowNode.config:type_name -> browser_automation_studio.v1.WorkflowNodeConfig
+	17, // 6: browser_automation_studio.v1.WorkflowEdge.data:type_name -> common.v1.JsonObject
+	13, // 7: browser_automation_studio.v1.WorkflowMetadata.labels:type_name -> browser_automation_studio.v1.WorkflowMetadata.LabelsEntry
+	14, // 8: browser_automation_studio.v1.WorkflowSettings.extras:type_name -> browser_automation_studio.v1.WorkflowSettings.ExtrasEntry
+	6,  // 9: browser_automation_studio.v1.WorkflowNodeConfig.navigate:type_name -> browser_automation_studio.v1.NavigateStepConfig
+	7,  // 10: browser_automation_studio.v1.WorkflowNodeConfig.click:type_name -> browser_automation_studio.v1.ClickStepConfig
+	8,  // 11: browser_automation_studio.v1.WorkflowNodeConfig.input:type_name -> browser_automation_studio.v1.InputStepConfig
+	9,  // 12: browser_automation_studio.v1.WorkflowNodeConfig.assert:type_name -> browser_automation_studio.v1.AssertStepConfig
+	10, // 13: browser_automation_studio.v1.WorkflowNodeConfig.subflow:type_name -> browser_automation_studio.v1.SubflowStepConfig
+	12, // 14: browser_automation_studio.v1.WorkflowNodeConfig.custom:type_name -> browser_automation_studio.v1.CustomStepConfig
+	11, // 15: browser_automation_studio.v1.WorkflowNodeConfig.wait:type_name -> browser_automation_studio.v1.WaitStepConfig
+	18, // 16: browser_automation_studio.v1.AssertStepConfig.expected:type_name -> google.protobuf.Value
+	19, // 17: browser_automation_studio.v1.AssertStepConfig.expected_typed:type_name -> common.v1.JsonValue
+	15, // 18: browser_automation_studio.v1.SubflowStepConfig.parameters:type_name -> browser_automation_studio.v1.SubflowStepConfig.ParametersEntry
+	17, // 19: browser_automation_studio.v1.CustomStepConfig.payload:type_name -> common.v1.JsonObject
+	19, // 20: browser_automation_studio.v1.WorkflowSettings.ExtrasEntry.value:type_name -> common.v1.JsonValue
+	19, // 21: browser_automation_studio.v1.SubflowStepConfig.ParametersEntry.value:type_name -> common.v1.JsonValue
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_workflow_proto_init() }
@@ -1355,7 +1300,7 @@ func file_browser_automation_studio_v1_workflow_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_workflow_proto_rawDesc), len(file_browser_automation_studio_v1_workflow_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

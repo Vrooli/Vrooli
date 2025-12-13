@@ -1,6 +1,5 @@
 import datetime
 
-from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from common.v1 import types_pb2 as _types_pb2
 from landing_page_react_vite.v1 import pricing_pb2 as _pricing_pb2
@@ -75,13 +74,6 @@ class CheckoutSession(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetadataTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
@@ -100,7 +92,6 @@ class CheckoutSession(_message.Message):
     CANCEL_URL_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     session_kind: SessionKind
     status: CheckoutSessionStatus
@@ -116,20 +107,12 @@ class CheckoutSession(_message.Message):
     success_url: str
     cancel_url: str
     created_at: _timestamp_pb2.Timestamp
-    metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, session_id: _Optional[str] = ..., session_kind: _Optional[_Union[SessionKind, str]] = ..., status: _Optional[_Union[CheckoutSessionStatus, str]] = ..., url: _Optional[str] = ..., publishable_key: _Optional[str] = ..., customer_email: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., stripe_product_id: _Optional[str] = ..., subscription_id: _Optional[str] = ..., schedule_id: _Optional[str] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., success_url: _Optional[str] = ..., cancel_url: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, session_id: _Optional[str] = ..., session_kind: _Optional[_Union[SessionKind, str]] = ..., status: _Optional[_Union[CheckoutSessionStatus, str]] = ..., url: _Optional[str] = ..., publishable_key: _Optional[str] = ..., customer_email: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., stripe_product_id: _Optional[str] = ..., subscription_id: _Optional[str] = ..., schedule_id: _Optional[str] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., success_url: _Optional[str] = ..., cancel_url: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class CreateCheckoutSessionRequest(_message.Message):
     __slots__ = ()
     class MetadataEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetadataTypedEntry(_message.Message):
         __slots__ = ()
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -142,15 +125,13 @@ class CreateCheckoutSessionRequest(_message.Message):
     CANCEL_URL_FIELD_NUMBER: _ClassVar[int]
     SESSION_KIND_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     price_id: str
     customer_email: str
     success_url: str
     cancel_url: str
     session_kind: SessionKind
-    metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, price_id: _Optional[str] = ..., customer_email: _Optional[str] = ..., success_url: _Optional[str] = ..., cancel_url: _Optional[str] = ..., session_kind: _Optional[_Union[SessionKind, str]] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, price_id: _Optional[str] = ..., customer_email: _Optional[str] = ..., success_url: _Optional[str] = ..., cancel_url: _Optional[str] = ..., session_kind: _Optional[_Union[SessionKind, str]] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class CreateCheckoutSessionResponse(_message.Message):
     __slots__ = ()
@@ -171,13 +152,6 @@ class SubscriptionStatus(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetadataTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     STATE_FIELD_NUMBER: _ClassVar[int]
@@ -191,7 +165,6 @@ class SubscriptionStatus(_message.Message):
     CANCELED_AT_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     state: SubscriptionState
     subscription_id: str
     user_identity: str
@@ -202,9 +175,8 @@ class SubscriptionStatus(_message.Message):
     cache_age_ms: int
     canceled_at: _timestamp_pb2.Timestamp
     message: str
-    metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, state: _Optional[_Union[SubscriptionState, str]] = ..., subscription_id: _Optional[str] = ..., user_identity: _Optional[str] = ..., plan_tier: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., bundle_key: _Optional[str] = ..., cached_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cache_age_ms: _Optional[int] = ..., canceled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., message: _Optional[str] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, state: _Optional[_Union[SubscriptionState, str]] = ..., subscription_id: _Optional[str] = ..., user_identity: _Optional[str] = ..., plan_tier: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., bundle_key: _Optional[str] = ..., cached_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cache_age_ms: _Optional[int] = ..., canceled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., message: _Optional[str] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class VerifySubscriptionResponse(_message.Message):
     __slots__ = ()
@@ -249,32 +221,21 @@ class CreditTransaction(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetadataTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     ID_FIELD_NUMBER: _ClassVar[int]
     CUSTOMER_EMAIL_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_CREDITS_FIELD_NUMBER: _ClassVar[int]
-    TRANSACTION_TYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     customer_email: str
     amount_credits: int
-    transaction_type: str
     type: TransactionType
-    metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
+    metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., customer_email: _Optional[str] = ..., amount_credits: _Optional[int] = ..., transaction_type: _Optional[str] = ..., type: _Optional[_Union[TransactionType, str]] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., customer_email: _Optional[str] = ..., amount_credits: _Optional[int] = ..., type: _Optional[_Union[TransactionType, str]] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetCreditsResponse(_message.Message):
     __slots__ = ()

@@ -1,6 +1,5 @@
 import datetime
 
-from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from common.v1 import types_pb2 as _types_pb2
 from google.protobuf.internal import containers as _containers
@@ -50,13 +49,6 @@ class Bundle(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetadataTypedEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     BUNDLE_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -67,7 +59,6 @@ class Bundle(_message.Message):
     DISPLAY_CREDITS_LABEL_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     bundle_key: str
     name: str
     stripe_product_id: str
@@ -75,20 +66,12 @@ class Bundle(_message.Message):
     display_credits_multiplier: float
     display_credits_label: str
     environment: str
-    metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, bundle_key: _Optional[str] = ..., name: _Optional[str] = ..., stripe_product_id: _Optional[str] = ..., credits_per_usd: _Optional[int] = ..., display_credits_multiplier: _Optional[float] = ..., display_credits_label: _Optional[str] = ..., environment: _Optional[str] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, bundle_key: _Optional[str] = ..., name: _Optional[str] = ..., stripe_product_id: _Optional[str] = ..., credits_per_usd: _Optional[int] = ..., display_credits_multiplier: _Optional[float] = ..., display_credits_label: _Optional[str] = ..., environment: _Optional[str] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class PlanOption(_message.Message):
     __slots__ = ()
     class MetadataEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
-    class MetadataTypedEntry(_message.Message):
         __slots__ = ()
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -116,7 +99,6 @@ class PlanOption(_message.Message):
     BUNDLE_KEY_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_WEIGHT_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
-    METADATA_TYPED_FIELD_NUMBER: _ClassVar[int]
     plan_name: str
     plan_tier: str
     billing_interval: BillingInterval
@@ -137,9 +119,8 @@ class PlanOption(_message.Message):
     display_enabled: bool
     bundle_key: str
     display_weight: int
-    metadata: _containers.MessageMap[str, _struct_pb2.Value]
-    metadata_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, plan_name: _Optional[str] = ..., plan_tier: _Optional[str] = ..., billing_interval: _Optional[_Union[BillingInterval, str]] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., intro_enabled: _Optional[bool] = ..., intro_type: _Optional[_Union[IntroPricingType, str]] = ..., intro_amount_cents: _Optional[int] = ..., intro_periods: _Optional[int] = ..., intro_price_lookup_key: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., monthly_included_credits: _Optional[int] = ..., one_time_bonus_credits: _Optional[int] = ..., plan_rank: _Optional[int] = ..., bonus_type: _Optional[str] = ..., kind: _Optional[_Union[PlanKind, str]] = ..., is_variable_amount: _Optional[bool] = ..., display_enabled: _Optional[bool] = ..., bundle_key: _Optional[str] = ..., display_weight: _Optional[int] = ..., metadata: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metadata_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    metadata: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, plan_name: _Optional[str] = ..., plan_tier: _Optional[str] = ..., billing_interval: _Optional[_Union[BillingInterval, str]] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., intro_enabled: _Optional[bool] = ..., intro_type: _Optional[_Union[IntroPricingType, str]] = ..., intro_amount_cents: _Optional[int] = ..., intro_periods: _Optional[int] = ..., intro_price_lookup_key: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., monthly_included_credits: _Optional[int] = ..., one_time_bonus_credits: _Optional[int] = ..., plan_rank: _Optional[int] = ..., bonus_type: _Optional[str] = ..., kind: _Optional[_Union[PlanKind, str]] = ..., is_variable_amount: _Optional[bool] = ..., display_enabled: _Optional[bool] = ..., bundle_key: _Optional[str] = ..., display_weight: _Optional[int] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class PricingOverview(_message.Message):
     __slots__ = ()

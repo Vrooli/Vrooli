@@ -4,22 +4,22 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp, Value } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_api_annotations } from "../../google/api/annotations_pb";
 import type { JsonValue } from "../../common/v1/types_pb";
 import { file_common_v1_types } from "../../common/v1/types_pb";
-import type { WorkflowDefinition, WorkflowDefinitionSchema } from "./workflow_pb";
-import { file_browser_automation_studio_v1_workflow } from "./workflow_pb";
 import type { ExecutionStatus } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
+import type { WorkflowDefinitionV2, WorkflowDefinitionV2Schema } from "./unified_pb";
+import { file_browser_automation_studio_v1_unified } from "./unified_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/workflow_service.proto.
  */
 export const file_browser_automation_studio_v1_workflow_service: GenFile = /*@__PURE__*/
-  fileDesc("CjNicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93X3NlcnZpY2UucHJvdG8SHGJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEimQMKD1dvcmtmbG93U3VtbWFyeRIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZm9sZGVyX3BhdGgYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSDAoEdGFncxgGIAMoCRIPCgd2ZXJzaW9uGAcgASgFEhMKC2lzX3RlbXBsYXRlGAggASgIEhIKCmNyZWF0ZWRfYnkYCSABKAkSGgoSbGFzdF9jaGFuZ2Vfc291cmNlGAogASgJEh8KF2xhc3RfY2hhbmdlX2Rlc2NyaXB0aW9uGAsgASgJEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkkKD2Zsb3dfZGVmaW5pdGlvbhgOIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uIuIBCg9Xb3JrZmxvd1ZlcnNpb24SEwoLd29ya2Zsb3dfaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoBRJJCg9mbG93X2RlZmluaXRpb24YAyABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvbhIaChJjaGFuZ2VfZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJQCgxXb3JrZmxvd0xpc3QSQAoJd29ya2Zsb3dzGAEgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1N1bW1hcnkiVgoTV29ya2Zsb3dWZXJzaW9uTGlzdBI/Cgh2ZXJzaW9ucxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWZXJzaW9uIqwBChVDcmVhdGVXb3JrZmxvd1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2ZvbGRlcl9wYXRoGAMgASgJEkkKD2Zsb3dfZGVmaW5pdGlvbhgEIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uEhEKCWFpX3Byb21wdBgFIAEoCSKkAQoWQ3JlYXRlV29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EkkKD2Zsb3dfZGVmaW5pdGlvbhgCIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uIpgCChVVcGRhdGVXb3JrZmxvd1JlcXVlc3QSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRITCgtmb2xkZXJfcGF0aBgDIAEoCRIMCgR0YWdzGAQgAygJEkkKD2Zsb3dfZGVmaW5pdGlvbhgFIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uEhoKEmNoYW5nZV9kZXNjcmlwdGlvbhgGIAEoCRIOCgZzb3VyY2UYByABKAkSGAoQZXhwZWN0ZWRfdmVyc2lvbhgIIAEoBRIYCgt3b3JrZmxvd19pZBgJIAEoCUgAiAEBQg4KDF93b3JrZmxvd19pZCKkAQoWVXBkYXRlV29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EkkKD2Zsb3dfZGVmaW5pdGlvbhgCIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uItoDChZFeGVjdXRlV29ya2Zsb3dSZXF1ZXN0ElwKCnBhcmFtZXRlcnMYASADKAsyRC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVXb3JrZmxvd1JlcXVlc3QuUGFyYW1ldGVyc0VudHJ5QgIYARJjChBwYXJhbWV0ZXJzX3R5cGVkGAMgAygLMkkuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRlV29ya2Zsb3dSZXF1ZXN0LlBhcmFtZXRlcnNUeXBlZEVudHJ5EhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAiABKAgSEwoLd29ya2Zsb3dfaWQYBCABKAkSHQoQd29ya2Zsb3dfdmVyc2lvbhgFIAEoBUgAiAEBGkkKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkwKFFBhcmFtZXRlcnNUeXBlZEVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBQhMKEV93b3JrZmxvd192ZXJzaW9uIr4BChdFeGVjdXRlV29ya2Zsb3dSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSPQoGc3RhdHVzGAIgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSMAoMY29tcGxldGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgVlcnJvchgEIAEoCUgAiAEBQggKBl9lcnJvciKcAQoXV29ya2Zsb3dWYWxpZGF0aW9uSXNzdWUSEAoIc2V2ZXJpdHkYASABKAkSDAoEY29kZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEg8KB25vZGVfaWQYBCABKAkSEQoJbm9kZV90eXBlGAUgASgJEg0KBWZpZWxkGAYgASgJEg8KB3BvaW50ZXIYByABKAkSDAoEaGludBgIIAEoCSLKAQoXV29ya2Zsb3dWYWxpZGF0aW9uU3RhdHMSEgoKbm9kZV9jb3VudBgBIAEoBRISCgplZGdlX2NvdW50GAIgASgFEhYKDnNlbGVjdG9yX2NvdW50GAMgASgFEh0KFXVuaXF1ZV9zZWxlY3Rvcl9jb3VudBgEIAEoBRIaChJlbGVtZW50X3dhaXRfY291bnQYBSABKAUSFAoMaGFzX21ldGFkYXRhGAYgASgIEh4KFmhhc19leGVjdXRpb25fdmlld3BvcnQYByABKAgi3AIKGFdvcmtmbG93VmFsaWRhdGlvblJlc3VsdBINCgV2YWxpZBgBIAEoCBJFCgZlcnJvcnMYAiADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmFsaWRhdGlvbklzc3VlEkcKCHdhcm5pbmdzGAMgAygLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25Jc3N1ZRJECgVzdGF0cxgEIAEoCzI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWYWxpZGF0aW9uU3RhdHMSFgoOc2NoZW1hX3ZlcnNpb24YBSABKAkSLgoKY2hlY2tlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZHVyYXRpb25fbXMYByABKAMiqgEKHlJlc3RvcmVXb3JrZmxvd1ZlcnNpb25SZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EkcKEHJlc3RvcmVkX3ZlcnNpb24YAiABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmVyc2lvbjK5BQoPV29ya2Zsb3dTZXJ2aWNlEqABCg5DcmVhdGVXb3JrZmxvdxIzLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3JlYXRlV29ya2Zsb3dSZXF1ZXN0GjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5DcmVhdGVXb3JrZmxvd1Jlc3BvbnNlIiOC0+STAh06ASoiGC9hcGkvdjEvd29ya2Zsb3dzL2NyZWF0ZRKnAQoOVXBkYXRlV29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlVwZGF0ZVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVXBkYXRlV29ya2Zsb3dSZXNwb25zZSIqgtPkkwIkOgEqGh8vYXBpL3YxL3dvcmtmbG93cy97d29ya2Zsb3dfaWR9ErIBCg9FeGVjdXRlV29ya2Zsb3cSNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVXb3JrZmxvd1JlcXVlc3QaNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVXb3JrZmxvd1Jlc3BvbnNlIjKC0+STAiw6ASoiJy9hcGkvdjEvd29ya2Zsb3dzL3t3b3JrZmxvd19pZH0vZXhlY3V0ZRKjAQoQVmFsaWRhdGVXb3JrZmxvdxIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uGjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25SZXN1bHQiJYLT5JMCHzoBKiIaL2FwaS92MS93b3JrZmxvd3MvdmFsaWRhdGVCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_google_api_annotations, file_common_v1_types, file_browser_automation_studio_v1_workflow, file_browser_automation_studio_v1_shared]);
+  fileDesc("CjNicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93X3NlcnZpY2UucHJvdG8SHGJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEimwMKD1dvcmtmbG93U3VtbWFyeRIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZm9sZGVyX3BhdGgYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSDAoEdGFncxgGIAMoCRIPCgd2ZXJzaW9uGAcgASgFEhMKC2lzX3RlbXBsYXRlGAggASgIEhIKCmNyZWF0ZWRfYnkYCSABKAkSGgoSbGFzdF9jaGFuZ2Vfc291cmNlGAogASgJEh8KF2xhc3RfY2hhbmdlX2Rlc2NyaXB0aW9uGAsgASgJEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEksKD2Zsb3dfZGVmaW5pdGlvbhgOIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIi5AEKD1dvcmtmbG93VmVyc2lvbhITCgt3b3JrZmxvd19pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFEksKD2Zsb3dfZGVmaW5pdGlvbhgDIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISGgoSY2hhbmdlX2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiUAoMV29ya2Zsb3dMaXN0EkAKCXdvcmtmbG93cxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5IlYKE1dvcmtmbG93VmVyc2lvbkxpc3QSPwoIdmVyc2lvbnMYASADKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmVyc2lvbiKuAQoVQ3JlYXRlV29ya2Zsb3dSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtmb2xkZXJfcGF0aBgDIAEoCRJLCg9mbG93X2RlZmluaXRpb24YBCABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyEhEKCWFpX3Byb21wdBgFIAEoCSKmAQoWQ3JlYXRlV29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EksKD2Zsb3dfZGVmaW5pdGlvbhgCIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIimgIKFVVwZGF0ZVdvcmtmbG93UmVxdWVzdBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhMKC2ZvbGRlcl9wYXRoGAMgASgJEgwKBHRhZ3MYBCADKAkSSwoPZmxvd19kZWZpbml0aW9uGAUgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMhIaChJjaGFuZ2VfZGVzY3JpcHRpb24YBiABKAkSDgoGc291cmNlGAcgASgJEhgKEGV4cGVjdGVkX3ZlcnNpb24YCCABKAUSGAoLd29ya2Zsb3dfaWQYCSABKAlIAIgBAUIOCgxfd29ya2Zsb3dfaWQipgEKFlVwZGF0ZVdvcmtmbG93UmVzcG9uc2USPwoId29ya2Zsb3cYASABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U3VtbWFyeRJLCg9mbG93X2RlZmluaXRpb24YAiABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyIqcCChZFeGVjdXRlV29ya2Zsb3dSZXF1ZXN0ElgKCnBhcmFtZXRlcnMYAyADKAsyRC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVXb3JrZmxvd1JlcXVlc3QuUGFyYW1ldGVyc0VudHJ5EhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAiABKAgSEwoLd29ya2Zsb3dfaWQYBCABKAkSHQoQd29ya2Zsb3dfdmVyc2lvbhgFIAEoBUgAiAEBGkcKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUITChFfd29ya2Zsb3dfdmVyc2lvbkoECAEQAiK+AQoXRXhlY3V0ZVdvcmtmbG93UmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEjAKDGNvbXBsZXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYBCABKAlIAIgBAUIICgZfZXJyb3IinAEKF1dvcmtmbG93VmFsaWRhdGlvbklzc3VlEhAKCHNldmVyaXR5GAEgASgJEgwKBGNvZGUYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIPCgdub2RlX2lkGAQgASgJEhEKCW5vZGVfdHlwZRgFIAEoCRINCgVmaWVsZBgGIAEoCRIPCgdwb2ludGVyGAcgASgJEgwKBGhpbnQYCCABKAkiygEKF1dvcmtmbG93VmFsaWRhdGlvblN0YXRzEhIKCm5vZGVfY291bnQYASABKAUSEgoKZWRnZV9jb3VudBgCIAEoBRIWCg5zZWxlY3Rvcl9jb3VudBgDIAEoBRIdChV1bmlxdWVfc2VsZWN0b3JfY291bnQYBCABKAUSGgoSZWxlbWVudF93YWl0X2NvdW50GAUgASgFEhQKDGhhc19tZXRhZGF0YRgGIAEoCBIeChZoYXNfZXhlY3V0aW9uX3ZpZXdwb3J0GAcgASgIItwCChhXb3JrZmxvd1ZhbGlkYXRpb25SZXN1bHQSDQoFdmFsaWQYASABKAgSRQoGZXJyb3JzGAIgAygLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25Jc3N1ZRJHCgh3YXJuaW5ncxgDIAMoCzI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWYWxpZGF0aW9uSXNzdWUSRAoFc3RhdHMYBCABKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmFsaWRhdGlvblN0YXRzEhYKDnNjaGVtYV92ZXJzaW9uGAUgASgJEi4KCmNoZWNrZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC2R1cmF0aW9uX21zGAcgASgDIqoBCh5SZXN0b3JlV29ya2Zsb3dWZXJzaW9uUmVzcG9uc2USPwoId29ya2Zsb3cYASABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U3VtbWFyeRJHChByZXN0b3JlZF92ZXJzaW9uGAIgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZlcnNpb24yuwUKD1dvcmtmbG93U2VydmljZRKgAQoOQ3JlYXRlV29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNyZWF0ZVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3JlYXRlV29ya2Zsb3dSZXNwb25zZSIjgtPkkwIdOgEqIhgvYXBpL3YxL3dvcmtmbG93cy9jcmVhdGUSpwEKDlVwZGF0ZVdvcmtmbG93EjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5VcGRhdGVXb3JrZmxvd1JlcXVlc3QaNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlVwZGF0ZVdvcmtmbG93UmVzcG9uc2UiKoLT5JMCJDoBKhofL2FwaS92MS93b3JrZmxvd3Mve3dvcmtmbG93X2lkfRKyAQoPRXhlY3V0ZVdvcmtmbG93EjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRlV29ya2Zsb3dSZXF1ZXN0GjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRlV29ya2Zsb3dSZXNwb25zZSIygtPkkwIsOgEqIicvYXBpL3YxL3dvcmtmbG93cy97d29ya2Zsb3dfaWR9L2V4ZWN1dGUSpQEKEFZhbGlkYXRlV29ya2Zsb3cSMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyGjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25SZXN1bHQiJYLT5JMCHzoBKiIaL2FwaS92MS93b3JrZmxvd3MvdmFsaWRhdGVCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_api_annotations, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_unified]);
 
 /**
  * WorkflowSummary captures the primary workflow fields without the full definition.
@@ -28,74 +28,102 @@ export const file_browser_automation_studio_v1_workflow_service: GenFile = /*@__
  */
 export type WorkflowSummary = Message<"browser_automation_studio.v1.WorkflowSummary"> & {
   /**
+   * Unique workflow identifier.
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * Project ID the workflow belongs to.
+   *
    * @generated from field: string project_id = 2;
    */
   projectId: string;
 
   /**
+   * Workflow name.
+   *
    * @generated from field: string name = 3;
    */
   name: string;
 
   /**
+   * Folder path within the project.
+   *
    * @generated from field: string folder_path = 4;
    */
   folderPath: string;
 
   /**
+   * Workflow description.
+   *
    * @generated from field: string description = 5;
    */
   description: string;
 
   /**
+   * Tags for categorization.
+   *
    * @generated from field: repeated string tags = 6;
    */
   tags: string[];
 
   /**
+   * Current version number.
+   *
    * @generated from field: int32 version = 7;
    */
   version: number;
 
   /**
+   * Whether this workflow is a template.
+   *
    * @generated from field: bool is_template = 8;
    */
   isTemplate: boolean;
 
   /**
+   * User who created the workflow.
+   *
    * @generated from field: string created_by = 9;
    */
   createdBy: string;
 
   /**
+   * Source of the last change (manual, autosave, etc.).
+   *
    * @generated from field: string last_change_source = 10;
    */
   lastChangeSource: string;
 
   /**
+   * Description of the last change.
+   *
    * @generated from field: string last_change_description = 11;
    */
   lastChangeDescription: string;
 
   /**
+   * When the workflow was created.
+   *
    * @generated from field: google.protobuf.Timestamp created_at = 12;
    */
   createdAt?: Timestamp;
 
   /**
+   * When the workflow was last updated.
+   *
    * @generated from field: google.protobuf.Timestamp updated_at = 13;
    */
   updatedAt?: Timestamp;
 
   /**
-   * @generated from field: browser_automation_studio.v1.WorkflowDefinition flow_definition = 14;
+   * The workflow definition (V2 format).
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 flow_definition = 14;
    */
-  flowDefinition?: WorkflowDefinition;
+  flowDefinition?: WorkflowDefinitionV2;
 };
 
 /**
@@ -112,31 +140,43 @@ export const WorkflowSummarySchema: GenMessage<WorkflowSummary> = /*@__PURE__*/
  */
 export type WorkflowVersion = Message<"browser_automation_studio.v1.WorkflowVersion"> & {
   /**
+   * Workflow ID this version belongs to.
+   *
    * @generated from field: string workflow_id = 1;
    */
   workflowId: string;
 
   /**
+   * Version number.
+   *
    * @generated from field: int32 version = 2;
    */
   version: number;
 
   /**
-   * @generated from field: browser_automation_studio.v1.WorkflowDefinition flow_definition = 3;
+   * The workflow definition at this version.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 flow_definition = 3;
    */
-  flowDefinition?: WorkflowDefinition;
+  flowDefinition?: WorkflowDefinitionV2;
 
   /**
+   * Description of changes in this version.
+   *
    * @generated from field: string change_description = 4;
    */
   changeDescription: string;
 
   /**
+   * User who created this version.
+   *
    * @generated from field: string created_by = 5;
    */
   createdBy: string;
 
   /**
+   * When this version was created.
+   *
    * @generated from field: google.protobuf.Timestamp created_at = 6;
    */
   createdAt?: Timestamp;
@@ -188,32 +228,42 @@ export const WorkflowVersionListSchema: GenMessage<WorkflowVersionList> = /*@__P
   messageDesc(file_browser_automation_studio_v1_workflow_service, 3);
 
 /**
- * CreateWorkflowRequest mirrors the REST payload from the UI/CLI.
+ * CreateWorkflowRequest creates a new workflow.
  *
  * @generated from message browser_automation_studio.v1.CreateWorkflowRequest
  */
 export type CreateWorkflowRequest = Message<"browser_automation_studio.v1.CreateWorkflowRequest"> & {
   /**
+   * Project ID to create the workflow in.
+   *
    * @generated from field: string project_id = 1;
    */
   projectId: string;
 
   /**
+   * Workflow name.
+   *
    * @generated from field: string name = 2;
    */
   name: string;
 
   /**
+   * Folder path within the project.
+   *
    * @generated from field: string folder_path = 3;
    */
   folderPath: string;
 
   /**
-   * @generated from field: browser_automation_studio.v1.WorkflowDefinition flow_definition = 4;
+   * The workflow definition (V2 format).
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 flow_definition = 4;
    */
-  flowDefinition?: WorkflowDefinition;
+  flowDefinition?: WorkflowDefinitionV2;
 
   /**
+   * Optional AI prompt used to generate the workflow.
+   *
    * @generated from field: string ai_prompt = 5;
    */
   aiPrompt: string;
@@ -227,20 +277,24 @@ export const CreateWorkflowRequestSchema: GenMessage<CreateWorkflowRequest> = /*
   messageDesc(file_browser_automation_studio_v1_workflow_service, 4);
 
 /**
- * CreateWorkflowResponse returns the created workflow and its normalized definition.
+ * CreateWorkflowResponse returns the created workflow.
  *
  * @generated from message browser_automation_studio.v1.CreateWorkflowResponse
  */
 export type CreateWorkflowResponse = Message<"browser_automation_studio.v1.CreateWorkflowResponse"> & {
   /**
+   * The created workflow summary.
+   *
    * @generated from field: browser_automation_studio.v1.WorkflowSummary workflow = 1;
    */
   workflow?: WorkflowSummary;
 
   /**
-   * @generated from field: browser_automation_studio.v1.WorkflowDefinition flow_definition = 2;
+   * The normalized workflow definition.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 flow_definition = 2;
    */
-  flowDefinition?: WorkflowDefinition;
+  flowDefinition?: WorkflowDefinitionV2;
 };
 
 /**
@@ -251,53 +305,69 @@ export const CreateWorkflowResponseSchema: GenMessage<CreateWorkflowResponse> = 
   messageDesc(file_browser_automation_studio_v1_workflow_service, 5);
 
 /**
- * UpdateWorkflowRequest captures manual or autosave edits.
+ * UpdateWorkflowRequest updates an existing workflow.
  *
  * @generated from message browser_automation_studio.v1.UpdateWorkflowRequest
  */
 export type UpdateWorkflowRequest = Message<"browser_automation_studio.v1.UpdateWorkflowRequest"> & {
   /**
+   * Updated workflow name.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
+   * Updated description.
+   *
    * @generated from field: string description = 2;
    */
   description: string;
 
   /**
+   * Updated folder path.
+   *
    * @generated from field: string folder_path = 3;
    */
   folderPath: string;
 
   /**
+   * Updated tags.
+   *
    * @generated from field: repeated string tags = 4;
    */
   tags: string[];
 
   /**
-   * @generated from field: browser_automation_studio.v1.WorkflowDefinition flow_definition = 5;
+   * Updated workflow definition (V2 format).
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 flow_definition = 5;
    */
-  flowDefinition?: WorkflowDefinition;
+  flowDefinition?: WorkflowDefinitionV2;
 
   /**
+   * Description of this change.
+   *
    * @generated from field: string change_description = 6;
    */
   changeDescription: string;
 
   /**
+   * Source of the change (manual, autosave, etc.).
+   *
    * @generated from field: string source = 7;
    */
   source: string;
 
   /**
+   * Expected version for optimistic locking.
+   *
    * @generated from field: int32 expected_version = 8;
    */
   expectedVersion: number;
 
   /**
-   * Target workflow ID; populated by RPC clients (path-param for REST).
+   * Target workflow ID (path param for REST).
    *
    * @generated from field: optional string workflow_id = 9;
    */
@@ -312,20 +382,24 @@ export const UpdateWorkflowRequestSchema: GenMessage<UpdateWorkflowRequest> = /*
   messageDesc(file_browser_automation_studio_v1_workflow_service, 6);
 
 /**
- * UpdateWorkflowResponse returns the updated workflow and its definition.
+ * UpdateWorkflowResponse returns the updated workflow.
  *
  * @generated from message browser_automation_studio.v1.UpdateWorkflowResponse
  */
 export type UpdateWorkflowResponse = Message<"browser_automation_studio.v1.UpdateWorkflowResponse"> & {
   /**
+   * The updated workflow summary.
+   *
    * @generated from field: browser_automation_studio.v1.WorkflowSummary workflow = 1;
    */
   workflow?: WorkflowSummary;
 
   /**
-   * @generated from field: browser_automation_studio.v1.WorkflowDefinition flow_definition = 2;
+   * The normalized workflow definition.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 flow_definition = 2;
    */
-  flowDefinition?: WorkflowDefinition;
+  flowDefinition?: WorkflowDefinitionV2;
 };
 
 /**
@@ -336,31 +410,27 @@ export const UpdateWorkflowResponseSchema: GenMessage<UpdateWorkflowResponse> = 
   messageDesc(file_browser_automation_studio_v1_workflow_service, 7);
 
 /**
- * ExecuteWorkflowRequest represents execution parameters.
+ * ExecuteWorkflowRequest starts a workflow execution.
  *
  * @generated from message browser_automation_studio.v1.ExecuteWorkflowRequest
  */
 export type ExecuteWorkflowRequest = Message<"browser_automation_studio.v1.ExecuteWorkflowRequest"> & {
   /**
-   * @generated from field: map<string, google.protobuf.Value> parameters = 1 [deprecated = true];
-   * @deprecated
-   */
-  parameters: { [key: string]: Value };
-
-  /**
-   * Strongly typed runtime parameters; prefer over Value maps.
+   * Runtime parameters for the execution.
    *
-   * @generated from field: map<string, common.v1.JsonValue> parameters_typed = 3;
+   * @generated from field: map<string, common.v1.JsonValue> parameters = 3;
    */
-  parametersTyped: { [key: string]: JsonValue };
+  parameters: { [key: string]: JsonValue };
 
   /**
+   * Whether to wait for completion before responding.
+   *
    * @generated from field: bool wait_for_completion = 2;
    */
   waitForCompletion: boolean;
 
   /**
-   * Workflow ID to execute; required when calling the RPC directly.
+   * Workflow ID to execute.
    *
    * @generated from field: string workflow_id = 4;
    */
@@ -382,27 +452,35 @@ export const ExecuteWorkflowRequestSchema: GenMessage<ExecuteWorkflowRequest> = 
   messageDesc(file_browser_automation_studio_v1_workflow_service, 8);
 
 /**
- * ExecuteWorkflowResponse provides the started execution identifier.
+ * ExecuteWorkflowResponse returns the execution status.
  *
  * @generated from message browser_automation_studio.v1.ExecuteWorkflowResponse
  */
 export type ExecuteWorkflowResponse = Message<"browser_automation_studio.v1.ExecuteWorkflowResponse"> & {
   /**
+   * The created execution ID.
+   *
    * @generated from field: string execution_id = 1;
    */
   executionId: string;
 
   /**
+   * Initial execution status.
+   *
    * @generated from field: browser_automation_studio.v1.ExecutionStatus status = 2;
    */
   status: ExecutionStatus;
 
   /**
+   * Completion timestamp (if wait_for_completion was true).
+   *
    * @generated from field: google.protobuf.Timestamp completed_at = 3;
    */
   completedAt?: Timestamp;
 
   /**
+   * Error message if execution failed.
+   *
    * @generated from field: optional string error = 4;
    */
   error?: string;
@@ -416,47 +494,63 @@ export const ExecuteWorkflowResponseSchema: GenMessage<ExecuteWorkflowResponse> 
   messageDesc(file_browser_automation_studio_v1_workflow_service, 9);
 
 /**
- * WorkflowValidationIssue mirrors the validation issue contract.
+ * WorkflowValidationIssue represents a validation error or warning.
  *
  * @generated from message browser_automation_studio.v1.WorkflowValidationIssue
  */
 export type WorkflowValidationIssue = Message<"browser_automation_studio.v1.WorkflowValidationIssue"> & {
   /**
+   * Severity: error, warning, info.
+   *
    * @generated from field: string severity = 1;
    */
   severity: string;
 
   /**
+   * Machine-readable error code.
+   *
    * @generated from field: string code = 2;
    */
   code: string;
 
   /**
+   * Human-readable message.
+   *
    * @generated from field: string message = 3;
    */
   message: string;
 
   /**
+   * Node ID where the issue was found.
+   *
    * @generated from field: string node_id = 4;
    */
   nodeId: string;
 
   /**
+   * Node type (action type).
+   *
    * @generated from field: string node_type = 5;
    */
   nodeType: string;
 
   /**
+   * Field name within the node.
+   *
    * @generated from field: string field = 6;
    */
   field: string;
 
   /**
+   * JSON pointer to the problematic field.
+   *
    * @generated from field: string pointer = 7;
    */
   pointer: string;
 
   /**
+   * Hint for fixing the issue.
+   *
    * @generated from field: string hint = 8;
    */
   hint: string;
@@ -476,36 +570,50 @@ export const WorkflowValidationIssueSchema: GenMessage<WorkflowValidationIssue> 
  */
 export type WorkflowValidationStats = Message<"browser_automation_studio.v1.WorkflowValidationStats"> & {
   /**
+   * Number of nodes in the workflow.
+   *
    * @generated from field: int32 node_count = 1;
    */
   nodeCount: number;
 
   /**
+   * Number of edges in the workflow.
+   *
    * @generated from field: int32 edge_count = 2;
    */
   edgeCount: number;
 
   /**
+   * Total number of selectors used.
+   *
    * @generated from field: int32 selector_count = 3;
    */
   selectorCount: number;
 
   /**
+   * Number of unique selectors.
+   *
    * @generated from field: int32 unique_selector_count = 4;
    */
   uniqueSelectorCount: number;
 
   /**
+   * Number of element wait operations.
+   *
    * @generated from field: int32 element_wait_count = 5;
    */
   elementWaitCount: number;
 
   /**
+   * Whether the workflow has metadata.
+   *
    * @generated from field: bool has_metadata = 6;
    */
   hasMetadata: boolean;
 
   /**
+   * Whether execution viewport is configured.
+   *
    * @generated from field: bool has_execution_viewport = 7;
    */
   hasExecutionViewport: boolean;
@@ -519,42 +627,56 @@ export const WorkflowValidationStatsSchema: GenMessage<WorkflowValidationStats> 
   messageDesc(file_browser_automation_studio_v1_workflow_service, 11);
 
 /**
- * WorkflowValidationResult is returned by validate endpoints.
+ * WorkflowValidationResult is returned by validation endpoints.
  *
  * @generated from message browser_automation_studio.v1.WorkflowValidationResult
  */
 export type WorkflowValidationResult = Message<"browser_automation_studio.v1.WorkflowValidationResult"> & {
   /**
+   * Whether the workflow is valid.
+   *
    * @generated from field: bool valid = 1;
    */
   valid: boolean;
 
   /**
+   * Validation errors (must be fixed).
+   *
    * @generated from field: repeated browser_automation_studio.v1.WorkflowValidationIssue errors = 2;
    */
   errors: WorkflowValidationIssue[];
 
   /**
+   * Validation warnings (should be addressed).
+   *
    * @generated from field: repeated browser_automation_studio.v1.WorkflowValidationIssue warnings = 3;
    */
   warnings: WorkflowValidationIssue[];
 
   /**
+   * Statistics about the workflow.
+   *
    * @generated from field: browser_automation_studio.v1.WorkflowValidationStats stats = 4;
    */
   stats?: WorkflowValidationStats;
 
   /**
+   * Schema version used for validation.
+   *
    * @generated from field: string schema_version = 5;
    */
   schemaVersion: string;
 
   /**
+   * When validation was performed.
+   *
    * @generated from field: google.protobuf.Timestamp checked_at = 6;
    */
   checkedAt?: Timestamp;
 
   /**
+   * Validation duration in milliseconds.
+   *
    * @generated from field: int64 duration_ms = 7;
    */
   durationMs: bigint;
@@ -574,11 +696,15 @@ export const WorkflowValidationResultSchema: GenMessage<WorkflowValidationResult
  */
 export type RestoreWorkflowVersionResponse = Message<"browser_automation_studio.v1.RestoreWorkflowVersionResponse"> & {
   /**
+   * The restored workflow summary.
+   *
    * @generated from field: browser_automation_studio.v1.WorkflowSummary workflow = 1;
    */
   workflow?: WorkflowSummary;
 
   /**
+   * The version that was restored.
+   *
    * @generated from field: browser_automation_studio.v1.WorkflowVersion restored_version = 2;
    */
   restoredVersion?: WorkflowVersion;
@@ -592,9 +718,7 @@ export const RestoreWorkflowVersionResponseSchema: GenMessage<RestoreWorkflowVer
   messageDesc(file_browser_automation_studio_v1_workflow_service, 13);
 
 /**
- * WorkflowService declares the core BAS workflow lifecycle operations. The
- * HTTP API mirrors these RPC shapes; adding the service enables generated
- * clients and breaking-change checks.
+ * WorkflowService declares the core BAS workflow lifecycle operations.
  *
  * @generated from service browser_automation_studio.v1.WorkflowService
  */
@@ -636,7 +760,7 @@ export const WorkflowService: GenService<{
    */
   validateWorkflow: {
     methodKind: "unary";
-    input: typeof WorkflowDefinitionSchema;
+    input: typeof WorkflowDefinitionV2Schema;
     output: typeof WorkflowValidationResultSchema;
   },
 }> = /*@__PURE__*/

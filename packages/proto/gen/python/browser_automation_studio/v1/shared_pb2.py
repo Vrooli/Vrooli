@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)browser-automation-studio/v1/shared.proto\x12\x1c\x62rowser_automation_studio.v1*\xcc\x01\n\x0f\x45xecutionStatus\x12 \n\x1c\x45XECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45XECUTION_STATUS_PENDING\x10\x01\x12\x1c\n\x18\x45XECUTION_STATUS_RUNNING\x10\x02\x12\x1e\n\x1a\x45XECUTION_STATUS_COMPLETED\x10\x03\x12\x1b\n\x17\x45XECUTION_STATUS_FAILED\x10\x04\x12\x1e\n\x1a\x45XECUTION_STATUS_CANCELLED\x10\x05*\x90\x01\n\x0bTriggerType\x12\x1c\n\x18TRIGGER_TYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13TRIGGER_TYPE_MANUAL\x10\x01\x12\x1a\n\x16TRIGGER_TYPE_SCHEDULED\x10\x02\x12\x14\n\x10TRIGGER_TYPE_API\x10\x03\x12\x18\n\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xbe\x01\n\x08StepType\x12\x19\n\x15STEP_TYPE_UNSPECIFIED\x10\x00\x12\x16\n\x12STEP_TYPE_NAVIGATE\x10\x01\x12\x13\n\x0fSTEP_TYPE_CLICK\x10\x02\x12\x14\n\x10STEP_TYPE_ASSERT\x10\x03\x12\x15\n\x11STEP_TYPE_SUBFLOW\x10\x04\x12\x13\n\x0fSTEP_TYPE_INPUT\x10\x05\x12\x14\n\x10STEP_TYPE_CUSTOM\x10\x06\x12\x12\n\x0eSTEP_TYPE_WAIT\x10\x07*\xdc\x01\n\nStepStatus\x12\x1b\n\x17STEP_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13STEP_STATUS_PENDING\x10\x01\x12\x17\n\x13STEP_STATUS_RUNNING\x10\x02\x12\x19\n\x15STEP_STATUS_COMPLETED\x10\x03\x12\x16\n\x12STEP_STATUS_FAILED\x10\x04\x12\x19\n\x15STEP_STATUS_CANCELLED\x10\x05\x12\x17\n\x13STEP_STATUS_SKIPPED\x10\x06\x12\x18\n\x14STEP_STATUS_RETRYING\x10\x07*w\n\x08LogLevel\x12\x19\n\x15LOG_LEVEL_UNSPECIFIED\x10\x00\x12\x13\n\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n\x0fLOG_LEVEL_ERROR\x10\x04*\x80\x02\n\x0c\x41rtifactType\x12\x1d\n\x19\x41RTIFACT_TYPE_UNSPECIFIED\x10\x00\x12 \n\x1c\x41RTIFACT_TYPE_TIMELINE_FRAME\x10\x01\x12\x1d\n\x19\x41RTIFACT_TYPE_CONSOLE_LOG\x10\x02\x12\x1f\n\x1b\x41RTIFACT_TYPE_NETWORK_EVENT\x10\x03\x12\x1c\n\x18\x41RTIFACT_TYPE_SCREENSHOT\x10\x04\x12\x1e\n\x1a\x41RTIFACT_TYPE_DOM_SNAPSHOT\x10\x05\x12\x17\n\x13\x41RTIFACT_TYPE_TRACE\x10\x06\x12\x18\n\x14\x41RTIFACT_TYPE_CUSTOM\x10\x07*\xac\x01\n\tEventKind\x12\x1a\n\x16\x45VENT_KIND_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45VENT_KIND_STATUS_UPDATE\x10\x01\x12\x1d\n\x19\x45VENT_KIND_TIMELINE_FRAME\x10\x02\x12\x12\n\x0e\x45VENT_KIND_LOG\x10\x03\x12\x18\n\x14\x45VENT_KIND_HEARTBEAT\x10\x04\x12\x18\n\x14\x45VENT_KIND_TELEMETRY\x10\x05*\x99\x01\n\x0c\x45xportStatus\x12\x1d\n\x19\x45XPORT_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13\x45XPORT_STATUS_READY\x10\x01\x12\x19\n\x15\x45XPORT_STATUS_PENDING\x10\x02\x12\x17\n\x13\x45XPORT_STATUS_ERROR\x10\x03\x12\x1d\n\x19\x45XPORT_STATUS_UNAVAILABLE\x10\x04\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)browser-automation-studio/v1/shared.proto\x12\x1c\x62rowser_automation_studio.v1*\xcc\x01\n\x0f\x45xecutionStatus\x12 \n\x1c\x45XECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45XECUTION_STATUS_PENDING\x10\x01\x12\x1c\n\x18\x45XECUTION_STATUS_RUNNING\x10\x02\x12\x1e\n\x1a\x45XECUTION_STATUS_COMPLETED\x10\x03\x12\x1b\n\x17\x45XECUTION_STATUS_FAILED\x10\x04\x12\x1e\n\x1a\x45XECUTION_STATUS_CANCELLED\x10\x05*\x90\x01\n\x0bTriggerType\x12\x1c\n\x18TRIGGER_TYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13TRIGGER_TYPE_MANUAL\x10\x01\x12\x1a\n\x16TRIGGER_TYPE_SCHEDULED\x10\x02\x12\x14\n\x10TRIGGER_TYPE_API\x10\x03\x12\x18\n\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xdc\x01\n\nStepStatus\x12\x1b\n\x17STEP_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13STEP_STATUS_PENDING\x10\x01\x12\x17\n\x13STEP_STATUS_RUNNING\x10\x02\x12\x19\n\x15STEP_STATUS_COMPLETED\x10\x03\x12\x16\n\x12STEP_STATUS_FAILED\x10\x04\x12\x19\n\x15STEP_STATUS_CANCELLED\x10\x05\x12\x17\n\x13STEP_STATUS_SKIPPED\x10\x06\x12\x18\n\x14STEP_STATUS_RETRYING\x10\x07*w\n\x08LogLevel\x12\x19\n\x15LOG_LEVEL_UNSPECIFIED\x10\x00\x12\x13\n\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n\x0fLOG_LEVEL_ERROR\x10\x04*\x80\x02\n\x0c\x41rtifactType\x12\x1d\n\x19\x41RTIFACT_TYPE_UNSPECIFIED\x10\x00\x12 \n\x1c\x41RTIFACT_TYPE_TIMELINE_FRAME\x10\x01\x12\x1d\n\x19\x41RTIFACT_TYPE_CONSOLE_LOG\x10\x02\x12\x1f\n\x1b\x41RTIFACT_TYPE_NETWORK_EVENT\x10\x03\x12\x1c\n\x18\x41RTIFACT_TYPE_SCREENSHOT\x10\x04\x12\x1e\n\x1a\x41RTIFACT_TYPE_DOM_SNAPSHOT\x10\x05\x12\x17\n\x13\x41RTIFACT_TYPE_TRACE\x10\x06\x12\x18\n\x14\x41RTIFACT_TYPE_CUSTOM\x10\x07*\xac\x01\n\tEventKind\x12\x1a\n\x16\x45VENT_KIND_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45VENT_KIND_STATUS_UPDATE\x10\x01\x12\x1d\n\x19\x45VENT_KIND_TIMELINE_FRAME\x10\x02\x12\x12\n\x0e\x45VENT_KIND_LOG\x10\x03\x12\x18\n\x14\x45VENT_KIND_HEARTBEAT\x10\x04\x12\x18\n\x14\x45VENT_KIND_TELEMETRY\x10\x05*\x99\x01\n\x0c\x45xportStatus\x12\x1d\n\x19\x45XPORT_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13\x45XPORT_STATUS_READY\x10\x01\x12\x19\n\x15\x45XPORT_STATUS_PENDING\x10\x02\x12\x17\n\x13\x45XPORT_STATUS_ERROR\x10\x03\x12\x1d\n\x19\x45XPORT_STATUS_UNAVAILABLE\x10\x04\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,16 +36,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_EXECUTIONSTATUS']._serialized_end=280
   _globals['_TRIGGERTYPE']._serialized_start=283
   _globals['_TRIGGERTYPE']._serialized_end=427
-  _globals['_STEPTYPE']._serialized_start=430
-  _globals['_STEPTYPE']._serialized_end=620
-  _globals['_STEPSTATUS']._serialized_start=623
-  _globals['_STEPSTATUS']._serialized_end=843
-  _globals['_LOGLEVEL']._serialized_start=845
-  _globals['_LOGLEVEL']._serialized_end=964
-  _globals['_ARTIFACTTYPE']._serialized_start=967
-  _globals['_ARTIFACTTYPE']._serialized_end=1223
-  _globals['_EVENTKIND']._serialized_start=1226
-  _globals['_EVENTKIND']._serialized_end=1398
-  _globals['_EXPORTSTATUS']._serialized_start=1401
-  _globals['_EXPORTSTATUS']._serialized_end=1554
+  _globals['_STEPSTATUS']._serialized_start=430
+  _globals['_STEPSTATUS']._serialized_end=650
+  _globals['_LOGLEVEL']._serialized_start=652
+  _globals['_LOGLEVEL']._serialized_end=771
+  _globals['_ARTIFACTTYPE']._serialized_start=774
+  _globals['_ARTIFACTTYPE']._serialized_end=1030
+  _globals['_EVENTKIND']._serialized_start=1033
+  _globals['_EVENTKIND']._serialized_end=1205
+  _globals['_EXPORTSTATUS']._serialized_start=1208
+  _globals['_EXPORTSTATUS']._serialized_end=1361
 # @@protoc_insertion_point(module_scope)

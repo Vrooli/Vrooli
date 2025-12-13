@@ -6,22 +6,25 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { JsonObject as JsonObject$1, JsonValue } from "../../common/v1/types_pb";
+import type { JsonObject, JsonValue } from "../../common/v1/types_pb";
 import { file_common_v1_types } from "../../common/v1/types_pb";
 import type { StepType } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/workflow.proto.
  */
 export const file_browser_automation_studio_v1_workflow: GenFile = /*@__PURE__*/
-  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxItgEChJXb3JrZmxvd0RlZmluaXRpb24SOQoFbm9kZXMYASADKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93Tm9kZRI5CgVlZGdlcxgCIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dFZGdlElQKCG1ldGFkYXRhGAMgAygLMj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb24uTWV0YWRhdGFFbnRyeUICGAESVAoIc2V0dGluZ3MYBCADKAsyPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvbi5TZXR0aW5nc0VudHJ5QgIYARJGCg5tZXRhZGF0YV90eXBlZBgFIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dNZXRhZGF0YRJGCg5zZXR0aW5nc190eXBlZBgGIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncxpHCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaRwoNU2V0dGluZ3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBIuwBCgxXb3JrZmxvd05vZGUSCgoCaWQYASABKAkSNAoEdHlwZRgCIAEoDjImLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RlcFR5cGUSKQoEZGF0YRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCAhgBEi0KCmRhdGFfdHlwZWQYBCABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEICGAESQAoGY29uZmlnGAUgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd05vZGVDb25maWcingEKDFdvcmtmbG93RWRnZRIKCgJpZBgBIAEoCRIOCgZzb3VyY2UYAiABKAkSDgoGdGFyZ2V0GAMgASgJEgwKBHR5cGUYBCABKAkSKQoEZGF0YRgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCAhgBEikKCmRhdGFfdHlwZWQYBiABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdCLBAQoQV29ya2Zsb3dNZXRhZGF0YRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEkoKBmxhYmVscxgDIAMoCzI6LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dNZXRhZGF0YS5MYWJlbHNFbnRyeRIPCgd2ZXJzaW9uGAQgASgJGi0KC0xhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiygMKEFdvcmtmbG93U2V0dGluZ3MSFgoOdmlld3BvcnRfd2lkdGgYASABKAUSFwoPdmlld3BvcnRfaGVpZ2h0GAIgASgFEhIKCnVzZXJfYWdlbnQYAyABKAkSDgoGbG9jYWxlGAQgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgFIAEoBRIQCghoZWFkbGVzcxgGIAEoCBJOCgZleHRyYXMYByADKAsyOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U2V0dGluZ3MuRXh0cmFzRW50cnlCAhgBElUKDGV4dHJhc190eXBlZBgIIAMoCzI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncy5FeHRyYXNUeXBlZEVudHJ5GkUKC0V4dHJhc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaSAoQRXh0cmFzVHlwZWRFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ASLqAwoSV29ya2Zsb3dOb2RlQ29uZmlnEkQKCG5hdmlnYXRlGAEgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5OYXZpZ2F0ZVN0ZXBDb25maWdIABI+CgVjbGljaxgCIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ2xpY2tTdGVwQ29uZmlnSAASPgoFaW5wdXQYAyABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLklucHV0U3RlcENvbmZpZ0gAEkAKBmFzc2VydBgEIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0U3RlcENvbmZpZ0gAEkIKB3N1YmZsb3cYBSABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlN1YmZsb3dTdGVwQ29uZmlnSAASQAoGY3VzdG9tGAYgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5DdXN0b21TdGVwQ29uZmlnSAASPAoEd2FpdBgHIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV2FpdFN0ZXBDb25maWdIAEIICgZjb25maWcitwEKEk5hdmlnYXRlU3RlcENvbmZpZxILCgN1cmwYASABKAkSHgoRd2FpdF9mb3Jfc2VsZWN0b3IYAiABKAlIAIgBARIXCgp0aW1lb3V0X21zGAMgASgFSAGIAQESHwoSY2FwdHVyZV9zY3JlZW5zaG90GAQgASgISAKIAQFCFAoSX3dhaXRfZm9yX3NlbGVjdG9yQg0KC190aW1lb3V0X21zQhUKE19jYXB0dXJlX3NjcmVlbnNob3QigQEKD0NsaWNrU3RlcENvbmZpZxIQCghzZWxlY3RvchgBIAEoCRIOCgZidXR0b24YAiABKAkSGAoLY2xpY2tfY291bnQYAyABKAVIAIgBARIVCghkZWxheV9tcxgEIAEoBUgBiAEBQg4KDF9jbGlja19jb3VudEILCglfZGVsYXlfbXMiaAoPSW5wdXRTdGVwQ29uZmlnEhAKCHNlbGVjdG9yGAEgASgJEg0KBXZhbHVlGAIgASgJEhQKDGlzX3NlbnNpdGl2ZRgDIAEoCBITCgZzdWJtaXQYBCABKAhIAIgBAUIJCgdfc3VibWl0ItUBChBBc3NlcnRTdGVwQ29uZmlnEgwKBG1vZGUYASABKAkSEAoIc2VsZWN0b3IYAiABKAkSKAoIZXhwZWN0ZWQYAyABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSLAoOZXhwZWN0ZWRfdHlwZWQYCCABKAsyFC5jb21tb24udjEuSnNvblZhbHVlEg8KB25lZ2F0ZWQYBCABKAgSFgoOY2FzZV9zZW5zaXRpdmUYBSABKAgSFAoHbWVzc2FnZRgGIAEoCUgAiAEBQgoKCF9tZXNzYWdlIugBChFTdWJmbG93U3RlcENvbmZpZxITCgt3b3JrZmxvd19pZBgBIAEoCRIUCgd2ZXJzaW9uGAIgASgFSACIAQESUwoKcGFyYW1ldGVycxgDIAMoCzI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3ViZmxvd1N0ZXBDb25maWcuUGFyYW1ldGVyc0VudHJ5GkcKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIKCghfdmVyc2lvbiIlCg5XYWl0U3RlcENvbmZpZxITCgtkdXJhdGlvbl9tcxgBIAEoBSJIChBDdXN0b21TdGVwQ29uZmlnEgwKBGtpbmQYASABKAkSJgoHcGF5bG9hZBgCIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0QmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_common_v1_types, file_browser_automation_studio_v1_shared]);
+  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIp4CChJXb3JrZmxvd0RlZmluaXRpb24SOQoFbm9kZXMYASADKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93Tm9kZRI5CgVlZGdlcxgCIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dFZGdlEkAKCG1ldGFkYXRhGAUgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd01ldGFkYXRhEkAKCHNldHRpbmdzGAYgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1NldHRpbmdzOgIYAUoECAMQBEoECAQQBSKiAQoMV29ya2Zsb3dOb2RlEgoKAmlkGAEgASgJEjQKBHR5cGUYAiABKA4yJi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlN0ZXBUeXBlEkAKBmNvbmZpZxgFIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dOb2RlQ29uZmlnOgIYAUoECAMQBEoECAQQBSJ3CgxXb3JrZmxvd0VkZ2USCgoCaWQYASABKAkSDgoGc291cmNlGAIgASgJEg4KBnRhcmdldBgDIAEoCRIMCgR0eXBlGAQgASgJEiMKBGRhdGEYBiABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdDoCGAFKBAgFEAYixQEKEFdvcmtmbG93TWV0YWRhdGESDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRJKCgZsYWJlbHMYAyADKAsyOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93TWV0YWRhdGEuTGFiZWxzRW50cnkSDwoHdmVyc2lvbhgEIAEoCRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBOgIYASKtAgoQV29ya2Zsb3dTZXR0aW5ncxIWCg52aWV3cG9ydF93aWR0aBgBIAEoBRIXCg92aWV3cG9ydF9oZWlnaHQYAiABKAUSEgoKdXNlcl9hZ2VudBgDIAEoCRIOCgZsb2NhbGUYBCABKAkSFwoPdGltZW91dF9zZWNvbmRzGAUgASgFEhAKCGhlYWRsZXNzGAYgASgIEkoKBmV4dHJhcxgIIAMoCzI6LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTZXR0aW5ncy5FeHRyYXNFbnRyeRpDCgtFeHRyYXNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AToCGAFKBAgHEAgi7gMKEldvcmtmbG93Tm9kZUNvbmZpZxJECghuYXZpZ2F0ZRgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVTdGVwQ29uZmlnSAASPgoFY2xpY2sYAiABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNsaWNrU3RlcENvbmZpZ0gAEj4KBWlucHV0GAMgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5JbnB1dFN0ZXBDb25maWdIABJACgZhc3NlcnQYBCABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFzc2VydFN0ZXBDb25maWdIABJCCgdzdWJmbG93GAUgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdWJmbG93U3RlcENvbmZpZ0gAEkAKBmN1c3RvbRgGIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3VzdG9tU3RlcENvbmZpZ0gAEjwKBHdhaXQYByABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldhaXRTdGVwQ29uZmlnSAA6AhgBQggKBmNvbmZpZyK7AQoSTmF2aWdhdGVTdGVwQ29uZmlnEgsKA3VybBgBIAEoCRIeChF3YWl0X2Zvcl9zZWxlY3RvchgCIAEoCUgAiAEBEhcKCnRpbWVvdXRfbXMYAyABKAVIAYgBARIfChJjYXB0dXJlX3NjcmVlbnNob3QYBCABKAhIAogBAToCGAFCFAoSX3dhaXRfZm9yX3NlbGVjdG9yQg0KC190aW1lb3V0X21zQhUKE19jYXB0dXJlX3NjcmVlbnNob3QihQEKD0NsaWNrU3RlcENvbmZpZxIQCghzZWxlY3RvchgBIAEoCRIOCgZidXR0b24YAiABKAkSGAoLY2xpY2tfY291bnQYAyABKAVIAIgBARIVCghkZWxheV9tcxgEIAEoBUgBiAEBOgIYAUIOCgxfY2xpY2tfY291bnRCCwoJX2RlbGF5X21zImwKD0lucHV0U3RlcENvbmZpZxIQCghzZWxlY3RvchgBIAEoCRINCgV2YWx1ZRgCIAEoCRIUCgxpc19zZW5zaXRpdmUYAyABKAgSEwoGc3VibWl0GAQgASgISACIAQE6AhgBQgkKB19zdWJtaXQi3QEKEEFzc2VydFN0ZXBDb25maWcSDAoEbW9kZRgBIAEoCRIQCghzZWxlY3RvchgCIAEoCRIsCghleHBlY3RlZBgDIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZUICGAESLAoOZXhwZWN0ZWRfdHlwZWQYCCABKAsyFC5jb21tb24udjEuSnNvblZhbHVlEg8KB25lZ2F0ZWQYBCABKAgSFgoOY2FzZV9zZW5zaXRpdmUYBSABKAgSFAoHbWVzc2FnZRgGIAEoCUgAiAEBOgIYAUIKCghfbWVzc2FnZSLsAQoRU3ViZmxvd1N0ZXBDb25maWcSEwoLd29ya2Zsb3dfaWQYASABKAkSFAoHdmVyc2lvbhgCIAEoBUgAiAEBElMKCnBhcmFtZXRlcnMYAyADKAsyPy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlN1YmZsb3dTdGVwQ29uZmlnLlBhcmFtZXRlcnNFbnRyeRpHCg9QYXJhbWV0ZXJzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAE6AhgBQgoKCF92ZXJzaW9uIikKDldhaXRTdGVwQ29uZmlnEhMKC2R1cmF0aW9uX21zGAEgASgFOgIYASJMChBDdXN0b21TdGVwQ29uZmlnEgwKBGtpbmQYASABKAkSJgoHcGF5bG9hZBgCIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0OgIYAUJqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_struct, file_common_v1_types, file_browser_automation_studio_v1_shared]);
 
 /**
  * WorkflowDefinition mirrors the JSON workflow definitions used by BAS.
+ * DEPRECATED: Use WorkflowDefinitionV2 from unified.proto for new workflows.
+ * V1 workflows are auto-converted to V2 on read. This type is retained for backward compatibility.
  *
  * @generated from message browser_automation_studio.v1.WorkflowDefinition
+ * @deprecated
  */
 export type WorkflowDefinition = Message<"browser_automation_studio.v1.WorkflowDefinition"> & {
   /**
@@ -39,47 +42,34 @@ export type WorkflowDefinition = Message<"browser_automation_studio.v1.WorkflowD
   edges: WorkflowEdge[];
 
   /**
-   * Arbitrary metadata associated with the workflow.
+   * Workflow metadata (name, description, labels, version).
    *
-   * @generated from field: map<string, google.protobuf.Value> metadata = 3 [deprecated = true];
-   * @deprecated
+   * @generated from field: browser_automation_studio.v1.WorkflowMetadata metadata = 5;
    */
-  metadata: { [key: string]: Value };
+  metadata?: WorkflowMetadata;
 
   /**
-   * Execution settings for the workflow (e.g., viewport).
+   * Execution settings for the workflow (viewport, user agent, etc.).
    *
-   * @generated from field: map<string, google.protobuf.Value> settings = 4 [deprecated = true];
-   * @deprecated
+   * @generated from field: browser_automation_studio.v1.WorkflowSettings settings = 6;
    */
-  settings: { [key: string]: Value };
-
-  /**
-   * Strongly typed metadata; prefer over the deprecated Struct-backed map.
-   *
-   * @generated from field: browser_automation_studio.v1.WorkflowMetadata metadata_typed = 5;
-   */
-  metadataTyped?: WorkflowMetadata;
-
-  /**
-   * Strongly typed execution settings; prefer over the deprecated Struct-backed map.
-   *
-   * @generated from field: browser_automation_studio.v1.WorkflowSettings settings_typed = 6;
-   */
-  settingsTyped?: WorkflowSettings;
+  settings?: WorkflowSettings;
 };
 
 /**
  * Describes the message browser_automation_studio.v1.WorkflowDefinition.
  * Use `create(WorkflowDefinitionSchema)` to create a new message.
+ * @deprecated
  */
 export const WorkflowDefinitionSchema: GenMessage<WorkflowDefinition> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 0);
 
 /**
  * WorkflowNode captures a single node in a workflow graph.
+ * DEPRECATED: Use WorkflowNodeV2 from unified.proto for new workflows.
  *
  * @generated from message browser_automation_studio.v1.WorkflowNode
+ * @deprecated
  */
 export type WorkflowNode = Message<"browser_automation_studio.v1.WorkflowNode"> & {
   /**
@@ -97,23 +87,7 @@ export type WorkflowNode = Message<"browser_automation_studio.v1.WorkflowNode"> 
   type: StepType;
 
   /**
-   * Node-specific configuration payload (legacy); prefer config.
-   *
-   * @generated from field: google.protobuf.Struct data = 3 [deprecated = true];
-   * @deprecated
-   */
-  data?: JsonObject;
-
-  /**
-   * Typed node configuration (legacy); prefer config.
-   *
-   * @generated from field: common.v1.JsonObject data_typed = 4 [deprecated = true];
-   * @deprecated
-   */
-  dataTyped?: JsonObject$1;
-
-  /**
-   * Discriminated node configuration matching StepType; prefer over Struct/JsonObject.
+   * Discriminated node configuration matching StepType.
    *
    * @generated from field: browser_automation_studio.v1.WorkflowNodeConfig config = 5;
    */
@@ -123,14 +97,17 @@ export type WorkflowNode = Message<"browser_automation_studio.v1.WorkflowNode"> 
 /**
  * Describes the message browser_automation_studio.v1.WorkflowNode.
  * Use `create(WorkflowNodeSchema)` to create a new message.
+ * @deprecated
  */
 export const WorkflowNodeSchema: GenMessage<WorkflowNode> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 1);
 
 /**
  * WorkflowEdge connects nodes within a workflow graph.
+ * DEPRECATED: Use WorkflowEdgeV2 from unified.proto for new workflows.
  *
  * @generated from message browser_automation_studio.v1.WorkflowEdge
+ * @deprecated
  */
 export type WorkflowEdge = Message<"browser_automation_studio.v1.WorkflowEdge"> & {
   /**
@@ -164,30 +141,25 @@ export type WorkflowEdge = Message<"browser_automation_studio.v1.WorkflowEdge"> 
   /**
    * Provider-specific edge metadata.
    *
-   * @generated from field: google.protobuf.Struct data = 5 [deprecated = true];
-   * @deprecated
+   * @generated from field: common.v1.JsonObject data = 6;
    */
   data?: JsonObject;
-
-  /**
-   * Typed edge metadata; prefer over Struct when available.
-   *
-   * @generated from field: common.v1.JsonObject data_typed = 6;
-   */
-  dataTyped?: JsonObject$1;
 };
 
 /**
  * Describes the message browser_automation_studio.v1.WorkflowEdge.
  * Use `create(WorkflowEdgeSchema)` to create a new message.
+ * @deprecated
  */
 export const WorkflowEdgeSchema: GenMessage<WorkflowEdge> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 2);
 
 /**
  * WorkflowMetadata captures the most common workflow descriptors.
+ * DEPRECATED: Use WorkflowMetadataV2 from unified.proto for new workflows.
  *
  * @generated from message browser_automation_studio.v1.WorkflowMetadata
+ * @deprecated
  */
 export type WorkflowMetadata = Message<"browser_automation_studio.v1.WorkflowMetadata"> & {
   /**
@@ -222,14 +194,17 @@ export type WorkflowMetadata = Message<"browser_automation_studio.v1.WorkflowMet
 /**
  * Describes the message browser_automation_studio.v1.WorkflowMetadata.
  * Use `create(WorkflowMetadataSchema)` to create a new message.
+ * @deprecated
  */
 export const WorkflowMetadataSchema: GenMessage<WorkflowMetadata> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 3);
 
 /**
  * WorkflowSettings captures common browser/execution knobs.
+ * DEPRECATED: Use WorkflowSettingsV2 from unified.proto for new workflows.
  *
  * @generated from message browser_automation_studio.v1.WorkflowSettings
+ * @deprecated
  */
 export type WorkflowSettings = Message<"browser_automation_studio.v1.WorkflowSettings"> & {
   /**
@@ -275,36 +250,33 @@ export type WorkflowSettings = Message<"browser_automation_studio.v1.WorkflowSet
   headless: boolean;
 
   /**
-   * Additional provider-specific settings not yet typed.
+   * Additional provider-specific settings.
    *
-   * @generated from field: map<string, google.protobuf.Value> extras = 7 [deprecated = true];
-   * @deprecated
+   * @generated from field: map<string, common.v1.JsonValue> extras = 8;
    */
-  extras: { [key: string]: Value };
-
-  /**
-   * Typed provider-specific settings; prefer over the deprecated extras map.
-   *
-   * @generated from field: map<string, common.v1.JsonValue> extras_typed = 8;
-   */
-  extrasTyped: { [key: string]: JsonValue };
+  extras: { [key: string]: JsonValue };
 };
 
 /**
  * Describes the message browser_automation_studio.v1.WorkflowSettings.
  * Use `create(WorkflowSettingsSchema)` to create a new message.
+ * @deprecated
  */
 export const WorkflowSettingsSchema: GenMessage<WorkflowSettings> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 4);
 
 /**
  * WorkflowNodeConfig captures typed settings for common node kinds.
+ * DEPRECATED: Use ActionDefinition from unified.proto for new workflows.
+ * ActionDefinition provides a more complete and unified action parameter system.
  *
  * @generated from message browser_automation_studio.v1.WorkflowNodeConfig
+ * @deprecated
  */
 export type WorkflowNodeConfig = Message<"browser_automation_studio.v1.WorkflowNodeConfig"> & {
   /**
    * @generated from oneof browser_automation_studio.v1.WorkflowNodeConfig.config
+   * @deprecated
    */
   config: {
     /**
@@ -354,14 +326,17 @@ export type WorkflowNodeConfig = Message<"browser_automation_studio.v1.WorkflowN
 /**
  * Describes the message browser_automation_studio.v1.WorkflowNodeConfig.
  * Use `create(WorkflowNodeConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const WorkflowNodeConfigSchema: GenMessage<WorkflowNodeConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 5);
 
 /**
  * NavigateStepConfig contains navigation fields.
+ * DEPRECATED: Use NavigateParams from unified.proto instead.
  *
  * @generated from message browser_automation_studio.v1.NavigateStepConfig
+ * @deprecated
  */
 export type NavigateStepConfig = Message<"browser_automation_studio.v1.NavigateStepConfig"> & {
   /**
@@ -394,14 +369,17 @@ export type NavigateStepConfig = Message<"browser_automation_studio.v1.NavigateS
 /**
  * Describes the message browser_automation_studio.v1.NavigateStepConfig.
  * Use `create(NavigateStepConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const NavigateStepConfigSchema: GenMessage<NavigateStepConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 6);
 
 /**
  * ClickStepConfig contains click action metadata.
+ * DEPRECATED: Use ClickParams from unified.proto instead.
  *
  * @generated from message browser_automation_studio.v1.ClickStepConfig
+ * @deprecated
  */
 export type ClickStepConfig = Message<"browser_automation_studio.v1.ClickStepConfig"> & {
   /**
@@ -436,14 +414,17 @@ export type ClickStepConfig = Message<"browser_automation_studio.v1.ClickStepCon
 /**
  * Describes the message browser_automation_studio.v1.ClickStepConfig.
  * Use `create(ClickStepConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const ClickStepConfigSchema: GenMessage<ClickStepConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 7);
 
 /**
  * InputStepConfig contains text entry metadata.
+ * DEPRECATED: Use InputParams from unified.proto instead.
  *
  * @generated from message browser_automation_studio.v1.InputStepConfig
+ * @deprecated
  */
 export type InputStepConfig = Message<"browser_automation_studio.v1.InputStepConfig"> & {
   /**
@@ -478,14 +459,17 @@ export type InputStepConfig = Message<"browser_automation_studio.v1.InputStepCon
 /**
  * Describes the message browser_automation_studio.v1.InputStepConfig.
  * Use `create(InputStepConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const InputStepConfigSchema: GenMessage<InputStepConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 8);
 
 /**
  * AssertStepConfig captures assertion configuration.
+ * DEPRECATED: Use AssertParams from unified.proto instead.
  *
  * @generated from message browser_automation_studio.v1.AssertStepConfig
+ * @deprecated
  */
 export type AssertStepConfig = Message<"browser_automation_studio.v1.AssertStepConfig"> & {
   /**
@@ -504,8 +488,10 @@ export type AssertStepConfig = Message<"browser_automation_studio.v1.AssertStepC
 
   /**
    * Expected value for the assertion.
+   * DEPRECATED: Use expected_typed instead.
    *
-   * @generated from field: google.protobuf.Value expected = 3;
+   * @generated from field: google.protobuf.Value expected = 3 [deprecated = true];
+   * @deprecated
    */
   expected?: Value;
 
@@ -541,14 +527,18 @@ export type AssertStepConfig = Message<"browser_automation_studio.v1.AssertStepC
 /**
  * Describes the message browser_automation_studio.v1.AssertStepConfig.
  * Use `create(AssertStepConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const AssertStepConfigSchema: GenMessage<AssertStepConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 9);
 
 /**
  * SubflowStepConfig references another workflow.
+ * NOTE: No direct equivalent in unified.proto yet; subflows are a V1-only concept.
+ * Consider using WorkflowNodeV2 with custom action type for subflow-like behavior.
  *
  * @generated from message browser_automation_studio.v1.SubflowStepConfig
+ * @deprecated
  */
 export type SubflowStepConfig = Message<"browser_automation_studio.v1.SubflowStepConfig"> & {
   /**
@@ -576,14 +566,17 @@ export type SubflowStepConfig = Message<"browser_automation_studio.v1.SubflowSte
 /**
  * Describes the message browser_automation_studio.v1.SubflowStepConfig.
  * Use `create(SubflowStepConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const SubflowStepConfigSchema: GenMessage<SubflowStepConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 10);
 
 /**
  * WaitStepConfig captures a fixed delay between steps.
+ * DEPRECATED: Use WaitParams from unified.proto instead.
  *
  * @generated from message browser_automation_studio.v1.WaitStepConfig
+ * @deprecated
  */
 export type WaitStepConfig = Message<"browser_automation_studio.v1.WaitStepConfig"> & {
   /**
@@ -597,14 +590,18 @@ export type WaitStepConfig = Message<"browser_automation_studio.v1.WaitStepConfi
 /**
  * Describes the message browser_automation_studio.v1.WaitStepConfig.
  * Use `create(WaitStepConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const WaitStepConfigSchema: GenMessage<WaitStepConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 11);
 
 /**
  * CustomStepConfig captures custom provider-specific payloads.
+ * DEPRECATED: Use EvaluateParams from unified.proto for script execution,
+ * or define a new ActionType for specific custom behaviors.
  *
  * @generated from message browser_automation_studio.v1.CustomStepConfig
+ * @deprecated
  */
 export type CustomStepConfig = Message<"browser_automation_studio.v1.CustomStepConfig"> & {
   /**
@@ -619,12 +616,13 @@ export type CustomStepConfig = Message<"browser_automation_studio.v1.CustomStepC
    *
    * @generated from field: common.v1.JsonObject payload = 2;
    */
-  payload?: JsonObject$1;
+  payload?: JsonObject;
 };
 
 /**
  * Describes the message browser_automation_studio.v1.CustomStepConfig.
  * Use `create(CustomStepConfigSchema)` to create a new message.
+ * @deprecated
  */
 export const CustomStepConfigSchema: GenMessage<CustomStepConfig> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_workflow, 12);
