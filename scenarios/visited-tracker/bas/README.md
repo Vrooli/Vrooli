@@ -76,7 +76,7 @@ vrooli scenario test visited-tracker --filter="ui"
 ### Individual workflow
 ```bash
 # Run specific workflow via browser-automation-studio
-browser-automation-studio execute test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json
+browser-automation-studio execute bas/cases/01-campaign-tracking/api/campaign-lifecycle.json
 ```
 
 ## Test Data

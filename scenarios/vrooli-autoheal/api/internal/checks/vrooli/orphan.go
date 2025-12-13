@@ -21,14 +21,19 @@ var VrooliProcessPatterns = regexp.MustCompile(
 	`vrooli|/scenarios/[^/]+/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel`,
 )
 
+// DefaultGracePeriodSeconds is the default time to wait before considering a process an orphan.
+// This prevents false positives for processes that are still starting up and haven't registered yet.
+const DefaultGracePeriodSeconds = 30
+
 // OrphanCheck detects Vrooli processes that are running but not tracked by the lifecycle system.
 // These orphans can hold ports, consume resources, and prevent scenario restarts.
 type OrphanCheck struct {
-	warningThreshold  int // count of orphans before warning
-	criticalThreshold int // count of orphans before critical
-	stateReader       checks.VrooliStateReader
-	procReader        checks.ProcReader
-	executor          checks.CommandExecutor
+	warningThreshold   int     // count of orphans before warning
+	criticalThreshold  int     // count of orphans before critical
+	gracePeriodSeconds float64 // seconds to wait before considering a process an orphan
+	stateReader        checks.VrooliStateReader
+	procReader         checks.ProcReader
+	executor           checks.CommandExecutor
 }
 
 // OrphanCheckOption configures an OrphanCheck.
@@ -39,6 +44,14 @@ func WithOrphanThresholds(warning, critical int) OrphanCheckOption {
 	return func(c *OrphanCheck) {
 		c.warningThreshold = warning
 		c.criticalThreshold = critical
+	}
+}
+
+// WithGracePeriod sets the grace period in seconds.
+// Processes younger than this are not considered orphans.
+func WithGracePeriod(seconds float64) OrphanCheckOption {
+	return func(c *OrphanCheck) {
+		c.gracePeriodSeconds = seconds
 	}
 }
 
@@ -68,13 +81,15 @@ func WithOrphanExecutor(executor checks.CommandExecutor) OrphanCheckOption {
 
 // NewOrphanCheck creates an orphan process check.
 // Default thresholds: warning at 3 orphans, critical at 10 orphans
+// Default grace period: 30 seconds (processes younger than this are not considered orphans)
 func NewOrphanCheck(opts ...OrphanCheckOption) *OrphanCheck {
 	c := &OrphanCheck{
-		warningThreshold:  3,
-		criticalThreshold: 10,
-		stateReader:       checks.DefaultVrooliStateReader,
-		procReader:        checks.DefaultProcReader,
-		executor:          checks.DefaultExecutor,
+		warningThreshold:   3,
+		criticalThreshold:  10,
+		gracePeriodSeconds: DefaultGracePeriodSeconds,
+		stateReader:        checks.DefaultVrooliStateReader,
+		procReader:         checks.DefaultProcReader,
+		executor:           checks.DefaultExecutor,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -131,6 +146,7 @@ func (c *OrphanCheck) Run(ctx context.Context) checks.Result {
 
 	// Find orphaned Vrooli processes
 	var orphans []orphanProcessInfo
+	var skippedYoung int // Count of processes skipped due to grace period
 	for _, proc := range allProcs {
 		// Skip non-Vrooli processes
 		if !c.isVrooliProcess(proc) {
@@ -142,17 +158,28 @@ func (c *OrphanCheck) Run(ctx context.Context) checks.Result {
 			continue
 		}
 
-		// This is an orphan
+		// Check process age - skip if within grace period
+		age := checks.ProcessAge(proc.StartTime)
+		if age > 0 && age < c.gracePeriodSeconds {
+			// Process is too young - might still be starting up
+			skippedYoung++
+			continue
+		}
+
+		// This is an orphan (old enough to be considered one)
 		orphans = append(orphans, orphanProcessInfo{
 			PID:     proc.PID,
 			PPID:    proc.PPid,
 			Command: proc.Comm,
+			Age:     age,
 		})
 	}
 
 	orphanCount := len(orphans)
 	result.Details["orphanCount"] = orphanCount
 	result.Details["trackedCount"] = len(tracked)
+	result.Details["skippedYoung"] = skippedYoung
+	result.Details["gracePeriodSeconds"] = c.gracePeriodSeconds
 	result.Details["warningThreshold"] = c.warningThreshold
 	result.Details["criticalThreshold"] = c.criticalThreshold
 
@@ -205,9 +232,10 @@ func (c *OrphanCheck) Run(ctx context.Context) checks.Result {
 
 // orphanProcessInfo contains information about an orphan process
 type orphanProcessInfo struct {
-	PID     int    `json:"pid"`
-	PPID    int    `json:"ppid"`
-	Command string `json:"command"`
+	PID     int     `json:"pid"`
+	PPID    int     `json:"ppid"`
+	Command string  `json:"command"`
+	Age     float64 `json:"age"` // Age in seconds
 }
 
 // isVrooliProcess checks if a process matches Vrooli patterns
@@ -345,9 +373,11 @@ func (c *OrphanCheck) executeList(ctx context.Context, start time.Time) checks.A
 	var outputBuilder strings.Builder
 	outputBuilder.WriteString("=== Orphan Process Detection ===\n\n")
 	outputBuilder.WriteString(fmt.Sprintf("Tracked processes: %d\n", len(tracked)))
+	outputBuilder.WriteString(fmt.Sprintf("Grace period: %.0f seconds\n", c.gracePeriodSeconds))
 	outputBuilder.WriteString("Vrooli process patterns: vrooli, /scenarios/*/[api|ui], vite, ecosystem-manager, picker-wheel\n\n")
 
 	orphanCount := 0
+	youngCount := 0
 	trackedVrooliCount := 0
 
 	for _, proc := range allProcs {
@@ -356,24 +386,33 @@ func (c *OrphanCheck) executeList(ctx context.Context, start time.Time) checks.A
 		}
 
 		isOrphan := !c.hasTrackedAncestor(proc.PID, allProcs, trackedSet)
-		status := "TRACKED"
-		if isOrphan {
+		age := checks.ProcessAge(proc.StartTime)
+
+		var status string
+		if !isOrphan {
+			status = "TRACKED"
+			trackedVrooliCount++
+		} else if age > 0 && age < c.gracePeriodSeconds {
+			status = "YOUNG (grace period)"
+			youngCount++
+		} else {
 			status = "ORPHAN"
 			orphanCount++
-		} else {
-			trackedVrooliCount++
 		}
 
 		outputBuilder.WriteString(fmt.Sprintf("PID %d: %s\n", proc.PID, status))
 		outputBuilder.WriteString(fmt.Sprintf("  Command: %s\n", proc.Comm))
 		outputBuilder.WriteString(fmt.Sprintf("  Parent PID: %d\n", proc.PPid))
-		if isOrphan {
+		if age > 0 {
+			outputBuilder.WriteString(fmt.Sprintf("  Age: %.1f seconds\n", age))
+		}
+		if isOrphan && age >= c.gracePeriodSeconds {
 			outputBuilder.WriteString(fmt.Sprintf("  Kill: kill %d\n", proc.PID))
 		}
 		outputBuilder.WriteString("\n")
 	}
 
-	outputBuilder.WriteString(fmt.Sprintf("Summary: %d tracked, %d orphaned\n", trackedVrooliCount, orphanCount))
+	outputBuilder.WriteString(fmt.Sprintf("Summary: %d tracked, %d orphaned, %d young (within grace period)\n", trackedVrooliCount, orphanCount, youngCount))
 
 	result.Duration = time.Since(start)
 	result.Success = true
@@ -420,9 +459,11 @@ func (c *OrphanCheck) executeKill(ctx context.Context, start time.Time) checks.A
 
 	var outputBuilder strings.Builder
 	outputBuilder.WriteString("=== Killing Orphan Processes ===\n\n")
+	outputBuilder.WriteString(fmt.Sprintf("Grace period: %.0f seconds (younger processes will be skipped)\n\n", c.gracePeriodSeconds))
 
 	killed := 0
 	failed := 0
+	skippedYoung := 0
 
 	for _, proc := range allProcs {
 		if !c.isVrooliProcess(proc) {
@@ -433,8 +474,16 @@ func (c *OrphanCheck) executeKill(ctx context.Context, start time.Time) checks.A
 			continue
 		}
 
-		// This is an orphan - kill it
-		outputBuilder.WriteString(fmt.Sprintf("Killing PID %d (%s)... ", proc.PID, proc.Comm))
+		// Check process age - skip if within grace period
+		age := checks.ProcessAge(proc.StartTime)
+		if age > 0 && age < c.gracePeriodSeconds {
+			outputBuilder.WriteString(fmt.Sprintf("Skipping PID %d (%s) - only %.1f seconds old (grace period)\n", proc.PID, proc.Comm, age))
+			skippedYoung++
+			continue
+		}
+
+		// This is an orphan old enough to kill
+		outputBuilder.WriteString(fmt.Sprintf("Killing PID %d (%s, age: %.1fs)... ", proc.PID, proc.Comm, age))
 
 		// First try SIGTERM
 		if err := syscall.Kill(proc.PID, syscall.SIGTERM); err != nil {
@@ -465,11 +514,11 @@ func (c *OrphanCheck) executeKill(ctx context.Context, start time.Time) checks.A
 		killed++
 	}
 
-	if killed == 0 && failed == 0 {
+	if killed == 0 && failed == 0 && skippedYoung == 0 {
 		outputBuilder.WriteString("No orphan processes to kill.\n")
 	}
 
-	outputBuilder.WriteString(fmt.Sprintf("\nSummary: %d killed, %d failed\n", killed, failed))
+	outputBuilder.WriteString(fmt.Sprintf("\nSummary: %d killed, %d failed, %d skipped (grace period)\n", killed, failed, skippedYoung))
 
 	result.Duration = time.Since(start)
 	result.Output = outputBuilder.String()
@@ -477,16 +526,21 @@ func (c *OrphanCheck) executeKill(ctx context.Context, start time.Time) checks.A
 	if failed > 0 {
 		result.Success = false
 		result.Error = fmt.Sprintf("Failed to kill %d processes", failed)
-		result.Message = fmt.Sprintf("Partially killed: %d terminated, %d failed", killed, failed)
+		result.Message = fmt.Sprintf("Partially killed: %d terminated, %d failed, %d skipped", killed, failed, skippedYoung)
 	} else {
 		result.Success = true
-		result.Message = fmt.Sprintf("Killed %d orphan processes", killed)
+		if skippedYoung > 0 {
+			result.Message = fmt.Sprintf("Killed %d orphan processes (%d skipped - within grace period)", killed, skippedYoung)
+		} else {
+			result.Message = fmt.Sprintf("Killed %d orphan processes", killed)
+		}
 	}
 
 	return result
 }
 
 // GetOrphanPIDs returns a list of orphan PIDs for external use (e.g., diagnose-port)
+// Respects the grace period - only returns PIDs of processes older than the grace period.
 func (c *OrphanCheck) GetOrphanPIDs() ([]int, error) {
 	tracked, err := c.stateReader.ListTrackedProcesses()
 	if err != nil {
@@ -513,9 +567,15 @@ func (c *OrphanCheck) GetOrphanPIDs() ([]int, error) {
 		if !c.isVrooliProcess(proc) {
 			continue
 		}
-		if !c.hasTrackedAncestor(proc.PID, allProcs, trackedSet) {
-			orphanPIDs = append(orphanPIDs, proc.PID)
+		if c.hasTrackedAncestor(proc.PID, allProcs, trackedSet) {
+			continue
 		}
+		// Skip processes within grace period
+		age := checks.ProcessAge(proc.StartTime)
+		if age > 0 && age < c.gracePeriodSeconds {
+			continue
+		}
+		orphanPIDs = append(orphanPIDs, proc.PID)
 	}
 
 	return orphanPIDs, nil

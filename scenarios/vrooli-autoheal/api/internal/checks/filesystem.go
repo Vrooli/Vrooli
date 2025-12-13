@@ -66,10 +66,11 @@ type MemInfo struct {
 
 // ProcessInfo contains information about a process
 type ProcessInfo struct {
-	PID   int
-	State string // R=running, S=sleeping, Z=zombie, etc.
-	PPid  int    // Parent PID
-	Comm  string // Command name
+	PID       int
+	State     string // R=running, S=sleeping, Z=zombie, etc.
+	PPid      int    // Parent PID
+	Comm      string // Command name
+	StartTime uint64 // Process start time in clock ticks since boot
 }
 
 // ProcReader abstracts /proc filesystem access for testability.
@@ -194,6 +195,10 @@ func (r *RealProcReader) ListProcesses() ([]ProcessInfo, error) {
 }
 
 // readProcessStat reads /proc/[pid]/stat for a single process
+// Format: pid (comm) state ppid pgrp session tty_nr tpgid flags minflt cminflt majflt cmajflt
+//         utime stime cutime cstime priority nice num_threads itrealvalue starttime ...
+// Fields are 1-indexed in documentation, but 0-indexed in the rest slice after we extract pid and comm.
+// starttime is field 22 (1-indexed), which is rest[19] (state=rest[0], ppid=rest[1], ..., starttime=rest[19])
 func readProcessStat(pid int) (ProcessInfo, error) {
 	statPath := "/proc/" + strconv.Itoa(pid) + "/stat"
 	data, err := os.ReadFile(statPath)
@@ -229,12 +234,82 @@ func readProcessStat(pid int) (ProcessInfo, error) {
 		}
 		// PPid parse failure is non-fatal - leave as 0
 	}
+	// starttime is at index 19 in rest (field 22 overall, minus pid, comm, then 0-indexed)
+	if len(rest) >= 20 {
+		startTime, err := strconv.ParseUint(rest[19], 10, 64)
+		if err == nil {
+			info.StartTime = startTime
+		}
+		// StartTime parse failure is non-fatal - leave as 0
+	}
 
 	return info, nil
 }
 
 // DefaultProcReader is the global proc reader used when none is injected.
 var DefaultProcReader ProcReader = &RealProcReader{}
+
+// getBootTime reads the system boot time from /proc/stat
+// Returns boot time as Unix timestamp in seconds
+func getBootTime() (uint64, error) {
+	data, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return 0, err
+	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "btime ") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				return strconv.ParseUint(fields[1], 10, 64)
+			}
+		}
+	}
+	return 0, fmt.Errorf("btime not found in /proc/stat")
+}
+
+// getClockTicksPerSecond returns the system's clock ticks per second (usually 100)
+func getClockTicksPerSecond() uint64 {
+	// On Linux, this is typically 100 (USER_HZ)
+	// Could use syscall.Sysconf(_SC_CLK_TCK) but that requires cgo
+	return 100
+}
+
+// ProcessAge calculates the age of a process in seconds.
+// Returns 0 if the age cannot be determined.
+func ProcessAge(startTime uint64) float64 {
+	if startTime == 0 {
+		return 0
+	}
+
+	bootTime, err := getBootTime()
+	if err != nil {
+		return 0
+	}
+
+	clockTicks := getClockTicksPerSecond()
+	// startTime is in clock ticks since boot
+	startTimeSecs := float64(startTime) / float64(clockTicks)
+	// Convert to Unix timestamp
+	processStartUnix := float64(bootTime) + startTimeSecs
+
+	// Current time
+	now := float64(unixNow())
+
+	age := now - processStartUnix
+	if age < 0 {
+		return 0
+	}
+	return age
+}
+
+// unixNow returns the current Unix timestamp in seconds.
+// Extracted for potential testability.
+func unixNow() int64 {
+	var t syscall.Timeval
+	_ = syscall.Gettimeofday(&t)
+	return t.Sec
+}
 
 // PortInfo contains information about port usage
 type PortInfo struct {

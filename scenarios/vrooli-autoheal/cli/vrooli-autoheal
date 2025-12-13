@@ -1519,7 +1519,7 @@ cmd_locks() {
 
 cmd_diagnose_port() {
     local port="${1:-}"
-    local scenario="${2:-unknown}"
+    local scenario="${2:-}"
 
     if [[ -z "$port" ]]; then
         echo -e "${RED}Error:${NC} Port number required"
@@ -1530,8 +1530,8 @@ cmd_diagnose_port() {
     echo ""
     echo -e "${BLUE}🚨 PORT BINDING FAILURE DIAGNOSTICS${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "Scenario: ${CYAN}$scenario${NC}"
     echo -e "Port: ${CYAN}$port${NC}"
+    [[ -n "$scenario" ]] && echo -e "Scenario filter: ${CYAN}$scenario${NC}"
     echo ""
 
     # Check 1: Port availability
@@ -1553,11 +1553,13 @@ cmd_diagnose_port() {
     fi
     echo ""
 
-    # Check 2: Stale lock file detection
-    echo -e "${CYAN}🔍 Checking for stale lock files...${NC}"
+    # Check 2: Stale lock file detection - search all scenario state directories
+    echo -e "${CYAN}🔍 Checking for lock files...${NC}"
     local lock_file="$HOME/.vrooli/state/scenarios/.port_${port}.lock"
+    local found_lock=false
 
     if [[ -f "$lock_file" ]]; then
+        found_lock=true
         local lock_info
         lock_info=$(cat "$lock_file" 2>/dev/null || echo "")
         if [[ -n "$lock_info" ]]; then
@@ -1566,19 +1568,26 @@ cmd_diagnose_port() {
             local lock_pid="${lock_pid_part%%:*}"
 
             echo -e "${YELLOW}⚠️${NC}  Found lock file: $lock_file"
-            echo "   Lock held by: scenario '$lock_scenario', PID $lock_pid"
+            echo "   Lock held by: scenario '${CYAN}$lock_scenario${NC}', PID $lock_pid"
 
             if [[ "$lock_pid" =~ ^[0-9]+$ ]] && kill -0 "$lock_pid" 2>/dev/null; then
                 echo -e "${GREEN}✅${NC} Lock is VALID - process $lock_pid is running"
+                # Check if the running process matches the lock
+                local proc_comm
+                proc_comm=$(ps -p "$lock_pid" -o comm= 2>/dev/null || echo "")
+                echo "   Process name: $proc_comm"
             else
                 echo -e "${RED}❌${NC} Lock is STALE - process $lock_pid is not running"
                 echo -e "   ${CYAN}🛠️  Fix:${NC} rm '$lock_file'"
+                echo -e "   ${CYAN}🛠️  Or:${NC} $CLI_NAME locks clean"
             fi
         else
             echo -e "${YELLOW}⚠️${NC}  Found empty lock file: $lock_file"
             echo -e "   ${CYAN}🛠️  Fix:${NC} rm '$lock_file'"
         fi
-    else
+    fi
+
+    if [[ "$found_lock" == "false" ]]; then
         echo -e "${GREEN}✅${NC} No lock file found for port $port"
     fi
     echo ""
@@ -1648,7 +1657,11 @@ cmd_diagnose_port() {
     if [[ "$has_recommendations" == "false" ]]; then
         echo "   • Port appears to be available - there may be a different issue"
         echo "   • Try: vrooli resource restart"
-        echo "   • Check logs: vrooli scenario logs $scenario"
+        if [[ -n "$scenario" ]]; then
+            echo "   • Check logs: vrooli scenario logs $scenario"
+        else
+            echo "   • Check logs: vrooli scenario logs <scenario-name>"
+        fi
     fi
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
@@ -1708,11 +1721,11 @@ Commands:
       - list: Show all port locks with status (VALID/STALE)
       - clean: Remove stale lock files (safe operation)
 
-  diagnose-port <port> <scenario>
+  diagnose-port <port> [scenario]
       Comprehensive port diagnostics. Shows:
-      - Port lock file status
+      - Port lock file status (which scenario claims the port)
       - Process using the port (if any)
-      - Whether process is tracked by lifecycle
+      - Whether lock is valid or stale
       - Recommended actions to resolve conflicts
 
   version
@@ -1734,7 +1747,7 @@ Examples:
   vrooli-autoheal orphans list            # List orphaned Vrooli processes
   vrooli-autoheal locks list              # Show port locks with status
   vrooli-autoheal locks clean             # Clean stale port locks
-  vrooli-autoheal diagnose-port 8080 my-scenario  # Debug port 8080
+  vrooli-autoheal diagnose-port 8080              # Debug port 8080
 EOF
 }
 
