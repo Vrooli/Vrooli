@@ -495,14 +495,32 @@ scenario::requirements::_ensure_scenario_dir() {
 }
 
 scenario::requirements::_test_genie_cli() {
-    local cli_path="${VROOLI_TEST_GENIE_CLI:-${APP_ROOT}/scenarios/test-genie/cli/test-genie}"
-    if [[ -x "$cli_path" ]]; then
-        echo "$cli_path"
+    if [[ -n "${VROOLI_TEST_GENIE_CLI:-}" ]] && [[ -x "${VROOLI_TEST_GENIE_CLI}" ]]; then
+        echo "$VROOLI_TEST_GENIE_CLI"
         return 0
     fi
 
-    log::error "test-genie CLI not found at $cli_path"
-    log::info "Build test-genie with: cd ${APP_ROOT}/scenarios/test-genie && make build"
+    local home_cli="${HOME}/.vrooli/bin/test-genie"
+    if [[ -x "$home_cli" ]]; then
+        echo "$home_cli"
+        return 0
+    fi
+
+    local path_cli
+    path_cli=$(command -v test-genie 2>/dev/null || true)
+    if [[ -n "$path_cli" ]] && [[ -x "$path_cli" ]]; then
+        echo "$path_cli"
+        return 0
+    fi
+
+    local repo_cli="${APP_ROOT}/scenarios/test-genie/cli/test-genie"
+    if [[ -x "$repo_cli" ]]; then
+        echo "$repo_cli"
+        return 0
+    fi
+
+    log::error "test-genie CLI not found (checked \$VROOLI_TEST_GENIE_CLI, PATH, and ${repo_cli})"
+    log::info "Build/Install test-genie with: cd ${APP_ROOT}/scenarios/test-genie && make start (or make build)"
     return 1
 }
 

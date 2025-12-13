@@ -30,7 +30,8 @@ scenario::health::collect_all_diagnostic_data() {
     local ui_smoke_data
     ui_smoke_data=$(scenario::health::read_ui_smoke_summary "$scenario_name")
     if [[ -n "$ui_smoke_data" ]]; then
-        health_data=$(echo "$health_data" | jq --argjson smoke "$ui_smoke_data" '.ui_smoke = $smoke')
+        # Avoid passing large JSON via --argjson (can exceed argv limits).
+        health_data=$(jq -s '.[0] + {ui_smoke: .[1]}' <(printf '%s' "$health_data") <(printf '%s' "$ui_smoke_data"))
     fi
     
     echo "$health_data"

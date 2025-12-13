@@ -43,7 +43,7 @@ SUBCOMMANDS:
     test <name> [phase|all|e2e] Run scenario's test lifecycle event
     list [--json]           List available scenarios (use --include-ports for live port data)
     logs <name> [options]   View logs for a scenario
-    status [name] [--json]  Show scenario status (includes test infrastructure validation)
+    status [name] [--json]  Show scenario status
     open <name> [options]   Open scenario in browser
     port <name> [port]      Get port number(s) for scenario (use --json for JSON output)
     ui-smoke <name> [--json] Run Browserless UI smoke harness for a scenario

@@ -4,12 +4,6 @@
 
 set -euo pipefail
 
-# Source test infrastructure validator
-TEST_VALIDATOR="${SCENARIO_CMD_DIR}/validators/test-validator.sh"
-if [[ -f "$TEST_VALIDATOR" ]]; then
-    source "$TEST_VALIDATOR"
-fi
-
 # Show scenario status
 scenario::status::show() {
     local scenario_name="${1:-}"
@@ -169,10 +163,10 @@ scenario::status::format_json_individual() {
 
     local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
 
-    # Collect test infrastructure validation data
+    # Collect structural validation (delegated to test-genie structure phase, side-effect free)
     local test_validation="{}"
-    if [[ -d "$scenario_path" ]] && command -v scenario::test::validate_infrastructure >/dev/null 2>&1; then
-        test_validation=$(scenario::test::validate_infrastructure "$scenario_name" "$scenario_path")
+    if [[ -d "$scenario_path" ]] && command -v scenario::status::collect_structure_validation >/dev/null 2>&1; then
+        test_validation=$(scenario::status::collect_structure_validation "$scenario_name")
     fi
 
     local requirement_summary='{"status":"unavailable"}'
@@ -182,24 +176,34 @@ scenario::status::format_json_individual() {
     SCENARIO_STATUS_REQUIREMENTS_SUMMARY="$requirement_summary"
 
     # Create enhanced JSON response for individual scenario with diagnostics and test validation
-    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" --argjson test_infrastructure "$test_validation" --argjson insights "$insights_json" --argjson requirements "$requirement_summary" '
-    {
-        "success": .success,
+    jq -s --arg scenario_name "$scenario_name" '
+    .[0] as $resp
+    | .[1] as $diagnostics
+    | .[2] as $test_infrastructure
+    | .[3] as $insights
+    | .[4] as $requirements
+    | {
+        "success": $resp.success,
         "scenario_name": $scenario_name,
-        "scenario_data": .data,
+        "scenario_data": $resp.data,
         "diagnostics": $diagnostics,
         "test_infrastructure": $test_infrastructure,
         "requirements": $requirements,
         "insights": $insights,
-        "raw_response": .,
+        "raw_response": $resp,
         "metadata": {
             "query_type": "individual_scenario",
             "timestamp": (now | strftime("%Y-%m-%d %H:%M:%S UTC")),
             "diagnostics_included": true,
-            "test_validation_included": true
+            "test_validation_included": true,
+            "structure_validation_included": true
         }
-    }')
-    echo "$enhanced_response"
+    }' \
+    <(printf '%s' "$response") \
+    <(printf '%s' "$diagnostic_data") \
+    <(printf '%s' "$test_validation") \
+    <(printf '%s' "$insights_json") \
+    <(printf '%s' "$requirement_summary")
 }
 
 # Format display output for all scenarios
@@ -823,15 +827,177 @@ scenario::status::display_test_infrastructure() {
         return 0
     fi
     
-    # Only validate if test validator is available
-    if command -v scenario::test::validate_infrastructure >/dev/null 2>&1; then
-        local validation_result
-        validation_result=$(scenario::test::validate_infrastructure "$scenario_name" "$scenario_path")
-        
-        if [[ -n "$validation_result" ]]; then
-            scenario::test::display_validation "$scenario_name" "$validation_result"
-        fi
+    local validation_json
+    validation_json=$(scenario::status::collect_structure_validation "$scenario_name" 2>/dev/null || echo '')
+    if [[ -z "$validation_json" ]]; then
+        return 0
     fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local status
+    status=$(echo "$validation_json" | jq -r '.overall.status // "unavailable"' 2>/dev/null)
+    local message
+    message=$(echo "$validation_json" | jq -r '.overall.message // ""' 2>/dev/null)
+    local recommendation
+    recommendation=$(echo "$validation_json" | jq -r '.overall.recommendation // ""' 2>/dev/null)
+
+    echo ""
+    echo "Structure Validation (test-genie):"
+    case "$status" in
+        passed|complete|ok)
+            echo "  ✅ $message"
+            ;;
+        failed|invalid|missing|error)
+            echo "  ❌ $message"
+            ;;
+        *)
+            echo "  ⚠️  $message"
+            ;;
+    esac
+    if [[ -n "$recommendation" && "$recommendation" != "null" ]]; then
+        echo "  ↳ $recommendation"
+    fi
+}
+
+scenario::status::_test_genie_cli() {
+    if [[ -n "${VROOLI_TEST_GENIE_CLI:-}" ]] && [[ -x "${VROOLI_TEST_GENIE_CLI}" ]]; then
+        echo "$VROOLI_TEST_GENIE_CLI"
+        return 0
+    fi
+
+    local home_cli="${HOME}/.vrooli/bin/test-genie"
+    if [[ -x "$home_cli" ]]; then
+        echo "$home_cli"
+        return 0
+    fi
+
+    local path_cli
+    path_cli=$(command -v test-genie 2>/dev/null || true)
+    if [[ -n "$path_cli" ]] && [[ -x "$path_cli" ]]; then
+        echo "$path_cli"
+        return 0
+    fi
+
+    local repo_cli="${APP_ROOT}/scenarios/test-genie/cli/test-genie"
+    if [[ -x "$repo_cli" ]]; then
+        echo "$repo_cli"
+        return 0
+    fi
+
+    return 1
+}
+
+scenario::status::collect_structure_validation() {
+    local scenario_name="$1"
+    local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
+
+    if [[ ! -d "$scenario_path" ]]; then
+        printf '%s\n' '{"overall":{"status":"not_found","message":"Scenario directory not found","recommendation":"Run `vrooli scenario list` to see available scenarios."}}'
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        printf '%s\n' '{"overall":{"status":"unavailable","message":"jq not available","recommendation":"Install jq to enable structure validation parsing."}}'
+        return 0
+    fi
+
+    local test_genie_cli
+    if ! test_genie_cli=$(scenario::status::_test_genie_cli); then
+        printf '%s\n' '{"overall":{"status":"unavailable","message":"test-genie CLI not available","recommendation":"Build test-genie (cd scenarios/test-genie && make build)."}}'
+        return 0
+    fi
+
+    local stderr_file
+    stderr_file=$(mktemp)
+    # Preserve stdout even when test-genie exits non-zero (e.g., structure phase fails).
+    local raw
+    raw=$("$test_genie_cli" execute "$scenario_name" --phases structure --no-record --json --no-stream 2>"$stderr_file" || true)
+    local stderr_tail=""
+    if [[ -s "$stderr_file" ]]; then
+        stderr_tail=$(tail -n 20 "$stderr_file" | tr -d '\r')
+    fi
+    rm -f "$stderr_file"
+
+    # Strip any leading non-JSON noise (auto-rebuild notices, etc.).
+    local raw_json
+    raw_json=$(printf '%s\n' "$raw" | awk 'BEGIN{found=0} {if(!found){if($0 ~ /^{/){found=1; print $0}} else {print}}')
+
+    local jq_parse_err=""
+    if [[ -n "$raw_json" ]]; then
+        local jq_err_file
+        jq_err_file=$(mktemp)
+        if ! printf '%s' "$raw_json" | jq -e . >/dev/null 2>"$jq_err_file"; then
+            jq_parse_err=$(tail -n 20 "$jq_err_file" | tr -d '\r')
+        fi
+        rm -f "$jq_err_file"
+    fi
+
+    if [[ -z "$raw_json" ]] || [[ -n "$jq_parse_err" ]]; then
+        local msg="Unable to run test-genie structure validation"
+        if [[ -n "$stderr_tail" ]]; then
+            msg="${msg}: ${stderr_tail}"
+        elif [[ -n "$jq_parse_err" ]]; then
+            msg="${msg}: ${jq_parse_err}"
+        fi
+        local raw_preview=""
+        if [[ -n "$raw" ]]; then
+            raw_preview=$(printf '%s' "$raw" | head -c 400 | tr -d '\r')
+        fi
+        local raw_tail=""
+        if [[ -n "$raw" ]]; then
+            raw_tail=$(printf '%s' "$raw" | tail -c 400 | tr -d '\r')
+        fi
+        jq -n \
+            --arg message "$msg" \
+            --arg recommendation "Ensure the test-genie service is running and healthy (make start in scenarios/test-genie, or check autoheal)." \
+            --arg cli "$test_genie_cli" \
+            --arg stderr_tail "$stderr_tail" \
+            --arg raw_preview "$raw_preview" \
+            --arg raw_tail "$raw_tail" \
+            '{overall:{status:"unavailable",message:$message,recommendation:$recommendation},debug:{cli:$cli,stderr_tail:$stderr_tail,raw_preview:$raw_preview,raw_tail:$raw_tail}}'
+        return 0
+    fi
+
+    local phase
+    phase=$(printf '%s' "$raw_json" | jq -c '.phases[]? | select(.name == "structure")' 2>/dev/null || echo '')
+    if [[ -z "$phase" ]]; then
+        printf '%s\n' '{"overall":{"status":"unavailable","message":"test-genie did not return a structure phase result","recommendation":"Try `test-genie execute <scenario> --phases structure --no-record --json` manually for details."}}'
+        return 0
+    fi
+
+    local phase_status
+    phase_status=$(echo "$phase" | jq -r '.status // "unknown"' 2>/dev/null)
+    local phase_error
+    phase_error=$(echo "$phase" | jq -r '.error // ""' 2>/dev/null)
+    local phase_remediation
+    phase_remediation=$(echo "$phase" | jq -r '.remediation // ""' 2>/dev/null)
+
+    local message="Structure phase: ${phase_status}"
+    if [[ "$phase_status" == "failed" ]] && [[ -n "$phase_error" && "$phase_error" != "null" ]]; then
+        message="Structure phase failed: $phase_error"
+    fi
+
+    jq -s \
+        --arg status "$phase_status" \
+        --arg message "$message" \
+        --arg recommendation "$phase_remediation" \
+        '.[0] as $raw
+        | .[1] as $structure_phase
+        | {
+            overall: {
+                status: $status,
+                message: $message,
+                recommendation: $recommendation,
+                recommendations: (if $recommendation == "" then [] else [$recommendation] end)
+            },
+            structure_phase: $structure_phase,
+            raw: $raw
+        }' \
+        <(printf '%s' "$raw_json") \
+        <(printf '%s' "$phase")
 }
 
 scenario::status::display_ui_smoke() {
