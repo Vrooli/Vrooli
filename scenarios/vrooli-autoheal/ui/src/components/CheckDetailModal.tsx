@@ -1,9 +1,13 @@
 // Check detail modal for drill-down view
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen, CheckCircle2, XCircle } from "lucide-react";
-import { fetchCheckHistory, HealthStatus, type HistoryEntry, type SubCheck, type CheckHistoryResponse } from "../lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { X, Download, Clock, AlertCircle, CheckCircle, AlertTriangle, Info, BookOpen, CheckCircle2, XCircle, Zap, Loader2 } from "lucide-react";
+import {
+  fetchCheckHistory, HealthStatus, type HistoryEntry, type SubCheck, type CheckHistoryResponse,
+  fetchConfig, fetchDefaults, setCheckAutoHeal, fetchCheckActions, executeAction,
+  type ActionResult
+} from "../lib/api";
 import { ErrorDisplay } from "./ErrorDisplay";
 import { StatusIcon } from "./StatusIcon";
 import { StatusSparkline } from "./StatusSparkline";
@@ -73,15 +77,81 @@ function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
 
 export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
   const { getTitle, getMetadata } = useCheckMetadata();
+  const queryClient = useQueryClient();
   const metadata = getMetadata(checkId);
   const title = getTitle(checkId);
   const showCheckId = title !== checkId;
   const [activeTab, setActiveTab] = useState<TabId>("details");
+  const [autoHealResult, setAutoHealResult] = useState<ActionResult | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery<CheckHistoryResponse>({
     queryKey: ["check-history", checkId],
     queryFn: () => fetchCheckHistory(checkId),
     refetchInterval: 30000,
+  });
+
+  // Fetch config to get current auto-heal state
+  const { data: config } = useQuery({
+    queryKey: ["config"],
+    queryFn: fetchConfig,
+    staleTime: 30000,
+  });
+
+  // Fetch defaults to know the default auto-heal state
+  const { data: defaults } = useQuery({
+    queryKey: ["config-defaults"],
+    queryFn: fetchDefaults,
+    staleTime: 60000,
+  });
+
+  // Fetch available recovery actions for the "Heal Now" button
+  const { data: actionsData } = useQuery({
+    queryKey: ["check-actions", checkId],
+    queryFn: () => fetchCheckActions(checkId),
+    staleTime: 30000,
+  });
+
+  // Determine current auto-heal state
+  const autoHealEnabled = useMemo(() => {
+    const configCheck = config?.checks?.[checkId];
+    const defaultCheck = defaults?.checks?.[checkId];
+    return configCheck?.autoHeal ?? defaultCheck?.autoHeal ?? false;
+  }, [config, defaults, checkId]);
+
+  // Determine if check is enabled
+  const checkEnabled = useMemo(() => {
+    const configCheck = config?.checks?.[checkId];
+    const defaultCheck = defaults?.checks?.[checkId];
+    return configCheck?.enabled ?? defaultCheck?.enabled ?? true;
+  }, [config, defaults, checkId]);
+
+  // Mutation for toggling auto-heal
+  const toggleAutoHealMutation = useMutation({
+    mutationFn: (autoHeal: boolean) => setCheckAutoHeal(checkId, autoHeal),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
+  });
+
+  // Find the primary healing action (restart for resources, first available otherwise)
+  const primaryHealAction = useMemo(() => {
+    if (!actionsData?.actions) return null;
+    const available = actionsData.actions.filter((a) => a.available);
+    const restart = available.find((a) => a.id === "restart");
+    if (restart) return restart;
+    return available.find((a) => a.id !== "logs") || null;
+  }, [actionsData]);
+
+  // Mutation for executing auto-heal action
+  const executeHealMutation = useMutation({
+    mutationFn: (actionId: string) => executeAction(checkId, actionId),
+    onSuccess: (result) => {
+      setAutoHealResult(result);
+      queryClient.invalidateQueries({ queryKey: ["status"] });
+      queryClient.invalidateQueries({ queryKey: ["check-actions", checkId] });
+      queryClient.invalidateQueries({ queryKey: ["check-history", checkId] });
+      queryClient.invalidateQueries({ queryKey: ["action-history"] });
+    },
   });
 
   // Handle escape key
@@ -200,6 +270,97 @@ export function CheckDetailModal({ checkId, onClose }: CheckDetailModalProps) {
                   <div>
                     <p className="text-sm text-blue-300 font-medium">Why This Matters</p>
                     <p className="text-xs text-blue-200/80 mt-0.5">{metadata.importance}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Auto-Heal Controls */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                <div className="flex items-center gap-3">
+                  <Zap size={18} className={autoHealEnabled ? "text-blue-400" : "text-slate-500"} />
+                  <div>
+                    <p className="text-sm font-medium text-slate-200">Auto-Heal</p>
+                    <p className="text-xs text-slate-500">
+                      {autoHealEnabled
+                        ? "Automatically recover when unhealthy"
+                        : "Manual intervention required when unhealthy"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* Auto-Heal Toggle */}
+                  <button
+                    onClick={() => toggleAutoHealMutation.mutate(!autoHealEnabled)}
+                    disabled={toggleAutoHealMutation.isPending || !checkEnabled}
+                    title={!checkEnabled ? "Enable check first to use auto-heal" : (autoHealEnabled ? "Disable auto-heal" : "Enable auto-heal")}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      autoHealEnabled && checkEnabled ? "bg-blue-500" : "bg-slate-600"
+                    } ${!checkEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    {toggleAutoHealMutation.isPending ? (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 size={14} className="animate-spin text-white" />
+                      </div>
+                    ) : (
+                      <span
+                        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                          autoHealEnabled && checkEnabled ? "translate-x-6" : ""
+                        }`}
+                      />
+                    )}
+                  </button>
+
+                  {/* Heal Now Button */}
+                  {primaryHealAction && (
+                    <button
+                      onClick={() => executeHealMutation.mutate(primaryHealAction.id)}
+                      disabled={executeHealMutation.isPending}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={`Run ${primaryHealAction.name} now`}
+                    >
+                      {executeHealMutation.isPending ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Zap size={12} />
+                      )}
+                      Heal Now
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Auto-Heal Result */}
+              {autoHealResult && (
+                <div className={`p-3 rounded-lg border ${
+                  autoHealResult.success
+                    ? "bg-emerald-500/10 border-emerald-500/20"
+                    : "bg-red-500/10 border-red-500/20"
+                }`}>
+                  <div className="flex items-start gap-2">
+                    {autoHealResult.success ? (
+                      <CheckCircle2 size={16} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <XCircle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${autoHealResult.success ? "text-emerald-300" : "text-red-300"}`}>
+                        {autoHealResult.message}
+                      </p>
+                      {autoHealResult.output && (
+                        <pre className="mt-2 p-2 text-xs font-mono bg-black/30 rounded overflow-x-auto whitespace-pre-wrap max-h-24 overflow-y-auto text-slate-400">
+                          {autoHealResult.output}
+                        </pre>
+                      )}
+                      {autoHealResult.error && (
+                        <p className="mt-1 text-xs text-red-400">{autoHealResult.error}</p>
+                      )}
+                      <button
+                        onClick={() => setAutoHealResult(null)}
+                        className="mt-2 text-xs text-slate-500 hover:text-slate-300"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

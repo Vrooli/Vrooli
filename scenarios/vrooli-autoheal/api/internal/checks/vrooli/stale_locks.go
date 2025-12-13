@@ -165,18 +165,18 @@ func (c *StaleLockCheck) RecoveryActions(lastResult *checks.Result) []checks.Rec
 
 	return []checks.RecoveryAction{
 		{
-			ID:          "list",
-			Name:        "List Stale Locks",
-			Description: "Show all stale port lock files with their details",
-			Dangerous:   false,
-			Available:   true,
-		},
-		{
 			ID:          "clean",
 			Name:        "Clean Stale Locks",
 			Description: "Remove all stale port lock files (safe - only removes files for dead processes)",
 			Dangerous:   false, // Safe because we only remove locks for non-running PIDs
 			Available:   hasStale,
+		},
+		{
+			ID:          "list",
+			Name:        "List Stale Locks",
+			Description: "Show all stale port lock files with their details",
+			Dangerous:   false,
+			Available:   true,
 		},
 	}
 }

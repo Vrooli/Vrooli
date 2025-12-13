@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	rules "scenario-auditor/rules"
@@ -13,11 +12,15 @@ import (
 
 /*
 Rule: Scenario Required Structure
-Description: Ensures every scenario contains required lifecycle, API, CLI, testing, and documentation assets
-Reason: Missing core files prevents the lifecycle system, CLI tooling, and tests from functioning
+Description: Ensures every scenario contains required lifecycle, API, CLI, and documentation assets
+Reason: Missing core files prevents the lifecycle system and CLI tooling from functioning
 Category: structure
 Severity: critical
 Targets: structure
+
+Note: Testing is now handled by test-genie via .vrooli/service.json lifecycle.test.
+Scenarios only need a test/ directory for artifacts (playbooks, fixtures, logs).
+The old test/run-tests.sh + test/phases/* pattern is deprecated.
 
 <test-case id="missing-makefile" should-fail="true">
   <description>Scenario missing Makefile and PRD</description>
@@ -28,14 +31,7 @@ Targets: structure
     "api/main.go",
     "cli/install.sh",
     "cli/demo",
-    "test/run-tests.sh",
-    "test/phases/test-unit.sh",
-    "test/phases/test-integration.sh",
-    "test/phases/test-structure.sh",
-    "test/phases/test-dependencies.sh",
-    "test/phases/test-business.sh",
-    "test/phases/test-performance.sh",
-    "test/phases/test-functions.sh",
+    "test/.gitkeep",
     ".vrooli/service.json",
     "README.md"
   ]
@@ -58,13 +54,7 @@ Targets: structure
     "api/main.go",
     "cli/install.sh",
     "cli/demo",
-    "test/run-tests.sh",
-    "test/phases/test-unit.sh",
-    "test/phases/test-integration.sh",
-    "test/phases/test-structure.sh",
-    "test/phases/test-dependencies.sh",
-    "test/phases/test-business.sh",
-    "test/phases/test-performance.sh"
+    "test/.gitkeep"
   ]
 }
   </input>
@@ -107,11 +97,12 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 	var violations []Violation
 
 	// Core required files.
+	// Note: Testing is handled by test-genie via .vrooli/service.json lifecycle.test.
+	// The old test/run-tests.sh + test/phases/* pattern is deprecated.
 	requiredFiles := []string{
 		".vrooli/service.json",
 		"api/main.go",
 		"cli/install.sh",
-		"test/run-tests.sh",
 		"Makefile",
 		"PRD.md",
 		"README.md",
@@ -133,25 +124,10 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 		violations = append(violations, newStructureViolation("cli/<scenario>", "Unable to determine scenario name for CLI binary validation"))
 	}
 
-	// Test phases directory and required scripts.
-	if !directoryExists(scenarioPath, "test/phases", filesSet) {
-		violations = append(violations, newStructureViolation("test/phases", "Missing required test phases directory"))
-	}
-
-	requiredPhaseScripts := []string{
-		"test/phases/test-business.sh",
-		"test/phases/test-dependencies.sh",
-		"test/phases/test-integration.sh",
-		"test/phases/test-performance.sh",
-		"test/phases/test-structure.sh",
-		"test/phases/test-unit.sh",
-	}
-	sort.Strings(requiredPhaseScripts)
-
-	for _, rel := range requiredPhaseScripts {
-		if !fileExists(scenarioPath, rel, filesSet) {
-			violations = append(violations, newStructureViolation(rel, fmt.Sprintf("Missing required test phase: %s", filepath.Base(rel))))
-		}
+	// Test directory should exist for test artifacts (playbooks, fixtures, logs).
+	// Actual test orchestration is handled by test-genie via .vrooli/service.json lifecycle.test.
+	if !directoryExists(scenarioPath, "test", filesSet) {
+		violations = append(violations, newStructureViolation("test", "Missing test/ directory for test artifacts"))
 	}
 
 	return violations, nil

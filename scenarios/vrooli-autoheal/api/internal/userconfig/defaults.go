@@ -230,6 +230,18 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		AutoHeal:        true,
 		IntervalSeconds: 30,
 	},
+
+	// Vrooli lifecycle checks
+	"vrooli-stale-locks": {
+		Enabled:         true,
+		AutoHeal:        true, // Safe - only removes lock files for dead processes
+		IntervalSeconds: 60,
+	},
+	"vrooli-orphans": {
+		Enabled:         true,
+		AutoHeal:        false, // Dangerous - killing processes requires explicit opt-in
+		IntervalSeconds: 120,
+	},
 }
 
 // Helper functions for creating pointers

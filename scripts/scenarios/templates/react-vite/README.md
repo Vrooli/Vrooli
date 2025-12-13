@@ -46,7 +46,7 @@ vrooli scenario run <your-scenario> --setup
 make dev   # wraps `vrooli scenario run --dev`
 ```
 
-Run tests with `make test` (CLI/API/UI) or the phased harness `test/run-tests.sh`.
+Run tests with `make test` or `test-genie execute --scenario <your-scenario>`.
 
 ### UI Smoke Harness
 

@@ -572,8 +572,8 @@ func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructi
 
 		case "test":
 			b.WriteString("**Testing Fixes**:\n")
-			b.WriteString("- Test structure: Organize tests in test/phases/\n")
-			b.WriteString("- Exit codes: Ensure test scripts return non-zero on failure\n")
+			b.WriteString("- Test orchestration: Use test-genie via .vrooli/service.json lifecycle.test\n")
+			b.WriteString("- Test artifacts: Store playbooks, fixtures, logs in test/ directory\n")
 			b.WriteString("- Coverage: Add test coverage reporting and thresholds\n")
 			b.WriteString("- Integration: Use centralized testing helpers\n\n")
 

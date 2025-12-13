@@ -239,26 +239,22 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 		t.Fatalf("failed to create cli directory: %v", err)
 	}
 
-	testPhasesPath := filepath.Join(scenarioPath, "test", "phases")
-	if err := os.MkdirAll(testPhasesPath, 0o755); err != nil {
-		t.Fatalf("failed to create test phases directory: %v", err)
+	testPath := filepath.Join(scenarioPath, "test")
+	if err := os.MkdirAll(testPath, 0o755); err != nil {
+		t.Fatalf("failed to create test directory: %v", err)
 	}
 
 	// Create all required files except the Makefile to trigger a single violation.
+	// Note: Testing is now handled by test-genie via .vrooli/service.json lifecycle.test.
+	// Scenarios only need a test/ directory for artifacts (playbooks, fixtures, logs).
 	requiredFiles := map[string]string{
-		".vrooli/service.json":             "{}\n",
-		"api/main.go":                      "package main\nfunc main() {}\n",
-		"cli/install.sh":                   "#!/usr/bin/env bash\n",
-		"cli/demo":                         "#!/usr/bin/env bash\n",
-		"test/run-tests.sh":                "#!/usr/bin/env bash\n",
-		"test/phases/test-unit.sh":         "#!/usr/bin/env bash\n",
-		"test/phases/test-integration.sh":  "#!/usr/bin/env bash\n",
-		"test/phases/test-structure.sh":    "#!/usr/bin/env bash\n",
-		"test/phases/test-dependencies.sh": "#!/usr/bin/env bash\n",
-		"test/phases/test-business.sh":     "#!/usr/bin/env bash\n",
-		"test/phases/test-performance.sh":  "#!/usr/bin/env bash\n",
-		"PRD.md":                           "# Product Requirements\n",
-		"README.md":                        "# README\n",
+		".vrooli/service.json": "{}\n",
+		"api/main.go":          "package main\nfunc main() {}\n",
+		"cli/install.sh":       "#!/usr/bin/env bash\n",
+		"cli/demo":             "#!/usr/bin/env bash\n",
+		"test/.gitkeep":        "",
+		"PRD.md":               "# Product Requirements\n",
+		"README.md":            "# README\n",
 	}
 
 	for rel, contents := range requiredFiles {
