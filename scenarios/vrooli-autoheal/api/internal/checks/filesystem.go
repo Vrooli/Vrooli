@@ -71,6 +71,8 @@ type ProcessInfo struct {
 	PPid      int    // Parent PID
 	Comm      string // Command name
 	StartTime uint64 // Process start time in clock ticks since boot
+	Cmdline   string // Full command line from /proc/[pid]/cmdline
+	Environ   map[string]string // Environment variables from /proc/[pid]/environ (lazy loaded)
 }
 
 // ProcReader abstracts /proc filesystem access for testability.
@@ -81,6 +83,10 @@ type ProcReader interface {
 	ReadMeminfo() (*MemInfo, error)
 	// ListProcesses returns information about all processes
 	ListProcesses() ([]ProcessInfo, error)
+	// ReadProcessEnviron reads environment variables for a specific PID
+	ReadProcessEnviron(pid int) (map[string]string, error)
+	// ReadProcessCmdline reads the full command line for a specific PID
+	ReadProcessCmdline(pid int) (string, error)
 }
 
 // RealProcReader is the production implementation of ProcReader.
@@ -248,6 +254,80 @@ func readProcessStat(pid int) (ProcessInfo, error) {
 
 // DefaultProcReader is the global proc reader used when none is injected.
 var DefaultProcReader ProcReader = &RealProcReader{}
+
+// ReadProcessEnviron reads environment variables from /proc/[pid]/environ.
+// Environment variables are stored as null-separated KEY=VALUE pairs.
+// Returns an error if the environ file cannot be read (e.g., permission denied).
+func (r *RealProcReader) ReadProcessEnviron(pid int) (map[string]string, error) {
+	environPath := "/proc/" + strconv.Itoa(pid) + "/environ"
+	data, err := os.ReadFile(environPath)
+	if err != nil {
+		return nil, err
+	}
+
+	env := make(map[string]string)
+	// Environment is null-separated
+	for _, pair := range strings.Split(string(data), "\x00") {
+		if pair == "" {
+			continue
+		}
+		idx := strings.Index(pair, "=")
+		if idx > 0 {
+			key := pair[:idx]
+			value := pair[idx+1:]
+			env[key] = value
+		}
+	}
+
+	return env, nil
+}
+
+// ReadProcessCmdline reads the full command line from /proc/[pid]/cmdline.
+// Arguments are stored as null-separated strings.
+func (r *RealProcReader) ReadProcessCmdline(pid int) (string, error) {
+	cmdlinePath := "/proc/" + strconv.Itoa(pid) + "/cmdline"
+	data, err := os.ReadFile(cmdlinePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Replace null bytes with spaces for readability
+	return strings.ReplaceAll(strings.TrimRight(string(data), "\x00"), "\x00", " "), nil
+}
+
+// IsVrooliManagedProcess checks if a process was started by Vrooli's lifecycle system
+// by looking for the VROOLI_LIFECYCLE_MANAGED environment variable.
+// This is the primary method for orphan detection.
+func IsVrooliManagedProcess(pid int) bool {
+	reader := DefaultProcReader
+	env, err := reader.ReadProcessEnviron(pid)
+	if err != nil {
+		return false
+	}
+	// Check for the marker set by lifecycle.sh
+	return env["VROOLI_LIFECYCLE_MANAGED"] == "true"
+}
+
+// GetVrooliProcessInfo returns Vrooli-specific info for a managed process.
+// Returns nil if the process is not Vrooli-managed.
+func GetVrooliProcessInfo(pid int) map[string]string {
+	reader := DefaultProcReader
+	env, err := reader.ReadProcessEnviron(pid)
+	if err != nil {
+		return nil
+	}
+	if env["VROOLI_LIFECYCLE_MANAGED"] != "true" {
+		return nil
+	}
+
+	info := make(map[string]string)
+	for _, key := range []string{"VROOLI_PROCESS_ID", "VROOLI_PHASE", "VROOLI_SCENARIO", "VROOLI_STEP"} {
+		if val, ok := env[key]; ok {
+			info[key] = val
+		}
+	}
+	return info
+}
 
 // getBootTime reads the system boot time from /proc/stat
 // Returns boot time as Unix timestamp in seconds

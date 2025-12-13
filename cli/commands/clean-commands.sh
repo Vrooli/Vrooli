@@ -20,13 +20,6 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-# Source zombie detector for lock cleaning
-# shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/zombie-detector.sh" 2>/dev/null || {
-    log::error "Zombie detector not found - lock cleaning unavailable"
-    exit 1
-}
-
 # Configuration
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
@@ -115,131 +108,45 @@ EOF
 # NOTE: This function writes directly to stdout without log::info to avoid
 # pipe buffering issues when called from scenario runner with output redirection
 clean::stale_locks() {
-    # Use printf instead of log::info to avoid buffering issues
     printf '%s\n' "[INFO]    Cleaning stale port locks..."
 
-    [[ -d "$SCENARIO_STATE_DIR" ]] || {
-        printf '%s\n' "[INFO]    No scenario state directory found - nothing to clean"
-        return 0
-    }
-
-    local total_locks=0
-    local stale_locks=0
-    local cleaned_locks=0
-    local failed_cleanups=0
-
-    # Get all lock files into an array for better control
-    local -a lock_files=()
-    while IFS= read -r lock_file; do
-        [[ -f "$lock_file" ]] && lock_files+=("$lock_file")
-    done < <(find "$SCENARIO_STATE_DIR" -name ".port_*.lock" 2>/dev/null || true)
-
-    total_locks=${#lock_files[@]}
-
-    if [[ $total_locks -eq 0 ]]; then
-        printf '%s\n' "[SUCCESS] No port locks found - system is clean"
-        return 0
+    if ! command -v vrooli-autoheal >/dev/null 2>&1; then
+        printf '%s\n' "[ERROR]   vrooli-autoheal not installed. Run 'vrooli setup' first."
+        return 1
     fi
 
-    printf '%s\n' "[INFO]    Found $total_locks port locks to check"
-
-    # Process each lock file efficiently (silently unless verbose)
-    for lock_file in "${lock_files[@]}"; do
-        [[ -f "$lock_file" ]] || continue
-
-        # Extract port number from filename
-        local port
-        port=$(basename "$lock_file" | sed 's/\.port_\([0-9]\+\)\.lock/\1/')
-
-        if [[ ! "$port" =~ ^[0-9]+$ ]]; then
-            [[ "$VERBOSE" == "true" ]] && printf '%s\n' "[WARNING] Skipping invalid lock file: $lock_file"
-            continue
-        fi
-
-        # Read lock content to get PID
-        local lock_content pid
-        lock_content=$(cat "$lock_file" 2>/dev/null || echo "")
-
-        if [[ -z "$lock_content" ]]; then
-            ((stale_locks++))
-            [[ "$VERBOSE" == "true" ]] && printf '%s\n' "[DEBUG]   Empty lock file (stale): port $port"
-        else
-            # Extract PID from lock content (format: scenario:pid:timestamp)
-            pid=$(echo "$lock_content" | cut -d: -f2 2>/dev/null || echo "")
-
-            # Simple check if PID is running (much faster than associative array)
-            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                # PID is running - lock is active
-                [[ "$VERBOSE" == "true" ]] && printf '%s\n' "[DEBUG]   Active lock (keeping): port $port (PID $pid)"
-                continue
-            else
-                # PID is not running or invalid - lock is stale
-                ((stale_locks++))
-                [[ "$VERBOSE" == "true" ]] && printf '%s\n' "[DEBUG]   Stale lock found: port $port (PID $pid not running)"
-            fi
-        fi
-
-        # Clean the stale lock
-        if clean::execute "rm -f '$lock_file'"; then
-            ((cleaned_locks++))
-            [[ "$VERBOSE" == "true" ]] && printf '%s\n' "[SUCCESS] Cleaned stale lock for port: $port"
-        else
-            ((failed_cleanups++))
-            printf '%s\n' "[WARNING] Failed to clean stale lock for port: $port"
-        fi
-    done
-
-    # Summary
-    printf '%s\n' "[INFO]    Lock cleanup summary:"
-    printf '%s\n' "[INFO]      Total locks: $total_locks"
-    printf '%s\n' "[INFO]      Stale locks: $stale_locks"
-    printf '%s\n' "[INFO]      Cleaned: $cleaned_locks"
-    [[ $failed_cleanups -gt 0 ]] && printf '%s\n' "[WARNING]   Failed cleanups: $failed_cleanups"
-
-    if [[ $stale_locks -eq 0 ]]; then
-        printf '%s\n' "[SUCCESS] All port locks are active - no cleanup needed"
-    elif [[ $cleaned_locks -eq $stale_locks ]]; then
-        printf '%s\n' "[SUCCESS] Successfully cleaned all stale locks"
+    if vrooli-autoheal locks clean 2>&1; then
+        printf '%s\n' "[SUCCESS] Lock cleaning completed via vrooli-autoheal"
+        return 0
     else
-        printf '%s\n' "[WARNING] Some stale locks could not be cleaned (see messages above)"
+        printf '%s\n' "[ERROR]   vrooli-autoheal locks clean failed"
+        return 1
     fi
-
-    return 0
 }
 
 # Clean locks for specific scenario
+# Note: vrooli-autoheal cleans all stale locks (dead PIDs), which covers scenario-specific cleanup
 clean::scenario_locks() {
     local scenario_name="$1"
-    
+
     [[ -n "$scenario_name" ]] || {
         log::error "Scenario name required for scenario lock cleaning"
         return 1
     }
-    
-    log::info "Cleaning locks for scenario: $scenario_name"
-    
-    if command -v zombie::clean_scenario_locks >/dev/null 2>&1; then
-        clean::execute "zombie::clean_scenario_locks '$scenario_name'"
+
+    log::info "Cleaning stale locks (including scenario: $scenario_name)"
+
+    if ! command -v vrooli-autoheal >/dev/null 2>&1; then
+        log::error "vrooli-autoheal not installed. Run 'vrooli setup' first."
+        return 1
+    fi
+
+    # vrooli-autoheal cleans all stale locks (where PID is no longer running)
+    if clean::execute "vrooli-autoheal locks clean"; then
+        log::success "Cleaned stale locks"
     else
-        log::warning "Scenario-specific lock cleaning not available, falling back to manual cleanup"
-        
-        [[ -d "$SCENARIO_STATE_DIR" ]] || return 0
-        
-        local cleaned_count=0
-        while IFS= read -r lock_file; do
-            [[ -f "$lock_file" ]] || continue
-            local lock_content
-            lock_content=$(cat "$lock_file" 2>/dev/null | cut -d: -f1)
-            
-            if [[ "$lock_content" == "$scenario_name" ]]; then
-                if clean::execute "rm -f '$lock_file'"; then
-                    ((cleaned_count++))
-                    [[ "$VERBOSE" == "true" ]] && log::success "Removed lock: $(basename "$lock_file")"
-                fi
-            fi
-        done < <(find "$SCENARIO_STATE_DIR" -name ".port_*.lock" 2>/dev/null || true)
-        
-        log::success "Cleaned $cleaned_count locks for scenario: $scenario_name"
+        log::error "Failed to clean stale locks"
+        return 1
     fi
 }
 

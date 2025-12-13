@@ -16,7 +16,8 @@ import (
 )
 
 // VrooliProcessPatterns defines regex patterns that identify Vrooli-managed processes.
-// Processes matching these patterns are candidates for orphan detection.
+// This is a FALLBACK for legacy processes that don't have environment markers.
+// Primary detection should use VROOLI_LIFECYCLE_MANAGED environment variable.
 var VrooliProcessPatterns = regexp.MustCompile(
 	`vrooli|/scenarios/[^/]+/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel`,
 )
@@ -238,18 +239,46 @@ type orphanProcessInfo struct {
 	Age     float64 `json:"age"` // Age in seconds
 }
 
-// isVrooliProcess checks if a process matches Vrooli patterns
+// isVrooliProcess checks if a process is a Vrooli-managed process.
+// Primary method: Check for VROOLI_LIFECYCLE_MANAGED environment variable.
+// Fallback: Pattern matching on command name (for legacy processes).
 func (c *OrphanCheck) isVrooliProcess(proc checks.ProcessInfo) bool {
-	// Check command name
-	if VrooliProcessPatterns.MatchString(proc.Comm) {
-		return true
-	}
-
-	// Skip self-check processes
+	// Skip self-check processes (never consider ourselves orphans)
 	if strings.Contains(proc.Comm, "vrooli-autoheal") ||
 		strings.Contains(proc.Comm, "orphan") ||
 		strings.Contains(proc.Comm, "zombie-detector") {
 		return false
+	}
+
+	// PRIMARY: Check environment variable marker (most reliable)
+	// This is set by lifecycle.sh when starting processes
+	env, err := c.procReader.ReadProcessEnviron(proc.PID)
+	if err == nil && env["VROOLI_LIFECYCLE_MANAGED"] == "true" {
+		return true
+	}
+
+	// FALLBACK: Pattern matching for legacy processes without env markers
+	// This catches processes started before the marker system was implemented
+	if VrooliProcessPatterns.MatchString(proc.Comm) {
+		return true
+	}
+
+	// Also check full cmdline for pattern matching (e.g., ./browser-automation-studio-api)
+	cmdline, err := c.procReader.ReadProcessCmdline(proc.PID)
+	if err == nil && cmdline != "" {
+		// Check for scenario API/UI patterns in cmdline
+		if strings.Contains(cmdline, "/scenarios/") &&
+			(strings.Contains(cmdline, "/api/") || strings.Contains(cmdline, "/ui/")) {
+			return true
+		}
+		// Check for *-api binary patterns
+		if strings.HasSuffix(strings.Fields(cmdline)[0], "-api") ||
+			strings.HasSuffix(strings.Fields(cmdline)[0], "-ui") {
+			// Only if running from a Vrooli directory
+			if strings.Contains(cmdline, "Vrooli") || strings.Contains(cmdline, "vrooli") {
+				return true
+			}
+		}
 	}
 
 	return false
@@ -374,11 +403,15 @@ func (c *OrphanCheck) executeList(ctx context.Context, start time.Time) checks.A
 	outputBuilder.WriteString("=== Orphan Process Detection ===\n\n")
 	outputBuilder.WriteString(fmt.Sprintf("Tracked processes: %d\n", len(tracked)))
 	outputBuilder.WriteString(fmt.Sprintf("Grace period: %.0f seconds\n", c.gracePeriodSeconds))
-	outputBuilder.WriteString("Vrooli process patterns: vrooli, /scenarios/*/[api|ui], vite, ecosystem-manager, picker-wheel\n\n")
+	outputBuilder.WriteString("Detection methods:\n")
+	outputBuilder.WriteString("  1. PRIMARY: VROOLI_LIFECYCLE_MANAGED environment variable\n")
+	outputBuilder.WriteString("  2. FALLBACK: Pattern matching (vrooli, /scenarios/*, *-api, *-ui)\n\n")
 
 	orphanCount := 0
 	youngCount := 0
 	trackedVrooliCount := 0
+	envDetectedCount := 0
+	patternDetectedCount := 0
 
 	for _, proc := range allProcs {
 		if !c.isVrooliProcess(proc) {
@@ -387,6 +420,17 @@ func (c *OrphanCheck) executeList(ctx context.Context, start time.Time) checks.A
 
 		isOrphan := !c.hasTrackedAncestor(proc.PID, allProcs, trackedSet)
 		age := checks.ProcessAge(proc.StartTime)
+
+		// Determine detection method for reporting
+		var detectionMethod string
+		env, err := c.procReader.ReadProcessEnviron(proc.PID)
+		if err == nil && env["VROOLI_LIFECYCLE_MANAGED"] == "true" {
+			detectionMethod = "env-marker"
+			envDetectedCount++
+		} else {
+			detectionMethod = "pattern-match"
+			patternDetectedCount++
+		}
 
 		var status string
 		if !isOrphan {
@@ -400,8 +444,19 @@ func (c *OrphanCheck) executeList(ctx context.Context, start time.Time) checks.A
 			orphanCount++
 		}
 
-		outputBuilder.WriteString(fmt.Sprintf("PID %d: %s\n", proc.PID, status))
+		outputBuilder.WriteString(fmt.Sprintf("PID %d: %s [%s]\n", proc.PID, status, detectionMethod))
 		outputBuilder.WriteString(fmt.Sprintf("  Command: %s\n", proc.Comm))
+
+		// Show Vrooli-specific info if available
+		if err == nil {
+			if scenario := env["VROOLI_SCENARIO"]; scenario != "" {
+				outputBuilder.WriteString(fmt.Sprintf("  Scenario: %s\n", scenario))
+			}
+			if step := env["VROOLI_STEP"]; step != "" {
+				outputBuilder.WriteString(fmt.Sprintf("  Step: %s\n", step))
+			}
+		}
+
 		outputBuilder.WriteString(fmt.Sprintf("  Parent PID: %d\n", proc.PPid))
 		if age > 0 {
 			outputBuilder.WriteString(fmt.Sprintf("  Age: %.1f seconds\n", age))
@@ -412,7 +467,8 @@ func (c *OrphanCheck) executeList(ctx context.Context, start time.Time) checks.A
 		outputBuilder.WriteString("\n")
 	}
 
-	outputBuilder.WriteString(fmt.Sprintf("Summary: %d tracked, %d orphaned, %d young (within grace period)\n", trackedVrooliCount, orphanCount, youngCount))
+	outputBuilder.WriteString(fmt.Sprintf("Summary: %d tracked, %d orphaned, %d young (grace period)\n", trackedVrooliCount, orphanCount, youngCount))
+	outputBuilder.WriteString(fmt.Sprintf("Detection: %d via env-marker, %d via pattern-match\n", envDetectedCount, patternDetectedCount))
 
 	result.Duration = time.Since(start)
 	result.Success = true

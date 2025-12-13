@@ -35,7 +35,7 @@ func TestGetCheckDefaults(t *testing.T) {
 		{"infra-network", true, false},
 		{"infra-dns", true, true},
 		{"resource-postgres", true, true},
-		{"infra-display", false, false},
+		{"infra-display", true, true},
 		{"unknown-check", true, false}, // Generic defaults
 	}
 

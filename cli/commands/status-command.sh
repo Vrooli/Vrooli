@@ -28,10 +28,6 @@ source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
-# Source zombie detector for consistent zombie/orphan detection
-# shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/zombie-detector.sh" 2>/dev/null || true
-
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
 API_BASE="http://localhost:${VROOLI_API_PORT:-8092}"
@@ -480,15 +476,7 @@ collect_scenario_data() {
                     fi
                 done
             fi
-            
-            # Fallback: Check for old pm2.pid files (backward compatibility)
-            if [[ "$is_running" == "false" && -f "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" ]]; then
-                local pid=$(cat "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" 2>/dev/null)
-                if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                    is_running=true
-                fi
-            fi
-            
+
             if [[ "$is_running" == "true" ]]; then
                 running_scenarios=$((running_scenarios + 1))
                 scenario_statuses["$name"]="running"  # Can't determine health without API
@@ -570,18 +558,18 @@ collect_system_data() {
         docker_status="unavailable"
     fi
     
-    # Use zombie detector utility for consistent detection
+    # Use vrooli-autoheal for zombie/orphan detection
     local zombie_count=0
     local orphan_count=0
-    
-    # Check if zombie detector is available
-    if command -v zombie::count_zombies >/dev/null 2>&1; then
-        zombie_count=$(zombie::count_zombies)
-        orphan_count=$(zombie::count_orphans)
-    else
-        # Fallback to basic detection if zombie detector not available
-        zombie_count=$(ps aux | grep '<defunct>' | grep -v grep | wc -l 2>/dev/null || echo "0")
-        orphan_count=0  # Skip complex orphan detection in fallback
+
+    if command -v vrooli-autoheal >/dev/null 2>&1; then
+        local status_json
+        status_json=$(vrooli-autoheal status --json 2>/dev/null || echo "{}")
+        zombie_count=$(echo "$status_json" | jq -r '.checks[]? | select(.id == "system-zombies") | .details.zombie_count // 0' 2>/dev/null || echo "0")
+        orphan_count=$(echo "$status_json" | jq -r '.checks[]? | select(.id == "vrooli-orphans") | .details.orphanCount // 0' 2>/dev/null || echo "0")
+        # Ensure we got valid numbers
+        [[ "$zombie_count" =~ ^[0-9]+$ ]] || zombie_count=0
+        [[ "$orphan_count" =~ ^[0-9]+$ ]] || orphan_count=0
     fi
     
     # Output raw data

@@ -316,3 +316,178 @@ func (c *StaleLockCheck) executeClean(ctx context.Context, start time.Time) chec
 
 // Ensure StaleLockCheck implements HealableCheck
 var _ checks.HealableCheck = (*StaleLockCheck)(nil)
+
+// PortDiagnostics contains comprehensive information about a port conflict
+type PortDiagnostics struct {
+	Port          int               `json:"port"`
+	Scenario      string            `json:"scenario"`
+	LockExists    bool              `json:"lockExists"`
+	LockInfo      *PortLockInfo     `json:"lockInfo,omitempty"`
+	ProcessOnPort *ProcessOnPortInfo `json:"processOnPort,omitempty"`
+	Recommendation string           `json:"recommendation"`
+	IsRecoverable  bool             `json:"isRecoverable"`
+}
+
+// PortLockInfo contains lock file information
+type PortLockInfo struct {
+	Scenario  string `json:"scenario"`
+	PID       int    `json:"pid"`
+	IsStale   bool   `json:"isStale"`
+	FilePath  string `json:"filePath"`
+}
+
+// ProcessOnPortInfo contains information about a process using a port
+type ProcessOnPortInfo struct {
+	PID            int    `json:"pid"`
+	Command        string `json:"command"`
+	IsVrooliManaged bool  `json:"isVrooliManaged"`
+	IsTracked      bool   `json:"isTracked"`
+	Scenario       string `json:"scenario,omitempty"`
+	Step           string `json:"step,omitempty"`
+}
+
+// DiagnosePort provides comprehensive diagnostics for a port conflict.
+// This is called when a scenario fails to start due to port already in use.
+// It returns actionable information about:
+// - Whether there's a stale lock file for the port
+// - What process is actually using the port
+// - Whether that process is a Vrooli-managed process
+// - Whether the process is tracked or an orphan
+// - Recommended action to resolve the conflict
+func DiagnosePort(port int, scenario string, executor checks.CommandExecutor) (*PortDiagnostics, error) {
+	diag := &PortDiagnostics{
+		Port:     port,
+		Scenario: scenario,
+	}
+
+	// Check for lock file
+	stateReader := checks.DefaultVrooliStateReader
+	locks, err := stateReader.ListPortLocks()
+	if err == nil {
+		for _, lock := range locks {
+			if lock.Port == port {
+				diag.LockExists = true
+				diag.LockInfo = &PortLockInfo{
+					Scenario: lock.Scenario,
+					PID:      lock.PID,
+					IsStale:  lock.PID <= 0 || !checks.ProcessExists(lock.PID),
+					FilePath: lock.FilePath,
+				}
+				break
+			}
+		}
+	}
+
+	// Find what process is using the port
+	portPID, err := GetProcessOnPort(port, executor)
+	if err == nil && portPID > 0 {
+		diag.ProcessOnPort = &ProcessOnPortInfo{
+			PID: portPID,
+		}
+
+		// Get command name
+		procReader := checks.DefaultProcReader
+		procs, _ := procReader.ListProcesses()
+		for _, proc := range procs {
+			if proc.PID == portPID {
+				diag.ProcessOnPort.Command = proc.Comm
+				break
+			}
+		}
+
+		// Check if Vrooli-managed
+		diag.ProcessOnPort.IsVrooliManaged = checks.IsVrooliManagedProcess(portPID)
+
+		// Get Vrooli-specific info
+		if info := checks.GetVrooliProcessInfo(portPID); info != nil {
+			diag.ProcessOnPort.Scenario = info["VROOLI_SCENARIO"]
+			diag.ProcessOnPort.Step = info["VROOLI_STEP"]
+		}
+
+		// Check if tracked
+		tracked, _ := stateReader.ListTrackedProcesses()
+		for _, t := range tracked {
+			if t.PID == portPID || t.PGID == portPID {
+				diag.ProcessOnPort.IsTracked = true
+				break
+			}
+		}
+	}
+
+	// Determine recommendation
+	diag.IsRecoverable = true
+	switch {
+	case diag.LockInfo != nil && diag.LockInfo.IsStale && diag.ProcessOnPort == nil:
+		// Stale lock with no process - just need to clean the lock
+		diag.Recommendation = fmt.Sprintf("Remove stale lock file: rm '%s'", diag.LockInfo.FilePath)
+
+	case diag.ProcessOnPort != nil && !diag.ProcessOnPort.IsTracked && diag.ProcessOnPort.IsVrooliManaged:
+		// Orphaned Vrooli process - safe to kill
+		diag.Recommendation = fmt.Sprintf("Kill orphaned Vrooli process: kill %d", diag.ProcessOnPort.PID)
+
+	case diag.ProcessOnPort != nil && diag.ProcessOnPort.IsTracked:
+		// Tracked process - need to stop the owning scenario
+		if diag.ProcessOnPort.Scenario != "" {
+			diag.Recommendation = fmt.Sprintf("Stop the owning scenario: vrooli scenario stop %s", diag.ProcessOnPort.Scenario)
+		} else {
+			diag.Recommendation = fmt.Sprintf("Process is tracked but scenario unknown. Consider: kill %d", diag.ProcessOnPort.PID)
+		}
+
+	case diag.ProcessOnPort != nil && !diag.ProcessOnPort.IsVrooliManaged:
+		// External process - user needs to handle this
+		diag.Recommendation = fmt.Sprintf("Port is used by external process (PID %d: %s). Stop it manually or use a different port.",
+			diag.ProcessOnPort.PID, diag.ProcessOnPort.Command)
+		diag.IsRecoverable = false
+
+	case diag.LockInfo != nil && !diag.LockInfo.IsStale:
+		// Lock exists for running process
+		diag.Recommendation = fmt.Sprintf("Port is locked by scenario '%s'. Stop it first: vrooli scenario stop %s",
+			diag.LockInfo.Scenario, diag.LockInfo.Scenario)
+
+	default:
+		diag.Recommendation = "Unable to determine cause. Try: vrooli clean locks && vrooli orphans kill"
+	}
+
+	return diag, nil
+}
+
+// AutoRecoverPort attempts to automatically recover a port conflict.
+// It only performs safe operations and returns whether recovery was successful.
+func AutoRecoverPort(port int, scenario string, executor checks.CommandExecutor) (bool, string, error) {
+	diag, err := DiagnosePort(port, scenario, executor)
+	if err != nil {
+		return false, "", err
+	}
+
+	if !diag.IsRecoverable {
+		return false, diag.Recommendation, nil
+	}
+
+	var actions []string
+
+	// Clean stale lock if present
+	if diag.LockInfo != nil && diag.LockInfo.IsStale {
+		stateReader := checks.DefaultVrooliStateReader
+		err := stateReader.RemovePortLock(checks.PortLock{
+			Port:     diag.LockInfo.PID,
+			FilePath: diag.LockInfo.FilePath,
+		})
+		if err == nil {
+			actions = append(actions, fmt.Sprintf("Removed stale lock for port %d", port))
+		}
+	}
+
+	// Kill orphaned process if present
+	if diag.ProcessOnPort != nil && !diag.ProcessOnPort.IsTracked && diag.ProcessOnPort.IsVrooliManaged {
+		err := KillProcess(diag.ProcessOnPort.PID)
+		if err == nil {
+			actions = append(actions, fmt.Sprintf("Killed orphaned process %d", diag.ProcessOnPort.PID))
+		}
+	}
+
+	if len(actions) > 0 {
+		return true, strings.Join(actions, "; "), nil
+	}
+
+	return false, diag.Recommendation, nil
+}

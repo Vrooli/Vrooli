@@ -12,8 +12,10 @@ import (
 
 // MockProcReader is a mock implementation of ProcReader for testing
 type MockProcReader struct {
-	Processes []checks.ProcessInfo
-	Error     error
+	Processes      []checks.ProcessInfo
+	Error          error
+	EnvironData    map[int]map[string]string // PID -> env vars
+	CmdlineData    map[int]string            // PID -> cmdline
 }
 
 func (m *MockProcReader) ReadMeminfo() (*checks.MemInfo, error) {
@@ -22,6 +24,24 @@ func (m *MockProcReader) ReadMeminfo() (*checks.MemInfo, error) {
 
 func (m *MockProcReader) ListProcesses() ([]checks.ProcessInfo, error) {
 	return m.Processes, m.Error
+}
+
+func (m *MockProcReader) ReadProcessEnviron(pid int) (map[string]string, error) {
+	if m.EnvironData != nil {
+		if env, ok := m.EnvironData[pid]; ok {
+			return env, nil
+		}
+	}
+	return make(map[string]string), nil
+}
+
+func (m *MockProcReader) ReadProcessCmdline(pid int) (string, error) {
+	if m.CmdlineData != nil {
+		if cmd, ok := m.CmdlineData[pid]; ok {
+			return cmd, nil
+		}
+	}
+	return "", nil
 }
 
 // TestOrphanCheckInterface verifies OrphanCheck implements Check
@@ -483,8 +503,14 @@ func TestGetOrphanPIDs(t *testing.T) {
 	mockProcReader := &MockProcReader{
 		Processes: []checks.ProcessInfo{
 			{PID: 100, PPid: 1, Comm: "vrooli-tracked", State: "S"},
-			{PID: 200, PPid: 1, Comm: "vrooli-orphan1", State: "S"},
-			{PID: 201, PPid: 1, Comm: "vrooli-orphan2", State: "S"},
+			{PID: 200, PPid: 1, Comm: "scenario-api", State: "S"},   // Not named "orphan" to avoid filter
+			{PID: 201, PPid: 1, Comm: "scenario-ui", State: "S"},    // Not named "orphan" to avoid filter
+		},
+		// Provide environment markers to identify as Vrooli processes
+		EnvironData: map[int]map[string]string{
+			100: {"VROOLI_LIFECYCLE_MANAGED": "true"},
+			200: {"VROOLI_LIFECYCLE_MANAGED": "true"},
+			201: {"VROOLI_LIFECYCLE_MANAGED": "true"},
 		},
 	}
 

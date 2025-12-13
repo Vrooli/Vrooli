@@ -235,12 +235,85 @@ main() {
 			exec "${VROOLI_ROOT}/cli/commands/clean-commands.sh" "$@"
 			;;
 		
-		# Process cleanup command
+		# Process cleanup command - delegates to vrooli-autoheal for orphan/lock management
 		cleanup)
 			shift
-			exec "${VROOLI_ROOT}/scripts/lib/cleanup-orphaned-processes.sh" "$@"
+			local cleanup_target="${1:-help}"
+			case "$cleanup_target" in
+				orphans)
+					shift
+					if command -v vrooli-autoheal >/dev/null 2>&1; then
+						exec vrooli-autoheal orphans kill "$@"
+					else
+						echo "Error: vrooli-autoheal not installed. Run 'vrooli setup' first."
+						exit 1
+					fi
+					;;
+				locks)
+					shift
+					if command -v vrooli-autoheal >/dev/null 2>&1; then
+						exec vrooli-autoheal locks clean "$@"
+					else
+						echo "Error: vrooli-autoheal not installed. Run 'vrooli setup' first."
+						exit 1
+					fi
+					;;
+				help|--help|-h|"")
+					cat <<-EOF
+					vrooli cleanup - Clean up orphaned processes and stale locks
+
+					Usage:
+					  vrooli cleanup orphans    Kill orphaned Vrooli processes
+					  vrooli cleanup locks      Clean stale port lock files
+
+					Options:
+					  --help, -h    Show this help message
+
+					Examples:
+					  vrooli cleanup orphans    # Kill orphaned processes (interactive)
+					  vrooli cleanup locks      # Remove stale lock files
+					EOF
+					;;
+				*)
+					echo "Unknown cleanup target: $cleanup_target"
+					echo "Run 'vrooli cleanup help' for usage"
+					exit 1
+					;;
+			esac
 			;;
 		
+		# Orphan process management - delegates to vrooli-autoheal
+		orphans)
+			shift
+			if command -v vrooli-autoheal >/dev/null 2>&1; then
+				exec vrooli-autoheal orphans "$@"
+			else
+				echo "Error: vrooli-autoheal not installed. Run 'vrooli setup' first."
+				exit 1
+			fi
+			;;
+
+		# Port lock management - delegates to vrooli-autoheal
+		locks)
+			shift
+			if command -v vrooli-autoheal >/dev/null 2>&1; then
+				exec vrooli-autoheal locks "$@"
+			else
+				echo "Error: vrooli-autoheal not installed. Run 'vrooli setup' first."
+				exit 1
+			fi
+			;;
+
+		# Port diagnostics - delegates to vrooli-autoheal
+		diagnose-port)
+			if command -v vrooli-autoheal >/dev/null 2>&1; then
+				exec vrooli-autoheal diagnose-port "$@"
+			else
+				echo "Error: vrooli-autoheal not installed. Run 'vrooli setup' first."
+				exit 1
+			fi
+			;;
+
 		# Status command
 		status)
 			# Clear source guards to allow status-command.sh to load functions properly
