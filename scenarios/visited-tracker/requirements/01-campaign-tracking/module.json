@@ -30,7 +30,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow validates complete campaign lifecycle: create, verify, visit files, query, and delete [REQ:VT-REQ-001]"
@@ -56,7 +56,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow validates visit recording and tracking through complete campaign lifecycle [REQ:VT-REQ-002]"
@@ -82,14 +82,14 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow validates staleness queries (least-visited and most-stale prioritization) [REQ:VT-REQ-003]"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "ref": "bas/cases/01-campaign-tracking/api/staleness-scoring.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow validates staleness score calculation and prioritization logic [REQ:VT-REQ-003]"
@@ -115,14 +115,14 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "ref": "bas/cases/01-campaign-tracking/api/staleness-scoring.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow validates file sync through structure/sync endpoint [REQ:VT-REQ-004]"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/cli/campaign-management.json",
+          "ref": "bas/cases/01-campaign-tracking/cli/campaign-management.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E CLI workflow validates campaign file tracking and management [REQ:VT-REQ-004]"
@@ -148,7 +148,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow implicitly validates JSON persistence across operations"

@@ -119,9 +119,9 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		IntervalSeconds: 300,
 	},
 	"infra-display": {
-		Enabled:         false, // Dangerous on desktop - disabled by default
-		AutoHeal:        false,
-		IntervalSeconds: 120,
+		Enabled:         true,  // Monitors desktop session and RDP availability
+		AutoHeal:        true,  // Can restart GDM to recover desktop session
+		IntervalSeconds: 60,    // Check frequently for RDP availability
 	},
 	"infra-rdp": {
 		Enabled:         true,

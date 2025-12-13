@@ -3,7 +3,10 @@
 package infra
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -106,6 +109,31 @@ func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 	x11Status, x11Details := c.checkX11(ctx)
 	result.Details["x11"] = x11Details
 
+	// Check for auto-login configuration and gnome-shell status
+	autoLoginUser := c.getAutoLoginUser()
+	result.Details["autoLoginUser"] = autoLoginUser
+
+	gnomeShellRunning := false
+	if autoLoginUser != "" {
+		gnomeShellRunning = c.isGnomeShellRunning(ctx, autoLoginUser)
+		result.Details["gnomeShellRunning"] = gnomeShellRunning
+		result.Details["gnomeShellUser"] = autoLoginUser
+	} else {
+		// No auto-login configured, check for any gnome-shell
+		gnomeShellRunning = c.isGnomeShellRunning(ctx, "")
+		result.Details["gnomeShellRunning"] = gnomeShellRunning
+	}
+
+	// Check if GNOME RDP is configured and if port 3389 is listening
+	gnomeRDPConfigured := c.isGnomeRDPConfigured(ctx)
+	result.Details["gnomeRDPConfigured"] = gnomeRDPConfigured
+
+	rdpPortListening := false
+	if gnomeRDPConfigured {
+		rdpPortListening = c.isPortListening(ctx, "3389")
+		result.Details["rdpPortListening"] = rdpPortListening
+	}
+
 	// Calculate overall status
 	var subChecks []checks.SubCheck
 
@@ -127,6 +155,40 @@ func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 		})
 	}
 
+	// GNOME shell check (when auto-login is configured or GNOME RDP is enabled)
+	if autoLoginUser != "" || gnomeRDPConfigured {
+		subChecks = append(subChecks, checks.SubCheck{
+			Name:   "gnome-shell-session",
+			Passed: gnomeShellRunning,
+			Detail: func() string {
+				if gnomeShellRunning {
+					if autoLoginUser != "" {
+						return "gnome-shell running for " + autoLoginUser
+					}
+					return "gnome-shell is running"
+				}
+				if autoLoginUser != "" {
+					return "gnome-shell NOT running for auto-login user " + autoLoginUser
+				}
+				return "gnome-shell is NOT running (required for GNOME RDP)"
+			}(),
+		})
+	}
+
+	// RDP port check (when GNOME RDP is configured)
+	if gnomeRDPConfigured {
+		subChecks = append(subChecks, checks.SubCheck{
+			Name:   "rdp-port-listening",
+			Passed: rdpPortListening,
+			Detail: func() string {
+				if rdpPortListening {
+					return "Port 3389 is listening for RDP connections"
+				}
+				return "Port 3389 NOT listening (GNOME RDP configured but no active session to share)"
+			}(),
+		})
+	}
+
 	// Calculate score
 	passed := 0
 	for _, sc := range subChecks {
@@ -143,10 +205,35 @@ func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 		SubChecks: subChecks,
 	}
 
-	// Determine final status
+	// Determine final status - check from most critical to least
 	if serviceStatus != "active" {
 		result.Status = checks.StatusCritical
 		result.Message = activeManager + " display manager is not running"
+		return result
+	}
+
+	// If GNOME RDP is configured but gnome-shell isn't running, this is critical
+	// because RDP connections will fail even though the daemon may be running
+	if gnomeRDPConfigured && !gnomeShellRunning {
+		result.Status = checks.StatusCritical
+		result.Message = "GNOME RDP configured but no desktop session available (gnome-shell not running)"
+		result.Details["healSuggestion"] = "Restart display manager to trigger auto-login and create desktop session"
+		return result
+	}
+
+	// If GNOME RDP is configured but port isn't listening, something is wrong
+	if gnomeRDPConfigured && !rdpPortListening {
+		result.Status = checks.StatusWarning
+		result.Message = "GNOME RDP configured but port 3389 not listening"
+		result.Details["healSuggestion"] = "Desktop session may be initializing, or gnome-remote-desktop service needs restart"
+		return result
+	}
+
+	// Auto-login configured but gnome-shell not running (less critical if RDP not in use)
+	if autoLoginUser != "" && !gnomeShellRunning {
+		result.Status = checks.StatusWarning
+		result.Message = "Auto-login user " + autoLoginUser + " has no active desktop session"
+		result.Details["healSuggestion"] = "Restart display manager to create desktop session"
 		return result
 	}
 
@@ -158,7 +245,108 @@ func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 
 	result.Status = checks.StatusOK
 	result.Message = activeManager + " display manager is healthy"
+	if gnomeRDPConfigured && rdpPortListening {
+		result.Message += " (RDP available on port 3389)"
+	}
 	return result
+}
+
+// getAutoLoginUser reads the GDM auto-login configuration from /etc/gdm3/custom.conf
+// Returns the configured auto-login user, or empty string if not configured
+func (c *DisplayManagerCheck) getAutoLoginUser() string {
+	// Try both gdm3 (Debian/Ubuntu) and gdm (RHEL/Fedora) config paths
+	configPaths := []string{
+		"/etc/gdm3/custom.conf",
+		"/etc/gdm/custom.conf",
+	}
+
+	for _, configPath := range configPaths {
+		file, err := os.Open(configPath)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		inDaemonSection := false
+		autoLoginEnabled := false
+		autoLoginUser := ""
+
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+
+			// Track which section we're in
+			if strings.HasPrefix(line, "[") {
+				inDaemonSection = strings.HasPrefix(line, "[daemon]")
+				continue
+			}
+
+			if !inDaemonSection {
+				continue
+			}
+
+			// Look for AutomaticLoginEnable and AutomaticLogin
+			if strings.HasPrefix(line, "AutomaticLoginEnable") {
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					value := strings.TrimSpace(strings.ToLower(parts[1]))
+					autoLoginEnabled = value == "true" || value == "1" || value == "yes"
+				}
+			}
+			if strings.HasPrefix(line, "AutomaticLogin=") {
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					autoLoginUser = strings.TrimSpace(parts[1])
+				}
+			}
+		}
+
+		if autoLoginEnabled && autoLoginUser != "" {
+			return autoLoginUser
+		}
+	}
+
+	return ""
+}
+
+// isGnomeShellRunning checks if gnome-shell is running for a specific user
+// If user is empty, checks for any gnome-shell process
+func (c *DisplayManagerCheck) isGnomeShellRunning(ctx context.Context, user string) bool {
+	var output []byte
+	var err error
+
+	if user != "" {
+		output, err = c.executor.Output(ctx, "pgrep", "-u", user, "gnome-shell")
+	} else {
+		output, err = c.executor.Output(ctx, "pgrep", "gnome-shell")
+	}
+
+	if err != nil {
+		return false
+	}
+
+	// pgrep returns PIDs, one per line
+	return len(strings.TrimSpace(string(output))) > 0
+}
+
+// isGnomeRDPConfigured checks if GNOME Remote Desktop is enabled
+// This helps determine if we need to verify the desktop session is available
+func (c *DisplayManagerCheck) isGnomeRDPConfigured(ctx context.Context) bool {
+	output, err := c.executor.Output(ctx, "grdctl", "status")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(output), "Status: enabled")
+}
+
+// isPortListening checks if a specific port is listening
+func (c *DisplayManagerCheck) isPortListening(ctx context.Context, port string) bool {
+	// Use ss to check if port is listening
+	output, err := c.executor.Output(ctx, "ss", "-tln")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(output), ":"+port)
 }
 
 // detectActiveDisplayManager finds which display manager is currently active
@@ -237,13 +425,28 @@ func (c *DisplayManagerCheck) RecoveryActions(lastResult *checks.Result) []check
 		}
 	}
 
+	// Determine if gnome-shell is not running (for contextual action availability)
+	gnomeShellNotRunning := false
+	if lastResult != nil {
+		if running, ok := lastResult.Details["gnomeShellRunning"].(bool); ok && !running {
+			gnomeShellNotRunning = true
+		}
+	}
+
 	return []checks.RecoveryAction{
 		{
 			ID:          "restart",
 			Name:        "Restart Display Manager",
-			Description: "Restart the " + dmName + " service (WARNING: may disconnect active sessions)",
+			Description: "Restart " + dmName + " to recreate desktop session (triggers auto-login if configured)",
 			Dangerous:   true, // Restarting DM disconnects users
 			Available:   isLinux && hasSystemd,
+		},
+		{
+			ID:          "recover-session",
+			Name:        "Recover Desktop Session",
+			Description: "Restart display manager to restore desktop session and RDP access",
+			Dangerous:   true,
+			Available:   isLinux && hasSystemd && gnomeShellNotRunning,
 		},
 		{
 			ID:          "status",
@@ -258,6 +461,13 @@ func (c *DisplayManagerCheck) RecoveryActions(lastResult *checks.Result) []check
 			Description: "View recent display manager logs",
 			Dangerous:   false,
 			Available:   isLinux && hasSystemd,
+		},
+		{
+			ID:          "diagnose",
+			Name:        "Diagnose Session",
+			Description: "Check loginctl sessions and gnome-shell process status",
+			Dangerous:   false,
+			Available:   isLinux,
 		},
 	}
 }
@@ -279,20 +489,83 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 	}
 
 	switch actionID {
-	case "restart":
+	case "restart", "recover-session":
+		// Both actions restart the display manager to recover desktop session
 		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", dmName)
-		result.Duration = time.Since(start)
 		result.Output = string(output)
 
 		if err != nil {
+			result.Duration = time.Since(start)
 			result.Success = false
 			result.Error = err.Error()
 			result.Message = "Failed to restart " + dmName
 			return result
 		}
 
-		result.Success = true
-		result.Message = dmName + " restarted successfully"
+		// Wait for display manager to come back and auto-login to create session
+		// This is important because GDM restart + auto-login + gnome-shell startup takes time
+		autoLoginUser := c.getAutoLoginUser()
+		if autoLoginUser != "" {
+			result.Output += "\nWaiting for auto-login session to initialize..."
+
+			// Wait up to 30 seconds for gnome-shell to start
+			maxWait := 30
+			for i := 0; i < maxWait; i++ {
+				time.Sleep(time.Second)
+				if c.isGnomeShellRunning(ctx, autoLoginUser) {
+					result.Output += "\ngnome-shell started for " + autoLoginUser
+					break
+				}
+				if i == maxWait-1 {
+					result.Output += fmt.Sprintf("\nWARNING: gnome-shell did not start within %d seconds", maxWait)
+				}
+			}
+
+			// If GNOME RDP is configured, also wait for port 3389 to be listening
+			if c.isGnomeRDPConfigured(ctx) {
+				result.Output += "\nWaiting for RDP port 3389 to start listening..."
+				for i := 0; i < 15; i++ {
+					time.Sleep(time.Second)
+					if c.isPortListening(ctx, "3389") {
+						result.Output += "\nRDP port 3389 is now listening"
+						break
+					}
+					if i == 14 {
+						result.Output += "\nWARNING: RDP port 3389 not listening yet"
+					}
+				}
+			}
+		}
+
+		result.Duration = time.Since(start)
+
+		// Final verification
+		gnomeShellRunning := false
+		if autoLoginUser != "" {
+			gnomeShellRunning = c.isGnomeShellRunning(ctx, autoLoginUser)
+		} else {
+			gnomeShellRunning = c.isGnomeShellRunning(ctx, "")
+		}
+
+		rdpReady := true
+		if c.isGnomeRDPConfigured(ctx) {
+			rdpReady = c.isPortListening(ctx, "3389")
+		}
+
+		if gnomeShellRunning && rdpReady {
+			result.Success = true
+			if c.isGnomeRDPConfigured(ctx) {
+				result.Message = dmName + " restarted - desktop session restored and RDP available"
+			} else {
+				result.Message = dmName + " restarted - desktop session restored"
+			}
+		} else if gnomeShellRunning {
+			result.Success = true
+			result.Message = dmName + " restarted - desktop session restored (RDP may still be initializing)"
+		} else {
+			result.Success = false
+			result.Message = dmName + " restarted but desktop session not fully recovered"
+		}
 		return result
 
 	case "status":
@@ -309,6 +582,54 @@ func (c *DisplayManagerCheck) ExecuteAction(ctx context.Context, actionID string
 		result.Output = string(output)
 		result.Success = true
 		result.Message = "Retrieved " + dmName + " logs"
+		return result
+
+	case "diagnose":
+		var diag strings.Builder
+		diag.WriteString("=== Display Manager Status ===\n")
+		if output, err := c.executor.CombinedOutput(ctx, "systemctl", "is-active", dmName); err == nil {
+			diag.WriteString(dmName + " service: " + strings.TrimSpace(string(output)) + "\n")
+		}
+
+		diag.WriteString("\n=== Auto-Login Configuration ===\n")
+		autoLoginUser := c.getAutoLoginUser()
+		if autoLoginUser != "" {
+			diag.WriteString("Auto-login user: " + autoLoginUser + "\n")
+		} else {
+			diag.WriteString("Auto-login: not configured\n")
+		}
+
+		diag.WriteString("\n=== GNOME Shell Status ===\n")
+		if output, err := c.executor.CombinedOutput(ctx, "pgrep", "-a", "gnome-shell"); err == nil {
+			diag.WriteString(string(output))
+		} else {
+			diag.WriteString("gnome-shell: NOT RUNNING\n")
+		}
+
+		diag.WriteString("\n=== Login Sessions ===\n")
+		if output, err := c.executor.CombinedOutput(ctx, "loginctl", "list-sessions", "--no-legend"); err == nil {
+			diag.WriteString(string(output))
+		}
+
+		diag.WriteString("\n=== GNOME RDP Status ===\n")
+		if c.isGnomeRDPConfigured(ctx) {
+			diag.WriteString("GNOME RDP: configured\n")
+			if c.isPortListening(ctx, "3389") {
+				diag.WriteString("Port 3389: LISTENING\n")
+			} else {
+				diag.WriteString("Port 3389: NOT listening\n")
+			}
+			if output, err := c.executor.CombinedOutput(ctx, "grdctl", "status"); err == nil {
+				diag.WriteString("\ngrdctl status:\n" + string(output))
+			}
+		} else {
+			diag.WriteString("GNOME RDP: not configured\n")
+		}
+
+		result.Duration = time.Since(start)
+		result.Output = diag.String()
+		result.Success = true
+		result.Message = "Diagnostic information collected"
 		return result
 
 	default:

@@ -92,9 +92,6 @@ make build
 ```bash
 # Check scenario config
 cat scenarios/my-scenario/.vrooli/service.json
-
-# Validate config
-vrooli scenario validate my-scenario
 ```
 
 ## Troubleshooting Steps

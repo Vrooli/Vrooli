@@ -53,4 +53,4 @@ Each module includes validation methods at multiple layers:
 - **UI**: User workflows and visual components
 - **E2E**: Complete user journeys across the system
 
-See `/test/playbooks/` for automated workflow tests organized by capability.
+See `/bas/` for automated workflow tests organized by capability.

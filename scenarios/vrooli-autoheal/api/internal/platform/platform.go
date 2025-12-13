@@ -191,10 +191,41 @@ func detectRDP(caps *Capabilities) bool {
 	}
 }
 
-// detectHeadless checks if running on a headless server (no display)
+// detectHeadless checks if running on a headless server (no display capability)
+// Note: This is about whether the SYSTEM has display capabilities, not whether
+// this process has access to them. A system is not headless if it has a display
+// manager running or configured.
 func detectHeadless() bool {
-	// Check for DISPLAY environment variable on Linux/macOS
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+	if runtime.GOOS == "linux" {
+		// First check if DISPLAY or WAYLAND_DISPLAY is set (process has access)
+		if os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != "" {
+			return false
+		}
+
+		// Even if this process doesn't have display access, check if a display
+		// manager is running on the system (gdm, lightdm, sddm, etc.)
+		displayManagers := []string{"gdm", "gdm3", "lightdm", "sddm", "lxdm", "xdm"}
+		for _, dm := range displayManagers {
+			cmd := exec.Command("systemctl", "is-active", dm)
+			if output, err := cmd.Output(); err == nil {
+				if strings.TrimSpace(string(output)) == "active" {
+					return false // Display manager is running, not headless
+				}
+			}
+		}
+
+		// Also check for graphical.target being the default
+		cmd := exec.Command("systemctl", "get-default")
+		if output, err := cmd.Output(); err == nil {
+			if strings.Contains(string(output), "graphical.target") {
+				return false // Graphical target is default, not headless
+			}
+		}
+
+		return true // No display indicators found
+	}
+
+	if runtime.GOOS == "darwin" {
 		if os.Getenv("DISPLAY") == "" && os.Getenv("WAYLAND_DISPLAY") == "" {
 			return true
 		}

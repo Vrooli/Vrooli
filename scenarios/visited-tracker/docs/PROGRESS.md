@@ -58,7 +58,7 @@
 
 ### 7. Remaining Issues
 - **Monolithic test files** (2 files validate ≥4 requirements each):
-  - `test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json` (5 requirements)
+  - `bas/cases/01-campaign-tracking/api/campaign-lifecycle.json` (5 requirements)
   - One more file (need to break into focused tests)
 - **Missing multi-layer validation** (12 requirements):
   - VT-REQ-008, VT-REQ-011, VT-REQ-014, VT-REQ-015, VT-REQ-016, VT-REQ-017, VT-REQ-018, VT-REQ-019, VT-REQ-020, VT-REQ-021
@@ -69,7 +69,7 @@
 - `api/main.go` - Added security scanner suppressions for false positive path traversal warnings
 - `requirements/01-campaign-tracking/module.json` - Fixed 8 validation refs (e2e→integration, status updates)
 - `requirements/02-web-interface/module.json` - Fixed 4 validation refs (e2e→integration, status updates)
-- `test/playbooks/registry.json` - Regenerated to sync with requirements
+- `bas/registry.json` - Regenerated to sync with requirements
 
 ### 9. Current Status
 - **Health**: ✅ API + UI services healthy (5m runtime)
@@ -163,7 +163,7 @@
 - **Score**: 8/100 (early_stage classification)
 - **Important**: Score reflects **test architecture penalties**, NOT polish quality
   - -19pts: Multi-layer validation (organizational - requires E2E layer for requirements)
-  - -8pts: Test path conventions (BATS in test/api/ vs test/playbooks/)
+  - -8pts: Test path conventions (BATS in test/api/ vs bas/cases/)
   - -6pts: Monolithic test files (>4 requirements per file - organizational)
 - **Actual scenario quality**: Production-ready, well-polished, comprehensive functionality
 
@@ -1619,7 +1619,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
   - VT-REQ-010: Added new-user-happy-path.json (UI+API → UI+API+E2E)
 
 ### Registry Synchronization
-- **Regenerated test/playbooks/registry.json** to reflect updated requirement mappings
+- **Regenerated bas/registry.json** to reflect updated requirement mappings
 - Registry now properly links 5 playbook workflows to their requirements
 
 ### Impact
@@ -1687,7 +1687,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 - **Added .vrooli/lighthouse.json** - Configures performance thresholds (80/90/85/80)
 
 #### Test Playbooks (Multi-Layer Validation)
-- **Created test/playbooks/ structure** with capabilities/ and journeys/ folders
+- **Created bas/ structure** with seeds/, actions/, cases/, and flows/ folders
   - `capabilities/01-campaign-tracking/api/` - 2 API integration tests
     - campaign-lifecycle.json - Full CRUD workflow [REQ:VT-REQ-001,002,003]
     - staleness-scoring.json - Staleness algorithm validation [REQ:VT-REQ-003,009]
@@ -1698,7 +1698,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
   - `journeys/01-new-user/` - 1 end-to-end journey test
     - happy-path.json - Complete new user onboarding [REQ:VT-REQ-001,002,003,007]
 
-- **Created test/playbooks/README.md** - Documents playbook structure and usage patterns
+- **Created bas/README.md** - Documents bas structure and usage patterns
 - **Created ui/consts/selectors.js** - Centralized UI test selectors for maintainability
 - **Auto-generated registry.json** - 6 playbooks tracked across 3 surfaces (api, cli, ui)
 
@@ -1734,7 +1734,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 - Makefile (usage comment fix)
 - requirements/ (3 module.json files, README.md)
 - .vrooli/endpoints.json, lighthouse.json
-- test/playbooks/ (6 workflow files, README.md, registry.json)
+- bas/ (workflow files, README.md, registry.json)
 - ui/consts/selectors.js
 - docs/PROGRESS.md (this file)
 
@@ -1810,11 +1810,11 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 - requirements/02-web-interface/module.json (full requirement definitions)
 - requirements/03-advanced-features/module.json (full requirement definitions)
 - requirements/index.json (DELETED - no longer needed)
-- test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json (added metadata.reset)
-- test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json (added metadata.reset)
-- test/playbooks/capabilities/01-campaign-tracking/cli/campaign-management.json (added metadata.reset)
-- test/playbooks/capabilities/02-web-interface/ui/campaign-dashboard.json (added metadata.reset)
-- test/playbooks/journeys/01-new-user/happy-path.json (added metadata.reset)
+- bas/cases/01-campaign-tracking/api/campaign-lifecycle.json (added metadata.reset)
+- bas/cases/01-campaign-tracking/api/staleness-scoring.json (added metadata.reset)
+- bas/cases/01-campaign-tracking/cli/campaign-management.json (added metadata.reset)
+- bas/cases/02-web-interface/ui/campaign-dashboard.json (added metadata.reset)
+- bas/flows/01-new-user/happy-path.json (added metadata.reset)
 - docs/PROGRESS.md (this entry)
 
 **Time Investment**: ~30min schema migration, test fixes, validation, documentation
@@ -1999,7 +1999,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 1. **Implement BAS workflow execution** - Convert JSON playbooks to actual automation
    - Addresses "14 requirements lack multi-layer validation" finding
    - Expected impact: +20pts completeness score
-   - Files: test/playbooks/capabilities/*/
+   - Files: bas/cases/*/
 2. **Add UI data-testid attributes** - Match ui/src/consts/selectors.ts definitions
    - Enables UI playbook execution
    - Required for multi-layer validation
@@ -2137,7 +2137,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
    - Current: 5 workflows defined but failing to execute
    - Needed: Fix workflow format or execution issues
    - Expected impact: +20pts completeness score
-   - Files: test/playbooks/capabilities/*/
+   - Files: bas/cases/*/
 2. **Add UI data-testid attributes** - Enable UI workflow execution
    - Match ui/src/consts/selectors.ts definitions
    - Required for multi-layer validation
@@ -2214,7 +2214,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 **Next Steps for Future Agents**:
 1. **Convert workflows to BAS format** (highest ROI: +20pts completeness estimated)
    - Convert 5 playbooks from simplified format to BAS nodes/edges format
-   - Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/test/playbooks/` for examples
+   - Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/bas/` for examples
    - Will enable multi-layer validation for P0/P1 requirements
 2. **OR implement direct HTTP integration tests** (alternative approach)
    - Create `test/api/` directory with curl-based integration tests
@@ -3164,7 +3164,7 @@ None - validation iteration only.
    - Would enable requirement tracking via workflow evidence
    - Expected time: 3-4 hours
    - Expected impact: Requirements would show 64% complete in auto-sync view
-   - Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/test/playbooks/`
+   - Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/bas/`
 
 **Medium Priority:**
 2. **Improve Node.js test coverage** (65.6% → 78%+ target)
@@ -3274,7 +3274,7 @@ The scenario is **production-ready for P0/P1** capabilities. The metrics discrep
 - Approach: Convert 5 BAS playbooks to nodes/edges format
 - Effort: 3-4 hours estimated
 - Impact: Auto-sync would show 64% (aligned with functional reality)
-- Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/test/playbooks/`
+- Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/bas/`
 - When: If auto-sync metrics become blocking for ecosystem manager
 
 **Option C: Implement P2 Requirements** (Future expansion)
@@ -3346,8 +3346,8 @@ None - this iteration focused on validation and stability confirmation.
 
 2. **Updated Validation References to Framework-Compliant Paths** (Critical - Addresses Validation Penalty)
    - Replaced unsupported test refs: `test/cli/*.bats` and `test/api/*.bats`
-   - With supported test refs: `api/**/*_test.go`, `ui/__tests__/*.js`, `test/playbooks/**/*.json`
-   - Validator now recognizes: api/main_test.go, api/import_test.go, ui/__tests__/server.test.js, test/playbooks/**/*.json
+   - With supported test refs: `api/**/*_test.go`, `ui/__tests__/*.js`, `bas/cases/**/*.json`
+   - Validator now recognizes: api/main_test.go, api/import_test.go, ui/__tests__/server.test.js, bas/cases/**/*.json
    - Removed refs to infrastructure tests (BATS) that validator doesn't count as valid validation
    - Result: Validation refs now align with framework expectations
    - Expected impact: -11pts penalty removed (pending re-evaluation)
@@ -3396,7 +3396,7 @@ None - this iteration focused on validation and stability confirmation.
 ### Architectural Decisions
 
 1. **Validation Strategy**:
-   - Framework expects: `api/**/*_test.go`, `ui/**/*.test.js`, `test/playbooks/**/*.json`
+   - Framework expects: `api/**/*_test.go`, `ui/**/*.test.js`, `bas/cases/**/*.json`
    - Framework rejects: `test/cli/*.bats`, `test/api/*.bats` (infrastructure tests)
    - Solution: Reference framework-compliant test paths in requirements
    - Trade-off: BATS tests still run and pass (15/15 + 6/6), but aren't cited in requirements metadata
@@ -3581,7 +3581,7 @@ The auto-sync system correctly detects unit and integration test coverage from [
 When a requirement has one passing and one failing validation ref, auto-sync marks `all_tests_passing: false`, preventing the requirement (and its operational target) from being marked complete.
 
 **BAS Workflow Issue (from PROBLEMS.md):**
-The playbook workflows in `test/playbooks/capabilities/` are written in simplified JSON format but Vrooli Ascension expects graph-based nodes/edges format. This format incompatibility is documented as a known issue. The BATS tests provide equivalent coverage but aren't in BAS format.
+Some legacy automation definitions were written in a simplified JSON format, but Vrooli Ascension (BAS) expects graph-based nodes/edges workflows. The BATS tests provide equivalent coverage but aren't in BAS format.
 
 ### Decision: No Changes Made
 
@@ -3678,7 +3678,7 @@ Investigated requirements drift and found that 10/14 requirements are functional
 1. **Fixed requirements validation refs** (01-campaign-tracking/module.json, 02-web-interface/module.json):
    - Removed unsupported BATS test refs (`test/api/*.bats`, `test/cli/*.bats`)
    - Kept only recognized Go unit test refs (`api/main_test.go`)
-   - Rationale: Completeness scorer only recognizes `api/**/*_test.go`, `ui/src/**/*.test.tsx`, and `test/playbooks/**/*.{json,yaml}` as valid test sources
+   - Rationale: Completeness scorer only recognizes `api/**/*_test.go`, `ui/src/**/*.test.tsx`, and `bas/cases/**/*.{json,yaml}` as valid test sources
    - BATS tests provide additional validation (15/15 passing) but aren't recognized for requirement completion
 
 2. **Fixed requirements index.json**:
@@ -3714,7 +3714,7 @@ make test
 1. **Completeness Scorer Restriction**: Only recognizes specific test locations:
    - `api/**/*_test.go` for API unit tests
    - `ui/src/**/*.test.tsx` for UI unit tests
-   - `test/playbooks/**/*.{json,yaml}` for e2e automation
+   - `bas/cases/**/*.{json,yaml}` for e2e automation
    - BATS tests in `test/api/` and `test/cli/` are **not recognized** even though they pass
 
 2. **Multi-Layer Validation Gap**: 9/14 requirements now have unit test coverage, but completeness scorer expects multi-layer validation (API + UI + e2e). Current unit-only coverage is sufficient for functionality but doesn't satisfy scorer's multi-layer requirement.
@@ -3756,7 +3756,7 @@ Removed unsupported BATS test refs from requirement validation and kept only rec
 
 ### Requirement Validation Cleanup
 - **Removed failing playbook references from requirements** (requirements/01-campaign-tracking/module.json, requirements/02-web-interface/module.json)
-  - Playbooks in test/playbooks/ use simplified format incompatible with BAS execution
+  - Workflows in bas/cases/ must use BAS graph format
   - Adding non-executable playbook refs caused auto-sync to mark requirements as "failing"
   - Reverted to single-layer unit test validation (recognized and passing)
   - Kept VT-REQ-007 status as "complete" with unit test validation
@@ -3791,7 +3791,7 @@ Removed unsupported BATS test refs from requirement validation and kept only rec
 
 **Known Limitations**:
 - Completeness scorer doesn't recognize BATS integration tests (test/api/*.bats, test/cli/*.bats)
-- Only recognizes: api/**/*_test.go, ui/src/**/*.test.tsx, test/playbooks/**/*.{json,yaml}
+- Only recognizes: api/**/*_test.go, ui/src/**/*.test.tsx, bas/cases/**/*.{json,yaml}
 - BATS tests provide robust integration coverage (15/15 passing) but aren't counted toward multi-layer validation
 - Playbooks exist but use simplified format incompatible with BAS execution (documented in docs/PROBLEMS.md)
 
@@ -3883,7 +3883,7 @@ Removed unsupported BATS test refs from requirement validation and kept only rec
 ### Requirements Validation Cleanup
 - **Removed unsupported BATS test references** from all requirements modules
   - test/api/*.bats files not recognized by completeness validator
-  - Only api/**/*_test.go, ui/src/**/*.test.tsx, and test/playbooks/**/*.json are valid
+  - Only api/**/*_test.go, ui/src/**/*.test.tsx, and bas/cases/**/*.json are valid
   - Kept only Go unit test references which are passing and recognized
   - Affects requirements: VT-REQ-001 through VT-REQ-010
 
@@ -3926,7 +3926,7 @@ Removed unsupported BATS test refs from requirement validation and kept only rec
 1. **Completeness validator only recognizes specific test paths**:
    - ✅ api/**/*_test.go
    - ✅ ui/src/**/*.test.tsx
-   - ✅ test/playbooks/**/*.{json,yaml}
+   - ✅ bas/cases/**/*.{json,yaml}
    - ❌ test/api/*.bats (not recognized)
    - ❌ test/cli/*.bats (not recognized)
 
@@ -4577,7 +4577,7 @@ Systematically reviewed 15 files using visited-tracker to ensure thorough covera
   - VT-REQ-004: Added staleness-scoring.json and campaign-management.json CLI playbook refs
   - VT-REQ-006, VT-REQ-007: Added multi-layer validation (API + integration + UI)
   - VT-REQ-009, VT-REQ-010: Added campaign-dashboard.json UI playbook refs
-- **Registry sync**: Rebuilt test/playbooks/registry.json to match updated requirement references
+- **Registry sync**: Rebuilt bas/registry.json to match updated requirement references
 - **Schema fixes**: Corrected phase values from "e2e" to "integration" per schema requirements
 
 **Validation Results**:

@@ -14,7 +14,7 @@ import (
 // RDPCheck Unit Tests with Mock Interfaces
 // =============================================================================
 
-// TestRDPCheckRunWithMock_GnomeRDPRunning tests GNOME Remote Desktop detection
+// TestRDPCheckRunWithMock_GnomeRDPRunning tests GNOME Remote Desktop detection when running
 // [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001]
 func TestRDPCheckRunWithMock_GnomeRDPRunning(t *testing.T) {
 	caps := &platform.Capabilities{
@@ -23,7 +23,12 @@ func TestRDPCheckRunWithMock_GnomeRDPRunning(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	// GNOME Remote Desktop is detected first via pgrep
+	// GNOME Remote Desktop is configured (detected via grdctl status)
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
+		Output: []byte("RDP:\n\tStatus: enabled\n\tPort: 3389"),
+		Error:  nil,
+	}
+	// GNOME Remote Desktop daemon is running
 	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
 		Output: []byte("12345"),
 		Error:  nil,
@@ -47,6 +52,77 @@ func TestRDPCheckRunWithMock_GnomeRDPRunning(t *testing.T) {
 	}
 }
 
+// TestRDPCheckRunWithMock_GnomeRDPConfiguredButNotRunning tests detection when GNOME RDP is
+// configured but the daemon has crashed or been stopped
+// [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001]
+func TestRDPCheckRunWithMock_GnomeRDPConfiguredButNotRunning(t *testing.T) {
+	caps := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+
+	mockExec := checks.NewMockExecutor()
+	// GNOME Remote Desktop IS configured (grdctl shows enabled)
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
+		Output: []byte("RDP:\n\tStatus: enabled\n\tPort: 3389"),
+		Error:  nil,
+	}
+	// But the daemon is NOT running
+	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
+		Output: []byte(""),
+		Error:  checks.ErrConnectionRefused,
+	}
+
+	check := NewRDPCheck(caps, WithRDPExecutor(mockExec))
+	result := check.Run(context.Background())
+
+	// Should be WARNING (configured but not running is a problem)
+	if result.Status != checks.StatusWarning {
+		t.Errorf("Status = %v, want %v", result.Status, checks.StatusWarning)
+	}
+	if result.Message != "GNOME Remote Desktop is configured but not running" {
+		t.Errorf("Message = %q, want %q", result.Message, "GNOME Remote Desktop is configured but not running")
+	}
+	if result.Details["configured"] != true {
+		t.Errorf("Details[configured] = %v, want true", result.Details["configured"])
+	}
+	if result.Details["running"] != false {
+		t.Errorf("Details[running] = %v, want false", result.Details["running"])
+	}
+}
+
+// TestRDPCheckRunWithMock_GnomeRDPNotConfigured tests when GNOME RDP is not set up at all
+// [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001]
+func TestRDPCheckRunWithMock_GnomeRDPNotConfigured(t *testing.T) {
+	caps := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+
+	mockExec := checks.NewMockExecutor()
+	// GNOME Remote Desktop is NOT configured (grdctl shows disabled or fails)
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
+		Output: []byte("RDP:\n\tStatus: disabled"),
+		Error:  nil,
+	}
+	// No xrdp either
+	mockExec.Responses["systemctl list-unit-files xrdp.service"] = checks.MockResponse{
+		Output: []byte(""),
+		Error:  checks.ErrConnectionRefused,
+	}
+
+	check := NewRDPCheck(caps, WithRDPExecutor(mockExec))
+	result := check.Run(context.Background())
+
+	// Should be OK (no RDP configured is fine - it's optional)
+	if result.Status != checks.StatusOK {
+		t.Errorf("Status = %v, want %v", result.Status, checks.StatusOK)
+	}
+	if result.Message != "No RDP service installed (remote desktop not configured)" {
+		t.Errorf("Message = %q, want %q", result.Message, "No RDP service installed (remote desktop not configured)")
+	}
+}
+
 // TestRDPCheckRunWithMock_LinuxActive tests xrdp service active on Linux (no GNOME RDP)
 // [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001]
 func TestRDPCheckRunWithMock_LinuxActive(t *testing.T) {
@@ -56,10 +132,10 @@ func TestRDPCheckRunWithMock_LinuxActive(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	// No GNOME Remote Desktop running
-	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
-		Output: []byte(""),
-		Error:  checks.ErrConnectionRefused,
+	// GNOME Remote Desktop is NOT configured
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
+		Output: []byte("RDP:\n\tStatus: disabled"),
+		Error:  nil,
 	}
 	// xrdp is installed
 	mockExec.Responses["systemctl list-unit-files xrdp.service"] = checks.MockResponse{
@@ -94,10 +170,10 @@ func TestRDPCheckRunWithMock_LinuxInactive(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	// No GNOME Remote Desktop running
-	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
-		Output: []byte(""),
-		Error:  checks.ErrConnectionRefused,
+	// GNOME Remote Desktop is NOT configured
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
+		Output: []byte("RDP:\n\tStatus: disabled"),
+		Error:  nil,
 	}
 	// xrdp is installed
 	mockExec.Responses["systemctl list-unit-files xrdp.service"] = checks.MockResponse{
@@ -129,10 +205,10 @@ func TestRDPCheckRunWithMock_LinuxNoRDP(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	// No GNOME Remote Desktop running
-	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
+	// GNOME Remote Desktop is NOT configured (grdctl fails or shows disabled)
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
 		Output: []byte(""),
-		Error:  checks.ErrConnectionRefused,
+		Error:  checks.ErrCommandNotFound,
 	}
 	// xrdp is NOT installed
 	mockExec.Responses["systemctl list-unit-files xrdp.service"] = checks.MockResponse{
@@ -160,10 +236,10 @@ func TestRDPCheckRunWithMock_LinuxNoSystemd(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	// No GNOME Remote Desktop running
-	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
+	// GNOME Remote Desktop is NOT configured
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
 		Output: []byte(""),
-		Error:  checks.ErrConnectionRefused,
+		Error:  checks.ErrCommandNotFound,
 	}
 
 	check := NewRDPCheck(caps, WithRDPExecutor(mockExec))
@@ -349,7 +425,7 @@ func TestRDPCheckDefaultExecutor(t *testing.T) {
 }
 
 // TestRDPCheckMockCallsVerified verifies mock was called with correct args
-// The new detection order: 1) pgrep for GNOME RDP, 2) systemctl for xrdp
+// The new detection order: 1) grdctl status for GNOME RDP config, 2) systemctl for xrdp
 func TestRDPCheckMockCallsVerified(t *testing.T) {
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
@@ -357,10 +433,10 @@ func TestRDPCheckMockCallsVerified(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	// No GNOME RDP running, xrdp is installed and active
-	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
-		Output: []byte(""),
-		Error:  checks.ErrConnectionRefused,
+	// GNOME RDP not configured, xrdp is installed and active
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
+		Output: []byte("RDP:\n\tStatus: disabled"),
+		Error:  nil,
 	}
 	mockExec.Responses["systemctl list-unit-files xrdp.service"] = checks.MockResponse{
 		Output: []byte("xrdp.service enabled"),
@@ -375,7 +451,7 @@ func TestRDPCheckMockCallsVerified(t *testing.T) {
 	check.Run(context.Background())
 
 	// Verify the mock was called with expected sequence:
-	// 1. pgrep -f gnome-remote-desktop-daemon (detect GNOME RDP)
+	// 1. grdctl status (detect GNOME RDP configuration)
 	// 2. systemctl list-unit-files xrdp.service (detect xrdp installed)
 	// 3. systemctl is-active xrdp (check xrdp status)
 	if len(mockExec.Calls) < 1 {
@@ -383,12 +459,12 @@ func TestRDPCheckMockCallsVerified(t *testing.T) {
 		return
 	}
 
-	// First call should be pgrep for GNOME RDP detection
+	// First call should be grdctl for GNOME RDP configuration detection
 	firstCall := mockExec.Calls[0]
-	if firstCall.Name != "pgrep" {
-		t.Errorf("Expected first command 'pgrep', got %q", firstCall.Name)
+	if firstCall.Name != "grdctl" {
+		t.Errorf("Expected first command 'grdctl', got %q", firstCall.Name)
 	}
-	if len(firstCall.Args) < 2 || firstCall.Args[0] != "-f" || firstCall.Args[1] != "gnome-remote-desktop-daemon" {
-		t.Errorf("Expected args [-f gnome-remote-desktop-daemon], got %v", firstCall.Args)
+	if len(firstCall.Args) < 1 || firstCall.Args[0] != "status" {
+		t.Errorf("Expected args [status], got %v", firstCall.Args)
 	}
 }

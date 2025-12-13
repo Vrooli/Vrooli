@@ -8,7 +8,7 @@
 **Status**: Needs Architecture Decision
 
 **Description**:
-The test playbooks in `test/playbooks/` are written in a simplified format with `http_request` actions, but Vrooli Ascension (BAS) expects workflows in a graph-based nodes/edges format.
+The test workflows in `bas/` are written in a simplified format with `http_request` actions, but Vrooli Ascension (BAS) expects workflows in a graph-based nodes/edges format.
 
 **Current State**:
 - 5 integration workflows defined in simplified JSON format
@@ -51,7 +51,7 @@ The test playbooks in `test/playbooks/` are written in a simplified format with 
 - Integration tests remain failing but requirements are validated via CLI layer
 
 **Next Steps**:
-1. Document this architectural decision in test/playbooks/README.md
+1. Document this architectural decision in bas/README.md
 2. Either: Convert workflows to BAS format OR mark integration tests as "pending BAS conversion"
 3. Consider: Create separate `test/api/` directory for pure HTTP integration tests (no BAS)
 
@@ -269,7 +269,7 @@ The "failing" validation refs are placeholders for BAS workflows needing 3-4 hou
 The completeness scorer only recognizes test refs in specific locations:
 - `api/**/*_test.go` (API unit tests) ✅ **Recognized**
 - `ui/src/**/*.test.tsx` (UI unit tests) ✅ **Recognized**
-- `test/playbooks/**/*.{json,yaml}` (e2e automation) ✅ **Recognized**
+- `bas/cases/**/*.{json,yaml}` (e2e automation) ✅ **Recognized**
 - `test/api/*.bats` (BATS integration tests) ❌ **NOT recognized**
 - `test/cli/*.bats` (CLI integration tests) ❌ **NOT recognized**
 
@@ -317,4 +317,3 @@ Adding playbook references to requirements causes auto-sync to mark them as "fai
 **Recommendation**: Accept as production-ready. Further improvement requires either:
 1. Converting BATS tests to recognized format (~3-4 hours, no functional benefit)
 2. Implementing P2 requirements (~8-12 hours, actual feature expansion)
-

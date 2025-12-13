@@ -158,10 +158,6 @@ db-migrate: ## Run database migrations
 		echo "$(YELLOW)No migrations to run$(RESET)"; \
 	fi
 
-validate: ## Validate scenario structure
-	@echo "$(BLUE)✅ Validating $(SCENARIO_NAME) structure...$(RESET)"
-	@vrooli scenario validate $(SCENARIO_NAME)
-
 install-deps: ## Install dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(RESET)"
 	@if [ -f api/go.mod ]; then \

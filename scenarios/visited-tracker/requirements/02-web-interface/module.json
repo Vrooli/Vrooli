@@ -30,7 +30,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/campaign-lifecycle.json",
+          "ref": "bas/cases/01-campaign-tracking/api/campaign-lifecycle.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow validates HTTP API CRUD operations end-to-end [REQ:VT-REQ-006]"
@@ -56,14 +56,14 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-campaign-tracking/api/staleness-scoring.json",
+          "ref": "bas/cases/01-campaign-tracking/api/staleness-scoring.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E workflow validates file prioritization through staleness scoring [REQ:VT-REQ-007]"
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-web-interface/ui/campaign-dashboard.json",
+          "ref": "bas/cases/02-web-interface/ui/campaign-dashboard.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E UI workflow validates dashboard visualization of prioritized files [REQ:VT-REQ-007]"
@@ -129,7 +129,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-web-interface/ui/campaign-dashboard.json",
+          "ref": "bas/cases/02-web-interface/ui/campaign-dashboard.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E UI workflow validates dashboard page load, campaigns list, and accessibility [REQ:VT-REQ-009]"
@@ -155,7 +155,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/02-web-interface/ui/campaign-dashboard.json",
+          "ref": "bas/cases/02-web-interface/ui/campaign-dashboard.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "E2E UI workflow validates campaign dashboard and detail view components [REQ:VT-REQ-010]"

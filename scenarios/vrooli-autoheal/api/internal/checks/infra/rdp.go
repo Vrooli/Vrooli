@@ -5,6 +5,7 @@ package infra
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -104,16 +105,18 @@ func NewRDPCheck(caps *platform.Capabilities, opts ...RDPCheckOption) *RDPCheck 
 
 // detectRDPService determines which RDP implementation is available on this system.
 // Detection order on Linux:
-//  1. Check for running gnome-remote-desktop-daemon process (GNOME 42+ native RDP)
-//  2. Check for xrdp systemd service
-//  3. Fall back to unknown if neither is found
+//  1. Check if GNOME Remote Desktop is CONFIGURED (via grdctl) - catches crashed daemons
+//  2. Check for running gnome-remote-desktop-daemon process (GNOME 42+ native RDP)
+//  3. Check for xrdp systemd service
+//  4. Fall back to unknown if neither is found
 func (c *RDPCheck) detectRDPService(ctx context.Context) RDPServiceInfo {
 	switch c.caps.Platform {
 	case platform.Linux:
-		// First check for GNOME Remote Desktop (runs as user session, not systemd)
-		if c.isGnomeRDPRunning(ctx) {
+		// First check if GNOME Remote Desktop is CONFIGURED (not just running)
+		// This catches the case where RDP is enabled but daemon has crashed
+		if c.isGnomeRDPConfigured(ctx) {
 			return RDPServiceInfo{
-				ServiceName:   "gnome-remote-desktop-daemon",
+				ServiceName:   "gnome-remote-desktop",
 				Type:          RDPTypeGnome,
 				Checkable:     true,
 				IsUserSession: true,
@@ -161,6 +164,17 @@ func (c *RDPCheck) isGnomeRDPRunning(ctx context.Context) bool {
 		return true
 	}
 	return false
+}
+
+// isGnomeRDPConfigured checks if GNOME Remote Desktop is enabled in settings
+// using grdctl status. This detects configuration even when the daemon isn't running.
+func (c *RDPCheck) isGnomeRDPConfigured(ctx context.Context) bool {
+	output, err := c.executor.Output(ctx, "grdctl", "status")
+	if err != nil {
+		return false
+	}
+	// grdctl status shows "Status: enabled" when RDP is configured
+	return strings.Contains(string(output), "Status: enabled")
 }
 
 func (c *RDPCheck) ID() string    { return "infra-rdp" }
@@ -217,7 +231,11 @@ func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 
 // checkGnomeRDP verifies GNOME Remote Desktop daemon is running
 func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) checks.Result {
-	if c.isGnomeRDPRunning(ctx) {
+	isRunning := c.isGnomeRDPRunning(ctx)
+	result.Details["configured"] = true
+	result.Details["running"] = isRunning
+
+	if isRunning {
 		result.Status = checks.StatusOK
 		result.Message = "GNOME Remote Desktop is running"
 		result.Details["status"] = "active"
@@ -231,9 +249,11 @@ func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) chec
 		return result
 	}
 
+	// Configured but NOT running - this is a problem that needs attention
 	result.Status = checks.StatusWarning
-	result.Message = "GNOME Remote Desktop is not running"
+	result.Message = "GNOME Remote Desktop is configured but not running"
 	result.Details["status"] = "inactive"
+	result.Details["note"] = "Service may have crashed or been stopped; auto-heal can restart it"
 	return result
 }
 
@@ -295,8 +315,22 @@ func (c *RDPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 	// Actions differ based on RDP type
 	switch serviceInfo.Type {
 	case RDPTypeGnome:
-		// GNOME Remote Desktop is a user session daemon, limited recovery options
+		// GNOME Remote Desktop is a user session daemon - we can still restart it via systemctl --user
 		return []checks.RecoveryAction{
+			{
+				ID:          "start",
+				Name:        "Start Service",
+				Description: "Start the GNOME Remote Desktop user session service",
+				Dangerous:   false,
+				Available:   !isRunning,
+			},
+			{
+				ID:          "restart",
+				Name:        "Restart Service",
+				Description: "Restart the GNOME Remote Desktop user session service",
+				Dangerous:   false,
+				Available:   true,
+			},
 			{
 				ID:          "status",
 				Name:        "Check Status",
@@ -308,6 +342,13 @@ func (c *RDPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 				ID:          "diagnose",
 				Name:        "Diagnose",
 				Description: "Gather diagnostic information about GNOME Remote Desktop",
+				Dangerous:   false,
+				Available:   true,
+			},
+			{
+				ID:          "logs",
+				Name:        "View Logs",
+				Description: "View recent GNOME Remote Desktop logs",
 				Dangerous:   false,
 				Available:   true,
 			},
@@ -425,21 +466,13 @@ func (c *RDPCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 
 	case "start":
 		if serviceInfo.Type == RDPTypeGnome {
-			result.Duration = time.Since(start)
-			result.Success = false
-			result.Error = "GNOME Remote Desktop is managed via GNOME Settings, not command line"
-			result.Message = "Use: gnome-control-center sharing"
-			return result
+			return c.executeGnomeRDPAction(ctx, result, "start", start)
 		}
 		return c.executeServiceAction(ctx, result, "start", serviceInfo, start)
 
 	case "restart":
 		if serviceInfo.Type == RDPTypeGnome {
-			result.Duration = time.Since(start)
-			result.Success = false
-			result.Error = "GNOME Remote Desktop is managed via GNOME Settings"
-			result.Message = "To restart, toggle Remote Desktop off and on in Settings > Sharing"
-			return result
+			return c.executeGnomeRDPAction(ctx, result, "restart", start)
 		}
 		return c.executeServiceAction(ctx, result, "restart", serviceInfo, start)
 
@@ -485,6 +518,113 @@ func (c *RDPCheck) executeServiceAction(ctx context.Context, result checks.Actio
 
 	// Verify service is running
 	return c.verifyRecovery(ctx, result, action, start)
+}
+
+// executeGnomeRDPAction starts or restarts GNOME Remote Desktop user session service.
+// GNOME Remote Desktop runs as a user session service (systemctl --user), not a system service.
+// This function handles the complexity of running user-session commands with proper context.
+func (c *RDPCheck) executeGnomeRDPAction(ctx context.Context, result checks.ActionResult, action string, start time.Time) checks.ActionResult {
+	var output []byte
+	var err error
+	var outputBuilder strings.Builder
+
+	outputBuilder.WriteString(fmt.Sprintf("=== %s GNOME Remote Desktop ===\n", strings.Title(action)))
+
+	// GNOME Remote Desktop is a user session service.
+	// We need to determine who owns the graphical session and run as that user.
+
+	// First, try to find the active graphical session user
+	sessionUser := c.findGraphicalSessionUser(ctx)
+	if sessionUser == "" {
+		// Fallback to current user or SUDO_USER
+		sessionUser = os.Getenv("SUDO_USER")
+		if sessionUser == "" {
+			sessionUser = os.Getenv("USER")
+		}
+	}
+
+	outputBuilder.WriteString(fmt.Sprintf("Target user: %s\n", sessionUser))
+
+	// Get the user's UID for XDG_RUNTIME_DIR
+	uidOutput, uidErr := c.executor.Output(ctx, "id", "-u", sessionUser)
+	uid := strings.TrimSpace(string(uidOutput))
+	if uidErr != nil || uid == "" {
+		uid = "1000" // Common default for first user
+	}
+	xdgRuntimeDir := fmt.Sprintf("/run/user/%s", uid)
+
+	outputBuilder.WriteString(fmt.Sprintf("XDG_RUNTIME_DIR: %s\n", xdgRuntimeDir))
+
+	// Try different approaches to restart the service
+
+	// Approach 1: Direct systemctl --user (works if we're already the correct user)
+	output, err = c.executor.CombinedOutput(ctx, "systemctl", "--user", action, "gnome-remote-desktop")
+	if err == nil {
+		outputBuilder.WriteString("Method: direct systemctl --user\n")
+		outputBuilder.WriteString(string(output))
+		result.Output = outputBuilder.String()
+		return c.verifyRecovery(ctx, result, action, start)
+	}
+
+	// Approach 2: Use sudo -u with XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS
+	dbusAddr := fmt.Sprintf("unix:path=%s/bus", xdgRuntimeDir)
+	output, err = c.executor.CombinedOutput(ctx,
+		"sudo", "-u", sessionUser,
+		fmt.Sprintf("XDG_RUNTIME_DIR=%s", xdgRuntimeDir),
+		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=%s", dbusAddr),
+		"systemctl", "--user", action, "gnome-remote-desktop")
+
+	if err == nil {
+		outputBuilder.WriteString("Method: sudo -u with environment\n")
+		outputBuilder.WriteString(string(output))
+		result.Output = outputBuilder.String()
+		return c.verifyRecovery(ctx, result, action, start)
+	}
+
+	// Approach 3: Use machinectl to enter user session (more robust for some setups)
+	output, err = c.executor.CombinedOutput(ctx,
+		"sudo", "machinectl", "shell", fmt.Sprintf("%s@.host", sessionUser),
+		"/bin/systemctl", "--user", action, "gnome-remote-desktop")
+
+	if err == nil {
+		outputBuilder.WriteString("Method: machinectl shell\n")
+		outputBuilder.WriteString(string(output))
+		result.Output = outputBuilder.String()
+		return c.verifyRecovery(ctx, result, action, start)
+	}
+
+	// All approaches failed
+	outputBuilder.WriteString(fmt.Sprintf("\nAll restart methods failed. Last error: %v\n", err))
+	outputBuilder.WriteString(string(output))
+
+	result.Duration = time.Since(start)
+	result.Output = outputBuilder.String()
+	result.Success = false
+	result.Error = err.Error()
+	result.Message = fmt.Sprintf("Failed to %s GNOME Remote Desktop - may need manual intervention", action)
+	return result
+}
+
+// findGraphicalSessionUser finds the user who owns the active graphical session
+func (c *RDPCheck) findGraphicalSessionUser(ctx context.Context) string {
+	// Try to find the active session on seat0 (the main display)
+	output, err := c.executor.Output(ctx, "loginctl", "show-seat", "seat0", "-p", "ActiveSession", "--value")
+	if err != nil {
+		return ""
+	}
+
+	sessionID := strings.TrimSpace(string(output))
+	if sessionID == "" {
+		return ""
+	}
+
+	// Get the user for this session
+	output, err = c.executor.Output(ctx, "loginctl", "show-session", sessionID, "-p", "Name", "--value")
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(output))
 }
 
 // executeStatus gets detailed service status
