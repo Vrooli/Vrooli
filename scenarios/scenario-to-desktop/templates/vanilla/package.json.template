@@ -52,6 +52,7 @@
     "files": [
       "dist/**/*",
       "assets/**/*",
+      "src/splash.html",
       "!**/*.ts",
       "!**/tsconfig.json",
       "!**/*.map"

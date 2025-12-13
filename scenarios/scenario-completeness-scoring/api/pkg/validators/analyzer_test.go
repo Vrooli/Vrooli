@@ -19,7 +19,7 @@ func TestAnalyzeValidationQuality_NoIssues(t *testing.T) {
 			Priority: "P2", // P2 only needs 1 layer
 			Validation: []Validation{
 				{Type: "test", Ref: "api/pkg/feature/feature_test.go"},
-				{Type: "automation", Ref: "test/playbooks/capabilities/feature.json"},
+				{Type: "automation", Ref: "bas/cases/feature.json"},
 			},
 		},
 	}
@@ -190,7 +190,7 @@ func TestDetectValidationLayersBasic(t *testing.T) {
 		{
 			name: "E2E playbook",
 			req: Requirement{
-				Validation: []Validation{{Type: "automation", Ref: "test/playbooks/capabilities/feature.json"}},
+				Validation: []Validation{{Type: "automation", Ref: "bas/cases/feature.json"}},
 			},
 			expectedLayers: []string{"E2E"},
 		},
@@ -206,7 +206,7 @@ func TestDetectValidationLayersBasic(t *testing.T) {
 			req: Requirement{
 				Validation: []Validation{
 					{Type: "test", Ref: "api/pkg/feature/feature_test.go"},
-					{Type: "automation", Ref: "test/playbooks/capabilities/feature.json"},
+					{Type: "automation", Ref: "bas/cases/feature.json"},
 				},
 			},
 			expectedLayers: []string{"API", "E2E"},

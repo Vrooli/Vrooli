@@ -36,7 +36,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/core-scoring/api/score-retrieval.json",
+          "ref": "bas/cases/core-scoring/api/score-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates score retrieval returns proper breakdown"
@@ -60,7 +60,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/core-scoring/api/quality-dimension.json",
+          "ref": "bas/cases/core-scoring/api/quality-dimension.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Focused E2E playbook validates quality dimension in score breakdown"
@@ -84,7 +84,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/core-scoring/api/coverage-dimension.json",
+          "ref": "bas/cases/core-scoring/api/coverage-dimension.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Focused E2E playbook validates coverage dimension in score breakdown"
@@ -108,7 +108,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/core-scoring/api/quantity-dimension.json",
+          "ref": "bas/cases/core-scoring/api/quantity-dimension.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Focused E2E playbook validates quantity dimension in score breakdown"
@@ -139,7 +139,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/core-scoring/api/ui-dimension.json",
+          "ref": "bas/cases/core-scoring/api/ui-dimension.json",
           "phase": "integration",
           "status": "failing",
           "notes": "Focused E2E playbook validates UI dimension in score breakdown"
@@ -156,7 +156,7 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/core-scoring/api/score-retrieval.json",
+          "ref": "bas/cases/core-scoring/api/score-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates score retrieval and force recalculation endpoints"
@@ -180,7 +180,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/configuration/api/config-retrieval.json",
+          "ref": "bas/cases/configuration/api/config-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates config with weights available for redistribution"
@@ -204,7 +204,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/health-monitoring/api/collector-health.json",
+          "ref": "bas/cases/health-monitoring/api/collector-health.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates health API that enables degradation tracking"

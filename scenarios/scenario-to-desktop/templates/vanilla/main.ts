@@ -1,5 +1,6 @@
-import { app, BrowserWindow, net, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard } from "electron";
+import { app, BrowserWindow, net as electronNet, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
+import * as nodeNet from "node:net";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -13,48 +14,48 @@ const APP_CONFIG = {
     APP_DISPLAY_NAME: "{{APP_DISPLAY_NAME}}",
     APP_VERSION: "{{VERSION}}",
     APP_URL: "{{APP_URL}}",
-    
+
     // Server configuration
     SERVER_TYPE: "{{SERVER_TYPE}}", // Options: 'node', 'static', 'external', 'executable'
-    SERVER_PORT: {{SERVER_PORT}},
-    SERVER_PATH: "{{SERVER_PATH}}", // Path to server entry point (relative to app root)
+    SERVER_PORT: {{ SERVER_PORT }},
+SERVER_PATH: "{{SERVER_PATH}}", // Path to server entry point (relative to app root)
     API_ENDPOINT: "{{API_ENDPOINT}}", // Scenario API endpoint
-    DEPLOYMENT_MODE: "{{DEPLOYMENT_MODE}}", // external-server | cloud-api | bundled
-    
-    // Window configuration  
-    WINDOW_WIDTH: {{WINDOW_WIDTH}},
-    WINDOW_HEIGHT: {{WINDOW_HEIGHT}},
-    WINDOW_BACKGROUND: "{{WINDOW_BACKGROUND}}",
+        DEPLOYMENT_MODE: "{{DEPLOYMENT_MODE}}", // external-server | cloud-api | bundled
+
+            // Window configuration  
+            WINDOW_WIDTH: { { WINDOW_WIDTH } },
+WINDOW_HEIGHT: { { WINDOW_HEIGHT } },
+WINDOW_BACKGROUND: "{{WINDOW_BACKGROUND}}",
     WINDOW_TITLE: "{{APP_DISPLAY_NAME}}",
-    
-    // Feature configuration
-    ENABLE_SPLASH: {{ENABLE_SPLASH}},
-    ENABLE_MENU: {{ENABLE_MENU}},
-    ENABLE_SYSTEM_TRAY: {{ENABLE_SYSTEM_TRAY}},
-    ENABLE_AUTO_UPDATER: {{ENABLE_AUTO_UPDATER}},
-    ENABLE_SINGLE_INSTANCE: {{ENABLE_SINGLE_INSTANCE}},
-    ENABLE_DEV_TOOLS: {{ENABLE_DEV_TOOLS}},
-    
-    // Timing configuration
-    SERVER_CHECK_INTERVAL_MS: 500,
+
+        // Feature configuration
+        ENABLE_SPLASH: { { ENABLE_SPLASH } },
+ENABLE_MENU: { { ENABLE_MENU } },
+ENABLE_SYSTEM_TRAY: { { ENABLE_SYSTEM_TRAY } },
+ENABLE_AUTO_UPDATER: { { ENABLE_AUTO_UPDATER } },
+ENABLE_SINGLE_INSTANCE: { { ENABLE_SINGLE_INSTANCE } },
+ENABLE_DEV_TOOLS: { { ENABLE_DEV_TOOLS } },
+
+// Timing configuration
+SERVER_CHECK_INTERVAL_MS: 500,
     SERVER_CHECK_TIMEOUT_MS: 30000,
 };
 
 const LOCAL_VROOLI_BOOTSTRAP = {
-    ENABLE: {{AUTO_MANAGE_VROOLI}},
-    SCENARIO_NAME: "{{SCENARIO_NAME}}",
+    ENABLE: {{ AUTO_MANAGE_VROOLI }},
+SCENARIO_NAME: "{{SCENARIO_NAME}}",
     VROOLI_BINARY: "{{VROOLI_BINARY_PATH}}",
 };
 const BUNDLED_RUNTIME = {
-	SUPPORTED: {{BUNDLED_RUNTIME_SUPPORTED}},
-	ROOT: "{{BUNDLED_RUNTIME_ROOT}}",
-	IPC_HOST: "{{BUNDLED_RUNTIME_IPC_HOST}}",
-	IPC_PORT: {{BUNDLED_RUNTIME_IPC_PORT}},
-	TOKEN_REL: "{{BUNDLED_RUNTIME_TOKEN_PATH}}",
-	UI_SERVICE: "{{BUNDLED_RUNTIME_UI_SERVICE}}",
-	UI_PORT_NAME: "{{BUNDLED_RUNTIME_UI_PORT_NAME}}",
-	TELEMETRY_UPLOAD_URL: "{{BUNDLED_RUNTIME_TELEMETRY_UPLOAD_URL}}",
-	DOCS_URL: "docs/deployment/tiers/tier-2-desktop.md",
+    SUPPORTED: {{ BUNDLED_RUNTIME_SUPPORTED }},
+ROOT: "{{BUNDLED_RUNTIME_ROOT}}",
+    IPC_HOST: "{{BUNDLED_RUNTIME_IPC_HOST}}",
+        IPC_PORT: { { BUNDLED_RUNTIME_IPC_PORT } },
+TOKEN_REL: "{{BUNDLED_RUNTIME_TOKEN_PATH}}",
+    UI_SERVICE: "{{BUNDLED_RUNTIME_UI_SERVICE}}",
+        UI_PORT_NAME: "{{BUNDLED_RUNTIME_UI_PORT_NAME}}",
+            TELEMETRY_UPLOAD_URL: "{{BUNDLED_RUNTIME_TELEMETRY_UPLOAD_URL}}",
+                DOCS_URL: "docs/deployment/tiers/tier-2-desktop.md",
 };
 
 // Update/auto-updater configuration
@@ -64,9 +65,9 @@ const UPDATE_CONFIG = {
     // Provider: github, generic, or none
     PROVIDER: "{{UPDATE_PROVIDER}}" as "github" | "generic" | "none",
     // Whether to automatically check for updates on startup
-    AUTO_CHECK: {{UPDATE_AUTO_CHECK}},
-    // Update server URL (for display/logging purposes)
-    SERVER_URL: "{{UPDATE_SERVER_URL}}",
+    AUTO_CHECK: {{ UPDATE_AUTO_CHECK }},
+// Update server URL (for display/logging purposes)
+SERVER_URL: "{{UPDATE_SERVER_URL}}",
 };
 
 let serverProcess: ChildProcess | null = null;
@@ -152,8 +153,8 @@ async function calculateDirectorySize(dirPath: string): Promise<{ size: number; 
     return { size: totalSize, count: fileCount };
 }
 
-const SERVER_URL = APP_CONFIG.SERVER_TYPE === 'external' 
-    ? APP_CONFIG.SERVER_PATH 
+const SERVER_URL = APP_CONFIG.SERVER_TYPE === 'external'
+    ? APP_CONFIG.SERVER_PATH
     : `http://localhost:${APP_CONFIG.SERVER_PORT}`;
 
 type TelemetryDetails = Record<string, unknown>;
@@ -184,19 +185,19 @@ const shouldBootstrapLocalVrooli = APP_CONFIG.DEPLOYMENT_MODE === "external-serv
 const isBundledMode = APP_CONFIG.DEPLOYMENT_MODE === "bundled";
 
 const runtimeControlEnabled = (isBundledMode && BUNDLED_RUNTIME.SUPPORTED) || Boolean(
-	process.env.RUNTIME_CONTROL_HOST ||
-	process.env.RUNTIME_CONTROL_PORT ||
-	process.env.RUNTIME_CONTROL_TOKEN_PATH ||
-	process.env.RUNTIME_TELEMETRY_UPLOAD_URL
+    process.env.RUNTIME_CONTROL_HOST ||
+    process.env.RUNTIME_CONTROL_PORT ||
+    process.env.RUNTIME_CONTROL_TOKEN_PATH ||
+    process.env.RUNTIME_TELEMETRY_UPLOAD_URL
 );
 
 const RUNTIME_CONTROL = {
-	ENABLED: runtimeControlEnabled,
-	HOST: process.env.RUNTIME_CONTROL_HOST || BUNDLED_RUNTIME.IPC_HOST || "127.0.0.1",
-	PORT: Number(process.env.RUNTIME_CONTROL_PORT || BUNDLED_RUNTIME.IPC_PORT || 47710),
-	TOKEN_PATH_ENV: process.env.RUNTIME_CONTROL_TOKEN_PATH || "",
-	TELEMETRY_UPLOAD_URL: process.env.RUNTIME_TELEMETRY_UPLOAD_URL || BUNDLED_RUNTIME.TELEMETRY_UPLOAD_URL || "",
-	LOG_LINES: Number(process.env.RUNTIME_CONTROL_LOG_LINES || 200),
+    ENABLED: runtimeControlEnabled,
+    HOST: process.env.RUNTIME_CONTROL_HOST || BUNDLED_RUNTIME.IPC_HOST || "127.0.0.1",
+    PORT: Number(process.env.RUNTIME_CONTROL_PORT || BUNDLED_RUNTIME.IPC_PORT || 47710),
+    TOKEN_PATH_ENV: process.env.RUNTIME_CONTROL_TOKEN_PATH || "",
+    TELEMETRY_UPLOAD_URL: process.env.RUNTIME_TELEMETRY_UPLOAD_URL || BUNDLED_RUNTIME.TELEMETRY_UPLOAD_URL || "",
+    LOG_LINES: Number(process.env.RUNTIME_CONTROL_LOG_LINES || 200),
 };
 
 type RuntimeSecret = {
@@ -429,15 +430,15 @@ async function autoUploadTelemetryIfConfigured(reason: string): Promise<boolean>
 }
 
 async function resolveRuntimeTokenPath(): Promise<string | null> {
-	if (!RUNTIME_CONTROL.ENABLED) return null;
-	if (RUNTIME_CONTROL.TOKEN_PATH_ENV) {
-		return RUNTIME_CONTROL.TOKEN_PATH_ENV;
-	}
-	if (!app.isReady()) {
-		await app.whenReady();
-	}
-	const rel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
-	return path.join(app.getPath("userData"), rel);
+    if (!RUNTIME_CONTROL.ENABLED) return null;
+    if (RUNTIME_CONTROL.TOKEN_PATH_ENV) {
+        return RUNTIME_CONTROL.TOKEN_PATH_ENV;
+    }
+    if (!app.isReady()) {
+        await app.whenReady();
+    }
+    const rel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
+    return path.join(app.getPath("userData"), rel);
 }
 
 async function runtimeRequest<T = unknown>(endpoint: string, opts?: RuntimeRequestOptions): Promise<T | string> {
@@ -1270,7 +1271,7 @@ function checkServerReady(url: string, timeout: number): Promise<void> {
     return new Promise((resolve, reject) => {
         let elapsedTime = 0;
         const interval = setInterval(() => {
-            const request = net.request(url);
+            const request = electronNet.request(url);
             request.on("response", (response) => {
                 console.log(`[Desktop App] Server check successful (Status: ${response.statusCode}) at ${url}`);
                 clearInterval(interval);
@@ -1302,7 +1303,7 @@ function checkServerReady(url: string, timeout: number): Promise<void> {
 
 function createSplashWindow() {
     if (!APP_CONFIG.ENABLE_SPLASH) return;
-    
+
     console.log("[Desktop App] Creating splash window...");
     splashWindow = new BrowserWindow({
         width: 400,
@@ -1316,8 +1317,8 @@ function createSplashWindow() {
         },
     });
 
-    splashWindow.loadFile(path.join(__dirname, "../splash.html"));
-    
+    splashWindow.loadFile(path.join(app.getAppPath(), "src", "splash.html"));
+
     splashWindow.on("closed", () => {
         splashWindow = null;
     });
@@ -1360,7 +1361,7 @@ async function createMainWindow() {
 
 function getAppIcon(): string | undefined {
     const iconPath = path.join(app.getAppPath(), "assets");
-    
+
     if (process.platform === "win32") {
         return path.join(iconPath, "icon.ico");
     } else if (process.platform === "darwin") {
@@ -1372,14 +1373,14 @@ function getAppIcon(): string | undefined {
 
 function createSystemTray() {
     if (!APP_CONFIG.ENABLE_SYSTEM_TRAY) return;
-    
+
     const iconPath = getAppIcon();
     if (!iconPath) return;
-    
+
     try {
         const icon = nativeImage.createFromPath(iconPath);
         tray = new Tray(icon.resize({ width: 16, height: 16 }));
-        
+
         const contextMenu = Menu.buildFromTemplate([
             {
                 label: `Show ${APP_CONFIG.APP_DISPLAY_NAME}`,
@@ -1409,10 +1410,10 @@ function createSystemTray() {
                 }
             }
         ]);
-        
+
         tray.setToolTip(APP_CONFIG.APP_DISPLAY_NAME);
         tray.setContextMenu(contextMenu);
-        
+
         tray.on("double-click", () => {
             if (mainWindow) {
                 mainWindow.show();
@@ -1426,7 +1427,7 @@ function createSystemTray() {
 
 function createApplicationMenu() {
     if (!APP_CONFIG.ENABLE_MENU) return;
-    
+
     const template: Electron.MenuItemConstructorOptions[] = [
         {
             label: "File",
@@ -1446,18 +1447,18 @@ function createApplicationMenu() {
                     accelerator: "CmdOrCtrl+O",
                     click: async () => {
                         if (!mainWindow) return;
-                        
+
                         const result = await dialog.showOpenDialog(mainWindow, {
                             properties: ["openFile"],
                             filters: [
                                 { name: "All Files", extensions: ["*"] }
                             ]
                         });
-                        
+
                         if (!result.canceled && result.filePaths.length > 0) {
-                            mainWindow.webContents.send("menu-action", { 
-                                action: "open", 
-                                filePath: result.filePaths[0] 
+                            mainWindow.webContents.send("menu-action", {
+                                action: "open",
+                                filePath: result.filePaths[0]
                             });
                         }
                     }
@@ -1542,296 +1543,296 @@ function createApplicationMenu() {
 }
 
 function runtimePlatformKey(): string {
-	const arch = process.arch === "x64" ? "x64" : process.arch;
-	const os = process.platform === "darwin" ? "mac" : process.platform === "win32" ? "win" : "linux";
-	return `${os}-${arch}`;
+    const arch = process.arch === "x64" ? "x64" : process.arch;
+    const os = process.platform === "darwin" ? "mac" : process.platform === "win32" ? "win" : "linux";
+    return `${os}-${arch}`;
 }
 
 async function isPortFree(host: string, port: number): Promise<boolean> {
-	return new Promise((resolve) => {
-		const server = net.createServer();
-		server.once("error", () => resolve(false));
-		server.once("listening", () => {
-			server.close(() => resolve(true));
-		});
-		server.listen(port, host);
-	});
+    return new Promise((resolve) => {
+        const server = nodeNet.createServer();
+        server.once("error", () => resolve(false));
+        server.once("listening", () => {
+            server.close(() => resolve(true));
+        });
+        server.listen(port, host);
+    });
 }
 
 async function findEphemeralPort(host: string): Promise<number> {
-	return new Promise((resolve, reject) => {
-		const server = net.createServer();
-		server.once("error", reject);
-		server.listen(0, host, () => {
-			const address = server.address();
-			const port = typeof address === "object" && address ? address.port : 0;
-			server.close(() => resolve(port));
-		});
-	});
+    return new Promise((resolve, reject) => {
+        const server = nodeNet.createServer();
+        server.once("error", reject);
+        server.listen(0, host, () => {
+            const address = server.address();
+            const port = typeof address === "object" && address ? address.port : 0;
+            server.close(() => resolve(port));
+        });
+    });
 }
 
 async function allocateIpcPort(host: string, preferred: number): Promise<{ port: number; changed: boolean }> {
-	const port = await findEphemeralPort(host);
-	return { port, changed: port !== preferred };
+    const port = await findEphemeralPort(host);
+    return { port, changed: port !== preferred };
 }
 
 async function resolveBundleRoot(): Promise<string | null> {
-	const bundleRoot = BUNDLED_RUNTIME.ROOT || "bundle";
-	const candidates = [
-		path.join(process.resourcesPath, bundleRoot),
-		path.join(app.getAppPath(), bundleRoot),
-	];
+    const bundleRoot = BUNDLED_RUNTIME.ROOT || "bundle";
+    const candidates = [
+        path.join(process.resourcesPath, bundleRoot),
+        path.join(app.getAppPath(), bundleRoot),
+    ];
 
-	for (const candidate of candidates) {
-		if (await pathExists(candidate)) {
-			return candidate;
-		}
-	}
+    for (const candidate of candidates) {
+        if (await pathExists(candidate)) {
+            return candidate;
+        }
+    }
 
-	return null;
+    return null;
 }
 
 async function waitForFile(filePath: string, timeoutMs = 15000): Promise<void> {
-	const deadline = Date.now() + timeoutMs;
-	while (Date.now() < deadline) {
-		if (await pathExists(filePath)) {
-			return;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 150));
-	}
-	throw new Error(`file not found within timeout: ${filePath}`);
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (await pathExists(filePath)) {
+            return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    throw new Error(`file not found within timeout: ${filePath}`);
 }
 
 function normalizeBundlePath(bundleRoot: string, rel: string): string {
-	return path.join(bundleRoot, rel.replace(/\\/g, path.sep));
+    return path.join(bundleRoot, rel.replace(/\\/g, path.sep));
 }
 
 async function findChromiumPath(bundleRoot: string, manifestPath: string): Promise<string | null> {
-	const candidates: string[] = [];
+    const candidates: string[] = [];
 
-	try {
-		const raw = await fs.readFile(manifestPath, "utf-8");
-		const manifest = JSON.parse(raw) as { services?: Array<{ assets?: Array<{ path: string }>; env?: Record<string, string> }> };
-		for (const svc of manifest.services || []) {
-			for (const asset of svc.assets || []) {
-				if (asset.path?.toLowerCase().includes("chromium") || asset.path?.toLowerCase().includes("playwright")) {
-					candidates.push(asset.path);
-				}
-			}
-			for (const value of Object.values(svc.env || {})) {
-				if (typeof value === "string" && value.toLowerCase().includes("chromium")) {
-					candidates.push(value);
-				}
-			}
-		}
-	} catch (error) {
-		console.warn("[Desktop App] Unable to parse bundle manifest for Chromium detection", error);
-	}
+    try {
+        const raw = await fs.readFile(manifestPath, "utf-8");
+        const manifest = JSON.parse(raw) as { services?: Array<{ assets?: Array<{ path: string }>; env?: Record<string, string> }> };
+        for (const svc of manifest.services || []) {
+            for (const asset of svc.assets || []) {
+                if (asset.path?.toLowerCase().includes("chromium") || asset.path?.toLowerCase().includes("playwright")) {
+                    candidates.push(asset.path);
+                }
+            }
+            for (const value of Object.values(svc.env || {})) {
+                if (typeof value === "string" && value.toLowerCase().includes("chromium")) {
+                    candidates.push(value);
+                }
+            }
+        }
+    } catch (error) {
+        console.warn("[Desktop App] Unable to parse bundle manifest for Chromium detection", error);
+    }
 
-	for (const rel of candidates) {
-		const candidate = path.isAbsolute(rel) ? rel : normalizeBundlePath(bundleRoot, rel);
-		if (await pathExists(candidate)) {
-			return candidate;
-		}
-	}
+    for (const rel of candidates) {
+        const candidate = path.isAbsolute(rel) ? rel : normalizeBundlePath(bundleRoot, rel);
+        if (await pathExists(candidate)) {
+            return candidate;
+        }
+    }
 
-	const electronCandidates: string[] = [process.execPath];
-	if (process.platform === "darwin") {
-		electronCandidates.push(
-			path.join(process.resourcesPath, "..", "Frameworks", "Electron Framework.framework", "Versions", "Current", "Helpers", "Electron Helper (Renderer).app", "Contents", "MacOS", "Electron Helper (Renderer)"),
-			path.join(process.resourcesPath, "..", "Frameworks", "Electron Framework.framework", "Versions", "Current", "Resources", "electron")
-		);
-	} else if (process.platform === "win32") {
-		electronCandidates.push(path.join(path.dirname(process.execPath), "chrome.exe"));
-	} else {
-		electronCandidates.push(path.join(path.dirname(process.execPath), "chrome"));
-	}
+    const electronCandidates: string[] = [process.execPath];
+    if (process.platform === "darwin") {
+        electronCandidates.push(
+            path.join(process.resourcesPath, "..", "Frameworks", "Electron Framework.framework", "Versions", "Current", "Helpers", "Electron Helper (Renderer).app", "Contents", "MacOS", "Electron Helper (Renderer)"),
+            path.join(process.resourcesPath, "..", "Frameworks", "Electron Framework.framework", "Versions", "Current", "Resources", "electron")
+        );
+    } else if (process.platform === "win32") {
+        electronCandidates.push(path.join(path.dirname(process.execPath), "chrome.exe"));
+    } else {
+        electronCandidates.push(path.join(path.dirname(process.execPath), "chrome"));
+    }
 
-	for (const candidate of electronCandidates) {
-		if (await pathExists(candidate)) {
-			return candidate;
-		}
-	}
+    for (const candidate of electronCandidates) {
+        if (await pathExists(candidate)) {
+            return candidate;
+        }
+    }
 
-	return null;
+    return null;
 }
 
 async function startBundledRuntime(): Promise<string> {
-	const bundleRoot = await resolveBundleRoot();
-	if (!bundleRoot) {
-		throw new Error("Bundled payload is missing. Regenerate or reinstall the desktop app.");
-	}
+    const bundleRoot = await resolveBundleRoot();
+    if (!bundleRoot) {
+        throw new Error("Bundled payload is missing. Regenerate or reinstall the desktop app.");
+    }
 
-	const manifestPath = path.join(bundleRoot, "bundle.json");
-	if (!(await pathExists(manifestPath))) {
-		throw new Error(`Bundled manifest missing at ${manifestPath}`);
-	}
+    const manifestPath = path.join(bundleRoot, "bundle.json");
+    if (!(await pathExists(manifestPath))) {
+        throw new Error(`Bundled manifest missing at ${manifestPath}`);
+    }
 
-	// Ensure IPC port is free; stage a writable manifest copy for runtime/shims.
-	let manifestContent: any;
-	try {
-		manifestContent = JSON.parse(await fs.readFile(manifestPath, "utf-8"));
-	} catch (err) {
-		throw new Error(`Failed to read bundle manifest: ${String(err)}`);
-	}
-	const ipcHost = manifestContent?.ipc?.host || "127.0.0.1";
-	const preferredPort = Number(manifestContent?.ipc?.port) || 39200;
-	const { port: runtimePort, changed } = await allocateIpcPort(ipcHost, preferredPort);
-	if (changed) {
-		console.log(`[Desktop App] IPC port ${preferredPort} was busy; using ${runtimePort} instead`);
-	}
-	manifestContent.ipc = manifestContent.ipc || {};
-	manifestContent.ipc.port = runtimePort;
-	RUNTIME_CONTROL.PORT = runtimePort;
+    // Ensure IPC port is free; stage a writable manifest copy for runtime/shims.
+    let manifestContent: any;
+    try {
+        manifestContent = JSON.parse(await fs.readFile(manifestPath, "utf-8"));
+    } catch (err) {
+        throw new Error(`Failed to read bundle manifest: ${String(err)}`);
+    }
+    const ipcHost = manifestContent?.ipc?.host || "127.0.0.1";
+    const preferredPort = Number(manifestContent?.ipc?.port) || 39200;
+    const { port: runtimePort, changed } = await allocateIpcPort(ipcHost, preferredPort);
+    if (changed) {
+        console.log(`[Desktop App] IPC port ${preferredPort} was busy; using ${runtimePort} instead`);
+    }
+    manifestContent.ipc = manifestContent.ipc || {};
+    manifestContent.ipc.port = runtimePort;
+    RUNTIME_CONTROL.PORT = runtimePort;
 
-	const appData = path.join(app.getPath("userData"), "runtime");
-	await fs.mkdir(appData, { recursive: true });
-	runtimeAppDataRoot = appData;
+    const appData = path.join(app.getPath("userData"), "runtime");
+    await fs.mkdir(appData, { recursive: true });
+    runtimeAppDataRoot = appData;
 
-	const stagedManifestPath = path.join(appData, "bundle.json");
-	await fs.writeFile(stagedManifestPath, JSON.stringify(manifestContent, null, 2), "utf-8");
-	const portPath = path.join(appData, "runtime", "ipc_port");
-	await fs.mkdir(path.dirname(portPath), { recursive: true });
-	await fs.writeFile(portPath, `${runtimePort}`, "utf-8");
+    const stagedManifestPath = path.join(appData, "bundle.json");
+    await fs.writeFile(stagedManifestPath, JSON.stringify(manifestContent, null, 2), "utf-8");
+    const portPath = path.join(appData, "runtime", "ipc_port");
+    await fs.mkdir(path.dirname(portPath), { recursive: true });
+    await fs.writeFile(portPath, `${runtimePort}`, "utf-8");
 
-	// Pre-flight validation: check manifest structure and required files before spawning runtime
-	console.log("[Desktop App] Performing pre-flight bundle validation...");
-	const validationResult = await validateBundlePreFlight(bundleRoot, stagedManifestPath);
-	if (!validationResult.valid) {
-		const errorDetails = formatValidationErrors(validationResult);
-		await recordTelemetry("bundle_validation_failed", {
-			errors: validationResult.errors,
-			missingBinaries: validationResult.missingBinaries,
-			missingAssets: validationResult.missingAssets,
-		});
-		throw new Error(`Bundle validation failed:\n${errorDetails}\n\nThe bundle may be corrupted or incomplete. Try regenerating or reinstalling the desktop app.`);
-	}
-	console.log("[Desktop App] Pre-flight bundle validation passed");
+    // Pre-flight validation: check manifest structure and required files before spawning runtime
+    console.log("[Desktop App] Performing pre-flight bundle validation...");
+    const validationResult = await validateBundlePreFlight(bundleRoot, stagedManifestPath);
+    if (!validationResult.valid) {
+        const errorDetails = formatValidationErrors(validationResult);
+        await recordTelemetry("bundle_validation_failed", {
+            errors: validationResult.errors,
+            missingBinaries: validationResult.missingBinaries,
+            missingAssets: validationResult.missingAssets,
+        });
+        throw new Error(`Bundle validation failed:\n${errorDetails}\n\nThe bundle may be corrupted or incomplete. Try regenerating or reinstalling the desktop app.`);
+    }
+    console.log("[Desktop App] Pre-flight bundle validation passed");
 
-	const runtimePath = path.join(
-		bundleRoot,
-		"runtime",
-		runtimePlatformKey(),
-		process.platform === "win32" ? "runtime.exe" : "runtime",
-	);
-	if (!(await pathExists(runtimePath))) {
-		throw new Error(`Bundled runtime binary not found for this platform (${runtimePath})`);
-	}
+    const runtimePath = path.join(
+        bundleRoot,
+        "runtime",
+        runtimePlatformKey(),
+        process.platform === "win32" ? "runtime.exe" : "runtime",
+    );
+    if (!(await pathExists(runtimePath))) {
+        throw new Error(`Bundled runtime binary not found for this platform (${runtimePath})`);
+    }
 
-	const tokenRel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
-	const tokenPath = path.join(appData, tokenRel);
-	RUNTIME_CONTROL.TOKEN_PATH_ENV = tokenPath;
+    const tokenRel = BUNDLED_RUNTIME.TOKEN_REL || "runtime/auth-token";
+    const tokenPath = path.join(appData, tokenRel);
+    RUNTIME_CONTROL.TOKEN_PATH_ENV = tokenPath;
 
-	const args = [
-		"--manifest",
-		stagedManifestPath,
-		"--bundle-root",
-		bundleRoot,
-		"--app-data",
-		appData,
-		"--dry-run=false",
-	];
+    const args = [
+        "--manifest",
+        stagedManifestPath,
+        "--bundle-root",
+        bundleRoot,
+        "--app-data",
+        appData,
+        "--dry-run=false",
+    ];
 
-	const chromiumPath = await findChromiumPath(bundleRoot, manifestPath);
-	const runtimeEnv = { ...process.env };
-	if (chromiumPath && !runtimeEnv.ELECTRON_CHROMIUM_PATH) {
-		runtimeEnv.ELECTRON_CHROMIUM_PATH = chromiumPath;
-	}
+    const chromiumPath = await findChromiumPath(bundleRoot, manifestPath);
+    const runtimeEnv = { ...process.env };
+    if (chromiumPath && !runtimeEnv.ELECTRON_CHROMIUM_PATH) {
+        runtimeEnv.ELECTRON_CHROMIUM_PATH = chromiumPath;
+    }
 
-	runtimeProcess = spawn(runtimePath, args, {
-		stdio: "inherit",
-		env: runtimeEnv,
-	});
-	runtimeProcess.on("exit", (code, signal) => {
-		void recordTelemetry("bundled_runtime_exit", { code, signal });
-	});
+    runtimeProcess = spawn(runtimePath, args, {
+        stdio: "inherit",
+        env: runtimeEnv,
+    });
+    runtimeProcess.on("exit", (code, signal) => {
+        void recordTelemetry("bundled_runtime_exit", { code, signal });
+    });
 
-	await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
-	await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
 
-	// Comprehensive validation via runtime API (includes checksum verification)
-	try {
-		const runtimeValidation = await validateBundleViaRuntime();
-		if (runtimeValidation && !runtimeValidation.valid) {
-			const checksumErrors = runtimeValidation.invalid_checksums?.length || 0;
-			const otherErrors = (runtimeValidation.errors?.length || 0) - checksumErrors;
+    // Comprehensive validation via runtime API (includes checksum verification)
+    try {
+        const runtimeValidation = await validateBundleViaRuntime();
+        if (runtimeValidation && !runtimeValidation.valid) {
+            const checksumErrors = runtimeValidation.invalid_checksums?.length || 0;
+            const otherErrors = (runtimeValidation.errors?.length || 0) - checksumErrors;
 
-			// Log validation issues
-			console.warn("[Desktop App] Runtime validation found issues:", runtimeValidation);
-			await recordTelemetry("runtime_validation_issues", {
-				valid: false,
-				errorCount: runtimeValidation.errors?.length || 0,
-				warningCount: runtimeValidation.warnings?.length || 0,
-				checksumMismatches: checksumErrors,
-			});
+            // Log validation issues
+            console.warn("[Desktop App] Runtime validation found issues:", runtimeValidation);
+            await recordTelemetry("runtime_validation_issues", {
+                valid: false,
+                errorCount: runtimeValidation.errors?.length || 0,
+                warningCount: runtimeValidation.warnings?.length || 0,
+                checksumMismatches: checksumErrors,
+            });
 
-			// If there are critical errors (beyond checksum mismatches), warn the user
-			if (otherErrors > 0) {
-				const errorMessages = runtimeValidation.errors
-					?.filter(e => e.code !== "checksum_mismatch")
-					.map(e => e.message)
-					.join("\n") || "Unknown validation errors";
-				console.error("[Desktop App] Critical validation errors:", errorMessages);
-			}
-		} else if (runtimeValidation?.valid) {
-			console.log("[Desktop App] Runtime bundle validation passed");
-		}
-	} catch (error) {
-		console.warn("[Desktop App] Runtime validation check failed (non-fatal):", error);
-	}
+            // If there are critical errors (beyond checksum mismatches), warn the user
+            if (otherErrors > 0) {
+                const errorMessages = runtimeValidation.errors
+                    ?.filter(e => e.code !== "checksum_mismatch")
+                    .map(e => e.message)
+                    .join("\n") || "Unknown validation errors";
+                console.error("[Desktop App] Critical validation errors:", errorMessages);
+            }
+        } else if (runtimeValidation?.valid) {
+            console.log("[Desktop App] Runtime bundle validation passed");
+        }
+    } catch (error) {
+        console.warn("[Desktop App] Runtime validation check failed (non-fatal):", error);
+    }
 
-	await ensureRuntimeSecretsIfNeeded();
+    await ensureRuntimeSecretsIfNeeded();
 
-	const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
-	while (Date.now() < readyDeadline) {
-		try {
-			const ready = await runtimeRequest<{ ready: boolean }>("/readyz");
-			if ((ready as any)?.ready) {
-				break;
-			}
-		} catch {
-			// runtime may still be starting
-		}
-		await new Promise((resolve) => setTimeout(resolve, 350));
-	}
+    const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
+    while (Date.now() < readyDeadline) {
+        try {
+            const ready = await runtimeRequest<{ ready: boolean }>("/readyz");
+            if ((ready as any)?.ready) {
+                break;
+            }
+        } catch {
+            // runtime may still be starting
+        }
+        await new Promise((resolve) => setTimeout(resolve, 350));
+    }
 
-	const ports = await runtimeRequest<{ services: Record<string, Record<string, number>> }>("/ports");
-	const serviceId = BUNDLED_RUNTIME.UI_SERVICE || Object.keys((ports as any).services || {})[0];
-	const portName = BUNDLED_RUNTIME.UI_PORT_NAME || "http";
-	const svcPorts = (ports as any).services?.[serviceId];
-	const port = svcPorts?.[portName];
-	if (!serviceId || !port) {
-		throw new Error("Bundled runtime started but did not expose a UI port");
-	}
+    const ports = await runtimeRequest<{ services: Record<string, Record<string, number>> }>("/ports");
+    const serviceId = BUNDLED_RUNTIME.UI_SERVICE || Object.keys((ports as any).services || {})[0];
+    const portName = BUNDLED_RUNTIME.UI_PORT_NAME || "http";
+    const svcPorts = (ports as any).services?.[serviceId];
+    const port = svcPorts?.[portName];
+    if (!serviceId || !port) {
+        throw new Error("Bundled runtime started but did not expose a UI port");
+    }
 
-	const url = `http://127.0.0.1:${port}/`;
-	await recordTelemetry("bundled_runtime_ready", {
-		bundleRoot,
-		serviceId,
-		portName,
-		port,
-	});
-	void autoUploadTelemetryIfConfigured("startup");
-	return url;
+    const url = `http://127.0.0.1:${port}/`;
+    await recordTelemetry("bundled_runtime_ready", {
+        bundleRoot,
+        serviceId,
+        portName,
+        port,
+    });
+    void autoUploadTelemetryIfConfigured("startup");
+    return url;
 }
 
 async function shutdownRuntime(): Promise<void> {
-	if (RUNTIME_CONTROL.ENABLED) {
-		void autoUploadTelemetryIfConfigured("shutdown");
-		try {
-			await runtimeRequest("/shutdown", { method: "POST" });
-		} catch (error) {
-			console.warn("[Desktop App] Failed to request runtime shutdown", error);
-		}
-	}
-	if (runtimeProcess) {
-		try {
-			runtimeProcess.kill();
-		} catch {
-			// ignore
-		}
-		runtimeProcess = null;
-	}
+    if (RUNTIME_CONTROL.ENABLED) {
+        void autoUploadTelemetryIfConfigured("shutdown");
+        try {
+            await runtimeRequest("/shutdown", { method: "POST" });
+        } catch (error) {
+            console.warn("[Desktop App] Failed to request runtime shutdown", error);
+        }
+    }
+    if (runtimeProcess) {
+        try {
+            runtimeProcess.kill();
+        } catch {
+            // ignore
+        }
+        runtimeProcess = null;
+    }
 }
 
 async function startScenarioServer() {
@@ -1842,7 +1843,7 @@ async function startScenarioServer() {
         });
         return;
     }
-    
+
     if (APP_CONFIG.SERVER_TYPE === "static") {
         console.log("[Desktop App] Using static files, no server to start");
         return;
@@ -2066,9 +2067,9 @@ ipcMain.handle("file:save", async (event, data: { content: string; defaultPath?:
     }
 
     const result = await dialog.showSaveDialog(mainWindow, dialogOptions);
-    
+
     if (result.canceled) return null;
-    
+
     const localFs = require("fs").promises;
     await localFs.writeFile(result.filePath, data.content);
     return result.filePath;
@@ -2076,16 +2077,16 @@ ipcMain.handle("file:save", async (event, data: { content: string; defaultPath?:
 
 ipcMain.handle("file:open", async () => {
     if (!mainWindow) return null;
-    
+
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ["openFile"],
         filters: [
             { name: "All Files", extensions: ["*"] }
         ]
     });
-    
+
     if (result.canceled || result.filePaths.length === 0) return null;
-    
+
     const localFs = require("fs").promises;
     const content = await localFs.readFile(result.filePaths[0], "utf-8");
     return { filePath: result.filePaths[0], content };
@@ -2332,7 +2333,7 @@ app.whenReady().then(async () => {
             app.quit();
             return;
         }
-        
+
         app.on('second-instance', () => {
             if (mainWindow) {
                 if (mainWindow.isMinimized()) mainWindow.restore();
@@ -2344,110 +2345,110 @@ app.whenReady().then(async () => {
     try {
         // Create splash screen
         createSplashWindow();
-        
+
         // Set up auto updater
         setupAutoUpdater();
-        
+
         // Create application menu
         createApplicationMenu();
-        
+
         // Create system tray
         createSystemTray();
-        
+
         await initializeTelemetry();
         await recordTelemetry("app_start", {
             deploymentMode: APP_CONFIG.DEPLOYMENT_MODE,
         });
 
-		let targetUrl = SERVER_URL;
+        let targetUrl = SERVER_URL;
 
-		if (isBundledMode) {
-			if (!BUNDLED_RUNTIME.SUPPORTED) {
-				const message = `Bundled builds require a bundle.json payload. Regenerate with DEPLOYMENT_MODE=external-server if you intended a thin client. Docs: ${BUNDLED_RUNTIME.DOCS_URL}`;
-				dialog.showErrorBox("Bundled Mode Unavailable", message);
-				void recordTelemetry("bundled_mode_blocked", {
-					docsUrl: BUNDLED_RUNTIME.DOCS_URL,
-				});
-				app.quit();
-				return;
-			}
+        if (isBundledMode) {
+            if (!BUNDLED_RUNTIME.SUPPORTED) {
+                const message = `Bundled builds require a bundle.json payload. Regenerate with DEPLOYMENT_MODE=external-server if you intended a thin client. Docs: ${BUNDLED_RUNTIME.DOCS_URL}`;
+                dialog.showErrorBox("Bundled Mode Unavailable", message);
+                void recordTelemetry("bundled_mode_blocked", {
+                    docsUrl: BUNDLED_RUNTIME.DOCS_URL,
+                });
+                app.quit();
+                return;
+            }
 
-			try {
-				targetUrl = await startBundledRuntime();
-			} catch (startupError) {
-				console.error("[Desktop App] Bundled runtime failed to start", startupError);
-				await recordTelemetry("bundled_runtime_failed", { error: String(startupError) });
-				dialog.showErrorBox("Bundled Startup Error", String(startupError));
-				await shutdownRuntime();
-				app.quit();
-				return;
-			}
-		} else {
-			if (shouldBootstrapLocalVrooli) {
-				await ensureLocalVrooliReady();
-			}
+            try {
+                targetUrl = await startBundledRuntime();
+            } catch (startupError) {
+                console.error("[Desktop App] Bundled runtime failed to start", startupError);
+                await recordTelemetry("bundled_runtime_failed", { error: String(startupError) });
+                dialog.showErrorBox("Bundled Startup Error", String(startupError));
+                await shutdownRuntime();
+                app.quit();
+                return;
+            }
+        } else {
+            if (shouldBootstrapLocalVrooli) {
+                await ensureLocalVrooliReady();
+            }
 
-			// Start scenario server (thin client / embedded server modes)
-			await startScenarioServer();
-			if (RUNTIME_CONTROL.ENABLED) {
-				try {
-					await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
-					await ensureRuntimeSecretsIfNeeded();
-					void autoUploadTelemetryIfConfigured("startup");
-				} catch (secretError) {
-					await recordTelemetry("runtime_secrets_missing", { error: String(secretError) });
-					dialog.showErrorBox("Secrets required", String(secretError));
-					app.quit();
-					return;
-				}
-			}
-		}
+            // Start scenario server (thin client / embedded server modes)
+            await startScenarioServer();
+            if (RUNTIME_CONTROL.ENABLED) {
+                try {
+                    await waitForRuntimeControl(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+                    await ensureRuntimeSecretsIfNeeded();
+                    void autoUploadTelemetryIfConfigured("startup");
+                } catch (secretError) {
+                    await recordTelemetry("runtime_secrets_missing", { error: String(secretError) });
+                    dialog.showErrorBox("Secrets required", String(secretError));
+                    app.quit();
+                    return;
+                }
+            }
+        }
 
-		// Create main window
-		await createMainWindow();
+        // Create main window
+        await createMainWindow();
 
-		// Wait for server/runtime to be ready
-		if (APP_CONFIG.SERVER_TYPE !== "static" || isBundledMode) {
-			await checkServerReady(targetUrl, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
-		}
+        // Wait for server/runtime to be ready
+        if (APP_CONFIG.SERVER_TYPE !== "static" || isBundledMode) {
+            await checkServerReady(targetUrl, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+        }
 
-		// Load the application
-		if (APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode) {
-			const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
-			await mainWindow!.loadFile(staticPath);
-		} else {
-			await mainWindow!.loadURL(targetUrl);
-		}
-        
+        // Load the application
+        if (APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode) {
+            const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
+            await mainWindow!.loadFile(staticPath);
+        } else {
+            await mainWindow!.loadURL(targetUrl);
+        }
+
         // Close splash and show main window
         if (splashWindow) {
             splashWindow.close();
         }
         mainWindow!.show();
         mainWindow!.focus();
-        
-		console.log(`[Desktop App] ${APP_CONFIG.APP_DISPLAY_NAME} ready!`);
-		void recordTelemetry("app_ready", {
-			serverUrl: targetUrl,
-			bundled: isBundledMode,
-		});
-        
-	} catch (error) {
-		console.error("[Desktop App] Startup error:", error);
-		if (splashWindow) {
-			splashWindow.close();
-		}
-		if (runtimeProcess) {
-			await shutdownRuntime();
-		}
-		if (serverProcess) {
-			serverProcess.kill();
-			serverProcess = null;
-		}
-		dialog.showErrorBox("Startup Error", `Failed to start ${APP_CONFIG.APP_DISPLAY_NAME}: ${error}`);
-		void recordTelemetry("startup_error", {
-			message: String(error),
-		});
+
+        console.log(`[Desktop App] ${APP_CONFIG.APP_DISPLAY_NAME} ready!`);
+        void recordTelemetry("app_ready", {
+            serverUrl: targetUrl,
+            bundled: isBundledMode,
+        });
+
+    } catch (error) {
+        console.error("[Desktop App] Startup error:", error);
+        if (splashWindow) {
+            splashWindow.close();
+        }
+        if (runtimeProcess) {
+            await shutdownRuntime();
+        }
+        if (serverProcess) {
+            serverProcess.kill();
+            serverProcess = null;
+        }
+        dialog.showErrorBox("Startup Error", `Failed to start ${APP_CONFIG.APP_DISPLAY_NAME}: ${error}`);
+        void recordTelemetry("startup_error", {
+            message: String(error),
+        });
         app.quit();
     }
 });

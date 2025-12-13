@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"scenario-to-desktop-runtime/assets"
@@ -120,6 +123,11 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	if s.opts.DryRun {
 		s.setStatus(svc.ID, ServiceStatus{Ready: true, Message: "dry-run"})
 		return nil
+	}
+
+	// Serve static UI bundles without requiring an executable.
+	if strings.EqualFold(svc.Type, "ui-bundle") {
+		return s.startUIBundleService(ctx, svc)
 	}
 
 	bin, ok := s.opts.Manifest.ResolveBinary(svc)
@@ -239,6 +247,105 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 			_ = svcProc.logFile.Close()
 		}
 	}()
+
+	return nil
+}
+
+// startUIBundleService serves UI assets from the bundle using an embedded static server.
+func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Service) error {
+	if err := s.prepareServiceDirs(svc); err != nil {
+		return err
+	}
+
+	// Resolve port (default to "ui", otherwise first requested port)
+	portName := "ui"
+	if svc.Health.PortName != "" {
+		portName = svc.Health.PortName
+	} else if svc.Readiness.PortName != "" {
+		portName = svc.Readiness.PortName
+	} else if svc.Ports != nil && len(svc.Ports.Requested) > 0 {
+		portName = svc.Ports.Requested[0].Name
+	}
+	port, err := s.portAllocator.Resolve(svc.ID, portName)
+	if err != nil {
+		return fmt.Errorf("allocate port for %s: %w", svc.ID, err)
+	}
+
+	// Determine asset root from first asset entry.
+	if len(svc.Assets) == 0 || svc.Assets[0].Path == "" {
+		return fmt.Errorf("ui-bundle %s has no assets defined", svc.ID)
+	}
+	assetRoot := filepath.Dir(svc.Assets[0].Path)
+	if assetRoot == "" || assetRoot == "." {
+		assetRoot = filepath.Dir(svc.Assets[0].Path)
+	}
+	serveRoot := manifest.ResolvePath(s.opts.BundlePath, assetRoot)
+
+	// Verify assets exist.
+	if err := s.ensureAssets(svc); err != nil {
+		return err
+	}
+
+	logWriter, logPath, err := s.logWriter(svc)
+	if err != nil {
+		return err
+	}
+
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return fmt.Errorf("listen on %d: %w", port, err)
+	}
+
+	// SPA-friendly file server: serve files when they exist; otherwise fallback to index.html for SPA routes.
+	fileServer := http.FileServer(http.Dir(serveRoot))
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(serveRoot, filepath.Clean(r.URL.Path))
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		// Fallback to index.html for SPA routes only when index exists.
+		indexPath := filepath.Join(serveRoot, "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			http.ServeFile(w, r, indexPath)
+			return
+		}
+		http.NotFound(w, r)
+	})
+
+	server := &http.Server{Handler: handler}
+	serverCtx, cancel := context.WithCancel(ctx)
+
+	// Track service for shutdown.
+	svcProc := &serviceProcess{
+		proc:    nil, // managed in-process
+		logPath: logPath,
+		logFile: logWriter,
+		service: svc,
+		started: s.clock.Now(),
+		cancel:  cancel,
+	}
+	s.setProc(svc.ID, svcProc)
+
+	// Start serving.
+	go func() {
+		_ = server.Serve(ln) // server shutdown errors are ignored here
+	}()
+
+	// Shutdown on context cancel.
+	go func() {
+		<-serverCtx.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = server.Shutdown(ctx)
+	}()
+
+	s.setStatus(svc.ID, ServiceStatus{Ready: true, Message: fmt.Sprintf("listening on %d", port)})
+	_ = s.recordTelemetry("service_ready", map[string]interface{}{
+		"service_id": svc.ID,
+		"port":       port,
+		"type":       "ui-bundle",
+	})
 
 	return nil
 }

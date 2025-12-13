@@ -1,12 +1,12 @@
-# PRD Control Tower E2E Test Playbooks
+# PRD Control Tower BAS Automation
 
 This directory contains end-to-end test playbooks for validating PRD Control Tower functionality using browser-automation-studio.
 
 ## Directory Structure
 
 ```
-test/playbooks/
-├── capabilities/          # Organized by operational target
+bas/
+├── cases/                 # Organized by operational target
 │   ├── 01-catalog/       # Catalog view and navigation
 │   │   └── e2e/
 │   ├── 02-drafts/        # Draft lifecycle management
@@ -17,7 +17,7 @@ test/playbooks/
 │   │   └── e2e/
 │   └── 05-ai/            # AI-assisted generation
 │       └── e2e/
-└── journeys/             # User journey workflows
+└── flows/                # User journey workflows
     └── 01-new-user/      # New user onboarding flows
 ```
 
@@ -44,7 +44,7 @@ test/playbooks/
 
 ### Individual Playbook
 ```bash
-vrooli scenario test prd-control-tower e2e --playbook test/playbooks/capabilities/01-catalog/e2e/catalog-view-and-navigate.json
+vrooli scenario test prd-control-tower e2e --playbook bas/cases/01-catalog/e2e/catalog-view-and-navigate.json
 ```
 
 ### All E2E Tests
@@ -81,7 +81,7 @@ Maps to:
 
 ## Adding New Tests
 
-1. Create playbook JSON in appropriate `capabilities/<target>/e2e/` directory
+1. Create playbook JSON in appropriate `cases/<target>/e2e/` directory
 2. Reference selectors from manifest using `@selector/` prefix
 3. Link requirements in metadata: `"requirements": ["PCT-FUNC-XXX"]`
 4. Update this README with test description

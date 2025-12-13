@@ -3,8 +3,10 @@ package deployments
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -224,6 +226,20 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 			Reason:      ps.Reason,
 			Limitations: ps.Limitations,
 		})
+	}
+
+	// Populate missing asset metadata (checksum/size) so runtime validation passes
+	scenarioDir := filepath.Join(scenarioBaseDir, profile.Scenario)
+	if err := populateAssetMetadata(manifest, scenarioDir); err != nil {
+		step.Status = "warning"
+		step.Message = fmt.Sprintf("assembled manifest with %d swaps (asset metadata partial: %v)", len(manifest.Swaps), err)
+		o.log("warn", map[string]interface{}{
+			"msg":      "asset metadata population incomplete",
+			"scenario": profile.Scenario,
+			"error":    err.Error(),
+		})
+	} else {
+		step.Message = fmt.Sprintf("assembled manifest with %d swaps", len(manifest.Swaps))
 	}
 	o.successStep(&step, fmt.Sprintf("assembled manifest with %d swaps", len(manifest.Swaps)))
 	response.Steps = append(response.Steps, step)
@@ -543,6 +559,133 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 
 	response.Duration = time.Since(start).String()
 	o.writeJSON(w, http.StatusOK, response)
+}
+
+// populateAssetMetadata fills in missing SHA256 and size metadata for assets that exist on disk.
+func populateAssetMetadata(manifest *bundles.Manifest, scenarioDir string) error {
+	if manifest == nil {
+		return fmt.Errorf("manifest is nil")
+	}
+
+	// Expand ui-bundle assets to include all built files so the runtime serves proper MIME types.
+	_ = expandUIAssets(manifest, scenarioDir) // best-effort
+
+	var firstErr error
+	for si := range manifest.Services {
+		svc := &manifest.Services[si]
+		for ai := range svc.Assets {
+			asset := &svc.Assets[ai]
+			if asset == nil || asset.Path == "" {
+				continue
+			}
+
+			// Skip if already populated with a non-placeholder hash
+			if asset.SHA256 != "" && asset.SHA256 != "pending" {
+				continue
+			}
+
+			assetPath := asset.Path
+			if !filepath.IsAbs(assetPath) {
+				assetPath = filepath.Join(scenarioDir, assetPath)
+			}
+
+			info, err := os.Stat(assetPath)
+			if err != nil {
+				if firstErr == nil {
+					firstErr = fmt.Errorf("stat asset %s: %w", assetPath, err)
+				}
+				continue
+			}
+
+			hash, err := hashFileSHA256(assetPath)
+			if err != nil {
+				if firstErr == nil {
+					firstErr = fmt.Errorf("hash asset %s: %w", assetPath, err)
+				}
+				continue
+			}
+
+			asset.SHA256 = hash
+			asset.SizeBytes = info.Size()
+		}
+	}
+
+	return firstErr
+}
+
+func hashFileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// expandUIAssets ensures ui-bundle services enumerate all built assets under ui/dist.
+func expandUIAssets(manifest *bundles.Manifest, scenarioDir string) error {
+	if manifest == nil {
+		return nil
+	}
+	var firstErr error
+	for si := range manifest.Services {
+		svc := &manifest.Services[si]
+		if !strings.EqualFold(svc.Type, "ui-bundle") {
+			continue
+		}
+
+		// Determine ui dist root
+		uiRoot := filepath.Join(scenarioDir, "ui", "dist")
+		entries, err := os.ReadDir(uiRoot)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("read ui dist: %w", err)
+			}
+			continue
+		}
+
+		var assets []bundles.Asset
+		for _, entry := range entries {
+			// Walk recursively
+			err := filepath.WalkDir(filepath.Join(uiRoot, entry.Name()), func(path string, d os.DirEntry, werr error) error {
+				if werr != nil {
+					return werr
+				}
+				if d.IsDir() {
+					return nil
+				}
+				rel, _ := filepath.Rel(scenarioDir, path)
+				info, _ := os.Stat(path)
+				hash, herr := hashFileSHA256(path)
+				if herr != nil {
+					if firstErr == nil {
+						firstErr = herr
+					}
+					return nil
+				}
+				assets = append(assets, bundles.Asset{
+					Path:      filepath.ToSlash(rel),
+					SHA256:    hash,
+					SizeBytes: info.Size(),
+				})
+				return nil
+			})
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+
+		// If we found assets, replace the asset list.
+		if len(assets) > 0 {
+			svc.Assets = assets
+		}
+	}
+	return firstErr
 }
 
 func (o *Orchestrator) startStep(name string) OrchestrationStep {

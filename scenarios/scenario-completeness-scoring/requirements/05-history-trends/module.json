@@ -23,7 +23,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/history-trends/api/history-retrieval.json",
+          "ref": "bas/cases/history-trends/api/history-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates history storage and retrieval via API"
@@ -47,7 +47,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/history-trends/api/history-retrieval.json",
+          "ref": "bas/cases/history-trends/api/history-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates SQLite persistence via history endpoint"
@@ -71,7 +71,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/history-trends/api/trend-analysis.json",
+          "ref": "bas/cases/history-trends/api/trend-analysis.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates trend detection and analysis API"
@@ -95,7 +95,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/history-trends/api/history-retrieval.json",
+          "ref": "bas/cases/history-trends/api/history-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates history API endpoint with limit parameter"

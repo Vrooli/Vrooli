@@ -14,28 +14,21 @@ package app
 
 import (
 	"fmt"
-	"sync"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
 	"scenario-dependency-analyzer/internal/detection"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
-var (
-	fallbackDetector     *detection.Detector
-	fallbackDetectorOnce sync.Once
-)
-
-// detectorInstance returns the detector from the active analyzer, or a fallback.
+// detectorInstance returns the detector from the active analyzer, constructing via runtime when absent.
 func detectorInstance() *detection.Detector {
 	if analyzer := analyzerInstance(); analyzer != nil && analyzer.Detector() != nil {
 		return analyzer.Detector()
 	}
-	fallbackDetectorOnce.Do(func() {
-		cfg := appconfig.Load()
-		fallbackDetector = detection.New(cfg)
-	})
-	return fallbackDetector
+	rt := ensureRuntime(loadConfig(), db)
+	if rt != nil && rt.Analyzer() != nil {
+		return rt.Analyzer().Detector()
+	}
+	return nil
 }
 
 func refreshDependencyCatalogs() {

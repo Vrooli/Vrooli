@@ -36,6 +36,16 @@ type ScenarioService interface {
 	GetScenarioDetail(name string) (*types.ScenarioDetailResponse, error)
 }
 
+// DependencyService handles dependency catalog access and impact analysis.
+type DependencyService interface {
+	StoredDependencies(name string) (map[string][]types.ScenarioDependency, error)
+	DependencyImpact(name string) (*types.DependencyImpactReport, error)
+	AnalysisMetrics() (map[string]interface{}, error)
+	UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, scenarioPath string) error
+	RefreshCatalogs()
+	CleanupInvalidDependencies()
+}
+
 // DeploymentService provides access to computed deployment reports.
 type DeploymentService interface {
 	GetDeploymentReport(name string) (*types.DeploymentAnalysisReport, error)
@@ -53,6 +63,7 @@ type Registry struct {
 	Graph        GraphService
 	Optimization OptimizationService
 	Scenarios    ScenarioService
+	Dependencies DependencyService
 	Deployment   DeploymentService
 	Proposal     ProposalService
 }

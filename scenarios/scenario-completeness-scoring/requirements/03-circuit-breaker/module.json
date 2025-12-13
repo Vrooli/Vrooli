@@ -23,7 +23,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/circuit-breaker/api/failure-tracking.json",
+          "ref": "bas/cases/circuit-breaker/api/failure-tracking.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates circuit breaker auto-disable behavior"
@@ -47,7 +47,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/circuit-breaker/api/failure-tracking.json",
+          "ref": "bas/cases/circuit-breaker/api/failure-tracking.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates breaker status includes failure counts"
@@ -71,7 +71,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/circuit-breaker/api/periodic-retry.json",
+          "ref": "bas/cases/circuit-breaker/api/periodic-retry.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates breaker states including half-open for retries"
@@ -102,7 +102,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/circuit-breaker/api/breaker-status.json",
+          "ref": "bas/cases/circuit-breaker/api/breaker-status.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates circuit breaker reset endpoints"

@@ -14,13 +14,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_config_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_api_integration_test.go"
         }
       ],
       "notes": "Store config in postgres campaigns table - validated via TestAutoCampaign_Configuration | Integration tests verify end-to-end API workflows.",
@@ -36,13 +36,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_concurrency_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_api_integration_test.go"
         }
       ],
       "notes": "Prevent resource exhaustion and AI cost runaway - validated via TestAutoCampaign_ConcurrencyLimit | Integration tests verify end-to-end API workflows.",
@@ -58,13 +58,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_completion_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_api_integration_test.go"
         }
       ],
       "notes": "Query visited-tracker for completion status - validated via TestAutoCampaign_AutoCompleteAllFilesVisited | Integration tests verify end-to-end API workflows.",
@@ -80,13 +80,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_completion_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_lifecycle_integration_test.go"
         }
       ],
       "notes": "Track session count in campaign state - validated via TestAutoCampaign_AutoCompleteMaxSessions | Integration tests verify end-to-end API workflows.",
@@ -102,13 +102,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_lifecycle_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_lifecycle_integration_test.go"
         }
       ],
       "notes": "State transitions: ACTIVE ⇄ PAUSED - validated via TestAutoCampaign_PauseResume | Integration tests verify end-to-end API workflows.",
@@ -124,13 +124,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_lifecycle_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_lifecycle_integration_test.go"
         }
       ],
       "notes": "Preserve partial results and mark as 'terminated' - validated via TestAutoCampaign_ManualTermination | Integration tests verify end-to-end API workflows.",
@@ -146,13 +146,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_errors_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_errors_integration_test.go"
         }
       ],
       "notes": "Threshold: 3 consecutive failures triggers error state - validated via TestAutoCampaign_ErrorThreshold | Integration tests verify end-to-end API workflows.",
@@ -168,13 +168,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/auto_campaigns_test.go"
+          "ref": "api/auto_campaigns_stats_test.go"
         },
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "ref": "api/auto_campaigns_integration_test.go"
+          "ref": "api/auto_campaigns_stats_integration_test.go"
         }
       ],
       "notes": "Notify via UI/logs when campaign errors out - validated via TestAutoCampaign_ErrorThreshold and TestAutoCampaign_Statistics | Integration tests verify end-to-end API workflows.",

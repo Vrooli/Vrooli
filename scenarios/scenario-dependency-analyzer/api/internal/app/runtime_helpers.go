@@ -8,9 +8,16 @@ import (
 )
 
 var (
-	fallbackAnalyzer     *Analyzer
-	fallbackAnalyzerOnce sync.Once
+	configOnce   sync.Once
+	cachedConfig appconfig.Config
 )
+
+func loadConfig() appconfig.Config {
+	configOnce.Do(func() {
+		cachedConfig = appconfig.Load()
+	})
+	return cachedConfig
+}
 
 // ensureRuntime makes sure a runtime exists (used when Run hasn't set one yet).
 func ensureRuntime(cfg appconfig.Config, dbConn *sql.DB) *Runtime {
@@ -22,13 +29,14 @@ func ensureRuntime(cfg appconfig.Config, dbConn *sql.DB) *Runtime {
 	return rt
 }
 
-// analyzerInstance returns the active Analyzer, constructing a fallback if necessary.
+// analyzerInstance returns the active Analyzer, constructing via runtime if needed.
 func analyzerInstance() *Analyzer {
 	if rt := currentRuntime(); rt != nil && rt.Analyzer() != nil {
 		return rt.Analyzer()
 	}
-	fallbackAnalyzerOnce.Do(func() {
-		fallbackAnalyzer = NewAnalyzer(appconfig.Load(), db)
-	})
-	return fallbackAnalyzer
+	rt := ensureRuntime(loadConfig(), db)
+	if rt != nil {
+		return rt.Analyzer()
+	}
+	return nil
 }

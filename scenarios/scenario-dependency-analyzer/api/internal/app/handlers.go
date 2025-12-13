@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"scenario-dependency-analyzer/internal/app/services"
-	appconfig "scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -49,14 +48,24 @@ func newHandler(rt *Runtime) *handler {
 // Used when no runtime is configured (e.g., testing, legacy code paths).
 func newFallbackServices() services.Registry {
 	analyzer := analyzerInstance()
+	workspace := newScenarioWorkspace(loadConfig())
 	analysis := &analysisService{analyzer: analyzer}
+	dependencies := defaultDependencyService()
+	opt := &optimizationService{
+		analysis:     analysis,
+		workspace:    workspace,
+		detector:     dependencies.detector,
+		dependencies: dependencies,
+		store:        dependencies.store,
+	}
 	return services.Registry{
 		Analysis:     analysis,
-		Scan:         &scanService{analysis: analysis},
+		Scan:         &scanService{analysis: analysis, dependencies: dependencies},
 		Graph:        &graphService{analyzer: analyzer},
-		Optimization: &optimizationService{analysis: analysis},
-		Scenarios:    &scenarioService{cfg: appconfig.Load(), store: currentStore()},
-		Deployment:   &deploymentService{cfg: appconfig.Load()},
+		Optimization: opt,
+		Scenarios:    &scenarioService{workspace: workspace, store: currentStore()},
+		Dependencies: dependencies,
+		Deployment:   &deploymentService{workspace: workspace},
 		Proposal:     &proposalService{},
 	}
 }
@@ -67,6 +76,7 @@ func (h *handler) scanService() services.ScanService                 { return h.
 func (h *handler) optimizationService() services.OptimizationService { return h.services.Optimization }
 func (h *handler) graphService() services.GraphService               { return h.services.Graph }
 func (h *handler) scenarioService() services.ScenarioService         { return h.services.Scenarios }
+func (h *handler) dependencyService() services.DependencyService     { return h.services.Dependencies }
 func (h *handler) deploymentService() services.DeploymentService     { return h.services.Deployment }
 func (h *handler) proposalService() services.ProposalService         { return h.services.Proposal }
 
@@ -115,14 +125,19 @@ func (h *handler) analysisHealth(c *gin.Context) {
 		"capabilities": []string{"dependency_analysis", "graph_generation"},
 	}
 
-	metrics, metricsErr := collectAnalysisMetrics()
-	for k, v := range metrics {
-		payload[k] = v
-	}
+	if depSvc := h.dependencyService(); depSvc != nil {
+		metrics, metricsErr := depSvc.AnalysisMetrics()
+		for k, v := range metrics {
+			payload[k] = v
+		}
 
-	if metricsErr != nil {
+		if metricsErr != nil {
+			payload["status"] = "degraded"
+			payload["error"] = metricsErr.Error()
+		}
+	} else {
 		payload["status"] = "degraded"
-		payload["error"] = metricsErr.Error()
+		payload["error"] = "dependency store unavailable"
 	}
 
 	c.JSON(http.StatusOK, payload)
@@ -155,10 +170,19 @@ func (h *handler) analyzeScenario(c *gin.Context) {
 func (h *handler) getDependencies(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 
-	stored, err := loadStoredDependencies(scenarioName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	stored := map[string][]types.ScenarioDependency{
+		"resources":        {},
+		"scenarios":        {},
+		"shared_workflows": {},
+	}
+
+	if depSvc := h.dependencyService(); depSvc != nil {
+		loaded, err := depSvc.StoredDependencies(scenarioName)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		stored = loaded
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -215,7 +239,13 @@ func (h *handler) getDependencyImpact(c *gin.Context) {
 		return
 	}
 
-	report, err := analyzeDependencyImpact(dependencyName)
+	depSvc := h.dependencyService()
+	if depSvc == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Dependency service unavailable"})
+		return
+	}
+
+	report, err := depSvc.DependencyImpact(dependencyName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to analyze impact: " + err.Error()})
 		return

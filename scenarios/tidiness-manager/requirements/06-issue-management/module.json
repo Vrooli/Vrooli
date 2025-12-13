@@ -14,7 +14,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_resolved_test.go"
         }
       ],
       "notes": "PATCH /api/v1/agent/issues/:id endpoint implemented with status validation. UI includes 'Mark Resolved' button (ui/src/pages/IssuesView.tsx) that calls updateIssueStatus mutation. Resolved issues hidden from default view but queryable via status filter. TestIssueManager_MarkAsResolved validates API behavior.",
@@ -30,7 +30,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_ignored_test.go"
         }
       ],
       "notes": "PATCH endpoint supports 'ignored' status with resolution_notes field. UI (ui/src/pages/IssuesView.tsx) includes 'Ignore' button with mutation hook. Ignored issues show badge and are filterable. TestIssueManager_MarkAsIgnored validates API behavior with resolution_notes persistence.",
@@ -46,7 +46,7 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_filter_test.go"
         }
       ],
       "notes": "GET /api/v1/agent/issues supports status query parameter. UI (ui/src/pages/IssuesView.tsx) includes status filter dropdown (all/open/resolved/ignored). Default view shows open issues only. Real API integration via fetchAllIssues() replaces mock data. TestIssueManager_FilterByStatus validates endpoint filtering.",
@@ -62,7 +62,7 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_pending_test.go"
         }
       ],
       "notes": "Split-pane layout similar to scenario-auditor",
@@ -78,7 +78,7 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_pending_test.go"
         }
       ],
       "notes": "Match by file + line number + fuzzy message similarity",
@@ -94,7 +94,7 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_pending_test.go"
         }
       ],
       "notes": "Show scan progress and refresh results on completion",
@@ -110,7 +110,7 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_pending_test.go"
         }
       ],
       "notes": "Warn about AI cost; show batch progress",
@@ -126,7 +126,7 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "api/issue_manager_test.go"
+          "ref": "api/issue_manager_pending_test.go"
         }
       ],
       "notes": "Show current campaign status and next scheduled session",

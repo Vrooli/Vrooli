@@ -67,11 +67,11 @@ type ServiceDeployment struct {
 	Overrides             []DeploymentOverride        `json:"overrides"`
 
 	// v2.0 user-defined fields
-	SupportedTiers   []int                             `json:"supported_tiers"`
-	Platforms        []string                          `json:"platforms"`
-	DesktopReady     bool                              `json:"desktop_ready"`
-	MinimalResources []string                          `json:"minimal_resources"`
-	BuildConfigs     map[string]ServiceBuildConfig     `json:"build_configs"`
+	SupportedTiers   []int                         `json:"supported_tiers"`
+	Platforms        []string                      `json:"platforms"`
+	DesktopReady     bool                          `json:"desktop_ready"`
+	MinimalResources []string                      `json:"minimal_resources"`
+	BuildConfigs     map[string]ServiceBuildConfig `json:"build_configs"`
 }
 
 // ServiceBuildConfig specifies how to build a service component.
@@ -192,6 +192,29 @@ type ScenarioDependency struct {
 	Configuration  map[string]interface{} `json:"configuration" db:"configuration"`
 	DiscoveredAt   time.Time              `json:"discovered_at" db:"discovered_at"`
 	LastVerified   time.Time              `json:"last_verified" db:"last_verified"`
+}
+
+// DependentScenario describes a scenario that relies on a given dependency.
+type DependentScenario struct {
+	ScenarioName string                 `json:"scenario_name"`
+	Required     bool                   `json:"required"`
+	Purpose      string                 `json:"purpose"`
+	AccessMethod string                 `json:"access_method"`
+	Alternatives []string               `json:"alternatives,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// DependencyImpactReport captures the impact of removing a dependency.
+type DependencyImpactReport struct {
+	DependencyName     string              `json:"dependency_name"`
+	DependencyType     string              `json:"dependency_type"` // "resource", "scenario"
+	DirectDependents   []DependentScenario `json:"direct_dependents"`
+	IndirectDependents []DependentScenario `json:"indirect_dependents"`
+	TotalAffected      int                 `json:"total_affected"`
+	CriticalImpact     bool                `json:"critical_impact"` // true if any required dependency
+	Severity           string              `json:"severity"`        // "none", "low", "medium", "high", "critical"
+	ImpactSummary      string              `json:"impact_summary"`
+	Recommendations    []string            `json:"recommendations"`
 }
 
 // DependencyGraph models persisted graph nodes/edges.

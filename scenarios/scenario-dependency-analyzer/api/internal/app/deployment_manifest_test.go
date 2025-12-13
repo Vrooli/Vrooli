@@ -167,10 +167,10 @@ func TestBuildBundleManifestDependencyFlattening(t *testing.T) {
 
 	// Should have 4 unique dependencies
 	expectedDeps := map[string]bool{
-		"resource:postgres":         true,
-		"resource:redis":            true,
-		"scenario:auth-service":     true,
-		"scenario:secrets-manager":  true,
+		"resource:postgres":        true,
+		"resource:redis":           true,
+		"scenario:auth-service":    true,
+		"scenario:secrets-manager": true,
 	}
 	for key := range expectedDeps {
 		if !depNames[key] {
@@ -202,8 +202,8 @@ func TestBuildBundleManifestSwapsGeneration(t *testing.T) {
 			Alternatives: []string{"in-memory-cache"},
 		},
 		{
-			Name: "auth-service",
-			Type: "scenario", // Should not generate swap
+			Name:         "auth-service",
+			Type:         "scenario", // Should not generate swap
 			Alternatives: []string{"basic-auth"},
 		},
 	}
@@ -484,11 +484,11 @@ func TestBuildBundleManifestVersionDefaults(t *testing.T) {
 
 func TestBuildBundleManifestAppNameFallbacks(t *testing.T) {
 	tests := []struct {
-		name          string
-		displayName   string
-		serviceName   string
-		scenarioName  string
-		expectedName  string
+		name         string
+		displayName  string
+		serviceName  string
+		scenarioName string
+		expectedName string
 	}{
 		{
 			name:         "UsesDisplayName",

@@ -24,8 +24,13 @@ The services package defines interfaces for all major operations:
 | `GraphService` | Dependency graph generation | Well-defined |
 | `OptimizationService` | Optimization recommendations | Well-defined |
 | `ScenarioService` | Catalog and detail operations | Well-defined |
+| `DependencyService` | Stored dependency access and impact analysis | Newly added to keep handlers off store/detector |
 | `DeploymentService` | Deployment report access | Well-defined |
 | `ProposalService` | Proposed scenario analysis | Well-defined |
+
+Handlers now route dependency health, catalog retrieval, and impact analysis through `DependencyService`, avoiding direct calls to the store or detector in presentation code.
+Optimization now consumes the detector through constructor injection instead of calling global bridge helpers.
+Optimization workflows also use the injected workspace/dependency services and store for persistence instead of global config/analyzer lookups, keeping orchestration logic inside the service layer and integrations behind service boundaries.
 
 **Usage:**
 ```go
@@ -73,7 +78,7 @@ mockStore.SetMetrics(map[string]interface{}{"scenarios_found": 5})
 **Functions with seam support:**
 - `extractDeclaredResourcesWithSeams()` - controlled time/ID generation
 - `convertDeclaredScenariosToDependenciesWithSeams()` - controlled time/ID generation
-- `generateDependencyGraphWithSeams()` - controlled time/ID generation
+- `Analyzer.generateGraphWithSeams()` - graph building with controlled time/ID generation and explicit store/catalog seams
 
 ### 3. Detection Engine (`internal/detection/`)
 
@@ -162,7 +167,7 @@ The following global state exists in the codebase:
 
 | Variable | Location | Purpose | Impact |
 |----------|----------|---------|--------|
-| `db *sql.DB` | `prediction.go:18` | Database connection | Used directly in impact_analyzer.go |
+| `db *sql.DB` | `runtime.go:17` | Fallback database connection | Used for health checks when no runtime is available |
 | `defaultRuntime *Runtime` | `runtime.go:19` | Runtime singleton | Accessed via `currentRuntime()` |
 | `fallbackAnalyzer *Analyzer` | `runtime_helpers.go:11` | Lazy analyzer | Created on first access |
 | `fallbackDetector *Detector` | `detection_bridge.go:13` | Lazy detector | Created on first access |
@@ -190,15 +195,19 @@ svc := h.scenarioService()
 detail, _ := svc.GetScenarioDetail(name)
 ```
 
+Dependency-centric HTTP handlers now rely on `DependencyService` rather than touching the store or detector directly, reducing new bridge usage in presentation code.
+
 ### Configuration Loading
 
 `appconfig.Load()` is called repeatedly throughout the code instead of being injected once.
 
 **Locations:**
-- `runtime_helpers.go:31`
-- `service_registry.go:169,206,269`
-- `store_bridge.go:67`
-- `optimization.go:17`
+- `api/main.go:25`
+- `runtime_helpers.go:17`
+- `scenario_workspace.go:22`
+- `config_sync.go:20`
+- `config_sync.go:156`
+- `config_sync.go:305`
 
 **Future improvement:** Pass config via dependency injection.
 

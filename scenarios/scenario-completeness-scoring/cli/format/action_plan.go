@@ -34,7 +34,7 @@ func FormatActionPlan(resp models.ScoreResponse) {
 		fmt.Println("    1. Audit each requirement to determine appropriate test layers:")
 		fmt.Println("       - Business logic → API tests (api/**/*_test.go)")
 		fmt.Println("       - UI components → UI tests (ui/src/**/*.test.tsx)")
-		fmt.Println("       - User workflows → e2e playbooks (test/playbooks/**/*.json)")
+		fmt.Println("       - User workflows → e2e playbooks (bas/**/*.json)")
 		fmt.Println()
 		fmt.Println("    2. Create tests in valid locations (or reference existing ones)")
 		fmt.Println()

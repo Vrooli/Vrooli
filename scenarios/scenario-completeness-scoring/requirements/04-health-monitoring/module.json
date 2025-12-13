@@ -23,7 +23,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/health-monitoring/api/health-status.json",
+          "ref": "bas/cases/health-monitoring/api/health-status.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates health status API endpoint"
@@ -47,7 +47,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/health-monitoring/api/collector-status.json",
+          "ref": "bas/cases/health-monitoring/api/collector-status.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates collector status tracking"
@@ -71,7 +71,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/health-monitoring/api/collector-health.json",
+          "ref": "bas/cases/health-monitoring/api/collector-health.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates collector test endpoint"

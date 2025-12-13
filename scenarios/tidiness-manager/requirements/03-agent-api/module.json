@@ -19,9 +19,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/agent-api.bats"
+          "ref": "bas/cases/03-agent-api/api/scenario-summary.json"
         }
       ],
       "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&limit=N - fully functional with database integration",
@@ -42,9 +42,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/agent-api.bats"
+          "ref": "bas/cases/03-agent-api/api/file-scoped-query.json"
         }
       ],
       "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&file=path/to/file.ts - supports file and folder filters",
@@ -65,9 +65,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/agent-api.bats"
+          "ref": "bas/cases/03-agent-api/api/category-scoped-query.json"
         }
       ],
       "notes": "Implemented as GET /api/v1/agent/issues?scenario={name}&category=dead_code - supports all issue categories",
@@ -84,6 +84,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/agent_api_ranking_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/issue-ranking.json"
         }
       ],
       "notes": "Implemented with severity-based ranking (critical→high→medium→low→info) plus creation date DESC",
@@ -103,9 +109,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/agent-api.bats"
+          "ref": "bas/cases/03-agent-api/api/cli-wrapper.json"
         }
       ],
       "notes": "CLI fully functional: tidiness-manager issues --scenario <name> --limit 10 --category dead_code. BATS tests verify CLI commands wrap HTTP API correctly with all filtering options.",
@@ -125,9 +131,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/agent-api.bats"
+          "ref": "bas/cases/03-agent-api/api/postgres-storage.json"
         }
       ],
       "notes": "PostgreSQL schema implemented with all required fields, supports querying by scenario/file/folder/category/severity",
@@ -144,6 +150,12 @@
           "phase": "unit",
           "status": "implemented",
           "ref": "api/agent_api_storage_test.go"
+        },
+        {
+          "type": "test",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/03-agent-api/api/campaign-metadata.json"
         }
       ],
       "notes": "Campaign metadata linkage implemented - issues table has campaign_id, session_id, resource_used fields",

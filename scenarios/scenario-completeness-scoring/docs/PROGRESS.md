@@ -82,9 +82,9 @@ Track implementation progress for scenario-completeness-scoring.
   - API endpoints: `/api/v1/health/collectors`, `/api/v1/health/collectors/{name}/test`
   - Circuit breaker API: `/api/v1/health/circuit-breaker`, `/api/v1/health/circuit-breaker/reset`
 - [x] Added BAS integration playbooks for multi-layer validation
-  - `test/playbooks/capabilities/core-scoring/api/score-retrieval.json`
-  - `test/playbooks/capabilities/circuit-breaker/api/breaker-status.json`
-  - `test/playbooks/capabilities/health-monitoring/api/collector-health.json`
+  - `bas/cases/core-scoring/api/score-retrieval.json`
+  - `bas/cases/circuit-breaker/api/breaker-status.json`
+  - `bas/cases/health-monitoring/api/collector-health.json`
 - [x] **Phase 6**: Analysis features fully implemented
   - `api/pkg/analysis/whatif.go` - What-if analysis [REQ:SCS-ANALYSIS-001]
   - `api/pkg/analysis/bulk.go` - Bulk refresh and comparison [REQ:SCS-ANALYSIS-003,004]
@@ -114,9 +114,9 @@ Track implementation progress for scenario-completeness-scoring.
     - `GET /api/v1/config/presets` - List available presets
     - `POST /api/v1/config/presets/{name}/apply` - Apply preset to global config
   - Added 3 new E2E playbooks for configuration:
-    - `test/playbooks/capabilities/configuration/api/config-retrieval.json`
-    - `test/playbooks/capabilities/configuration/api/presets.json`
-    - `test/playbooks/capabilities/configuration/api/scenario-config.json`
+    - `bas/cases/configuration/api/config-retrieval.json`
+    - `bas/cases/configuration/api/presets.json`
+    - `bas/cases/configuration/api/scenario-config.json`
 
 ### In Progress
 - [x] Phase 6: Analysis features (What-if analysis, bulk refresh) ✓

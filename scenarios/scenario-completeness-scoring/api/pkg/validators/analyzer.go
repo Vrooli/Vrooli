@@ -165,14 +165,10 @@ func analyzeInvalidTestLocations(
 			}
 			refLower := strings.ToLower(ref)
 
-			// Reject anything in test/ that's not test/playbooks/*.{json,yaml}
-			if strings.HasPrefix(refLower, "test/") {
-				isPlaybook := strings.HasPrefix(refLower, "test/playbooks/") &&
-					(strings.HasSuffix(refLower, ".json") || strings.HasSuffix(refLower, ".yaml"))
-				if !isPlaybook {
+				// Reject anything in test/
+				if strings.HasPrefix(refLower, "test/") {
 					invalidPathsMap[ref] = append(invalidPathsMap[ref], req.ID)
 				}
-			}
 		}
 	}
 
@@ -200,7 +196,7 @@ func analyzeInvalidTestLocations(
 	if components.HasUI {
 		validSources = append(validSources, "ui/src/**/*.test.tsx (UI unit tests)")
 	}
-	validSources = append(validSources, "test/playbooks/**/*.{json,yaml} (e2e automation)")
+		validSources = append(validSources, "bas/cases/**/*.{json,yaml} (e2e automation)")
 
 	severity := "medium"
 	if ratio > config.SeverityThreshold {

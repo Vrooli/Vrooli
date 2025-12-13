@@ -23,7 +23,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/configuration/api/config-retrieval.json",
+          "ref": "bas/cases/configuration/api/config-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E tests for GET /api/v1/config endpoint"
@@ -47,7 +47,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/configuration/api/scenario-config.json",
+          "ref": "bas/cases/configuration/api/scenario-config.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E tests for scenario-specific config endpoints"
@@ -71,7 +71,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/configuration/api/presets.json",
+          "ref": "bas/cases/configuration/api/presets.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E tests for preset listing and application"
@@ -95,7 +95,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/configuration/api/config-retrieval.json",
+          "ref": "bas/cases/configuration/api/config-retrieval.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E tests for config persistence via API"

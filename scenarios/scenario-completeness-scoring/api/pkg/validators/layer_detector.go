@@ -23,13 +23,13 @@ var ValidationLayerPatterns = map[string]struct {
 		},
 		Description: "UI unit tests (Vitest/Jest)",
 	},
-	"E2E": {
-		Patterns: []*regexp.Regexp{
-			regexp.MustCompile(`(?i)^/?test/playbooks/.*\.(json|yaml)$`),
+		"E2E": {
+			Patterns: []*regexp.Regexp{
+				regexp.MustCompile(`(?i)^/?bas/cases/.*\.(json|yaml)$`),
+			},
+			Description: "End-to-end automation (BAS playbooks)",
 		},
-		Description: "End-to-end automation (BAS playbooks)",
-	},
-}
+	}
 
 // DeriveRequirementCriticality derives criticality from PRD reference
 func DeriveRequirementCriticality(req Requirement) string {
@@ -114,14 +114,10 @@ func DetectValidationLayers(req Requirement, scenarioRoot string) ValidationLaye
 			continue
 		}
 
-		// Reject unsupported test/ directories (except test/playbooks/)
-		if strings.HasPrefix(refOriginal, "test/") {
-			isPlaybook := strings.HasPrefix(refOriginal, "test/playbooks/") &&
-				(strings.HasSuffix(refOriginal, ".json") || strings.HasSuffix(refOriginal, ".yaml"))
-			if !isPlaybook {
+			// Reject unsupported test/ directories
+			if strings.HasPrefix(refOriginal, "test/") {
 				continue
 			}
-		}
 
 		// Quality check for test type validations
 		if v.Type == "test" && refOriginal != "" {

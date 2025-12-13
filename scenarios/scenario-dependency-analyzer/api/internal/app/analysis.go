@@ -23,72 +23,19 @@ func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalys
 		return nil, err
 	}
 
-	response := &types.DependencyAnalysisResponse{
-		Scenario:              scenarioName,
-		Resources:             []types.ScenarioDependency{},
-		DetectedResources:     []types.ScenarioDependency{},
-		Scenarios:             []types.ScenarioDependency{},
-		DeclaredScenarioSpecs: map[string]types.ScenarioDependencySpec{},
-		SharedWorkflows:       []types.ScenarioDependency{},
-		TransitiveDepth:       0,
-		ResourceDiff:          types.DependencyDiff{},
-		ScenarioDiff:          types.DependencyDiff{},
-	}
-
-	declaredResources := extractDeclaredResources(scenarioName, serviceConfig)
-	response.Resources = declaredResources
-	response.DeclaredScenarioSpecs = normalizeScenarioSpecs(serviceConfig.Dependencies.Scenarios)
-
+	response := newAnalysisResponse(scenarioName, serviceConfig)
 	if a.detector == nil {
 		return nil, fmt.Errorf("detector not initialized")
 	}
 
-	detectedResources, err := a.detector.ScanResources(scenarioPath, scenarioName, serviceConfig)
-	if err != nil {
-		log.Printf("Warning: failed to scan for resource usage: %v", err)
-	} else {
-		response.DetectedResources = detectedResources
-	}
-
-	scenarioDeps, err := a.detector.ScanScenarioDependencies(scenarioPath, scenarioName)
-	if err != nil {
-		log.Printf("Warning: failed to scan for scenario dependencies: %v", err)
-	} else {
-		response.Scenarios = append(response.Scenarios, scenarioDeps...)
-	}
-
-	workflowDeps, err := a.detector.ScanSharedWorkflows(scenarioPath, scenarioName)
-	if err != nil {
-		log.Printf("Warning: failed to scan for shared workflows: %v", err)
-	} else {
-		response.SharedWorkflows = append(response.SharedWorkflows, workflowDeps...)
-	}
+	a.collectDetections(response, scenarioPath, scenarioName, serviceConfig)
 
 	declaredScenarioDeps := convertDeclaredScenariosToDependencies(scenarioName, response.DeclaredScenarioSpecs)
 	response.ResourceDiff = buildResourceDiff(appconfig.ResolvedResourceMap(serviceConfig), response.DetectedResources)
 	response.ScenarioDiff = buildScenarioDiff(response.DeclaredScenarioSpecs, response.Scenarios)
 
-	if a.store != nil {
-		if err := a.store.StoreDependencies(response, declaredScenarioDeps); err != nil {
-			log.Printf("Warning: failed to store dependencies in database: %v", err)
-		}
-	} else {
-		log.Printf("Warning: store not initialized; dependency metadata not persisted")
-	}
-
-	if a.store != nil {
-		if err := a.store.UpdateScenarioMetadata(scenarioName, serviceConfig, scenarioPath); err != nil {
-			log.Printf("Warning: failed to update scenario metadata: %v", err)
-		}
-	}
-
-	if deploymentReport := deployment.BuildReport(scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
-		response.DeploymentReport = deploymentReport
-		if err := deployment.PersistReport(scenarioPath, deploymentReport); err != nil {
-			log.Printf("Warning: failed to persist deployment report: %v", err)
-		}
-	}
-
+	a.persistAnalysisResults(response, declaredScenarioDeps, scenarioName, scenarioPath, serviceConfig)
+	a.attachDeploymentReport(response, scenarioName, scenarioPath, serviceConfig)
 	return response, nil
 }
 
@@ -140,6 +87,90 @@ func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error)
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
 	return analyzer.AnalyzeAllScenarios()
+}
+
+func newAnalysisResponse(scenarioName string, serviceConfig *types.ServiceConfig) *types.DependencyAnalysisResponse {
+	declaredSpecs := map[string]types.ScenarioDependencySpec{}
+	if serviceConfig != nil {
+		declaredSpecs = normalizeScenarioSpecs(serviceConfig.Dependencies.Scenarios)
+	}
+
+	response := &types.DependencyAnalysisResponse{
+		Scenario:              scenarioName,
+		Resources:             []types.ScenarioDependency{},
+		DetectedResources:     []types.ScenarioDependency{},
+		Scenarios:             []types.ScenarioDependency{},
+		DeclaredScenarioSpecs: declaredSpecs,
+		SharedWorkflows:       []types.ScenarioDependency{},
+		TransitiveDepth:       0,
+		ResourceDiff:          types.DependencyDiff{},
+		ScenarioDiff:          types.DependencyDiff{},
+	}
+
+	if serviceConfig != nil {
+		response.Resources = extractDeclaredResources(scenarioName, serviceConfig)
+	}
+
+	return response
+}
+
+func (a *Analyzer) collectDetections(response *types.DependencyAnalysisResponse, scenarioPath, scenarioName string, serviceConfig *types.ServiceConfig) {
+	if a == nil || a.detector == nil {
+		return
+	}
+
+	if detectedResources, err := a.detector.ScanResources(scenarioPath, scenarioName, serviceConfig); err != nil {
+		log.Printf("Warning: failed to scan for resource usage: %v", err)
+	} else {
+		response.DetectedResources = detectedResources
+	}
+
+	if scenarioDeps, err := a.detector.ScanScenarioDependencies(scenarioPath, scenarioName); err != nil {
+		log.Printf("Warning: failed to scan for scenario dependencies: %v", err)
+	} else {
+		response.Scenarios = append(response.Scenarios, scenarioDeps...)
+	}
+
+	if workflowDeps, err := a.detector.ScanSharedWorkflows(scenarioPath, scenarioName); err != nil {
+		log.Printf("Warning: failed to scan for shared workflows: %v", err)
+	} else {
+		response.SharedWorkflows = append(response.SharedWorkflows, workflowDeps...)
+	}
+}
+
+func (a *Analyzer) persistAnalysisResults(
+	response *types.DependencyAnalysisResponse,
+	declaredScenarioDeps []types.ScenarioDependency,
+	scenarioName string,
+	scenarioPath string,
+	serviceConfig *types.ServiceConfig,
+) {
+	if a == nil || a.store == nil {
+		log.Printf("Warning: store not initialized; dependency metadata not persisted")
+		return
+	}
+
+	if err := a.store.StoreDependencies(response, declaredScenarioDeps); err != nil {
+		log.Printf("Warning: failed to store dependencies in database: %v", err)
+	}
+
+	if err := a.store.UpdateScenarioMetadata(scenarioName, serviceConfig, scenarioPath); err != nil {
+		log.Printf("Warning: failed to update scenario metadata: %v", err)
+	}
+}
+
+func (a *Analyzer) attachDeploymentReport(
+	response *types.DependencyAnalysisResponse,
+	scenarioName string,
+	scenarioPath string,
+	serviceConfig *types.ServiceConfig,
+) {
+	if deploymentReport := deployment.BuildReport(scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
+		response.DeploymentReport = deploymentReport
+		if err := deployment.PersistReport(scenarioPath, deploymentReport); err != nil {
+			log.Printf("Warning: failed to persist deployment report: %v", err)
+		}
+	}
 }
 
 // extractDeclaredResources extracts declared resources using default seams.

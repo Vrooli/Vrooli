@@ -23,7 +23,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/analysis/api/what-if-analysis.json",
+          "ref": "bas/cases/analysis/api/what-if-analysis.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates what-if API endpoint"
@@ -47,7 +47,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/analysis/api/what-if-analysis.json",
+          "ref": "bas/cases/analysis/api/what-if-analysis.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates recommendations are returned with scores"
@@ -71,7 +71,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/analysis/api/bulk-operations.json",
+          "ref": "bas/cases/analysis/api/bulk-operations.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates bulk refresh API endpoint"
@@ -95,7 +95,7 @@
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/analysis/api/bulk-operations.json",
+          "ref": "bas/cases/analysis/api/bulk-operations.json",
           "phase": "integration",
           "status": "failing",
           "notes": "E2E playbook validates comparison API endpoint"

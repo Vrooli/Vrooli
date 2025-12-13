@@ -158,43 +158,12 @@ func (s *resourceScanner) recordDetection(
 		return
 	}
 
-	// Get existing entry or create new one
-	entry, ok := results[canonical]
-	if !ok {
-		entry = types.ScenarioDependency{
-			ID:             uuid.New().String(),
-			ScenarioName:   scenarioName,
-			DependencyType: "resource",
-			DependencyName: canonical,
-			Required:       true,
-			Purpose:        "Detected via static analysis",
-			AccessMethod:   method,
-			Configuration:  map[string]interface{}{"source": "detected"},
-			DiscoveredAt:   time.Now(),
-			LastVerified:   time.Now(),
-		}
-	}
-
-	// Ensure configuration map exists
-	if entry.Configuration == nil {
-		entry.Configuration = map[string]interface{}{}
-	}
+	entry := ensureResourceEntry(results, scenarioName, canonical, "Detected via static analysis", method, map[string]interface{}{"source": "detected"})
 
 	// Set resource type
 	entry.Configuration["resource_type"] = resourceType
 
-	// Append match information
-	match := map[string]interface{}{
-		"pattern": pattern,
-		"method":  method,
-		"file":    file,
-	}
-
-	if existing, ok := entry.Configuration["matches"].([]map[string]interface{}); ok {
-		entry.Configuration["matches"] = append(existing, match)
-	} else {
-		entry.Configuration["matches"] = []map[string]interface{}{match}
-	}
+	entry = appendMatch(entry, pattern, method, file)
 
 	results[canonical] = entry
 }
@@ -219,36 +188,77 @@ func (s *resourceScanner) augmentWithInitialization(
 
 		files := extractInitializationFiles(resource.Initialization)
 
-		// Get existing entry or create new one
-		entry, exists := results[canonical]
-		if !exists {
-			entry = types.ScenarioDependency{
-				ID:             uuid.New().String(),
-				ScenarioName:   scenarioName,
-				DependencyType: "resource",
-				DependencyName: canonical,
-				Required:       true,
-				Purpose:        "Initialization data references this resource",
-				AccessMethod:   "initialization",
-				Configuration:  map[string]interface{}{},
-				DiscoveredAt:   time.Now(),
-				LastVerified:   time.Now(),
-			}
-		}
-
-		// Update configuration
-		if entry.Configuration == nil {
-			entry.Configuration = map[string]interface{}{}
-		}
-		entry.Configuration["initialization_detected"] = true
-
-		if len(files) > 0 {
-			entry.Configuration["initialization_files"] = mergeInitializationFiles(
-				entry.Configuration["initialization_files"],
-				files,
-			)
-		}
+		entry := ensureResourceEntry(results, scenarioName, canonical, "Initialization data references this resource", "initialization", nil)
+		markInitialization(&entry, files)
 
 		results[canonical] = entry
 	}
+}
+
+func ensureResourceEntry(
+	results map[string]types.ScenarioDependency,
+	scenarioName, canonical, purpose, method string,
+	baseConfig map[string]interface{},
+) types.ScenarioDependency {
+	if entry, ok := results[canonical]; ok {
+		if entry.Configuration == nil {
+			entry.Configuration = map[string]interface{}{}
+		}
+		return entry
+	}
+
+	config := map[string]interface{}{}
+	for k, v := range baseConfig {
+		config[k] = v
+	}
+
+	return types.ScenarioDependency{
+		ID:             uuid.New().String(),
+		ScenarioName:   scenarioName,
+		DependencyType: "resource",
+		DependencyName: canonical,
+		Required:       true,
+		Purpose:        purpose,
+		AccessMethod:   method,
+		Configuration:  config,
+		DiscoveredAt:   time.Now(),
+		LastVerified:   time.Now(),
+	}
+}
+
+func appendMatch(entry types.ScenarioDependency, pattern, method, file string) types.ScenarioDependency {
+	if entry.Configuration == nil {
+		entry.Configuration = map[string]interface{}{}
+	}
+
+	matches := existingMatches(entry.Configuration["matches"])
+	entry.Configuration["matches"] = append(matches, map[string]interface{}{
+		"pattern": pattern,
+		"method":  method,
+		"file":    file,
+	})
+	return entry
+}
+
+func existingMatches(raw interface{}) []map[string]interface{} {
+	if cast, ok := raw.([]map[string]interface{}); ok {
+		return cast
+	}
+	return []map[string]interface{}{}
+}
+
+func markInitialization(entry *types.ScenarioDependency, files []string) {
+	if entry.Configuration == nil {
+		entry.Configuration = map[string]interface{}{}
+	}
+	entry.Configuration["initialization_detected"] = true
+
+	if len(files) == 0 {
+		return
+	}
+
+	entry.Configuration["initialization_files"] = mergeInitializationFiles(
+		entry.Configuration["initialization_files"],
+		files,
+	)
 }

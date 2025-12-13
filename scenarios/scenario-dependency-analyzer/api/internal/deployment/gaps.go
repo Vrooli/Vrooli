@@ -18,113 +18,136 @@ import (
 // - Resource dependencies without metadata
 // - Scenario dependencies without metadata
 func AnalyzeGaps(scenarioName, scenariosDir string, nodes []types.DeploymentDependencyNode, knownTiers []string) *types.DeploymentMetadataGaps {
-	gapsByScenario := make(map[string]types.ScenarioGapInfo)
-	tierSet := make(map[string]struct{})
+	tierSet := buildTierSet(knownTiers)
+	gapsByScenario := collectScenarioGaps(scenariosDir, nodes, tierSet)
+
+	totalGaps, scenariosMissingAll, missingTiersSet := summarizeGaps(gapsByScenario)
+	secretRequirements := DetectSecretRequirements(nodes)
+	resourceSwaps := SuggestResourceSwaps(nodes)
+	recommendations := buildGapRecommendations(totalGaps, scenariosMissingAll, missingTiersSet, secretRequirements, resourceSwaps)
+
+	return &types.DeploymentMetadataGaps{
+		TotalGaps:               totalGaps,
+		ScenariosMissingAll:     scenariosMissingAll,
+		GapsByScenario:          gapsByScenario,
+		MissingTiers:            MapKeys(missingTiersSet),
+		SecretRequirements:      secretRequirements,
+		ResourceSwapSuggestions: resourceSwaps,
+		Recommendations:         recommendations,
+	}
+}
+
+func buildTierSet(knownTiers []string) map[string]struct{} {
+	tierSet := make(map[string]struct{}, len(knownTiers))
 	for _, tier := range knownTiers {
 		tierSet[tier] = struct{}{}
 	}
+	return tierSet
+}
 
-	// Walk the tree recursively
-	var walk func(node types.DeploymentDependencyNode, depth int)
-	walk = func(node types.DeploymentDependencyNode, depth int) {
-		if node.Type != "scenario" {
-			return
-		}
+func collectScenarioGaps(scenariosDir string, nodes []types.DeploymentDependencyNode, tierSet map[string]struct{}) map[string]types.ScenarioGapInfo {
+	gapsByScenario := make(map[string]types.ScenarioGapInfo)
 
-		// Load the scenario's service.json to check for deployment metadata
-		scenarioPath := node.Path
-		if scenarioPath == "" {
-			scenarioPath = filepath.Join(scenariosDir, node.Name)
-		}
-
-		cfg, err := config.LoadServiceConfig(scenarioPath)
-		if err != nil {
-			// Can't analyze if we can't load the config
-			return
-		}
-
-		gap := types.ScenarioGapInfo{
-			ScenarioName:            node.Name,
-			ScenarioPath:            scenarioPath,
-			HasDeploymentBlock:      cfg.Deployment != nil,
-			MissingTierDefinitions:  []string{},
-			MissingResourceMetadata: []string{},
-			MissingScenarioMetadata: []string{},
-			SuggestedActions:        []string{},
-		}
-
-		if cfg.Deployment == nil {
-			gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment block to .vrooli/service.json")
-		} else {
-			// Check if dependency catalog exists
-			hasResourceCatalog := cfg.Deployment.Dependencies.Resources != nil && len(cfg.Deployment.Dependencies.Resources) > 0
-			hasScenarioCatalog := cfg.Deployment.Dependencies.Scenarios != nil && len(cfg.Deployment.Dependencies.Scenarios) > 0
-			gap.MissingDependencyCatalog = !hasResourceCatalog && !hasScenarioCatalog
-
-			if gap.MissingDependencyCatalog {
-				gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment.dependencies catalog for resources/scenarios")
-			}
-
-			// Check tier definitions
-			if cfg.Deployment.Tiers == nil || len(cfg.Deployment.Tiers) == 0 {
-				for tier := range tierSet {
-					gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
-				}
-				gap.SuggestedActions = append(gap.SuggestedActions, "Define deployment.tiers with fitness scores")
-			} else {
-				for tier := range tierSet {
-					if _, exists := cfg.Deployment.Tiers[tier]; !exists {
-						gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
-					}
-				}
-			}
-
-			// Check which declared resources are missing metadata
-			resources := config.ResolvedResourceMap(cfg)
-			for resName := range resources {
-				if cfg.Deployment.Dependencies.Resources == nil {
-					gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
-				} else if _, exists := cfg.Deployment.Dependencies.Resources[resName]; !exists {
-					gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
-				}
-			}
-
-			// Check which declared scenarios are missing metadata
-			if cfg.Dependencies.Scenarios != nil {
-				for scenName := range cfg.Dependencies.Scenarios {
-					if cfg.Deployment.Dependencies.Scenarios == nil {
-						gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
-					} else if _, exists := cfg.Deployment.Dependencies.Scenarios[scenName]; !exists {
-						gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
-					}
-				}
+	var walk func(types.DeploymentDependencyNode)
+	walk = func(node types.DeploymentDependencyNode) {
+		if node.Type == "scenario" {
+			if gap, ok := buildScenarioGap(node, scenariosDir, tierSet); ok {
+				gapsByScenario[node.Name] = gap
 			}
 		}
-
-		// Only add if there are actual gaps
-		if !gap.HasDeploymentBlock || gap.MissingDependencyCatalog ||
-			len(gap.MissingTierDefinitions) > 0 ||
-			len(gap.MissingResourceMetadata) > 0 ||
-			len(gap.MissingScenarioMetadata) > 0 {
-			gapsByScenario[node.Name] = gap
-		}
-
-		// Recurse into children
 		for _, child := range node.Children {
-			walk(child, depth+1)
+			walk(child)
 		}
 	}
 
-	// Walk all top-level nodes
 	for _, node := range nodes {
-		walk(node, 0)
+		walk(node)
 	}
 
-	// Compute summary statistics
+	return gapsByScenario
+}
+
+func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, tierSet map[string]struct{}) (types.ScenarioGapInfo, bool) {
+	scenarioPath := node.Path
+	if scenarioPath == "" {
+		scenarioPath = filepath.Join(scenariosDir, node.Name)
+	}
+
+	cfg, err := config.LoadServiceConfig(scenarioPath)
+	if err != nil {
+		return types.ScenarioGapInfo{}, false
+	}
+
+	gap := types.ScenarioGapInfo{
+		ScenarioName:            node.Name,
+		ScenarioPath:            scenarioPath,
+		HasDeploymentBlock:      cfg.Deployment != nil,
+		MissingTierDefinitions:  []string{},
+		MissingResourceMetadata: []string{},
+		MissingScenarioMetadata: []string{},
+		SuggestedActions:        []string{},
+	}
+
+	if cfg.Deployment == nil {
+		gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment block to .vrooli/service.json")
+		return gap, gapHasFindings(gap)
+	}
+
+	hasResourceCatalog := cfg.Deployment.Dependencies.Resources != nil && len(cfg.Deployment.Dependencies.Resources) > 0
+	hasScenarioCatalog := cfg.Deployment.Dependencies.Scenarios != nil && len(cfg.Deployment.Dependencies.Scenarios) > 0
+	gap.MissingDependencyCatalog = !hasResourceCatalog && !hasScenarioCatalog
+	if gap.MissingDependencyCatalog {
+		gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment.dependencies catalog for resources/scenarios")
+	}
+
+	if cfg.Deployment.Tiers == nil || len(cfg.Deployment.Tiers) == 0 {
+		for tier := range tierSet {
+			gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
+		}
+		if len(gap.MissingTierDefinitions) > 0 {
+			gap.SuggestedActions = append(gap.SuggestedActions, "Define deployment.tiers with fitness scores")
+		}
+	} else {
+		for tier := range tierSet {
+			if _, exists := cfg.Deployment.Tiers[tier]; !exists {
+				gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
+			}
+		}
+	}
+
+	resources := config.ResolvedResourceMap(cfg)
+	for resName := range resources {
+		if cfg.Deployment.Dependencies.Resources == nil {
+			gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
+		} else if _, exists := cfg.Deployment.Dependencies.Resources[resName]; !exists {
+			gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
+		}
+	}
+
+	if cfg.Dependencies.Scenarios != nil {
+		for scenName := range cfg.Dependencies.Scenarios {
+			if cfg.Deployment.Dependencies.Scenarios == nil {
+				gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
+			} else if _, exists := cfg.Deployment.Dependencies.Scenarios[scenName]; !exists {
+				gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
+			}
+		}
+	}
+
+	return gap, gapHasFindings(gap)
+}
+
+func gapHasFindings(gap types.ScenarioGapInfo) bool {
+	return !gap.HasDeploymentBlock || gap.MissingDependencyCatalog ||
+		len(gap.MissingTierDefinitions) > 0 ||
+		len(gap.MissingResourceMetadata) > 0 ||
+		len(gap.MissingScenarioMetadata) > 0
+}
+
+func summarizeGaps(gapsByScenario map[string]types.ScenarioGapInfo) (int, int, map[string]struct{}) {
 	totalGaps := 0
 	scenariosMissingAll := 0
 	missingTiersSet := make(map[string]struct{})
-	recommendations := []string{}
 
 	for _, gap := range gapsByScenario {
 		if !gap.HasDeploymentBlock {
@@ -144,7 +167,18 @@ func AnalyzeGaps(scenarioName, scenariosDir string, nodes []types.DeploymentDepe
 		}
 	}
 
-	// Generate recommendations
+	return totalGaps, scenariosMissingAll, missingTiersSet
+}
+
+func buildGapRecommendations(
+	totalGaps int,
+	scenariosMissingAll int,
+	missingTiersSet map[string]struct{},
+	secretRequirements []types.SecretRequirement,
+	resourceSwaps []types.ResourceSwapSuggestion,
+) []string {
+	recommendations := []string{}
+
 	if scenariosMissingAll > 0 {
 		recommendations = append(recommendations,
 			fmt.Sprintf("%d scenario(s) missing deployment blocks entirely - run scan --apply to initialize", scenariosMissingAll))
@@ -153,35 +187,20 @@ func AnalyzeGaps(scenarioName, scenariosDir string, nodes []types.DeploymentDepe
 		recommendations = append(recommendations,
 			fmt.Sprintf("Add tier definitions for: %v", MapKeys(missingTiersSet)))
 	}
-
-	// Detect secret requirements from dependencies
-	secretRequirements := DetectSecretRequirements(nodes)
 	if len(secretRequirements) > 0 {
 		recommendations = append(recommendations,
 			fmt.Sprintf("Configure %d secret(s) for dependencies - see secrets-manager playbooks", len(secretRequirements)))
 	}
-
-	// Suggest resource swaps for deployment optimization
-	resourceSwaps := SuggestResourceSwaps(nodes)
 	if len(resourceSwaps) > 0 {
 		recommendations = append(recommendations,
 			fmt.Sprintf("Consider %d resource swap(s) for deployment optimization", len(resourceSwaps)))
 	}
-
 	if totalGaps > 0 {
 		recommendations = append(recommendations,
 			"Review gaps_by_scenario for detailed per-scenario action items")
 	}
 
-	return &types.DeploymentMetadataGaps{
-		TotalGaps:               totalGaps,
-		ScenariosMissingAll:     scenariosMissingAll,
-		GapsByScenario:          gapsByScenario,
-		MissingTiers:            MapKeys(missingTiersSet),
-		SecretRequirements:      secretRequirements,
-		ResourceSwapSuggestions: resourceSwaps,
-		Recommendations:         recommendations,
-	}
+	return recommendations
 }
 
 // DetectSecretRequirements analyzes dependencies and identifies which ones require secret configuration.

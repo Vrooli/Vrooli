@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	types "scenario-dependency-analyzer/internal/types"
@@ -180,7 +181,11 @@ func buildSkeletonServices(scenarioName, scenarioPath string, cfg *types.Service
 	}
 
 	if uiExists(scenarioPath) {
-		services = append(services, buildUISkeletonService(scenarioPath))
+		services = append(services, buildUISkeletonService(scenarioName, scenarioPath, cfg))
+	}
+
+	if cliSvc := buildCLISkeletonService(scenarioName, scenarioPath, cfg); cliSvc != nil {
+		services = append(services, *cliSvc)
 	}
 
 	return services
@@ -241,13 +246,95 @@ func buildAPISkeletonService(scenarioName, scenarioPath string, cfg *types.Servi
 		}
 	}
 
+	// If no build config was provided, infer a cross-platform Go build.
+	// This unlocks deployment-manager + scenario-to-desktop to compile missing binaries
+	// for win/mac/linux instead of failing when only a single platform binary exists.
+	if service.Build == nil {
+		service.Build = &types.BundleSkeletonBuildConfig{
+			Type:          "go",
+			SourceDir:     "api",
+			EntryPoint:    ".",
+			OutputPattern: filepath.ToSlash(filepath.Join("bin", "{{platform}}", fmt.Sprintf("%s-api{{ext}}", scenarioName))),
+			Env: map[string]string{
+				"CGO_ENABLED": "0",
+			},
+		}
+	}
+
+	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, scenarioName, service.Env)
+
 	return service
 }
 
-func buildUISkeletonService(scenarioPath string) types.BundleSkeletonService {
+func buildCLISkeletonService(scenarioName, scenarioPath string, cfg *types.ServiceConfig) *types.BundleSkeletonService {
+	cliDir := filepath.Join(scenarioPath, "cli")
+	if _, err := os.Stat(cliDir); err != nil {
+		return nil
+	}
+
+	cliBinary := filepath.ToSlash(filepath.Join("cli", scenarioName))
+	service := types.BundleSkeletonService{
+		ID:          fmt.Sprintf("%s-cli", scenarioName),
+		Type:        "resource",
+		Description: fmt.Sprintf("CLI for %s scenario", scenarioName),
+		Binaries: map[string]types.BundleSkeletonServiceBinary{
+			"darwin-x64": {Path: cliBinary},
+			"linux-x64":  {Path: cliBinary},
+			"win-x64":    {Path: cliBinary + ".exe"},
+		},
+		Assets: []types.BundleSkeletonAsset{
+			{Path: cliBinary, SHA256: "pending"},
+		},
+		Health: types.BundleSkeletonHealth{
+			Type:     "command",
+			Command:  []string{"echo", "healthy"},
+			Interval: 10000,
+			Timeout:  5000,
+			Retries:  1,
+		},
+		Readiness: types.BundleSkeletonReadiness{
+			Type:     "health_success",
+			PortName: "http",
+			Timeout:  5000,
+		},
+	}
+
+	// Use build config if present in service.json
+	if cfg != nil && cfg.Deployment != nil && cfg.Deployment.BuildConfigs != nil {
+		if buildCfg, ok := cfg.Deployment.BuildConfigs["cli"]; ok {
+			service.Build = &types.BundleSkeletonBuildConfig{
+				Type:          buildCfg.Type,
+				SourceDir:     buildCfg.SourceDir,
+				EntryPoint:    buildCfg.EntryPoint,
+				OutputPattern: buildCfg.OutputPattern,
+			}
+		}
+	}
+
+	// Fallback build config for Go CLIs if none provided
+	if service.Build == nil {
+		service.Build = &types.BundleSkeletonBuildConfig{
+			Type:          "go",
+			SourceDir:     "cli",
+			EntryPoint:    ".",
+			OutputPattern: filepath.ToSlash(filepath.Join("bin", "{{platform}}", fmt.Sprintf("%s{{ext}}", scenarioName))),
+			Env: map[string]string{
+				"CGO_ENABLED": "0",
+			},
+		}
+	}
+
+	// Minimal env; PATH will be enriched by runtime, but ensure lifecycle flag.
+	service.Env = map[string]string{
+		"VROOLI_LIFECYCLE_MANAGED": "true",
+	}
+
+	return &service
+}
+
+func buildUISkeletonService(scenarioName, scenarioPath string, cfg *types.ServiceConfig) types.BundleSkeletonService {
 	entry := filepath.ToSlash(filepath.Join("ui", "dist", "index.html"))
-	uiDir := filepath.ToSlash(filepath.Join("ui", "dist"))
-	return types.BundleSkeletonService{
+	service := types.BundleSkeletonService{
 		ID:          "ui",
 		Type:        "ui-bundle",
 		Description: "Production UI bundle served locally",
@@ -276,11 +363,80 @@ func buildUISkeletonService(scenarioPath string) types.BundleSkeletonService {
 			Timeout:  20000,
 		},
 		Assets: []types.BundleSkeletonAsset{
-			{Path: uiDir, SHA256: "pending"},
 			{Path: entry, SHA256: "pending"},
 		},
 		Critical: ptrBool(true),
 	}
+
+	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, scenarioName, service.Env)
+
+	return service
+}
+
+// deriveServiceEnv injects lifecycle protection, port bindings, and swap-aware overrides.
+func deriveServiceEnv(cfg *types.ServiceConfig, serviceID string, ports *types.BundleSkeletonServicePorts, scenarioName string, existing map[string]string) map[string]string {
+	env := map[string]string{}
+	for k, v := range existing {
+		env[k] = v
+	}
+
+	// Lifecycle protection is required by all APIs we bundle.
+	env["VROOLI_LIFECYCLE_MANAGED"] = "true"
+
+	// Wire port env vars from service.json where present.
+	if cfg != nil {
+		portEnv := extractPortEnv(cfg)
+		if ports != nil {
+			for _, p := range ports.Requested {
+				if envVar, ok := portEnv[p.Name]; ok && envVar != "" {
+					env[envVar] = fmt.Sprintf("${%s.%s}", serviceID, p.Name)
+				}
+			}
+		}
+	}
+
+	// Swap-aware defaults: if Postgres -> SQLite is suggested, prefer SQLite backend for the API service.
+	if serviceID == fmt.Sprintf("%s-api", scenarioName) && prefersSQLite(cfg) {
+		env["BAS_DB_BACKEND"] = "sqlite"
+		if _, ok := env["BAS_SQLITE_PATH"]; !ok {
+			env["BAS_SQLITE_PATH"] = filepath.ToSlash(filepath.Join("${data}", "data", "api", fmt.Sprintf("%s.sqlite", scenarioName)))
+		}
+	}
+
+	return env
+}
+
+// extractPortEnv maps port names to their env_var from service.json.
+func extractPortEnv(cfg *types.ServiceConfig) map[string]string {
+	result := map[string]string{}
+	if cfg == nil || cfg.Ports == nil {
+		return result
+	}
+	for name, raw := range cfg.Ports {
+		if rawMap, ok := raw.(map[string]interface{}); ok {
+			if envVar, ok := rawMap["env_var"].(string); ok && envVar != "" {
+				result[name] = envVar
+			}
+		}
+	}
+	return result
+}
+
+// prefersSQLite checks deployment metadata for a Postgres->SQLite swap hint.
+func prefersSQLite(cfg *types.ServiceConfig) bool {
+	if cfg == nil || cfg.Deployment == nil || cfg.Deployment.Dependencies.Resources == nil {
+		return false
+	}
+	res, ok := cfg.Deployment.Dependencies.Resources["postgres"]
+	if !ok {
+		return false
+	}
+	for _, sw := range res.SwappableWith {
+		if strings.EqualFold(sw.ID, "sqlite") {
+			return true
+		}
+	}
+	return false
 }
 
 func uiExists(scenarioPath string) bool {

@@ -13,7 +13,7 @@
   - `api/**/*_test.go` - Go unit tests
   - `ui/src/**/*.test.tsx` - React component tests
   - `cli/*.bats` - CLI integration tests
-  - `test/playbooks/**/*.json` - UI automation workflows
+  - `bas/cases/**/*.json` - UI automation workflows
 
 ### Completeness Scoring
 - Penalties for:

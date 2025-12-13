@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -19,12 +17,22 @@ import (
 
 var errScenarioNotFound = errors.New("scenario not found")
 
-func newServices(analyzer *Analyzer) services.Registry {
+func newServices(analyzer *Analyzer, workspace *scenarioWorkspace) services.Registry {
+	if workspace == nil {
+		workspace = newScenarioWorkspace(analyzer.cfg)
+	}
 	analysis := &analysisService{analyzer: analyzer}
-	scan := &scanService{analysis: analysis}
-	optimization := &optimizationService{analysis: analysis}
-	scenarios := &scenarioService{cfg: analyzer.cfg, store: analyzer.store}
-	deployment := &deploymentService{cfg: analyzer.cfg}
+	dependencies := newDependencyService(analyzer.store, analyzer.detector)
+	scan := &scanService{analysis: analysis, dependencies: dependencies}
+	optimization := &optimizationService{
+		analysis:     analysis,
+		workspace:    workspace,
+		detector:     analyzer.detector,
+		dependencies: dependencies,
+		store:        analyzer.store,
+	}
+	scenarios := &scenarioService{workspace: workspace, store: analyzer.store}
+	deployment := &deploymentService{workspace: workspace}
 	proposal := &proposalService{}
 	graph := &graphService{analyzer: analyzer}
 
@@ -34,6 +42,7 @@ func newServices(analyzer *Analyzer) services.Registry {
 		Graph:        graph,
 		Optimization: optimization,
 		Scenarios:    scenarios,
+		Dependencies: dependencies,
 		Deployment:   deployment,
 		Proposal:     proposal,
 	}
@@ -58,7 +67,8 @@ func (s *analysisService) AnalyzeAllScenarios() (map[string]*types.DependencyAna
 }
 
 type scanService struct {
-	analysis services.AnalysisService
+	analysis     services.AnalysisService
+	dependencies *dependencyService
 }
 
 func (s *scanService) ScanScenario(name string, req types.ScanRequest) (*services.ScanResult, error) {
@@ -73,7 +83,7 @@ func (s *scanService) ScanScenario(name string, req types.ScanRequest) (*service
 	applied := false
 
 	if applyResources || applyScenarios {
-		applySummary, err = applyDetectedDiffs(name, analysis, applyResources, applyScenarios)
+		applySummary, err = applyDetectedDiffs(name, analysis, applyResources, applyScenarios, s.dependencies)
 		if err != nil {
 			return nil, err
 		}
@@ -101,14 +111,21 @@ func (g *graphService) GenerateGraph(graphType string) (*types.DependencyGraph, 
 	if g == nil || g.analyzer == nil {
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
-	return g.analyzer.generateDependencyGraph(graphType)
+	return g.analyzer.GenerateGraph(graphType)
 }
 
 type optimizationService struct {
-	analysis services.AnalysisService
+	analysis     services.AnalysisService
+	workspace    *scenarioWorkspace
+	detector     scenarioDetector
+	dependencies *dependencyService
+	store        *store.Store
 }
 
 func (s *optimizationService) RunOptimization(req types.OptimizationRequest) (map[string]*types.OptimizationResult, error) {
+	if s.workspace == nil {
+		return nil, fmt.Errorf("optimization service not initialized")
+	}
 	scenario := strings.TrimSpace(req.Scenario)
 	if scenario == "" {
 		scenario = "all"
@@ -116,13 +133,16 @@ func (s *optimizationService) RunOptimization(req types.OptimizationRequest) (ma
 
 	var targets []string
 	if scenario == "all" {
-		names, err := listScenarioNames()
+		names, err := s.workspace.listScenarioNames()
 		if err != nil {
 			return nil, err
 		}
 		targets = names
 	} else {
-		if !isKnownScenario(scenario) {
+		if !s.workspace.hasServiceConfig(scenario) {
+			return nil, fmt.Errorf("%w: %s", errScenarioNotFound, scenario)
+		}
+		if s.detector != nil && !s.detector.KnownScenario(scenario) {
 			return nil, fmt.Errorf("%w: %s", errScenarioNotFound, scenario)
 		}
 		targets = []string{scenario}
@@ -130,7 +150,7 @@ func (s *optimizationService) RunOptimization(req types.OptimizationRequest) (ma
 
 	results := make(map[string]*types.OptimizationResult, len(targets))
 	for _, target := range targets {
-		result, err := runScenarioOptimization(target, req)
+		result, err := s.runScenarioOptimization(target, req)
 		if err != nil {
 			results[target] = &types.OptimizationResult{
 				Scenario:          target,
@@ -149,8 +169,8 @@ func (s *optimizationService) RunOptimization(req types.OptimizationRequest) (ma
 }
 
 type scenarioService struct {
-	cfg   appconfig.Config
-	store *store.Store
+	workspace *scenarioWorkspace
+	store     *store.Store
 }
 
 func (s *scenarioService) ListScenarios() ([]types.ScenarioSummary, error) {
@@ -165,26 +185,16 @@ func (s *scenarioService) ListScenarios() ([]types.ScenarioSummary, error) {
 		return nil, err
 	}
 
-	scenariosDir := s.cfg.ScenariosDir
-	if scenariosDir == "" {
-		scenariosDir = appconfig.Load().ScenariosDir
-	}
-
-	entries, err := os.ReadDir(scenariosDir)
+	summaries := []types.ScenarioSummary{}
+	names, err := s.workspace.listScenarioNames()
 	if err != nil {
 		return nil, err
 	}
 
-	summaries := []types.ScenarioSummary{}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
+	for _, name := range names {
 		summary, ok := metadata[name]
 		if !ok {
-			scenarioPath := filepath.Join(scenariosDir, name)
-			cfg, cfgErr := appconfig.LoadServiceConfig(scenarioPath)
+			cfg, cfgErr := s.workspace.loadConfig(name)
 			if cfgErr != nil {
 				continue
 			}
@@ -203,20 +213,27 @@ func (s *scenarioService) ListScenarios() ([]types.ScenarioSummary, error) {
 }
 
 func (s *scenarioService) GetScenarioDetail(name string) (*types.ScenarioDetailResponse, error) {
-	envCfg := appconfig.Load()
-	scenarioPath := filepath.Join(envCfg.ScenariosDir, name)
-	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
+	scenarioPath := s.workspace.pathFor(name)
+	cfg, err := s.workspace.loadConfig(name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errScenarioNotFound, err)
 	}
 
-	stored, err := loadStoredDependencies(name)
-	if err != nil {
-		return nil, err
+	stored := map[string][]types.ScenarioDependency{
+		"resources":        {},
+		"scenarios":        {},
+		"shared_workflows": {},
 	}
-	optRecs, err := loadOptimizationRecommendations(name)
-	if err != nil {
-		return nil, err
+	var optRecs []types.OptimizationRecommendation
+	if s.store != nil {
+		stored, err = s.store.LoadStoredDependencies(name)
+		if err != nil {
+			return nil, err
+		}
+		optRecs, err = s.store.LoadOptimizationRecommendations(name)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	declaredResources := appconfig.ResolvedResourceMap(cfg)
@@ -235,10 +252,6 @@ func (s *scenarioService) GetScenarioDetail(name string) (*types.ScenarioDetailR
 				lastScanned = summary.LastScanned
 			}
 		}
-	} else if metadata, err := loadScenarioMetadataMap(); err == nil {
-		if summary, ok := metadata[name]; ok {
-			lastScanned = summary.LastScanned
-		}
 	}
 
 	detail := types.ScenarioDetailResponse{
@@ -254,7 +267,7 @@ func (s *scenarioService) GetScenarioDetail(name string) (*types.ScenarioDetailR
 		OptimizationRecommendations: optRecs,
 	}
 
-	if report := deployment.BuildReport(name, scenarioPath, envCfg.ScenariosDir, cfg); report != nil {
+	if report := deployment.BuildReport(name, scenarioPath, s.workspace.root, cfg); report != nil {
 		detail.DeploymentReport = report
 	}
 
@@ -262,20 +275,19 @@ func (s *scenarioService) GetScenarioDetail(name string) (*types.ScenarioDetailR
 }
 
 type deploymentService struct {
-	cfg appconfig.Config
+	workspace *scenarioWorkspace
 }
 
 func (d *deploymentService) GetDeploymentReport(name string) (*types.DeploymentAnalysisReport, error) {
-	envCfg := appconfig.Load()
-	scenarioPath := filepath.Join(envCfg.ScenariosDir, name)
-	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
+	scenarioPath := d.workspace.pathFor(name)
+	cfg, err := d.workspace.loadConfig(name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errScenarioNotFound, err)
 	}
 
 	report, err := deployment.LoadReport(scenarioPath)
 	if err != nil {
-		report = deployment.BuildReport(name, scenarioPath, envCfg.ScenariosDir, cfg)
+		report = deployment.BuildReport(name, scenarioPath, d.workspace.root, cfg)
 		if report != nil {
 			if persistErr := deployment.PersistReport(scenarioPath, report); persistErr != nil {
 				log.Printf("Warning: failed to persist deployment report for %s: %v", name, persistErr)

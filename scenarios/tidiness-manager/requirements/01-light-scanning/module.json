@@ -30,9 +30,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/lint-execution.json"
         }
       ],
       "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
@@ -64,9 +64,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/type-execution.json"
         }
       ],
       "notes": "Parse typescript and Go type errors into structured format",
@@ -98,9 +98,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/lint-parser.json"
         }
       ],
       "notes": "Support multiple linter formats (eslint, golangci-lint). Parsers_test.go includes 34 unit tests plus 2 fuzz tests for comprehensive edge case coverage.",
@@ -126,9 +126,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/type-parser.json"
         }
       ],
       "notes": "Support typescript tsc and Go type errors. Comprehensive edge case coverage via 34 unit tests + fuzz tests.",
@@ -160,9 +160,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/file-metrics-lines.json"
         }
       ],
       "notes": "Default patterns: src/**/*.{ts,tsx,go,js,jsx}",
@@ -194,9 +194,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/long-file-detection.json"
         }
       ],
       "notes": "Default threshold: 400-600 lines (configurable per scenario)",
@@ -228,9 +228,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/scan-performance-small.json"
         }
       ],
       "notes": "CLI scan command wired, performance tests passing. Integration tests verify 30-file scenario completes in <60s (actual: ~7ms).",
@@ -256,9 +256,9 @@
         },
         {
           "type": "test",
-          "phase": "cli",
+          "phase": "e2e",
           "status": "implemented",
-          "ref": "test/cli/light-scanning.bats"
+          "ref": "bas/cases/01-light-scanning/api/scan-performance-medium.json"
         }
       ],
       "notes": "CLI scan command wired, performance tests passing (tidiness-manager completes in 2s)",

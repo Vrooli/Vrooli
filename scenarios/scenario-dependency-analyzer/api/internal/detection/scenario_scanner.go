@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	types "scenario-dependency-analyzer/internal/types"
@@ -27,6 +28,47 @@ func newScenarioScanner(catalog *catalogManager) *scenarioScanner {
 	}
 }
 
+// walkCodeFiles visits code files that are relevant for scenario detection, applying shared
+// directory and documentation filters before invoking the provided callback.
+func (s *scenarioScanner) walkCodeFiles(
+	scenarioPath string,
+	visit func(relPath string, content []byte) error,
+) error {
+	return filepath.WalkDir(scenarioPath, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+
+		if entry.IsDir() {
+			if path != scenarioPath && shouldSkipDirectoryEntry(entry) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		if !contains(scenarioDetectionExtensions, ext) {
+			return nil
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+
+		rel, relErr := filepath.Rel(scenarioPath, path)
+		if relErr != nil {
+			rel = path
+		}
+
+		if shouldIgnoreDetectionFile(rel) {
+			return nil
+		}
+
+		return visit(rel, content)
+	})
+}
+
 // scanDependencies walks the scenario directory and detects scenario-to-scenario dependencies
 func (s *scenarioScanner) scanDependencies(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
 	var dependencies []types.ScenarioDependency
@@ -34,43 +76,9 @@ func (s *scenarioScanner) scanDependencies(scenarioPath, scenarioName string) ([
 	normalizedScenario := normalizeName(scenarioName)
 	aliasCatalog := s.buildAliasCatalog(scenarioPath)
 
-	err := filepath.WalkDir(scenarioPath, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return nil
-		}
-
-		// Skip directories that should be ignored
-		if entry.IsDir() && path != scenarioPath && shouldSkipDirectoryEntry(entry) {
-			return filepath.SkipDir
-		}
-
-		// Only scan relevant file types
-		ext := strings.ToLower(filepath.Ext(path))
-		if !contains(scenarioDetectionExtensions, ext) {
-			return nil
-		}
-
-		// Read file content
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		// Calculate relative path for filtering
-		rel, relErr := filepath.Rel(scenarioPath, path)
-		if relErr != nil {
-			rel = path
-		}
-
-		// Skip documentation and test files
-		if shouldIgnoreDetectionFile(rel) {
-			return nil
-		}
-
-		// Scan this file for scenario dependencies
+	err := s.walkCodeFiles(scenarioPath, func(rel string, content []byte) error {
 		deps := s.scanFile(string(content), rel, scenarioName, normalizedScenario, aliasCatalog)
 		dependencies = append(dependencies, deps...)
-
 		return nil
 	})
 
@@ -260,63 +268,25 @@ func (s *scenarioScanner) buildAliasCatalog(scenarioPath string) map[string]stri
 		aliases[identifier] = normalized
 	}
 
+	aliasPatterns := []*regexp.Regexp{
+		scenarioAliasDeclPattern,
+		scenarioAliasShortPattern,
+		scenarioAliasBlockPattern,
+	}
+
+	scanForAliases := func(content string) {
+		for _, pattern := range aliasPatterns {
+			for _, match := range pattern.FindAllStringSubmatch(content, -1) {
+				if len(match) >= 3 {
+					addAlias(match[1], match[2])
+				}
+			}
+		}
+	}
+
 	// Walk the directory to find alias declarations
-	filepath.WalkDir(scenarioPath, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return nil
-		}
-
-		// Skip ignored directories
-		if entry.IsDir() && path != scenarioPath && shouldSkipDirectoryEntry(entry) {
-			return filepath.SkipDir
-		}
-
-		// Only scan code files
-		ext := strings.ToLower(filepath.Ext(path))
-		if !contains(scenarioDetectionExtensions, ext) {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-
-		// Calculate relative path for filtering
-		rel, relErr := filepath.Rel(scenarioPath, path)
-		if relErr != nil {
-			rel = path
-		}
-
-		// Skip documentation files
-		if shouldIgnoreDetectionFile(rel) {
-			return nil
-		}
-
-		// Scan for different alias declaration patterns
-		contentStr := string(content)
-
-		// Pattern 1: const/var declarations
-		for _, match := range scenarioAliasDeclPattern.FindAllStringSubmatch(contentStr, -1) {
-			if len(match) >= 3 {
-				addAlias(match[1], match[2])
-			}
-		}
-
-		// Pattern 2: Short variable declarations
-		for _, match := range scenarioAliasShortPattern.FindAllStringSubmatch(contentStr, -1) {
-			if len(match) >= 3 {
-				addAlias(match[1], match[2])
-			}
-		}
-
-		// Pattern 3: Block assignments
-		for _, match := range scenarioAliasBlockPattern.FindAllStringSubmatch(contentStr, -1) {
-			if len(match) >= 3 {
-				addAlias(match[1], match[2])
-			}
-		}
-
+	_ = s.walkCodeFiles(scenarioPath, func(_ string, content []byte) error {
+		scanForAliases(string(content))
 		return nil
 	})
 

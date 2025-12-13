@@ -12,7 +12,7 @@ func FormatComparisonContext(analysis models.ValidationQualityAnalysis, score fl
 		fmt.Println("🎓 Study browser-automation-studio as reference for proper test structure:")
 		fmt.Println("   • Has API tests: api/**/*_test.go")
 		fmt.Println("   • Has UI tests: ui/src/**/*.test.tsx")
-		fmt.Println("   • Has e2e playbooks: test/playbooks/capabilities/**/ui/*.json")
+		fmt.Println("   • Has e2e playbooks: bas/cases/**/ui/*.json")
 		fmt.Println("   • Requirements reference appropriate test types")
 	case score >= 80 && analysis.TotalPenalty < 10:
 		fmt.Println("🌟 Excellent work! This scenario demonstrates:")
@@ -22,7 +22,7 @@ func FormatComparisonContext(analysis models.ValidationQualityAnalysis, score fl
 		fmt.Println("   ✓ Minimal gaming patterns detected")
 	case score >= 40 && analysis.TotalPenalty < 30:
 		fmt.Println("✨ This scenario has good test structure - continue improving:")
-		fmt.Println("   • Proper use of test/playbooks/ for e2e testing")
+		fmt.Println("   • Proper use of bas/ for e2e testing")
 		fmt.Println("   • Good mix of test types where present")
 		fmt.Println("   • Focus on increasing test coverage and pass rates")
 	}

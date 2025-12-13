@@ -312,7 +312,7 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	}
 	defer func() { applyDiffsHook = nil }()
 
-	summary, err := applyDetectedDiffs(scenarioName, analysis, true, false)
+	summary, err := applyDetectedDiffs(scenarioName, analysis, true, false, nil)
 	if err != nil {
 		t.Fatalf("applyDetectedDiffs returned error: %v", err)
 	}
@@ -584,7 +584,7 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "support-scenario"}}},
 	}
 
-	summary, err := applyDetectedDiffs("apply-subject", analysis, true, true)
+	summary, err := applyDetectedDiffs("apply-subject", analysis, true, true, defaultDependencyService())
 	if err != nil {
 		t.Fatalf("applyDetectedDiffs error: %v", err)
 	}
