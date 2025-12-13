@@ -4,15 +4,125 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Value } from "@bufbuild/protobuf/wkt";
+import type { NullValue, Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
+import type { JsonObject as JsonObject$1, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file common/v1/types.proto.
  */
 export const file_common_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSIyChFQYWdpbmF0aW9uUmVxdWVzdBINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUiVAoSUGFnaW5hdGlvblJlc3BvbnNlEg0KBXRvdGFsGAEgASgFEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBRIQCghoYXNfbW9yZRgEIAEoCCJYCg1FcnJvclJlc3BvbnNlEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIoCgdkZXRhaWxzGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCL5AgoOSGVhbHRoUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEkEKDGRlcGVuZGVuY2llcxgGIAMoCzIrLmNvbW1vbi52MS5IZWFsdGhSZXNwb25zZS5EZXBlbmRlbmNpZXNFbnRyeRI3CgdtZXRyaWNzGAcgAygLMiYuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLk1ldHJpY3NFbnRyeRpLChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkYKDE1ldHJpY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBQkNaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxYgZwcm90bzM", [file_google_protobuf_struct]);
+  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSKRAgoJSnNvblZhbHVlEhQKCmJvb2xfdmFsdWUYASABKAhIABITCglpbnRfdmFsdWUYAiABKANIABIWCgxkb3VibGVfdmFsdWUYAyABKAFIABIWCgxzdHJpbmdfdmFsdWUYBCABKAlIABItCgxvYmplY3RfdmFsdWUYBSABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEgAEikKCmxpc3RfdmFsdWUYBiABKAsyEy5jb21tb24udjEuSnNvbkxpc3RIABIwCgpudWxsX3ZhbHVlGAcgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhUKC2J5dGVzX3ZhbHVlGAggASgMSABCBgoEa2luZCKEAQoKSnNvbk9iamVjdBIxCgZmaWVsZHMYASADKAsyIS5jb21tb24udjEuSnNvbk9iamVjdC5GaWVsZHNFbnRyeRpDCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ASIwCghKc29uTGlzdBIkCgZ2YWx1ZXMYASADKAsyFC5jb21tb24udjEuSnNvblZhbHVlIjIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJUChJQYWdpbmF0aW9uUmVzcG9uc2USDQoFdG90YWwYASABKAUSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFEhAKCGhhc19tb3JlGAQgASgIIlgKDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEigKB2RldGFpbHMYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IvkCCg5IZWFsdGhSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHc2VydmljZRgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSEQoJcmVhZGluZXNzGAQgASgIEg8KB3ZlcnNpb24YBSABKAkSQQoMZGVwZW5kZW5jaWVzGAYgAygLMisuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5EjcKB21ldHJpY3MYByADKAsyJi5jb21tb24udjEuSGVhbHRoUmVzcG9uc2UuTWV0cmljc0VudHJ5GksKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaRgoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCQ1pBZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb21tb24vdjE7Y29tbW9udjFiBnByb3RvMw", [file_google_protobuf_struct]);
+
+/**
+ * JsonValue models a typed JSON value for scenarios that need stronger typing
+ * than google.protobuf.Value while retaining a JSON-compatible shape.
+ *
+ * @generated from message common.v1.JsonValue
+ */
+export type JsonValue = Message<"common.v1.JsonValue"> & {
+  /**
+   * @generated from oneof common.v1.JsonValue.kind
+   */
+  kind: {
+    /**
+     * @generated from field: bool bool_value = 1;
+     */
+    value: boolean;
+    case: "boolValue";
+  } | {
+    /**
+     * @generated from field: int64 int_value = 2;
+     */
+    value: bigint;
+    case: "intValue";
+  } | {
+    /**
+     * @generated from field: double double_value = 3;
+     */
+    value: number;
+    case: "doubleValue";
+  } | {
+    /**
+     * @generated from field: string string_value = 4;
+     */
+    value: string;
+    case: "stringValue";
+  } | {
+    /**
+     * @generated from field: common.v1.JsonObject object_value = 5;
+     */
+    value: JsonObject;
+    case: "objectValue";
+  } | {
+    /**
+     * @generated from field: common.v1.JsonList list_value = 6;
+     */
+    value: JsonList;
+    case: "listValue";
+  } | {
+    /**
+     * Explicit null to preserve intent when converting to/from JSON.
+     *
+     * @generated from field: google.protobuf.NullValue null_value = 7;
+     */
+    value: NullValue;
+    case: "nullValue";
+  } | {
+    /**
+     * Raw bytes for cases where binary payloads are passed through.
+     *
+     * @generated from field: bytes bytes_value = 8;
+     */
+    value: Uint8Array;
+    case: "bytesValue";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message common.v1.JsonValue.
+ * Use `create(JsonValueSchema)` to create a new message.
+ */
+export const JsonValueSchema: GenMessage<JsonValue> = /*@__PURE__*/
+  messageDesc(file_common_v1_types, 0);
+
+/**
+ * JsonObject mirrors a JSON object with typed values.
+ *
+ * @generated from message common.v1.JsonObject
+ */
+export type JsonObject = Message<"common.v1.JsonObject"> & {
+  /**
+   * @generated from field: map<string, common.v1.JsonValue> fields = 1;
+   */
+  fields: { [key: string]: JsonValue };
+};
+
+/**
+ * Describes the message common.v1.JsonObject.
+ * Use `create(JsonObjectSchema)` to create a new message.
+ */
+export const JsonObjectSchema: GenMessage<JsonObject> = /*@__PURE__*/
+  messageDesc(file_common_v1_types, 1);
+
+/**
+ * JsonList mirrors a JSON array with typed values.
+ *
+ * @generated from message common.v1.JsonList
+ */
+export type JsonList = Message<"common.v1.JsonList"> & {
+  /**
+   * @generated from field: repeated common.v1.JsonValue values = 1;
+   */
+  values: JsonValue[];
+};
+
+/**
+ * Describes the message common.v1.JsonList.
+ * Use `create(JsonListSchema)` to create a new message.
+ */
+export const JsonListSchema: GenMessage<JsonList> = /*@__PURE__*/
+  messageDesc(file_common_v1_types, 2);
 
 /**
  * PaginationRequest represents limit/offset pagination inputs.
@@ -40,7 +150,7 @@ export type PaginationRequest = Message<"common.v1.PaginationRequest"> & {
  * Use `create(PaginationRequestSchema)` to create a new message.
  */
 export const PaginationRequestSchema: GenMessage<PaginationRequest> = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 0);
+  messageDesc(file_common_v1_types, 3);
 
 /**
  * PaginationResponse captures list pagination metadata.
@@ -82,7 +192,7 @@ export type PaginationResponse = Message<"common.v1.PaginationResponse"> & {
  * Use `create(PaginationResponseSchema)` to create a new message.
  */
 export const PaginationResponseSchema: GenMessage<PaginationResponse> = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 1);
+  messageDesc(file_common_v1_types, 4);
 
 /**
  * ErrorResponse is the standard error envelope for HTTP responses.
@@ -110,7 +220,7 @@ export type ErrorResponse = Message<"common.v1.ErrorResponse"> & {
    *
    * @generated from field: google.protobuf.Struct details = 3;
    */
-  details?: JsonObject;
+  details?: JsonObject$1;
 };
 
 /**
@@ -118,7 +228,7 @@ export type ErrorResponse = Message<"common.v1.ErrorResponse"> & {
  * Use `create(ErrorResponseSchema)` to create a new message.
  */
 export const ErrorResponseSchema: GenMessage<ErrorResponse> = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 2);
+  messageDesc(file_common_v1_types, 5);
 
 /**
  * HealthResponse mirrors the BAS health response contract.
@@ -181,5 +291,5 @@ export type HealthResponse = Message<"common.v1.HealthResponse"> & {
  * Use `create(HealthResponseSchema)` to create a new message.
  */
 export const HealthResponseSchema: GenMessage<HealthResponse> = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 3);
+  messageDesc(file_common_v1_types, 6);
 

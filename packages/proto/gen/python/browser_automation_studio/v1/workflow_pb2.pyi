@@ -1,4 +1,5 @@
 from google.protobuf import struct_pb2 as _struct_pb2
+from common.v1 import types_pb2 as _types_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -48,9 +49,9 @@ class WorkflowNode(_message.Message):
     id: str
     type: _shared_pb2.StepType
     data: _struct_pb2.Struct
-    data_typed: _shared_pb2.JsonObject
+    data_typed: _types_pb2.JsonObject
     config: WorkflowNodeConfig
-    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.StepType, str]] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., data_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ..., config: _Optional[_Union[WorkflowNodeConfig, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.StepType, str]] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., data_typed: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ..., config: _Optional[_Union[WorkflowNodeConfig, _Mapping]] = ...) -> None: ...
 
 class WorkflowEdge(_message.Message):
     __slots__ = ()
@@ -65,8 +66,8 @@ class WorkflowEdge(_message.Message):
     target: str
     type: str
     data: _struct_pb2.Struct
-    data_typed: _shared_pb2.JsonObject
-    def __init__(self, id: _Optional[str] = ..., source: _Optional[str] = ..., target: _Optional[str] = ..., type: _Optional[str] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., data_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ...) -> None: ...
+    data_typed: _types_pb2.JsonObject
+    def __init__(self, id: _Optional[str] = ..., source: _Optional[str] = ..., target: _Optional[str] = ..., type: _Optional[str] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., data_typed: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...
 
 class WorkflowMetadata(_message.Message):
     __slots__ = ()
@@ -96,6 +97,13 @@ class WorkflowSettings(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    class ExtrasTypedEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     USER_AGENT_FIELD_NUMBER: _ClassVar[int]
@@ -103,6 +111,7 @@ class WorkflowSettings(_message.Message):
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     HEADLESS_FIELD_NUMBER: _ClassVar[int]
     EXTRAS_FIELD_NUMBER: _ClassVar[int]
+    EXTRAS_TYPED_FIELD_NUMBER: _ClassVar[int]
     viewport_width: int
     viewport_height: int
     user_agent: str
@@ -110,7 +119,8 @@ class WorkflowSettings(_message.Message):
     timeout_seconds: int
     headless: bool
     extras: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., headless: _Optional[bool] = ..., extras: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    extras_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., headless: _Optional[bool] = ..., extras: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., extras_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class WorkflowNodeConfig(_message.Message):
     __slots__ = ()
@@ -170,16 +180,18 @@ class AssertStepConfig(_message.Message):
     MODE_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_TYPED_FIELD_NUMBER: _ClassVar[int]
     NEGATED_FIELD_NUMBER: _ClassVar[int]
     CASE_SENSITIVE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     mode: str
     selector: str
     expected: _struct_pb2.Value
+    expected_typed: _types_pb2.JsonValue
     negated: bool
     case_sensitive: bool
     message: str
-    def __init__(self, mode: _Optional[str] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+    def __init__(self, mode: _Optional[str] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., expected_typed: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class SubflowStepConfig(_message.Message):
     __slots__ = ()
@@ -188,15 +200,15 @@ class SubflowStepConfig(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _shared_pb2.JsonValue
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_shared_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
     workflow_id: str
     version: int
-    parameters: _containers.MessageMap[str, _shared_pb2.JsonValue]
-    def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ..., parameters: _Optional[_Mapping[str, _shared_pb2.JsonValue]] = ...) -> None: ...
+    parameters: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ..., parameters: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class WaitStepConfig(_message.Message):
     __slots__ = ()
@@ -209,5 +221,5 @@ class CustomStepConfig(_message.Message):
     KIND_FIELD_NUMBER: _ClassVar[int]
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     kind: str
-    payload: _shared_pb2.JsonObject
-    def __init__(self, kind: _Optional[str] = ..., payload: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ...) -> None: ...
+    payload: _types_pb2.JsonObject
+    def __init__(self, kind: _Optional[str] = ..., payload: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...

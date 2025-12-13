@@ -3,7 +3,6 @@ package protoconv
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -210,7 +209,7 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *browser_
 			HasExecutionViewport: result.Stats.HasExecutionViewport,
 		},
 		SchemaVersion: result.SchemaVersion,
-		CheckedAt:     result.CheckedAt.Format(time.RFC3339),
+		CheckedAt:     timestamppb.New(result.CheckedAt),
 		DurationMs:    result.DurationMs,
 	}
 }

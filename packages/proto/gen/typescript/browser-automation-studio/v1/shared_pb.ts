@@ -2,127 +2,14 @@
 // @generated from file browser-automation-studio/v1/shared.proto (package browser_automation_studio.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { NullValue } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { Message } from "@bufbuild/protobuf";
+import type { GenEnum, GenFile } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc } from "@bufbuild/protobuf/codegenv2";
 
 /**
  * Describes the file browser-automation-studio/v1/shared.proto.
  */
 export const file_browser_automation_studio_v1_shared: GenFile = /*@__PURE__*/
-  fileDesc("Cilicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NoYXJlZC5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSK3AgoJSnNvblZhbHVlEhQKCmJvb2xfdmFsdWUYASABKAhIABITCglpbnRfdmFsdWUYAiABKANIABIWCgxkb3VibGVfdmFsdWUYAyABKAFIABIWCgxzdHJpbmdfdmFsdWUYBCABKAlIABJACgxvYmplY3RfdmFsdWUYBSABKAsyKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkpzb25PYmplY3RIABI8CgpsaXN0X3ZhbHVlGAYgASgLMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Kc29uTGlzdEgAEjAKCm51bGxfdmFsdWUYByABKA4yGi5nb29nbGUucHJvdG9idWYuTnVsbFZhbHVlSAASFQoLYnl0ZXNfdmFsdWUYCCABKAxIAEIGCgRraW5kIqoBCgpKc29uT2JqZWN0EkQKBmZpZWxkcxgBIAMoCzI0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSnNvbk9iamVjdC5GaWVsZHNFbnRyeRpWCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSNgoFdmFsdWUYAiABKAsyJy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkpzb25WYWx1ZToCOAEiQwoISnNvbkxpc3QSNwoGdmFsdWVzGAEgAygLMicuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Kc29uVmFsdWUqzAEKD0V4ZWN1dGlvblN0YXR1cxIgChxFWEVDVVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYRVhFQ1VUSU9OX1NUQVRVU19QRU5ESU5HEAESHAoYRVhFQ1VUSU9OX1NUQVRVU19SVU5OSU5HEAISHgoaRVhFQ1VUSU9OX1NUQVRVU19DT01QTEVURUQQAxIbChdFWEVDVVRJT05fU1RBVFVTX0ZBSUxFRBAEEh4KGkVYRUNVVElPTl9TVEFUVVNfQ0FOQ0VMTEVEEAUqkAEKC1RyaWdnZXJUeXBlEhwKGFRSSUdHRVJfVFlQRV9VTlNQRUNJRklFRBAAEhcKE1RSSUdHRVJfVFlQRV9NQU5VQUwQARIaChZUUklHR0VSX1RZUEVfU0NIRURVTEVEEAISFAoQVFJJR0dFUl9UWVBFX0FQSRADEhgKFFRSSUdHRVJfVFlQRV9XRUJIT09LEAQqvgEKCFN0ZXBUeXBlEhkKFVNURVBfVFlQRV9VTlNQRUNJRklFRBAAEhYKElNURVBfVFlQRV9OQVZJR0FURRABEhMKD1NURVBfVFlQRV9DTElDSxACEhQKEFNURVBfVFlQRV9BU1NFUlQQAxIVChFTVEVQX1RZUEVfU1VCRkxPVxAEEhMKD1NURVBfVFlQRV9JTlBVVBAFEhQKEFNURVBfVFlQRV9DVVNUT00QBhISCg5TVEVQX1RZUEVfV0FJVBAHKtwBCgpTdGVwU3RhdHVzEhsKF1NURVBfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFwoTU1RFUF9TVEFUVVNfUEVORElORxABEhcKE1NURVBfU1RBVFVTX1JVTk5JTkcQAhIZChVTVEVQX1NUQVRVU19DT01QTEVURUQQAxIWChJTVEVQX1NUQVRVU19GQUlMRUQQBBIZChVTVEVQX1NUQVRVU19DQU5DRUxMRUQQBRIXChNTVEVQX1NUQVRVU19TS0lQUEVEEAYSGAoUU1RFUF9TVEFUVVNfUkVUUllJTkcQByp3CghMb2dMZXZlbBIZChVMT0dfTEVWRUxfVU5TUEVDSUZJRUQQABITCg9MT0dfTEVWRUxfREVCVUcQARISCg5MT0dfTEVWRUxfSU5GTxACEhIKDkxPR19MRVZFTF9XQVJOEAMSEwoPTE9HX0xFVkVMX0VSUk9SEAQqgAIKDEFydGlmYWN0VHlwZRIdChlBUlRJRkFDVF9UWVBFX1VOU1BFQ0lGSUVEEAASIAocQVJUSUZBQ1RfVFlQRV9USU1FTElORV9GUkFNRRABEh0KGUFSVElGQUNUX1RZUEVfQ09OU09MRV9MT0cQAhIfChtBUlRJRkFDVF9UWVBFX05FVFdPUktfRVZFTlQQAxIcChhBUlRJRkFDVF9UWVBFX1NDUkVFTlNIT1QQBBIeChpBUlRJRkFDVF9UWVBFX0RPTV9TTkFQU0hPVBAFEhcKE0FSVElGQUNUX1RZUEVfVFJBQ0UQBhIYChRBUlRJRkFDVF9UWVBFX0NVU1RPTRAHKqwBCglFdmVudEtpbmQSGgoWRVZFTlRfS0lORF9VTlNQRUNJRklFRBAAEhwKGEVWRU5UX0tJTkRfU1RBVFVTX1VQREFURRABEh0KGUVWRU5UX0tJTkRfVElNRUxJTkVfRlJBTUUQAhISCg5FVkVOVF9LSU5EX0xPRxADEhgKFEVWRU5UX0tJTkRfSEVBUlRCRUFUEAQSGAoURVZFTlRfS0lORF9URUxFTUVUUlkQBSqZAQoMRXhwb3J0U3RhdHVzEh0KGUVYUE9SVF9TVEFUVVNfVU5TUEVDSUZJRUQQABIXChNFWFBPUlRfU1RBVFVTX1JFQURZEAESGQoVRVhQT1JUX1NUQVRVU19QRU5ESU5HEAISFwoTRVhQT1JUX1NUQVRVU19FUlJPUhADEh0KGUVYUE9SVF9TVEFUVVNfVU5BVkFJTEFCTEUQBEJqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_struct]);
-
-/**
- * JsonValue models a typed JSON value for scenarios that need stronger typing
- * than google.protobuf.Value while retaining a JSON-compatible shape.
- *
- * @generated from message browser_automation_studio.v1.JsonValue
- */
-export type JsonValue = Message<"browser_automation_studio.v1.JsonValue"> & {
-  /**
-   * @generated from oneof browser_automation_studio.v1.JsonValue.kind
-   */
-  kind: {
-    /**
-     * @generated from field: bool bool_value = 1;
-     */
-    value: boolean;
-    case: "boolValue";
-  } | {
-    /**
-     * @generated from field: int64 int_value = 2;
-     */
-    value: bigint;
-    case: "intValue";
-  } | {
-    /**
-     * @generated from field: double double_value = 3;
-     */
-    value: number;
-    case: "doubleValue";
-  } | {
-    /**
-     * @generated from field: string string_value = 4;
-     */
-    value: string;
-    case: "stringValue";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.JsonObject object_value = 5;
-     */
-    value: JsonObject;
-    case: "objectValue";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.JsonList list_value = 6;
-     */
-    value: JsonList;
-    case: "listValue";
-  } | {
-    /**
-     * Explicit null to preserve intent when converting to/from JSON.
-     *
-     * @generated from field: google.protobuf.NullValue null_value = 7;
-     */
-    value: NullValue;
-    case: "nullValue";
-  } | {
-    /**
-     * Raw bytes for cases where binary payloads are passed through.
-     *
-     * @generated from field: bytes bytes_value = 8;
-     */
-    value: Uint8Array;
-    case: "bytesValue";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message browser_automation_studio.v1.JsonValue.
- * Use `create(JsonValueSchema)` to create a new message.
- */
-export const JsonValueSchema: GenMessage<JsonValue> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_shared, 0);
-
-/**
- * JsonObject mirrors a JSON object with typed values.
- *
- * @generated from message browser_automation_studio.v1.JsonObject
- */
-export type JsonObject = Message<"browser_automation_studio.v1.JsonObject"> & {
-  /**
-   * @generated from field: map<string, browser_automation_studio.v1.JsonValue> fields = 1;
-   */
-  fields: { [key: string]: JsonValue };
-};
-
-/**
- * Describes the message browser_automation_studio.v1.JsonObject.
- * Use `create(JsonObjectSchema)` to create a new message.
- */
-export const JsonObjectSchema: GenMessage<JsonObject> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_shared, 1);
-
-/**
- * JsonList mirrors a JSON array with typed values.
- *
- * @generated from message browser_automation_studio.v1.JsonList
- */
-export type JsonList = Message<"browser_automation_studio.v1.JsonList"> & {
-  /**
-   * @generated from field: repeated browser_automation_studio.v1.JsonValue values = 1;
-   */
-  values: JsonValue[];
-};
-
-/**
- * Describes the message browser_automation_studio.v1.JsonList.
- * Use `create(JsonListSchema)` to create a new message.
- */
-export const JsonListSchema: GenMessage<JsonList> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_shared, 2);
+  fileDesc("Cilicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NoYXJlZC5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSrMAQoPRXhlY3V0aW9uU3RhdHVzEiAKHEVYRUNVVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhFWEVDVVRJT05fU1RBVFVTX1BFTkRJTkcQARIcChhFWEVDVVRJT05fU1RBVFVTX1JVTk5JTkcQAhIeChpFWEVDVVRJT05fU1RBVFVTX0NPTVBMRVRFRBADEhsKF0VYRUNVVElPTl9TVEFUVVNfRkFJTEVEEAQSHgoaRVhFQ1VUSU9OX1NUQVRVU19DQU5DRUxMRUQQBSqQAQoLVHJpZ2dlclR5cGUSHAoYVFJJR0dFUl9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTVFJJR0dFUl9UWVBFX01BTlVBTBABEhoKFlRSSUdHRVJfVFlQRV9TQ0hFRFVMRUQQAhIUChBUUklHR0VSX1RZUEVfQVBJEAMSGAoUVFJJR0dFUl9UWVBFX1dFQkhPT0sQBCq+AQoIU3RlcFR5cGUSGQoVU1RFUF9UWVBFX1VOU1BFQ0lGSUVEEAASFgoSU1RFUF9UWVBFX05BVklHQVRFEAESEwoPU1RFUF9UWVBFX0NMSUNLEAISFAoQU1RFUF9UWVBFX0FTU0VSVBADEhUKEVNURVBfVFlQRV9TVUJGTE9XEAQSEwoPU1RFUF9UWVBFX0lOUFVUEAUSFAoQU1RFUF9UWVBFX0NVU1RPTRAGEhIKDlNURVBfVFlQRV9XQUlUEAcq3AEKClN0ZXBTdGF0dXMSGwoXU1RFUF9TVEFUVVNfVU5TUEVDSUZJRUQQABIXChNTVEVQX1NUQVRVU19QRU5ESU5HEAESFwoTU1RFUF9TVEFUVVNfUlVOTklORxACEhkKFVNURVBfU1RBVFVTX0NPTVBMRVRFRBADEhYKElNURVBfU1RBVFVTX0ZBSUxFRBAEEhkKFVNURVBfU1RBVFVTX0NBTkNFTExFRBAFEhcKE1NURVBfU1RBVFVTX1NLSVBQRUQQBhIYChRTVEVQX1NUQVRVU19SRVRSWUlORxAHKncKCExvZ0xldmVsEhkKFUxPR19MRVZFTF9VTlNQRUNJRklFRBAAEhMKD0xPR19MRVZFTF9ERUJVRxABEhIKDkxPR19MRVZFTF9JTkZPEAISEgoOTE9HX0xFVkVMX1dBUk4QAxITCg9MT0dfTEVWRUxfRVJST1IQBCqAAgoMQXJ0aWZhY3RUeXBlEh0KGUFSVElGQUNUX1RZUEVfVU5TUEVDSUZJRUQQABIgChxBUlRJRkFDVF9UWVBFX1RJTUVMSU5FX0ZSQU1FEAESHQoZQVJUSUZBQ1RfVFlQRV9DT05TT0xFX0xPRxACEh8KG0FSVElGQUNUX1RZUEVfTkVUV09SS19FVkVOVBADEhwKGEFSVElGQUNUX1RZUEVfU0NSRUVOU0hPVBAEEh4KGkFSVElGQUNUX1RZUEVfRE9NX1NOQVBTSE9UEAUSFwoTQVJUSUZBQ1RfVFlQRV9UUkFDRRAGEhgKFEFSVElGQUNUX1RZUEVfQ1VTVE9NEAcqrAEKCUV2ZW50S2luZBIaChZFVkVOVF9LSU5EX1VOU1BFQ0lGSUVEEAASHAoYRVZFTlRfS0lORF9TVEFUVVNfVVBEQVRFEAESHQoZRVZFTlRfS0lORF9USU1FTElORV9GUkFNRRACEhIKDkVWRU5UX0tJTkRfTE9HEAMSGAoURVZFTlRfS0lORF9IRUFSVEJFQVQQBBIYChRFVkVOVF9LSU5EX1RFTEVNRVRSWRAFKpkBCgxFeHBvcnRTdGF0dXMSHQoZRVhQT1JUX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE0VYUE9SVF9TVEFUVVNfUkVBRFkQARIZChVFWFBPUlRfU1RBVFVTX1BFTkRJTkcQAhIXChNFWFBPUlRfU1RBVFVTX0VSUk9SEAMSHQoZRVhQT1JUX1NUQVRVU19VTkFWQUlMQUJMRRAEQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM");
 
 /**
  * ExecutionStatus enumerates high-level execution states.

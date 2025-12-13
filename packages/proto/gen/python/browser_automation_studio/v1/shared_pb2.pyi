@@ -1,10 +1,6 @@
-from google.protobuf import struct_pb2 as _struct_pb2
-from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
-from collections.abc import Iterable as _Iterable, Mapping as _Mapping
-from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
+from typing import ClassVar as _ClassVar
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -133,42 +129,3 @@ EXPORT_STATUS_READY: ExportStatus
 EXPORT_STATUS_PENDING: ExportStatus
 EXPORT_STATUS_ERROR: ExportStatus
 EXPORT_STATUS_UNAVAILABLE: ExportStatus
-
-class JsonValue(_message.Message):
-    __slots__ = ()
-    BOOL_VALUE_FIELD_NUMBER: _ClassVar[int]
-    INT_VALUE_FIELD_NUMBER: _ClassVar[int]
-    DOUBLE_VALUE_FIELD_NUMBER: _ClassVar[int]
-    STRING_VALUE_FIELD_NUMBER: _ClassVar[int]
-    OBJECT_VALUE_FIELD_NUMBER: _ClassVar[int]
-    LIST_VALUE_FIELD_NUMBER: _ClassVar[int]
-    NULL_VALUE_FIELD_NUMBER: _ClassVar[int]
-    BYTES_VALUE_FIELD_NUMBER: _ClassVar[int]
-    bool_value: bool
-    int_value: int
-    double_value: float
-    string_value: str
-    object_value: JsonObject
-    list_value: JsonList
-    null_value: _struct_pb2.NullValue
-    bytes_value: bytes
-    def __init__(self, bool_value: _Optional[bool] = ..., int_value: _Optional[int] = ..., double_value: _Optional[float] = ..., string_value: _Optional[str] = ..., object_value: _Optional[_Union[JsonObject, _Mapping]] = ..., list_value: _Optional[_Union[JsonList, _Mapping]] = ..., null_value: _Optional[_Union[_struct_pb2.NullValue, str]] = ..., bytes_value: _Optional[bytes] = ...) -> None: ...
-
-class JsonObject(_message.Message):
-    __slots__ = ()
-    class FieldsEntry(_message.Message):
-        __slots__ = ()
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: JsonValue
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[JsonValue, _Mapping]] = ...) -> None: ...
-    FIELDS_FIELD_NUMBER: _ClassVar[int]
-    fields: _containers.MessageMap[str, JsonValue]
-    def __init__(self, fields: _Optional[_Mapping[str, JsonValue]] = ...) -> None: ...
-
-class JsonList(_message.Message):
-    __slots__ = ()
-    VALUES_FIELD_NUMBER: _ClassVar[int]
-    values: _containers.RepeatedCompositeFieldContainer[JsonValue]
-    def __init__(self, values: _Optional[_Iterable[_Union[JsonValue, _Mapping]]] = ...) -> None: ...

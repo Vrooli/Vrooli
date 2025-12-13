@@ -1,0 +1,560 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
+import "browser-automation-studio/v1/record_mode.proto";
+import "browser-automation-studio/v1/timeline.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
+
+// =============================================================================
+// CORE ACTION DEFINITION
+// =============================================================================
+// ActionDefinition is THE unified action type used across:
+// - Recording (captured from user interactions)
+// - Workflows (stored definition)
+// - Execution (sent to playwright-driver)
+// - Timeline events (streamed to UI)
+
+message ActionDefinition {
+  // Action type classification.
+  ActionType type = 1;
+
+  // Type-specific parameters (exactly one must be set based on type).
+  oneof params {
+    NavigateParams navigate = 10;
+    ClickParams click = 11;
+    InputParams input = 12;
+    WaitParams wait = 13;
+    AssertParams assert = 14;
+    ScrollParams scroll = 15;
+    SelectParams select_option = 16;
+    EvaluateParams evaluate = 17;
+    KeyboardParams keyboard = 18;
+    HoverParams hover = 19;
+    ScreenshotParams screenshot = 20;
+    FocusParams focus = 21;
+    BlurParams blur = 22;
+  }
+
+  // Optional rich metadata - preserved from recording, useful for debugging/fallbacks.
+  ActionMetadata metadata = 30;
+}
+
+// ActionType enumerates all supported action kinds.
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  ACTION_TYPE_NAVIGATE = 1;
+  ACTION_TYPE_CLICK = 2;
+  ACTION_TYPE_INPUT = 3;
+  ACTION_TYPE_WAIT = 4;
+  ACTION_TYPE_ASSERT = 5;
+  ACTION_TYPE_SCROLL = 6;
+  ACTION_TYPE_SELECT = 7;
+  ACTION_TYPE_EVALUATE = 8;
+  ACTION_TYPE_KEYBOARD = 9;
+  ACTION_TYPE_HOVER = 10;
+  ACTION_TYPE_SCREENSHOT = 11;
+  ACTION_TYPE_FOCUS = 12;
+  ACTION_TYPE_BLUR = 13;
+}
+
+// =============================================================================
+// ACTION PARAMETERS (type-specific)
+// =============================================================================
+
+// NavigateParams configures page navigation.
+message NavigateParams {
+  // Target URL to navigate to.
+  string url = 1;
+  // Optional selector to wait for after navigation completes.
+  optional string wait_for_selector = 2;
+  // Timeout in milliseconds for navigation and wait.
+  optional int32 timeout_ms = 3;
+  // Event to wait for: load | domcontentloaded | networkidle.
+  optional string wait_until = 4;
+}
+
+// ClickParams configures pointer click interactions.
+message ClickParams {
+  // CSS selector for target element.
+  string selector = 1;
+  // Mouse button: left | right | middle (defaults to left).
+  optional string button = 2;
+  // Number of clicks (1=single, 2=double, 3=triple).
+  optional int32 click_count = 3;
+  // Delay between mousedown and mouseup in milliseconds.
+  optional int32 delay_ms = 4;
+  // Keyboard modifiers held during click: ctrl | shift | alt | meta.
+  repeated string modifiers = 5;
+  // Force click even if element is not visible/actionable.
+  optional bool force = 6;
+  // Scroll element into view before clicking.
+  optional bool scroll_into_view = 7;
+}
+
+// InputParams configures text entry into form elements.
+message InputParams {
+  // CSS selector for target input element.
+  string selector = 1;
+  // Text value to type.
+  string value = 2;
+  // Mask value in logs/telemetry (for passwords, etc.).
+  optional bool is_sensitive = 3;
+  // Press Enter after typing (submit form).
+  optional bool submit = 4;
+  // Clear existing text before typing.
+  optional bool clear_first = 5;
+  // Delay between keystrokes in milliseconds.
+  optional int32 delay_ms = 6;
+}
+
+// WaitParams configures wait conditions.
+message WaitParams {
+  // Wait condition: either duration or selector (one must be set).
+  oneof wait_for {
+    // Fixed duration to wait in milliseconds.
+    int32 duration_ms = 1;
+    // CSS selector to wait for.
+    string selector = 2;
+  }
+  // Element state to wait for: attached | detached | visible | hidden.
+  optional string state = 3;
+  // Timeout in milliseconds for selector waits.
+  optional int32 timeout_ms = 4;
+}
+
+// AssertParams configures element assertions.
+message AssertParams {
+  // CSS selector for element to assert on.
+  string selector = 1;
+  // Assertion mode: exists | not_exists | visible | hidden | text_equals | text_contains | attribute_equals | attribute_contains.
+  string mode = 2;
+  // Expected value for comparison assertions.
+  optional common.v1.JsonValue expected = 3;
+  // Negate the assertion (expect opposite).
+  optional bool negated = 4;
+  // Case-sensitive text comparison.
+  optional bool case_sensitive = 5;
+  // Attribute name for attribute assertions.
+  optional string attribute_name = 6;
+  // Custom failure message.
+  optional string failure_message = 7;
+  // Timeout in milliseconds.
+  optional int32 timeout_ms = 8;
+}
+
+// ScrollParams configures scroll actions.
+message ScrollParams {
+  // Optional CSS selector to scroll (defaults to viewport).
+  optional string selector = 1;
+  // Horizontal scroll position.
+  optional int32 x = 2;
+  // Vertical scroll position.
+  optional int32 y = 3;
+  // Scroll behavior: auto | smooth.
+  optional string behavior = 4;
+  // Scroll delta X (relative scroll).
+  optional int32 delta_x = 5;
+  // Scroll delta Y (relative scroll).
+  optional int32 delta_y = 6;
+}
+
+// SelectParams configures dropdown/select element interaction.
+message SelectParams {
+  // CSS selector for select element.
+  string selector = 1;
+  // Selection method (one must be set).
+  oneof select_by {
+    // Select by option value attribute.
+    string value = 2;
+    // Select by visible text label.
+    string label = 3;
+    // Select by zero-based index.
+    int32 index = 4;
+  }
+  // Timeout in milliseconds.
+  optional int32 timeout_ms = 5;
+}
+
+// EvaluateParams configures JavaScript evaluation.
+message EvaluateParams {
+  // JavaScript expression to evaluate.
+  string expression = 1;
+  // Variable name to store the result.
+  optional string store_result = 2;
+  // Arguments to pass to the expression.
+  map<string, common.v1.JsonValue> args = 3;
+}
+
+// KeyboardParams configures keyboard interactions.
+message KeyboardParams {
+  // Single key to press (e.g., "Enter", "Tab", "a").
+  optional string key = 1;
+  // Sequence of keys to press.
+  repeated string keys = 2;
+  // Keyboard modifiers: ctrl | shift | alt | meta.
+  repeated string modifiers = 3;
+  // Key action: press | down | up.
+  optional string action = 4;
+}
+
+// HoverParams configures hover interactions.
+message HoverParams {
+  // CSS selector for element to hover over.
+  string selector = 1;
+  // Timeout in milliseconds.
+  optional int32 timeout_ms = 2;
+}
+
+// ScreenshotParams configures screenshot capture.
+message ScreenshotParams {
+  // Capture full scrollable page vs viewport only.
+  optional bool full_page = 1;
+  // CSS selector to screenshot specific element.
+  optional string selector = 2;
+  // JPEG quality (1-100) for lossy compression.
+  optional int32 quality = 3;
+}
+
+// FocusParams configures focus interactions.
+message FocusParams {
+  // CSS selector for element to focus.
+  string selector = 1;
+  // Whether to scroll element into view.
+  optional bool scroll = 2;
+  // Timeout in milliseconds.
+  optional int32 timeout_ms = 3;
+}
+
+// BlurParams configures blur (unfocus) interactions.
+message BlurParams {
+  // CSS selector for element to blur (optional, blurs active element if empty).
+  optional string selector = 1;
+  // Timeout in milliseconds.
+  optional int32 timeout_ms = 2;
+}
+
+// =============================================================================
+// ACTION METADATA (optional enrichment from recording)
+// =============================================================================
+
+// ActionMetadata captures optional rich data from recording for debugging and fallbacks.
+message ActionMetadata {
+  // Human-readable label for the action.
+  optional string label = 1;
+
+  // Alternative selectors ranked by confidence (from recording).
+  // Enables automatic fallback when primary selector fails.
+  // Reuses SelectorCandidate from record_mode.proto.
+  repeated SelectorCandidate selector_candidates = 2;
+
+  // Element state snapshot when action was recorded.
+  // Reuses ElementMeta from record_mode.proto.
+  optional ElementMeta element_snapshot = 3;
+
+  // Recording confidence score (0.0-1.0).
+  optional double confidence = 4;
+
+  // When this action was originally recorded.
+  optional google.protobuf.Timestamp recorded_at = 5;
+
+  // Element bounding box when recorded.
+  // Reuses BoundingBox from timeline.proto.
+  optional BoundingBox recorded_bounding_box = 6;
+}
+
+// =============================================================================
+// TELEMETRY (shared between recording and execution)
+// =============================================================================
+
+// ActionTelemetry captures observable data during action recording or execution.
+// This structure is identical for both modes, enabling unified UI rendering.
+// Reuses geometry and artifact types from timeline.proto.
+message ActionTelemetry {
+  // Page URL at capture time.
+  string url = 1;
+  // Frame ID if action occurred in iframe.
+  optional string frame_id = 2;
+
+  // Visual captures - reuses TimelineScreenshot from timeline.proto.
+  optional TimelineScreenshot screenshot = 10;
+  optional string dom_snapshot_preview = 11;
+  optional string dom_snapshot_html = 12;
+
+  // Element interaction data - reuses BoundingBox, Point from timeline.proto.
+  optional BoundingBox element_bounding_box = 20;
+  optional Point click_position = 21;
+  optional Point cursor_position = 22;
+  repeated Point cursor_trail = 23;
+  repeated HighlightRegion highlight_regions = 24;
+  repeated MaskRegion mask_regions = 25;
+  optional double zoom_factor = 26;
+
+  // Browser telemetry.
+  repeated ConsoleLogEntryUnified console_logs = 30;
+  repeated NetworkEventUnified network_events = 31;
+}
+
+// ConsoleLogEntryUnified captures browser console output for telemetry.
+message ConsoleLogEntryUnified {
+  // Log level: log | warn | error | info | debug.
+  string level = 1;
+  // Log message text.
+  string text = 2;
+  // When the log was emitted.
+  google.protobuf.Timestamp timestamp = 3;
+  // Stack trace if available.
+  optional string stack = 4;
+  // Source location.
+  optional string location = 5;
+}
+
+// NetworkEventUnified captures network activity for telemetry.
+message NetworkEventUnified {
+  // Event type: request | response | failure.
+  string type = 1;
+  // Request URL.
+  string url = 2;
+  // HTTP method.
+  optional string method = 3;
+  // Resource type (document, script, xhr, etc.).
+  optional string resource_type = 4;
+  // HTTP status code.
+  optional int32 status = 5;
+  // Whether response was successful.
+  optional bool ok = 6;
+  // Failure reason if failed.
+  optional string failure = 7;
+  // Event timestamp.
+  google.protobuf.Timestamp timestamp = 8;
+}
+
+// =============================================================================
+// TIMELINE EVENT (unified streaming format)
+// =============================================================================
+// TimelineEvent is streamed to the UI during BOTH recording and execution.
+// The UI renders this identically regardless of mode.
+
+message TimelineEvent {
+  // Unique event identifier.
+  string id = 1;
+  // Zero-based sequence number.
+  int32 sequence_num = 2;
+  // When this event occurred.
+  google.protobuf.Timestamp timestamp = 3;
+  // Action duration in milliseconds.
+  optional int32 duration_ms = 4;
+
+  // The action performed or to be performed.
+  ActionDefinition action = 10;
+
+  // Observable telemetry captured during the action.
+  ActionTelemetry telemetry = 11;
+
+  // Mode-specific data (exactly one populated based on context).
+  oneof mode_data {
+    RecordingEventData recording = 20;
+    ExecutionEventData execution = 21;
+  }
+}
+
+// RecordingEventData contains recording-specific fields.
+message RecordingEventData {
+  // Recording session ID.
+  string session_id = 1;
+
+  // Selector candidates for user to choose from.
+  // Reuses SelectorCandidate from record_mode.proto.
+  repeated SelectorCandidate selector_candidates = 2;
+
+  // Whether user needs to confirm/edit this action.
+  bool needs_confirmation = 3;
+
+  // How the action was captured: auto | manual.
+  string source = 4;
+}
+
+// ExecutionEventData contains execution-specific fields.
+message ExecutionEventData {
+  // Execution run ID.
+  string execution_id = 1;
+  // Workflow node ID being executed.
+  string node_id = 2;
+
+  // Execution outcome.
+  bool success = 10;
+  optional string error = 11;
+  optional string error_code = 12;
+
+  // Retry information.
+  int32 attempt = 20;
+  optional int32 max_attempts = 21;
+  optional int32 retry_delay_ms = 22;
+  optional double retry_backoff_factor = 23;
+  repeated RetryAttemptProto retry_history = 24;
+
+  // Assertion result (for assert steps).
+  optional AssertionResultProto assertion = 30;
+
+  // Extracted data (for evaluate steps).
+  map<string, common.v1.JsonValue> extracted_data = 31;
+}
+
+// RetryAttemptProto captures a single retry attempt outcome.
+message RetryAttemptProto {
+  int32 attempt = 1;
+  bool success = 2;
+  int32 duration_ms = 3;
+  optional string error = 4;
+}
+
+// AssertionResultProto captures assertion evaluation outcome.
+message AssertionResultProto {
+  string mode = 1;
+  string selector = 2;
+  optional common.v1.JsonValue expected = 3;
+  optional common.v1.JsonValue actual = 4;
+  bool success = 5;
+  bool negated = 6;
+  bool case_sensitive = 7;
+  optional string message = 8;
+}
+
+// =============================================================================
+// WORKFLOW DEFINITION V2 (lean with optional metadata)
+// =============================================================================
+
+// WorkflowDefinitionV2 is the next-generation workflow storage format.
+message WorkflowDefinitionV2 {
+  WorkflowMetadataV2 metadata = 1;
+  WorkflowSettingsV2 settings = 2;
+  repeated WorkflowNodeV2 nodes = 3;
+  repeated WorkflowEdgeV2 edges = 4;
+}
+
+// WorkflowMetadataV2 captures workflow-level descriptors.
+message WorkflowMetadataV2 {
+  optional string name = 1;
+  optional string description = 2;
+  map<string, string> labels = 3;
+  optional string version = 4;
+  optional string requirement = 5;
+  optional string owner = 6;
+}
+
+// WorkflowSettingsV2 captures browser/execution configuration.
+message WorkflowSettingsV2 {
+  optional int32 viewport_width = 1;
+  optional int32 viewport_height = 2;
+  optional string user_agent = 3;
+  optional string locale = 4;
+  optional int32 timeout_seconds = 5;
+  optional bool headless = 6;
+  optional string entry_selector = 7;
+  optional int32 entry_selector_timeout_ms = 8;
+}
+
+// WorkflowNodeV2 represents a single workflow step.
+message WorkflowNodeV2 {
+  // Unique node identifier.
+  string id = 1;
+
+  // The action to perform - THIS IS THE KEY UNIFICATION.
+  ActionDefinition action = 2;
+
+  // UI canvas position (optional, for visual editor).
+  optional NodePosition position = 3;
+
+  // Per-node execution settings (optional).
+  optional NodeExecutionSettings execution_settings = 4;
+}
+
+// NodePosition captures canvas placement for visual editors.
+message NodePosition {
+  double x = 1;
+  double y = 2;
+}
+
+// NodeExecutionSettings captures per-step execution configuration.
+message NodeExecutionSettings {
+  // Maximum time for this step.
+  optional int32 timeout_ms = 1;
+  // Wait time after step completes before proceeding.
+  optional int32 wait_after_ms = 2;
+  // Continue workflow if this step fails.
+  optional bool continue_on_error = 3;
+  // Retry/resilience configuration.
+  optional ResilienceConfig resilience = 4;
+}
+
+// ResilienceConfig captures retry and precondition settings.
+message ResilienceConfig {
+  optional int32 max_attempts = 1;
+  optional int32 delay_ms = 2;
+  optional double backoff_factor = 3;
+  optional string precondition_selector = 4;
+  optional int32 precondition_timeout_ms = 5;
+  optional int32 precondition_wait_ms = 6;
+  optional string success_selector = 7;
+  optional int32 success_timeout_ms = 8;
+  optional int32 success_wait_ms = 9;
+}
+
+// WorkflowEdgeV2 connects nodes in the workflow graph.
+message WorkflowEdgeV2 {
+  string id = 1;
+  string source = 2;
+  string target = 3;
+  optional string type = 4;
+  optional string label = 5;
+  optional string source_handle = 6;
+  optional string target_handle = 7;
+}
+
+// =============================================================================
+// WEBSOCKET MESSAGE ENVELOPE
+// =============================================================================
+// Used for streaming timeline events to the UI.
+
+// TimelineStreamMessage wraps timeline events for WebSocket transport.
+message TimelineStreamMessage {
+  // Message type for routing.
+  TimelineMessageType type = 1;
+
+  oneof payload {
+    TimelineEvent event = 10;
+    TimelineStatusUpdate status = 11;
+    TimelineHeartbeat heartbeat = 12;
+  }
+}
+
+enum TimelineMessageType {
+  TIMELINE_MESSAGE_TYPE_UNSPECIFIED = 0;
+  TIMELINE_MESSAGE_TYPE_EVENT = 1;
+  TIMELINE_MESSAGE_TYPE_STATUS = 2;
+  TIMELINE_MESSAGE_TYPE_HEARTBEAT = 3;
+}
+
+// TimelineStatusUpdate reports overall session/execution status.
+message TimelineStatusUpdate {
+  // Session ID (recording) or Execution ID (playback).
+  string id = 1;
+  // Current status.
+  string status = 2;
+  // Progress percentage (0-100).
+  int32 progress = 3;
+  // Total event count.
+  int32 event_count = 4;
+  // Error message if status is failed.
+  optional string error = 5;
+}
+
+// TimelineHeartbeat keeps WebSocket connection alive.
+message TimelineHeartbeat {
+  google.protobuf.Timestamp timestamp = 1;
+  // Session ID for connection routing.
+  string session_id = 2;
+}

@@ -53,6 +53,9 @@ func (s *stubHub) CloseExecution(executionID uuid.UUID) {
 
 func (s *stubHub) BroadcastRecordingAction(sessionID string, action any) {}
 
+func (s *stubHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+}
+
 func (s *stubHub) BroadcastBinaryFrame(executionID string, data []byte) {}
 
 func (s *stubHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
@@ -262,6 +265,9 @@ func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
 }
 
 func (b *blockingHub) BroadcastRecordingAction(sessionID string, action any) {}
+
+func (b *blockingHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+}
 
 func (b *blockingHub) BroadcastBinaryFrame(executionID string, data []byte) {}
 

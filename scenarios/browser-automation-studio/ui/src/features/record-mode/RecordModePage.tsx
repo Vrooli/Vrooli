@@ -20,7 +20,7 @@
  * - Action editing (selector and payload)
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { RecordActionsPanel } from './components/RecordActionsPanel';
 import { RecordingHeader } from './components/RecordingHeader';
 import { ErrorBanner, UnstableSelectorsBanner } from './components/RecordModeBanners';
@@ -32,13 +32,19 @@ import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useRecordMode } from './hooks/useRecordMode';
 import { useTimelinePanel } from './hooks/useTimelinePanel';
 import { useActionSelection } from './hooks/useActionSelection';
+import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { RecordPreviewPanel } from './RecordPreviewPanel';
 import { getConfig } from '@/config';
 import type { StreamSettingsValues } from './components/StreamSettings';
+import type { TimelineMode } from './types/timeline-unified';
 
 interface RecordModePageProps {
   /** Browser session ID */
   sessionId: string | null;
+  /** Mode: 'recording' for live recording, 'execution' for workflow playback */
+  mode?: TimelineMode;
+  /** Execution ID for execution mode (required when mode is 'execution') */
+  executionId?: string | null;
   /** Callback when workflow is generated */
   onWorkflowGenerated?: (workflowId: string, projectId: string) => void;
   /** Callback when a live session is created */
@@ -52,10 +58,25 @@ type RightPanelView = 'preview' | 'create-workflow';
 
 export function RecordModePage({
   sessionId: initialSessionId,
+  mode: initialMode = 'recording',
+  executionId,
   onWorkflowGenerated,
   onSessionReady,
   onClose,
 }: RecordModePageProps) {
+  // Track current mode - can switch between recording and execution
+  const [mode, setMode] = useState<TimelineMode>(initialMode);
+
+  // Handle mode changes
+  const handleModeChange = useCallback((newMode: TimelineMode) => {
+    if (newMode === mode) return;
+    setMode(newMode);
+    // Clear timeline when switching modes
+    if (newMode === 'recording') {
+      // Switching to recording mode - timeline will be populated from actions
+    }
+    // When switching to execution mode, the workflow selection will trigger execution
+  }, [mode]);
   const sessionProfiles = useSessionProfiles();
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
 
@@ -113,6 +134,23 @@ export function RecordModePage({
     },
   });
 
+  // Unified timeline for both recording and execution modes
+  // TODO: Use clearTimelineItems, getRecordedActions, and timelineStats when fully integrated
+  const {
+    items: timelineItems,
+    isLive: isTimelineLive,
+    clearItems: _clearTimelineItems,
+    getRecordedActions: _getRecordedActions,
+    stats: _timelineStats,
+  } = useUnifiedTimeline({
+    mode,
+    executionId,
+    initialActions: actions,
+  });
+
+  // Use unified timeline items count for selection
+  const timelineItemCount = useMemo(() => timelineItems.length, [timelineItems]);
+
   // Selection state for multi-step workflow creation
   const {
     selectedIndices,
@@ -123,7 +161,7 @@ export function RecordModePage({
     selectAll,
     selectNone,
     exitSelectionMode,
-  } = useActionSelection({ actionCount: actions.length });
+  } = useActionSelection({ actionCount: timelineItemCount });
 
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
@@ -342,19 +380,73 @@ export function RecordModePage({
       projectId: string;
       defaultSessionId: string | null;
       actionIndices: number[];
+      workflowType?: 'action' | 'flow' | 'case';
+      path?: string;
+      referenceWorkflowId?: string;
+      compositionMode?: 'inline' | 'reference';
     }) => {
       setIsGenerating(true);
       try {
-        // TODO: API should support generating from subset of actions
-        // For now, generate from all actions
-        const result = await generateWorkflow(params.name, params.projectId);
+        // For reference mode, we create a workflow with a single subflow node
+        // that references the existing workflow
+        if (params.compositionMode === 'reference' && params.referenceWorkflowId) {
+          // Create workflow via project files API with subflow node
+          const apiUrl = (await import('@/config')).getApiBase();
+          const subflowNode = {
+            id: `subflow-${params.referenceWorkflowId.slice(0, 8)}`,
+            type: 'subflow',
+            data: {
+              label: `Reference: ${params.name}`,
+              workflowId: params.referenceWorkflowId,
+            },
+            position: { x: 250, y: 100 },
+          };
 
-        // Reset state
-        setRightPanelView('preview');
-        exitSelectionMode();
+          const flowDefinition = {
+            nodes: [subflowNode],
+            edges: [],
+          };
 
-        if (onWorkflowGenerated) {
-          onWorkflowGenerated(result.workflow_id, result.project_id);
+          const response = await fetch(`${apiUrl}/projects/${params.projectId}/files`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path: params.path || `${params.name.toLowerCase().replace(/\s+/g, '-')}.${params.workflowType || 'flow'}.json`,
+              workflow: {
+                name: params.name,
+                type: params.workflowType || 'flow',
+                flow_definition: flowDefinition,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Failed to create workflow: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+
+          // Reset state
+          setRightPanelView('preview');
+          exitSelectionMode();
+
+          if (onWorkflowGenerated && result.workflow_id) {
+            onWorkflowGenerated(result.workflow_id, params.projectId);
+          }
+        } else {
+          // Inline mode: use existing generate workflow API
+          // TODO: API should support generating from subset of actions
+          // For now, generate from all actions
+          const result = await generateWorkflow(params.name, params.projectId);
+
+          // Reset state
+          setRightPanelView('preview');
+          exitSelectionMode();
+
+          if (onWorkflowGenerated) {
+            onWorkflowGenerated(result.workflow_id, result.project_id);
+          }
         }
       } finally {
         setIsGenerating(false);
@@ -369,11 +461,15 @@ export function RecordModePage({
   return (
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
-        isRecording={isRecording}
-        actionCount={actions.length}
+        isRecording={mode === 'recording' && isRecording}
+        actionCount={timelineItems.length}
         isSidebarOpen={isSidebarOpen}
         onToggleTimeline={handleSidebarToggle}
         onClose={onClose}
+        mode={mode}
+        onModeChange={handleModeChange}
+        showModeToggle={true}
+        canExecute={actions.length > 0} // Can execute if we have recorded actions
       />
 
       {/* Error display */}
@@ -389,9 +485,12 @@ export function RecordModePage({
         {isSidebarOpen && (
           <RecordActionsPanel
             actions={actions}
+            timelineItems={timelineItems}
+            mode={mode}
             isRecording={isRecording}
             isLoading={isLoading}
             isReplaying={isReplaying}
+            isLive={isTimelineLive}
             hasUnstableSelectors={hasUnstableSelectors}
             timelineWidth={timelineWidth}
             isResizingSidebar={isResizingSidebar}

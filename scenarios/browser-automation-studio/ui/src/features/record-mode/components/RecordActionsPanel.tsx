@@ -1,12 +1,20 @@
 import { useMemo, useState } from 'react';
-import { ActionTimeline } from '../ActionTimeline';
+import { UnifiedTimeline } from './TimelineEventCard';
 import type { RecordedAction, SelectorValidation, RecordingSessionProfile } from '../types';
+import type { TimelineItem, TimelineMode } from '../types/timeline-unified';
 
 interface RecordActionsPanelProps {
+  /** Legacy: RecordedActions for backward compatibility */
   actions: RecordedAction[];
+  /** Unified timeline items (preferred) */
+  timelineItems?: TimelineItem[];
+  /** Current mode: recording or execution */
+  mode?: TimelineMode;
   isRecording: boolean;
   isLoading: boolean;
   isReplaying: boolean;
+  /** Whether timeline is receiving live updates */
+  isLive?: boolean;
   hasUnstableSelectors: boolean;
   timelineWidth: number;
   isResizingSidebar: boolean;
@@ -33,9 +41,12 @@ interface RecordActionsPanelProps {
 
 export function RecordActionsPanel({
   actions,
+  timelineItems,
+  mode = 'recording',
   isRecording,
   isLoading,
   isReplaying,
+  isLive,
   hasUnstableSelectors,
   timelineWidth,
   isResizingSidebar,
@@ -48,9 +59,9 @@ export function RecordActionsPanel({
   onClearRequested,
   onCreateWorkflow,
   onDeleteAction,
-  onValidateSelector,
+  onValidateSelector: _onValidateSelector,
   onEditSelector,
-  onEditPayload,
+  onEditPayload: _onEditPayload,
   isSelectionMode,
   selectedIndices,
   onToggleSelectionMode,
@@ -58,6 +69,8 @@ export function RecordActionsPanel({
   onSelectAll,
   onSelectNone,
 }: RecordActionsPanelProps) {
+  // Use unified timeline items if provided, otherwise fall back to actions count
+  const itemCount = timelineItems?.length ?? actions.length;
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
   const selectedSession = useMemo(
@@ -97,7 +110,7 @@ export function RecordActionsPanel({
           {/* Select button - toggles selection mode */}
           <button
             onClick={onToggleSelectionMode}
-            disabled={actions.length === 0}
+            disabled={itemCount === 0}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
               isSelectionMode
                 ? 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-700'
@@ -215,7 +228,7 @@ export function RecordActionsPanel({
           </div>
           )}
 
-          {actions.length > 0 && !isSelectionMode && (
+          {mode === 'recording' && itemCount > 0 && !isSelectionMode && (
             <button
               onClick={onClearRequested}
               className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-1"
@@ -231,33 +244,52 @@ export function RecordActionsPanel({
               {selectionCount} selected
             </span>
           )}
-          {!isSelectionMode && actions.length > 0 && hasUnstableSelectors && (
+          {!isSelectionMode && itemCount > 0 && hasUnstableSelectors && (
             <span className="px-2 py-0.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 rounded-full">
               Review selectors
             </span>
           )}
+          {/* Mode indicator for execution */}
+          {mode === 'execution' && (
+            <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+              Executing
+            </span>
+          )}
           <span>
-            {actions.length} step{actions.length !== 1 ? 's' : ''}
+            {itemCount} step{itemCount !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <ActionTimeline
-          actions={actions}
-          isRecording={isRecording}
-          onDeleteAction={onDeleteAction}
-          onValidateSelector={onValidateSelector}
-          onEditSelector={onEditSelector}
-          onEditPayload={onEditPayload}
-          isSelectionMode={isSelectionMode}
-          selectedIndices={selectedIndices}
-          onActionClick={onActionClick}
-        />
+        {timelineItems ? (
+          <UnifiedTimeline
+            items={timelineItems}
+            isLoading={isLoading}
+            isLive={isLive ?? isRecording}
+            mode={mode}
+            isSelectionMode={isSelectionMode}
+            selectedIndices={selectedIndices}
+            onItemClick={onActionClick}
+            onDeleteItem={mode === 'recording' ? onDeleteAction : undefined}
+            onEditSelector={mode === 'recording' && onEditSelector ? (index) => onEditSelector(index, '') : undefined}
+          />
+        ) : (
+          <UnifiedTimeline
+            items={[]}
+            isLoading={isLoading}
+            isLive={isRecording}
+            mode={mode}
+            isSelectionMode={isSelectionMode}
+            selectedIndices={selectedIndices}
+            onItemClick={onActionClick}
+            onDeleteItem={onDeleteAction}
+          />
+        )}
       </div>
 
-      {/* Footer: Create Workflow button when actions exist */}
-      {actions.length > 0 && (
+      {/* Footer: Create Workflow button when actions exist (recording mode only) */}
+      {mode === 'recording' && itemCount > 0 && (
         <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
           <button
             onClick={onCreateWorkflow}

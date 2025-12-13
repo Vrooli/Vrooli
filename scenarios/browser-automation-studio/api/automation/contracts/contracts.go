@@ -49,6 +49,13 @@ const (
 // StepOutcome captures the normalized result of a single instruction attempt.
 // Engines must not embed provider-specific fields; recorder generates durable
 // IDs/dedupe keys using the correlation metadata.
+//
+// Deprecated: StepOutcome is maintained for backward compatibility with the
+// execution engine internals. For WebSocket streaming to the UI, use
+// TimelineEvent (basv1.TimelineEvent from unified.proto). Conversion is
+// handled by StepOutcomeToTimelineEvent in automation/events/unified_convert.go.
+//
+// See: docs/plans/bas-unified-timeline-workflow-types.md
 type StepOutcome struct {
 	SchemaVersion      string            `json:"schema_version"`
 	PayloadVersion     string            `json:"payload_version"`

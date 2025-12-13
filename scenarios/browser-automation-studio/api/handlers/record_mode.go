@@ -14,11 +14,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/websocket"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // RecordedAction represents a single user action captured during recording.
@@ -1515,6 +1517,7 @@ func extractHostname(urlStr string) string {
 
 // ReceiveRecordingAction handles POST /api/v1/recordings/live/{sessionId}/action
 // Receives a streamed action from the playwright-driver and broadcasts it via WebSocket.
+// The action is converted to a unified TimelineEvent for V2 format compatibility.
 func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "sessionId")
 	if sessionID == "" {
@@ -1532,8 +1535,16 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Broadcast the action to WebSocket clients subscribed to this session
-	h.wsHub.BroadcastRecordingAction(sessionID, action)
+	// Convert to unified TimelineEvent format for V2 migration
+	timelineEvent := h.convertRecordedActionToTimelineEvent(&action)
+
+	// Broadcast with both legacy action and timeline_event
+	if timelineEvent != nil {
+		h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, action, timelineEvent)
+	} else {
+		// Fallback to legacy format if conversion fails
+		h.wsHub.BroadcastRecordingAction(sessionID, action)
+	}
 
 	h.log.WithFields(map[string]interface{}{
 		"session_id":   sessionID,
@@ -1544,6 +1555,97 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 	h.respondSuccess(w, http.StatusOK, map[string]string{
 		"status": "ok",
 	})
+}
+
+// convertRecordedActionToTimelineEvent converts a handler RecordedAction to events.RecordedAction
+// then to a TimelineEvent proto, and finally to a map for JSON serialization.
+func (h *Handler) convertRecordedActionToTimelineEvent(action *RecordedAction) map[string]any {
+	// Convert handler types to events types
+	eventsAction := &events.RecordedAction{
+		ID:          action.ID,
+		SessionID:   action.SessionID,
+		SequenceNum: action.SequenceNum,
+		Timestamp:   action.Timestamp,
+		DurationMs:  action.DurationMs,
+		ActionType:  action.ActionType,
+		Confidence:  action.Confidence,
+		Payload:     action.Payload,
+		URL:         action.URL,
+		FrameID:     action.FrameID,
+	}
+
+	// Convert selector
+	if action.Selector != nil {
+		eventsAction.Selector = &events.SelectorSet{
+			Primary: action.Selector.Primary,
+		}
+		for _, c := range action.Selector.Candidates {
+			eventsAction.Selector.Candidates = append(eventsAction.Selector.Candidates, events.SelectorCandidate{
+				Type:        c.Type,
+				Value:       c.Value,
+				Confidence:  c.Confidence,
+				Specificity: c.Specificity,
+			})
+		}
+	}
+
+	// Convert element meta
+	if action.ElementMeta != nil {
+		eventsAction.ElementMeta = &events.ElementMeta{
+			TagName:    action.ElementMeta.TagName,
+			ID:         action.ElementMeta.ID,
+			ClassName:  action.ElementMeta.ClassName,
+			InnerText:  action.ElementMeta.InnerText,
+			Attributes: action.ElementMeta.Attributes,
+			IsVisible:  action.ElementMeta.IsVisible,
+			IsEnabled:  action.ElementMeta.IsEnabled,
+			Role:       action.ElementMeta.Role,
+			AriaLabel:  action.ElementMeta.AriaLabel,
+		}
+	}
+
+	// Convert bounding box
+	if action.BoundingBox != nil {
+		eventsAction.BoundingBox = &events.RecBoundingBox{
+			X:      action.BoundingBox.X,
+			Y:      action.BoundingBox.Y,
+			Width:  action.BoundingBox.Width,
+			Height: action.BoundingBox.Height,
+		}
+	}
+
+	// Convert cursor position
+	if action.CursorPos != nil {
+		eventsAction.CursorPos = &events.RecPoint{
+			X: action.CursorPos.X,
+			Y: action.CursorPos.Y,
+		}
+	}
+
+	// Convert to TimelineEvent proto
+	timelineEvent := events.RecordedActionToTimelineEvent(eventsAction)
+	if timelineEvent == nil {
+		return nil
+	}
+
+	// Marshal to JSON using protojson (snake_case for consistency)
+	jsonBytes, err := protojson.MarshalOptions{
+		UseProtoNames:   true,
+		EmitUnpopulated: false,
+	}.Marshal(timelineEvent)
+	if err != nil {
+		h.log.WithError(err).Debug("Failed to marshal TimelineEvent to JSON")
+		return nil
+	}
+
+	// Unmarshal to map for inclusion in WebSocket message
+	var result map[string]any
+	if err := json.Unmarshal(jsonBytes, &result); err != nil {
+		h.log.WithError(err).Debug("Failed to unmarshal TimelineEvent JSON to map")
+		return nil
+	}
+
+	return result
 }
 
 // ReceiveRecordingFrame handles POST /api/v1/recordings/live/{sessionId}/frame

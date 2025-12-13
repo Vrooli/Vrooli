@@ -3,6 +3,7 @@ import datetime
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.api import annotations_pb2 as _annotations_pb2
+from common.v1 import types_pb2 as _types_pb2
 from browser_automation_studio.v1 import workflow_pb2 as _workflow_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
@@ -139,19 +140,19 @@ class ExecuteWorkflowRequest(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _shared_pb2.JsonValue
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_shared_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_TYPED_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
     parameters: _containers.MessageMap[str, _struct_pb2.Value]
-    parameters_typed: _containers.MessageMap[str, _shared_pb2.JsonValue]
+    parameters_typed: _containers.MessageMap[str, _types_pb2.JsonValue]
     wait_for_completion: bool
     workflow_id: str
     workflow_version: int
-    def __init__(self, parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., parameters_typed: _Optional[_Mapping[str, _shared_pb2.JsonValue]] = ..., wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ...) -> None: ...
+    def __init__(self, parameters: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., parameters_typed: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ...) -> None: ...
 
 class ExecuteWorkflowResponse(_message.Message):
     __slots__ = ()
@@ -217,9 +218,9 @@ class WorkflowValidationResult(_message.Message):
     warnings: _containers.RepeatedCompositeFieldContainer[WorkflowValidationIssue]
     stats: WorkflowValidationStats
     schema_version: str
-    checked_at: str
+    checked_at: _timestamp_pb2.Timestamp
     duration_ms: int
-    def __init__(self, valid: _Optional[bool] = ..., errors: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., stats: _Optional[_Union[WorkflowValidationStats, _Mapping]] = ..., schema_version: _Optional[str] = ..., checked_at: _Optional[str] = ..., duration_ms: _Optional[int] = ...) -> None: ...
+    def __init__(self, valid: _Optional[bool] = ..., errors: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., stats: _Optional[_Union[WorkflowValidationStats, _Mapping]] = ..., schema_version: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ...) -> None: ...
 
 class RestoreWorkflowVersionResponse(_message.Message):
     __slots__ = ()

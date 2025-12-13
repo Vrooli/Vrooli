@@ -2,7 +2,7 @@ import datetime
 
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
+from common.v1 import types_pb2 as _types_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -133,7 +133,7 @@ class RecordedAction(_message.Message):
     element_meta: ElementMeta
     bounding_box: RecordBoundingBox
     payload: _struct_pb2.Struct
-    payload_typed: _shared_pb2.JsonObject
+    payload_typed: _types_pb2.JsonObject
     url: str
     frame_id: str
     cursor_pos: RecordPoint
@@ -143,7 +143,7 @@ class RecordedAction(_message.Message):
     input: InputActionPayload
     wait: WaitActionPayload
     custom_script: CustomScriptActionPayload
-    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., action_type: _Optional[str] = ..., confidence: _Optional[float] = ..., selector: _Optional[_Union[SelectorSet, _Mapping]] = ..., element_meta: _Optional[_Union[ElementMeta, _Mapping]] = ..., bounding_box: _Optional[_Union[RecordBoundingBox, _Mapping]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., payload_typed: _Optional[_Union[_shared_pb2.JsonObject, _Mapping]] = ..., url: _Optional[str] = ..., frame_id: _Optional[str] = ..., cursor_pos: _Optional[_Union[RecordPoint, _Mapping]] = ..., action_kind: _Optional[_Union[RecordedActionType, str]] = ..., navigate: _Optional[_Union[NavigateActionPayload, _Mapping]] = ..., click: _Optional[_Union[ClickActionPayload, _Mapping]] = ..., input: _Optional[_Union[InputActionPayload, _Mapping]] = ..., wait: _Optional[_Union[WaitActionPayload, _Mapping]] = ..., custom_script: _Optional[_Union[CustomScriptActionPayload, _Mapping]] = ..., **kwargs) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., action_type: _Optional[str] = ..., confidence: _Optional[float] = ..., selector: _Optional[_Union[SelectorSet, _Mapping]] = ..., element_meta: _Optional[_Union[ElementMeta, _Mapping]] = ..., bounding_box: _Optional[_Union[RecordBoundingBox, _Mapping]] = ..., payload: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., payload_typed: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ..., url: _Optional[str] = ..., frame_id: _Optional[str] = ..., cursor_pos: _Optional[_Union[RecordPoint, _Mapping]] = ..., action_kind: _Optional[_Union[RecordedActionType, str]] = ..., navigate: _Optional[_Union[NavigateActionPayload, _Mapping]] = ..., click: _Optional[_Union[ClickActionPayload, _Mapping]] = ..., input: _Optional[_Union[InputActionPayload, _Mapping]] = ..., wait: _Optional[_Union[WaitActionPayload, _Mapping]] = ..., custom_script: _Optional[_Union[CustomScriptActionPayload, _Mapping]] = ..., **kwargs) -> None: ...
 
 class NavigateActionPayload(_message.Message):
     __slots__ = ()
@@ -188,14 +188,16 @@ class AssertActionPayload(_message.Message):
     MODE_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_TYPED_FIELD_NUMBER: _ClassVar[int]
     NEGATED_FIELD_NUMBER: _ClassVar[int]
     CASE_SENSITIVE_FIELD_NUMBER: _ClassVar[int]
     mode: str
     selector: str
     expected: _struct_pb2.Value
+    expected_typed: _types_pb2.JsonValue
     negated: bool
     case_sensitive: bool
-    def __init__(self, mode: _Optional[str] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ...) -> None: ...
+    def __init__(self, mode: _Optional[str] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., expected_typed: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ...) -> None: ...
 
 class CustomScriptActionPayload(_message.Message):
     __slots__ = ()

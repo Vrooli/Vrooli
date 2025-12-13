@@ -150,6 +150,10 @@ interface StreamSettingsProps {
   showStats?: boolean;
   /** Callback when showStats changes (controlled) */
   onShowStatsChange?: (show: boolean) => void;
+  /** Whether toolbar auto-hides when mouse leaves (controlled) */
+  autoHide?: boolean;
+  /** Callback when autoHide changes (controlled) */
+  onAutoHideChange?: (autoHide: boolean) => void;
 }
 
 export function StreamSettings({
@@ -160,6 +164,8 @@ export function StreamSettings({
   onPresetChange,
   showStats: controlledShowStats,
   onShowStatsChange,
+  autoHide: _autoHide,
+  onAutoHideChange: _onAutoHideChange,
 }: StreamSettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [internalPreset, setInternalPreset] = useState<StreamPreset>(loadStoredPreset);

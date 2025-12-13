@@ -4,6 +4,14 @@
  * Type definitions for Record Mode feature.
  * These types define the data structures for capturing user actions
  * and generating reliable selectors.
+ *
+ * @deprecated These types are maintained for backward compatibility.
+ * New code should use the unified types from `unified-types.ts`:
+ * - Use `TimelineEvent` instead of `RecordedAction`
+ * - Use `ActionDefinition` for action definitions
+ * - Use `WorkflowNodeV2` for workflow storage
+ *
+ * See: docs/plans/bas-unified-timeline-workflow-types.md
  */
 
 import type { SelectorStrategyType } from './selector-config';
@@ -74,6 +82,11 @@ export interface ElementMeta {
 /**
  * RecordedAction represents a single user action captured during recording.
  * This is the primary data structure flowing through the recording pipeline.
+ *
+ * @deprecated Use `TimelineEvent` from `unified-types.ts` for new code.
+ * RecordedAction is converted to TimelineEvent at the handler level for
+ * WebSocket streaming. Direct use of RecordedAction should be limited to
+ * the recording controller internals.
  */
 export interface RecordedAction {
   /** Unique action ID (UUID) */

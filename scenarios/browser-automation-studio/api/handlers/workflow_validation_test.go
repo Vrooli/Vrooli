@@ -66,7 +66,10 @@ func TestValidateWorkflow_Success(t *testing.T) {
 	}
 }
 
-func TestValidateWorkflow_StrictPromotesWarnings(t *testing.T) {
+func TestValidateWorkflow_StrictModeDoesNotPromoteStylisticWarnings(t *testing.T) {
+	// Strict mode is designed for schema/token-resolution problems only,
+	// not stylistic lint warnings (e.g. missing labels, edge sparsity).
+	// See validator.shouldPromoteWarningInStrictMode() for the allowlist.
 	handler := &Handler{workflowValidator: newTestValidator(t)}
 
 	payload := map[string]any{
@@ -102,23 +105,26 @@ func TestValidateWorkflow_StrictPromotesWarnings(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	valid, _ := result["valid"].(bool)
-	if valid {
-		t.Fatal("expected validation to fail in strict mode")
+	// Workflow should have warnings but strict mode should NOT promote them
+	warnings, _ := result["warnings"].([]any)
+	if len(warnings) == 0 {
+		t.Fatal("expected warnings to be present (missing label, no edges)")
 	}
 
-	foundStrict := false
+	// Strict mode should NOT promote stylistic warnings to errors
+	valid, _ := result["valid"].(bool)
+	if !valid {
+		t.Fatalf("expected workflow to be valid even in strict mode (stylistic warnings are not promoted), got errors: %+v", result["errors"])
+	}
+
+	// Verify no WF_STRICT_WARNING was generated
 	errorsAny, _ := result["errors"].([]any)
 	for _, issueAny := range errorsAny {
 		issue, _ := issueAny.(map[string]any)
 		code, _ := issue["code"].(string)
 		if code == "WF_STRICT_WARNING" {
-			foundStrict = true
-			break
+			t.Fatalf("stylistic warnings should not be promoted in strict mode, but got: %+v", issue)
 		}
-	}
-	if !foundStrict {
-		t.Fatalf("expected WF_STRICT_WARNING error, got %+v", result["errors"])
 	}
 }
 

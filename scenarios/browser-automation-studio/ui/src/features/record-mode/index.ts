@@ -9,9 +9,12 @@
 export { RecordModePage } from './RecordModePage';
 export { ActionTimeline } from './ActionTimeline';
 export { SelectorEditor } from './SelectorEditor';
+export { TimelineEventCard, UnifiedTimeline } from './components/TimelineEventCard';
 
 // Hooks
 export { useRecordMode } from './hooks/useRecordMode';
+export { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
+export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
 
 // Utilities
 export { mergeConsecutiveActions, getMergeDescription } from './mergeActions';
@@ -34,3 +37,23 @@ export type {
   GenerateWorkflowResponse,
   SelectorValidation,
 } from './types';
+
+// Unified Timeline Types (for recording + execution modes)
+export type {
+  TimelineItem,
+  TimelineMode,
+  TimelineEvent,
+  ActionDefinition,
+  ActionTelemetry,
+  RecordingEventData,
+  ExecutionEventData,
+  WorkflowNodeV2,
+  ActionMetadata,
+} from './types/timeline-unified';
+export {
+  recordedActionToTimelineItem,
+  timelineEventToTimelineItem,
+  timelineEventToRecordedAction,
+  hasTimelineEvent,
+  parseTimelineEvent,
+} from './types/timeline-unified';

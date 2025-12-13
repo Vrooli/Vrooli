@@ -27,6 +27,9 @@ type workflowFileSnapshot struct {
 	NeedsWriteBack   bool
 	FileHash         string
 	LastModifiedTime time.Time
+	// SchemaVersion tracks whether this workflow was stored in V1 or V2 format.
+	// V1 = legacy React Flow nodes/edges, V2 = unified proto-based definition.
+	SchemaVersion SchemaVersion
 }
 
 func (s *WorkflowService) readWorkflowFile(ctx context.Context, project *database.Project, absPath string) (*workflowFileSnapshot, error) {
@@ -93,34 +96,64 @@ func (s *WorkflowService) readWorkflowFile(ctx context.Context, project *databas
 
 	versionHint := parseFlexibleInt(payload["version"])
 
-	var flowCandidate map[string]any
-	if rawFlow, ok := payload["flow_definition"].(map[string]any); ok {
-		flowCandidate = rawFlow
-	} else {
-		flowCandidate = make(map[string]any)
-		if nodes, ok := payload["nodes"]; ok {
-			flowCandidate["nodes"] = nodes
+	// Detect schema version (V1 or V2)
+	schemaVersion := DetectSchemaVersion(payload)
+
+	var normalized database.JSONMap
+	var nodes, edges []any
+
+	if schemaVersion == SchemaV2 {
+		// V2 format: parse definition_v2 and convert to V1 for internal use
+		v2Def := ParseV2Definition(payload)
+		if v2Def != nil {
+			v1Nodes, v1Edges, convErr := V2ToV1Definition(v2Def)
+			if convErr != nil {
+				return nil, fmt.Errorf("workflow file %s: failed to convert V2 definition: %w", rel, convErr)
+			}
+			nodes = v1Nodes
+			edges = v1Edges
+			normalized = database.JSONMap{
+				"nodes": nodes,
+				"edges": edges,
+			}
+		} else {
+			// Fallback to V1 if V2 parsing failed
+			schemaVersion = SchemaV1
 		}
-		if edges, ok := payload["edges"]; ok {
-			flowCandidate["edges"] = edges
+	}
+
+	if schemaVersion == SchemaV1 {
+		// V1 format: use legacy nodes/edges format
+		var flowCandidate map[string]any
+		if rawFlow, ok := payload["flow_definition"].(map[string]any); ok {
+			flowCandidate = rawFlow
+		} else {
+			flowCandidate = make(map[string]any)
+			if n, ok := payload["nodes"]; ok {
+				flowCandidate["nodes"] = n
+			}
+			if e, ok := payload["edges"]; ok {
+				flowCandidate["edges"] = e
+			}
 		}
-	}
 
-	// Ensure we always have a nodes/edges tuple even if empty.
-	if _, hasNodes := flowCandidate["nodes"]; !hasNodes {
-		flowCandidate["nodes"] = []any{}
-	}
-	if _, hasEdges := flowCandidate["edges"]; !hasEdges {
-		flowCandidate["edges"] = []any{}
-	}
+		// Ensure we always have a nodes/edges tuple even if empty.
+		if _, hasNodes := flowCandidate["nodes"]; !hasNodes {
+			flowCandidate["nodes"] = []any{}
+		}
+		if _, hasEdges := flowCandidate["edges"]; !hasEdges {
+			flowCandidate["edges"] = []any{}
+		}
 
-	normalized, normErr := normalizeFlowDefinition(flowCandidate)
-	if normErr != nil {
-		return nil, fmt.Errorf("workflow file %s has invalid flow definition: %w", rel, normErr)
-	}
+		var normErr error
+		normalized, normErr = normalizeFlowDefinition(flowCandidate)
+		if normErr != nil {
+			return nil, fmt.Errorf("workflow file %s has invalid flow definition: %w", rel, normErr)
+		}
 
-	nodes := ToInterfaceSlice(normalized["nodes"])
-	edges := ToInterfaceSlice(normalized["edges"])
+		nodes = ToInterfaceSlice(normalized["nodes"])
+		edges = ToInterfaceSlice(normalized["edges"])
+	}
 
 	workflow := &database.Workflow{
 		ID:                    workflowID,
@@ -149,6 +182,7 @@ func (s *WorkflowService) readWorkflowFile(ctx context.Context, project *databas
 		NeedsWriteBack:   generatedID,
 		FileHash:         hashWorkflowDefinition(normalized),
 		LastModifiedTime: info.ModTime(),
+		SchemaVersion:    schemaVersion,
 	}
 
 	return snapshot, nil

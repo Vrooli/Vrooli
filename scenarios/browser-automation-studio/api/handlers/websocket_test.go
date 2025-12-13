@@ -61,6 +61,10 @@ func (m *mockWebSocketHub) BroadcastRecordingAction(sessionID string, action any
 	// No-op for existing tests
 }
 
+func (m *mockWebSocketHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+	// No-op for existing tests
+}
+
 func (m *mockWebSocketHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {
 	// No-op for existing tests
 }

@@ -60,7 +60,10 @@ func TestValidatorValidWorkflow(t *testing.T) {
 	}
 }
 
-func TestValidatorStrictPromotesWarnings(t *testing.T) {
+func TestValidatorStrictModeDoesNotPromoteStylisticWarnings(t *testing.T) {
+	// Strict mode is designed for schema/token-resolution problems only,
+	// not stylistic lint warnings (e.g. missing labels, edge sparsity).
+	// See shouldPromoteWarningInStrictMode() for the allowlist.
 	v, err := NewValidator()
 	if err != nil {
 		t.Fatalf("failed to init validator: %v", err)
@@ -95,19 +98,22 @@ func TestValidatorStrictPromotesWarnings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validation returned error: %v", err)
 	}
-	if res.Valid {
-		t.Fatalf("expected strict validation to fail due to warnings")
+
+	// Workflow should have warnings (missing labels, no edges) but no errors
+	if len(res.Warnings) == 0 {
+		t.Fatal("expected warnings to be present")
 	}
 
-	foundPromotion := false
+	// Strict mode should NOT promote stylistic warnings to errors
+	if !res.Valid {
+		t.Fatalf("expected workflow to be valid even in strict mode (stylistic warnings are not promoted), got errors: %+v", res.Errors)
+	}
+
+	// Verify no WF_STRICT_WARNING was generated
 	for _, issue := range res.Errors {
 		if issue.Code == "WF_STRICT_WARNING" {
-			foundPromotion = true
-			break
+			t.Fatalf("stylistic warnings should not be promoted in strict mode, but got: %+v", issue)
 		}
-	}
-	if !foundPromotion {
-		t.Fatalf("expected WF_STRICT_WARNING error, got %+v", res.Errors)
 	}
 }
 

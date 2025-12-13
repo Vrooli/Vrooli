@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -205,6 +206,19 @@ func (q *executionQueue) emit(event contracts.EventEnvelope) {
 		if event.Payload != nil {
 			protoMap["legacy_payload"] = event.Payload
 		}
+		// Add unified timeline_event for step events to enable shared Record/Execute UX
+		if isStepEvent(event.Kind) {
+			timelineEvent := eventToTimelineEvent(event, q.executionID)
+			if timelineEvent != nil {
+				jsonData, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(timelineEvent)
+				if err == nil {
+					var timelineEventMap map[string]any
+					if json.Unmarshal(jsonData, &timelineEventMap) == nil {
+						protoMap["timeline_event"] = timelineEventMap
+					}
+				}
+			}
+		}
 		q.hub.BroadcastEnvelope(protoMap)
 		return
 	}
@@ -252,6 +266,34 @@ func (s *WSHubSink) isClosed(executionID uuid.UUID) bool {
 	defer s.mu.Unlock()
 	_, ok := s.closed[executionID]
 	return ok
+}
+
+// isStepEvent returns true if the event kind is a step event (started/completed/failed).
+func isStepEvent(kind contracts.EventKind) bool {
+	return kind == contracts.EventKindStepStarted ||
+		kind == contracts.EventKindStepCompleted ||
+		kind == contracts.EventKindStepFailed
+}
+
+// eventToTimelineEvent converts an event envelope to a unified TimelineEvent.
+// Returns nil if the event doesn't have a step outcome or conversion fails.
+func eventToTimelineEvent(ev contracts.EventEnvelope, executionID uuid.UUID) *browser_automation_studio_v1.TimelineEvent {
+	var outcome *contracts.StepOutcome
+
+	// Extract outcome from payload
+	if asMap, ok := ev.Payload.(map[string]any); ok {
+		if out, ok := asMap["outcome"].(contracts.StepOutcome); ok {
+			outcome = &out
+		}
+	} else if out, ok := ev.Payload.(contracts.StepOutcome); ok {
+		outcome = &out
+	}
+
+	if outcome == nil {
+		return nil
+	}
+
+	return StepOutcomeToTimelineEvent(*outcome, executionID)
 }
 
 func eventToProtoMap(ev contracts.EventEnvelope) (map[string]any, bool) {
@@ -359,7 +401,7 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 						ReceivedAt: timestamppb.New(telemetryPayload.Timestamp),
 						Progress:   progress,
 						Metrics:    structpbMetrics(metrics),
-						MetricsTyped: func() map[string]*browser_automation_studio_v1.JsonValue {
+						MetricsTyped: func() map[string]*commonv1.JsonValue {
 							if len(typedMetrics) == 0 {
 								return nil
 							}
@@ -372,7 +414,7 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 				pb.Payload = &browser_automation_studio_v1.ExecutionEventEnvelope_Telemetry{
 					Telemetry: &browser_automation_studio_v1.TelemetryEvent{
 						Metrics: structpbMetrics(nil),
-						MetricsTyped: func() map[string]*browser_automation_studio_v1.JsonValue {
+						MetricsTyped: func() map[string]*commonv1.JsonValue {
 							if len(typedMetrics) == 0 {
 								return nil
 							}
@@ -652,11 +694,11 @@ func structpbMetrics(values map[string]any) map[string]*structpb.Value {
 	return result.Fields
 }
 
-func jsonMetrics(values map[string]any) map[string]*browser_automation_studio_v1.JsonValue {
+func jsonMetrics(values map[string]any) map[string]*commonv1.JsonValue {
 	if len(values) == 0 {
 		return nil
 	}
-	result := make(map[string]*browser_automation_studio_v1.JsonValue, len(values))
+	result := make(map[string]*commonv1.JsonValue, len(values))
 	for k, v := range values {
 		if jsonVal := toJsonValue(v); jsonVal != nil {
 			result[k] = jsonVal
@@ -668,51 +710,51 @@ func jsonMetrics(values map[string]any) map[string]*browser_automation_studio_v1
 	return result
 }
 
-func toJsonValue(v any) *browser_automation_studio_v1.JsonValue {
+func toJsonValue(v any) *commonv1.JsonValue {
 	switch val := v.(type) {
 	case nil:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
 	case bool:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BoolValue{BoolValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}
 	case int:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
 	case int32:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
 	case int64:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}
 	case uint:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
 	case uint32:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
 	case uint64:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
 	case float32:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
 	case float64:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}
 	case string:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_StringValue{StringValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}
 	case []byte:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BytesValue{BytesValue: val}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
 	case map[string]any:
-		obj := make(map[string]*browser_automation_studio_v1.JsonValue, len(val))
+		obj := make(map[string]*commonv1.JsonValue, len(val))
 		for key, value := range val {
 			if nested := toJsonValue(value); nested != nil {
 				obj[key] = nested
 			}
 		}
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ObjectValue{
-			ObjectValue: &browser_automation_studio_v1.JsonObject{Fields: obj},
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{
+			ObjectValue: &commonv1.JsonObject{Fields: obj},
 		}}
 	case []any:
-		items := make([]*browser_automation_studio_v1.JsonValue, 0, len(val))
+		items := make([]*commonv1.JsonValue, 0, len(val))
 		for _, item := range val {
 			if nested := toJsonValue(item); nested != nil {
 				items = append(items, nested)
 			}
 		}
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ListValue{
-			ListValue: &browser_automation_studio_v1.JsonList{Values: items},
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{
+			ListValue: &commonv1.JsonList{Values: items},
 		}}
 	default:
 		return nil

@@ -116,12 +116,39 @@ func (h *Hub) BroadcastEnvelope(event any) {
 }
 
 // BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
+// The action should include a timeline_event field for unified V2 format (added by the handler).
 func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 	message := map[string]any{
 		"type":       "recording_action",
 		"session_id": sessionID,
 		"action":     action,
 		"timestamp":  getCurrentTimestamp(),
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Only send to clients subscribed to this recording session
+		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			select {
+			case client.Send <- message:
+			default:
+				// Client buffer full, skip
+			}
+		}
+	}
+}
+
+// BroadcastRecordingActionWithTimeline sends a recording action with a unified TimelineEvent.
+// This is the V2 format that includes both the legacy action and the timeline_event field.
+func (h *Hub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+	message := map[string]any{
+		"type":           "recording_action",
+		"session_id":     sessionID,
+		"action":         action,
+		"timeline_event": timelineEvent,
+		"timestamp":      getCurrentTimestamp(),
 	}
 
 	h.mu.RLock()

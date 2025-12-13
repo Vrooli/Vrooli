@@ -9,33 +9,54 @@ import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
  * Describes the file common/v1/types.proto.
  */
 export const file_common_v1_types = /*@__PURE__*/
-  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSIyChFQYWdpbmF0aW9uUmVxdWVzdBINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUiVAoSUGFnaW5hdGlvblJlc3BvbnNlEg0KBXRvdGFsGAEgASgFEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBRIQCghoYXNfbW9yZRgEIAEoCCJYCg1FcnJvclJlc3BvbnNlEgwKBGNvZGUYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIoCgdkZXRhaWxzGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCL5AgoOSGVhbHRoUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEkEKDGRlcGVuZGVuY2llcxgGIAMoCzIrLmNvbW1vbi52MS5IZWFsdGhSZXNwb25zZS5EZXBlbmRlbmNpZXNFbnRyeRI3CgdtZXRyaWNzGAcgAygLMiYuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLk1ldHJpY3NFbnRyeRpLChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBGkYKDE1ldHJpY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWU6AjgBQkNaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxYgZwcm90bzM", [file_google_protobuf_struct]);
+  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSKRAgoJSnNvblZhbHVlEhQKCmJvb2xfdmFsdWUYASABKAhIABITCglpbnRfdmFsdWUYAiABKANIABIWCgxkb3VibGVfdmFsdWUYAyABKAFIABIWCgxzdHJpbmdfdmFsdWUYBCABKAlIABItCgxvYmplY3RfdmFsdWUYBSABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEgAEikKCmxpc3RfdmFsdWUYBiABKAsyEy5jb21tb24udjEuSnNvbkxpc3RIABIwCgpudWxsX3ZhbHVlGAcgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhUKC2J5dGVzX3ZhbHVlGAggASgMSABCBgoEa2luZCKEAQoKSnNvbk9iamVjdBIxCgZmaWVsZHMYASADKAsyIS5jb21tb24udjEuSnNvbk9iamVjdC5GaWVsZHNFbnRyeRpDCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ASIwCghKc29uTGlzdBIkCgZ2YWx1ZXMYASADKAsyFC5jb21tb24udjEuSnNvblZhbHVlIjIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJUChJQYWdpbmF0aW9uUmVzcG9uc2USDQoFdG90YWwYASABKAUSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFEhAKCGhhc19tb3JlGAQgASgIIlgKDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEigKB2RldGFpbHMYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IvkCCg5IZWFsdGhSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHc2VydmljZRgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSEQoJcmVhZGluZXNzGAQgASgIEg8KB3ZlcnNpb24YBSABKAkSQQoMZGVwZW5kZW5jaWVzGAYgAygLMisuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5EjcKB21ldHJpY3MYByADKAsyJi5jb21tb24udjEuSGVhbHRoUmVzcG9uc2UuTWV0cmljc0VudHJ5GksKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaRgoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCQ1pBZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb21tb24vdjE7Y29tbW9udjFiBnByb3RvMw", [file_google_protobuf_struct]);
+
+/**
+ * Describes the message common.v1.JsonValue.
+ * Use `create(JsonValueSchema)` to create a new message.
+ */
+export const JsonValueSchema = /*@__PURE__*/
+  messageDesc(file_common_v1_types, 0);
+
+/**
+ * Describes the message common.v1.JsonObject.
+ * Use `create(JsonObjectSchema)` to create a new message.
+ */
+export const JsonObjectSchema = /*@__PURE__*/
+  messageDesc(file_common_v1_types, 1);
+
+/**
+ * Describes the message common.v1.JsonList.
+ * Use `create(JsonListSchema)` to create a new message.
+ */
+export const JsonListSchema = /*@__PURE__*/
+  messageDesc(file_common_v1_types, 2);
 
 /**
  * Describes the message common.v1.PaginationRequest.
  * Use `create(PaginationRequestSchema)` to create a new message.
  */
 export const PaginationRequestSchema = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 0);
+  messageDesc(file_common_v1_types, 3);
 
 /**
  * Describes the message common.v1.PaginationResponse.
  * Use `create(PaginationResponseSchema)` to create a new message.
  */
 export const PaginationResponseSchema = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 1);
+  messageDesc(file_common_v1_types, 4);
 
 /**
  * Describes the message common.v1.ErrorResponse.
  * Use `create(ErrorResponseSchema)` to create a new message.
  */
 export const ErrorResponseSchema = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 2);
+  messageDesc(file_common_v1_types, 5);
 
 /**
  * Describes the message common.v1.HealthResponse.
  * Use `create(HealthResponseSchema)` to create a new message.
  */
 export const HealthResponseSchema = /*@__PURE__*/
-  messageDesc(file_common_v1_types, 3);
+  messageDesc(file_common_v1_types, 6);
 

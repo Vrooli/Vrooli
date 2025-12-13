@@ -48,9 +48,12 @@ type mockHub struct{}
 func (m *mockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID)            {}
 func (m *mockHub) BroadcastEnvelope(event any)                                     {}
 func (m *mockHub) BroadcastRecordingAction(sessionID string, action any)           {}
+func (m *mockHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+}
 func (m *mockHub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {}
 func (m *mockHub) BroadcastBinaryFrame(sessionID string, jpegData []byte)          {}
 func (m *mockHub) HasRecordingSubscribers(sessionID string) bool                   { return false }
+func (m *mockHub) BroadcastPerfStats(sessionID string, stats any)                  {}
 func (m *mockHub) GetClientCount() int                                             { return 0 }
 func (m *mockHub) Run()                                                            {}
 func (m *mockHub) CloseExecution(executionID uuid.UUID)                            {}

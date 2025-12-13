@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -671,11 +672,11 @@ func toProtoValue(value any, field string) (*structpb.Value, error) {
 	return val, nil
 }
 
-func toJsonValueMap(source map[string]any) map[string]*browser_automation_studio_v1.JsonValue {
+func toJsonValueMap(source map[string]any) map[string]*commonv1.JsonValue {
 	if len(source) == 0 {
 		return nil
 	}
-	result := make(map[string]*browser_automation_studio_v1.JsonValue, len(source))
+	result := make(map[string]*commonv1.JsonValue, len(source))
 	for key, value := range source {
 		if jsonVal := toJsonValue(value); jsonVal != nil {
 			result[key] = jsonVal
@@ -684,50 +685,50 @@ func toJsonValueMap(source map[string]any) map[string]*browser_automation_studio
 	return result
 }
 
-func toJsonValue(value any) *browser_automation_studio_v1.JsonValue {
+func toJsonValue(value any) *commonv1.JsonValue {
 	switch v := value.(type) {
 	case nil:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
 	case *structpb.Value:
 		return toJsonValue(v.AsInterface())
 	case bool:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BoolValue{BoolValue: v}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: v}}
 	case int:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
 	case int8:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
 	case int16:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
 	case int32:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
 	case int64:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: v}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: v}}
 	case uint:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
 	case uint32:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
 	case uint64:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: int64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(v)}}
 	case float32:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: float64(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(v)}}
 	case float64:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: v}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: v}}
 	case string:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_StringValue{StringValue: v}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: v}}
 	case json.Number:
 		if i, err := v.Int64(); err == nil {
-			return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_IntValue{IntValue: i}}
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: i}}
 		}
 		if f, err := v.Float64(); err == nil {
-			return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_DoubleValue{DoubleValue: f}}
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: f}}
 		}
 		return nil
 	case []byte:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_BytesValue{BytesValue: v}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: v}}
 	case map[string]any:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ObjectValue{ObjectValue: toJsonObject(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: toJsonObject(v)}}
 	case []any:
-		return &browser_automation_studio_v1.JsonValue{Kind: &browser_automation_studio_v1.JsonValue_ListValue{ListValue: toJsonList(v)}}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: toJsonList(v)}}
 	default:
 		// Attempt to JSON round-trip unknown types into a generic shape.
 		raw, err := json.Marshal(v)
@@ -742,7 +743,7 @@ func toJsonValue(value any) *browser_automation_studio_v1.JsonValue {
 	}
 }
 
-func toJsonObjectFromAny(value any) *browser_automation_studio_v1.JsonObject {
+func toJsonObjectFromAny(value any) *commonv1.JsonObject {
 	switch v := value.(type) {
 	case map[string]any:
 		return toJsonObject(v)
@@ -754,12 +755,12 @@ func toJsonObjectFromAny(value any) *browser_automation_studio_v1.JsonObject {
 	}
 }
 
-func toJsonObject(source map[string]any) *browser_automation_studio_v1.JsonObject {
+func toJsonObject(source map[string]any) *commonv1.JsonObject {
 	if len(source) == 0 {
 		return nil
 	}
-	result := &browser_automation_studio_v1.JsonObject{
-		Fields: make(map[string]*browser_automation_studio_v1.JsonValue, len(source)),
+	result := &commonv1.JsonObject{
+		Fields: make(map[string]*commonv1.JsonValue, len(source)),
 	}
 	for key, value := range source {
 		if jsonVal := toJsonValue(value); jsonVal != nil {
@@ -769,12 +770,12 @@ func toJsonObject(source map[string]any) *browser_automation_studio_v1.JsonObjec
 	return result
 }
 
-func toJsonList(items []any) *browser_automation_studio_v1.JsonList {
+func toJsonList(items []any) *commonv1.JsonList {
 	if len(items) == 0 {
 		return nil
 	}
-	result := &browser_automation_studio_v1.JsonList{
-		Values: make([]*browser_automation_studio_v1.JsonValue, 0, len(items)),
+	result := &commonv1.JsonList{
+		Values: make([]*commonv1.JsonValue, 0, len(items)),
 	}
 	for _, item := range items {
 		if jsonVal := toJsonValue(item); jsonVal != nil {
