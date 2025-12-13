@@ -230,30 +230,11 @@ stop_command() {
     # Check if stop manager exists
     if [[ ! -f "$STOP_MANAGER" ]]; then
         log::error "Stop manager not found at: $STOP_MANAGER"
-        log::error "The unified stop system is not properly installed"
-        log::info "Falling back to legacy stop commands..."
-        
-        # Fallback logic
-        case "${1:-all}" in
-            scenarios|scenario)
-                pkill -f "scenarios/" 2>/dev/null || true
-                ;;
-            resources|resource)
-                if command -v "${APP_ROOT}/cli/commands/resource-commands.sh" >/dev/null 2>&1; then
-                    bash "${APP_ROOT}/cli/commands/resource-commands.sh" stop-all
-                else
-                    docker stop $(docker ps -q) 2>/dev/null || true
-                fi
-                ;;
-            *)
-                log::info "Attempting to stop everything with basic commands..."
-                pkill -f "scenarios/" 2>/dev/null || true
-                docker stop $(docker ps -q) 2>/dev/null || true
-                ;;
-        esac
-        return $?
+        log::error "The unified stop system is not properly installed."
+        log::error "Please run 'vrooli setup' to reinstall, or check your Vrooli installation."
+        return 1
     fi
-    
+
     # Parse arguments
     local parsed_output
     parsed_output=$(parse_stop_args "$@")

@@ -1421,6 +1421,239 @@ cmd_version() {
     fi
 }
 
+# ============================================================================
+# ORPHAN AND STALE LOCK MANAGEMENT COMMANDS
+# ============================================================================
+
+cmd_orphans() {
+    local action="${1:-list}"
+    shift 2>/dev/null || true
+
+    ensure_api_base
+
+    case "$action" in
+        list)
+            echo -e "${BLUE}Orphan Process Detection${NC}"
+            echo "════════════════════════════════════════"
+            echo ""
+            response=$(api_request POST "/checks/vrooli-orphans/actions/list" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+            if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                echo -e "${GREEN}✓${NC} Check completed"
+                echo ""
+                echo "$response" | jq -r '.output // ""' 2>/dev/null
+            else
+                echo -e "${RED}✗${NC} Check failed"
+                echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+            fi
+            ;;
+        kill)
+            echo -e "${YELLOW}WARNING:${NC} This will kill orphaned Vrooli processes."
+            echo ""
+            read -p "Are you sure? (y/N): " confirm
+            if [[ "$confirm" =~ ^[Yy] ]]; then
+                response=$(api_request POST "/checks/vrooli-orphans/actions/kill" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+                if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                    echo -e "${GREEN}✓${NC} Orphans killed"
+                    echo ""
+                    echo "$response" | jq -r '.output // ""' 2>/dev/null
+                else
+                    echo -e "${RED}✗${NC} Kill failed"
+                    echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+                fi
+            else
+                echo "Aborted."
+            fi
+            ;;
+        *)
+            echo -e "${RED}Unknown orphans action:${NC} $action"
+            echo "Usage: $CLI_NAME orphans [list|kill]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_locks() {
+    local action="${1:-list}"
+    shift 2>/dev/null || true
+
+    ensure_api_base
+
+    case "$action" in
+        list)
+            echo -e "${BLUE}Stale Port Lock Detection${NC}"
+            echo "════════════════════════════════════════"
+            echo ""
+            response=$(api_request POST "/checks/vrooli-stale-locks/actions/list" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+            if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                echo -e "${GREEN}✓${NC} Check completed"
+                echo ""
+                echo "$response" | jq -r '.output // ""' 2>/dev/null
+            else
+                echo -e "${RED}✗${NC} Check failed"
+                echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+            fi
+            ;;
+        clean)
+            echo -e "${CYAN}Cleaning stale port locks...${NC}"
+            response=$(api_request POST "/checks/vrooli-stale-locks/actions/clean" '{}' || echo '{"success":false,"error":"API request failed"}')
+
+            if [[ "$(echo "$response" | jq -r '.success' 2>/dev/null)" == "true" ]]; then
+                echo -e "${GREEN}✓${NC} Locks cleaned"
+                echo ""
+                echo "$response" | jq -r '.output // ""' 2>/dev/null
+            else
+                echo -e "${RED}✗${NC} Clean failed"
+                echo "$response" | jq -r '.error // .message // "Unknown error"' 2>/dev/null
+            fi
+            ;;
+        *)
+            echo -e "${RED}Unknown locks action:${NC} $action"
+            echo "Usage: $CLI_NAME locks [list|clean]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_diagnose_port() {
+    local port="${1:-}"
+    local scenario="${2:-unknown}"
+
+    if [[ -z "$port" ]]; then
+        echo -e "${RED}Error:${NC} Port number required"
+        echo "Usage: $CLI_NAME diagnose-port <port> [scenario]"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${BLUE}🚨 PORT BINDING FAILURE DIAGNOSTICS${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "Scenario: ${CYAN}$scenario${NC}"
+    echo -e "Port: ${CYAN}$port${NC}"
+    echo ""
+
+    # Check 1: Port availability
+    echo -e "${CYAN}🔍 Checking port availability...${NC}"
+    local pids
+    pids=$(timeout 2s lsof -tiTCP:"$port" -sTCP:LISTEN -P -n 2>/dev/null || echo "")
+
+    if [[ -n "$pids" ]]; then
+        echo -e "${RED}❌${NC} Port $port is in use by process(es): $pids"
+        echo "   Process details:"
+        while IFS= read -r pid; do
+            [[ -n "$pid" ]] || continue
+            local process_info
+            process_info=$(ps -p "$pid" -o pid,ppid,user,comm,args --no-headers 2>/dev/null || echo "$pid: <process not found>")
+            echo "     PID $process_info"
+        done <<< "$pids"
+    else
+        echo -e "${GREEN}✅${NC} No processes listening on port $port"
+    fi
+    echo ""
+
+    # Check 2: Stale lock file detection
+    echo -e "${CYAN}🔍 Checking for stale lock files...${NC}"
+    local lock_file="$HOME/.vrooli/state/scenarios/.port_${port}.lock"
+
+    if [[ -f "$lock_file" ]]; then
+        local lock_info
+        lock_info=$(cat "$lock_file" 2>/dev/null || echo "")
+        if [[ -n "$lock_info" ]]; then
+            local lock_scenario="${lock_info%%:*}"
+            local lock_pid_part="${lock_info#*:}"
+            local lock_pid="${lock_pid_part%%:*}"
+
+            echo -e "${YELLOW}⚠️${NC}  Found lock file: $lock_file"
+            echo "   Lock held by: scenario '$lock_scenario', PID $lock_pid"
+
+            if [[ "$lock_pid" =~ ^[0-9]+$ ]] && kill -0 "$lock_pid" 2>/dev/null; then
+                echo -e "${GREEN}✅${NC} Lock is VALID - process $lock_pid is running"
+            else
+                echo -e "${RED}❌${NC} Lock is STALE - process $lock_pid is not running"
+                echo -e "   ${CYAN}🛠️  Fix:${NC} rm '$lock_file'"
+            fi
+        else
+            echo -e "${YELLOW}⚠️${NC}  Found empty lock file: $lock_file"
+            echo -e "   ${CYAN}🛠️  Fix:${NC} rm '$lock_file'"
+        fi
+    else
+        echo -e "${GREEN}✅${NC} No lock file found for port $port"
+    fi
+    echo ""
+
+    # Check 3: Zombie process detection
+    if [[ -n "$pids" ]]; then
+        echo -e "${CYAN}🔍 Checking for zombie processes on port $port...${NC}"
+        local zombie_found=false
+        while IFS= read -r pid; do
+            [[ -n "$pid" ]] || continue
+            local state
+            state=$(ps -o state= -p "$pid" 2>/dev/null | tr -d ' ')
+            if [[ "$state" == "Z" ]]; then
+                echo -e "${RED}💀${NC} Found zombie process: PID $pid"
+                zombie_found=true
+            fi
+        done <<< "$pids"
+
+        if [[ "$zombie_found" == "false" ]]; then
+            echo -e "${GREEN}✅${NC} No zombie processes found on port $port"
+        fi
+        echo ""
+    fi
+
+    # Check 4: Orphan detection (quick check)
+    echo -e "${CYAN}🔍 Checking for orphaned Vrooli processes...${NC}"
+    if command -v vrooli-autoheal >/dev/null 2>&1 || [[ -x "$0" ]]; then
+        # Try to get orphan count from API if running
+        if [[ -n "${API_BASE:-}" ]]; then
+            local orphan_result
+            orphan_result=$(api_request GET "/checks/vrooli-orphans/result" 2>/dev/null || echo '{}')
+            local orphan_count
+            orphan_count=$(echo "$orphan_result" | jq -r '.details.orphanCount // 0' 2>/dev/null)
+            if [[ "$orphan_count" -gt 0 ]]; then
+                echo -e "${YELLOW}⚠️${NC}  Found $orphan_count orphaned Vrooli processes"
+                echo "   These may be interfering with port allocation"
+                echo -e "   ${CYAN}🛠️  Fix:${NC} $CLI_NAME orphans list # then kill orphaned processes"
+            else
+                echo -e "${GREEN}✅${NC} No orphaned Vrooli processes found"
+            fi
+        else
+            echo -e "${YELLOW}⚠️${NC}  Cannot check orphans - API not running"
+        fi
+    fi
+    echo ""
+
+    # Summary
+    echo -e "${CYAN}💡 RECOMMENDED ACTIONS:${NC}"
+    local has_recommendations=false
+
+    if [[ -f "$lock_file" ]]; then
+        local lock_info
+        lock_info=$(cat "$lock_file" 2>/dev/null || echo "")
+        local lock_pid_part="${lock_info#*:}"
+        local lock_pid="${lock_pid_part%%:*}"
+        if [[ ! "$lock_pid" =~ ^[0-9]+$ ]] || ! kill -0 "$lock_pid" 2>/dev/null; then
+            echo "   1. Clean stale lock: rm '$lock_file'"
+            has_recommendations=true
+        fi
+    fi
+
+    if [[ -n "$pids" ]]; then
+        echo "   2. Kill processes on port: kill $pids"
+        has_recommendations=true
+    fi
+
+    if [[ "$has_recommendations" == "false" ]]; then
+        echo "   • Port appears to be available - there may be a different issue"
+        echo "   • Try: vrooli resource restart"
+        echo "   • Check logs: vrooli scenario logs $scenario"
+    fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+}
+
 cmd_help() {
     cat <<'EOF'
 vrooli-autoheal - Self-healing supervisor for Vrooli infrastructure
@@ -1465,6 +1698,23 @@ Commands:
       View or update CLI configuration.
       Keys: api_base, api_token, loop_interval
 
+  orphans <list|kill>
+      Manage orphaned Vrooli processes (running without lifecycle tracking).
+      - list: Show all orphaned processes with details
+      - kill: Terminate orphaned processes (dangerous, requires confirmation)
+
+  locks <list|clean>
+      Manage stale port lock files (locks pointing to dead PIDs).
+      - list: Show all port locks with status (VALID/STALE)
+      - clean: Remove stale lock files (safe operation)
+
+  diagnose-port <port> <scenario>
+      Comprehensive port diagnostics. Shows:
+      - Port lock file status
+      - Process using the port (if any)
+      - Whether process is tracked by lifecycle
+      - Recommended actions to resolve conflicts
+
   version
       Show CLI version.
 
@@ -1481,6 +1731,10 @@ Examples:
   vrooli-autoheal install                 # Install user-level watchdog
   vrooli-autoheal install --system        # Install system-wide watchdog
   vrooli-autoheal uninstall               # Remove watchdog service
+  vrooli-autoheal orphans list            # List orphaned Vrooli processes
+  vrooli-autoheal locks list              # Show port locks with status
+  vrooli-autoheal locks clean             # Clean stale port locks
+  vrooli-autoheal diagnose-port 8080 my-scenario  # Debug port 8080
 EOF
 }
 
@@ -1534,6 +1788,15 @@ main() {
             ;;
         configure|config)
             cmd_configure "$@"
+            ;;
+        orphans)
+            cmd_orphans "$@"
+            ;;
+        locks)
+            cmd_locks "$@"
+            ;;
+        diagnose-port)
+            cmd_diagnose_port "$@"
             ;;
         version|--version|-v)
             cmd_version

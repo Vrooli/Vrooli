@@ -1019,82 +1019,49 @@ resource_stop_all() {
 		return 0
 	fi
 	
-	# Use new unified stop manager if available
+	# Use unified stop manager
 	local stop_manager="${VROOLI_ROOT}/scripts/lib/lifecycle/stop-manager.sh"
-	
-	if [[ -f "$stop_manager" ]]; then
-		log::info "Using unified stop system for resources..."
-		source "$stop_manager"
-		
-		# Parse flags for stop manager
-		local stop_args=()
-		local output_format="text"
-		
-		for arg in "$@"; do
-			case "$arg" in
-				--force)
-					export FORCE_STOP=true
-					;;
-				--verbose|-v)
-					export VERBOSE=true
-					;;
-				--dry-run|--check)
-					export DRY_RUN=true
-					;;
-				--json)
-					output_format="json"
-					# TODO: Implement JSON output in stop-manager
-					log::warning "JSON output not yet implemented in stop manager"
-					;;
-				*)
-					stop_args+=("$arg")
-					;;
-			esac
-		done
-		
-		if [[ "$output_format" == "text" ]]; then
-			log::header "Stopping All Resources"
-		fi
-		
-		stop::main resources "${stop_args[@]}"
-		return $?
+
+	if [[ ! -f "$stop_manager" ]]; then
+		log::error "Stop manager not found at: $stop_manager"
+		log::error "The unified stop system is not properly installed."
+		log::error "Please run 'vrooli setup' to reinstall, or check your Vrooli installation."
+		return 1
 	fi
-	
-	# Fallback to legacy implementation
-	log::warning "Stop manager not available, using legacy method"
-	
+
+	source "$stop_manager"
+
+	# Parse flags for stop manager
+	local stop_args=()
 	local output_format="text"
+
 	for arg in "$@"; do
-		if [[ "$arg" == "--json" ]]; then output_format="json"; fi
+		case "$arg" in
+			--force)
+				export FORCE_STOP=true
+				;;
+			--verbose|-v)
+				export VERBOSE=true
+				;;
+			--dry-run|--check)
+				export DRY_RUN=true
+				;;
+			--json)
+				output_format="json"
+				# TODO: Implement JSON output in stop-manager
+				log::warning "JSON output not yet implemented in stop manager"
+				;;
+			*)
+				stop_args+=("$arg")
+				;;
+		esac
 	done
-	
+
 	if [[ "$output_format" == "text" ]]; then
 		log::header "Stopping All Resources"
 	fi
-	
-	# Use the auto-install module if available
-	if command -v resource_auto::stop_all >/dev/null 2>&1; then
-		resource_auto::stop_all
-	else
-		# Simplified fallback - just try to stop all Docker containers
-		log::info "Stopping resources via Docker..."
-		
-		if command -v docker >/dev/null 2>&1; then
-			local containers
-			containers=$(docker ps -q)
-			if [[ -n "$containers" ]]; then
-				log::info "Stopping $(echo "$containers" | wc -l) containers..."
-				# Note: docker stop already returns 0 even if container doesn't exist, so || true is actually safe here
-				docker stop "$containers" 2>/dev/null || true
-				log::success "Resources stopped"
-			else
-				log::info "No resources running"
-			fi
-		else
-			log::error "Docker not available, cannot stop resources"
-			return 1
-		fi
-	fi
+
+	stop::main resources "${stop_args[@]}"
 }
 
 # Main command router
