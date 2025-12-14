@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
@@ -246,12 +247,12 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 		}
 
 		if option.Metadata == nil {
-			option.Metadata = map[string]*structpb.Value{}
+			option.Metadata = map[string]*commonv1.JsonValue{}
 		}
 
 		// When stripe_price_id is empty (free/CTA-only), attach the DB primary key so admin/UI can round-trip.
 		if strings.TrimSpace(option.StripePriceId) == "" {
-			option.Metadata["__price_pk"] = structpb.NewStringValue(fmt.Sprintf("%d", pricePrimaryID))
+			option.Metadata["__price_pk"] = newStringJsonValue(fmt.Sprintf("%d", pricePrimaryID))
 		}
 
 		option.IntroType = mapIntroPricingType(rawIntroType)
@@ -390,7 +391,7 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 
 	metadata := parseMetadata(metadataBytes)
 	if metadata == nil {
-		metadata = map[string]*structpb.Value{}
+		metadata = map[string]*commonv1.JsonValue{}
 	}
 
 	setMetadataString := func(key string, value *string) {
@@ -402,7 +403,7 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 			delete(metadata, key)
 			return
 		}
-		metadata[key] = structpb.NewStringValue(trimmed)
+		metadata[key] = newStringJsonValue(trimmed)
 	}
 
 	if input.Features != nil {
@@ -416,11 +417,11 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 		if len(sanitized) == 0 {
 			delete(metadata, "features")
 		} else {
-			listValues := make([]*structpb.Value, 0, len(sanitized))
+			listValues := make([]*commonv1.JsonValue, 0, len(sanitized))
 			for _, feature := range sanitized {
-				listValues = append(listValues, structpb.NewStringValue(feature))
+				listValues = append(listValues, newStringJsonValue(feature))
 			}
-			metadata["features"] = structpb.NewListValue(&structpb.ListValue{Values: listValues})
+			metadata["features"] = newListJsonValue(listValues)
 		}
 	}
 
@@ -429,13 +430,13 @@ func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID 
 	setMetadataString("cta_label", input.CtaLabel)
 	if input.Highlight != nil {
 		if *input.Highlight {
-			metadata["highlight"] = structpb.NewBoolValue(true)
+			metadata["highlight"] = newBoolJsonValue(true)
 		} else {
 			delete(metadata, "highlight")
 		}
 	}
 
-	metadataJSON, err := json.Marshal((&structpb.Struct{Fields: metadata}).AsMap())
+	metadataJSON, err := json.Marshal(jsonValueToMap(metadata))
 	if err != nil {
 		return nil, fmt.Errorf("marshal price metadata: %w", err)
 	}
@@ -534,7 +535,7 @@ func (s *PlanService) scanPlanOption(row *sql.Row) (*PlanOption, error) {
 	return option, nil
 }
 
-func parseMetadata(metadataBytes []byte) map[string]*structpb.Value {
+func parseMetadata(metadataBytes []byte) map[string]*commonv1.JsonValue {
 	if len(metadataBytes) == 0 {
 		return nil
 	}
@@ -548,16 +549,134 @@ func parseMetadata(metadataBytes []byte) map[string]*structpb.Value {
 		return nil
 	}
 
-	structVal, err := structpb.NewStruct(meta)
-	if err != nil {
-		logStructured("plan metadata structpb conversion failed", map[string]interface{}{
-			"level": "warn",
-			"error": err.Error(),
-		})
-		return nil
+	result := make(map[string]*commonv1.JsonValue, len(meta))
+	for key, value := range meta {
+		if jv := toJsonValue(value); jv != nil {
+			result[key] = jv
+		}
 	}
 
-	return structVal.Fields
+	return result
+}
+
+// toJsonValue converts a Go value to a commonv1.JsonValue.
+func toJsonValue(v any) *commonv1.JsonValue {
+	switch val := v.(type) {
+	case nil:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	case bool:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}
+	case int:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
+	case int32:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
+	case int64:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}
+	case float32:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
+	case float64:
+		// JSON numbers are parsed as float64; check if it's a whole number
+		if val == float64(int64(val)) {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}
+	case string:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}
+	case []byte:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
+	case map[string]any:
+		obj := make(map[string]*commonv1.JsonValue, len(val))
+		for key, value := range val {
+			if nested := toJsonValue(value); nested != nil {
+				obj[key] = nested
+			}
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{
+			ObjectValue: &commonv1.JsonObject{Fields: obj},
+		}}
+	case []any:
+		items := make([]*commonv1.JsonValue, 0, len(val))
+		for _, item := range val {
+			if nested := toJsonValue(item); nested != nil {
+				items = append(items, nested)
+			}
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{
+			ListValue: &commonv1.JsonList{Values: items},
+		}}
+	default:
+		return nil
+	}
+}
+
+// jsonValueToMap converts a map of JsonValue to a map of any for JSON marshaling.
+func jsonValueToMap(m map[string]*commonv1.JsonValue) map[string]any {
+	if m == nil {
+		return nil
+	}
+	result := make(map[string]any, len(m))
+	for k, v := range m {
+		result[k] = jsonValueToAny(v)
+	}
+	return result
+}
+
+// jsonValueToAny converts a JsonValue to a Go any type.
+func jsonValueToAny(v *commonv1.JsonValue) any {
+	if v == nil {
+		return nil
+	}
+	switch kind := v.Kind.(type) {
+	case *commonv1.JsonValue_NullValue:
+		return nil
+	case *commonv1.JsonValue_BoolValue:
+		return kind.BoolValue
+	case *commonv1.JsonValue_IntValue:
+		return kind.IntValue
+	case *commonv1.JsonValue_DoubleValue:
+		return kind.DoubleValue
+	case *commonv1.JsonValue_StringValue:
+		return kind.StringValue
+	case *commonv1.JsonValue_BytesValue:
+		return kind.BytesValue
+	case *commonv1.JsonValue_ObjectValue:
+		if kind.ObjectValue == nil {
+			return nil
+		}
+		result := make(map[string]any, len(kind.ObjectValue.Fields))
+		for k, fv := range kind.ObjectValue.Fields {
+			result[k] = jsonValueToAny(fv)
+		}
+		return result
+	case *commonv1.JsonValue_ListValue:
+		if kind.ListValue == nil {
+			return nil
+		}
+		result := make([]any, 0, len(kind.ListValue.Values))
+		for _, item := range kind.ListValue.Values {
+			result = append(result, jsonValueToAny(item))
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+// newStringJsonValue creates a JsonValue with a string.
+func newStringJsonValue(s string) *commonv1.JsonValue {
+	return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: s}}
+}
+
+// newBoolJsonValue creates a JsonValue with a bool.
+func newBoolJsonValue(b bool) *commonv1.JsonValue {
+	return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: b}}
+}
+
+// newListJsonValue creates a JsonValue with a list of JsonValues.
+func newListJsonValue(values []*commonv1.JsonValue) *commonv1.JsonValue {
+	return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{
+		ListValue: &commonv1.JsonList{Values: values},
+	}}
 }
 
 func mapPlanKind(kind string) landing_page_react_vite_v1.PlanKind {

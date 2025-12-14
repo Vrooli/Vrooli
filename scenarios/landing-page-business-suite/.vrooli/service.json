@@ -136,16 +136,6 @@
       "description": "Build API & UI for the generated landing scenario",
       "steps": [
         {
-          "description": "Apply database schema (admin, variants, metrics, subscriptions, content sections) to postgres if psql is available",
-          "name": "db-schema",
-          "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/schema.sql; else echo \"psql not found; runtime will auto-init schema\"; fi"
-        },
-        {
-          "description": "Seed default admin user, variants, and content sections when psql is available",
-          "name": "db-seed",
-          "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/seed.sql; else echo \"psql not found; skipping seed (runtime seeds defaults)\"; fi"
-        },
-        {
           "description": "Build Go API binary (landing-page-business-suite-api) in api/ directory for reuse by start-api step",
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o landing-page-business-suite-api ."

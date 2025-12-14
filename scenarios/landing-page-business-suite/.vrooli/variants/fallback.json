@@ -267,11 +267,11 @@
         "bonus_type": "none",
         "display_weight": 5,
         "metadata": {
-          "features": [
-            "50 runs/month",
-            "Watermarked MP4 exports",
-            "Replay viewer"
-          ]
+          "features": {"listValue": {"values": [
+            {"stringValue": "50 runs/month"},
+            {"stringValue": "Watermarked MP4 exports"},
+            {"stringValue": "Replay viewer"}
+          ]}}
         }
       },
       {
@@ -288,12 +288,12 @@
         "bonus_type": "none",
         "display_weight": 20,
         "metadata": {
-          "features": [
-            "200 runs/month",
-            "MP4 exports with watermark",
-            "Workflow + test builder",
-            "Replay-as-movie sharing"
-          ]
+          "features": {"listValue": {"values": [
+            {"stringValue": "200 runs/month"},
+            {"stringValue": "MP4 exports with watermark"},
+            {"stringValue": "Workflow + test builder"},
+            {"stringValue": "Replay-as-movie sharing"}
+          ]}}
         }
       },
       {
@@ -310,14 +310,14 @@
         "bonus_type": "none",
         "display_weight": 40,
         "metadata": {
-          "features": [
-            "Unlimited runs",
-            "MP4 exports without watermark",
-            "CI hooks + failure replays",
-            "UX metrics when released",
-            "Limited agent loops"
-          ],
-          "highlight": true
+          "features": {"listValue": {"values": [
+            {"stringValue": "Unlimited runs"},
+            {"stringValue": "MP4 exports without watermark"},
+            {"stringValue": "CI hooks + failure replays"},
+            {"stringValue": "UX metrics when released"},
+            {"stringValue": "Limited agent loops"}
+          ]}},
+          "highlight": {"boolValue": true}
         }
       },
       {
@@ -334,12 +334,12 @@
         "bonus_type": "none",
         "display_weight": 30,
         "metadata": {
-          "features": [
-            "Client-safe branding on replays",
-            "More agent concurrency",
-            "Priority async support",
-            "Multi-seat studios"
-          ]
+          "features": {"listValue": {"values": [
+            {"stringValue": "Client-safe branding on replays"},
+            {"stringValue": "More agent concurrency"},
+            {"stringValue": "Priority async support"},
+            {"stringValue": "Multi-seat studios"}
+          ]}}
         }
       },
       {
@@ -356,13 +356,13 @@
         "bonus_type": "none",
         "display_weight": 25,
         "metadata": {
-          "features": [
-            "Unlimited agent loops",
-            "API + webhooks",
-            "Higher reliability SLAs",
-            "Async onboarding—no calls required"
-          ],
-          "badge": "API + webhooks"
+          "features": {"listValue": {"values": [
+            {"stringValue": "Unlimited agent loops"},
+            {"stringValue": "API + webhooks"},
+            {"stringValue": "Higher reliability SLAs"},
+            {"stringValue": "Async onboarding—no calls required"}
+          ]}},
+          "badge": {"stringValue": "API + webhooks"}
         }
       }
     ],
@@ -381,11 +381,11 @@
         "bonus_type": "yearly_bonus",
         "display_weight": 15,
         "metadata": {
-          "features": [
-            "2 months free equivalent",
-            "MP4 exports without watermark",
-            "CI hooks + failure replays"
-          ]
+          "features": {"listValue": {"values": [
+            {"stringValue": "2 months free equivalent"},
+            {"stringValue": "MP4 exports without watermark"},
+            {"stringValue": "CI hooks + failure replays"}
+          ]}}
         }
       },
       {
@@ -402,11 +402,11 @@
         "bonus_type": "yearly_bonus",
         "display_weight": 20,
         "metadata": {
-          "features": [
-            "2 months free equivalent",
-            "Client-safe branding on replays",
-            "More agent concurrency"
-          ]
+          "features": {"listValue": {"values": [
+            {"stringValue": "2 months free equivalent"},
+            {"stringValue": "Client-safe branding on replays"},
+            {"stringValue": "More agent concurrency"}
+          ]}}
         }
       },
       {
@@ -423,11 +423,11 @@
         "bonus_type": "yearly_bonus",
         "display_weight": 10,
         "metadata": {
-          "features": [
-            "2 months free equivalent",
-            "Unlimited agent loops",
-            "API + webhooks"
-          ]
+          "features": {"listValue": {"values": [
+            {"stringValue": "2 months free equivalent"},
+            {"stringValue": "Unlimited agent loops"},
+            {"stringValue": "API + webhooks"}
+          ]}}
         }
       }
     ],

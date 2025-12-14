@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -288,7 +288,7 @@ func mapSubscriptionState(state string) landing_page_react_vite_v1.SubscriptionS
 	}
 }
 
-func extractFeatureFlags(metadata map[string]*structpb.Value) []string {
+func extractFeatureFlags(metadata map[string]*commonv1.JsonValue) []string {
 	if metadata == nil {
 		return nil
 	}
@@ -298,15 +298,15 @@ func extractFeatureFlags(metadata map[string]*structpb.Value) []string {
 		return nil
 	}
 
-	list := value.GetListValue()
-	if list == nil {
+	listVal, ok := value.Kind.(*commonv1.JsonValue_ListValue)
+	if !ok || listVal.ListValue == nil {
 		return nil
 	}
 
 	var features []string
-	for _, v := range list.Values {
-		if str := v.GetStringValue(); str != "" {
-			features = append(features, str)
+	for _, v := range listVal.ListValue.Values {
+		if strVal, ok := v.Kind.(*commonv1.JsonValue_StringValue); ok && strVal.StringValue != "" {
+			features = append(features, strVal.StringValue)
 		}
 	}
 	return features

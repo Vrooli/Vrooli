@@ -8,6 +8,8 @@ export default defineConfig({
     alias: {
       "@proto-lprv": path.resolve(__dirname, "../../../packages/proto/gen/typescript/landing-page-react-vite/v1"),
     },
+    // Ensure modules imported from proto files resolve from UI's node_modules
+    dedupe: ["@bufbuild/protobuf"],
   },
   server: {
     fs: {
@@ -15,6 +17,18 @@ export default defineConfig({
     },
   },
   plugins: [react()],
+  optimizeDeps: {
+    include: ["@bufbuild/protobuf"],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
+    rollupOptions: {
+      // Force resolution of @bufbuild/protobuf from UI's node_modules
+      external: [],
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

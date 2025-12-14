@@ -18,7 +18,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Config holds minimal runtime configuration
@@ -536,7 +535,7 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 	}
 
 	bundle := pricing.Bundle
-	bundleMetadata, err := json.Marshal((&structpb.Struct{Fields: bundle.Metadata}).AsMap())
+	bundleMetadata, err := json.Marshal(jsonValueToMap(bundle.Metadata))
 	if err != nil {
 		return fmt.Errorf("marshal bundle metadata: %w", err)
 	}
@@ -595,7 +594,7 @@ func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
 			continue
 		}
 
-		planMetadataJSON, err := json.Marshal((&structpb.Struct{Fields: option.Metadata}).AsMap())
+		planMetadataJSON, err := json.Marshal(jsonValueToMap(option.Metadata))
 		if err != nil {
 			return fmt.Errorf("marshal plan metadata %s: %w", option.PlanName, err)
 		}
