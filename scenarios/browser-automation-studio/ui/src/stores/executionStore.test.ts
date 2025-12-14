@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { fromJson } from '@bufbuild/protobuf';
-import { TimelineFrameSchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
+import { TimelineFrameSchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/container_pb';
 import { mapTimelineFrameFromProto } from './executionStore';
 
 describe('mapTimelineFrameFromProto', () => {

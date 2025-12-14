@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects;projects";
+
+// Project represents a project containing related workflows.
+message Project {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string folder_path = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// ProjectStats captures aggregated metrics for a project.
+message ProjectStats {
+  string project_id = 1;
+  int32 workflow_count = 2;
+  int32 execution_count = 3;
+  google.protobuf.Timestamp last_execution = 4;
+}
+
+// ProjectWithStats bundles the project alongside statistics.
+message ProjectWithStats {
+  Project project = 1;
+  ProjectStats stats = 2;
+}
+
+// ProjectList is a convenience wrapper for listing projects.
+message ProjectList {
+  repeated ProjectWithStats projects = 1;
+}

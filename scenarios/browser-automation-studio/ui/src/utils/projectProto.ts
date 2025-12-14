@@ -5,7 +5,7 @@ import {
   ProjectWithStatsSchema,
   type Project as ProtoProject,
   type ProjectWithStats as ProtoProjectWithStats,
-} from '@vrooli/proto-types/browser-automation-studio/v1/project_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/projects/project_pb';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
 const protoOptions: Partial<JsonReadOptions> = { ignoreUnknownFields: false };

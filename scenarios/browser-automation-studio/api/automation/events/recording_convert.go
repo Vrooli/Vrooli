@@ -1,5 +1,5 @@
 // Package events provides conversion utilities for recording actions to the
-// unified browser_automation_studio_v1.TimelineEntry proto format.
+// unified bastimeline.TimelineEntry proto format.
 //
 // This enables recording telemetry to use the same data structure as execution
 // telemetry, supporting the shared Record/Execute UX on the timeline.
@@ -14,7 +14,10 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/params"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -68,7 +71,7 @@ type ElementMeta struct {
 
 // RecordedActionToTimelineEntry converts a RecordedAction from the recording
 // controller to the unified TimelineEntry proto format.
-func RecordedActionToTimelineEntry(action *RecordedAction) *basv1.TimelineEntry {
+func RecordedActionToTimelineEntry(action *RecordedAction) *bastimeline.TimelineEntry {
 	if action == nil {
 		return nil
 	}
@@ -82,7 +85,7 @@ func RecordedActionToTimelineEntry(action *RecordedAction) *basv1.TimelineEntry 
 	// Build event context with recording origin
 	context := buildRecordingEventContext(action)
 
-	entry := &basv1.TimelineEntry{
+	entry := &bastimeline.TimelineEntry{
 		Id:          action.ID,
 		SequenceNum: int32(action.SequenceNum),
 		Action:      actionDef,
@@ -110,15 +113,15 @@ func RecordedActionToTimelineEntry(action *RecordedAction) *basv1.TimelineEntry 
 
 // RecordedActionToTimelineEvent is deprecated. Use RecordedActionToTimelineEntry instead.
 // This wrapper exists for backwards compatibility during migration.
-func RecordedActionToTimelineEvent(action *RecordedAction) *basv1.TimelineEntry {
+func RecordedActionToTimelineEvent(action *RecordedAction) *bastimeline.TimelineEntry {
 	return RecordedActionToTimelineEntry(action)
 }
 
 // buildRecordingActionDefinition creates an ActionDefinition from a RecordedAction.
-func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinition {
+func buildRecordingActionDefinition(action *RecordedAction) *basactions.ActionDefinition {
 	actionType := mapRecordingActionType(action.ActionType)
 
-	def := &basv1.ActionDefinition{
+	def := &basactions.ActionDefinition{
 		Type: actionType,
 	}
 
@@ -130,19 +133,19 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 
 	// Build params based on action type
 	switch actionType {
-	case basv1.ActionType_ACTION_TYPE_NAVIGATE:
+	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
 		url := action.URL
 		if targetURL, ok := action.Payload["targetUrl"].(string); ok {
 			url = targetURL
 		}
-		def.Params = &basv1.ActionDefinition_Navigate{
-			Navigate: &basv1.NavigateParams{
+		def.Params = &basactions.ActionDefinition_Navigate{
+			Navigate: &basactions.NavigateParams{
 				Url: url,
 			},
 		}
 
-	case basv1.ActionType_ACTION_TYPE_CLICK:
-		clickParams := &basv1.ClickParams{
+	case basactions.ActionType_ACTION_TYPE_CLICK:
+		clickParams := &basactions.ClickParams{
 			Selector: selector,
 		}
 		if button, ok := action.Payload["button"].(string); ok {
@@ -159,10 +162,10 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 				}
 			}
 		}
-		def.Params = &basv1.ActionDefinition_Click{Click: clickParams}
+		def.Params = &basactions.ActionDefinition_Click{Click: clickParams}
 
-	case basv1.ActionType_ACTION_TYPE_INPUT:
-		inputParams := &basv1.InputParams{
+	case basactions.ActionType_ACTION_TYPE_INPUT:
+		inputParams := &basactions.InputParams{
 			Selector: selector,
 		}
 		if text, ok := action.Payload["text"].(string); ok {
@@ -174,10 +177,10 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 		if delay, ok := extractInt32FromPayload(action.Payload, "delay"); ok {
 			inputParams.DelayMs = &delay
 		}
-		def.Params = &basv1.ActionDefinition_Input{Input: inputParams}
+		def.Params = &basactions.ActionDefinition_Input{Input: inputParams}
 
-	case basv1.ActionType_ACTION_TYPE_SCROLL:
-		scrollParams := &basv1.ScrollParams{}
+	case basactions.ActionType_ACTION_TYPE_SCROLL:
+		scrollParams := &basactions.ScrollParams{}
 		if selector != "" {
 			scrollParams.Selector = &selector
 		}
@@ -193,38 +196,38 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 		if deltaY, ok := extractInt32FromPayload(action.Payload, "deltaY"); ok {
 			scrollParams.DeltaY = &deltaY
 		}
-		def.Params = &basv1.ActionDefinition_Scroll{Scroll: scrollParams}
+		def.Params = &basactions.ActionDefinition_Scroll{Scroll: scrollParams}
 
-	case basv1.ActionType_ACTION_TYPE_HOVER:
-		def.Params = &basv1.ActionDefinition_Hover{
-			Hover: &basv1.HoverParams{Selector: selector},
+	case basactions.ActionType_ACTION_TYPE_HOVER:
+		def.Params = &basactions.ActionDefinition_Hover{
+			Hover: &basactions.HoverParams{Selector: selector},
 		}
 
-	case basv1.ActionType_ACTION_TYPE_FOCUS:
-		def.Params = &basv1.ActionDefinition_Focus{
-			Focus: &basv1.FocusParams{Selector: selector},
+	case basactions.ActionType_ACTION_TYPE_FOCUS:
+		def.Params = &basactions.ActionDefinition_Focus{
+			Focus: &basactions.FocusParams{Selector: selector},
 		}
 
-	case basv1.ActionType_ACTION_TYPE_BLUR:
-		blurParams := &basv1.BlurParams{}
+	case basactions.ActionType_ACTION_TYPE_BLUR:
+		blurParams := &basactions.BlurParams{}
 		if selector != "" {
 			blurParams.Selector = &selector
 		}
-		def.Params = &basv1.ActionDefinition_Blur{Blur: blurParams}
+		def.Params = &basactions.ActionDefinition_Blur{Blur: blurParams}
 
-	case basv1.ActionType_ACTION_TYPE_SELECT:
-		selectParams := &basv1.SelectParams{Selector: selector}
+	case basactions.ActionType_ACTION_TYPE_SELECT:
+		selectParams := &basactions.SelectParams{Selector: selector}
 		if value, ok := action.Payload["value"].(string); ok {
-			selectParams.SelectBy = &basv1.SelectParams_Value{Value: value}
+			selectParams.SelectBy = &basactions.SelectParams_Value{Value: value}
 		} else if label, ok := action.Payload["selectedText"].(string); ok {
-			selectParams.SelectBy = &basv1.SelectParams_Label{Label: label}
+			selectParams.SelectBy = &basactions.SelectParams_Label{Label: label}
 		} else if index, ok := extractInt32FromPayload(action.Payload, "selectedIndex"); ok {
-			selectParams.SelectBy = &basv1.SelectParams_Index{Index: index}
+			selectParams.SelectBy = &basactions.SelectParams_Index{Index: index}
 		}
-		def.Params = &basv1.ActionDefinition_SelectOption{SelectOption: selectParams}
+		def.Params = &basactions.ActionDefinition_SelectOption{SelectOption: selectParams}
 
-	case basv1.ActionType_ACTION_TYPE_KEYBOARD:
-		keyboardParams := &basv1.KeyboardParams{}
+	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
+		keyboardParams := &basactions.KeyboardParams{}
 		if key, ok := action.Payload["key"].(string); ok {
 			keyboardParams.Key = &key
 		}
@@ -235,42 +238,42 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 				}
 			}
 		}
-		def.Params = &basv1.ActionDefinition_Keyboard{Keyboard: keyboardParams}
+		def.Params = &basactions.ActionDefinition_Keyboard{Keyboard: keyboardParams}
 
-	case basv1.ActionType_ACTION_TYPE_WAIT:
-		waitParams := &basv1.WaitParams{}
+	case basactions.ActionType_ACTION_TYPE_WAIT:
+		waitParams := &basactions.WaitParams{}
 		if ms, ok := extractInt32FromPayload(action.Payload, "ms"); ok {
-			waitParams.WaitFor = &basv1.WaitParams_DurationMs{DurationMs: ms}
+			waitParams.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: ms}
 		} else if waitSelector, ok := action.Payload["selector"].(string); ok {
-			waitParams.WaitFor = &basv1.WaitParams_Selector{Selector: waitSelector}
+			waitParams.WaitFor = &basactions.WaitParams_Selector{Selector: waitSelector}
 		}
-		def.Params = &basv1.ActionDefinition_Wait{Wait: waitParams}
+		def.Params = &basactions.ActionDefinition_Wait{Wait: waitParams}
 
-	case basv1.ActionType_ACTION_TYPE_ASSERT:
-		assertParams := &basv1.AssertParams{
+	case basactions.ActionType_ACTION_TYPE_ASSERT:
+		assertParams := &basactions.AssertParams{
 			Selector: selector,
-			Mode:     basv1.AssertionMode_ASSERTION_MODE_EXISTS,
+			Mode:     basbase.AssertionMode_ASSERTION_MODE_EXISTS,
 		}
-		def.Params = &basv1.ActionDefinition_Assert{Assert: assertParams}
+		def.Params = &basactions.ActionDefinition_Assert{Assert: assertParams}
 
-	case basv1.ActionType_ACTION_TYPE_SCREENSHOT:
-		screenshotParams := &basv1.ScreenshotParams{}
+	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
+		screenshotParams := &basactions.ScreenshotParams{}
 		if fullPage, ok := action.Payload["fullPage"].(bool); ok {
 			screenshotParams.FullPage = &fullPage
 		}
-		def.Params = &basv1.ActionDefinition_Screenshot{Screenshot: screenshotParams}
+		def.Params = &basactions.ActionDefinition_Screenshot{Screenshot: screenshotParams}
 
-	case basv1.ActionType_ACTION_TYPE_EVALUATE:
-		evalParams := &basv1.EvaluateParams{}
+	case basactions.ActionType_ACTION_TYPE_EVALUATE:
+		evalParams := &basactions.EvaluateParams{}
 		if expr, ok := action.Payload["expression"].(string); ok {
 			evalParams.Expression = expr
 		}
-		def.Params = &basv1.ActionDefinition_Evaluate{Evaluate: evalParams}
+		def.Params = &basactions.ActionDefinition_Evaluate{Evaluate: evalParams}
 
 	default:
 		// Default to click for unknown types
-		def.Params = &basv1.ActionDefinition_Click{
-			Click: &basv1.ClickParams{Selector: selector},
+		def.Params = &basactions.ActionDefinition_Click{
+			Click: &basactions.ClickParams{Selector: selector},
 		}
 	}
 
@@ -281,8 +284,8 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 }
 
 // buildRecordingMetadata creates ActionMetadata from a RecordedAction.
-func buildRecordingMetadata(action *RecordedAction) *basv1.ActionMetadata {
-	meta := &basv1.ActionMetadata{}
+func buildRecordingMetadata(action *RecordedAction) *basactions.ActionMetadata {
+	meta := &basactions.ActionMetadata{}
 
 	// Generate label from element info
 	label := generateRecordingLabel(action)
@@ -304,7 +307,7 @@ func buildRecordingMetadata(action *RecordedAction) *basv1.ActionMetadata {
 
 	// Add bounding box (renamed from recorded_bounding_box)
 	if action.BoundingBox != nil {
-		meta.CapturedBoundingBox = &basv1.BoundingBox{
+		meta.CapturedBoundingBox = &basbase.BoundingBox{
 			X:      action.BoundingBox.X,
 			Y:      action.BoundingBox.Y,
 			Width:  action.BoundingBox.Width,
@@ -314,9 +317,9 @@ func buildRecordingMetadata(action *RecordedAction) *basv1.ActionMetadata {
 
 	// Add selector candidates
 	if action.Selector != nil && len(action.Selector.Candidates) > 0 {
-		meta.SelectorCandidates = make([]*basv1.SelectorCandidate, 0, len(action.Selector.Candidates))
+		meta.SelectorCandidates = make([]*basdomain.SelectorCandidate, 0, len(action.Selector.Candidates))
 		for _, c := range action.Selector.Candidates {
-			meta.SelectorCandidates = append(meta.SelectorCandidates, &basv1.SelectorCandidate{
+			meta.SelectorCandidates = append(meta.SelectorCandidates, &basdomain.SelectorCandidate{
 				Type:        typeconv.StringToSelectorType(c.Type),
 				Value:       c.Value,
 				Confidence:  c.Confidence,
@@ -327,7 +330,7 @@ func buildRecordingMetadata(action *RecordedAction) *basv1.ActionMetadata {
 
 	// Add element snapshot (uses ElementMeta from record_mode.proto)
 	if action.ElementMeta != nil {
-		meta.ElementSnapshot = &basv1.ElementMeta{
+		meta.ElementSnapshot = &basdomain.ElementMeta{
 			TagName:   action.ElementMeta.TagName,
 			Id:        action.ElementMeta.ID,
 			ClassName: action.ElementMeta.ClassName,
@@ -346,8 +349,8 @@ func buildRecordingMetadata(action *RecordedAction) *basv1.ActionMetadata {
 }
 
 // buildRecordingTelemetry creates ActionTelemetry from a RecordedAction.
-func buildRecordingTelemetry(action *RecordedAction) *basv1.ActionTelemetry {
-	tel := &basv1.ActionTelemetry{
+func buildRecordingTelemetry(action *RecordedAction) *basdomain.ActionTelemetry {
+	tel := &basdomain.ActionTelemetry{
 		Url: action.URL,
 	}
 
@@ -357,7 +360,7 @@ func buildRecordingTelemetry(action *RecordedAction) *basv1.ActionTelemetry {
 
 	// Add bounding box
 	if action.BoundingBox != nil {
-		tel.ElementBoundingBox = &basv1.BoundingBox{
+		tel.ElementBoundingBox = &basbase.BoundingBox{
 			X:      action.BoundingBox.X,
 			Y:      action.BoundingBox.Y,
 			Width:  action.BoundingBox.Width,
@@ -367,7 +370,7 @@ func buildRecordingTelemetry(action *RecordedAction) *basv1.ActionTelemetry {
 
 	// Add cursor position
 	if action.CursorPos != nil {
-		tel.CursorPosition = &basv1.Point{
+		tel.CursorPosition = &basbase.Point{
 			X: action.CursorPos.X,
 			Y: action.CursorPos.Y,
 		}
@@ -378,16 +381,16 @@ func buildRecordingTelemetry(action *RecordedAction) *basv1.ActionTelemetry {
 
 // buildRecordingEventContext creates EventContext with recording origin.
 // EventContext is the unified context type that replaces RecordingContext/ExecutionContext.
-func buildRecordingEventContext(action *RecordedAction) *basv1.EventContext {
+func buildRecordingEventContext(action *RecordedAction) *basbase.EventContext {
 	// Determine if user confirmation is needed
 	needsConfirmation := false
 	if action.Selector != nil && len(action.Selector.Candidates) > 0 {
 		needsConfirmation = len(action.Selector.Candidates) > 1 || action.Confidence < 0.8
 	}
 
-	source := basv1.RecordingSource_RECORDING_SOURCE_AUTO
-	ctx := &basv1.EventContext{
-		Origin:            &basv1.EventContext_SessionId{SessionId: action.SessionID},
+	source := basbase.RecordingSource_RECORDING_SOURCE_AUTO
+	ctx := &basbase.EventContext{
+		Origin:            &basbase.EventContext_SessionId{SessionId: action.SessionID},
 		Source:            &source,
 		NeedsConfirmation: &needsConfirmation,
 	}
@@ -397,7 +400,7 @@ func buildRecordingEventContext(action *RecordedAction) *basv1.EventContext {
 
 // mapRecordingActionType converts an action type string to ActionType enum.
 // Delegates to typeconv.StringToActionType for the canonical implementation.
-func mapRecordingActionType(actionType string) basv1.ActionType {
+func mapRecordingActionType(actionType string) basactions.ActionType {
 	return typeconv.StringToActionType(actionType)
 }
 

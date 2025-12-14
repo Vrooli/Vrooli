@@ -12,7 +12,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -276,7 +279,7 @@ func isStepEvent(kind contracts.EventKind) bool {
 
 // eventToTimelineEntry converts an event envelope to a unified TimelineEntry.
 // Returns nil if the event doesn't have a step outcome or conversion fails.
-func eventToTimelineEntry(ev contracts.EventEnvelope, executionID uuid.UUID) *browser_automation_studio_v1.TimelineEntry {
+func eventToTimelineEntry(ev contracts.EventEnvelope, executionID uuid.UUID) *bastimeline.TimelineEntry {
 	var outcome *contracts.StepOutcome
 
 	// Extract outcome from payload
@@ -317,7 +320,7 @@ func eventToProtoMap(ev contracts.EventEnvelope) (map[string]any, bool) {
 	return out, true
 }
 
-func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio_v1.TimelineStreamMessage, error) {
+func convertEventToProto(ev contracts.EventEnvelope) (*bastimeline.TimelineStreamMessage, error) {
 	switch ev.Kind {
 	case contracts.EventKindExecutionStarted,
 		contracts.EventKindExecutionProgress,
@@ -330,10 +333,10 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 		if msg := extractString(ev.Payload, "error"); msg != "" {
 			errMsg = &msg
 		}
-		return &browser_automation_studio_v1.TimelineStreamMessage{
-			Type: browser_automation_studio_v1.TimelineMessageType_TIMELINE_MESSAGE_TYPE_STATUS,
-			Payload: &browser_automation_studio_v1.TimelineStreamMessage_Status{
-				Status: &browser_automation_studio_v1.TimelineStatusUpdate{
+		return &bastimeline.TimelineStreamMessage{
+			Type: bastimeline.TimelineMessageType_TIMELINE_MESSAGE_TYPE_STATUS,
+			Payload: &bastimeline.TimelineStreamMessage_Status{
+				Status: &bastimeline.TimelineStatusUpdate{
 					Id:         ev.ExecutionID.String(),
 					Status:     status,
 					Progress:   progress,
@@ -350,9 +353,9 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 		if timelineEntry == nil {
 			return nil, fmt.Errorf("unable to build timeline entry for event kind %s", ev.Kind)
 		}
-		return &browser_automation_studio_v1.TimelineStreamMessage{
-			Type: browser_automation_studio_v1.TimelineMessageType_TIMELINE_MESSAGE_TYPE_ENTRY,
-			Payload: &browser_automation_studio_v1.TimelineStreamMessage_Entry{
+		return &bastimeline.TimelineStreamMessage{
+			Type: bastimeline.TimelineMessageType_TIMELINE_MESSAGE_TYPE_ENTRY,
+			Payload: &bastimeline.TimelineStreamMessage_Entry{
 				Entry: timelineEntry,
 			},
 		}, nil
@@ -360,10 +363,10 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 	case contracts.EventKindStepTelemetry:
 		if telemetryPayload, ok := ev.Payload.(contracts.StepTelemetry); ok {
 			if telemetryPayload.Kind == contracts.TelemetryKindHeartbeat {
-				return &browser_automation_studio_v1.TimelineStreamMessage{
-					Type: browser_automation_studio_v1.TimelineMessageType_TIMELINE_MESSAGE_TYPE_HEARTBEAT,
-					Payload: &browser_automation_studio_v1.TimelineStreamMessage_Heartbeat{
-						Heartbeat: &browser_automation_studio_v1.TimelineHeartbeat{
+				return &bastimeline.TimelineStreamMessage{
+					Type: bastimeline.TimelineMessageType_TIMELINE_MESSAGE_TYPE_HEARTBEAT,
+					Payload: &bastimeline.TimelineStreamMessage_Heartbeat{
+						Heartbeat: &bastimeline.TimelineHeartbeat{
 							Timestamp: timestamppb.New(telemetryPayload.Timestamp),
 							SessionId: ev.ExecutionID.String(),
 						},
@@ -382,19 +385,19 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 // buildTimelineFrame creates a TimelineFrame from a contracts.EventEnvelope.
 // DEPRECATED: TimelineFrame is now a wrapper around TimelineEntry. This function
 // creates a TimelineEntry and wraps it in a TimelineFrame for backwards compatibility.
-func buildTimelineFrame(ev contracts.EventEnvelope) *browser_automation_studio_v1.TimelineFrame {
+func buildTimelineFrame(ev contracts.EventEnvelope) *bastimeline.TimelineFrame {
 	entry := buildTimelineEntryFromEnvelope(ev)
 	if entry == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.TimelineFrame{
+	return &bastimeline.TimelineFrame{
 		Entry: entry,
 	}
 }
 
 // buildTimelineEntryFromEnvelope creates a TimelineEntry from a contracts.EventEnvelope.
 // This is the unified format for timeline data used in both streaming and batch contexts.
-func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *browser_automation_studio_v1.TimelineEntry {
+func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.TimelineEntry {
 	var outcome *contracts.StepOutcome
 	var payloadMap map[string]any
 	if asMap, ok := ev.Payload.(map[string]any); ok {
@@ -410,7 +413,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *browser_automat
 	entryID := fmt.Sprintf("%s-step-%d", ev.ExecutionID.String(), ptrOrZero(ev.StepIndex))
 
 	stepIndex := int32(ptrOrZero(ev.StepIndex))
-	entry := &browser_automation_studio_v1.TimelineEntry{
+	entry := &bastimeline.TimelineEntry{
 		Id:          entryID,
 		SequenceNum: int32(ev.Sequence),
 		StepIndex:   &stepIndex,
@@ -432,7 +435,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *browser_automat
 	// Build ActionDefinition with action type
 	stepType := extractStepType(outcome, payloadMap)
 	if stepType != "" {
-		entry.Action = &browser_automation_studio_v1.ActionDefinition{
+		entry.Action = &basactions.ActionDefinition{
 			Type: mapActionType(stepType),
 		}
 	}
@@ -444,8 +447,8 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *browser_automat
 
 	// Build EventContext with execution origin
 	success := ev.Kind != contracts.EventKindStepFailed
-	entry.Context = &browser_automation_studio_v1.EventContext{
-		Origin:  &browser_automation_studio_v1.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
+	entry.Context = &basbase.EventContext{
+		Origin:  &basbase.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
 		Success: &success,
 	}
 
@@ -465,7 +468,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *browser_automat
 	// Build aggregates for batch data (status, progress, final_url, etc.)
 	status := mapStepStatus(ev.Kind)
 	progress := int32(extractInt(payloadMap, "progress"))
-	entry.Aggregates = &browser_automation_studio_v1.TimelineEntryAggregates{
+	entry.Aggregates = &bastimeline.TimelineEntryAggregates{
 		Status:   status,
 		Progress: &progress,
 	}
@@ -483,12 +486,12 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *browser_automat
 }
 
 // buildTelemetryFromOutcome creates ActionTelemetry from a StepOutcome.
-func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *browser_automation_studio_v1.ActionTelemetry {
+func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *basdomain.ActionTelemetry {
 	if outcome == nil {
 		return nil
 	}
 
-	tel := &browser_automation_studio_v1.ActionTelemetry{
+	tel := &basdomain.ActionTelemetry{
 		Url: outcome.FinalURL,
 	}
 
@@ -501,7 +504,7 @@ func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *browser_automati
 	}
 
 	if len(outcome.CursorTrail) > 0 {
-		points := make([]*browser_automation_studio_v1.Point, 0, len(outcome.CursorTrail))
+		points := make([]*basbase.Point, 0, len(outcome.CursorTrail))
 		for _, trail := range outcome.CursorTrail {
 			points = append(points, convertPoint(&trail.Point))
 		}
@@ -524,80 +527,80 @@ func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *browser_automati
 }
 
 
-func mapExecutionStatus(kind contracts.EventKind, payload any) browser_automation_studio_v1.ExecutionStatus {
+func mapExecutionStatus(kind contracts.EventKind, payload any) basbase.ExecutionStatus {
 	if status := extractString(payload, "status"); status != "" {
 		switch strings.ToLower(status) {
 		case "pending":
-			return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_PENDING
+			return basbase.ExecutionStatus_EXECUTION_STATUS_PENDING
 		case "running":
-			return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_RUNNING
+			return basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING
 		case "completed", "success", "succeeded":
-			return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED
+			return basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED
 		case "failed", "error":
-			return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED
+			return basbase.ExecutionStatus_EXECUTION_STATUS_FAILED
 		case "cancelled", "canceled":
-			return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_CANCELLED
+			return basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED
 		}
 	}
 	switch kind {
 	case contracts.EventKindExecutionStarted:
-		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_RUNNING
+		return basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING
 	case contracts.EventKindExecutionCompleted:
-		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED
 	case contracts.EventKindExecutionFailed:
-		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_FAILED
 	case contracts.EventKindExecutionCancelled:
-		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_CANCELLED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED
 	default:
-		return browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
 	}
 }
 
-func mapStepStatus(kind contracts.EventKind) browser_automation_studio_v1.StepStatus {
+func mapStepStatus(kind contracts.EventKind) basbase.StepStatus {
 	switch kind {
 	case contracts.EventKindStepStarted:
-		return browser_automation_studio_v1.StepStatus_STEP_STATUS_RUNNING
+		return basbase.StepStatus_STEP_STATUS_RUNNING
 	case contracts.EventKindStepCompleted:
-		return browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED
+		return basbase.StepStatus_STEP_STATUS_COMPLETED
 	case contracts.EventKindStepFailed:
-		return browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED
+		return basbase.StepStatus_STEP_STATUS_FAILED
 	default:
-		return browser_automation_studio_v1.StepStatus_STEP_STATUS_UNSPECIFIED
+		return basbase.StepStatus_STEP_STATUS_UNSPECIFIED
 	}
 }
 
-func mapActionType(stepType string) browser_automation_studio_v1.ActionType {
+func mapActionType(stepType string) basactions.ActionType {
 	switch strings.ToLower(strings.TrimSpace(stepType)) {
 	case "navigate":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_NAVIGATE
+		return basactions.ActionType_ACTION_TYPE_NAVIGATE
 	case "click":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_CLICK
+		return basactions.ActionType_ACTION_TYPE_CLICK
 	case "input", "type":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_INPUT
+		return basactions.ActionType_ACTION_TYPE_INPUT
 	case "assert":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_ASSERT
+		return basactions.ActionType_ACTION_TYPE_ASSERT
 	case "wait":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_WAIT
+		return basactions.ActionType_ACTION_TYPE_WAIT
 	case "screenshot":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_SCREENSHOT
+		return basactions.ActionType_ACTION_TYPE_SCREENSHOT
 	case "scroll":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_SCROLL
+		return basactions.ActionType_ACTION_TYPE_SCROLL
 	case "select":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_SELECT
+		return basactions.ActionType_ACTION_TYPE_SELECT
 	case "hover":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_HOVER
+		return basactions.ActionType_ACTION_TYPE_HOVER
 	case "keyboard":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_KEYBOARD
+		return basactions.ActionType_ACTION_TYPE_KEYBOARD
 	case "evaluate", "extract":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_EVALUATE
+		return basactions.ActionType_ACTION_TYPE_EVALUATE
 	case "focus":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_FOCUS
+		return basactions.ActionType_ACTION_TYPE_FOCUS
 	case "blur":
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_BLUR
+		return basactions.ActionType_ACTION_TYPE_BLUR
 	// Control-flow types (subflow, condition, loop) are not action types;
 	// they're handled differently in the workflow graph, so map to UNSPECIFIED.
 	default:
-		return browser_automation_studio_v1.ActionType_ACTION_TYPE_UNSPECIFIED
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 	}
 }
 
@@ -787,11 +790,11 @@ func toJsonValue(v any) *commonv1.JsonValue {
 	}
 }
 
-func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *browser_automation_studio_v1.AssertionResult {
+func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *basbase.AssertionResult {
 	if assertion == nil {
 		return nil
 	}
-	result := &browser_automation_studio_v1.AssertionResult{
+	result := &basbase.AssertionResult{
 		Mode:          stringToAssertionModeWS(assertion.Mode),
 		Selector:      assertion.Selector,
 		Success:       assertion.Success,
@@ -811,34 +814,34 @@ func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *browser_aut
 }
 
 // stringToAssertionModeWS converts an assertion mode string to AssertionMode enum.
-func stringToAssertionModeWS(s string) browser_automation_studio_v1.AssertionMode {
+func stringToAssertionModeWS(s string) basbase.AssertionMode {
 	switch s {
 	case "exists":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_EXISTS
+		return basbase.AssertionMode_ASSERTION_MODE_EXISTS
 	case "not_exists":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_NOT_EXISTS
+		return basbase.AssertionMode_ASSERTION_MODE_NOT_EXISTS
 	case "visible":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_VISIBLE
+		return basbase.AssertionMode_ASSERTION_MODE_VISIBLE
 	case "hidden":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_HIDDEN
+		return basbase.AssertionMode_ASSERTION_MODE_HIDDEN
 	case "text_equals":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
+		return basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
 	case "text_contains":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
+		return basbase.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
 	case "attribute_equals":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
+		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
 	case "attribute_contains":
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
+		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
 	default:
-		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_UNSPECIFIED
+		return basbase.AssertionMode_ASSERTION_MODE_UNSPECIFIED
 	}
 }
 
-func convertBoundingBox(b *contracts.BoundingBox) *browser_automation_studio_v1.BoundingBox {
+func convertBoundingBox(b *contracts.BoundingBox) *basbase.BoundingBox {
 	if b == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.BoundingBox{
+	return &basbase.BoundingBox{
 		X:      b.X,
 		Y:      b.Y,
 		Width:  b.Width,
@@ -846,33 +849,33 @@ func convertBoundingBox(b *contracts.BoundingBox) *browser_automation_studio_v1.
 	}
 }
 
-func convertPoint(pt *contracts.Point) *browser_automation_studio_v1.Point {
+func convertPoint(pt *contracts.Point) *basbase.Point {
 	if pt == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.Point{
+	return &basbase.Point{
 		X: pt.X,
 		Y: pt.Y,
 	}
 }
 
-func convertElementFocus(f *contracts.ElementFocus) *browser_automation_studio_v1.ElementFocus {
+func convertElementFocus(f *contracts.ElementFocus) *bastimeline.ElementFocus {
 	if f == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.ElementFocus{
+	return &bastimeline.ElementFocus{
 		Selector:    f.Selector,
 		BoundingBox: convertBoundingBox(f.BoundingBox),
 	}
 }
 
-func convertHighlightRegions(regions []contracts.HighlightRegion) []*browser_automation_studio_v1.HighlightRegion {
+func convertHighlightRegions(regions []contracts.HighlightRegion) []*basdomain.HighlightRegion {
 	if len(regions) == 0 {
 		return nil
 	}
-	out := make([]*browser_automation_studio_v1.HighlightRegion, 0, len(regions))
+	out := make([]*basdomain.HighlightRegion, 0, len(regions))
 	for _, r := range regions {
-		region := &browser_automation_studio_v1.HighlightRegion{
+		region := &basdomain.HighlightRegion{
 			Selector:       r.Selector,
 			BoundingBox:    convertBoundingBox(r.BoundingBox),
 			Padding:        r.Padding,
@@ -885,36 +888,36 @@ func convertHighlightRegions(regions []contracts.HighlightRegion) []*browser_aut
 }
 
 // stringToHighlightColor converts a color string to HighlightColor enum.
-func stringToHighlightColor(s string) browser_automation_studio_v1.HighlightColor {
+func stringToHighlightColor(s string) basbase.HighlightColor {
 	switch strings.ToLower(s) {
 	case "red":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_RED
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_RED
 	case "green":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_GREEN
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_GREEN
 	case "blue":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_BLUE
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_BLUE
 	case "yellow":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_YELLOW
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_YELLOW
 	case "orange":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_ORANGE
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_ORANGE
 	case "purple":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_PURPLE
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_PURPLE
 	case "cyan":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_CYAN
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_CYAN
 	case "magenta", "pink":
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_PINK
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_PINK
 	default:
-		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED
 	}
 }
 
-func convertMaskRegions(regions []contracts.MaskRegion) []*browser_automation_studio_v1.MaskRegion {
+func convertMaskRegions(regions []contracts.MaskRegion) []*basdomain.MaskRegion {
 	if len(regions) == 0 {
 		return nil
 	}
-	out := make([]*browser_automation_studio_v1.MaskRegion, 0, len(regions))
+	out := make([]*basdomain.MaskRegion, 0, len(regions))
 	for _, r := range regions {
-		out = append(out, &browser_automation_studio_v1.MaskRegion{
+		out = append(out, &basdomain.MaskRegion{
 			Selector:    r.Selector,
 			BoundingBox: convertBoundingBox(r.BoundingBox),
 			Opacity:     r.Opacity,

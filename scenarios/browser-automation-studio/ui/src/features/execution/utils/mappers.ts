@@ -4,8 +4,8 @@ import {
   ExecutionStatus as ProtoExecutionStatus,
   LogLevel as ProtoLogLevel,
   StepStatus,
-} from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
-import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/action_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
+import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 export type MappedLogLevel = 'info' | 'warning' | 'error' | 'success';
 
 export type ExecutionStatus =

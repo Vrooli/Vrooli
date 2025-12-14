@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -350,72 +351,72 @@ func ToFloat64(v any) (float64, bool) {
 // StringToActionType converts an action type string to the proto ActionType enum.
 // Handles various aliases for each action type (e.g., "goto" -> NAVIGATE, "fill"/"type" -> INPUT).
 // Returns ACTION_TYPE_UNSPECIFIED for unrecognized types.
-func StringToActionType(actionType string) basv1.ActionType {
+func StringToActionType(actionType string) basactions.ActionType {
 	switch strings.ToLower(strings.TrimSpace(actionType)) {
 	case "navigate", "goto":
-		return basv1.ActionType_ACTION_TYPE_NAVIGATE
+		return basactions.ActionType_ACTION_TYPE_NAVIGATE
 	case "click":
-		return basv1.ActionType_ACTION_TYPE_CLICK
+		return basactions.ActionType_ACTION_TYPE_CLICK
 	case "input", "type", "fill":
-		return basv1.ActionType_ACTION_TYPE_INPUT
+		return basactions.ActionType_ACTION_TYPE_INPUT
 	case "wait":
-		return basv1.ActionType_ACTION_TYPE_WAIT
+		return basactions.ActionType_ACTION_TYPE_WAIT
 	case "assert":
-		return basv1.ActionType_ACTION_TYPE_ASSERT
+		return basactions.ActionType_ACTION_TYPE_ASSERT
 	case "scroll":
-		return basv1.ActionType_ACTION_TYPE_SCROLL
+		return basactions.ActionType_ACTION_TYPE_SCROLL
 	case "select", "selectoption":
-		return basv1.ActionType_ACTION_TYPE_SELECT
+		return basactions.ActionType_ACTION_TYPE_SELECT
 	case "evaluate", "eval":
-		return basv1.ActionType_ACTION_TYPE_EVALUATE
+		return basactions.ActionType_ACTION_TYPE_EVALUATE
 	case "keyboard", "keypress", "press":
-		return basv1.ActionType_ACTION_TYPE_KEYBOARD
+		return basactions.ActionType_ACTION_TYPE_KEYBOARD
 	case "hover":
-		return basv1.ActionType_ACTION_TYPE_HOVER
+		return basactions.ActionType_ACTION_TYPE_HOVER
 	case "screenshot":
-		return basv1.ActionType_ACTION_TYPE_SCREENSHOT
+		return basactions.ActionType_ACTION_TYPE_SCREENSHOT
 	case "focus":
-		return basv1.ActionType_ACTION_TYPE_FOCUS
+		return basactions.ActionType_ACTION_TYPE_FOCUS
 	case "blur":
-		return basv1.ActionType_ACTION_TYPE_BLUR
+		return basactions.ActionType_ACTION_TYPE_BLUR
 	case "subflow":
-		return basv1.ActionType_ACTION_TYPE_SUBFLOW
+		return basactions.ActionType_ACTION_TYPE_SUBFLOW
 	default:
-		return basv1.ActionType_ACTION_TYPE_UNSPECIFIED
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 	}
 }
 
 // ActionTypeToString converts an ActionType enum to its canonical string representation.
 // Returns "unknown" for unrecognized types.
-func ActionTypeToString(actionType basv1.ActionType) string {
+func ActionTypeToString(actionType basactions.ActionType) string {
 	switch actionType {
-	case basv1.ActionType_ACTION_TYPE_NAVIGATE:
+	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
 		return "navigate"
-	case basv1.ActionType_ACTION_TYPE_CLICK:
+	case basactions.ActionType_ACTION_TYPE_CLICK:
 		return "click"
-	case basv1.ActionType_ACTION_TYPE_INPUT:
+	case basactions.ActionType_ACTION_TYPE_INPUT:
 		return "input"
-	case basv1.ActionType_ACTION_TYPE_WAIT:
+	case basactions.ActionType_ACTION_TYPE_WAIT:
 		return "wait"
-	case basv1.ActionType_ACTION_TYPE_ASSERT:
+	case basactions.ActionType_ACTION_TYPE_ASSERT:
 		return "assert"
-	case basv1.ActionType_ACTION_TYPE_SCROLL:
+	case basactions.ActionType_ACTION_TYPE_SCROLL:
 		return "scroll"
-	case basv1.ActionType_ACTION_TYPE_SELECT:
+	case basactions.ActionType_ACTION_TYPE_SELECT:
 		return "select"
-	case basv1.ActionType_ACTION_TYPE_EVALUATE:
+	case basactions.ActionType_ACTION_TYPE_EVALUATE:
 		return "evaluate"
-	case basv1.ActionType_ACTION_TYPE_KEYBOARD:
+	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
 		return "keyboard"
-	case basv1.ActionType_ACTION_TYPE_HOVER:
+	case basactions.ActionType_ACTION_TYPE_HOVER:
 		return "hover"
-	case basv1.ActionType_ACTION_TYPE_SCREENSHOT:
+	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
 		return "screenshot"
-	case basv1.ActionType_ACTION_TYPE_FOCUS:
+	case basactions.ActionType_ACTION_TYPE_FOCUS:
 		return "focus"
-	case basv1.ActionType_ACTION_TYPE_BLUR:
+	case basactions.ActionType_ACTION_TYPE_BLUR:
 		return "blur"
-	case basv1.ActionType_ACTION_TYPE_SUBFLOW:
+	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
 		return "subflow"
 	default:
 		return "unknown"
@@ -425,56 +426,56 @@ func ActionTypeToString(actionType basv1.ActionType) string {
 // StringToSelectorType converts a selector type string to the proto SelectorType enum.
 // Handles various aliases for each selector type (e.g., "data-testid" -> DATA_TESTID).
 // Returns SELECTOR_TYPE_UNSPECIFIED for unrecognized types.
-func StringToSelectorType(selectorType string) basv1.SelectorType {
+func StringToSelectorType(selectorType string) basbase.SelectorType {
 	switch strings.ToLower(strings.TrimSpace(selectorType)) {
 	case "css":
-		return basv1.SelectorType_SELECTOR_TYPE_CSS
+		return basbase.SelectorType_SELECTOR_TYPE_CSS
 	case "xpath":
-		return basv1.SelectorType_SELECTOR_TYPE_XPATH
+		return basbase.SelectorType_SELECTOR_TYPE_XPATH
 	case "id":
-		return basv1.SelectorType_SELECTOR_TYPE_ID
+		return basbase.SelectorType_SELECTOR_TYPE_ID
 	case "data-testid", "datatestid", "testid":
-		return basv1.SelectorType_SELECTOR_TYPE_DATA_TESTID
+		return basbase.SelectorType_SELECTOR_TYPE_DATA_TESTID
 	case "aria", "aria-label":
-		return basv1.SelectorType_SELECTOR_TYPE_ARIA
+		return basbase.SelectorType_SELECTOR_TYPE_ARIA
 	case "text":
-		return basv1.SelectorType_SELECTOR_TYPE_TEXT
+		return basbase.SelectorType_SELECTOR_TYPE_TEXT
 	case "role":
-		return basv1.SelectorType_SELECTOR_TYPE_ROLE
+		return basbase.SelectorType_SELECTOR_TYPE_ROLE
 	case "placeholder":
-		return basv1.SelectorType_SELECTOR_TYPE_PLACEHOLDER
+		return basbase.SelectorType_SELECTOR_TYPE_PLACEHOLDER
 	case "alt", "alt-text", "alttext":
-		return basv1.SelectorType_SELECTOR_TYPE_ALT_TEXT
+		return basbase.SelectorType_SELECTOR_TYPE_ALT_TEXT
 	case "title":
-		return basv1.SelectorType_SELECTOR_TYPE_TITLE
+		return basbase.SelectorType_SELECTOR_TYPE_TITLE
 	default:
-		return basv1.SelectorType_SELECTOR_TYPE_UNSPECIFIED
+		return basbase.SelectorType_SELECTOR_TYPE_UNSPECIFIED
 	}
 }
 
 // SelectorTypeToString converts a SelectorType enum to its canonical string representation.
 // Returns "unknown" for unrecognized types.
-func SelectorTypeToString(selectorType basv1.SelectorType) string {
+func SelectorTypeToString(selectorType basbase.SelectorType) string {
 	switch selectorType {
-	case basv1.SelectorType_SELECTOR_TYPE_CSS:
+	case basbase.SelectorType_SELECTOR_TYPE_CSS:
 		return "css"
-	case basv1.SelectorType_SELECTOR_TYPE_XPATH:
+	case basbase.SelectorType_SELECTOR_TYPE_XPATH:
 		return "xpath"
-	case basv1.SelectorType_SELECTOR_TYPE_ID:
+	case basbase.SelectorType_SELECTOR_TYPE_ID:
 		return "id"
-	case basv1.SelectorType_SELECTOR_TYPE_DATA_TESTID:
+	case basbase.SelectorType_SELECTOR_TYPE_DATA_TESTID:
 		return "data-testid"
-	case basv1.SelectorType_SELECTOR_TYPE_ARIA:
+	case basbase.SelectorType_SELECTOR_TYPE_ARIA:
 		return "aria"
-	case basv1.SelectorType_SELECTOR_TYPE_TEXT:
+	case basbase.SelectorType_SELECTOR_TYPE_TEXT:
 		return "text"
-	case basv1.SelectorType_SELECTOR_TYPE_ROLE:
+	case basbase.SelectorType_SELECTOR_TYPE_ROLE:
 		return "role"
-	case basv1.SelectorType_SELECTOR_TYPE_PLACEHOLDER:
+	case basbase.SelectorType_SELECTOR_TYPE_PLACEHOLDER:
 		return "placeholder"
-	case basv1.SelectorType_SELECTOR_TYPE_ALT_TEXT:
+	case basbase.SelectorType_SELECTOR_TYPE_ALT_TEXT:
 		return "alt-text"
-	case basv1.SelectorType_SELECTOR_TYPE_TITLE:
+	case basbase.SelectorType_SELECTOR_TYPE_TITLE:
 		return "title"
 	default:
 		return "unknown"
@@ -488,37 +489,37 @@ func SelectorTypeToString(selectorType basv1.SelectorType) string {
 // StringToExecutionStatus converts an execution status string to the proto ExecutionStatus enum.
 // Handles various aliases (e.g., "PENDING", "EXECUTION_STATUS_PENDING", "pending").
 // Returns EXECUTION_STATUS_UNSPECIFIED for unrecognized values.
-func StringToExecutionStatus(s string) basv1.ExecutionStatus {
+func StringToExecutionStatus(s string) basbase.ExecutionStatus {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "PENDING", "EXECUTION_STATUS_PENDING":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_PENDING
+		return basbase.ExecutionStatus_EXECUTION_STATUS_PENDING
 	case "RUNNING", "EXECUTION_STATUS_RUNNING":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_RUNNING
+		return basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING
 	case "COMPLETED", "EXECUTION_STATUS_COMPLETED":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED
 	case "FAILED", "EXECUTION_STATUS_FAILED":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_FAILED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_FAILED
 	case "CANCELLED", "CANCELED", "EXECUTION_STATUS_CANCELLED":
-		return basv1.ExecutionStatus_EXECUTION_STATUS_CANCELLED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED
 	default:
-		return basv1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
+		return basbase.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED
 	}
 }
 
 // ExecutionStatusToString converts an ExecutionStatus enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func ExecutionStatusToString(status basv1.ExecutionStatus) string {
+func ExecutionStatusToString(status basbase.ExecutionStatus) string {
 	switch status {
-	case basv1.ExecutionStatus_EXECUTION_STATUS_PENDING:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_PENDING:
 		return "pending"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_RUNNING:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING:
 		return "running"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
 		return "completed"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_FAILED:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_FAILED:
 		return "failed"
-	case basv1.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
 		return "cancelled"
 	default:
 		return "unknown"
@@ -532,33 +533,33 @@ func ExecutionStatusToString(status basv1.ExecutionStatus) string {
 // StringToTriggerType converts a trigger type string to the proto TriggerType enum.
 // Handles various aliases (e.g., "MANUAL", "TRIGGER_TYPE_MANUAL", "manual").
 // Returns TRIGGER_TYPE_UNSPECIFIED for unrecognized values.
-func StringToTriggerType(s string) basv1.TriggerType {
+func StringToTriggerType(s string) basbase.TriggerType {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "MANUAL", "TRIGGER_TYPE_MANUAL":
-		return basv1.TriggerType_TRIGGER_TYPE_MANUAL
+		return basbase.TriggerType_TRIGGER_TYPE_MANUAL
 	case "SCHEDULED", "TRIGGER_TYPE_SCHEDULED":
-		return basv1.TriggerType_TRIGGER_TYPE_SCHEDULED
+		return basbase.TriggerType_TRIGGER_TYPE_SCHEDULED
 	case "API", "TRIGGER_TYPE_API":
-		return basv1.TriggerType_TRIGGER_TYPE_API
+		return basbase.TriggerType_TRIGGER_TYPE_API
 	case "WEBHOOK", "TRIGGER_TYPE_WEBHOOK":
-		return basv1.TriggerType_TRIGGER_TYPE_WEBHOOK
+		return basbase.TriggerType_TRIGGER_TYPE_WEBHOOK
 	default:
-		return basv1.TriggerType_TRIGGER_TYPE_UNSPECIFIED
+		return basbase.TriggerType_TRIGGER_TYPE_UNSPECIFIED
 	}
 }
 
 // TriggerTypeToString converts a TriggerType enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func TriggerTypeToString(triggerType basv1.TriggerType) string {
+func TriggerTypeToString(triggerType basbase.TriggerType) string {
 	switch triggerType {
-	case basv1.TriggerType_TRIGGER_TYPE_MANUAL:
+	case basbase.TriggerType_TRIGGER_TYPE_MANUAL:
 		return "manual"
-	case basv1.TriggerType_TRIGGER_TYPE_SCHEDULED:
+	case basbase.TriggerType_TRIGGER_TYPE_SCHEDULED:
 		return "scheduled"
-	case basv1.TriggerType_TRIGGER_TYPE_API:
+	case basbase.TriggerType_TRIGGER_TYPE_API:
 		return "api"
-	case basv1.TriggerType_TRIGGER_TYPE_WEBHOOK:
+	case basbase.TriggerType_TRIGGER_TYPE_WEBHOOK:
 		return "webhook"
 	default:
 		return "unknown"
@@ -572,33 +573,33 @@ func TriggerTypeToString(triggerType basv1.TriggerType) string {
 // StringToExportStatus converts an export status string to the proto ExportStatus enum.
 // Handles various aliases (e.g., "READY", "EXPORT_STATUS_READY", "NOT_READY").
 // Returns EXPORT_STATUS_UNSPECIFIED for unrecognized values.
-func StringToExportStatus(s string) basv1.ExportStatus {
+func StringToExportStatus(s string) basbase.ExportStatus {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "READY", "EXPORT_STATUS_READY":
-		return basv1.ExportStatus_EXPORT_STATUS_READY
+		return basbase.ExportStatus_EXPORT_STATUS_READY
 	case "PENDING", "NOT_READY", "EXPORT_STATUS_PENDING":
-		return basv1.ExportStatus_EXPORT_STATUS_PENDING
+		return basbase.ExportStatus_EXPORT_STATUS_PENDING
 	case "ERROR", "EXPORT_STATUS_ERROR":
-		return basv1.ExportStatus_EXPORT_STATUS_ERROR
+		return basbase.ExportStatus_EXPORT_STATUS_ERROR
 	case "UNAVAILABLE", "EXPORT_STATUS_UNAVAILABLE":
-		return basv1.ExportStatus_EXPORT_STATUS_UNAVAILABLE
+		return basbase.ExportStatus_EXPORT_STATUS_UNAVAILABLE
 	default:
-		return basv1.ExportStatus_EXPORT_STATUS_UNSPECIFIED
+		return basbase.ExportStatus_EXPORT_STATUS_UNSPECIFIED
 	}
 }
 
 // ExportStatusToString converts an ExportStatus enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func ExportStatusToString(status basv1.ExportStatus) string {
+func ExportStatusToString(status basbase.ExportStatus) string {
 	switch status {
-	case basv1.ExportStatus_EXPORT_STATUS_READY:
+	case basbase.ExportStatus_EXPORT_STATUS_READY:
 		return "ready"
-	case basv1.ExportStatus_EXPORT_STATUS_PENDING:
+	case basbase.ExportStatus_EXPORT_STATUS_PENDING:
 		return "pending"
-	case basv1.ExportStatus_EXPORT_STATUS_ERROR:
+	case basbase.ExportStatus_EXPORT_STATUS_ERROR:
 		return "error"
-	case basv1.ExportStatus_EXPORT_STATUS_UNAVAILABLE:
+	case basbase.ExportStatus_EXPORT_STATUS_UNAVAILABLE:
 		return "unavailable"
 	default:
 		return "unknown"
@@ -612,45 +613,45 @@ func ExportStatusToString(status basv1.ExportStatus) string {
 // StringToStepStatus converts a step status string to the proto StepStatus enum.
 // Handles various aliases (e.g., "PENDING", "STEP_STATUS_PENDING", "pending").
 // Returns STEP_STATUS_UNSPECIFIED for unrecognized values.
-func StringToStepStatus(s string) basv1.StepStatus {
+func StringToStepStatus(s string) basbase.StepStatus {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "PENDING", "STEP_STATUS_PENDING":
-		return basv1.StepStatus_STEP_STATUS_PENDING
+		return basbase.StepStatus_STEP_STATUS_PENDING
 	case "RUNNING", "STEP_STATUS_RUNNING":
-		return basv1.StepStatus_STEP_STATUS_RUNNING
+		return basbase.StepStatus_STEP_STATUS_RUNNING
 	case "COMPLETED", "STEP_STATUS_COMPLETED":
-		return basv1.StepStatus_STEP_STATUS_COMPLETED
+		return basbase.StepStatus_STEP_STATUS_COMPLETED
 	case "FAILED", "STEP_STATUS_FAILED":
-		return basv1.StepStatus_STEP_STATUS_FAILED
+		return basbase.StepStatus_STEP_STATUS_FAILED
 	case "CANCELLED", "STEP_STATUS_CANCELLED":
-		return basv1.StepStatus_STEP_STATUS_CANCELLED
+		return basbase.StepStatus_STEP_STATUS_CANCELLED
 	case "SKIPPED", "STEP_STATUS_SKIPPED":
-		return basv1.StepStatus_STEP_STATUS_SKIPPED
+		return basbase.StepStatus_STEP_STATUS_SKIPPED
 	case "RETRYING", "STEP_STATUS_RETRYING":
-		return basv1.StepStatus_STEP_STATUS_RETRYING
+		return basbase.StepStatus_STEP_STATUS_RETRYING
 	default:
-		return basv1.StepStatus_STEP_STATUS_UNSPECIFIED
+		return basbase.StepStatus_STEP_STATUS_UNSPECIFIED
 	}
 }
 
 // StepStatusToString converts a StepStatus enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func StepStatusToString(status basv1.StepStatus) string {
+func StepStatusToString(status basbase.StepStatus) string {
 	switch status {
-	case basv1.StepStatus_STEP_STATUS_PENDING:
+	case basbase.StepStatus_STEP_STATUS_PENDING:
 		return "pending"
-	case basv1.StepStatus_STEP_STATUS_RUNNING:
+	case basbase.StepStatus_STEP_STATUS_RUNNING:
 		return "running"
-	case basv1.StepStatus_STEP_STATUS_COMPLETED:
+	case basbase.StepStatus_STEP_STATUS_COMPLETED:
 		return "completed"
-	case basv1.StepStatus_STEP_STATUS_FAILED:
+	case basbase.StepStatus_STEP_STATUS_FAILED:
 		return "failed"
-	case basv1.StepStatus_STEP_STATUS_CANCELLED:
+	case basbase.StepStatus_STEP_STATUS_CANCELLED:
 		return "cancelled"
-	case basv1.StepStatus_STEP_STATUS_SKIPPED:
+	case basbase.StepStatus_STEP_STATUS_SKIPPED:
 		return "skipped"
-	case basv1.StepStatus_STEP_STATUS_RETRYING:
+	case basbase.StepStatus_STEP_STATUS_RETRYING:
 		return "retrying"
 	default:
 		return "unknown"
@@ -664,33 +665,33 @@ func StepStatusToString(status basv1.StepStatus) string {
 // StringToLogLevel converts a log level string to the proto LogLevel enum.
 // Handles various aliases (e.g., "DEBUG", "LOG_LEVEL_DEBUG", "debug", "WARNING" -> WARN).
 // Returns LOG_LEVEL_UNSPECIFIED for unrecognized values.
-func StringToLogLevel(s string) basv1.LogLevel {
+func StringToLogLevel(s string) basbase.LogLevel {
 	normalized := strings.ToUpper(strings.TrimSpace(s))
 	switch normalized {
 	case "DEBUG", "LOG_LEVEL_DEBUG":
-		return basv1.LogLevel_LOG_LEVEL_DEBUG
+		return basbase.LogLevel_LOG_LEVEL_DEBUG
 	case "INFO", "LOG_LEVEL_INFO":
-		return basv1.LogLevel_LOG_LEVEL_INFO
+		return basbase.LogLevel_LOG_LEVEL_INFO
 	case "WARN", "WARNING", "LOG_LEVEL_WARN":
-		return basv1.LogLevel_LOG_LEVEL_WARN
+		return basbase.LogLevel_LOG_LEVEL_WARN
 	case "ERROR", "LOG_LEVEL_ERROR":
-		return basv1.LogLevel_LOG_LEVEL_ERROR
+		return basbase.LogLevel_LOG_LEVEL_ERROR
 	default:
-		return basv1.LogLevel_LOG_LEVEL_UNSPECIFIED
+		return basbase.LogLevel_LOG_LEVEL_UNSPECIFIED
 	}
 }
 
 // LogLevelToString converts a LogLevel enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func LogLevelToString(level basv1.LogLevel) string {
+func LogLevelToString(level basbase.LogLevel) string {
 	switch level {
-	case basv1.LogLevel_LOG_LEVEL_DEBUG:
+	case basbase.LogLevel_LOG_LEVEL_DEBUG:
 		return "debug"
-	case basv1.LogLevel_LOG_LEVEL_INFO:
+	case basbase.LogLevel_LOG_LEVEL_INFO:
 		return "info"
-	case basv1.LogLevel_LOG_LEVEL_WARN:
+	case basbase.LogLevel_LOG_LEVEL_WARN:
 		return "warn"
-	case basv1.LogLevel_LOG_LEVEL_ERROR:
+	case basbase.LogLevel_LOG_LEVEL_ERROR:
 		return "error"
 	default:
 		return "unknown"
@@ -704,49 +705,49 @@ func LogLevelToString(level basv1.LogLevel) string {
 // StringToAssertionMode converts an assertion mode string to the proto AssertionMode enum.
 // Uses snake_case inputs (e.g., "exists", "not_exists", "text_equals").
 // Returns ASSERTION_MODE_UNSPECIFIED for unrecognized values.
-func StringToAssertionMode(s string) basv1.AssertionMode {
+func StringToAssertionMode(s string) basbase.AssertionMode {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "exists":
-		return basv1.AssertionMode_ASSERTION_MODE_EXISTS
+		return basbase.AssertionMode_ASSERTION_MODE_EXISTS
 	case "not_exists":
-		return basv1.AssertionMode_ASSERTION_MODE_NOT_EXISTS
+		return basbase.AssertionMode_ASSERTION_MODE_NOT_EXISTS
 	case "visible":
-		return basv1.AssertionMode_ASSERTION_MODE_VISIBLE
+		return basbase.AssertionMode_ASSERTION_MODE_VISIBLE
 	case "hidden":
-		return basv1.AssertionMode_ASSERTION_MODE_HIDDEN
+		return basbase.AssertionMode_ASSERTION_MODE_HIDDEN
 	case "text_equals":
-		return basv1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
+		return basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
 	case "text_contains":
-		return basv1.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
+		return basbase.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
 	case "attribute_equals":
-		return basv1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
+		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
 	case "attribute_contains":
-		return basv1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
+		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
 	default:
-		return basv1.AssertionMode_ASSERTION_MODE_UNSPECIFIED
+		return basbase.AssertionMode_ASSERTION_MODE_UNSPECIFIED
 	}
 }
 
 // AssertionModeToString converts an AssertionMode enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func AssertionModeToString(mode basv1.AssertionMode) string {
+func AssertionModeToString(mode basbase.AssertionMode) string {
 	switch mode {
-	case basv1.AssertionMode_ASSERTION_MODE_EXISTS:
+	case basbase.AssertionMode_ASSERTION_MODE_EXISTS:
 		return "exists"
-	case basv1.AssertionMode_ASSERTION_MODE_NOT_EXISTS:
+	case basbase.AssertionMode_ASSERTION_MODE_NOT_EXISTS:
 		return "not_exists"
-	case basv1.AssertionMode_ASSERTION_MODE_VISIBLE:
+	case basbase.AssertionMode_ASSERTION_MODE_VISIBLE:
 		return "visible"
-	case basv1.AssertionMode_ASSERTION_MODE_HIDDEN:
+	case basbase.AssertionMode_ASSERTION_MODE_HIDDEN:
 		return "hidden"
-	case basv1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS:
+	case basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS:
 		return "text_equals"
-	case basv1.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS:
+	case basbase.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS:
 		return "text_contains"
-	case basv1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS:
+	case basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS:
 		return "attribute_equals"
-	case basv1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS:
+	case basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS:
 		return "attribute_contains"
 	default:
 		return "unknown"
@@ -760,45 +761,45 @@ func AssertionModeToString(mode basv1.AssertionMode) string {
 // StringToArtifactType converts an artifact type string to the proto ArtifactType enum.
 // Handles various aliases (e.g., "screenshot", "dom_snapshot", "extracted_data" -> CUSTOM).
 // Returns ARTIFACT_TYPE_UNSPECIFIED for unrecognized values.
-func StringToArtifactType(s string) basv1.ArtifactType {
+func StringToArtifactType(s string) basbase.ArtifactType {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "screenshot", "artifact_type_screenshot":
-		return basv1.ArtifactType_ARTIFACT_TYPE_SCREENSHOT
+		return basbase.ArtifactType_ARTIFACT_TYPE_SCREENSHOT
 	case "dom", "dom_snapshot", "artifact_type_dom_snapshot":
-		return basv1.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT
+		return basbase.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT
 	case "timeline_frame", "artifact_type_timeline_frame":
-		return basv1.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME
+		return basbase.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME
 	case "console_log", "artifact_type_console_log":
-		return basv1.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG
+		return basbase.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG
 	case "network_event", "artifact_type_network_event":
-		return basv1.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT
+		return basbase.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT
 	case "trace", "artifact_type_trace":
-		return basv1.ArtifactType_ARTIFACT_TYPE_TRACE
+		return basbase.ArtifactType_ARTIFACT_TYPE_TRACE
 	case "custom", "artifact_type_custom", "extracted_data", "video", "har":
-		return basv1.ArtifactType_ARTIFACT_TYPE_CUSTOM
+		return basbase.ArtifactType_ARTIFACT_TYPE_CUSTOM
 	default:
-		return basv1.ArtifactType_ARTIFACT_TYPE_UNSPECIFIED
+		return basbase.ArtifactType_ARTIFACT_TYPE_UNSPECIFIED
 	}
 }
 
 // ArtifactTypeToString converts an ArtifactType enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func ArtifactTypeToString(artifactType basv1.ArtifactType) string {
+func ArtifactTypeToString(artifactType basbase.ArtifactType) string {
 	switch artifactType {
-	case basv1.ArtifactType_ARTIFACT_TYPE_SCREENSHOT:
+	case basbase.ArtifactType_ARTIFACT_TYPE_SCREENSHOT:
 		return "screenshot"
-	case basv1.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT:
+	case basbase.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT:
 		return "dom_snapshot"
-	case basv1.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME:
+	case basbase.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME:
 		return "timeline_frame"
-	case basv1.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG:
+	case basbase.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG:
 		return "console_log"
-	case basv1.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT:
+	case basbase.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT:
 		return "network_event"
-	case basv1.ArtifactType_ARTIFACT_TYPE_TRACE:
+	case basbase.ArtifactType_ARTIFACT_TYPE_TRACE:
 		return "trace"
-	case basv1.ArtifactType_ARTIFACT_TYPE_CUSTOM:
+	case basbase.ArtifactType_ARTIFACT_TYPE_CUSTOM:
 		return "custom"
 	default:
 		return "unknown"
@@ -812,61 +813,61 @@ func ArtifactTypeToString(artifactType basv1.ArtifactType) string {
 // StringToHighlightColor converts a color string to the proto HighlightColor enum.
 // Handles color names (e.g., "red", "green", "blue", "magenta" -> PINK).
 // Returns HIGHLIGHT_COLOR_UNSPECIFIED for unrecognized values.
-func StringToHighlightColor(s string) basv1.HighlightColor {
+func StringToHighlightColor(s string) basbase.HighlightColor {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "red":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_RED
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_RED
 	case "green":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_GREEN
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_GREEN
 	case "blue":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_BLUE
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_BLUE
 	case "yellow":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_YELLOW
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_YELLOW
 	case "orange":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_ORANGE
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_ORANGE
 	case "purple":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_PURPLE
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_PURPLE
 	case "cyan":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_CYAN
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_CYAN
 	case "magenta", "pink":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_PINK
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_PINK
 	case "white":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_WHITE
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_WHITE
 	case "gray", "grey":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_GRAY
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_GRAY
 	case "black":
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_BLACK
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_BLACK
 	default:
-		return basv1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED
+		return basbase.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED
 	}
 }
 
 // HighlightColorToString converts a HighlightColor enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func HighlightColorToString(color basv1.HighlightColor) string {
+func HighlightColorToString(color basbase.HighlightColor) string {
 	switch color {
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_RED:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_RED:
 		return "red"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_GREEN:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_GREEN:
 		return "green"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_BLUE:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_BLUE:
 		return "blue"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_YELLOW:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_YELLOW:
 		return "yellow"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_ORANGE:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_ORANGE:
 		return "orange"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_PURPLE:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_PURPLE:
 		return "purple"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_CYAN:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_CYAN:
 		return "cyan"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_PINK:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_PINK:
 		return "pink"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_WHITE:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_WHITE:
 		return "white"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_GRAY:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_GRAY:
 		return "gray"
-	case basv1.HighlightColor_HIGHLIGHT_COLOR_BLACK:
+	case basbase.HighlightColor_HIGHLIGHT_COLOR_BLACK:
 		return "black"
 	default:
 		return "unknown"
@@ -880,29 +881,29 @@ func HighlightColorToString(color basv1.HighlightColor) string {
 // StringToMouseButton converts a mouse button string to the proto MouseButton enum.
 // Handles button names (e.g., "left", "right", "middle").
 // Returns MOUSE_BUTTON_UNSPECIFIED for unrecognized values.
-func StringToMouseButton(s string) basv1.MouseButton {
+func StringToMouseButton(s string) basactions.MouseButton {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "left":
-		return basv1.MouseButton_MOUSE_BUTTON_LEFT
+		return basactions.MouseButton_MOUSE_BUTTON_LEFT
 	case "right":
-		return basv1.MouseButton_MOUSE_BUTTON_RIGHT
+		return basactions.MouseButton_MOUSE_BUTTON_RIGHT
 	case "middle":
-		return basv1.MouseButton_MOUSE_BUTTON_MIDDLE
+		return basactions.MouseButton_MOUSE_BUTTON_MIDDLE
 	default:
-		return basv1.MouseButton_MOUSE_BUTTON_UNSPECIFIED
+		return basactions.MouseButton_MOUSE_BUTTON_UNSPECIFIED
 	}
 }
 
 // MouseButtonToString converts a MouseButton enum to its canonical string representation.
 // Returns "left" as default for unspecified (most common case).
-func MouseButtonToString(button basv1.MouseButton) string {
+func MouseButtonToString(button basactions.MouseButton) string {
 	switch button {
-	case basv1.MouseButton_MOUSE_BUTTON_LEFT:
+	case basactions.MouseButton_MOUSE_BUTTON_LEFT:
 		return "left"
-	case basv1.MouseButton_MOUSE_BUTTON_RIGHT:
+	case basactions.MouseButton_MOUSE_BUTTON_RIGHT:
 		return "right"
-	case basv1.MouseButton_MOUSE_BUTTON_MIDDLE:
+	case basactions.MouseButton_MOUSE_BUTTON_MIDDLE:
 		return "middle"
 	default:
 		return "left" // Default to left for unspecified
@@ -916,33 +917,33 @@ func MouseButtonToString(button basv1.MouseButton) string {
 // StringToKeyboardModifier converts a keyboard modifier string to the proto KeyboardModifier enum.
 // Handles modifier names (e.g., "ctrl", "shift", "alt", "meta", "cmd" -> META).
 // Returns KEYBOARD_MODIFIER_UNSPECIFIED for unrecognized values.
-func StringToKeyboardModifier(s string) basv1.KeyboardModifier {
+func StringToKeyboardModifier(s string) basactions.KeyboardModifier {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "ctrl", "control":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_CTRL
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_CTRL
 	case "shift":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT
 	case "alt":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_ALT
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_ALT
 	case "meta", "cmd", "command", "win", "windows":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_META
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_META
 	default:
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED
 	}
 }
 
 // KeyboardModifierToString converts a KeyboardModifier enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func KeyboardModifierToString(modifier basv1.KeyboardModifier) string {
+func KeyboardModifierToString(modifier basactions.KeyboardModifier) string {
 	switch modifier {
-	case basv1.KeyboardModifier_KEYBOARD_MODIFIER_CTRL:
+	case basactions.KeyboardModifier_KEYBOARD_MODIFIER_CTRL:
 		return "ctrl"
-	case basv1.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT:
+	case basactions.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT:
 		return "shift"
-	case basv1.KeyboardModifier_KEYBOARD_MODIFIER_ALT:
+	case basactions.KeyboardModifier_KEYBOARD_MODIFIER_ALT:
 		return "alt"
-	case basv1.KeyboardModifier_KEYBOARD_MODIFIER_META:
+	case basactions.KeyboardModifier_KEYBOARD_MODIFIER_META:
 		return "meta"
 	default:
 		return "unknown"
@@ -951,14 +952,14 @@ func KeyboardModifierToString(modifier basv1.KeyboardModifier) string {
 
 // StringsToKeyboardModifiers converts a slice of modifier strings to KeyboardModifier enums.
 // Filters out any unrecognized modifiers (UNSPECIFIED).
-func StringsToKeyboardModifiers(modifiers []string) []basv1.KeyboardModifier {
+func StringsToKeyboardModifiers(modifiers []string) []basactions.KeyboardModifier {
 	if len(modifiers) == 0 {
 		return nil
 	}
-	result := make([]basv1.KeyboardModifier, 0, len(modifiers))
+	result := make([]basactions.KeyboardModifier, 0, len(modifiers))
 	for _, s := range modifiers {
 		mod := StringToKeyboardModifier(s)
-		if mod != basv1.KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED {
+		if mod != basactions.KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED {
 			result = append(result, mod)
 		}
 	}
@@ -966,7 +967,7 @@ func StringsToKeyboardModifiers(modifiers []string) []basv1.KeyboardModifier {
 }
 
 // KeyboardModifiersToStrings converts a slice of KeyboardModifier enums to strings.
-func KeyboardModifiersToStrings(modifiers []basv1.KeyboardModifier) []string {
+func KeyboardModifiersToStrings(modifiers []basactions.KeyboardModifier) []string {
 	if len(modifiers) == 0 {
 		return nil
 	}
@@ -986,29 +987,29 @@ func KeyboardModifiersToStrings(modifiers []basv1.KeyboardModifier) []string {
 // StringToNetworkEventType converts a network event type string to the proto NetworkEventType enum.
 // Handles event types (e.g., "request", "response", "failure").
 // Returns NETWORK_EVENT_TYPE_UNSPECIFIED for unrecognized values.
-func StringToNetworkEventType(s string) basv1.NetworkEventType {
+func StringToNetworkEventType(s string) basbase.NetworkEventType {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "request":
-		return basv1.NetworkEventType_NETWORK_EVENT_TYPE_REQUEST
+		return basbase.NetworkEventType_NETWORK_EVENT_TYPE_REQUEST
 	case "response":
-		return basv1.NetworkEventType_NETWORK_EVENT_TYPE_RESPONSE
+		return basbase.NetworkEventType_NETWORK_EVENT_TYPE_RESPONSE
 	case "failure", "failed":
-		return basv1.NetworkEventType_NETWORK_EVENT_TYPE_FAILURE
+		return basbase.NetworkEventType_NETWORK_EVENT_TYPE_FAILURE
 	default:
-		return basv1.NetworkEventType_NETWORK_EVENT_TYPE_UNSPECIFIED
+		return basbase.NetworkEventType_NETWORK_EVENT_TYPE_UNSPECIFIED
 	}
 }
 
 // NetworkEventTypeToString converts a NetworkEventType enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func NetworkEventTypeToString(eventType basv1.NetworkEventType) string {
+func NetworkEventTypeToString(eventType basbase.NetworkEventType) string {
 	switch eventType {
-	case basv1.NetworkEventType_NETWORK_EVENT_TYPE_REQUEST:
+	case basbase.NetworkEventType_NETWORK_EVENT_TYPE_REQUEST:
 		return "request"
-	case basv1.NetworkEventType_NETWORK_EVENT_TYPE_RESPONSE:
+	case basbase.NetworkEventType_NETWORK_EVENT_TYPE_RESPONSE:
 		return "response"
-	case basv1.NetworkEventType_NETWORK_EVENT_TYPE_FAILURE:
+	case basbase.NetworkEventType_NETWORK_EVENT_TYPE_FAILURE:
 		return "failure"
 	default:
 		return "unknown"
@@ -1022,37 +1023,37 @@ func NetworkEventTypeToString(eventType basv1.NetworkEventType) string {
 // StringToChangeSource converts a change source string to the proto ChangeSource enum.
 // Handles source names (e.g., "manual", "autosave", "import", "ai_generated", "recording").
 // Returns CHANGE_SOURCE_UNSPECIFIED for unrecognized values.
-func StringToChangeSource(s string) basv1.ChangeSource {
+func StringToChangeSource(s string) basbase.ChangeSource {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "manual":
-		return basv1.ChangeSource_CHANGE_SOURCE_MANUAL
+		return basbase.ChangeSource_CHANGE_SOURCE_MANUAL
 	case "autosave":
-		return basv1.ChangeSource_CHANGE_SOURCE_AUTOSAVE
+		return basbase.ChangeSource_CHANGE_SOURCE_AUTOSAVE
 	case "import":
-		return basv1.ChangeSource_CHANGE_SOURCE_IMPORT
+		return basbase.ChangeSource_CHANGE_SOURCE_IMPORT
 	case "ai_generated", "ai-generated", "aigenerated":
-		return basv1.ChangeSource_CHANGE_SOURCE_AI_GENERATED
+		return basbase.ChangeSource_CHANGE_SOURCE_AI_GENERATED
 	case "recording":
-		return basv1.ChangeSource_CHANGE_SOURCE_RECORDING
+		return basbase.ChangeSource_CHANGE_SOURCE_RECORDING
 	default:
-		return basv1.ChangeSource_CHANGE_SOURCE_UNSPECIFIED
+		return basbase.ChangeSource_CHANGE_SOURCE_UNSPECIFIED
 	}
 }
 
 // ChangeSourceToString converts a ChangeSource enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func ChangeSourceToString(source basv1.ChangeSource) string {
+func ChangeSourceToString(source basbase.ChangeSource) string {
 	switch source {
-	case basv1.ChangeSource_CHANGE_SOURCE_MANUAL:
+	case basbase.ChangeSource_CHANGE_SOURCE_MANUAL:
 		return "manual"
-	case basv1.ChangeSource_CHANGE_SOURCE_AUTOSAVE:
+	case basbase.ChangeSource_CHANGE_SOURCE_AUTOSAVE:
 		return "autosave"
-	case basv1.ChangeSource_CHANGE_SOURCE_IMPORT:
+	case basbase.ChangeSource_CHANGE_SOURCE_IMPORT:
 		return "import"
-	case basv1.ChangeSource_CHANGE_SOURCE_AI_GENERATED:
+	case basbase.ChangeSource_CHANGE_SOURCE_AI_GENERATED:
 		return "ai_generated"
-	case basv1.ChangeSource_CHANGE_SOURCE_RECORDING:
+	case basbase.ChangeSource_CHANGE_SOURCE_RECORDING:
 		return "recording"
 	default:
 		return "unknown"
@@ -1066,29 +1067,29 @@ func ChangeSourceToString(source basv1.ChangeSource) string {
 // StringToValidationSeverity converts a validation severity string to the proto ValidationSeverity enum.
 // Handles severity names (e.g., "error", "warning", "info").
 // Returns VALIDATION_SEVERITY_UNSPECIFIED for unrecognized values.
-func StringToValidationSeverity(s string) basv1.ValidationSeverity {
+func StringToValidationSeverity(s string) basbase.ValidationSeverity {
 	normalized := strings.ToLower(strings.TrimSpace(s))
 	switch normalized {
 	case "error":
-		return basv1.ValidationSeverity_VALIDATION_SEVERITY_ERROR
+		return basbase.ValidationSeverity_VALIDATION_SEVERITY_ERROR
 	case "warning", "warn":
-		return basv1.ValidationSeverity_VALIDATION_SEVERITY_WARNING
+		return basbase.ValidationSeverity_VALIDATION_SEVERITY_WARNING
 	case "info":
-		return basv1.ValidationSeverity_VALIDATION_SEVERITY_INFO
+		return basbase.ValidationSeverity_VALIDATION_SEVERITY_INFO
 	default:
-		return basv1.ValidationSeverity_VALIDATION_SEVERITY_UNSPECIFIED
+		return basbase.ValidationSeverity_VALIDATION_SEVERITY_UNSPECIFIED
 	}
 }
 
 // ValidationSeverityToString converts a ValidationSeverity enum to its canonical string representation.
 // Returns "unknown" for unrecognized values.
-func ValidationSeverityToString(severity basv1.ValidationSeverity) string {
+func ValidationSeverityToString(severity basbase.ValidationSeverity) string {
 	switch severity {
-	case basv1.ValidationSeverity_VALIDATION_SEVERITY_ERROR:
+	case basbase.ValidationSeverity_VALIDATION_SEVERITY_ERROR:
 		return "error"
-	case basv1.ValidationSeverity_VALIDATION_SEVERITY_WARNING:
+	case basbase.ValidationSeverity_VALIDATION_SEVERITY_WARNING:
 		return "warning"
-	case basv1.ValidationSeverity_VALIDATION_SEVERITY_INFO:
+	case basbase.ValidationSeverity_VALIDATION_SEVERITY_INFO:
 		return "info"
 	default:
 		return "unknown"

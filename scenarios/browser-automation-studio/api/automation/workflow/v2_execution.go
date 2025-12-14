@@ -4,7 +4,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 // ========================================================================
@@ -13,7 +14,7 @@ import (
 
 // WorkflowNodeV2ToCompiledInstruction converts a WorkflowNodeV2 proto to a
 // CompiledInstruction that can be executed by the automation engine.
-func WorkflowNodeV2ToCompiledInstruction(node *basv1.WorkflowNodeV2, index int) contracts.CompiledInstruction {
+func WorkflowNodeV2ToCompiledInstruction(node *basworkflows.WorkflowNodeV2, index int) contracts.CompiledInstruction {
 	if node == nil {
 		return contracts.CompiledInstruction{Index: index}
 	}
@@ -47,7 +48,7 @@ func WorkflowNodeV2ToCompiledInstruction(node *basv1.WorkflowNodeV2, index int) 
 
 // WorkflowDefinitionV2ToExecutionPlan converts a complete V2 workflow definition
 // to an execution plan with CompiledInstructions and PlanGraph.
-func WorkflowDefinitionV2ToExecutionPlan(def *basv1.WorkflowDefinitionV2) ([]contracts.CompiledInstruction, *contracts.PlanGraph) {
+func WorkflowDefinitionV2ToExecutionPlan(def *basworkflows.WorkflowDefinitionV2) ([]contracts.CompiledInstruction, *contracts.PlanGraph) {
 	if def == nil {
 		return nil, nil
 	}
@@ -83,7 +84,7 @@ func WorkflowDefinitionV2ToExecutionPlan(def *basv1.WorkflowDefinitionV2) ([]con
 }
 
 // actionDefinitionToParams extracts params from an ActionDefinition to a map.
-func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
+func actionDefinitionToParams(action *basactions.ActionDefinition) map[string]any {
 	if action == nil {
 		return make(map[string]any)
 	}
@@ -91,7 +92,7 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 	params := make(map[string]any)
 
 	switch p := action.Params.(type) {
-	case *basv1.ActionDefinition_Navigate:
+	case *basactions.ActionDefinition_Navigate:
 		if p.Navigate != nil {
 			params["url"] = p.Navigate.Url
 			if p.Navigate.WaitForSelector != nil {
@@ -104,7 +105,7 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["waitUntil"] = *p.Navigate.WaitUntil
 			}
 		}
-	case *basv1.ActionDefinition_Click:
+	case *basactions.ActionDefinition_Click:
 		if p.Click != nil {
 			params["selector"] = p.Click.Selector
 			if p.Click.Button != nil {
@@ -123,7 +124,7 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["force"] = *p.Click.Force
 			}
 		}
-	case *basv1.ActionDefinition_Input:
+	case *basactions.ActionDefinition_Input:
 		if p.Input != nil {
 			params["selector"] = p.Input.Selector
 			params["value"] = p.Input.Value
@@ -140,12 +141,12 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["delayMs"] = int(*p.Input.DelayMs)
 			}
 		}
-	case *basv1.ActionDefinition_Wait:
+	case *basactions.ActionDefinition_Wait:
 		if p.Wait != nil {
 			switch w := p.Wait.WaitFor.(type) {
-			case *basv1.WaitParams_DurationMs:
+			case *basactions.WaitParams_DurationMs:
 				params["durationMs"] = int(w.DurationMs)
-			case *basv1.WaitParams_Selector:
+			case *basactions.WaitParams_Selector:
 				params["selector"] = w.Selector
 			}
 			if p.Wait.State != nil {
@@ -155,7 +156,7 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["timeoutMs"] = int(*p.Wait.TimeoutMs)
 			}
 		}
-	case *basv1.ActionDefinition_Assert:
+	case *basactions.ActionDefinition_Assert:
 		if p.Assert != nil {
 			params["selector"] = p.Assert.Selector
 			params["mode"] = p.Assert.Mode
@@ -172,7 +173,7 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["attributeName"] = *p.Assert.AttributeName
 			}
 		}
-	case *basv1.ActionDefinition_Scroll:
+	case *basactions.ActionDefinition_Scroll:
 		if p.Scroll != nil {
 			if p.Scroll.Selector != nil {
 				params["selector"] = *p.Scroll.Selector
@@ -193,29 +194,29 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["behavior"] = *p.Scroll.Behavior
 			}
 		}
-	case *basv1.ActionDefinition_SelectOption:
+	case *basactions.ActionDefinition_SelectOption:
 		if p.SelectOption != nil {
 			params["selector"] = p.SelectOption.Selector
 			switch s := p.SelectOption.SelectBy.(type) {
-			case *basv1.SelectParams_Value:
+			case *basactions.SelectParams_Value:
 				params["value"] = s.Value
-			case *basv1.SelectParams_Label:
+			case *basactions.SelectParams_Label:
 				params["label"] = s.Label
-			case *basv1.SelectParams_Index:
+			case *basactions.SelectParams_Index:
 				params["index"] = int(s.Index)
 			}
 			if p.SelectOption.TimeoutMs != nil {
 				params["timeoutMs"] = int(*p.SelectOption.TimeoutMs)
 			}
 		}
-	case *basv1.ActionDefinition_Evaluate:
+	case *basactions.ActionDefinition_Evaluate:
 		if p.Evaluate != nil {
 			params["expression"] = p.Evaluate.Expression
 			if p.Evaluate.StoreResult != nil {
 				params["storeResult"] = *p.Evaluate.StoreResult
 			}
 		}
-	case *basv1.ActionDefinition_Keyboard:
+	case *basactions.ActionDefinition_Keyboard:
 		if p.Keyboard != nil {
 			if p.Keyboard.Key != nil {
 				params["key"] = *p.Keyboard.Key
@@ -230,14 +231,14 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["action"] = *p.Keyboard.Action
 			}
 		}
-	case *basv1.ActionDefinition_Hover:
+	case *basactions.ActionDefinition_Hover:
 		if p.Hover != nil {
 			params["selector"] = p.Hover.Selector
 			if p.Hover.TimeoutMs != nil {
 				params["timeoutMs"] = int(*p.Hover.TimeoutMs)
 			}
 		}
-	case *basv1.ActionDefinition_Screenshot:
+	case *basactions.ActionDefinition_Screenshot:
 		if p.Screenshot != nil {
 			if p.Screenshot.FullPage != nil {
 				params["fullPage"] = *p.Screenshot.FullPage
@@ -249,14 +250,14 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["quality"] = int(*p.Screenshot.Quality)
 			}
 		}
-	case *basv1.ActionDefinition_Focus:
+	case *basactions.ActionDefinition_Focus:
 		if p.Focus != nil {
 			params["selector"] = p.Focus.Selector
 			if p.Focus.TimeoutMs != nil {
 				params["timeoutMs"] = int(*p.Focus.TimeoutMs)
 			}
 		}
-	case *basv1.ActionDefinition_Blur:
+	case *basactions.ActionDefinition_Blur:
 		if p.Blur != nil {
 			if p.Blur.Selector != nil {
 				params["selector"] = *p.Blur.Selector
@@ -265,14 +266,14 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 				params["timeoutMs"] = int(*p.Blur.TimeoutMs)
 			}
 		}
-	case *basv1.ActionDefinition_Subflow:
+	case *basactions.ActionDefinition_Subflow:
 		if p.Subflow != nil {
 			switch target := p.Subflow.Target.(type) {
-			case *basv1.SubflowParams_WorkflowId:
+			case *basactions.SubflowParams_WorkflowId:
 				if strings.TrimSpace(target.WorkflowId) != "" {
 					params["workflowId"] = strings.TrimSpace(target.WorkflowId)
 				}
-			case *basv1.SubflowParams_WorkflowPath:
+			case *basactions.SubflowParams_WorkflowPath:
 				if strings.TrimSpace(target.WorkflowPath) != "" {
 					params["workflowPath"] = strings.TrimSpace(target.WorkflowPath)
 				}
@@ -294,7 +295,7 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 }
 
 // executionSettingsToContext converts NodeExecutionSettings to a context map.
-func executionSettingsToContext(settings *basv1.NodeExecutionSettings) map[string]any {
+func executionSettingsToContext(settings *basworkflows.NodeExecutionSettings) map[string]any {
 	if settings == nil {
 		return nil
 	}
@@ -346,7 +347,7 @@ func executionSettingsToContext(settings *basv1.NodeExecutionSettings) map[strin
 }
 
 // findOutgoingEdges finds the outgoing edges for a given source node.
-func findOutgoingEdges(sourceID string, edges []*basv1.WorkflowEdgeV2) []contracts.PlanEdge {
+func findOutgoingEdges(sourceID string, edges []*basworkflows.WorkflowEdgeV2) []contracts.PlanEdge {
 	var outgoing []contracts.PlanEdge
 	for _, edge := range edges {
 		if edge.Source == sourceID {
@@ -371,8 +372,8 @@ func findOutgoingEdges(sourceID string, edges []*basv1.WorkflowEdgeV2) []contrac
 
 // CompiledInstructionToWorkflowNodeV2 converts a CompiledInstruction back to
 // a WorkflowNodeV2 proto for storage or serialization.
-func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*basv1.WorkflowNodeV2, error) {
-	node := &basv1.WorkflowNodeV2{
+func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*basworkflows.WorkflowNodeV2, error) {
+	node := &basworkflows.WorkflowNodeV2{
 		Id: instr.NodeID,
 	}
 
@@ -387,7 +388,7 @@ func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*
 	if instr.Metadata != nil {
 		if label, ok := instr.Metadata["label"]; ok {
 			if action.Metadata == nil {
-				action.Metadata = &basv1.ActionMetadata{}
+				action.Metadata = &basactions.ActionMetadata{}
 			}
 			action.Metadata.Label = &label
 		}
@@ -402,12 +403,12 @@ func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*
 }
 
 // contextToExecutionSettings converts a context map back to NodeExecutionSettings.
-func contextToExecutionSettings(ctx map[string]any) *basv1.NodeExecutionSettings {
+func contextToExecutionSettings(ctx map[string]any) *basworkflows.NodeExecutionSettings {
 	if ctx == nil {
 		return nil
 	}
 
-	settings := &basv1.NodeExecutionSettings{}
+	settings := &basworkflows.NodeExecutionSettings{}
 	hasSettings := false
 
 	if tm, ok := toInt32(ctx["timeoutMs"]); ok {
@@ -424,7 +425,7 @@ func contextToExecutionSettings(ctx map[string]any) *basv1.NodeExecutionSettings
 	}
 
 	if resData, ok := ctx["resilience"].(map[string]any); ok {
-		res := &basv1.ResilienceConfig{}
+		res := &basworkflows.ResilienceConfig{}
 		hasResilience := false
 
 		if ma, ok := toInt32(resData["maxAttempts"]); ok {

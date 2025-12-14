@@ -1,0 +1,390 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "browser-automation-studio/v1/base/shared.proto";
+import "browser-automation-studio/v1/actions/action.proto";
+import "browser-automation-studio/v1/workflows/definition.proto";
+import "browser-automation-studio/v1/execution/execution.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api;api";
+
+// =============================================================================
+// WORKFLOW SERVICE
+// =============================================================================
+
+// WorkflowService declares the core BAS workflow lifecycle operations.
+service WorkflowService {
+  // Lists workflows, optionally filtered by project.
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/workflows"
+    };
+  }
+  // Gets a workflow by ID.
+  rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/workflows/{workflow_id}"
+    };
+  }
+  // Creates a new workflow in a project.
+  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/create"
+      body: "*"
+    };
+  }
+  // Updates a workflow definition and metadata.
+  rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/workflows/{workflow_id}"
+      body: "*"
+    };
+  }
+  // Deletes a workflow by ID.
+  rpc DeleteWorkflow(DeleteWorkflowRequest) returns (DeleteWorkflowResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/workflows/{workflow_id}"
+    };
+  }
+  // Executes a workflow by ID/version with optional parameters.
+  rpc ExecuteWorkflow(ExecuteWorkflowRequest) returns (ExecuteWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/{workflow_id}/execute"
+      body: "*"
+    };
+  }
+  // Validates a workflow definition and returns warnings/errors.
+  rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/validate"
+      body: "*"
+    };
+  }
+  // Lists executions, optionally filtered by workflow.
+  rpc ListExecutions(ListExecutionsRequest) returns (ListExecutionsResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/executions"
+    };
+  }
+  // Gets an execution by ID.
+  rpc GetExecution(GetExecutionRequest) returns (GetExecutionResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/executions/{execution_id}"
+    };
+  }
+}
+
+// =============================================================================
+// WORKFLOW SUMMARY AND VERSIONING
+// =============================================================================
+
+// WorkflowSummary captures the primary workflow fields without the full definition.
+message WorkflowSummary {
+  // Unique workflow identifier.
+  string id = 1;
+  // Project ID the workflow belongs to.
+  string project_id = 2;
+  // Workflow name.
+  string name = 3;
+  // Folder path within the project.
+  string folder_path = 4;
+  // Workflow description.
+  string description = 5;
+  // Tags for categorization.
+  repeated string tags = 6;
+  // Current version number.
+  int32 version = 7;
+  // Whether this workflow is a template.
+  bool is_template = 8;
+  // User who created the workflow.
+  string created_by = 9;
+  // Source of the last change (manual, autosave, import, ai_generated, recording).
+  ChangeSource last_change_source = 10;
+  // Description of the last change.
+  string last_change_description = 11;
+  // When the workflow was created.
+  google.protobuf.Timestamp created_at = 12;
+  // When the workflow was last updated.
+  google.protobuf.Timestamp updated_at = 13;
+  // The workflow definition (V2 format).
+  WorkflowDefinitionV2 flow_definition = 14;
+}
+
+// WorkflowVersion represents a historic version of a workflow.
+message WorkflowVersion {
+  // Workflow ID this version belongs to.
+  string workflow_id = 1;
+  // Version number.
+  int32 version = 2;
+  // The workflow definition at this version.
+  WorkflowDefinitionV2 flow_definition = 3;
+  // Description of changes in this version.
+  string change_description = 4;
+  // User who created this version.
+  string created_by = 5;
+  // When this version was created.
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// WorkflowList is a convenience wrapper for listing workflows.
+message WorkflowList {
+  repeated WorkflowSummary workflows = 1;
+}
+
+// WorkflowVersionList is a convenience wrapper for listing workflow versions.
+message WorkflowVersionList {
+  repeated WorkflowVersion versions = 1;
+}
+
+// =============================================================================
+// WORKFLOW CRUD OPERATIONS
+// =============================================================================
+
+// ListWorkflowsRequest filters and paginates workflow listings.
+message ListWorkflowsRequest {
+  // Filter by project ID (UUID format).
+  optional string project_id = 1;
+  // Filter by folder path.
+  optional string folder_path = 2;
+  // Pagination: maximum number of results (default: 50, max: 100).
+  optional int32 limit = 3;
+  // Pagination: offset for results (default: 0).
+  optional int32 offset = 4;
+}
+
+// ListWorkflowsResponse returns a list of workflows with pagination.
+message ListWorkflowsResponse {
+  // List of workflow summaries.
+  repeated WorkflowSummary workflows = 1;
+  // Total count of matching workflows.
+  int32 total = 2;
+  // Whether more results are available.
+  bool has_more = 3;
+}
+
+// GetWorkflowRequest identifies a workflow to retrieve.
+message GetWorkflowRequest {
+  // Workflow ID (UUID format).
+  string workflow_id = 1;
+  // Specific version to retrieve (latest if not specified).
+  optional int32 version = 2;
+}
+
+// GetWorkflowResponse returns a single workflow.
+message GetWorkflowResponse {
+  // The workflow summary with definition.
+  WorkflowSummary workflow = 1;
+}
+
+// CreateWorkflowRequest creates a new workflow.
+message CreateWorkflowRequest {
+  // Project ID to create the workflow in.
+  string project_id = 1;
+  // Workflow name.
+  string name = 2;
+  // Folder path within the project.
+  string folder_path = 3;
+  // The workflow definition (V2 format).
+  WorkflowDefinitionV2 flow_definition = 4;
+  // Optional AI prompt used to generate the workflow.
+  string ai_prompt = 5;
+}
+
+// CreateWorkflowResponse returns the created workflow.
+message CreateWorkflowResponse {
+  // The created workflow summary.
+  WorkflowSummary workflow = 1;
+  // The normalized workflow definition.
+  WorkflowDefinitionV2 flow_definition = 2;
+}
+
+// UpdateWorkflowRequest updates an existing workflow.
+message UpdateWorkflowRequest {
+  // Updated workflow name.
+  string name = 1;
+  // Updated description.
+  string description = 2;
+  // Updated folder path.
+  string folder_path = 3;
+  // Updated tags.
+  repeated string tags = 4;
+  // Updated workflow definition (V2 format).
+  WorkflowDefinitionV2 flow_definition = 5;
+  // Description of this change.
+  string change_description = 6;
+  // Source of the change (manual, autosave, import, ai_generated, recording).
+  ChangeSource source = 7;
+  // Expected version for optimistic locking.
+  int32 expected_version = 8;
+  // Target workflow ID (path param for REST, UUID format).
+  optional string workflow_id = 9;
+}
+
+// UpdateWorkflowResponse returns the updated workflow.
+message UpdateWorkflowResponse {
+  // The updated workflow summary.
+  WorkflowSummary workflow = 1;
+  // The normalized workflow definition.
+  WorkflowDefinitionV2 flow_definition = 2;
+}
+
+// DeleteWorkflowRequest identifies a workflow to delete.
+message DeleteWorkflowRequest {
+  // Workflow ID to delete (UUID format).
+  string workflow_id = 1;
+}
+
+// DeleteWorkflowResponse confirms workflow deletion.
+message DeleteWorkflowResponse {
+  // Whether the deletion was successful.
+  bool success = 1;
+  // Workflow ID that was deleted.
+  string workflow_id = 2;
+}
+
+// =============================================================================
+// WORKFLOW EXECUTION
+// =============================================================================
+
+// ExecuteWorkflowRequest starts a workflow execution.
+message ExecuteWorkflowRequest {
+  // Reserved: field 1 was removed, field 3 was untyped parameters map.
+  reserved 1, 3;
+  // Whether to wait for completion before responding.
+  bool wait_for_completion = 2;
+  // Workflow ID to execute (UUID format).
+  string workflow_id = 4;
+  // Optional workflow version to execute.
+  optional int32 workflow_version = 5;
+  // Typed runtime parameters for the execution.
+  ExecutionParameters parameters = 6;
+}
+
+// ExecuteWorkflowResponse returns the execution status.
+message ExecuteWorkflowResponse {
+  // The created execution ID.
+  string execution_id = 1;
+  // Initial execution status.
+  ExecutionStatus status = 2;
+  // Completion timestamp (null if async or still running).
+  optional google.protobuf.Timestamp completed_at = 3;
+  // Error message if execution failed.
+  optional string error = 4;
+}
+
+// ListExecutionsRequest filters and paginates execution listings.
+message ListExecutionsRequest {
+  // Filter by workflow ID (UUID format).
+  optional string workflow_id = 1;
+  // Filter by execution status.
+  optional ExecutionStatus status = 2;
+  // Pagination: maximum number of results (default: 50, max: 100).
+  optional int32 limit = 3;
+  // Pagination: offset for results (default: 0).
+  optional int32 offset = 4;
+}
+
+// ListExecutionsResponse returns a list of executions with pagination.
+message ListExecutionsResponse {
+  // List of executions.
+  repeated Execution executions = 1;
+  // Total count of matching executions.
+  int32 total = 2;
+  // Whether more results are available.
+  bool has_more = 3;
+}
+
+// GetExecutionRequest identifies an execution to retrieve.
+message GetExecutionRequest {
+  // Execution ID (UUID format).
+  string execution_id = 1;
+}
+
+// GetExecutionResponse returns a single execution.
+message GetExecutionResponse {
+  // The execution details.
+  Execution execution = 1;
+}
+
+// =============================================================================
+// WORKFLOW VALIDATION
+// =============================================================================
+
+// ValidateWorkflowRequest contains a workflow definition to validate.
+message ValidateWorkflowRequest {
+  // The workflow definition to validate.
+  WorkflowDefinitionV2 workflow = 1;
+}
+
+// ValidateWorkflowResponse wraps the validation result.
+message ValidateWorkflowResponse {
+  // The validation result.
+  WorkflowValidationResult result = 1;
+}
+
+// WorkflowValidationIssue represents a validation error or warning.
+message WorkflowValidationIssue {
+  // Severity level (error, warning, info).
+  ValidationSeverity severity = 1;
+  // Machine-readable error code.
+  string code = 2;
+  // Human-readable message.
+  string message = 3;
+  // Node ID where the issue was found (UUID format).
+  string node_id = 4;
+  // Node type (action type).
+  ActionType node_type = 5;
+  // Field name within the node.
+  string field = 6;
+  // JSON pointer to the problematic field.
+  string pointer = 7;
+  // Hint for fixing the issue.
+  string hint = 8;
+}
+
+// WorkflowValidationStats summarizes the validated workflow.
+message WorkflowValidationStats {
+  // Number of nodes in the workflow.
+  int32 node_count = 1;
+  // Number of edges in the workflow.
+  int32 edge_count = 2;
+  // Total number of selectors used.
+  int32 selector_count = 3;
+  // Number of unique selectors.
+  int32 unique_selector_count = 4;
+  // Number of element wait operations.
+  int32 element_wait_count = 5;
+  // Whether the workflow has metadata.
+  bool has_metadata = 6;
+  // Whether execution viewport is configured.
+  bool has_execution_viewport = 7;
+}
+
+// WorkflowValidationResult is returned by validation endpoints.
+message WorkflowValidationResult {
+  // Whether the workflow is valid.
+  bool valid = 1;
+  // Validation errors (must be fixed).
+  repeated WorkflowValidationIssue errors = 2;
+  // Validation warnings (should be addressed).
+  repeated WorkflowValidationIssue warnings = 3;
+  // Statistics about the workflow.
+  WorkflowValidationStats stats = 4;
+  // Schema version used for validation.
+  string schema_version = 5;
+  // When validation was performed.
+  google.protobuf.Timestamp checked_at = 6;
+  // Validation duration in milliseconds.
+  int64 duration_ms = 7;
+}
+
+// RestoreWorkflowVersionResponse wraps the restored workflow and version metadata.
+message RestoreWorkflowVersionResponse {
+  // The restored workflow summary.
+  WorkflowSummary workflow = 1;
+  // The version that was restored.
+  WorkflowVersion restored_version = 2;
+}

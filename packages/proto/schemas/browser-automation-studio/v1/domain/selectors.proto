@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "browser-automation-studio/v1/base/shared.proto";
+import "browser-automation-studio/v1/base/geometry.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain;domain";
+
+// =============================================================================
+// SELECTOR TYPES
+// =============================================================================
+
+// SelectorCandidate is a single selector with metadata.
+// Used in ActionMetadata.selector_candidates to provide fallback selectors
+// captured during recording.
+message SelectorCandidate {
+  // Selector strategy type (css, xpath, id, data-testid, aria, text, etc.).
+  SelectorType type = 1;
+  // The actual selector string.
+  string value = 2;
+  // Confidence score (0.0-1.0) indicating selector reliability.
+  double confidence = 3;
+  // Specificity score for ranking selector candidates.
+  int32 specificity = 4;
+}
+
+// =============================================================================
+// ELEMENT METADATA
+// =============================================================================
+
+// ElementMeta captures information about a DOM element.
+message ElementMeta {
+  // HTML tag name (e.g., "button", "input", "div").
+  string tag_name = 1;
+  // Element id attribute.
+  string id = 2;
+  // Element class attribute.
+  string class_name = 3;
+  // Truncated inner text content.
+  string inner_text = 4;
+  // Key-value pairs of element attributes.
+  map<string, string> attributes = 5;
+  // Whether the element is currently visible.
+  bool is_visible = 6;
+  // Whether the element is enabled (not disabled).
+  bool is_enabled = 7;
+  // ARIA role attribute.
+  string role = 8;
+  // ARIA label attribute.
+  string aria_label = 9;
+}
+
+// =============================================================================
+// VISUAL OVERLAYS
+// =============================================================================
+//
+// These types are used for screenshot annotations and element highlighting.
+// They are defined here alongside selectors because they reference element
+// targeting (selectors, bounding boxes).
+// =============================================================================
+
+// HighlightRegion describes an overlay applied to screenshots for emphasis.
+message HighlightRegion {
+  // CSS selector for the region.
+  string selector = 1;
+  // Bounding box for the highlighted area.
+  BoundingBox bounding_box = 2;
+  // Padding in pixels around the region.
+  int32 padding = 3;
+  // Reserved: field 4 was deprecated 'color' string.
+  reserved 4;
+  // Typed highlight color from the HighlightColor enum.
+  HighlightColor highlight_color = 5;
+  // Custom RGBA color when the enum is insufficient.
+  // Format: "rgba(r,g,b,a)" where r,g,b are 0-255 and a is 0.0-1.0.
+  // Only used when highlight_color = HIGHLIGHT_COLOR_UNSPECIFIED.
+  optional string custom_rgba = 6;
+}
+
+// MaskRegion describes areas that were dimmed or masked during capture.
+message MaskRegion {
+  // CSS selector for the region to mask.
+  string selector = 1;
+  // Bounding box for the masked area.
+  BoundingBox bounding_box = 2;
+  // Mask opacity value (0.0-1.0, where 1.0 is fully opaque).
+  double opacity = 3;
+}

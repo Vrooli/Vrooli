@@ -4,122 +4,124 @@ package params
 
 import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 )
 
 // StringToNavigateWaitEvent converts a string to NavigateWaitEvent enum.
-func StringToNavigateWaitEvent(s string) basv1.NavigateWaitEvent {
+func StringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 	switch s {
 	case "load":
-		return basv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD
 	case "domcontentloaded":
-		return basv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED
 	case "networkidle":
-		return basv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE
 	default:
-		return basv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED
+		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED
 	}
 }
 
 // StringToMouseButton converts a string to MouseButton enum.
-func StringToMouseButton(s string) basv1.MouseButton {
+func StringToMouseButton(s string) basactions.MouseButton {
 	switch s {
 	case "left":
-		return basv1.MouseButton_MOUSE_BUTTON_LEFT
+		return basactions.MouseButton_MOUSE_BUTTON_LEFT
 	case "right":
-		return basv1.MouseButton_MOUSE_BUTTON_RIGHT
+		return basactions.MouseButton_MOUSE_BUTTON_RIGHT
 	case "middle":
-		return basv1.MouseButton_MOUSE_BUTTON_MIDDLE
+		return basactions.MouseButton_MOUSE_BUTTON_MIDDLE
 	default:
-		return basv1.MouseButton_MOUSE_BUTTON_UNSPECIFIED
+		return basactions.MouseButton_MOUSE_BUTTON_UNSPECIFIED
 	}
 }
 
 // StringToKeyboardModifier converts a string to KeyboardModifier enum.
-func StringToKeyboardModifier(s string) basv1.KeyboardModifier {
+func StringToKeyboardModifier(s string) basactions.KeyboardModifier {
 	switch s {
 	case "Alt":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_ALT
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_ALT
 	case "Control", "Ctrl":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_CTRL
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_CTRL
 	case "Meta":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_META
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_META
 	case "Shift":
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_SHIFT
 	default:
-		return basv1.KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED
+		return basactions.KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED
 	}
 }
 
 // StringToWaitState converts a string to WaitState enum.
-func StringToWaitState(s string) basv1.WaitState {
+func StringToWaitState(s string) basactions.WaitState {
 	switch s {
 	case "attached":
-		return basv1.WaitState_WAIT_STATE_ATTACHED
+		return basactions.WaitState_WAIT_STATE_ATTACHED
 	case "detached":
-		return basv1.WaitState_WAIT_STATE_DETACHED
+		return basactions.WaitState_WAIT_STATE_DETACHED
 	case "visible":
-		return basv1.WaitState_WAIT_STATE_VISIBLE
+		return basactions.WaitState_WAIT_STATE_VISIBLE
 	case "hidden":
-		return basv1.WaitState_WAIT_STATE_HIDDEN
+		return basactions.WaitState_WAIT_STATE_HIDDEN
 	default:
-		return basv1.WaitState_WAIT_STATE_UNSPECIFIED
+		return basactions.WaitState_WAIT_STATE_UNSPECIFIED
 	}
 }
 
 // StringToAssertionMode converts a string to AssertionMode enum.
-func StringToAssertionMode(s string) basv1.AssertionMode {
+func StringToAssertionMode(s string) basbase.AssertionMode {
 	switch s {
 	case "exists":
-		return basv1.AssertionMode_ASSERTION_MODE_EXISTS
+		return basbase.AssertionMode_ASSERTION_MODE_EXISTS
 	case "not_exists":
-		return basv1.AssertionMode_ASSERTION_MODE_NOT_EXISTS
+		return basbase.AssertionMode_ASSERTION_MODE_NOT_EXISTS
 	case "visible":
-		return basv1.AssertionMode_ASSERTION_MODE_VISIBLE
+		return basbase.AssertionMode_ASSERTION_MODE_VISIBLE
 	case "hidden":
-		return basv1.AssertionMode_ASSERTION_MODE_HIDDEN
+		return basbase.AssertionMode_ASSERTION_MODE_HIDDEN
 	case "text_equals":
-		return basv1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
+		return basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
 	case "text_contains":
-		return basv1.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
+		return basbase.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
 	case "attribute_equals":
-		return basv1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
+		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
 	case "attribute_contains":
-		return basv1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
+		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
 	default:
-		return basv1.AssertionMode_ASSERTION_MODE_UNSPECIFIED
+		return basbase.AssertionMode_ASSERTION_MODE_UNSPECIFIED
 	}
 }
 
 // StringToScrollBehavior converts a string to ScrollBehavior enum.
-func StringToScrollBehavior(s string) basv1.ScrollBehavior {
+func StringToScrollBehavior(s string) basactions.ScrollBehavior {
 	switch s {
 	case "auto":
-		return basv1.ScrollBehavior_SCROLL_BEHAVIOR_AUTO
+		return basactions.ScrollBehavior_SCROLL_BEHAVIOR_AUTO
 	case "smooth":
-		return basv1.ScrollBehavior_SCROLL_BEHAVIOR_SMOOTH
+		return basactions.ScrollBehavior_SCROLL_BEHAVIOR_SMOOTH
 	default:
-		return basv1.ScrollBehavior_SCROLL_BEHAVIOR_UNSPECIFIED
+		return basactions.ScrollBehavior_SCROLL_BEHAVIOR_UNSPECIFIED
 	}
 }
 
 // StringToKeyAction converts a string to KeyAction enum.
-func StringToKeyAction(s string) basv1.KeyAction {
+func StringToKeyAction(s string) basactions.KeyAction {
 	switch s {
 	case "press":
-		return basv1.KeyAction_KEY_ACTION_PRESS
+		return basactions.KeyAction_KEY_ACTION_PRESS
 	case "down":
-		return basv1.KeyAction_KEY_ACTION_DOWN
+		return basactions.KeyAction_KEY_ACTION_DOWN
 	case "up":
-		return basv1.KeyAction_KEY_ACTION_UP
+		return basactions.KeyAction_KEY_ACTION_UP
 	default:
-		return basv1.KeyAction_KEY_ACTION_UNSPECIFIED
+		return basactions.KeyAction_KEY_ACTION_UNSPECIFIED
 	}
 }
 
 // BuildNavigateParams converts a data map to NavigateParams proto.
-func BuildNavigateParams(data map[string]any) *basv1.NavigateParams {
-	p := &basv1.NavigateParams{}
+func BuildNavigateParams(data map[string]any) *basactions.NavigateParams {
+	p := &basactions.NavigateParams{}
 	if url, ok := data["url"].(string); ok {
 		p.Url = url
 	}
@@ -137,8 +139,8 @@ func BuildNavigateParams(data map[string]any) *basv1.NavigateParams {
 }
 
 // BuildClickParams converts a data map to ClickParams proto.
-func BuildClickParams(data map[string]any) *basv1.ClickParams {
-	p := &basv1.ClickParams{}
+func BuildClickParams(data map[string]any) *basactions.ClickParams {
+	p := &basactions.ClickParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
@@ -167,8 +169,8 @@ func BuildClickParams(data map[string]any) *basv1.ClickParams {
 
 // BuildInputParams converts a data map to InputParams proto.
 // Supports legacy field "text" as alias for "value".
-func BuildInputParams(data map[string]any) *basv1.InputParams {
-	p := &basv1.InputParams{}
+func BuildInputParams(data map[string]any) *basactions.InputParams {
+	p := &basactions.InputParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
@@ -195,14 +197,14 @@ func BuildInputParams(data map[string]any) *basv1.InputParams {
 
 // BuildWaitParams converts a data map to WaitParams proto.
 // Supports legacy field "duration" as alias for "durationMs".
-func BuildWaitParams(data map[string]any) *basv1.WaitParams {
-	p := &basv1.WaitParams{}
+func BuildWaitParams(data map[string]any) *basactions.WaitParams {
+	p := &basactions.WaitParams{}
 	if dm, ok := typeconv.ToInt32(data["durationMs"]); ok {
-		p.WaitFor = &basv1.WaitParams_DurationMs{DurationMs: dm}
+		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dm}
 	} else if dur, ok := typeconv.ToInt32(data["duration"]); ok {
-		p.WaitFor = &basv1.WaitParams_DurationMs{DurationMs: dur} // Legacy field name
+		p.WaitFor = &basactions.WaitParams_DurationMs{DurationMs: dur} // Legacy field name
 	} else if selector, ok := data["selector"].(string); ok && selector != "" {
-		p.WaitFor = &basv1.WaitParams_Selector{Selector: selector}
+		p.WaitFor = &basactions.WaitParams_Selector{Selector: selector}
 	}
 	if state, ok := data["state"].(string); ok {
 		ws := StringToWaitState(state)
@@ -216,8 +218,8 @@ func BuildWaitParams(data map[string]any) *basv1.WaitParams {
 
 // BuildAssertParams converts a data map to AssertParams proto.
 // Supports legacy field "assertMode" as alias for "mode".
-func BuildAssertParams(data map[string]any) *basv1.AssertParams {
-	p := &basv1.AssertParams{}
+func BuildAssertParams(data map[string]any) *basactions.AssertParams {
+	p := &basactions.AssertParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
@@ -245,8 +247,8 @@ func BuildAssertParams(data map[string]any) *basv1.AssertParams {
 }
 
 // BuildScrollParams converts a data map to ScrollParams proto.
-func BuildScrollParams(data map[string]any) *basv1.ScrollParams {
-	p := &basv1.ScrollParams{}
+func BuildScrollParams(data map[string]any) *basactions.ScrollParams {
+	p := &basactions.ScrollParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = &selector
 	}
@@ -270,17 +272,17 @@ func BuildScrollParams(data map[string]any) *basv1.ScrollParams {
 }
 
 // BuildSelectParams converts a data map to SelectParams proto.
-func BuildSelectParams(data map[string]any) *basv1.SelectParams {
-	p := &basv1.SelectParams{}
+func BuildSelectParams(data map[string]any) *basactions.SelectParams {
+	p := &basactions.SelectParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
 	if value, ok := data["value"].(string); ok {
-		p.SelectBy = &basv1.SelectParams_Value{Value: value}
+		p.SelectBy = &basactions.SelectParams_Value{Value: value}
 	} else if label, ok := data["label"].(string); ok {
-		p.SelectBy = &basv1.SelectParams_Label{Label: label}
+		p.SelectBy = &basactions.SelectParams_Label{Label: label}
 	} else if idx, ok := typeconv.ToInt32(data["index"]); ok {
-		p.SelectBy = &basv1.SelectParams_Index{Index: idx}
+		p.SelectBy = &basactions.SelectParams_Index{Index: idx}
 	}
 	if tm, ok := typeconv.ToInt32(data["timeoutMs"]); ok {
 		p.TimeoutMs = &tm
@@ -289,8 +291,8 @@ func BuildSelectParams(data map[string]any) *basv1.SelectParams {
 }
 
 // BuildEvaluateParams converts a data map to EvaluateParams proto.
-func BuildEvaluateParams(data map[string]any) *basv1.EvaluateParams {
-	p := &basv1.EvaluateParams{}
+func BuildEvaluateParams(data map[string]any) *basactions.EvaluateParams {
+	p := &basactions.EvaluateParams{}
 	if expr, ok := data["expression"].(string); ok {
 		p.Expression = expr
 	}
@@ -301,8 +303,8 @@ func BuildEvaluateParams(data map[string]any) *basv1.EvaluateParams {
 }
 
 // BuildKeyboardParams converts a data map to KeyboardParams proto.
-func BuildKeyboardParams(data map[string]any) *basv1.KeyboardParams {
-	p := &basv1.KeyboardParams{}
+func BuildKeyboardParams(data map[string]any) *basactions.KeyboardParams {
+	p := &basactions.KeyboardParams{}
 	if key, ok := data["key"].(string); ok {
 		p.Key = &key
 	}
@@ -328,8 +330,8 @@ func BuildKeyboardParams(data map[string]any) *basv1.KeyboardParams {
 }
 
 // BuildHoverParams converts a data map to HoverParams proto.
-func BuildHoverParams(data map[string]any) *basv1.HoverParams {
-	p := &basv1.HoverParams{}
+func BuildHoverParams(data map[string]any) *basactions.HoverParams {
+	p := &basactions.HoverParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
@@ -340,8 +342,8 @@ func BuildHoverParams(data map[string]any) *basv1.HoverParams {
 }
 
 // BuildScreenshotParams converts a data map to ScreenshotParams proto.
-func BuildScreenshotParams(data map[string]any) *basv1.ScreenshotParams {
-	p := &basv1.ScreenshotParams{}
+func BuildScreenshotParams(data map[string]any) *basactions.ScreenshotParams {
+	p := &basactions.ScreenshotParams{}
 	if fullPage, ok := data["fullPage"].(bool); ok {
 		p.FullPage = &fullPage
 	}
@@ -355,8 +357,8 @@ func BuildScreenshotParams(data map[string]any) *basv1.ScreenshotParams {
 }
 
 // BuildFocusParams converts a data map to FocusParams proto.
-func BuildFocusParams(data map[string]any) *basv1.FocusParams {
-	p := &basv1.FocusParams{}
+func BuildFocusParams(data map[string]any) *basactions.FocusParams {
+	p := &basactions.FocusParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
@@ -370,8 +372,8 @@ func BuildFocusParams(data map[string]any) *basv1.FocusParams {
 }
 
 // BuildBlurParams converts a data map to BlurParams proto.
-func BuildBlurParams(data map[string]any) *basv1.BlurParams {
-	p := &basv1.BlurParams{}
+func BuildBlurParams(data map[string]any) *basactions.BlurParams {
+	p := &basactions.BlurParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = &selector
 	}
@@ -383,8 +385,8 @@ func BuildBlurParams(data map[string]any) *basv1.BlurParams {
 
 // BuildActionMetadata extracts action metadata from a data map.
 // Returns nil if no metadata fields are present.
-func BuildActionMetadata(data map[string]any) *basv1.ActionMetadata {
-	meta := &basv1.ActionMetadata{}
+func BuildActionMetadata(data map[string]any) *basactions.ActionMetadata {
+	meta := &basactions.ActionMetadata{}
 	hasData := false
 
 	if label, ok := data["label"].(string); ok {
@@ -401,7 +403,7 @@ func BuildActionMetadata(data map[string]any) *basv1.ActionMetadata {
 	if candidates, ok := data["selectorCandidates"].([]any); ok && len(candidates) > 0 {
 		for _, c := range candidates {
 			if cm, ok := c.(map[string]any); ok {
-				candidate := &basv1.SelectorCandidate{}
+				candidate := &basdomain.SelectorCandidate{}
 				if t, ok := cm["type"].(string); ok {
 					candidate.Type = typeconv.StringToSelectorType(t)
 				}

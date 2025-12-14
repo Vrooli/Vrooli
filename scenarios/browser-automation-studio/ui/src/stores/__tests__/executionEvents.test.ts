@@ -1,6 +1,6 @@
-import { EventKind, StepStatus } from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+import { EventKind, StepStatus } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { create, toJson } from '@bufbuild/protobuf';
-import { ExecutionEventEnvelopeSchema } from '@vrooli/proto-types/browser-automation-studio/v1/execution_pb';
+import { ExecutionEventEnvelopeSchema } from '@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb';
 import { describe, expect, it, vi } from 'vitest';
 import {
   envelopeToExecutionEvent,

@@ -87,9 +87,21 @@ parsed = json_format.ParseDict(
 
 ## BAS schema notes
 
-- `browser-automation-studio/v1/workflow.proto` provides typed `metadata_typed` / `settings_typed` and now `WorkflowNode.config` for discriminated per-step payloads (navigate/click/input/assert/subflow/custom). Prefer these over the legacy Struct-backed maps.
-- `record_mode.proto` exposes `action_kind` plus typed payloads (`typed_action`) for recorded actions (navigate/click/input/wait/assert/custom script) so clients can switch off the free-form `action_type` string and `Struct` payloads.
-- When migrating from legacy JSON, populate the typed fields first and copy only provider-specific spillover into the remaining `Struct`/`map<string, Value>` fields. This keeps the generated TS/Go/Python types strongly typed for the common path.
+The BAS proto files follow a layered import hierarchy (documented in `shared.proto`):
+
+- **Layer 0 (Base):** `shared.proto` (enums, RetryStatus), `geometry.proto` (BoundingBox, Point)
+- **Layer 1:** `selectors.proto`, `telemetry.proto`
+- **Layer 2:** `action.proto` (ActionDefinition), `workflow_v2.proto` (WorkflowDefinitionV2)
+- **Layer 3:** `timeline.proto` (batch), `timeline_event.proto` (streaming), `recording_session.proto`
+- **Layer 4:** `execution.proto`, `workflow_service.proto`
+- **Layer 5:** `project.proto`
+
+Key types:
+- `ActionDefinition` (action.proto): Unified action type for recording, workflows, and execution
+- `TimelineEvent` (timeline_event.proto): Streaming format for real-time events
+- `TimelineFrame` (timeline.proto): Batch format for completed executions
+- `WorkflowDefinitionV2` (workflow_v2.proto): Canonical workflow storage format
+- `recording_session.proto`: Session management (create, start, stop, get actions)
 
 ## Landing-page schema notes
 

@@ -3,18 +3,18 @@ import {
   ExecutionSchema,
   GetScreenshotsResponseSchema,
   type GetScreenshotsResponse as ProtoGetScreenshotsResponse,
-} from '@vrooli/proto-types/browser-automation-studio/v1/execution_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb';
 import {
   ExecutionTimelineSchema,
   type ExecutionTimeline as ProtoExecutionTimeline,
-} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline/container_pb';
 import type {
   TimelineEntry as ProtoTimelineEntry,
   TimelineLog as ProtoTimelineLog,
   TimelineArtifact as ProtoTimelineArtifact,
-} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
-import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
-import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
+import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
+import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';

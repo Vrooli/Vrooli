@@ -15,8 +15,8 @@ import {
   type UpdateWorkflowResponse,
   type RestoreWorkflowVersionResponse,
   RestoreWorkflowVersionResponseSchema,
-} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
-import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_v2_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
+import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { normalizeNodes, normalizeEdges } from '../utils/workflowNormalizers';

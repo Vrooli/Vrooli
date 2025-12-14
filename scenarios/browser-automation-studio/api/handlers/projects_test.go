@@ -18,7 +18,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -281,7 +281,7 @@ func TestCreateProject(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 		}
 
-		var pb browser_automation_studio_v1.Project
+		var pb basprojects.Project
 		if err := protojson.Unmarshal(w.Body.Bytes(), &pb); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
@@ -527,7 +527,7 @@ func TestGetProject(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 		}
 
-		var pb browser_automation_studio_v1.ProjectWithStats
+		var pb basprojects.ProjectWithStats
 		if err := protojson.Unmarshal(w.Body.Bytes(), &pb); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}

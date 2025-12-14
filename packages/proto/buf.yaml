@@ -10,6 +10,11 @@ lint:
   except:
     - PACKAGE_VERSION_SUFFIX
     - PACKAGE_DIRECTORY_MATCH
+    # The following are needed for domain-based subdirectory organization
+    # where multiple directories share the same proto package but have
+    # different Go packages for better code organization.
+    - PACKAGE_SAME_DIRECTORY
+    - PACKAGE_SAME_GO_PACKAGE
 breaking:
   use:
     - WIRE

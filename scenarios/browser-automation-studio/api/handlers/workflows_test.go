@@ -18,7 +18,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -555,12 +556,12 @@ func TestExecuteWorkflow(t *testing.T) {
 			t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
 		}
 
-		var respProto browser_automation_studio_v1.ExecuteWorkflowResponse
+		var respProto basapi.ExecuteWorkflowResponse
 		if err := protojson.Unmarshal(w.Body.Bytes(), &respProto); err != nil {
 			t.Fatalf("failed to decode proto response: %v", err)
 		}
 
-		if respProto.GetStatus() != browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED {
+		if respProto.GetStatus() != basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED {
 			t.Fatalf("expected completed status, got %v", respProto.GetStatus())
 		}
 		if respProto.GetCompletedAt().AsTime().UTC().Format(time.RFC3339Nano) != completedAt.UTC().Format(time.RFC3339Nano) {
@@ -766,7 +767,7 @@ func TestUpdateWorkflow(t *testing.T) {
 			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 		}
 
-		var respProto browser_automation_studio_v1.UpdateWorkflowResponse
+		var respProto basapi.UpdateWorkflowResponse
 		if err := protojson.Unmarshal(w.Body.Bytes(), &respProto); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}

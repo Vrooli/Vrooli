@@ -20,7 +20,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -164,7 +164,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	// Strip flow_definition before proto validation to avoid rejecting valid UI payloads.
 	reqForProto := req
 	reqForProto.FlowDefinition = nil
-	if !h.enforceProtoRequestShape(w, "create_workflow", reqForProto, &browser_automation_studio_v1.CreateWorkflowRequest{}) {
+	if !h.enforceProtoRequestShape(w, "create_workflow", reqForProto, &basapi.CreateWorkflowRequest{}) {
 		return
 	}
 
@@ -320,7 +320,7 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 	reqForProto.FlowDefinition = nil
 	reqForProto.Nodes = nil
 	reqForProto.Edges = nil
-	if !h.enforceProtoRequestShape(w, "update_workflow", reqForProto, &browser_automation_studio_v1.UpdateWorkflowRequest{}) {
+	if !h.enforceProtoRequestShape(w, "update_workflow", reqForProto, &basapi.UpdateWorkflowRequest{}) {
 		return
 	}
 
@@ -563,7 +563,7 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		req.WorkflowID = workflowID.String()
 	}
 
-	if !h.enforceProtoRequestShape(w, "execute_workflow", req, &browser_automation_studio_v1.ExecuteWorkflowRequest{}) {
+	if !h.enforceProtoRequestShape(w, "execute_workflow", req, &basapi.ExecuteWorkflowRequest{}) {
 		return
 	}
 

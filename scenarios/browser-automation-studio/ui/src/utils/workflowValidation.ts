@@ -2,11 +2,11 @@ import { toJson } from '@bufbuild/protobuf';
 import {
   WorkflowDefinitionV2Schema,
   type WorkflowDefinitionV2 as ProtoWorkflowDefinitionV2,
-} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_v2_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 import {
   WorkflowValidationResultSchema,
   type WorkflowValidationResult as ProtoWorkflowValidationResult,
-} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { getConfig } from '../config';
 import { parseProtoStrict } from './proto';
 import type { WorkflowDefinition, WorkflowValidationResult } from '../types/workflow';

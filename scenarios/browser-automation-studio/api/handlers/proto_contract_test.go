@@ -18,7 +18,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -288,7 +288,7 @@ func TestGetExecutionTimelineProtoJSON(t *testing.T) {
 		t.Fatalf("did not expect camelCase stepIndex field")
 	}
 
-	var protoTimeline browser_automation_studio_v1.ExecutionTimeline
+	var protoTimeline bastimeline.ExecutionTimeline
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(rr.Body.Bytes(), &protoTimeline); err != nil {
 		t.Fatalf("strict proto unmarshal failed: %v", err)
 	}

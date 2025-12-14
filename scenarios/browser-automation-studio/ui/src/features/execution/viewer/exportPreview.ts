@@ -2,7 +2,7 @@ import { fromJson } from "@bufbuild/protobuf";
 import {
   type ExecutionExportPreview as ProtoExecutionExportPreview,
   ExecutionExportPreviewSchema,
-} from "@vrooli/proto-types/browser-automation-studio/v1/execution_pb";
+} from "@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb";
 import type { ReplayMovieSpec } from "@/types/export";
 import { mapExportStatus, type ExportStatusLabel } from "../utils/exportHelpers";
 import { getConfig } from "@/config";

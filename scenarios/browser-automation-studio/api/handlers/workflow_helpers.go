@@ -12,7 +12,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -76,7 +76,7 @@ func validateWorkflowProtoShape(definition map[string]any) error {
 	}
 
 	// Disallow unknown fields so UI/CLI drifts surface immediately.
-	return (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &browser_automation_studio_v1.WorkflowDefinitionV2{})
+	return (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &basworkflows.WorkflowDefinitionV2{})
 }
 
 // definitionFromNodesEdges constructs a workflow definition map from separate

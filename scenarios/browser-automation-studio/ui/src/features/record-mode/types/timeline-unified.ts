@@ -25,40 +25,40 @@ export type {
   TimelineLog,
   TimelineArtifact,
   ElementFocus,
-} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 
 export type {
   ActionDefinition,
   ActionMetadata,
-} from '@vrooli/proto-types/browser-automation-studio/v1/action_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 
 export type {
   ActionTelemetry,
-} from '@vrooli/proto-types/browser-automation-studio/v1/telemetry_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/domain/telemetry_pb';
 
 export type {
   EventContext,
-} from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 
 export type {
   WorkflowNodeV2,
-} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_v2_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 
 // Import proto types for use in conversions
 import type {
   TimelineEntry,
-} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 
 // Import proto enums for type-safe conversions
 import {
   ActionType as ProtoActionType,
   MouseButton as ProtoMouseButton,
   KeyboardModifier as ProtoKeyboardModifier,
-} from '@vrooli/proto-types/browser-automation-studio/v1/action_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 
 import {
   SelectorType as ProtoSelectorType,
-} from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 
 /**
  * Mode discriminator for timeline events.

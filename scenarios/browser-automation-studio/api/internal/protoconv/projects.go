@@ -5,16 +5,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ProjectToProto converts a database.Project into the generated proto message.
-func ProjectToProto(project *database.Project) *browser_automation_studio_v1.Project {
+func ProjectToProto(project *database.Project) *basprojects.Project {
 	if project == nil {
 		return nil
 	}
-	pb := &browser_automation_studio_v1.Project{
+	pb := &basprojects.Project{
 		Id:          project.ID.String(),
 		Name:        project.Name,
 		Description: project.Description,
@@ -26,11 +26,11 @@ func ProjectToProto(project *database.Project) *browser_automation_studio_v1.Pro
 }
 
 // ProjectStatsToProto converts aggregated project stats to proto.
-func ProjectStatsToProto(stats *database.ProjectStats) *browser_automation_studio_v1.ProjectStats {
+func ProjectStatsToProto(stats *database.ProjectStats) *basprojects.ProjectStats {
 	if stats == nil {
 		return nil
 	}
-	pb := &browser_automation_studio_v1.ProjectStats{
+	pb := &basprojects.ProjectStats{
 		ProjectId:      stats.ProjectID.String(),
 		WorkflowCount:  int32(stats.WorkflowCount),
 		ExecutionCount: int32(stats.ExecutionCount),
@@ -73,11 +73,11 @@ func ProjectStatsFromMap(stats map[string]any, projectID uuid.UUID) *database.Pr
 }
 
 // ProjectWithStatsToProto bundles project plus stats.
-func ProjectWithStatsToProto(project *database.Project, stats *database.ProjectStats) *browser_automation_studio_v1.ProjectWithStats {
+func ProjectWithStatsToProto(project *database.Project, stats *database.ProjectStats) *basprojects.ProjectWithStats {
 	if project == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.ProjectWithStats{
+	return &basprojects.ProjectWithStats{
 		Project: ProjectToProto(project),
 		Stats:   ProjectStatsToProto(stats),
 	}

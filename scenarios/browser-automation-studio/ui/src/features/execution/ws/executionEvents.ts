@@ -2,11 +2,11 @@ import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import {
   TimelineStreamMessageSchema,
   type TimelineStreamMessage,
-} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import {
   ExecutionStatus as ProtoExecutionStatus,
   StepStatus,
-} from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+} from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { parseProtoStrict } from '../../../utils/proto';
 import type { ExecutionStatus } from '../utils/mappers';
 import {

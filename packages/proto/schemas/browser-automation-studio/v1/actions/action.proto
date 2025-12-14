@@ -1,0 +1,393 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
+import "browser-automation-studio/v1/base/shared.proto";
+import "browser-automation-studio/v1/base/geometry.proto";
+import "browser-automation-studio/v1/domain/selectors.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions;actions";
+
+// =============================================================================
+// ACTION TYPE ENUM
+// =============================================================================
+
+// ActionType enumerates all supported action kinds.
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  ACTION_TYPE_NAVIGATE = 1;
+  ACTION_TYPE_CLICK = 2;
+  ACTION_TYPE_INPUT = 3;
+  ACTION_TYPE_WAIT = 4;
+  ACTION_TYPE_ASSERT = 5;
+  ACTION_TYPE_SCROLL = 6;
+  ACTION_TYPE_SELECT = 7;
+  ACTION_TYPE_EVALUATE = 8;
+  ACTION_TYPE_KEYBOARD = 9;
+  ACTION_TYPE_HOVER = 10;
+  ACTION_TYPE_SCREENSHOT = 11;
+  ACTION_TYPE_FOCUS = 12;
+  ACTION_TYPE_BLUR = 13;
+  // Subflow node: executes another workflow definition as a nested call.
+  ACTION_TYPE_SUBFLOW = 14;
+}
+
+// =============================================================================
+// ACTION ENUMS
+// =============================================================================
+
+// MouseButton enumerates supported mouse buttons for click actions.
+enum MouseButton {
+  MOUSE_BUTTON_UNSPECIFIED = 0;
+  MOUSE_BUTTON_LEFT = 1;
+  MOUSE_BUTTON_RIGHT = 2;
+  MOUSE_BUTTON_MIDDLE = 3;
+}
+
+// NavigateWaitEvent enumerates events to wait for after navigation.
+enum NavigateWaitEvent {
+  NAVIGATE_WAIT_EVENT_UNSPECIFIED = 0;
+  NAVIGATE_WAIT_EVENT_LOAD = 1;
+  NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED = 2;
+  NAVIGATE_WAIT_EVENT_NETWORKIDLE = 3;
+}
+
+// NavigateDestinationType indicates how a navigate target should be interpreted.
+enum NavigateDestinationType {
+  NAVIGATE_DESTINATION_TYPE_UNSPECIFIED = 0;
+  NAVIGATE_DESTINATION_TYPE_URL = 1;
+  NAVIGATE_DESTINATION_TYPE_SCENARIO = 2;
+}
+
+// WaitState enumerates element states for wait conditions.
+enum WaitState {
+  WAIT_STATE_UNSPECIFIED = 0;
+  WAIT_STATE_ATTACHED = 1;
+  WAIT_STATE_DETACHED = 2;
+  WAIT_STATE_VISIBLE = 3;
+  WAIT_STATE_HIDDEN = 4;
+}
+
+// NOTE: AssertionMode moved to shared.proto for cross-file usage.
+
+// ScrollBehavior enumerates scroll animation behaviors.
+enum ScrollBehavior {
+  SCROLL_BEHAVIOR_UNSPECIFIED = 0;
+  SCROLL_BEHAVIOR_AUTO = 1;
+  SCROLL_BEHAVIOR_SMOOTH = 2;
+}
+
+// KeyAction enumerates keyboard action types.
+enum KeyAction {
+  KEY_ACTION_UNSPECIFIED = 0;
+  KEY_ACTION_PRESS = 1;
+  KEY_ACTION_DOWN = 2;
+  KEY_ACTION_UP = 3;
+}
+
+// KeyboardModifier enumerates keyboard modifier keys.
+enum KeyboardModifier {
+  KEYBOARD_MODIFIER_UNSPECIFIED = 0;
+  KEYBOARD_MODIFIER_CTRL = 1;
+  KEYBOARD_MODIFIER_SHIFT = 2;
+  KEYBOARD_MODIFIER_ALT = 3;
+  KEYBOARD_MODIFIER_META = 4;
+}
+
+// =============================================================================
+// ACTION PARAMETERS
+// =============================================================================
+
+// NavigateParams configures page navigation.
+message NavigateParams {
+  // Target URL to navigate to.
+  string url = 1;
+  // CSS selector to wait for after navigation completes.
+  optional string wait_for_selector = 2;
+  // Timeout in milliseconds for navigation and wait (default: 30000).
+  optional int32 timeout_ms = 3;
+  // Event to wait for before considering navigation complete.
+  optional NavigateWaitEvent wait_until = 4;
+  // Optional: interpret navigation target as a scenario+path instead of a raw URL.
+  // When destination_type is SCENARIO (or scenario is provided), implementations
+  // should resolve a URL using the configured scenario registry / lifecycle system.
+  optional NavigateDestinationType destination_type = 10;
+  // Scenario name to resolve (e.g., "browser-automation-studio").
+  optional string scenario = 11;
+  // Path within the scenario to navigate to (e.g., "/").
+  optional string scenario_path = 12;
+}
+
+// ClickParams configures pointer click interactions.
+message ClickParams {
+  // CSS selector for target element.
+  string selector = 1;
+  // Mouse button (defaults to left if unspecified).
+  optional MouseButton button = 2;
+  // Number of clicks (1=single, 2=double, 3=triple).
+  optional int32 click_count = 3;
+  // Delay between mousedown and mouseup in milliseconds.
+  optional int32 delay_ms = 4;
+  // Keyboard modifiers held during click.
+  repeated KeyboardModifier modifiers = 5;
+  // Force click even if element is not visible/actionable.
+  optional bool force = 6;
+  // Scroll element into view before clicking.
+  optional bool scroll_into_view = 7;
+}
+
+// InputParams configures text entry into form elements.
+message InputParams {
+  // CSS selector for target input element.
+  string selector = 1;
+  // Text value to type.
+  string value = 2;
+  // Mask value in logs/telemetry (for passwords, etc.).
+  optional bool is_sensitive = 3;
+  // Press Enter after typing (submit form).
+  optional bool submit = 4;
+  // Clear existing text before typing.
+  optional bool clear_first = 5;
+  // Delay between keystrokes in milliseconds.
+  optional int32 delay_ms = 6;
+}
+
+// WaitParams configures wait conditions.
+message WaitParams {
+  // Wait condition: either duration or selector (one must be set).
+  oneof wait_for {
+    // Fixed duration to wait in milliseconds.
+    int32 duration_ms = 1;
+    // CSS selector to wait for.
+    string selector = 2;
+  }
+  // Element state to wait for when using selector.
+  optional WaitState state = 3;
+  // Timeout in milliseconds for selector waits (default: 30000).
+  optional int32 timeout_ms = 4;
+}
+
+// AssertParams configures element assertions.
+message AssertParams {
+  // CSS selector for element to assert on.
+  string selector = 1;
+  // Assertion mode to evaluate.
+  AssertionMode mode = 2;
+  // Expected value for comparison assertions.
+  optional common.v1.JsonValue expected = 3;
+  // Negate the assertion (expect opposite).
+  optional bool negated = 4;
+  // Case-sensitive text comparison.
+  optional bool case_sensitive = 5;
+  // Attribute name for attribute assertions.
+  optional string attribute_name = 6;
+  // Custom failure message.
+  optional string failure_message = 7;
+  // Timeout in milliseconds (default: 5000).
+  optional int32 timeout_ms = 8;
+}
+
+// ScrollParams configures scroll actions.
+message ScrollParams {
+  // CSS selector to scroll (defaults to viewport if not specified).
+  optional string selector = 1;
+  // Absolute horizontal scroll position in pixels.
+  optional int32 x = 2;
+  // Absolute vertical scroll position in pixels.
+  optional int32 y = 3;
+  // Scroll animation behavior.
+  optional ScrollBehavior behavior = 4;
+  // Relative horizontal scroll delta in pixels.
+  optional int32 delta_x = 5;
+  // Relative vertical scroll delta in pixels.
+  optional int32 delta_y = 6;
+}
+
+// SelectParams configures dropdown/select element interaction.
+message SelectParams {
+  // CSS selector for select element.
+  string selector = 1;
+  // Selection method (one must be set).
+  oneof select_by {
+    // Select by option value attribute.
+    string value = 2;
+    // Select by visible text label.
+    string label = 3;
+    // Select by zero-based index.
+    int32 index = 4;
+  }
+  // Timeout in milliseconds (default: 5000).
+  optional int32 timeout_ms = 5;
+}
+
+// EvaluateParams configures JavaScript evaluation.
+message EvaluateParams {
+  // JavaScript expression to evaluate.
+  string expression = 1;
+  // Variable name to store the result.
+  optional string store_result = 2;
+  // Arguments to pass to the expression.
+  map<string, common.v1.JsonValue> args = 3;
+}
+
+// KeyboardParams configures keyboard interactions.
+message KeyboardParams {
+  // Single key to press (e.g., "Enter", "Tab", "a").
+  optional string key = 1;
+  // Sequence of keys to press.
+  repeated string keys = 2;
+  // Keyboard modifiers to hold during the action.
+  repeated KeyboardModifier modifiers = 3;
+  // Type of keyboard action to perform.
+  optional KeyAction action = 4;
+}
+
+// HoverParams configures hover interactions.
+message HoverParams {
+  // CSS selector for element to hover over.
+  string selector = 1;
+  // Timeout in milliseconds (default: 5000).
+  optional int32 timeout_ms = 2;
+}
+
+// ScreenshotParams configures screenshot capture.
+message ScreenshotParams {
+  // Capture full scrollable page vs viewport only.
+  optional bool full_page = 1;
+  // CSS selector to screenshot specific element.
+  optional string selector = 2;
+  // JPEG quality (1-100) for lossy compression.
+  optional int32 quality = 3;
+}
+
+// FocusParams configures focus interactions.
+message FocusParams {
+  // CSS selector for element to focus.
+  string selector = 1;
+  // Whether to scroll element into view.
+  optional bool scroll = 2;
+  // Timeout in milliseconds (default: 5000).
+  optional int32 timeout_ms = 3;
+}
+
+// BlurParams configures blur (unfocus) interactions.
+message BlurParams {
+  // CSS selector for element to blur (blurs active element if not specified).
+  optional string selector = 1;
+  // Timeout in milliseconds (default: 5000).
+  optional int32 timeout_ms = 2;
+}
+
+// SubflowParams configures nested workflow execution.
+//
+// A subflow can target:
+//   - A persisted workflow by ID (optionally pinned to a version), OR
+//   - A workflow definition file referenced by a path relative to the *project root*.
+//
+// Paths are interpreted by the API using the project folder associated with the
+// parent workflow (i.e., the workflow being executed). Implementations MUST
+// reject absolute paths and any traversal segments ('.' or '..').
+message SubflowParams {
+  oneof target {
+    // Workflow ID to invoke as a subflow (UUID format).
+    string workflow_id = 1;
+    // Project-relative path to a workflow definition file (e.g. "actions/dismiss-tutorial.json").
+    string workflow_path = 2;
+  }
+  // Optional workflow version to invoke when targeting workflow_id.
+  optional int32 workflow_version = 3;
+  // Arguments exposed to the subflow as the "fixture" namespace (e.g. ${fixture.foo}).
+  map<string, common.v1.JsonValue> args = 10;
+}
+
+// =============================================================================
+// ACTION METADATA
+// =============================================================================
+
+// ActionMetadata captures optional rich context captured during action execution.
+// This data is captured identically during BOTH recording and execution, enabling:
+//   - Selector fallbacks: If primary selector fails, try alternatives
+//   - Debugging: See exactly what the system saw when it executed the action
+//   - Editing: Users can adjust selectors on failed steps using captured alternatives
+//
+// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
+message ActionMetadata {
+  // Human-readable label for the action.
+  optional string label = 1;
+  // Alternative selectors ranked by confidence.
+  // Captured during both recording (user interactions) and execution (code-driven).
+  // Enables fallback selector strategies and user editing of failed steps.
+  repeated SelectorCandidate selector_candidates = 2;
+  // Element state snapshot when action was captured.
+  // Provides context about the target element for debugging and selector refinement.
+  optional ElementMeta element_snapshot = 3;
+  // Confidence score (0.0-1.0) for the primary selector.
+  // Higher values indicate more reliable selectors (data-testid > css class > xpath).
+  optional double confidence = 4;
+  // When this action was captured (during recording or execution).
+  optional google.protobuf.Timestamp captured_at = 5;
+  // Element bounding box when captured.
+  // Used for visual debugging and screenshot annotations.
+  optional BoundingBox captured_bounding_box = 6;
+}
+
+// =============================================================================
+// CORE ACTION DEFINITION
+// =============================================================================
+
+// ActionDefinition is THE unified action type used across all BAS operations:
+//
+//   CONTEXT                   USAGE
+//   ─────────────────────────────────────────────────────────────────────────
+//   Recording                 Captured from user interactions with browser
+//   Workflow Storage          Persisted in WorkflowNodeV2.action
+//   Execution                 Sent to playwright-driver for replay
+//   Timeline Streaming        Streamed to UI during live recording/execution
+//   Timeline Batch            Returned in historical timeline queries
+//
+// This is the canonical representation of "what action to perform" throughout
+// the entire system. See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto.
+//
+// IMPORTANT: Type-Params Consistency Requirement
+// The `type` field MUST match the populated `params` oneof case:
+//   - ACTION_TYPE_NAVIGATE requires `navigate` params
+//   - ACTION_TYPE_CLICK requires `click` params
+//   - ACTION_TYPE_INPUT requires `input` params
+//   - etc.
+//
+// The `type` field exists for:
+// 1. Efficient filtering/grouping without parsing params
+// 2. Forward compatibility when new params are added
+// 3. Explicit documentation of intent
+//
+// Consumers SHOULD validate type-params consistency. Invalid combinations
+// (e.g., type=CLICK with navigate params) are malformed and should be rejected.
+message ActionDefinition {
+  // Action type classification. MUST match the populated params oneof case.
+  // See message-level comment for consistency requirements.
+  ActionType type = 1;
+
+  // Type-specific parameters. Exactly one MUST be set, matching the `type` field.
+  // The mapping is: ACTION_TYPE_X requires the corresponding `x` params field.
+  oneof params {
+    NavigateParams navigate = 10;    // Required when type = ACTION_TYPE_NAVIGATE
+    ClickParams click = 11;          // Required when type = ACTION_TYPE_CLICK
+    InputParams input = 12;          // Required when type = ACTION_TYPE_INPUT
+    WaitParams wait = 13;            // Required when type = ACTION_TYPE_WAIT
+    AssertParams assert = 14;        // Required when type = ACTION_TYPE_ASSERT
+    ScrollParams scroll = 15;        // Required when type = ACTION_TYPE_SCROLL
+    SelectParams select_option = 16; // Required when type = ACTION_TYPE_SELECT
+    EvaluateParams evaluate = 17;    // Required when type = ACTION_TYPE_EVALUATE
+    KeyboardParams keyboard = 18;    // Required when type = ACTION_TYPE_KEYBOARD
+    HoverParams hover = 19;          // Required when type = ACTION_TYPE_HOVER
+    ScreenshotParams screenshot = 20;// Required when type = ACTION_TYPE_SCREENSHOT
+    FocusParams focus = 21;          // Required when type = ACTION_TYPE_FOCUS
+    BlurParams blur = 22;            // Required when type = ACTION_TYPE_BLUR
+    SubflowParams subflow = 23;      // Required when type = ACTION_TYPE_SUBFLOW
+  }
+
+  // Optional rich metadata - preserved from recording, useful for debugging/fallbacks.
+  ActionMetadata metadata = 30;
+}

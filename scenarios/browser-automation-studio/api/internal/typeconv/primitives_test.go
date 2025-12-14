@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -567,41 +567,41 @@ func TestToFloat64Func(t *testing.T) {
 func TestStringToActionType(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected basv1.ActionType
+		expected basactions.ActionType
 	}{
 		// Canonical names
-		{"navigate", basv1.ActionType_ACTION_TYPE_NAVIGATE},
-		{"click", basv1.ActionType_ACTION_TYPE_CLICK},
-		{"input", basv1.ActionType_ACTION_TYPE_INPUT},
-		{"wait", basv1.ActionType_ACTION_TYPE_WAIT},
-		{"assert", basv1.ActionType_ACTION_TYPE_ASSERT},
-		{"scroll", basv1.ActionType_ACTION_TYPE_SCROLL},
-		{"select", basv1.ActionType_ACTION_TYPE_SELECT},
-		{"evaluate", basv1.ActionType_ACTION_TYPE_EVALUATE},
-		{"keyboard", basv1.ActionType_ACTION_TYPE_KEYBOARD},
-		{"hover", basv1.ActionType_ACTION_TYPE_HOVER},
-		{"screenshot", basv1.ActionType_ACTION_TYPE_SCREENSHOT},
-		{"focus", basv1.ActionType_ACTION_TYPE_FOCUS},
-		{"blur", basv1.ActionType_ACTION_TYPE_BLUR},
-		{"subflow", basv1.ActionType_ACTION_TYPE_SUBFLOW},
+		{"navigate", basactions.ActionType_ACTION_TYPE_NAVIGATE},
+		{"click", basactions.ActionType_ACTION_TYPE_CLICK},
+		{"input", basactions.ActionType_ACTION_TYPE_INPUT},
+		{"wait", basactions.ActionType_ACTION_TYPE_WAIT},
+		{"assert", basactions.ActionType_ACTION_TYPE_ASSERT},
+		{"scroll", basactions.ActionType_ACTION_TYPE_SCROLL},
+		{"select", basactions.ActionType_ACTION_TYPE_SELECT},
+		{"evaluate", basactions.ActionType_ACTION_TYPE_EVALUATE},
+		{"keyboard", basactions.ActionType_ACTION_TYPE_KEYBOARD},
+		{"hover", basactions.ActionType_ACTION_TYPE_HOVER},
+		{"screenshot", basactions.ActionType_ACTION_TYPE_SCREENSHOT},
+		{"focus", basactions.ActionType_ACTION_TYPE_FOCUS},
+		{"blur", basactions.ActionType_ACTION_TYPE_BLUR},
+		{"subflow", basactions.ActionType_ACTION_TYPE_SUBFLOW},
 
 		// Aliases
-		{"goto", basv1.ActionType_ACTION_TYPE_NAVIGATE},
-		{"type", basv1.ActionType_ACTION_TYPE_INPUT},
-		{"fill", basv1.ActionType_ACTION_TYPE_INPUT},
-		{"selectoption", basv1.ActionType_ACTION_TYPE_SELECT},
-		{"eval", basv1.ActionType_ACTION_TYPE_EVALUATE},
-		{"keypress", basv1.ActionType_ACTION_TYPE_KEYBOARD},
-		{"press", basv1.ActionType_ACTION_TYPE_KEYBOARD},
+		{"goto", basactions.ActionType_ACTION_TYPE_NAVIGATE},
+		{"type", basactions.ActionType_ACTION_TYPE_INPUT},
+		{"fill", basactions.ActionType_ACTION_TYPE_INPUT},
+		{"selectoption", basactions.ActionType_ACTION_TYPE_SELECT},
+		{"eval", basactions.ActionType_ACTION_TYPE_EVALUATE},
+		{"keypress", basactions.ActionType_ACTION_TYPE_KEYBOARD},
+		{"press", basactions.ActionType_ACTION_TYPE_KEYBOARD},
 
 		// Case insensitivity
-		{"NAVIGATE", basv1.ActionType_ACTION_TYPE_NAVIGATE},
-		{"Click", basv1.ActionType_ACTION_TYPE_CLICK},
-		{"  INPUT  ", basv1.ActionType_ACTION_TYPE_INPUT},
+		{"NAVIGATE", basactions.ActionType_ACTION_TYPE_NAVIGATE},
+		{"Click", basactions.ActionType_ACTION_TYPE_CLICK},
+		{"  INPUT  ", basactions.ActionType_ACTION_TYPE_INPUT},
 
 		// Unknown
-		{"unknown", basv1.ActionType_ACTION_TYPE_UNSPECIFIED},
-		{"", basv1.ActionType_ACTION_TYPE_UNSPECIFIED},
+		{"unknown", basactions.ActionType_ACTION_TYPE_UNSPECIFIED},
+		{"", basactions.ActionType_ACTION_TYPE_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -616,24 +616,24 @@ func TestStringToActionType(t *testing.T) {
 
 func TestActionTypeToString(t *testing.T) {
 	tests := []struct {
-		input    basv1.ActionType
+		input    basactions.ActionType
 		expected string
 	}{
-		{basv1.ActionType_ACTION_TYPE_NAVIGATE, "navigate"},
-		{basv1.ActionType_ACTION_TYPE_CLICK, "click"},
-		{basv1.ActionType_ACTION_TYPE_INPUT, "input"},
-		{basv1.ActionType_ACTION_TYPE_WAIT, "wait"},
-		{basv1.ActionType_ACTION_TYPE_ASSERT, "assert"},
-		{basv1.ActionType_ACTION_TYPE_SCROLL, "scroll"},
-		{basv1.ActionType_ACTION_TYPE_SELECT, "select"},
-		{basv1.ActionType_ACTION_TYPE_EVALUATE, "evaluate"},
-		{basv1.ActionType_ACTION_TYPE_KEYBOARD, "keyboard"},
-		{basv1.ActionType_ACTION_TYPE_HOVER, "hover"},
-		{basv1.ActionType_ACTION_TYPE_SCREENSHOT, "screenshot"},
-		{basv1.ActionType_ACTION_TYPE_FOCUS, "focus"},
-		{basv1.ActionType_ACTION_TYPE_BLUR, "blur"},
-		{basv1.ActionType_ACTION_TYPE_SUBFLOW, "subflow"},
-		{basv1.ActionType_ACTION_TYPE_UNSPECIFIED, "unknown"},
+		{basactions.ActionType_ACTION_TYPE_NAVIGATE, "navigate"},
+		{basactions.ActionType_ACTION_TYPE_CLICK, "click"},
+		{basactions.ActionType_ACTION_TYPE_INPUT, "input"},
+		{basactions.ActionType_ACTION_TYPE_WAIT, "wait"},
+		{basactions.ActionType_ACTION_TYPE_ASSERT, "assert"},
+		{basactions.ActionType_ACTION_TYPE_SCROLL, "scroll"},
+		{basactions.ActionType_ACTION_TYPE_SELECT, "select"},
+		{basactions.ActionType_ACTION_TYPE_EVALUATE, "evaluate"},
+		{basactions.ActionType_ACTION_TYPE_KEYBOARD, "keyboard"},
+		{basactions.ActionType_ACTION_TYPE_HOVER, "hover"},
+		{basactions.ActionType_ACTION_TYPE_SCREENSHOT, "screenshot"},
+		{basactions.ActionType_ACTION_TYPE_FOCUS, "focus"},
+		{basactions.ActionType_ACTION_TYPE_BLUR, "blur"},
+		{basactions.ActionType_ACTION_TYPE_SUBFLOW, "subflow"},
+		{basactions.ActionType_ACTION_TYPE_UNSPECIFIED, "unknown"},
 	}
 
 	for _, tt := range tests {
@@ -648,21 +648,21 @@ func TestActionTypeToString(t *testing.T) {
 
 func TestActionTypeRoundtrip(t *testing.T) {
 	// Test that converting to string and back gives the same type
-	actionTypes := []basv1.ActionType{
-		basv1.ActionType_ACTION_TYPE_NAVIGATE,
-		basv1.ActionType_ACTION_TYPE_CLICK,
-		basv1.ActionType_ACTION_TYPE_INPUT,
-		basv1.ActionType_ACTION_TYPE_WAIT,
-		basv1.ActionType_ACTION_TYPE_ASSERT,
-		basv1.ActionType_ACTION_TYPE_SCROLL,
-		basv1.ActionType_ACTION_TYPE_SELECT,
-		basv1.ActionType_ACTION_TYPE_EVALUATE,
-		basv1.ActionType_ACTION_TYPE_KEYBOARD,
-		basv1.ActionType_ACTION_TYPE_HOVER,
-		basv1.ActionType_ACTION_TYPE_SCREENSHOT,
-		basv1.ActionType_ACTION_TYPE_FOCUS,
-		basv1.ActionType_ACTION_TYPE_BLUR,
-		basv1.ActionType_ACTION_TYPE_SUBFLOW,
+	actionTypes := []basactions.ActionType{
+		basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		basactions.ActionType_ACTION_TYPE_CLICK,
+		basactions.ActionType_ACTION_TYPE_INPUT,
+		basactions.ActionType_ACTION_TYPE_WAIT,
+		basactions.ActionType_ACTION_TYPE_ASSERT,
+		basactions.ActionType_ACTION_TYPE_SCROLL,
+		basactions.ActionType_ACTION_TYPE_SELECT,
+		basactions.ActionType_ACTION_TYPE_EVALUATE,
+		basactions.ActionType_ACTION_TYPE_KEYBOARD,
+		basactions.ActionType_ACTION_TYPE_HOVER,
+		basactions.ActionType_ACTION_TYPE_SCREENSHOT,
+		basactions.ActionType_ACTION_TYPE_FOCUS,
+		basactions.ActionType_ACTION_TYPE_BLUR,
+		basactions.ActionType_ACTION_TYPE_SUBFLOW,
 	}
 
 	for _, original := range actionTypes {

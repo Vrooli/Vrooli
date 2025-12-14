@@ -14,7 +14,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // Re-export proto types that are used directly in contracts.
@@ -24,41 +27,41 @@ import (
 type (
 	// === Geometry types from proto geometry.proto ===
 	// BoundingBox captures the position and dimensions of a rectangular region.
-	BoundingBox = basv1.BoundingBox
+	BoundingBox = basbase.BoundingBox
 	// Point represents a 2D coordinate.
-	Point = basv1.Point
+	Point = basbase.Point
 
 	// === Selector types from proto selectors.proto ===
 	// ElementMeta from proto selectors.proto - DOM element information.
-	ElementMeta = basv1.ElementMeta
+	ElementMeta = basdomain.ElementMeta
 	// SelectorCandidate from proto selectors.proto - selector with confidence.
-	SelectorCandidate = basv1.SelectorCandidate
+	SelectorCandidate = basdomain.SelectorCandidate
 	// HighlightRegion describes an overlay applied to the screenshot for emphasis.
-	HighlightRegion = basv1.HighlightRegion
+	HighlightRegion = basdomain.HighlightRegion
 	// MaskRegion describes areas that were dimmed or masked during capture.
-	MaskRegion = basv1.MaskRegion
+	MaskRegion = basdomain.MaskRegion
 
 	// === Timeline types from proto timeline_entry.proto ===
 	// TimelineEntry from proto timeline_entry.proto - unified timeline event.
-	TimelineEntry = basv1.TimelineEntry
+	TimelineEntry = bastimeline.TimelineEntry
 	// ElementFocus captures focus metadata for screenshot framing.
-	ElementFocus = basv1.ElementFocus
+	ElementFocus = bastimeline.ElementFocus
 
 	// === Telemetry types from proto telemetry.proto ===
 	// TimelineScreenshot from proto telemetry.proto - screenshot metadata.
-	TimelineScreenshot = basv1.TimelineScreenshot
+	TimelineScreenshot = basdomain.TimelineScreenshot
 	// ActionTelemetry from proto telemetry.proto - telemetry container.
-	ActionTelemetry = basv1.ActionTelemetry
+	ActionTelemetry = basdomain.ActionTelemetry
 
 	// === Shared types from proto shared.proto ===
 	// AssertionResult from proto shared.proto - assertion outcome.
-	AssertionResult = basv1.AssertionResult
+	AssertionResult = basbase.AssertionResult
 	// EventContext from proto shared.proto - recording/execution context.
-	EventContext = basv1.EventContext
+	EventContext = basbase.EventContext
 
 	// === Action types from proto action.proto ===
 	// ActionDefinition from proto action.proto - action with params.
-	ActionDefinition = basv1.ActionDefinition
+	ActionDefinition = basactions.ActionDefinition
 )
 
 const (

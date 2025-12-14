@@ -3,7 +3,9 @@ package workflow
 
 import (
 	"github.com/vrooli/browser-automation-studio/automation/workflow"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
 
 // SchemaVersion identifies the workflow storage format.
@@ -35,7 +37,7 @@ type WorkflowFileV2 struct {
 	FlowDefinition map[string]any `json:"flow_definition,omitempty"`
 
 	// V2 format (proto-based definition)
-	DefinitionV2 *basv1.WorkflowDefinitionV2 `json:"definition_v2,omitempty"`
+	DefinitionV2 *basworkflows.WorkflowDefinitionV2 `json:"definition_v2,omitempty"`
 
 	// Additional metadata
 	CreatedBy         string `json:"created_by,omitempty"`
@@ -66,13 +68,13 @@ func DetectSchemaVersion(payload map[string]any) SchemaVersion {
 
 // ParseV2Definition parses a V2 definition from a map payload.
 // Returns nil if not present or invalid.
-func ParseV2Definition(payload map[string]any) *basv1.WorkflowDefinitionV2 {
+func ParseV2Definition(payload map[string]any) *basworkflows.WorkflowDefinitionV2 {
 	defV2Raw, ok := payload["definition_v2"].(map[string]any)
 	if !ok {
 		return nil
 	}
 
-	def := &basv1.WorkflowDefinitionV2{}
+	def := &basworkflows.WorkflowDefinitionV2{}
 
 	// Parse metadata
 	if metaRaw, ok := defV2Raw["metadata"].(map[string]any); ok {
@@ -110,7 +112,7 @@ func ParseV2Definition(payload map[string]any) *basv1.WorkflowDefinitionV2 {
 }
 
 // V1ToV2Definition converts V1 nodes/edges to a V2 definition.
-func V1ToV2Definition(nodes, edges []any, metadata, settings map[string]any) *basv1.WorkflowDefinitionV2 {
+func V1ToV2Definition(nodes, edges []any, metadata, settings map[string]any) *basworkflows.WorkflowDefinitionV2 {
 	// Convert using the workflow package utilities
 	v1Flow := workflow.V1FlowDefinition{
 		Nodes:    make([]workflow.V1Node, 0, len(nodes)),
@@ -161,7 +163,7 @@ func V1ToV2Definition(nodes, edges []any, metadata, settings map[string]any) *ba
 }
 
 // V2ToV1Definition converts a V2 definition to V1 nodes/edges.
-func V2ToV1Definition(def *basv1.WorkflowDefinitionV2) (nodes []any, edges []any, err error) {
+func V2ToV1Definition(def *basworkflows.WorkflowDefinitionV2) (nodes []any, edges []any, err error) {
 	if def == nil {
 		return []any{}, []any{}, nil
 	}
@@ -216,11 +218,11 @@ func V2ToV1Definition(def *basv1.WorkflowDefinitionV2) (nodes []any, edges []any
 
 // Helper functions for parsing V2 format
 
-func parseV2Metadata(raw map[string]any) *basv1.WorkflowMetadataV2 {
+func parseV2Metadata(raw map[string]any) *basworkflows.WorkflowMetadataV2 {
 	if raw == nil {
 		return nil
 	}
-	meta := &basv1.WorkflowMetadataV2{
+	meta := &basworkflows.WorkflowMetadataV2{
 		Labels: make(map[string]string),
 	}
 	if name := getString(raw, "name"); name != "" {
@@ -242,11 +244,11 @@ func parseV2Metadata(raw map[string]any) *basv1.WorkflowMetadataV2 {
 	return meta
 }
 
-func parseV2Settings(raw map[string]any) *basv1.WorkflowSettingsV2 {
+func parseV2Settings(raw map[string]any) *basworkflows.WorkflowSettingsV2 {
 	if raw == nil {
 		return nil
 	}
-	settings := &basv1.WorkflowSettingsV2{}
+	settings := &basworkflows.WorkflowSettingsV2{}
 	if vw := getInt32(raw, "viewport_width"); vw != 0 {
 		settings.ViewportWidth = &vw
 	}
@@ -272,11 +274,11 @@ func parseV2Settings(raw map[string]any) *basv1.WorkflowSettingsV2 {
 	return settings
 }
 
-func parseV2Node(raw map[string]any) *basv1.WorkflowNodeV2 {
+func parseV2Node(raw map[string]any) *basworkflows.WorkflowNodeV2 {
 	if raw == nil {
 		return nil
 	}
-	node := &basv1.WorkflowNodeV2{
+	node := &basworkflows.WorkflowNodeV2{
 		Id: getString(raw, "id"),
 	}
 
@@ -287,7 +289,7 @@ func parseV2Node(raw map[string]any) *basv1.WorkflowNodeV2 {
 
 	// Parse position
 	if posRaw, ok := raw["position"].(map[string]any); ok {
-		node.Position = &basv1.NodePosition{
+		node.Position = &basbase.NodePosition{
 			X: getFloat64(posRaw, "x"),
 			Y: getFloat64(posRaw, "y"),
 		}
@@ -296,7 +298,7 @@ func parseV2Node(raw map[string]any) *basv1.WorkflowNodeV2 {
 	return node
 }
 
-func parseV2Action(raw map[string]any) *basv1.ActionDefinition {
+func parseV2Action(raw map[string]any) *basactions.ActionDefinition {
 	if raw == nil {
 		return nil
 	}
@@ -318,14 +320,14 @@ func parseV2Action(raw map[string]any) *basv1.ActionDefinition {
 		return action.Action
 	}
 
-	return &basv1.ActionDefinition{}
+	return &basactions.ActionDefinition{}
 }
 
-func parseV2Edge(raw map[string]any) *basv1.WorkflowEdgeV2 {
+func parseV2Edge(raw map[string]any) *basworkflows.WorkflowEdgeV2 {
 	if raw == nil {
 		return nil
 	}
-	edge := &basv1.WorkflowEdgeV2{
+	edge := &basworkflows.WorkflowEdgeV2{
 		Id:     getString(raw, "id"),
 		Source: getString(raw, "source"),
 		Target: getString(raw, "target"),
@@ -393,19 +395,19 @@ func getMap(m map[string]any, key string) map[string]any {
 }
 
 // stringToWorkflowEdgeType converts a string edge type to the proto enum.
-func stringToWorkflowEdgeType(s string) basv1.WorkflowEdgeType {
+func stringToWorkflowEdgeType(s string) basbase.WorkflowEdgeType {
 	switch s {
 	case "default":
-		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT
+		return basbase.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT
 	case "smoothstep":
-		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP
+		return basbase.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP
 	case "step":
-		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP
+		return basbase.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP
 	case "straight":
-		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT
+		return basbase.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT
 	case "bezier":
-		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER
+		return basbase.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER
 	default:
-		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_UNSPECIFIED
+		return basbase.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_UNSPECIFIED
 	}
 }

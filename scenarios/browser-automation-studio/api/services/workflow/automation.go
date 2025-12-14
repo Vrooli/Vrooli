@@ -17,7 +17,7 @@ import (
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -204,7 +204,7 @@ func (r *executorWorkflowResolver) GetWorkflowByProjectPath(ctx context.Context,
 	}
 
 	// Fail-fast: ensure the definition matches the canonical proto shape.
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &basv1.WorkflowDefinitionV2{}); err != nil {
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &basworkflows.WorkflowDefinitionV2{}); err != nil {
 		return nil, fmt.Errorf("workflowPath=%q does not match proto schema: %w", workflowPath, err)
 	}
 

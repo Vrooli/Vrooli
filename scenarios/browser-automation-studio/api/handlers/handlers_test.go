@@ -19,7 +19,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -727,7 +728,7 @@ func TestExecuteAdhocWorkflowSuccess(t *testing.T) {
 			t.Fatalf("expected status 200, got %d: %s", resp.Code, resp.Body.String())
 		}
 
-		var pb browser_automation_studio_v1.ExecuteAdhocResponse
+		var pb basexecution.ExecuteAdhocResponse
 		if err := protojson.Unmarshal(resp.Body.Bytes(), &pb); err != nil {
 			t.Fatalf("failed to decode proto response: %v", err)
 		}
@@ -740,7 +741,7 @@ func TestExecuteAdhocWorkflowSuccess(t *testing.T) {
 			t.Error("expected workflow_id to be null for adhoc execution")
 		}
 
-		if pb.GetStatus() != browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_PENDING {
+		if pb.GetStatus() != basbase.ExecutionStatus_EXECUTION_STATUS_PENDING {
 			t.Errorf("expected status pending, got %v", pb.GetStatus().String())
 		}
 	})

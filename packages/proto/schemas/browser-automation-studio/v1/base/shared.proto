@@ -1,0 +1,380 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "common/v1/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base;base";
+
+// =============================================================================
+// SHARED TYPES AND ENUMS
+// =============================================================================
+//
+// This file contains shared enumerations and types used across the
+// browser-automation-studio domain. It is the BASE file that other proto
+// files import from.
+//
+// =============================================================================
+// UNIFIED RECORDING/EXECUTION MODEL
+// =============================================================================
+//
+// Browser Automation Studio treats recording and execution as the SAME operation
+// with different controllers:
+//
+//   RECORDING: Human controls browser via Playwright, system captures telemetry
+//   EXECUTION: Code controls browser via Playwright, system captures telemetry
+//
+// Both modes capture identical data:
+//   - ActionDefinition: What action was performed (navigate, click, input, etc.)
+//   - ActionMetadata: Rich context (selector candidates, element snapshots, etc.)
+//   - ActionTelemetry: Observable state (screenshots, DOM, console, network)
+//   - EventContext: Origin (session/execution ID) and outcome (success/error)
+//
+// This unified model enables:
+//   1. Live execution preview with same UX as recording playback
+//   2. Workflow storage retains all captured data for later editing
+//   3. Users can fix/adjust selectors on failed steps using captured alternatives
+//   4. Debugging with full visibility into what the system "saw"
+//
+// The philosophy: Store raw data so you can reprocess/edit later (like photo RAW).
+//
+// =============================================================================
+// IMPORT HIERARCHY & DIRECTORY STRUCTURE
+// =============================================================================
+//
+// The browser-automation-studio proto files are organized by domain:
+//
+//   base/              Layer 0 - Fundamental types (no BAS imports)
+//     shared.proto     : Enums, RetryStatus, AssertionResult, EventContext
+//     geometry.proto   : BoundingBox, Point, NodePosition
+//
+//   domain/            Layer 1 - Domain primitives (imports base/)
+//     selectors.proto  : SelectorCandidate, ElementMeta, HighlightRegion, MaskRegion
+//     telemetry.proto  : ConsoleLogEntry, NetworkEvent, ActionTelemetry, TimelineScreenshot
+//
+//   actions/           Layer 2 - Action definitions (imports base/, domain/)
+//     action.proto     : ActionType enum, *Params messages, ActionDefinition
+//
+//   workflows/         Layers 2-4 - Workflow domain
+//     definition.proto : WorkflowDefinitionV2, WorkflowNodeV2, WorkflowEdgeV2
+//     service.proto    : gRPC service definitions, CRUD operations
+//
+//   timeline/          Layers 3-4 - Execution history
+//     entry.proto      : TimelineEntry (unified streaming + batch format)
+//     container.proto  : ExecutionTimeline (container for TimelineEntry list)
+//     _deprecated/     : Backwards compatibility types
+//       event.proto    : TimelineEvent (use TimelineEntry instead)
+//
+//   recording/         Layer 3 - Recording sessions
+//     session.proto    : Recording session lifecycle management
+//
+//   execution/         Layer 4 - Execution runtime
+//     execution.proto  : Execution, ExecutionResult, event payloads
+//
+//   projects/          Layer 5 - Project organization
+//     project.proto    : Project, ProjectStats
+//
+// When adding new types, place them in the appropriate directory/layer to
+// avoid circular dependencies. Types should only import from lower layers.
+//
+// =============================================================================
+// NODE vs STEP TERMINOLOGY
+// =============================================================================
+//
+// These terms are used throughout the proto schemas:
+//
+//   - NODE: A vertex in the workflow graph (WorkflowNodeV2). Has a unique `id`
+//           (UUID format). Represents the definition of an action.
+//
+//   - STEP: A node during execution. Has a `step_index` (0-based order in which
+//           nodes are executed). Multiple executions of the same workflow will
+//           have the same node IDs but different step indices per execution.
+//
+// In timeline entries:
+//   - `node_id`: Links to the WorkflowNodeV2 definition (stable across executions)
+//   - `step_index`: Position in this particular execution run (varies per run)
+//
+// =============================================================================
+// TIMESTAMP FIELD NAMING CONVENTION
+// The following suffixes are used for google.protobuf.Timestamp fields:
+//
+//   - `created_at`   : When a resource was first created (immutable)
+//   - `updated_at`   : When a resource was last modified
+//   - `started_at`   : When an operation/execution began
+//   - `completed_at` : When an operation/execution finished (success or failure)
+//   - `timestamp`    : Generic event occurrence time (for logs, events, etc.)
+//
+// Legacy fields may use other suffixes (occurred_at, recorded_at, captured_at,
+// checked_at, stopped_at) - these should migrate to the standard suffixes
+// in future versions where possible.
+//
+// UUID FIELD CONVENTION:
+// Fields containing UUIDs should include "(UUID format)" in their comment
+// to indicate the expected format. Examples: workflow_id, execution_id, node_id.
+// =============================================================================
+
+// ExecutionStatus enumerates high-level execution states.
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNSPECIFIED = 0;
+  EXECUTION_STATUS_PENDING = 1;
+  EXECUTION_STATUS_RUNNING = 2;
+  EXECUTION_STATUS_COMPLETED = 3;
+  EXECUTION_STATUS_FAILED = 4;
+  EXECUTION_STATUS_CANCELLED = 5;
+}
+
+// TriggerType indicates how an execution was initiated.
+enum TriggerType {
+  TRIGGER_TYPE_UNSPECIFIED = 0;
+  TRIGGER_TYPE_MANUAL = 1;
+  TRIGGER_TYPE_SCHEDULED = 2;
+  TRIGGER_TYPE_API = 3;
+  TRIGGER_TYPE_WEBHOOK = 4;
+}
+
+// StepStatus captures the lifecycle of an individual step.
+enum StepStatus {
+  STEP_STATUS_UNSPECIFIED = 0;
+  STEP_STATUS_PENDING = 1;
+  STEP_STATUS_RUNNING = 2;
+  STEP_STATUS_COMPLETED = 3;
+  STEP_STATUS_FAILED = 4;
+  STEP_STATUS_CANCELLED = 5;
+  STEP_STATUS_SKIPPED = 6;
+  STEP_STATUS_RETRYING = 7;
+}
+
+// LogLevel is used for execution timeline logging.
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+}
+
+// ArtifactType categorizes stored artifacts emitted during execution.
+enum ArtifactType {
+  ARTIFACT_TYPE_UNSPECIFIED = 0;
+  ARTIFACT_TYPE_TIMELINE_FRAME = 1;
+  ARTIFACT_TYPE_CONSOLE_LOG = 2;
+  ARTIFACT_TYPE_NETWORK_EVENT = 3;
+  ARTIFACT_TYPE_SCREENSHOT = 4;
+  ARTIFACT_TYPE_DOM_SNAPSHOT = 5;
+  ARTIFACT_TYPE_TRACE = 6;
+  ARTIFACT_TYPE_CUSTOM = 7;
+}
+
+// ExportStatus indicates readiness for execution export.
+enum ExportStatus {
+  EXPORT_STATUS_UNSPECIFIED = 0;
+  EXPORT_STATUS_READY = 1;
+  EXPORT_STATUS_PENDING = 2;
+  EXPORT_STATUS_ERROR = 3;
+  EXPORT_STATUS_UNAVAILABLE = 4;
+}
+
+// SelectorType enumerates supported selector strategies for element targeting.
+enum SelectorType {
+  SELECTOR_TYPE_UNSPECIFIED = 0;
+  SELECTOR_TYPE_CSS = 1;
+  SELECTOR_TYPE_XPATH = 2;
+  SELECTOR_TYPE_ID = 3;
+  SELECTOR_TYPE_DATA_TESTID = 4;
+  SELECTOR_TYPE_ARIA = 5;
+  SELECTOR_TYPE_TEXT = 6;
+  SELECTOR_TYPE_ROLE = 7;
+  SELECTOR_TYPE_PLACEHOLDER = 8;
+  SELECTOR_TYPE_ALT_TEXT = 9;
+  SELECTOR_TYPE_TITLE = 10;
+}
+
+// NetworkEventType enumerates network event kinds captured during execution.
+enum NetworkEventType {
+  NETWORK_EVENT_TYPE_UNSPECIFIED = 0;
+  NETWORK_EVENT_TYPE_REQUEST = 1;
+  NETWORK_EVENT_TYPE_RESPONSE = 2;
+  NETWORK_EVENT_TYPE_FAILURE = 3;
+}
+
+// RecordingSource indicates how an action was captured during recording.
+enum RecordingSource {
+  RECORDING_SOURCE_UNSPECIFIED = 0;
+  RECORDING_SOURCE_AUTO = 1;
+  RECORDING_SOURCE_MANUAL = 2;
+}
+
+// WorkflowEdgeType enumerates visual edge rendering styles.
+enum WorkflowEdgeType {
+  WORKFLOW_EDGE_TYPE_UNSPECIFIED = 0;
+  WORKFLOW_EDGE_TYPE_DEFAULT = 1;
+  WORKFLOW_EDGE_TYPE_SMOOTHSTEP = 2;
+  WORKFLOW_EDGE_TYPE_STEP = 3;
+  WORKFLOW_EDGE_TYPE_STRAIGHT = 4;
+  WORKFLOW_EDGE_TYPE_BEZIER = 5;
+}
+
+// ValidationSeverity enumerates issue severity levels for workflow validation.
+enum ValidationSeverity {
+  VALIDATION_SEVERITY_UNSPECIFIED = 0;
+  VALIDATION_SEVERITY_ERROR = 1;
+  VALIDATION_SEVERITY_WARNING = 2;
+  VALIDATION_SEVERITY_INFO = 3;
+}
+
+// ChangeSource indicates the origin of a workflow modification.
+enum ChangeSource {
+  CHANGE_SOURCE_UNSPECIFIED = 0;
+  CHANGE_SOURCE_MANUAL = 1;
+  CHANGE_SOURCE_AUTOSAVE = 2;
+  CHANGE_SOURCE_IMPORT = 3;
+  CHANGE_SOURCE_AI_GENERATED = 4;
+  CHANGE_SOURCE_RECORDING = 5;
+}
+
+// AssertionMode enumerates supported assertion types.
+enum AssertionMode {
+  ASSERTION_MODE_UNSPECIFIED = 0;
+  ASSERTION_MODE_EXISTS = 1;
+  ASSERTION_MODE_NOT_EXISTS = 2;
+  ASSERTION_MODE_VISIBLE = 3;
+  ASSERTION_MODE_HIDDEN = 4;
+  ASSERTION_MODE_TEXT_EQUALS = 5;
+  ASSERTION_MODE_TEXT_CONTAINS = 6;
+  ASSERTION_MODE_ATTRIBUTE_EQUALS = 7;
+  ASSERTION_MODE_ATTRIBUTE_CONTAINS = 8;
+}
+
+// HighlightColor enumerates supported highlight overlay colors.
+// Used by HighlightRegion for screenshot annotations.
+enum HighlightColor {
+  HIGHLIGHT_COLOR_UNSPECIFIED = 0;
+  // Primary action colors
+  HIGHLIGHT_COLOR_RED = 1;        // Error, failure, critical elements
+  HIGHLIGHT_COLOR_GREEN = 2;      // Success, verified elements
+  HIGHLIGHT_COLOR_BLUE = 3;       // Information, focus
+  HIGHLIGHT_COLOR_YELLOW = 4;     // Warning, attention
+  // Secondary colors
+  HIGHLIGHT_COLOR_ORANGE = 5;     // Caution
+  HIGHLIGHT_COLOR_PURPLE = 6;     // Special emphasis
+  HIGHLIGHT_COLOR_CYAN = 7;       // Secondary info
+  HIGHLIGHT_COLOR_PINK = 8;       // Accent
+  // Neutral colors
+  HIGHLIGHT_COLOR_WHITE = 9;      // Light backgrounds
+  HIGHLIGHT_COLOR_GRAY = 10;      // Subtle emphasis
+  HIGHLIGHT_COLOR_BLACK = 11;     // Dark backgrounds
+}
+
+// =============================================================================
+// RETRY TRACKING
+// =============================================================================
+
+// RetryAttempt captures the outcome of a single retry attempt.
+// Used in both timeline frames (batch API) and timeline events (streaming).
+message RetryAttempt {
+  // Retry attempt number (1-based, where 1 is the first retry after initial failure).
+  int32 attempt = 1;
+  // Whether this attempt succeeded.
+  bool success = 2;
+  // Duration in milliseconds for the attempt.
+  int32 duration_ms = 3;
+  // Error message if failed.
+  optional string error = 4;
+}
+
+// RetryStatus captures the current state of retry execution for a step.
+// This is the canonical type for runtime retry state, used in both
+// TimelineFrame (batch) and ExecutionContext (streaming).
+message RetryStatus {
+  // Current attempt number (0 for initial attempt, 1+ for retries).
+  int32 current_attempt = 1;
+  // Maximum number of attempts configured (1 = no retries).
+  int32 max_attempts = 2;
+  // Delay between retries in milliseconds.
+  int32 delay_ms = 3;
+  // Backoff multiplier for exponential backoff (e.g., 2.0 doubles delay each retry).
+  double backoff_factor = 4;
+  // Whether retries are configured for this step.
+  bool configured = 5;
+  // History of previous retry attempts.
+  repeated RetryAttempt history = 6;
+}
+
+// =============================================================================
+// ASSERTION RESULT
+// =============================================================================
+
+// AssertionResult captures assertion evaluation outcome.
+// Used in both timeline frames (batch API) and timeline events (streaming).
+message AssertionResult {
+  // Assertion mode used.
+  AssertionMode mode = 1;
+  // Selector that was asserted on.
+  string selector = 2;
+  // Expected value.
+  optional common.v1.JsonValue expected = 3;
+  // Actual value observed.
+  optional common.v1.JsonValue actual = 4;
+  // Whether the assertion passed.
+  bool success = 5;
+  // Whether the assertion was negated.
+  bool negated = 6;
+  // Whether comparison was case-sensitive.
+  bool case_sensitive = 7;
+  // Optional custom message.
+  optional string message = 8;
+}
+
+// =============================================================================
+// EVENT CONTEXT (UNIFIED RECORDING/EXECUTION)
+// =============================================================================
+
+// EventContext captures the origin and outcome of a timeline entry.
+// This type unifies what was previously RecordingContext and ExecutionContext,
+// reflecting the fact that recording and execution capture the same data.
+//
+// Populated during both:
+//   - Recording: Human controls browser, system captures events
+//   - Execution: Code controls browser, system captures events
+//
+// The only distinction is the origin (session_id vs execution_id) and whether
+// certain UI workflow flags apply (needs_confirmation).
+message EventContext {
+  // === ORIGIN ===
+  // Exactly one of these is set, indicating where the event originated.
+  oneof origin {
+    // Recording session ID (UUID format). Set when event comes from recording.
+    string session_id = 1;
+    // Execution run ID (UUID format). Set when event comes from execution.
+    string execution_id = 2;
+  }
+
+  // === CAPTURE METADATA ===
+  // How the action was captured. Primarily relevant for recording, but could
+  // apply to AI-assisted execution in the future.
+  optional RecordingSource source = 5;
+  // UI workflow flag: user should confirm/edit this action before proceeding.
+  // Used during recording to flag uncertain actions for human review.
+  optional bool needs_confirmation = 6;
+
+  // === EXECUTION OUTCOME ===
+  // These fields are populated after the action completes (in either mode).
+  // Whether the action succeeded.
+  optional bool success = 10;
+  // Error message if the action failed.
+  optional string error = 11;
+  // Error code for programmatic handling.
+  optional string error_code = 12;
+
+  // === RETRY TRACKING ===
+  // Retry status for this action (populated if retries are configured).
+  optional RetryStatus retry_status = 20;
+
+  // === ASSERTION RESULT ===
+  // Assertion result (for assert actions only).
+  optional AssertionResult assertion = 25;
+
+  // === EXTRACTED DATA ===
+  // Extracted data from evaluate actions (variable name -> value).
+  map<string, common.v1.JsonValue> extracted_data = 30;
+}

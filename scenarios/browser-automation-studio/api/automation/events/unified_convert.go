@@ -1,5 +1,5 @@
 // Package events provides conversion utilities between legacy contracts.StepOutcome
-// and the unified browser_automation_studio_v1.TimelineEntry proto format.
+// and the unified bastimeline.TimelineEntry proto format.
 //
 // This enables the execution engine to produce TimelineEntry messages that can be
 // streamed to the UI via WebSocket, supporting the shared Record/Execute UX.
@@ -14,14 +14,17 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/params"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // StepOutcomeToTimelineEntry converts a legacy StepOutcome to the unified TimelineEntry format.
 // This enables execution telemetry to use the same data structure as recording telemetry.
-func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *basv1.TimelineEntry {
+func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *bastimeline.TimelineEntry {
 	// Generate entry ID from execution and step
 	entryID := fmt.Sprintf("%s-step-%d-attempt-%d", executionID.String(), outcome.StepIndex, outcome.Attempt)
 
@@ -35,7 +38,7 @@ func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 	context := buildEventContext(outcome, executionID)
 
 	stepIndex := int32(outcome.StepIndex)
-	entry := &basv1.TimelineEntry{
+	entry := &bastimeline.TimelineEntry{
 		Id:          entryID,
 		SequenceNum: int32(outcome.StepIndex),
 		StepIndex:   &stepIndex,
@@ -64,10 +67,10 @@ func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 }
 
 // buildActionDefinition creates an ActionDefinition from the step outcome's type and params.
-func buildActionDefinition(outcome contracts.StepOutcome) *basv1.ActionDefinition {
+func buildActionDefinition(outcome contracts.StepOutcome) *basactions.ActionDefinition {
 	actionType := mapStepTypeToActionType(outcome.StepType)
 
-	def := &basv1.ActionDefinition{
+	def := &basactions.ActionDefinition{
 		Type: actionType,
 	}
 
@@ -75,71 +78,71 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basv1.ActionDefinitio
 	// Note: For execution, we don't have full params - the instruction params were
 	// consumed by the engine. We reconstruct what we can from the outcome.
 	switch actionType {
-	case basv1.ActionType_ACTION_TYPE_NAVIGATE:
-		def.Params = &basv1.ActionDefinition_Navigate{
-			Navigate: &basv1.NavigateParams{
+	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
+		def.Params = &basactions.ActionDefinition_Navigate{
+			Navigate: &basactions.NavigateParams{
 				Url: outcome.FinalURL,
 			},
 		}
-	case basv1.ActionType_ACTION_TYPE_CLICK:
+	case basactions.ActionType_ACTION_TYPE_CLICK:
 		// Click params come from instruction, but we can note position from outcome
-		def.Params = &basv1.ActionDefinition_Click{
-			Click: &basv1.ClickParams{},
+		def.Params = &basactions.ActionDefinition_Click{
+			Click: &basactions.ClickParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_INPUT:
-		def.Params = &basv1.ActionDefinition_Input{
-			Input: &basv1.InputParams{},
+	case basactions.ActionType_ACTION_TYPE_INPUT:
+		def.Params = &basactions.ActionDefinition_Input{
+			Input: &basactions.InputParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_WAIT:
-		def.Params = &basv1.ActionDefinition_Wait{
-			Wait: &basv1.WaitParams{},
+	case basactions.ActionType_ACTION_TYPE_WAIT:
+		def.Params = &basactions.ActionDefinition_Wait{
+			Wait: &basactions.WaitParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_ASSERT:
+	case basactions.ActionType_ACTION_TYPE_ASSERT:
 		if outcome.Assertion != nil {
-			def.Params = &basv1.ActionDefinition_Assert{
-				Assert: &basv1.AssertParams{
+			def.Params = &basactions.ActionDefinition_Assert{
+				Assert: &basactions.AssertParams{
 					Selector: outcome.Assertion.Selector,
 					Mode:     params.StringToAssertionMode(outcome.Assertion.Mode),
 					Negated:  &outcome.Assertion.Negated,
 				},
 			}
 		}
-	case basv1.ActionType_ACTION_TYPE_SCROLL:
-		def.Params = &basv1.ActionDefinition_Scroll{
-			Scroll: &basv1.ScrollParams{},
+	case basactions.ActionType_ACTION_TYPE_SCROLL:
+		def.Params = &basactions.ActionDefinition_Scroll{
+			Scroll: &basactions.ScrollParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_HOVER:
-		def.Params = &basv1.ActionDefinition_Hover{
-			Hover: &basv1.HoverParams{},
+	case basactions.ActionType_ACTION_TYPE_HOVER:
+		def.Params = &basactions.ActionDefinition_Hover{
+			Hover: &basactions.HoverParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_KEYBOARD:
-		def.Params = &basv1.ActionDefinition_Keyboard{
-			Keyboard: &basv1.KeyboardParams{},
+	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
+		def.Params = &basactions.ActionDefinition_Keyboard{
+			Keyboard: &basactions.KeyboardParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_SCREENSHOT:
-		def.Params = &basv1.ActionDefinition_Screenshot{
-			Screenshot: &basv1.ScreenshotParams{},
+	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
+		def.Params = &basactions.ActionDefinition_Screenshot{
+			Screenshot: &basactions.ScreenshotParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_SELECT:
-		def.Params = &basv1.ActionDefinition_SelectOption{
-			SelectOption: &basv1.SelectParams{},
+	case basactions.ActionType_ACTION_TYPE_SELECT:
+		def.Params = &basactions.ActionDefinition_SelectOption{
+			SelectOption: &basactions.SelectParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_EVALUATE:
-		def.Params = &basv1.ActionDefinition_Evaluate{
-			Evaluate: &basv1.EvaluateParams{},
+	case basactions.ActionType_ACTION_TYPE_EVALUATE:
+		def.Params = &basactions.ActionDefinition_Evaluate{
+			Evaluate: &basactions.EvaluateParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_FOCUS:
-		def.Params = &basv1.ActionDefinition_Focus{
-			Focus: &basv1.FocusParams{},
+	case basactions.ActionType_ACTION_TYPE_FOCUS:
+		def.Params = &basactions.ActionDefinition_Focus{
+			Focus: &basactions.FocusParams{},
 		}
-	case basv1.ActionType_ACTION_TYPE_BLUR:
-		def.Params = &basv1.ActionDefinition_Blur{
-			Blur: &basv1.BlurParams{},
+	case basactions.ActionType_ACTION_TYPE_BLUR:
+		def.Params = &basactions.ActionDefinition_Blur{
+			Blur: &basactions.BlurParams{},
 		}
 	}
 
 	// Add metadata with node info
-	def.Metadata = &basv1.ActionMetadata{
+	def.Metadata = &basactions.ActionMetadata{
 		Label: &outcome.NodeID,
 	}
 
@@ -147,8 +150,8 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basv1.ActionDefinitio
 }
 
 // buildActionTelemetry creates ActionTelemetry from the step outcome.
-func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry {
-	tel := &basv1.ActionTelemetry{
+func buildActionTelemetry(outcome contracts.StepOutcome) *basdomain.ActionTelemetry {
+	tel := &basdomain.ActionTelemetry{
 		Url: outcome.FinalURL,
 	}
 
@@ -158,7 +161,7 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 	// For real-time streaming, we don't have artifact URLs yet - those come from storage.
 	// We include what we can (dimensions, content type).
 	if outcome.Screenshot != nil {
-		tel.Screenshot = &basv1.TimelineScreenshot{
+		tel.Screenshot = &basdomain.TimelineScreenshot{
 			Width:       int32(outcome.Screenshot.Width),
 			Height:      int32(outcome.Screenshot.Height),
 			ContentType: outcome.Screenshot.MediaType,
@@ -187,7 +190,7 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 
 	// Add cursor trail
 	if len(outcome.CursorTrail) > 0 {
-		tel.CursorTrail = make([]*basv1.Point, 0, len(outcome.CursorTrail))
+		tel.CursorTrail = make([]*basbase.Point, 0, len(outcome.CursorTrail))
 		for _, pos := range outcome.CursorTrail {
 			tel.CursorTrail = append(tel.CursorTrail, convertPointToProto(&pos.Point))
 		}
@@ -195,9 +198,9 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 
 	// Add highlight regions
 		if len(outcome.HighlightRegions) > 0 {
-			tel.HighlightRegions = make([]*basv1.HighlightRegion, 0, len(outcome.HighlightRegions))
+			tel.HighlightRegions = make([]*basdomain.HighlightRegion, 0, len(outcome.HighlightRegions))
 			for _, r := range outcome.HighlightRegions {
-				region := &basv1.HighlightRegion{
+				region := &basdomain.HighlightRegion{
 					Selector:       r.Selector,
 					BoundingBox:    convertBoundingBoxToProto(r.BoundingBox),
 					Padding:        r.Padding,
@@ -210,9 +213,9 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 
 	// Add mask regions
 	if len(outcome.MaskRegions) > 0 {
-		tel.MaskRegions = make([]*basv1.MaskRegion, 0, len(outcome.MaskRegions))
+		tel.MaskRegions = make([]*basdomain.MaskRegion, 0, len(outcome.MaskRegions))
 		for _, r := range outcome.MaskRegions {
-			tel.MaskRegions = append(tel.MaskRegions, &basv1.MaskRegion{
+			tel.MaskRegions = append(tel.MaskRegions, &basdomain.MaskRegion{
 				Selector:    r.Selector,
 				BoundingBox: convertBoundingBoxToProto(r.BoundingBox),
 				Opacity:     r.Opacity,
@@ -227,9 +230,9 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 
 	// Add console logs
 	if len(outcome.ConsoleLogs) > 0 {
-		tel.ConsoleLogs = make([]*basv1.ConsoleLogEntry, 0, len(outcome.ConsoleLogs))
+		tel.ConsoleLogs = make([]*basdomain.ConsoleLogEntry, 0, len(outcome.ConsoleLogs))
 		for _, log := range outcome.ConsoleLogs {
-			entry := &basv1.ConsoleLogEntry{
+			entry := &basdomain.ConsoleLogEntry{
 				Level: typeconv.StringToLogLevel(log.Type),
 				Text:  log.Text,
 			}
@@ -248,9 +251,9 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 
 	// Add network events
 	if len(outcome.Network) > 0 {
-		tel.NetworkEvents = make([]*basv1.NetworkEvent, 0, len(outcome.Network))
+		tel.NetworkEvents = make([]*basdomain.NetworkEvent, 0, len(outcome.Network))
 		for _, net := range outcome.Network {
-			event := &basv1.NetworkEvent{
+			event := &basdomain.NetworkEvent{
 				Type: typeconv.StringToNetworkEventType(net.Type),
 				Url:  net.URL,
 			}
@@ -283,15 +286,15 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 // buildEventContext creates the unified EventContext for a timeline entry.
 // This is the same structure used for both recording and execution events.
 // Note: node_id is set on the parent TimelineEntry, not in EventContext.
-func buildEventContext(outcome contracts.StepOutcome, executionID uuid.UUID) *basv1.EventContext {
-	ctx := &basv1.EventContext{
+func buildEventContext(outcome contracts.StepOutcome, executionID uuid.UUID) *basbase.EventContext {
+	ctx := &basbase.EventContext{
 		// Set execution_id as the origin (vs session_id for recordings)
-		Origin:  &basv1.EventContext_ExecutionId{ExecutionId: executionID.String()},
+		Origin:  &basbase.EventContext_ExecutionId{ExecutionId: executionID.String()},
 		Success: &outcome.Success,
 	}
 
 	// Add retry status with current attempt
-	ctx.RetryStatus = &basv1.RetryStatus{
+	ctx.RetryStatus = &basbase.RetryStatus{
 		CurrentAttempt: int32(outcome.Attempt),
 		MaxAttempts:    1, // Default, could be enhanced with actual retry config
 		Configured:     outcome.Attempt > 0,
@@ -310,7 +313,7 @@ func buildEventContext(outcome contracts.StepOutcome, executionID uuid.UUID) *ba
 	// Add assertion result
 	if outcome.Assertion != nil {
 		assertionMsg := outcome.Assertion.Message
-		ctx.Assertion = &basv1.AssertionResult{
+		ctx.Assertion = &basbase.AssertionResult{
 			Success:       outcome.Assertion.Success,
 			Mode:          typeconv.StringToAssertionMode(outcome.Assertion.Mode),
 			Selector:      outcome.Assertion.Selector,
@@ -343,16 +346,16 @@ func buildEventContext(outcome contracts.StepOutcome, executionID uuid.UUID) *ba
 
 // mapStepTypeToActionType converts a step type string to ActionType enum.
 // Delegates to typeconv.StringToActionType for the canonical implementation.
-func mapStepTypeToActionType(stepType string) basv1.ActionType {
+func mapStepTypeToActionType(stepType string) basactions.ActionType {
 	return typeconv.StringToActionType(stepType)
 }
 
 // convertBoundingBoxToProto converts a contracts.BoundingBox to proto format.
-func convertBoundingBoxToProto(b *contracts.BoundingBox) *basv1.BoundingBox {
+func convertBoundingBoxToProto(b *contracts.BoundingBox) *basbase.BoundingBox {
 	if b == nil {
 		return nil
 	}
-	return &basv1.BoundingBox{
+	return &basbase.BoundingBox{
 		X:      b.X,
 		Y:      b.Y,
 		Width:  b.Width,
@@ -361,11 +364,11 @@ func convertBoundingBoxToProto(b *contracts.BoundingBox) *basv1.BoundingBox {
 }
 
 // convertPointToProto converts a contracts.Point to proto format.
-func convertPointToProto(p *contracts.Point) *basv1.Point {
+func convertPointToProto(p *contracts.Point) *basbase.Point {
 	if p == nil {
 		return nil
 	}
-	return &basv1.Point{
+	return &basbase.Point{
 		X: p.X,
 		Y: p.Y,
 	}
@@ -373,71 +376,71 @@ func convertPointToProto(p *contracts.Point) *basv1.Point {
 
 // CompiledInstructionToActionDefinition converts a CompiledInstruction to ActionDefinition.
 // This is used when we have the original instruction params available.
-func CompiledInstructionToActionDefinition(instr contracts.CompiledInstruction) *basv1.ActionDefinition {
+func CompiledInstructionToActionDefinition(instr contracts.CompiledInstruction) *basactions.ActionDefinition {
 	actionType := mapStepTypeToActionType(instr.Type)
 
-	def := &basv1.ActionDefinition{
+	def := &basactions.ActionDefinition{
 		Type: actionType,
 	}
 
 	// Build params based on action type using instruction params
 	switch actionType {
-	case basv1.ActionType_ACTION_TYPE_NAVIGATE:
-		def.Params = &basv1.ActionDefinition_Navigate{
+	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
+		def.Params = &basactions.ActionDefinition_Navigate{
 			Navigate: params.BuildNavigateParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_CLICK:
-		def.Params = &basv1.ActionDefinition_Click{
+	case basactions.ActionType_ACTION_TYPE_CLICK:
+		def.Params = &basactions.ActionDefinition_Click{
 			Click: params.BuildClickParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_INPUT:
-		def.Params = &basv1.ActionDefinition_Input{
+	case basactions.ActionType_ACTION_TYPE_INPUT:
+		def.Params = &basactions.ActionDefinition_Input{
 			Input: params.BuildInputParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_WAIT:
-		def.Params = &basv1.ActionDefinition_Wait{
+	case basactions.ActionType_ACTION_TYPE_WAIT:
+		def.Params = &basactions.ActionDefinition_Wait{
 			Wait: params.BuildWaitParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_ASSERT:
-		def.Params = &basv1.ActionDefinition_Assert{
+	case basactions.ActionType_ACTION_TYPE_ASSERT:
+		def.Params = &basactions.ActionDefinition_Assert{
 			Assert: params.BuildAssertParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_SCROLL:
-		def.Params = &basv1.ActionDefinition_Scroll{
+	case basactions.ActionType_ACTION_TYPE_SCROLL:
+		def.Params = &basactions.ActionDefinition_Scroll{
 			Scroll: params.BuildScrollParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_SELECT:
-		def.Params = &basv1.ActionDefinition_SelectOption{
+	case basactions.ActionType_ACTION_TYPE_SELECT:
+		def.Params = &basactions.ActionDefinition_SelectOption{
 			SelectOption: params.BuildSelectParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_EVALUATE:
-		def.Params = &basv1.ActionDefinition_Evaluate{
+	case basactions.ActionType_ACTION_TYPE_EVALUATE:
+		def.Params = &basactions.ActionDefinition_Evaluate{
 			Evaluate: params.BuildEvaluateParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_KEYBOARD:
-		def.Params = &basv1.ActionDefinition_Keyboard{
+	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
+		def.Params = &basactions.ActionDefinition_Keyboard{
 			Keyboard: params.BuildKeyboardParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_HOVER:
-		def.Params = &basv1.ActionDefinition_Hover{
+	case basactions.ActionType_ACTION_TYPE_HOVER:
+		def.Params = &basactions.ActionDefinition_Hover{
 			Hover: params.BuildHoverParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_SCREENSHOT:
-		def.Params = &basv1.ActionDefinition_Screenshot{
+	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
+		def.Params = &basactions.ActionDefinition_Screenshot{
 			Screenshot: params.BuildScreenshotParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_FOCUS:
-		def.Params = &basv1.ActionDefinition_Focus{
+	case basactions.ActionType_ACTION_TYPE_FOCUS:
+		def.Params = &basactions.ActionDefinition_Focus{
 			Focus: params.BuildFocusParams(instr.Params),
 		}
-	case basv1.ActionType_ACTION_TYPE_BLUR:
-		def.Params = &basv1.ActionDefinition_Blur{
+	case basactions.ActionType_ACTION_TYPE_BLUR:
+		def.Params = &basactions.ActionDefinition_Blur{
 			Blur: params.BuildBlurParams(instr.Params),
 		}
 	}
 
 	// Add metadata with node info
-	def.Metadata = &basv1.ActionMetadata{
+	def.Metadata = &basactions.ActionMetadata{
 		Label: &instr.NodeID,
 	}
 

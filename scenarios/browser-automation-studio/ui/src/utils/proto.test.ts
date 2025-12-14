@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ExecutionSchema } from '@vrooli/proto-types/browser-automation-studio/v1/execution_pb';
+import { ExecutionSchema } from '@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb';
 import { parseProtoStrict } from './proto';
 
 describe('parseProtoStrict', () => {

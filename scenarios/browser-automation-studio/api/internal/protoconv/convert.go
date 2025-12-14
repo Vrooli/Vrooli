@@ -9,19 +9,23 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ExecutionToProto converts a database.Execution into the generated proto message.
-func ExecutionToProto(execution *database.Execution) (*browser_automation_studio_v1.Execution, error) {
+func ExecutionToProto(execution *database.Execution) (*basexecution.Execution, error) {
 	if execution == nil {
 		return nil, fmt.Errorf("execution is nil")
 	}
 
-	pb := &browser_automation_studio_v1.Execution{
+	pb := &basexecution.Execution{
 		ExecutionId:     execution.ID.String(),
 		WorkflowId:      execution.WorkflowID.String(),
 		WorkflowVersion: int32(execution.WorkflowVersion),
@@ -68,12 +72,12 @@ func ExecutionToProto(execution *database.Execution) (*browser_automation_studio
 }
 
 // ExecuteAdhocResponseProto converts the execution into the adhoc response proto.
-func ExecuteAdhocResponseProto(execution *database.Execution, message string) (*browser_automation_studio_v1.ExecuteAdhocResponse, error) {
+func ExecuteAdhocResponseProto(execution *database.Execution, message string) (*basexecution.ExecuteAdhocResponse, error) {
 	if execution == nil {
 		return nil, fmt.Errorf("execution is nil")
 	}
 
-	pb := &browser_automation_studio_v1.ExecuteAdhocResponse{
+	pb := &basexecution.ExecuteAdhocResponse{
 		ExecutionId: execution.ID.String(),
 		Status:      typeconv.StringToExecutionStatus(execution.Status),
 		Message:     message,
@@ -91,12 +95,12 @@ func ExecuteAdhocResponseProto(execution *database.Execution, message string) (*
 }
 
 // ExecutionExportPreviewToProto converts the workflow.ExecutionExportPreview to the proto message.
-func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*browser_automation_studio_v1.ExecutionExportPreview, error) {
+func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*basexecution.ExecutionExportPreview, error) {
 	if preview == nil {
 		return nil, fmt.Errorf("preview is nil")
 	}
 
-	return &browser_automation_studio_v1.ExecutionExportPreview{
+	return &basexecution.ExecutionExportPreview{
 		ExecutionId:         preview.ExecutionID.String(),
 		SpecId:              preview.SpecID,
 		Status:              typeconv.StringToExportStatus(preview.Status),
@@ -110,15 +114,15 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 
 // ScreenshotsToProto converts database screenshots to the proto response.
 // Uses ExecutionScreenshot which wraps TimelineScreenshot with execution context.
-func ScreenshotsToProto(screenshots []*database.Screenshot, executionID string) (*browser_automation_studio_v1.GetScreenshotsResponse, error) {
+func ScreenshotsToProto(screenshots []*database.Screenshot, executionID string) (*basexecution.GetScreenshotsResponse, error) {
 	if len(screenshots) == 0 {
-		return &browser_automation_studio_v1.GetScreenshotsResponse{
+		return &basexecution.GetScreenshotsResponse{
 			ExecutionId: executionID,
 			Total:       0,
 		}, nil
 	}
 
-	result := make([]*browser_automation_studio_v1.ExecutionScreenshot, 0, len(screenshots))
+	result := make([]*basexecution.ExecutionScreenshot, 0, len(screenshots))
 	for idx, shot := range screenshots {
 		if shot == nil {
 			return nil, fmt.Errorf("screenshots[%d] is nil", idx)
@@ -143,7 +147,7 @@ func ScreenshotsToProto(screenshots []*database.Screenshot, executionID string) 
 		}
 
 		// Build TimelineScreenshot (the canonical type)
-		timelineShot := &browser_automation_studio_v1.TimelineScreenshot{
+		timelineShot := &basdomain.TimelineScreenshot{
 			ArtifactId:   shot.ID.String(),
 			Url:          shot.StorageURL,
 			ThumbnailUrl: thumbURL,
@@ -157,7 +161,7 @@ func ScreenshotsToProto(screenshots []*database.Screenshot, executionID string) 
 		}
 
 		// Wrap in ExecutionScreenshot with execution context
-		execShot := &browser_automation_studio_v1.ExecutionScreenshot{
+		execShot := &basexecution.ExecutionScreenshot{
 			Screenshot: timelineShot,
 			StepIndex:  stepIndex,
 			NodeId:     nodeID,
@@ -170,7 +174,7 @@ func ScreenshotsToProto(screenshots []*database.Screenshot, executionID string) 
 		result = append(result, execShot)
 	}
 
-	return &browser_automation_studio_v1.GetScreenshotsResponse{
+	return &basexecution.GetScreenshotsResponse{
 		ExecutionId: executionID,
 		Screenshots: result,
 		Total:       int32(len(result)),
@@ -178,12 +182,12 @@ func ScreenshotsToProto(screenshots []*database.Screenshot, executionID string) 
 }
 
 // TimelineToProto converts the replay-focused ExecutionTimeline into the proto message.
-func TimelineToProto(timeline *export.ExecutionTimeline) (*browser_automation_studio_v1.ExecutionTimeline, error) {
+func TimelineToProto(timeline *export.ExecutionTimeline) (*bastimeline.ExecutionTimeline, error) {
 	if timeline == nil {
 		return nil, fmt.Errorf("timeline is nil")
 	}
 
-	pb := &browser_automation_studio_v1.ExecutionTimeline{
+	pb := &bastimeline.ExecutionTimeline{
 		ExecutionId: timeline.ExecutionID.String(),
 		WorkflowId:  timeline.WorkflowID.String(),
 		Status:      typeconv.StringToExecutionStatus(timeline.Status),
@@ -210,14 +214,14 @@ func TimelineToProto(timeline *export.ExecutionTimeline) (*browser_automation_st
 	return pb, nil
 }
 
-// timelineFrameToEntry converts an export.TimelineFrame to a browser_automation_studio_v1.TimelineEntry.
+// timelineFrameToEntry converts an export.TimelineFrame to a bastimeline.TimelineEntry.
 // This is the unified format for timeline data.
-func timelineFrameToEntry(frame export.TimelineFrame) (*browser_automation_studio_v1.TimelineEntry, error) {
+func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntry, error) {
 	// Build base entry
 	stepIndex := int32(frame.StepIndex)
 	// Generate entry ID from node_id and step_index since export.TimelineFrame doesn't have an ID field
 	entryID := fmt.Sprintf("%s-step-%d", frame.NodeID, frame.StepIndex)
-	entry := &browser_automation_studio_v1.TimelineEntry{
+	entry := &bastimeline.TimelineEntry{
 		Id:          entryID,
 		SequenceNum: int32(frame.StepIndex), // Use step index as sequence for now
 		StepIndex:   &stepIndex,
@@ -245,7 +249,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*browser_automation_studi
 
 	// Build ActionDefinition with action type
 	if frame.StepType != "" {
-		entry.Action = &browser_automation_studio_v1.ActionDefinition{
+		entry.Action = &basactions.ActionDefinition{
 			Type: typeconv.StringToActionType(frame.StepType),
 		}
 	}
@@ -254,7 +258,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*browser_automation_studi
 	entry.Telemetry = buildTelemetryFromFrame(frame)
 
 	// Build EventContext
-	entry.Context = &browser_automation_studio_v1.EventContext{
+	entry.Context = &basbase.EventContext{
 		Success: &frame.Success,
 	}
 	// Note: execution_id is not available in export.TimelineFrame - it's set at the parent timeline level
@@ -266,7 +270,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*browser_automation_studi
 
 	// Build RetryStatus from individual retry fields
 	if frame.RetryConfigured != 0 || frame.RetryAttempt > 0 || frame.RetryMaxAttempts > 0 {
-		entry.Context.RetryStatus = &browser_automation_studio_v1.RetryStatus{
+		entry.Context.RetryStatus = &basbase.RetryStatus{
 			CurrentAttempt: int32(frame.RetryAttempt),
 			MaxAttempts:    int32(frame.RetryMaxAttempts),
 			DelayMs:        int32(frame.RetryDelayMs),
@@ -287,7 +291,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*browser_automation_studi
 
 	// Build aggregates for batch data
 	progress := int32(frame.Progress)
-	entry.Aggregates = &browser_automation_studio_v1.TimelineEntryAggregates{
+	entry.Aggregates = &bastimeline.TimelineEntryAggregates{
 		Status:            typeconv.StringToStepStatus(frame.Status),
 		ConsoleLogCount:   int32(frame.ConsoleLogCount),
 		NetworkEventCount: int32(frame.NetworkEventCount),
@@ -335,17 +339,17 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*browser_automation_studi
 
 // timelineFrameToProto is deprecated. Use timelineFrameToEntry instead.
 // This wrapper exists for backwards compatibility.
-func timelineFrameToProto(frame export.TimelineFrame) (*browser_automation_studio_v1.TimelineFrame, error) {
+func timelineFrameToProto(frame export.TimelineFrame) (*bastimeline.TimelineFrame, error) {
 	entry, err := timelineFrameToEntry(frame)
 	if err != nil {
 		return nil, err
 	}
-	return &browser_automation_studio_v1.TimelineFrame{Entry: entry}, nil
+	return &bastimeline.TimelineFrame{Entry: entry}, nil
 }
 
 // buildTelemetryFromFrame creates ActionTelemetry from a TimelineFrame.
-func buildTelemetryFromFrame(frame export.TimelineFrame) *browser_automation_studio_v1.ActionTelemetry {
-	tel := &browser_automation_studio_v1.ActionTelemetry{
+func buildTelemetryFromFrame(frame export.TimelineFrame) *basdomain.ActionTelemetry {
+	tel := &basdomain.ActionTelemetry{
 		Url: frame.FinalURL,
 	}
 
@@ -383,8 +387,8 @@ func buildTelemetryFromFrame(frame export.TimelineFrame) *browser_automation_stu
 	return tel
 }
 
-func timelineLogToProto(log export.TimelineLog) *browser_automation_studio_v1.TimelineLog {
-	pb := &browser_automation_studio_v1.TimelineLog{
+func timelineLogToProto(log export.TimelineLog) *bastimeline.TimelineLog {
+	pb := &bastimeline.TimelineLog{
 		Id:        log.ID,
 		Level:     typeconv.StringToLogLevel(log.Level),
 		Message:   log.Message,
@@ -397,13 +401,13 @@ func timelineLogToProto(log export.TimelineLog) *browser_automation_studio_v1.Ti
 	return pb
 }
 
-func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*browser_automation_studio_v1.RetryAttempt {
+func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*basbase.RetryAttempt {
 	if len(entries) == 0 {
 		return nil
 	}
-	result := make([]*browser_automation_studio_v1.RetryAttempt, 0, len(entries))
+	result := make([]*basbase.RetryAttempt, 0, len(entries))
 	for _, entry := range entries {
-		attempt := &browser_automation_studio_v1.RetryAttempt{
+		attempt := &basbase.RetryAttempt{
 			Attempt:    int32(entry.Attempt),
 			Success:    entry.Success,
 			DurationMs: int32(entry.DurationMs),
@@ -416,8 +420,8 @@ func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*browser_automa
 	return result
 }
 
-func convertHighlightRegion(region autocontracts.HighlightRegion) *browser_automation_studio_v1.HighlightRegion {
-	pb := &browser_automation_studio_v1.HighlightRegion{
+func convertHighlightRegion(region autocontracts.HighlightRegion) *basdomain.HighlightRegion {
+	pb := &basdomain.HighlightRegion{
 		Selector:       region.Selector,
 		Padding:        region.Padding,
 		HighlightColor: region.HighlightColor,
@@ -429,8 +433,8 @@ func convertHighlightRegion(region autocontracts.HighlightRegion) *browser_autom
 	return pb
 }
 
-func convertMaskRegion(region autocontracts.MaskRegion) *browser_automation_studio_v1.MaskRegion {
-	pb := &browser_automation_studio_v1.MaskRegion{
+func convertMaskRegion(region autocontracts.MaskRegion) *basdomain.MaskRegion {
+	pb := &basdomain.MaskRegion{
 		Selector: region.Selector,
 		Opacity:  region.Opacity,
 	}
@@ -440,8 +444,8 @@ func convertMaskRegion(region autocontracts.MaskRegion) *browser_automation_stud
 	return pb
 }
 
-func convertElementFocus(focus *autocontracts.ElementFocus) *browser_automation_studio_v1.ElementFocus {
-	pb := &browser_automation_studio_v1.ElementFocus{
+func convertElementFocus(focus *autocontracts.ElementFocus) *bastimeline.ElementFocus {
+	pb := &bastimeline.ElementFocus{
 		Selector: focus.Selector,
 	}
 	if focus.BoundingBox != nil {
@@ -450,11 +454,11 @@ func convertElementFocus(focus *autocontracts.ElementFocus) *browser_automation_
 	return pb
 }
 
-func convertBoundingBox(bbox *autocontracts.BoundingBox) *browser_automation_studio_v1.BoundingBox {
+func convertBoundingBox(bbox *autocontracts.BoundingBox) *basbase.BoundingBox {
 	if bbox == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.BoundingBox{
+	return &basbase.BoundingBox{
 		X:      bbox.X,
 		Y:      bbox.Y,
 		Width:  bbox.Width,
@@ -462,21 +466,21 @@ func convertBoundingBox(bbox *autocontracts.BoundingBox) *browser_automation_stu
 	}
 }
 
-func convertPoint(pt *autocontracts.Point) *browser_automation_studio_v1.Point {
+func convertPoint(pt *autocontracts.Point) *basbase.Point {
 	if pt == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.Point{
+	return &basbase.Point{
 		X: pt.X,
 		Y: pt.Y,
 	}
 }
 
-func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *browser_automation_studio_v1.TimelineScreenshot {
+func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *basdomain.TimelineScreenshot {
 	if screenshot == nil {
 		return nil
 	}
-	pb := &browser_automation_studio_v1.TimelineScreenshot{
+	pb := &basdomain.TimelineScreenshot{
 		ArtifactId:   screenshot.ArtifactID,
 		Url:          screenshot.URL,
 		ThumbnailUrl: screenshot.ThumbnailURL,
@@ -490,8 +494,8 @@ func convertScreenshot(screenshot *typeconv.TimelineScreenshot) *browser_automat
 	return pb
 }
 
-func convertArtifact(artifact typeconv.TimelineArtifact) (*browser_automation_studio_v1.TimelineArtifact, error) {
-	pb := &browser_automation_studio_v1.TimelineArtifact{
+func convertArtifact(artifact typeconv.TimelineArtifact) (*bastimeline.TimelineArtifact, error) {
+	pb := &bastimeline.TimelineArtifact{
 		Id:          artifact.ID,
 		Type:        typeconv.StringToArtifactType(artifact.Type),
 		StorageUrl:  artifact.StorageURL,
@@ -518,11 +522,11 @@ func convertArtifact(artifact typeconv.TimelineArtifact) (*browser_automation_st
 	return pb, nil
 }
 
-func convertAssertion(assertion *autocontracts.AssertionOutcome) (*browser_automation_studio_v1.AssertionResult, error) {
+func convertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.AssertionResult, error) {
 	if assertion == nil {
 		return nil, nil
 	}
-	pb := &browser_automation_studio_v1.AssertionResult{
+	pb := &basbase.AssertionResult{
 		Mode:          typeconv.StringToAssertionMode(assertion.Mode),
 		Selector:      assertion.Selector,
 		Success:       assertion.Success,
@@ -558,11 +562,11 @@ func toJsonValueMap(source map[string]any) map[string]*commonv1.JsonValue {
 }
 
 // mapToTriggerMetadata converts a map to the typed TriggerMetadata proto.
-func mapToTriggerMetadata(source map[string]any) *browser_automation_studio_v1.TriggerMetadata {
+func mapToTriggerMetadata(source map[string]any) *basexecution.TriggerMetadata {
 	if len(source) == 0 {
 		return nil
 	}
-	meta := &browser_automation_studio_v1.TriggerMetadata{}
+	meta := &basexecution.TriggerMetadata{}
 	if v, ok := source["user_id"].(string); ok && v != "" {
 		meta.UserId = &v
 	}
@@ -588,11 +592,11 @@ func mapToTriggerMetadata(source map[string]any) *browser_automation_studio_v1.T
 }
 
 // mapToExecutionParameters converts a map to the typed ExecutionParameters proto.
-func mapToExecutionParameters(source map[string]any) *browser_automation_studio_v1.ExecutionParameters {
+func mapToExecutionParameters(source map[string]any) *basexecution.ExecutionParameters {
 	if len(source) == 0 {
 		return nil
 	}
-	params := &browser_automation_studio_v1.ExecutionParameters{}
+	params := &basexecution.ExecutionParameters{}
 	if v, ok := source["start_url"].(string); ok && v != "" {
 		params.StartUrl = &v
 	}
@@ -632,11 +636,11 @@ func mapToExecutionParameters(source map[string]any) *browser_automation_studio_
 }
 
 // mapToExecutionResult converts a map to the typed ExecutionResult proto.
-func mapToExecutionResult(source map[string]any) *browser_automation_studio_v1.ExecutionResult {
+func mapToExecutionResult(source map[string]any) *basexecution.ExecutionResult {
 	if len(source) == 0 {
 		return nil
 	}
-	result := &browser_automation_studio_v1.ExecutionResult{}
+	result := &basexecution.ExecutionResult{}
 	if v, ok := source["success"].(bool); ok {
 		result.Success = v
 	}
