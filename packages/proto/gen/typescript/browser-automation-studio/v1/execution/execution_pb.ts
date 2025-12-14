@@ -168,28 +168,28 @@ export const ExecutionResultSchema: GenMessage<ExecutionResult> = /*@__PURE__*/
  */
 export type TriggerMetadata = Message<"browser_automation_studio.v1.TriggerMetadata"> & {
   /**
-   * User ID who initiated the execution (for manual triggers).
+   * User ID who initiated the execution (UUID format, for manual triggers).
    *
    * @generated from field: optional string user_id = 1;
    */
   userId?: string;
 
   /**
-   * API client ID (for API triggers).
+   * API client ID (UUID format, for API triggers).
    *
    * @generated from field: optional string client_id = 2;
    */
   clientId?: string;
 
   /**
-   * Schedule ID (for scheduled triggers).
+   * Schedule ID (UUID format, for scheduled triggers).
    *
    * @generated from field: optional string schedule_id = 3;
    */
   scheduleId?: string;
 
   /**
-   * Webhook ID (for webhook triggers).
+   * Webhook ID (UUID format, for webhook triggers).
    *
    * @generated from field: optional string webhook_id = 4;
    */
@@ -231,14 +231,14 @@ export const TriggerMetadataSchema: GenMessage<TriggerMetadata> = /*@__PURE__*/
  */
 export type Execution = Message<"browser_automation_studio.v1.Execution"> & {
   /**
-   * Unique execution ID (UUID). JSON name preserved as "id" for backwards compatibility.
+   * Unique execution ID (UUID format). JSON name preserved as "id" for backwards compatibility.
    *
    * @generated from field: string execution_id = 1 [json_name = "id"];
    */
   executionId: string;
 
   /**
-   * Workflow ID associated with the execution (UUID).
+   * Workflow ID associated with the execution (UUID format).
    *
    * @generated from field: string workflow_id = 2;
    */
@@ -449,7 +449,7 @@ export const ExecutionMetadataSchema: GenMessage<ExecutionMetadata> = /*@__PURE_
  */
 export type ExecuteAdhocResponse = Message<"browser_automation_studio.v1.ExecuteAdhocResponse"> & {
   /**
-   * The created execution ID.
+   * The created execution ID (UUID format).
    *
    * @generated from field: string execution_id = 1;
    */
@@ -463,7 +463,7 @@ export type ExecuteAdhocResponse = Message<"browser_automation_studio.v1.Execute
   status: ExecutionStatus;
 
   /**
-   * Workflow ID if persisted (null for adhoc).
+   * Workflow ID if persisted (UUID format, null for adhoc).
    *
    * @generated from field: optional string workflow_id = 3;
    */
@@ -555,7 +555,7 @@ export const ExecutionScreenshotSchema: GenMessage<ExecutionScreenshot> = /*@__P
  */
 export type GetScreenshotsResponse = Message<"browser_automation_studio.v1.GetScreenshotsResponse"> & {
   /**
-   * Execution ID the screenshots belong to.
+   * Execution ID the screenshots belong to (UUID format).
    *
    * @generated from field: string execution_id = 1;
    */
@@ -590,14 +590,14 @@ export const GetScreenshotsResponseSchema: GenMessage<GetScreenshotsResponse> = 
  */
 export type ExecutionExportPreview = Message<"browser_automation_studio.v1.ExecutionExportPreview"> & {
   /**
-   * Execution ID being exported.
+   * Execution ID being exported (UUID format).
    *
    * @generated from field: string execution_id = 1;
    */
   executionId: string;
 
   /**
-   * Identifier for the generated export spec (replay movie).
+   * Identifier for the generated export spec (UUID format).
    *
    * @generated from field: string spec_id = 2;
    */

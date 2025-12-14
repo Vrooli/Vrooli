@@ -23,13 +23,25 @@ const (
 )
 
 // HealthStatus enumerates service health states.
+//
+// Used for health check endpoints and service monitoring.
+// Ordered by severity: HEALTHY < DEGRADED < UNHEALTHY.
+//
+// @usage HealthResponse.status
 type HealthStatus int32
 
 const (
+	// Default/unknown status. Treat as UNHEALTHY for safety.
 	HealthStatus_HEALTH_STATUS_UNSPECIFIED HealthStatus = 0
-	HealthStatus_HEALTH_STATUS_HEALTHY     HealthStatus = 1
-	HealthStatus_HEALTH_STATUS_DEGRADED    HealthStatus = 2
-	HealthStatus_HEALTH_STATUS_UNHEALTHY   HealthStatus = 3
+	// Service is fully operational. All dependencies healthy.
+	HealthStatus_HEALTH_STATUS_HEALTHY HealthStatus = 1
+	// Service is operational but with reduced capability.
+	// Some non-critical dependencies may be unavailable.
+	// Example: Cache unavailable but database is up.
+	HealthStatus_HEALTH_STATUS_DEGRADED HealthStatus = 2
+	// Service cannot fulfill requests. Critical dependency failure.
+	// Should trigger alerts and potentially remove from load balancer.
+	HealthStatus_HEALTH_STATUS_UNHEALTHY HealthStatus = 3
 )
 
 // Enum value maps for HealthStatus.
@@ -77,6 +89,13 @@ func (HealthStatus) EnumDescriptor() ([]byte, []int) {
 
 // JsonValue models a typed JSON value for scenarios that need stronger typing
 // than google.protobuf.Value while retaining a JSON-compatible shape.
+//
+// Advantages over google.protobuf.Value:
+//   - Explicit null handling (preserved through serialization)
+//   - int64 for integers (Value uses double, losing precision for large ints)
+//   - bytes support for binary data passthrough
+//
+// @usage metadata fields, dynamic configuration, extracted data
 type JsonValue struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:
@@ -208,36 +227,45 @@ type isJsonValue_Kind interface {
 }
 
 type JsonValue_BoolValue struct {
+	// Boolean value (JSON: true/false).
 	BoolValue bool `protobuf:"varint,1,opt,name=bool_value,json=boolValue,proto3,oneof"`
 }
 
 type JsonValue_IntValue struct {
+	// Integer value (JSON: number, but preserves int64 precision).
+	// Use for IDs, counts, timestamps where precision matters.
 	IntValue int64 `protobuf:"varint,2,opt,name=int_value,json=intValue,proto3,oneof"`
 }
 
 type JsonValue_DoubleValue struct {
+	// Floating-point value (JSON: number with decimal).
 	DoubleValue float64 `protobuf:"fixed64,3,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
 
 type JsonValue_StringValue struct {
+	// String value (JSON: string).
 	StringValue string `protobuf:"bytes,4,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
 
 type JsonValue_ObjectValue struct {
+	// Nested object (JSON: {...}).
 	ObjectValue *JsonObject `protobuf:"bytes,5,opt,name=object_value,json=objectValue,proto3,oneof"`
 }
 
 type JsonValue_ListValue struct {
+	// Nested array (JSON: [...]).
 	ListValue *JsonList `protobuf:"bytes,6,opt,name=list_value,json=listValue,proto3,oneof"`
 }
 
 type JsonValue_NullValue struct {
 	// Explicit null to preserve intent when converting to/from JSON.
+	// Unlike omitting the field, this represents "value is null".
 	NullValue structpb.NullValue `protobuf:"varint,7,opt,name=null_value,json=nullValue,proto3,enum=google.protobuf.NullValue,oneof"`
 }
 
 type JsonValue_BytesValue struct {
-	// Raw bytes for cases where binary payloads are passed through.
+	// Raw bytes for binary payloads passed through JSON-based APIs.
+	// Serialized as base64 in JSON representation.
 	BytesValue []byte `protobuf:"bytes,8,opt,name=bytes_value,json=bytesValue,proto3,oneof"`
 }
 
@@ -258,9 +286,15 @@ func (*JsonValue_NullValue) isJsonValue_Kind() {}
 func (*JsonValue_BytesValue) isJsonValue_Kind() {}
 
 // JsonObject mirrors a JSON object with typed values.
+//
+// Use when you need a dynamic key-value structure with typed values.
+//
+// @usage JsonValue.object_value, ErrorResponse.details
 type JsonObject struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Fields        map[string]*JsonValue  `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Key-value pairs where keys are strings and values are typed JSON values.
+	// Keys should follow consistent naming conventions (snake_case recommended).
+	Fields        map[string]*JsonValue `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -303,9 +337,14 @@ func (x *JsonObject) GetFields() map[string]*JsonValue {
 }
 
 // JsonList mirrors a JSON array with typed values.
+//
+// Use when you need an ordered list of heterogeneous typed values.
+//
+// @usage JsonValue.list_value
 type JsonList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Values        []*JsonValue           `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ordered list of typed JSON values.
+	Values        []*JsonValue `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -348,11 +387,18 @@ func (x *JsonList) GetValues() []*JsonValue {
 }
 
 // PaginationRequest represents limit/offset pagination inputs.
+//
+// Standard pagination for list endpoints. Clients should provide
+// reasonable defaults if not specified.
+//
+// @usage List API requests (e.g., ListWorkflowsRequest)
 type PaginationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum number of items to return.
+	// @default 20 (typical), @constraint 1-100
 	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Zero-based offset for pagination.
+	// @default 0
 	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -403,15 +449,21 @@ func (x *PaginationRequest) GetOffset() int32 {
 }
 
 // PaginationResponse captures list pagination metadata.
+//
+// Included in list API responses to enable clients to implement
+// pagination UI and determine if more pages exist.
+//
+// @usage List API responses (e.g., ListWorkflowsResponse)
 type PaginationResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Total number of matching records.
+	// Total number of matching records (before pagination).
 	Total int32 `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
-	// Page size used in the response.
+	// Page size used in this response.
 	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Zero-based offset used to fetch this page.
 	Offset int32 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
-	// True when additional pages are available.
+	// True when additional pages are available beyond this response.
+	// Equivalent to: offset + len(items) < total
 	HasMore       bool `protobuf:"varint,4,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -476,13 +528,23 @@ func (x *PaginationResponse) GetHasMore() bool {
 }
 
 // ErrorResponse is the standard error envelope for HTTP responses.
+//
+// All API errors should use this format for consistency. The code field
+// enables programmatic error handling; message is for human display.
+//
+// @usage HTTP error responses (4xx, 5xx)
 type ErrorResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable machine-readable error code (e.g., WORKFLOW_VALIDATION_FAILED).
+	// Stable machine-readable error code (e.g., "WORKFLOW_VALIDATION_FAILED").
+	// Use SCREAMING_SNAKE_CASE. Should not change across API versions.
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	// Human-readable error message.
+	// Human-readable error message for display.
+	// May be localized. Should not be parsed programmatically.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// Additional structured context about the error.
+	// Key: Context identifier (e.g., "field", "validation_errors", "request_id")
+	// Value: JSON-compatible context value
+	// Common keys: "field" (which field failed), "constraint" (what was violated)
 	Details       *JsonObject `protobuf:"bytes,4,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -539,22 +601,35 @@ func (x *ErrorResponse) GetDetails() *JsonObject {
 	return nil
 }
 
-// HealthResponse mirrors the BAS health response contract.
+// HealthResponse is the standard health check response contract.
+//
+// Used by health check endpoints for service monitoring and load balancer
+// health probes. Follows cloud-native health check patterns.
+//
+// @usage GET /health, GET /ready endpoints
 type HealthResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Service health status.
+	// Overall service health status.
 	Status HealthStatus `protobuf:"varint,1,opt,name=status,proto3,enum=common.v1.HealthStatus" json:"status,omitempty"`
-	// Identifier for the service reporting health.
+	// Identifier for the service reporting health (e.g., "browser-automation-studio-api").
 	Service string `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
-	// RFC3339 timestamp when the check was produced.
+	// RFC3339 timestamp when the check was produced (e.g., "2024-01-15T10:30:00Z").
+	// @format rfc3339
 	Timestamp string `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Readiness indicator for load balancers.
+	// True when service can accept traffic; false during startup/shutdown.
 	Readiness bool `protobuf:"varint,4,opt,name=readiness,proto3" json:"readiness,omitempty"`
-	// Optional service version string.
+	// Optional service version string (e.g., "1.2.3", "abc123").
 	Version string `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
-	// Status of downstream dependencies.
+	// Status of downstream dependencies (databases, caches, external services).
+	// Key: Dependency name (e.g., "postgres", "redis", "stripe")
+	// Value: Status object with "status" (string), "latency_ms" (int), "error" (string)
+	// @example {"postgres": {"status": "healthy", "latency_ms": 5}}
 	Dependencies map[string]*JsonValue `protobuf:"bytes,8,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Additional health metrics.
+	// Additional health metrics for monitoring.
+	// Key: Metric name (e.g., "goroutines", "heap_mb", "open_connections")
+	// Value: Metric value (typically int or double)
+	// @example {"goroutines": 42, "heap_mb": 128.5}
 	Metrics       map[string]*JsonValue `protobuf:"bytes,9,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -673,11 +748,11 @@ const file_common_v1_types_proto_rawDesc = "" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\x12\x19\n" +
-	"\bhas_more\x18\x04 \x01(\bR\ahasMore\"t\n" +
+	"\bhas_more\x18\x04 \x01(\bR\ahasMore\"\x85\x01\n" +
 	"\rErrorResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12/\n" +
-	"\adetails\x18\x04 \x01(\v2\x15.common.v1.JsonObjectR\adetailsJ\x04\b\x03\x10\x04\"\xf9\x03\n" +
+	"\adetails\x18\x04 \x01(\v2\x15.common.v1.JsonObjectR\adetailsJ\x04\b\x03\x10\x04R\x0fdetails_untyped\"\xa0\x04\n" +
 	"\x0eHealthResponse\x12/\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x17.common.v1.HealthStatusR\x06status\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
@@ -691,7 +766,7 @@ const file_common_v1_types_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aP\n" +
 	"\fMetricsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\aJ\x04\b\a\x10\b*\x81\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\x14dependencies_untypedR\x0fmetrics_untyped*\x81\x01\n" +
 	"\fHealthStatus\x12\x1d\n" +
 	"\x19HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15HEALTH_STATUS_HEALTHY\x10\x01\x12\x1a\n" +

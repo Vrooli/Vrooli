@@ -12,6 +12,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // RECORDING SESSION MANAGEMENT
 // =============================================================================
 //
+// @layer 3
+// @domain recording
+// @imports actions, timeline
+//
 // This file handles the LIFECYCLE of browser recording sessions:
 //   - Create/start/stop recording sessions
 //   - Query session status and captured entries
@@ -21,21 +25,21 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // IMPORTANT: This file does NOT define action types or entry formats.
 // Those are defined in:
 //   - action.proto: ActionDefinition (unified action type)
-//   - timeline_entry.proto: TimelineEntry (unified streaming/batch format)
+//   - timeline/entry.proto: TimelineEntry (unified streaming/batch format)
 //
 // The recording session uses TimelineEntry for captured actions, ensuring
 // the same format is used for both recording and execution.
 //
-// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
+// @see shared.proto for "UNIFIED RECORDING/EXECUTION MODEL" design rationale
 // =============================================================================
 
 // RecordingState captures current recording session state.
 message RecordingState {
   // Whether recording is currently active.
   bool is_recording = 1;
-  // Current recording ID.
+  // Current recording ID (UUID format).
   string recording_id = 2;
-  // Session ID for the browser session.
+  // Session ID for the browser session (UUID format).
   string session_id = 3;
   // Number of actions captured so far.
   int32 action_count = 4;
@@ -55,7 +59,7 @@ message CreateRecordingSessionRequest {
 
 // CreateRecordingSessionResponse is returned after creating a recording session.
 message CreateRecordingSessionResponse {
-  // Unique session identifier.
+  // Unique session identifier (UUID format).
   string session_id = 1;
   // When the session was created.
   google.protobuf.Timestamp created_at = 2;
@@ -63,7 +67,7 @@ message CreateRecordingSessionResponse {
 
 // StartRecordingRequest starts recording on an existing session.
 message StartRecordingRequest {
-  // Session ID to start recording on.
+  // Session ID to start recording on (UUID format).
   string session_id = 1;
   // Callback URL for streaming events (optional).
   string callback_url = 2;
@@ -71,9 +75,9 @@ message StartRecordingRequest {
 
 // StartRecordingResponse is returned after starting recording.
 message StartRecordingResponse {
-  // Unique recording identifier.
+  // Unique recording identifier (UUID format).
   string recording_id = 1;
-  // Session ID the recording is attached to.
+  // Session ID the recording is attached to (UUID format).
   string session_id = 2;
   // When recording started.
   google.protobuf.Timestamp started_at = 3;
@@ -81,9 +85,9 @@ message StartRecordingResponse {
 
 // StopRecordingResponse is returned after stopping recording.
 message StopRecordingResponse {
-  // Recording ID that was stopped.
+  // Recording ID that was stopped (UUID format).
   string recording_id = 1;
-  // Session ID the recording was attached to.
+  // Session ID the recording was attached to (UUID format).
   string session_id = 2;
   // Total number of actions captured.
   int32 action_count = 3;
@@ -93,11 +97,11 @@ message StopRecordingResponse {
 
 // RecordingStatusResponse returns current recording status.
 message RecordingStatusResponse {
-  // Session ID being queried.
+  // Session ID being queried (UUID format).
   string session_id = 1;
   // Whether recording is active.
   bool is_recording = 2;
-  // Current recording ID (empty if not recording).
+  // Current recording ID (UUID format, empty if not recording).
   string recording_id = 3;
   // Number of actions captured.
   int32 action_count = 4;
@@ -111,7 +115,7 @@ message RecordingStatusResponse {
 
 // GetActionsResponse returns captured timeline entries from a recording session.
 message GetActionsResponse {
-  // Session ID the entries belong to.
+  // Session ID the entries belong to (UUID format).
   string session_id = 1;
   // Captured timeline entries (unified format).
   repeated TimelineEntry entries = 2;
@@ -125,11 +129,11 @@ message GetActionsResponse {
 
 // GenerateWorkflowRequest generates a workflow from recorded entries.
 message GenerateWorkflowRequest {
-  // Session ID to generate workflow from.
+  // Session ID to generate workflow from (UUID format).
   string session_id = 1;
   // Name for the generated workflow.
   string name = 2;
-  // Project ID to save the workflow to.
+  // Project ID to save the workflow to (UUID format).
   string project_id = 3;
   // Project name (for display).
   string project_name = 4;
@@ -148,9 +152,9 @@ message GenerateWorkflowRequest {
 
 // GenerateWorkflowResponse is returned after generating a workflow.
 message GenerateWorkflowResponse {
-  // Generated workflow ID.
+  // Generated workflow ID (UUID format).
   string workflow_id = 1;
-  // Project ID the workflow was saved to.
+  // Project ID the workflow was saved to (UUID format).
   string project_id = 2;
   // Workflow name.
   string name = 3;
@@ -166,7 +170,7 @@ message GenerateWorkflowResponse {
 
 // ReplayPreviewRequest tests recorded entries by replaying them.
 message ReplayPreviewRequest {
-  // Session ID to replay on.
+  // Session ID to replay on (UUID format).
   string session_id = 1;
   // Timeline entries to replay.
   repeated TimelineEntry entries = 2;
@@ -192,7 +196,7 @@ message ReplayEventError {
 
 // ReplayEntryResult is the result of replaying a single timeline entry.
 message ReplayEntryResult {
-  // Entry ID that was replayed.
+  // Entry ID that was replayed (UUID format).
   string entry_id = 1;
   // Sequence number of the entry.
   int32 sequence_num = 2;

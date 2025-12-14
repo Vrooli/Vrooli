@@ -14,30 +14,37 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-react-vite/v1/pricing.proto.
  */
 export const file_landing_page_react_vite_v1_pricing: GenFile = /*@__PURE__*/
-  fileDesc("CihsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9wcmljaW5nLnByb3RvEhpsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MSLHAgoGQnVuZGxlEhIKCmJ1bmRsZV9rZXkYASABKAkSDAoEbmFtZRgCIAEoCRIZChFzdHJpcGVfcHJvZHVjdF9pZBgDIAEoCRIXCg9jcmVkaXRzX3Blcl91c2QYBCABKAMSIgoaZGlzcGxheV9jcmVkaXRzX211bHRpcGxpZXIYBSABKAESHQoVZGlzcGxheV9jcmVkaXRzX2xhYmVsGAYgASgJEhMKC2Vudmlyb25tZW50GAcgASgJEkIKCG1ldGFkYXRhGAkgAygLMjAubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQnVuZGxlLk1ldGFkYXRhRW50cnkaRQoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUoECAgQCSKVBgoKUGxhbk9wdGlvbhIRCglwbGFuX25hbWUYASABKAkSEQoJcGxhbl90aWVyGAIgASgJEkUKEGJpbGxpbmdfaW50ZXJ2YWwYAyABKA4yKy5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5CaWxsaW5nSW50ZXJ2YWwSFAoMYW1vdW50X2NlbnRzGAQgASgDEhAKCGN1cnJlbmN5GAUgASgJEhUKDWludHJvX2VuYWJsZWQYBiABKAgSQAoKaW50cm9fdHlwZRgHIAEoDjIsLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkludHJvUHJpY2luZ1R5cGUSHwoSaW50cm9fYW1vdW50X2NlbnRzGAggASgDSACIAQESFQoNaW50cm9fcGVyaW9kcxgJIAEoBRIeChZpbnRyb19wcmljZV9sb29rdXBfa2V5GAogASgJEhcKD3N0cmlwZV9wcmljZV9pZBgLIAEoCRIgChhtb250aGx5X2luY2x1ZGVkX2NyZWRpdHMYDCABKAMSHgoWb25lX3RpbWVfYm9udXNfY3JlZGl0cxgNIAEoAxIRCglwbGFuX3JhbmsYDiABKAUSEgoKYm9udXNfdHlwZRgPIAEoCRIyCgRraW5kGBAgASgOMiQubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbktpbmQSGgoSaXNfdmFyaWFibGVfYW1vdW50GBEgASgIEhcKD2Rpc3BsYXlfZW5hYmxlZBgSIAEoCBISCgpidW5kbGVfa2V5GBMgASgJEhYKDmRpc3BsYXlfd2VpZ2h0GBQgASgFEkYKCG1ldGFkYXRhGBYgAygLMjQubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbk9wdGlvbi5NZXRhZGF0YUVudHJ5GkUKDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCFQoTX2ludHJvX2Ftb3VudF9jZW50c0oECBUQFiLmAQoPUHJpY2luZ092ZXJ2aWV3EjIKBmJ1bmRsZRgBIAEoCzIiLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkJ1bmRsZRI3Cgdtb250aGx5GAIgAygLMiYubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbk9wdGlvbhI2CgZ5ZWFybHkYAyADKAsyJi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QbGFuT3B0aW9uEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIj8KEUdldFByaWNpbmdSZXF1ZXN0EhIKCmJ1bmRsZV9rZXkYASABKAkSFgoOaW5jbHVkZV9oaWRkZW4YAiABKAgiUgoSR2V0UHJpY2luZ1Jlc3BvbnNlEjwKB3ByaWNpbmcYASABKAsyKy5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QcmljaW5nT3ZlcnZpZXcqhAEKCFBsYW5LaW5kEhkKFVBMQU5fS0lORF9VTlNQRUNJRklFRBAAEhoKFlBMQU5fS0lORF9TVUJTQ1JJUFRJT04QARIbChdQTEFOX0tJTkRfQ1JFRElUU19UT1BVUBACEiQKIFBMQU5fS0lORF9TVVBQT1JURVJfQ09OVFJJQlVUSU9OEAMqiQEKD0JpbGxpbmdJbnRlcnZhbBIgChxCSUxMSU5HX0lOVEVSVkFMX1VOU1BFQ0lGSUVEEAASGgoWQklMTElOR19JTlRFUlZBTF9NT05USBABEhkKFUJJTExJTkdfSU5URVJWQUxfWUVBUhACEh0KGUJJTExJTkdfSU5URVJWQUxfT05FX1RJTUUQAyp9ChBJbnRyb1ByaWNpbmdUeXBlEiIKHklOVFJPX1BSSUNJTkdfVFlQRV9VTlNQRUNJRklFRBAAEiIKHklOVFJPX1BSSUNJTkdfVFlQRV9GTEFUX0FNT1VOVBABEiEKHUlOVFJPX1BSSUNJTkdfVFlQRV9QRVJDRU5UQUdFEAJCZlpkZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MTtsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types]);
+  fileDesc("CihsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9wcmljaW5nLnByb3RvEhpsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MSLZAgoGQnVuZGxlEhIKCmJ1bmRsZV9rZXkYASABKAkSDAoEbmFtZRgCIAEoCRIZChFzdHJpcGVfcHJvZHVjdF9pZBgDIAEoCRIXCg9jcmVkaXRzX3Blcl91c2QYBCABKAMSIgoaZGlzcGxheV9jcmVkaXRzX211bHRpcGxpZXIYBSABKAESHQoVZGlzcGxheV9jcmVkaXRzX2xhYmVsGAYgASgJEhMKC2Vudmlyb25tZW50GAcgASgJEkIKCG1ldGFkYXRhGAkgAygLMjAubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQnVuZGxlLk1ldGFkYXRhRW50cnkaRQoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUoECAgQCVIQbWV0YWRhdGFfdW50eXBlZCKnBgoKUGxhbk9wdGlvbhIRCglwbGFuX25hbWUYASABKAkSEQoJcGxhbl90aWVyGAIgASgJEkUKEGJpbGxpbmdfaW50ZXJ2YWwYAyABKA4yKy5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5CaWxsaW5nSW50ZXJ2YWwSFAoMYW1vdW50X2NlbnRzGAQgASgDEhAKCGN1cnJlbmN5GAUgASgJEhUKDWludHJvX2VuYWJsZWQYBiABKAgSQAoKaW50cm9fdHlwZRgHIAEoDjIsLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkludHJvUHJpY2luZ1R5cGUSHwoSaW50cm9fYW1vdW50X2NlbnRzGAggASgDSACIAQESFQoNaW50cm9fcGVyaW9kcxgJIAEoBRIeChZpbnRyb19wcmljZV9sb29rdXBfa2V5GAogASgJEhcKD3N0cmlwZV9wcmljZV9pZBgLIAEoCRIgChhtb250aGx5X2luY2x1ZGVkX2NyZWRpdHMYDCABKAMSHgoWb25lX3RpbWVfYm9udXNfY3JlZGl0cxgNIAEoAxIRCglwbGFuX3JhbmsYDiABKAUSEgoKYm9udXNfdHlwZRgPIAEoCRIyCgRraW5kGBAgASgOMiQubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbktpbmQSGgoSaXNfdmFyaWFibGVfYW1vdW50GBEgASgIEhcKD2Rpc3BsYXlfZW5hYmxlZBgSIAEoCBISCgpidW5kbGVfa2V5GBMgASgJEhYKDmRpc3BsYXlfd2VpZ2h0GBQgASgFEkYKCG1ldGFkYXRhGBYgAygLMjQubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbk9wdGlvbi5NZXRhZGF0YUVudHJ5GkUKDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCFQoTX2ludHJvX2Ftb3VudF9jZW50c0oECBUQFlIQbWV0YWRhdGFfdW50eXBlZCLmAQoPUHJpY2luZ092ZXJ2aWV3EjIKBmJ1bmRsZRgBIAEoCzIiLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkJ1bmRsZRI3Cgdtb250aGx5GAIgAygLMiYubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuUGxhbk9wdGlvbhI2CgZ5ZWFybHkYAyADKAsyJi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QbGFuT3B0aW9uEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIj8KEUdldFByaWNpbmdSZXF1ZXN0EhIKCmJ1bmRsZV9rZXkYASABKAkSFgoOaW5jbHVkZV9oaWRkZW4YAiABKAgiUgoSR2V0UHJpY2luZ1Jlc3BvbnNlEjwKB3ByaWNpbmcYASABKAsyKy5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5QcmljaW5nT3ZlcnZpZXcqhAEKCFBsYW5LaW5kEhkKFVBMQU5fS0lORF9VTlNQRUNJRklFRBAAEhoKFlBMQU5fS0lORF9TVUJTQ1JJUFRJT04QARIbChdQTEFOX0tJTkRfQ1JFRElUU19UT1BVUBACEiQKIFBMQU5fS0lORF9TVVBQT1JURVJfQ09OVFJJQlVUSU9OEAMqiQEKD0JpbGxpbmdJbnRlcnZhbBIgChxCSUxMSU5HX0lOVEVSVkFMX1VOU1BFQ0lGSUVEEAASGgoWQklMTElOR19JTlRFUlZBTF9NT05USBABEhkKFUJJTExJTkdfSU5URVJWQUxfWUVBUhACEh0KGUJJTExJTkdfSU5URVJWQUxfT05FX1RJTUUQAyp9ChBJbnRyb1ByaWNpbmdUeXBlEiIKHklOVFJPX1BSSUNJTkdfVFlQRV9VTlNQRUNJRklFRBAAEiIKHklOVFJPX1BSSUNJTkdfVFlQRV9GTEFUX0FNT1VOVBABEiEKHUlOVFJPX1BSSUNJTkdfVFlQRV9QRVJDRU5UQUdFEAJCZlpkZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MTtsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types]);
 
 /**
  * Bundle captures Stripe product metadata and credit conversion rules.
+ *
+ * Represents a Stripe product with associated credit system configuration.
+ * Each environment (production, staging) typically has its own bundle.
+ *
+ * @usage PricingOverview.bundle, credit balance calculations
  *
  * @generated from message landing_page_react_vite.v1.Bundle
  */
 export type Bundle = Message<"landing_page_react_vite.v1.Bundle"> & {
   /**
    * Stable key used by clients and downstream scenarios.
+   * @format slug (e.g., "vrooli-prod", "vrooli-staging")
    *
    * @generated from field: string bundle_key = 1;
    */
   bundleKey: string;
 
   /**
-   * Human-readable bundle name.
+   * Human-readable bundle name for display.
    *
    * @generated from field: string name = 2;
    */
   name: string;
 
   /**
-   * Stripe product identifier.
+   * Stripe product identifier (prod_*).
+   * @format stripe_product_id
    *
    * @generated from field: string stripe_product_id = 3;
    */
@@ -45,6 +52,7 @@ export type Bundle = Message<"landing_page_react_vite.v1.Bundle"> & {
 
   /**
    * Conversion rate from USD cents to credits.
+   * @example 100 means $1.00 = 100 credits
    *
    * @generated from field: int64 credits_per_usd = 4;
    */
@@ -52,6 +60,7 @@ export type Bundle = Message<"landing_page_react_vite.v1.Bundle"> & {
 
   /**
    * Multiplier applied when rendering credit amounts for display.
+   * @example 0.001 to show "1,000 credits" as "1 token"
    *
    * @generated from field: double display_credits_multiplier = 5;
    */
@@ -73,6 +82,9 @@ export type Bundle = Message<"landing_page_react_vite.v1.Bundle"> & {
 
   /**
    * Additional metadata passed through to clients.
+   * Key: Feature identifier (e.g., "feature_flags", "branding")
+   * Value: JSON-compatible value for client-specific extensions
+   * Common keys: "logo_url", "support_email", "terms_url"
    *
    * @generated from field: map<string, common.v1.JsonValue> metadata = 9;
    */
@@ -89,6 +101,11 @@ export const BundleSchema: GenMessage<Bundle> = /*@__PURE__*/
 /**
  * PlanOption represents a purchasable Stripe price for a bundle.
  *
+ * Contains all pricing, display, and entitlement configuration for a single
+ * purchasable option. Plans are grouped by billing interval for display.
+ *
+ * @usage PricingOverview.monthly, PricingOverview.yearly, checkout selection
+ *
  * @generated from message landing_page_react_vite.v1.PlanOption
  */
 export type PlanOption = Message<"landing_page_react_vite.v1.PlanOption"> & {
@@ -100,14 +117,15 @@ export type PlanOption = Message<"landing_page_react_vite.v1.PlanOption"> & {
   planName: string;
 
   /**
-   * Tier key used for entitlement checks.
+   * Tier key used for entitlement checks (e.g., "free", "pro", "team").
+   * @format slug
    *
    * @generated from field: string plan_tier = 2;
    */
   planTier: string;
 
   /**
-   * Billing cadence ("month" or "year").
+   * Billing cadence for this plan.
    *
    * @generated from field: landing_page_react_vite.v1.BillingInterval billing_interval = 3;
    */
@@ -115,104 +133,117 @@ export type PlanOption = Message<"landing_page_react_vite.v1.PlanOption"> & {
 
   /**
    * Price in cents for the billing interval.
+   * @unit cents (USD)
    *
    * @generated from field: int64 amount_cents = 4;
    */
   amountCents: bigint;
 
   /**
-   * Currency code (ISO 4217).
+   * Currency code (ISO 4217, e.g., "usd", "eur").
+   * @format iso4217
    *
    * @generated from field: string currency = 5;
    */
   currency: string;
 
   /**
-   * Whether an introductory price is enabled.
+   * === INTRODUCTORY PRICING ===
+   * Whether an introductory price is enabled for this plan.
    *
    * @generated from field: bool intro_enabled = 6;
    */
   introEnabled: boolean;
 
   /**
-   * Type of intro pricing ("flat_amount", etc.).
+   * Type of intro pricing discount applied.
    *
    * @generated from field: landing_page_react_vite.v1.IntroPricingType intro_type = 7;
    */
   introType: IntroPricingType;
 
   /**
-   * Introductory amount in cents (nullable when not enabled).
+   * Introductory amount in cents. If unset, no intro pricing.
+   * For FLAT_AMOUNT: the discounted price in cents.
+   * For PERCENTAGE: the percentage as an integer (50 = 50% off).
+   * @unit cents or percentage
    *
    * @generated from field: optional int64 intro_amount_cents = 8;
    */
   introAmountCents?: bigint;
 
   /**
-   * Number of billing periods for the intro price.
+   * Number of billing periods the intro price applies.
+   * @example 1 means first month/year only
    *
    * @generated from field: int32 intro_periods = 9;
    */
   introPeriods: number;
 
   /**
-   * Lookup key for intro pricing in Stripe.
+   * Lookup key for intro pricing in Stripe (for schedule creation).
    *
    * @generated from field: string intro_price_lookup_key = 10;
    */
   introPriceLookupKey: string;
 
   /**
-   * Stripe price identifier.
+   * === STRIPE IDENTIFIERS ===
+   * Stripe price identifier (price_*).
+   * @format stripe_price_id
    *
    * @generated from field: string stripe_price_id = 11;
    */
   stripePriceId: string;
 
   /**
-   * Included credits per billing interval.
+   * === CREDITS ===
+   * Credits included per billing interval (for subscription plans).
+   * @example 1000 means 1000 credits/month for monthly plans
    *
    * @generated from field: int64 monthly_included_credits = 12;
    */
   monthlyIncludedCredits: bigint;
 
   /**
-   * One-time bonus credits granted at purchase.
+   * One-time bonus credits granted at initial purchase.
+   * @example 500 means 500 bonus credits on first subscription
    *
    * @generated from field: int64 one_time_bonus_credits = 13;
    */
   oneTimeBonusCredits: bigint;
 
   /**
-   * Display ordering rank (higher first).
+   * === DISPLAY CONFIGURATION ===
+   * Display ordering rank (higher values displayed first).
    *
    * @generated from field: int32 plan_rank = 14;
    */
   planRank: number;
 
   /**
-   * Bonus type label.
+   * Bonus type label for marketing display (e.g., "Launch Bonus").
    *
    * @generated from field: string bonus_type = 15;
    */
   bonusType: string;
 
   /**
-   * Purchase flow kind (subscription, credits, supporter contribution).
+   * Purchase flow kind for routing checkout creation.
    *
    * @generated from field: landing_page_react_vite.v1.PlanKind kind = 16;
    */
   kind: PlanKind;
 
   /**
-   * Indicates variable-amount purchases (e.g., donations).
+   * True for variable-amount purchases (e.g., donations, custom credit amounts).
    *
    * @generated from field: bool is_variable_amount = 17;
    */
   isVariableAmount: boolean;
 
   /**
-   * Whether to show this plan on the landing page.
+   * Whether to show this plan on the public pricing page.
    *
    * @generated from field: bool display_enabled = 18;
    */
@@ -220,20 +251,25 @@ export type PlanOption = Message<"landing_page_react_vite.v1.PlanOption"> & {
 
   /**
    * Bundle key this plan belongs to.
+   * @format slug
    *
    * @generated from field: string bundle_key = 19;
    */
   bundleKey: string;
 
   /**
-   * Weight for ordering within its interval group.
+   * Weight for ordering within its interval group (higher = first).
    *
    * @generated from field: int32 display_weight = 20;
    */
   displayWeight: number;
 
   /**
-   * Arbitrary structured metadata.
+   * === EXTENSIBILITY ===
+   * Arbitrary structured metadata for client-specific extensions.
+   * Key: Feature identifier (e.g., "feature_list", "highlight_text")
+   * Value: JSON-compatible value
+   * Common keys: "features" (array), "badge" (string), "cta_text" (string)
    *
    * @generated from field: map<string, common.v1.JsonValue> metadata = 22;
    */
@@ -250,32 +286,39 @@ export const PlanOptionSchema: GenMessage<PlanOption> = /*@__PURE__*/
 /**
  * PricingOverview groups bundle metadata with available plans.
  *
+ * Main response type for the pricing API, containing all information
+ * needed to render a pricing page.
+ *
+ * @usage GetPricingResponse.pricing, frontend PricingPage component
+ *
  * @generated from message landing_page_react_vite.v1.PricingOverview
  */
 export type PricingOverview = Message<"landing_page_react_vite.v1.PricingOverview"> & {
   /**
-   * Bundle/product metadata.
+   * Bundle/product metadata including credit conversion rules.
    *
    * @generated from field: landing_page_react_vite.v1.Bundle bundle = 1;
    */
   bundle?: Bundle;
 
   /**
-   * Monthly billing options (filtered for display).
+   * Monthly billing options, ordered by display_weight descending.
+   * Filtered to display_enabled=true unless include_hidden requested.
    *
    * @generated from field: repeated landing_page_react_vite.v1.PlanOption monthly = 2;
    */
   monthly: PlanOption[];
 
   /**
-   * Yearly billing options (filtered for display).
+   * Yearly billing options, ordered by display_weight descending.
+   * Filtered to display_enabled=true unless include_hidden requested.
    *
    * @generated from field: repeated landing_page_react_vite.v1.PlanOption yearly = 3;
    */
   yearly: PlanOption[];
 
   /**
-   * Last update timestamp for pricing metadata.
+   * When pricing metadata was last updated from Stripe.
    *
    * @generated from field: google.protobuf.Timestamp updated_at = 4;
    */
@@ -292,18 +335,21 @@ export const PricingOverviewSchema: GenMessage<PricingOverview> = /*@__PURE__*/
 /**
  * GetPricingRequest allows selecting a bundle and visibility mode.
  *
+ * @usage LandingPagePaymentsService.GetPricing
+ *
  * @generated from message landing_page_react_vite.v1.GetPricingRequest
  */
 export type GetPricingRequest = Message<"landing_page_react_vite.v1.GetPricingRequest"> & {
   /**
-   * Bundle key to fetch; defaults to server-configured bundle.
+   * Bundle key to fetch. If empty, uses server-configured default bundle.
+   * @format slug
    *
    * @generated from field: string bundle_key = 1;
    */
   bundleKey: string;
 
   /**
-   * Include plans that are not display_enabled.
+   * Include plans where display_enabled=false (admin view).
    *
    * @generated from field: bool include_hidden = 2;
    */
@@ -320,11 +366,13 @@ export const GetPricingRequestSchema: GenMessage<GetPricingRequest> = /*@__PURE_
 /**
  * GetPricingResponse returns pricing metadata for the requested bundle.
  *
+ * @usage LandingPagePaymentsService.GetPricing response
+ *
  * @generated from message landing_page_react_vite.v1.GetPricingResponse
  */
 export type GetPricingResponse = Message<"landing_page_react_vite.v1.GetPricingResponse"> & {
   /**
-   * Pricing overview for the bundle.
+   * Pricing overview containing bundle and plan data.
    *
    * @generated from field: landing_page_react_vite.v1.PricingOverview pricing = 1;
    */
@@ -339,27 +387,47 @@ export const GetPricingResponseSchema: GenMessage<GetPricingResponse> = /*@__PUR
   messageDesc(file_landing_page_react_vite_v1_pricing, 4);
 
 /**
- * PlanKind mirrors supported purchase flows for plans.
+ * PlanKind categorizes the purchase flow type for a plan.
+ *
+ * Determines how the checkout session is created in Stripe and what
+ * post-purchase behavior occurs (subscription creation vs one-time charge).
+ *
+ * @usage PlanOption.kind, checkout flow routing
  *
  * @generated from enum landing_page_react_vite.v1.PlanKind
  */
 export enum PlanKind {
   /**
+   * Default/unknown kind. Should not appear in valid data.
+   * Indicates missing or corrupted kind field.
+   *
    * @generated from enum value: PLAN_KIND_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Recurring subscription billed monthly or yearly.
+   * Creates a Stripe subscription with automatic renewal.
+   * User gains access to tier benefits for the billing period.
+   *
    * @generated from enum value: PLAN_KIND_SUBSCRIPTION = 1;
    */
   SUBSCRIPTION = 1,
 
   /**
+   * One-time credit purchase added to user's wallet.
+   * Creates a Stripe payment intent, not a subscription.
+   * Credits are immediately available after successful payment.
+   *
    * @generated from enum value: PLAN_KIND_CREDITS_TOPUP = 2;
    */
   CREDITS_TOPUP = 2,
 
   /**
+   * Variable-amount donation/tip supporting the platform.
+   * Amount is chosen by user at checkout; no credits granted.
+   * Used for supporter/patron contributions.
+   *
    * @generated from enum value: PLAN_KIND_SUPPORTER_CONTRIBUTION = 3;
    */
   SUPPORTER_CONTRIBUTION = 3,
@@ -372,27 +440,43 @@ export const PlanKindSchema: GenEnum<PlanKind> = /*@__PURE__*/
   enumDesc(file_landing_page_react_vite_v1_pricing, 0);
 
 /**
- * BillingInterval restricts billing cadence to supported Stripe intervals.
+ * BillingInterval specifies the billing cadence for a plan.
+ *
+ * Maps to Stripe's recurring interval for subscriptions or indicates
+ * a one-time purchase for non-recurring plans.
+ *
+ * @usage PlanOption.billing_interval, pricing display grouping
  *
  * @generated from enum landing_page_react_vite.v1.BillingInterval
  */
 export enum BillingInterval {
   /**
+   * Default/unknown interval. Should not appear in valid data.
+   *
    * @generated from enum value: BILLING_INTERVAL_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Monthly recurring billing. Subscription renews every month.
+   * Typically shows monthly price on pricing page.
+   *
    * @generated from enum value: BILLING_INTERVAL_MONTH = 1;
    */
   MONTH = 1,
 
   /**
+   * Yearly recurring billing. Subscription renews every year.
+   * Often discounted compared to 12x monthly price.
+   *
    * @generated from enum value: BILLING_INTERVAL_YEAR = 2;
    */
   YEAR = 2,
 
   /**
+   * One-time charge with no recurring billing.
+   * Used for credit top-ups and supporter contributions.
+   *
    * @generated from enum value: BILLING_INTERVAL_ONE_TIME = 3;
    */
   ONE_TIME = 3,
@@ -405,22 +489,35 @@ export const BillingIntervalSchema: GenEnum<BillingInterval> = /*@__PURE__*/
   enumDesc(file_landing_page_react_vite_v1_pricing, 1);
 
 /**
- * IntroPricingType captures the known introductory pricing strategies.
+ * IntroPricingType specifies the introductory pricing discount strategy.
+ *
+ * Used when plans offer a discounted rate for initial billing periods
+ * before transitioning to the regular price.
+ *
+ * @usage PlanOption.intro_type, checkout session creation
  *
  * @generated from enum landing_page_react_vite.v1.IntroPricingType
  */
 export enum IntroPricingType {
   /**
+   * Default/unknown type. No introductory pricing applied.
+   *
    * @generated from enum value: INTRO_PRICING_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Fixed amount discount (e.g., first month at $5 instead of $10).
+   * intro_amount_cents contains the discounted price in cents.
+   *
    * @generated from enum value: INTRO_PRICING_TYPE_FLAT_AMOUNT = 1;
    */
   FLAT_AMOUNT = 1,
 
   /**
+   * Percentage discount (e.g., first month at 50% off).
+   * intro_amount_cents contains the percentage as an integer (50 = 50%).
+   *
    * @generated from enum value: INTRO_PRICING_TYPE_PERCENTAGE = 2;
    */
   PERCENTAGE = 2,

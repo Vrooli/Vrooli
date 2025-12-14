@@ -945,83 +945,145 @@ export const ActionDefinitionSchema: GenMessage<ActionDefinition> = /*@__PURE__*
   messageDesc(file_browser_automation_studio_v1_actions_action, 15);
 
 /**
- * ActionType enumerates all supported action kinds.
+ * ActionType enumerates all supported browser automation action kinds.
+ *
+ * Each type corresponds to a specific *Params message in ActionDefinition.params.
+ * The type field MUST match the populated params oneof case.
+ *
+ * @usage ActionDefinition.type, workflow editor action palette
  *
  * @generated from enum browser_automation_studio.v1.ActionType
  */
 export enum ActionType {
   /**
+   * Default/unknown action type. Should not be used.
+   * Indicates missing or corrupted type field.
+   *
    * @generated from enum value: ACTION_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Navigate to a URL or scenario page.
+   * Params: NavigateParams (url, wait_for_selector, timeout_ms, etc.)
+   * Example: Go to "https://example.com/login"
+   *
    * @generated from enum value: ACTION_TYPE_NAVIGATE = 1;
    */
   NAVIGATE = 1,
 
   /**
+   * Click on an element (left, right, or middle button).
+   * Params: ClickParams (selector, button, click_count, modifiers, etc.)
+   * Example: Click the "Submit" button
+   *
    * @generated from enum value: ACTION_TYPE_CLICK = 2;
    */
   CLICK = 2,
 
   /**
+   * Type text into an input field.
+   * Params: InputParams (selector, value, is_sensitive, submit, etc.)
+   * Example: Enter "user@example.com" into email field
+   *
    * @generated from enum value: ACTION_TYPE_INPUT = 3;
    */
   INPUT = 3,
 
   /**
+   * Wait for a condition (time delay or element state).
+   * Params: WaitParams (duration_ms OR selector with state)
+   * Example: Wait for ".loading-spinner" to disappear
+   *
    * @generated from enum value: ACTION_TYPE_WAIT = 4;
    */
   WAIT = 4,
 
   /**
+   * Assert a condition about an element.
+   * Params: AssertParams (selector, mode, expected, negated, etc.)
+   * Example: Assert ".success-message" is visible
+   *
    * @generated from enum value: ACTION_TYPE_ASSERT = 5;
    */
   ASSERT = 5,
 
   /**
+   * Scroll the page or a specific element.
+   * Params: ScrollParams (selector, x, y, delta_x, delta_y, behavior)
+   * Example: Scroll to bottom of page
+   *
    * @generated from enum value: ACTION_TYPE_SCROLL = 6;
    */
   SCROLL = 6,
 
   /**
+   * Select an option from a dropdown/select element.
+   * Params: SelectParams (selector, value/label/index)
+   * Example: Select "United States" from country dropdown
+   *
    * @generated from enum value: ACTION_TYPE_SELECT = 7;
    */
   SELECT = 7,
 
   /**
+   * Execute arbitrary JavaScript in the page context.
+   * Params: EvaluateParams (expression, store_result, args)
+   * Example: Extract the order ID from page content
+   *
    * @generated from enum value: ACTION_TYPE_EVALUATE = 8;
    */
   EVALUATE = 8,
 
   /**
+   * Press keyboard keys (single key or sequence).
+   * Params: KeyboardParams (key, keys, modifiers, action)
+   * Example: Press Ctrl+A to select all
+   *
    * @generated from enum value: ACTION_TYPE_KEYBOARD = 9;
    */
   KEYBOARD = 9,
 
   /**
+   * Hover over an element (trigger hover states/tooltips).
+   * Params: HoverParams (selector, timeout_ms)
+   * Example: Hover over menu item to reveal submenu
+   *
    * @generated from enum value: ACTION_TYPE_HOVER = 10;
    */
   HOVER = 10,
 
   /**
+   * Capture a screenshot of the page or element.
+   * Params: ScreenshotParams (full_page, selector, quality)
+   * Example: Capture full-page screenshot for documentation
+   *
    * @generated from enum value: ACTION_TYPE_SCREENSHOT = 11;
    */
   SCREENSHOT = 11,
 
   /**
+   * Focus an input element (for keyboard input).
+   * Params: FocusParams (selector, scroll, timeout_ms)
+   * Example: Focus the search input before typing
+   *
    * @generated from enum value: ACTION_TYPE_FOCUS = 12;
    */
   FOCUS = 12,
 
   /**
+   * Remove focus from the currently focused element.
+   * Params: BlurParams (selector, timeout_ms)
+   * Example: Blur input to trigger validation
+   *
    * @generated from enum value: ACTION_TYPE_BLUR = 13;
    */
   BLUR = 13,
 
   /**
-   * Subflow node: executes another workflow definition as a nested call.
+   * Execute another workflow as a nested call.
+   * Params: SubflowParams (workflow_id OR workflow_path, args)
+   * Example: Call "login" workflow before continuing
    *
    * @generated from enum value: ACTION_TYPE_SUBFLOW = 14;
    */
@@ -1037,25 +1099,36 @@ export const ActionTypeSchema: GenEnum<ActionType> = /*@__PURE__*/
 /**
  * MouseButton enumerates supported mouse buttons for click actions.
  *
+ * @usage ClickParams.button
+ *
  * @generated from enum browser_automation_studio.v1.MouseButton
  */
 export enum MouseButton {
   /**
+   * Default. Uses LEFT button.
+   *
    * @generated from enum value: MOUSE_BUTTON_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Standard left mouse button. Most common for normal clicks.
+   *
    * @generated from enum value: MOUSE_BUTTON_LEFT = 1;
    */
   LEFT = 1,
 
   /**
+   * Right mouse button. Opens context menus on most elements.
+   *
    * @generated from enum value: MOUSE_BUTTON_RIGHT = 2;
    */
   RIGHT = 2,
 
   /**
+   * Middle mouse button (scroll wheel click).
+   * Often used for opening links in new tabs.
+   *
    * @generated from enum value: MOUSE_BUTTON_MIDDLE = 3;
    */
   MIDDLE = 3,
@@ -1070,25 +1143,41 @@ export const MouseButtonSchema: GenEnum<MouseButton> = /*@__PURE__*/
 /**
  * NavigateWaitEvent enumerates events to wait for after navigation.
  *
+ * Controls when navigation is considered "complete". Affects reliability
+ * vs. speed tradeoff. Maps to Playwright's waitUntil option.
+ *
+ * @usage NavigateParams.wait_until
+ *
  * @generated from enum browser_automation_studio.v1.NavigateWaitEvent
  */
 export enum NavigateWaitEvent {
   /**
+   * Default. Uses LOAD event.
+   *
    * @generated from enum value: NAVIGATE_WAIT_EVENT_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Wait for the 'load' event (all resources loaded).
+   * Most reliable but slowest. Use for complex pages.
+   *
    * @generated from enum value: NAVIGATE_WAIT_EVENT_LOAD = 1;
    */
   LOAD = 1,
 
   /**
+   * Wait for 'DOMContentLoaded' event (HTML parsed, deferred scripts run).
+   * Faster than LOAD. Good when you don't need images/stylesheets.
+   *
    * @generated from enum value: NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED = 2;
    */
   DOMCONTENTLOADED = 2,
 
   /**
+   * Wait until network is idle (no requests for 500ms).
+   * Good for SPAs that load data dynamically after initial render.
+   *
    * @generated from enum value: NAVIGATE_WAIT_EVENT_NETWORKIDLE = 3;
    */
   NETWORKIDLE = 3,
@@ -1103,20 +1192,34 @@ export const NavigateWaitEventSchema: GenEnum<NavigateWaitEvent> = /*@__PURE__*/
 /**
  * NavigateDestinationType indicates how a navigate target should be interpreted.
  *
+ * Allows workflows to navigate to other Vrooli scenarios by name instead
+ * of hardcoding URLs, enabling portable workflows across environments.
+ *
+ * @usage NavigateParams.destination_type
+ *
  * @generated from enum browser_automation_studio.v1.NavigateDestinationType
  */
 export enum NavigateDestinationType {
   /**
+   * Default. Treat as URL type.
+   *
    * @generated from enum value: NAVIGATE_DESTINATION_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Target is a literal URL string.
+   * Use NavigateParams.url field.
+   *
    * @generated from enum value: NAVIGATE_DESTINATION_TYPE_URL = 1;
    */
   URL = 1,
 
   /**
+   * Target is a Vrooli scenario name + path.
+   * Use NavigateParams.scenario and scenario_path fields.
+   * The URL is resolved via the scenario registry.
+   *
    * @generated from enum value: NAVIGATE_DESTINATION_TYPE_SCENARIO = 2;
    */
   SCENARIO = 2,
@@ -1131,30 +1234,49 @@ export const NavigateDestinationTypeSchema: GenEnum<NavigateDestinationType> = /
 /**
  * WaitState enumerates element states for wait conditions.
  *
+ * Used with WaitParams to wait for specific element lifecycle events.
+ * Maps to Playwright's waitForSelector state option.
+ *
+ * @usage WaitParams.state
+ *
  * @generated from enum browser_automation_studio.v1.WaitState
  */
 export enum WaitState {
   /**
+   * Default. Uses VISIBLE state.
+   *
    * @generated from enum value: WAIT_STATE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Wait until element is attached to DOM (may not be visible).
+   * Fast check; use when you just need the element to exist.
+   *
    * @generated from enum value: WAIT_STATE_ATTACHED = 1;
    */
   ATTACHED = 1,
 
   /**
+   * Wait until element is removed from DOM.
+   * Use for waiting for loading indicators to disappear.
+   *
    * @generated from enum value: WAIT_STATE_DETACHED = 2;
    */
   DETACHED = 2,
 
   /**
+   * Wait until element is visible to user (in viewport, displayed).
+   * Most common state; ensures element can be interacted with.
+   *
    * @generated from enum value: WAIT_STATE_VISIBLE = 3;
    */
   VISIBLE = 3,
 
   /**
+   * Wait until element becomes hidden (display:none or removed).
+   * Use for waiting for modals/overlays to close.
+   *
    * @generated from enum value: WAIT_STATE_HIDDEN = 4;
    */
   HIDDEN = 4,
@@ -1169,20 +1291,32 @@ export const WaitStateSchema: GenEnum<WaitState> = /*@__PURE__*/
 /**
  * ScrollBehavior enumerates scroll animation behaviors.
  *
+ * Controls whether scrolling is instant or animated. Smooth scrolling
+ * is more realistic but slower.
+ *
+ * @usage ScrollParams.behavior
+ *
  * @generated from enum browser_automation_studio.v1.ScrollBehavior
  */
 export enum ScrollBehavior {
   /**
+   * Default. Browser decides (usually instant).
+   *
    * @generated from enum value: SCROLL_BEHAVIOR_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Instant scroll jump. Fast and reliable.
+   *
    * @generated from enum value: SCROLL_BEHAVIOR_AUTO = 1;
    */
   AUTO = 1,
 
   /**
+   * Animated smooth scroll. More realistic but takes time.
+   * May cause timing issues if subsequent actions don't wait.
+   *
    * @generated from enum value: SCROLL_BEHAVIOR_SMOOTH = 2;
    */
   SMOOTH = 2,
@@ -1197,25 +1331,41 @@ export const ScrollBehaviorSchema: GenEnum<ScrollBehavior> = /*@__PURE__*/
 /**
  * KeyAction enumerates keyboard action types.
  *
+ * Controls the keyboard event lifecycle. Most actions should use PRESS.
+ * DOWN/UP are for advanced scenarios like holding modifier keys.
+ *
+ * @usage KeyboardParams.action
+ *
  * @generated from enum browser_automation_studio.v1.KeyAction
  */
 export enum KeyAction {
   /**
+   * Default. Uses PRESS (down + up).
+   *
    * @generated from enum value: KEY_ACTION_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Press and release the key (keydown + keyup).
+   * Use for normal key presses (Enter, Tab, letters).
+   *
    * @generated from enum value: KEY_ACTION_PRESS = 1;
    */
   PRESS = 1,
 
   /**
+   * Press the key down without releasing.
+   * Use for holding keys (e.g., hold Shift while clicking).
+   *
    * @generated from enum value: KEY_ACTION_DOWN = 2;
    */
   DOWN = 2,
 
   /**
+   * Release a previously pressed key.
+   * Use to complete a DOWN action.
+   *
    * @generated from enum value: KEY_ACTION_UP = 3;
    */
   UP = 3,
@@ -1230,30 +1380,49 @@ export const KeyActionSchema: GenEnum<KeyAction> = /*@__PURE__*/
 /**
  * KeyboardModifier enumerates keyboard modifier keys.
  *
+ * Modifiers are held during other actions (clicks, key presses).
+ * Multiple modifiers can be combined.
+ *
+ * @usage KeyboardParams.modifiers, ClickParams.modifiers
+ *
  * @generated from enum browser_automation_studio.v1.KeyboardModifier
  */
 export enum KeyboardModifier {
   /**
+   * No modifier. Should not appear in modifiers array.
+   *
    * @generated from enum value: KEYBOARD_MODIFIER_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Ctrl key (Control on Mac). Common for shortcuts.
+   * Example: Ctrl+C for copy, Ctrl+Click for new tab.
+   *
    * @generated from enum value: KEYBOARD_MODIFIER_CTRL = 1;
    */
   CTRL = 1,
 
   /**
+   * Shift key. For uppercase, selection extension.
+   * Example: Shift+Click for range select, Shift+Tab for back.
+   *
    * @generated from enum value: KEYBOARD_MODIFIER_SHIFT = 2;
    */
   SHIFT = 2,
 
   /**
+   * Alt key (Option on Mac). For alternate actions.
+   * Example: Alt+Click for download link.
+   *
    * @generated from enum value: KEYBOARD_MODIFIER_ALT = 3;
    */
   ALT = 3,
 
   /**
+   * Meta key (Cmd on Mac, Win on Windows).
+   * Example: Cmd+Click for new tab on Mac.
+   *
    * @generated from enum value: KEYBOARD_MODIFIER_META = 4;
    */
   META = 4,

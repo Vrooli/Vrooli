@@ -23,12 +23,22 @@ const (
 )
 
 // ConfigSource indicates where active Stripe credentials were loaded from.
+//
+// The API checks both environment variables and database for credentials.
+// Database credentials take precedence over environment variables.
+//
+// @usage StripeConfigSnapshot.source
 type ConfigSource int32
 
 const (
+	// Default/unknown source. Should not appear in valid data.
 	ConfigSource_CONFIG_SOURCE_UNSPECIFIED ConfigSource = 0
-	ConfigSource_CONFIG_SOURCE_ENV         ConfigSource = 1
-	ConfigSource_CONFIG_SOURCE_DATABASE    ConfigSource = 2
+	// Credentials loaded from environment variables.
+	// Set via STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET.
+	ConfigSource_CONFIG_SOURCE_ENV ConfigSource = 1
+	// Credentials loaded from database (admin-configured).
+	// Takes precedence over environment variables when set.
+	ConfigSource_CONFIG_SOURCE_DATABASE ConfigSource = 2
 )
 
 // Enum value maps for ConfigSource.
@@ -73,17 +83,23 @@ func (ConfigSource) EnumDescriptor() ([]byte, []int) {
 }
 
 // StripeConfigSnapshot exposes a redacted view of runtime Stripe credentials.
+//
+// Provides visibility into which credentials are active without exposing
+// sensitive values. Used for admin UI status display.
+//
+// @usage GetStripeSettingsResponse.snapshot
 type StripeConfigSnapshot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Masked preview of the publishable key (e.g., "pk_live...42").
+	// Masked preview of the publishable key (e.g., "pk_live_...abc123").
+	// Shows first 7 and last 6 characters for identification.
 	PublishableKeyPreview string `protobuf:"bytes,1,opt,name=publishable_key_preview,json=publishableKeyPreview,proto3" json:"publishable_key_preview,omitempty"`
-	// True when a publishable key is available.
+	// True when a publishable key is configured and available.
 	PublishableKeySet bool `protobuf:"varint,2,opt,name=publishable_key_set,json=publishableKeySet,proto3" json:"publishable_key_set,omitempty"`
-	// True when a secret key is available.
+	// True when a secret key is configured and available.
 	SecretKeySet bool `protobuf:"varint,3,opt,name=secret_key_set,json=secretKeySet,proto3" json:"secret_key_set,omitempty"`
-	// True when a webhook signing secret is available.
+	// True when a webhook signing secret is configured and available.
 	WebhookSecretSet bool `protobuf:"varint,4,opt,name=webhook_secret_set,json=webhookSecretSet,proto3" json:"webhook_secret_set,omitempty"`
-	// Source of the active configuration.
+	// Source from which active credentials were loaded.
 	Source        ConfigSource `protobuf:"varint,5,opt,name=source,proto3,enum=landing_page_react_vite.v1.ConfigSource" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -155,17 +171,29 @@ func (x *StripeConfigSnapshot) GetSource() ConfigSource {
 }
 
 // StripeSettings contains persisted admin-provided Stripe credentials.
+//
+// SECURITY: This message contains sensitive credentials. Only return
+// to authenticated admin users. Never log or expose in error messages.
+//
+// @usage GetStripeSettingsResponse.settings (admin only)
 type StripeSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Full publishable key.
+	// Full Stripe publishable key (pk_live_* or pk_test_*).
+	// Safe to expose to frontend clients.
+	// @format stripe_publishable_key
 	PublishableKey string `protobuf:"bytes,1,opt,name=publishable_key,json=publishableKey,proto3" json:"publishable_key,omitempty"`
-	// Full secret key.
+	// Full Stripe secret key (sk_live_* or sk_test_*).
+	// SENSITIVE: Never expose to frontend or log.
+	// @format stripe_secret_key
 	SecretKey string `protobuf:"bytes,2,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty"`
-	// Webhook signing secret.
+	// Webhook signing secret (whsec_*).
+	// Used to verify webhook payloads from Stripe.
+	// @format stripe_webhook_secret
 	WebhookSecret string `protobuf:"bytes,3,opt,name=webhook_secret,json=webhookSecret,proto3" json:"webhook_secret,omitempty"`
-	// Optional dashboard URL for UI linking.
+	// Optional Stripe dashboard URL for admin convenience.
+	// @format url
 	DashboardUrl *string `protobuf:"bytes,4,opt,name=dashboard_url,json=dashboardUrl,proto3,oneof" json:"dashboard_url,omitempty"`
-	// Last update timestamp.
+	// When settings were last updated.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -237,6 +265,8 @@ func (x *StripeSettings) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 // GetStripeSettingsRequest requests current Stripe settings and snapshot.
+//
+// @usage LandingPagePaymentsService.GetStripeSettings (admin only)
 type GetStripeSettingsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -274,11 +304,13 @@ func (*GetStripeSettingsRequest) Descriptor() ([]byte, []int) {
 }
 
 // GetStripeSettingsResponse returns persisted settings and runtime snapshot.
+//
+// @usage LandingPagePaymentsService.GetStripeSettings response
 type GetStripeSettingsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Persisted admin-configured settings (may be empty if unset).
+	// Persisted admin-configured settings (may be empty if using env vars).
 	Settings *StripeSettings `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
-	// Runtime configuration snapshot used by the API.
+	// Runtime configuration snapshot showing active credentials source.
 	Snapshot      *StripeConfigSnapshot `protobuf:"bytes,2,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -329,15 +361,24 @@ func (x *GetStripeSettingsResponse) GetSnapshot() *StripeConfigSnapshot {
 }
 
 // UpdateStripeSettingsRequest partially updates Stripe credentials.
+//
+// Supports partial updates: only provided fields are updated.
+// Omitted fields retain their current values.
+//
+// @usage LandingPagePaymentsService.UpdateStripeSettings (admin only)
 type UpdateStripeSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Publishable key to set; omitted to leave unchanged.
+	// Publishable key to set. If unset, current value is retained.
+	// @format stripe_publishable_key
 	PublishableKey *string `protobuf:"bytes,1,opt,name=publishable_key,json=publishableKey,proto3,oneof" json:"publishable_key,omitempty"`
-	// Secret key to set; omitted to leave unchanged.
+	// Secret key to set. If unset, current value is retained.
+	// @format stripe_secret_key
 	SecretKey *string `protobuf:"bytes,2,opt,name=secret_key,json=secretKey,proto3,oneof" json:"secret_key,omitempty"`
-	// Webhook signing secret to set; omitted to leave unchanged.
+	// Webhook signing secret to set. If unset, current value is retained.
+	// @format stripe_webhook_secret
 	WebhookSecret *string `protobuf:"bytes,3,opt,name=webhook_secret,json=webhookSecret,proto3,oneof" json:"webhook_secret,omitempty"`
-	// Dashboard URL to set; omitted to leave unchanged.
+	// Dashboard URL to set. If unset, current value is retained.
+	// @format url
 	DashboardUrl  *string `protobuf:"bytes,4,opt,name=dashboard_url,json=dashboardUrl,proto3,oneof" json:"dashboard_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -402,11 +443,13 @@ func (x *UpdateStripeSettingsRequest) GetDashboardUrl() string {
 }
 
 // UpdateStripeSettingsResponse returns the resulting settings and snapshot.
+//
+// @usage LandingPagePaymentsService.UpdateStripeSettings response
 type UpdateStripeSettingsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Persisted admin-configured settings.
+	// Updated persisted admin-configured settings.
 	Settings *StripeSettings `protobuf:"bytes,1,opt,name=settings,proto3" json:"settings,omitempty"`
-	// Updated runtime configuration snapshot.
+	// Updated runtime configuration snapshot (source will be DATABASE).
 	Snapshot      *StripeConfigSnapshot `protobuf:"bytes,2,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

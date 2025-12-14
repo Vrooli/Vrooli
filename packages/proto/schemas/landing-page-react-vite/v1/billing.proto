@@ -9,219 +9,452 @@ import "landing-page-react-vite/v1/settings.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
 
+// =============================================================================
+// BILLING DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain billing
+// @imports common, pricing, settings
+//
+// Defines checkout, subscription, and credit wallet types for the landing page
+// billing system. Integrates with Stripe for payment processing.
+//
+// USAGE CONTEXTS:
+//   - Checkout: CreateCheckoutSession creates Stripe checkout flows
+//   - Subscriptions: VerifySubscription checks user subscription status
+//   - Credits: GetCredits returns wallet balance and transaction history
+//   - Portal: BillingPortal provides self-service subscription management
+//
+// =============================================================================
+
+// =============================================================================
+// BILLING ENUMS
+// =============================================================================
+
 // SubscriptionState enumerates lifecycle states for customer subscriptions.
+//
+// Maps to Stripe subscription status with additional states for internal
+// tracking. Used to determine user entitlements and access.
+//
+// State machine:
+//   INACTIVE → TRIALING → ACTIVE → PAST_DUE → CANCELED
+//                    ↓              ↓
+//                  ACTIVE ←───── ACTIVE (payment recovered)
+//
+// @usage SubscriptionStatus.state, entitlement checks
 enum SubscriptionState {
+  // Default/unknown state. Should not appear in valid data.
   SUBSCRIPTION_STATE_UNSPECIFIED = 0;
+
+  // Subscription is active and in good standing.
+  // User has full access to tier benefits.
   SUBSCRIPTION_STATE_ACTIVE = 1;
+
+  // Subscription is in trial period before first charge.
+  // User has full access; will transition to ACTIVE or CANCELED.
   SUBSCRIPTION_STATE_TRIALING = 2;
+
+  // Payment failed; subscription is in grace period.
+  // User may have limited access. Stripe will retry payment.
+  // Transitions to ACTIVE if payment succeeds, CANCELED if retries exhausted.
   SUBSCRIPTION_STATE_PAST_DUE = 3;
+
+  // Subscription has been canceled (by user or due to payment failure).
+  // User loses tier benefits. May still have access until period end.
   SUBSCRIPTION_STATE_CANCELED = 4;
+
+  // No active subscription exists for this user.
+  // User has free tier access only.
   SUBSCRIPTION_STATE_INACTIVE = 5;
 }
 
 // SessionKind captures the intent of a checkout session.
+//
+// Determines what Stripe objects are created and what post-checkout
+// processing occurs. Maps closely to PlanKind in pricing.proto.
+//
+// @usage CheckoutSession.session_kind, CreateCheckoutSessionRequest.session_kind
 enum SessionKind {
+  // Default/unknown kind. Should not appear in valid data.
   SESSION_KIND_UNSPECIFIED = 0;
+
+  // Checkout creates a recurring subscription.
+  // Post-checkout: Stripe subscription created, user gains tier access.
   SESSION_KIND_SUBSCRIPTION = 1;
+
+  // Checkout purchases credits for user's wallet.
+  // Post-checkout: Credits added to wallet balance.
   SESSION_KIND_CREDITS_TOPUP = 2;
+
+  // Checkout processes a supporter contribution/donation.
+  // Post-checkout: No credits or subscription; thank-you acknowledgment.
   SESSION_KIND_SUPPORTER_CONTRIBUTION = 3;
 }
 
 // CheckoutSessionStatus mirrors Stripe checkout session states.
+//
+// Indicates the current state of a checkout flow. Sessions expire after
+// 24 hours if not completed.
+//
+// @usage CheckoutSession.status
 enum CheckoutSessionStatus {
+  // Default/unknown status. Should not appear in valid data.
   CHECKOUT_SESSION_STATUS_UNSPECIFIED = 0;
+
+  // Session created and awaiting customer action.
+  // Customer can complete checkout at the session URL.
   CHECKOUT_SESSION_STATUS_OPEN = 1;
+
+  // Customer completed checkout successfully.
+  // Payment processed; post-checkout webhooks will fire.
   CHECKOUT_SESSION_STATUS_COMPLETE = 2;
+
+  // Session expired (24 hours elapsed without completion).
+  // Customer must create a new checkout session.
   CHECKOUT_SESSION_STATUS_EXPIRED = 3;
+
+  // Session was explicitly canceled.
+  // Customer navigated to cancel URL or session was voided.
   CHECKOUT_SESSION_STATUS_CANCELED = 4;
 }
 
-// TransactionType constrains wallet credit/debit sources.
+// TransactionType categorizes wallet credit/debit entries.
+//
+// Used for auditing, reporting, and displaying transaction history.
+// Positive amounts are credits (additions), negative are debits.
+//
+// @usage CreditTransaction.type
 enum TransactionType {
+  // Default/unknown type. Should not appear in valid data.
   TRANSACTION_TYPE_UNSPECIFIED = 0;
+
+  // Credits purchased via checkout (positive amount).
+  // Associated with a Stripe payment intent.
   TRANSACTION_TYPE_CREDIT_TOPUP = 1;
+
+  // Credits consumed by usage (negative amount).
+  // Associated with API calls, executions, or other metered usage.
   TRANSACTION_TYPE_CONSUMPTION = 2;
+
+  // Manual adjustment by admin (positive or negative).
+  // Used for corrections, disputes, or special cases.
   TRANSACTION_TYPE_ADJUSTMENT = 3;
+
+  // Refund of previously purchased credits (negative to reverse).
+  // Associated with a Stripe refund.
   TRANSACTION_TYPE_REFUND = 4;
+
+  // Credits granted without payment (positive amount).
+  // Used for promotions, referrals, or compensation.
   TRANSACTION_TYPE_GRANT = 5;
 }
 
+// =============================================================================
+// CHECKOUT SESSION TYPES
+// =============================================================================
+
 // CheckoutSession represents a created Stripe checkout session.
+//
+// Contains all information needed to redirect a customer to Stripe's
+// hosted checkout page and track the session outcome.
+//
+// @usage CreateCheckoutSessionResponse.session
 message CheckoutSession {
+  // Reserved fields from migrations:
+  // - 16: metadata_untyped (removed in v1.1, replaced by typed metadata field 17)
   reserved 16;
+  reserved "metadata_untyped";
 
   // Stripe session identifier (cs_*).
+  // @format stripe_session_id
   string session_id = 1;
-  // Kind of session (subscription, credits top-up, supporter contribution).
+  // Kind of session determining post-checkout behavior.
   SessionKind session_kind = 2;
-  // Current status of the session.
+  // Current status of the checkout flow.
   CheckoutSessionStatus status = 3;
-  // Hosted checkout URL to redirect the user.
+  // Hosted checkout URL to redirect the customer.
+  // @format url
   string url = 4;
-  // Publishable key to use on the client.
+  // Stripe publishable key for client-side SDK initialization.
+  // @format stripe_publishable_key (pk_*)
   string publishable_key = 5;
-  // Customer email tied to the session.
+  // Customer email address associated with the session.
+  // @format email
   string customer_email = 6;
-  // Stripe price identifier for the purchase.
+  // Stripe price identifier being purchased (price_*).
+  // @format stripe_price_id
   string stripe_price_id = 7;
-  // Stripe product identifier, when available.
+  // Stripe product identifier, when available (prod_*).
+  // @format stripe_product_id
   optional string stripe_product_id = 8;
-  // Subscription identifier if created (sub_*).
+  // Subscription identifier if created after checkout (sub_*).
+  // Only populated for SUBSCRIPTION session kind after completion.
+  // @format stripe_subscription_id
   optional string subscription_id = 9;
-  // Subscription schedule identifier when an intro price is used.
+  // Subscription schedule identifier when intro pricing is used.
+  // @format stripe_schedule_id
   optional string schedule_id = 10;
-  // Amount in cents.
+  // Total amount in cents for this checkout.
+  // @unit cents
   int64 amount_cents = 11;
-  // Currency code (ISO 4217).
+  // Currency code (ISO 4217, e.g., "usd").
+  // @format iso4217
   string currency = 12;
-  // Success URL for the checkout session.
+  // URL to redirect customer after successful checkout.
+  // @format url
   string success_url = 13;
-  // Cancel URL for the checkout session.
+  // URL to redirect customer if they cancel checkout.
+  // @format url
   string cancel_url = 14;
-  // Creation timestamp.
+  // When the checkout session was created.
   google.protobuf.Timestamp created_at = 15;
-  // Additional structured metadata.
+  // Additional structured metadata for tracking and analytics.
+  // Key: Metadata identifier (e.g., "utm_source", "referral_code")
+  // Value: JSON-compatible value
+  // Common keys: "campaign", "referrer", "client_ip"
   map<string, common.v1.JsonValue> metadata = 17;
 }
 
 // CreateCheckoutSessionRequest starts a new checkout flow for a price.
+//
+// @usage LandingPagePaymentsService.CreateCheckoutSession
 message CreateCheckoutSessionRequest {
+  // Reserved fields from migrations:
+  // - 6: metadata_untyped (removed in v1.1, replaced by typed metadata field 7)
   reserved 6;
+  reserved "metadata_untyped";
 
-  // Stripe price identifier to purchase.
+  // Stripe price identifier to purchase (price_*).
+  // @format stripe_price_id
   string price_id = 1;
-  // Customer email address.
+  // Customer email address for the checkout.
+  // @format email
   string customer_email = 2;
-  // Success redirect URL.
+  // URL to redirect customer after successful checkout.
+  // @format url
   string success_url = 3;
-  // Cancel redirect URL.
+  // URL to redirect customer if they cancel checkout.
+  // @format url
   string cancel_url = 4;
-  // Intended session kind (defaults to subscription).
+  // Intended session kind. Defaults to SUBSCRIPTION if unspecified.
   SessionKind session_kind = 5;
   // Arbitrary metadata to associate with the session.
+  // Key: Metadata identifier (e.g., "utm_source", "referral_code")
+  // Value: JSON-compatible value for tracking and analytics
   map<string, common.v1.JsonValue> metadata = 7;
 }
 
 // CreateCheckoutSessionResponse returns the created checkout session.
+//
+// @usage LandingPagePaymentsService.CreateCheckoutSession response
 message CreateCheckoutSessionResponse {
-  // Created checkout session.
+  // The created checkout session with redirect URL.
   CheckoutSession session = 1;
 }
 
+// =============================================================================
+// SUBSCRIPTION TYPES
+// =============================================================================
+
 // VerifySubscriptionRequest asks for the latest subscription state for a user.
+//
+// @usage LandingPagePaymentsService.VerifySubscription
 message VerifySubscriptionRequest {
-  // Email or customer ID to look up.
+  // Email address or Stripe customer ID to look up.
+  // @format email or stripe_customer_id (cus_*)
   string user_identity = 1;
 }
 
-// SubscriptionStatus reports the current subscription state.
+// SubscriptionStatus reports the current subscription state for a user.
+//
+// Contains cached subscription information. Cache is refreshed on webhook
+// events or when cache_age_ms exceeds threshold.
+//
+// @usage VerifySubscriptionResponse.status, entitlement checks
 message SubscriptionStatus {
+  // Reserved fields from migrations:
+  // - 11: metadata_untyped (removed in v1.1, replaced by typed metadata field 12)
   reserved 11;
+  reserved "metadata_untyped";
 
-  // Lifecycle state of the subscription.
+  // Current lifecycle state of the subscription.
   SubscriptionState state = 1;
-  // Subscription identifier (sub_*).
+  // Stripe subscription identifier (sub_*). Unset if INACTIVE.
+  // @format stripe_subscription_id
   optional string subscription_id = 2;
-  // Identity used for the lookup (email or customer id).
+  // Identity used for the lookup (echoed back for confirmation).
   string user_identity = 3;
-  // Plan tier associated with the subscription (e.g., pro, team).
+  // Plan tier for entitlement checks (e.g., "free", "pro", "team").
+  // @format slug
   optional string plan_tier = 4;
-  // Stripe price identifier for the active subscription.
+  // Stripe price identifier for the active subscription (price_*).
+  // @format stripe_price_id
   optional string stripe_price_id = 5;
   // Bundle key associated with the subscription.
+  // @format slug
   optional string bundle_key = 6;
-  // Timestamp when this status was cached/updated.
+  // When this status was last cached/refreshed.
   google.protobuf.Timestamp cached_at = 7;
-  // Cache age in milliseconds.
+  // Age of the cache in milliseconds. Use to decide if refresh needed.
+  // @unit milliseconds
   int64 cache_age_ms = 8;
   // When the subscription was canceled, if applicable.
+  // Only set when state is CANCELED.
   google.protobuf.Timestamp canceled_at = 9;
-  // Human-readable status message.
+  // Human-readable status message for display.
   optional string message = 10;
   // Additional metadata about the subscription.
+  // Key: Metadata identifier (e.g., "current_period_end", "cancel_at_period_end")
+  // Value: JSON-compatible value from Stripe subscription object
   map<string, common.v1.JsonValue> metadata = 12;
 }
 
 // VerifySubscriptionResponse returns the current subscription status.
+//
+// @usage LandingPagePaymentsService.VerifySubscription response
 message VerifySubscriptionResponse {
-  // Current subscription status for the user.
+  // Current subscription status for the requested user.
   SubscriptionStatus status = 1;
 }
 
 // CancelSubscriptionRequest cancels an active subscription for a user.
+//
+// Cancellation takes effect at end of current billing period by default.
+//
+// @usage LandingPagePaymentsService.CancelSubscription
 message CancelSubscriptionRequest {
-  // Email or customer ID to cancel.
+  // Email address or Stripe customer ID to cancel.
+  // @format email or stripe_customer_id (cus_*)
   string user_identity = 1;
 }
 
 // CancelSubscriptionResponse reports the cancellation outcome.
+//
+// @usage LandingPagePaymentsService.CancelSubscription response
 message CancelSubscriptionResponse {
-  // Subscription identifier that was canceled.
+  // Subscription identifier that was canceled (sub_*).
+  // @format stripe_subscription_id
   optional string subscription_id = 1;
-  // Resulting subscription state.
+  // Resulting subscription state (typically CANCELED).
   SubscriptionState state = 2;
-  // When the subscription was canceled.
+  // When the cancellation was processed.
   google.protobuf.Timestamp canceled_at = 3;
-  // Human-readable message about the cancellation.
+  // Human-readable message about the cancellation outcome.
   optional string message = 4;
 }
 
+// =============================================================================
+// CREDITS AND WALLET TYPES
+// =============================================================================
+
 // CreditsBalance summarizes wallet credits for a customer.
+//
+// @usage GetCreditsResponse.balance
 message CreditsBalance {
   // Customer email address.
+  // @format email
   string customer_email = 1;
   // Bundle key the credits apply to.
+  // @format slug
   string bundle_key = 2;
-  // Current balance in credits.
+  // Current balance in credits (can be negative in rare cases).
   int64 balance_credits = 3;
-  // Last updated timestamp.
+  // When the balance was last updated.
   google.protobuf.Timestamp updated_at = 4;
 }
 
 // CreditTransaction describes a wallet credit/debit entry.
+//
+// Transactions form an immutable audit log of all credit changes.
+// The running balance can be computed by summing all transactions.
+//
+// @usage GetCreditsResponse.transactions
 message CreditTransaction {
+  // Reserved fields from migrations:
+  // - 4: description (removed in v1.1, moved to metadata)
+  // - 5: metadata_untyped (removed in v1.1, replaced by typed metadata field 8)
   reserved 4, 5;
+  reserved "description", "metadata_untyped";
 
-  // Unique transaction identifier.
+  // Unique transaction identifier (UUID format).
+  // @format uuid
   string id = 1;
   // Customer email associated with the transaction.
+  // @format email
   string customer_email = 2;
-  // Amount in credits (positive for additions, negative for debits).
+  // Amount in credits. Positive for credits (topup, grant), negative for debits.
   int64 amount_credits = 3;
-  // Transaction type classification.
+  // Transaction type for categorization and reporting.
   TransactionType type = 7;
   // Structured metadata describing the transaction.
+  // Key: Metadata identifier (e.g., "stripe_payment_id", "usage_type", "reason")
+  // Value: JSON-compatible value for audit trail
+  // Common keys: "payment_intent_id", "api_call_id", "admin_user", "note"
   map<string, common.v1.JsonValue> metadata = 8;
-  // Creation timestamp for the transaction.
+  // When the transaction was created.
   google.protobuf.Timestamp created_at = 6;
 }
 
 // GetCreditsResponse returns the current balance and recent transactions.
+//
+// @usage Credits API response
 message GetCreditsResponse {
-  // Current credit balance.
+  // Current credit balance for the customer.
   CreditsBalance balance = 1;
-  // Recent credit transactions.
+  // Recent credit transactions, ordered by created_at descending.
   repeated CreditTransaction transactions = 2;
 }
 
+// =============================================================================
+// BILLING PORTAL
+// =============================================================================
+
 // BillingPortalResponse supplies a hosted billing portal URL.
+//
+// The portal allows customers to manage their subscription, update
+// payment methods, and view invoices without custom UI.
+//
+// @usage Billing portal redirect
 message BillingPortalResponse {
-  // URL for the Stripe billing portal.
+  // URL to redirect customer to Stripe's hosted billing portal.
+  // @format url
   string url = 1;
 }
 
+// =============================================================================
+// SERVICE DEFINITION
+// =============================================================================
+
 // LandingPagePaymentsService exposes billing, pricing, and settings operations.
+//
+// Provides a unified API for:
+//   - Checkout session creation and management
+//   - Subscription verification and cancellation
+//   - Pricing metadata retrieval
+//   - Stripe credential management (admin only)
 service LandingPagePaymentsService {
-  // Creates a checkout session for a Stripe price.
+  // Creates a Stripe checkout session for purchasing a price.
+  // Returns a session with a redirect URL for the customer.
   rpc CreateCheckoutSession(CreateCheckoutSessionRequest) returns (CreateCheckoutSessionResponse);
-  // Verifies the latest subscription status for a user.
+
+  // Verifies the current subscription status for a user.
+  // Returns cached status; refreshed on webhook events.
   rpc VerifySubscription(VerifySubscriptionRequest) returns (VerifySubscriptionResponse);
+
   // Cancels an active subscription for a user.
+  // Cancellation takes effect at end of current billing period.
   rpc CancelSubscription(CancelSubscriptionRequest) returns (CancelSubscriptionResponse);
+
   // Returns pricing metadata for a bundle.
+  // Used to render the public pricing page.
   rpc GetPricing(landing_page_react_vite.v1.GetPricingRequest) returns (landing_page_react_vite.v1.GetPricingResponse);
-  // Returns current Stripe settings and runtime snapshot.
+
+  // Returns current Stripe settings and runtime configuration snapshot.
+  // Admin-only endpoint for credential management.
   rpc GetStripeSettings(landing_page_react_vite.v1.GetStripeSettingsRequest) returns (landing_page_react_vite.v1.GetStripeSettingsResponse);
+
   // Updates Stripe settings and returns the refreshed snapshot.
+  // Admin-only endpoint for credential management.
   rpc UpdateStripeSettings(landing_page_react_vite.v1.UpdateStripeSettingsRequest) returns (landing_page_react_vite.v1.UpdateStripeSettingsResponse);
 }

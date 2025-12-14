@@ -29,9 +29,9 @@ type RecordingState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether recording is currently active.
 	IsRecording bool `protobuf:"varint,1,opt,name=is_recording,json=isRecording,proto3" json:"is_recording,omitempty"`
-	// Current recording ID.
+	// Current recording ID (UUID format).
 	RecordingId string `protobuf:"bytes,2,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
-	// Session ID for the browser session.
+	// Session ID for the browser session (UUID format).
 	SessionId string `protobuf:"bytes,3,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Number of actions captured so far.
 	ActionCount int32 `protobuf:"varint,4,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
@@ -173,7 +173,7 @@ func (x *CreateRecordingSessionRequest) GetInitialUrl() string {
 // CreateRecordingSessionResponse is returned after creating a recording session.
 type CreateRecordingSessionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique session identifier.
+	// Unique session identifier (UUID format).
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// When the session was created.
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -228,7 +228,7 @@ func (x *CreateRecordingSessionResponse) GetCreatedAt() *timestamppb.Timestamp {
 // StartRecordingRequest starts recording on an existing session.
 type StartRecordingRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session ID to start recording on.
+	// Session ID to start recording on (UUID format).
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Callback URL for streaming events (optional).
 	CallbackUrl   string `protobuf:"bytes,2,opt,name=callback_url,json=callbackUrl,proto3" json:"callback_url,omitempty"`
@@ -283,9 +283,9 @@ func (x *StartRecordingRequest) GetCallbackUrl() string {
 // StartRecordingResponse is returned after starting recording.
 type StartRecordingResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique recording identifier.
+	// Unique recording identifier (UUID format).
 	RecordingId string `protobuf:"bytes,1,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
-	// Session ID the recording is attached to.
+	// Session ID the recording is attached to (UUID format).
 	SessionId string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// When recording started.
 	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
@@ -347,9 +347,9 @@ func (x *StartRecordingResponse) GetStartedAt() *timestamppb.Timestamp {
 // StopRecordingResponse is returned after stopping recording.
 type StopRecordingResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Recording ID that was stopped.
+	// Recording ID that was stopped (UUID format).
 	RecordingId string `protobuf:"bytes,1,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
-	// Session ID the recording was attached to.
+	// Session ID the recording was attached to (UUID format).
 	SessionId string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Total number of actions captured.
 	ActionCount int32 `protobuf:"varint,3,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
@@ -420,11 +420,11 @@ func (x *StopRecordingResponse) GetCompletedAt() *timestamppb.Timestamp {
 // RecordingStatusResponse returns current recording status.
 type RecordingStatusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session ID being queried.
+	// Session ID being queried (UUID format).
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Whether recording is active.
 	IsRecording bool `protobuf:"varint,2,opt,name=is_recording,json=isRecording,proto3" json:"is_recording,omitempty"`
-	// Current recording ID (empty if not recording).
+	// Current recording ID (UUID format, empty if not recording).
 	RecordingId string `protobuf:"bytes,3,opt,name=recording_id,json=recordingId,proto3" json:"recording_id,omitempty"`
 	// Number of actions captured.
 	ActionCount int32 `protobuf:"varint,4,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
@@ -502,7 +502,7 @@ func (x *RecordingStatusResponse) GetStartedAt() *timestamppb.Timestamp {
 // GetActionsResponse returns captured timeline entries from a recording session.
 type GetActionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session ID the entries belong to.
+	// Session ID the entries belong to (UUID format).
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Captured timeline entries (unified format).
 	Entries []*timeline.TimelineEntry `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
@@ -566,11 +566,11 @@ func (x *GetActionsResponse) GetCount() int32 {
 // GenerateWorkflowRequest generates a workflow from recorded entries.
 type GenerateWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session ID to generate workflow from.
+	// Session ID to generate workflow from (UUID format).
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Name for the generated workflow.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Project ID to save the workflow to.
+	// Project ID to save the workflow to (UUID format).
 	ProjectId string `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Project name (for display).
 	ProjectName string `protobuf:"bytes,4,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
@@ -657,9 +657,9 @@ func (x *GenerateWorkflowRequest) GetEntries() []*timeline.TimelineEntry {
 // GenerateWorkflowResponse is returned after generating a workflow.
 type GenerateWorkflowResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Generated workflow ID.
+	// Generated workflow ID (UUID format).
 	WorkflowId string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	// Project ID the workflow was saved to.
+	// Project ID the workflow was saved to (UUID format).
 	ProjectId string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Workflow name.
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
@@ -739,7 +739,7 @@ func (x *GenerateWorkflowResponse) GetEntryCount() int32 {
 // ReplayPreviewRequest tests recorded entries by replaying them.
 type ReplayPreviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session ID to replay on.
+	// Session ID to replay on (UUID format).
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Timeline entries to replay.
 	Entries []*timeline.TimelineEntry `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
@@ -894,7 +894,7 @@ func (x *ReplayEventError) GetSelector() string {
 // ReplayEntryResult is the result of replaying a single timeline entry.
 type ReplayEntryResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Entry ID that was replayed.
+	// Entry ID that was replayed (UUID format).
 	EntryId string `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
 	// Sequence number of the entry.
 	SequenceNum int32 `protobuf:"varint,2,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`

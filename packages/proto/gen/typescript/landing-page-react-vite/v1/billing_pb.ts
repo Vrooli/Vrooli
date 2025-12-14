@@ -18,121 +18,142 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-react-vite/v1/billing.proto.
  */
 export const file_landing_page_react_vite_v1_billing: GenFile = /*@__PURE__*/
-  fileDesc("CihsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9iaWxsaW5nLnByb3RvEhpsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MSKrBQoPQ2hlY2tvdXRTZXNzaW9uEhIKCnNlc3Npb25faWQYASABKAkSPQoMc2Vzc2lvbl9raW5kGAIgASgOMicubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU2Vzc2lvbktpbmQSQQoGc3RhdHVzGAMgASgOMjEubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ2hlY2tvdXRTZXNzaW9uU3RhdHVzEgsKA3VybBgEIAEoCRIXCg9wdWJsaXNoYWJsZV9rZXkYBSABKAkSFgoOY3VzdG9tZXJfZW1haWwYBiABKAkSFwoPc3RyaXBlX3ByaWNlX2lkGAcgASgJEh4KEXN0cmlwZV9wcm9kdWN0X2lkGAggASgJSACIAQESHAoPc3Vic2NyaXB0aW9uX2lkGAkgASgJSAGIAQESGAoLc2NoZWR1bGVfaWQYCiABKAlIAogBARIUCgxhbW91bnRfY2VudHMYCyABKAMSEAoIY3VycmVuY3kYDCABKAkSEwoLc3VjY2Vzc191cmwYDSABKAkSEgoKY2FuY2VsX3VybBgOIAEoCRIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJLCghtZXRhZGF0YRgRIAMoCzI5LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNoZWNrb3V0U2Vzc2lvbi5NZXRhZGF0YUVudHJ5GkUKDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCFAoSX3N0cmlwZV9wcm9kdWN0X2lkQhIKEF9zdWJzY3JpcHRpb25faWRCDgoMX3NjaGVkdWxlX2lkSgQIEBARItcCChxDcmVhdGVDaGVja291dFNlc3Npb25SZXF1ZXN0EhAKCHByaWNlX2lkGAEgASgJEhYKDmN1c3RvbWVyX2VtYWlsGAIgASgJEhMKC3N1Y2Nlc3NfdXJsGAMgASgJEhIKCmNhbmNlbF91cmwYBCABKAkSPQoMc2Vzc2lvbl9raW5kGAUgASgOMicubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU2Vzc2lvbktpbmQSWAoIbWV0YWRhdGEYByADKAsyRi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5DcmVhdGVDaGVja291dFNlc3Npb25SZXF1ZXN0Lk1ldGFkYXRhRW50cnkaRQoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUoECAYQByJdCh1DcmVhdGVDaGVja291dFNlc3Npb25SZXNwb25zZRI8CgdzZXNzaW9uGAEgASgLMisubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ2hlY2tvdXRTZXNzaW9uIjIKGVZlcmlmeVN1YnNjcmlwdGlvblJlcXVlc3QSFQoNdXNlcl9pZGVudGl0eRgBIAEoCSLQBAoSU3Vic2NyaXB0aW9uU3RhdHVzEjwKBXN0YXRlGAEgASgOMi0ubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU3Vic2NyaXB0aW9uU3RhdGUSHAoPc3Vic2NyaXB0aW9uX2lkGAIgASgJSACIAQESFQoNdXNlcl9pZGVudGl0eRgDIAEoCRIWCglwbGFuX3RpZXIYBCABKAlIAYgBARIcCg9zdHJpcGVfcHJpY2VfaWQYBSABKAlIAogBARIXCgpidW5kbGVfa2V5GAYgASgJSAOIAQESLQoJY2FjaGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxjYWNoZV9hZ2VfbXMYCCABKAMSLwoLY2FuY2VsZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKB21lc3NhZ2UYCiABKAlIBIgBARJOCghtZXRhZGF0YRgMIAMoCzI8LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlN1YnNjcmlwdGlvblN0YXR1cy5NZXRhZGF0YUVudHJ5GkUKDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCEgoQX3N1YnNjcmlwdGlvbl9pZEIMCgpfcGxhbl90aWVyQhIKEF9zdHJpcGVfcHJpY2VfaWRCDQoLX2J1bmRsZV9rZXlCCgoIX21lc3NhZ2VKBAgLEAwiXAoaVmVyaWZ5U3Vic2NyaXB0aW9uUmVzcG9uc2USPgoGc3RhdHVzGAEgASgLMi4ubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU3Vic2NyaXB0aW9uU3RhdHVzIjIKGUNhbmNlbFN1YnNjcmlwdGlvblJlcXVlc3QSFQoNdXNlcl9pZGVudGl0eRgBIAEoCSLfAQoaQ2FuY2VsU3Vic2NyaXB0aW9uUmVzcG9uc2USHAoPc3Vic2NyaXB0aW9uX2lkGAEgASgJSACIAQESPAoFc3RhdGUYAiABKA4yLS5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5TdWJzY3JpcHRpb25TdGF0ZRIvCgtjYW5jZWxlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoHbWVzc2FnZRgEIAEoCUgBiAEBQhIKEF9zdWJzY3JpcHRpb25faWRCCgoIX21lc3NhZ2UihQEKDkNyZWRpdHNCYWxhbmNlEhYKDmN1c3RvbWVyX2VtYWlsGAEgASgJEhIKCmJ1bmRsZV9rZXkYAiABKAkSFwoPYmFsYW5jZV9jcmVkaXRzGAMgASgDEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wItwCChFDcmVkaXRUcmFuc2FjdGlvbhIKCgJpZBgBIAEoCRIWCg5jdXN0b21lcl9lbWFpbBgCIAEoCRIWCg5hbW91bnRfY3JlZGl0cxgDIAEoAxI5CgR0eXBlGAcgASgOMisubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuVHJhbnNhY3Rpb25UeXBlEk0KCG1ldGFkYXRhGAggAygLMjsubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ3JlZGl0VHJhbnNhY3Rpb24uTWV0YWRhdGFFbnRyeRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBpFCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBSgQIBBAFSgQIBRAGIpYBChJHZXRDcmVkaXRzUmVzcG9uc2USOwoHYmFsYW5jZRgBIAEoCzIqLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNyZWRpdHNCYWxhbmNlEkMKDHRyYW5zYWN0aW9ucxgCIAMoCzItLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNyZWRpdFRyYW5zYWN0aW9uIiQKFUJpbGxpbmdQb3J0YWxSZXNwb25zZRILCgN1cmwYASABKAkq2gEKEVN1YnNjcmlwdGlvblN0YXRlEiIKHlNVQlNDUklQVElPTl9TVEFURV9VTlNQRUNJRklFRBAAEh0KGVNVQlNDUklQVElPTl9TVEFURV9BQ1RJVkUQARIfChtTVUJTQ1JJUFRJT05fU1RBVEVfVFJJQUxJTkcQAhIfChtTVUJTQ1JJUFRJT05fU1RBVEVfUEFTVF9EVUUQAxIfChtTVUJTQ1JJUFRJT05fU1RBVEVfQ0FOQ0VMRUQQBBIfChtTVUJTQ1JJUFRJT05fU1RBVEVfSU5BQ1RJVkUQBSqTAQoLU2Vzc2lvbktpbmQSHAoYU0VTU0lPTl9LSU5EX1VOU1BFQ0lGSUVEEAASHQoZU0VTU0lPTl9LSU5EX1NVQlNDUklQVElPThABEh4KGlNFU1NJT05fS0lORF9DUkVESVRTX1RPUFVQEAISJwojU0VTU0lPTl9LSU5EX1NVUFBPUlRFUl9DT05UUklCVVRJT04QAyrTAQoVQ2hlY2tvdXRTZXNzaW9uU3RhdHVzEicKI0NIRUNLT1VUX1NFU1NJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIAocQ0hFQ0tPVVRfU0VTU0lPTl9TVEFUVVNfT1BFThABEiQKIENIRUNLT1VUX1NFU1NJT05fU1RBVFVTX0NPTVBMRVRFEAISIwofQ0hFQ0tPVVRfU0VTU0lPTl9TVEFUVVNfRVhQSVJFRBADEiQKIENIRUNLT1VUX1NFU1NJT05fU1RBVFVTX0NBTkNFTEVEEAQq0gEKD1RyYW5zYWN0aW9uVHlwZRIgChxUUkFOU0FDVElPTl9UWVBFX1VOU1BFQ0lGSUVEEAASIQodVFJBTlNBQ1RJT05fVFlQRV9DUkVESVRfVE9QVVAQARIgChxUUkFOU0FDVElPTl9UWVBFX0NPTlNVTVBUSU9OEAISHwobVFJBTlNBQ1RJT05fVFlQRV9BREpVU1RNRU5UEAMSGwoXVFJBTlNBQ1RJT05fVFlQRV9SRUZVTkQQBBIaChZUUkFOU0FDVElPTl9UWVBFX0dSQU5UEAUyswYKGkxhbmRpbmdQYWdlUGF5bWVudHNTZXJ2aWNlEowBChVDcmVhdGVDaGVja291dFNlc3Npb24SOC5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5DcmVhdGVDaGVja291dFNlc3Npb25SZXF1ZXN0GjkubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ3JlYXRlQ2hlY2tvdXRTZXNzaW9uUmVzcG9uc2USgwEKElZlcmlmeVN1YnNjcmlwdGlvbhI1LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlZlcmlmeVN1YnNjcmlwdGlvblJlcXVlc3QaNi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5WZXJpZnlTdWJzY3JpcHRpb25SZXNwb25zZRKDAQoSQ2FuY2VsU3Vic2NyaXB0aW9uEjUubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ2FuY2VsU3Vic2NyaXB0aW9uUmVxdWVzdBo2LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNhbmNlbFN1YnNjcmlwdGlvblJlc3BvbnNlEmsKCkdldFByaWNpbmcSLS5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5HZXRQcmljaW5nUmVxdWVzdBouLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkdldFByaWNpbmdSZXNwb25zZRKAAQoRR2V0U3RyaXBlU2V0dGluZ3MSNC5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5HZXRTdHJpcGVTZXR0aW5nc1JlcXVlc3QaNS5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5HZXRTdHJpcGVTZXR0aW5nc1Jlc3BvbnNlEokBChRVcGRhdGVTdHJpcGVTZXR0aW5ncxI3LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlVwZGF0ZVN0cmlwZVNldHRpbmdzUmVxdWVzdBo4LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlVwZGF0ZVN0cmlwZVNldHRpbmdzUmVzcG9uc2VCZlpkZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MTtsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types, file_landing_page_react_vite_v1_pricing, file_landing_page_react_vite_v1_settings]);
+  fileDesc("CihsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9iaWxsaW5nLnByb3RvEhpsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MSK9BQoPQ2hlY2tvdXRTZXNzaW9uEhIKCnNlc3Npb25faWQYASABKAkSPQoMc2Vzc2lvbl9raW5kGAIgASgOMicubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU2Vzc2lvbktpbmQSQQoGc3RhdHVzGAMgASgOMjEubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ2hlY2tvdXRTZXNzaW9uU3RhdHVzEgsKA3VybBgEIAEoCRIXCg9wdWJsaXNoYWJsZV9rZXkYBSABKAkSFgoOY3VzdG9tZXJfZW1haWwYBiABKAkSFwoPc3RyaXBlX3ByaWNlX2lkGAcgASgJEh4KEXN0cmlwZV9wcm9kdWN0X2lkGAggASgJSACIAQESHAoPc3Vic2NyaXB0aW9uX2lkGAkgASgJSAGIAQESGAoLc2NoZWR1bGVfaWQYCiABKAlIAogBARIUCgxhbW91bnRfY2VudHMYCyABKAMSEAoIY3VycmVuY3kYDCABKAkSEwoLc3VjY2Vzc191cmwYDSABKAkSEgoKY2FuY2VsX3VybBgOIAEoCRIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJLCghtZXRhZGF0YRgRIAMoCzI5LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNoZWNrb3V0U2Vzc2lvbi5NZXRhZGF0YUVudHJ5GkUKDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCFAoSX3N0cmlwZV9wcm9kdWN0X2lkQhIKEF9zdWJzY3JpcHRpb25faWRCDgoMX3NjaGVkdWxlX2lkSgQIEBARUhBtZXRhZGF0YV91bnR5cGVkIukCChxDcmVhdGVDaGVja291dFNlc3Npb25SZXF1ZXN0EhAKCHByaWNlX2lkGAEgASgJEhYKDmN1c3RvbWVyX2VtYWlsGAIgASgJEhMKC3N1Y2Nlc3NfdXJsGAMgASgJEhIKCmNhbmNlbF91cmwYBCABKAkSPQoMc2Vzc2lvbl9raW5kGAUgASgOMicubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU2Vzc2lvbktpbmQSWAoIbWV0YWRhdGEYByADKAsyRi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5DcmVhdGVDaGVja291dFNlc3Npb25SZXF1ZXN0Lk1ldGFkYXRhRW50cnkaRQoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUoECAYQB1IQbWV0YWRhdGFfdW50eXBlZCJdCh1DcmVhdGVDaGVja291dFNlc3Npb25SZXNwb25zZRI8CgdzZXNzaW9uGAEgASgLMisubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ2hlY2tvdXRTZXNzaW9uIjIKGVZlcmlmeVN1YnNjcmlwdGlvblJlcXVlc3QSFQoNdXNlcl9pZGVudGl0eRgBIAEoCSLiBAoSU3Vic2NyaXB0aW9uU3RhdHVzEjwKBXN0YXRlGAEgASgOMi0ubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU3Vic2NyaXB0aW9uU3RhdGUSHAoPc3Vic2NyaXB0aW9uX2lkGAIgASgJSACIAQESFQoNdXNlcl9pZGVudGl0eRgDIAEoCRIWCglwbGFuX3RpZXIYBCABKAlIAYgBARIcCg9zdHJpcGVfcHJpY2VfaWQYBSABKAlIAogBARIXCgpidW5kbGVfa2V5GAYgASgJSAOIAQESLQoJY2FjaGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxjYWNoZV9hZ2VfbXMYCCABKAMSLwoLY2FuY2VsZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKB21lc3NhZ2UYCiABKAlIBIgBARJOCghtZXRhZGF0YRgMIAMoCzI8LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlN1YnNjcmlwdGlvblN0YXR1cy5NZXRhZGF0YUVudHJ5GkUKDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCEgoQX3N1YnNjcmlwdGlvbl9pZEIMCgpfcGxhbl90aWVyQhIKEF9zdHJpcGVfcHJpY2VfaWRCDQoLX2J1bmRsZV9rZXlCCgoIX21lc3NhZ2VKBAgLEAxSEG1ldGFkYXRhX3VudHlwZWQiXAoaVmVyaWZ5U3Vic2NyaXB0aW9uUmVzcG9uc2USPgoGc3RhdHVzGAEgASgLMi4ubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU3Vic2NyaXB0aW9uU3RhdHVzIjIKGUNhbmNlbFN1YnNjcmlwdGlvblJlcXVlc3QSFQoNdXNlcl9pZGVudGl0eRgBIAEoCSLfAQoaQ2FuY2VsU3Vic2NyaXB0aW9uUmVzcG9uc2USHAoPc3Vic2NyaXB0aW9uX2lkGAEgASgJSACIAQESPAoFc3RhdGUYAiABKA4yLS5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5TdWJzY3JpcHRpb25TdGF0ZRIvCgtjYW5jZWxlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoHbWVzc2FnZRgEIAEoCUgBiAEBQhIKEF9zdWJzY3JpcHRpb25faWRCCgoIX21lc3NhZ2UihQEKDkNyZWRpdHNCYWxhbmNlEhYKDmN1c3RvbWVyX2VtYWlsGAEgASgJEhIKCmJ1bmRsZV9rZXkYAiABKAkSFwoPYmFsYW5jZV9jcmVkaXRzGAMgASgDEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIvsCChFDcmVkaXRUcmFuc2FjdGlvbhIKCgJpZBgBIAEoCRIWCg5jdXN0b21lcl9lbWFpbBgCIAEoCRIWCg5hbW91bnRfY3JlZGl0cxgDIAEoAxI5CgR0eXBlGAcgASgOMisubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuVHJhbnNhY3Rpb25UeXBlEk0KCG1ldGFkYXRhGAggAygLMjsubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ3JlZGl0VHJhbnNhY3Rpb24uTWV0YWRhdGFFbnRyeRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBpFCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBSgQIBBAFSgQIBRAGUgtkZXNjcmlwdGlvblIQbWV0YWRhdGFfdW50eXBlZCKWAQoSR2V0Q3JlZGl0c1Jlc3BvbnNlEjsKB2JhbGFuY2UYASABKAsyKi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5DcmVkaXRzQmFsYW5jZRJDCgx0cmFuc2FjdGlvbnMYAiADKAsyLS5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5DcmVkaXRUcmFuc2FjdGlvbiIkChVCaWxsaW5nUG9ydGFsUmVzcG9uc2USCwoDdXJsGAEgASgJKtoBChFTdWJzY3JpcHRpb25TdGF0ZRIiCh5TVUJTQ1JJUFRJT05fU1RBVEVfVU5TUEVDSUZJRUQQABIdChlTVUJTQ1JJUFRJT05fU1RBVEVfQUNUSVZFEAESHwobU1VCU0NSSVBUSU9OX1NUQVRFX1RSSUFMSU5HEAISHwobU1VCU0NSSVBUSU9OX1NUQVRFX1BBU1RfRFVFEAMSHwobU1VCU0NSSVBUSU9OX1NUQVRFX0NBTkNFTEVEEAQSHwobU1VCU0NSSVBUSU9OX1NUQVRFX0lOQUNUSVZFEAUqkwEKC1Nlc3Npb25LaW5kEhwKGFNFU1NJT05fS0lORF9VTlNQRUNJRklFRBAAEh0KGVNFU1NJT05fS0lORF9TVUJTQ1JJUFRJT04QARIeChpTRVNTSU9OX0tJTkRfQ1JFRElUU19UT1BVUBACEicKI1NFU1NJT05fS0lORF9TVVBQT1JURVJfQ09OVFJJQlVUSU9OEAMq0wEKFUNoZWNrb3V0U2Vzc2lvblN0YXR1cxInCiNDSEVDS09VVF9TRVNTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEiAKHENIRUNLT1VUX1NFU1NJT05fU1RBVFVTX09QRU4QARIkCiBDSEVDS09VVF9TRVNTSU9OX1NUQVRVU19DT01QTEVURRACEiMKH0NIRUNLT1VUX1NFU1NJT05fU1RBVFVTX0VYUElSRUQQAxIkCiBDSEVDS09VVF9TRVNTSU9OX1NUQVRVU19DQU5DRUxFRBAEKtIBCg9UcmFuc2FjdGlvblR5cGUSIAocVFJBTlNBQ1RJT05fVFlQRV9VTlNQRUNJRklFRBAAEiEKHVRSQU5TQUNUSU9OX1RZUEVfQ1JFRElUX1RPUFVQEAESIAocVFJBTlNBQ1RJT05fVFlQRV9DT05TVU1QVElPThACEh8KG1RSQU5TQUNUSU9OX1RZUEVfQURKVVNUTUVOVBADEhsKF1RSQU5TQUNUSU9OX1RZUEVfUkVGVU5EEAQSGgoWVFJBTlNBQ1RJT05fVFlQRV9HUkFOVBAFMrMGChpMYW5kaW5nUGFnZVBheW1lbnRzU2VydmljZRKMAQoVQ3JlYXRlQ2hlY2tvdXRTZXNzaW9uEjgubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuQ3JlYXRlQ2hlY2tvdXRTZXNzaW9uUmVxdWVzdBo5LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNyZWF0ZUNoZWNrb3V0U2Vzc2lvblJlc3BvbnNlEoMBChJWZXJpZnlTdWJzY3JpcHRpb24SNS5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5WZXJpZnlTdWJzY3JpcHRpb25SZXF1ZXN0GjYubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuVmVyaWZ5U3Vic2NyaXB0aW9uUmVzcG9uc2USgwEKEkNhbmNlbFN1YnNjcmlwdGlvbhI1LmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNhbmNlbFN1YnNjcmlwdGlvblJlcXVlc3QaNi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5DYW5jZWxTdWJzY3JpcHRpb25SZXNwb25zZRJrCgpHZXRQcmljaW5nEi0ubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuR2V0UHJpY2luZ1JlcXVlc3QaLi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5HZXRQcmljaW5nUmVzcG9uc2USgAEKEUdldFN0cmlwZVNldHRpbmdzEjQubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuR2V0U3RyaXBlU2V0dGluZ3NSZXF1ZXN0GjUubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuR2V0U3RyaXBlU2V0dGluZ3NSZXNwb25zZRKJAQoUVXBkYXRlU3RyaXBlU2V0dGluZ3MSNy5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5VcGRhdGVTdHJpcGVTZXR0aW5nc1JlcXVlc3QaOC5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5VcGRhdGVTdHJpcGVTZXR0aW5nc1Jlc3BvbnNlQmZaZGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLXJlYWN0LXZpdGUvdjE7bGFuZGluZ19wYWdlX3JlYWN0X3ZpdGVfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_common_v1_types, file_landing_page_react_vite_v1_pricing, file_landing_page_react_vite_v1_settings]);
 
 /**
  * CheckoutSession represents a created Stripe checkout session.
+ *
+ * Contains all information needed to redirect a customer to Stripe's
+ * hosted checkout page and track the session outcome.
+ *
+ * @usage CreateCheckoutSessionResponse.session
  *
  * @generated from message landing_page_react_vite.v1.CheckoutSession
  */
 export type CheckoutSession = Message<"landing_page_react_vite.v1.CheckoutSession"> & {
   /**
    * Stripe session identifier (cs_*).
+   * @format stripe_session_id
    *
    * @generated from field: string session_id = 1;
    */
   sessionId: string;
 
   /**
-   * Kind of session (subscription, credits top-up, supporter contribution).
+   * Kind of session determining post-checkout behavior.
    *
    * @generated from field: landing_page_react_vite.v1.SessionKind session_kind = 2;
    */
   sessionKind: SessionKind;
 
   /**
-   * Current status of the session.
+   * Current status of the checkout flow.
    *
    * @generated from field: landing_page_react_vite.v1.CheckoutSessionStatus status = 3;
    */
   status: CheckoutSessionStatus;
 
   /**
-   * Hosted checkout URL to redirect the user.
+   * Hosted checkout URL to redirect the customer.
+   * @format url
    *
    * @generated from field: string url = 4;
    */
   url: string;
 
   /**
-   * Publishable key to use on the client.
+   * Stripe publishable key for client-side SDK initialization.
+   * @format stripe_publishable_key (pk_*)
    *
    * @generated from field: string publishable_key = 5;
    */
   publishableKey: string;
 
   /**
-   * Customer email tied to the session.
+   * Customer email address associated with the session.
+   * @format email
    *
    * @generated from field: string customer_email = 6;
    */
   customerEmail: string;
 
   /**
-   * Stripe price identifier for the purchase.
+   * Stripe price identifier being purchased (price_*).
+   * @format stripe_price_id
    *
    * @generated from field: string stripe_price_id = 7;
    */
   stripePriceId: string;
 
   /**
-   * Stripe product identifier, when available.
+   * Stripe product identifier, when available (prod_*).
+   * @format stripe_product_id
    *
    * @generated from field: optional string stripe_product_id = 8;
    */
   stripeProductId?: string;
 
   /**
-   * Subscription identifier if created (sub_*).
+   * Subscription identifier if created after checkout (sub_*).
+   * Only populated for SUBSCRIPTION session kind after completion.
+   * @format stripe_subscription_id
    *
    * @generated from field: optional string subscription_id = 9;
    */
   subscriptionId?: string;
 
   /**
-   * Subscription schedule identifier when an intro price is used.
+   * Subscription schedule identifier when intro pricing is used.
+   * @format stripe_schedule_id
    *
    * @generated from field: optional string schedule_id = 10;
    */
   scheduleId?: string;
 
   /**
-   * Amount in cents.
+   * Total amount in cents for this checkout.
+   * @unit cents
    *
    * @generated from field: int64 amount_cents = 11;
    */
   amountCents: bigint;
 
   /**
-   * Currency code (ISO 4217).
+   * Currency code (ISO 4217, e.g., "usd").
+   * @format iso4217
    *
    * @generated from field: string currency = 12;
    */
   currency: string;
 
   /**
-   * Success URL for the checkout session.
+   * URL to redirect customer after successful checkout.
+   * @format url
    *
    * @generated from field: string success_url = 13;
    */
   successUrl: string;
 
   /**
-   * Cancel URL for the checkout session.
+   * URL to redirect customer if they cancel checkout.
+   * @format url
    *
    * @generated from field: string cancel_url = 14;
    */
   cancelUrl: string;
 
   /**
-   * Creation timestamp.
+   * When the checkout session was created.
    *
    * @generated from field: google.protobuf.Timestamp created_at = 15;
    */
   createdAt?: Timestamp;
 
   /**
-   * Additional structured metadata.
+   * Additional structured metadata for tracking and analytics.
+   * Key: Metadata identifier (e.g., "utm_source", "referral_code")
+   * Value: JSON-compatible value
+   * Common keys: "campaign", "referrer", "client_ip"
    *
    * @generated from field: map<string, common.v1.JsonValue> metadata = 17;
    */
@@ -149,39 +170,45 @@ export const CheckoutSessionSchema: GenMessage<CheckoutSession> = /*@__PURE__*/
 /**
  * CreateCheckoutSessionRequest starts a new checkout flow for a price.
  *
+ * @usage LandingPagePaymentsService.CreateCheckoutSession
+ *
  * @generated from message landing_page_react_vite.v1.CreateCheckoutSessionRequest
  */
 export type CreateCheckoutSessionRequest = Message<"landing_page_react_vite.v1.CreateCheckoutSessionRequest"> & {
   /**
-   * Stripe price identifier to purchase.
+   * Stripe price identifier to purchase (price_*).
+   * @format stripe_price_id
    *
    * @generated from field: string price_id = 1;
    */
   priceId: string;
 
   /**
-   * Customer email address.
+   * Customer email address for the checkout.
+   * @format email
    *
    * @generated from field: string customer_email = 2;
    */
   customerEmail: string;
 
   /**
-   * Success redirect URL.
+   * URL to redirect customer after successful checkout.
+   * @format url
    *
    * @generated from field: string success_url = 3;
    */
   successUrl: string;
 
   /**
-   * Cancel redirect URL.
+   * URL to redirect customer if they cancel checkout.
+   * @format url
    *
    * @generated from field: string cancel_url = 4;
    */
   cancelUrl: string;
 
   /**
-   * Intended session kind (defaults to subscription).
+   * Intended session kind. Defaults to SUBSCRIPTION if unspecified.
    *
    * @generated from field: landing_page_react_vite.v1.SessionKind session_kind = 5;
    */
@@ -189,6 +216,8 @@ export type CreateCheckoutSessionRequest = Message<"landing_page_react_vite.v1.C
 
   /**
    * Arbitrary metadata to associate with the session.
+   * Key: Metadata identifier (e.g., "utm_source", "referral_code")
+   * Value: JSON-compatible value for tracking and analytics
    *
    * @generated from field: map<string, common.v1.JsonValue> metadata = 7;
    */
@@ -205,11 +234,13 @@ export const CreateCheckoutSessionRequestSchema: GenMessage<CreateCheckoutSessio
 /**
  * CreateCheckoutSessionResponse returns the created checkout session.
  *
+ * @usage LandingPagePaymentsService.CreateCheckoutSession response
+ *
  * @generated from message landing_page_react_vite.v1.CreateCheckoutSessionResponse
  */
 export type CreateCheckoutSessionResponse = Message<"landing_page_react_vite.v1.CreateCheckoutSessionResponse"> & {
   /**
-   * Created checkout session.
+   * The created checkout session with redirect URL.
    *
    * @generated from field: landing_page_react_vite.v1.CheckoutSession session = 1;
    */
@@ -226,11 +257,14 @@ export const CreateCheckoutSessionResponseSchema: GenMessage<CreateCheckoutSessi
 /**
  * VerifySubscriptionRequest asks for the latest subscription state for a user.
  *
+ * @usage LandingPagePaymentsService.VerifySubscription
+ *
  * @generated from message landing_page_react_vite.v1.VerifySubscriptionRequest
  */
 export type VerifySubscriptionRequest = Message<"landing_page_react_vite.v1.VerifySubscriptionRequest"> & {
   /**
-   * Email or customer ID to look up.
+   * Email address or Stripe customer ID to look up.
+   * @format email or stripe_customer_id (cus_*)
    *
    * @generated from field: string user_identity = 1;
    */
@@ -245,41 +279,49 @@ export const VerifySubscriptionRequestSchema: GenMessage<VerifySubscriptionReque
   messageDesc(file_landing_page_react_vite_v1_billing, 3);
 
 /**
- * SubscriptionStatus reports the current subscription state.
+ * SubscriptionStatus reports the current subscription state for a user.
+ *
+ * Contains cached subscription information. Cache is refreshed on webhook
+ * events or when cache_age_ms exceeds threshold.
+ *
+ * @usage VerifySubscriptionResponse.status, entitlement checks
  *
  * @generated from message landing_page_react_vite.v1.SubscriptionStatus
  */
 export type SubscriptionStatus = Message<"landing_page_react_vite.v1.SubscriptionStatus"> & {
   /**
-   * Lifecycle state of the subscription.
+   * Current lifecycle state of the subscription.
    *
    * @generated from field: landing_page_react_vite.v1.SubscriptionState state = 1;
    */
   state: SubscriptionState;
 
   /**
-   * Subscription identifier (sub_*).
+   * Stripe subscription identifier (sub_*). Unset if INACTIVE.
+   * @format stripe_subscription_id
    *
    * @generated from field: optional string subscription_id = 2;
    */
   subscriptionId?: string;
 
   /**
-   * Identity used for the lookup (email or customer id).
+   * Identity used for the lookup (echoed back for confirmation).
    *
    * @generated from field: string user_identity = 3;
    */
   userIdentity: string;
 
   /**
-   * Plan tier associated with the subscription (e.g., pro, team).
+   * Plan tier for entitlement checks (e.g., "free", "pro", "team").
+   * @format slug
    *
    * @generated from field: optional string plan_tier = 4;
    */
   planTier?: string;
 
   /**
-   * Stripe price identifier for the active subscription.
+   * Stripe price identifier for the active subscription (price_*).
+   * @format stripe_price_id
    *
    * @generated from field: optional string stripe_price_id = 5;
    */
@@ -287,20 +329,22 @@ export type SubscriptionStatus = Message<"landing_page_react_vite.v1.Subscriptio
 
   /**
    * Bundle key associated with the subscription.
+   * @format slug
    *
    * @generated from field: optional string bundle_key = 6;
    */
   bundleKey?: string;
 
   /**
-   * Timestamp when this status was cached/updated.
+   * When this status was last cached/refreshed.
    *
    * @generated from field: google.protobuf.Timestamp cached_at = 7;
    */
   cachedAt?: Timestamp;
 
   /**
-   * Cache age in milliseconds.
+   * Age of the cache in milliseconds. Use to decide if refresh needed.
+   * @unit milliseconds
    *
    * @generated from field: int64 cache_age_ms = 8;
    */
@@ -308,13 +352,14 @@ export type SubscriptionStatus = Message<"landing_page_react_vite.v1.Subscriptio
 
   /**
    * When the subscription was canceled, if applicable.
+   * Only set when state is CANCELED.
    *
    * @generated from field: google.protobuf.Timestamp canceled_at = 9;
    */
   canceledAt?: Timestamp;
 
   /**
-   * Human-readable status message.
+   * Human-readable status message for display.
    *
    * @generated from field: optional string message = 10;
    */
@@ -322,6 +367,8 @@ export type SubscriptionStatus = Message<"landing_page_react_vite.v1.Subscriptio
 
   /**
    * Additional metadata about the subscription.
+   * Key: Metadata identifier (e.g., "current_period_end", "cancel_at_period_end")
+   * Value: JSON-compatible value from Stripe subscription object
    *
    * @generated from field: map<string, common.v1.JsonValue> metadata = 12;
    */
@@ -338,11 +385,13 @@ export const SubscriptionStatusSchema: GenMessage<SubscriptionStatus> = /*@__PUR
 /**
  * VerifySubscriptionResponse returns the current subscription status.
  *
+ * @usage LandingPagePaymentsService.VerifySubscription response
+ *
  * @generated from message landing_page_react_vite.v1.VerifySubscriptionResponse
  */
 export type VerifySubscriptionResponse = Message<"landing_page_react_vite.v1.VerifySubscriptionResponse"> & {
   /**
-   * Current subscription status for the user.
+   * Current subscription status for the requested user.
    *
    * @generated from field: landing_page_react_vite.v1.SubscriptionStatus status = 1;
    */
@@ -359,11 +408,16 @@ export const VerifySubscriptionResponseSchema: GenMessage<VerifySubscriptionResp
 /**
  * CancelSubscriptionRequest cancels an active subscription for a user.
  *
+ * Cancellation takes effect at end of current billing period by default.
+ *
+ * @usage LandingPagePaymentsService.CancelSubscription
+ *
  * @generated from message landing_page_react_vite.v1.CancelSubscriptionRequest
  */
 export type CancelSubscriptionRequest = Message<"landing_page_react_vite.v1.CancelSubscriptionRequest"> & {
   /**
-   * Email or customer ID to cancel.
+   * Email address or Stripe customer ID to cancel.
+   * @format email or stripe_customer_id (cus_*)
    *
    * @generated from field: string user_identity = 1;
    */
@@ -380,32 +434,35 @@ export const CancelSubscriptionRequestSchema: GenMessage<CancelSubscriptionReque
 /**
  * CancelSubscriptionResponse reports the cancellation outcome.
  *
+ * @usage LandingPagePaymentsService.CancelSubscription response
+ *
  * @generated from message landing_page_react_vite.v1.CancelSubscriptionResponse
  */
 export type CancelSubscriptionResponse = Message<"landing_page_react_vite.v1.CancelSubscriptionResponse"> & {
   /**
-   * Subscription identifier that was canceled.
+   * Subscription identifier that was canceled (sub_*).
+   * @format stripe_subscription_id
    *
    * @generated from field: optional string subscription_id = 1;
    */
   subscriptionId?: string;
 
   /**
-   * Resulting subscription state.
+   * Resulting subscription state (typically CANCELED).
    *
    * @generated from field: landing_page_react_vite.v1.SubscriptionState state = 2;
    */
   state: SubscriptionState;
 
   /**
-   * When the subscription was canceled.
+   * When the cancellation was processed.
    *
    * @generated from field: google.protobuf.Timestamp canceled_at = 3;
    */
   canceledAt?: Timestamp;
 
   /**
-   * Human-readable message about the cancellation.
+   * Human-readable message about the cancellation outcome.
    *
    * @generated from field: optional string message = 4;
    */
@@ -422,11 +479,14 @@ export const CancelSubscriptionResponseSchema: GenMessage<CancelSubscriptionResp
 /**
  * CreditsBalance summarizes wallet credits for a customer.
  *
+ * @usage GetCreditsResponse.balance
+ *
  * @generated from message landing_page_react_vite.v1.CreditsBalance
  */
 export type CreditsBalance = Message<"landing_page_react_vite.v1.CreditsBalance"> & {
   /**
    * Customer email address.
+   * @format email
    *
    * @generated from field: string customer_email = 1;
    */
@@ -434,20 +494,21 @@ export type CreditsBalance = Message<"landing_page_react_vite.v1.CreditsBalance"
 
   /**
    * Bundle key the credits apply to.
+   * @format slug
    *
    * @generated from field: string bundle_key = 2;
    */
   bundleKey: string;
 
   /**
-   * Current balance in credits.
+   * Current balance in credits (can be negative in rare cases).
    *
    * @generated from field: int64 balance_credits = 3;
    */
   balanceCredits: bigint;
 
   /**
-   * Last updated timestamp.
+   * When the balance was last updated.
    *
    * @generated from field: google.protobuf.Timestamp updated_at = 4;
    */
@@ -464,11 +525,17 @@ export const CreditsBalanceSchema: GenMessage<CreditsBalance> = /*@__PURE__*/
 /**
  * CreditTransaction describes a wallet credit/debit entry.
  *
+ * Transactions form an immutable audit log of all credit changes.
+ * The running balance can be computed by summing all transactions.
+ *
+ * @usage GetCreditsResponse.transactions
+ *
  * @generated from message landing_page_react_vite.v1.CreditTransaction
  */
 export type CreditTransaction = Message<"landing_page_react_vite.v1.CreditTransaction"> & {
   /**
-   * Unique transaction identifier.
+   * Unique transaction identifier (UUID format).
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
@@ -476,20 +543,21 @@ export type CreditTransaction = Message<"landing_page_react_vite.v1.CreditTransa
 
   /**
    * Customer email associated with the transaction.
+   * @format email
    *
    * @generated from field: string customer_email = 2;
    */
   customerEmail: string;
 
   /**
-   * Amount in credits (positive for additions, negative for debits).
+   * Amount in credits. Positive for credits (topup, grant), negative for debits.
    *
    * @generated from field: int64 amount_credits = 3;
    */
   amountCredits: bigint;
 
   /**
-   * Transaction type classification.
+   * Transaction type for categorization and reporting.
    *
    * @generated from field: landing_page_react_vite.v1.TransactionType type = 7;
    */
@@ -497,13 +565,16 @@ export type CreditTransaction = Message<"landing_page_react_vite.v1.CreditTransa
 
   /**
    * Structured metadata describing the transaction.
+   * Key: Metadata identifier (e.g., "stripe_payment_id", "usage_type", "reason")
+   * Value: JSON-compatible value for audit trail
+   * Common keys: "payment_intent_id", "api_call_id", "admin_user", "note"
    *
    * @generated from field: map<string, common.v1.JsonValue> metadata = 8;
    */
   metadata: { [key: string]: JsonValue };
 
   /**
-   * Creation timestamp for the transaction.
+   * When the transaction was created.
    *
    * @generated from field: google.protobuf.Timestamp created_at = 6;
    */
@@ -520,18 +591,20 @@ export const CreditTransactionSchema: GenMessage<CreditTransaction> = /*@__PURE_
 /**
  * GetCreditsResponse returns the current balance and recent transactions.
  *
+ * @usage Credits API response
+ *
  * @generated from message landing_page_react_vite.v1.GetCreditsResponse
  */
 export type GetCreditsResponse = Message<"landing_page_react_vite.v1.GetCreditsResponse"> & {
   /**
-   * Current credit balance.
+   * Current credit balance for the customer.
    *
    * @generated from field: landing_page_react_vite.v1.CreditsBalance balance = 1;
    */
   balance?: CreditsBalance;
 
   /**
-   * Recent credit transactions.
+   * Recent credit transactions, ordered by created_at descending.
    *
    * @generated from field: repeated landing_page_react_vite.v1.CreditTransaction transactions = 2;
    */
@@ -548,11 +621,17 @@ export const GetCreditsResponseSchema: GenMessage<GetCreditsResponse> = /*@__PUR
 /**
  * BillingPortalResponse supplies a hosted billing portal URL.
  *
+ * The portal allows customers to manage their subscription, update
+ * payment methods, and view invoices without custom UI.
+ *
+ * @usage Billing portal redirect
+ *
  * @generated from message landing_page_react_vite.v1.BillingPortalResponse
  */
 export type BillingPortalResponse = Message<"landing_page_react_vite.v1.BillingPortalResponse"> & {
   /**
-   * URL for the Stripe billing portal.
+   * URL to redirect customer to Stripe's hosted billing portal.
+   * @format url
    *
    * @generated from field: string url = 1;
    */
@@ -569,35 +648,63 @@ export const BillingPortalResponseSchema: GenMessage<BillingPortalResponse> = /*
 /**
  * SubscriptionState enumerates lifecycle states for customer subscriptions.
  *
+ * Maps to Stripe subscription status with additional states for internal
+ * tracking. Used to determine user entitlements and access.
+ *
+ * State machine:
+ *   INACTIVE → TRIALING → ACTIVE → PAST_DUE → CANCELED
+ *                    ↓              ↓
+ *                  ACTIVE ←───── ACTIVE (payment recovered)
+ *
+ * @usage SubscriptionStatus.state, entitlement checks
+ *
  * @generated from enum landing_page_react_vite.v1.SubscriptionState
  */
 export enum SubscriptionState {
   /**
+   * Default/unknown state. Should not appear in valid data.
+   *
    * @generated from enum value: SUBSCRIPTION_STATE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Subscription is active and in good standing.
+   * User has full access to tier benefits.
+   *
    * @generated from enum value: SUBSCRIPTION_STATE_ACTIVE = 1;
    */
   ACTIVE = 1,
 
   /**
+   * Subscription is in trial period before first charge.
+   * User has full access; will transition to ACTIVE or CANCELED.
+   *
    * @generated from enum value: SUBSCRIPTION_STATE_TRIALING = 2;
    */
   TRIALING = 2,
 
   /**
+   * Payment failed; subscription is in grace period.
+   * User may have limited access. Stripe will retry payment.
+   * Transitions to ACTIVE if payment succeeds, CANCELED if retries exhausted.
+   *
    * @generated from enum value: SUBSCRIPTION_STATE_PAST_DUE = 3;
    */
   PAST_DUE = 3,
 
   /**
+   * Subscription has been canceled (by user or due to payment failure).
+   * User loses tier benefits. May still have access until period end.
+   *
    * @generated from enum value: SUBSCRIPTION_STATE_CANCELED = 4;
    */
   CANCELED = 4,
 
   /**
+   * No active subscription exists for this user.
+   * User has free tier access only.
+   *
    * @generated from enum value: SUBSCRIPTION_STATE_INACTIVE = 5;
    */
   INACTIVE = 5,
@@ -612,25 +719,41 @@ export const SubscriptionStateSchema: GenEnum<SubscriptionState> = /*@__PURE__*/
 /**
  * SessionKind captures the intent of a checkout session.
  *
+ * Determines what Stripe objects are created and what post-checkout
+ * processing occurs. Maps closely to PlanKind in pricing.proto.
+ *
+ * @usage CheckoutSession.session_kind, CreateCheckoutSessionRequest.session_kind
+ *
  * @generated from enum landing_page_react_vite.v1.SessionKind
  */
 export enum SessionKind {
   /**
+   * Default/unknown kind. Should not appear in valid data.
+   *
    * @generated from enum value: SESSION_KIND_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Checkout creates a recurring subscription.
+   * Post-checkout: Stripe subscription created, user gains tier access.
+   *
    * @generated from enum value: SESSION_KIND_SUBSCRIPTION = 1;
    */
   SUBSCRIPTION = 1,
 
   /**
+   * Checkout purchases credits for user's wallet.
+   * Post-checkout: Credits added to wallet balance.
+   *
    * @generated from enum value: SESSION_KIND_CREDITS_TOPUP = 2;
    */
   CREDITS_TOPUP = 2,
 
   /**
+   * Checkout processes a supporter contribution/donation.
+   * Post-checkout: No credits or subscription; thank-you acknowledgment.
+   *
    * @generated from enum value: SESSION_KIND_SUPPORTER_CONTRIBUTION = 3;
    */
   SUPPORTER_CONTRIBUTION = 3,
@@ -645,30 +768,49 @@ export const SessionKindSchema: GenEnum<SessionKind> = /*@__PURE__*/
 /**
  * CheckoutSessionStatus mirrors Stripe checkout session states.
  *
+ * Indicates the current state of a checkout flow. Sessions expire after
+ * 24 hours if not completed.
+ *
+ * @usage CheckoutSession.status
+ *
  * @generated from enum landing_page_react_vite.v1.CheckoutSessionStatus
  */
 export enum CheckoutSessionStatus {
   /**
+   * Default/unknown status. Should not appear in valid data.
+   *
    * @generated from enum value: CHECKOUT_SESSION_STATUS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Session created and awaiting customer action.
+   * Customer can complete checkout at the session URL.
+   *
    * @generated from enum value: CHECKOUT_SESSION_STATUS_OPEN = 1;
    */
   OPEN = 1,
 
   /**
+   * Customer completed checkout successfully.
+   * Payment processed; post-checkout webhooks will fire.
+   *
    * @generated from enum value: CHECKOUT_SESSION_STATUS_COMPLETE = 2;
    */
   COMPLETE = 2,
 
   /**
+   * Session expired (24 hours elapsed without completion).
+   * Customer must create a new checkout session.
+   *
    * @generated from enum value: CHECKOUT_SESSION_STATUS_EXPIRED = 3;
    */
   EXPIRED = 3,
 
   /**
+   * Session was explicitly canceled.
+   * Customer navigated to cancel URL or session was voided.
+   *
    * @generated from enum value: CHECKOUT_SESSION_STATUS_CANCELED = 4;
    */
   CANCELED = 4,
@@ -681,37 +823,59 @@ export const CheckoutSessionStatusSchema: GenEnum<CheckoutSessionStatus> = /*@__
   enumDesc(file_landing_page_react_vite_v1_billing, 2);
 
 /**
- * TransactionType constrains wallet credit/debit sources.
+ * TransactionType categorizes wallet credit/debit entries.
+ *
+ * Used for auditing, reporting, and displaying transaction history.
+ * Positive amounts are credits (additions), negative are debits.
+ *
+ * @usage CreditTransaction.type
  *
  * @generated from enum landing_page_react_vite.v1.TransactionType
  */
 export enum TransactionType {
   /**
+   * Default/unknown type. Should not appear in valid data.
+   *
    * @generated from enum value: TRANSACTION_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Credits purchased via checkout (positive amount).
+   * Associated with a Stripe payment intent.
+   *
    * @generated from enum value: TRANSACTION_TYPE_CREDIT_TOPUP = 1;
    */
   CREDIT_TOPUP = 1,
 
   /**
+   * Credits consumed by usage (negative amount).
+   * Associated with API calls, executions, or other metered usage.
+   *
    * @generated from enum value: TRANSACTION_TYPE_CONSUMPTION = 2;
    */
   CONSUMPTION = 2,
 
   /**
+   * Manual adjustment by admin (positive or negative).
+   * Used for corrections, disputes, or special cases.
+   *
    * @generated from enum value: TRANSACTION_TYPE_ADJUSTMENT = 3;
    */
   ADJUSTMENT = 3,
 
   /**
+   * Refund of previously purchased credits (negative to reverse).
+   * Associated with a Stripe refund.
+   *
    * @generated from enum value: TRANSACTION_TYPE_REFUND = 4;
    */
   REFUND = 4,
 
   /**
+   * Credits granted without payment (positive amount).
+   * Used for promotions, referrals, or compensation.
+   *
    * @generated from enum value: TRANSACTION_TYPE_GRANT = 5;
    */
   GRANT = 5,
@@ -726,11 +890,18 @@ export const TransactionTypeSchema: GenEnum<TransactionType> = /*@__PURE__*/
 /**
  * LandingPagePaymentsService exposes billing, pricing, and settings operations.
  *
+ * Provides a unified API for:
+ *   - Checkout session creation and management
+ *   - Subscription verification and cancellation
+ *   - Pricing metadata retrieval
+ *   - Stripe credential management (admin only)
+ *
  * @generated from service landing_page_react_vite.v1.LandingPagePaymentsService
  */
 export const LandingPagePaymentsService: GenService<{
   /**
-   * Creates a checkout session for a Stripe price.
+   * Creates a Stripe checkout session for purchasing a price.
+   * Returns a session with a redirect URL for the customer.
    *
    * @generated from rpc landing_page_react_vite.v1.LandingPagePaymentsService.CreateCheckoutSession
    */
@@ -740,7 +911,8 @@ export const LandingPagePaymentsService: GenService<{
     output: typeof CreateCheckoutSessionResponseSchema;
   },
   /**
-   * Verifies the latest subscription status for a user.
+   * Verifies the current subscription status for a user.
+   * Returns cached status; refreshed on webhook events.
    *
    * @generated from rpc landing_page_react_vite.v1.LandingPagePaymentsService.VerifySubscription
    */
@@ -751,6 +923,7 @@ export const LandingPagePaymentsService: GenService<{
   },
   /**
    * Cancels an active subscription for a user.
+   * Cancellation takes effect at end of current billing period.
    *
    * @generated from rpc landing_page_react_vite.v1.LandingPagePaymentsService.CancelSubscription
    */
@@ -761,6 +934,7 @@ export const LandingPagePaymentsService: GenService<{
   },
   /**
    * Returns pricing metadata for a bundle.
+   * Used to render the public pricing page.
    *
    * @generated from rpc landing_page_react_vite.v1.LandingPagePaymentsService.GetPricing
    */
@@ -770,7 +944,8 @@ export const LandingPagePaymentsService: GenService<{
     output: typeof GetPricingResponseSchema;
   },
   /**
-   * Returns current Stripe settings and runtime snapshot.
+   * Returns current Stripe settings and runtime configuration snapshot.
+   * Admin-only endpoint for credential management.
    *
    * @generated from rpc landing_page_react_vite.v1.LandingPagePaymentsService.GetStripeSettings
    */
@@ -781,6 +956,7 @@ export const LandingPagePaymentsService: GenService<{
   },
   /**
    * Updates Stripe settings and returns the refreshed snapshot.
+   * Admin-only endpoint for credential management.
    *
    * @generated from rpc landing_page_react_vite.v1.LandingPagePaymentsService.UpdateStripeSettings
    */

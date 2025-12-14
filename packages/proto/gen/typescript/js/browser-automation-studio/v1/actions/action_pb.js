@@ -134,7 +134,12 @@ export const ActionTypeSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_actions_action, 0);
 
 /**
- * ActionType enumerates all supported action kinds.
+ * ActionType enumerates all supported browser automation action kinds.
+ *
+ * Each type corresponds to a specific *Params message in ActionDefinition.params.
+ * The type field MUST match the populated params oneof case.
+ *
+ * @usage ActionDefinition.type, workflow editor action palette
  *
  * @generated from enum browser_automation_studio.v1.ActionType
  */
@@ -150,6 +155,8 @@ export const MouseButtonSchema = /*@__PURE__*/
 /**
  * MouseButton enumerates supported mouse buttons for click actions.
  *
+ * @usage ClickParams.button
+ *
  * @generated from enum browser_automation_studio.v1.MouseButton
  */
 export const MouseButton = /*@__PURE__*/
@@ -163,6 +170,11 @@ export const NavigateWaitEventSchema = /*@__PURE__*/
 
 /**
  * NavigateWaitEvent enumerates events to wait for after navigation.
+ *
+ * Controls when navigation is considered "complete". Affects reliability
+ * vs. speed tradeoff. Maps to Playwright's waitUntil option.
+ *
+ * @usage NavigateParams.wait_until
  *
  * @generated from enum browser_automation_studio.v1.NavigateWaitEvent
  */
@@ -178,6 +190,11 @@ export const NavigateDestinationTypeSchema = /*@__PURE__*/
 /**
  * NavigateDestinationType indicates how a navigate target should be interpreted.
  *
+ * Allows workflows to navigate to other Vrooli scenarios by name instead
+ * of hardcoding URLs, enabling portable workflows across environments.
+ *
+ * @usage NavigateParams.destination_type
+ *
  * @generated from enum browser_automation_studio.v1.NavigateDestinationType
  */
 export const NavigateDestinationType = /*@__PURE__*/
@@ -191,6 +208,11 @@ export const WaitStateSchema = /*@__PURE__*/
 
 /**
  * WaitState enumerates element states for wait conditions.
+ *
+ * Used with WaitParams to wait for specific element lifecycle events.
+ * Maps to Playwright's waitForSelector state option.
+ *
+ * @usage WaitParams.state
  *
  * @generated from enum browser_automation_studio.v1.WaitState
  */
@@ -206,6 +228,11 @@ export const ScrollBehaviorSchema = /*@__PURE__*/
 /**
  * ScrollBehavior enumerates scroll animation behaviors.
  *
+ * Controls whether scrolling is instant or animated. Smooth scrolling
+ * is more realistic but slower.
+ *
+ * @usage ScrollParams.behavior
+ *
  * @generated from enum browser_automation_studio.v1.ScrollBehavior
  */
 export const ScrollBehavior = /*@__PURE__*/
@@ -220,6 +247,11 @@ export const KeyActionSchema = /*@__PURE__*/
 /**
  * KeyAction enumerates keyboard action types.
  *
+ * Controls the keyboard event lifecycle. Most actions should use PRESS.
+ * DOWN/UP are for advanced scenarios like holding modifier keys.
+ *
+ * @usage KeyboardParams.action
+ *
  * @generated from enum browser_automation_studio.v1.KeyAction
  */
 export const KeyAction = /*@__PURE__*/
@@ -233,6 +265,11 @@ export const KeyboardModifierSchema = /*@__PURE__*/
 
 /**
  * KeyboardModifier enumerates keyboard modifier keys.
+ *
+ * Modifiers are held during other actions (clicks, key presses).
+ * Multiple modifiers can be combined.
+ *
+ * @usage KeyboardParams.modifiers, ClickParams.modifiers
  *
  * @generated from enum browser_automation_studio.v1.KeyboardModifier
  */

@@ -247,13 +247,13 @@ func (x *ExecutionResult) GetScreenshotArtifacts() map[int32]string {
 // TriggerMetadata captures contextual information about how an execution was triggered.
 type TriggerMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// User ID who initiated the execution (for manual triggers).
+	// User ID who initiated the execution (UUID format, for manual triggers).
 	UserId *string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
-	// API client ID (for API triggers).
+	// API client ID (UUID format, for API triggers).
 	ClientId *string `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	// Schedule ID (for scheduled triggers).
+	// Schedule ID (UUID format, for scheduled triggers).
 	ScheduleId *string `protobuf:"bytes,3,opt,name=schedule_id,json=scheduleId,proto3,oneof" json:"schedule_id,omitempty"`
-	// Webhook ID (for webhook triggers).
+	// Webhook ID (UUID format, for webhook triggers).
 	WebhookId *string `protobuf:"bytes,4,opt,name=webhook_id,json=webhookId,proto3,oneof" json:"webhook_id,omitempty"`
 	// External request ID for correlation with upstream systems.
 	ExternalRequestId *string `protobuf:"bytes,5,opt,name=external_request_id,json=externalRequestId,proto3,oneof" json:"external_request_id,omitempty"`
@@ -347,9 +347,9 @@ func (x *TriggerMetadata) GetUserAgent() string {
 // Execution is returned by GET /api/v1/executions/{id} and list APIs.
 type Execution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique execution ID (UUID). JSON name preserved as "id" for backwards compatibility.
+	// Unique execution ID (UUID format). JSON name preserved as "id" for backwards compatibility.
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=id,proto3" json:"execution_id,omitempty"`
-	// Workflow ID associated with the execution (UUID).
+	// Workflow ID associated with the execution (UUID format).
 	WorkflowId string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Version of the workflow used for this execution.
 	WorkflowVersion int32 `protobuf:"varint,3,opt,name=workflow_version,json=workflowVersion,proto3" json:"workflow_version,omitempty"`
@@ -684,11 +684,11 @@ func (x *ExecutionMetadata) GetDescription() string {
 // ExecuteAdhocResponse mirrors the adhoc execution response payload.
 type ExecuteAdhocResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The created execution ID.
+	// The created execution ID (UUID format).
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	// Initial execution status.
 	Status base.ExecutionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
-	// Workflow ID if persisted (null for adhoc).
+	// Workflow ID if persisted (UUID format, null for adhoc).
 	WorkflowId *string `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
 	// Human-readable status message.
 	Message string `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
@@ -858,7 +858,7 @@ func (x *ExecutionScreenshot) GetTimestamp() *timestamppb.Timestamp {
 // GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
 type GetScreenshotsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Execution ID the screenshots belong to.
+	// Execution ID the screenshots belong to (UUID format).
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	// List of screenshots with execution context.
 	Screenshots []*ExecutionScreenshot `protobuf:"bytes,2,rep,name=screenshots,proto3" json:"screenshots,omitempty"`
@@ -922,9 +922,9 @@ func (x *GetScreenshotsResponse) GetTotal() int32 {
 // ExecutionExportPreview summarizes export readiness and metadata.
 type ExecutionExportPreview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Execution ID being exported.
+	// Execution ID being exported (UUID format).
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
-	// Identifier for the generated export spec (replay movie).
+	// Identifier for the generated export spec (UUID format).
 	SpecId string `protobuf:"bytes,2,opt,name=spec_id,json=specId,proto3" json:"spec_id,omitempty"`
 	// Status: ready, pending, error, unavailable.
 	Status base.ExportStatus `protobuf:"varint,3,opt,name=status,proto3,enum=browser_automation_studio.v1.ExportStatus" json:"status,omitempty"`

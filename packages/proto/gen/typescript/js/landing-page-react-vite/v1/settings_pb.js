@@ -62,6 +62,11 @@ export const ConfigSourceSchema = /*@__PURE__*/
 /**
  * ConfigSource indicates where active Stripe credentials were loaded from.
  *
+ * The API checks both environment variables and database for credentials.
+ * Database credentials take precedence over environment variables.
+ *
+ * @usage StripeConfigSnapshot.source
+ *
  * @generated from enum landing_page_react_vite.v1.ConfigSource
  */
 export const ConfigSource = /*@__PURE__*/

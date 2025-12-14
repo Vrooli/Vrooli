@@ -30,14 +30,14 @@ export const file_browser_automation_studio_v1_api_service: GenFile = /*@__PURE_
  */
 export type WorkflowSummary = Message<"browser_automation_studio.v1.WorkflowSummary"> & {
   /**
-   * Unique workflow identifier.
+   * Unique workflow identifier (UUID format).
    *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * Project ID the workflow belongs to.
+   * Project ID the workflow belongs to (UUID format).
    *
    * @generated from field: string project_id = 2;
    */
@@ -142,7 +142,7 @@ export const WorkflowSummarySchema: GenMessage<WorkflowSummary> = /*@__PURE__*/
  */
 export type WorkflowVersion = Message<"browser_automation_studio.v1.WorkflowVersion"> & {
   /**
-   * Workflow ID this version belongs to.
+   * Workflow ID this version belongs to (UUID format).
    *
    * @generated from field: string workflow_id = 1;
    */
@@ -362,7 +362,7 @@ export const GetWorkflowResponseSchema: GenMessage<GetWorkflowResponse> = /*@__P
  */
 export type CreateWorkflowRequest = Message<"browser_automation_studio.v1.CreateWorkflowRequest"> & {
   /**
-   * Project ID to create the workflow in.
+   * Project ID to create the workflow in (UUID format).
    *
    * @generated from field: string project_id = 1;
    */
@@ -572,7 +572,7 @@ export type DeleteWorkflowResponse = Message<"browser_automation_studio.v1.Delet
   success: boolean;
 
   /**
-   * Workflow ID that was deleted.
+   * Workflow ID that was deleted (UUID format).
    *
    * @generated from field: string workflow_id = 2;
    */
@@ -635,7 +635,7 @@ export const ExecuteWorkflowRequestSchema: GenMessage<ExecuteWorkflowRequest> = 
  */
 export type ExecuteWorkflowResponse = Message<"browser_automation_studio.v1.ExecuteWorkflowResponse"> & {
   /**
-   * The created execution ID.
+   * The created execution ID (UUID format).
    *
    * @generated from field: string execution_id = 1;
    */

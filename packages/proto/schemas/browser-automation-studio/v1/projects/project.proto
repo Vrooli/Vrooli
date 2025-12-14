@@ -6,31 +6,114 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects;projects";
 
-// Project represents a project containing related workflows.
+// =============================================================================
+// PROJECT ORGANIZATION
+// =============================================================================
+//
+// @layer 5
+// @domain projects
+// @imports none (standalone)
+//
+// Projects organize workflows into logical units tied to filesystem directories.
+// Each project maps 1:1 with a folder on disk where workflow definitions are
+// stored as JSON files. This enables:
+//   - File-based workflow management (edit workflows in IDE, sync to DB)
+//   - Multi-project organization (separate by team, feature, or environment)
+//   - Bulk operations (delete all workflows in a project)
+//
+// USAGE CONTEXTS:
+//   - UI: Project picker, workflow explorer tree
+//   - API: GET /api/v1/projects, POST /api/v1/projects
+//   - File sync: Bi-directional sync between folder_path and database
+//
+// =============================================================================
+
+// Project represents a workspace for organizing related workflows.
+//
+// Projects map 1:1 with filesystem directories. When a project is created,
+// a corresponding folder is created on disk. Workflows within the project
+// are stored as JSON files in that folder and synced to the database.
+//
+// @usage Returned by GET /api/v1/projects/{id}, POST /api/v1/projects
+// @see WorkflowSummary.project_id for the foreign key relationship
 message Project {
+  // Unique project identifier (UUID format).
+  // Generated server-side on creation; immutable after creation.
   string id = 1;
+
+  // Human-readable project name.
+  // Used in UI displays and search. Must be non-empty.
+  // Example: "E2E Checkout Tests", "Admin Dashboard Flows"
   string name = 2;
+
+  // Optional longer description of the project's purpose.
+  // Supports multi-line text for detailed documentation.
   string description = 3;
+
+  // Absolute filesystem path where workflow files are stored.
+  // Must be a valid, writable directory path. The API validates:
+  //   - Path is absolute (starts with /)
+  //   - Path is within allowed base directories
+  //   - Directory can be created if it doesn't exist
+  // Example: "/home/user/projects/checkout-tests"
+  // @constraint Must be unique across all projects
   string folder_path = 4;
+
+  // When the project was created (immutable).
   google.protobuf.Timestamp created_at = 5;
+
+  // When the project was last modified.
+  // Updated on name/description changes, NOT on workflow changes.
   google.protobuf.Timestamp updated_at = 6;
 }
 
-// ProjectStats captures aggregated metrics for a project.
+// ProjectStats captures computed metrics for a project.
+//
+// Statistics are calculated on-demand by aggregating workflow and execution
+// data. They are NOT stored in the database but computed via SQL aggregations.
+//
+// @usage Returned alongside Project in list/get responses
+// @see GetProjectStats repository method for computation logic
 message ProjectStats {
+  // Project ID these stats belong to (UUID format).
+  // Foreign key reference to Project.id.
   string project_id = 1;
+
+  // Total number of workflows in this project.
+  // Computed as: COUNT(DISTINCT workflows.id) WHERE project_id = this.project_id
   int32 workflow_count = 2;
+
+  // Total number of executions across all workflows in this project.
+  // Computed as: COUNT(DISTINCT executions.id) via workflow join
   int32 execution_count = 3;
+
+  // Timestamp of the most recent execution in this project.
+  // Computed as: MAX(executions.started_at) via workflow join
+  // Null if no executions have occurred yet.
   google.protobuf.Timestamp last_execution = 4;
 }
 
-// ProjectWithStats bundles the project alongside statistics.
+// ProjectWithStats bundles a project with its computed statistics.
+//
+// This is the standard response format for project endpoints, providing
+// both the core project data and aggregated metrics in a single payload.
+//
+// @usage Primary response type for GET /api/v1/projects/{id}
+// @usage Item type in ProjectList for GET /api/v1/projects
 message ProjectWithStats {
+  // The project entity.
   Project project = 1;
+
+  // Computed statistics for this project.
+  // May be null if stats computation fails or is disabled.
   ProjectStats stats = 2;
 }
 
-// ProjectList is a convenience wrapper for listing projects.
+// ProjectList wraps a collection of projects with their statistics.
+//
+// @usage Response type for GET /api/v1/projects (list endpoint)
 message ProjectList {
+  // Ordered list of projects with stats.
+  // Default ordering is by created_at descending (newest first).
   repeated ProjectWithStats projects = 1;
 }

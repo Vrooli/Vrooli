@@ -7,121 +7,257 @@ import "common/v1/types.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
 
-// PlanKind mirrors supported purchase flows for plans.
+// =============================================================================
+// PRICING DOMAIN
+// =============================================================================
+//
+// @layer 0
+// @domain pricing
+// @imports common
+//
+// Defines Stripe product/price structures for landing page checkout flows.
+// Contains bundle metadata, plan options, and pricing overview types used
+// by the frontend pricing page and checkout session creation.
+//
+// USAGE CONTEXTS:
+//   - Frontend: PricingPage component displays PricingOverview with plans
+//   - API: GetPricingResponse returns bundle and plan data for display
+//   - Checkout: Plans are selected when creating checkout sessions
+//
+// =============================================================================
+
+// =============================================================================
+// PRICING ENUMS
+// =============================================================================
+
+// PlanKind categorizes the purchase flow type for a plan.
+//
+// Determines how the checkout session is created in Stripe and what
+// post-purchase behavior occurs (subscription creation vs one-time charge).
+//
+// @usage PlanOption.kind, checkout flow routing
 enum PlanKind {
+  // Default/unknown kind. Should not appear in valid data.
+  // Indicates missing or corrupted kind field.
   PLAN_KIND_UNSPECIFIED = 0;
+
+  // Recurring subscription billed monthly or yearly.
+  // Creates a Stripe subscription with automatic renewal.
+  // User gains access to tier benefits for the billing period.
   PLAN_KIND_SUBSCRIPTION = 1;
+
+  // One-time credit purchase added to user's wallet.
+  // Creates a Stripe payment intent, not a subscription.
+  // Credits are immediately available after successful payment.
   PLAN_KIND_CREDITS_TOPUP = 2;
+
+  // Variable-amount donation/tip supporting the platform.
+  // Amount is chosen by user at checkout; no credits granted.
+  // Used for supporter/patron contributions.
   PLAN_KIND_SUPPORTER_CONTRIBUTION = 3;
 }
 
-// BillingInterval restricts billing cadence to supported Stripe intervals.
+// BillingInterval specifies the billing cadence for a plan.
+//
+// Maps to Stripe's recurring interval for subscriptions or indicates
+// a one-time purchase for non-recurring plans.
+//
+// @usage PlanOption.billing_interval, pricing display grouping
 enum BillingInterval {
+  // Default/unknown interval. Should not appear in valid data.
   BILLING_INTERVAL_UNSPECIFIED = 0;
+
+  // Monthly recurring billing. Subscription renews every month.
+  // Typically shows monthly price on pricing page.
   BILLING_INTERVAL_MONTH = 1;
+
+  // Yearly recurring billing. Subscription renews every year.
+  // Often discounted compared to 12x monthly price.
   BILLING_INTERVAL_YEAR = 2;
+
+  // One-time charge with no recurring billing.
+  // Used for credit top-ups and supporter contributions.
   BILLING_INTERVAL_ONE_TIME = 3;
 }
 
-// IntroPricingType captures the known introductory pricing strategies.
+// IntroPricingType specifies the introductory pricing discount strategy.
+//
+// Used when plans offer a discounted rate for initial billing periods
+// before transitioning to the regular price.
+//
+// @usage PlanOption.intro_type, checkout session creation
 enum IntroPricingType {
+  // Default/unknown type. No introductory pricing applied.
   INTRO_PRICING_TYPE_UNSPECIFIED = 0;
+
+  // Fixed amount discount (e.g., first month at $5 instead of $10).
+  // intro_amount_cents contains the discounted price in cents.
   INTRO_PRICING_TYPE_FLAT_AMOUNT = 1;
+
+  // Percentage discount (e.g., first month at 50% off).
+  // intro_amount_cents contains the percentage as an integer (50 = 50%).
   INTRO_PRICING_TYPE_PERCENTAGE = 2;
 }
 
+// =============================================================================
+// BUNDLE AND PLAN TYPES
+// =============================================================================
+
 // Bundle captures Stripe product metadata and credit conversion rules.
+//
+// Represents a Stripe product with associated credit system configuration.
+// Each environment (production, staging) typically has its own bundle.
+//
+// @usage PricingOverview.bundle, credit balance calculations
 message Bundle {
+  // Reserved fields from migrations:
+  // - 8: metadata_untyped (removed in v1.1, replaced by typed metadata field 9)
   reserved 8;
+  reserved "metadata_untyped";
 
   // Stable key used by clients and downstream scenarios.
+  // @format slug (e.g., "vrooli-prod", "vrooli-staging")
   string bundle_key = 1;
-  // Human-readable bundle name.
+  // Human-readable bundle name for display.
   string name = 2;
-  // Stripe product identifier.
+  // Stripe product identifier (prod_*).
+  // @format stripe_product_id
   string stripe_product_id = 3;
   // Conversion rate from USD cents to credits.
+  // @example 100 means $1.00 = 100 credits
   int64 credits_per_usd = 4;
   // Multiplier applied when rendering credit amounts for display.
+  // @example 0.001 to show "1,000 credits" as "1 token"
   double display_credits_multiplier = 5;
   // Display label for credits (e.g., "credits", "tokens").
   string display_credits_label = 6;
   // Environment label (e.g., "production", "staging").
   string environment = 7;
   // Additional metadata passed through to clients.
+  // Key: Feature identifier (e.g., "feature_flags", "branding")
+  // Value: JSON-compatible value for client-specific extensions
+  // Common keys: "logo_url", "support_email", "terms_url"
   map<string, common.v1.JsonValue> metadata = 9;
 }
 
 // PlanOption represents a purchasable Stripe price for a bundle.
+//
+// Contains all pricing, display, and entitlement configuration for a single
+// purchasable option. Plans are grouped by billing interval for display.
+//
+// @usage PricingOverview.monthly, PricingOverview.yearly, checkout selection
 message PlanOption {
+  // Reserved fields from migrations:
+  // - 21: metadata_untyped (removed in v1.1, replaced by typed metadata field 22)
   reserved 21;
+  reserved "metadata_untyped";
 
   // User-facing plan name (e.g., "Pro", "Team").
   string plan_name = 1;
-  // Tier key used for entitlement checks.
+  // Tier key used for entitlement checks (e.g., "free", "pro", "team").
+  // @format slug
   string plan_tier = 2;
-  // Billing cadence ("month" or "year").
+  // Billing cadence for this plan.
   BillingInterval billing_interval = 3;
   // Price in cents for the billing interval.
+  // @unit cents (USD)
   int64 amount_cents = 4;
-  // Currency code (ISO 4217).
+  // Currency code (ISO 4217, e.g., "usd", "eur").
+  // @format iso4217
   string currency = 5;
-  // Whether an introductory price is enabled.
+
+  // === INTRODUCTORY PRICING ===
+  // Whether an introductory price is enabled for this plan.
   bool intro_enabled = 6;
-  // Type of intro pricing ("flat_amount", etc.).
+  // Type of intro pricing discount applied.
   IntroPricingType intro_type = 7;
-  // Introductory amount in cents (nullable when not enabled).
+  // Introductory amount in cents. If unset, no intro pricing.
+  // For FLAT_AMOUNT: the discounted price in cents.
+  // For PERCENTAGE: the percentage as an integer (50 = 50% off).
+  // @unit cents or percentage
   optional int64 intro_amount_cents = 8;
-  // Number of billing periods for the intro price.
+  // Number of billing periods the intro price applies.
+  // @example 1 means first month/year only
   int32 intro_periods = 9;
-  // Lookup key for intro pricing in Stripe.
+  // Lookup key for intro pricing in Stripe (for schedule creation).
   string intro_price_lookup_key = 10;
-  // Stripe price identifier.
+
+  // === STRIPE IDENTIFIERS ===
+  // Stripe price identifier (price_*).
+  // @format stripe_price_id
   string stripe_price_id = 11;
-  // Included credits per billing interval.
+
+  // === CREDITS ===
+  // Credits included per billing interval (for subscription plans).
+  // @example 1000 means 1000 credits/month for monthly plans
   int64 monthly_included_credits = 12;
-  // One-time bonus credits granted at purchase.
+  // One-time bonus credits granted at initial purchase.
+  // @example 500 means 500 bonus credits on first subscription
   int64 one_time_bonus_credits = 13;
-  // Display ordering rank (higher first).
+
+  // === DISPLAY CONFIGURATION ===
+  // Display ordering rank (higher values displayed first).
   int32 plan_rank = 14;
-  // Bonus type label.
+  // Bonus type label for marketing display (e.g., "Launch Bonus").
   string bonus_type = 15;
-  // Purchase flow kind (subscription, credits, supporter contribution).
+  // Purchase flow kind for routing checkout creation.
   PlanKind kind = 16;
-  // Indicates variable-amount purchases (e.g., donations).
+  // True for variable-amount purchases (e.g., donations, custom credit amounts).
   bool is_variable_amount = 17;
-  // Whether to show this plan on the landing page.
+  // Whether to show this plan on the public pricing page.
   bool display_enabled = 18;
   // Bundle key this plan belongs to.
+  // @format slug
   string bundle_key = 19;
-  // Weight for ordering within its interval group.
+  // Weight for ordering within its interval group (higher = first).
   int32 display_weight = 20;
-  // Arbitrary structured metadata.
+
+  // === EXTENSIBILITY ===
+  // Arbitrary structured metadata for client-specific extensions.
+  // Key: Feature identifier (e.g., "feature_list", "highlight_text")
+  // Value: JSON-compatible value
+  // Common keys: "features" (array), "badge" (string), "cta_text" (string)
   map<string, common.v1.JsonValue> metadata = 22;
 }
 
+// =============================================================================
+// PRICING OVERVIEW AND API TYPES
+// =============================================================================
+
 // PricingOverview groups bundle metadata with available plans.
+//
+// Main response type for the pricing API, containing all information
+// needed to render a pricing page.
+//
+// @usage GetPricingResponse.pricing, frontend PricingPage component
 message PricingOverview {
-  // Bundle/product metadata.
+  // Bundle/product metadata including credit conversion rules.
   Bundle bundle = 1;
-  // Monthly billing options (filtered for display).
+  // Monthly billing options, ordered by display_weight descending.
+  // Filtered to display_enabled=true unless include_hidden requested.
   repeated PlanOption monthly = 2;
-  // Yearly billing options (filtered for display).
+  // Yearly billing options, ordered by display_weight descending.
+  // Filtered to display_enabled=true unless include_hidden requested.
   repeated PlanOption yearly = 3;
-  // Last update timestamp for pricing metadata.
+  // When pricing metadata was last updated from Stripe.
   google.protobuf.Timestamp updated_at = 4;
 }
 
 // GetPricingRequest allows selecting a bundle and visibility mode.
+//
+// @usage LandingPagePaymentsService.GetPricing
 message GetPricingRequest {
-  // Bundle key to fetch; defaults to server-configured bundle.
+  // Bundle key to fetch. If empty, uses server-configured default bundle.
+  // @format slug
   string bundle_key = 1;
-  // Include plans that are not display_enabled.
+  // Include plans where display_enabled=false (admin view).
   bool include_hidden = 2;
 }
 
 // GetPricingResponse returns pricing metadata for the requested bundle.
+//
+// @usage LandingPagePaymentsService.GetPricing response
 message GetPricingResponse {
-  // Pricing overview for the bundle.
+  // Pricing overview containing bundle and plan data.
   PricingOverview pricing = 1;
 }

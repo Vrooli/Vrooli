@@ -25,25 +25,73 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// ActionType enumerates all supported action kinds.
+// ActionType enumerates all supported browser automation action kinds.
+//
+// Each type corresponds to a specific *Params message in ActionDefinition.params.
+// The type field MUST match the populated params oneof case.
+//
+// @usage ActionDefinition.type, workflow editor action palette
 type ActionType int32
 
 const (
+	// Default/unknown action type. Should not be used.
+	// Indicates missing or corrupted type field.
 	ActionType_ACTION_TYPE_UNSPECIFIED ActionType = 0
-	ActionType_ACTION_TYPE_NAVIGATE    ActionType = 1
-	ActionType_ACTION_TYPE_CLICK       ActionType = 2
-	ActionType_ACTION_TYPE_INPUT       ActionType = 3
-	ActionType_ACTION_TYPE_WAIT        ActionType = 4
-	ActionType_ACTION_TYPE_ASSERT      ActionType = 5
-	ActionType_ACTION_TYPE_SCROLL      ActionType = 6
-	ActionType_ACTION_TYPE_SELECT      ActionType = 7
-	ActionType_ACTION_TYPE_EVALUATE    ActionType = 8
-	ActionType_ACTION_TYPE_KEYBOARD    ActionType = 9
-	ActionType_ACTION_TYPE_HOVER       ActionType = 10
-	ActionType_ACTION_TYPE_SCREENSHOT  ActionType = 11
-	ActionType_ACTION_TYPE_FOCUS       ActionType = 12
-	ActionType_ACTION_TYPE_BLUR        ActionType = 13
-	// Subflow node: executes another workflow definition as a nested call.
+	// Navigate to a URL or scenario page.
+	// Params: NavigateParams (url, wait_for_selector, timeout_ms, etc.)
+	// Example: Go to "https://example.com/login"
+	ActionType_ACTION_TYPE_NAVIGATE ActionType = 1
+	// Click on an element (left, right, or middle button).
+	// Params: ClickParams (selector, button, click_count, modifiers, etc.)
+	// Example: Click the "Submit" button
+	ActionType_ACTION_TYPE_CLICK ActionType = 2
+	// Type text into an input field.
+	// Params: InputParams (selector, value, is_sensitive, submit, etc.)
+	// Example: Enter "user@example.com" into email field
+	ActionType_ACTION_TYPE_INPUT ActionType = 3
+	// Wait for a condition (time delay or element state).
+	// Params: WaitParams (duration_ms OR selector with state)
+	// Example: Wait for ".loading-spinner" to disappear
+	ActionType_ACTION_TYPE_WAIT ActionType = 4
+	// Assert a condition about an element.
+	// Params: AssertParams (selector, mode, expected, negated, etc.)
+	// Example: Assert ".success-message" is visible
+	ActionType_ACTION_TYPE_ASSERT ActionType = 5
+	// Scroll the page or a specific element.
+	// Params: ScrollParams (selector, x, y, delta_x, delta_y, behavior)
+	// Example: Scroll to bottom of page
+	ActionType_ACTION_TYPE_SCROLL ActionType = 6
+	// Select an option from a dropdown/select element.
+	// Params: SelectParams (selector, value/label/index)
+	// Example: Select "United States" from country dropdown
+	ActionType_ACTION_TYPE_SELECT ActionType = 7
+	// Execute arbitrary JavaScript in the page context.
+	// Params: EvaluateParams (expression, store_result, args)
+	// Example: Extract the order ID from page content
+	ActionType_ACTION_TYPE_EVALUATE ActionType = 8
+	// Press keyboard keys (single key or sequence).
+	// Params: KeyboardParams (key, keys, modifiers, action)
+	// Example: Press Ctrl+A to select all
+	ActionType_ACTION_TYPE_KEYBOARD ActionType = 9
+	// Hover over an element (trigger hover states/tooltips).
+	// Params: HoverParams (selector, timeout_ms)
+	// Example: Hover over menu item to reveal submenu
+	ActionType_ACTION_TYPE_HOVER ActionType = 10
+	// Capture a screenshot of the page or element.
+	// Params: ScreenshotParams (full_page, selector, quality)
+	// Example: Capture full-page screenshot for documentation
+	ActionType_ACTION_TYPE_SCREENSHOT ActionType = 11
+	// Focus an input element (for keyboard input).
+	// Params: FocusParams (selector, scroll, timeout_ms)
+	// Example: Focus the search input before typing
+	ActionType_ACTION_TYPE_FOCUS ActionType = 12
+	// Remove focus from the currently focused element.
+	// Params: BlurParams (selector, timeout_ms)
+	// Example: Blur input to trigger validation
+	ActionType_ACTION_TYPE_BLUR ActionType = 13
+	// Execute another workflow as a nested call.
+	// Params: SubflowParams (workflow_id OR workflow_path, args)
+	// Example: Call "login" workflow before continuing
 	ActionType_ACTION_TYPE_SUBFLOW ActionType = 14
 )
 
@@ -113,13 +161,20 @@ func (ActionType) EnumDescriptor() ([]byte, []int) {
 }
 
 // MouseButton enumerates supported mouse buttons for click actions.
+//
+// @usage ClickParams.button
 type MouseButton int32
 
 const (
+	// Default. Uses LEFT button.
 	MouseButton_MOUSE_BUTTON_UNSPECIFIED MouseButton = 0
-	MouseButton_MOUSE_BUTTON_LEFT        MouseButton = 1
-	MouseButton_MOUSE_BUTTON_RIGHT       MouseButton = 2
-	MouseButton_MOUSE_BUTTON_MIDDLE      MouseButton = 3
+	// Standard left mouse button. Most common for normal clicks.
+	MouseButton_MOUSE_BUTTON_LEFT MouseButton = 1
+	// Right mouse button. Opens context menus on most elements.
+	MouseButton_MOUSE_BUTTON_RIGHT MouseButton = 2
+	// Middle mouse button (scroll wheel click).
+	// Often used for opening links in new tabs.
+	MouseButton_MOUSE_BUTTON_MIDDLE MouseButton = 3
 )
 
 // Enum value maps for MouseButton.
@@ -166,13 +221,25 @@ func (MouseButton) EnumDescriptor() ([]byte, []int) {
 }
 
 // NavigateWaitEvent enumerates events to wait for after navigation.
+//
+// Controls when navigation is considered "complete". Affects reliability
+// vs. speed tradeoff. Maps to Playwright's waitUntil option.
+//
+// @usage NavigateParams.wait_until
 type NavigateWaitEvent int32
 
 const (
-	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED      NavigateWaitEvent = 0
-	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD             NavigateWaitEvent = 1
+	// Default. Uses LOAD event.
+	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED NavigateWaitEvent = 0
+	// Wait for the 'load' event (all resources loaded).
+	// Most reliable but slowest. Use for complex pages.
+	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD NavigateWaitEvent = 1
+	// Wait for 'DOMContentLoaded' event (HTML parsed, deferred scripts run).
+	// Faster than LOAD. Good when you don't need images/stylesheets.
 	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED NavigateWaitEvent = 2
-	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE      NavigateWaitEvent = 3
+	// Wait until network is idle (no requests for 500ms).
+	// Good for SPAs that load data dynamically after initial render.
+	NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE NavigateWaitEvent = 3
 )
 
 // Enum value maps for NavigateWaitEvent.
@@ -219,12 +286,23 @@ func (NavigateWaitEvent) EnumDescriptor() ([]byte, []int) {
 }
 
 // NavigateDestinationType indicates how a navigate target should be interpreted.
+//
+// Allows workflows to navigate to other Vrooli scenarios by name instead
+// of hardcoding URLs, enabling portable workflows across environments.
+//
+// @usage NavigateParams.destination_type
 type NavigateDestinationType int32
 
 const (
+	// Default. Treat as URL type.
 	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_UNSPECIFIED NavigateDestinationType = 0
-	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_URL         NavigateDestinationType = 1
-	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO    NavigateDestinationType = 2
+	// Target is a literal URL string.
+	// Use NavigateParams.url field.
+	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_URL NavigateDestinationType = 1
+	// Target is a Vrooli scenario name + path.
+	// Use NavigateParams.scenario and scenario_path fields.
+	// The URL is resolved via the scenario registry.
+	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO NavigateDestinationType = 2
 )
 
 // Enum value maps for NavigateDestinationType.
@@ -269,14 +347,28 @@ func (NavigateDestinationType) EnumDescriptor() ([]byte, []int) {
 }
 
 // WaitState enumerates element states for wait conditions.
+//
+// Used with WaitParams to wait for specific element lifecycle events.
+// Maps to Playwright's waitForSelector state option.
+//
+// @usage WaitParams.state
 type WaitState int32
 
 const (
+	// Default. Uses VISIBLE state.
 	WaitState_WAIT_STATE_UNSPECIFIED WaitState = 0
-	WaitState_WAIT_STATE_ATTACHED    WaitState = 1
-	WaitState_WAIT_STATE_DETACHED    WaitState = 2
-	WaitState_WAIT_STATE_VISIBLE     WaitState = 3
-	WaitState_WAIT_STATE_HIDDEN      WaitState = 4
+	// Wait until element is attached to DOM (may not be visible).
+	// Fast check; use when you just need the element to exist.
+	WaitState_WAIT_STATE_ATTACHED WaitState = 1
+	// Wait until element is removed from DOM.
+	// Use for waiting for loading indicators to disappear.
+	WaitState_WAIT_STATE_DETACHED WaitState = 2
+	// Wait until element is visible to user (in viewport, displayed).
+	// Most common state; ensures element can be interacted with.
+	WaitState_WAIT_STATE_VISIBLE WaitState = 3
+	// Wait until element becomes hidden (display:none or removed).
+	// Use for waiting for modals/overlays to close.
+	WaitState_WAIT_STATE_HIDDEN WaitState = 4
 )
 
 // Enum value maps for WaitState.
@@ -325,12 +417,21 @@ func (WaitState) EnumDescriptor() ([]byte, []int) {
 }
 
 // ScrollBehavior enumerates scroll animation behaviors.
+//
+// Controls whether scrolling is instant or animated. Smooth scrolling
+// is more realistic but slower.
+//
+// @usage ScrollParams.behavior
 type ScrollBehavior int32
 
 const (
+	// Default. Browser decides (usually instant).
 	ScrollBehavior_SCROLL_BEHAVIOR_UNSPECIFIED ScrollBehavior = 0
-	ScrollBehavior_SCROLL_BEHAVIOR_AUTO        ScrollBehavior = 1
-	ScrollBehavior_SCROLL_BEHAVIOR_SMOOTH      ScrollBehavior = 2
+	// Instant scroll jump. Fast and reliable.
+	ScrollBehavior_SCROLL_BEHAVIOR_AUTO ScrollBehavior = 1
+	// Animated smooth scroll. More realistic but takes time.
+	// May cause timing issues if subsequent actions don't wait.
+	ScrollBehavior_SCROLL_BEHAVIOR_SMOOTH ScrollBehavior = 2
 )
 
 // Enum value maps for ScrollBehavior.
@@ -375,13 +476,25 @@ func (ScrollBehavior) EnumDescriptor() ([]byte, []int) {
 }
 
 // KeyAction enumerates keyboard action types.
+//
+// Controls the keyboard event lifecycle. Most actions should use PRESS.
+// DOWN/UP are for advanced scenarios like holding modifier keys.
+//
+// @usage KeyboardParams.action
 type KeyAction int32
 
 const (
+	// Default. Uses PRESS (down + up).
 	KeyAction_KEY_ACTION_UNSPECIFIED KeyAction = 0
-	KeyAction_KEY_ACTION_PRESS       KeyAction = 1
-	KeyAction_KEY_ACTION_DOWN        KeyAction = 2
-	KeyAction_KEY_ACTION_UP          KeyAction = 3
+	// Press and release the key (keydown + keyup).
+	// Use for normal key presses (Enter, Tab, letters).
+	KeyAction_KEY_ACTION_PRESS KeyAction = 1
+	// Press the key down without releasing.
+	// Use for holding keys (e.g., hold Shift while clicking).
+	KeyAction_KEY_ACTION_DOWN KeyAction = 2
+	// Release a previously pressed key.
+	// Use to complete a DOWN action.
+	KeyAction_KEY_ACTION_UP KeyAction = 3
 )
 
 // Enum value maps for KeyAction.
@@ -428,14 +541,28 @@ func (KeyAction) EnumDescriptor() ([]byte, []int) {
 }
 
 // KeyboardModifier enumerates keyboard modifier keys.
+//
+// Modifiers are held during other actions (clicks, key presses).
+// Multiple modifiers can be combined.
+//
+// @usage KeyboardParams.modifiers, ClickParams.modifiers
 type KeyboardModifier int32
 
 const (
+	// No modifier. Should not appear in modifiers array.
 	KeyboardModifier_KEYBOARD_MODIFIER_UNSPECIFIED KeyboardModifier = 0
-	KeyboardModifier_KEYBOARD_MODIFIER_CTRL        KeyboardModifier = 1
-	KeyboardModifier_KEYBOARD_MODIFIER_SHIFT       KeyboardModifier = 2
-	KeyboardModifier_KEYBOARD_MODIFIER_ALT         KeyboardModifier = 3
-	KeyboardModifier_KEYBOARD_MODIFIER_META        KeyboardModifier = 4
+	// Ctrl key (Control on Mac). Common for shortcuts.
+	// Example: Ctrl+C for copy, Ctrl+Click for new tab.
+	KeyboardModifier_KEYBOARD_MODIFIER_CTRL KeyboardModifier = 1
+	// Shift key. For uppercase, selection extension.
+	// Example: Shift+Click for range select, Shift+Tab for back.
+	KeyboardModifier_KEYBOARD_MODIFIER_SHIFT KeyboardModifier = 2
+	// Alt key (Option on Mac). For alternate actions.
+	// Example: Alt+Click for download link.
+	KeyboardModifier_KEYBOARD_MODIFIER_ALT KeyboardModifier = 3
+	// Meta key (Cmd on Mac, Win on Windows).
+	// Example: Cmd+Click for new tab on Mac.
+	KeyboardModifier_KEYBOARD_MODIFIER_META KeyboardModifier = 4
 )
 
 // Enum value maps for KeyboardModifier.

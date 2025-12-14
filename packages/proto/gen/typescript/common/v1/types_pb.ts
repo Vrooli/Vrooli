@@ -12,11 +12,18 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file common/v1/types.proto.
  */
 export const file_common_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSKRAgoJSnNvblZhbHVlEhQKCmJvb2xfdmFsdWUYASABKAhIABITCglpbnRfdmFsdWUYAiABKANIABIWCgxkb3VibGVfdmFsdWUYAyABKAFIABIWCgxzdHJpbmdfdmFsdWUYBCABKAlIABItCgxvYmplY3RfdmFsdWUYBSABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEgAEikKCmxpc3RfdmFsdWUYBiABKAsyEy5jb21tb24udjEuSnNvbkxpc3RIABIwCgpudWxsX3ZhbHVlGAcgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhUKC2J5dGVzX3ZhbHVlGAggASgMSABCBgoEa2luZCKEAQoKSnNvbk9iamVjdBIxCgZmaWVsZHMYASADKAsyIS5jb21tb24udjEuSnNvbk9iamVjdC5GaWVsZHNFbnRyeRpDCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ASIwCghKc29uTGlzdBIkCgZ2YWx1ZXMYASADKAsyFC5jb21tb24udjEuSnNvblZhbHVlIjIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJUChJQYWdpbmF0aW9uUmVzcG9uc2USDQoFdG90YWwYASABKAUSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFEhAKCGhhc19tb3JlGAQgASgIIlwKDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEiYKB2RldGFpbHMYBCABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEoECAMQBCKaAwoOSGVhbHRoUmVzcG9uc2USJwoGc3RhdHVzGAEgASgOMhcuY29tbW9uLnYxLkhlYWx0aFN0YXR1cxIPCgdzZXJ2aWNlGAIgASgJEhEKCXRpbWVzdGFtcBgDIAEoCRIRCglyZWFkaW5lc3MYBCABKAgSDwoHdmVyc2lvbhgFIAEoCRJBCgxkZXBlbmRlbmNpZXMYCCADKAsyKy5jb21tb24udjEuSGVhbHRoUmVzcG9uc2UuRGVwZW5kZW5jaWVzRW50cnkSNwoHbWV0cmljcxgJIAMoCzImLmNvbW1vbi52MS5IZWFsdGhSZXNwb25zZS5NZXRyaWNzRW50cnkaSQoRRGVwZW5kZW5jaWVzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAEaRAoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBSgQIBhAHSgQIBxAIKoEBCgxIZWFsdGhTdGF0dXMSHQoZSEVBTFRIX1NUQVRVU19VTlNQRUNJRklFRBAAEhkKFUhFQUxUSF9TVEFUVVNfSEVBTFRIWRABEhoKFkhFQUxUSF9TVEFUVVNfREVHUkFERUQQAhIbChdIRUFMVEhfU1RBVFVTX1VOSEVBTFRIWRADQkNaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxYgZwcm90bzM", [file_google_protobuf_struct]);
+  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSKRAgoJSnNvblZhbHVlEhQKCmJvb2xfdmFsdWUYASABKAhIABITCglpbnRfdmFsdWUYAiABKANIABIWCgxkb3VibGVfdmFsdWUYAyABKAFIABIWCgxzdHJpbmdfdmFsdWUYBCABKAlIABItCgxvYmplY3RfdmFsdWUYBSABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEgAEikKCmxpc3RfdmFsdWUYBiABKAsyEy5jb21tb24udjEuSnNvbkxpc3RIABIwCgpudWxsX3ZhbHVlGAcgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhUKC2J5dGVzX3ZhbHVlGAggASgMSABCBgoEa2luZCKEAQoKSnNvbk9iamVjdBIxCgZmaWVsZHMYASADKAsyIS5jb21tb24udjEuSnNvbk9iamVjdC5GaWVsZHNFbnRyeRpDCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ASIwCghKc29uTGlzdBIkCgZ2YWx1ZXMYASADKAsyFC5jb21tb24udjEuSnNvblZhbHVlIjIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJUChJQYWdpbmF0aW9uUmVzcG9uc2USDQoFdG90YWwYASABKAUSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFEhAKCGhhc19tb3JlGAQgASgIIm0KDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEiYKB2RldGFpbHMYBCABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEoECAMQBFIPZGV0YWlsc191bnR5cGVkIsEDCg5IZWFsdGhSZXNwb25zZRInCgZzdGF0dXMYASABKA4yFy5jb21tb24udjEuSGVhbHRoU3RhdHVzEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEkEKDGRlcGVuZGVuY2llcxgIIAMoCzIrLmNvbW1vbi52MS5IZWFsdGhSZXNwb25zZS5EZXBlbmRlbmNpZXNFbnRyeRI3CgdtZXRyaWNzGAkgAygLMiYuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLk1ldHJpY3NFbnRyeRpJChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ARpECgxNZXRyaWNzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFKBAgGEAdKBAgHEAhSFGRlcGVuZGVuY2llc191bnR5cGVkUg9tZXRyaWNzX3VudHlwZWQqgQEKDEhlYWx0aFN0YXR1cxIdChlIRUFMVEhfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGQoVSEVBTFRIX1NUQVRVU19IRUFMVEhZEAESGgoWSEVBTFRIX1NUQVRVU19ERUdSQURFRBACEhsKF0hFQUxUSF9TVEFUVVNfVU5IRUFMVEhZEANCQ1pBZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb21tb24vdjE7Y29tbW9udjFiBnByb3RvMw", [file_google_protobuf_struct]);
 
 /**
  * JsonValue models a typed JSON value for scenarios that need stronger typing
  * than google.protobuf.Value while retaining a JSON-compatible shape.
+ *
+ * Advantages over google.protobuf.Value:
+ *   - Explicit null handling (preserved through serialization)
+ *   - int64 for integers (Value uses double, losing precision for large ints)
+ *   - bytes support for binary data passthrough
+ *
+ * @usage metadata fields, dynamic configuration, extracted data
  *
  * @generated from message common.v1.JsonValue
  */
@@ -26,36 +33,49 @@ export type JsonValue = Message<"common.v1.JsonValue"> & {
    */
   kind: {
     /**
+     * Boolean value (JSON: true/false).
+     *
      * @generated from field: bool bool_value = 1;
      */
     value: boolean;
     case: "boolValue";
   } | {
     /**
+     * Integer value (JSON: number, but preserves int64 precision).
+     * Use for IDs, counts, timestamps where precision matters.
+     *
      * @generated from field: int64 int_value = 2;
      */
     value: bigint;
     case: "intValue";
   } | {
     /**
+     * Floating-point value (JSON: number with decimal).
+     *
      * @generated from field: double double_value = 3;
      */
     value: number;
     case: "doubleValue";
   } | {
     /**
+     * String value (JSON: string).
+     *
      * @generated from field: string string_value = 4;
      */
     value: string;
     case: "stringValue";
   } | {
     /**
+     * Nested object (JSON: {...}).
+     *
      * @generated from field: common.v1.JsonObject object_value = 5;
      */
     value: JsonObject;
     case: "objectValue";
   } | {
     /**
+     * Nested array (JSON: [...]).
+     *
      * @generated from field: common.v1.JsonList list_value = 6;
      */
     value: JsonList;
@@ -63,6 +83,7 @@ export type JsonValue = Message<"common.v1.JsonValue"> & {
   } | {
     /**
      * Explicit null to preserve intent when converting to/from JSON.
+     * Unlike omitting the field, this represents "value is null".
      *
      * @generated from field: google.protobuf.NullValue null_value = 7;
      */
@@ -70,7 +91,8 @@ export type JsonValue = Message<"common.v1.JsonValue"> & {
     case: "nullValue";
   } | {
     /**
-     * Raw bytes for cases where binary payloads are passed through.
+     * Raw bytes for binary payloads passed through JSON-based APIs.
+     * Serialized as base64 in JSON representation.
      *
      * @generated from field: bytes bytes_value = 8;
      */
@@ -89,10 +111,17 @@ export const JsonValueSchema: GenMessage<JsonValue> = /*@__PURE__*/
 /**
  * JsonObject mirrors a JSON object with typed values.
  *
+ * Use when you need a dynamic key-value structure with typed values.
+ *
+ * @usage JsonValue.object_value, ErrorResponse.details
+ *
  * @generated from message common.v1.JsonObject
  */
 export type JsonObject = Message<"common.v1.JsonObject"> & {
   /**
+   * Key-value pairs where keys are strings and values are typed JSON values.
+   * Keys should follow consistent naming conventions (snake_case recommended).
+   *
    * @generated from field: map<string, common.v1.JsonValue> fields = 1;
    */
   fields: { [key: string]: JsonValue };
@@ -108,10 +137,16 @@ export const JsonObjectSchema: GenMessage<JsonObject> = /*@__PURE__*/
 /**
  * JsonList mirrors a JSON array with typed values.
  *
+ * Use when you need an ordered list of heterogeneous typed values.
+ *
+ * @usage JsonValue.list_value
+ *
  * @generated from message common.v1.JsonList
  */
 export type JsonList = Message<"common.v1.JsonList"> & {
   /**
+   * Ordered list of typed JSON values.
+   *
    * @generated from field: repeated common.v1.JsonValue values = 1;
    */
   values: JsonValue[];
@@ -127,11 +162,17 @@ export const JsonListSchema: GenMessage<JsonList> = /*@__PURE__*/
 /**
  * PaginationRequest represents limit/offset pagination inputs.
  *
+ * Standard pagination for list endpoints. Clients should provide
+ * reasonable defaults if not specified.
+ *
+ * @usage List API requests (e.g., ListWorkflowsRequest)
+ *
  * @generated from message common.v1.PaginationRequest
  */
 export type PaginationRequest = Message<"common.v1.PaginationRequest"> & {
   /**
    * Maximum number of items to return.
+   * @default 20 (typical), @constraint 1-100
    *
    * @generated from field: int32 limit = 1;
    */
@@ -139,6 +180,7 @@ export type PaginationRequest = Message<"common.v1.PaginationRequest"> & {
 
   /**
    * Zero-based offset for pagination.
+   * @default 0
    *
    * @generated from field: int32 offset = 2;
    */
@@ -155,18 +197,23 @@ export const PaginationRequestSchema: GenMessage<PaginationRequest> = /*@__PURE_
 /**
  * PaginationResponse captures list pagination metadata.
  *
+ * Included in list API responses to enable clients to implement
+ * pagination UI and determine if more pages exist.
+ *
+ * @usage List API responses (e.g., ListWorkflowsResponse)
+ *
  * @generated from message common.v1.PaginationResponse
  */
 export type PaginationResponse = Message<"common.v1.PaginationResponse"> & {
   /**
-   * Total number of matching records.
+   * Total number of matching records (before pagination).
    *
    * @generated from field: int32 total = 1;
    */
   total: number;
 
   /**
-   * Page size used in the response.
+   * Page size used in this response.
    *
    * @generated from field: int32 limit = 2;
    */
@@ -180,7 +227,8 @@ export type PaginationResponse = Message<"common.v1.PaginationResponse"> & {
   offset: number;
 
   /**
-   * True when additional pages are available.
+   * True when additional pages are available beyond this response.
+   * Equivalent to: offset + len(items) < total
    *
    * @generated from field: bool has_more = 4;
    */
@@ -197,18 +245,25 @@ export const PaginationResponseSchema: GenMessage<PaginationResponse> = /*@__PUR
 /**
  * ErrorResponse is the standard error envelope for HTTP responses.
  *
+ * All API errors should use this format for consistency. The code field
+ * enables programmatic error handling; message is for human display.
+ *
+ * @usage HTTP error responses (4xx, 5xx)
+ *
  * @generated from message common.v1.ErrorResponse
  */
 export type ErrorResponse = Message<"common.v1.ErrorResponse"> & {
   /**
-   * Stable machine-readable error code (e.g., WORKFLOW_VALIDATION_FAILED).
+   * Stable machine-readable error code (e.g., "WORKFLOW_VALIDATION_FAILED").
+   * Use SCREAMING_SNAKE_CASE. Should not change across API versions.
    *
    * @generated from field: string code = 1;
    */
   code: string;
 
   /**
-   * Human-readable error message.
+   * Human-readable error message for display.
+   * May be localized. Should not be parsed programmatically.
    *
    * @generated from field: string message = 2;
    */
@@ -216,6 +271,9 @@ export type ErrorResponse = Message<"common.v1.ErrorResponse"> & {
 
   /**
    * Additional structured context about the error.
+   * Key: Context identifier (e.g., "field", "validation_errors", "request_id")
+   * Value: JSON-compatible context value
+   * Common keys: "field" (which field failed), "constraint" (what was violated)
    *
    * @generated from field: common.v1.JsonObject details = 4;
    */
@@ -230,27 +288,33 @@ export const ErrorResponseSchema: GenMessage<ErrorResponse> = /*@__PURE__*/
   messageDesc(file_common_v1_types, 5);
 
 /**
- * HealthResponse mirrors the BAS health response contract.
+ * HealthResponse is the standard health check response contract.
+ *
+ * Used by health check endpoints for service monitoring and load balancer
+ * health probes. Follows cloud-native health check patterns.
+ *
+ * @usage GET /health, GET /ready endpoints
  *
  * @generated from message common.v1.HealthResponse
  */
 export type HealthResponse = Message<"common.v1.HealthResponse"> & {
   /**
-   * Service health status.
+   * Overall service health status.
    *
    * @generated from field: common.v1.HealthStatus status = 1;
    */
   status: HealthStatus;
 
   /**
-   * Identifier for the service reporting health.
+   * Identifier for the service reporting health (e.g., "browser-automation-studio-api").
    *
    * @generated from field: string service = 2;
    */
   service: string;
 
   /**
-   * RFC3339 timestamp when the check was produced.
+   * RFC3339 timestamp when the check was produced (e.g., "2024-01-15T10:30:00Z").
+   * @format rfc3339
    *
    * @generated from field: string timestamp = 3;
    */
@@ -258,27 +322,34 @@ export type HealthResponse = Message<"common.v1.HealthResponse"> & {
 
   /**
    * Readiness indicator for load balancers.
+   * True when service can accept traffic; false during startup/shutdown.
    *
    * @generated from field: bool readiness = 4;
    */
   readiness: boolean;
 
   /**
-   * Optional service version string.
+   * Optional service version string (e.g., "1.2.3", "abc123").
    *
    * @generated from field: string version = 5;
    */
   version: string;
 
   /**
-   * Status of downstream dependencies.
+   * Status of downstream dependencies (databases, caches, external services).
+   * Key: Dependency name (e.g., "postgres", "redis", "stripe")
+   * Value: Status object with "status" (string), "latency_ms" (int), "error" (string)
+   * @example {"postgres": {"status": "healthy", "latency_ms": 5}}
    *
    * @generated from field: map<string, common.v1.JsonValue> dependencies = 8;
    */
   dependencies: { [key: string]: JsonValue };
 
   /**
-   * Additional health metrics.
+   * Additional health metrics for monitoring.
+   * Key: Metric name (e.g., "goroutines", "heap_mb", "open_connections")
+   * Value: Metric value (typically int or double)
+   * @example {"goroutines": 42, "heap_mb": 128.5}
    *
    * @generated from field: map<string, common.v1.JsonValue> metrics = 9;
    */
@@ -295,25 +366,41 @@ export const HealthResponseSchema: GenMessage<HealthResponse> = /*@__PURE__*/
 /**
  * HealthStatus enumerates service health states.
  *
+ * Used for health check endpoints and service monitoring.
+ * Ordered by severity: HEALTHY < DEGRADED < UNHEALTHY.
+ *
+ * @usage HealthResponse.status
+ *
  * @generated from enum common.v1.HealthStatus
  */
 export enum HealthStatus {
   /**
+   * Default/unknown status. Treat as UNHEALTHY for safety.
+   *
    * @generated from enum value: HEALTH_STATUS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Service is fully operational. All dependencies healthy.
+   *
    * @generated from enum value: HEALTH_STATUS_HEALTHY = 1;
    */
   HEALTHY = 1,
 
   /**
+   * Service is operational but with reduced capability.
+   * Some non-critical dependencies may be unavailable.
+   * Example: Cache unavailable but database is up.
+   *
    * @generated from enum value: HEALTH_STATUS_DEGRADED = 2;
    */
   DEGRADED = 2,
 
   /**
+   * Service cannot fulfill requests. Critical dependency failure.
+   * Should trigger alerts and potentially remove from load balancer.
+   *
    * @generated from enum value: HEALTH_STATUS_UNHEALTHY = 3;
    */
   UNHEALTHY = 3,

@@ -46,7 +46,12 @@ export const ExecutionStatusSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 0);
 
 /**
- * ExecutionStatus enumerates high-level execution states.
+ * ExecutionStatus enumerates high-level execution lifecycle states.
+ *
+ * State machine:
+ *   PENDING → RUNNING → COMPLETED|FAILED|CANCELLED
+ *
+ * @usage Execution.status, TimelineStatusUpdate.status
  *
  * @generated from enum browser_automation_studio.v1.ExecutionStatus
  */
@@ -62,6 +67,11 @@ export const TriggerTypeSchema = /*@__PURE__*/
 /**
  * TriggerType indicates how an execution was initiated.
  *
+ * Used for analytics, billing, and audit trails. Each type may have
+ * different rate limits or access controls.
+ *
+ * @usage Execution.trigger_type, TriggerMetadata
+ *
  * @generated from enum browser_automation_studio.v1.TriggerType
  */
 export const TriggerType = /*@__PURE__*/
@@ -74,7 +84,14 @@ export const StepStatusSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 2);
 
 /**
- * StepStatus captures the lifecycle of an individual step.
+ * StepStatus captures the lifecycle of an individual workflow step.
+ *
+ * State machine:
+ *   PENDING → RUNNING → COMPLETED|FAILED|SKIPPED|CANCELLED
+ *                  ↓
+ *              RETRYING → RUNNING (loop until max_attempts or success)
+ *
+ * @usage TimelineEntryAggregates.status, step-level status tracking
  *
  * @generated from enum browser_automation_studio.v1.StepStatus
  */
@@ -88,7 +105,12 @@ export const LogLevelSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 3);
 
 /**
- * LogLevel is used for execution timeline logging.
+ * LogLevel is used for execution timeline and console logging.
+ *
+ * Ordered by severity: DEBUG < INFO < WARN < ERROR
+ * Filtering typically shows all logs >= configured level.
+ *
+ * @usage ConsoleLogEntry.level, TimelineLog.level
  *
  * @generated from enum browser_automation_studio.v1.LogLevel
  */
@@ -104,6 +126,11 @@ export const ArtifactTypeSchema = /*@__PURE__*/
 /**
  * ArtifactType categorizes stored artifacts emitted during execution.
  *
+ * Artifacts are binary or text files captured during execution and stored
+ * for later retrieval. Each type has specific content and use cases.
+ *
+ * @usage TimelineArtifact.type
+ *
  * @generated from enum browser_automation_studio.v1.ArtifactType
  */
 export const ArtifactType = /*@__PURE__*/
@@ -116,7 +143,12 @@ export const ExportStatusSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 5);
 
 /**
- * ExportStatus indicates readiness for execution export.
+ * ExportStatus indicates readiness for execution replay export.
+ *
+ * Exports package execution artifacts into a downloadable format
+ * (replay video, annotated screenshots, step-by-step documentation).
+ *
+ * @usage ExecutionExportPreview.status
  *
  * @generated from enum browser_automation_studio.v1.ExportStatus
  */
@@ -132,6 +164,11 @@ export const SelectorTypeSchema = /*@__PURE__*/
 /**
  * SelectorType enumerates supported selector strategies for element targeting.
  *
+ * Ordered roughly by reliability/specificity (higher = more reliable):
+ *   DATA_TESTID > ID > ARIA/ROLE > CSS > XPATH > TEXT
+ *
+ * @usage SelectorCandidate.type, recording selector inference
+ *
  * @generated from enum browser_automation_studio.v1.SelectorType
  */
 export const SelectorType = /*@__PURE__*/
@@ -145,6 +182,11 @@ export const NetworkEventTypeSchema = /*@__PURE__*/
 
 /**
  * NetworkEventType enumerates network event kinds captured during execution.
+ *
+ * Maps to Playwright network event types. Used for request/response logging
+ * and debugging API interactions during workflow execution.
+ *
+ * @usage NetworkEvent.type
  *
  * @generated from enum browser_automation_studio.v1.NetworkEventType
  */
@@ -160,6 +202,11 @@ export const RecordingSourceSchema = /*@__PURE__*/
 /**
  * RecordingSource indicates how an action was captured during recording.
  *
+ * Helps distinguish user-initiated actions from system-inferred ones,
+ * which may need different confidence handling.
+ *
+ * @usage EventContext.source
+ *
  * @generated from enum browser_automation_studio.v1.RecordingSource
  */
 export const RecordingSource = /*@__PURE__*/
@@ -172,7 +219,12 @@ export const WorkflowEdgeTypeSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 9);
 
 /**
- * WorkflowEdgeType enumerates visual edge rendering styles.
+ * WorkflowEdgeType enumerates visual edge rendering styles in workflow graph UI.
+ *
+ * These affect only the visual presentation in ReactFlow/workflow editor,
+ * not execution behavior.
+ *
+ * @usage WorkflowEdgeV2.type
  *
  * @generated from enum browser_automation_studio.v1.WorkflowEdgeType
  */
@@ -188,6 +240,10 @@ export const ValidationSeveritySchema = /*@__PURE__*/
 /**
  * ValidationSeverity enumerates issue severity levels for workflow validation.
  *
+ * Determines whether issues block execution or are advisory.
+ *
+ * @usage WorkflowValidationIssue.severity
+ *
  * @generated from enum browser_automation_studio.v1.ValidationSeverity
  */
 export const ValidationSeverity = /*@__PURE__*/
@@ -202,6 +258,11 @@ export const ChangeSourceSchema = /*@__PURE__*/
 /**
  * ChangeSource indicates the origin of a workflow modification.
  *
+ * Used for audit trails and to determine whether changes should trigger
+ * version increments or autosave behavior.
+ *
+ * @usage WorkflowSummary.last_change_source, UpdateWorkflowRequest.source
+ *
  * @generated from enum browser_automation_studio.v1.ChangeSource
  */
 export const ChangeSource = /*@__PURE__*/
@@ -214,7 +275,12 @@ export const AssertionModeSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 12);
 
 /**
- * AssertionMode enumerates supported assertion types.
+ * AssertionMode enumerates supported assertion types for workflow validation steps.
+ *
+ * Assertions verify expected conditions during execution. Failed assertions
+ * mark the step as FAILED and can stop execution depending on settings.
+ *
+ * @usage AssertParams.mode, AssertionResult.mode
  *
  * @generated from enum browser_automation_studio.v1.AssertionMode
  */

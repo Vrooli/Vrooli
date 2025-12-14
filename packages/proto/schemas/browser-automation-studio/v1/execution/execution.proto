@@ -11,7 +11,25 @@ import "browser-automation-studio/v1/workflows/definition.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution;execution";
 
 // =============================================================================
-// EXECUTION PARAMETERS & RESULT (typed alternatives to JsonValue maps)
+// EXECUTION RUNTIME STATE
+// =============================================================================
+//
+// @layer 4
+// @domain execution
+// @imports base, domain, workflows
+//
+// This file defines the runtime state of workflow executions:
+//   - ExecutionParameters: Typed runtime parameters for workflow execution
+//   - ExecutionResult: Typed result data from completed executions
+//   - Execution: The main execution entity returned by APIs
+//   - Adhoc execution types for running workflows without persisting
+//
+// USAGE CONTEXTS:
+//   - API: GET/POST /api/v1/executions/*
+//   - WebSocket: Real-time execution status updates
+//   - Database: Execution records persistence
+//
+// @see shared.proto ExecutionStatus for lifecycle states
 // =============================================================================
 
 // ExecutionParameters captures typed runtime parameters for workflow execution.
@@ -58,13 +76,13 @@ message ExecutionResult {
 
 // TriggerMetadata captures contextual information about how an execution was triggered.
 message TriggerMetadata {
-  // User ID who initiated the execution (for manual triggers).
+  // User ID who initiated the execution (UUID format, for manual triggers).
   optional string user_id = 1;
-  // API client ID (for API triggers).
+  // API client ID (UUID format, for API triggers).
   optional string client_id = 2;
-  // Schedule ID (for scheduled triggers).
+  // Schedule ID (UUID format, for scheduled triggers).
   optional string schedule_id = 3;
-  // Webhook ID (for webhook triggers).
+  // Webhook ID (UUID format, for webhook triggers).
   optional string webhook_id = 4;
   // External request ID for correlation with upstream systems.
   optional string external_request_id = 5;
@@ -80,9 +98,9 @@ message TriggerMetadata {
 
 // Execution is returned by GET /api/v1/executions/{id} and list APIs.
 message Execution {
-  // Unique execution ID (UUID). JSON name preserved as "id" for backwards compatibility.
+  // Unique execution ID (UUID format). JSON name preserved as "id" for backwards compatibility.
   string execution_id = 1 [json_name = "id"];
-  // Workflow ID associated with the execution (UUID).
+  // Workflow ID associated with the execution (UUID format).
   string workflow_id = 2;
   // Version of the workflow used for this execution.
   int32 workflow_version = 3;
@@ -158,11 +176,11 @@ message ExecutionMetadata {
 
 // ExecuteAdhocResponse mirrors the adhoc execution response payload.
 message ExecuteAdhocResponse {
-  // The created execution ID.
+  // The created execution ID (UUID format).
   string execution_id = 1;
   // Initial execution status.
   ExecutionStatus status = 2;
-  // Workflow ID if persisted (null for adhoc).
+  // Workflow ID if persisted (UUID format, null for adhoc).
   optional string workflow_id = 3;
   // Human-readable status message.
   string message = 4;
@@ -193,7 +211,7 @@ message ExecutionScreenshot {
 
 // GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
 message GetScreenshotsResponse {
-  // Execution ID the screenshots belong to.
+  // Execution ID the screenshots belong to (UUID format).
   string execution_id = 1;
   // List of screenshots with execution context.
   repeated ExecutionScreenshot screenshots = 2;
@@ -207,9 +225,9 @@ message GetScreenshotsResponse {
 
 // ExecutionExportPreview summarizes export readiness and metadata.
 message ExecutionExportPreview {
-  // Execution ID being exported.
+  // Execution ID being exported (UUID format).
   string execution_id = 1;
-  // Identifier for the generated export spec (replay movie).
+  // Identifier for the generated export spec (UUID format).
   string spec_id = 2;
   // Status: ready, pending, error, unavailable.
   ExportStatus status = 3;

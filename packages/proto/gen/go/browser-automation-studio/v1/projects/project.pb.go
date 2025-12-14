@@ -22,14 +22,39 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Project represents a project containing related workflows.
+// Project represents a workspace for organizing related workflows.
+//
+// Projects map 1:1 with filesystem directories. When a project is created,
+// a corresponding folder is created on disk. Workflows within the project
+// are stored as JSON files in that folder and synced to the database.
+//
+// @usage Returned by GET /api/v1/projects/{id}, POST /api/v1/projects
+// @see WorkflowSummary.project_id for the foreign key relationship
 type Project struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	FolderPath    string                 `protobuf:"bytes,4,opt,name=folder_path,json=folderPath,proto3" json:"folder_path,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique project identifier (UUID format).
+	// Generated server-side on creation; immutable after creation.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Human-readable project name.
+	// Used in UI displays and search. Must be non-empty.
+	// Example: "E2E Checkout Tests", "Admin Dashboard Flows"
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Optional longer description of the project's purpose.
+	// Supports multi-line text for detailed documentation.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Absolute filesystem path where workflow files are stored.
+	// Must be a valid, writable directory path. The API validates:
+	//   - Path is absolute (starts with /)
+	//   - Path is within allowed base directories
+	//   - Directory can be created if it doesn't exist
+	//
+	// Example: "/home/user/projects/checkout-tests"
+	// @constraint Must be unique across all projects
+	FolderPath string `protobuf:"bytes,4,opt,name=folder_path,json=folderPath,proto3" json:"folder_path,omitempty"`
+	// When the project was created (immutable).
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// When the project was last modified.
+	// Updated on name/description changes, NOT on workflow changes.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -107,15 +132,30 @@ func (x *Project) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// ProjectStats captures aggregated metrics for a project.
+// ProjectStats captures computed metrics for a project.
+//
+// Statistics are calculated on-demand by aggregating workflow and execution
+// data. They are NOT stored in the database but computed via SQL aggregations.
+//
+// @usage Returned alongside Project in list/get responses
+// @see GetProjectStats repository method for computation logic
 type ProjectStats struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId      string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	WorkflowCount  int32                  `protobuf:"varint,2,opt,name=workflow_count,json=workflowCount,proto3" json:"workflow_count,omitempty"`
-	ExecutionCount int32                  `protobuf:"varint,3,opt,name=execution_count,json=executionCount,proto3" json:"execution_count,omitempty"`
-	LastExecution  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_execution,json=lastExecution,proto3" json:"last_execution,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Project ID these stats belong to (UUID format).
+	// Foreign key reference to Project.id.
+	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// Total number of workflows in this project.
+	// Computed as: COUNT(DISTINCT workflows.id) WHERE project_id = this.project_id
+	WorkflowCount int32 `protobuf:"varint,2,opt,name=workflow_count,json=workflowCount,proto3" json:"workflow_count,omitempty"`
+	// Total number of executions across all workflows in this project.
+	// Computed as: COUNT(DISTINCT executions.id) via workflow join
+	ExecutionCount int32 `protobuf:"varint,3,opt,name=execution_count,json=executionCount,proto3" json:"execution_count,omitempty"`
+	// Timestamp of the most recent execution in this project.
+	// Computed as: MAX(executions.started_at) via workflow join
+	// Null if no executions have occurred yet.
+	LastExecution *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_execution,json=lastExecution,proto3" json:"last_execution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProjectStats) Reset() {
@@ -176,11 +216,20 @@ func (x *ProjectStats) GetLastExecution() *timestamppb.Timestamp {
 	return nil
 }
 
-// ProjectWithStats bundles the project alongside statistics.
+// ProjectWithStats bundles a project with its computed statistics.
+//
+// This is the standard response format for project endpoints, providing
+// both the core project data and aggregated metrics in a single payload.
+//
+// @usage Primary response type for GET /api/v1/projects/{id}
+// @usage Item type in ProjectList for GET /api/v1/projects
 type ProjectWithStats struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
-	Stats         *ProjectStats          `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The project entity.
+	Project *Project `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	// Computed statistics for this project.
+	// May be null if stats computation fails or is disabled.
+	Stats         *ProjectStats `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -229,10 +278,14 @@ func (x *ProjectWithStats) GetStats() *ProjectStats {
 	return nil
 }
 
-// ProjectList is a convenience wrapper for listing projects.
+// ProjectList wraps a collection of projects with their statistics.
+//
+// @usage Response type for GET /api/v1/projects (list endpoint)
 type ProjectList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Projects      []*ProjectWithStats    `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ordered list of projects with stats.
+	// Default ordering is by created_at descending (newest first).
+	Projects      []*ProjectWithStats `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

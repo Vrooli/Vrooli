@@ -14,23 +14,85 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // ACTION TYPE ENUM
 // =============================================================================
 
-// ActionType enumerates all supported action kinds.
+// ActionType enumerates all supported browser automation action kinds.
+//
+// Each type corresponds to a specific *Params message in ActionDefinition.params.
+// The type field MUST match the populated params oneof case.
+//
+// @usage ActionDefinition.type, workflow editor action palette
 enum ActionType {
+  // Default/unknown action type. Should not be used.
+  // Indicates missing or corrupted type field.
   ACTION_TYPE_UNSPECIFIED = 0;
+
+  // Navigate to a URL or scenario page.
+  // Params: NavigateParams (url, wait_for_selector, timeout_ms, etc.)
+  // Example: Go to "https://example.com/login"
   ACTION_TYPE_NAVIGATE = 1;
+
+  // Click on an element (left, right, or middle button).
+  // Params: ClickParams (selector, button, click_count, modifiers, etc.)
+  // Example: Click the "Submit" button
   ACTION_TYPE_CLICK = 2;
+
+  // Type text into an input field.
+  // Params: InputParams (selector, value, is_sensitive, submit, etc.)
+  // Example: Enter "user@example.com" into email field
   ACTION_TYPE_INPUT = 3;
+
+  // Wait for a condition (time delay or element state).
+  // Params: WaitParams (duration_ms OR selector with state)
+  // Example: Wait for ".loading-spinner" to disappear
   ACTION_TYPE_WAIT = 4;
+
+  // Assert a condition about an element.
+  // Params: AssertParams (selector, mode, expected, negated, etc.)
+  // Example: Assert ".success-message" is visible
   ACTION_TYPE_ASSERT = 5;
+
+  // Scroll the page or a specific element.
+  // Params: ScrollParams (selector, x, y, delta_x, delta_y, behavior)
+  // Example: Scroll to bottom of page
   ACTION_TYPE_SCROLL = 6;
+
+  // Select an option from a dropdown/select element.
+  // Params: SelectParams (selector, value/label/index)
+  // Example: Select "United States" from country dropdown
   ACTION_TYPE_SELECT = 7;
+
+  // Execute arbitrary JavaScript in the page context.
+  // Params: EvaluateParams (expression, store_result, args)
+  // Example: Extract the order ID from page content
   ACTION_TYPE_EVALUATE = 8;
+
+  // Press keyboard keys (single key or sequence).
+  // Params: KeyboardParams (key, keys, modifiers, action)
+  // Example: Press Ctrl+A to select all
   ACTION_TYPE_KEYBOARD = 9;
+
+  // Hover over an element (trigger hover states/tooltips).
+  // Params: HoverParams (selector, timeout_ms)
+  // Example: Hover over menu item to reveal submenu
   ACTION_TYPE_HOVER = 10;
+
+  // Capture a screenshot of the page or element.
+  // Params: ScreenshotParams (full_page, selector, quality)
+  // Example: Capture full-page screenshot for documentation
   ACTION_TYPE_SCREENSHOT = 11;
+
+  // Focus an input element (for keyboard input).
+  // Params: FocusParams (selector, scroll, timeout_ms)
+  // Example: Focus the search input before typing
   ACTION_TYPE_FOCUS = 12;
+
+  // Remove focus from the currently focused element.
+  // Params: BlurParams (selector, timeout_ms)
+  // Example: Blur input to trigger validation
   ACTION_TYPE_BLUR = 13;
-  // Subflow node: executes another workflow definition as a nested call.
+
+  // Execute another workflow as a nested call.
+  // Params: SubflowParams (workflow_id OR workflow_path, args)
+  // Example: Call "login" workflow before continuing
   ACTION_TYPE_SUBFLOW = 14;
 }
 
@@ -39,60 +101,160 @@ enum ActionType {
 // =============================================================================
 
 // MouseButton enumerates supported mouse buttons for click actions.
+//
+// @usage ClickParams.button
 enum MouseButton {
+  // Default. Uses LEFT button.
   MOUSE_BUTTON_UNSPECIFIED = 0;
+
+  // Standard left mouse button. Most common for normal clicks.
   MOUSE_BUTTON_LEFT = 1;
+
+  // Right mouse button. Opens context menus on most elements.
   MOUSE_BUTTON_RIGHT = 2;
+
+  // Middle mouse button (scroll wheel click).
+  // Often used for opening links in new tabs.
   MOUSE_BUTTON_MIDDLE = 3;
 }
 
 // NavigateWaitEvent enumerates events to wait for after navigation.
+//
+// Controls when navigation is considered "complete". Affects reliability
+// vs. speed tradeoff. Maps to Playwright's waitUntil option.
+//
+// @usage NavigateParams.wait_until
 enum NavigateWaitEvent {
+  // Default. Uses LOAD event.
   NAVIGATE_WAIT_EVENT_UNSPECIFIED = 0;
+
+  // Wait for the 'load' event (all resources loaded).
+  // Most reliable but slowest. Use for complex pages.
   NAVIGATE_WAIT_EVENT_LOAD = 1;
+
+  // Wait for 'DOMContentLoaded' event (HTML parsed, deferred scripts run).
+  // Faster than LOAD. Good when you don't need images/stylesheets.
   NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED = 2;
+
+  // Wait until network is idle (no requests for 500ms).
+  // Good for SPAs that load data dynamically after initial render.
   NAVIGATE_WAIT_EVENT_NETWORKIDLE = 3;
 }
 
 // NavigateDestinationType indicates how a navigate target should be interpreted.
+//
+// Allows workflows to navigate to other Vrooli scenarios by name instead
+// of hardcoding URLs, enabling portable workflows across environments.
+//
+// @usage NavigateParams.destination_type
 enum NavigateDestinationType {
+  // Default. Treat as URL type.
   NAVIGATE_DESTINATION_TYPE_UNSPECIFIED = 0;
+
+  // Target is a literal URL string.
+  // Use NavigateParams.url field.
   NAVIGATE_DESTINATION_TYPE_URL = 1;
+
+  // Target is a Vrooli scenario name + path.
+  // Use NavigateParams.scenario and scenario_path fields.
+  // The URL is resolved via the scenario registry.
   NAVIGATE_DESTINATION_TYPE_SCENARIO = 2;
 }
 
 // WaitState enumerates element states for wait conditions.
+//
+// Used with WaitParams to wait for specific element lifecycle events.
+// Maps to Playwright's waitForSelector state option.
+//
+// @usage WaitParams.state
 enum WaitState {
+  // Default. Uses VISIBLE state.
   WAIT_STATE_UNSPECIFIED = 0;
+
+  // Wait until element is attached to DOM (may not be visible).
+  // Fast check; use when you just need the element to exist.
   WAIT_STATE_ATTACHED = 1;
+
+  // Wait until element is removed from DOM.
+  // Use for waiting for loading indicators to disappear.
   WAIT_STATE_DETACHED = 2;
+
+  // Wait until element is visible to user (in viewport, displayed).
+  // Most common state; ensures element can be interacted with.
   WAIT_STATE_VISIBLE = 3;
+
+  // Wait until element becomes hidden (display:none or removed).
+  // Use for waiting for modals/overlays to close.
   WAIT_STATE_HIDDEN = 4;
 }
 
 // NOTE: AssertionMode moved to shared.proto for cross-file usage.
 
 // ScrollBehavior enumerates scroll animation behaviors.
+//
+// Controls whether scrolling is instant or animated. Smooth scrolling
+// is more realistic but slower.
+//
+// @usage ScrollParams.behavior
 enum ScrollBehavior {
+  // Default. Browser decides (usually instant).
   SCROLL_BEHAVIOR_UNSPECIFIED = 0;
+
+  // Instant scroll jump. Fast and reliable.
   SCROLL_BEHAVIOR_AUTO = 1;
+
+  // Animated smooth scroll. More realistic but takes time.
+  // May cause timing issues if subsequent actions don't wait.
   SCROLL_BEHAVIOR_SMOOTH = 2;
 }
 
 // KeyAction enumerates keyboard action types.
+//
+// Controls the keyboard event lifecycle. Most actions should use PRESS.
+// DOWN/UP are for advanced scenarios like holding modifier keys.
+//
+// @usage KeyboardParams.action
 enum KeyAction {
+  // Default. Uses PRESS (down + up).
   KEY_ACTION_UNSPECIFIED = 0;
+
+  // Press and release the key (keydown + keyup).
+  // Use for normal key presses (Enter, Tab, letters).
   KEY_ACTION_PRESS = 1;
+
+  // Press the key down without releasing.
+  // Use for holding keys (e.g., hold Shift while clicking).
   KEY_ACTION_DOWN = 2;
+
+  // Release a previously pressed key.
+  // Use to complete a DOWN action.
   KEY_ACTION_UP = 3;
 }
 
 // KeyboardModifier enumerates keyboard modifier keys.
+//
+// Modifiers are held during other actions (clicks, key presses).
+// Multiple modifiers can be combined.
+//
+// @usage KeyboardParams.modifiers, ClickParams.modifiers
 enum KeyboardModifier {
+  // No modifier. Should not appear in modifiers array.
   KEYBOARD_MODIFIER_UNSPECIFIED = 0;
+
+  // Ctrl key (Control on Mac). Common for shortcuts.
+  // Example: Ctrl+C for copy, Ctrl+Click for new tab.
   KEYBOARD_MODIFIER_CTRL = 1;
+
+  // Shift key. For uppercase, selection extension.
+  // Example: Shift+Click for range select, Shift+Tab for back.
   KEYBOARD_MODIFIER_SHIFT = 2;
+
+  // Alt key (Option on Mac). For alternate actions.
+  // Example: Alt+Click for download link.
   KEYBOARD_MODIFIER_ALT = 3;
+
+  // Meta key (Cmd on Mac, Win on Windows).
+  // Example: Cmd+Click for new tab on Mac.
   KEYBOARD_MODIFIER_META = 4;
 }
 

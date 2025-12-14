@@ -15,37 +15,67 @@ export const file_browser_automation_studio_v1_projects_project: GenFile = /*@__
   fileDesc("CjNicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3Byb2plY3RzL3Byb2plY3QucHJvdG8SHGJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEirQEKB1Byb2plY3QSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRITCgtmb2xkZXJfcGF0aBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKHAQoMUHJvamVjdFN0YXRzEhIKCnByb2plY3RfaWQYASABKAkSFgoOd29ya2Zsb3dfY291bnQYAiABKAUSFwoPZXhlY3V0aW9uX2NvdW50GAMgASgFEjIKDmxhc3RfZXhlY3V0aW9uGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKFAQoQUHJvamVjdFdpdGhTdGF0cxI2Cgdwcm9qZWN0GAEgASgLMiUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Qcm9qZWN0EjkKBXN0YXRzGAIgASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Qcm9qZWN0U3RhdHMiTwoLUHJvamVjdExpc3QSQAoIcHJvamVjdHMYASADKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlByb2plY3RXaXRoU3RhdHNCX1pdZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3Byb2plY3RzO3Byb2plY3RzYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
- * Project represents a project containing related workflows.
+ * Project represents a workspace for organizing related workflows.
+ *
+ * Projects map 1:1 with filesystem directories. When a project is created,
+ * a corresponding folder is created on disk. Workflows within the project
+ * are stored as JSON files in that folder and synced to the database.
+ *
+ * @usage Returned by GET /api/v1/projects/{id}, POST /api/v1/projects
+ * @see WorkflowSummary.project_id for the foreign key relationship
  *
  * @generated from message browser_automation_studio.v1.Project
  */
 export type Project = Message<"browser_automation_studio.v1.Project"> & {
   /**
+   * Unique project identifier (UUID format).
+   * Generated server-side on creation; immutable after creation.
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * Human-readable project name.
+   * Used in UI displays and search. Must be non-empty.
+   * Example: "E2E Checkout Tests", "Admin Dashboard Flows"
+   *
    * @generated from field: string name = 2;
    */
   name: string;
 
   /**
+   * Optional longer description of the project's purpose.
+   * Supports multi-line text for detailed documentation.
+   *
    * @generated from field: string description = 3;
    */
   description: string;
 
   /**
+   * Absolute filesystem path where workflow files are stored.
+   * Must be a valid, writable directory path. The API validates:
+   *   - Path is absolute (starts with /)
+   *   - Path is within allowed base directories
+   *   - Directory can be created if it doesn't exist
+   * Example: "/home/user/projects/checkout-tests"
+   * @constraint Must be unique across all projects
+   *
    * @generated from field: string folder_path = 4;
    */
   folderPath: string;
 
   /**
+   * When the project was created (immutable).
+   *
    * @generated from field: google.protobuf.Timestamp created_at = 5;
    */
   createdAt?: Timestamp;
 
   /**
+   * When the project was last modified.
+   * Updated on name/description changes, NOT on workflow changes.
+   *
    * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: Timestamp;
@@ -59,27 +89,46 @@ export const ProjectSchema: GenMessage<Project> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_projects_project, 0);
 
 /**
- * ProjectStats captures aggregated metrics for a project.
+ * ProjectStats captures computed metrics for a project.
+ *
+ * Statistics are calculated on-demand by aggregating workflow and execution
+ * data. They are NOT stored in the database but computed via SQL aggregations.
+ *
+ * @usage Returned alongside Project in list/get responses
+ * @see GetProjectStats repository method for computation logic
  *
  * @generated from message browser_automation_studio.v1.ProjectStats
  */
 export type ProjectStats = Message<"browser_automation_studio.v1.ProjectStats"> & {
   /**
+   * Project ID these stats belong to (UUID format).
+   * Foreign key reference to Project.id.
+   *
    * @generated from field: string project_id = 1;
    */
   projectId: string;
 
   /**
+   * Total number of workflows in this project.
+   * Computed as: COUNT(DISTINCT workflows.id) WHERE project_id = this.project_id
+   *
    * @generated from field: int32 workflow_count = 2;
    */
   workflowCount: number;
 
   /**
+   * Total number of executions across all workflows in this project.
+   * Computed as: COUNT(DISTINCT executions.id) via workflow join
+   *
    * @generated from field: int32 execution_count = 3;
    */
   executionCount: number;
 
   /**
+   * Timestamp of the most recent execution in this project.
+   * Computed as: MAX(executions.started_at) via workflow join
+   * Null if no executions have occurred yet.
+   *
    * @generated from field: google.protobuf.Timestamp last_execution = 4;
    */
   lastExecution?: Timestamp;
@@ -93,17 +142,28 @@ export const ProjectStatsSchema: GenMessage<ProjectStats> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_projects_project, 1);
 
 /**
- * ProjectWithStats bundles the project alongside statistics.
+ * ProjectWithStats bundles a project with its computed statistics.
+ *
+ * This is the standard response format for project endpoints, providing
+ * both the core project data and aggregated metrics in a single payload.
+ *
+ * @usage Primary response type for GET /api/v1/projects/{id}
+ * @usage Item type in ProjectList for GET /api/v1/projects
  *
  * @generated from message browser_automation_studio.v1.ProjectWithStats
  */
 export type ProjectWithStats = Message<"browser_automation_studio.v1.ProjectWithStats"> & {
   /**
+   * The project entity.
+   *
    * @generated from field: browser_automation_studio.v1.Project project = 1;
    */
   project?: Project;
 
   /**
+   * Computed statistics for this project.
+   * May be null if stats computation fails or is disabled.
+   *
    * @generated from field: browser_automation_studio.v1.ProjectStats stats = 2;
    */
   stats?: ProjectStats;
@@ -117,12 +177,17 @@ export const ProjectWithStatsSchema: GenMessage<ProjectWithStats> = /*@__PURE__*
   messageDesc(file_browser_automation_studio_v1_projects_project, 2);
 
 /**
- * ProjectList is a convenience wrapper for listing projects.
+ * ProjectList wraps a collection of projects with their statistics.
+ *
+ * @usage Response type for GET /api/v1/projects (list endpoint)
  *
  * @generated from message browser_automation_studio.v1.ProjectList
  */
 export type ProjectList = Message<"browser_automation_studio.v1.ProjectList"> & {
   /**
+   * Ordered list of projects with stats.
+   * Default ordering is by created_at descending (newest first).
+   *
    * @generated from field: repeated browser_automation_studio.v1.ProjectWithStats projects = 1;
    */
   projects: ProjectWithStats[];

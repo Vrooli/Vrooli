@@ -24,15 +24,38 @@ const (
 )
 
 // SubscriptionState enumerates lifecycle states for customer subscriptions.
+//
+// Maps to Stripe subscription status with additional states for internal
+// tracking. Used to determine user entitlements and access.
+//
+// State machine:
+//
+//	INACTIVE → TRIALING → ACTIVE → PAST_DUE → CANCELED
+//	                 ↓              ↓
+//	               ACTIVE ←───── ACTIVE (payment recovered)
+//
+// @usage SubscriptionStatus.state, entitlement checks
 type SubscriptionState int32
 
 const (
+	// Default/unknown state. Should not appear in valid data.
 	SubscriptionState_SUBSCRIPTION_STATE_UNSPECIFIED SubscriptionState = 0
-	SubscriptionState_SUBSCRIPTION_STATE_ACTIVE      SubscriptionState = 1
-	SubscriptionState_SUBSCRIPTION_STATE_TRIALING    SubscriptionState = 2
-	SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE    SubscriptionState = 3
-	SubscriptionState_SUBSCRIPTION_STATE_CANCELED    SubscriptionState = 4
-	SubscriptionState_SUBSCRIPTION_STATE_INACTIVE    SubscriptionState = 5
+	// Subscription is active and in good standing.
+	// User has full access to tier benefits.
+	SubscriptionState_SUBSCRIPTION_STATE_ACTIVE SubscriptionState = 1
+	// Subscription is in trial period before first charge.
+	// User has full access; will transition to ACTIVE or CANCELED.
+	SubscriptionState_SUBSCRIPTION_STATE_TRIALING SubscriptionState = 2
+	// Payment failed; subscription is in grace period.
+	// User may have limited access. Stripe will retry payment.
+	// Transitions to ACTIVE if payment succeeds, CANCELED if retries exhausted.
+	SubscriptionState_SUBSCRIPTION_STATE_PAST_DUE SubscriptionState = 3
+	// Subscription has been canceled (by user or due to payment failure).
+	// User loses tier benefits. May still have access until period end.
+	SubscriptionState_SUBSCRIPTION_STATE_CANCELED SubscriptionState = 4
+	// No active subscription exists for this user.
+	// User has free tier access only.
+	SubscriptionState_SUBSCRIPTION_STATE_INACTIVE SubscriptionState = 5
 )
 
 // Enum value maps for SubscriptionState.
@@ -83,12 +106,24 @@ func (SubscriptionState) EnumDescriptor() ([]byte, []int) {
 }
 
 // SessionKind captures the intent of a checkout session.
+//
+// Determines what Stripe objects are created and what post-checkout
+// processing occurs. Maps closely to PlanKind in pricing.proto.
+//
+// @usage CheckoutSession.session_kind, CreateCheckoutSessionRequest.session_kind
 type SessionKind int32
 
 const (
-	SessionKind_SESSION_KIND_UNSPECIFIED            SessionKind = 0
-	SessionKind_SESSION_KIND_SUBSCRIPTION           SessionKind = 1
-	SessionKind_SESSION_KIND_CREDITS_TOPUP          SessionKind = 2
+	// Default/unknown kind. Should not appear in valid data.
+	SessionKind_SESSION_KIND_UNSPECIFIED SessionKind = 0
+	// Checkout creates a recurring subscription.
+	// Post-checkout: Stripe subscription created, user gains tier access.
+	SessionKind_SESSION_KIND_SUBSCRIPTION SessionKind = 1
+	// Checkout purchases credits for user's wallet.
+	// Post-checkout: Credits added to wallet balance.
+	SessionKind_SESSION_KIND_CREDITS_TOPUP SessionKind = 2
+	// Checkout processes a supporter contribution/donation.
+	// Post-checkout: No credits or subscription; thank-you acknowledgment.
 	SessionKind_SESSION_KIND_SUPPORTER_CONTRIBUTION SessionKind = 3
 )
 
@@ -136,14 +171,28 @@ func (SessionKind) EnumDescriptor() ([]byte, []int) {
 }
 
 // CheckoutSessionStatus mirrors Stripe checkout session states.
+//
+// Indicates the current state of a checkout flow. Sessions expire after
+// 24 hours if not completed.
+//
+// @usage CheckoutSession.status
 type CheckoutSessionStatus int32
 
 const (
+	// Default/unknown status. Should not appear in valid data.
 	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_UNSPECIFIED CheckoutSessionStatus = 0
-	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN        CheckoutSessionStatus = 1
-	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_COMPLETE    CheckoutSessionStatus = 2
-	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_EXPIRED     CheckoutSessionStatus = 3
-	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_CANCELED    CheckoutSessionStatus = 4
+	// Session created and awaiting customer action.
+	// Customer can complete checkout at the session URL.
+	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_OPEN CheckoutSessionStatus = 1
+	// Customer completed checkout successfully.
+	// Payment processed; post-checkout webhooks will fire.
+	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_COMPLETE CheckoutSessionStatus = 2
+	// Session expired (24 hours elapsed without completion).
+	// Customer must create a new checkout session.
+	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_EXPIRED CheckoutSessionStatus = 3
+	// Session was explicitly canceled.
+	// Customer navigated to cancel URL or session was voided.
+	CheckoutSessionStatus_CHECKOUT_SESSION_STATUS_CANCELED CheckoutSessionStatus = 4
 )
 
 // Enum value maps for CheckoutSessionStatus.
@@ -191,16 +240,32 @@ func (CheckoutSessionStatus) EnumDescriptor() ([]byte, []int) {
 	return file_landing_page_react_vite_v1_billing_proto_rawDescGZIP(), []int{2}
 }
 
-// TransactionType constrains wallet credit/debit sources.
+// TransactionType categorizes wallet credit/debit entries.
+//
+// Used for auditing, reporting, and displaying transaction history.
+// Positive amounts are credits (additions), negative are debits.
+//
+// @usage CreditTransaction.type
 type TransactionType int32
 
 const (
-	TransactionType_TRANSACTION_TYPE_UNSPECIFIED  TransactionType = 0
+	// Default/unknown type. Should not appear in valid data.
+	TransactionType_TRANSACTION_TYPE_UNSPECIFIED TransactionType = 0
+	// Credits purchased via checkout (positive amount).
+	// Associated with a Stripe payment intent.
 	TransactionType_TRANSACTION_TYPE_CREDIT_TOPUP TransactionType = 1
-	TransactionType_TRANSACTION_TYPE_CONSUMPTION  TransactionType = 2
-	TransactionType_TRANSACTION_TYPE_ADJUSTMENT   TransactionType = 3
-	TransactionType_TRANSACTION_TYPE_REFUND       TransactionType = 4
-	TransactionType_TRANSACTION_TYPE_GRANT        TransactionType = 5
+	// Credits consumed by usage (negative amount).
+	// Associated with API calls, executions, or other metered usage.
+	TransactionType_TRANSACTION_TYPE_CONSUMPTION TransactionType = 2
+	// Manual adjustment by admin (positive or negative).
+	// Used for corrections, disputes, or special cases.
+	TransactionType_TRANSACTION_TYPE_ADJUSTMENT TransactionType = 3
+	// Refund of previously purchased credits (negative to reverse).
+	// Associated with a Stripe refund.
+	TransactionType_TRANSACTION_TYPE_REFUND TransactionType = 4
+	// Credits granted without payment (positive amount).
+	// Used for promotions, referrals, or compensation.
+	TransactionType_TRANSACTION_TYPE_GRANT TransactionType = 5
 )
 
 // Enum value maps for TransactionType.
@@ -251,39 +316,60 @@ func (TransactionType) EnumDescriptor() ([]byte, []int) {
 }
 
 // CheckoutSession represents a created Stripe checkout session.
+//
+// Contains all information needed to redirect a customer to Stripe's
+// hosted checkout page and track the session outcome.
+//
+// @usage CreateCheckoutSessionResponse.session
 type CheckoutSession struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stripe session identifier (cs_*).
+	// @format stripe_session_id
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	// Kind of session (subscription, credits top-up, supporter contribution).
+	// Kind of session determining post-checkout behavior.
 	SessionKind SessionKind `protobuf:"varint,2,opt,name=session_kind,json=sessionKind,proto3,enum=landing_page_react_vite.v1.SessionKind" json:"session_kind,omitempty"`
-	// Current status of the session.
+	// Current status of the checkout flow.
 	Status CheckoutSessionStatus `protobuf:"varint,3,opt,name=status,proto3,enum=landing_page_react_vite.v1.CheckoutSessionStatus" json:"status,omitempty"`
-	// Hosted checkout URL to redirect the user.
+	// Hosted checkout URL to redirect the customer.
+	// @format url
 	Url string `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
-	// Publishable key to use on the client.
+	// Stripe publishable key for client-side SDK initialization.
+	// @format stripe_publishable_key (pk_*)
 	PublishableKey string `protobuf:"bytes,5,opt,name=publishable_key,json=publishableKey,proto3" json:"publishable_key,omitempty"`
-	// Customer email tied to the session.
+	// Customer email address associated with the session.
+	// @format email
 	CustomerEmail string `protobuf:"bytes,6,opt,name=customer_email,json=customerEmail,proto3" json:"customer_email,omitempty"`
-	// Stripe price identifier for the purchase.
+	// Stripe price identifier being purchased (price_*).
+	// @format stripe_price_id
 	StripePriceId string `protobuf:"bytes,7,opt,name=stripe_price_id,json=stripePriceId,proto3" json:"stripe_price_id,omitempty"`
-	// Stripe product identifier, when available.
+	// Stripe product identifier, when available (prod_*).
+	// @format stripe_product_id
 	StripeProductId *string `protobuf:"bytes,8,opt,name=stripe_product_id,json=stripeProductId,proto3,oneof" json:"stripe_product_id,omitempty"`
-	// Subscription identifier if created (sub_*).
+	// Subscription identifier if created after checkout (sub_*).
+	// Only populated for SUBSCRIPTION session kind after completion.
+	// @format stripe_subscription_id
 	SubscriptionId *string `protobuf:"bytes,9,opt,name=subscription_id,json=subscriptionId,proto3,oneof" json:"subscription_id,omitempty"`
-	// Subscription schedule identifier when an intro price is used.
+	// Subscription schedule identifier when intro pricing is used.
+	// @format stripe_schedule_id
 	ScheduleId *string `protobuf:"bytes,10,opt,name=schedule_id,json=scheduleId,proto3,oneof" json:"schedule_id,omitempty"`
-	// Amount in cents.
+	// Total amount in cents for this checkout.
+	// @unit cents
 	AmountCents int64 `protobuf:"varint,11,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
-	// Currency code (ISO 4217).
+	// Currency code (ISO 4217, e.g., "usd").
+	// @format iso4217
 	Currency string `protobuf:"bytes,12,opt,name=currency,proto3" json:"currency,omitempty"`
-	// Success URL for the checkout session.
+	// URL to redirect customer after successful checkout.
+	// @format url
 	SuccessUrl string `protobuf:"bytes,13,opt,name=success_url,json=successUrl,proto3" json:"success_url,omitempty"`
-	// Cancel URL for the checkout session.
+	// URL to redirect customer if they cancel checkout.
+	// @format url
 	CancelUrl string `protobuf:"bytes,14,opt,name=cancel_url,json=cancelUrl,proto3" json:"cancel_url,omitempty"`
-	// Creation timestamp.
+	// When the checkout session was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Additional structured metadata.
+	// Additional structured metadata for tracking and analytics.
+	// Key: Metadata identifier (e.g., "utm_source", "referral_code")
+	// Value: JSON-compatible value
+	// Common keys: "campaign", "referrer", "client_ip"
 	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,17,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -432,19 +518,27 @@ func (x *CheckoutSession) GetMetadata() map[string]*v1.JsonValue {
 }
 
 // CreateCheckoutSessionRequest starts a new checkout flow for a price.
+//
+// @usage LandingPagePaymentsService.CreateCheckoutSession
 type CreateCheckoutSessionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stripe price identifier to purchase.
+	// Stripe price identifier to purchase (price_*).
+	// @format stripe_price_id
 	PriceId string `protobuf:"bytes,1,opt,name=price_id,json=priceId,proto3" json:"price_id,omitempty"`
-	// Customer email address.
+	// Customer email address for the checkout.
+	// @format email
 	CustomerEmail string `protobuf:"bytes,2,opt,name=customer_email,json=customerEmail,proto3" json:"customer_email,omitempty"`
-	// Success redirect URL.
+	// URL to redirect customer after successful checkout.
+	// @format url
 	SuccessUrl string `protobuf:"bytes,3,opt,name=success_url,json=successUrl,proto3" json:"success_url,omitempty"`
-	// Cancel redirect URL.
+	// URL to redirect customer if they cancel checkout.
+	// @format url
 	CancelUrl string `protobuf:"bytes,4,opt,name=cancel_url,json=cancelUrl,proto3" json:"cancel_url,omitempty"`
-	// Intended session kind (defaults to subscription).
+	// Intended session kind. Defaults to SUBSCRIPTION if unspecified.
 	SessionKind SessionKind `protobuf:"varint,5,opt,name=session_kind,json=sessionKind,proto3,enum=landing_page_react_vite.v1.SessionKind" json:"session_kind,omitempty"`
 	// Arbitrary metadata to associate with the session.
+	// Key: Metadata identifier (e.g., "utm_source", "referral_code")
+	// Value: JSON-compatible value for tracking and analytics
 	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -523,9 +617,11 @@ func (x *CreateCheckoutSessionRequest) GetMetadata() map[string]*v1.JsonValue {
 }
 
 // CreateCheckoutSessionResponse returns the created checkout session.
+//
+// @usage LandingPagePaymentsService.CreateCheckoutSession response
 type CreateCheckoutSessionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Created checkout session.
+	// The created checkout session with redirect URL.
 	Session       *CheckoutSession `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -569,9 +665,12 @@ func (x *CreateCheckoutSessionResponse) GetSession() *CheckoutSession {
 }
 
 // VerifySubscriptionRequest asks for the latest subscription state for a user.
+//
+// @usage LandingPagePaymentsService.VerifySubscription
 type VerifySubscriptionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Email or customer ID to look up.
+	// Email address or Stripe customer ID to look up.
+	// @format email or stripe_customer_id (cus_*)
 	UserIdentity  string `protobuf:"bytes,1,opt,name=user_identity,json=userIdentity,proto3" json:"user_identity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -614,30 +713,43 @@ func (x *VerifySubscriptionRequest) GetUserIdentity() string {
 	return ""
 }
 
-// SubscriptionStatus reports the current subscription state.
+// SubscriptionStatus reports the current subscription state for a user.
+//
+// Contains cached subscription information. Cache is refreshed on webhook
+// events or when cache_age_ms exceeds threshold.
+//
+// @usage VerifySubscriptionResponse.status, entitlement checks
 type SubscriptionStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Lifecycle state of the subscription.
+	// Current lifecycle state of the subscription.
 	State SubscriptionState `protobuf:"varint,1,opt,name=state,proto3,enum=landing_page_react_vite.v1.SubscriptionState" json:"state,omitempty"`
-	// Subscription identifier (sub_*).
+	// Stripe subscription identifier (sub_*). Unset if INACTIVE.
+	// @format stripe_subscription_id
 	SubscriptionId *string `protobuf:"bytes,2,opt,name=subscription_id,json=subscriptionId,proto3,oneof" json:"subscription_id,omitempty"`
-	// Identity used for the lookup (email or customer id).
+	// Identity used for the lookup (echoed back for confirmation).
 	UserIdentity string `protobuf:"bytes,3,opt,name=user_identity,json=userIdentity,proto3" json:"user_identity,omitempty"`
-	// Plan tier associated with the subscription (e.g., pro, team).
+	// Plan tier for entitlement checks (e.g., "free", "pro", "team").
+	// @format slug
 	PlanTier *string `protobuf:"bytes,4,opt,name=plan_tier,json=planTier,proto3,oneof" json:"plan_tier,omitempty"`
-	// Stripe price identifier for the active subscription.
+	// Stripe price identifier for the active subscription (price_*).
+	// @format stripe_price_id
 	StripePriceId *string `protobuf:"bytes,5,opt,name=stripe_price_id,json=stripePriceId,proto3,oneof" json:"stripe_price_id,omitempty"`
 	// Bundle key associated with the subscription.
+	// @format slug
 	BundleKey *string `protobuf:"bytes,6,opt,name=bundle_key,json=bundleKey,proto3,oneof" json:"bundle_key,omitempty"`
-	// Timestamp when this status was cached/updated.
+	// When this status was last cached/refreshed.
 	CachedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=cached_at,json=cachedAt,proto3" json:"cached_at,omitempty"`
-	// Cache age in milliseconds.
+	// Age of the cache in milliseconds. Use to decide if refresh needed.
+	// @unit milliseconds
 	CacheAgeMs int64 `protobuf:"varint,8,opt,name=cache_age_ms,json=cacheAgeMs,proto3" json:"cache_age_ms,omitempty"`
 	// When the subscription was canceled, if applicable.
+	// Only set when state is CANCELED.
 	CanceledAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=canceled_at,json=canceledAt,proto3" json:"canceled_at,omitempty"`
-	// Human-readable status message.
+	// Human-readable status message for display.
 	Message *string `protobuf:"bytes,10,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	// Additional metadata about the subscription.
+	// Key: Metadata identifier (e.g., "current_period_end", "cancel_at_period_end")
+	// Value: JSON-compatible value from Stripe subscription object
 	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,12,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -751,9 +863,11 @@ func (x *SubscriptionStatus) GetMetadata() map[string]*v1.JsonValue {
 }
 
 // VerifySubscriptionResponse returns the current subscription status.
+//
+// @usage LandingPagePaymentsService.VerifySubscription response
 type VerifySubscriptionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current subscription status for the user.
+	// Current subscription status for the requested user.
 	Status        *SubscriptionStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -797,9 +911,14 @@ func (x *VerifySubscriptionResponse) GetStatus() *SubscriptionStatus {
 }
 
 // CancelSubscriptionRequest cancels an active subscription for a user.
+//
+// Cancellation takes effect at end of current billing period by default.
+//
+// @usage LandingPagePaymentsService.CancelSubscription
 type CancelSubscriptionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Email or customer ID to cancel.
+	// Email address or Stripe customer ID to cancel.
+	// @format email or stripe_customer_id (cus_*)
 	UserIdentity  string `protobuf:"bytes,1,opt,name=user_identity,json=userIdentity,proto3" json:"user_identity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -843,15 +962,18 @@ func (x *CancelSubscriptionRequest) GetUserIdentity() string {
 }
 
 // CancelSubscriptionResponse reports the cancellation outcome.
+//
+// @usage LandingPagePaymentsService.CancelSubscription response
 type CancelSubscriptionResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Subscription identifier that was canceled.
+	// Subscription identifier that was canceled (sub_*).
+	// @format stripe_subscription_id
 	SubscriptionId *string `protobuf:"bytes,1,opt,name=subscription_id,json=subscriptionId,proto3,oneof" json:"subscription_id,omitempty"`
-	// Resulting subscription state.
+	// Resulting subscription state (typically CANCELED).
 	State SubscriptionState `protobuf:"varint,2,opt,name=state,proto3,enum=landing_page_react_vite.v1.SubscriptionState" json:"state,omitempty"`
-	// When the subscription was canceled.
+	// When the cancellation was processed.
 	CanceledAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=canceled_at,json=canceledAt,proto3" json:"canceled_at,omitempty"`
-	// Human-readable message about the cancellation.
+	// Human-readable message about the cancellation outcome.
 	Message       *string `protobuf:"bytes,4,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -916,15 +1038,19 @@ func (x *CancelSubscriptionResponse) GetMessage() string {
 }
 
 // CreditsBalance summarizes wallet credits for a customer.
+//
+// @usage GetCreditsResponse.balance
 type CreditsBalance struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Customer email address.
+	// @format email
 	CustomerEmail string `protobuf:"bytes,1,opt,name=customer_email,json=customerEmail,proto3" json:"customer_email,omitempty"`
 	// Bundle key the credits apply to.
+	// @format slug
 	BundleKey string `protobuf:"bytes,2,opt,name=bundle_key,json=bundleKey,proto3" json:"bundle_key,omitempty"`
-	// Current balance in credits.
+	// Current balance in credits (can be negative in rare cases).
 	BalanceCredits int64 `protobuf:"varint,3,opt,name=balance_credits,json=balanceCredits,proto3" json:"balance_credits,omitempty"`
-	// Last updated timestamp.
+	// When the balance was last updated.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -989,19 +1115,29 @@ func (x *CreditsBalance) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 // CreditTransaction describes a wallet credit/debit entry.
+//
+// Transactions form an immutable audit log of all credit changes.
+// The running balance can be computed by summing all transactions.
+//
+// @usage GetCreditsResponse.transactions
 type CreditTransaction struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique transaction identifier.
+	// Unique transaction identifier (UUID format).
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Customer email associated with the transaction.
+	// @format email
 	CustomerEmail string `protobuf:"bytes,2,opt,name=customer_email,json=customerEmail,proto3" json:"customer_email,omitempty"`
-	// Amount in credits (positive for additions, negative for debits).
+	// Amount in credits. Positive for credits (topup, grant), negative for debits.
 	AmountCredits int64 `protobuf:"varint,3,opt,name=amount_credits,json=amountCredits,proto3" json:"amount_credits,omitempty"`
-	// Transaction type classification.
+	// Transaction type for categorization and reporting.
 	Type TransactionType `protobuf:"varint,7,opt,name=type,proto3,enum=landing_page_react_vite.v1.TransactionType" json:"type,omitempty"`
 	// Structured metadata describing the transaction.
+	// Key: Metadata identifier (e.g., "stripe_payment_id", "usage_type", "reason")
+	// Value: JSON-compatible value for audit trail
+	// Common keys: "payment_intent_id", "api_call_id", "admin_user", "note"
 	Metadata map[string]*v1.JsonValue `protobuf:"bytes,8,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Creation timestamp for the transaction.
+	// When the transaction was created.
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1080,11 +1216,13 @@ func (x *CreditTransaction) GetCreatedAt() *timestamppb.Timestamp {
 }
 
 // GetCreditsResponse returns the current balance and recent transactions.
+//
+// @usage Credits API response
 type GetCreditsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current credit balance.
+	// Current credit balance for the customer.
 	Balance *CreditsBalance `protobuf:"bytes,1,opt,name=balance,proto3" json:"balance,omitempty"`
-	// Recent credit transactions.
+	// Recent credit transactions, ordered by created_at descending.
 	Transactions  []*CreditTransaction `protobuf:"bytes,2,rep,name=transactions,proto3" json:"transactions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1135,9 +1273,15 @@ func (x *GetCreditsResponse) GetTransactions() []*CreditTransaction {
 }
 
 // BillingPortalResponse supplies a hosted billing portal URL.
+//
+// The portal allows customers to manage their subscription, update
+// payment methods, and view invoices without custom UI.
+//
+// @usage Billing portal redirect
 type BillingPortalResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// URL for the Stripe billing portal.
+	// URL to redirect customer to Stripe's hosted billing portal.
+	// @format url
 	Url           string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1184,7 +1328,7 @@ var File_landing_page_react_vite_v1_billing_proto protoreflect.FileDescriptor
 
 const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\n" +
-	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\xfa\x06\n" +
+	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\x8c\a\n" +
 	"\x0fCheckoutSession\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12J\n" +
@@ -1213,7 +1357,7 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x14\n" +
 	"\x12_stripe_product_idB\x12\n" +
 	"\x10_subscription_idB\x0e\n" +
-	"\f_schedule_idJ\x04\b\x10\x10\x11\"\xa9\x03\n" +
+	"\f_schedule_idJ\x04\b\x10\x10\x11R\x10metadata_untyped\"\xbb\x03\n" +
 	"\x1cCreateCheckoutSessionRequest\x12\x19\n" +
 	"\bprice_id\x18\x01 \x01(\tR\apriceId\x12%\n" +
 	"\x0ecustomer_email\x18\x02 \x01(\tR\rcustomerEmail\x12\x1f\n" +
@@ -1225,11 +1369,11 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\bmetadata\x18\a \x03(\v2F.landing_page_react_vite.v1.CreateCheckoutSessionRequest.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\a\"f\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\aR\x10metadata_untyped\"f\n" +
 	"\x1dCreateCheckoutSessionResponse\x12E\n" +
 	"\asession\x18\x01 \x01(\v2+.landing_page_react_vite.v1.CheckoutSessionR\asession\"@\n" +
 	"\x19VerifySubscriptionRequest\x12#\n" +
-	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\xda\x05\n" +
+	"\ruser_identity\x18\x01 \x01(\tR\fuserIdentity\"\xec\x05\n" +
 	"\x12SubscriptionStatus\x12C\n" +
 	"\x05state\x18\x01 \x01(\x0e2-.landing_page_react_vite.v1.SubscriptionStateR\x05state\x12,\n" +
 	"\x0fsubscription_id\x18\x02 \x01(\tH\x00R\x0esubscriptionId\x88\x01\x01\x12#\n" +
@@ -1255,7 +1399,7 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\x10_stripe_price_idB\r\n" +
 	"\v_bundle_keyB\n" +
 	"\n" +
-	"\b_messageJ\x04\b\v\x10\f\"d\n" +
+	"\b_messageJ\x04\b\v\x10\fR\x10metadata_untyped\"d\n" +
 	"\x1aVerifySubscriptionResponse\x12F\n" +
 	"\x06status\x18\x01 \x01(\v2..landing_page_react_vite.v1.SubscriptionStatusR\x06status\"@\n" +
 	"\x19CancelSubscriptionRequest\x12#\n" +
@@ -1275,7 +1419,7 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"bundle_key\x18\x02 \x01(\tR\tbundleKey\x12'\n" +
 	"\x0fbalance_credits\x18\x03 \x01(\x03R\x0ebalanceCredits\x129\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa5\x03\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xc4\x03\n" +
 	"\x11CreditTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0ecustomer_email\x18\x02 \x01(\tR\rcustomerEmail\x12%\n" +
@@ -1286,7 +1430,7 @@ const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"\xad\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\vdescriptionR\x10metadata_untyped\"\xad\x01\n" +
 	"\x12GetCreditsResponse\x12D\n" +
 	"\abalance\x18\x01 \x01(\v2*.landing_page_react_vite.v1.CreditsBalanceR\abalance\x12Q\n" +
 	"\ftransactions\x18\x02 \x03(\v2-.landing_page_react_vite.v1.CreditTransactionR\ftransactions\")\n" +

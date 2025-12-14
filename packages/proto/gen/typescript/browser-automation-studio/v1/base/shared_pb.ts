@@ -298,37 +298,60 @@ export const EventContextSchema: GenMessage<EventContext> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_base_shared, 3);
 
 /**
- * ExecutionStatus enumerates high-level execution states.
+ * ExecutionStatus enumerates high-level execution lifecycle states.
+ *
+ * State machine:
+ *   PENDING → RUNNING → COMPLETED|FAILED|CANCELLED
+ *
+ * @usage Execution.status, TimelineStatusUpdate.status
  *
  * @generated from enum browser_automation_studio.v1.ExecutionStatus
  */
 export enum ExecutionStatus {
   /**
+   * Default/unknown state. Should never appear in valid data.
+   * Indicates missing or corrupted status field.
+   *
    * @generated from enum value: EXECUTION_STATUS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Execution is queued and waiting for an available executor.
+   * Set immediately when execution is created.
+   *
    * @generated from enum value: EXECUTION_STATUS_PENDING = 1;
    */
   PENDING = 1,
 
   /**
+   * Execution is actively running. Browser is open and steps are executing.
+   * Transitions from PENDING when executor picks up the job.
+   *
    * @generated from enum value: EXECUTION_STATUS_RUNNING = 2;
    */
   RUNNING = 2,
 
   /**
+   * Execution finished successfully. All steps completed without error.
+   * Terminal state. completed_at timestamp is set.
+   *
    * @generated from enum value: EXECUTION_STATUS_COMPLETED = 3;
    */
   COMPLETED = 3,
 
   /**
+   * Execution terminated due to an error. Check error field for details.
+   * Terminal state. May have partial results from steps before failure.
+   *
    * @generated from enum value: EXECUTION_STATUS_FAILED = 4;
    */
   FAILED = 4,
 
   /**
+   * Execution was manually cancelled by user or API call.
+   * Terminal state. Partial results may be available.
+   *
    * @generated from enum value: EXECUTION_STATUS_CANCELLED = 5;
    */
   CANCELLED = 5,
@@ -343,30 +366,49 @@ export const ExecutionStatusSchema: GenEnum<ExecutionStatus> = /*@__PURE__*/
 /**
  * TriggerType indicates how an execution was initiated.
  *
+ * Used for analytics, billing, and audit trails. Each type may have
+ * different rate limits or access controls.
+ *
+ * @usage Execution.trigger_type, TriggerMetadata
+ *
  * @generated from enum browser_automation_studio.v1.TriggerType
  */
 export enum TriggerType {
   /**
+   * Default/unknown trigger. Should never appear in valid data.
+   *
    * @generated from enum value: TRIGGER_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * User clicked "Run" in the UI or invoked via CLI interactively.
+   * Associated TriggerMetadata.user_id identifies the user.
+   *
    * @generated from enum value: TRIGGER_TYPE_MANUAL = 1;
    */
   MANUAL = 1,
 
   /**
+   * Execution triggered by a cron schedule.
+   * Associated TriggerMetadata.schedule_id references the schedule config.
+   *
    * @generated from enum value: TRIGGER_TYPE_SCHEDULED = 2;
    */
   SCHEDULED = 2,
 
   /**
+   * Execution triggered by REST API call (e.g., POST /workflows/{id}/execute).
+   * Associated TriggerMetadata.client_id identifies the API client.
+   *
    * @generated from enum value: TRIGGER_TYPE_API = 3;
    */
   API = 3,
 
   /**
+   * Execution triggered by external webhook (e.g., GitHub, Stripe, etc.).
+   * Associated TriggerMetadata.webhook_id identifies the webhook config.
+   *
    * @generated from enum value: TRIGGER_TYPE_WEBHOOK = 4;
    */
   WEBHOOK = 4,
@@ -379,47 +421,73 @@ export const TriggerTypeSchema: GenEnum<TriggerType> = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 1);
 
 /**
- * StepStatus captures the lifecycle of an individual step.
+ * StepStatus captures the lifecycle of an individual workflow step.
+ *
+ * State machine:
+ *   PENDING → RUNNING → COMPLETED|FAILED|SKIPPED|CANCELLED
+ *                  ↓
+ *              RETRYING → RUNNING (loop until max_attempts or success)
+ *
+ * @usage TimelineEntryAggregates.status, step-level status tracking
  *
  * @generated from enum browser_automation_studio.v1.StepStatus
  */
 export enum StepStatus {
   /**
+   * Default/unknown state. Should never appear in valid data.
+   *
    * @generated from enum value: STEP_STATUS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Step is queued, waiting for previous steps to complete.
+   *
    * @generated from enum value: STEP_STATUS_PENDING = 1;
    */
   PENDING = 1,
 
   /**
+   * Step is actively executing (browser action in progress).
+   *
    * @generated from enum value: STEP_STATUS_RUNNING = 2;
    */
   RUNNING = 2,
 
   /**
+   * Step finished successfully. Action completed without error.
+   *
    * @generated from enum value: STEP_STATUS_COMPLETED = 3;
    */
   COMPLETED = 3,
 
   /**
+   * Step failed and will not be retried (or retries exhausted).
+   * Check EventContext.error for failure details.
+   *
    * @generated from enum value: STEP_STATUS_FAILED = 4;
    */
   FAILED = 4,
 
   /**
+   * Step was cancelled (execution stopped before this step ran).
+   *
    * @generated from enum value: STEP_STATUS_CANCELLED = 5;
    */
   CANCELLED = 5,
 
   /**
+   * Step was skipped due to conditional logic or continue_on_error.
+   * Previous step may have failed with continue_on_error=true.
+   *
    * @generated from enum value: STEP_STATUS_SKIPPED = 6;
    */
   SKIPPED = 6,
 
   /**
+   * Step failed but is being retried per ResilienceConfig.
+   * Check RetryStatus for attempt count and history.
+   *
    * @generated from enum value: STEP_STATUS_RETRYING = 7;
    */
   RETRYING = 7,
@@ -432,32 +500,51 @@ export const StepStatusSchema: GenEnum<StepStatus> = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 2);
 
 /**
- * LogLevel is used for execution timeline logging.
+ * LogLevel is used for execution timeline and console logging.
+ *
+ * Ordered by severity: DEBUG < INFO < WARN < ERROR
+ * Filtering typically shows all logs >= configured level.
+ *
+ * @usage ConsoleLogEntry.level, TimelineLog.level
  *
  * @generated from enum browser_automation_studio.v1.LogLevel
  */
 export enum LogLevel {
   /**
+   * Default/unknown level. Treat as INFO.
+   *
    * @generated from enum value: LOG_LEVEL_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Verbose debugging information. Hidden by default.
+   * Example: "Selector resolved to 3 elements"
+   *
    * @generated from enum value: LOG_LEVEL_DEBUG = 1;
    */
   DEBUG = 1,
 
   /**
+   * General informational messages.
+   * Example: "Navigated to https://example.com"
+   *
    * @generated from enum value: LOG_LEVEL_INFO = 2;
    */
   INFO = 2,
 
   /**
+   * Warning conditions that don't prevent execution.
+   * Example: "Selector matched multiple elements, using first"
+   *
    * @generated from enum value: LOG_LEVEL_WARN = 3;
    */
   WARN = 3,
 
   /**
+   * Error conditions that caused step failure.
+   * Example: "Timeout waiting for selector '.submit-btn'"
+   *
    * @generated from enum value: LOG_LEVEL_ERROR = 4;
    */
   ERROR = 4,
@@ -472,45 +559,73 @@ export const LogLevelSchema: GenEnum<LogLevel> = /*@__PURE__*/
 /**
  * ArtifactType categorizes stored artifacts emitted during execution.
  *
+ * Artifacts are binary or text files captured during execution and stored
+ * for later retrieval. Each type has specific content and use cases.
+ *
+ * @usage TimelineArtifact.type
+ *
  * @generated from enum browser_automation_studio.v1.ArtifactType
  */
 export enum ArtifactType {
   /**
+   * Default/unknown type. Should not be used.
+   *
    * @generated from enum value: ARTIFACT_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Complete timeline frame data serialized to JSON.
+   * Contains action, telemetry, and context for one step.
+   *
    * @generated from enum value: ARTIFACT_TYPE_TIMELINE_FRAME = 1;
    */
   TIMELINE_FRAME = 1,
 
   /**
+   * Browser console output (console.log, console.error, etc.).
+   * Stored as newline-delimited JSON or plain text.
+   *
    * @generated from enum value: ARTIFACT_TYPE_CONSOLE_LOG = 2;
    */
   CONSOLE_LOG = 2,
 
   /**
+   * Network request/response capture (HAR format or similar).
+   * Useful for debugging API interactions.
+   *
    * @generated from enum value: ARTIFACT_TYPE_NETWORK_EVENT = 3;
    */
   NETWORK_EVENT = 3,
 
   /**
+   * Screenshot image (PNG or JPEG).
+   * Captured at step boundaries or on error.
+   *
    * @generated from enum value: ARTIFACT_TYPE_SCREENSHOT = 4;
    */
   SCREENSHOT = 4,
 
   /**
+   * Full DOM HTML snapshot at a point in time.
+   * Useful for debugging element visibility issues.
+   *
    * @generated from enum value: ARTIFACT_TYPE_DOM_SNAPSHOT = 5;
    */
   DOM_SNAPSHOT = 5,
 
   /**
+   * Playwright/Chrome trace file for detailed timing analysis.
+   * Can be opened in Chrome DevTools Performance tab.
+   *
    * @generated from enum value: ARTIFACT_TYPE_TRACE = 6;
    */
   TRACE = 6,
 
   /**
+   * Custom user-defined artifact type.
+   * Content type and structure defined by the producer.
+   *
    * @generated from enum value: ARTIFACT_TYPE_CUSTOM = 7;
    */
   CUSTOM = 7,
@@ -523,32 +638,51 @@ export const ArtifactTypeSchema: GenEnum<ArtifactType> = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 4);
 
 /**
- * ExportStatus indicates readiness for execution export.
+ * ExportStatus indicates readiness for execution replay export.
+ *
+ * Exports package execution artifacts into a downloadable format
+ * (replay video, annotated screenshots, step-by-step documentation).
+ *
+ * @usage ExecutionExportPreview.status
  *
  * @generated from enum browser_automation_studio.v1.ExportStatus
  */
 export enum ExportStatus {
   /**
+   * Default/unknown status. Should not be used.
+   *
    * @generated from enum value: EXPORT_STATUS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Export is complete and ready for download.
+   * package field contains the export specification.
+   *
    * @generated from enum value: EXPORT_STATUS_READY = 1;
    */
   READY = 1,
 
   /**
+   * Export is being prepared (screenshots processing, etc.).
+   * Poll again after a delay.
+   *
    * @generated from enum value: EXPORT_STATUS_PENDING = 2;
    */
   PENDING = 2,
 
   /**
+   * Export failed due to an error. Check message field.
+   * May be retryable depending on error type.
+   *
    * @generated from enum value: EXPORT_STATUS_ERROR = 3;
    */
   ERROR = 3,
 
   /**
+   * Export is not available (e.g., execution still running).
+   * Wait for execution to complete before requesting export.
+   *
    * @generated from enum value: EXPORT_STATUS_UNAVAILABLE = 4;
    */
   UNAVAILABLE = 4,
@@ -563,60 +697,97 @@ export const ExportStatusSchema: GenEnum<ExportStatus> = /*@__PURE__*/
 /**
  * SelectorType enumerates supported selector strategies for element targeting.
  *
+ * Ordered roughly by reliability/specificity (higher = more reliable):
+ *   DATA_TESTID > ID > ARIA/ROLE > CSS > XPATH > TEXT
+ *
+ * @usage SelectorCandidate.type, recording selector inference
+ *
  * @generated from enum browser_automation_studio.v1.SelectorType
  */
 export enum SelectorType {
   /**
+   * Default/unknown selector type. Should not be used.
+   *
    * @generated from enum value: SELECTOR_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Standard CSS selector (e.g., "button.submit", "#login-form input").
+   * Most flexible but can be fragile if classes change.
+   *
    * @generated from enum value: SELECTOR_TYPE_CSS = 1;
    */
   CSS = 1,
 
   /**
+   * XPath expression (e.g., "//button[contains(text(),'Submit')]").
+   * Powerful but verbose; avoid for new workflows.
+   *
    * @generated from enum value: SELECTOR_TYPE_XPATH = 2;
    */
   XPATH = 2,
 
   /**
+   * HTML id attribute (e.g., "#submit-button").
+   * Very reliable if IDs are stable and unique.
+   *
    * @generated from enum value: SELECTOR_TYPE_ID = 3;
    */
   ID = 3,
 
   /**
+   * data-testid attribute (e.g., "[data-testid='submit-btn']").
+   * Best practice for test automation; most reliable.
+   *
    * @generated from enum value: SELECTOR_TYPE_DATA_TESTID = 4;
    */
   DATA_TESTID = 4,
 
   /**
+   * ARIA label selector (e.g., "[aria-label='Close dialog']").
+   * Good for accessible elements without stable IDs.
+   *
    * @generated from enum value: SELECTOR_TYPE_ARIA = 5;
    */
   ARIA = 5,
 
   /**
+   * Text content selector (e.g., "text=Submit Order").
+   * Fragile if text changes; use for buttons with unique text.
+   *
    * @generated from enum value: SELECTOR_TYPE_TEXT = 6;
    */
   TEXT = 6,
 
   /**
+   * ARIA role selector (e.g., "role=button").
+   * Good for semantic elements; combines well with other attributes.
+   *
    * @generated from enum value: SELECTOR_TYPE_ROLE = 7;
    */
   ROLE = 7,
 
   /**
+   * Input placeholder text (e.g., "[placeholder='Enter email']").
+   * Useful for unlabeled inputs; fragile if placeholder changes.
+   *
    * @generated from enum value: SELECTOR_TYPE_PLACEHOLDER = 8;
    */
   PLACEHOLDER = 8,
 
   /**
+   * Image alt text (e.g., "[alt='Company Logo']").
+   * For image elements with meaningful alt text.
+   *
    * @generated from enum value: SELECTOR_TYPE_ALT_TEXT = 9;
    */
   ALT_TEXT = 9,
 
   /**
+   * HTML title attribute (e.g., "[title='Click to submit']").
+   * For elements with tooltip text.
+   *
    * @generated from enum value: SELECTOR_TYPE_TITLE = 10;
    */
   TITLE = 10,
@@ -631,25 +802,41 @@ export const SelectorTypeSchema: GenEnum<SelectorType> = /*@__PURE__*/
 /**
  * NetworkEventType enumerates network event kinds captured during execution.
  *
+ * Maps to Playwright network event types. Used for request/response logging
+ * and debugging API interactions during workflow execution.
+ *
+ * @usage NetworkEvent.type
+ *
  * @generated from enum browser_automation_studio.v1.NetworkEventType
  */
 export enum NetworkEventType {
   /**
+   * Default/unknown type. Should not be used.
+   *
    * @generated from enum value: NETWORK_EVENT_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * HTTP request initiated (before response received).
+   * Contains URL, method, headers, and request body.
+   *
    * @generated from enum value: NETWORK_EVENT_TYPE_REQUEST = 1;
    */
   REQUEST = 1,
 
   /**
+   * HTTP response received successfully.
+   * Contains status code, headers, and response body (if captured).
+   *
    * @generated from enum value: NETWORK_EVENT_TYPE_RESPONSE = 2;
    */
   RESPONSE = 2,
 
   /**
+   * Network request failed (timeout, DNS error, connection refused, etc.).
+   * Check failure field for error details.
+   *
    * @generated from enum value: NETWORK_EVENT_TYPE_FAILURE = 3;
    */
   FAILURE = 3,
@@ -664,20 +851,33 @@ export const NetworkEventTypeSchema: GenEnum<NetworkEventType> = /*@__PURE__*/
 /**
  * RecordingSource indicates how an action was captured during recording.
  *
+ * Helps distinguish user-initiated actions from system-inferred ones,
+ * which may need different confidence handling.
+ *
+ * @usage EventContext.source
+ *
  * @generated from enum browser_automation_studio.v1.RecordingSource
  */
 export enum RecordingSource {
   /**
+   * Default/unknown source. Treat as AUTO.
+   *
    * @generated from enum value: RECORDING_SOURCE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Action was automatically detected from user interaction.
+   * Browser captured click/type/navigation events automatically.
+   *
    * @generated from enum value: RECORDING_SOURCE_AUTO = 1;
    */
   AUTO = 1,
 
   /**
+   * Action was manually added by user via recording UI.
+   * User explicitly created this action (e.g., "Add Wait" button).
+   *
    * @generated from enum value: RECORDING_SOURCE_MANUAL = 2;
    */
   MANUAL = 2,
@@ -690,37 +890,58 @@ export const RecordingSourceSchema: GenEnum<RecordingSource> = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 8);
 
 /**
- * WorkflowEdgeType enumerates visual edge rendering styles.
+ * WorkflowEdgeType enumerates visual edge rendering styles in workflow graph UI.
+ *
+ * These affect only the visual presentation in ReactFlow/workflow editor,
+ * not execution behavior.
+ *
+ * @usage WorkflowEdgeV2.type
  *
  * @generated from enum browser_automation_studio.v1.WorkflowEdgeType
  */
 export enum WorkflowEdgeType {
   /**
+   * Default style. Typically renders as DEFAULT behavior.
+   *
    * @generated from enum value: WORKFLOW_EDGE_TYPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Default ReactFlow edge style (typically smooth curve).
+   *
    * @generated from enum value: WORKFLOW_EDGE_TYPE_DEFAULT = 1;
    */
   DEFAULT = 1,
 
   /**
+   * Smooth step connection (rounded corners, 90° angles).
+   * Good for horizontal/vertical layouts.
+   *
    * @generated from enum value: WORKFLOW_EDGE_TYPE_SMOOTHSTEP = 2;
    */
   SMOOTHSTEP = 2,
 
   /**
+   * Sharp step connection (hard 90° angles).
+   * Good for precise grid-aligned layouts.
+   *
    * @generated from enum value: WORKFLOW_EDGE_TYPE_STEP = 3;
    */
   STEP = 3,
 
   /**
+   * Direct straight line between nodes.
+   * Simplest visual; may overlap with other elements.
+   *
    * @generated from enum value: WORKFLOW_EDGE_TYPE_STRAIGHT = 4;
    */
   STRAIGHT = 4,
 
   /**
+   * Bezier curve for fluid, aesthetic connections.
+   * Best for complex graphs with many crossings.
+   *
    * @generated from enum value: WORKFLOW_EDGE_TYPE_BEZIER = 5;
    */
   BEZIER = 5,
@@ -735,25 +956,40 @@ export const WorkflowEdgeTypeSchema: GenEnum<WorkflowEdgeType> = /*@__PURE__*/
 /**
  * ValidationSeverity enumerates issue severity levels for workflow validation.
  *
+ * Determines whether issues block execution or are advisory.
+ *
+ * @usage WorkflowValidationIssue.severity
+ *
  * @generated from enum browser_automation_studio.v1.ValidationSeverity
  */
 export enum ValidationSeverity {
   /**
+   * Default/unknown severity. Treat as INFO.
+   *
    * @generated from enum value: VALIDATION_SEVERITY_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Error: Workflow cannot execute. Must be fixed before running.
+   * Example: Missing required selector, invalid action type.
+   *
    * @generated from enum value: VALIDATION_SEVERITY_ERROR = 1;
    */
   ERROR = 1,
 
   /**
+   * Warning: Workflow can execute but may have issues.
+   * Example: Selector has low confidence, deprecated action pattern.
+   *
    * @generated from enum value: VALIDATION_SEVERITY_WARNING = 2;
    */
   WARNING = 2,
 
   /**
+   * Info: Informational note, no action required.
+   * Example: Suggestion for improvement, best practice hint.
+   *
    * @generated from enum value: VALIDATION_SEVERITY_INFO = 3;
    */
   INFO = 3,
@@ -768,35 +1004,57 @@ export const ValidationSeveritySchema: GenEnum<ValidationSeverity> = /*@__PURE__
 /**
  * ChangeSource indicates the origin of a workflow modification.
  *
+ * Used for audit trails and to determine whether changes should trigger
+ * version increments or autosave behavior.
+ *
+ * @usage WorkflowSummary.last_change_source, UpdateWorkflowRequest.source
+ *
  * @generated from enum browser_automation_studio.v1.ChangeSource
  */
 export enum ChangeSource {
   /**
+   * Default/unknown source. Treat as MANUAL.
+   *
    * @generated from enum value: CHANGE_SOURCE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * User explicitly saved changes via UI or API.
+   * Creates a new version if versioning is enabled.
+   *
    * @generated from enum value: CHANGE_SOURCE_MANUAL = 1;
    */
   MANUAL = 1,
 
   /**
+   * Automatic periodic save while editing.
+   * Does NOT create a new version; overwrites current draft.
+   *
    * @generated from enum value: CHANGE_SOURCE_AUTOSAVE = 2;
    */
   AUTOSAVE = 2,
 
   /**
+   * Workflow imported from file or external source.
+   * Creates a new version; may have different metadata format.
+   *
    * @generated from enum value: CHANGE_SOURCE_IMPORT = 3;
    */
   IMPORT = 3,
 
   /**
+   * Workflow generated or modified by AI assistant.
+   * Creates a new version; marked for human review.
+   *
    * @generated from enum value: CHANGE_SOURCE_AI_GENERATED = 4;
    */
   AI_GENERATED = 4,
 
   /**
+   * Workflow created from recording session.
+   * Creates a new version from captured TimelineEntry list.
+   *
    * @generated from enum value: CHANGE_SOURCE_RECORDING = 5;
    */
   RECORDING = 5,
@@ -809,52 +1067,83 @@ export const ChangeSourceSchema: GenEnum<ChangeSource> = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_base_shared, 11);
 
 /**
- * AssertionMode enumerates supported assertion types.
+ * AssertionMode enumerates supported assertion types for workflow validation steps.
+ *
+ * Assertions verify expected conditions during execution. Failed assertions
+ * mark the step as FAILED and can stop execution depending on settings.
+ *
+ * @usage AssertParams.mode, AssertionResult.mode
  *
  * @generated from enum browser_automation_studio.v1.AssertionMode
  */
 export enum AssertionMode {
   /**
+   * Default/unknown mode. Should not be used.
+   *
    * @generated from enum value: ASSERTION_MODE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Assert element exists in DOM (visible or hidden).
+   * Passes if selector matches at least one element.
+   *
    * @generated from enum value: ASSERTION_MODE_EXISTS = 1;
    */
   EXISTS = 1,
 
   /**
+   * Assert element does NOT exist in DOM.
+   * Passes if selector matches zero elements.
+   *
    * @generated from enum value: ASSERTION_MODE_NOT_EXISTS = 2;
    */
   NOT_EXISTS = 2,
 
   /**
+   * Assert element is visible to user.
+   * Passes if element exists AND is displayed (not display:none, visibility:hidden).
+   *
    * @generated from enum value: ASSERTION_MODE_VISIBLE = 3;
    */
   VISIBLE = 3,
 
   /**
+   * Assert element is hidden from user.
+   * Passes if element doesn't exist OR is not displayed.
+   *
    * @generated from enum value: ASSERTION_MODE_HIDDEN = 4;
    */
   HIDDEN = 4,
 
   /**
+   * Assert element text exactly equals expected value.
+   * Comparison may be case-sensitive based on AssertParams.case_sensitive.
+   *
    * @generated from enum value: ASSERTION_MODE_TEXT_EQUALS = 5;
    */
   TEXT_EQUALS = 5,
 
   /**
+   * Assert element text contains expected substring.
+   * Comparison may be case-sensitive based on AssertParams.case_sensitive.
+   *
    * @generated from enum value: ASSERTION_MODE_TEXT_CONTAINS = 6;
    */
   TEXT_CONTAINS = 6,
 
   /**
+   * Assert element attribute exactly equals expected value.
+   * Requires AssertParams.attribute_name to specify which attribute.
+   *
    * @generated from enum value: ASSERTION_MODE_ATTRIBUTE_EQUALS = 7;
    */
   ATTRIBUTE_EQUALS = 7,
 
   /**
+   * Assert element attribute contains expected substring.
+   * Requires AssertParams.attribute_name to specify which attribute.
+   *
    * @generated from enum value: ASSERTION_MODE_ATTRIBUTE_CONTAINS = 8;
    */
   ATTRIBUTE_CONTAINS = 8,

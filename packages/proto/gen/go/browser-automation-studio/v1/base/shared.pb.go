@@ -22,16 +22,34 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// ExecutionStatus enumerates high-level execution states.
+// ExecutionStatus enumerates high-level execution lifecycle states.
+//
+// State machine:
+//
+//	PENDING → RUNNING → COMPLETED|FAILED|CANCELLED
+//
+// @usage Execution.status, TimelineStatusUpdate.status
 type ExecutionStatus int32
 
 const (
+	// Default/unknown state. Should never appear in valid data.
+	// Indicates missing or corrupted status field.
 	ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED ExecutionStatus = 0
-	ExecutionStatus_EXECUTION_STATUS_PENDING     ExecutionStatus = 1
-	ExecutionStatus_EXECUTION_STATUS_RUNNING     ExecutionStatus = 2
-	ExecutionStatus_EXECUTION_STATUS_COMPLETED   ExecutionStatus = 3
-	ExecutionStatus_EXECUTION_STATUS_FAILED      ExecutionStatus = 4
-	ExecutionStatus_EXECUTION_STATUS_CANCELLED   ExecutionStatus = 5
+	// Execution is queued and waiting for an available executor.
+	// Set immediately when execution is created.
+	ExecutionStatus_EXECUTION_STATUS_PENDING ExecutionStatus = 1
+	// Execution is actively running. Browser is open and steps are executing.
+	// Transitions from PENDING when executor picks up the job.
+	ExecutionStatus_EXECUTION_STATUS_RUNNING ExecutionStatus = 2
+	// Execution finished successfully. All steps completed without error.
+	// Terminal state. completed_at timestamp is set.
+	ExecutionStatus_EXECUTION_STATUS_COMPLETED ExecutionStatus = 3
+	// Execution terminated due to an error. Check error field for details.
+	// Terminal state. May have partial results from steps before failure.
+	ExecutionStatus_EXECUTION_STATUS_FAILED ExecutionStatus = 4
+	// Execution was manually cancelled by user or API call.
+	// Terminal state. Partial results may be available.
+	ExecutionStatus_EXECUTION_STATUS_CANCELLED ExecutionStatus = 5
 )
 
 // Enum value maps for ExecutionStatus.
@@ -82,14 +100,28 @@ func (ExecutionStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // TriggerType indicates how an execution was initiated.
+//
+// Used for analytics, billing, and audit trails. Each type may have
+// different rate limits or access controls.
+//
+// @usage Execution.trigger_type, TriggerMetadata
 type TriggerType int32
 
 const (
+	// Default/unknown trigger. Should never appear in valid data.
 	TriggerType_TRIGGER_TYPE_UNSPECIFIED TriggerType = 0
-	TriggerType_TRIGGER_TYPE_MANUAL      TriggerType = 1
-	TriggerType_TRIGGER_TYPE_SCHEDULED   TriggerType = 2
-	TriggerType_TRIGGER_TYPE_API         TriggerType = 3
-	TriggerType_TRIGGER_TYPE_WEBHOOK     TriggerType = 4
+	// User clicked "Run" in the UI or invoked via CLI interactively.
+	// Associated TriggerMetadata.user_id identifies the user.
+	TriggerType_TRIGGER_TYPE_MANUAL TriggerType = 1
+	// Execution triggered by a cron schedule.
+	// Associated TriggerMetadata.schedule_id references the schedule config.
+	TriggerType_TRIGGER_TYPE_SCHEDULED TriggerType = 2
+	// Execution triggered by REST API call (e.g., POST /workflows/{id}/execute).
+	// Associated TriggerMetadata.client_id identifies the API client.
+	TriggerType_TRIGGER_TYPE_API TriggerType = 3
+	// Execution triggered by external webhook (e.g., GitHub, Stripe, etc.).
+	// Associated TriggerMetadata.webhook_id identifies the webhook config.
+	TriggerType_TRIGGER_TYPE_WEBHOOK TriggerType = 4
 )
 
 // Enum value maps for TriggerType.
@@ -137,18 +169,37 @@ func (TriggerType) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{1}
 }
 
-// StepStatus captures the lifecycle of an individual step.
+// StepStatus captures the lifecycle of an individual workflow step.
+//
+// State machine:
+//
+//	PENDING → RUNNING → COMPLETED|FAILED|SKIPPED|CANCELLED
+//	               ↓
+//	           RETRYING → RUNNING (loop until max_attempts or success)
+//
+// @usage TimelineEntryAggregates.status, step-level status tracking
 type StepStatus int32
 
 const (
+	// Default/unknown state. Should never appear in valid data.
 	StepStatus_STEP_STATUS_UNSPECIFIED StepStatus = 0
-	StepStatus_STEP_STATUS_PENDING     StepStatus = 1
-	StepStatus_STEP_STATUS_RUNNING     StepStatus = 2
-	StepStatus_STEP_STATUS_COMPLETED   StepStatus = 3
-	StepStatus_STEP_STATUS_FAILED      StepStatus = 4
-	StepStatus_STEP_STATUS_CANCELLED   StepStatus = 5
-	StepStatus_STEP_STATUS_SKIPPED     StepStatus = 6
-	StepStatus_STEP_STATUS_RETRYING    StepStatus = 7
+	// Step is queued, waiting for previous steps to complete.
+	StepStatus_STEP_STATUS_PENDING StepStatus = 1
+	// Step is actively executing (browser action in progress).
+	StepStatus_STEP_STATUS_RUNNING StepStatus = 2
+	// Step finished successfully. Action completed without error.
+	StepStatus_STEP_STATUS_COMPLETED StepStatus = 3
+	// Step failed and will not be retried (or retries exhausted).
+	// Check EventContext.error for failure details.
+	StepStatus_STEP_STATUS_FAILED StepStatus = 4
+	// Step was cancelled (execution stopped before this step ran).
+	StepStatus_STEP_STATUS_CANCELLED StepStatus = 5
+	// Step was skipped due to conditional logic or continue_on_error.
+	// Previous step may have failed with continue_on_error=true.
+	StepStatus_STEP_STATUS_SKIPPED StepStatus = 6
+	// Step failed but is being retried per ResilienceConfig.
+	// Check RetryStatus for attempt count and history.
+	StepStatus_STEP_STATUS_RETRYING StepStatus = 7
 )
 
 // Enum value maps for StepStatus.
@@ -202,15 +253,29 @@ func (StepStatus) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{2}
 }
 
-// LogLevel is used for execution timeline logging.
+// LogLevel is used for execution timeline and console logging.
+//
+// Ordered by severity: DEBUG < INFO < WARN < ERROR
+// Filtering typically shows all logs >= configured level.
+//
+// @usage ConsoleLogEntry.level, TimelineLog.level
 type LogLevel int32
 
 const (
+	// Default/unknown level. Treat as INFO.
 	LogLevel_LOG_LEVEL_UNSPECIFIED LogLevel = 0
-	LogLevel_LOG_LEVEL_DEBUG       LogLevel = 1
-	LogLevel_LOG_LEVEL_INFO        LogLevel = 2
-	LogLevel_LOG_LEVEL_WARN        LogLevel = 3
-	LogLevel_LOG_LEVEL_ERROR       LogLevel = 4
+	// Verbose debugging information. Hidden by default.
+	// Example: "Selector resolved to 3 elements"
+	LogLevel_LOG_LEVEL_DEBUG LogLevel = 1
+	// General informational messages.
+	// Example: "Navigated to https://example.com"
+	LogLevel_LOG_LEVEL_INFO LogLevel = 2
+	// Warning conditions that don't prevent execution.
+	// Example: "Selector matched multiple elements, using first"
+	LogLevel_LOG_LEVEL_WARN LogLevel = 3
+	// Error conditions that caused step failure.
+	// Example: "Timeout waiting for selector '.submit-btn'"
+	LogLevel_LOG_LEVEL_ERROR LogLevel = 4
 )
 
 // Enum value maps for LogLevel.
@@ -259,17 +324,37 @@ func (LogLevel) EnumDescriptor() ([]byte, []int) {
 }
 
 // ArtifactType categorizes stored artifacts emitted during execution.
+//
+// Artifacts are binary or text files captured during execution and stored
+// for later retrieval. Each type has specific content and use cases.
+//
+// @usage TimelineArtifact.type
 type ArtifactType int32
 
 const (
-	ArtifactType_ARTIFACT_TYPE_UNSPECIFIED    ArtifactType = 0
+	// Default/unknown type. Should not be used.
+	ArtifactType_ARTIFACT_TYPE_UNSPECIFIED ArtifactType = 0
+	// Complete timeline frame data serialized to JSON.
+	// Contains action, telemetry, and context for one step.
 	ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME ArtifactType = 1
-	ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG    ArtifactType = 2
-	ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT  ArtifactType = 3
-	ArtifactType_ARTIFACT_TYPE_SCREENSHOT     ArtifactType = 4
-	ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT   ArtifactType = 5
-	ArtifactType_ARTIFACT_TYPE_TRACE          ArtifactType = 6
-	ArtifactType_ARTIFACT_TYPE_CUSTOM         ArtifactType = 7
+	// Browser console output (console.log, console.error, etc.).
+	// Stored as newline-delimited JSON or plain text.
+	ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG ArtifactType = 2
+	// Network request/response capture (HAR format or similar).
+	// Useful for debugging API interactions.
+	ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT ArtifactType = 3
+	// Screenshot image (PNG or JPEG).
+	// Captured at step boundaries or on error.
+	ArtifactType_ARTIFACT_TYPE_SCREENSHOT ArtifactType = 4
+	// Full DOM HTML snapshot at a point in time.
+	// Useful for debugging element visibility issues.
+	ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT ArtifactType = 5
+	// Playwright/Chrome trace file for detailed timing analysis.
+	// Can be opened in Chrome DevTools Performance tab.
+	ArtifactType_ARTIFACT_TYPE_TRACE ArtifactType = 6
+	// Custom user-defined artifact type.
+	// Content type and structure defined by the producer.
+	ArtifactType_ARTIFACT_TYPE_CUSTOM ArtifactType = 7
 )
 
 // Enum value maps for ArtifactType.
@@ -323,14 +408,28 @@ func (ArtifactType) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{4}
 }
 
-// ExportStatus indicates readiness for execution export.
+// ExportStatus indicates readiness for execution replay export.
+//
+// Exports package execution artifacts into a downloadable format
+// (replay video, annotated screenshots, step-by-step documentation).
+//
+// @usage ExecutionExportPreview.status
 type ExportStatus int32
 
 const (
+	// Default/unknown status. Should not be used.
 	ExportStatus_EXPORT_STATUS_UNSPECIFIED ExportStatus = 0
-	ExportStatus_EXPORT_STATUS_READY       ExportStatus = 1
-	ExportStatus_EXPORT_STATUS_PENDING     ExportStatus = 2
-	ExportStatus_EXPORT_STATUS_ERROR       ExportStatus = 3
+	// Export is complete and ready for download.
+	// package field contains the export specification.
+	ExportStatus_EXPORT_STATUS_READY ExportStatus = 1
+	// Export is being prepared (screenshots processing, etc.).
+	// Poll again after a delay.
+	ExportStatus_EXPORT_STATUS_PENDING ExportStatus = 2
+	// Export failed due to an error. Check message field.
+	// May be retryable depending on error type.
+	ExportStatus_EXPORT_STATUS_ERROR ExportStatus = 3
+	// Export is not available (e.g., execution still running).
+	// Wait for execution to complete before requesting export.
 	ExportStatus_EXPORT_STATUS_UNAVAILABLE ExportStatus = 4
 )
 
@@ -380,20 +479,47 @@ func (ExportStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // SelectorType enumerates supported selector strategies for element targeting.
+//
+// Ordered roughly by reliability/specificity (higher = more reliable):
+//
+//	DATA_TESTID > ID > ARIA/ROLE > CSS > XPATH > TEXT
+//
+// @usage SelectorCandidate.type, recording selector inference
 type SelectorType int32
 
 const (
+	// Default/unknown selector type. Should not be used.
 	SelectorType_SELECTOR_TYPE_UNSPECIFIED SelectorType = 0
-	SelectorType_SELECTOR_TYPE_CSS         SelectorType = 1
-	SelectorType_SELECTOR_TYPE_XPATH       SelectorType = 2
-	SelectorType_SELECTOR_TYPE_ID          SelectorType = 3
+	// Standard CSS selector (e.g., "button.submit", "#login-form input").
+	// Most flexible but can be fragile if classes change.
+	SelectorType_SELECTOR_TYPE_CSS SelectorType = 1
+	// XPath expression (e.g., "//button[contains(text(),'Submit')]").
+	// Powerful but verbose; avoid for new workflows.
+	SelectorType_SELECTOR_TYPE_XPATH SelectorType = 2
+	// HTML id attribute (e.g., "#submit-button").
+	// Very reliable if IDs are stable and unique.
+	SelectorType_SELECTOR_TYPE_ID SelectorType = 3
+	// data-testid attribute (e.g., "[data-testid='submit-btn']").
+	// Best practice for test automation; most reliable.
 	SelectorType_SELECTOR_TYPE_DATA_TESTID SelectorType = 4
-	SelectorType_SELECTOR_TYPE_ARIA        SelectorType = 5
-	SelectorType_SELECTOR_TYPE_TEXT        SelectorType = 6
-	SelectorType_SELECTOR_TYPE_ROLE        SelectorType = 7
+	// ARIA label selector (e.g., "[aria-label='Close dialog']").
+	// Good for accessible elements without stable IDs.
+	SelectorType_SELECTOR_TYPE_ARIA SelectorType = 5
+	// Text content selector (e.g., "text=Submit Order").
+	// Fragile if text changes; use for buttons with unique text.
+	SelectorType_SELECTOR_TYPE_TEXT SelectorType = 6
+	// ARIA role selector (e.g., "role=button").
+	// Good for semantic elements; combines well with other attributes.
+	SelectorType_SELECTOR_TYPE_ROLE SelectorType = 7
+	// Input placeholder text (e.g., "[placeholder='Enter email']").
+	// Useful for unlabeled inputs; fragile if placeholder changes.
 	SelectorType_SELECTOR_TYPE_PLACEHOLDER SelectorType = 8
-	SelectorType_SELECTOR_TYPE_ALT_TEXT    SelectorType = 9
-	SelectorType_SELECTOR_TYPE_TITLE       SelectorType = 10
+	// Image alt text (e.g., "[alt='Company Logo']").
+	// For image elements with meaningful alt text.
+	SelectorType_SELECTOR_TYPE_ALT_TEXT SelectorType = 9
+	// HTML title attribute (e.g., "[title='Click to submit']").
+	// For elements with tooltip text.
+	SelectorType_SELECTOR_TYPE_TITLE SelectorType = 10
 )
 
 // Enum value maps for SelectorType.
@@ -454,13 +580,25 @@ func (SelectorType) EnumDescriptor() ([]byte, []int) {
 }
 
 // NetworkEventType enumerates network event kinds captured during execution.
+//
+// Maps to Playwright network event types. Used for request/response logging
+// and debugging API interactions during workflow execution.
+//
+// @usage NetworkEvent.type
 type NetworkEventType int32
 
 const (
+	// Default/unknown type. Should not be used.
 	NetworkEventType_NETWORK_EVENT_TYPE_UNSPECIFIED NetworkEventType = 0
-	NetworkEventType_NETWORK_EVENT_TYPE_REQUEST     NetworkEventType = 1
-	NetworkEventType_NETWORK_EVENT_TYPE_RESPONSE    NetworkEventType = 2
-	NetworkEventType_NETWORK_EVENT_TYPE_FAILURE     NetworkEventType = 3
+	// HTTP request initiated (before response received).
+	// Contains URL, method, headers, and request body.
+	NetworkEventType_NETWORK_EVENT_TYPE_REQUEST NetworkEventType = 1
+	// HTTP response received successfully.
+	// Contains status code, headers, and response body (if captured).
+	NetworkEventType_NETWORK_EVENT_TYPE_RESPONSE NetworkEventType = 2
+	// Network request failed (timeout, DNS error, connection refused, etc.).
+	// Check failure field for error details.
+	NetworkEventType_NETWORK_EVENT_TYPE_FAILURE NetworkEventType = 3
 )
 
 // Enum value maps for NetworkEventType.
@@ -507,12 +645,22 @@ func (NetworkEventType) EnumDescriptor() ([]byte, []int) {
 }
 
 // RecordingSource indicates how an action was captured during recording.
+//
+// Helps distinguish user-initiated actions from system-inferred ones,
+// which may need different confidence handling.
+//
+// @usage EventContext.source
 type RecordingSource int32
 
 const (
+	// Default/unknown source. Treat as AUTO.
 	RecordingSource_RECORDING_SOURCE_UNSPECIFIED RecordingSource = 0
-	RecordingSource_RECORDING_SOURCE_AUTO        RecordingSource = 1
-	RecordingSource_RECORDING_SOURCE_MANUAL      RecordingSource = 2
+	// Action was automatically detected from user interaction.
+	// Browser captured click/type/navigation events automatically.
+	RecordingSource_RECORDING_SOURCE_AUTO RecordingSource = 1
+	// Action was manually added by user via recording UI.
+	// User explicitly created this action (e.g., "Add Wait" button).
+	RecordingSource_RECORDING_SOURCE_MANUAL RecordingSource = 2
 )
 
 // Enum value maps for RecordingSource.
@@ -556,16 +704,31 @@ func (RecordingSource) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{8}
 }
 
-// WorkflowEdgeType enumerates visual edge rendering styles.
+// WorkflowEdgeType enumerates visual edge rendering styles in workflow graph UI.
+//
+// These affect only the visual presentation in ReactFlow/workflow editor,
+// not execution behavior.
+//
+// @usage WorkflowEdgeV2.type
 type WorkflowEdgeType int32
 
 const (
+	// Default style. Typically renders as DEFAULT behavior.
 	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_UNSPECIFIED WorkflowEdgeType = 0
-	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT     WorkflowEdgeType = 1
-	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP  WorkflowEdgeType = 2
-	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP        WorkflowEdgeType = 3
-	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT    WorkflowEdgeType = 4
-	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER      WorkflowEdgeType = 5
+	// Default ReactFlow edge style (typically smooth curve).
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT WorkflowEdgeType = 1
+	// Smooth step connection (rounded corners, 90° angles).
+	// Good for horizontal/vertical layouts.
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP WorkflowEdgeType = 2
+	// Sharp step connection (hard 90° angles).
+	// Good for precise grid-aligned layouts.
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP WorkflowEdgeType = 3
+	// Direct straight line between nodes.
+	// Simplest visual; may overlap with other elements.
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT WorkflowEdgeType = 4
+	// Bezier curve for fluid, aesthetic connections.
+	// Best for complex graphs with many crossings.
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER WorkflowEdgeType = 5
 )
 
 // Enum value maps for WorkflowEdgeType.
@@ -616,13 +779,24 @@ func (WorkflowEdgeType) EnumDescriptor() ([]byte, []int) {
 }
 
 // ValidationSeverity enumerates issue severity levels for workflow validation.
+//
+// Determines whether issues block execution or are advisory.
+//
+// @usage WorkflowValidationIssue.severity
 type ValidationSeverity int32
 
 const (
+	// Default/unknown severity. Treat as INFO.
 	ValidationSeverity_VALIDATION_SEVERITY_UNSPECIFIED ValidationSeverity = 0
-	ValidationSeverity_VALIDATION_SEVERITY_ERROR       ValidationSeverity = 1
-	ValidationSeverity_VALIDATION_SEVERITY_WARNING     ValidationSeverity = 2
-	ValidationSeverity_VALIDATION_SEVERITY_INFO        ValidationSeverity = 3
+	// Error: Workflow cannot execute. Must be fixed before running.
+	// Example: Missing required selector, invalid action type.
+	ValidationSeverity_VALIDATION_SEVERITY_ERROR ValidationSeverity = 1
+	// Warning: Workflow can execute but may have issues.
+	// Example: Selector has low confidence, deprecated action pattern.
+	ValidationSeverity_VALIDATION_SEVERITY_WARNING ValidationSeverity = 2
+	// Info: Informational note, no action required.
+	// Example: Suggestion for improvement, best practice hint.
+	ValidationSeverity_VALIDATION_SEVERITY_INFO ValidationSeverity = 3
 )
 
 // Enum value maps for ValidationSeverity.
@@ -669,15 +843,31 @@ func (ValidationSeverity) EnumDescriptor() ([]byte, []int) {
 }
 
 // ChangeSource indicates the origin of a workflow modification.
+//
+// Used for audit trails and to determine whether changes should trigger
+// version increments or autosave behavior.
+//
+// @usage WorkflowSummary.last_change_source, UpdateWorkflowRequest.source
 type ChangeSource int32
 
 const (
-	ChangeSource_CHANGE_SOURCE_UNSPECIFIED  ChangeSource = 0
-	ChangeSource_CHANGE_SOURCE_MANUAL       ChangeSource = 1
-	ChangeSource_CHANGE_SOURCE_AUTOSAVE     ChangeSource = 2
-	ChangeSource_CHANGE_SOURCE_IMPORT       ChangeSource = 3
+	// Default/unknown source. Treat as MANUAL.
+	ChangeSource_CHANGE_SOURCE_UNSPECIFIED ChangeSource = 0
+	// User explicitly saved changes via UI or API.
+	// Creates a new version if versioning is enabled.
+	ChangeSource_CHANGE_SOURCE_MANUAL ChangeSource = 1
+	// Automatic periodic save while editing.
+	// Does NOT create a new version; overwrites current draft.
+	ChangeSource_CHANGE_SOURCE_AUTOSAVE ChangeSource = 2
+	// Workflow imported from file or external source.
+	// Creates a new version; may have different metadata format.
+	ChangeSource_CHANGE_SOURCE_IMPORT ChangeSource = 3
+	// Workflow generated or modified by AI assistant.
+	// Creates a new version; marked for human review.
 	ChangeSource_CHANGE_SOURCE_AI_GENERATED ChangeSource = 4
-	ChangeSource_CHANGE_SOURCE_RECORDING    ChangeSource = 5
+	// Workflow created from recording session.
+	// Creates a new version from captured TimelineEntry list.
+	ChangeSource_CHANGE_SOURCE_RECORDING ChangeSource = 5
 )
 
 // Enum value maps for ChangeSource.
@@ -727,18 +917,40 @@ func (ChangeSource) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_base_shared_proto_rawDescGZIP(), []int{11}
 }
 
-// AssertionMode enumerates supported assertion types.
+// AssertionMode enumerates supported assertion types for workflow validation steps.
+//
+// Assertions verify expected conditions during execution. Failed assertions
+// mark the step as FAILED and can stop execution depending on settings.
+//
+// @usage AssertParams.mode, AssertionResult.mode
 type AssertionMode int32
 
 const (
-	AssertionMode_ASSERTION_MODE_UNSPECIFIED        AssertionMode = 0
-	AssertionMode_ASSERTION_MODE_EXISTS             AssertionMode = 1
-	AssertionMode_ASSERTION_MODE_NOT_EXISTS         AssertionMode = 2
-	AssertionMode_ASSERTION_MODE_VISIBLE            AssertionMode = 3
-	AssertionMode_ASSERTION_MODE_HIDDEN             AssertionMode = 4
-	AssertionMode_ASSERTION_MODE_TEXT_EQUALS        AssertionMode = 5
-	AssertionMode_ASSERTION_MODE_TEXT_CONTAINS      AssertionMode = 6
-	AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS   AssertionMode = 7
+	// Default/unknown mode. Should not be used.
+	AssertionMode_ASSERTION_MODE_UNSPECIFIED AssertionMode = 0
+	// Assert element exists in DOM (visible or hidden).
+	// Passes if selector matches at least one element.
+	AssertionMode_ASSERTION_MODE_EXISTS AssertionMode = 1
+	// Assert element does NOT exist in DOM.
+	// Passes if selector matches zero elements.
+	AssertionMode_ASSERTION_MODE_NOT_EXISTS AssertionMode = 2
+	// Assert element is visible to user.
+	// Passes if element exists AND is displayed (not display:none, visibility:hidden).
+	AssertionMode_ASSERTION_MODE_VISIBLE AssertionMode = 3
+	// Assert element is hidden from user.
+	// Passes if element doesn't exist OR is not displayed.
+	AssertionMode_ASSERTION_MODE_HIDDEN AssertionMode = 4
+	// Assert element text exactly equals expected value.
+	// Comparison may be case-sensitive based on AssertParams.case_sensitive.
+	AssertionMode_ASSERTION_MODE_TEXT_EQUALS AssertionMode = 5
+	// Assert element text contains expected substring.
+	// Comparison may be case-sensitive based on AssertParams.case_sensitive.
+	AssertionMode_ASSERTION_MODE_TEXT_CONTAINS AssertionMode = 6
+	// Assert element attribute exactly equals expected value.
+	// Requires AssertParams.attribute_name to specify which attribute.
+	AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS AssertionMode = 7
+	// Assert element attribute contains expected substring.
+	// Requires AssertParams.attribute_name to specify which attribute.
 	AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS AssertionMode = 8
 )
 

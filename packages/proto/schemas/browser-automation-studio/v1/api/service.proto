@@ -12,7 +12,25 @@ import "browser-automation-studio/v1/execution/execution.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api;api";
 
 // =============================================================================
-// WORKFLOW SERVICE
+// WORKFLOW API SERVICE
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports base, actions, workflows, execution
+//
+// gRPC service definition for Browser Automation Studio workflow operations.
+// Defines CRUD operations for workflows and execution lifecycle.
+//
+// This service is designed for both:
+//   - gRPC clients: Native protobuf communication
+//   - REST clients: HTTP/JSON via grpc-gateway annotations
+//
+// USAGE CONTEXTS:
+//   - UI: Workflow editor, project management
+//   - CLI: Headless workflow execution
+//   - External integrations: CI/CD pipelines, scheduling systems
+//
 // =============================================================================
 
 // WorkflowService declares the core BAS workflow lifecycle operations.
@@ -83,9 +101,9 @@ service WorkflowService {
 
 // WorkflowSummary captures the primary workflow fields without the full definition.
 message WorkflowSummary {
-  // Unique workflow identifier.
+  // Unique workflow identifier (UUID format).
   string id = 1;
-  // Project ID the workflow belongs to.
+  // Project ID the workflow belongs to (UUID format).
   string project_id = 2;
   // Workflow name.
   string name = 3;
@@ -115,7 +133,7 @@ message WorkflowSummary {
 
 // WorkflowVersion represents a historic version of a workflow.
 message WorkflowVersion {
-  // Workflow ID this version belongs to.
+  // Workflow ID this version belongs to (UUID format).
   string workflow_id = 1;
   // Version number.
   int32 version = 2;
@@ -181,7 +199,7 @@ message GetWorkflowResponse {
 
 // CreateWorkflowRequest creates a new workflow.
 message CreateWorkflowRequest {
-  // Project ID to create the workflow in.
+  // Project ID to create the workflow in (UUID format).
   string project_id = 1;
   // Workflow name.
   string name = 2;
@@ -241,7 +259,7 @@ message DeleteWorkflowRequest {
 message DeleteWorkflowResponse {
   // Whether the deletion was successful.
   bool success = 1;
-  // Workflow ID that was deleted.
+  // Workflow ID that was deleted (UUID format).
   string workflow_id = 2;
 }
 
@@ -265,7 +283,7 @@ message ExecuteWorkflowRequest {
 
 // ExecuteWorkflowResponse returns the execution status.
 message ExecuteWorkflowResponse {
-  // The created execution ID.
+  // The created execution ID (UUID format).
   string execution_id = 1;
   // Initial execution status.
   ExecutionStatus status = 2;

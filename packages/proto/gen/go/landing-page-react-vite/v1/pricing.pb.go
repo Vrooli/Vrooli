@@ -23,13 +23,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// PlanKind mirrors supported purchase flows for plans.
+// PlanKind categorizes the purchase flow type for a plan.
+//
+// Determines how the checkout session is created in Stripe and what
+// post-purchase behavior occurs (subscription creation vs one-time charge).
+//
+// @usage PlanOption.kind, checkout flow routing
 type PlanKind int32
 
 const (
-	PlanKind_PLAN_KIND_UNSPECIFIED            PlanKind = 0
-	PlanKind_PLAN_KIND_SUBSCRIPTION           PlanKind = 1
-	PlanKind_PLAN_KIND_CREDITS_TOPUP          PlanKind = 2
+	// Default/unknown kind. Should not appear in valid data.
+	// Indicates missing or corrupted kind field.
+	PlanKind_PLAN_KIND_UNSPECIFIED PlanKind = 0
+	// Recurring subscription billed monthly or yearly.
+	// Creates a Stripe subscription with automatic renewal.
+	// User gains access to tier benefits for the billing period.
+	PlanKind_PLAN_KIND_SUBSCRIPTION PlanKind = 1
+	// One-time credit purchase added to user's wallet.
+	// Creates a Stripe payment intent, not a subscription.
+	// Credits are immediately available after successful payment.
+	PlanKind_PLAN_KIND_CREDITS_TOPUP PlanKind = 2
+	// Variable-amount donation/tip supporting the platform.
+	// Amount is chosen by user at checkout; no credits granted.
+	// Used for supporter/patron contributions.
 	PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION PlanKind = 3
 )
 
@@ -76,14 +92,26 @@ func (PlanKind) EnumDescriptor() ([]byte, []int) {
 	return file_landing_page_react_vite_v1_pricing_proto_rawDescGZIP(), []int{0}
 }
 
-// BillingInterval restricts billing cadence to supported Stripe intervals.
+// BillingInterval specifies the billing cadence for a plan.
+//
+// Maps to Stripe's recurring interval for subscriptions or indicates
+// a one-time purchase for non-recurring plans.
+//
+// @usage PlanOption.billing_interval, pricing display grouping
 type BillingInterval int32
 
 const (
+	// Default/unknown interval. Should not appear in valid data.
 	BillingInterval_BILLING_INTERVAL_UNSPECIFIED BillingInterval = 0
-	BillingInterval_BILLING_INTERVAL_MONTH       BillingInterval = 1
-	BillingInterval_BILLING_INTERVAL_YEAR        BillingInterval = 2
-	BillingInterval_BILLING_INTERVAL_ONE_TIME    BillingInterval = 3
+	// Monthly recurring billing. Subscription renews every month.
+	// Typically shows monthly price on pricing page.
+	BillingInterval_BILLING_INTERVAL_MONTH BillingInterval = 1
+	// Yearly recurring billing. Subscription renews every year.
+	// Often discounted compared to 12x monthly price.
+	BillingInterval_BILLING_INTERVAL_YEAR BillingInterval = 2
+	// One-time charge with no recurring billing.
+	// Used for credit top-ups and supporter contributions.
+	BillingInterval_BILLING_INTERVAL_ONE_TIME BillingInterval = 3
 )
 
 // Enum value maps for BillingInterval.
@@ -129,13 +157,23 @@ func (BillingInterval) EnumDescriptor() ([]byte, []int) {
 	return file_landing_page_react_vite_v1_pricing_proto_rawDescGZIP(), []int{1}
 }
 
-// IntroPricingType captures the known introductory pricing strategies.
+// IntroPricingType specifies the introductory pricing discount strategy.
+//
+// Used when plans offer a discounted rate for initial billing periods
+// before transitioning to the regular price.
+//
+// @usage PlanOption.intro_type, checkout session creation
 type IntroPricingType int32
 
 const (
+	// Default/unknown type. No introductory pricing applied.
 	IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED IntroPricingType = 0
+	// Fixed amount discount (e.g., first month at $5 instead of $10).
+	// intro_amount_cents contains the discounted price in cents.
 	IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT IntroPricingType = 1
-	IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE  IntroPricingType = 2
+	// Percentage discount (e.g., first month at 50% off).
+	// intro_amount_cents contains the percentage as an integer (50 = 50%).
+	IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE IntroPricingType = 2
 )
 
 // Enum value maps for IntroPricingType.
@@ -180,23 +218,35 @@ func (IntroPricingType) EnumDescriptor() ([]byte, []int) {
 }
 
 // Bundle captures Stripe product metadata and credit conversion rules.
+//
+// Represents a Stripe product with associated credit system configuration.
+// Each environment (production, staging) typically has its own bundle.
+//
+// @usage PricingOverview.bundle, credit balance calculations
 type Bundle struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable key used by clients and downstream scenarios.
+	// @format slug (e.g., "vrooli-prod", "vrooli-staging")
 	BundleKey string `protobuf:"bytes,1,opt,name=bundle_key,json=bundleKey,proto3" json:"bundle_key,omitempty"`
-	// Human-readable bundle name.
+	// Human-readable bundle name for display.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Stripe product identifier.
+	// Stripe product identifier (prod_*).
+	// @format stripe_product_id
 	StripeProductId string `protobuf:"bytes,3,opt,name=stripe_product_id,json=stripeProductId,proto3" json:"stripe_product_id,omitempty"`
 	// Conversion rate from USD cents to credits.
+	// @example 100 means $1.00 = 100 credits
 	CreditsPerUsd int64 `protobuf:"varint,4,opt,name=credits_per_usd,json=creditsPerUsd,proto3" json:"credits_per_usd,omitempty"`
 	// Multiplier applied when rendering credit amounts for display.
+	// @example 0.001 to show "1,000 credits" as "1 token"
 	DisplayCreditsMultiplier float64 `protobuf:"fixed64,5,opt,name=display_credits_multiplier,json=displayCreditsMultiplier,proto3" json:"display_credits_multiplier,omitempty"`
 	// Display label for credits (e.g., "credits", "tokens").
 	DisplayCreditsLabel string `protobuf:"bytes,6,opt,name=display_credits_label,json=displayCreditsLabel,proto3" json:"display_credits_label,omitempty"`
 	// Environment label (e.g., "production", "staging").
 	Environment string `protobuf:"bytes,7,opt,name=environment,proto3" json:"environment,omitempty"`
 	// Additional metadata passed through to clients.
+	// Key: Feature identifier (e.g., "feature_flags", "branding")
+	// Value: JSON-compatible value for client-specific extensions
+	// Common keys: "logo_url", "support_email", "terms_url"
 	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,9,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -289,49 +339,73 @@ func (x *Bundle) GetMetadata() map[string]*v1.JsonValue {
 }
 
 // PlanOption represents a purchasable Stripe price for a bundle.
+//
+// Contains all pricing, display, and entitlement configuration for a single
+// purchasable option. Plans are grouped by billing interval for display.
+//
+// @usage PricingOverview.monthly, PricingOverview.yearly, checkout selection
 type PlanOption struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User-facing plan name (e.g., "Pro", "Team").
 	PlanName string `protobuf:"bytes,1,opt,name=plan_name,json=planName,proto3" json:"plan_name,omitempty"`
-	// Tier key used for entitlement checks.
+	// Tier key used for entitlement checks (e.g., "free", "pro", "team").
+	// @format slug
 	PlanTier string `protobuf:"bytes,2,opt,name=plan_tier,json=planTier,proto3" json:"plan_tier,omitempty"`
-	// Billing cadence ("month" or "year").
+	// Billing cadence for this plan.
 	BillingInterval BillingInterval `protobuf:"varint,3,opt,name=billing_interval,json=billingInterval,proto3,enum=landing_page_react_vite.v1.BillingInterval" json:"billing_interval,omitempty"`
 	// Price in cents for the billing interval.
+	// @unit cents (USD)
 	AmountCents int64 `protobuf:"varint,4,opt,name=amount_cents,json=amountCents,proto3" json:"amount_cents,omitempty"`
-	// Currency code (ISO 4217).
+	// Currency code (ISO 4217, e.g., "usd", "eur").
+	// @format iso4217
 	Currency string `protobuf:"bytes,5,opt,name=currency,proto3" json:"currency,omitempty"`
-	// Whether an introductory price is enabled.
+	// === INTRODUCTORY PRICING ===
+	// Whether an introductory price is enabled for this plan.
 	IntroEnabled bool `protobuf:"varint,6,opt,name=intro_enabled,json=introEnabled,proto3" json:"intro_enabled,omitempty"`
-	// Type of intro pricing ("flat_amount", etc.).
+	// Type of intro pricing discount applied.
 	IntroType IntroPricingType `protobuf:"varint,7,opt,name=intro_type,json=introType,proto3,enum=landing_page_react_vite.v1.IntroPricingType" json:"intro_type,omitempty"`
-	// Introductory amount in cents (nullable when not enabled).
+	// Introductory amount in cents. If unset, no intro pricing.
+	// For FLAT_AMOUNT: the discounted price in cents.
+	// For PERCENTAGE: the percentage as an integer (50 = 50% off).
+	// @unit cents or percentage
 	IntroAmountCents *int64 `protobuf:"varint,8,opt,name=intro_amount_cents,json=introAmountCents,proto3,oneof" json:"intro_amount_cents,omitempty"`
-	// Number of billing periods for the intro price.
+	// Number of billing periods the intro price applies.
+	// @example 1 means first month/year only
 	IntroPeriods int32 `protobuf:"varint,9,opt,name=intro_periods,json=introPeriods,proto3" json:"intro_periods,omitempty"`
-	// Lookup key for intro pricing in Stripe.
+	// Lookup key for intro pricing in Stripe (for schedule creation).
 	IntroPriceLookupKey string `protobuf:"bytes,10,opt,name=intro_price_lookup_key,json=introPriceLookupKey,proto3" json:"intro_price_lookup_key,omitempty"`
-	// Stripe price identifier.
+	// === STRIPE IDENTIFIERS ===
+	// Stripe price identifier (price_*).
+	// @format stripe_price_id
 	StripePriceId string `protobuf:"bytes,11,opt,name=stripe_price_id,json=stripePriceId,proto3" json:"stripe_price_id,omitempty"`
-	// Included credits per billing interval.
+	// === CREDITS ===
+	// Credits included per billing interval (for subscription plans).
+	// @example 1000 means 1000 credits/month for monthly plans
 	MonthlyIncludedCredits int64 `protobuf:"varint,12,opt,name=monthly_included_credits,json=monthlyIncludedCredits,proto3" json:"monthly_included_credits,omitempty"`
-	// One-time bonus credits granted at purchase.
+	// One-time bonus credits granted at initial purchase.
+	// @example 500 means 500 bonus credits on first subscription
 	OneTimeBonusCredits int64 `protobuf:"varint,13,opt,name=one_time_bonus_credits,json=oneTimeBonusCredits,proto3" json:"one_time_bonus_credits,omitempty"`
-	// Display ordering rank (higher first).
+	// === DISPLAY CONFIGURATION ===
+	// Display ordering rank (higher values displayed first).
 	PlanRank int32 `protobuf:"varint,14,opt,name=plan_rank,json=planRank,proto3" json:"plan_rank,omitempty"`
-	// Bonus type label.
+	// Bonus type label for marketing display (e.g., "Launch Bonus").
 	BonusType string `protobuf:"bytes,15,opt,name=bonus_type,json=bonusType,proto3" json:"bonus_type,omitempty"`
-	// Purchase flow kind (subscription, credits, supporter contribution).
+	// Purchase flow kind for routing checkout creation.
 	Kind PlanKind `protobuf:"varint,16,opt,name=kind,proto3,enum=landing_page_react_vite.v1.PlanKind" json:"kind,omitempty"`
-	// Indicates variable-amount purchases (e.g., donations).
+	// True for variable-amount purchases (e.g., donations, custom credit amounts).
 	IsVariableAmount bool `protobuf:"varint,17,opt,name=is_variable_amount,json=isVariableAmount,proto3" json:"is_variable_amount,omitempty"`
-	// Whether to show this plan on the landing page.
+	// Whether to show this plan on the public pricing page.
 	DisplayEnabled bool `protobuf:"varint,18,opt,name=display_enabled,json=displayEnabled,proto3" json:"display_enabled,omitempty"`
 	// Bundle key this plan belongs to.
+	// @format slug
 	BundleKey string `protobuf:"bytes,19,opt,name=bundle_key,json=bundleKey,proto3" json:"bundle_key,omitempty"`
-	// Weight for ordering within its interval group.
+	// Weight for ordering within its interval group (higher = first).
 	DisplayWeight int32 `protobuf:"varint,20,opt,name=display_weight,json=displayWeight,proto3" json:"display_weight,omitempty"`
-	// Arbitrary structured metadata.
+	// === EXTENSIBILITY ===
+	// Arbitrary structured metadata for client-specific extensions.
+	// Key: Feature identifier (e.g., "feature_list", "highlight_text")
+	// Value: JSON-compatible value
+	// Common keys: "features" (array), "badge" (string), "cta_text" (string)
 	Metadata      map[string]*v1.JsonValue `protobuf:"bytes,22,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -515,15 +589,22 @@ func (x *PlanOption) GetMetadata() map[string]*v1.JsonValue {
 }
 
 // PricingOverview groups bundle metadata with available plans.
+//
+// Main response type for the pricing API, containing all information
+// needed to render a pricing page.
+//
+// @usage GetPricingResponse.pricing, frontend PricingPage component
 type PricingOverview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Bundle/product metadata.
+	// Bundle/product metadata including credit conversion rules.
 	Bundle *Bundle `protobuf:"bytes,1,opt,name=bundle,proto3" json:"bundle,omitempty"`
-	// Monthly billing options (filtered for display).
+	// Monthly billing options, ordered by display_weight descending.
+	// Filtered to display_enabled=true unless include_hidden requested.
 	Monthly []*PlanOption `protobuf:"bytes,2,rep,name=monthly,proto3" json:"monthly,omitempty"`
-	// Yearly billing options (filtered for display).
+	// Yearly billing options, ordered by display_weight descending.
+	// Filtered to display_enabled=true unless include_hidden requested.
 	Yearly []*PlanOption `protobuf:"bytes,3,rep,name=yearly,proto3" json:"yearly,omitempty"`
-	// Last update timestamp for pricing metadata.
+	// When pricing metadata was last updated from Stripe.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -588,11 +669,14 @@ func (x *PricingOverview) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 // GetPricingRequest allows selecting a bundle and visibility mode.
+//
+// @usage LandingPagePaymentsService.GetPricing
 type GetPricingRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Bundle key to fetch; defaults to server-configured bundle.
+	// Bundle key to fetch. If empty, uses server-configured default bundle.
+	// @format slug
 	BundleKey string `protobuf:"bytes,1,opt,name=bundle_key,json=bundleKey,proto3" json:"bundle_key,omitempty"`
-	// Include plans that are not display_enabled.
+	// Include plans where display_enabled=false (admin view).
 	IncludeHidden bool `protobuf:"varint,2,opt,name=include_hidden,json=includeHidden,proto3" json:"include_hidden,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -643,9 +727,11 @@ func (x *GetPricingRequest) GetIncludeHidden() bool {
 }
 
 // GetPricingResponse returns pricing metadata for the requested bundle.
+//
+// @usage LandingPagePaymentsService.GetPricing response
 type GetPricingResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pricing overview for the bundle.
+	// Pricing overview containing bundle and plan data.
 	Pricing       *PricingOverview `protobuf:"bytes,1,opt,name=pricing,proto3" json:"pricing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -692,7 +778,7 @@ var File_landing_page_react_vite_v1_pricing_proto protoreflect.FileDescriptor
 
 const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\n" +
-	"(landing-page-react-vite/v1/pricing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\"\xca\x03\n" +
+	"(landing-page-react-vite/v1/pricing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\"\xdc\x03\n" +
 	"\x06Bundle\x12\x1d\n" +
 	"\n" +
 	"bundle_key\x18\x01 \x01(\tR\tbundleKey\x12\x12\n" +
@@ -705,7 +791,7 @@ const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\bmetadata\x18\t \x03(\v20.landing_page_react_vite.v1.Bundle.MetadataEntryR\bmetadata\x1aQ\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\b\x10\t\"\xc8\b\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\b\x10\tR\x10metadata_untyped\"\xda\b\n" +
 	"\n" +
 	"PlanOption\x12\x1b\n" +
 	"\tplan_name\x18\x01 \x01(\tR\bplanName\x12\x1b\n" +
@@ -736,7 +822,7 @@ const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\x15\n" +
-	"\x13_intro_amount_centsJ\x04\b\x15\x10\x16\"\x8a\x02\n" +
+	"\x13_intro_amount_centsJ\x04\b\x15\x10\x16R\x10metadata_untyped\"\x8a\x02\n" +
 	"\x0fPricingOverview\x12:\n" +
 	"\x06bundle\x18\x01 \x01(\v2\".landing_page_react_vite.v1.BundleR\x06bundle\x12@\n" +
 	"\amonthly\x18\x02 \x03(\v2&.landing_page_react_vite.v1.PlanOptionR\amonthly\x12>\n" +

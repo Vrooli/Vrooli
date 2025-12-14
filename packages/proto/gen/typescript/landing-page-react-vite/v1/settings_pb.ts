@@ -17,39 +17,45 @@ export const file_landing_page_react_vite_v1_settings: GenFile = /*@__PURE__*/
 /**
  * StripeConfigSnapshot exposes a redacted view of runtime Stripe credentials.
  *
+ * Provides visibility into which credentials are active without exposing
+ * sensitive values. Used for admin UI status display.
+ *
+ * @usage GetStripeSettingsResponse.snapshot
+ *
  * @generated from message landing_page_react_vite.v1.StripeConfigSnapshot
  */
 export type StripeConfigSnapshot = Message<"landing_page_react_vite.v1.StripeConfigSnapshot"> & {
   /**
-   * Masked preview of the publishable key (e.g., "pk_live...42").
+   * Masked preview of the publishable key (e.g., "pk_live_...abc123").
+   * Shows first 7 and last 6 characters for identification.
    *
    * @generated from field: string publishable_key_preview = 1;
    */
   publishableKeyPreview: string;
 
   /**
-   * True when a publishable key is available.
+   * True when a publishable key is configured and available.
    *
    * @generated from field: bool publishable_key_set = 2;
    */
   publishableKeySet: boolean;
 
   /**
-   * True when a secret key is available.
+   * True when a secret key is configured and available.
    *
    * @generated from field: bool secret_key_set = 3;
    */
   secretKeySet: boolean;
 
   /**
-   * True when a webhook signing secret is available.
+   * True when a webhook signing secret is configured and available.
    *
    * @generated from field: bool webhook_secret_set = 4;
    */
   webhookSecretSet: boolean;
 
   /**
-   * Source of the active configuration.
+   * Source from which active credentials were loaded.
    *
    * @generated from field: landing_page_react_vite.v1.ConfigSource source = 5;
    */
@@ -66,39 +72,51 @@ export const StripeConfigSnapshotSchema: GenMessage<StripeConfigSnapshot> = /*@_
 /**
  * StripeSettings contains persisted admin-provided Stripe credentials.
  *
+ * SECURITY: This message contains sensitive credentials. Only return
+ * to authenticated admin users. Never log or expose in error messages.
+ *
+ * @usage GetStripeSettingsResponse.settings (admin only)
+ *
  * @generated from message landing_page_react_vite.v1.StripeSettings
  */
 export type StripeSettings = Message<"landing_page_react_vite.v1.StripeSettings"> & {
   /**
-   * Full publishable key.
+   * Full Stripe publishable key (pk_live_* or pk_test_*).
+   * Safe to expose to frontend clients.
+   * @format stripe_publishable_key
    *
    * @generated from field: string publishable_key = 1;
    */
   publishableKey: string;
 
   /**
-   * Full secret key.
+   * Full Stripe secret key (sk_live_* or sk_test_*).
+   * SENSITIVE: Never expose to frontend or log.
+   * @format stripe_secret_key
    *
    * @generated from field: string secret_key = 2;
    */
   secretKey: string;
 
   /**
-   * Webhook signing secret.
+   * Webhook signing secret (whsec_*).
+   * Used to verify webhook payloads from Stripe.
+   * @format stripe_webhook_secret
    *
    * @generated from field: string webhook_secret = 3;
    */
   webhookSecret: string;
 
   /**
-   * Optional dashboard URL for UI linking.
+   * Optional Stripe dashboard URL for admin convenience.
+   * @format url
    *
    * @generated from field: optional string dashboard_url = 4;
    */
   dashboardUrl?: string;
 
   /**
-   * Last update timestamp.
+   * When settings were last updated.
    *
    * @generated from field: google.protobuf.Timestamp updated_at = 5;
    */
@@ -115,6 +133,8 @@ export const StripeSettingsSchema: GenMessage<StripeSettings> = /*@__PURE__*/
 /**
  * GetStripeSettingsRequest requests current Stripe settings and snapshot.
  *
+ * @usage LandingPagePaymentsService.GetStripeSettings (admin only)
+ *
  * @generated from message landing_page_react_vite.v1.GetStripeSettingsRequest
  */
 export type GetStripeSettingsRequest = Message<"landing_page_react_vite.v1.GetStripeSettingsRequest"> & {
@@ -130,18 +150,20 @@ export const GetStripeSettingsRequestSchema: GenMessage<GetStripeSettingsRequest
 /**
  * GetStripeSettingsResponse returns persisted settings and runtime snapshot.
  *
+ * @usage LandingPagePaymentsService.GetStripeSettings response
+ *
  * @generated from message landing_page_react_vite.v1.GetStripeSettingsResponse
  */
 export type GetStripeSettingsResponse = Message<"landing_page_react_vite.v1.GetStripeSettingsResponse"> & {
   /**
-   * Persisted admin-configured settings (may be empty if unset).
+   * Persisted admin-configured settings (may be empty if using env vars).
    *
    * @generated from field: landing_page_react_vite.v1.StripeSettings settings = 1;
    */
   settings?: StripeSettings;
 
   /**
-   * Runtime configuration snapshot used by the API.
+   * Runtime configuration snapshot showing active credentials source.
    *
    * @generated from field: landing_page_react_vite.v1.StripeConfigSnapshot snapshot = 2;
    */
@@ -158,32 +180,41 @@ export const GetStripeSettingsResponseSchema: GenMessage<GetStripeSettingsRespon
 /**
  * UpdateStripeSettingsRequest partially updates Stripe credentials.
  *
+ * Supports partial updates: only provided fields are updated.
+ * Omitted fields retain their current values.
+ *
+ * @usage LandingPagePaymentsService.UpdateStripeSettings (admin only)
+ *
  * @generated from message landing_page_react_vite.v1.UpdateStripeSettingsRequest
  */
 export type UpdateStripeSettingsRequest = Message<"landing_page_react_vite.v1.UpdateStripeSettingsRequest"> & {
   /**
-   * Publishable key to set; omitted to leave unchanged.
+   * Publishable key to set. If unset, current value is retained.
+   * @format stripe_publishable_key
    *
    * @generated from field: optional string publishable_key = 1;
    */
   publishableKey?: string;
 
   /**
-   * Secret key to set; omitted to leave unchanged.
+   * Secret key to set. If unset, current value is retained.
+   * @format stripe_secret_key
    *
    * @generated from field: optional string secret_key = 2;
    */
   secretKey?: string;
 
   /**
-   * Webhook signing secret to set; omitted to leave unchanged.
+   * Webhook signing secret to set. If unset, current value is retained.
+   * @format stripe_webhook_secret
    *
    * @generated from field: optional string webhook_secret = 3;
    */
   webhookSecret?: string;
 
   /**
-   * Dashboard URL to set; omitted to leave unchanged.
+   * Dashboard URL to set. If unset, current value is retained.
+   * @format url
    *
    * @generated from field: optional string dashboard_url = 4;
    */
@@ -200,18 +231,20 @@ export const UpdateStripeSettingsRequestSchema: GenMessage<UpdateStripeSettingsR
 /**
  * UpdateStripeSettingsResponse returns the resulting settings and snapshot.
  *
+ * @usage LandingPagePaymentsService.UpdateStripeSettings response
+ *
  * @generated from message landing_page_react_vite.v1.UpdateStripeSettingsResponse
  */
 export type UpdateStripeSettingsResponse = Message<"landing_page_react_vite.v1.UpdateStripeSettingsResponse"> & {
   /**
-   * Persisted admin-configured settings.
+   * Updated persisted admin-configured settings.
    *
    * @generated from field: landing_page_react_vite.v1.StripeSettings settings = 1;
    */
   settings?: StripeSettings;
 
   /**
-   * Updated runtime configuration snapshot.
+   * Updated runtime configuration snapshot (source will be DATABASE).
    *
    * @generated from field: landing_page_react_vite.v1.StripeConfigSnapshot snapshot = 2;
    */
@@ -228,20 +261,33 @@ export const UpdateStripeSettingsResponseSchema: GenMessage<UpdateStripeSettings
 /**
  * ConfigSource indicates where active Stripe credentials were loaded from.
  *
+ * The API checks both environment variables and database for credentials.
+ * Database credentials take precedence over environment variables.
+ *
+ * @usage StripeConfigSnapshot.source
+ *
  * @generated from enum landing_page_react_vite.v1.ConfigSource
  */
 export enum ConfigSource {
   /**
+   * Default/unknown source. Should not appear in valid data.
+   *
    * @generated from enum value: CONFIG_SOURCE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Credentials loaded from environment variables.
+   * Set via STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET.
+   *
    * @generated from enum value: CONFIG_SOURCE_ENV = 1;
    */
   ENV = 1,
 
   /**
+   * Credentials loaded from database (admin-configured).
+   * Takes precedence over environment variables when set.
+   *
    * @generated from enum value: CONFIG_SOURCE_DATABASE = 2;
    */
   DATABASE = 2,

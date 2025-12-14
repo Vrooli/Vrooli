@@ -30,9 +30,9 @@ const (
 // WorkflowSummary captures the primary workflow fields without the full definition.
 type WorkflowSummary struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique workflow identifier.
+	// Unique workflow identifier (UUID format).
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Project ID the workflow belongs to.
+	// Project ID the workflow belongs to (UUID format).
 	ProjectId string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Workflow name.
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
@@ -193,7 +193,7 @@ func (x *WorkflowSummary) GetFlowDefinition() *workflows.WorkflowDefinitionV2 {
 // WorkflowVersion represents a historic version of a workflow.
 type WorkflowVersion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workflow ID this version belongs to.
+	// Workflow ID this version belongs to (UUID format).
 	WorkflowId string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Version number.
 	Version int32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
@@ -612,7 +612,7 @@ func (x *GetWorkflowResponse) GetWorkflow() *WorkflowSummary {
 // CreateWorkflowRequest creates a new workflow.
 type CreateWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Project ID to create the workflow in.
+	// Project ID to create the workflow in (UUID format).
 	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Workflow name.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -970,7 +970,7 @@ type DeleteWorkflowResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether the deletion was successful.
 	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// Workflow ID that was deleted.
+	// Workflow ID that was deleted (UUID format).
 	WorkflowId    string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1096,7 +1096,7 @@ func (x *ExecuteWorkflowRequest) GetParameters() *execution.ExecutionParameters 
 // ExecuteWorkflowResponse returns the execution status.
 type ExecuteWorkflowResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The created execution ID.
+	// The created execution ID (UUID format).
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	// Initial execution status.
 	Status base.ExecutionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`

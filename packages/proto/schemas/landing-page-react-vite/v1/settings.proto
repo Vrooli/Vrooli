@@ -6,68 +6,143 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
 
+// =============================================================================
+// SETTINGS DOMAIN
+// =============================================================================
+//
+// @layer 0
+// @domain settings
+// @imports none
+//
+// Defines Stripe credential configuration types for admin management.
+// Settings control which Stripe keys the API uses for payment processing.
+//
+// USAGE CONTEXTS:
+//   - Admin UI: Configure Stripe credentials without server restart
+//   - API: GetStripeSettings/UpdateStripeSettings for credential management
+//   - Runtime: StripeConfigSnapshot shows which credentials are active
+//
+// =============================================================================
+
+// =============================================================================
+// SETTINGS ENUMS
+// =============================================================================
+
 // ConfigSource indicates where active Stripe credentials were loaded from.
+//
+// The API checks both environment variables and database for credentials.
+// Database credentials take precedence over environment variables.
+//
+// @usage StripeConfigSnapshot.source
 enum ConfigSource {
+  // Default/unknown source. Should not appear in valid data.
   CONFIG_SOURCE_UNSPECIFIED = 0;
+
+  // Credentials loaded from environment variables.
+  // Set via STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET.
   CONFIG_SOURCE_ENV = 1;
+
+  // Credentials loaded from database (admin-configured).
+  // Takes precedence over environment variables when set.
   CONFIG_SOURCE_DATABASE = 2;
 }
 
+// =============================================================================
+// SETTINGS TYPES
+// =============================================================================
+
 // StripeConfigSnapshot exposes a redacted view of runtime Stripe credentials.
+//
+// Provides visibility into which credentials are active without exposing
+// sensitive values. Used for admin UI status display.
+//
+// @usage GetStripeSettingsResponse.snapshot
 message StripeConfigSnapshot {
-  // Masked preview of the publishable key (e.g., "pk_live...42").
+  // Masked preview of the publishable key (e.g., "pk_live_...abc123").
+  // Shows first 7 and last 6 characters for identification.
   string publishable_key_preview = 1;
-  // True when a publishable key is available.
+  // True when a publishable key is configured and available.
   bool publishable_key_set = 2;
-  // True when a secret key is available.
+  // True when a secret key is configured and available.
   bool secret_key_set = 3;
-  // True when a webhook signing secret is available.
+  // True when a webhook signing secret is configured and available.
   bool webhook_secret_set = 4;
-  // Source of the active configuration.
+  // Source from which active credentials were loaded.
   ConfigSource source = 5;
 }
 
 // StripeSettings contains persisted admin-provided Stripe credentials.
+//
+// SECURITY: This message contains sensitive credentials. Only return
+// to authenticated admin users. Never log or expose in error messages.
+//
+// @usage GetStripeSettingsResponse.settings (admin only)
 message StripeSettings {
-  // Full publishable key.
+  // Full Stripe publishable key (pk_live_* or pk_test_*).
+  // Safe to expose to frontend clients.
+  // @format stripe_publishable_key
   string publishable_key = 1;
-  // Full secret key.
+  // Full Stripe secret key (sk_live_* or sk_test_*).
+  // SENSITIVE: Never expose to frontend or log.
+  // @format stripe_secret_key
   string secret_key = 2;
-  // Webhook signing secret.
+  // Webhook signing secret (whsec_*).
+  // Used to verify webhook payloads from Stripe.
+  // @format stripe_webhook_secret
   string webhook_secret = 3;
-  // Optional dashboard URL for UI linking.
+  // Optional Stripe dashboard URL for admin convenience.
+  // @format url
   optional string dashboard_url = 4;
-  // Last update timestamp.
+  // When settings were last updated.
   google.protobuf.Timestamp updated_at = 5;
 }
 
+// =============================================================================
+// SETTINGS API TYPES
+// =============================================================================
+
 // GetStripeSettingsRequest requests current Stripe settings and snapshot.
+//
+// @usage LandingPagePaymentsService.GetStripeSettings (admin only)
 message GetStripeSettingsRequest {}
 
 // GetStripeSettingsResponse returns persisted settings and runtime snapshot.
+//
+// @usage LandingPagePaymentsService.GetStripeSettings response
 message GetStripeSettingsResponse {
-  // Persisted admin-configured settings (may be empty if unset).
+  // Persisted admin-configured settings (may be empty if using env vars).
   StripeSettings settings = 1;
-  // Runtime configuration snapshot used by the API.
+  // Runtime configuration snapshot showing active credentials source.
   StripeConfigSnapshot snapshot = 2;
 }
 
 // UpdateStripeSettingsRequest partially updates Stripe credentials.
+//
+// Supports partial updates: only provided fields are updated.
+// Omitted fields retain their current values.
+//
+// @usage LandingPagePaymentsService.UpdateStripeSettings (admin only)
 message UpdateStripeSettingsRequest {
-  // Publishable key to set; omitted to leave unchanged.
+  // Publishable key to set. If unset, current value is retained.
+  // @format stripe_publishable_key
   optional string publishable_key = 1;
-  // Secret key to set; omitted to leave unchanged.
+  // Secret key to set. If unset, current value is retained.
+  // @format stripe_secret_key
   optional string secret_key = 2;
-  // Webhook signing secret to set; omitted to leave unchanged.
+  // Webhook signing secret to set. If unset, current value is retained.
+  // @format stripe_webhook_secret
   optional string webhook_secret = 3;
-  // Dashboard URL to set; omitted to leave unchanged.
+  // Dashboard URL to set. If unset, current value is retained.
+  // @format url
   optional string dashboard_url = 4;
 }
 
 // UpdateStripeSettingsResponse returns the resulting settings and snapshot.
+//
+// @usage LandingPagePaymentsService.UpdateStripeSettings response
 message UpdateStripeSettingsResponse {
-  // Persisted admin-configured settings.
+  // Updated persisted admin-configured settings.
   StripeSettings settings = 1;
-  // Updated runtime configuration snapshot.
+  // Updated runtime configuration snapshot (source will be DATABASE).
   StripeConfigSnapshot snapshot = 2;
 }
