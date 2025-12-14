@@ -186,22 +186,27 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     openSpy.mockRestore();
   });
 
-  it('surfaces demo data reset control when flag enabled', async () => {
-    mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: true });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('surfaces demo data reset control with confirmation dialog', async () => {
     const user = userEvent.setup();
 
     renderWithRouter(<AdminHome />);
 
+    // Reset card should always be visible
     const resetCard = await screen.findByTestId('admin-reset-demo-card');
     expect(resetCard).toBeInTheDocument();
 
+    // Click the reset button to show confirmation dialog
     await user.click(screen.getByTestId('admin-reset-demo-btn'));
 
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(mockedResetDemoData).toHaveBeenCalled();
+    // Confirmation dialog should appear
+    const confirmDialog = await screen.findByTestId('admin-reset-confirm-dialog');
+    expect(confirmDialog).toBeInTheDocument();
+    expect(confirmDialog).toHaveTextContent('Are you sure you want to reset?');
 
-    confirmSpy.mockRestore();
+    // Click confirm to execute reset
+    await user.click(screen.getByTestId('admin-reset-confirm-btn'));
+
+    expect(mockedResetDemoData).toHaveBeenCalled();
   });
 
   it('should surface quick resume panel when recents exist', async () => {

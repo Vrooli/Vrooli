@@ -24,10 +24,10 @@ export function FAQSection({ content }: FAQSectionProps) {
     },
     {
       question: 'Do I need to code or design?',
-      answer: 'No. BAS is visual and AI-assisted. You point it at your browser tasks, it builds the workflow, retries failures, and records polished walkthroughs with overlays.',
+      answer: 'No coding required. Vrooli Ascension records your browser actions passively—select any moment to become a reusable workflow. It retries failures automatically and exports polished walkthroughs with overlays.',
     },
     {
-      question: 'What can BAS automate?',
+      question: 'What can Vrooli Ascension automate?',
       answer: 'Lead research, CRM updates, onboarding checklists, ad dashboard pulls, and product walkthroughs. Anything in a browser with clicks, waits, loops, and extracts.',
     },
     {

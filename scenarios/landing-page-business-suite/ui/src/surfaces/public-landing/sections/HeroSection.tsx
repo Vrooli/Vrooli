@@ -67,7 +67,7 @@ export function HeroSection({ content }: HeroSectionProps) {
               <Sparkles className="h-3.5 w-3.5 text-[#F97316]" />
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-semibold text-[#d3f2ff]">
-              Browser Automation Studio · Live today
+              Vrooli Ascension · Live today
             </span>
           </div>
 
@@ -103,7 +103,7 @@ export function HeroSection({ content }: HeroSectionProps) {
                 {
                   icon: <Video className="h-4 w-4 text-[#38BDF8]" />,
                   title: 'Replay-ready',
-                  copy: 'Records your flow, rebuilds it, and ships HD reels automatically.',
+                  copy: 'Passively builds a timeline of your work—convert anything into a reusable workflow.',
                 },
                 {
                   icon: <ShieldCheck className="h-4 w-4 text-[#10B981]" />,
@@ -111,9 +111,9 @@ export function HeroSection({ content }: HeroSectionProps) {
                   copy: 'Waits, retries, and entitlement checks keep ops reliable.',
                 },
                 {
-                  icon: <Cpu className="h-4 w-4 text-[#F97316]" />,
-                  title: 'AI that builds',
-                  copy: 'Describe it once; BAS assembles workflows and shot lists for you.',
+                  icon: <Clock className="h-4 w-4 text-[#F97316]" />,
+                  title: 'Zero-effort capture',
+                  copy: 'Works in the background. Select any moment to become a reusable workflow.',
                 },
               ].map((item) => (
                 <div key={item.title} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-3 py-3">
@@ -190,17 +190,9 @@ interface FeatureConfig {
 
 const FEATURE_CONFIGS: FeatureConfig[] = [
   {
-    id: 'ai-powered',
-    title: 'AI-Powered',
-    label: 'AI generates your workflow',
-    icon: <Sparkles size={16} />,
-    gradient: 'from-purple-500/20 to-pink-500/20',
-    accentColor: 'purple',
-  },
-  {
     id: 'record-mode',
     title: 'Record Mode',
-    label: 'Record your browser actions',
+    label: 'Passively capture your browser actions',
     icon: <Video size={16} />,
     gradient: 'from-red-500/20 to-orange-500/20',
     accentColor: 'red',
@@ -221,6 +213,15 @@ const FEATURE_CONFIGS: FeatureConfig[] = [
     gradient: 'from-green-500/20 to-emerald-500/20',
     accentColor: 'green',
   },
+  // TODO: Re-enable when AI workflow generation ships
+  // {
+  //   id: 'ai-powered',
+  //   title: 'AI-Powered',
+  //   label: 'AI generates your workflow (Coming Soon)',
+  //   icon: <Sparkles size={16} />,
+  //   gradient: 'from-purple-500/20 to-pink-500/20',
+  //   accentColor: 'purple',
+  // },
 ];
 
 const CYCLE_DURATION = 6000;
@@ -804,10 +805,11 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
   const activeFeature = FEATURE_CONFIGS[activeIndex];
 
   const previews = [
-    <AIPreview key="ai" isActive={activeIndex === 0 && !isTransitioning} />,
-    <RecordModePreview key="record" isActive={activeIndex === 1 && !isTransitioning} />,
-    <VisualBuilderPreview key="visual" isActive={activeIndex === 2 && !isTransitioning} />,
-    <TestMonitorPreview key="test" isActive={activeIndex === 3 && !isTransitioning} />,
+    <RecordModePreview key="record" isActive={activeIndex === 0 && !isTransitioning} />,
+    <VisualBuilderPreview key="visual" isActive={activeIndex === 1 && !isTransitioning} />,
+    <TestMonitorPreview key="test" isActive={activeIndex === 2 && !isTransitioning} />,
+    // TODO: Re-enable when AI workflow generation ships
+    // <AIPreview key="ai" isActive={activeIndex === 3 && !isTransitioning} />,
   ];
 
   return (

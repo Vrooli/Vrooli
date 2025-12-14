@@ -75,7 +75,7 @@
           { "title": "Workflows = e2e tests", "description": "Run flows in CI, capture failures, and share evidence without rewriting tests.", "icon": "shield" },
           { "title": "Replay-as-movie exports", "description": "Fake browser frames, smooth cursor animation, zoom/pan highlights, MP4 export with watermark rules by plan.", "icon": "sparkles" },
           { "title": "Future UX metrics layer", "description": "Coming soon: friction scores, duration, and spatial patterns generated from your workflows.", "icon": "layers" },
-          { "title": "Agent loops on deck", "description": "Next up: ecosystem-manager + PRD control tower so agents can improve flows and enforce requirements.", "icon": "target" }
+          { "title": "AI automation (coming soon)", "description": "Coming soon: AI that learns your habits from the timeline and builds workflows automatically. Plus agent loops via ecosystem-manager + PRD control tower.", "icon": "target" }
         ]
       }
     },

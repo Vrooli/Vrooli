@@ -7,7 +7,6 @@ import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from "../../
 import { listVariants, type AnalyticsSummary, type Variant, type VariantStats, getStripeSettings, type StripeSettingsResponse, resetDemoData, getBranding, listDownloadAppsAdmin, type SiteBranding, type DownloadApp } from "../../../shared/api";
 import { buildDateRange, fetchAnalyticsSummary } from "../controllers/analyticsController";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
-import { useAdminAuth } from "../../../app/providers/AdminAuthProvider";
 
 const HEALTH_SNAPSHOT_DAYS = 7;
 const STALE_VARIANT_DAYS = 10;
@@ -74,7 +73,6 @@ export function AdminHome() {
   const navigate = useNavigate();
   const [experience, setExperience] = useState<AdminExperienceSnapshot | null>(null);
   const { variant: liveVariant, resolution: liveResolution, statusNote: liveStatusNote } = useLandingVariant();
-  const { canResetDemoData } = useAdminAuth();
   const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -180,17 +178,13 @@ export function AdminHome() {
     refreshDownloadsHealth();
   }, [refreshDownloadsHealth]);
 
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   const handleResetDemoData = useCallback(async () => {
-    if (!canResetDemoData) {
-      return;
-    }
-    const confirmed = window.confirm('This will wipe variants, sections, downloads, and pricing, then re-seed from the template defaults. Continue?');
-    if (!confirmed) {
-      return;
-    }
     setResettingDemoData(true);
     setResetError(null);
     setResetMessage(null);
+    setShowResetConfirm(false);
     try {
       await resetDemoData();
       setResetMessage('Demo data restored to template defaults.');
@@ -200,7 +194,7 @@ export function AdminHome() {
     } finally {
       setResettingDemoData(false);
     }
-  }, [canResetDemoData, refreshHealthSnapshot, refreshStripeStatus]);
+  }, [refreshHealthSnapshot, refreshStripeStatus]);
 
   const resumeVariant = experience?.lastVariant;
   const resumeAnalytics = experience?.lastAnalytics;
@@ -303,36 +297,74 @@ export function AdminHome() {
           onNavigateDownloads={handleNavigateDownloads}
         />
 
-        {canResetDemoData && (
-          <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6" data-testid="admin-reset-demo-card">
-            <div className="flex items-center gap-3">
-              <RefreshCw className={`h-5 w-5 text-amber-300 ${resettingDemoData ? 'animate-spin' : ''}`} />
-              <div>
-                <h3 className="text-lg font-semibold text-white">Reset demo data</h3>
-                <p className="text-sm text-amber-100/80">Wipe variants, sections, downloads, and pricing, then re-seed from the template fallback payload.</p>
-              </div>
+        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6" data-testid="admin-reset-demo-card">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className={`h-5 w-5 text-rose-400`} />
+            <div>
+              <h3 className="text-lg font-semibold text-white">Reset to template defaults</h3>
+              <p className="text-sm text-rose-100/80">Re-seed all landing page content from the fallback template. Use this to apply updated template content or restore defaults.</p>
             </div>
-            {resetError && (
-              <p className="mt-3 text-sm text-rose-200" data-testid="admin-reset-error">{resetError}</p>
-            )}
-            {resetMessage && (
-              <p className="mt-3 text-sm text-emerald-200" data-testid="admin-reset-success">{resetMessage}</p>
-            )}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+          </div>
+          {resetError && (
+            <p className="mt-3 text-sm text-rose-200" data-testid="admin-reset-error">{resetError}</p>
+          )}
+          {resetMessage && (
+            <p className="mt-3 text-sm text-emerald-200" data-testid="admin-reset-success">{resetMessage}</p>
+          )}
+
+          {!showResetConfirm ? (
+            <div className="mt-4">
               <Button
                 variant="outline"
-                className="gap-2"
-                onClick={handleResetDemoData}
+                className="gap-2 border-rose-500/50 text-rose-200 hover:bg-rose-500/10"
+                onClick={() => setShowResetConfirm(true)}
                 disabled={resettingDemoData}
                 data-testid="admin-reset-demo-btn"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${resettingDemoData ? 'animate-spin' : ''}`} />
                 {resettingDemoData ? 'Resetting…' : 'Reset demo data'}
               </Button>
-              <p className="text-xs text-amber-200/70">Available when ENABLE_ADMIN_RESET=true.</p>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="mt-4 rounded-xl border border-rose-500/50 bg-rose-500/10 p-4 space-y-4" data-testid="admin-reset-confirm-dialog">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-rose-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <p className="font-semibold text-rose-100">Are you sure you want to reset?</p>
+                  <p className="text-sm text-rose-200/80">This action will permanently delete:</p>
+                  <ul className="text-sm text-rose-200/80 list-disc list-inside space-y-1">
+                    <li>All variant customizations</li>
+                    <li>All section content edits</li>
+                    <li>Download app configurations</li>
+                    <li>Bundle pricing settings</li>
+                  </ul>
+                  <p className="text-sm text-rose-200/80 font-medium">
+                    Data will be replaced with the current template fallback. This cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setShowResetConfirm(false)}
+                  disabled={resettingDemoData}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+                  onClick={handleResetDemoData}
+                  disabled={resettingDemoData}
+                  data-testid="admin-reset-confirm-btn"
+                >
+                  <RefreshCw className={`h-4 w-4 ${resettingDemoData ? 'animate-spin' : ''}`} />
+                  {resettingDemoData ? 'Resetting…' : 'Yes, reset everything'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Analytics / Metrics Mode */}

@@ -47,7 +47,7 @@ type LoginResponse struct {
 func buildLoginResponse(email string, authenticated bool) LoginResponse {
 	resp := LoginResponse{
 		Authenticated: authenticated,
-		ResetEnabled:  adminResetEnabled(),
+		ResetEnabled:  true, // Always enabled - UI handles confirmation
 	}
 	if authenticated && email != "" {
 		resp.Email = email

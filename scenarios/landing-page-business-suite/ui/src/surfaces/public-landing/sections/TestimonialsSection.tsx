@@ -23,7 +23,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
       name: 'Maya R.',
       role: 'Solo founder',
       company: 'AI concierge studio',
-      content: 'BAS runs my client onboarding while I sleep. The same flows spit out perfect reels for ads—zero camera time.',
+      content: 'Vrooli Ascension runs my client onboarding while I sleep. The same flows spit out perfect reels for ads—zero camera time.',
       rating: 5,
     },
     {
@@ -37,7 +37,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
       name: 'Jess P.',
       role: 'Agency owner',
       company: 'Growth studio',
-      content: 'Clients think I have a video team. It’s BAS in the background with guardrails so nothing breaks on launch day.',
+      content: "Clients think I have a video team. It's Vrooli Ascension in the background with guardrails so nothing breaks on launch day.",
       rating: 5,
     },
   ];

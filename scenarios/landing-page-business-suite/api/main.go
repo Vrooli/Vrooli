@@ -293,11 +293,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAdminResetDemoData(w http.ResponseWriter, r *http.Request) {
-	if !adminResetEnabled() {
-		http.Error(w, "demo reset disabled", http.StatusForbidden)
-		return
-	}
-
 	if err := s.resetDemoData(r.Context()); err != nil {
 		logStructuredError("admin_reset_failed", map[string]interface{}{"error": err.Error()})
 		http.Error(w, "failed to reset demo data", http.StatusInternalServerError)
@@ -342,10 +337,6 @@ func (s *Server) resetDemoData(ctx context.Context) error {
 	}
 
 	return seedDefaultData(s.db)
-}
-
-func adminResetEnabled() bool {
-	return strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_ADMIN_RESET")), "true")
 }
 
 // seedDefaultData ensures the public landing page has content without requiring admin setup

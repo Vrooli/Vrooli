@@ -78,8 +78,8 @@
             "icon": "activity"
           },
           {
-            "title": "Agent upgrades (coming soon)",
-            "description": "Future integrations with ecosystem-manager and PRD control tower to auto-fix regressions.",
+            "title": "AI automation (coming soon)",
+            "description": "Coming soon: AI that learns your habits from the timeline and builds workflows automatically. Plus agent loops via ecosystem-manager + PRD control tower.",
             "icon": "cpu"
           }
         ]

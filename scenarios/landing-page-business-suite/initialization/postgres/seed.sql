@@ -83,7 +83,7 @@ DECLARE
         {"title":"Workflows = e2e tests","description":"Run flows in CI, capture failures, and share evidence without rewriting tests.","icon":"shield"},
         {"title":"Replay-as-movie exports","description":"Fake browser frames, smooth cursor animation, zoom/pan highlights, MP4 export with watermark rules by plan.","icon":"sparkles"},
         {"title":"Future UX metrics layer","description":"Coming soon: friction scores, duration, and spatial patterns generated from your workflows.","icon":"layers"},
-        {"title":"Agent loops on deck","description":"Next up: ecosystem-manager + PRD control tower so agents can improve flows and enforce requirements.","icon":"target"}
+        {"title":"AI automation (coming soon)","description":"Coming soon: AI that learns your habits from the timeline and builds workflows automatically. Plus agent loops via ecosystem-manager + PRD control tower.","icon":"target"}
       ]
     }';
     faq_json TEXT := '{
@@ -247,9 +247,9 @@ ON CONFLICT (bundle_key, app_key) DO UPDATE SET
 
 INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata)
 VALUES
-('business_suite', 'automation_studio', 'windows', 'https://downloads.vrooli.local/business-suite/win/VrooliBusinessStudioSetup.exe', '1.2.0', 'Includes fresh launch console + webdriver upgrades.', 'sha256-win-placeholder', TRUE, '{"size_mb":230}'),
-('business_suite', 'automation_studio', 'mac', 'https://downloads.vrooli.local/business-suite/mac/VrooliBusinessStudio.dmg', '1.2.0', 'Signed universal build for Apple Silicon + Intel.', 'sha256-mac-placeholder', TRUE, '{"size_mb":215}'),
-('business_suite', 'automation_studio', 'linux', 'https://downloads.vrooli.local/business-suite/linux/vrooli-business-studio.tar.gz', '1.2.0', 'AppImage bundle tested on Ubuntu/Debian.', 'sha256-linux-placeholder', TRUE, '{"size_mb":225}')
+('business_suite', 'automation_studio', 'windows', 'https://downloads.vrooli.local/business-suite/win/VrooliAscensionSetup.exe', '1.2.0', 'Includes fresh launch console + webdriver upgrades.', 'sha256-win-placeholder', TRUE, '{"size_mb":230}'),
+('business_suite', 'automation_studio', 'mac', 'https://downloads.vrooli.local/business-suite/mac/VrooliAscension.dmg', '1.2.0', 'Signed universal build for Apple Silicon + Intel.', 'sha256-mac-placeholder', TRUE, '{"size_mb":215}'),
+('business_suite', 'automation_studio', 'linux', 'https://downloads.vrooli.local/business-suite/linux/vrooli-ascension.tar.gz', '1.2.0', 'AppImage bundle tested on Ubuntu/Debian.', 'sha256-linux-placeholder', TRUE, '{"size_mb":225}')
 ON CONFLICT (bundle_key, app_key, platform) DO UPDATE SET
     artifact_url = EXCLUDED.artifact_url,
     release_version = EXCLUDED.release_version,
