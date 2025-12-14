@@ -151,11 +151,21 @@ func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]interface{}{
+	response := map[string]interface{}{
 		"scenario":        scenarioName,
 		"recommendations": recommendations,
 		"count":           len(recommendations),
-	})
+	}
+
+	// Add warning if no data exists for scenario
+	if len(recommendations) == 0 {
+		hasMetrics, _ := s.scanCoordinator.HasMetricsForScenario(r.Context(), scenarioName)
+		if !hasMetrics {
+			response["warning"] = "no file metrics found for scenario - run 'tidiness-manager scan <scenario-path>' first"
+		}
+	}
+
+	respondJSON(w, http.StatusOK, response)
 }
 
 // respondJSON writes a JSON response
@@ -270,4 +280,90 @@ func (s *Server) persistFileMetrics(ctx context.Context, scenario string, metric
 		return fmt.Errorf("store not initialized")
 	}
 	return s.store.PersistFileMetrics(ctx, scenario, metrics)
+}
+
+// GenerateIssuesFromMetricsRequest defines request for generating issues from stored metrics
+type GenerateIssuesFromMetricsRequest struct {
+	Scenario string `json:"scenario"`
+}
+
+// handleGenerateIssuesFromMetrics generates issues from existing file metrics in the database
+// This is useful when metrics exist but issues weren't generated (e.g., after incremental scans)
+func (s *Server) handleGenerateIssuesFromMetrics(w http.ResponseWriter, r *http.Request) {
+	var req GenerateIssuesFromMetricsRequest
+	if !decodeAndValidateJSON(w, r, &req) {
+		return
+	}
+
+	if req.Scenario == "" {
+		respondError(w, http.StatusBadRequest, "scenario is required")
+		return
+	}
+
+	if s.store == nil {
+		respondError(w, http.StatusInternalServerError, "store not initialized")
+		return
+	}
+
+	// Get existing file metrics from database
+	metrics, err := s.store.GetDetailedFileMetrics(r.Context(), req.Scenario)
+	if err != nil {
+		s.log("failed to get file metrics", map[string]interface{}{
+			"error":    err.Error(),
+			"scenario": req.Scenario,
+		})
+		respondError(w, http.StatusInternalServerError, "failed to get file metrics")
+		return
+	}
+
+	if len(metrics) == 0 {
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"scenario":  req.Scenario,
+			"generated": 0,
+			"inserted":  0,
+			"message":   "no file metrics found for scenario - run a scan first",
+		})
+		return
+	}
+
+	// Generate issues from metrics
+	config := DefaultIssueGeneratorConfig()
+	issues := GenerateIssuesFromMetrics(req.Scenario, metrics, config)
+
+	if len(issues) == 0 {
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"scenario":      req.Scenario,
+			"metrics_count": len(metrics),
+			"generated":     0,
+			"inserted":      0,
+			"message":       "no issues exceeded thresholds",
+		})
+		return
+	}
+
+	// Persist the generated issues
+	inserted, persistErr := s.store.StoreLintTypeIssues(r.Context(), req.Scenario, issues)
+	if persistErr != nil {
+		s.log("failed to persist metric-based issues", map[string]interface{}{
+			"error":    persistErr.Error(),
+			"scenario": req.Scenario,
+			"count":    len(issues),
+		})
+		respondError(w, http.StatusInternalServerError, "failed to persist issues")
+		return
+	}
+
+	s.log("generated issues from metrics", map[string]interface{}{
+		"scenario":      req.Scenario,
+		"metrics_count": len(metrics),
+		"generated":     len(issues),
+		"inserted":      inserted,
+	})
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"scenario":      req.Scenario,
+		"metrics_count": len(metrics),
+		"generated":     len(issues),
+		"inserted":      inserted,
+	})
 }

@@ -144,13 +144,13 @@ func TestNewDuplicationDetector_DefaultTimeout(t *testing.T) {
 func TestParseDuplOutput_Valid(t *testing.T) {
 	dd := newTestDetector()
 
-	output := `/scenario/api/handler.go:10-25
-/scenario/api/util.go:45-60
-found 2 clones
-
-/scenario/api/main.go:100-110
-/scenario/api/server.go:200-210
-found 2 clones
+	// Actual dupl format: "found N clones:" header, then indented file:start,end lines
+	output := `found 2 clones:
+  /scenario/api/handler.go:10,25
+  /scenario/api/util.go:45,60
+found 2 clones:
+  /scenario/api/main.go:100,110
+  /scenario/api/server.go:200,210
 `
 
 	blocks := requireBlocks(t, dd.parseDuplOutput(output), 2)
@@ -173,9 +173,9 @@ func TestParseDuplOutput_Empty(t *testing.T) {
 func TestParseDuplOutput_SingleBlock(t *testing.T) {
 	dd := newTestDetector()
 
-	output := `/scenario/api/test.go:5-10
-/scenario/api/copy.go:20-25
-found 2 clones
+	output := `found 2 clones:
+  /scenario/api/test.go:5,10
+  /scenario/api/copy.go:20,25
 `
 
 	blocks := requireBlocks(t, dd.parseDuplOutput(output), 1)
@@ -203,10 +203,10 @@ func TestParseDuplOutput_MultipleLocations(t *testing.T) {
 	dd := newTestDetector()
 
 	// Three files with same duplication
-	output := `/scenario/api/a.go:10-20
-/scenario/api/b.go:30-40
-/scenario/api/c.go:50-60
-found 3 clones
+	output := `found 3 clones:
+  /scenario/api/a.go:10,20
+  /scenario/api/b.go:30,40
+  /scenario/api/c.go:50,60
 `
 
 	blocks := requireBlocks(t, dd.parseDuplOutput(output), 1)
@@ -427,9 +427,9 @@ func TestDuplicateResult_Structure(t *testing.T) {
 func TestParseDuplOutput_SpecialCharacters(t *testing.T) {
 	dd := newTestDetector()
 
-	output := `/scenario/api/handler-v2.go:10-25
-/scenario/api/util_test.go:45-60
-found 2 clones
+	output := `found 2 clones:
+  /scenario/api/handler-v2.go:10,25
+  /scenario/api/util_test.go:45,60
 `
 
 	blocks := requireBlocks(t, dd.parseDuplOutput(output), 1)
@@ -655,15 +655,14 @@ func TestParseDuplOutput_MixedValidInvalid(t *testing.T) {
 	dd := newTestDetector()
 
 	output := `some random header
-/scenario/api/valid.go:10-20
-/scenario/api/valid2.go:30-40
-found 2 clones
-
+found 2 clones:
+  /scenario/api/valid.go:10,20
+  /scenario/api/valid2.go:30,40
 invalid line here
-/scenario/api/another.go:50-60
+found 2 clones:
+  /scenario/api/another.go:50,60
 malformed:line
-/scenario/api/another2.go:70-80
-found 2 clones
+  /scenario/api/another2.go:70,80
 `
 
 	blocks := dd.parseDuplOutput(output)
@@ -706,11 +705,13 @@ func TestParseDuplOutput_LargeOutput(t *testing.T) {
 	dd := newTestDetector()
 
 	// Generate output with 100 duplicate blocks
+	// Actual dupl format: "found N clones:" header, then indented file:start,end lines
 	var output string
 	for i := 0; i < 100; i++ {
-		output += fmt.Sprintf("/scenario/api/file%d.go:10-50\n", i)
-		output += fmt.Sprintf("/scenario/api/copy%d.go:100-140\n", i)
-		output += "found 2 clones\n\n"
+		output += "found 2 clones:\n"
+		output += fmt.Sprintf("  /scenario/api/file%d.go:10,50\n", i)
+		output += fmt.Sprintf("  /scenario/api/copy%d.go:100,140\n", i)
+		output += "\n"
 	}
 
 	blocks := requireBlocks(t, dd.parseDuplOutput(output), 100)
@@ -731,13 +732,14 @@ func TestParseDuplOutput_UnicodePaths(t *testing.T) {
 	dd := newTestDetector()
 
 	// Test with various international characters
-	output := `/scenario/api/处理器.go:10-20
-/scenario/api/файл.go:30-40
-found 2 clones
+	// Actual dupl format: "found N clones:" header, then indented file:start,end lines
+	output := `found 2 clones:
+  /scenario/api/处理器.go:10,20
+  /scenario/api/файл.go:30,40
 
-/scenario/ui/コンポーネント.tsx:5-15
-/scenario/ui/مكون.tsx:25-35
-found 2 clones
+found 2 clones:
+  /scenario/ui/コンポーネント.tsx:5,15
+  /scenario/ui/مكون.tsx:25,35
 `
 
 	blocks := requireBlocks(t, dd.parseDuplOutput(output), 2)
@@ -823,17 +825,19 @@ func TestParseDuplOutput_LineRangeEdgeCases(t *testing.T) {
 	}{
 		{
 			name: "single line duplication",
-			output: `/scenario/api/test.go:42-42
-/scenario/api/copy.go:100-100
-found 2 clones
+			// Actual dupl format: "found N clones:" header, then indented file:start,end lines
+			output: `found 2 clones:
+  /scenario/api/test.go:42,42
+  /scenario/api/copy.go:100,100
 `,
 			expectedLines: 1, // 42-42+1 = 1
 		},
 		{
 			name: "large line range",
-			output: `/scenario/api/test.go:1-1000
-/scenario/api/copy.go:1-1000
-found 2 clones
+			// Actual dupl format: "found N clones:" header, then indented file:start,end lines
+			output: `found 2 clones:
+  /scenario/api/test.go:1,1000
+  /scenario/api/copy.go:1,1000
 `,
 			expectedLines: 1000, // 1000-1+1 = 1000
 		},
@@ -921,9 +925,10 @@ func TestParseDuplOutput_WindowsPaths(t *testing.T) {
 	dd := NewDuplicationDetector("C:\\scenario", 60*time.Second)
 
 	// Test with backslashes (though dupl would likely normalize these)
-	output := `C:\scenario\api\handler.go:10-25
-C:\scenario\api\util.go:45-60
-found 2 clones
+	// Actual dupl format: "found N clones:" header, then indented file:start,end lines
+	output := `found 2 clones:
+  C:\scenario\api\handler.go:10,25
+  C:\scenario\api\util.go:45,60
 `
 
 	blocks := dd.parseDuplOutput(output)
@@ -959,12 +964,14 @@ func TestDuplicationDetector_TimeoutEnforcement(t *testing.T) {
 func TestParseDuplOutput_IgnoresNonCloneLines(t *testing.T) {
 	dd := newTestDetector()
 
+	// Actual dupl format: "found N clones:" header, then indented file:start,end lines
+	// The parser should ignore non-clone lines before and after the block
 	output := `Analyzing files...
 Processing: api/handler.go
 Processing: api/util.go
-/scenario/api/handler.go:10-20
-/scenario/api/util.go:30-40
-found 2 clones
+found 2 clones:
+  /scenario/api/handler.go:10,20
+  /scenario/api/util.go:30,40
 
 Total files analyzed: 50
 Duplicates found: 1

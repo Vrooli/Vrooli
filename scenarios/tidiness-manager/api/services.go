@@ -218,18 +218,22 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 	}
 
 	// Parse and persist lint/type issues (OT-P0-001, OT-P0-007, OT-P0-008)
+	var lintIssueCount, typeIssueCount int
+
 	if sc.persistLintTypeIssues != nil {
 		var allIssues []Issue
 
 		// Parse lint output if present
 		if result.LintOutput != nil && result.LintOutput.Stdout != "" {
 			lintIssues := ParseLintOutput(result.Scenario, "lint", result.LintOutput.Stdout)
+			lintIssueCount = len(lintIssues)
 			allIssues = append(allIssues, lintIssues...)
 		}
 
 		// Parse type output if present
 		if result.TypeOutput != nil && result.TypeOutput.Stdout != "" {
 			typeIssues := ParseTypeOutput(result.Scenario, "type", result.TypeOutput.Stdout)
+			typeIssueCount = len(typeIssues)
 			allIssues = append(allIssues, typeIssues...)
 		}
 
@@ -251,6 +255,11 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 		}
 	}
 
+	// Populate convenience counts for CLI consumption
+	result.LintIssuesCount = lintIssueCount
+	result.TypeIssuesCount = typeIssueCount
+	result.LongFilesCount = len(result.LongFiles)
+
 	// Collect and persist detailed file metrics to database (TM-FM-001, TM-FM-002)
 	scenarioPath := sc.scenarios.ScenarioPath(result.Scenario)
 
@@ -259,33 +268,73 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 		filePaths[i] = fm.Path
 	}
 
-	if len(filePaths) == 0 {
-		return result, nil
-	}
+	var detailedMetrics []DetailedFileMetrics
 
-	detailedMetrics, metricsErr := CollectDetailedFileMetrics(scenarioPath, filePaths)
-	if metricsErr != nil {
-		sc.log("failed to collect detailed metrics", map[string]interface{}{
-			"error":    metricsErr.Error(),
-			"scenario": result.Scenario,
-		})
-		if sc.persistBasic != nil {
-			if err := sc.persistBasic(ctx, result.Scenario, result.FileMetrics); err != nil {
-				sc.log("failed to persist basic file metrics", map[string]interface{}{
+	if len(filePaths) > 0 {
+		// Pass language metrics for complexity/duplication data
+		var metricsErr error
+		detailedMetrics, metricsErr = CollectDetailedFileMetricsWithLangMetrics(scenarioPath, filePaths, result.LanguageMetrics)
+		if metricsErr != nil {
+			sc.log("failed to collect detailed metrics", map[string]interface{}{
+				"error":    metricsErr.Error(),
+				"scenario": result.Scenario,
+			})
+			if sc.persistBasic != nil {
+				if err := sc.persistBasic(ctx, result.Scenario, result.FileMetrics); err != nil {
+					sc.log("failed to persist basic file metrics", map[string]interface{}{
+						"error":    err.Error(),
+						"scenario": result.Scenario,
+					})
+				}
+			}
+			// Don't return early - try to generate issues from existing DB metrics
+		} else if sc.persistDetailed != nil {
+			if err := sc.persistDetailed(ctx, result.Scenario, detailedMetrics); err != nil {
+				sc.log("failed to persist detailed file metrics", map[string]interface{}{
 					"error":    err.Error(),
 					"scenario": result.Scenario,
 				})
 			}
 		}
-		return result, nil
 	}
 
-	if sc.persistDetailed != nil {
-		if err := sc.persistDetailed(ctx, result.Scenario, detailedMetrics); err != nil {
-			sc.log("failed to persist detailed file metrics", map[string]interface{}{
-				"error":    err.Error(),
-				"scenario": result.Scenario,
-			})
+	// Generate and persist issues from metrics (length, complexity, duplication, technical_debt, coupling)
+	// If no new files were scanned (incremental scan skipped all), fetch metrics from DB
+	if sc.persistLintTypeIssues != nil {
+		metricsForIssueGen := detailedMetrics
+
+		// If we don't have freshly collected metrics, try to get them from the database
+		if len(metricsForIssueGen) == 0 && sc.db != nil {
+			dbMetrics, dbErr := sc.getMetricsFromDB(ctx, scenarioName)
+			if dbErr != nil {
+				sc.log("failed to get metrics from DB for issue generation", map[string]interface{}{
+					"error":    dbErr.Error(),
+					"scenario": result.Scenario,
+				})
+			} else {
+				metricsForIssueGen = dbMetrics
+			}
+		}
+
+		if len(metricsForIssueGen) > 0 {
+			config := DefaultIssueGeneratorConfig()
+			metricIssues := GenerateIssuesFromMetrics(result.Scenario, metricsForIssueGen, config)
+			if len(metricIssues) > 0 {
+				inserted, persistErr := sc.persistLintTypeIssues(ctx, result.Scenario, metricIssues)
+				if persistErr != nil {
+					sc.log("failed to persist metric-based issues", map[string]interface{}{
+						"error":    persistErr.Error(),
+						"scenario": result.Scenario,
+						"count":    len(metricIssues),
+					})
+				} else {
+					sc.log("persisted metric-based issues", map[string]interface{}{
+						"scenario": result.Scenario,
+						"inserted": inserted,
+						"total":    len(metricIssues),
+					})
+				}
+			}
 		}
 	}
 
@@ -347,7 +396,7 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 		return fmt.Errorf("database not configured")
 	}
 
-	hasMetrics, err := sc.hasMetricsForScenario(ctx, scenarioName)
+	hasMetrics, err := sc.HasMetricsForScenario(ctx, scenarioName)
 	if err != nil {
 		return fmt.Errorf("failed to check metrics existence: %w", err)
 	}
@@ -383,7 +432,8 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 		return nil
 	}
 
-	detailedMetrics, metricsErr := CollectDetailedFileMetrics(scenarioPath, filePaths)
+	// Pass language metrics for complexity/duplication data
+	detailedMetrics, metricsErr := CollectDetailedFileMetricsWithLangMetrics(scenarioPath, filePaths, result.LanguageMetrics)
 	if metricsErr != nil {
 		sc.log("failed to collect detailed metrics", map[string]interface{}{
 			"error":    metricsErr.Error(),
@@ -396,7 +446,18 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 	}
 
 	if sc.persistDetailed != nil {
-		return sc.persistDetailed(ctx, scenarioName, detailedMetrics)
+		if err := sc.persistDetailed(ctx, scenarioName, detailedMetrics); err != nil {
+			return err
+		}
+	}
+
+	// Generate and persist issues from metrics
+	if sc.persistLintTypeIssues != nil && len(detailedMetrics) > 0 {
+		config := DefaultIssueGeneratorConfig()
+		metricIssues := GenerateIssuesFromMetrics(scenarioName, detailedMetrics, config)
+		if len(metricIssues) > 0 {
+			_, _ = sc.persistLintTypeIssues(ctx, scenarioName, metricIssues)
+		}
 	}
 
 	return nil
@@ -460,7 +521,8 @@ func (sc *ScanCoordinator) hasRecentScan(ctx context.Context, scenario string, w
 	return age <= within, nil
 }
 
-func (sc *ScanCoordinator) hasMetricsForScenario(ctx context.Context, scenario string) (bool, error) {
+// HasMetricsForScenario checks if file metrics exist in the database for a scenario
+func (sc *ScanCoordinator) HasMetricsForScenario(ctx context.Context, scenario string) (bool, error) {
 	if sc.db == nil {
 		return false, fmt.Errorf("database not configured")
 	}
@@ -472,6 +534,73 @@ func (sc *ScanCoordinator) hasMetricsForScenario(ctx context.Context, scenario s
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// getMetricsFromDB retrieves file metrics from the database for issue generation
+func (sc *ScanCoordinator) getMetricsFromDB(ctx context.Context, scenario string) ([]DetailedFileMetrics, error) {
+	if sc.db == nil {
+		return nil, fmt.Errorf("database not configured")
+	}
+
+	query := `
+		SELECT
+			file_path, language, file_extension, line_count,
+			todo_count, fixme_count, hack_count,
+			import_count, function_count, code_lines, comment_lines,
+			comment_to_code_ratio, has_test_file,
+			complexity_avg, complexity_max, duplication_pct
+		FROM file_metrics
+		WHERE scenario = $1
+	`
+
+	rows, err := sc.db.QueryContext(ctx, query, scenario)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var metrics []DetailedFileMetrics
+	for rows.Next() {
+		var m DetailedFileMetrics
+		var lang, ext sql.NullString
+		var complexityAvg sql.NullFloat64
+		var complexityMax sql.NullInt64
+		var duplicationPct sql.NullFloat64
+
+		err := rows.Scan(
+			&m.FilePath, &lang, &ext, &m.LineCount,
+			&m.TodoCount, &m.FixmeCount, &m.HackCount,
+			&m.ImportCount, &m.FunctionCount, &m.CodeLines, &m.CommentLines,
+			&m.CommentRatio, &m.HasTestFile,
+			&complexityAvg, &complexityMax, &duplicationPct,
+		)
+		if err != nil {
+			continue
+		}
+
+		if lang.Valid {
+			m.Language = lang.String
+		}
+		if ext.Valid {
+			m.FileExtension = ext.String
+		}
+		if complexityAvg.Valid {
+			val := complexityAvg.Float64
+			m.ComplexityAvg = &val
+		}
+		if complexityMax.Valid {
+			val := int(complexityMax.Int64)
+			m.ComplexityMax = &val
+		}
+		if duplicationPct.Valid {
+			val := duplicationPct.Float64
+			m.DuplicationPct = &val
+		}
+
+		metrics = append(metrics, m)
+	}
+
+	return metrics, nil
 }
 
 func (sc *ScanCoordinator) log(msg string, fields map[string]interface{}) {

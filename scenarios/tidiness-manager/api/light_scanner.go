@@ -45,6 +45,10 @@ type ScanResult struct {
 	TotalLines      int                           `json:"total_lines"`
 	HasMakefile     bool                          `json:"has_makefile"`
 	LanguageMetrics map[Language]*LanguageMetrics `json:"language_metrics,omitempty"`
+	// Convenience counts for CLI consumption
+	LintIssuesCount int `json:"lint_issues"`
+	TypeIssuesCount int `json:"type_issues"`
+	LongFilesCount  int `json:"long_files_count"`
 }
 
 // LanguageMetrics contains comprehensive metrics for a detected language

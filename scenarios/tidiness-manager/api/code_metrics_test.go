@@ -80,7 +80,7 @@ func helper() {
 			expectedTodo:    1,
 			expectedFixme:   1,
 			expectedHack:    1,
-			expectedImports: 1.0, // Go import block counts as single import
+			expectedImports: 2.0, // Go grouped imports are now counted individually
 			minFunctions:    2.0,
 		},
 		{

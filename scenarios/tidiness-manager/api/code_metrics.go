@@ -154,6 +154,7 @@ func (cma *CodeMetricsAnalyzer) analyzeFile(path string, lang Language) (*FileCo
 	hackPattern := regexp.MustCompile(`(?i)\bHACK\b`)
 
 	inMultiLineComment := false
+	inGoImportBlock := false // Track Go grouped import blocks
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -187,6 +188,26 @@ func (cma *CodeMetricsAnalyzer) analyzeFile(path string, lang Language) (*FileCo
 
 		// Only count imports/functions in code lines
 		if !isComment {
+			// Handle Go grouped import blocks: import ( ... )
+			if lang == LanguageGo {
+				if strings.HasPrefix(trimmed, "import (") {
+					inGoImportBlock = true
+					continue
+				}
+				if inGoImportBlock {
+					if trimmed == ")" {
+						inGoImportBlock = false
+						continue
+					}
+					// Each non-empty line inside import block is an import
+					// Skip comment lines within import block
+					if !strings.HasPrefix(trimmed, "//") && !strings.HasPrefix(trimmed, "/*") {
+						metrics.ImportCount++
+					}
+					continue
+				}
+			}
+
 			// Count imports (language-specific)
 			if cma.isImportLine(line, lang) {
 				metrics.ImportCount++
@@ -213,8 +234,16 @@ func (cma *CodeMetricsAnalyzer) isImportLine(line string, lang Language) bool {
 
 	switch lang {
 	case LanguageGo:
-		// Go imports: import "..." or import ( ... )
-		return strings.HasPrefix(trimmed, "import ") && !strings.Contains(trimmed, "//")
+		// Go single-line imports: import "..." (NOT import block starts handled separately)
+		if !strings.HasPrefix(trimmed, "import ") {
+			return false
+		}
+		// Skip grouped import block start (handled separately in analyzeFile)
+		if strings.HasPrefix(trimmed, "import (") {
+			return false
+		}
+		// Single import statement: import "fmt"
+		return !strings.Contains(trimmed, "//")
 
 	case LanguageTypeScript, LanguageJavaScript:
 		// TS/JS imports: import ... from '...' or import '...'

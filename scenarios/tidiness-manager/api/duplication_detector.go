@@ -104,11 +104,12 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// dupl returns non-zero if duplicates found
+	// dupl returns non-zero if duplicates found (that's expected, not an error)
 	_ = cmd.Run()
 
 	// Parse output
 	output := stdout.String()
+
 	blocks := dd.parseDuplOutput(output)
 
 	totalLines := 0
@@ -126,31 +127,45 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 }
 
 // parseDuplOutput parses dupl output into structured blocks
-// Format:
-// <file>:<start>-<end>
-// <file>:<start>-<end>
-// found <N> clones
+// Format (blocks separated by "found N clones:" headers):
+// found 4 clones:
+//
+//	api/file1.go:10,25
+//	api/file2.go:30,45
+//
+// found 2 clones:
+//
+//	api/file3.go:5,10
+//	api/file4.go:15,20
 func (dd *DuplicationDetector) parseDuplOutput(output string) []DuplicateBlock {
 	var blocks []DuplicateBlock
-	var currentBlock DuplicateBlock
 	var currentLocations []DuplicateLocation
+	var currentLines int
 
-	// Regex for line like: /path/to/file.go:10-25
-	locationRe := regexp.MustCompile(`^(.+?):(\d+)-(\d+)`)
-	// Regex for summary like: found 2 clones
-	summaryRe := regexp.MustCompile(`^found (\d+) clones`)
+	// Regex for line like: api/file.go:10,25 (dupl uses comma, not dash)
+	locationRe := regexp.MustCompile(`^\s*(.+?):(\d+),(\d+)`)
+	// Regex for header like: found 2 clones:
+	headerRe := regexp.MustCompile(`^found \d+ clones`)
 
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			// Empty line separates duplicate blocks
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			continue
+		}
+
+		// Check for header line - starts a new block
+		if headerRe.MatchString(trimmedLine) {
+			// Save previous block if any
 			if len(currentLocations) > 0 {
-				currentBlock.Files = currentLocations
-				blocks = append(blocks, currentBlock)
-				currentBlock = DuplicateBlock{}
-				currentLocations = []DuplicateLocation{}
+				blocks = append(blocks, DuplicateBlock{
+					Files: currentLocations,
+					Lines: currentLines,
+				})
 			}
+			// Reset for new block
+			currentLocations = []DuplicateLocation{}
+			currentLines = 0
 			continue
 		}
 
@@ -172,23 +187,19 @@ func (dd *DuplicationDetector) parseDuplOutput(output string) []DuplicateBlock {
 				EndLine:   endLine,
 			})
 
-			// Calculate lines (if first location in block)
-			if currentBlock.Lines == 0 {
-				currentBlock.Lines = endLine - startLine + 1
+			// Calculate lines (from first location in block)
+			if currentLines == 0 {
+				currentLines = endLine - startLine + 1
 			}
-			continue
-		}
-
-		// Check for summary line (ignore for now, we count blocks ourselves)
-		if summaryRe.MatchString(line) {
-			continue
 		}
 	}
 
 	// Add final block if exists
 	if len(currentLocations) > 0 {
-		currentBlock.Files = currentLocations
-		blocks = append(blocks, currentBlock)
+		blocks = append(blocks, DuplicateBlock{
+			Files: currentLocations,
+			Lines: currentLines,
+		})
 	}
 
 	return blocks

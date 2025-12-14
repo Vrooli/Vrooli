@@ -404,3 +404,70 @@ func (ts *TidinessStore) StoreLintTypeIssues(ctx context.Context, scenario strin
 
 	return inserted, nil
 }
+
+// GetDetailedFileMetrics retrieves all file metrics for a scenario from the database
+func (ts *TidinessStore) GetDetailedFileMetrics(ctx context.Context, scenario string) ([]DetailedFileMetrics, error) {
+	query := `
+		SELECT
+			file_path, language, file_extension, line_count,
+			todo_count, fixme_count, hack_count,
+			import_count, function_count, code_lines, comment_lines,
+			comment_to_code_ratio, has_test_file,
+			complexity_avg, complexity_max, duplication_pct
+		FROM file_metrics
+		WHERE scenario = $1
+	`
+
+	rows, err := ts.db.QueryContext(ctx, query, scenario)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query file metrics: %w", err)
+	}
+	defer rows.Close()
+
+	var metrics []DetailedFileMetrics
+	for rows.Next() {
+		var m DetailedFileMetrics
+		var lang, ext sql.NullString
+		var complexityAvg sql.NullFloat64
+		var complexityMax sql.NullInt64
+		var duplicationPct sql.NullFloat64
+
+		err := rows.Scan(
+			&m.FilePath, &lang, &ext, &m.LineCount,
+			&m.TodoCount, &m.FixmeCount, &m.HackCount,
+			&m.ImportCount, &m.FunctionCount, &m.CodeLines, &m.CommentLines,
+			&m.CommentRatio, &m.HasTestFile,
+			&complexityAvg, &complexityMax, &duplicationPct,
+		)
+		if err != nil {
+			continue // Skip rows with scan errors
+		}
+
+		if lang.Valid {
+			m.Language = lang.String
+		}
+		if ext.Valid {
+			m.FileExtension = ext.String
+		}
+		if complexityAvg.Valid {
+			val := complexityAvg.Float64
+			m.ComplexityAvg = &val
+		}
+		if complexityMax.Valid {
+			val := int(complexityMax.Int64)
+			m.ComplexityMax = &val
+		}
+		if duplicationPct.Valid {
+			val := duplicationPct.Float64
+			m.DuplicationPct = &val
+		}
+
+		metrics = append(metrics, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating file metrics: %w", err)
+	}
+
+	return metrics, nil
+}
