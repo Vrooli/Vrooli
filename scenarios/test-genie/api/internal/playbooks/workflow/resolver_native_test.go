@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -420,42 +419,27 @@ func TestCoerceParameterValue(t *testing.T) {
 	}
 }
 
-func TestSelectorResolution(t *testing.T) {
+// TestSelectorTokensPassedThrough verifies that @selector/ tokens are NOT resolved
+// by test-genie and are passed through to BAS for resolution.
+// BAS handles selector resolution natively in compiler.go:939-1073
+func TestSelectorTokensPassedThrough(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create directories
 	dirs := []string{
 		filepath.Join(tempDir, "test", "playbooks", "__subflows"),
 		filepath.Join(tempDir, "requirements"),
-		filepath.Join(tempDir, "ui", "src", "consts"),
 	}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0o755)
 	}
 
-	// Create selector manifest
-	manifest := SelectorManifest{
-		Selectors: map[string]SelectorEntry{
-			"button.submit": {Selector: "[data-testid=\"submit-btn\"]"},
-			"input.name":    {Selector: "[data-testid=\"name-input\"]"},
-		},
-		DynamicSelectors: map[string]DynamicSelector{
-			"list.item": {
-				SelectorPattern: "[data-testid=\"item-${index}\"]",
-				Params:          []SelectorParam{{Name: "index", Type: "number"}},
-			},
-		},
-	}
-	manifestData, _ := json.Marshal(manifest)
-	os.WriteFile(filepath.Join(tempDir, "ui", "src", "consts", "selectors.manifest.json"), manifestData, 0o644)
-
-	// Create workflow with selectors
+	// Create workflow with @selector/ tokens
 	workflowContent := `{
 		"metadata": {},
 		"nodes": [
 			{"id": "n1", "type": "click", "data": {"selector": "@selector/button.submit"}},
-			{"id": "n2", "type": "type", "data": {"selector": "@selector/input.name", "text": "test"}},
-			{"id": "n3", "type": "click", "data": {"selector": "@selector/list.item(index=5)"}}
+			{"id": "n2", "type": "type", "data": {"selector": "@selector/input.name", "text": "test"}}
 		],
 		"edges": []
 	}`
@@ -469,58 +453,17 @@ func TestSelectorResolution(t *testing.T) {
 		t.Fatalf("ResolveWorkflow failed: %v", err)
 	}
 
-	// Verify selectors were resolved
+	// Verify @selector/ tokens are NOT resolved (passed through for BAS to handle)
 	nodes := result["nodes"].([]any)
 
 	n1Data := nodes[0].(map[string]any)["data"].(map[string]any)
-	if n1Data["selector"] != "[data-testid=\"submit-btn\"]" {
-		t.Errorf("expected resolved selector, got %v", n1Data["selector"])
+	if n1Data["selector"] != "@selector/button.submit" {
+		t.Errorf("expected @selector/ token to be passed through unchanged, got %v", n1Data["selector"])
 	}
 
 	n2Data := nodes[1].(map[string]any)["data"].(map[string]any)
-	if n2Data["selector"] != "[data-testid=\"name-input\"]" {
-		t.Errorf("expected resolved selector, got %v", n2Data["selector"])
-	}
-
-	n3Data := nodes[2].(map[string]any)["data"].(map[string]any)
-	if n3Data["selector"] != "[data-testid=\"item-5\"]" {
-		t.Errorf("expected resolved dynamic selector, got %v", n3Data["selector"])
-	}
-}
-
-func TestSelectorNotFound(t *testing.T) {
-	tempDir := t.TempDir()
-
-	dirs := []string{
-		filepath.Join(tempDir, "test", "playbooks", "__subflows"),
-		filepath.Join(tempDir, "requirements"),
-		filepath.Join(tempDir, "ui", "src", "consts"),
-	}
-	for _, dir := range dirs {
-		os.MkdirAll(dir, 0o755)
-	}
-
-	// Create empty manifest
-	manifest := SelectorManifest{
-		Selectors: map[string]SelectorEntry{
-			"button.other": {Selector: "[data-testid=\"other\"]"},
-		},
-	}
-	manifestData, _ := json.Marshal(manifest)
-	os.WriteFile(filepath.Join(tempDir, "ui", "src", "consts", "selectors.manifest.json"), manifestData, 0o644)
-
-	workflowContent := `{
-		"metadata": {},
-		"nodes": [{"id": "n1", "data": {"selector": "@selector/nonexistent"}}],
-		"edges": []
-	}`
-	workflowPath := filepath.Join(tempDir, "test", "playbooks", "test.json")
-	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
-
-	resolver := NewNativeResolver(tempDir)
-	_, err := resolver.ResolveWorkflow(workflowPath)
-	if err == nil {
-		t.Error("expected error for unknown selector")
+	if n2Data["selector"] != "@selector/input.name" {
+		t.Errorf("expected @selector/ token to be passed through unchanged, got %v", n2Data["selector"])
 	}
 }
 

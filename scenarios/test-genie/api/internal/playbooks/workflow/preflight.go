@@ -40,11 +40,11 @@ type TokenCounts struct {
 
 // PreflightValidator validates workflows before resolution.
 type PreflightValidator struct {
-	scenarioDir     string
-	fixturesDir     string
-	loadedFixtures  map[string]bool
-	loadedSelectors *SelectorManifest
-	manifestPath    string
+	scenarioDir    string
+	fixturesDir    string
+	loadedFixtures map[string]bool
+	// NOTE: Selector validation removed - BAS handles @selector/ resolution natively.
+	// See: scenarios/browser-automation-studio/api/automation/compiler/compiler.go:939-1073
 }
 
 // NewPreflightValidator creates a new preflight validator.
@@ -89,15 +89,7 @@ func (v *PreflightValidator) Validate(workflowPath string) (*PreflightResult, er
 		})
 	}
 
-	// Load selector manifest
-	if err := v.loadSelectorManifestForPreflight(); err != nil {
-		result.Warnings = append(result.Warnings, PreflightIssue{
-			Severity: "warning",
-			Code:     "PF_SELECTORS_LOAD_FAILED",
-			Message:  fmt.Sprintf("Failed to load selector manifest: %v", err),
-			Hint:     "Selector validation will be skipped",
-		})
-	}
+	// NOTE: Selector manifest loading removed - BAS handles @selector/ validation natively.
 
 	// Scan workflow for tokens
 	v.scanDefinition(workflow, result, "")
@@ -150,34 +142,6 @@ func (v *PreflightValidator) loadAvailableFixtures() error {
 
 		return nil
 	})
-}
-
-// loadSelectorManifestForPreflight loads the selector manifest.
-func (v *PreflightValidator) loadSelectorManifestForPreflight() error {
-	candidates := []string{
-		filepath.Join(v.scenarioDir, "ui", "src", "consts", selectorManifestFile),
-		filepath.Join(v.scenarioDir, "ui", "src", "constants", selectorManifestFile),
-	}
-
-	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-
-			var manifest SelectorManifest
-			if err := json.Unmarshal(data, &manifest); err != nil {
-				return err
-			}
-
-			v.loadedSelectors = &manifest
-			v.manifestPath = path
-			return nil
-		}
-	}
-
-	return nil // No manifest found is OK
 }
 
 // Patterns for token detection
@@ -308,41 +272,13 @@ func (v *PreflightValidator) checkFixtureReference(ref string, nodeID, nodeType,
 	}
 }
 
-// checkSelectorReferences validates selector references in a string value.
+// checkSelectorReferences counts selector references for informational purposes.
+// NOTE: Selector validation is handled by BAS compiler, not test-genie preflight.
+// See: scenarios/browser-automation-studio/api/automation/compiler/compiler.go:939-1073
 func (v *PreflightValidator) checkSelectorReferences(value, nodeID, nodeType, field, pointer string, result *PreflightResult) {
 	matches := preflightSelectorPattern.FindAllStringSubmatch(value, -1)
-	for _, match := range matches {
-		selectorKey := match[1]
-		result.TokenCounts.Selectors++
-
-		if v.loadedSelectors == nil {
-			continue // Skip validation if no manifest loaded
-		}
-
-		// Check if selector exists in manifest
-		_, inStatic := v.loadedSelectors.Selectors[selectorKey]
-		_, inDynamic := v.loadedSelectors.DynamicSelectors[selectorKey]
-
-		if !inStatic && !inDynamic {
-			suggestions := v.findSimilarSelectors(selectorKey)
-			hint := fmt.Sprintf("Register selector in %s", v.manifestPath)
-			if len(suggestions) > 0 {
-				hint = fmt.Sprintf("Did you mean: %s? Or register in %s",
-					strings.Join(suggestions, ", "), v.manifestPath)
-			}
-
-			result.Errors = append(result.Errors, PreflightIssue{
-				Severity: "error",
-				Code:     "PF_SELECTOR_NOT_FOUND",
-				Message:  fmt.Sprintf("Selector @selector/%s not found", selectorKey),
-				NodeID:   nodeID,
-				NodeType: nodeType,
-				Field:    field,
-				Pointer:  pointer,
-				Hint:     hint,
-			})
-		}
-	}
+	result.TokenCounts.Selectors += len(matches)
+	// Validation delegated to BAS - selectors are resolved at compile time by BAS compiler
 }
 
 // checkSeedReferences notes seed references (warnings only - can't validate statically).
@@ -384,47 +320,6 @@ func (v *PreflightValidator) findSimilarFixtures(target string) []string {
 				}
 			}
 		}
-	}
-
-	// Deduplicate and limit
-	seen := make(map[string]bool)
-	var unique []string
-	for _, s := range suggestions {
-		if !seen[s] && len(unique) < 3 {
-			seen[s] = true
-			unique = append(unique, s)
-		}
-	}
-	sort.Strings(unique)
-	return unique
-}
-
-// findSimilarSelectors finds selectors with similar names for suggestions.
-func (v *PreflightValidator) findSimilarSelectors(target string) []string {
-	if v.loadedSelectors == nil {
-		return nil
-	}
-
-	var suggestions []string
-	targetParts := strings.Split(strings.ToLower(target), ".")
-
-	checkKey := func(key string) {
-		keyParts := strings.Split(strings.ToLower(key), ".")
-		for _, tp := range targetParts {
-			for _, kp := range keyParts {
-				if tp == kp || strings.Contains(kp, tp) || strings.Contains(tp, kp) {
-					suggestions = append(suggestions, "@selector/"+key)
-					break
-				}
-			}
-		}
-	}
-
-	for key := range v.loadedSelectors.Selectors {
-		checkKey(key)
-	}
-	for key := range v.loadedSelectors.DynamicSelectors {
-		checkKey(key)
 	}
 
 	// Deduplicate and limit

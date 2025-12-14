@@ -24,10 +24,10 @@ type PlatformDetector interface {
 
 // DiscoveryResult contains the result of platform discovery.
 type DiscoveryResult struct {
-	Platform     string                       `json:"platform"`
-	Tools        []types.ToolDetectionResult  `json:"tools"`
+	Platform     string                        `json:"platform"`
+	Tools        []types.ToolDetectionResult   `json:"tools"`
 	Certificates []types.DiscoveredCertificate `json:"certificates"`
-	Errors       []string                     `json:"errors,omitempty"`
+	Errors       []string                      `json:"errors,omitempty"`
 }
 
 // MultiPlatformDetector runs detection across multiple platforms.

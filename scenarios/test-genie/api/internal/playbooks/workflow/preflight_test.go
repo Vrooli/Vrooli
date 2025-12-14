@@ -161,101 +161,38 @@ func TestPreflightValidatorExistingFixture(t *testing.T) {
 	}
 }
 
-func TestPreflightValidatorMissingSelector(t *testing.T) {
+// TestPreflightValidatorSelectorCounting verifies that preflight counts @selector/ tokens
+// without validating them. Selector validation is delegated to BAS compiler.
+// See: scenarios/browser-automation-studio/api/automation/compiler/compiler.go:939-1073
+func TestPreflightValidatorSelectorCounting(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create selector manifest with one selector
-	manifestDir := filepath.Join(tmpDir, "ui", "src", "constants")
-	if err := os.MkdirAll(manifestDir, 0755); err != nil {
-		t.Fatalf("failed to create manifest dir: %v", err)
-	}
-
-	manifest := SelectorManifest{
-		Selectors: map[string]SelectorEntry{
-			"button.submit": {Selector: "#submit-btn"},
-		},
-	}
-	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(manifestDir, "selectors.manifest.json"), manifestData, 0644); err != nil {
-		t.Fatalf("failed to write manifest: %v", err)
-	}
-
-	// Create workflow referencing a selector that doesn't exist
+	// Create workflow with multiple @selector/ tokens
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id":   "click",
-				"type": "click",
-				"data": map[string]any{
-					"selector": "@selector/button.nonexistent",
-				},
-			},
-		},
-		"edges": []any{},
-	}
-
-	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
-		t.Fatalf("failed to write workflow: %v", err)
-	}
-
-	v := NewPreflightValidator(tmpDir)
-	result, err := v.Validate(workflowPath)
-	if err != nil {
-		t.Fatalf("validation failed: %v", err)
-	}
-
-	if result.Valid {
-		t.Fatalf("expected invalid result for missing selector")
-	}
-
-	if result.TokenCounts.Selectors != 1 {
-		t.Errorf("expected 1 selector, got %d", result.TokenCounts.Selectors)
-	}
-
-	found := false
-	for _, issue := range result.Errors {
-		if issue.Code == "PF_SELECTOR_NOT_FOUND" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected PF_SELECTOR_NOT_FOUND error, got: %+v", result.Errors)
-	}
-}
-
-func TestPreflightValidatorExistingSelector(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Create selector manifest
-	manifestDir := filepath.Join(tmpDir, "ui", "src", "constants")
-	if err := os.MkdirAll(manifestDir, 0755); err != nil {
-		t.Fatalf("failed to create manifest dir: %v", err)
-	}
-
-	manifest := SelectorManifest{
-		Selectors: map[string]SelectorEntry{
-			"button.submit": {Selector: "#submit-btn"},
-		},
-	}
-	manifestData, _ := json.Marshal(manifest)
-	if err := os.WriteFile(filepath.Join(manifestDir, "selectors.manifest.json"), manifestData, 0644); err != nil {
-		t.Fatalf("failed to write manifest: %v", err)
-	}
-
-	// Create workflow referencing an existing selector
-	workflowPath := filepath.Join(tmpDir, "test.json")
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "click",
+				"id":   "click1",
 				"type": "click",
 				"data": map[string]any{
 					"selector": "@selector/button.submit",
 				},
 			},
+			map[string]any{
+				"id":   "click2",
+				"type": "click",
+				"data": map[string]any{
+					"selector": "@selector/button.cancel",
+				},
+			},
+			map[string]any{
+				"id":   "type1",
+				"type": "type",
+				"data": map[string]any{
+					"selector": "@selector/input.name",
+					"text":     "test",
+				},
+			},
 		},
 		"edges": []any{},
 	}
@@ -271,12 +208,21 @@ func TestPreflightValidatorExistingSelector(t *testing.T) {
 		t.Fatalf("validation failed: %v", err)
 	}
 
+	// Should be valid - preflight doesn't validate selectors anymore (BAS does)
 	if !result.Valid {
 		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
 	}
 
-	if result.TokenCounts.Selectors != 1 {
-		t.Errorf("expected 1 selector, got %d", result.TokenCounts.Selectors)
+	// Should count selectors for informational purposes
+	if result.TokenCounts.Selectors != 3 {
+		t.Errorf("expected 3 selectors counted, got %d", result.TokenCounts.Selectors)
+	}
+
+	// Should NOT have any PF_SELECTOR_NOT_FOUND errors (validation delegated to BAS)
+	for _, issue := range result.Errors {
+		if issue.Code == "PF_SELECTOR_NOT_FOUND" {
+			t.Errorf("unexpected PF_SELECTOR_NOT_FOUND error - selector validation should be delegated to BAS")
+		}
 	}
 }
 

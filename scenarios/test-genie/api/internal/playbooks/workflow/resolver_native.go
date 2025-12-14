@@ -65,10 +65,9 @@ func (r *NativeResolver) ResolveWorkflow(workflowPath string) (map[string]any, e
 	// Add fixture requirements to metadata
 	r.annotateFixtureRequirements(workflow, fixtureReqs)
 
-	// Resolve selectors
-	if err := r.resolveSelectors(workflow); err != nil {
-		return nil, err
-	}
+	// NOTE: Selector resolution (@selector/) is handled natively by BAS compiler.
+	// See: scenarios/browser-automation-studio/api/automation/compiler/compiler.go:939-1073
+	// We intentionally skip selector resolution here to avoid duplication.
 
 	return workflow, nil
 }

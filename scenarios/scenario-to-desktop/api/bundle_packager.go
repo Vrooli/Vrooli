@@ -555,9 +555,9 @@ func stageCLIs(bundleRoot, platform string) error {
 		return nil
 	}
 
-shim := filepath.Join(binDir, "vrooli")
-script := fmt.Sprintf(vrooliShimTemplate, platform)
-return os.WriteFile(shim, []byte(script), 0o755)
+	shim := filepath.Join(binDir, "vrooli")
+	script := fmt.Sprintf(vrooliShimTemplate, platform)
+	return os.WriteFile(shim, []byte(script), 0o755)
 }
 
 const vrooliShimTemplate = `#!/usr/bin/env bash

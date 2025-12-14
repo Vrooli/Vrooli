@@ -390,9 +390,9 @@ func TestCheckBundleSizeWarning(t *testing.T) {
 		wantNil   bool
 		wantLevel string
 	}{
-		{"small bundle", 100 * 1024 * 1024, true, ""},                       // 100MB - no warning
-		{"warning threshold", 600 * 1024 * 1024, false, "warning"},          // 600MB - warning
-		{"critical threshold", 1200 * 1024 * 1024, false, "critical"},       // 1.2GB - critical
+		{"small bundle", 100 * 1024 * 1024, true, ""},                 // 100MB - no warning
+		{"warning threshold", 600 * 1024 * 1024, false, "warning"},    // 600MB - warning
+		{"critical threshold", 1200 * 1024 * 1024, false, "critical"}, // 1.2GB - critical
 	}
 
 	for _, tt := range tests {

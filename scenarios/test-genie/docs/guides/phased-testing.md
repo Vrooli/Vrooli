@@ -268,10 +268,9 @@ Scenarios should have this test structure:
 ```
 scenario/
 ├── .vrooli/
-│   ├── service.json      # Scenario configuration
+│   ├── service.json      # Scenario configuration (lifecycle.test.steps invokes test-genie)
 │   └── testing.json      # Test-genie configuration (optional)
-├── test/
-│   ├── run-tests.sh      # Entry point (calls test-genie)
+├── test/                  # Test artifacts directory
 │   └── playbooks/        # BAS workflow tests (optional)
 ├── api/
 │   └── *_test.go         # Go unit tests
@@ -279,19 +278,7 @@ scenario/
     └── *.test.ts         # Vitest/Jest tests
 ```
 
-### Minimal `test/run-tests.sh`
-
-For scenarios using test-genie orchestration:
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-SCENARIO_NAME="$(basename "$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)")"
-
-# Delegate to test-genie
-exec test-genie execute "$SCENARIO_NAME" --preset "${1:-comprehensive}" "$@"
-```
+> **Note**: Testing is orchestrated via `.vrooli/service.json` `lifecycle.test.steps` which invokes `test-genie execute`. The legacy `test/run-tests.sh` + `test/phases/*` pattern is deprecated. The `test/` directory is only needed for artifacts like playbooks, fixtures, and logs.
 
 ## Configuration with `.vrooli/testing.json`
 
@@ -387,8 +374,8 @@ UI_URL="http://localhost:$UI_PORT"
 
 Before considering a scenario test-ready:
 
-- [ ] `.vrooli/service.json` properly configured
-- [ ] Test directory with `run-tests.sh`
+- [ ] `.vrooli/service.json` properly configured with `lifecycle.test.steps` invoking `test-genie execute`
+- [ ] Test directory exists for artifacts (playbooks, fixtures, logs)
 - [ ] Unit tests with coverage > 70%
 - [ ] `[REQ:ID]` tags on tests matching PRD requirements
 - [ ] Integration tests for all API endpoints

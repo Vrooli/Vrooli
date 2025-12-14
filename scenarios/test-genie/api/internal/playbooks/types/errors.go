@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // ExecutionPhase indicates which phase of playbook execution failed.
@@ -54,8 +57,8 @@ type PlaybookExecutionError struct {
 	BASResponse string
 
 	// Timeline contains the parsed proto timeline for rich diagnostics.
-	// This provides structured access to execution frames, assertions, and errors.
-	Timeline *browser_automation_studio_v1.ExecutionTimeline
+	// This provides structured access to execution entries, assertions, and errors.
+	Timeline *bastimeline.ExecutionTimeline
 }
 
 // ExecutionArtifacts holds paths to debug artifacts collected during execution.
@@ -130,26 +133,27 @@ func (e *PlaybookExecutionError) WithBASResponse(response string) *PlaybookExecu
 }
 
 // WithTimeline attaches the parsed proto timeline for rich diagnostics.
-func (e *PlaybookExecutionError) WithTimeline(timeline *browser_automation_studio_v1.ExecutionTimeline) *PlaybookExecutionError {
+func (e *PlaybookExecutionError) WithTimeline(timeline *bastimeline.ExecutionTimeline) *PlaybookExecutionError {
 	e.Timeline = timeline
-	// Also extract node/step info from the failed frame if not already set
+	// Also extract node/step info from the failed entry if not already set
 	if timeline != nil && e.NodeID == "" {
-		if failed := findFailedFrame(timeline); failed != nil {
+		if failed := findFailedEntry(timeline); failed != nil {
 			e.NodeID = failed.GetNodeId()
 			e.StepIndex = int(failed.GetStepIndex())
-			if e.CurrentStepDescription == "" {
-				e.CurrentStepDescription = StepTypeToString(failed.GetStepType())
+			if e.CurrentStepDescription == "" && failed.GetAction() != nil {
+				e.CurrentStepDescription = ActionTypeToString(failed.GetAction().GetType())
 			}
 		}
 	}
 	return e
 }
 
-// findFailedFrame locates the first failed frame in the timeline.
-func findFailedFrame(timeline *browser_automation_studio_v1.ExecutionTimeline) *browser_automation_studio_v1.TimelineFrame {
-	for _, frame := range timeline.GetFrames() {
-		if !frame.GetSuccess() || frame.GetError() != "" {
-			return frame
+// findFailedEntry locates the first failed entry in the timeline.
+func findFailedEntry(timeline *bastimeline.ExecutionTimeline) *bastimeline.TimelineEntry {
+	for _, entry := range timeline.GetEntries() {
+		ctx := entry.GetContext()
+		if ctx != nil && (!ctx.GetSuccess() || ctx.GetError() != "") {
+			return entry
 		}
 	}
 	return nil
@@ -189,63 +193,73 @@ func (e *PlaybookExecutionError) DiagnosticString() string {
 		b.WriteString(fmt.Sprintf("Status:       %s\n", e.Timeline.GetStatus()))
 		b.WriteString(fmt.Sprintf("Progress:     %d%%\n", e.Timeline.GetProgress()))
 
-		frames := e.Timeline.GetFrames()
-		b.WriteString(fmt.Sprintf("Total Steps:  %d\n", len(frames)))
+		entries := e.Timeline.GetEntries()
+		b.WriteString(fmt.Sprintf("Total Steps:  %d\n", len(entries)))
 
-		// Find and display failed frame details
-		if failed := findFailedFrame(e.Timeline); failed != nil {
+		// Find and display failed entry details
+		if failed := findFailedEntry(e.Timeline); failed != nil {
 			b.WriteString("\n--- Failed Step ---\n")
 			b.WriteString(fmt.Sprintf("  Index:      %d\n", failed.GetStepIndex()))
 			b.WriteString(fmt.Sprintf("  Node ID:    %s\n", failed.GetNodeId()))
-			b.WriteString(fmt.Sprintf("  Type:       %s\n", failed.GetStepType()))
-			b.WriteString(fmt.Sprintf("  Status:     %s\n", failed.GetStatus()))
-			if failed.GetError() != "" {
-				b.WriteString(fmt.Sprintf("  Error:      %s\n", failed.GetError()))
+			if action := failed.GetAction(); action != nil {
+				b.WriteString(fmt.Sprintf("  Type:       %s\n", action.GetType()))
 			}
-			if failed.GetFinalUrl() != "" {
-				b.WriteString(fmt.Sprintf("  URL:        %s\n", failed.GetFinalUrl()))
+			if agg := failed.GetAggregates(); agg != nil {
+				b.WriteString(fmt.Sprintf("  Status:     %s\n", agg.GetStatus()))
+				if agg.GetFinalUrl() != "" {
+					b.WriteString(fmt.Sprintf("  URL:        %s\n", agg.GetFinalUrl()))
+				}
+			}
+			if ctx := failed.GetContext(); ctx != nil && ctx.GetError() != "" {
+				b.WriteString(fmt.Sprintf("  Error:      %s\n", ctx.GetError()))
 			}
 			if failed.GetDurationMs() > 0 {
 				b.WriteString(fmt.Sprintf("  Duration:   %dms\n", failed.GetDurationMs()))
 			}
 
 			// Display assertion details if this was an assert step
-			if assertion := failed.GetAssertion(); assertion != nil {
-				b.WriteString("\n--- Assertion Details ---\n")
-				b.WriteString(fmt.Sprintf("  Mode:       %s\n", assertion.GetMode()))
-				b.WriteString(fmt.Sprintf("  Selector:   %s\n", assertion.GetSelector()))
-				if expected := assertion.GetExpected(); expected != nil {
-					b.WriteString(fmt.Sprintf("  Expected:   %v\n", expected.AsInterface()))
+			if ctx := failed.GetContext(); ctx != nil {
+				if assertion := ctx.GetAssertion(); assertion != nil {
+					b.WriteString("\n--- Assertion Details ---\n")
+					b.WriteString(fmt.Sprintf("  Mode:       %s\n", assertion.GetMode()))
+					b.WriteString(fmt.Sprintf("  Selector:   %s\n", assertion.GetSelector()))
+					if expected := assertion.GetExpected(); expected != nil {
+						b.WriteString(fmt.Sprintf("  Expected:   %v\n", jsonValueToString(expected)))
+					}
+					if actual := assertion.GetActual(); actual != nil {
+						b.WriteString(fmt.Sprintf("  Actual:     %v\n", jsonValueToString(actual)))
+					}
+					if assertion.GetMessage() != "" {
+						b.WriteString(fmt.Sprintf("  Message:    %s\n", assertion.GetMessage()))
+					}
 				}
-				if actual := assertion.GetActual(); actual != nil {
-					b.WriteString(fmt.Sprintf("  Actual:     %v\n", actual.AsInterface()))
-				}
-				if assertion.GetMessage() != "" {
-					b.WriteString(fmt.Sprintf("  Message:    %s\n", assertion.GetMessage()))
-				}
-			}
 
-			// Display retry info if retries were attempted
-			if failed.GetRetryAttempt() > 0 {
-				b.WriteString(fmt.Sprintf("\n  Retry:      attempt %d of %d\n",
-					failed.GetRetryAttempt(), failed.GetRetryMaxAttempts()))
+				// Display retry info if retries were attempted
+				if retry := ctx.GetRetryStatus(); retry != nil && retry.GetCurrentAttempt() > 0 {
+					b.WriteString(fmt.Sprintf("\n  Retry:      attempt %d of %d\n",
+						retry.GetCurrentAttempt(), retry.GetMaxAttempts()))
+				}
 			}
 		}
 
 		// Summarize all failed assertions
-		var failedAssertions []*browser_automation_studio_v1.TimelineFrame
-		for _, frame := range frames {
-			if frame.GetStepType() == browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT && !frame.GetSuccess() {
-				failedAssertions = append(failedAssertions, frame)
+		var failedAssertions []*bastimeline.TimelineEntry
+		for _, entry := range entries {
+			action := entry.GetAction()
+			ctx := entry.GetContext()
+			if action != nil && action.GetType() == basactions.ActionType_ACTION_TYPE_ASSERT && ctx != nil && !ctx.GetSuccess() {
+				failedAssertions = append(failedAssertions, entry)
 			}
 		}
 		if len(failedAssertions) > 0 {
 			b.WriteString(fmt.Sprintf("\n--- Failed Assertions (%d) ---\n", len(failedAssertions)))
-			for _, frame := range failedAssertions {
-				assertion := frame.GetAssertion()
-				if assertion != nil {
-					b.WriteString(fmt.Sprintf("  [%d] %s on '%s'\n",
-						frame.GetStepIndex(), assertion.GetMode(), assertion.GetSelector()))
+			for _, entry := range failedAssertions {
+				ctx := entry.GetContext()
+				if ctx != nil {
+					if assertion := ctx.GetAssertion(); assertion != nil {
+						b.WriteString(fmt.Sprintf("  [%d] %s on '%s'\n",
+							entry.GetStepIndex(), assertion.GetMode(), assertion.GetSelector()))
+					}
 				}
 			}
 		}
@@ -319,42 +333,59 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// StepTypeToString converts a proto StepType enum to its string representation.
-func StepTypeToString(st browser_automation_studio_v1.StepType) string {
-	switch st {
-	case browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE:
+// ActionTypeToString converts a proto ActionType enum to its string representation.
+func ActionTypeToString(at basactions.ActionType) string {
+	switch at {
+	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
 		return "navigate"
-	case browser_automation_studio_v1.StepType_STEP_TYPE_CLICK:
+	case basactions.ActionType_ACTION_TYPE_CLICK:
 		return "click"
-	case browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT:
+	case basactions.ActionType_ACTION_TYPE_ASSERT:
 		return "assert"
-	case browser_automation_studio_v1.StepType_STEP_TYPE_SUBFLOW:
+	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
 		return "subflow"
-	case browser_automation_studio_v1.StepType_STEP_TYPE_INPUT:
+	case basactions.ActionType_ACTION_TYPE_INPUT:
 		return "input"
-	case browser_automation_studio_v1.StepType_STEP_TYPE_CUSTOM:
-		return "custom"
+	case basactions.ActionType_ACTION_TYPE_WAIT:
+		return "wait"
+	case basactions.ActionType_ACTION_TYPE_SCROLL:
+		return "scroll"
+	case basactions.ActionType_ACTION_TYPE_SELECT:
+		return "select"
+	case basactions.ActionType_ACTION_TYPE_EVALUATE:
+		return "evaluate"
+	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
+		return "keyboard"
+	case basactions.ActionType_ACTION_TYPE_HOVER:
+		return "hover"
+	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
+		return "screenshot"
+	case basactions.ActionType_ACTION_TYPE_FOCUS:
+		return "focus"
+	case basactions.ActionType_ACTION_TYPE_BLUR:
+		return "blur"
 	default:
 		return "unknown"
 	}
 }
 
+
 // StepStatusToString converts a proto StepStatus enum to its string representation.
-func StepStatusToString(ss browser_automation_studio_v1.StepStatus) string {
+func StepStatusToString(ss basbase.StepStatus) string {
 	switch ss {
-	case browser_automation_studio_v1.StepStatus_STEP_STATUS_PENDING:
+	case basbase.StepStatus_STEP_STATUS_PENDING:
 		return "pending"
-	case browser_automation_studio_v1.StepStatus_STEP_STATUS_RUNNING:
+	case basbase.StepStatus_STEP_STATUS_RUNNING:
 		return "running"
-	case browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED:
+	case basbase.StepStatus_STEP_STATUS_COMPLETED:
 		return "completed"
-	case browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED:
+	case basbase.StepStatus_STEP_STATUS_FAILED:
 		return "failed"
-	case browser_automation_studio_v1.StepStatus_STEP_STATUS_CANCELLED:
+	case basbase.StepStatus_STEP_STATUS_CANCELLED:
 		return "cancelled"
-	case browser_automation_studio_v1.StepStatus_STEP_STATUS_SKIPPED:
+	case basbase.StepStatus_STEP_STATUS_SKIPPED:
 		return "skipped"
-	case browser_automation_studio_v1.StepStatus_STEP_STATUS_RETRYING:
+	case basbase.StepStatus_STEP_STATUS_RETRYING:
 		return "retrying"
 	default:
 		return "unknown"
@@ -362,17 +393,17 @@ func StepStatusToString(ss browser_automation_studio_v1.StepStatus) string {
 }
 
 // ExecutionStatusToString converts a proto ExecutionStatus enum to its string representation.
-func ExecutionStatusToString(es browser_automation_studio_v1.ExecutionStatus) string {
+func ExecutionStatusToString(es basbase.ExecutionStatus) string {
 	switch es {
-	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_PENDING:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_PENDING:
 		return "pending"
-	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_RUNNING:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING:
 		return "running"
-	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
 		return "completed"
-	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_FAILED:
 		return "failed"
-	case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
+	case basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
 		return "cancelled"
 	default:
 		return "unknown"
@@ -380,37 +411,74 @@ func ExecutionStatusToString(es browser_automation_studio_v1.ExecutionStatus) st
 }
 
 // LogLevelToString converts a proto LogLevel enum to its string representation.
-func LogLevelToString(ll browser_automation_studio_v1.LogLevel) string {
+func LogLevelToString(ll basbase.LogLevel) string {
 	switch ll {
-	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_DEBUG:
+	case basbase.LogLevel_LOG_LEVEL_DEBUG:
 		return "debug"
-	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_INFO:
+	case basbase.LogLevel_LOG_LEVEL_INFO:
 		return "info"
-	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_WARN:
+	case basbase.LogLevel_LOG_LEVEL_WARN:
 		return "warn"
-	case browser_automation_studio_v1.LogLevel_LOG_LEVEL_ERROR:
+	case basbase.LogLevel_LOG_LEVEL_ERROR:
 		return "error"
 	default:
 		return "unknown"
 	}
 }
 
-// StringToStepType converts a string to a proto StepType enum.
-func StringToStepType(s string) browser_automation_studio_v1.StepType {
+// StringToActionType converts a string to a proto ActionType enum.
+func StringToActionType(s string) basactions.ActionType {
 	switch s {
 	case "navigate":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE
+		return basactions.ActionType_ACTION_TYPE_NAVIGATE
 	case "click":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_CLICK
+		return basactions.ActionType_ACTION_TYPE_CLICK
 	case "assert":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT
+		return basactions.ActionType_ACTION_TYPE_ASSERT
 	case "subflow":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_SUBFLOW
+		return basactions.ActionType_ACTION_TYPE_SUBFLOW
 	case "input":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_INPUT
-	case "custom":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_CUSTOM
+		return basactions.ActionType_ACTION_TYPE_INPUT
+	case "wait":
+		return basactions.ActionType_ACTION_TYPE_WAIT
+	case "scroll":
+		return basactions.ActionType_ACTION_TYPE_SCROLL
+	case "select", "select_option":
+		return basactions.ActionType_ACTION_TYPE_SELECT
+	case "evaluate":
+		return basactions.ActionType_ACTION_TYPE_EVALUATE
+	case "keyboard":
+		return basactions.ActionType_ACTION_TYPE_KEYBOARD
+	case "hover":
+		return basactions.ActionType_ACTION_TYPE_HOVER
+	case "screenshot":
+		return basactions.ActionType_ACTION_TYPE_SCREENSHOT
+	case "focus":
+		return basactions.ActionType_ACTION_TYPE_FOCUS
+	case "blur":
+		return basactions.ActionType_ACTION_TYPE_BLUR
 	default:
-		return browser_automation_studio_v1.StepType_STEP_TYPE_UNSPECIFIED
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
+	}
+}
+
+// jsonValueToString converts a commonv1.JsonValue to a string representation.
+func jsonValueToString(v *commonv1.JsonValue) string {
+	if v == nil {
+		return ""
+	}
+	switch kind := v.GetKind().(type) {
+	case *commonv1.JsonValue_StringValue:
+		return kind.StringValue
+	case *commonv1.JsonValue_IntValue:
+		return fmt.Sprintf("%d", kind.IntValue)
+	case *commonv1.JsonValue_DoubleValue:
+		return fmt.Sprintf("%v", kind.DoubleValue)
+	case *commonv1.JsonValue_BoolValue:
+		return fmt.Sprintf("%v", kind.BoolValue)
+	case *commonv1.JsonValue_NullValue:
+		return "null"
+	default:
+		return fmt.Sprintf("%v", v)
 	}
 }

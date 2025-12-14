@@ -186,7 +186,7 @@ func TestDefaultValidator_ValidateConfig_MacOSMissingIdentity(t *testing.T) {
 	v := NewValidator()
 	config := &types.SigningConfig{
 		Enabled: true,
-		MacOS: &types.MacOSSigningConfig{
+		MacOS:   &types.MacOSSigningConfig{
 			// Identity missing
 		},
 	}
@@ -202,11 +202,11 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithoutTeamID(t *testing.T
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:            "Developer ID Application: Test",
-			Notarize:           true,
-			HardenedRuntime:    true,
-			AppleAPIKeyID:      "KEY123",
-			AppleAPIKeyFile:    "/path/to/key.p8",
+			Identity:        "Developer ID Application: Test",
+			Notarize:        true,
+			HardenedRuntime: true,
+			AppleAPIKeyID:   "KEY123",
+			AppleAPIKeyFile: "/path/to/key.p8",
 			// TeamID missing
 		},
 	}
@@ -230,12 +230,12 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithoutHardenedRuntime(t *
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:         "Developer ID Application: Test",
-			TeamID:           "TEAMID",
-			Notarize:         true,
-			HardenedRuntime:  false, // Should be true for notarization
-			AppleAPIKeyID:    "KEY123",
-			AppleAPIKeyFile:  "/path/to/key.p8",
+			Identity:        "Developer ID Application: Test",
+			TeamID:          "TEAMID",
+			Notarize:        true,
+			HardenedRuntime: false, // Should be true for notarization
+			AppleAPIKeyID:   "KEY123",
+			AppleAPIKeyFile: "/path/to/key.p8",
 		},
 	}
 	result := v.ValidateConfig(config)
@@ -335,7 +335,7 @@ func TestDefaultValidator_ValidateConfig_LinuxMissingGPGKey(t *testing.T) {
 	v := NewValidator()
 	config := &types.SigningConfig{
 		Enabled: true,
-		Linux: &types.LinuxSigningConfig{
+		Linux:   &types.LinuxSigningConfig{
 			// GPGKeyID missing
 		},
 	}

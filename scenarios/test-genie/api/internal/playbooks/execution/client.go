@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -39,7 +41,24 @@ var (
 // ProgressCallback is called periodically during workflow execution with status updates.
 // It receives the current status and elapsed time. Return an error to abort waiting.
 // Status is the proto Execution message returned by BAS.
-type ProgressCallback func(status *browser_automation_studio_v1.Execution, elapsed time.Duration) error
+type ProgressCallback func(status *basexecution.Execution, elapsed time.Duration) error
+
+// ExecutionParams contains namespace-aware parameters for workflow execution.
+// These support the ${@namespace/path} variable interpolation system in BAS.
+type ExecutionParams struct {
+	// ProjectRoot is the absolute path to the project root for workflowPath resolution.
+	// Example: "/home/user/Vrooli/scenarios/my-scenario/bas"
+	ProjectRoot string `json:"project_root,omitempty"`
+	// InitialParams are read-only input parameters (@params/ namespace).
+	// Subflows inherit parent's params unless explicitly overridden.
+	InitialParams map[string]any `json:"initial_params,omitempty"`
+	// InitialStore is pre-seeded mutable runtime state (@store/ namespace).
+	// Modified via setVariable steps and storeResult params.
+	InitialStore map[string]any `json:"initial_store,omitempty"`
+	// Env contains project/user configuration (@env/ namespace).
+	// Read-only, inherited by all subflows unchanged.
+	Env map[string]any `json:"env,omitempty"`
+}
 
 // Client defines the interface for BAS API operations.
 type Client interface {
@@ -52,14 +71,17 @@ type Client interface {
 	ValidateResolved(ctx context.Context, definition map[string]any) (*ValidationResult, error)
 	// ExecuteWorkflow starts a workflow execution and returns the execution ID.
 	ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error)
+	// ExecuteWorkflowWithParams starts a workflow execution with namespace-aware parameters.
+	// This is the preferred method for callers that support the new variable interpolation system.
+	ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name string, params *ExecutionParams) (string, error)
 	// GetStatus retrieves the status of an execution.
-	GetStatus(ctx context.Context, executionID string) (*browser_automation_studio_v1.Execution, error)
+	GetStatus(ctx context.Context, executionID string) (*basexecution.Execution, error)
 	// WaitForCompletion waits for a workflow to complete.
 	WaitForCompletion(ctx context.Context, executionID string) error
 	// WaitForCompletionWithProgress waits for completion and calls the progress callback periodically.
 	WaitForCompletionWithProgress(ctx context.Context, executionID string, callback ProgressCallback) error
 	// GetTimeline retrieves the timeline data for an execution.
-	GetTimeline(ctx context.Context, executionID string) (*browser_automation_studio_v1.ExecutionTimeline, []byte, error)
+	GetTimeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, []byte, error)
 	// GetScreenshots retrieves screenshot metadata for an execution.
 	GetScreenshots(ctx context.Context, executionID string) ([]Screenshot, error)
 	// DownloadAsset downloads an asset (screenshot, artifact) by URL.
@@ -244,11 +266,17 @@ func (c *HTTPClient) ValidateResolved(ctx context.Context, definition map[string
 }
 
 // ExecuteWorkflow starts a workflow execution and returns the execution ID.
+// This is a convenience wrapper that calls ExecuteWorkflowWithParams with nil params.
+func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error) {
+	return c.ExecuteWorkflowWithParams(ctx, definition, name, nil)
+}
+
+// ExecuteWorkflowWithParams starts a workflow execution with namespace-aware parameters.
 // It sends plain JSON that matches BAS's expected ExecuteAdhocWorkflowRequest format.
 // Note: We intentionally avoid proto serialization here because BAS uses standard JSON
 // decoding, and proto enum serialization would convert node types like "navigate" to
 // "STEP_TYPE_NAVIGATE" which BAS doesn't recognize.
-func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]any, name string) (string, error) {
+func (c *HTTPClient) ExecuteWorkflowWithParams(ctx context.Context, definition map[string]any, name string, params *ExecutionParams) (string, error) {
 	// Build plain JSON request matching BAS's ExecuteAdhocWorkflowRequest struct
 	reqBody := map[string]any{
 		"flow_definition": definition,
@@ -258,6 +286,26 @@ func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]
 	if name != "" {
 		reqBody["metadata"] = map[string]any{
 			"name": name,
+		}
+	}
+
+	// Add namespace-aware execution parameters if provided
+	if params != nil {
+		execParams := make(map[string]any)
+		if params.ProjectRoot != "" {
+			execParams["project_root"] = params.ProjectRoot
+		}
+		if len(params.InitialParams) > 0 {
+			execParams["initial_params"] = params.InitialParams
+		}
+		if len(params.InitialStore) > 0 {
+			execParams["initial_store"] = params.InitialStore
+		}
+		if len(params.Env) > 0 {
+			execParams["env"] = params.Env
+		}
+		if len(execParams) > 0 {
+			reqBody["execution_params"] = execParams
 		}
 	}
 
@@ -299,7 +347,7 @@ func (c *HTTPClient) ExecuteWorkflow(ctx context.Context, definition map[string]
 }
 
 // GetStatus retrieves the status of an execution.
-func (c *HTTPClient) GetStatus(ctx context.Context, executionID string) (*browser_automation_studio_v1.Execution, error) {
+func (c *HTTPClient) GetStatus(ctx context.Context, executionID string) (*basexecution.Execution, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/executions/%s", c.baseURL, executionID), nil)
 	if err != nil {
 		return nil, err
@@ -316,7 +364,7 @@ func (c *HTTPClient) GetStatus(ctx context.Context, executionID string) (*browse
 		return nil, fmt.Errorf("status lookup failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
 	}
 
-	var status browser_automation_studio_v1.Execution
+	var status basexecution.Execution
 	if err := protoJSONUnmarshal.Unmarshal(data, &status); err != nil {
 		return nil, fmt.Errorf("failed to decode status (proto violation): %w", err)
 	}
@@ -335,7 +383,7 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 	start := time.Now()
 
 	// Helper to check status and return appropriate result
-	checkStatus := func() (done bool, status *browser_automation_studio_v1.Execution, err error) {
+	checkStatus := func() (done bool, status *basexecution.Execution, err error) {
 		status, err = c.GetStatus(ctx, executionID)
 		if err != nil {
 			return true, status, err
@@ -343,16 +391,16 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 
 		execStatus := status.GetStatus()
 		switch execStatus {
-		case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
+		case basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED:
 			return true, status, nil
-		case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED:
+		case basbase.ExecutionStatus_EXECUTION_STATUS_FAILED:
 			if status != nil && status.Error != nil {
 				if msg := strings.TrimSpace(status.GetError()); msg != "" {
 					return true, status, fmt.Errorf("workflow failed: %s", msg)
 				}
 			}
 			return true, status, fmt.Errorf("workflow failed with status %s", execStatus.String())
-		case browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
+		case basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
 			return true, status, fmt.Errorf("workflow cancelled")
 		}
 		return false, status, nil
@@ -406,7 +454,7 @@ func (c *HTTPClient) WaitForCompletionWithProgress(ctx context.Context, executio
 
 // GetTimeline retrieves the timeline data for an execution and validates it against the proto contract.
 // It returns the parsed proto message alongside the raw JSON for artifact persistence.
-func (c *HTTPClient) GetTimeline(ctx context.Context, executionID string) (*browser_automation_studio_v1.ExecutionTimeline, []byte, error) {
+func (c *HTTPClient) GetTimeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, []byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/executions/%s/timeline", c.baseURL, executionID), nil)
 	if err != nil {
 		return nil, nil, err
@@ -427,7 +475,7 @@ func (c *HTTPClient) GetTimeline(ctx context.Context, executionID string) (*brow
 		return nil, data, fmt.Errorf("timeline fetch failed: status=%s body=%s", resp.Status, strings.TrimSpace(string(data)))
 	}
 
-	var timeline browser_automation_studio_v1.ExecutionTimeline
+	var timeline bastimeline.ExecutionTimeline
 	if err := protoJSONUnmarshal.Unmarshal(data, &timeline); err != nil {
 		return nil, data, fmt.Errorf("failed to decode timeline (proto violation): %w", err)
 	}

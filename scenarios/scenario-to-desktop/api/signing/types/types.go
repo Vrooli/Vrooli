@@ -13,10 +13,10 @@ const (
 
 // Certificate source constants
 const (
-	CertSourceFile         = "file"
-	CertSourceStore        = "store"
+	CertSourceFile          = "file"
+	CertSourceStore         = "store"
 	CertSourceAzureKeyVault = "azure_keyvault"
-	CertSourceAWSKMS       = "aws_kms"
+	CertSourceAWSKMS        = "aws_kms"
 )
 
 // Signing algorithm constants
@@ -28,8 +28,8 @@ const (
 
 // Default timestamp server URLs
 const (
-	DefaultTimestampServerDigiCert = "http://timestamp.digicert.com"
-	DefaultTimestampServerSectigo  = "http://timestamp.sectigo.com"
+	DefaultTimestampServerDigiCert   = "http://timestamp.digicert.com"
+	DefaultTimestampServerSectigo    = "http://timestamp.sectigo.com"
 	DefaultTimestampServerGlobalSign = "http://timestamp.globalsign.com/tsa/r6advanced1"
 )
 

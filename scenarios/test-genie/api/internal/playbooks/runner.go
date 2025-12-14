@@ -2,6 +2,7 @@ package playbooks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"test-genie/internal/playbooks/types"
 	"test-genie/internal/playbooks/workflow"
 	"test-genie/internal/shared"
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 const (
@@ -81,7 +83,8 @@ type Runner struct {
 	logWriter io.Writer
 
 	// Runtime state
-	requiredScenarios []string // Scenarios detected in navigate nodes with destinationType=scenario
+	requiredScenarios []string         // Scenarios detected in navigate nodes with destinationType=scenario
+	seedState         map[string]any   // Cached seed state for passing to BAS as initial_params
 }
 
 // Option configures a Runner.
@@ -327,6 +330,14 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 				ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
 			}
 		}
+
+		// Load seed state for passing to BAS as initial_params (Phase 4 namespace support)
+		if seedState, err := r.loadSeedState(); err != nil {
+			shared.LogWarn(r.logWriter, "failed to load seed state: %v (continuing with empty params)", err)
+		} else if len(seedState) > 0 {
+			r.seedState = seedState
+			shared.LogStep(r.logWriter, "loaded %d seed values for BAS initial_params", len(seedState))
+		}
 	} else if !r.playbooksConfig.Seeds.Enabled {
 		shared.LogInfo(r.logWriter, "playbooks seeds disabled via config")
 	}
@@ -538,8 +549,19 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry, uiBaseURL str
 		}
 	}
 
-	// Execute workflow
-	executionID, err := r.basClient.ExecuteWorkflow(ctx, cleanDef, entry.Description)
+	// Execute workflow with namespace-aware parameters (Phase 4 support)
+	var executionID string
+	if len(r.seedState) > 0 {
+		// Use new execution path with initial_params for seed state
+		execParams := &execution.ExecutionParams{
+			ProjectRoot:   r.basProjectRoot(),
+			InitialParams: r.seedState,
+		}
+		executionID, err = r.basClient.ExecuteWorkflowWithParams(ctx, cleanDef, entry.Description, execParams)
+	} else {
+		// Legacy path for workflows without seeds
+		executionID, err = r.basClient.ExecuteWorkflow(ctx, cleanDef, entry.Description)
+	}
 	if err != nil {
 		execErr := NewExecuteError(entry.File, err)
 		_ = r.traceWriter.Write(artifacts.TraceWorkflowFailedEvent(entry.File, "", execErr, 0))
@@ -913,6 +935,39 @@ func convertPreflightToObservations(result *workflow.PreflightResult) []Observat
 	}
 
 	return obs
+}
+
+// loadSeedState loads the seed state JSON file produced by seed scripts.
+// This allows test-genie to pass seed values to BAS as initial_params for
+// the new namespace-aware variable interpolation system.
+func (r *Runner) loadSeedState() (map[string]any, error) {
+	seedPath := sharedartifacts.SeedStatePath(r.config.ScenarioDir)
+	data, err := os.ReadFile(seedPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]any), nil
+		}
+		return nil, err
+	}
+
+	var state map[string]any
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, fmt.Errorf("failed to parse seed state JSON: %w", err)
+	}
+	return state, nil
+}
+
+// basProjectRoot returns the BAS workflow root directory for the current scenario.
+// This is typically the scenario's "bas" subdirectory where workflow JSON files are stored.
+func (r *Runner) basProjectRoot() string {
+	// The BAS workflows are typically in <scenarioDir>/bas/ for test workflows
+	// or in <scenarioDir>/test/playbooks/ for playbook workflows
+	basDir := filepath.Join(r.config.ScenarioDir, "bas")
+	if _, err := os.Stat(basDir); err == nil {
+		return basDir
+	}
+	// Fall back to the test directory which contains playbook workflows
+	return r.config.TestDir
 }
 
 // applyExecutionDefaults injects execution defaults (viewport, step timeout)
