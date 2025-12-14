@@ -332,6 +332,7 @@ func testCompiledInstructionContract(t *testing.T) {
 func testStepOutcomeContract(t *testing.T) {
 	now := time.Now().UTC()
 	execID := uuid.New()
+	highlightRGBA := "#ff0000"
 
 	outcome := contracts.StepOutcome{
 		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
@@ -387,13 +388,13 @@ func testStepOutcomeContract(t *testing.T) {
 		FocusedElement: &contracts.ElementFocus{
 			Selector:    "h1",
 			BoundingBox: &contracts.BoundingBox{X: 100, Y: 50, Width: 200, Height: 40},
-		},
-		HighlightRegions: []contracts.HighlightRegion{
-			{Selector: "h1", Padding: 4, Color: "#ff0000"},
-		},
-		MaskRegions: []contracts.MaskRegion{
-			{Selector: ".sidebar", Opacity: 0.5},
-		},
+			},
+			HighlightRegions: []contracts.HighlightRegion{
+				{Selector: "h1", Padding: 4, CustomRgba: &highlightRGBA},
+			},
+			MaskRegions: []contracts.MaskRegion{
+				{Selector: ".sidebar", Opacity: 0.5},
+			},
 		ZoomFactor: 1.5,
 		CursorTrail: []contracts.CursorPosition{
 			{Point: contracts.Point{X: 0, Y: 0}, RecordedAt: now, ElapsedMs: 0},

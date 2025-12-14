@@ -16,7 +16,7 @@ import {
   type RestoreWorkflowVersionResponse,
   RestoreWorkflowVersionResponseSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
-import { WorkflowDefinitionSchema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_pb';
+import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_v2_pb';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { normalizeNodes, normalizeEdges } from '../utils/workflowNormalizers';
@@ -422,7 +422,7 @@ const workflowSummaryToPayload = (summary: WorkflowSummary | null | undefined): 
     summaryJson = summary as Record<string, unknown>;
   }
   if (summary.flowDefinition) {
-    const flowJson = toJsonRecord(WorkflowDefinitionSchema, summary.flowDefinition);
+    const flowJson = toJsonRecord(WorkflowDefinitionV2Schema, summary.flowDefinition);
     if (Object.keys(flowJson).length > 0) {
       summaryJson.flow_definition = flowJson;
     }
@@ -450,7 +450,7 @@ const parseWorkflowFromCreateResponse = (raw: unknown): Workflow | null => {
     const summaryPayload = workflowSummaryToPayload(proto.workflow);
     if (!summaryPayload) return null;
     if (proto.flowDefinition) {
-      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionSchema, proto.flowDefinition);
+      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
     }
     return normalizeWorkflowResponse(summaryPayload);
   } catch (error) {
@@ -472,7 +472,7 @@ const parseWorkflowFromUpdateResponse = (raw: unknown): Workflow | null => {
     const summaryPayload = workflowSummaryToPayload(proto.workflow);
     if (!summaryPayload) return null;
     if (proto.flowDefinition) {
-      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionSchema, proto.flowDefinition);
+      summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
     }
     return normalizeWorkflowResponse(summaryPayload);
   } catch (error) {

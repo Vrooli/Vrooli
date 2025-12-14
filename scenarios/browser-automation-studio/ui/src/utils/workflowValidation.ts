@@ -1,8 +1,8 @@
 import { toJson } from '@bufbuild/protobuf';
 import {
-  WorkflowDefinitionSchema,
-  type WorkflowDefinition as ProtoWorkflowDefinition,
-} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_pb';
+  WorkflowDefinitionV2Schema,
+  type WorkflowDefinitionV2 as ProtoWorkflowDefinitionV2,
+} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_v2_pb';
 import {
   WorkflowValidationResultSchema,
   type WorkflowValidationResult as ProtoWorkflowValidationResult,
@@ -40,8 +40,8 @@ export const validateWorkflowDefinition = async (
 
 const normalizeWorkflowDefinition = (workflow: WorkflowDefinition): Record<string, unknown> => {
   try {
-    const parsed = parseProtoStrict<ProtoWorkflowDefinition>(WorkflowDefinitionSchema, workflow as unknown);
-    return toJson(WorkflowDefinitionSchema, parsed, { useProtoFieldName: true }) as unknown as Record<string, unknown>;
+    const parsed = parseProtoStrict<ProtoWorkflowDefinitionV2>(WorkflowDefinitionV2Schema, workflow as unknown);
+    return toJson(WorkflowDefinitionV2Schema, parsed, { useProtoFieldName: true }) as unknown as Record<string, unknown>;
   } catch {
     return workflow as unknown as Record<string, unknown>;
   }

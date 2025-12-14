@@ -1,7 +1,9 @@
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
-import { ExecutionEventEnvelopeSchema, type ExecutionEventEnvelope } from '@vrooli/proto-types/browser-automation-studio/v1/execution_pb';
 import {
-  EventKind,
+  TimelineStreamMessageSchema,
+  type TimelineStreamMessage,
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
+import {
   ExecutionStatus as ProtoExecutionStatus,
   StepStatus,
 } from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
@@ -57,35 +59,99 @@ export interface ExecutionUpdateMessage {
 const timestampToIso = (value?: Timestamp | null): string | undefined =>
   timestampToDate(value)?.toISOString();
 
-export const parseEventEnvelope = (value: unknown): ExecutionEventEnvelope | null => {
+const streamMessageTimestampToIso = (
+  message: TimelineStreamMessage | null | undefined,
+): string | undefined => {
+  if (!message?.payload?.case) return undefined;
+  switch (message.payload.case) {
+    case 'entry':
+      return timestampToIso(message.payload.value.timestamp);
+    case 'log':
+      return timestampToIso(message.payload.value.timestamp);
+    case 'heartbeat':
+      return timestampToIso(message.payload.value.timestamp);
+    default:
+      return undefined;
+  }
+};
+
+/**
+ * Parse a TimelineStreamMessage from raw JSON.
+ * This is the new unified streaming format that replaces ExecutionEventEnvelope.
+ */
+export const parseStreamMessage = (value: unknown): TimelineStreamMessage | null => {
   try {
-    return parseProtoStrict(ExecutionEventEnvelopeSchema, value);
+    return parseProtoStrict(TimelineStreamMessageSchema, value);
   } catch {
     return null;
   }
 };
 
-export const envelopeToExecutionEvent = (
-  envelope: ExecutionEventEnvelope | null | undefined,
-): ExecutionEventMessage | null => {
-  if (!envelope) return null;
+// Backwards compatibility alias
+export const parseEventEnvelope = parseStreamMessage;
 
-  const executionId = typeof envelope.executionId === 'string' ? envelope.executionId : '';
-  const workflowId = typeof envelope.workflowId === 'string' ? envelope.workflowId : '';
-  const timestampIso = timestampToIso(envelope.timestamp);
+/**
+ * Convert a TimelineStreamMessage to an ExecutionEventMessage.
+ * This bridges the new unified format to the existing event handling code.
+ */
+export const streamMessageToExecutionEvent = (
+  message: TimelineStreamMessage | null | undefined,
+): ExecutionEventMessage | null => {
+  if (!message) return null;
 
   const base = {
-    execution_id: executionId,
-    workflow_id: workflowId,
-    step_index: envelope.stepIndex,
-    timestamp: timestampIso,
+    execution_id: '',
+    workflow_id: '',
+    timestamp: undefined as string | undefined,
   };
 
-  const kind = typeof envelope.kind === 'number' ? envelope.kind : EventKind.UNSPECIFIED;
+  switch (message.payload?.case) {
+    case 'entry': {
+      const entry = message.payload.value;
+      const context = entry.context;
+      const aggregates = entry.aggregates;
 
-  switch (envelope.payload?.case) {
-    case 'statusUpdate': {
-      const update = envelope.payload.value;
+      // Extract execution_id from context
+      if (context?.origin?.case === 'executionId') {
+        base.execution_id = context.origin.value;
+      }
+      base.timestamp = entry.timestamp ? timestampToIso(entry.timestamp) : undefined;
+
+      const status = aggregates ? mapStepStatus(aggregates.status) : undefined;
+      const type: ExecutionEventType = (() => {
+        if (!aggregates) return 'execution.progress';
+        switch (aggregates.status) {
+          case StepStatus.RUNNING:
+            return 'step.started';
+          case StepStatus.COMPLETED:
+            return 'step.completed';
+          case StepStatus.FAILED:
+          case StepStatus.CANCELLED:
+            return 'step.failed';
+          default:
+            return 'execution.progress';
+        }
+      })();
+
+      return {
+        ...base,
+        type,
+        step_index: entry.stepIndex,
+        step_node_id: entry.nodeId,
+        step_type: entry.action?.type ? mapStepType(entry.action.type) : undefined,
+        status,
+        progress: aggregates?.progress,
+        payload: {
+          assertion: context?.assertion ?? undefined,
+          retry_attempt: context?.retryStatus?.currentAttempt ?? undefined,
+          retry_max_attempts: context?.retryStatus?.maxAttempts ?? undefined,
+          retry_delay_ms: context?.retryStatus?.delayMs ?? undefined,
+          dom_snapshot_preview: aggregates?.domSnapshotPreview ?? undefined,
+        },
+      };
+    }
+    case 'status': {
+      const update = message.payload.value;
       const mappedStatus: ExecutionStatus = mapExecutionStatus(update.status);
       const type: ExecutionEventType = (() => {
         switch (update.status) {
@@ -104,87 +170,44 @@ export const envelopeToExecutionEvent = (
 
       return {
         ...base,
+        execution_id: update.id,
         type,
         status: mappedStatus,
         progress: update.progress,
         message: update.error ?? undefined,
       };
     }
-    case 'timelineFrame': {
-      const frame = envelope.payload.value.frame;
-      if (!frame) return null;
-      const status = mapStepStatus(frame.status);
-      const type: ExecutionEventType = (() => {
-        switch (frame.status) {
-          case StepStatus.RUNNING:
-            return 'step.started';
-          case StepStatus.COMPLETED:
-            return 'step.completed';
-          case StepStatus.FAILED:
-          case StepStatus.CANCELLED:
-            return 'step.failed';
-          default:
-            return 'execution.progress';
-        }
-      })();
-
-      return {
-        ...base,
-        type,
-        step_index: frame.stepIndex,
-        step_node_id: frame.nodeId,
-        step_type: mapStepType(frame.stepType),
-        status,
-        progress: frame.progress,
-        payload: {
-          assertion: frame.assertion ?? undefined,
-          retry_attempt: frame.retryAttempt ?? undefined,
-          retry_max_attempts: frame.retryMaxAttempts ?? undefined,
-          retry_delay_ms: frame.retryDelayMs ?? undefined,
-          dom_snapshot_preview: frame.domSnapshotPreview ?? undefined,
-        },
-      };
-    }
     case 'log': {
-      const log = envelope.payload.value;
+      const log = message.payload.value;
       return {
         ...base,
         type: 'step.log',
         message: log.message,
+        timestamp: log.timestamp ? timestampToIso(log.timestamp) : undefined,
         payload: {
           level: mapProtoLogLevel(log.level),
-          step_index: envelope.stepIndex ?? undefined,
+          step_name: log.stepName ?? undefined,
         },
       };
     }
     case 'heartbeat': {
-      const heartbeat = envelope.payload.value;
+      const heartbeat = message.payload.value;
       return {
         ...base,
         type: 'step.heartbeat',
-        progress: heartbeat.progress,
+        timestamp: heartbeat.timestamp ? timestampToIso(heartbeat.timestamp) : undefined,
         payload: {
-          metrics: heartbeat.metrics,
-          received_at: heartbeat.receivedAt ? timestampToIso(heartbeat.receivedAt) : undefined,
+          session_id: heartbeat.sessionId ?? undefined,
         },
       };
     }
-    case 'telemetry': {
-      const telemetry = envelope.payload.value;
-      return {
-        ...base,
-        type: 'step.telemetry',
-        payload: telemetry.metrics as Record<string, unknown> | null | undefined,
-      };
-    }
-    default: {
-      if (kind === EventKind.STATUS_UPDATE) {
-        return { ...base, type: 'execution.progress' };
-      }
+    default:
       return null;
-    }
   }
 };
+
+// Backwards compatibility alias
+export const envelopeToExecutionEvent = streamMessageToExecutionEvent;
 
 export const parseLegacyUpdate = (value: unknown): ExecutionUpdateMessage | null => {
   if (!value || typeof value !== 'object') {
@@ -257,7 +280,7 @@ export class ExecutionEventsClient {
               }
             }
             this.onEvent(parsedEvent, {
-              fallbackTimestamp: timestampToIso(envelope.timestamp),
+              fallbackTimestamp: streamMessageTimestampToIso(envelope),
               fallbackProgress: parsedEvent.progress,
             });
           }
@@ -278,7 +301,7 @@ export class ExecutionEventsClient {
                 }
               }
               this.onEvent(parsedEvent, {
-                fallbackTimestamp: timestampToIso(nestedEnvelope.timestamp),
+                fallbackTimestamp: streamMessageTimestampToIso(nestedEnvelope),
                 fallbackProgress: parsedEvent.progress,
               });
             }

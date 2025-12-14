@@ -259,8 +259,12 @@ func parseV2Settings(raw map[string]any) *basv1.WorkflowSettingsV2 {
 	if locale := getString(raw, "locale"); locale != "" {
 		settings.Locale = &locale
 	}
+	// Handle both legacy timeout_seconds and new timeout_ms
 	if ts := getInt32(raw, "timeout_seconds"); ts != 0 {
-		settings.TimeoutSeconds = &ts
+		timeoutMs := ts * 1000
+		settings.TimeoutMs = &timeoutMs
+	} else if tm := getInt32(raw, "timeout_ms"); tm != 0 {
+		settings.TimeoutMs = &tm
 	}
 	if headless, ok := raw["headless"].(bool); ok {
 		settings.Headless = &headless
@@ -327,7 +331,8 @@ func parseV2Edge(raw map[string]any) *basv1.WorkflowEdgeV2 {
 		Target: getString(raw, "target"),
 	}
 	if t := getString(raw, "type"); t != "" {
-		edge.Type = &t
+		edgeType := stringToWorkflowEdgeType(t)
+		edge.Type = &edgeType
 	}
 	if l := getString(raw, "label"); l != "" {
 		edge.Label = &l
@@ -385,4 +390,22 @@ func getMap(m map[string]any, key string) map[string]any {
 		return v
 	}
 	return nil
+}
+
+// stringToWorkflowEdgeType converts a string edge type to the proto enum.
+func stringToWorkflowEdgeType(s string) basv1.WorkflowEdgeType {
+	switch s {
+	case "default":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT
+	case "smoothstep":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP
+	case "step":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP
+	case "straight":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT
+	case "bezier":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER
+	default:
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_UNSPECIFIED
+	}
 }

@@ -67,8 +67,9 @@ func TestToAssertionOutcome(t *testing.T) {
 
 func TestToHighlightRegions(t *testing.T) {
 	t.Run("[]HighlightRegion", func(t *testing.T) {
+		custom := "red"
 		input := []contracts.HighlightRegion{
-			{Selector: ".test", Color: "red", Padding: 5},
+			{Selector: ".test", CustomRgba: &custom, Padding: 5},
 		}
 		result := ToHighlightRegions(input)
 		if len(result) != 1 {
@@ -124,7 +125,7 @@ func TestToHighlightRegion(t *testing.T) {
 		if result == nil {
 			t.Fatal("expected non-nil result")
 		}
-		if result.Selector != ".test" || result.Color != "red" || result.Padding != 5 {
+		if result.Selector != ".test" || result.GetCustomRgba() != "red" || result.Padding != 5 {
 			t.Errorf("field values incorrect")
 		}
 	})

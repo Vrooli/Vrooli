@@ -124,6 +124,7 @@ func TestRecordStepOutcomeTimelineParityWithFocusAndHighlights(t *testing.T) {
 	rec := NewDBRecorder(repo, nil, nil)
 
 	now := time.Now().UTC()
+	highlightRGBA := "#ff00ff"
 	outcome := contracts.StepOutcome{
 		SchemaVersion:  contracts.StepOutcomeSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
@@ -153,16 +154,16 @@ func TestRecordStepOutcomeTimelineParityWithFocusAndHighlights(t *testing.T) {
 				X: 10, Y: 20, Width: 200, Height: 120,
 			},
 		},
-		HighlightRegions: []contracts.HighlightRegion{
-			{
-				Selector: "#hero",
-				BoundingBox: &contracts.BoundingBox{
-					X: 10, Y: 20, Width: 200, Height: 120,
+			HighlightRegions: []contracts.HighlightRegion{
+				{
+					Selector: "#hero",
+					BoundingBox: &contracts.BoundingBox{
+						X: 10, Y: 20, Width: 200, Height: 120,
+					},
+					Padding: 12,
+					CustomRgba: &highlightRGBA,
 				},
-				Padding: 12,
-				Color:   "#ff00ff",
 			},
-		},
 		MaskRegions: []contracts.MaskRegion{
 			{
 				Selector: ".mask",
@@ -1151,6 +1152,7 @@ func TestBuildTimelinePayload_AllOptionalFields(t *testing.T) {
 	now := time.Now().UTC()
 	screenshotID := uuid.New()
 	domID := uuid.New()
+	highlightRGBA := "#ff0000"
 
 	outcome := contracts.StepOutcome{
 		StepIndex:   2,
@@ -1168,13 +1170,13 @@ func TestBuildTimelinePayload_AllOptionalFields(t *testing.T) {
 		ClickPosition: &contracts.Point{X: 125, Y: 215},
 		FocusedElement: &contracts.ElementFocus{
 			Selector: "#target",
-		},
-		HighlightRegions: []contracts.HighlightRegion{
-			{Selector: ".highlight", Color: "#ff0000"},
-		},
-		MaskRegions: []contracts.MaskRegion{
-			{Selector: ".mask", Opacity: 0.5},
-		},
+			},
+			HighlightRegions: []contracts.HighlightRegion{
+				{Selector: ".highlight", CustomRgba: &highlightRGBA},
+			},
+			MaskRegions: []contracts.MaskRegion{
+				{Selector: ".mask", Opacity: 0.5},
+			},
 		ZoomFactor: 1.5,
 		ExtractedData: map[string]any{
 			"value": "extracted",

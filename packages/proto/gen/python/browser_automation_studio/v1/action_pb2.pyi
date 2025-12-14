@@ -30,6 +30,7 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_SCREENSHOT: _ClassVar[ActionType]
     ACTION_TYPE_FOCUS: _ClassVar[ActionType]
     ACTION_TYPE_BLUR: _ClassVar[ActionType]
+    ACTION_TYPE_SUBFLOW: _ClassVar[ActionType]
 
 class MouseButton(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -44,6 +45,12 @@ class NavigateWaitEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NAVIGATE_WAIT_EVENT_LOAD: _ClassVar[NavigateWaitEvent]
     NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED: _ClassVar[NavigateWaitEvent]
     NAVIGATE_WAIT_EVENT_NETWORKIDLE: _ClassVar[NavigateWaitEvent]
+
+class NavigateDestinationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NAVIGATE_DESTINATION_TYPE_UNSPECIFIED: _ClassVar[NavigateDestinationType]
+    NAVIGATE_DESTINATION_TYPE_URL: _ClassVar[NavigateDestinationType]
+    NAVIGATE_DESTINATION_TYPE_SCENARIO: _ClassVar[NavigateDestinationType]
 
 class WaitState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -87,6 +94,7 @@ ACTION_TYPE_HOVER: ActionType
 ACTION_TYPE_SCREENSHOT: ActionType
 ACTION_TYPE_FOCUS: ActionType
 ACTION_TYPE_BLUR: ActionType
+ACTION_TYPE_SUBFLOW: ActionType
 MOUSE_BUTTON_UNSPECIFIED: MouseButton
 MOUSE_BUTTON_LEFT: MouseButton
 MOUSE_BUTTON_RIGHT: MouseButton
@@ -95,6 +103,9 @@ NAVIGATE_WAIT_EVENT_UNSPECIFIED: NavigateWaitEvent
 NAVIGATE_WAIT_EVENT_LOAD: NavigateWaitEvent
 NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED: NavigateWaitEvent
 NAVIGATE_WAIT_EVENT_NETWORKIDLE: NavigateWaitEvent
+NAVIGATE_DESTINATION_TYPE_UNSPECIFIED: NavigateDestinationType
+NAVIGATE_DESTINATION_TYPE_URL: NavigateDestinationType
+NAVIGATE_DESTINATION_TYPE_SCENARIO: NavigateDestinationType
 WAIT_STATE_UNSPECIFIED: WaitState
 WAIT_STATE_ATTACHED: WaitState
 WAIT_STATE_DETACHED: WaitState
@@ -119,11 +130,17 @@ class NavigateParams(_message.Message):
     WAIT_FOR_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     WAIT_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
     url: str
     wait_for_selector: str
     timeout_ms: int
     wait_until: NavigateWaitEvent
-    def __init__(self, url: _Optional[str] = ..., wait_for_selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., wait_until: _Optional[_Union[NavigateWaitEvent, str]] = ...) -> None: ...
+    destination_type: NavigateDestinationType
+    scenario: str
+    scenario_path: str
+    def __init__(self, url: _Optional[str] = ..., wait_for_selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., wait_until: _Optional[_Union[NavigateWaitEvent, str]] = ..., destination_type: _Optional[_Union[NavigateDestinationType, str]] = ..., scenario: _Optional[str] = ..., scenario_path: _Optional[str] = ...) -> None: ...
 
 class ClickParams(_message.Message):
     __slots__ = ()
@@ -286,6 +303,25 @@ class BlurParams(_message.Message):
     timeout_ms: int
     def __init__(self, selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
+class SubflowParams(_message.Message):
+    __slots__ = ()
+    class ArgsEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_PATH_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
+    ARGS_FIELD_NUMBER: _ClassVar[int]
+    workflow_id: str
+    workflow_path: str
+    workflow_version: int
+    args: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, workflow_id: _Optional[str] = ..., workflow_path: _Optional[str] = ..., workflow_version: _Optional[int] = ..., args: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+
 class ActionMetadata(_message.Message):
     __slots__ = ()
     LABEL_FIELD_NUMBER: _ClassVar[int]
@@ -318,6 +354,7 @@ class ActionDefinition(_message.Message):
     SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
     FOCUS_FIELD_NUMBER: _ClassVar[int]
     BLUR_FIELD_NUMBER: _ClassVar[int]
+    SUBFLOW_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     type: ActionType
     navigate: NavigateParams
@@ -332,5 +369,6 @@ class ActionDefinition(_message.Message):
     screenshot: ScreenshotParams
     focus: FocusParams
     blur: BlurParams
+    subflow: SubflowParams
     metadata: ActionMetadata
-    def __init__(self, type: _Optional[_Union[ActionType, str]] = ..., navigate: _Optional[_Union[NavigateParams, _Mapping]] = ..., click: _Optional[_Union[ClickParams, _Mapping]] = ..., input: _Optional[_Union[InputParams, _Mapping]] = ..., wait: _Optional[_Union[WaitParams, _Mapping]] = ..., scroll: _Optional[_Union[ScrollParams, _Mapping]] = ..., select_option: _Optional[_Union[SelectParams, _Mapping]] = ..., evaluate: _Optional[_Union[EvaluateParams, _Mapping]] = ..., keyboard: _Optional[_Union[KeyboardParams, _Mapping]] = ..., hover: _Optional[_Union[HoverParams, _Mapping]] = ..., screenshot: _Optional[_Union[ScreenshotParams, _Mapping]] = ..., focus: _Optional[_Union[FocusParams, _Mapping]] = ..., blur: _Optional[_Union[BlurParams, _Mapping]] = ..., metadata: _Optional[_Union[ActionMetadata, _Mapping]] = ..., **kwargs) -> None: ...
+    def __init__(self, type: _Optional[_Union[ActionType, str]] = ..., navigate: _Optional[_Union[NavigateParams, _Mapping]] = ..., click: _Optional[_Union[ClickParams, _Mapping]] = ..., input: _Optional[_Union[InputParams, _Mapping]] = ..., wait: _Optional[_Union[WaitParams, _Mapping]] = ..., scroll: _Optional[_Union[ScrollParams, _Mapping]] = ..., select_option: _Optional[_Union[SelectParams, _Mapping]] = ..., evaluate: _Optional[_Union[EvaluateParams, _Mapping]] = ..., keyboard: _Optional[_Union[KeyboardParams, _Mapping]] = ..., hover: _Optional[_Union[HoverParams, _Mapping]] = ..., screenshot: _Optional[_Union[ScreenshotParams, _Mapping]] = ..., focus: _Optional[_Union[FocusParams, _Mapping]] = ..., blur: _Optional[_Union[BlurParams, _Mapping]] = ..., subflow: _Optional[_Union[SubflowParams, _Mapping]] = ..., metadata: _Optional[_Union[ActionMetadata, _Mapping]] = ..., **kwargs) -> None: ...

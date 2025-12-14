@@ -4,8 +4,8 @@ import {
   ExecutionStatus as ProtoExecutionStatus,
   LogLevel as ProtoLogLevel,
   StepStatus,
-  StepType,
 } from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/action_pb';
 export type MappedLogLevel = 'info' | 'warning' | 'error' | 'success';
 
 export type ExecutionStatus =
@@ -55,26 +55,44 @@ export const mapExecutionStatus = (
   }
 };
 
-export const mapStepType = (stepType?: StepType | string): string | undefined => {
-  if (typeof stepType === 'number') {
-    switch (stepType) {
-      case StepType.NAVIGATE:
+/**
+ * Maps ActionType enum to display string.
+ * Note: StepType was replaced by ActionType in the unified model.
+ */
+export const mapStepType = (actionType?: ActionType | string): string | undefined => {
+  if (typeof actionType === 'number') {
+    switch (actionType) {
+      case ActionType.NAVIGATE:
         return 'navigate';
-      case StepType.CLICK:
+      case ActionType.CLICK:
         return 'click';
-      case StepType.ASSERT:
-        return 'assert';
-      case StepType.SUBFLOW:
-        return 'subflow';
-      case StepType.INPUT:
+      case ActionType.INPUT:
         return 'input';
-      case StepType.CUSTOM:
-        return 'custom';
+      case ActionType.WAIT:
+        return 'wait';
+      case ActionType.ASSERT:
+        return 'assert';
+      case ActionType.SCROLL:
+        return 'scroll';
+      case ActionType.SELECT:
+        return 'select';
+      case ActionType.EVALUATE:
+        return 'evaluate';
+      case ActionType.KEYBOARD:
+        return 'keyboard';
+      case ActionType.HOVER:
+        return 'hover';
+      case ActionType.SCREENSHOT:
+        return 'screenshot';
+      case ActionType.FOCUS:
+        return 'focus';
+      case ActionType.BLUR:
+        return 'blur';
       default:
         return undefined;
     }
   }
-  return stepType;
+  return actionType;
 };
 
 export const mapStepStatus = (status?: StepStatus | string): string | undefined => {

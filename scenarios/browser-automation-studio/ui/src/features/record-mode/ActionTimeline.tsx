@@ -160,14 +160,16 @@ export function ActionTimeline({
   }, []);
 
   const getActionIcon = (actionType: string) => {
-    switch (actionType) {
+    const normalizedType =
+      actionType === 'type' ? 'input' : actionType === 'keypress' ? 'keyboard' : actionType;
+    switch (normalizedType) {
       case 'click':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
           </svg>
         );
-      case 'type':
+      case 'input':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -185,7 +187,7 @@ export function ActionTimeline({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
           </svg>
         );
-      case 'keypress':
+      case 'keyboard':
         return (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
@@ -213,7 +215,10 @@ export function ActionTimeline({
   };
 
   const getActionLabel = (action: RecordedAction) => {
-    switch (action.actionType) {
+    const rawType: string = action.actionType;
+    const normalizedType =
+      rawType === 'type' ? 'input' : rawType === 'keypress' ? 'keyboard' : rawType;
+    switch (normalizedType) {
       case 'click':
         if (action.elementMeta?.innerText) {
           return `Click: "${truncate(action.elementMeta.innerText, 30)}"`;
@@ -222,7 +227,7 @@ export function ActionTimeline({
           return `Click: ${action.elementMeta.ariaLabel}`;
         }
         return `Click ${action.elementMeta?.tagName || 'element'}`;
-      case 'type':
+      case 'input':
         if (action.payload?.text) {
           return `Type: "${truncate(String(action.payload.text), 30)}"`;
         }
@@ -231,14 +236,14 @@ export function ActionTimeline({
         return `Navigate to ${truncate(action.url, 40)}`;
       case 'scroll':
         return `Scroll ${action.payload?.deltaY !== undefined && Number(action.payload.deltaY) > 0 ? 'down' : 'up'}`;
-      case 'keypress':
+      case 'keyboard':
         return `Press ${action.payload?.key || 'key'}`;
       case 'select':
         return `Select: ${action.payload?.selectedText || action.payload?.value || 'option'}`;
       case 'focus':
         return `Focus ${action.elementMeta?.tagName || 'element'}`;
       default:
-        return action.actionType;
+        return normalizedType;
     }
   };
 
@@ -296,8 +301,8 @@ export function ActionTimeline({
   };
 
   const shouldWarnOnSelector = (action: RecordedAction) => {
-    // Non-element actions like scroll/navigate/keypress don't need selector warnings.
-    return ['click', 'type', 'select', 'focus', 'hover', 'blur'].includes(action.actionType);
+    // Non-element actions like scroll/navigate/keyboard don't need selector warnings.
+    return ['click', 'input', 'select', 'focus', 'hover', 'blur'].includes(action.actionType);
   };
 
   /** Format modifier keys for display */
@@ -586,8 +591,8 @@ export function ActionTimeline({
                   </div>
                 )}
 
-                {/* Keypress action details */}
-                {action.actionType === 'keypress' && action.payload && (
+                {/* Keyboard action details */}
+                {action.actionType === 'keyboard' && action.payload && (
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500 text-xs uppercase tracking-wide">Key Details</span>
@@ -701,8 +706,8 @@ export function ActionTimeline({
                   </div>
                 )}
 
-                {/* Type action details (text input) */}
-                {action.actionType === 'type' && action.payload?.text && (
+                {/* Input action details (text input) */}
+                {action.actionType === 'input' && action.payload?.text && (
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500 text-xs uppercase tracking-wide">Text Input</span>
@@ -817,8 +822,8 @@ export function ActionTimeline({
             {/* Payload Editor */}
             {isEditing && editMode === 'payload' && (
               <div className="mt-3 ml-9 space-y-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                {/* Type action editor */}
-                {action.actionType === 'type' && (
+                {/* Input action editor */}
+                {action.actionType === 'input' && (
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -862,8 +867,8 @@ export function ActionTimeline({
                   </div>
                 )}
 
-                {/* Keypress action editor */}
-                {action.actionType === 'keypress' && (
+                {/* Keyboard action editor */}
+                {action.actionType === 'keyboard' && (
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">

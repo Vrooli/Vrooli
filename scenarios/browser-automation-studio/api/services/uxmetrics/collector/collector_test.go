@@ -122,13 +122,13 @@ func TestCollector_OnStepCompleted_SavesCursorPath(t *testing.T) {
 
 	// Outcome with cursor trail
 	outcome := &autocontracts.StepOutcome{
-		StepIndex:  0,
-		NodeID:     "click-1",
-		StepType:   "click",
-		Success:    true,
-		StartedAt:  now,
+		StepIndex:   0,
+		NodeID:      "click-1",
+		StepType:    "click",
+		Success:     true,
+		StartedAt:   now,
 		CompletedAt: func() *time.Time { t := now.Add(500 * time.Millisecond); return &t }(),
-		DurationMs: 500,
+		DurationMs:  500,
 		CursorTrail: []autocontracts.CursorPosition{
 			{Point: autocontracts.Point{X: 0, Y: 0}, RecordedAt: now},
 			{Point: autocontracts.Point{X: 100, Y: 0}, RecordedAt: now.Add(100 * time.Millisecond)},

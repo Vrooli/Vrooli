@@ -26,15 +26,18 @@ func TestExecutionToProto(t *testing.T) {
 		WorkflowVersion: 3,
 		Status:          "running",
 		TriggerType:     "manual",
-		TriggerMetadata: database.JSONMap{"source": "api"},
-		Parameters:      database.JSONMap{"foo": "bar", "count": 2},
+		TriggerMetadata: database.JSONMap{"client_id": "api"},
+		Parameters: database.JSONMap{
+			"start_url": "https://example.test",
+			"variables": map[string]any{"foo": "bar"},
+		},
 		StartedAt:       now,
 		CompletedAt:     &completed,
 		LastHeartbeat:   &heartbeat,
 		Error: database.NullableString{
 			NullString: sql.NullString{String: "boom", Valid: true},
 		},
-		Result:      database.JSONMap{"ok": true},
+		Result:      database.JSONMap{"success": true},
 		Progress:    42,
 		CurrentStep: "navigate",
 		CreatedAt:   now.Add(-time.Minute),
@@ -55,14 +58,17 @@ func TestExecutionToProto(t *testing.T) {
 	if pb.Error == nil || pb.GetError() != "boom" {
 		t.Fatalf("expected error \"boom\", got %v", pb.Error)
 	}
-	if pb.TriggerMetadata["source"].GetStringValue() != "api" {
-		t.Fatalf("expected trigger metadata source=api, got %v", pb.TriggerMetadata["source"])
+	if pb.TriggerMetadata == nil || pb.TriggerMetadata.GetClientId() != "api" {
+		t.Fatalf("expected trigger metadata client_id=api, got %+v", pb.TriggerMetadata)
 	}
-	if pb.Parameters["foo"].GetStringValue() != "bar" || pb.Parameters["count"].GetIntValue() != 2 {
-		t.Fatalf("parameters not set: %+v", pb.Parameters)
+	if pb.Parameters == nil || pb.Parameters.GetStartUrl() != "https://example.test" {
+		t.Fatalf("expected parameters start_url=https://example.test, got %+v", pb.Parameters)
 	}
-	if pb.Result["ok"].GetBoolValue() != true {
-		t.Fatalf("result not set: %+v", pb.Result)
+	if pb.Parameters.GetVariables()["foo"] != "bar" {
+		t.Fatalf("expected parameters.variables.foo=bar, got %+v", pb.Parameters.GetVariables())
+	}
+	if pb.Result == nil || pb.Result.Success != true {
+		t.Fatalf("expected result.success=true, got %+v", pb.Result)
 	}
 
 	// Ensure JSON uses proto field names (snake_case).
@@ -122,13 +128,13 @@ func TestTimelineToProto(t *testing.T) {
 					StepIndex: &stepIndex,
 					Payload:   map[string]any{"foo": "bar"},
 				}},
-				Assertion: &autocontracts.AssertionOutcome{
-					Mode:     "equals",
-					Selector: "#main",
-					Success:  true,
-					Expected: "a",
-					Actual:   "a",
-				},
+					Assertion: &autocontracts.AssertionOutcome{
+						Mode:     "text_equals",
+						Selector: "#main",
+						Success:  true,
+						Expected: "a",
+						Actual:   "a",
+					},
 				RetryAttempt:       1,
 				RetryMaxAttempts:   3,
 				RetryConfigured:    1,
@@ -158,24 +164,24 @@ func TestTimelineToProto(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(pb.Frames) != 1 {
-		t.Fatalf("expected 1 frame, got %d", len(pb.Frames))
+	if len(pb.Entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(pb.Entries))
 	}
-	frame := pb.Frames[0]
-	if frame.GetScreenshot().GetArtifactId() != "shot-1" {
-		t.Fatalf("unexpected screenshot artifact id: %s", frame.GetScreenshot().GetArtifactId())
+	entry := pb.Entries[0]
+	if entry.GetTelemetry().GetScreenshot().GetArtifactId() != "shot-1" {
+		t.Fatalf("unexpected screenshot artifact id: %s", entry.GetTelemetry().GetScreenshot().GetArtifactId())
 	}
-	if frame.Assertion == nil || frame.Assertion.GetMode() != browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS {
-		t.Fatalf("assertion not converted correctly: %+v", frame.Assertion)
+	if entry.GetContext().GetAssertion() == nil || entry.GetContext().GetAssertion().GetMode() != browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS {
+		t.Fatalf("assertion not converted correctly: %+v", entry.GetContext().GetAssertion())
 	}
-	if frame.ExtractedDataPreview == nil || frame.ExtractedDataPreview.GetObjectValue().Fields["preview"].GetStringValue() != "ok" {
-		t.Fatalf("expected extracted_data_preview to be preserved, got %+v", frame.ExtractedDataPreview)
+	if entry.GetAggregates().GetExtractedDataPreview() == nil || entry.GetAggregates().GetExtractedDataPreview().GetObjectValue().Fields["preview"].GetStringValue() != "ok" {
+		t.Fatalf("expected extracted_data_preview to be preserved, got %+v", entry.GetAggregates().GetExtractedDataPreview())
 	}
-	if len(frame.Artifacts) != 1 || frame.Artifacts[0].Payload["foo"].GetStringValue() != "bar" {
-		t.Fatalf("artifact payload not converted correctly: %+v", frame.Artifacts)
+	if len(entry.GetAggregates().GetArtifacts()) != 1 || entry.GetAggregates().GetArtifacts()[0].Payload["foo"].GetStringValue() != "bar" {
+		t.Fatalf("artifact payload not converted correctly: %+v", entry.GetAggregates().GetArtifacts())
 	}
-	if frame.RetryConfigured == nil || !frame.GetRetryConfigured() {
-		t.Fatalf("retry_configured should be set to true")
+	if entry.GetContext().GetRetryStatus() == nil || !entry.GetContext().GetRetryStatus().GetConfigured() {
+		t.Fatalf("retry_status.configured should be set to true")
 	}
 }
 
@@ -199,29 +205,29 @@ func TestScreenshotsToProto(t *testing.T) {
 		},
 	}
 
-	pb, err := ScreenshotsToProto(shots)
+	pb, err := ScreenshotsToProto(shots, execID.String())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if len(pb.Screenshots) != 1 {
 		t.Fatalf("expected 1 screenshot, got %d", len(pb.Screenshots))
 	}
-	shot := pb.Screenshots[0]
-	if shot.GetExecutionId() != execID.String() {
-		t.Fatalf("unexpected execution_id: %s", shot.GetExecutionId())
+	if pb.GetExecutionId() != execID.String() {
+		t.Fatalf("unexpected execution_id: %s", pb.GetExecutionId())
 	}
+	shot := pb.Screenshots[0]
 	if shot.GetStepIndex() != 1 {
 		t.Fatalf("expected step_index 1, got %d", shot.GetStepIndex())
 	}
-	if shot.GetThumbnailUrl() != "https://example.com/thumb.png" {
-		t.Fatalf("expected thumbnail_url override, got %s", shot.GetThumbnailUrl())
+	if shot.GetScreenshot().GetThumbnailUrl() != "https://example.com/thumb.png" {
+		t.Fatalf("expected thumbnail_url override, got %s", shot.GetScreenshot().GetThumbnailUrl())
 	}
 
 	data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(pb)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
 	}
-	if !containsJSONField(data, "storage_url") || !containsJSONField(data, "thumbnail_url") {
+	if !containsJSONField(data, "thumbnail_url") || !containsJSONField(data, "execution_id") {
 		t.Fatalf("expected protojson to use proto names: %s", string(data))
 	}
 }

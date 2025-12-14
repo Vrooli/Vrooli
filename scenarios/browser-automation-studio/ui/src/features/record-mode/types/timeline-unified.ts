@@ -1,38 +1,64 @@
 /**
  * Unified Timeline Types
  *
- * This module bridges between the legacy RecordedAction types used in the UI
- * and the new unified TimelineEvent types from the proto definitions.
+ * This module provides the unified TimelineEntry types from proto definitions
+ * and conversion utilities for UI rendering.
  *
  * The unified types enable:
  * 1. Same data structure for recording and execution
  * 2. Real-time execution viewing on the Record page
  * 3. Simpler data transformation between layers
+ *
+ * See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
  */
 
 import type { RecordedAction, SelectorCandidate, SelectorSet, BoundingBox, ElementMeta } from '../types';
 
 // Re-export the proto types for convenience
-// These are generated from packages/proto/schemas/browser-automation-studio/v1/unified.proto
+// These are generated from packages/proto/schemas/browser-automation-studio/v1/
 export type {
-  TimelineEvent,
-  ActionDefinition,
-  ActionTelemetry,
-  RecordingEventData,
-  ExecutionEventData,
-  WorkflowNodeV2,
-  ActionMetadata,
-  ActionType,
-} from '@vrooli/proto-types/browser-automation-studio/v1/unified_pb';
+  TimelineEntry,
+  TimelineEntryAggregates,
+  TimelineStreamMessage,
+  TimelineStatusUpdate,
+  TimelineHeartbeat,
+  TimelineLog,
+  TimelineArtifact,
+  ElementFocus,
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
 
-export {
-  ActionType as ActionTypeEnum,
-} from '@vrooli/proto-types/browser-automation-studio/v1/unified_pb';
+export type {
+  ActionDefinition,
+  ActionMetadata,
+} from '@vrooli/proto-types/browser-automation-studio/v1/action_pb';
+
+export type {
+  ActionTelemetry,
+} from '@vrooli/proto-types/browser-automation-studio/v1/telemetry_pb';
+
+export type {
+  EventContext,
+} from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
+
+export type {
+  WorkflowNodeV2,
+} from '@vrooli/proto-types/browser-automation-studio/v1/workflow_v2_pb';
 
 // Import proto types for use in conversions
 import type {
-  TimelineEvent,
-} from '@vrooli/proto-types/browser-automation-studio/v1/unified_pb';
+  TimelineEntry,
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
+
+// Import proto enums for type-safe conversions
+import {
+  ActionType as ProtoActionType,
+  MouseButton as ProtoMouseButton,
+  KeyboardModifier as ProtoKeyboardModifier,
+} from '@vrooli/proto-types/browser-automation-studio/v1/action_pb';
+
+import {
+  SelectorType as ProtoSelectorType,
+} from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
 
 /**
  * Mode discriminator for timeline events.
@@ -56,14 +82,13 @@ export interface TimelineItem {
   success?: boolean;
   error?: string;
   mode: TimelineMode;
-  // Raw event for detailed views
-  rawEvent?: TimelineEvent;
-  // Legacy action for backward compatibility
-  legacyAction?: RecordedAction;
+  /** Raw TimelineEntry for detailed views */
+  rawEntry?: TimelineEntry;
 }
 
 /**
  * Convert a legacy RecordedAction to a TimelineItem for unified rendering.
+ * Used when receiving RecordedAction from legacy API responses.
  */
 export function recordedActionToTimelineItem(action: RecordedAction): TimelineItem {
   return {
@@ -76,44 +101,43 @@ export function recordedActionToTimelineItem(action: RecordedAction): TimelineIt
     url: action.url,
     success: true, // Recording actions are always successful captures
     mode: 'recording',
-    legacyAction: action,
   };
 }
 
 /**
- * Convert a TimelineEvent (proto) to a TimelineItem for unified rendering.
+ * Convert a TimelineEntry (proto) to a TimelineItem for unified rendering.
  */
-export function timelineEventToTimelineItem(event: TimelineEvent): TimelineItem {
-  const actionType = getActionTypeString(event.action?.type);
-  const mode: TimelineMode = event.modeData.case === 'recording' ? 'recording' : 'execution';
+export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem {
+  const actionType = getActionTypeString(entry.action?.type);
+  // Determine mode from context.origin - sessionId indicates recording, executionId indicates execution
+  const context = entry.context;
+  const mode: TimelineMode = context?.origin?.case === 'sessionId' ? 'recording' : 'execution';
 
   let selector: string | undefined;
   // Try to get selector from action params
-  if (event.action?.params.case === 'click') {
-    selector = event.action.params.value.selector;
-  } else if (event.action?.params.case === 'input') {
-    selector = event.action.params.value.selector;
-  } else if (event.action?.params.case === 'hover') {
-    selector = event.action.params.value.selector;
-  } else if (event.action?.params.case === 'focus') {
-    selector = event.action.params.value.selector;
+  if (entry.action?.params?.case === 'click') {
+    selector = (entry.action.params.value as { selector?: string })?.selector;
+  } else if (entry.action?.params?.case === 'input') {
+    selector = (entry.action.params.value as { selector?: string })?.selector;
+  } else if (entry.action?.params?.case === 'hover') {
+    selector = (entry.action.params.value as { selector?: string })?.selector;
+  } else if (entry.action?.params?.case === 'focus') {
+    selector = (entry.action.params.value as { selector?: string })?.selector;
   }
 
-  // Extract success/error for execution mode
-  const executionData = event.modeData.case === 'execution' ? event.modeData.value : undefined;
-
+  // Extract success/error from unified context
   return {
-    id: event.id,
-    sequenceNum: event.sequenceNum,
-    timestamp: event.timestamp ? timestampToDate(event.timestamp) : new Date(),
-    durationMs: event.durationMs,
+    id: entry.id,
+    sequenceNum: entry.sequenceNum,
+    timestamp: entry.timestamp ? timestampToDate(entry.timestamp) : new Date(),
+    durationMs: entry.durationMs,
     actionType,
     selector,
-    url: event.telemetry?.url,
-    success: mode === 'execution' ? executionData?.success : true,
-    error: executionData?.error,
+    url: entry.telemetry?.url,
+    success: context?.success ?? true,
+    error: context?.error,
     mode,
-    rawEvent: event,
+    rawEntry: entry,
   };
 }
 
@@ -128,70 +152,131 @@ function timestampToDate(timestamp: { seconds?: bigint; nanos?: number }): Date 
 
 /**
  * Convert ActionType enum to display string.
+ * Uses proto-generated enum values for type safety.
  */
 function getActionTypeString(type: number | undefined): string {
   switch (type) {
-    case 1: return 'navigate';
-    case 2: return 'click';
-    case 3: return 'input';
-    case 4: return 'wait';
-    case 5: return 'assert';
-    case 6: return 'scroll';
-    case 7: return 'select';
-    case 8: return 'evaluate';
-    case 9: return 'keyboard';
-    case 10: return 'hover';
-    case 11: return 'screenshot';
-    case 12: return 'focus';
-    case 13: return 'blur';
+    case ProtoActionType.NAVIGATE: return 'navigate';
+    case ProtoActionType.CLICK: return 'click';
+    case ProtoActionType.INPUT: return 'input';
+    case ProtoActionType.WAIT: return 'wait';
+    case ProtoActionType.ASSERT: return 'assert';
+    case ProtoActionType.SCROLL: return 'scroll';
+    case ProtoActionType.SELECT: return 'select';
+    case ProtoActionType.EVALUATE: return 'evaluate';
+    case ProtoActionType.KEYBOARD: return 'keyboard';
+    case ProtoActionType.HOVER: return 'hover';
+    case ProtoActionType.SCREENSHOT: return 'screenshot';
+    case ProtoActionType.FOCUS: return 'focus';
+    case ProtoActionType.BLUR: return 'blur';
     default: return 'unknown';
   }
 }
 
 /**
- * Convert a TimelineEvent back to a RecordedAction for legacy component compatibility.
- * This is useful during the migration period.
+ * Convert SelectorType enum to string.
+ * Uses proto-generated enum values for type safety.
  */
-export function timelineEventToRecordedAction(event: TimelineEvent): RecordedAction | null {
-  if (!event.action) return null;
+function selectorTypeToString(type: number | string | undefined): string {
+  if (typeof type === 'string') return type;
+  switch (type) {
+    case ProtoSelectorType.CSS: return 'css';
+    case ProtoSelectorType.XPATH: return 'xpath';
+    case ProtoSelectorType.ID: return 'id';
+    case ProtoSelectorType.DATA_TESTID: return 'data-testid';
+    case ProtoSelectorType.ARIA: return 'aria';
+    case ProtoSelectorType.TEXT: return 'text';
+    case ProtoSelectorType.ROLE: return 'role';
+    case ProtoSelectorType.PLACEHOLDER: return 'placeholder';
+    case ProtoSelectorType.ALT_TEXT: return 'alt-text';
+    case ProtoSelectorType.TITLE: return 'title';
+    default: return 'css';
+  }
+}
 
-  const actionType = getActionTypeString(event.action.type);
-  const selector = extractSelector(event);
-  const elementMeta = extractElementMeta(event);
-  const boundingBox = extractBoundingBox(event);
+/**
+ * Convert MouseButton enum to string.
+ * Uses proto-generated enum values for type safety.
+ */
+function mouseButtonToString(button: number | string | undefined): 'left' | 'right' | 'middle' {
+  if (typeof button === 'string') {
+    if (button === 'left' || button === 'right' || button === 'middle') return button;
+    return 'left';
+  }
+  switch (button) {
+    case ProtoMouseButton.LEFT: return 'left';
+    case ProtoMouseButton.RIGHT: return 'right';
+    case ProtoMouseButton.MIDDLE: return 'middle';
+    default: return 'left';
+  }
+}
 
-  // Extract session/execution ID from modeData
+/**
+ * Convert KeyboardModifier array to string array.
+ * Uses proto-generated enum values for type safety.
+ */
+function keyboardModifiersToStrings(modifiers: Array<number | string> | undefined): Array<'ctrl' | 'shift' | 'alt' | 'meta'> {
+  if (!modifiers) return [];
+  return modifiers.map((mod) => {
+    if (typeof mod === 'string') {
+      if (mod === 'ctrl' || mod === 'shift' || mod === 'alt' || mod === 'meta') return mod;
+      return 'ctrl'; // fallback
+    }
+    switch (mod) {
+      case ProtoKeyboardModifier.CTRL: return 'ctrl';
+      case ProtoKeyboardModifier.SHIFT: return 'shift';
+      case ProtoKeyboardModifier.ALT: return 'alt';
+      case ProtoKeyboardModifier.META: return 'meta';
+      default: return 'ctrl';
+    }
+  });
+}
+
+/**
+ * Convert a TimelineEntry back to a RecordedAction for legacy component compatibility.
+ * This is useful when interfacing with components that still expect RecordedAction.
+ */
+export function timelineEntryToRecordedAction(entry: TimelineEntry): RecordedAction | null {
+  if (!entry.action) return null;
+
+  const actionType = getActionTypeString(entry.action.type);
+  const selector = extractSelector(entry);
+  const elementMeta = extractElementMeta(entry);
+  const boundingBox = extractBoundingBox(entry);
+
+  // Extract session/execution ID from unified context.origin
   let sessionId = '';
-  if (event.modeData.case === 'recording') {
-    sessionId = event.modeData.value.sessionId;
-  } else if (event.modeData.case === 'execution') {
-    sessionId = event.modeData.value.executionId;
+  const context = entry.context;
+  if (context?.origin?.case === 'sessionId') {
+    sessionId = context.origin.value;
+  } else if (context?.origin?.case === 'executionId') {
+    sessionId = context.origin.value;
   }
 
   return {
-    id: event.id,
+    id: entry.id,
     sessionId,
-    sequenceNum: event.sequenceNum,
-    timestamp: event.timestamp ? timestampToDate(event.timestamp).toISOString() : new Date().toISOString(),
-    durationMs: event.durationMs,
+    sequenceNum: entry.sequenceNum,
+    timestamp: entry.timestamp ? timestampToDate(entry.timestamp).toISOString() : new Date().toISOString(),
+    durationMs: entry.durationMs,
     actionType: actionType as RecordedAction['actionType'],
-    confidence: event.action.metadata?.confidence ?? 1.0,
+    confidence: entry.action.metadata?.confidence ?? 1.0,
     selector,
     elementMeta,
     boundingBox,
-    payload: extractPayload(event),
-    url: event.telemetry?.url ?? '',
-    frameId: event.telemetry?.frameId,
-    cursorPos: event.telemetry?.cursorPosition
-      ? { x: event.telemetry.cursorPosition.x, y: event.telemetry.cursorPosition.y }
+    payload: extractPayload(entry),
+    url: entry.telemetry?.url ?? '',
+    frameId: entry.telemetry?.frameId,
+    cursorPos: entry.telemetry?.cursorPosition
+      ? { x: entry.telemetry.cursorPosition.x, y: entry.telemetry.cursorPosition.y }
       : undefined,
   };
 }
 
-function extractSelector(event: TimelineEvent): SelectorSet | undefined {
+function extractSelector(entry: TimelineEntry): SelectorSet | undefined {
   // Get selector from params
   let primary: string | undefined;
-  const params = event.action?.params;
+  const params = entry.action?.params;
 
   if (params?.case === 'click') primary = params.value.selector;
   else if (params?.case === 'input') primary = params.value.selector;
@@ -203,15 +288,13 @@ function extractSelector(event: TimelineEvent): SelectorSet | undefined {
 
   if (!primary) return undefined;
 
-  // Get candidates from recording data or metadata
+  // Get candidates from metadata (unified - no more modeData separation)
   const candidates: SelectorCandidate[] = [];
-  const recordingData = event.modeData.case === 'recording' ? event.modeData.value : undefined;
-  const protoSelectorCandidates =
-    recordingData?.selectorCandidates ?? event.action?.metadata?.selectorCandidates ?? [];
+  const protoSelectorCandidates = entry.action?.metadata?.selectorCandidates ?? [];
 
   for (const c of protoSelectorCandidates) {
     candidates.push({
-      type: c.type as SelectorCandidate['type'],
+      type: selectorTypeToString(c.type) as SelectorCandidate['type'],
       value: c.value,
       confidence: c.confidence,
       specificity: c.specificity,
@@ -221,8 +304,8 @@ function extractSelector(event: TimelineEvent): SelectorSet | undefined {
   return { primary, candidates };
 }
 
-function extractElementMeta(event: TimelineEvent): ElementMeta | undefined {
-  const snapshot = event.action?.metadata?.elementSnapshot;
+function extractElementMeta(entry: TimelineEntry): ElementMeta | undefined {
+  const snapshot = entry.action?.metadata?.elementSnapshot;
   if (!snapshot) return undefined;
 
   const attributes: Record<string, string> = {};
@@ -245,8 +328,10 @@ function extractElementMeta(event: TimelineEvent): ElementMeta | undefined {
   };
 }
 
-function extractBoundingBox(event: TimelineEvent): BoundingBox | undefined {
-  const box = event.telemetry?.elementBoundingBox ?? event.action?.metadata?.recordedBoundingBox;
+function extractBoundingBox(entry: TimelineEntry): BoundingBox | undefined {
+  // Use telemetry bounding box (live) or metadata captured bounding box (snapshot)
+  // Note: recordedBoundingBox was renamed to capturedBoundingBox in unified model
+  const box = entry.telemetry?.elementBoundingBox ?? entry.action?.metadata?.capturedBoundingBox;
   if (!box) return undefined;
 
   return {
@@ -257,16 +342,16 @@ function extractBoundingBox(event: TimelineEvent): BoundingBox | undefined {
   };
 }
 
-function extractPayload(event: TimelineEvent): RecordedAction['payload'] {
-  const params = event.action?.params;
+function extractPayload(entry: TimelineEntry): RecordedAction['payload'] {
+  const params = entry.action?.params;
   if (!params || params.case === undefined) return {};
 
   switch (params.case) {
     case 'click':
       return {
-        button: params.value.button as 'left' | 'right' | 'middle',
+        button: mouseButtonToString(params.value.button),
         clickCount: params.value.clickCount,
-        modifiers: params.value.modifiers as Array<'ctrl' | 'shift' | 'alt' | 'meta'>,
+        modifiers: keyboardModifiersToStrings(params.value.modifiers),
       };
     case 'input':
       return {
@@ -303,28 +388,29 @@ function extractPayload(event: TimelineEvent): RecordedAction['payload'] {
 }
 
 /**
- * Type guard to check if a WebSocket message contains a timeline_event field.
+ * Type guard to check if a WebSocket message contains a timeline_entry field.
+ * Note: The Go API uses timeline_entry (V2 unified format).
  */
-export function hasTimelineEvent(message: unknown): message is { timeline_event: unknown } {
+export function hasTimelineEntry(message: unknown): message is { timeline_entry: unknown } {
   return (
     typeof message === 'object' &&
     message !== null &&
-    'timeline_event' in message &&
-    message.timeline_event !== null
+    'timeline_entry' in message &&
+    message.timeline_entry !== null
   );
 }
 
 /**
- * Parse a timeline_event from a WebSocket message.
+ * Parse a timeline_entry from a WebSocket message.
  * Returns null if parsing fails.
  */
-export function parseTimelineEvent(timelineEventJson: unknown): TimelineEvent | null {
-  if (!timelineEventJson || typeof timelineEventJson !== 'object') {
+export function parseTimelineEntry(timelineEntryJson: unknown): TimelineEntry | null {
+  if (!timelineEntryJson || typeof timelineEntryJson !== 'object') {
     return null;
   }
 
-  // The timeline_event is already JSON - we need to convert it to the proto type
+  // The timeline_entry is already JSON - we need to convert it to the proto type
   // For now, we return it as-is since the proto types are interfaces
   // In a full implementation, you'd use protojson to properly deserialize
-  return timelineEventJson as TimelineEvent;
+  return timelineEntryJson as TimelineEntry;
 }

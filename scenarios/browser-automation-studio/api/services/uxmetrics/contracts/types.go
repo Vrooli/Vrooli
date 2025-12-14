@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
 // ActionType enumerates the types of user interactions tracked.
@@ -44,11 +45,9 @@ const (
 	SeverityHigh   Severity = "high"
 )
 
-// Point represents a 2D coordinate.
-type Point struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
+// Point is an alias for the canonical automation contracts Point type.
+// This avoids type duplication while allowing uxmetrics to use Point in its API.
+type Point = autocontracts.Point
 
 // TimedPoint represents a 2D coordinate with a timestamp.
 type TimedPoint struct {

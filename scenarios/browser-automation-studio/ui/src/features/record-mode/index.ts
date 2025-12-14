@@ -42,18 +42,18 @@ export type {
 export type {
   TimelineItem,
   TimelineMode,
-  TimelineEvent,
+  TimelineEntry,
+  TimelineEntryAggregates,
   ActionDefinition,
   ActionTelemetry,
-  RecordingEventData,
-  ExecutionEventData,
+  EventContext,
   WorkflowNodeV2,
   ActionMetadata,
 } from './types/timeline-unified';
 export {
   recordedActionToTimelineItem,
-  timelineEventToTimelineItem,
-  timelineEventToRecordedAction,
-  hasTimelineEvent,
-  parseTimelineEvent,
+  timelineEntryToTimelineItem,
+  timelineEntryToRecordedAction,
+  hasTimelineEntry,
+  parseTimelineEntry,
 } from './types/timeline-unified';

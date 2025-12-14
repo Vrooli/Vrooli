@@ -30,6 +30,8 @@ enum ActionType {
   ACTION_TYPE_SCREENSHOT = 11;
   ACTION_TYPE_FOCUS = 12;
   ACTION_TYPE_BLUR = 13;
+  // Subflow node: executes another workflow definition as a nested call.
+  ACTION_TYPE_SUBFLOW = 14;
 }
 
 // =============================================================================
@@ -50,6 +52,13 @@ enum NavigateWaitEvent {
   NAVIGATE_WAIT_EVENT_LOAD = 1;
   NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED = 2;
   NAVIGATE_WAIT_EVENT_NETWORKIDLE = 3;
+}
+
+// NavigateDestinationType indicates how a navigate target should be interpreted.
+enum NavigateDestinationType {
+  NAVIGATE_DESTINATION_TYPE_UNSPECIFIED = 0;
+  NAVIGATE_DESTINATION_TYPE_URL = 1;
+  NAVIGATE_DESTINATION_TYPE_SCENARIO = 2;
 }
 
 // WaitState enumerates element states for wait conditions.
@@ -101,6 +110,14 @@ message NavigateParams {
   optional int32 timeout_ms = 3;
   // Event to wait for before considering navigation complete.
   optional NavigateWaitEvent wait_until = 4;
+  // Optional: interpret navigation target as a scenario+path instead of a raw URL.
+  // When destination_type is SCENARIO (or scenario is provided), implementations
+  // should resolve a URL using the configured scenario registry / lifecycle system.
+  optional NavigateDestinationType destination_type = 10;
+  // Scenario name to resolve (e.g., "browser-automation-studio").
+  optional string scenario = 11;
+  // Path within the scenario to navigate to (e.g., "/").
+  optional string scenario_path = 12;
 }
 
 // ClickParams configures pointer click interactions.
@@ -263,6 +280,28 @@ message BlurParams {
   optional int32 timeout_ms = 2;
 }
 
+// SubflowParams configures nested workflow execution.
+//
+// A subflow can target:
+//   - A persisted workflow by ID (optionally pinned to a version), OR
+//   - A workflow definition file referenced by a path relative to the *project root*.
+//
+// Paths are interpreted by the API using the project folder associated with the
+// parent workflow (i.e., the workflow being executed). Implementations MUST
+// reject absolute paths and any traversal segments ('.' or '..').
+message SubflowParams {
+  oneof target {
+    // Workflow ID to invoke as a subflow (UUID format).
+    string workflow_id = 1;
+    // Project-relative path to a workflow definition file (e.g. "actions/dismiss-tutorial.json").
+    string workflow_path = 2;
+  }
+  // Optional workflow version to invoke when targeting workflow_id.
+  optional int32 workflow_version = 3;
+  // Arguments exposed to the subflow as the "fixture" namespace (e.g. ${fixture.foo}).
+  map<string, common.v1.JsonValue> args = 10;
+}
+
 // =============================================================================
 // ACTION METADATA
 // =============================================================================
@@ -346,6 +385,7 @@ message ActionDefinition {
     ScreenshotParams screenshot = 20;// Required when type = ACTION_TYPE_SCREENSHOT
     FocusParams focus = 21;          // Required when type = ACTION_TYPE_FOCUS
     BlurParams blur = 22;            // Required when type = ACTION_TYPE_BLUR
+    SubflowParams subflow = 23;      // Required when type = ACTION_TYPE_SUBFLOW
   }
 
   // Optional rich metadata - preserved from recording, useful for debugging/fallbacks.

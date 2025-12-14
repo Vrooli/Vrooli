@@ -254,10 +254,11 @@ func (r recordingRegions) toContracts() []autocontracts.HighlightRegion {
 			runtimeRegion.BoundingBox = region.BoundingBox.toContracts()
 		}
 		if region.Padding != 0 {
-			runtimeRegion.Padding = region.Padding
+			runtimeRegion.Padding = int32(region.Padding)
 		}
 		if region.Color != "" {
-			runtimeRegion.Color = region.Color
+			color := region.Color
+			runtimeRegion.CustomRgba = &color
 		}
 		result = append(result, runtimeRegion)
 	}

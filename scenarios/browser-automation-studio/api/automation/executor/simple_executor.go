@@ -404,29 +404,32 @@ func (e *SimpleExecutor) validateSubflowResolver(req Request) error {
 			continue
 		}
 
-		// Check if this subflow references an external workflow (has workflowId)
-		// vs inline definition (has workflowDefinition)
+		// Check if this subflow references an external workflow (workflowId/workflowPath)
+		// vs inline definition (workflowDefinition).
 		if instr.Params == nil {
 			continue
 		}
 
 		hasWorkflowID := false
+		hasWorkflowPath := false
 		hasInlineDefinition := false
 
 		if wfID, ok := instr.Params["workflowId"]; ok && wfID != nil && wfID != "" {
 			hasWorkflowID = true
 		}
+		if wfPath, ok := instr.Params["workflowPath"]; ok && wfPath != nil && wfPath != "" {
+			hasWorkflowPath = true
+		}
 		if wfDef, ok := instr.Params["workflowDefinition"]; ok && wfDef != nil {
 			hasInlineDefinition = true
 		}
 
-		// If workflowId is specified without inline definition, resolver is required
-		if hasWorkflowID && !hasInlineDefinition {
+		// If workflowId/workflowPath is specified without inline definition, resolver is required.
+		if (hasWorkflowID || hasWorkflowPath) && !hasInlineDefinition {
 			return fmt.Errorf(
-				"WorkflowResolver is required: subflow node %q references external workflow %v - "+
+				"WorkflowResolver is required: subflow node %q references an external workflow - "+
 					"provide a WorkflowResolver in the execution request to resolve external workflow references",
 				instr.NodeID,
-				instr.Params["workflowId"],
 			)
 		}
 	}

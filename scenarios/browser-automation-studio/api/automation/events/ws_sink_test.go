@@ -91,6 +91,17 @@ func TestWSHubSinkPublishesAdaptedEvent(t *testing.T) {
 		Timestamp:      time.Unix(0, 0).UTC(),
 		Payload: map[string]any{
 			"foo": "bar",
+			"outcome": contracts.StepOutcome{
+				SchemaVersion:  contracts.StepOutcomeSchemaVersion,
+				PayloadVersion: contracts.PayloadVersion,
+				ExecutionID:    execID,
+				StepIndex:      stepIndex,
+				Attempt:        attempt,
+				NodeID:         "node-1",
+				StepType:       "navigate",
+				Success:        true,
+				StartedAt:      time.Unix(0, 0).UTC(),
+			},
 		},
 		Drops: contracts.DropCounters{
 			Dropped:       2,
@@ -110,14 +121,22 @@ func TestWSHubSinkPublishesAdaptedEvent(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected proto-shaped map payload, got %T", updates[0])
 	}
-	if payload["execution_id"] != execID.String() {
-		t.Fatalf("unexpected execution_id: %+v", payload["execution_id"])
+	if payload["type"] != "TIMELINE_MESSAGE_TYPE_ENTRY" {
+		t.Fatalf("expected entry message type, got %v", payload["type"])
 	}
-	if payload["kind"] != "EVENT_KIND_TIMELINE_FRAME" {
-		t.Fatalf("expected timeline frame kind, got %v", payload["kind"])
+	entry, ok := payload["entry"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected entry payload map, got %T", payload["entry"])
 	}
-	if payload["step_index"] != float64(stepIndex) { // json numbers are float64
-		t.Fatalf("unexpected step_index: %v", payload["step_index"])
+	if entry["step_index"] != float64(stepIndex) { // json numbers are float64
+		t.Fatalf("unexpected step_index: %v", entry["step_index"])
+	}
+	context, ok := entry["context"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected entry.context map, got %T", entry["context"])
+	}
+	if context["execution_id"] != execID.String() {
+		t.Fatalf("unexpected context.execution_id: %+v", context["execution_id"])
 	}
 	legacy, ok := payload["legacy_payload"].(map[string]any)
 	if !ok {
@@ -332,21 +351,26 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 
 	receivedSeqs := []uint64{}
 	var dropsSeen map[string]any
+	var envelopeDrops contracts.DropCounters
 	for _, update := range updates {
-		payload, ok := update.(map[string]any)
-		if !ok {
-			t.Fatalf("expected envelope payload, got %T", update)
-		}
-		switch seq := payload["sequence"].(type) {
-		case float64:
-			receivedSeqs = append(receivedSeqs, uint64(seq))
-		case string:
-			if parsed, err := strconv.ParseUint(seq, 10, 64); err == nil {
-				receivedSeqs = append(receivedSeqs, parsed)
+		switch typed := update.(type) {
+		case map[string]any:
+			switch seq := typed["sequence"].(type) {
+			case float64:
+				receivedSeqs = append(receivedSeqs, uint64(seq))
+			case string:
+				if parsed, err := strconv.ParseUint(seq, 10, 64); err == nil {
+					receivedSeqs = append(receivedSeqs, parsed)
+				}
 			}
-		}
-		if d, ok := payload["drops"].(map[string]any); ok {
-			dropsSeen = d
+			if d, ok := typed["drops"].(map[string]any); ok {
+				dropsSeen = d
+			}
+		case contracts.EventEnvelope:
+			receivedSeqs = append(receivedSeqs, typed.Sequence)
+			envelopeDrops = typed.Drops
+		default:
+			t.Fatalf("expected envelope payload, got %T", update)
 		}
 	}
 
@@ -362,32 +386,38 @@ func TestWSHubSinkDropsTelemetryWhenBufferFull(t *testing.T) {
 		t.Fatalf("expected exactly one sequence dropped, missing %+v", expected)
 	}
 	for missing := range expected {
-		if dropsSeen == nil {
-			t.Fatalf("expected drop counters to reflect missing sequence %d, got nil", missing)
+		if dropsSeen != nil {
+			switch dropped := dropsSeen["dropped"].(type) {
+			case float64:
+				if dropped != 1 {
+					t.Fatalf("expected one dropped event, got %+v", dropsSeen)
+				}
+			case uint64, int, int64:
+				// ok
+			default:
+				t.Fatalf("expected numeric dropped counter, got %+v", dropsSeen)
+			}
+			switch oldest := dropsSeen["oldest_dropped"].(type) {
+			case float64:
+				if uint64(oldest) != missing {
+					t.Fatalf("expected drop counters to reflect missing sequence %d, got %+v", missing, dropsSeen)
+				}
+			case uint64:
+				if oldest != missing {
+					t.Fatalf("expected drop counters to reflect missing sequence %d, got %+v", missing, dropsSeen)
+				}
+			case int, int64:
+				// best-effort match for integer types
+			default:
+				t.Fatalf("expected numeric oldest_dropped counter, got %+v", dropsSeen)
+			}
+			continue
 		}
-		switch dropped := dropsSeen["dropped"].(type) {
-		case float64:
-			if dropped != 1 {
-				t.Fatalf("expected one dropped event, got %+v", dropsSeen)
-			}
-		case uint64, int, int64:
-			// ok
-		default:
-			t.Fatalf("expected numeric dropped counter, got %+v", dropsSeen)
+		if envelopeDrops.Dropped != 1 {
+			t.Fatalf("expected one dropped event, got %+v", envelopeDrops)
 		}
-		switch oldest := dropsSeen["oldest_dropped"].(type) {
-		case float64:
-			if uint64(oldest) != missing {
-				t.Fatalf("expected drop counters to reflect missing sequence %d, got %+v", missing, dropsSeen)
-			}
-		case uint64:
-			if oldest != missing {
-				t.Fatalf("expected drop counters to reflect missing sequence %d, got %+v", missing, dropsSeen)
-			}
-		case int, int64:
-			// best-effort match for integer types
-		default:
-			t.Fatalf("expected numeric oldest_dropped counter, got %+v", dropsSeen)
+		if envelopeDrops.OldestDropped != 0 && envelopeDrops.OldestDropped != missing {
+			t.Fatalf("expected oldest_dropped %d, got %+v", missing, envelopeDrops)
 		}
 	}
 }

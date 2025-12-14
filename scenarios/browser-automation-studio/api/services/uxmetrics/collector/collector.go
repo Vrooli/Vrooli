@@ -137,7 +137,7 @@ func (c *Collector) onStepCompleted(ctx context.Context, executionID uuid.UUID, 
 		ActionType:  mapStepTypeToAction(outcome.StepType),
 		ElementID:   outcome.NodeID,
 		Selector:    selector,
-		Position:    convertPoint(outcome.ClickPosition),
+		Position:    outcome.ClickPosition, // contracts.Point is now an alias for autocontracts.Point
 		Timestamp:   outcome.StartedAt,
 		DurationMs:  int64(outcome.DurationMs),
 		Success:     outcome.Success,
@@ -260,15 +260,8 @@ func mapStepTypeToAction(stepType string) contracts.ActionType {
 	}
 }
 
-func convertPoint(p *autocontracts.Point) *contracts.Point {
-	if p == nil {
-		return nil
-	}
-	return &contracts.Point{X: p.X, Y: p.Y}
-}
-
 // Compile-time interface checks
 var (
-	_ autoevents.Sink    = (*Collector)(nil)
+	_ autoevents.Sink     = (*Collector)(nil)
 	_ uxmetrics.Collector = (*Collector)(nil)
 )

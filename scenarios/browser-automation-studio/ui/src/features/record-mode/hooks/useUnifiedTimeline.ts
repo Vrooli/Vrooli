@@ -15,10 +15,10 @@ import type { RecordedAction } from '../types';
 import type { TimelineItem, TimelineMode } from '../types/timeline-unified';
 import {
   recordedActionToTimelineItem,
-  timelineEventToTimelineItem,
-  timelineEventToRecordedAction,
-  hasTimelineEvent,
-  parseTimelineEvent,
+  timelineEntryToTimelineItem,
+  timelineEntryToRecordedAction,
+  hasTimelineEntry,
+  parseTimelineEntry,
 } from '../types/timeline-unified';
 
 export interface UseUnifiedTimelineOptions {
@@ -91,7 +91,7 @@ export function useUnifiedTimeline({
   useEffect(() => {
     if (!lastMessage) return;
 
-    const msg = lastMessage as WebSocketMessage & { action?: unknown; timeline_event?: unknown };
+    const msg = lastMessage as WebSocketMessage & { action?: unknown; timeline_entry?: unknown };
 
     // Recording mode: Handle recording_action messages
     if (mode === 'recording' && msg.type === 'recording_action' && msg.action) {
@@ -110,13 +110,13 @@ export function useUnifiedTimeline({
       });
     }
 
-    // Execution mode: Handle step events with timeline_event
+    // Execution mode: Handle step events with timeline_entry (V2 unified format)
     if (mode === 'execution' && msg.type === 'step') {
-      // Check if the message includes the new timeline_event field
-      if (hasTimelineEvent(msg)) {
-        const timelineEvent = parseTimelineEvent(msg.timeline_event);
-        if (timelineEvent) {
-          const newItem = timelineEventToTimelineItem(timelineEvent);
+      // Check if the message includes the new timeline_entry field
+      if (hasTimelineEntry(msg)) {
+        const timelineEntry = parseTimelineEntry(msg.timeline_entry);
+        if (timelineEntry) {
+          const newItem = timelineEntryToTimelineItem(timelineEntry);
 
           setItems((prev) => {
             // Check if we're updating an existing item (retry) or adding new
@@ -235,14 +235,9 @@ export function useUnifiedTimeline({
   const getRecordedActions = useCallback((): RecordedAction[] => {
     return items
       .map((item) => {
-        // If we have the legacy action, return it
-        if (item.legacyAction) {
-          return item.legacyAction;
-        }
-
-        // If we have the raw TimelineEvent, convert it
-        if (item.rawEvent) {
-          return timelineEventToRecordedAction(item.rawEvent);
+        // If we have the raw TimelineEntry, convert it
+        if (item.rawEntry) {
+          return timelineEntryToRecordedAction(item.rawEntry);
         }
 
         // Otherwise create a minimal RecordedAction from TimelineItem

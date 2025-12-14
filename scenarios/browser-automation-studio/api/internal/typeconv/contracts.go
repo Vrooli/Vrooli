@@ -63,10 +63,20 @@ func ToHighlightRegion(value any) *contracts.HighlightRegion {
 	if !ok {
 		return nil
 	}
+	customRGBA := ToString(m["customRgba"])
+	if customRGBA == "" {
+		customRGBA = ToString(m["custom_rgba"])
+	}
+	if customRGBA == "" {
+		// Backwards-compat alias (deprecated in proto; reserved field 4 in selectors.proto).
+		customRGBA = ToString(m["color"])
+	}
 	region := contracts.HighlightRegion{
 		Selector: ToString(m["selector"]),
-		Padding:  ToInt(m["padding"]),
-		Color:    ToString(m["color"]),
+		Padding:  int32(ToInt(m["padding"])),
+	}
+	if customRGBA != "" {
+		region.CustomRgba = &customRGBA
 	}
 	if bbox := ToBoundingBox(m["boundingBox"]); bbox != nil {
 		region.BoundingBox = bbox

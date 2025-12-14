@@ -133,7 +133,7 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 
 		// Point to debugging docs to guide remediation
 		sb.WriteString("- See `docs/testing/guides/ui-automation-with-bas.md#debugging` for common fixes\n")
-			sb.WriteString("- Validate selectors and waits against `bas/` workflow definitions if selector errors persist\n")
+		sb.WriteString("- Validate selectors and waits against `bas/` workflow definitions if selector errors persist\n")
 
 		sb.WriteString("\n")
 	}

@@ -1632,6 +1632,14 @@ func (s *stubWorkflowResolver) GetWorkflow(ctx context.Context, workflowID uuid.
 	return nil, database.ErrNotFound
 }
 
+func (s *stubWorkflowResolver) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.Workflow, error) {
+	return s.GetWorkflow(ctx, workflowID)
+}
+
+func (s *stubWorkflowResolver) GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*database.Workflow, error) {
+	return nil, database.ErrNotFound
+}
+
 type subflowPlanCompiler struct {
 	plans       map[uuid.UUID]contracts.ExecutionPlan
 	defaultPlan *contracts.ExecutionPlan

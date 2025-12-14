@@ -140,14 +140,14 @@ func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 	}
 }
 
-// BroadcastRecordingActionWithTimeline sends a recording action with a unified TimelineEvent.
-// This is the V2 format that includes both the legacy action and the timeline_event field.
-func (h *Hub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+// BroadcastRecordingActionWithTimeline sends a recording action with a unified TimelineEntry.
+// This is the V2 format that includes both the legacy action and the timeline_entry field.
+func (h *Hub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any) {
 	message := map[string]any{
 		"type":           "recording_action",
 		"session_id":     sessionID,
 		"action":         action,
-		"timeline_event": timelineEvent,
+		"timeline_entry": timelineEntry,
 		"timestamp":      getCurrentTimestamp(),
 	}
 

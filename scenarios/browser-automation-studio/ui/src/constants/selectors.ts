@@ -317,6 +317,7 @@ const literalSelectors = {
       nameInput: "project-modal-name-input",
       nameError: "project-modal-name-error",
       descriptionInput: "project-modal-description-input",
+      folderPathInput: "project-modal-folder-path-input",
       cancelButton: "project-modal-cancel",
       submitButton: "project-modal-submit",
     },

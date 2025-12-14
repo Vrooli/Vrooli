@@ -35,6 +35,12 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     });
   });
 
+  // Helper to open the advanced options accordion
+  const openAdvancedOptions = async (user: ReturnType<typeof userEvent.setup>) => {
+    const advancedButton = screen.getByRole('button', { name: /advanced options/i });
+    await user.click(advancedButton);
+  };
+
   it('renders create mode when no project is provided [REQ:BAS-PROJECT-DIALOG-OPEN]', () => {
     renderWithProviders(<ProjectModal onClose={mockOnClose} />);
 
@@ -42,7 +48,8 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     expect(screen.getByPlaceholderText(/visited tracker tests/i)).toHaveValue('');
   });
 
-  it('renders edit mode when project is provided', () => {
+  it('renders edit mode when project is provided', async () => {
+    const user = userEvent.setup();
     const existingProject = {
       id: 'test-id',
       name: 'Existing Project',
@@ -55,6 +62,7 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     renderWithProviders(<ProjectModal onClose={mockOnClose} project={existingProject} />);
 
     expect(screen.getByPlaceholderText(/visited tracker tests/i)).toHaveValue('Existing Project');
+    // In edit mode, advanced options are shown by default
     expect(screen.getByPlaceholderText(/describe what this project/i)).toHaveValue('Test Description');
   });
 
@@ -97,9 +105,12 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     renderWithProviders(<ProjectModal onClose={mockOnClose} />);
 
     const nameInput = screen.getByPlaceholderText(/visited tracker tests/i);
-    const folderInput = screen.getByPlaceholderText(/\/path\/to\/project\/folder/i);
-
     await user.type(nameInput, 'Valid Project Name');
+
+    // Open advanced options to access folder path input
+    await openAdvancedOptions(user);
+
+    const folderInput = screen.getByPlaceholderText(/\/path\/to\/project\/folder/i);
     await user.clear(folderInput);
     await user.type(folderInput, 'relative/path'); // Not absolute
 
@@ -129,9 +140,11 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     renderWithProviders(<ProjectModal onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
     const nameInput = screen.getByPlaceholderText(/visited tracker tests/i);
-    const descriptionInput = screen.getByPlaceholderText(/describe what this project/i);
-
     await user.type(nameInput, 'New Test Project');
+
+    // Open advanced options to access description
+    await openAdvancedOptions(user);
+    const descriptionInput = screen.getByPlaceholderText(/describe what this project/i);
     await user.type(descriptionInput, 'Test Description');
 
     const submitButton = screen.getByRole('button', { name: /create project/i });
@@ -242,5 +255,33 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled();
     });
+  });
+
+  it('allows selecting different presets', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectModal onClose={mockOnClose} />);
+
+    // The "Standard" preset should be selected by default (recommended)
+    const standardCard = screen.getByRole('button', { name: /standard/i });
+    expect(standardCard).toHaveClass('border-flow-accent');
+
+    // Click on "Empty" preset
+    const emptyCard = screen.getByRole('button', { name: /empty/i });
+    await user.click(emptyCard);
+
+    // Empty should now be selected
+    expect(emptyCard).toHaveClass('border-flow-accent');
+  });
+
+  it('shows custom folder input when custom preset is selected', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectModal onClose={mockOnClose} />);
+
+    // Click on "Custom" preset
+    const customCard = screen.getByRole('button', { name: /custom/i });
+    await user.click(customCard);
+
+    // Custom folders textarea should appear (check for partial match)
+    expect(screen.getByPlaceholderText(/tests/)).toBeInTheDocument();
   });
 });

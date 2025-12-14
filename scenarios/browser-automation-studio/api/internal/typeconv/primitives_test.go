@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 func TestToString(t *testing.T) {
@@ -339,4 +342,334 @@ func TestDeepCloneValue(t *testing.T) {
 			t.Errorf("DeepCloneValue should deep copy slices with maps")
 		}
 	})
+}
+
+func TestAnyToJsonValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		wantKind string // describes the expected Kind type
+	}{
+		{"nil", nil, "NullValue"},
+		{"bool true", true, "BoolValue"},
+		{"bool false", false, "BoolValue"},
+		{"int", 42, "IntValue"},
+		{"int32", int32(100), "IntValue"},
+		{"int64", int64(200), "IntValue"},
+		{"uint", uint(300), "IntValue"},
+		{"uint32", uint32(400), "IntValue"},
+		{"uint64", uint64(500), "IntValue"},
+		{"float32", float32(3.14), "DoubleValue"},
+		{"float64", 3.14159, "DoubleValue"},
+		{"string", "hello", "StringValue"},
+		{"bytes", []byte("world"), "BytesValue"},
+		{"map", map[string]any{"key": "value"}, "ObjectValue"},
+		{"slice", []any{1, "two", 3.0}, "ListValue"},
+		{"struct fallback", struct{ Name string }{"test"}, "StringValue"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := AnyToJsonValue(tt.input)
+			if result == nil {
+				t.Fatal("AnyToJsonValue returned nil")
+			}
+
+			// Check the kind matches
+			switch tt.wantKind {
+			case "NullValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_NullValue); !ok {
+					t.Errorf("expected NullValue, got %T", result.Kind)
+				}
+			case "BoolValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_BoolValue); !ok {
+					t.Errorf("expected BoolValue, got %T", result.Kind)
+				}
+			case "IntValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_IntValue); !ok {
+					t.Errorf("expected IntValue, got %T", result.Kind)
+				}
+			case "DoubleValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_DoubleValue); !ok {
+					t.Errorf("expected DoubleValue, got %T", result.Kind)
+				}
+			case "StringValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_StringValue); !ok {
+					t.Errorf("expected StringValue, got %T", result.Kind)
+				}
+			case "BytesValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_BytesValue); !ok {
+					t.Errorf("expected BytesValue, got %T", result.Kind)
+				}
+			case "ObjectValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_ObjectValue); !ok {
+					t.Errorf("expected ObjectValue, got %T", result.Kind)
+				}
+			case "ListValue":
+				if _, ok := result.Kind.(*commonv1.JsonValue_ListValue); !ok {
+					t.Errorf("expected ListValue, got %T", result.Kind)
+				}
+			}
+		})
+	}
+
+	// Test nested map/slice
+	t.Run("nested structures", func(t *testing.T) {
+		input := map[string]any{
+			"items": []any{1, 2, 3},
+			"meta":  map[string]any{"count": 3},
+		}
+		result := AnyToJsonValue(input)
+		if result == nil {
+			t.Fatal("AnyToJsonValue returned nil for nested structure")
+		}
+		obj, ok := result.Kind.(*commonv1.JsonValue_ObjectValue)
+		if !ok {
+			t.Fatalf("expected ObjectValue, got %T", result.Kind)
+		}
+		if len(obj.ObjectValue.Fields) != 2 {
+			t.Errorf("expected 2 fields, got %d", len(obj.ObjectValue.Fields))
+		}
+	})
+}
+
+func TestJsonValueToAny(t *testing.T) {
+	t.Run("nil input", func(t *testing.T) {
+		result := JsonValueToAny(nil)
+		if result != nil {
+			t.Errorf("expected nil for nil input, got %v", result)
+		}
+	})
+
+	t.Run("bool value", func(t *testing.T) {
+		input := AnyToJsonValue(true)
+		result := JsonValueToAny(input)
+		if result != true {
+			t.Errorf("expected true, got %v", result)
+		}
+	})
+
+	t.Run("int value", func(t *testing.T) {
+		input := AnyToJsonValue(42)
+		result := JsonValueToAny(input)
+		if result != int64(42) {
+			t.Errorf("expected 42, got %v", result)
+		}
+	})
+
+	t.Run("string value", func(t *testing.T) {
+		input := AnyToJsonValue("hello")
+		result := JsonValueToAny(input)
+		if result != "hello" {
+			t.Errorf("expected 'hello', got %v", result)
+		}
+	})
+
+	t.Run("null value", func(t *testing.T) {
+		input := AnyToJsonValue(nil)
+		result := JsonValueToAny(input)
+		if result != nil {
+			t.Errorf("expected nil, got %v", result)
+		}
+	})
+
+	t.Run("roundtrip map", func(t *testing.T) {
+		original := map[string]any{"key": "value", "num": int64(42)}
+		jsonVal := AnyToJsonValue(original)
+		result := JsonValueToAny(jsonVal)
+
+		resultMap, ok := result.(map[string]any)
+		if !ok {
+			t.Fatalf("expected map[string]any, got %T", result)
+		}
+		if resultMap["key"] != "value" {
+			t.Errorf("expected key='value', got %v", resultMap["key"])
+		}
+	})
+
+	t.Run("roundtrip slice", func(t *testing.T) {
+		original := []any{"a", int64(1), true}
+		jsonVal := AnyToJsonValue(original)
+		result := JsonValueToAny(jsonVal)
+
+		resultSlice, ok := result.([]any)
+		if !ok {
+			t.Fatalf("expected []any, got %T", result)
+		}
+		if len(resultSlice) != 3 {
+			t.Errorf("expected length 3, got %d", len(resultSlice))
+		}
+	})
+}
+
+func TestToInt32(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected int32
+		ok       bool
+	}{
+		{"int", 42, 42, true},
+		{"int32", int32(100), 100, true},
+		{"int64", int64(200), 200, true},
+		{"float64", 3.9, 3, true},
+		{"float32", float32(4.5), 4, true},
+		{"json.Number", json.Number("123"), 123, true},
+		{"json.Number invalid", json.Number("abc"), 0, false},
+		{"string", "42", 0, false},
+		{"nil", nil, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, ok := ToInt32(tt.input)
+			if ok != tt.ok {
+				t.Errorf("ToInt32(%v) ok = %v, expected %v", tt.input, ok, tt.ok)
+			}
+			if result != tt.expected {
+				t.Errorf("ToInt32(%v) = %d, expected %d", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestToFloat64Func(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    any
+		expected float64
+		ok       bool
+	}{
+		{"float64", 3.14, 3.14, true},
+		{"float32", float32(2.5), 2.5, true},
+		{"int", 42, 42.0, true},
+		{"int32", int32(100), 100.0, true},
+		{"int64", int64(200), 200.0, true},
+		{"json.Number", json.Number("3.14"), 3.14, true},
+		{"json.Number invalid", json.Number("abc"), 0, false},
+		{"string", "3.14", 0, false},
+		{"nil", nil, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, ok := ToFloat64(tt.input)
+			if ok != tt.ok {
+				t.Errorf("ToFloat64(%v) ok = %v, expected %v", tt.input, ok, tt.ok)
+			}
+			if result != tt.expected {
+				t.Errorf("ToFloat64(%v) = %f, expected %f", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestStringToActionType(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected basv1.ActionType
+	}{
+		// Canonical names
+		{"navigate", basv1.ActionType_ACTION_TYPE_NAVIGATE},
+		{"click", basv1.ActionType_ACTION_TYPE_CLICK},
+		{"input", basv1.ActionType_ACTION_TYPE_INPUT},
+		{"wait", basv1.ActionType_ACTION_TYPE_WAIT},
+		{"assert", basv1.ActionType_ACTION_TYPE_ASSERT},
+		{"scroll", basv1.ActionType_ACTION_TYPE_SCROLL},
+		{"select", basv1.ActionType_ACTION_TYPE_SELECT},
+		{"evaluate", basv1.ActionType_ACTION_TYPE_EVALUATE},
+		{"keyboard", basv1.ActionType_ACTION_TYPE_KEYBOARD},
+		{"hover", basv1.ActionType_ACTION_TYPE_HOVER},
+		{"screenshot", basv1.ActionType_ACTION_TYPE_SCREENSHOT},
+		{"focus", basv1.ActionType_ACTION_TYPE_FOCUS},
+		{"blur", basv1.ActionType_ACTION_TYPE_BLUR},
+		{"subflow", basv1.ActionType_ACTION_TYPE_SUBFLOW},
+
+		// Aliases
+		{"goto", basv1.ActionType_ACTION_TYPE_NAVIGATE},
+		{"type", basv1.ActionType_ACTION_TYPE_INPUT},
+		{"fill", basv1.ActionType_ACTION_TYPE_INPUT},
+		{"selectoption", basv1.ActionType_ACTION_TYPE_SELECT},
+		{"eval", basv1.ActionType_ACTION_TYPE_EVALUATE},
+		{"keypress", basv1.ActionType_ACTION_TYPE_KEYBOARD},
+		{"press", basv1.ActionType_ACTION_TYPE_KEYBOARD},
+
+		// Case insensitivity
+		{"NAVIGATE", basv1.ActionType_ACTION_TYPE_NAVIGATE},
+		{"Click", basv1.ActionType_ACTION_TYPE_CLICK},
+		{"  INPUT  ", basv1.ActionType_ACTION_TYPE_INPUT},
+
+		// Unknown
+		{"unknown", basv1.ActionType_ACTION_TYPE_UNSPECIFIED},
+		{"", basv1.ActionType_ACTION_TYPE_UNSPECIFIED},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := StringToActionType(tt.input)
+			if result != tt.expected {
+				t.Errorf("StringToActionType(%q) = %v, expected %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestActionTypeToString(t *testing.T) {
+	tests := []struct {
+		input    basv1.ActionType
+		expected string
+	}{
+		{basv1.ActionType_ACTION_TYPE_NAVIGATE, "navigate"},
+		{basv1.ActionType_ACTION_TYPE_CLICK, "click"},
+		{basv1.ActionType_ACTION_TYPE_INPUT, "input"},
+		{basv1.ActionType_ACTION_TYPE_WAIT, "wait"},
+		{basv1.ActionType_ACTION_TYPE_ASSERT, "assert"},
+		{basv1.ActionType_ACTION_TYPE_SCROLL, "scroll"},
+		{basv1.ActionType_ACTION_TYPE_SELECT, "select"},
+		{basv1.ActionType_ACTION_TYPE_EVALUATE, "evaluate"},
+		{basv1.ActionType_ACTION_TYPE_KEYBOARD, "keyboard"},
+		{basv1.ActionType_ACTION_TYPE_HOVER, "hover"},
+		{basv1.ActionType_ACTION_TYPE_SCREENSHOT, "screenshot"},
+		{basv1.ActionType_ACTION_TYPE_FOCUS, "focus"},
+		{basv1.ActionType_ACTION_TYPE_BLUR, "blur"},
+		{basv1.ActionType_ACTION_TYPE_SUBFLOW, "subflow"},
+		{basv1.ActionType_ACTION_TYPE_UNSPECIFIED, "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			result := ActionTypeToString(tt.input)
+			if result != tt.expected {
+				t.Errorf("ActionTypeToString(%v) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestActionTypeRoundtrip(t *testing.T) {
+	// Test that converting to string and back gives the same type
+	actionTypes := []basv1.ActionType{
+		basv1.ActionType_ACTION_TYPE_NAVIGATE,
+		basv1.ActionType_ACTION_TYPE_CLICK,
+		basv1.ActionType_ACTION_TYPE_INPUT,
+		basv1.ActionType_ACTION_TYPE_WAIT,
+		basv1.ActionType_ACTION_TYPE_ASSERT,
+		basv1.ActionType_ACTION_TYPE_SCROLL,
+		basv1.ActionType_ACTION_TYPE_SELECT,
+		basv1.ActionType_ACTION_TYPE_EVALUATE,
+		basv1.ActionType_ACTION_TYPE_KEYBOARD,
+		basv1.ActionType_ACTION_TYPE_HOVER,
+		basv1.ActionType_ACTION_TYPE_SCREENSHOT,
+		basv1.ActionType_ACTION_TYPE_FOCUS,
+		basv1.ActionType_ACTION_TYPE_BLUR,
+		basv1.ActionType_ACTION_TYPE_SUBFLOW,
+	}
+
+	for _, original := range actionTypes {
+		str := ActionTypeToString(original)
+		result := StringToActionType(str)
+		if result != original {
+			t.Errorf("Roundtrip failed: %v -> %q -> %v", original, str, result)
+		}
+	}
 }

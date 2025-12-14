@@ -58,4 +58,6 @@ func (e *CapabilityError) Error() string {
 // WorkflowResolver fetches workflow definitions for subflow execution.
 type WorkflowResolver interface {
 	GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*database.Workflow, error)
+	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.Workflow, error)
+	GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*database.Workflow, error)
 }

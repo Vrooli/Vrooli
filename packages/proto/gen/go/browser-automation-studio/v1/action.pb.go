@@ -41,6 +41,8 @@ const (
 	ActionType_ACTION_TYPE_SCREENSHOT  ActionType = 11
 	ActionType_ACTION_TYPE_FOCUS       ActionType = 12
 	ActionType_ACTION_TYPE_BLUR        ActionType = 13
+	// Subflow node: executes another workflow definition as a nested call.
+	ActionType_ACTION_TYPE_SUBFLOW ActionType = 14
 )
 
 // Enum value maps for ActionType.
@@ -60,6 +62,7 @@ var (
 		11: "ACTION_TYPE_SCREENSHOT",
 		12: "ACTION_TYPE_FOCUS",
 		13: "ACTION_TYPE_BLUR",
+		14: "ACTION_TYPE_SUBFLOW",
 	}
 	ActionType_value = map[string]int32{
 		"ACTION_TYPE_UNSPECIFIED": 0,
@@ -76,6 +79,7 @@ var (
 		"ACTION_TYPE_SCREENSHOT":  11,
 		"ACTION_TYPE_FOCUS":       12,
 		"ACTION_TYPE_BLUR":        13,
+		"ACTION_TYPE_SUBFLOW":     14,
 	}
 )
 
@@ -212,6 +216,56 @@ func (NavigateWaitEvent) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{2}
 }
 
+// NavigateDestinationType indicates how a navigate target should be interpreted.
+type NavigateDestinationType int32
+
+const (
+	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_UNSPECIFIED NavigateDestinationType = 0
+	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_URL         NavigateDestinationType = 1
+	NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO    NavigateDestinationType = 2
+)
+
+// Enum value maps for NavigateDestinationType.
+var (
+	NavigateDestinationType_name = map[int32]string{
+		0: "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+		1: "NAVIGATE_DESTINATION_TYPE_URL",
+		2: "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+	}
+	NavigateDestinationType_value = map[string]int32{
+		"NAVIGATE_DESTINATION_TYPE_UNSPECIFIED": 0,
+		"NAVIGATE_DESTINATION_TYPE_URL":         1,
+		"NAVIGATE_DESTINATION_TYPE_SCENARIO":    2,
+	}
+)
+
+func (x NavigateDestinationType) Enum() *NavigateDestinationType {
+	p := new(NavigateDestinationType)
+	*p = x
+	return p
+}
+
+func (x NavigateDestinationType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NavigateDestinationType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_action_proto_enumTypes[3].Descriptor()
+}
+
+func (NavigateDestinationType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_action_proto_enumTypes[3]
+}
+
+func (x NavigateDestinationType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NavigateDestinationType.Descriptor instead.
+func (NavigateDestinationType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{3}
+}
+
 // WaitState enumerates element states for wait conditions.
 type WaitState int32
 
@@ -252,11 +306,11 @@ func (x WaitState) String() string {
 }
 
 func (WaitState) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_action_proto_enumTypes[3].Descriptor()
+	return file_browser_automation_studio_v1_action_proto_enumTypes[4].Descriptor()
 }
 
 func (WaitState) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_action_proto_enumTypes[3]
+	return &file_browser_automation_studio_v1_action_proto_enumTypes[4]
 }
 
 func (x WaitState) Number() protoreflect.EnumNumber {
@@ -265,7 +319,7 @@ func (x WaitState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WaitState.Descriptor instead.
 func (WaitState) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{4}
 }
 
 // ScrollBehavior enumerates scroll animation behaviors.
@@ -302,11 +356,11 @@ func (x ScrollBehavior) String() string {
 }
 
 func (ScrollBehavior) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_action_proto_enumTypes[4].Descriptor()
+	return file_browser_automation_studio_v1_action_proto_enumTypes[5].Descriptor()
 }
 
 func (ScrollBehavior) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_action_proto_enumTypes[4]
+	return &file_browser_automation_studio_v1_action_proto_enumTypes[5]
 }
 
 func (x ScrollBehavior) Number() protoreflect.EnumNumber {
@@ -315,7 +369,7 @@ func (x ScrollBehavior) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ScrollBehavior.Descriptor instead.
 func (ScrollBehavior) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{5}
 }
 
 // KeyAction enumerates keyboard action types.
@@ -355,11 +409,11 @@ func (x KeyAction) String() string {
 }
 
 func (KeyAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_action_proto_enumTypes[5].Descriptor()
+	return file_browser_automation_studio_v1_action_proto_enumTypes[6].Descriptor()
 }
 
 func (KeyAction) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_action_proto_enumTypes[5]
+	return &file_browser_automation_studio_v1_action_proto_enumTypes[6]
 }
 
 func (x KeyAction) Number() protoreflect.EnumNumber {
@@ -368,7 +422,7 @@ func (x KeyAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use KeyAction.Descriptor instead.
 func (KeyAction) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{5}
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{6}
 }
 
 // KeyboardModifier enumerates keyboard modifier keys.
@@ -411,11 +465,11 @@ func (x KeyboardModifier) String() string {
 }
 
 func (KeyboardModifier) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_action_proto_enumTypes[6].Descriptor()
+	return file_browser_automation_studio_v1_action_proto_enumTypes[7].Descriptor()
 }
 
 func (KeyboardModifier) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_action_proto_enumTypes[6]
+	return &file_browser_automation_studio_v1_action_proto_enumTypes[7]
 }
 
 func (x KeyboardModifier) Number() protoreflect.EnumNumber {
@@ -424,7 +478,7 @@ func (x KeyboardModifier) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use KeyboardModifier.Descriptor instead.
 func (KeyboardModifier) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{7}
 }
 
 // NavigateParams configures page navigation.
@@ -437,7 +491,15 @@ type NavigateParams struct {
 	// Timeout in milliseconds for navigation and wait (default: 30000).
 	TimeoutMs *int32 `protobuf:"varint,3,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
 	// Event to wait for before considering navigation complete.
-	WaitUntil     *NavigateWaitEvent `protobuf:"varint,4,opt,name=wait_until,json=waitUntil,proto3,enum=browser_automation_studio.v1.NavigateWaitEvent,oneof" json:"wait_until,omitempty"`
+	WaitUntil *NavigateWaitEvent `protobuf:"varint,4,opt,name=wait_until,json=waitUntil,proto3,enum=browser_automation_studio.v1.NavigateWaitEvent,oneof" json:"wait_until,omitempty"`
+	// Optional: interpret navigation target as a scenario+path instead of a raw URL.
+	// When destination_type is SCENARIO (or scenario is provided), implementations
+	// should resolve a URL using the configured scenario registry / lifecycle system.
+	DestinationType *NavigateDestinationType `protobuf:"varint,10,opt,name=destination_type,json=destinationType,proto3,enum=browser_automation_studio.v1.NavigateDestinationType,oneof" json:"destination_type,omitempty"`
+	// Scenario name to resolve (e.g., "browser-automation-studio").
+	Scenario *string `protobuf:"bytes,11,opt,name=scenario,proto3,oneof" json:"scenario,omitempty"`
+	// Path within the scenario to navigate to (e.g., "/").
+	ScenarioPath  *string `protobuf:"bytes,12,opt,name=scenario_path,json=scenarioPath,proto3,oneof" json:"scenario_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -498,6 +560,27 @@ func (x *NavigateParams) GetWaitUntil() NavigateWaitEvent {
 		return *x.WaitUntil
 	}
 	return NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED
+}
+
+func (x *NavigateParams) GetDestinationType() NavigateDestinationType {
+	if x != nil && x.DestinationType != nil {
+		return *x.DestinationType
+	}
+	return NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_UNSPECIFIED
+}
+
+func (x *NavigateParams) GetScenario() string {
+	if x != nil && x.Scenario != nil {
+		return *x.Scenario
+	}
+	return ""
+}
+
+func (x *NavigateParams) GetScenarioPath() string {
+	if x != nil && x.ScenarioPath != nil {
+		return *x.ScenarioPath
+	}
+	return ""
 }
 
 // ClickParams configures pointer click interactions.
@@ -1493,6 +1576,117 @@ func (x *BlurParams) GetTimeoutMs() int32 {
 	return 0
 }
 
+// SubflowParams configures nested workflow execution.
+//
+// A subflow can target:
+//   - A persisted workflow by ID (optionally pinned to a version), OR
+//   - A workflow definition file referenced by a path relative to the *project root*.
+//
+// Paths are interpreted by the API using the project folder associated with the
+// parent workflow (i.e., the workflow being executed). Implementations MUST
+// reject absolute paths and any traversal segments ('.' or '..').
+type SubflowParams struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Target:
+	//
+	//	*SubflowParams_WorkflowId
+	//	*SubflowParams_WorkflowPath
+	Target isSubflowParams_Target `protobuf_oneof:"target"`
+	// Optional workflow version to invoke when targeting workflow_id.
+	WorkflowVersion *int32 `protobuf:"varint,3,opt,name=workflow_version,json=workflowVersion,proto3,oneof" json:"workflow_version,omitempty"`
+	// Arguments exposed to the subflow as the "fixture" namespace (e.g. ${fixture.foo}).
+	Args          map[string]*v1.JsonValue `protobuf:"bytes,10,rep,name=args,proto3" json:"args,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubflowParams) Reset() {
+	*x = SubflowParams{}
+	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubflowParams) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubflowParams) ProtoMessage() {}
+
+func (x *SubflowParams) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubflowParams.ProtoReflect.Descriptor instead.
+func (*SubflowParams) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SubflowParams) GetTarget() isSubflowParams_Target {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *SubflowParams) GetWorkflowId() string {
+	if x != nil {
+		if x, ok := x.Target.(*SubflowParams_WorkflowId); ok {
+			return x.WorkflowId
+		}
+	}
+	return ""
+}
+
+func (x *SubflowParams) GetWorkflowPath() string {
+	if x != nil {
+		if x, ok := x.Target.(*SubflowParams_WorkflowPath); ok {
+			return x.WorkflowPath
+		}
+	}
+	return ""
+}
+
+func (x *SubflowParams) GetWorkflowVersion() int32 {
+	if x != nil && x.WorkflowVersion != nil {
+		return *x.WorkflowVersion
+	}
+	return 0
+}
+
+func (x *SubflowParams) GetArgs() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+type isSubflowParams_Target interface {
+	isSubflowParams_Target()
+}
+
+type SubflowParams_WorkflowId struct {
+	// Workflow ID to invoke as a subflow (UUID format).
+	WorkflowId string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3,oneof"`
+}
+
+type SubflowParams_WorkflowPath struct {
+	// Project-relative path to a workflow definition file (e.g. "actions/dismiss-tutorial.json").
+	WorkflowPath string `protobuf:"bytes,2,opt,name=workflow_path,json=workflowPath,proto3,oneof"`
+}
+
+func (*SubflowParams_WorkflowId) isSubflowParams_Target() {}
+
+func (*SubflowParams_WorkflowPath) isSubflowParams_Target() {}
+
 // ActionMetadata captures optional rich context captured during action execution.
 // This data is captured identically during BOTH recording and execution, enabling:
 //   - Selector fallbacks: If primary selector fails, try alternatives
@@ -1525,7 +1719,7 @@ type ActionMetadata struct {
 
 func (x *ActionMetadata) Reset() {
 	*x = ActionMetadata{}
-	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1537,7 +1731,7 @@ func (x *ActionMetadata) String() string {
 func (*ActionMetadata) ProtoMessage() {}
 
 func (x *ActionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1550,7 +1744,7 @@ func (x *ActionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionMetadata.ProtoReflect.Descriptor instead.
 func (*ActionMetadata) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{13}
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ActionMetadata) GetLabel() string {
@@ -1645,6 +1839,7 @@ type ActionDefinition struct {
 	//	*ActionDefinition_Screenshot
 	//	*ActionDefinition_Focus
 	//	*ActionDefinition_Blur
+	//	*ActionDefinition_Subflow
 	Params isActionDefinition_Params `protobuf_oneof:"params"`
 	// Optional rich metadata - preserved from recording, useful for debugging/fallbacks.
 	Metadata      *ActionMetadata `protobuf:"bytes,30,opt,name=metadata,proto3" json:"metadata,omitempty"`
@@ -1654,7 +1849,7 @@ type ActionDefinition struct {
 
 func (x *ActionDefinition) Reset() {
 	*x = ActionDefinition{}
-	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1666,7 +1861,7 @@ func (x *ActionDefinition) String() string {
 func (*ActionDefinition) ProtoMessage() {}
 
 func (x *ActionDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_action_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1679,7 +1874,7 @@ func (x *ActionDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionDefinition.ProtoReflect.Descriptor instead.
 func (*ActionDefinition) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{14}
+	return file_browser_automation_studio_v1_action_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ActionDefinition) GetType() ActionType {
@@ -1813,6 +2008,15 @@ func (x *ActionDefinition) GetBlur() *BlurParams {
 	return nil
 }
 
+func (x *ActionDefinition) GetSubflow() *SubflowParams {
+	if x != nil {
+		if x, ok := x.Params.(*ActionDefinition_Subflow); ok {
+			return x.Subflow
+		}
+	}
+	return nil
+}
+
 func (x *ActionDefinition) GetMetadata() *ActionMetadata {
 	if x != nil {
 		return x.Metadata
@@ -1876,6 +2080,10 @@ type ActionDefinition_Blur struct {
 	Blur *BlurParams `protobuf:"bytes,22,opt,name=blur,proto3,oneof"` // Required when type = ACTION_TYPE_BLUR
 }
 
+type ActionDefinition_Subflow struct {
+	Subflow *SubflowParams `protobuf:"bytes,23,opt,name=subflow,proto3,oneof"` // Required when type = ACTION_TYPE_SUBFLOW
+}
+
 func (*ActionDefinition_Navigate) isActionDefinition_Params() {}
 
 func (*ActionDefinition_Click) isActionDefinition_Params() {}
@@ -1902,21 +2110,30 @@ func (*ActionDefinition_Focus) isActionDefinition_Params() {}
 
 func (*ActionDefinition_Blur) isActionDefinition_Params() {}
 
+func (*ActionDefinition_Subflow) isActionDefinition_Params() {}
+
 var File_browser_automation_studio_v1_action_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_action_proto_rawDesc = "" +
 	"\n" +
-	")browser-automation-studio/v1/action.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a,browser-automation-studio/v1/selectors.proto\x1a+browser-automation-studio/v1/geometry.proto\"\x80\x02\n" +
+	")browser-automation-studio/v1/action.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a,browser-automation-studio/v1/selectors.proto\x1a+browser-automation-studio/v1/geometry.proto\"\xe6\x03\n" +
 	"\x0eNavigateParams\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12/\n" +
 	"\x11wait_for_selector\x18\x02 \x01(\tH\x00R\x0fwaitForSelector\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x01R\ttimeoutMs\x88\x01\x01\x12S\n" +
 	"\n" +
-	"wait_until\x18\x04 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\x02R\twaitUntil\x88\x01\x01B\x14\n" +
+	"wait_until\x18\x04 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\x02R\twaitUntil\x88\x01\x01\x12e\n" +
+	"\x10destination_type\x18\n" +
+	" \x01(\x0e25.browser_automation_studio.v1.NavigateDestinationTypeH\x03R\x0fdestinationType\x88\x01\x01\x12\x1f\n" +
+	"\bscenario\x18\v \x01(\tH\x04R\bscenario\x88\x01\x01\x12(\n" +
+	"\rscenario_path\x18\f \x01(\tH\x05R\fscenarioPath\x88\x01\x01B\x14\n" +
 	"\x12_wait_for_selectorB\r\n" +
 	"\v_timeout_msB\r\n" +
-	"\v_wait_until\"\x96\x03\n" +
+	"\v_wait_untilB\x13\n" +
+	"\x11_destination_typeB\v\n" +
+	"\t_scenarioB\x10\n" +
+	"\x0e_scenario_path\"\x96\x03\n" +
 	"\vClickParams\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12F\n" +
 	"\x06button\x18\x02 \x01(\x0e2).browser_automation_studio.v1.MouseButtonH\x00R\x06button\x88\x01\x01\x12$\n" +
@@ -2040,7 +2257,19 @@ const file_browser_automation_studio_v1_action_proto_rawDesc = "" +
 	"\n" +
 	"timeout_ms\x18\x02 \x01(\x05H\x01R\ttimeoutMs\x88\x01\x01B\v\n" +
 	"\t_selectorB\r\n" +
-	"\v_timeout_ms\"\x8b\x04\n" +
+	"\v_timeout_ms\"\xc2\x02\n" +
+	"\rSubflowParams\x12!\n" +
+	"\vworkflow_id\x18\x01 \x01(\tH\x00R\n" +
+	"workflowId\x12%\n" +
+	"\rworkflow_path\x18\x02 \x01(\tH\x00R\fworkflowPath\x12.\n" +
+	"\x10workflow_version\x18\x03 \x01(\x05H\x01R\x0fworkflowVersion\x88\x01\x01\x12I\n" +
+	"\x04args\x18\n" +
+	" \x03(\v25.browser_automation_studio.v1.SubflowParams.ArgsEntryR\x04args\x1aM\n" +
+	"\tArgsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\b\n" +
+	"\x06targetB\x13\n" +
+	"\x11_workflow_version\"\x8b\x04\n" +
 	"\x0eActionMetadata\x12\x19\n" +
 	"\x05label\x18\x01 \x01(\tH\x00R\x05label\x88\x01\x01\x12`\n" +
 	"\x13selector_candidates\x18\x02 \x03(\v2/.browser_automation_studio.v1.SelectorCandidateR\x12selectorCandidates\x12Y\n" +
@@ -2055,7 +2284,7 @@ const file_browser_automation_studio_v1_action_proto_rawDesc = "" +
 	"\x11_element_snapshotB\r\n" +
 	"\v_confidenceB\x0e\n" +
 	"\f_captured_atB\x18\n" +
-	"\x16_captured_bounding_box\"\xc5\b\n" +
+	"\x16_captured_bounding_box\"\x8e\t\n" +
 	"\x10ActionDefinition\x12<\n" +
 	"\x04type\x18\x01 \x01(\x0e2(.browser_automation_studio.v1.ActionTypeR\x04type\x12J\n" +
 	"\bnavigate\x18\n" +
@@ -2073,9 +2302,10 @@ const file_browser_automation_studio_v1_action_proto_rawDesc = "" +
 	"screenshot\x18\x14 \x01(\v2..browser_automation_studio.v1.ScreenshotParamsH\x00R\n" +
 	"screenshot\x12A\n" +
 	"\x05focus\x18\x15 \x01(\v2).browser_automation_studio.v1.FocusParamsH\x00R\x05focus\x12>\n" +
-	"\x04blur\x18\x16 \x01(\v2(.browser_automation_studio.v1.BlurParamsH\x00R\x04blur\x12H\n" +
+	"\x04blur\x18\x16 \x01(\v2(.browser_automation_studio.v1.BlurParamsH\x00R\x04blur\x12G\n" +
+	"\asubflow\x18\x17 \x01(\v2+.browser_automation_studio.v1.SubflowParamsH\x00R\asubflow\x12H\n" +
 	"\bmetadata\x18\x1e \x01(\v2,.browser_automation_studio.v1.ActionMetadataR\bmetadataB\b\n" +
-	"\x06params*\xe3\x02\n" +
+	"\x06params*\xfc\x02\n" +
 	"\n" +
 	"ActionType\x12\x1b\n" +
 	"\x17ACTION_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -2092,7 +2322,8 @@ const file_browser_automation_studio_v1_action_proto_rawDesc = "" +
 	"\x12\x1a\n" +
 	"\x16ACTION_TYPE_SCREENSHOT\x10\v\x12\x15\n" +
 	"\x11ACTION_TYPE_FOCUS\x10\f\x12\x14\n" +
-	"\x10ACTION_TYPE_BLUR\x10\r*s\n" +
+	"\x10ACTION_TYPE_BLUR\x10\r\x12\x17\n" +
+	"\x13ACTION_TYPE_SUBFLOW\x10\x0e*s\n" +
 	"\vMouseButton\x12\x1c\n" +
 	"\x18MOUSE_BUTTON_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11MOUSE_BUTTON_LEFT\x10\x01\x12\x16\n" +
@@ -2102,7 +2333,11 @@ const file_browser_automation_studio_v1_action_proto_rawDesc = "" +
 	"\x1fNAVIGATE_WAIT_EVENT_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18NAVIGATE_WAIT_EVENT_LOAD\x10\x01\x12(\n" +
 	"$NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED\x10\x02\x12#\n" +
-	"\x1fNAVIGATE_WAIT_EVENT_NETWORKIDLE\x10\x03*\x88\x01\n" +
+	"\x1fNAVIGATE_WAIT_EVENT_NETWORKIDLE\x10\x03*\x8f\x01\n" +
+	"\x17NavigateDestinationType\x12)\n" +
+	"%NAVIGATE_DESTINATION_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dNAVIGATE_DESTINATION_TYPE_URL\x10\x01\x12&\n" +
+	"\"NAVIGATE_DESTINATION_TYPE_SCENARIO\x10\x02*\x88\x01\n" +
 	"\tWaitState\x12\x1a\n" +
 	"\x16WAIT_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13WAIT_STATE_ATTACHED\x10\x01\x12\x17\n" +
@@ -2137,75 +2372,82 @@ func file_browser_automation_studio_v1_action_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_action_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_action_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_browser_automation_studio_v1_action_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_browser_automation_studio_v1_action_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_browser_automation_studio_v1_action_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_browser_automation_studio_v1_action_proto_goTypes = []any{
 	(ActionType)(0),               // 0: browser_automation_studio.v1.ActionType
 	(MouseButton)(0),              // 1: browser_automation_studio.v1.MouseButton
 	(NavigateWaitEvent)(0),        // 2: browser_automation_studio.v1.NavigateWaitEvent
-	(WaitState)(0),                // 3: browser_automation_studio.v1.WaitState
-	(ScrollBehavior)(0),           // 4: browser_automation_studio.v1.ScrollBehavior
-	(KeyAction)(0),                // 5: browser_automation_studio.v1.KeyAction
-	(KeyboardModifier)(0),         // 6: browser_automation_studio.v1.KeyboardModifier
-	(*NavigateParams)(nil),        // 7: browser_automation_studio.v1.NavigateParams
-	(*ClickParams)(nil),           // 8: browser_automation_studio.v1.ClickParams
-	(*InputParams)(nil),           // 9: browser_automation_studio.v1.InputParams
-	(*WaitParams)(nil),            // 10: browser_automation_studio.v1.WaitParams
-	(*AssertParams)(nil),          // 11: browser_automation_studio.v1.AssertParams
-	(*ScrollParams)(nil),          // 12: browser_automation_studio.v1.ScrollParams
-	(*SelectParams)(nil),          // 13: browser_automation_studio.v1.SelectParams
-	(*EvaluateParams)(nil),        // 14: browser_automation_studio.v1.EvaluateParams
-	(*KeyboardParams)(nil),        // 15: browser_automation_studio.v1.KeyboardParams
-	(*HoverParams)(nil),           // 16: browser_automation_studio.v1.HoverParams
-	(*ScreenshotParams)(nil),      // 17: browser_automation_studio.v1.ScreenshotParams
-	(*FocusParams)(nil),           // 18: browser_automation_studio.v1.FocusParams
-	(*BlurParams)(nil),            // 19: browser_automation_studio.v1.BlurParams
-	(*ActionMetadata)(nil),        // 20: browser_automation_studio.v1.ActionMetadata
-	(*ActionDefinition)(nil),      // 21: browser_automation_studio.v1.ActionDefinition
-	nil,                           // 22: browser_automation_studio.v1.EvaluateParams.ArgsEntry
-	(AssertionMode)(0),            // 23: browser_automation_studio.v1.AssertionMode
-	(*v1.JsonValue)(nil),          // 24: common.v1.JsonValue
-	(*SelectorCandidate)(nil),     // 25: browser_automation_studio.v1.SelectorCandidate
-	(*ElementMeta)(nil),           // 26: browser_automation_studio.v1.ElementMeta
-	(*timestamppb.Timestamp)(nil), // 27: google.protobuf.Timestamp
-	(*BoundingBox)(nil),           // 28: browser_automation_studio.v1.BoundingBox
+	(NavigateDestinationType)(0),  // 3: browser_automation_studio.v1.NavigateDestinationType
+	(WaitState)(0),                // 4: browser_automation_studio.v1.WaitState
+	(ScrollBehavior)(0),           // 5: browser_automation_studio.v1.ScrollBehavior
+	(KeyAction)(0),                // 6: browser_automation_studio.v1.KeyAction
+	(KeyboardModifier)(0),         // 7: browser_automation_studio.v1.KeyboardModifier
+	(*NavigateParams)(nil),        // 8: browser_automation_studio.v1.NavigateParams
+	(*ClickParams)(nil),           // 9: browser_automation_studio.v1.ClickParams
+	(*InputParams)(nil),           // 10: browser_automation_studio.v1.InputParams
+	(*WaitParams)(nil),            // 11: browser_automation_studio.v1.WaitParams
+	(*AssertParams)(nil),          // 12: browser_automation_studio.v1.AssertParams
+	(*ScrollParams)(nil),          // 13: browser_automation_studio.v1.ScrollParams
+	(*SelectParams)(nil),          // 14: browser_automation_studio.v1.SelectParams
+	(*EvaluateParams)(nil),        // 15: browser_automation_studio.v1.EvaluateParams
+	(*KeyboardParams)(nil),        // 16: browser_automation_studio.v1.KeyboardParams
+	(*HoverParams)(nil),           // 17: browser_automation_studio.v1.HoverParams
+	(*ScreenshotParams)(nil),      // 18: browser_automation_studio.v1.ScreenshotParams
+	(*FocusParams)(nil),           // 19: browser_automation_studio.v1.FocusParams
+	(*BlurParams)(nil),            // 20: browser_automation_studio.v1.BlurParams
+	(*SubflowParams)(nil),         // 21: browser_automation_studio.v1.SubflowParams
+	(*ActionMetadata)(nil),        // 22: browser_automation_studio.v1.ActionMetadata
+	(*ActionDefinition)(nil),      // 23: browser_automation_studio.v1.ActionDefinition
+	nil,                           // 24: browser_automation_studio.v1.EvaluateParams.ArgsEntry
+	nil,                           // 25: browser_automation_studio.v1.SubflowParams.ArgsEntry
+	(AssertionMode)(0),            // 26: browser_automation_studio.v1.AssertionMode
+	(*v1.JsonValue)(nil),          // 27: common.v1.JsonValue
+	(*SelectorCandidate)(nil),     // 28: browser_automation_studio.v1.SelectorCandidate
+	(*ElementMeta)(nil),           // 29: browser_automation_studio.v1.ElementMeta
+	(*timestamppb.Timestamp)(nil), // 30: google.protobuf.Timestamp
+	(*BoundingBox)(nil),           // 31: browser_automation_studio.v1.BoundingBox
 }
 var file_browser_automation_studio_v1_action_proto_depIdxs = []int32{
 	2,  // 0: browser_automation_studio.v1.NavigateParams.wait_until:type_name -> browser_automation_studio.v1.NavigateWaitEvent
-	1,  // 1: browser_automation_studio.v1.ClickParams.button:type_name -> browser_automation_studio.v1.MouseButton
-	6,  // 2: browser_automation_studio.v1.ClickParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
-	3,  // 3: browser_automation_studio.v1.WaitParams.state:type_name -> browser_automation_studio.v1.WaitState
-	23, // 4: browser_automation_studio.v1.AssertParams.mode:type_name -> browser_automation_studio.v1.AssertionMode
-	24, // 5: browser_automation_studio.v1.AssertParams.expected:type_name -> common.v1.JsonValue
-	4,  // 6: browser_automation_studio.v1.ScrollParams.behavior:type_name -> browser_automation_studio.v1.ScrollBehavior
-	22, // 7: browser_automation_studio.v1.EvaluateParams.args:type_name -> browser_automation_studio.v1.EvaluateParams.ArgsEntry
-	6,  // 8: browser_automation_studio.v1.KeyboardParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
-	5,  // 9: browser_automation_studio.v1.KeyboardParams.action:type_name -> browser_automation_studio.v1.KeyAction
-	25, // 10: browser_automation_studio.v1.ActionMetadata.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
-	26, // 11: browser_automation_studio.v1.ActionMetadata.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
-	27, // 12: browser_automation_studio.v1.ActionMetadata.captured_at:type_name -> google.protobuf.Timestamp
-	28, // 13: browser_automation_studio.v1.ActionMetadata.captured_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	0,  // 14: browser_automation_studio.v1.ActionDefinition.type:type_name -> browser_automation_studio.v1.ActionType
-	7,  // 15: browser_automation_studio.v1.ActionDefinition.navigate:type_name -> browser_automation_studio.v1.NavigateParams
-	8,  // 16: browser_automation_studio.v1.ActionDefinition.click:type_name -> browser_automation_studio.v1.ClickParams
-	9,  // 17: browser_automation_studio.v1.ActionDefinition.input:type_name -> browser_automation_studio.v1.InputParams
-	10, // 18: browser_automation_studio.v1.ActionDefinition.wait:type_name -> browser_automation_studio.v1.WaitParams
-	11, // 19: browser_automation_studio.v1.ActionDefinition.assert:type_name -> browser_automation_studio.v1.AssertParams
-	12, // 20: browser_automation_studio.v1.ActionDefinition.scroll:type_name -> browser_automation_studio.v1.ScrollParams
-	13, // 21: browser_automation_studio.v1.ActionDefinition.select_option:type_name -> browser_automation_studio.v1.SelectParams
-	14, // 22: browser_automation_studio.v1.ActionDefinition.evaluate:type_name -> browser_automation_studio.v1.EvaluateParams
-	15, // 23: browser_automation_studio.v1.ActionDefinition.keyboard:type_name -> browser_automation_studio.v1.KeyboardParams
-	16, // 24: browser_automation_studio.v1.ActionDefinition.hover:type_name -> browser_automation_studio.v1.HoverParams
-	17, // 25: browser_automation_studio.v1.ActionDefinition.screenshot:type_name -> browser_automation_studio.v1.ScreenshotParams
-	18, // 26: browser_automation_studio.v1.ActionDefinition.focus:type_name -> browser_automation_studio.v1.FocusParams
-	19, // 27: browser_automation_studio.v1.ActionDefinition.blur:type_name -> browser_automation_studio.v1.BlurParams
-	20, // 28: browser_automation_studio.v1.ActionDefinition.metadata:type_name -> browser_automation_studio.v1.ActionMetadata
-	24, // 29: browser_automation_studio.v1.EvaluateParams.ArgsEntry.value:type_name -> common.v1.JsonValue
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	3,  // 1: browser_automation_studio.v1.NavigateParams.destination_type:type_name -> browser_automation_studio.v1.NavigateDestinationType
+	1,  // 2: browser_automation_studio.v1.ClickParams.button:type_name -> browser_automation_studio.v1.MouseButton
+	7,  // 3: browser_automation_studio.v1.ClickParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
+	4,  // 4: browser_automation_studio.v1.WaitParams.state:type_name -> browser_automation_studio.v1.WaitState
+	26, // 5: browser_automation_studio.v1.AssertParams.mode:type_name -> browser_automation_studio.v1.AssertionMode
+	27, // 6: browser_automation_studio.v1.AssertParams.expected:type_name -> common.v1.JsonValue
+	5,  // 7: browser_automation_studio.v1.ScrollParams.behavior:type_name -> browser_automation_studio.v1.ScrollBehavior
+	24, // 8: browser_automation_studio.v1.EvaluateParams.args:type_name -> browser_automation_studio.v1.EvaluateParams.ArgsEntry
+	7,  // 9: browser_automation_studio.v1.KeyboardParams.modifiers:type_name -> browser_automation_studio.v1.KeyboardModifier
+	6,  // 10: browser_automation_studio.v1.KeyboardParams.action:type_name -> browser_automation_studio.v1.KeyAction
+	25, // 11: browser_automation_studio.v1.SubflowParams.args:type_name -> browser_automation_studio.v1.SubflowParams.ArgsEntry
+	28, // 12: browser_automation_studio.v1.ActionMetadata.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
+	29, // 13: browser_automation_studio.v1.ActionMetadata.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
+	30, // 14: browser_automation_studio.v1.ActionMetadata.captured_at:type_name -> google.protobuf.Timestamp
+	31, // 15: browser_automation_studio.v1.ActionMetadata.captured_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	0,  // 16: browser_automation_studio.v1.ActionDefinition.type:type_name -> browser_automation_studio.v1.ActionType
+	8,  // 17: browser_automation_studio.v1.ActionDefinition.navigate:type_name -> browser_automation_studio.v1.NavigateParams
+	9,  // 18: browser_automation_studio.v1.ActionDefinition.click:type_name -> browser_automation_studio.v1.ClickParams
+	10, // 19: browser_automation_studio.v1.ActionDefinition.input:type_name -> browser_automation_studio.v1.InputParams
+	11, // 20: browser_automation_studio.v1.ActionDefinition.wait:type_name -> browser_automation_studio.v1.WaitParams
+	12, // 21: browser_automation_studio.v1.ActionDefinition.assert:type_name -> browser_automation_studio.v1.AssertParams
+	13, // 22: browser_automation_studio.v1.ActionDefinition.scroll:type_name -> browser_automation_studio.v1.ScrollParams
+	14, // 23: browser_automation_studio.v1.ActionDefinition.select_option:type_name -> browser_automation_studio.v1.SelectParams
+	15, // 24: browser_automation_studio.v1.ActionDefinition.evaluate:type_name -> browser_automation_studio.v1.EvaluateParams
+	16, // 25: browser_automation_studio.v1.ActionDefinition.keyboard:type_name -> browser_automation_studio.v1.KeyboardParams
+	17, // 26: browser_automation_studio.v1.ActionDefinition.hover:type_name -> browser_automation_studio.v1.HoverParams
+	18, // 27: browser_automation_studio.v1.ActionDefinition.screenshot:type_name -> browser_automation_studio.v1.ScreenshotParams
+	19, // 28: browser_automation_studio.v1.ActionDefinition.focus:type_name -> browser_automation_studio.v1.FocusParams
+	20, // 29: browser_automation_studio.v1.ActionDefinition.blur:type_name -> browser_automation_studio.v1.BlurParams
+	21, // 30: browser_automation_studio.v1.ActionDefinition.subflow:type_name -> browser_automation_studio.v1.SubflowParams
+	22, // 31: browser_automation_studio.v1.ActionDefinition.metadata:type_name -> browser_automation_studio.v1.ActionMetadata
+	27, // 32: browser_automation_studio.v1.EvaluateParams.ArgsEntry.value:type_name -> common.v1.JsonValue
+	27, // 33: browser_automation_studio.v1.SubflowParams.ArgsEntry.value:type_name -> common.v1.JsonValue
+	34, // [34:34] is the sub-list for method output_type
+	34, // [34:34] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_action_proto_init() }
@@ -2236,8 +2478,12 @@ func file_browser_automation_studio_v1_action_proto_init() {
 	file_browser_automation_studio_v1_action_proto_msgTypes[10].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_action_proto_msgTypes[11].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_action_proto_msgTypes[12].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_action_proto_msgTypes[13].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_action_proto_msgTypes[14].OneofWrappers = []any{
+	file_browser_automation_studio_v1_action_proto_msgTypes[13].OneofWrappers = []any{
+		(*SubflowParams_WorkflowId)(nil),
+		(*SubflowParams_WorkflowPath)(nil),
+	}
+	file_browser_automation_studio_v1_action_proto_msgTypes[14].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_action_proto_msgTypes[15].OneofWrappers = []any{
 		(*ActionDefinition_Navigate)(nil),
 		(*ActionDefinition_Click)(nil),
 		(*ActionDefinition_Input)(nil),
@@ -2251,14 +2497,15 @@ func file_browser_automation_studio_v1_action_proto_init() {
 		(*ActionDefinition_Screenshot)(nil),
 		(*ActionDefinition_Focus)(nil),
 		(*ActionDefinition_Blur)(nil),
+		(*ActionDefinition_Subflow)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_action_proto_rawDesc), len(file_browser_automation_studio_v1_action_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   16,
+			NumEnums:      8,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

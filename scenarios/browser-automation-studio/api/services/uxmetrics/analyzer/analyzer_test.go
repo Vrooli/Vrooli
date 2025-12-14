@@ -252,7 +252,7 @@ func TestAnalyzer_GenerateSummary(t *testing.T) {
 
 	stepMetrics := []contracts.StepMetrics{
 		{StepIndex: 0, FrictionScore: 30, TotalDurationMs: 5000},
-		{StepIndex: 1, FrictionScore: 60, TotalDurationMs: 2000}, // High friction
+		{StepIndex: 1, FrictionScore: 60, TotalDurationMs: 2000},  // High friction
 		{StepIndex: 2, FrictionScore: 70, TotalDurationMs: 10000}, // High friction, slowest
 	}
 

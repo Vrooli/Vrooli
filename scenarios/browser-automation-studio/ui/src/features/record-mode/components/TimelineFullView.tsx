@@ -115,14 +115,17 @@ function generateId(): string {
 
 /** Get a short action label for the mini-timeline */
 function getShortActionLabel(action: RecordedAction): string {
-  switch (action.actionType) {
+  const rawType: string = action.actionType;
+  const normalizedType =
+    rawType === 'type' ? 'input' : rawType === 'keypress' ? 'keyboard' : rawType;
+  switch (normalizedType) {
     case 'click': return 'Click';
-    case 'type': return 'Type';
+    case 'input': return 'Type';
     case 'navigate': return 'Nav';
     case 'scroll': return 'Scroll';
-    case 'keypress': return 'Key';
+    case 'keyboard': return 'Key';
     case 'select': return 'Select';
-    default: return action.actionType.slice(0, 4);
+    default: return normalizedType.slice(0, 4);
   }
 }
 

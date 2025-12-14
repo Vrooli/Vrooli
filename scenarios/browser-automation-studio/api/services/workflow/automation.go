@@ -2,8 +2,11 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -14,6 +17,8 @@ import (
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // executeWithAutomationEngine is the sole execution path; the legacy
@@ -60,7 +65,7 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		Recorder:          s.artifactRecorder,
 		EventSink:         eventSink,
 		HeartbeatInterval: config.Load().Execution.HeartbeatInterval,
-		WorkflowResolver:  s.repo,
+		WorkflowResolver:  &executorWorkflowResolver{repo: s.repo},
 		PlanCompiler:      compiler,
 		MaxSubflowDepth:   config.Load().Execution.MaxSubflowDepth,
 	}
@@ -111,7 +116,7 @@ func (s *WorkflowService) executeResumedWithAutomationEngine(ctx context.Context
 		Recorder:           s.artifactRecorder,
 		EventSink:          eventSink,
 		HeartbeatInterval:  config.Load().Execution.HeartbeatInterval,
-		WorkflowResolver:   s.repo,
+		WorkflowResolver:   &executorWorkflowResolver{repo: s.repo},
 		PlanCompiler:       compiler,
 		MaxSubflowDepth:    config.Load().Execution.MaxSubflowDepth,
 		StartFromStepIndex: startFromStepIndex,
@@ -119,6 +124,121 @@ func (s *WorkflowService) executeResumedWithAutomationEngine(ctx context.Context
 		ResumedFromID:      &resumedFromID,
 	}
 	return s.executor.Execute(ctx, req)
+}
+
+type executorWorkflowResolver struct {
+	repo database.Repository
+}
+
+func (r *executorWorkflowResolver) GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*database.Workflow, error) {
+	return r.repo.GetWorkflow(ctx, workflowID)
+}
+
+func (r *executorWorkflowResolver) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.Workflow, error) {
+	if version <= 0 {
+		return r.repo.GetWorkflow(ctx, workflowID)
+	}
+
+	base, err := r.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return nil, err
+	}
+	v, err := r.repo.GetWorkflowVersion(ctx, workflowID, version)
+	if err != nil {
+		return nil, err
+	}
+
+	// Rehydrate a Workflow struct with the versioned definition.
+	// Only fields required by the executor/compiler are populated.
+	return &database.Workflow{
+		ID:             base.ID,
+		ProjectID:      base.ProjectID,
+		Name:           base.Name,
+		FolderPath:     base.FolderPath,
+		WorkflowType:   base.WorkflowType,
+		FlowDefinition: v.FlowDefinition,
+		Version:        v.Version,
+	}, nil
+}
+
+func (r *executorWorkflowResolver) GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*database.Workflow, error) {
+	callingWorkflow, err := r.repo.GetWorkflow(ctx, callingWorkflowID)
+	if err != nil {
+		return nil, err
+	}
+	if callingWorkflow.ProjectID == nil {
+		return nil, fmt.Errorf("cannot resolve workflowPath=%q: calling workflow has no project_id", workflowPath)
+	}
+
+	project, err := r.repo.GetProject(ctx, *callingWorkflow.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	normalized, ok := normalizeWorkflowPath(workflowPath)
+	if !ok {
+		return nil, fmt.Errorf("invalid workflowPath=%q", workflowPath)
+	}
+
+	abs := filepath.Clean(filepath.Join(project.FolderPath, filepath.FromSlash(normalized)))
+	projectRoot := filepath.Clean(strings.TrimSpace(project.FolderPath))
+	if projectRoot == "" || projectRoot == "." {
+		return nil, fmt.Errorf("invalid project root for workflowPath=%q", workflowPath)
+	}
+	rootWithSep := projectRoot + string(filepath.Separator)
+	if abs != projectRoot && !strings.HasPrefix(abs, rootWithSep) {
+		return nil, fmt.Errorf("workflowPath=%q escapes project root", workflowPath)
+	}
+
+	raw, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, err
+	}
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		return nil, fmt.Errorf("workflowPath=%q is empty", workflowPath)
+	}
+
+	var def map[string]any
+	if err := json.Unmarshal(raw, &def); err != nil {
+		return nil, fmt.Errorf("workflowPath=%q is not valid JSON: %w", workflowPath, err)
+	}
+
+	// Fail-fast: ensure the definition matches the canonical proto shape.
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &basv1.WorkflowDefinitionV2{}); err != nil {
+		return nil, fmt.Errorf("workflowPath=%q does not match proto schema: %w", workflowPath, err)
+	}
+
+	id := uuid.New()
+	return &database.Workflow{
+		ID:             id,
+		ProjectID:      callingWorkflow.ProjectID,
+		Name:           normalized,
+		FolderPath:     "/",
+		WorkflowType:   callingWorkflow.WorkflowType,
+		FlowDefinition: database.JSONMap(def),
+		Version:        1,
+	}, nil
+}
+
+func normalizeWorkflowPath(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	raw = strings.ReplaceAll(raw, "\\", "/")
+	if raw == "" {
+		return "", false
+	}
+	if strings.HasPrefix(raw, "/") {
+		return "", false
+	}
+	parts := strings.Split(raw, "/")
+	clean := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || part == "." || part == ".." {
+			return "", false
+		}
+		clean = append(clean, part)
+	}
+	return strings.Join(clean, "/"), true
 }
 
 // unsupportedAutomationNodes returns node types that the new automation

@@ -6,9 +6,9 @@
  * what users will get in their generated workflow.
  *
  * Merging rules:
- * 1. Consecutive type actions on the same selector → text concatenated
+ * 1. Consecutive input actions on the same selector → text concatenated
  * 2. Consecutive scroll actions → single action with final position
- * 3. Focus events before type on same element → removed (implicit in typing)
+ * 3. Focus events before input on same element → removed (implicit in typing)
  */
 
 import type { RecordedAction, SelectorSet } from './types';
@@ -22,7 +22,7 @@ export interface MergedActionMeta {
   /** Original action IDs that were merged */
   mergedIds: string[];
   /** Type of merge applied */
-  mergeType: 'type' | 'scroll' | 'navigate' | 'focus-removed' | null;
+  mergeType: 'input' | 'scroll' | 'navigate' | 'focus-removed' | null;
 }
 
 /**
@@ -60,27 +60,27 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
     const action = { ...actions[i] } as MergedAction;
     const mergedIds: string[] = [action.id];
 
-    // Skip focus events that are immediately followed by type on the same element
+    // Skip focus events that are immediately followed by input on the same element
     if (action.actionType === 'focus' && i + 1 < actions.length) {
       const next = actions[i + 1];
-      if (next.actionType === 'type' && selectorsMatch(action.selector, next.selector)) {
+      if (next.actionType === 'input' && selectorsMatch(action.selector, next.selector)) {
         // Mark the focus as removed but don't add it to merged output
         // The next action will include info about the removed focus
         continue;
       }
     }
 
-    // Merge consecutive type actions on same selector
-    if (action.actionType === 'type' && action.selector) {
+    // Merge consecutive input actions on same selector
+    if (action.actionType === 'input' && action.selector) {
       let mergedText = '';
       if (action.payload?.text) {
         mergedText = String(action.payload.text);
       }
 
-      // Look ahead for more type actions on same element
+      // Look ahead for more input actions on same element
       while (i + 1 < actions.length) {
         const next = actions[i + 1];
-        if (next.actionType !== 'type' || !selectorsMatch(action.selector, next.selector)) {
+        if (next.actionType !== 'input' || !selectorsMatch(action.selector, next.selector)) {
           break;
         }
         // Merge the text
@@ -97,7 +97,7 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
         action._merged = {
           mergedCount: mergedIds.length,
           mergedIds,
-          mergeType: 'type',
+          mergeType: 'input',
         };
       }
     }
@@ -184,10 +184,10 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
       merged.length === 0 &&
       i > 0 &&
       actions[i - 1].actionType === 'focus' &&
-      action.actionType === 'type' &&
+      action.actionType === 'input' &&
       selectorsMatch(actions[i - 1].selector, action.selector)
     ) {
-      // This type action had a focus removed before it
+      // This input action had a focus removed before it
       if (!action._merged) {
         action._merged = {
           mergedCount: 1,
@@ -210,7 +210,7 @@ export function getMergeDescription(meta?: MergedActionMeta): string | null {
   if (!meta || meta.mergedCount <= 1) return null;
 
   switch (meta.mergeType) {
-    case 'type':
+    case 'input':
       return `Merged ${meta.mergedCount} keystrokes`;
     case 'scroll':
       return `Merged ${meta.mergedCount} scroll events`;

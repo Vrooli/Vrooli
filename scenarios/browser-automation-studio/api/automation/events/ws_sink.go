@@ -875,12 +875,9 @@ func convertHighlightRegions(regions []contracts.HighlightRegion) []*browser_aut
 		region := &browser_automation_studio_v1.HighlightRegion{
 			Selector:       r.Selector,
 			BoundingBox:    convertBoundingBox(r.BoundingBox),
-			Padding:        int32(r.Padding),
-			HighlightColor: stringToHighlightColor(r.Color),
-		}
-		// If we couldn't map to an enum value, preserve the original as custom RGBA
-		if region.HighlightColor == browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED && r.Color != "" {
-			region.CustomRgba = &r.Color
+			Padding:        r.Padding,
+			HighlightColor: r.HighlightColor,
+			CustomRgba:     r.CustomRgba,
 		}
 		out = append(out, region)
 	}

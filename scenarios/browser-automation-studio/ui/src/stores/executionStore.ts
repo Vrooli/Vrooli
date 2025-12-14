@@ -7,15 +7,19 @@ import {
 import {
   ExecutionTimelineSchema,
   type ExecutionTimeline as ProtoExecutionTimeline,
-  type TimelineFrame as ProtoTimelineFrame,
-  type TimelineLog as ProtoTimelineLog,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
+import type {
+  TimelineEntry as ProtoTimelineEntry,
+  TimelineLog as ProtoTimelineLog,
+  TimelineArtifact as ProtoTimelineArtifact,
+} from '@vrooli/proto-types/browser-automation-studio/v1/timeline_entry_pb';
 import { ExecuteWorkflowResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/workflow_service_pb';
+import { AssertionMode } from '@vrooli/proto-types/browser-automation-studio/v1/shared_pb';
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { parseProtoStrict } from '../utils/proto';
-import type { ReplayFrame, ReplayPoint, ReplayRegion, ReplayScreenshot } from '../features/execution/ReplayPlayer';
+import type { ReplayFrame } from '../features/execution/ReplayPlayer';
 import {
   ExecutionEventsClient,
   type ExecutionUpdateMessage as WsExecutionUpdateMessage,
@@ -54,6 +58,11 @@ const coerceDate = (value: unknown): Date | undefined => {
 const toNumber = (value?: number | bigint | null): number | undefined => {
   if (value == null) return undefined;
   return typeof value === 'bigint' ? Number(value) : value;
+};
+
+const mapAssertionMode = (mode?: AssertionMode | null): string | undefined => {
+  if (mode == null) return undefined;
+  return AssertionMode[mode] ?? String(mode);
 };
 
 export interface TimelineBoundingBox {
@@ -167,7 +176,8 @@ const parseExecutionProto = (raw: unknown): Execution => {
   const proto = parseProtoStrict(ExecutionSchema, raw) as ReturnType<typeof fromJson<typeof ExecutionSchema>>;
   const startedAt = timestampToDate(proto.startedAt) ?? new Date();
   const completedAt = timestampToDate(proto.completedAt);
-  const lastHeartbeat = proto.lastHeartbeat ? timestampToDate(proto.lastHeartbeat) : undefined;
+  // Note: proto field is now lastHeartbeatAt (not lastHeartbeat)
+  const lastHeartbeatAt = proto.lastHeartbeatAt ? timestampToDate(proto.lastHeartbeatAt) : undefined;
 
   return {
     id: proto.executionId || '',
@@ -181,9 +191,9 @@ const parseExecutionProto = (raw: unknown): Execution => {
     currentStep: proto.currentStep || undefined,
     progress: typeof proto.progress === 'number' && proto.progress > 0 ? proto.progress : 0,
     error: proto.error ?? undefined,
-    lastHeartbeat: lastHeartbeat
+    lastHeartbeat: lastHeartbeatAt
       ? {
-          timestamp: lastHeartbeat,
+          timestamp: lastHeartbeatAt,
         }
       : undefined,
   };
@@ -196,56 +206,19 @@ const mapBoundingBoxFromProto = (bbox?: { x?: number; y?: number; width?: number
   return { x, y, width, height };
 };
 
-const mapProtoScreenshot = (shot?: ProtoTimelineFrame['screenshot'] | null): ReplayScreenshot | undefined => {
-  if (!shot) return undefined;
-  return {
-    artifactId: shot.artifactId || createId(),
-    url: shot.url,
-    thumbnailUrl: shot.thumbnailUrl,
-    width: toNumber(shot.width),
-    height: toNumber(shot.height),
-    contentType: shot.contentType || undefined,
-    sizeBytes: toNumber(shot.sizeBytes),
-  };
-};
-
-const mapProtoRegion = (region?: ProtoTimelineFrame['highlightRegions'][number]): ReplayRegion | undefined => {
-  if (!region) return undefined;
-  const boundingBox = mapBoundingBoxFromProto(region.boundingBox);
-  if (!boundingBox && !region.selector) {
-    return undefined;
-  }
-  return {
-    selector: region.selector || undefined,
-    boundingBox,
-    padding: region.padding ?? undefined,
-    color: region.color || undefined,
-    opacity: undefined,
-  };
-};
-
-const mapProtoMaskRegion = (region?: ProtoTimelineFrame['maskRegions'][number]): ReplayRegion | undefined => {
-  if (!region) return undefined;
-  const boundingBox = mapBoundingBoxFromProto(region.boundingBox);
-  if (!boundingBox && !region.selector) {
-    return undefined;
-  }
-  return {
-    selector: region.selector || undefined,
-    boundingBox,
-    opacity: region.opacity ?? undefined,
-  };
-};
-
-const mapProtoPoint = (point?: ProtoTimelineFrame['cursorTrail'][number]): ReplayPoint | undefined => {
-  if (!point) return undefined;
-  if (point.x == null || point.y == null) return undefined;
-  return { x: point.x, y: point.y };
-};
-
-const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineFrame['artifacts'][number]): TimelineArtifact | undefined => {
+/**
+ * Map a TimelineArtifact from proto to our internal format.
+ */
+const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineArtifact): TimelineArtifact | undefined => {
   if (!artifact) return undefined;
   const stepIndex = artifact.stepIndex ?? undefined;
+  // Convert payload map to Record<string, unknown>
+  const payload: Record<string, unknown> = {};
+  if (artifact.payload) {
+    for (const [key, value] of Object.entries(artifact.payload)) {
+      payload[key] = value;
+    }
+  }
   return {
     id: artifact.id,
     type: mapArtifactType(artifact.type) ?? 'unknown',
@@ -255,73 +228,111 @@ const mapTimelineArtifactFromProto = (artifact?: ProtoTimelineFrame['artifacts']
     content_type: artifact.contentType || undefined,
     size_bytes: toNumber(artifact.sizeBytes),
     step_index: stepIndex,
-    payload: artifact.payload ?? undefined,
+    payload: Object.keys(payload).length > 0 ? payload : undefined,
   };
 };
 
-// Exported for targeted unit testing to ensure API↔UI contract stays aligned.
-export const mapTimelineFrameFromProto = (frame: ProtoTimelineFrame): TimelineFrame => {
-  const screenshot = mapProtoScreenshot(frame.screenshot);
-  const focusBox = mapBoundingBoxFromProto(frame.focusedElement?.boundingBox);
-  const elementBox = mapBoundingBoxFromProto(frame.elementBoundingBox);
-  const artifacts = frame.artifacts?.map((artifact) => mapTimelineArtifactFromProto(artifact)!).filter(Boolean) ?? [];
-  const domSnapshotArtifact = artifacts.find((artifact) => artifact?.type === 'dom_snapshot');
+/**
+ * Map a TimelineEntry from proto to our TimelineFrame format.
+ * This is the new unified format - TimelineFrame is now just a wrapper.
+ *
+ * Exported for targeted unit testing to ensure API↔UI contract stays aligned.
+ */
+export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFrame => {
+  const context = entry.context;
+  const aggregates = entry.aggregates;
+  const telemetry = entry.telemetry;
+
+  // Map artifacts from aggregates
+  const artifacts = aggregates?.artifacts?.map((a) => mapTimelineArtifactFromProto(a)!).filter(Boolean) ?? [];
+  const domSnapshotArtifact = aggregates?.domSnapshot ? mapTimelineArtifactFromProto(aggregates.domSnapshot) : undefined;
+
+  // Map screenshot from telemetry
+  const screenshot = telemetry?.screenshot
+    ? {
+        artifactId: telemetry.screenshot.artifactId || createId(),
+        url: telemetry.screenshot.url,
+        thumbnailUrl: telemetry.screenshot.thumbnailUrl,
+        width: toNumber(telemetry.screenshot.width),
+        height: toNumber(telemetry.screenshot.height),
+        contentType: telemetry.screenshot.contentType || undefined,
+        sizeBytes: toNumber(telemetry.screenshot.sizeBytes),
+      }
+    : undefined;
+
+  // Map focused element from aggregates
+  const focusedElement = aggregates?.focusedElement
+    ? {
+        selector: aggregates.focusedElement.selector || undefined,
+        boundingBox: mapBoundingBoxFromProto(aggregates.focusedElement.boundingBox) ?? undefined,
+      }
+    : null;
+
+  // Map element bounding box from telemetry
+  const elementBoundingBox = mapBoundingBoxFromProto(telemetry?.elementBoundingBox) ?? null;
+
+  // Map assertion from context
+  const assertion = context?.assertion
+    ? {
+        mode: mapAssertionMode(context.assertion.mode),
+        selector: context.assertion.selector,
+        expected: context.assertion.expected,
+        actual: context.assertion.actual,
+        success: context.assertion.success,
+        message: context.assertion.message || undefined,
+        negated: context.assertion.negated,
+        caseSensitive: context.assertion.caseSensitive,
+      }
+    : undefined;
+
+  // Map retry from context
+  const retryStatus = context?.retryStatus;
 
   return {
-    id: screenshot?.artifactId || `frame-${frame.stepIndex}`,
-    stepIndex: frame.stepIndex,
-    nodeId: frame.nodeId || undefined,
-    stepType: mapStepType(frame.stepType),
-    status: mapStepStatus(frame.status),
-    success: frame.success,
-    durationMs: frame.durationMs ?? undefined,
-    totalDurationMs: frame.totalDurationMs ?? undefined,
-    progress: frame.progress ?? undefined,
-    finalUrl: frame.finalUrl || undefined,
-    error: frame.error || undefined,
-    extractedDataPreview: frame.extractedDataPreview,
-    consoleLogCount: frame.consoleLogCount ?? undefined,
-    networkEventCount: frame.networkEventCount ?? undefined,
+    id: entry.id || `entry-${entry.stepIndex ?? 0}`,
+    stepIndex: entry.stepIndex ?? 0,
+    nodeId: entry.nodeId || undefined,
+    stepType: entry.action?.type ? mapStepType(entry.action.type) : undefined,
+    status: aggregates ? mapStepStatus(aggregates.status) : undefined,
+    success: context?.success ?? false,
+    durationMs: entry.durationMs ?? undefined,
+    totalDurationMs: entry.totalDurationMs ?? undefined,
+    progress: aggregates?.progress ?? undefined,
+    finalUrl: aggregates?.finalUrl || undefined,
+    error: context?.error || undefined,
+    extractedDataPreview: aggregates?.extractedDataPreview,
+    consoleLogCount: aggregates?.consoleLogCount ?? undefined,
+    networkEventCount: aggregates?.networkEventCount ?? undefined,
     screenshot: screenshot ?? undefined,
-    highlightRegions: frame.highlightRegions?.map(mapProtoRegion).filter(Boolean) as ReplayRegion[] ?? [],
-    maskRegions: frame.maskRegions?.map(mapProtoMaskRegion).filter(Boolean) as ReplayRegion[] ?? [],
-    focusedElement: frame.focusedElement
-      ? { selector: frame.focusedElement.selector || undefined, boundingBox: focusBox ?? undefined }
-      : null,
-    elementBoundingBox: elementBox ?? null,
-    clickPosition: frame.clickPosition ? { x: frame.clickPosition.x, y: frame.clickPosition.y } : null,
-    cursorTrail: frame.cursorTrail?.map(mapProtoPoint).filter(Boolean) as ReplayPoint[] ?? [],
-    zoomFactor: frame.zoomFactor ?? undefined,
-    assertion: frame.assertion
-      ? {
-          mode: frame.assertion.mode,
-          selector: frame.assertion.selector,
-          expected: frame.assertion.expected,
-          actual: frame.assertion.actual,
-          success: frame.assertion.success,
-          message: frame.assertion.message || undefined,
-          negated: frame.assertion.negated,
-          caseSensitive: frame.assertion.caseSensitive,
-        }
-      : undefined,
-    retryAttempt: frame.retryAttempt ?? undefined,
-    retryMaxAttempts: frame.retryMaxAttempts ?? undefined,
-    retryConfigured: frame.retryConfigured ?? undefined,
-    retryDelayMs: frame.retryDelayMs ?? undefined,
-    retryBackoffFactor: frame.retryBackoffFactor ?? undefined,
-    retryHistory: frame.retryHistory?.map((entry) => ({
-      attempt: entry.attempt ?? undefined,
-      success: entry.success ?? undefined,
-      durationMs: entry.durationMs ?? undefined,
-      callDurationMs: entry.callDurationMs ?? undefined,
-      error: entry.error || undefined,
+    highlightRegions: [], // Not in new proto - would come from telemetry.highlightRegions if added
+    maskRegions: [], // Not in new proto - would come from telemetry.maskRegions if added
+    focusedElement,
+    elementBoundingBox,
+    clickPosition: telemetry?.cursorPosition ? { x: telemetry.cursorPosition.x, y: telemetry.cursorPosition.y } : null,
+    cursorTrail: [], // Not in new proto - would come from telemetry.cursorTrail if added
+    zoomFactor: undefined, // Not in new proto
+    assertion,
+    retryAttempt: retryStatus?.currentAttempt ?? undefined,
+    retryMaxAttempts: retryStatus?.maxAttempts ?? undefined,
+    retryConfigured: retryStatus?.configured ?? undefined,
+    retryDelayMs: retryStatus?.delayMs ?? undefined,
+    retryBackoffFactor: retryStatus?.backoffFactor ?? undefined,
+    retryHistory: retryStatus?.history?.map((h) => ({
+      attempt: h.attempt ?? undefined,
+      success: h.success ?? undefined,
+      durationMs: h.durationMs ?? undefined,
+      callDurationMs: undefined, // Not in new proto
+      error: h.error || undefined,
     })) ?? [],
-    domSnapshotPreview: frame.domSnapshotPreview || undefined,
+    domSnapshotPreview: aggregates?.domSnapshotPreview || undefined,
     domSnapshotArtifactId: domSnapshotArtifact?.id || undefined,
-    domSnapshotHtml: domSnapshotArtifact?.payload?.html ? String(domSnapshotArtifact.payload.html) : undefined,
-    artifacts,
+    domSnapshotHtml: undefined, // Would need to fetch from artifact
+    artifacts: domSnapshotArtifact ? [...artifacts, domSnapshotArtifact] : artifacts,
   };
 };
+
+// Backwards compatibility - old name
+export const mapTimelineFrameFromProto = mapTimelineEntryToFrame;
 
 const mapTimelineLogFromProto = (log: ProtoTimelineLog): LogEntry | null => {
   const baseMessage = typeof log.message === 'string' ? log.message.trim() : '';
@@ -350,15 +361,15 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
   return proto.screenshots
     .map((shot) => {
       const ts = timestampToDate(shot.timestamp) ?? coerceDate(shot.timestamp) ?? parseTimestamp(shot.timestamp as any);
-      const url = shot.storageUrl || shot.thumbnailUrl || '';
+      const url = shot.screenshot?.url || shot.screenshot?.thumbnailUrl || '';
       if (!url) {
         return null;
       }
       return {
-        id: shot.id || createId(),
+        id: shot.screenshot?.artifactId || createId(),
         timestamp: ts,
         url,
-        stepName: shot.stepName || `Step ${shot.stepIndex}`,
+        stepName: shot.stepLabel || `Step ${shot.stepIndex + 1}`,
       } satisfies Screenshot;
     })
     .filter((screenshot): screenshot is Screenshot => screenshot !== null);
@@ -555,7 +566,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         timelinePayload
       ) as ProtoExecutionTimeline;
 
-      const frames = (protoTimeline.frames ?? []).map((frame) => mapTimelineFrameFromProto(frame));
+      const frames = (protoTimeline.entries ?? []).map((entry) => mapTimelineFrameFromProto(entry));
 
       const normalizedLogs = (protoTimeline.logs ?? [])
         .map((log) => mapTimelineLogFromProto(log))

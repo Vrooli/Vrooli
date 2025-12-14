@@ -634,9 +634,11 @@ func (e *SimpleExecutor) applySetVariable(ctx context.Context, req Request, step
 }
 
 type subflowSpec struct {
-	workflowID *uuid.UUID
-	inlineDef  map[string]any
-	params     map[string]any
+	workflowID      *uuid.UUID
+	workflowVersion *int
+	workflowPath    string
+	inlineDef       map[string]any
+	params          map[string]any
 }
 
 func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
@@ -648,6 +650,12 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 			return spec, fmt.Errorf("subflow %s has invalid workflowId: %w", step.NodeID, err)
 		}
 	}
+	if version := intValue(step.Params, "workflowVersion"); version > 0 {
+		spec.workflowVersion = &version
+	}
+	if pathStr := stringValue(step.Params, "workflowPath"); strings.TrimSpace(pathStr) != "" {
+		spec.workflowPath = strings.TrimSpace(pathStr)
+	}
 	if rawDef, ok := step.Params["workflowDefinition"]; ok {
 		if def, ok := rawDef.(map[string]any); ok && len(def) > 0 {
 			spec.inlineDef = def
@@ -658,8 +666,8 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 			spec.params = params
 		}
 	}
-	if spec.workflowID == nil && spec.inlineDef == nil {
-		return spec, fmt.Errorf("subflow %s missing workflowId or workflowDefinition", step.NodeID)
+	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil {
+		return spec, fmt.Errorf("subflow %s missing workflowId, workflowPath, or workflowDefinition", step.NodeID)
 	}
 	return spec, nil
 }
@@ -669,7 +677,24 @@ func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) 
 		if req.WorkflowResolver == nil {
 			return nil, uuid.Nil, fmt.Errorf("subflow requires workflow resolver to fetch %s", spec.workflowID.String())
 		}
-		wf, err := req.WorkflowResolver.GetWorkflow(ctx, *spec.workflowID)
+		var wf *database.Workflow
+		var err error
+		if spec.workflowVersion != nil {
+			wf, err = req.WorkflowResolver.GetWorkflowVersion(ctx, *spec.workflowID, *spec.workflowVersion)
+		} else {
+			wf, err = req.WorkflowResolver.GetWorkflow(ctx, *spec.workflowID)
+		}
+		if err != nil {
+			return nil, uuid.Nil, err
+		}
+		return wf, wf.ID, nil
+	}
+
+	if spec.workflowPath != "" {
+		if req.WorkflowResolver == nil {
+			return nil, uuid.Nil, fmt.Errorf("subflow requires workflow resolver to fetch %q", spec.workflowPath)
+		}
+		wf, err := req.WorkflowResolver.GetWorkflowByProjectPath(ctx, req.Plan.WorkflowID, spec.workflowPath)
 		if err != nil {
 			return nil, uuid.Nil, err
 		}

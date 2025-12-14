@@ -11,13 +11,13 @@ import (
 
 // Common cron expression presets for user-friendly scheduling.
 var CronPresets = map[string]string{
-	"@hourly":   "0 0 * * * *",   // Every hour at minute 0
-	"@daily":    "0 0 0 * * *",   // Every day at midnight
-	"@weekly":   "0 0 0 * * 0",   // Every Sunday at midnight
-	"@monthly":  "0 0 0 1 * *",   // First day of month at midnight
-	"@yearly":   "0 0 0 1 1 *",   // January 1st at midnight
-	"@annually": "0 0 0 1 1 *",   // Same as yearly
-	"@midnight": "0 0 0 * * *",   // Same as daily
+	"@hourly":   "0 0 * * * *", // Every hour at minute 0
+	"@daily":    "0 0 0 * * *", // Every day at midnight
+	"@weekly":   "0 0 0 * * 0", // Every Sunday at midnight
+	"@monthly":  "0 0 0 1 * *", // First day of month at midnight
+	"@yearly":   "0 0 0 1 1 *", // January 1st at midnight
+	"@annually": "0 0 0 1 1 *", // Same as yearly
+	"@midnight": "0 0 0 * * *", // Same as daily
 }
 
 // ValidateCronExpression validates a cron expression and returns a detailed error if invalid.

@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"strings"
+
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 )
@@ -261,6 +263,29 @@ func actionDefinitionToParams(action *basv1.ActionDefinition) map[string]any {
 			}
 			if p.Blur.TimeoutMs != nil {
 				params["timeoutMs"] = int(*p.Blur.TimeoutMs)
+			}
+		}
+	case *basv1.ActionDefinition_Subflow:
+		if p.Subflow != nil {
+			switch target := p.Subflow.Target.(type) {
+			case *basv1.SubflowParams_WorkflowId:
+				if strings.TrimSpace(target.WorkflowId) != "" {
+					params["workflowId"] = strings.TrimSpace(target.WorkflowId)
+				}
+			case *basv1.SubflowParams_WorkflowPath:
+				if strings.TrimSpace(target.WorkflowPath) != "" {
+					params["workflowPath"] = strings.TrimSpace(target.WorkflowPath)
+				}
+			}
+			if p.Subflow.WorkflowVersion != nil {
+				params["workflowVersion"] = int(*p.Subflow.WorkflowVersion)
+			}
+			if len(p.Subflow.Args) > 0 {
+				args := make(map[string]any, len(p.Subflow.Args))
+				for k, v := range p.Subflow.Args {
+					args[k] = jsonValueToAny(v)
+				}
+				params["parameters"] = args
 			}
 		}
 	}

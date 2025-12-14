@@ -419,12 +419,9 @@ func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*browser_automa
 func convertHighlightRegion(region autocontracts.HighlightRegion) *browser_automation_studio_v1.HighlightRegion {
 	pb := &browser_automation_studio_v1.HighlightRegion{
 		Selector:       region.Selector,
-		Padding:        int32(region.Padding),
-		HighlightColor: typeconv.StringToHighlightColor(region.Color),
-	}
-	// If we couldn't map to an enum value, preserve the original as custom RGBA
-	if pb.HighlightColor == browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED && region.Color != "" {
-		pb.CustomRgba = &region.Color
+		Padding:        region.Padding,
+		HighlightColor: region.HighlightColor,
+		CustomRgba:     region.CustomRgba,
 	}
 	if region.BoundingBox != nil {
 		pb.BoundingBox = convertBoundingBox(region.BoundingBox)

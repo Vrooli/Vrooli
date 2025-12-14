@@ -45,9 +45,9 @@ func waitForMessage(t *testing.T, ch <-chan any) any {
 
 type mockHub struct{}
 
-func (m *mockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID)            {}
-func (m *mockHub) BroadcastEnvelope(event any)                                     {}
-func (m *mockHub) BroadcastRecordingAction(sessionID string, action any)           {}
+func (m *mockHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID)  {}
+func (m *mockHub) BroadcastEnvelope(event any)                           {}
+func (m *mockHub) BroadcastRecordingAction(sessionID string, action any) {}
 func (m *mockHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
 }
 func (m *mockHub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {}

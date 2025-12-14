@@ -194,22 +194,19 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 	}
 
 	// Add highlight regions
-	if len(outcome.HighlightRegions) > 0 {
-		tel.HighlightRegions = make([]*basv1.HighlightRegion, 0, len(outcome.HighlightRegions))
-		for _, r := range outcome.HighlightRegions {
-			region := &basv1.HighlightRegion{
-				Selector:       r.Selector,
-				BoundingBox:    convertBoundingBoxToProto(r.BoundingBox),
-				Padding:        int32(r.Padding),
-				HighlightColor: typeconv.StringToHighlightColor(r.Color),
+		if len(outcome.HighlightRegions) > 0 {
+			tel.HighlightRegions = make([]*basv1.HighlightRegion, 0, len(outcome.HighlightRegions))
+			for _, r := range outcome.HighlightRegions {
+				region := &basv1.HighlightRegion{
+					Selector:       r.Selector,
+					BoundingBox:    convertBoundingBoxToProto(r.BoundingBox),
+					Padding:        r.Padding,
+					HighlightColor: r.HighlightColor,
+					CustomRgba:     r.CustomRgba,
+				}
+				tel.HighlightRegions = append(tel.HighlightRegions, region)
 			}
-			// If we couldn't map to an enum value, preserve the original as custom RGBA
-			if region.HighlightColor == basv1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED && r.Color != "" {
-				region.CustomRgba = &r.Color
-			}
-			tel.HighlightRegions = append(tel.HighlightRegions, region)
 		}
-	}
 
 	// Add mask regions
 	if len(outcome.MaskRegions) > 0 {
@@ -446,4 +443,3 @@ func CompiledInstructionToActionDefinition(instr contracts.CompiledInstruction) 
 
 	return def
 }
-

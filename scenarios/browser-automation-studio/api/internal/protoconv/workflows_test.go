@@ -14,8 +14,8 @@ func TestFlowDefinitionToProto(t *testing.T) {
 		"nodes": []map[string]any{
 			{"id": "n1", "type": "navigate"},
 		},
-		"edges":          []map[string]any{},
-		"metadata_typed": map[string]any{"name": "Test"},
+		"edges":    []map[string]any{},
+		"metadata": map[string]any{"name": "Test"},
 	}
 	pb, err := FlowDefinitionToProto(def)
 	if err != nil {
@@ -24,8 +24,8 @@ func TestFlowDefinitionToProto(t *testing.T) {
 	if len(pb.Nodes) != 1 || pb.Nodes[0].Id != "n1" {
 		t.Fatalf("unexpected nodes: %+v", pb.Nodes)
 	}
-	if pb.MetadataTyped == nil || pb.MetadataTyped.Name != "Test" {
-		t.Fatalf("expected typed metadata")
+	if pb.Metadata == nil || pb.Metadata.Name == nil || *pb.Metadata.Name != "Test" {
+		t.Fatalf("expected metadata with name")
 	}
 }
 

@@ -57,17 +57,23 @@ export interface Point {
 
 /**
  * Action types that can be recorded.
+ * These match the proto ActionType enum values in action.proto.
+ * NOTE: 'type' is an alias for 'input', 'keypress' is an alias for 'keyboard'.
  */
 export type ActionType =
-  | 'click'
-  | 'type'
-  | 'scroll'
   | 'navigate'
+  | 'click'
+  | 'input'
+  | 'wait'
+  | 'assert'
+  | 'scroll'
   | 'select'
+  | 'evaluate'
+  | 'keyboard'
   | 'hover'
+  | 'screenshot'
   | 'focus'
-  | 'blur'
-  | 'keypress';
+  | 'blur';
 
 export type RecordedActionKind =
   | 'RECORDED_ACTION_TYPE_UNSPECIFIED'

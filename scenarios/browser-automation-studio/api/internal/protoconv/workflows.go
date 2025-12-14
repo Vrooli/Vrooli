@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
@@ -13,8 +14,8 @@ import (
 )
 
 // FlowDefinitionToProto converts the stored JSON flow definition into the typed proto.
-func FlowDefinitionToProto(definition database.JSONMap) (*browser_automation_studio_v1.WorkflowDefinition, error) {
-	pb := &browser_automation_studio_v1.WorkflowDefinition{}
+func FlowDefinitionToProto(definition database.JSONMap) (*browser_automation_studio_v1.WorkflowDefinitionV2, error) {
+	pb := &browser_automation_studio_v1.WorkflowDefinitionV2{}
 	if definition == nil {
 		return pb, nil
 	}
@@ -46,7 +47,7 @@ func WorkflowSummaryToProto(workflow *database.Workflow) (*browser_automation_st
 		Version:               int32(workflow.Version),
 		IsTemplate:            workflow.IsTemplate,
 		CreatedBy:             workflow.CreatedBy,
-		LastChangeSource:      workflow.LastChangeSource,
+		LastChangeSource:      typeconv.StringToChangeSource(workflow.LastChangeSource),
 		LastChangeDescription: workflow.LastChangeDescription,
 		CreatedAt:             timestamppb.New(workflow.CreatedAt),
 		UpdatedAt:             timestamppb.New(workflow.UpdatedAt),
@@ -133,7 +134,7 @@ func ExecuteWorkflowResponseProto(execution *database.Execution) (*browser_autom
 
 	pb := &browser_automation_studio_v1.ExecuteWorkflowResponse{
 		ExecutionId: execution.ID.String(),
-		Status:      stringToExecutionStatus(execution.Status),
+		Status:      typeconv.StringToExecutionStatus(execution.Status),
 	}
 
 	if execution.CompletedAt != nil {
@@ -175,11 +176,11 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *browser_
 	}
 	issueToProto := func(issue workflowvalidator.Issue) *browser_automation_studio_v1.WorkflowValidationIssue {
 		return &browser_automation_studio_v1.WorkflowValidationIssue{
-			Severity: string(issue.Severity),
+			Severity: typeconv.StringToValidationSeverity(string(issue.Severity)),
 			Code:     issue.Code,
 			Message:  issue.Message,
 			NodeId:   issue.NodeID,
-			NodeType: issue.NodeType,
+			NodeType: typeconv.StringToActionType(issue.NodeType),
 			Field:    issue.Field,
 			Pointer:  issue.Pointer,
 			Hint:     issue.Hint,
@@ -213,3 +214,4 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *browser_
 		DurationMs:    result.DurationMs,
 	}
 }
+
