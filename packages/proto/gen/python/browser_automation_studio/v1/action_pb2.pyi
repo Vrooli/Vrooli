@@ -292,15 +292,15 @@ class ActionMetadata(_message.Message):
     SELECTOR_CANDIDATES_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
-    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
-    RECORDED_BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     label: str
     selector_candidates: _containers.RepeatedCompositeFieldContainer[_selectors_pb2.SelectorCandidate]
     element_snapshot: _selectors_pb2.ElementMeta
     confidence: float
-    recorded_at: _timestamp_pb2.Timestamp
-    recorded_bounding_box: _geometry_pb2.BoundingBox
-    def __init__(self, label: _Optional[str] = ..., selector_candidates: _Optional[_Iterable[_Union[_selectors_pb2.SelectorCandidate, _Mapping]]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., confidence: _Optional[float] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., recorded_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ...) -> None: ...
+    captured_at: _timestamp_pb2.Timestamp
+    captured_bounding_box: _geometry_pb2.BoundingBox
+    def __init__(self, label: _Optional[str] = ..., selector_candidates: _Optional[_Iterable[_Union[_selectors_pb2.SelectorCandidate, _Mapping]]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., confidence: _Optional[float] = ..., captured_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., captured_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ...) -> None: ...
 
 class ActionDefinition(_message.Message):
     __slots__ = ()

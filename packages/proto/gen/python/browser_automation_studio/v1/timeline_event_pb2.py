@@ -22,15 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from common.v1 import types_pb2 as common_dot_v1_dot_types__pb2
-from browser_automation_studio.v1 import shared_pb2 as browser__automation__studio_dot_v1_dot_shared__pb2
-from browser_automation_studio.v1 import action_pb2 as browser__automation__studio_dot_v1_dot_action__pb2
-from browser_automation_studio.v1 import selectors_pb2 as browser__automation__studio_dot_v1_dot_selectors__pb2
-from browser_automation_studio.v1 import telemetry_pb2 as browser__automation__studio_dot_v1_dot_telemetry__pb2
+from browser_automation_studio.v1 import timeline_entry_pb2 as browser__automation__studio_dot_v1_dot_timeline__entry__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1browser-automation-studio/v1/timeline_event.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15\x63ommon/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a)browser-automation-studio/v1/action.proto\x1a,browser-automation-studio/v1/selectors.proto\x1a,browser-automation-studio/v1/telemetry.proto\"\xc0\x05\n\rTimelineEvent\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0csequence_num\x18\x02 \x01(\x05R\x0bsequenceNum\x12\x38\n\ttimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12$\n\x0b\x64uration_ms\x18\x04 \x01(\x05H\x01R\ndurationMs\x88\x01\x01\x12\"\n\nstep_index\x18\x05 \x01(\x05H\x02R\tstepIndex\x88\x01\x01\x12\x1c\n\x07node_id\x18\x06 \x01(\tH\x03R\x06nodeId\x88\x01\x01\x12\x46\n\x06\x61\x63tion\x18\n \x01(\x0b\x32..browser_automation_studio.v1.ActionDefinitionR\x06\x61\x63tion\x12K\n\ttelemetry\x18\x0b \x01(\x0b\x32-.browser_automation_studio.v1.ActionTelemetryR\ttelemetry\x12N\n\trecording\x18\x14 \x01(\x0b\x32..browser_automation_studio.v1.RecordingContextH\x00R\trecording\x12N\n\texecution\x18\x15 \x01(\x0b\x32..browser_automation_studio.v1.ExecutionContextH\x00R\texecution\x12\x1e\n\x08trace_id\x18\x1e \x01(\tH\x04R\x07traceId\x88\x01\x01\x12*\n\x0e\x63orrelation_id\x18\x1f \x01(\tH\x05R\rcorrelationId\x88\x01\x01\x42\x0e\n\x0cmode_contextB\x0e\n\x0c_duration_msB\r\n\x0b_step_indexB\n\n\x08_node_idB\x0b\n\t_trace_idB\x11\n\x0f_correlation_id\"\x89\x02\n\x10RecordingContext\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12`\n\x13selector_candidates\x18\x02 \x03(\x0b\x32/.browser_automation_studio.v1.SelectorCandidateR\x12selectorCandidates\x12-\n\x12needs_confirmation\x18\x03 \x01(\x08R\x11needsConfirmation\x12\x45\n\x06source\x18\x04 \x01(\x0e\x32-.browser_automation_studio.v1.RecordingSourceR\x06source\"\xbb\x04\n\x10\x45xecutionContext\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x18\n\x07success\x18\n \x01(\x08R\x07success\x12\x19\n\x05\x65rror\x18\x0b \x01(\tH\x00R\x05\x65rror\x88\x01\x01\x12\"\n\nerror_code\x18\x0c \x01(\tH\x01R\terrorCode\x88\x01\x01\x12L\n\x0cretry_status\x18\x19 \x01(\x0b\x32).browser_automation_studio.v1.RetryStatusR\x0bretryStatus\x12P\n\tassertion\x18\x1e \x01(\x0b\x32-.browser_automation_studio.v1.AssertionResultH\x02R\tassertion\x88\x01\x01\x12h\n\x0e\x65xtracted_data\x18\x1f \x03(\x0b\x32\x41.browser_automation_studio.v1.ExecutionContext.ExtractedDataEntryR\rextractedData\x1aV\n\x12\x45xtractedDataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x42\x08\n\x06_errorB\r\n\x0b_error_codeB\x0c\n\n_assertionJ\x04\x08\x02\x10\x03J\x04\x08\x14\x10\x15J\x04\x08\x15\x10\x16J\x04\x08\x16\x10\x17J\x04\x08\x17\x10\x18J\x04\x08\x18\x10\x19\"\xcd\x02\n\x15TimelineStreamMessage\x12\x45\n\x04type\x18\x01 \x01(\x0e\x32\x31.browser_automation_studio.v1.TimelineMessageTypeR\x04type\x12\x43\n\x05\x65vent\x18\n \x01(\x0b\x32+.browser_automation_studio.v1.TimelineEventH\x00R\x05\x65vent\x12L\n\x06status\x18\x0b \x01(\x0b\x32\x32.browser_automation_studio.v1.TimelineStatusUpdateH\x00R\x06status\x12O\n\theartbeat\x18\x0c \x01(\x0b\x32/.browser_automation_studio.v1.TimelineHeartbeatH\x00R\theartbeatB\t\n\x07payload\"\xcf\x01\n\x14TimelineStatusUpdate\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x45\n\x06status\x18\x02 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12\x1a\n\x08progress\x18\x03 \x01(\x05R\x08progress\x12\x1f\n\x0b\x65vent_count\x18\x04 \x01(\x05R\neventCount\x12\x19\n\x05\x65rror\x18\x05 \x01(\tH\x00R\x05\x65rror\x88\x01\x01\x42\x08\n\x06_error\"l\n\x11TimelineHeartbeat\x12\x38\n\ttimestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1d\n\nsession_id\x18\x02 \x01(\tR\tsessionId*\xa4\x01\n\x13TimelineMessageType\x12%\n!TIMELINE_MESSAGE_TYPE_UNSPECIFIED\x10\x00\x12\x1f\n\x1bTIMELINE_MESSAGE_TYPE_EVENT\x10\x01\x12 \n\x1cTIMELINE_MESSAGE_TYPE_STATUS\x10\x02\x12#\n\x1fTIMELINE_MESSAGE_TYPE_HEARTBEAT\x10\x03\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1browser-automation-studio/v1/timeline_event.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x31\x62rowser-automation-studio/v1/timeline_entry.proto\"V\n\rTimelineEvent\x12\x41\n\x05\x65ntry\x18\x01 \x01(\x0b\x32+.browser_automation_studio.v1.TimelineEntryR\x05\x65ntry:\x02\x18\x01\"G\n\x10RecordingContext\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId:\x02\x18\x01J\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05\"\x81\x01\n\x10\x45xecutionContext\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId:\x02\x18\x01J\x04\x08\x02\x10\x03J\x04\x08\n\x10\x0bJ\x04\x08\x0b\x10\x0cJ\x04\x08\x0c\x10\rJ\x04\x08\x14\x10\x15J\x04\x08\x15\x10\x16J\x04\x08\x16\x10\x17J\x04\x08\x17\x10\x18J\x04\x08\x18\x10\x19J\x04\x08\x19\x10\x1aJ\x04\x08\x1e\x10\x1fJ\x04\x08\x1f\x10 BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,22 +33,16 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'browser_automation_studio.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1'
-  _globals['_EXECUTIONCONTEXT_EXTRACTEDDATAENTRY']._loaded_options = None
-  _globals['_EXECUTIONCONTEXT_EXTRACTEDDATAENTRY']._serialized_options = b'8\001'
-  _globals['_TIMELINEMESSAGETYPE']._serialized_start=2523
-  _globals['_TIMELINEMESSAGETYPE']._serialized_end=2687
-  _globals['_TIMELINEEVENT']._serialized_start=318
-  _globals['_TIMELINEEVENT']._serialized_end=1022
-  _globals['_RECORDINGCONTEXT']._serialized_start=1025
-  _globals['_RECORDINGCONTEXT']._serialized_end=1290
-  _globals['_EXECUTIONCONTEXT']._serialized_start=1293
-  _globals['_EXECUTIONCONTEXT']._serialized_end=1864
-  _globals['_EXECUTIONCONTEXT_EXTRACTEDDATAENTRY']._serialized_start=1703
-  _globals['_EXECUTIONCONTEXT_EXTRACTEDDATAENTRY']._serialized_end=1789
-  _globals['_TIMELINESTREAMMESSAGE']._serialized_start=1867
-  _globals['_TIMELINESTREAMMESSAGE']._serialized_end=2200
-  _globals['_TIMELINESTATUSUPDATE']._serialized_start=2203
-  _globals['_TIMELINESTATUSUPDATE']._serialized_end=2410
-  _globals['_TIMELINEHEARTBEAT']._serialized_start=2412
-  _globals['_TIMELINEHEARTBEAT']._serialized_end=2520
+  _globals['_TIMELINEEVENT']._loaded_options = None
+  _globals['_TIMELINEEVENT']._serialized_options = b'\030\001'
+  _globals['_RECORDINGCONTEXT']._loaded_options = None
+  _globals['_RECORDINGCONTEXT']._serialized_options = b'\030\001'
+  _globals['_EXECUTIONCONTEXT']._loaded_options = None
+  _globals['_EXECUTIONCONTEXT']._serialized_options = b'\030\001'
+  _globals['_TIMELINEEVENT']._serialized_start=134
+  _globals['_TIMELINEEVENT']._serialized_end=220
+  _globals['_RECORDINGCONTEXT']._serialized_start=222
+  _globals['_RECORDINGCONTEXT']._serialized_end=293
+  _globals['_EXECUTIONCONTEXT']._serialized_start=296
+  _globals['_EXECUTIONCONTEXT']._serialized_end=425
 # @@protoc_insertion_point(module_scope)

@@ -286,10 +286,10 @@ func TestCreateProject(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-			if pb.GetId() == "" {
-				t.Errorf("response missing project id, response: %s", w.Body.String())
-			}
-		})
+		if pb.GetId() == "" {
+			t.Errorf("response missing project id, response: %s", w.Body.String())
+		}
+	})
 
 	t.Run("creates recommended folders when preset provided", func(t *testing.T) {
 		rootDir := t.TempDir()

@@ -3,7 +3,6 @@ package protoconv
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -20,23 +19,6 @@ func selectorPayloadToProto[T any](in T, out proto.Message) error {
 		return fmt.Errorf("unmarshal: %w", err)
 	}
 	return nil
-}
-
-func mapRecordedActionKind(actionType string) browser_automation_studio_v1.RecordedActionType {
-	switch strings.ToLower(actionType) {
-	case "navigate":
-		return browser_automation_studio_v1.RecordedActionType_RECORDED_ACTION_TYPE_NAVIGATE
-	case "click", "focus", "hover", "blur":
-		return browser_automation_studio_v1.RecordedActionType_RECORDED_ACTION_TYPE_CLICK
-	case "type", "input", "keypress":
-		return browser_automation_studio_v1.RecordedActionType_RECORDED_ACTION_TYPE_INPUT
-	case "wait":
-		return browser_automation_studio_v1.RecordedActionType_RECORDED_ACTION_TYPE_WAIT
-	case "assert":
-		return browser_automation_studio_v1.RecordedActionType_RECORDED_ACTION_TYPE_ASSERT
-	default:
-		return browser_automation_studio_v1.RecordedActionType_RECORDED_ACTION_TYPE_UNSPECIFIED
-	}
 }
 
 func RecordingStatusToProto(status any) (*browser_automation_studio_v1.RecordingStatusResponse, error) {
@@ -83,9 +65,6 @@ func ReplayPreviewToProto(resp any) (*browser_automation_studio_v1.ReplayPreview
 	var pb browser_automation_studio_v1.ReplayPreviewResponse
 	if err := selectorPayloadToProto(resp, &pb); err != nil {
 		return nil, err
-	}
-	for _, result := range pb.Results {
-		result.ActionKind = mapRecordedActionKind(result.GetActionType())
 	}
 	return &pb, nil
 }

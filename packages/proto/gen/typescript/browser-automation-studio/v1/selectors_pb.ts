@@ -14,10 +14,12 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/selectors.proto.
  */
 export const file_browser_automation_studio_v1_selectors: GenFile = /*@__PURE__*/
-  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NlbGVjdG9ycy5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSKFAQoRU2VsZWN0b3JDYW5kaWRhdGUSOAoEdHlwZRgBIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU2VsZWN0b3JUeXBlEg0KBXZhbHVlGAIgASgJEhIKCmNvbmZpZGVuY2UYAyABKAESEwoLc3BlY2lmaWNpdHkYBCABKAUiYwoLU2VsZWN0b3JTZXQSDwoHcHJpbWFyeRgBIAEoCRJDCgpjYW5kaWRhdGVzGAIgAygLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TZWxlY3RvckNhbmRpZGF0ZSKfAgoLRWxlbWVudE1ldGESEAoIdGFnX25hbWUYASABKAkSCgoCaWQYAiABKAkSEgoKY2xhc3NfbmFtZRgDIAEoCRISCgppbm5lcl90ZXh0GAQgASgJEk0KCmF0dHJpYnV0ZXMYBSADKAsyOS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkVsZW1lbnRNZXRhLkF0dHJpYnV0ZXNFbnRyeRISCgppc192aXNpYmxlGAYgASgIEhIKCmlzX2VuYWJsZWQYByABKAgSDAoEcm9sZRgIIAEoCRISCgphcmlhX2xhYmVsGAkgASgJGjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIvkBCg9IaWdobGlnaHRSZWdpb24SEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBIPCgdwYWRkaW5nGAMgASgFEhEKBWNvbG9yGAQgASgJQgIYARJFCg9oaWdobGlnaHRfY29sb3IYBSABKA4yLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkhpZ2hsaWdodENvbG9yEhgKC2N1c3RvbV9yZ2JhGAYgASgJSACIAQFCDgoMX2N1c3RvbV9yZ2JhInAKCk1hc2tSZWdpb24SEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBIPCgdvcGFjaXR5GAMgASgBQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_geometry]);
+  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NlbGVjdG9ycy5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSKFAQoRU2VsZWN0b3JDYW5kaWRhdGUSOAoEdHlwZRgBIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU2VsZWN0b3JUeXBlEg0KBXZhbHVlGAIgASgJEhIKCmNvbmZpZGVuY2UYAyABKAESEwoLc3BlY2lmaWNpdHkYBCABKAUinwIKC0VsZW1lbnRNZXRhEhAKCHRhZ19uYW1lGAEgASgJEgoKAmlkGAIgASgJEhIKCmNsYXNzX25hbWUYAyABKAkSEgoKaW5uZXJfdGV4dBgEIAEoCRJNCgphdHRyaWJ1dGVzGAUgAygLMjkuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FbGVtZW50TWV0YS5BdHRyaWJ1dGVzRW50cnkSEgoKaXNfdmlzaWJsZRgGIAEoCBISCgppc19lbmFibGVkGAcgASgIEgwKBHJvbGUYCCABKAkSEgoKYXJpYV9sYWJlbBgJIAEoCRoxCg9BdHRyaWJ1dGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLsAQoPSGlnaGxpZ2h0UmVnaW9uEhAKCHNlbGVjdG9yGAEgASgJEj8KDGJvdW5kaW5nX2JveBgCIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3gSDwoHcGFkZGluZxgDIAEoBRJFCg9oaWdobGlnaHRfY29sb3IYBSABKA4yLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkhpZ2hsaWdodENvbG9yEhgKC2N1c3RvbV9yZ2JhGAYgASgJSACIAQFCDgoMX2N1c3RvbV9yZ2JhSgQIBBAFInAKCk1hc2tSZWdpb24SEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBIPCgdvcGFjaXR5GAMgASgBQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_geometry]);
 
 /**
  * SelectorCandidate is a single selector with metadata.
+ * Used in ActionMetadata.selector_candidates to provide fallback selectors
+ * captured during recording.
  *
  * @generated from message browser_automation_studio.v1.SelectorCandidate
  */
@@ -57,50 +59,6 @@ export type SelectorCandidate = Message<"browser_automation_studio.v1.SelectorCa
  */
 export const SelectorCandidateSchema: GenMessage<SelectorCandidate> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_selectors, 0);
-
-/**
- * SelectorSet contains multiple selector strategies for resilience.
- * This enables fallback behavior when the primary selector fails:
- * 1. Try primary selector first
- * 2. If primary fails, iterate through candidates by confidence score
- * 3. Store successful selector for future runs
- *
- * USAGE STATUS: Currently used internally by playwright-driver for resilient
- * element targeting. NOT exposed in ActionDefinition params - actions use
- * a simple string selector, with ActionMetadata.selector_candidates providing
- * fallback options from recording.
- *
- * FUTURE CONSIDERATION: May be integrated into action params to give users
- * explicit control over selector fallback behavior. Alternatively, this type
- * may be deprecated if ActionMetadata.selector_candidates proves sufficient.
- *
- * If you need resilient selectors, use ActionMetadata.selector_candidates
- * (populated during recording) rather than constructing SelectorSet manually.
- *
- * @generated from message browser_automation_studio.v1.SelectorSet
- */
-export type SelectorSet = Message<"browser_automation_studio.v1.SelectorSet"> & {
-  /**
-   * Primary selector to use first.
-   *
-   * @generated from field: string primary = 1;
-   */
-  primary: string;
-
-  /**
-   * Alternative selector candidates ranked by preference.
-   *
-   * @generated from field: repeated browser_automation_studio.v1.SelectorCandidate candidates = 2;
-   */
-  candidates: SelectorCandidate[];
-};
-
-/**
- * Describes the message browser_automation_studio.v1.SelectorSet.
- * Use `create(SelectorSetSchema)` to create a new message.
- */
-export const SelectorSetSchema: GenMessage<SelectorSet> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_selectors, 1);
 
 /**
  * ElementMeta captures information about a DOM element.
@@ -177,7 +135,7 @@ export type ElementMeta = Message<"browser_automation_studio.v1.ElementMeta"> & 
  * Use `create(ElementMetaSchema)` to create a new message.
  */
 export const ElementMetaSchema: GenMessage<ElementMeta> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_selectors, 2);
+  messageDesc(file_browser_automation_studio_v1_selectors, 1);
 
 /**
  * HighlightRegion describes an overlay applied to screenshots for emphasis.
@@ -207,25 +165,14 @@ export type HighlightRegion = Message<"browser_automation_studio.v1.HighlightReg
   padding: number;
 
   /**
-   * DEPRECATED: Use highlight_color enum instead.
-   * Legacy color as CSS string (e.g., "#ff0000" or "rgba(255,0,0,0.5)").
-   * Consumers should migrate to highlight_color for type safety.
-   *
-   * @generated from field: string color = 4 [deprecated = true];
-   * @deprecated
-   */
-  color: string;
-
-  /**
-   * Typed highlight color. Prefer this over the deprecated 'color' field.
-   * When both are set, highlight_color takes precedence.
+   * Typed highlight color from the HighlightColor enum.
    *
    * @generated from field: browser_automation_studio.v1.HighlightColor highlight_color = 5;
    */
   highlightColor: HighlightColor;
 
   /**
-   * Custom RGBA color when highlight_color is insufficient.
+   * Custom RGBA color when the enum is insufficient.
    * Format: "rgba(r,g,b,a)" where r,g,b are 0-255 and a is 0.0-1.0.
    * Only used when highlight_color = HIGHLIGHT_COLOR_UNSPECIFIED.
    *
@@ -239,7 +186,7 @@ export type HighlightRegion = Message<"browser_automation_studio.v1.HighlightReg
  * Use `create(HighlightRegionSchema)` to create a new message.
  */
 export const HighlightRegionSchema: GenMessage<HighlightRegion> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_selectors, 3);
+  messageDesc(file_browser_automation_studio_v1_selectors, 2);
 
 /**
  * MaskRegion describes areas that were dimmed or masked during capture.
@@ -274,5 +221,5 @@ export type MaskRegion = Message<"browser_automation_studio.v1.MaskRegion"> & {
  * Use `create(MaskRegionSchema)` to create a new message.
  */
 export const MaskRegionSchema: GenMessage<MaskRegion> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_selectors, 4);
+  messageDesc(file_browser_automation_studio_v1_selectors, 3);
 

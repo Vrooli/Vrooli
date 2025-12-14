@@ -55,15 +55,6 @@ class ArtifactType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ARTIFACT_TYPE_TRACE: _ClassVar[ArtifactType]
     ARTIFACT_TYPE_CUSTOM: _ClassVar[ArtifactType]
 
-class EventKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    EVENT_KIND_UNSPECIFIED: _ClassVar[EventKind]
-    EVENT_KIND_STATUS_UPDATE: _ClassVar[EventKind]
-    EVENT_KIND_TIMELINE_FRAME: _ClassVar[EventKind]
-    EVENT_KIND_LOG: _ClassVar[EventKind]
-    EVENT_KIND_HEARTBEAT: _ClassVar[EventKind]
-    EVENT_KIND_TELEMETRY: _ClassVar[EventKind]
-
 class ExportStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EXPORT_STATUS_UNSPECIFIED: _ClassVar[ExportStatus]
@@ -182,12 +173,6 @@ ARTIFACT_TYPE_SCREENSHOT: ArtifactType
 ARTIFACT_TYPE_DOM_SNAPSHOT: ArtifactType
 ARTIFACT_TYPE_TRACE: ArtifactType
 ARTIFACT_TYPE_CUSTOM: ArtifactType
-EVENT_KIND_UNSPECIFIED: EventKind
-EVENT_KIND_STATUS_UPDATE: EventKind
-EVENT_KIND_TIMELINE_FRAME: EventKind
-EVENT_KIND_LOG: EventKind
-EVENT_KIND_HEARTBEAT: EventKind
-EVENT_KIND_TELEMETRY: EventKind
 EXPORT_STATUS_UNSPECIFIED: ExportStatus
 EXPORT_STATUS_READY: ExportStatus
 EXPORT_STATUS_PENDING: ExportStatus
@@ -296,3 +281,34 @@ class AssertionResult(_message.Message):
     case_sensitive: bool
     message: str
     def __init__(self, mode: _Optional[_Union[AssertionMode, str]] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., actual: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., success: _Optional[bool] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+
+class EventContext(_message.Message):
+    __slots__ = ()
+    class ExtractedDataEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    NEEDS_CONFIRMATION_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
+    RETRY_STATUS_FIELD_NUMBER: _ClassVar[int]
+    ASSERTION_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTED_DATA_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    execution_id: str
+    source: RecordingSource
+    needs_confirmation: bool
+    success: bool
+    error: str
+    error_code: str
+    retry_status: RetryStatus
+    assertion: AssertionResult
+    extracted_data: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, session_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., source: _Optional[_Union[RecordingSource, str]] = ..., needs_confirmation: _Optional[bool] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ..., retry_status: _Optional[_Union[RetryStatus, _Mapping]] = ..., assertion: _Optional[_Union[AssertionResult, _Mapping]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...

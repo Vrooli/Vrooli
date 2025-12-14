@@ -3,12 +3,62 @@
 // keep these shapes stable so multiple engine implementations (e.g.,
 // Browserless, Desktop/Playwright) can plug in without changing downstream
 // consumers.
+//
+// Where possible, this package uses or re-exports proto-generated types from
+// packages/proto/gen/go/browser-automation-studio/v1 to ensure type consistency
+// with the API layer. Types that are internal to the execution engine or have
+// fields not suitable for API exposure (e.g., raw bytes) remain defined here.
 package contracts
 
 import (
 	"time"
 
 	"github.com/google/uuid"
+	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+)
+
+// Re-export proto types that are used directly in contracts.
+// These are types that don't require Go-specific fields like time.Time.
+// Types with API-vs-engine differences (ConsoleLogEntry, NetworkEvent)
+// are defined locally below because they have time.Time fields.
+type (
+	// === Geometry types from proto geometry.proto ===
+	// BoundingBox captures the position and dimensions of a rectangular region.
+	BoundingBox = basv1.BoundingBox
+	// Point represents a 2D coordinate.
+	Point = basv1.Point
+
+	// === Selector types from proto selectors.proto ===
+	// ElementMeta from proto selectors.proto - DOM element information.
+	ElementMeta = basv1.ElementMeta
+	// SelectorCandidate from proto selectors.proto - selector with confidence.
+	SelectorCandidate = basv1.SelectorCandidate
+	// HighlightRegion describes an overlay applied to the screenshot for emphasis.
+	HighlightRegion = basv1.HighlightRegion
+	// MaskRegion describes areas that were dimmed or masked during capture.
+	MaskRegion = basv1.MaskRegion
+
+	// === Timeline types from proto timeline_entry.proto ===
+	// TimelineEntry from proto timeline_entry.proto - unified timeline event.
+	TimelineEntry = basv1.TimelineEntry
+	// ElementFocus captures focus metadata for screenshot framing.
+	ElementFocus = basv1.ElementFocus
+
+	// === Telemetry types from proto telemetry.proto ===
+	// TimelineScreenshot from proto telemetry.proto - screenshot metadata.
+	TimelineScreenshot = basv1.TimelineScreenshot
+	// ActionTelemetry from proto telemetry.proto - telemetry container.
+	ActionTelemetry = basv1.ActionTelemetry
+
+	// === Shared types from proto shared.proto ===
+	// AssertionResult from proto shared.proto - assertion outcome.
+	AssertionResult = basv1.AssertionResult
+	// EventContext from proto shared.proto - recording/execution context.
+	EventContext = basv1.EventContext
+
+	// === Action types from proto action.proto ===
+	// ActionDefinition from proto action.proto - action with params.
+	ActionDefinition = basv1.ActionDefinition
 )
 
 const (
@@ -50,10 +100,11 @@ const (
 // Engines must not embed provider-specific fields; recorder generates durable
 // IDs/dedupe keys using the correlation metadata.
 //
-// Deprecated: StepOutcome is maintained for backward compatibility with the
-// execution engine internals. For WebSocket streaming to the UI, use
-// TimelineEvent (basv1.TimelineEvent from unified.proto). Conversion is
-// handled by StepOutcomeToTimelineEvent in automation/events/unified_convert.go.
+// Note: StepOutcome is the internal representation used by the execution engine.
+// For WebSocket streaming to the UI, StepOutcome is converted to TimelineEntry
+// (basv1.TimelineEntry from timeline_entry.proto) via StepOutcomeToTimelineEntry in
+// automation/events/unified_convert.go. New UI-facing code should work with
+// TimelineEntry directly.
 //
 // See: docs/plans/bas-unified-timeline-workflow-types.md
 type StepOutcome struct {
@@ -200,40 +251,9 @@ type ConditionOutcome struct {
 	Expected   any    `json:"expected,omitempty"`
 }
 
-// BoundingBox captures the position of an element within the viewport.
-type BoundingBox struct {
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
-}
-
-// Point represents a 2D coordinate used for pointer highlights.
-type Point struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
-
-// ElementFocus captures focus metadata for screenshot framing.
-type ElementFocus struct {
-	Selector    string       `json:"selector"`
-	BoundingBox *BoundingBox `json:"bounding_box,omitempty"`
-}
-
-// HighlightRegion describes an overlay applied to the screenshot for emphasis.
-type HighlightRegion struct {
-	Selector    string       `json:"selector"`
-	BoundingBox *BoundingBox `json:"bounding_box,omitempty"`
-	Padding     int          `json:"padding,omitempty"`
-	Color       string       `json:"color,omitempty"`
-}
-
-// MaskRegion describes areas that were dimmed or masked during capture.
-type MaskRegion struct {
-	Selector    string       `json:"selector"`
-	BoundingBox *BoundingBox `json:"bounding_box,omitempty"`
-	Opacity     float64      `json:"opacity,omitempty"`
-}
+// NOTE: BoundingBox, Point, ElementFocus, HighlightRegion, MaskRegion are now
+// type aliases to proto types defined in the type() block above. This eliminates
+// duplication and ensures type consistency with the API layer.
 
 // CursorPosition represents a point along the cursor trail for a step attempt.
 type CursorPosition struct {

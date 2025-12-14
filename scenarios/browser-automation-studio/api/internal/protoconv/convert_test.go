@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -57,11 +58,11 @@ func TestExecutionToProto(t *testing.T) {
 	if pb.TriggerMetadata["source"].GetStringValue() != "api" {
 		t.Fatalf("expected trigger metadata source=api, got %v", pb.TriggerMetadata["source"])
 	}
-	if pb.ParametersTyped["foo"].GetStringValue() != "bar" || pb.ParametersTyped["count"].GetIntValue() != 2 {
-		t.Fatalf("parameters_typed not set: %+v", pb.ParametersTyped)
+	if pb.Parameters["foo"].GetStringValue() != "bar" || pb.Parameters["count"].GetIntValue() != 2 {
+		t.Fatalf("parameters not set: %+v", pb.Parameters)
 	}
-	if pb.ResultTyped["ok"].GetBoolValue() != true {
-		t.Fatalf("result_typed not set: %+v", pb.ResultTyped)
+	if pb.Result["ok"].GetBoolValue() != true {
+		t.Fatalf("result not set: %+v", pb.Result)
 	}
 
 	// Ensure JSON uses proto field names (snake_case).
@@ -164,20 +165,14 @@ func TestTimelineToProto(t *testing.T) {
 	if frame.GetScreenshot().GetArtifactId() != "shot-1" {
 		t.Fatalf("unexpected screenshot artifact id: %s", frame.GetScreenshot().GetArtifactId())
 	}
-	if frame.Assertion == nil || frame.Assertion.GetMode() != "equals" {
+	if frame.Assertion == nil || frame.Assertion.GetMode() != browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS {
 		t.Fatalf("assertion not converted correctly: %+v", frame.Assertion)
 	}
-	if frame.ExtractedDataPreview == nil || frame.ExtractedDataPreview.GetStructValue().Fields["preview"].GetStringValue() != "ok" {
+	if frame.ExtractedDataPreview == nil || frame.ExtractedDataPreview.GetObjectValue().Fields["preview"].GetStringValue() != "ok" {
 		t.Fatalf("expected extracted_data_preview to be preserved, got %+v", frame.ExtractedDataPreview)
-	}
-	if frame.ExtractedDataPreviewTyped == nil || frame.ExtractedDataPreviewTyped.GetObjectValue().Fields["preview"].GetStringValue() != "ok" {
-		t.Fatalf("expected extracted_data_preview_typed to be preserved, got %+v", frame.ExtractedDataPreviewTyped)
 	}
 	if len(frame.Artifacts) != 1 || frame.Artifacts[0].Payload["foo"].GetStringValue() != "bar" {
 		t.Fatalf("artifact payload not converted correctly: %+v", frame.Artifacts)
-	}
-	if len(frame.Artifacts) != 1 || frame.Artifacts[0].PayloadTyped["foo"].GetStringValue() != "bar" {
-		t.Fatalf("artifact payload_typed not converted correctly: %+v", frame.Artifacts[0].PayloadTyped)
 	}
 	if frame.RetryConfigured == nil || !frame.GetRetryConfigured() {
 		t.Fatalf("retry_configured should be set to true")

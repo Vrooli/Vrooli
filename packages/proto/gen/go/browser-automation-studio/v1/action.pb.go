@@ -1493,21 +1493,32 @@ func (x *BlurParams) GetTimeoutMs() int32 {
 	return 0
 }
 
-// ActionMetadata captures optional rich data from recording for debugging and fallbacks.
+// ActionMetadata captures optional rich context captured during action execution.
+// This data is captured identically during BOTH recording and execution, enabling:
+//   - Selector fallbacks: If primary selector fails, try alternatives
+//   - Debugging: See exactly what the system saw when it executed the action
+//   - Editing: Users can adjust selectors on failed steps using captured alternatives
+//
+// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
 type ActionMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-readable label for the action.
 	Label *string `protobuf:"bytes,1,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	// Alternative selectors ranked by confidence (from recording).
+	// Alternative selectors ranked by confidence.
+	// Captured during both recording (user interactions) and execution (code-driven).
+	// Enables fallback selector strategies and user editing of failed steps.
 	SelectorCandidates []*SelectorCandidate `protobuf:"bytes,2,rep,name=selector_candidates,json=selectorCandidates,proto3" json:"selector_candidates,omitempty"`
-	// Element state snapshot when action was recorded.
+	// Element state snapshot when action was captured.
+	// Provides context about the target element for debugging and selector refinement.
 	ElementSnapshot *ElementMeta `protobuf:"bytes,3,opt,name=element_snapshot,json=elementSnapshot,proto3,oneof" json:"element_snapshot,omitempty"`
-	// Recording confidence score (0.0-1.0).
+	// Confidence score (0.0-1.0) for the primary selector.
+	// Higher values indicate more reliable selectors (data-testid > css class > xpath).
 	Confidence *float64 `protobuf:"fixed64,4,opt,name=confidence,proto3,oneof" json:"confidence,omitempty"`
-	// When this action was originally recorded.
-	RecordedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=recorded_at,json=recordedAt,proto3,oneof" json:"recorded_at,omitempty"`
-	// Element bounding box when recorded.
-	RecordedBoundingBox *BoundingBox `protobuf:"bytes,6,opt,name=recorded_bounding_box,json=recordedBoundingBox,proto3,oneof" json:"recorded_bounding_box,omitempty"`
+	// When this action was captured (during recording or execution).
+	CapturedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=captured_at,json=capturedAt,proto3,oneof" json:"captured_at,omitempty"`
+	// Element bounding box when captured.
+	// Used for visual debugging and screenshot annotations.
+	CapturedBoundingBox *BoundingBox `protobuf:"bytes,6,opt,name=captured_bounding_box,json=capturedBoundingBox,proto3,oneof" json:"captured_bounding_box,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -1570,25 +1581,32 @@ func (x *ActionMetadata) GetConfidence() float64 {
 	return 0
 }
 
-func (x *ActionMetadata) GetRecordedAt() *timestamppb.Timestamp {
+func (x *ActionMetadata) GetCapturedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.RecordedAt
+		return x.CapturedAt
 	}
 	return nil
 }
 
-func (x *ActionMetadata) GetRecordedBoundingBox() *BoundingBox {
+func (x *ActionMetadata) GetCapturedBoundingBox() *BoundingBox {
 	if x != nil {
-		return x.RecordedBoundingBox
+		return x.CapturedBoundingBox
 	}
 	return nil
 }
 
-// ActionDefinition is THE unified action type used across:
-// - Recording (captured from user interactions)
-// - Workflows (stored definition)
-// - Execution (sent to playwright-driver)
-// - Timeline events (streamed to UI)
+// ActionDefinition is THE unified action type used across all BAS operations:
+//
+//	CONTEXT                   USAGE
+//	─────────────────────────────────────────────────────────────────────────
+//	Recording                 Captured from user interactions with browser
+//	Workflow Storage          Persisted in WorkflowNodeV2.action
+//	Execution                 Sent to playwright-driver for replay
+//	Timeline Streaming        Streamed to UI during live recording/execution
+//	Timeline Batch            Returned in historical timeline queries
+//
+// This is the canonical representation of "what action to perform" throughout
+// the entire system. See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto.
 //
 // IMPORTANT: Type-Params Consistency Requirement
 // The `type` field MUST match the populated `params` oneof case:
@@ -2030,14 +2048,14 @@ const file_browser_automation_studio_v1_action_proto_rawDesc = "" +
 	"\n" +
 	"confidence\x18\x04 \x01(\x01H\x02R\n" +
 	"confidence\x88\x01\x01\x12@\n" +
-	"\vrecorded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x03R\n" +
-	"recordedAt\x88\x01\x01\x12b\n" +
-	"\x15recorded_bounding_box\x18\x06 \x01(\v2).browser_automation_studio.v1.BoundingBoxH\x04R\x13recordedBoundingBox\x88\x01\x01B\b\n" +
+	"\vcaptured_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x03R\n" +
+	"capturedAt\x88\x01\x01\x12b\n" +
+	"\x15captured_bounding_box\x18\x06 \x01(\v2).browser_automation_studio.v1.BoundingBoxH\x04R\x13capturedBoundingBox\x88\x01\x01B\b\n" +
 	"\x06_labelB\x13\n" +
 	"\x11_element_snapshotB\r\n" +
 	"\v_confidenceB\x0e\n" +
-	"\f_recorded_atB\x18\n" +
-	"\x16_recorded_bounding_box\"\xc5\b\n" +
+	"\f_captured_atB\x18\n" +
+	"\x16_captured_bounding_box\"\xc5\b\n" +
 	"\x10ActionDefinition\x12<\n" +
 	"\x04type\x18\x01 \x01(\x0e2(.browser_automation_studio.v1.ActionTypeR\x04type\x12J\n" +
 	"\bnavigate\x18\n" +
@@ -2165,8 +2183,8 @@ var file_browser_automation_studio_v1_action_proto_depIdxs = []int32{
 	5,  // 9: browser_automation_studio.v1.KeyboardParams.action:type_name -> browser_automation_studio.v1.KeyAction
 	25, // 10: browser_automation_studio.v1.ActionMetadata.selector_candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
 	26, // 11: browser_automation_studio.v1.ActionMetadata.element_snapshot:type_name -> browser_automation_studio.v1.ElementMeta
-	27, // 12: browser_automation_studio.v1.ActionMetadata.recorded_at:type_name -> google.protobuf.Timestamp
-	28, // 13: browser_automation_studio.v1.ActionMetadata.recorded_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	27, // 12: browser_automation_studio.v1.ActionMetadata.captured_at:type_name -> google.protobuf.Timestamp
+	28, // 13: browser_automation_studio.v1.ActionMetadata.captured_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
 	0,  // 14: browser_automation_studio.v1.ActionDefinition.type:type_name -> browser_automation_studio.v1.ActionType
 	7,  // 15: browser_automation_studio.v1.ActionDefinition.navigate:type_name -> browser_automation_studio.v1.NavigateParams
 	8,  // 16: browser_automation_studio.v1.ActionDefinition.click:type_name -> browser_automation_studio.v1.ClickParams

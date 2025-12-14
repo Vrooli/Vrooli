@@ -8,14 +8,10 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonObject, JsonValue } from "../../common/v1/types_pb";
 import { file_common_v1_types } from "../../common/v1/types_pb";
-import type { ActionType } from "./action_pb";
-import { file_browser_automation_studio_v1_action } from "./action_pb";
-import type { EventKind, ExecutionStatus, ExportStatus, LogLevel, TriggerType } from "./shared_pb";
+import type { ExecutionStatus, ExportStatus, TriggerType } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
 import type { TimelineScreenshot } from "./telemetry_pb";
 import { file_browser_automation_studio_v1_telemetry } from "./telemetry_pb";
-import type { TimelineFrame } from "./timeline_pb";
-import { file_browser_automation_studio_v1_timeline } from "./timeline_pb";
 import type { WorkflowDefinitionV2 } from "./workflow_v2_pb";
 import { file_browser_automation_studio_v1_workflow_v2 } from "./workflow_v2_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -24,7 +20,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/execution.proto.
  */
 export const file_browser_automation_studio_v1_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSK+AwoTRXhlY3V0aW9uUGFyYW1ldGVycxIWCglzdGFydF91cmwYASABKAlIAIgBARJTCgl2YXJpYWJsZXMYAiADKAsyQC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblBhcmFtZXRlcnMuVmFyaWFibGVzRW50cnkSGwoOdmlld3BvcnRfd2lkdGgYAyABKAVIAYgBARIcCg92aWV3cG9ydF9oZWlnaHQYBCABKAVIAogBARIVCghoZWFkbGVzcxgGIAEoCEgDiAEBEhcKCnVzZXJfYWdlbnQYByABKAlIBIgBARITCgZsb2NhbGUYCCABKAlIBYgBARIXCgp0aW1lb3V0X21zGAkgASgFSAaIAQEaMAoOVmFyaWFibGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIMCgpfc3RhcnRfdXJsQhEKD192aWV3cG9ydF93aWR0aEISChBfdmlld3BvcnRfaGVpZ2h0QgsKCV9oZWFkbGVzc0INCgtfdXNlcl9hZ2VudEIJCgdfbG9jYWxlQg0KC190aW1lb3V0X21zSgQIBRAGIoQECg9FeGVjdXRpb25SZXN1bHQSDwoHc3VjY2VzcxgBIAEoCBIWCg5zdGVwc19leGVjdXRlZBgCIAEoBRIUCgxzdGVwc19mYWlsZWQYAyABKAUSFgoJZmluYWxfdXJsGAQgASgJSACIAQESEgoFZXJyb3IYBSABKAlIAYgBARIXCgplcnJvcl9jb2RlGAYgASgJSAKIAQESWAoOZXh0cmFjdGVkX2RhdGEYByADKAsyQC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblJlc3VsdC5FeHRyYWN0ZWREYXRhRW50cnkSZAoUc2NyZWVuc2hvdF9hcnRpZmFjdHMYCCADKAsyRi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblJlc3VsdC5TY3JlZW5zaG90QXJ0aWZhY3RzRW50cnkaSgoSRXh0cmFjdGVkRGF0YUVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBGjoKGFNjcmVlbnNob3RBcnRpZmFjdHNFbnRyeRILCgNrZXkYASABKAUSDQoFdmFsdWUYAiABKAk6AjgBQgwKCl9maW5hbF91cmxCCAoGX2Vycm9yQg0KC19lcnJvcl9jb2RlIrMCCg9UcmlnZ2VyTWV0YWRhdGESFAoHdXNlcl9pZBgBIAEoCUgAiAEBEhYKCWNsaWVudF9pZBgCIAEoCUgBiAEBEhgKC3NjaGVkdWxlX2lkGAMgASgJSAKIAQESFwoKd2ViaG9va19pZBgEIAEoCUgDiAEBEiAKE2V4dGVybmFsX3JlcXVlc3RfaWQYBSABKAlIBIgBARIWCglzb3VyY2VfaXAYBiABKAlIBYgBARIXCgp1c2VyX2FnZW50GAcgASgJSAaIAQFCCgoIX3VzZXJfaWRCDAoKX2NsaWVudF9pZEIOCgxfc2NoZWR1bGVfaWRCDQoLX3dlYmhvb2tfaWRCFgoUX2V4dGVybmFsX3JlcXVlc3RfaWRCDAoKX3NvdXJjZV9pcEINCgtfdXNlcl9hZ2VudCKlBwoJRXhlY3V0aW9uEhgKDGV4ZWN1dGlvbl9pZBgBIAEoCVICaWQSEwoLd29ya2Zsb3dfaWQYAiABKAkSGAoQd29ya2Zsb3dfdmVyc2lvbhgDIAEoBRI9CgZzdGF0dXMYBCABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxI/Cgx0cmlnZ2VyX3R5cGUYBSABKA4yKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRyaWdnZXJUeXBlEi4KCnN0YXJ0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARIyCg5sYXN0X2hlYXJ0YmVhdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYCyABKAlIAYgBARIQCghwcm9ncmVzcxgNIAEoBRIZCgxjdXJyZW50X3N0ZXAYDiABKAlIAogBARIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJFCgpwYXJhbWV0ZXJzGBQgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzEj0KBnJlc3VsdBgVIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUmVzdWx0EkcKEHRyaWdnZXJfbWV0YWRhdGEYFiABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRyaWdnZXJNZXRhZGF0YRIVCgh0cmFjZV9pZBgeIAEoCUgDiAEBEhsKDmNvcnJlbGF0aW9uX2lkGB8gASgJSASIAQESFwoKcmVxdWVzdF9pZBggIAEoCUgFiAEBQg8KDV9jb21wbGV0ZWRfYXRCCAoGX2Vycm9yQg8KDV9jdXJyZW50X3N0ZXBCCwoJX3RyYWNlX2lkQhEKD19jb3JyZWxhdGlvbl9pZEINCgtfcmVxdWVzdF9pZEoECAYQB0oECAcQCEoECAwQDUoECBEQEkoECBIQEyKVAgoTRXhlY3V0ZUFkaG9jUmVxdWVzdBJLCg9mbG93X2RlZmluaXRpb24YASABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyEhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAyABKAgSQQoIbWV0YWRhdGEYBCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbk1ldGFkYXRhEkUKCnBhcmFtZXRlcnMYBiABKAsyMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblBhcmFtZXRlcnNKBAgCEANKBAgFEAYiNgoRRXhlY3V0aW9uTWV0YWRhdGESDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCSKMAgoURXhlY3V0ZUFkaG9jUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhgKC3dvcmtmbG93X2lkGAMgASgJSACIAQESDwoHbWVzc2FnZRgEIAEoCRI1Cgxjb21wbGV0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESEgoFZXJyb3IYBiABKAlIAogBAUIOCgxfd29ya2Zsb3dfaWRCDwoNX2NvbXBsZXRlZF9hdEIICgZfZXJyb3Ii2QEKE0V4ZWN1dGlvblNjcmVlbnNob3QSRAoKc2NyZWVuc2hvdBgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVTY3JlZW5zaG90EhIKCnN0ZXBfaW5kZXgYAiABKAUSDwoHbm9kZV9pZBgDIAEoCRIXCgpzdGVwX2xhYmVsGAQgASgJSACIAQESLwoLY2FwdHVyZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQg0KC19zdGVwX2xhYmVsIoUBChZHZXRTY3JlZW5zaG90c1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRJGCgtzY3JlZW5zaG90cxgCIAMoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU2NyZWVuc2hvdBINCgV0b3RhbBgDIAEoBSKqBQoWRXhlY3V0aW9uRXZlbnRFbnZlbG9wZRIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoCRIXCg9wYXlsb2FkX3ZlcnNpb24YAiABKAkSNQoEa2luZBgDIAEoDjInLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXZlbnRLaW5kEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRITCgt3b3JrZmxvd19pZBgFIAEoCRIXCgpzdGVwX2luZGV4GAYgASgFSAGIAQESFAoHYXR0ZW1wdBgHIAEoBUgCiAEBEhUKCHNlcXVlbmNlGAggASgDSAOIAQESLQoJdGltZXN0YW1wGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJICg1zdGF0dXNfdXBkYXRlGAsgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGF0dXNVcGRhdGVFdmVudEgAEkoKDnRpbWVsaW5lX2ZyYW1lGAwgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUZyYW1lRXZlbnRIABI1CgNsb2cYDSABKAsyJi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ0V2ZW50SAASQQoJaGVhcnRiZWF0GA4gASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5IZWFydGJlYXRFdmVudEgAEkEKCXRlbGVtZXRyeRgPIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGVsZW1ldHJ5RXZlbnRIADoCGAFCCQoHcGF5bG9hZEINCgtfc3RlcF9pbmRleEIKCghfYXR0ZW1wdEILCglfc2VxdWVuY2UikgIKFkV4ZWN1dGlvbkV4cG9ydFByZXZpZXcSFAoMZXhlY3V0aW9uX2lkGAEgASgJEg8KB3NwZWNfaWQYAiABKAkSOgoGc3RhdHVzGAMgASgOMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeHBvcnRTdGF0dXMSDwoHbWVzc2FnZRgEIAEoCRIcChRjYXB0dXJlZF9mcmFtZV9jb3VudBgFIAEoBRIdChVhdmFpbGFibGVfYXNzZXRfY291bnQYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSJgoHcGFja2FnZRgJIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0SgQICBAJIt8BChFTdGF0dXNVcGRhdGVFdmVudBI9CgZzdGF0dXMYASABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxIQCghwcm9ncmVzcxgCIAEoBRIZCgxjdXJyZW50X3N0ZXAYAyABKAlIAIgBARISCgVlcnJvchgEIAEoCUgBiAEBEi8KC29jY3VycmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIPCg1fY3VycmVudF9zdGVwQggKBl9lcnJvciJQChJUaW1lbGluZUZyYW1lRXZlbnQSOgoFZnJhbWUYASABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRnJhbWUi7QEKC0xvZ01ldGFkYXRhEhQKB25vZGVfaWQYASABKAlIAIgBARJCCgthY3Rpb25fdHlwZRgCIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZUgBiAEBEhAKA3VybBgDIAEoCUgCiAEBEhgKC3N0YWNrX3RyYWNlGAQgASgJSAOIAQESFgoJY29tcG9uZW50GAUgASgJSASIAQFCCgoIX25vZGVfaWRCDgoMX2FjdGlvbl90eXBlQgYKBF91cmxCDgoMX3N0YWNrX3RyYWNlQgwKCl9jb21wb25lbnQi9AEKCExvZ0V2ZW50EjUKBWxldmVsGAEgASgOMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Mb2dMZXZlbBIPCgdtZXNzYWdlGAIgASgJEhcKCnN0ZXBfaW5kZXgYAyABKAVIAIgBARIvCgtvY2N1cnJlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASOwoIbWV0YWRhdGEYByABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ01ldGFkYXRhQg0KC19zdGVwX2luZGV4SgQIBRAGSgQIBhAHIuoBChBIZWFydGJlYXRNZXRyaWNzEhkKDG1lbW9yeV9ieXRlcxgBIAEoA0gAiAEBEhgKC2NwdV9wZXJjZW50GAIgASgBSAGIAQESGQoMYWN0aXZlX3BhZ2VzGAMgASgFSAKIAQESGQoMY3VycmVudF9zdGVwGAQgASgFSAOIAQESGAoLdG90YWxfc3RlcHMYBSABKAVIBIgBAUIPCg1fbWVtb3J5X2J5dGVzQg4KDF9jcHVfcGVyY2VudEIPCg1fYWN0aXZlX3BhZ2VzQg8KDV9jdXJyZW50X3N0ZXBCDgoMX3RvdGFsX3N0ZXBzIqABCg5IZWFydGJlYXRFdmVudBIvCgtyZWNlaXZlZF9hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIcHJvZ3Jlc3MYAiABKAUSPwoHbWV0cmljcxgFIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSGVhcnRiZWF0TWV0cmljc0oECAMQBEoECAQQBSLMAgoQVGVsZW1ldHJ5TWV0cmljcxIdChBuZXR3b3JrX3JlcXVlc3RzGAEgASgFSACIAQESHgoRYnl0ZXNfdHJhbnNmZXJyZWQYAiABKANIAYgBARIWCglkb21fbm9kZXMYAyABKAVIAogBARIaCg1qc19oZWFwX2J5dGVzGAQgASgDSAOIAQESFAoHdHRmYl9tcxgFIAEoBUgEiAEBEhMKBmxjcF9tcxgGIAEoBUgFiAEBEhMKBmZpZF9tcxgHIAEoBUgGiAEBEhAKA2NscxgIIAEoAUgHiAEBQhMKEV9uZXR3b3JrX3JlcXVlc3RzQhQKEl9ieXRlc190cmFuc2ZlcnJlZEIMCgpfZG9tX25vZGVzQhAKDl9qc19oZWFwX2J5dGVzQgoKCF90dGZiX21zQgkKB19sY3BfbXNCCQoHX2ZpZF9tc0IGCgRfY2xzIo4BCg5UZWxlbWV0cnlFdmVudBIvCgtyZWNvcmRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPwoHbWV0cmljcxgEIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGVsZW1ldHJ5TWV0cmljc0oECAEQAkoECAMQBEJqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_telemetry, file_browser_automation_studio_v1_timeline, file_browser_automation_studio_v1_workflow_v2]);
+  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSK+AwoTRXhlY3V0aW9uUGFyYW1ldGVycxIWCglzdGFydF91cmwYASABKAlIAIgBARJTCgl2YXJpYWJsZXMYAiADKAsyQC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblBhcmFtZXRlcnMuVmFyaWFibGVzRW50cnkSGwoOdmlld3BvcnRfd2lkdGgYAyABKAVIAYgBARIcCg92aWV3cG9ydF9oZWlnaHQYBCABKAVIAogBARIVCghoZWFkbGVzcxgGIAEoCEgDiAEBEhcKCnVzZXJfYWdlbnQYByABKAlIBIgBARITCgZsb2NhbGUYCCABKAlIBYgBARIXCgp0aW1lb3V0X21zGAkgASgFSAaIAQEaMAoOVmFyaWFibGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIMCgpfc3RhcnRfdXJsQhEKD192aWV3cG9ydF93aWR0aEISChBfdmlld3BvcnRfaGVpZ2h0QgsKCV9oZWFkbGVzc0INCgtfdXNlcl9hZ2VudEIJCgdfbG9jYWxlQg0KC190aW1lb3V0X21zSgQIBRAGIoQECg9FeGVjdXRpb25SZXN1bHQSDwoHc3VjY2VzcxgBIAEoCBIWCg5zdGVwc19leGVjdXRlZBgCIAEoBRIUCgxzdGVwc19mYWlsZWQYAyABKAUSFgoJZmluYWxfdXJsGAQgASgJSACIAQESEgoFZXJyb3IYBSABKAlIAYgBARIXCgplcnJvcl9jb2RlGAYgASgJSAKIAQESWAoOZXh0cmFjdGVkX2RhdGEYByADKAsyQC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblJlc3VsdC5FeHRyYWN0ZWREYXRhRW50cnkSZAoUc2NyZWVuc2hvdF9hcnRpZmFjdHMYCCADKAsyRi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblJlc3VsdC5TY3JlZW5zaG90QXJ0aWZhY3RzRW50cnkaSgoSRXh0cmFjdGVkRGF0YUVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBGjoKGFNjcmVlbnNob3RBcnRpZmFjdHNFbnRyeRILCgNrZXkYASABKAUSDQoFdmFsdWUYAiABKAk6AjgBQgwKCl9maW5hbF91cmxCCAoGX2Vycm9yQg0KC19lcnJvcl9jb2RlIrMCCg9UcmlnZ2VyTWV0YWRhdGESFAoHdXNlcl9pZBgBIAEoCUgAiAEBEhYKCWNsaWVudF9pZBgCIAEoCUgBiAEBEhgKC3NjaGVkdWxlX2lkGAMgASgJSAKIAQESFwoKd2ViaG9va19pZBgEIAEoCUgDiAEBEiAKE2V4dGVybmFsX3JlcXVlc3RfaWQYBSABKAlIBIgBARIWCglzb3VyY2VfaXAYBiABKAlIBYgBARIXCgp1c2VyX2FnZW50GAcgASgJSAaIAQFCCgoIX3VzZXJfaWRCDAoKX2NsaWVudF9pZEIOCgxfc2NoZWR1bGVfaWRCDQoLX3dlYmhvb2tfaWRCFgoUX2V4dGVybmFsX3JlcXVlc3RfaWRCDAoKX3NvdXJjZV9pcEINCgtfdXNlcl9hZ2VudCKoBwoJRXhlY3V0aW9uEhgKDGV4ZWN1dGlvbl9pZBgBIAEoCVICaWQSEwoLd29ya2Zsb3dfaWQYAiABKAkSGAoQd29ya2Zsb3dfdmVyc2lvbhgDIAEoBRI9CgZzdGF0dXMYBCABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxI/Cgx0cmlnZ2VyX3R5cGUYBSABKA4yKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRyaWdnZXJUeXBlEi4KCnN0YXJ0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARI1ChFsYXN0X2hlYXJ0YmVhdF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYCyABKAlIAYgBARIQCghwcm9ncmVzcxgNIAEoBRIZCgxjdXJyZW50X3N0ZXAYDiABKAlIAogBARIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJFCgpwYXJhbWV0ZXJzGBQgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzEj0KBnJlc3VsdBgVIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUmVzdWx0EkcKEHRyaWdnZXJfbWV0YWRhdGEYFiABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRyaWdnZXJNZXRhZGF0YRIVCgh0cmFjZV9pZBgeIAEoCUgDiAEBEhsKDmNvcnJlbGF0aW9uX2lkGB8gASgJSASIAQESFwoKcmVxdWVzdF9pZBggIAEoCUgFiAEBQg8KDV9jb21wbGV0ZWRfYXRCCAoGX2Vycm9yQg8KDV9jdXJyZW50X3N0ZXBCCwoJX3RyYWNlX2lkQhEKD19jb3JyZWxhdGlvbl9pZEINCgtfcmVxdWVzdF9pZEoECAYQB0oECAcQCEoECAwQDUoECBEQEkoECBIQEyKVAgoTRXhlY3V0ZUFkaG9jUmVxdWVzdBJLCg9mbG93X2RlZmluaXRpb24YASABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyEhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAyABKAgSQQoIbWV0YWRhdGEYBCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbk1ldGFkYXRhEkUKCnBhcmFtZXRlcnMYBiABKAsyMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblBhcmFtZXRlcnNKBAgCEANKBAgFEAYiNgoRRXhlY3V0aW9uTWV0YWRhdGESDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCSKMAgoURXhlY3V0ZUFkaG9jUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhgKC3dvcmtmbG93X2lkGAMgASgJSACIAQESDwoHbWVzc2FnZRgEIAEoCRI1Cgxjb21wbGV0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESEgoFZXJyb3IYBiABKAlIAogBAUIOCgxfd29ya2Zsb3dfaWRCDwoNX2NvbXBsZXRlZF9hdEIICgZfZXJyb3Ii1wEKE0V4ZWN1dGlvblNjcmVlbnNob3QSRAoKc2NyZWVuc2hvdBgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVTY3JlZW5zaG90EhIKCnN0ZXBfaW5kZXgYAiABKAUSDwoHbm9kZV9pZBgDIAEoCRIXCgpzdGVwX2xhYmVsGAQgASgJSACIAQESLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEINCgtfc3RlcF9sYWJlbCKFAQoWR2V0U2NyZWVuc2hvdHNSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSRgoLc2NyZWVuc2hvdHMYAiADKAsyMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblNjcmVlbnNob3QSDQoFdG90YWwYAyABKAUikgIKFkV4ZWN1dGlvbkV4cG9ydFByZXZpZXcSFAoMZXhlY3V0aW9uX2lkGAEgASgJEg8KB3NwZWNfaWQYAiABKAkSOgoGc3RhdHVzGAMgASgOMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeHBvcnRTdGF0dXMSDwoHbWVzc2FnZRgEIAEoCRIcChRjYXB0dXJlZF9mcmFtZV9jb3VudBgFIAEoBRIdChVhdmFpbGFibGVfYXNzZXRfY291bnQYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSJgoHcGFja2FnZRgJIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0SgQICBAJIp8BCg9FeGVjdXRvck1ldHJpY3MSGQoMbWVtb3J5X2J5dGVzGAEgASgDSACIAQESGAoLY3B1X3BlcmNlbnQYAiABKAFIAYgBARIZCgxhY3RpdmVfcGFnZXMYAyABKAVIAogBAUIPCg1fbWVtb3J5X2J5dGVzQg4KDF9jcHVfcGVyY2VudEIPCg1fYWN0aXZlX3BhZ2VzSgQIBBAFSgQIBRAGIs4CChJQZXJmb3JtYW5jZU1ldHJpY3MSHQoQbmV0d29ya19yZXF1ZXN0cxgBIAEoBUgAiAEBEh4KEWJ5dGVzX3RyYW5zZmVycmVkGAIgASgDSAGIAQESFgoJZG9tX25vZGVzGAMgASgFSAKIAQESGgoNanNfaGVhcF9ieXRlcxgEIAEoA0gDiAEBEhQKB3R0ZmJfbXMYBSABKAVIBIgBARITCgZsY3BfbXMYBiABKAVIBYgBARITCgZmaWRfbXMYByABKAVIBogBARIQCgNjbHMYCCABKAFIB4gBAUITChFfbmV0d29ya19yZXF1ZXN0c0IUChJfYnl0ZXNfdHJhbnNmZXJyZWRCDAoKX2RvbV9ub2Rlc0IQCg5fanNfaGVhcF9ieXRlc0IKCghfdHRmYl9tc0IJCgdfbGNwX21zQgkKB19maWRfbXNCBgoEX2Nsc0JqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_telemetry, file_browser_automation_studio_v1_workflow_v2]);
 
 /**
  * ExecutionParameters captures typed runtime parameters for workflow execution.
@@ -286,9 +282,9 @@ export type Execution = Message<"browser_automation_studio.v1.Execution"> & {
   /**
    * Last heartbeat received from the executor.
    *
-   * @generated from field: google.protobuf.Timestamp last_heartbeat = 10;
+   * @generated from field: google.protobuf.Timestamp last_heartbeat_at = 10;
    */
-  lastHeartbeat?: Timestamp;
+  lastHeartbeatAt?: Timestamp;
 
   /**
    * Error message if the execution failed.
@@ -540,9 +536,9 @@ export type ExecutionScreenshot = Message<"browser_automation_studio.v1.Executio
   /**
    * When the screenshot was captured.
    *
-   * @generated from field: google.protobuf.Timestamp captured_at = 5;
+   * @generated from field: google.protobuf.Timestamp timestamp = 5;
    */
-  capturedAt?: Timestamp;
+  timestamp?: Timestamp;
 };
 
 /**
@@ -586,130 +582,6 @@ export type GetScreenshotsResponse = Message<"browser_automation_studio.v1.GetSc
  */
 export const GetScreenshotsResponseSchema: GenMessage<GetScreenshotsResponse> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_execution, 8);
-
-/**
- * ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
- *
- * DEPRECATED: Use TimelineStreamMessage from timeline_event.proto instead.
- * TimelineStreamMessage provides a unified format for both recording and execution
- * streaming, with proper ActionDefinition and ActionTelemetry composition.
- *
- * This message is retained ONLY for backward compatibility with existing consumers
- * and will be removed in a future version.
- *
- * @generated from message browser_automation_studio.v1.ExecutionEventEnvelope
- * @deprecated
- */
-export type ExecutionEventEnvelope = Message<"browser_automation_studio.v1.ExecutionEventEnvelope"> & {
-  /**
-   * Schema version for the envelope.
-   *
-   * @generated from field: string schema_version = 1;
-   */
-  schemaVersion: string;
-
-  /**
-   * Payload version for downstream consumers.
-   *
-   * @generated from field: string payload_version = 2;
-   */
-  payloadVersion: string;
-
-  /**
-   * Event kind (status_update, timeline_frame, log, heartbeat, telemetry, etc.).
-   *
-   * @generated from field: browser_automation_studio.v1.EventKind kind = 3;
-   */
-  kind: EventKind;
-
-  /**
-   * Execution ID the event belongs to.
-   *
-   * @generated from field: string execution_id = 4;
-   */
-  executionId: string;
-
-  /**
-   * Workflow ID the execution belongs to.
-   *
-   * @generated from field: string workflow_id = 5;
-   */
-  workflowId: string;
-
-  /**
-   * Zero-based step index if applicable.
-   *
-   * @generated from field: optional int32 step_index = 6;
-   */
-  stepIndex?: number;
-
-  /**
-   * Attempt number for retries.
-   *
-   * @generated from field: optional int32 attempt = 7;
-   */
-  attempt?: number;
-
-  /**
-   * Monotonic sequence number for ordering.
-   *
-   * @generated from field: optional int64 sequence = 8;
-   */
-  sequence?: bigint;
-
-  /**
-   * RFC3339 timestamp for the event.
-   *
-   * @generated from field: google.protobuf.Timestamp timestamp = 9;
-   */
-  timestamp?: Timestamp;
-
-  /**
-   * Event payload typed by kind.
-   *
-   * @generated from oneof browser_automation_studio.v1.ExecutionEventEnvelope.payload
-   * @deprecated
-   */
-  payload: {
-    /**
-     * @generated from field: browser_automation_studio.v1.StatusUpdateEvent status_update = 11;
-     */
-    value: StatusUpdateEvent;
-    case: "statusUpdate";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.TimelineFrameEvent timeline_frame = 12;
-     */
-    value: TimelineFrameEvent;
-    case: "timelineFrame";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.LogEvent log = 13;
-     */
-    value: LogEvent;
-    case: "log";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.HeartbeatEvent heartbeat = 14;
-     */
-    value: HeartbeatEvent;
-    case: "heartbeat";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.TelemetryEvent telemetry = 15;
-     */
-    value: TelemetryEvent;
-    case: "telemetry";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message browser_automation_studio.v1.ExecutionEventEnvelope.
- * Use `create(ExecutionEventEnvelopeSchema)` to create a new message.
- * @deprecated
- */
-export const ExecutionEventEnvelopeSchema: GenMessage<ExecutionEventEnvelope> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 9);
 
 /**
  * ExecutionExportPreview summarizes export readiness and metadata.
@@ -779,182 +651,14 @@ export type ExecutionExportPreview = Message<"browser_automation_studio.v1.Execu
  * Use `create(ExecutionExportPreviewSchema)` to create a new message.
  */
 export const ExecutionExportPreviewSchema: GenMessage<ExecutionExportPreview> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 10);
+  messageDesc(file_browser_automation_studio_v1_execution, 9);
 
 /**
- * StatusUpdateEvent carries execution-level status changes.
+ * ExecutorMetrics provides typed health metrics from the executor process.
  *
- * @generated from message browser_automation_studio.v1.StatusUpdateEvent
+ * @generated from message browser_automation_studio.v1.ExecutorMetrics
  */
-export type StatusUpdateEvent = Message<"browser_automation_studio.v1.StatusUpdateEvent"> & {
-  /**
-   * Current execution status.
-   *
-   * @generated from field: browser_automation_studio.v1.ExecutionStatus status = 1;
-   */
-  status: ExecutionStatus;
-
-  /**
-   * Progress percentage (0-100).
-   *
-   * @generated from field: int32 progress = 2;
-   */
-  progress: number;
-
-  /**
-   * Current step description when available.
-   *
-   * @generated from field: optional string current_step = 3;
-   */
-  currentStep?: string;
-
-  /**
-   * Error details when status is failed.
-   *
-   * @generated from field: optional string error = 4;
-   */
-  error?: string;
-
-  /**
-   * When the status change occurred.
-   *
-   * @generated from field: google.protobuf.Timestamp occurred_at = 5;
-   */
-  occurredAt?: Timestamp;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.StatusUpdateEvent.
- * Use `create(StatusUpdateEventSchema)` to create a new message.
- */
-export const StatusUpdateEventSchema: GenMessage<StatusUpdateEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 11);
-
-/**
- * TimelineFrameEvent transports timeline frame updates.
- *
- * @generated from message browser_automation_studio.v1.TimelineFrameEvent
- */
-export type TimelineFrameEvent = Message<"browser_automation_studio.v1.TimelineFrameEvent"> & {
-  /**
-   * The timeline frame data.
-   *
-   * @generated from field: browser_automation_studio.v1.TimelineFrame frame = 1;
-   */
-  frame?: TimelineFrame;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineFrameEvent.
- * Use `create(TimelineFrameEventSchema)` to create a new message.
- */
-export const TimelineFrameEventSchema: GenMessage<TimelineFrameEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 12);
-
-/**
- * LogMetadata provides typed context for log events.
- *
- * @generated from message browser_automation_studio.v1.LogMetadata
- */
-export type LogMetadata = Message<"browser_automation_studio.v1.LogMetadata"> & {
-  /**
-   * Node ID where the log originated (UUID format).
-   *
-   * @generated from field: optional string node_id = 1;
-   */
-  nodeId?: string;
-
-  /**
-   * Action type for step-related logs.
-   *
-   * @generated from field: optional browser_automation_studio.v1.ActionType action_type = 2;
-   */
-  actionType?: ActionType;
-
-  /**
-   * URL at the time of logging.
-   *
-   * @generated from field: optional string url = 3;
-   */
-  url?: string;
-
-  /**
-   * Stack trace for error logs.
-   *
-   * @generated from field: optional string stack_trace = 4;
-   */
-  stackTrace?: string;
-
-  /**
-   * Component/module that emitted the log.
-   *
-   * @generated from field: optional string component = 5;
-   */
-  component?: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.LogMetadata.
- * Use `create(LogMetadataSchema)` to create a new message.
- */
-export const LogMetadataSchema: GenMessage<LogMetadata> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 13);
-
-/**
- * LogEvent captures execution log events.
- *
- * @generated from message browser_automation_studio.v1.LogEvent
- */
-export type LogEvent = Message<"browser_automation_studio.v1.LogEvent"> & {
-  /**
-   * Log level.
-   *
-   * @generated from field: browser_automation_studio.v1.LogLevel level = 1;
-   */
-  level: LogLevel;
-
-  /**
-   * Log message.
-   *
-   * @generated from field: string message = 2;
-   */
-  message: string;
-
-  /**
-   * Optional step context for the log.
-   *
-   * @generated from field: optional int32 step_index = 3;
-   */
-  stepIndex?: number;
-
-  /**
-   * When the log occurred.
-   *
-   * @generated from field: google.protobuf.Timestamp occurred_at = 4;
-   */
-  occurredAt?: Timestamp;
-
-  /**
-   * Typed log metadata.
-   *
-   * @generated from field: browser_automation_studio.v1.LogMetadata metadata = 7;
-   */
-  metadata?: LogMetadata;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.LogEvent.
- * Use `create(LogEventSchema)` to create a new message.
- */
-export const LogEventSchema: GenMessage<LogEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 14);
-
-/**
- * HeartbeatMetrics provides typed executor metrics.
- *
- * @generated from message browser_automation_studio.v1.HeartbeatMetrics
- */
-export type HeartbeatMetrics = Message<"browser_automation_studio.v1.HeartbeatMetrics"> & {
+export type ExecutorMetrics = Message<"browser_automation_studio.v1.ExecutorMetrics"> & {
   /**
    * Memory usage in bytes.
    *
@@ -975,70 +679,21 @@ export type HeartbeatMetrics = Message<"browser_automation_studio.v1.HeartbeatMe
    * @generated from field: optional int32 active_pages = 3;
    */
   activePages?: number;
-
-  /**
-   * Current step being executed.
-   *
-   * @generated from field: optional int32 current_step = 4;
-   */
-  currentStep?: number;
-
-  /**
-   * Total steps in the workflow.
-   *
-   * @generated from field: optional int32 total_steps = 5;
-   */
-  totalSteps?: number;
 };
 
 /**
- * Describes the message browser_automation_studio.v1.HeartbeatMetrics.
- * Use `create(HeartbeatMetricsSchema)` to create a new message.
+ * Describes the message browser_automation_studio.v1.ExecutorMetrics.
+ * Use `create(ExecutorMetricsSchema)` to create a new message.
  */
-export const HeartbeatMetricsSchema: GenMessage<HeartbeatMetrics> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 15);
+export const ExecutorMetricsSchema: GenMessage<ExecutorMetrics> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 10);
 
 /**
- * HeartbeatEvent reports liveness/progress signals.
+ * PerformanceMetrics provides web performance data captured during execution.
  *
- * @generated from message browser_automation_studio.v1.HeartbeatEvent
+ * @generated from message browser_automation_studio.v1.PerformanceMetrics
  */
-export type HeartbeatEvent = Message<"browser_automation_studio.v1.HeartbeatEvent"> & {
-  /**
-   * When the heartbeat was received.
-   *
-   * @generated from field: google.protobuf.Timestamp received_at = 1;
-   */
-  receivedAt?: Timestamp;
-
-  /**
-   * Progress percentage.
-   *
-   * @generated from field: int32 progress = 2;
-   */
-  progress: number;
-
-  /**
-   * Typed executor metrics.
-   *
-   * @generated from field: browser_automation_studio.v1.HeartbeatMetrics metrics = 5;
-   */
-  metrics?: HeartbeatMetrics;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.HeartbeatEvent.
- * Use `create(HeartbeatEventSchema)` to create a new message.
- */
-export const HeartbeatEventSchema: GenMessage<HeartbeatEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 16);
-
-/**
- * TelemetryMetrics provides typed telemetry data.
- *
- * @generated from message browser_automation_studio.v1.TelemetryMetrics
- */
-export type TelemetryMetrics = Message<"browser_automation_studio.v1.TelemetryMetrics"> & {
+export type PerformanceMetrics = Message<"browser_automation_studio.v1.PerformanceMetrics"> & {
   /**
    * Network request count.
    *
@@ -1097,37 +752,9 @@ export type TelemetryMetrics = Message<"browser_automation_studio.v1.TelemetryMe
 };
 
 /**
- * Describes the message browser_automation_studio.v1.TelemetryMetrics.
- * Use `create(TelemetryMetricsSchema)` to create a new message.
+ * Describes the message browser_automation_studio.v1.PerformanceMetrics.
+ * Use `create(PerformanceMetricsSchema)` to create a new message.
  */
-export const TelemetryMetricsSchema: GenMessage<TelemetryMetrics> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 17);
-
-/**
- * TelemetryEvent emits structured telemetry metrics.
- *
- * @generated from message browser_automation_studio.v1.TelemetryEvent
- */
-export type TelemetryEvent = Message<"browser_automation_studio.v1.TelemetryEvent"> & {
-  /**
-   * When telemetry was recorded.
-   *
-   * @generated from field: google.protobuf.Timestamp recorded_at = 2;
-   */
-  recordedAt?: Timestamp;
-
-  /**
-   * Typed telemetry metrics.
-   *
-   * @generated from field: browser_automation_studio.v1.TelemetryMetrics metrics = 4;
-   */
-  metrics?: TelemetryMetrics;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TelemetryEvent.
- * Use `create(TelemetryEventSchema)` to create a new message.
- */
-export const TelemetryEventSchema: GenMessage<TelemetryEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 18);
+export const PerformanceMetricsSchema: GenMessage<PerformanceMetrics> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 11);
 

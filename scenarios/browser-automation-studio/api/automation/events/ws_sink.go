@@ -15,7 +15,6 @@ import (
 	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -206,15 +205,15 @@ func (q *executionQueue) emit(event contracts.EventEnvelope) {
 		if event.Payload != nil {
 			protoMap["legacy_payload"] = event.Payload
 		}
-		// Add unified timeline_event for step events to enable shared Record/Execute UX
+		// Add unified timeline_entry for step events to enable shared Record/Execute UX
 		if isStepEvent(event.Kind) {
-			timelineEvent := eventToTimelineEvent(event, q.executionID)
-			if timelineEvent != nil {
-				jsonData, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(timelineEvent)
+			timelineEntry := eventToTimelineEntry(event, q.executionID)
+			if timelineEntry != nil {
+				jsonData, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(timelineEntry)
 				if err == nil {
-					var timelineEventMap map[string]any
-					if json.Unmarshal(jsonData, &timelineEventMap) == nil {
-						protoMap["timeline_event"] = timelineEventMap
+					var timelineEntryMap map[string]any
+					if json.Unmarshal(jsonData, &timelineEntryMap) == nil {
+						protoMap["timeline_entry"] = timelineEntryMap
 					}
 				}
 			}
@@ -275,9 +274,9 @@ func isStepEvent(kind contracts.EventKind) bool {
 		kind == contracts.EventKindStepFailed
 }
 
-// eventToTimelineEvent converts an event envelope to a unified TimelineEvent.
+// eventToTimelineEntry converts an event envelope to a unified TimelineEntry.
 // Returns nil if the event doesn't have a step outcome or conversion fails.
-func eventToTimelineEvent(ev contracts.EventEnvelope, executionID uuid.UUID) *browser_automation_studio_v1.TimelineEvent {
+func eventToTimelineEntry(ev contracts.EventEnvelope, executionID uuid.UUID) *browser_automation_studio_v1.TimelineEntry {
 	var outcome *contracts.StepOutcome
 
 	// Extract outcome from payload
@@ -293,7 +292,7 @@ func eventToTimelineEvent(ev contracts.EventEnvelope, executionID uuid.UUID) *br
 		return nil
 	}
 
-	return StepOutcomeToTimelineEvent(*outcome, executionID)
+	return StepOutcomeToTimelineEntry(*outcome, executionID)
 }
 
 func eventToProtoMap(ev contracts.EventEnvelope) (map[string]any, bool) {
@@ -318,25 +317,7 @@ func eventToProtoMap(ev contracts.EventEnvelope) (map[string]any, bool) {
 	return out, true
 }
 
-func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio_v1.ExecutionEventEnvelope, error) {
-	pb := &browser_automation_studio_v1.ExecutionEventEnvelope{
-		SchemaVersion:  ev.SchemaVersion,
-		PayloadVersion: ev.PayloadVersion,
-		Kind:           mapEventKind(ev.Kind),
-		ExecutionId:    ev.ExecutionID.String(),
-		WorkflowId:     ev.WorkflowID.String(),
-		Timestamp:      timestamppb.New(ev.Timestamp),
-	}
-	if ev.StepIndex != nil {
-		pb.StepIndex = proto.Int32(int32(*ev.StepIndex))
-	}
-	if ev.Attempt != nil {
-		pb.Attempt = proto.Int32(int32(*ev.Attempt))
-	}
-	if ev.Sequence > 0 {
-		pb.Sequence = proto.Int64(int64(ev.Sequence))
-	}
-
+func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio_v1.TimelineStreamMessage, error) {
 	switch ev.Kind {
 	case contracts.EventKindExecutionStarted,
 		contracts.EventKindExecutionProgress,
@@ -345,95 +326,75 @@ func convertEventToProto(ev contracts.EventEnvelope) (*browser_automation_studio
 		contracts.EventKindExecutionCancelled:
 		status := mapExecutionStatus(ev.Kind, ev.Payload)
 		progress := int32(extractInt(ev.Payload, "progress"))
-		currentStep := extractString(ev.Payload, "current_step", "currentStep")
 		var errMsg *string
 		if msg := extractString(ev.Payload, "error"); msg != "" {
 			errMsg = &msg
 		}
-		pb.Payload = &browser_automation_studio_v1.ExecutionEventEnvelope_StatusUpdate{
-			StatusUpdate: &browser_automation_studio_v1.StatusUpdateEvent{
-				Status:   status,
-				Progress: progress,
-				CurrentStep: func() *string {
-					if currentStep == "" {
-						return nil
-					}
-					return &currentStep
-				}(),
-				Error: errMsg,
-				OccurredAt: func() *timestamppb.Timestamp {
-					if !ev.Timestamp.IsZero() {
-						return timestamppb.New(ev.Timestamp)
-					}
-					return nil
-				}(),
+		return &browser_automation_studio_v1.TimelineStreamMessage{
+			Type: browser_automation_studio_v1.TimelineMessageType_TIMELINE_MESSAGE_TYPE_STATUS,
+			Payload: &browser_automation_studio_v1.TimelineStreamMessage_Status{
+				Status: &browser_automation_studio_v1.TimelineStatusUpdate{
+					Id:         ev.ExecutionID.String(),
+					Status:     status,
+					Progress:   progress,
+					EntryCount: int32(ev.Sequence),
+					Error:      errMsg,
+				},
 			},
-		}
+		}, nil
 
 	case contracts.EventKindStepStarted,
 		contracts.EventKindStepCompleted,
 		contracts.EventKindStepFailed:
-		frame := buildTimelineFrame(ev)
-		if frame == nil {
-			return nil, fmt.Errorf("unable to build timeline frame for event kind %s", ev.Kind)
+		timelineEntry := eventToTimelineEntry(ev, ev.ExecutionID)
+		if timelineEntry == nil {
+			return nil, fmt.Errorf("unable to build timeline entry for event kind %s", ev.Kind)
 		}
-		pb.Payload = &browser_automation_studio_v1.ExecutionEventEnvelope_TimelineFrame{
-			TimelineFrame: &browser_automation_studio_v1.TimelineFrameEvent{Frame: frame},
-		}
+		return &browser_automation_studio_v1.TimelineStreamMessage{
+			Type: browser_automation_studio_v1.TimelineMessageType_TIMELINE_MESSAGE_TYPE_ENTRY,
+			Payload: &browser_automation_studio_v1.TimelineStreamMessage_Entry{
+				Entry: timelineEntry,
+			},
+		}, nil
 
 	case contracts.EventKindStepTelemetry:
 		if telemetryPayload, ok := ev.Payload.(contracts.StepTelemetry); ok {
 			if telemetryPayload.Kind == contracts.TelemetryKindHeartbeat {
-				progress := int32(0)
-				metrics := map[string]any{}
-				if telemetryPayload.Heartbeat != nil {
-					progress = int32(telemetryPayload.Heartbeat.Progress)
-					if telemetryPayload.Heartbeat.Message != "" {
-						metrics["message"] = telemetryPayload.Heartbeat.Message
-					}
-				}
-				if telemetryPayload.ElapsedMs > 0 {
-					metrics["elapsed_ms"] = telemetryPayload.ElapsedMs
-				}
-				typedMetrics := jsonMetrics(metrics)
-				pb.Payload = &browser_automation_studio_v1.ExecutionEventEnvelope_Heartbeat{
-					Heartbeat: &browser_automation_studio_v1.HeartbeatEvent{
-						ReceivedAt: timestamppb.New(telemetryPayload.Timestamp),
-						Progress:   progress,
-						Metrics:    structpbMetrics(metrics),
-						MetricsTyped: func() map[string]*commonv1.JsonValue {
-							if len(typedMetrics) == 0 {
-								return nil
-							}
-							return typedMetrics
-						}(),
+				return &browser_automation_studio_v1.TimelineStreamMessage{
+					Type: browser_automation_studio_v1.TimelineMessageType_TIMELINE_MESSAGE_TYPE_HEARTBEAT,
+					Payload: &browser_automation_studio_v1.TimelineStreamMessage_Heartbeat{
+						Heartbeat: &browser_automation_studio_v1.TimelineHeartbeat{
+							Timestamp: timestamppb.New(telemetryPayload.Timestamp),
+							SessionId: ev.ExecutionID.String(),
+						},
 					},
-				}
-			} else {
-				typedMetrics := jsonMetrics(nil)
-				pb.Payload = &browser_automation_studio_v1.ExecutionEventEnvelope_Telemetry{
-					Telemetry: &browser_automation_studio_v1.TelemetryEvent{
-						Metrics: structpbMetrics(nil),
-						MetricsTyped: func() map[string]*commonv1.JsonValue {
-							if len(typedMetrics) == 0 {
-								return nil
-							}
-							return typedMetrics
-						}(),
-						RecordedAt: timestamppb.New(telemetryPayload.Timestamp),
-					},
-				}
+				}, nil
 			}
+			// Non-heartbeat telemetry is embedded in TimelineEvent.telemetry
 		}
+		return nil, nil
 
 	default:
-		// Unsupported kinds fall back to the legacy envelope.
+		return nil, nil
 	}
-
-	return pb, nil
 }
 
+// buildTimelineFrame creates a TimelineFrame from a contracts.EventEnvelope.
+// DEPRECATED: TimelineFrame is now a wrapper around TimelineEntry. This function
+// creates a TimelineEntry and wraps it in a TimelineFrame for backwards compatibility.
 func buildTimelineFrame(ev contracts.EventEnvelope) *browser_automation_studio_v1.TimelineFrame {
+	entry := buildTimelineEntryFromEnvelope(ev)
+	if entry == nil {
+		return nil
+	}
+	return &browser_automation_studio_v1.TimelineFrame{
+		Entry: entry,
+	}
+}
+
+// buildTimelineEntryFromEnvelope creates a TimelineEntry from a contracts.EventEnvelope.
+// This is the unified format for timeline data used in both streaming and batch contexts.
+func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *browser_automation_studio_v1.TimelineEntry {
 	var outcome *contracts.StepOutcome
 	var payloadMap map[string]any
 	if asMap, ok := ev.Payload.(map[string]any); ok {
@@ -445,74 +406,123 @@ func buildTimelineFrame(ev contracts.EventEnvelope) *browser_automation_studio_v
 		outcome = &out
 	}
 
-	frame := &browser_automation_studio_v1.TimelineFrame{
-		StepIndex: int32(ptrOrZero(ev.StepIndex)),
-		Status:    mapStepStatus(ev.Kind),
-		StepType:  mapStepType(extractStepType(outcome, payloadMap)),
-		NodeId:    extractNodeID(outcome, payloadMap),
-		Success:   ev.Kind != contracts.EventKindStepFailed,
-		Progress:  int32(extractInt(payloadMap, "progress")),
-		StartedAt: timestampFromTime(outcomeStart(outcome)),
-		CompletedAt: func() *timestamppb.Timestamp {
-			if outcome != nil && outcome.CompletedAt != nil {
-				return timestampFromPtr(outcome.CompletedAt)
-			}
-			return nil
-		}(),
-		DurationMs: int32(extractDuration(outcome)),
-		FinalUrl: func() string {
-			if outcome != nil {
-				return outcome.FinalURL
-			}
-			return ""
-		}(),
+	// Build entry ID from execution and step
+	entryID := fmt.Sprintf("%s-step-%d", ev.ExecutionID.String(), ptrOrZero(ev.StepIndex))
+
+	stepIndex := int32(ptrOrZero(ev.StepIndex))
+	entry := &browser_automation_studio_v1.TimelineEntry{
+		Id:          entryID,
+		SequenceNum: int32(ev.Sequence),
+		StepIndex:   &stepIndex,
+		Timestamp:   timestampFromTime(outcomeStart(outcome)),
 	}
 
+	// Set node_id if available
+	nodeID := extractNodeID(outcome, payloadMap)
+	if nodeID != "" {
+		entry.NodeId = &nodeID
+	}
+
+	// Set duration
+	durationMs := int32(extractDuration(outcome))
+	if durationMs > 0 {
+		entry.DurationMs = &durationMs
+	}
+
+	// Build ActionDefinition with action type
+	stepType := extractStepType(outcome, payloadMap)
+	if stepType != "" {
+		entry.Action = &browser_automation_studio_v1.ActionDefinition{
+			Type: mapActionType(stepType),
+		}
+	}
+
+	// Build telemetry
 	if outcome != nil {
-		frame.Assertion = convertAssertionOutcome(outcome.Assertion)
-		frame.ElementBoundingBox = convertBoundingBox(outcome.ElementBoundingBox)
-		frame.ClickPosition = convertPoint(outcome.ClickPosition)
-		frame.FocusedElement = convertElementFocus(outcome.FocusedElement)
-		frame.HighlightRegions = convertHighlightRegions(outcome.HighlightRegions)
-		frame.MaskRegions = convertMaskRegions(outcome.MaskRegions)
-		frame.ZoomFactor = outcome.ZoomFactor
-		if len(outcome.CursorTrail) > 0 {
-			points := make([]*browser_automation_studio_v1.Point, 0, len(outcome.CursorTrail))
-			for _, trail := range outcome.CursorTrail {
-				points = append(points, convertPoint(&trail.Point))
-			}
-			frame.CursorTrail = points
-		}
-		if outcome.DOMSnapshot != nil && outcome.DOMSnapshot.Preview != "" {
-			frame.DomSnapshotPreview = outcome.DOMSnapshot.Preview
-		}
+		entry.Telemetry = buildTelemetryFromOutcome(outcome)
 	}
 
+	// Build EventContext with execution origin
+	success := ev.Kind != contracts.EventKindStepFailed
+	entry.Context = &browser_automation_studio_v1.EventContext{
+		Origin:  &browser_automation_studio_v1.EventContext_ExecutionId{ExecutionId: ev.ExecutionID.String()},
+		Success: &success,
+	}
+
+	// Add error to context if present
 	if outcome != nil && outcome.Failure != nil && outcome.Failure.Message != "" {
-		errMsg := outcome.Failure.Message
-		frame.Error = &errMsg
+		entry.Context.Error = &outcome.Failure.Message
+		if outcome.Failure.Code != "" {
+			entry.Context.ErrorCode = &outcome.Failure.Code
+		}
 	}
-	return frame
+
+	// Add assertion to context if present
+	if outcome != nil && outcome.Assertion != nil {
+		entry.Context.Assertion = convertAssertionOutcome(outcome.Assertion)
+	}
+
+	// Build aggregates for batch data (status, progress, final_url, etc.)
+	status := mapStepStatus(ev.Kind)
+	progress := int32(extractInt(payloadMap, "progress"))
+	entry.Aggregates = &browser_automation_studio_v1.TimelineEntryAggregates{
+		Status:   status,
+		Progress: &progress,
+	}
+	if outcome != nil && outcome.FinalURL != "" {
+		entry.Aggregates.FinalUrl = &outcome.FinalURL
+	}
+	if outcome != nil && outcome.DOMSnapshot != nil && outcome.DOMSnapshot.Preview != "" {
+		entry.Aggregates.DomSnapshotPreview = &outcome.DOMSnapshot.Preview
+	}
+	if outcome != nil && outcome.FocusedElement != nil {
+		entry.Aggregates.FocusedElement = convertElementFocus(outcome.FocusedElement)
+	}
+
+	return entry
 }
 
-func mapEventKind(kind contracts.EventKind) browser_automation_studio_v1.EventKind {
-	switch kind {
-	case contracts.EventKindExecutionStarted,
-		contracts.EventKindExecutionProgress,
-		contracts.EventKindExecutionCompleted,
-		contracts.EventKindExecutionFailed,
-		contracts.EventKindExecutionCancelled:
-		return browser_automation_studio_v1.EventKind_EVENT_KIND_STATUS_UPDATE
-	case contracts.EventKindStepStarted,
-		contracts.EventKindStepCompleted,
-		contracts.EventKindStepFailed:
-		return browser_automation_studio_v1.EventKind_EVENT_KIND_TIMELINE_FRAME
-	case contracts.EventKindStepTelemetry:
-		return browser_automation_studio_v1.EventKind_EVENT_KIND_TELEMETRY
-	default:
-		return browser_automation_studio_v1.EventKind_EVENT_KIND_UNSPECIFIED
+// buildTelemetryFromOutcome creates ActionTelemetry from a StepOutcome.
+func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *browser_automation_studio_v1.ActionTelemetry {
+	if outcome == nil {
+		return nil
 	}
+
+	tel := &browser_automation_studio_v1.ActionTelemetry{
+		Url: outcome.FinalURL,
+	}
+
+	if outcome.ElementBoundingBox != nil {
+		tel.ElementBoundingBox = convertBoundingBox(outcome.ElementBoundingBox)
+	}
+
+	if outcome.ClickPosition != nil {
+		tel.ClickPosition = convertPoint(outcome.ClickPosition)
+	}
+
+	if len(outcome.CursorTrail) > 0 {
+		points := make([]*browser_automation_studio_v1.Point, 0, len(outcome.CursorTrail))
+		for _, trail := range outcome.CursorTrail {
+			points = append(points, convertPoint(&trail.Point))
+		}
+		tel.CursorTrail = points
+	}
+
+	if len(outcome.HighlightRegions) > 0 {
+		tel.HighlightRegions = convertHighlightRegions(outcome.HighlightRegions)
+	}
+
+	if len(outcome.MaskRegions) > 0 {
+		tel.MaskRegions = convertMaskRegions(outcome.MaskRegions)
+	}
+
+	if outcome.ZoomFactor != 0 {
+		tel.ZoomFactor = &outcome.ZoomFactor
+	}
+
+	return tel
 }
+
 
 func mapExecutionStatus(kind contracts.EventKind, payload any) browser_automation_studio_v1.ExecutionStatus {
 	if status := extractString(payload, "status"); status != "" {
@@ -556,22 +566,38 @@ func mapStepStatus(kind contracts.EventKind) browser_automation_studio_v1.StepSt
 	}
 }
 
-func mapStepType(stepType string) browser_automation_studio_v1.StepType {
+func mapActionType(stepType string) browser_automation_studio_v1.ActionType {
 	switch strings.ToLower(strings.TrimSpace(stepType)) {
 	case "navigate":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_NAVIGATE
 	case "click":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_CLICK
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_CLICK
 	case "input", "type":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_INPUT
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_INPUT
 	case "assert":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT
-	case "subflow":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_SUBFLOW
-	case "custom", "wait", "extract", "screenshot", "scroll", "select", "hover", "keyboard", "condition", "loop":
-		return browser_automation_studio_v1.StepType_STEP_TYPE_CUSTOM
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_ASSERT
+	case "wait":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_WAIT
+	case "screenshot":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_SCREENSHOT
+	case "scroll":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_SCROLL
+	case "select":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_SELECT
+	case "hover":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_HOVER
+	case "keyboard":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_KEYBOARD
+	case "evaluate", "extract":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_EVALUATE
+	case "focus":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_FOCUS
+	case "blur":
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_BLUR
+	// Control-flow types (subflow, condition, loop) are not action types;
+	// they're handled differently in the workflow graph, so map to UNSPECIFIED.
 	default:
-		return browser_automation_studio_v1.StepType_STEP_TYPE_UNSPECIFIED
+		return browser_automation_studio_v1.ActionType_ACTION_TYPE_UNSPECIFIED
 	}
 }
 
@@ -761,19 +787,50 @@ func toJsonValue(v any) *commonv1.JsonValue {
 	}
 }
 
-func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *browser_automation_studio_v1.AssertionOutcome {
+func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *browser_automation_studio_v1.AssertionResult {
 	if assertion == nil {
 		return nil
 	}
-	return &browser_automation_studio_v1.AssertionOutcome{
-		Mode:          assertion.Mode,
+	result := &browser_automation_studio_v1.AssertionResult{
+		Mode:          stringToAssertionModeWS(assertion.Mode),
 		Selector:      assertion.Selector,
-		Expected:      convertStructValue(assertion.Expected),
-		Actual:        convertStructValue(assertion.Actual),
 		Success:       assertion.Success,
-		Message:       assertion.Message,
 		Negated:       assertion.Negated,
 		CaseSensitive: assertion.CaseSensitive,
+	}
+	if assertion.Message != "" {
+		result.Message = &assertion.Message
+	}
+	if assertion.Expected != nil {
+		result.Expected = toJsonValue(assertion.Expected)
+	}
+	if assertion.Actual != nil {
+		result.Actual = toJsonValue(assertion.Actual)
+	}
+	return result
+}
+
+// stringToAssertionModeWS converts an assertion mode string to AssertionMode enum.
+func stringToAssertionModeWS(s string) browser_automation_studio_v1.AssertionMode {
+	switch s {
+	case "exists":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_EXISTS
+	case "not_exists":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_NOT_EXISTS
+	case "visible":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_VISIBLE
+	case "hidden":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_HIDDEN
+	case "text_equals":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
+	case "text_contains":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
+	case "attribute_equals":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
+	case "attribute_contains":
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
+	default:
+		return browser_automation_studio_v1.AssertionMode_ASSERTION_MODE_UNSPECIFIED
 	}
 }
 
@@ -815,14 +872,43 @@ func convertHighlightRegions(regions []contracts.HighlightRegion) []*browser_aut
 	}
 	out := make([]*browser_automation_studio_v1.HighlightRegion, 0, len(regions))
 	for _, r := range regions {
-		out = append(out, &browser_automation_studio_v1.HighlightRegion{
-			Selector:    r.Selector,
-			BoundingBox: convertBoundingBox(r.BoundingBox),
-			Padding:     int32(r.Padding),
-			Color:       r.Color,
-		})
+		region := &browser_automation_studio_v1.HighlightRegion{
+			Selector:       r.Selector,
+			BoundingBox:    convertBoundingBox(r.BoundingBox),
+			Padding:        int32(r.Padding),
+			HighlightColor: stringToHighlightColor(r.Color),
+		}
+		// If we couldn't map to an enum value, preserve the original as custom RGBA
+		if region.HighlightColor == browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED && r.Color != "" {
+			region.CustomRgba = &r.Color
+		}
+		out = append(out, region)
 	}
 	return out
+}
+
+// stringToHighlightColor converts a color string to HighlightColor enum.
+func stringToHighlightColor(s string) browser_automation_studio_v1.HighlightColor {
+	switch strings.ToLower(s) {
+	case "red":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_RED
+	case "green":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_GREEN
+	case "blue":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_BLUE
+	case "yellow":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_YELLOW
+	case "orange":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_ORANGE
+	case "purple":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_PURPLE
+	case "cyan":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_CYAN
+	case "magenta", "pink":
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_PINK
+	default:
+		return browser_automation_studio_v1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED
+	}
 }
 
 func convertMaskRegions(regions []contracts.MaskRegion) []*browser_automation_studio_v1.MaskRegion {

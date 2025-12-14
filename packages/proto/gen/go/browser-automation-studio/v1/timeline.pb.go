@@ -7,7 +7,6 @@
 package browser_automation_studio_v1
 
 import (
-	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -24,12 +23,12 @@ const (
 )
 
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
-// This is the batch format containing all frames from a completed execution.
+// Contains all timeline entries from a completed or in-progress execution.
 type ExecutionTimeline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique identifier for this execution (UUID).
+	// Unique identifier for this execution (UUID format).
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
-	// Workflow ID associated with the execution (UUID).
+	// Workflow ID associated with the execution (UUID format).
 	WorkflowId string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Current execution status (pending, running, completed, failed, cancelled).
 	Status ExecutionStatus `protobuf:"varint,3,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
@@ -39,8 +38,9 @@ type ExecutionTimeline struct {
 	StartedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// When the execution completed (null if still running).
 	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	// Ordered list of execution frames (one per workflow step).
-	Frames []*TimelineFrame `protobuf:"bytes,7,rep,name=frames,proto3" json:"frames,omitempty"`
+	// Ordered list of timeline entries (one per action/step).
+	// Uses the unified TimelineEntry format.
+	Entries []*TimelineEntry `protobuf:"bytes,7,rep,name=entries,proto3" json:"entries,omitempty"`
 	// Console and execution logs captured during the run.
 	Logs          []*TimelineLog `protobuf:"bytes,8,rep,name=logs,proto3" json:"logs,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -119,9 +119,9 @@ func (x *ExecutionTimeline) GetCompletedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ExecutionTimeline) GetFrames() []*TimelineFrame {
+func (x *ExecutionTimeline) GetEntries() []*TimelineEntry {
 	if x != nil {
-		return x.Frames
+		return x.Entries
 	}
 	return nil
 }
@@ -133,100 +133,14 @@ func (x *ExecutionTimeline) GetLogs() []*TimelineLog {
 	return nil
 }
 
-// TimelineFrame captures a single workflow step in the execution timeline.
+// DEPRECATED: Use TimelineEntry from timeline_entry.proto instead.
+// TimelineFrame is an alias for backwards compatibility.
 //
-// DEPRECATION NOTICE: Several inline fields duplicate data in the `telemetry` field.
-// New consumers MUST use `telemetry.*` fields. Inline duplicates are deprecated
-// and will be removed in a future version.
-//
-// Deprecated inline fields → Use instead:
-//   - highlight_regions (16) → telemetry.highlight_regions
-//   - mask_regions (17)      → telemetry.mask_regions
-//   - element_bounding_box (19) → telemetry.element_bounding_box
-//   - click_position (20)    → telemetry.click_position
-//   - cursor_trail (21)      → telemetry.cursor_trail
-//   - zoom_factor (22)       → telemetry.zoom_factor
-//   - screenshot (23)        → telemetry.screenshot
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 type TimelineFrame struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Zero-based index of this step in the execution.
-	StepIndex int32 `protobuf:"varint,1,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
-	// Node ID from the workflow definition (UUID format).
-	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// Action type enum (for filtering/grouping without parsing full action).
-	ActionType ActionType `protobuf:"varint,3,opt,name=action_type,json=actionType,proto3,enum=browser_automation_studio.v1.ActionType" json:"action_type,omitempty"`
-	// Full action definition with parameters and metadata.
-	// This provides complete action details for replay and debugging.
-	Action *ActionDefinition `protobuf:"bytes,35,opt,name=action,proto3" json:"action,omitempty"`
-	// Step execution status.
-	Status StepStatus `protobuf:"varint,4,opt,name=status,proto3,enum=browser_automation_studio.v1.StepStatus" json:"status,omitempty"`
-	// Whether this step succeeded.
-	Success bool `protobuf:"varint,5,opt,name=success,proto3" json:"success,omitempty"`
-	// Execution duration in milliseconds for this attempt.
-	DurationMs int32 `protobuf:"varint,6,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	// Total time for the step including retries.
-	TotalDurationMs int32 `protobuf:"varint,7,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
-	// Progress percentage at this step (0-100).
-	Progress int32 `protobuf:"varint,8,opt,name=progress,proto3" json:"progress,omitempty"`
-	// When the step started.
-	StartedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	// When the step finished.
-	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
-	// Final URL after step execution (for navigation steps).
-	FinalUrl string `protobuf:"bytes,11,opt,name=final_url,json=finalUrl,proto3" json:"final_url,omitempty"`
-	// Error message if the step failed.
-	Error *string `protobuf:"bytes,12,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	// Number of console log entries captured for this step.
-	ConsoleLogCount int32 `protobuf:"varint,13,opt,name=console_log_count,json=consoleLogCount,proto3" json:"console_log_count,omitempty"`
-	// Number of network events captured for this step.
-	NetworkEventCount int32 `protobuf:"varint,14,opt,name=network_event_count,json=networkEventCount,proto3" json:"network_event_count,omitempty"`
-	// DEPRECATED: Use telemetry.highlight_regions instead.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	HighlightRegions []*HighlightRegion `protobuf:"bytes,16,rep,name=highlight_regions,json=highlightRegions,proto3" json:"highlight_regions,omitempty"`
-	// DEPRECATED: Use telemetry.mask_regions instead.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	MaskRegions []*MaskRegion `protobuf:"bytes,17,rep,name=mask_regions,json=maskRegions,proto3" json:"mask_regions,omitempty"`
-	// Focused element metadata for the step.
-	FocusedElement *ElementFocus `protobuf:"bytes,18,opt,name=focused_element,json=focusedElement,proto3" json:"focused_element,omitempty"`
-	// DEPRECATED: Use telemetry.element_bounding_box instead.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	ElementBoundingBox *BoundingBox `protobuf:"bytes,19,opt,name=element_bounding_box,json=elementBoundingBox,proto3" json:"element_bounding_box,omitempty"`
-	// DEPRECATED: Use telemetry.click_position instead.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	ClickPosition *Point `protobuf:"bytes,20,opt,name=click_position,json=clickPosition,proto3" json:"click_position,omitempty"`
-	// DEPRECATED: Use telemetry.cursor_trail instead.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	CursorTrail []*Point `protobuf:"bytes,21,rep,name=cursor_trail,json=cursorTrail,proto3" json:"cursor_trail,omitempty"`
-	// DEPRECATED: Use telemetry.zoom_factor instead.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	ZoomFactor float64 `protobuf:"fixed64,22,opt,name=zoom_factor,json=zoomFactor,proto3" json:"zoom_factor,omitempty"`
-	// DEPRECATED: Use telemetry.screenshot instead.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-	Screenshot *TimelineScreenshot `protobuf:"bytes,23,opt,name=screenshot,proto3" json:"screenshot,omitempty"`
-	// Related artifacts (console logs, network traces, etc.).
-	Artifacts []*TimelineArtifact `protobuf:"bytes,24,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
-	// Assertion result for assert steps.
-	Assertion *AssertionResult `protobuf:"bytes,25,opt,name=assertion,proto3" json:"assertion,omitempty"`
-	// Retry status for this step (uses unified RetryStatus type).
-	// This replaces the individual retry_* fields for consistency.
-	RetryStatus *RetryStatus `protobuf:"bytes,37,opt,name=retry_status,json=retryStatus,proto3" json:"retry_status,omitempty"`
-	// Truncated DOM snapshot preview text.
-	DomSnapshotPreview string `protobuf:"bytes,32,opt,name=dom_snapshot_preview,json=domSnapshotPreview,proto3" json:"dom_snapshot_preview,omitempty"`
-	// Artifact reference for the stored DOM snapshot.
-	DomSnapshot *TimelineArtifact `protobuf:"bytes,33,opt,name=dom_snapshot,json=domSnapshot,proto3" json:"dom_snapshot,omitempty"`
-	// Typed preview of extracted data.
-	ExtractedDataPreview *v1.JsonValue `protobuf:"bytes,34,opt,name=extracted_data_preview,json=extractedDataPreview,proto3" json:"extracted_data_preview,omitempty"`
-	// Composed telemetry captured during this step.
-	// This is the CANONICAL source for telemetry data.
-	// Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
-	Telemetry     *ActionTelemetry `protobuf:"bytes,36,opt,name=telemetry,proto3" json:"telemetry,omitempty"`
+	// Delegate to TimelineEntry for all data.
+	Entry         *TimelineEntry `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -261,474 +175,9 @@ func (*TimelineFrame) Descriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *TimelineFrame) GetStepIndex() int32 {
+func (x *TimelineFrame) GetEntry() *TimelineEntry {
 	if x != nil {
-		return x.StepIndex
-	}
-	return 0
-}
-
-func (x *TimelineFrame) GetNodeId() string {
-	if x != nil {
-		return x.NodeId
-	}
-	return ""
-}
-
-func (x *TimelineFrame) GetActionType() ActionType {
-	if x != nil {
-		return x.ActionType
-	}
-	return ActionType_ACTION_TYPE_UNSPECIFIED
-}
-
-func (x *TimelineFrame) GetAction() *ActionDefinition {
-	if x != nil {
-		return x.Action
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetStatus() StepStatus {
-	if x != nil {
-		return x.Status
-	}
-	return StepStatus_STEP_STATUS_UNSPECIFIED
-}
-
-func (x *TimelineFrame) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *TimelineFrame) GetDurationMs() int32 {
-	if x != nil {
-		return x.DurationMs
-	}
-	return 0
-}
-
-func (x *TimelineFrame) GetTotalDurationMs() int32 {
-	if x != nil {
-		return x.TotalDurationMs
-	}
-	return 0
-}
-
-func (x *TimelineFrame) GetProgress() int32 {
-	if x != nil {
-		return x.Progress
-	}
-	return 0
-}
-
-func (x *TimelineFrame) GetStartedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.StartedAt
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetCompletedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CompletedAt
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetFinalUrl() string {
-	if x != nil {
-		return x.FinalUrl
-	}
-	return ""
-}
-
-func (x *TimelineFrame) GetError() string {
-	if x != nil && x.Error != nil {
-		return *x.Error
-	}
-	return ""
-}
-
-func (x *TimelineFrame) GetConsoleLogCount() int32 {
-	if x != nil {
-		return x.ConsoleLogCount
-	}
-	return 0
-}
-
-func (x *TimelineFrame) GetNetworkEventCount() int32 {
-	if x != nil {
-		return x.NetworkEventCount
-	}
-	return 0
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineFrame) GetHighlightRegions() []*HighlightRegion {
-	if x != nil {
-		return x.HighlightRegions
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineFrame) GetMaskRegions() []*MaskRegion {
-	if x != nil {
-		return x.MaskRegions
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetFocusedElement() *ElementFocus {
-	if x != nil {
-		return x.FocusedElement
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineFrame) GetElementBoundingBox() *BoundingBox {
-	if x != nil {
-		return x.ElementBoundingBox
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineFrame) GetClickPosition() *Point {
-	if x != nil {
-		return x.ClickPosition
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineFrame) GetCursorTrail() []*Point {
-	if x != nil {
-		return x.CursorTrail
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineFrame) GetZoomFactor() float64 {
-	if x != nil {
-		return x.ZoomFactor
-	}
-	return 0
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
-func (x *TimelineFrame) GetScreenshot() *TimelineScreenshot {
-	if x != nil {
-		return x.Screenshot
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetArtifacts() []*TimelineArtifact {
-	if x != nil {
-		return x.Artifacts
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetAssertion() *AssertionResult {
-	if x != nil {
-		return x.Assertion
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetRetryStatus() *RetryStatus {
-	if x != nil {
-		return x.RetryStatus
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetDomSnapshotPreview() string {
-	if x != nil {
-		return x.DomSnapshotPreview
-	}
-	return ""
-}
-
-func (x *TimelineFrame) GetDomSnapshot() *TimelineArtifact {
-	if x != nil {
-		return x.DomSnapshot
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetExtractedDataPreview() *v1.JsonValue {
-	if x != nil {
-		return x.ExtractedDataPreview
-	}
-	return nil
-}
-
-func (x *TimelineFrame) GetTelemetry() *ActionTelemetry {
-	if x != nil {
-		return x.Telemetry
-	}
-	return nil
-}
-
-// TimelineArtifact exposes related artifacts such as console or network logs.
-type TimelineArtifact struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique artifact ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Artifact type (timeline_frame, console_log, network_event, etc.).
-	Type ArtifactType `protobuf:"varint,2,opt,name=type,proto3,enum=browser_automation_studio.v1.ArtifactType" json:"type,omitempty"`
-	// Optional human-readable label.
-	Label *string `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	// URL to download the artifact content.
-	StorageUrl string `protobuf:"bytes,4,opt,name=storage_url,json=storageUrl,proto3" json:"storage_url,omitempty"`
-	// URL to download an artifact thumbnail if available.
-	ThumbnailUrl *string `protobuf:"bytes,5,opt,name=thumbnail_url,json=thumbnailUrl,proto3,oneof" json:"thumbnail_url,omitempty"`
-	// MIME type for the artifact.
-	ContentType string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	// Optional size in bytes for the artifact.
-	SizeBytes *int64 `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
-	// Step index associated with this artifact, if any.
-	StepIndex *int32 `protobuf:"varint,8,opt,name=step_index,json=stepIndex,proto3,oneof" json:"step_index,omitempty"`
-	// Provider-specific payload describing the artifact.
-	Payload       map[string]*v1.JsonValue `protobuf:"bytes,10,rep,name=payload,proto3" json:"payload,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TimelineArtifact) Reset() {
-	*x = TimelineArtifact{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TimelineArtifact) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TimelineArtifact) ProtoMessage() {}
-
-func (x *TimelineArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TimelineArtifact.ProtoReflect.Descriptor instead.
-func (*TimelineArtifact) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *TimelineArtifact) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *TimelineArtifact) GetType() ArtifactType {
-	if x != nil {
-		return x.Type
-	}
-	return ArtifactType_ARTIFACT_TYPE_UNSPECIFIED
-}
-
-func (x *TimelineArtifact) GetLabel() string {
-	if x != nil && x.Label != nil {
-		return *x.Label
-	}
-	return ""
-}
-
-func (x *TimelineArtifact) GetStorageUrl() string {
-	if x != nil {
-		return x.StorageUrl
-	}
-	return ""
-}
-
-func (x *TimelineArtifact) GetThumbnailUrl() string {
-	if x != nil && x.ThumbnailUrl != nil {
-		return *x.ThumbnailUrl
-	}
-	return ""
-}
-
-func (x *TimelineArtifact) GetContentType() string {
-	if x != nil {
-		return x.ContentType
-	}
-	return ""
-}
-
-func (x *TimelineArtifact) GetSizeBytes() int64 {
-	if x != nil && x.SizeBytes != nil {
-		return *x.SizeBytes
-	}
-	return 0
-}
-
-func (x *TimelineArtifact) GetStepIndex() int32 {
-	if x != nil && x.StepIndex != nil {
-		return *x.StepIndex
-	}
-	return 0
-}
-
-func (x *TimelineArtifact) GetPayload() map[string]*v1.JsonValue {
-	if x != nil {
-		return x.Payload
-	}
-	return nil
-}
-
-// ElementFocus captures focus metadata for screenshot framing.
-type ElementFocus struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// CSS selector of the focused element.
-	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
-	// Bounding box for the focused element - from unified.proto.
-	BoundingBox   *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ElementFocus) Reset() {
-	*x = ElementFocus{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ElementFocus) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ElementFocus) ProtoMessage() {}
-
-func (x *ElementFocus) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ElementFocus.ProtoReflect.Descriptor instead.
-func (*ElementFocus) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *ElementFocus) GetSelector() string {
-	if x != nil {
-		return x.Selector
-	}
-	return ""
-}
-
-func (x *ElementFocus) GetBoundingBox() *BoundingBox {
-	if x != nil {
-		return x.BoundingBox
-	}
-	return nil
-}
-
-// TimelineLog captures execution log output for replay consumers.
-type TimelineLog struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique log entry ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Log level (debug, info, warn, error).
-	Level LogLevel `protobuf:"varint,2,opt,name=level,proto3,enum=browser_automation_studio.v1.LogLevel" json:"level,omitempty"`
-	// Log message content.
-	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	// Associated step name, if any.
-	StepName *string `protobuf:"bytes,4,opt,name=step_name,json=stepName,proto3,oneof" json:"step_name,omitempty"`
-	// Timestamp when the log was recorded.
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TimelineLog) Reset() {
-	*x = TimelineLog{}
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TimelineLog) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TimelineLog) ProtoMessage() {}
-
-func (x *TimelineLog) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TimelineLog.ProtoReflect.Descriptor instead.
-func (*TimelineLog) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *TimelineLog) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *TimelineLog) GetLevel() LogLevel {
-	if x != nil {
-		return x.Level
-	}
-	return LogLevel_LOG_LEVEL_UNSPECIFIED
-}
-
-func (x *TimelineLog) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *TimelineLog) GetStepName() string {
-	if x != nil && x.StepName != nil {
-		return *x.StepName
-	}
-	return ""
-}
-
-func (x *TimelineLog) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
+		return x.Entry
 	}
 	return nil
 }
@@ -737,7 +186,7 @@ var File_browser_automation_studio_v1_timeline_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\n" +
-	"+browser-automation-studio/v1/timeline.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a)browser-automation-studio/v1/shared.proto\x1a)browser-automation-studio/v1/action.proto\x1a+browser-automation-studio/v1/geometry.proto\x1a,browser-automation-studio/v1/selectors.proto\x1a,browser-automation-studio/v1/telemetry.proto\"\xce\x03\n" +
+	"+browser-automation-studio/v1/timeline.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)browser-automation-studio/v1/shared.proto\x1a1browser-automation-studio/v1/timeline_entry.proto\"\xd0\x03\n" +
 	"\x11ExecutionTimeline\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -746,83 +195,12 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\bprogress\x18\x04 \x01(\x05R\bprogress\x129\n" +
 	"\n" +
 	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12B\n" +
-	"\fcompleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12C\n" +
-	"\x06frames\x18\a \x03(\v2+.browser_automation_studio.v1.TimelineFrameR\x06frames\x12=\n" +
+	"\fcompleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12E\n" +
+	"\aentries\x18\a \x03(\v2+.browser_automation_studio.v1.TimelineEntryR\aentries\x12=\n" +
 	"\x04logs\x18\b \x03(\v2).browser_automation_studio.v1.TimelineLogR\x04logsB\x0f\n" +
-	"\r_completed_at\"\xe6\x0e\n" +
-	"\rTimelineFrame\x12\x1d\n" +
-	"\n" +
-	"step_index\x18\x01 \x01(\x05R\tstepIndex\x12\x17\n" +
-	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12I\n" +
-	"\vaction_type\x18\x03 \x01(\x0e2(.browser_automation_studio.v1.ActionTypeR\n" +
-	"actionType\x12F\n" +
-	"\x06action\x18# \x01(\v2..browser_automation_studio.v1.ActionDefinitionR\x06action\x12@\n" +
-	"\x06status\x18\x04 \x01(\x0e2(.browser_automation_studio.v1.StepStatusR\x06status\x12\x18\n" +
-	"\asuccess\x18\x05 \x01(\bR\asuccess\x12\x1f\n" +
-	"\vduration_ms\x18\x06 \x01(\x05R\n" +
-	"durationMs\x12*\n" +
-	"\x11total_duration_ms\x18\a \x01(\x05R\x0ftotalDurationMs\x12\x1a\n" +
-	"\bprogress\x18\b \x01(\x05R\bprogress\x129\n" +
-	"\n" +
-	"started_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
-	"\fcompleted_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x1b\n" +
-	"\tfinal_url\x18\v \x01(\tR\bfinalUrl\x12\x19\n" +
-	"\x05error\x18\f \x01(\tH\x00R\x05error\x88\x01\x01\x12*\n" +
-	"\x11console_log_count\x18\r \x01(\x05R\x0fconsoleLogCount\x12.\n" +
-	"\x13network_event_count\x18\x0e \x01(\x05R\x11networkEventCount\x12^\n" +
-	"\x11highlight_regions\x18\x10 \x03(\v2-.browser_automation_studio.v1.HighlightRegionB\x02\x18\x01R\x10highlightRegions\x12O\n" +
-	"\fmask_regions\x18\x11 \x03(\v2(.browser_automation_studio.v1.MaskRegionB\x02\x18\x01R\vmaskRegions\x12S\n" +
-	"\x0ffocused_element\x18\x12 \x01(\v2*.browser_automation_studio.v1.ElementFocusR\x0efocusedElement\x12_\n" +
-	"\x14element_bounding_box\x18\x13 \x01(\v2).browser_automation_studio.v1.BoundingBoxB\x02\x18\x01R\x12elementBoundingBox\x12N\n" +
-	"\x0eclick_position\x18\x14 \x01(\v2#.browser_automation_studio.v1.PointB\x02\x18\x01R\rclickPosition\x12J\n" +
-	"\fcursor_trail\x18\x15 \x03(\v2#.browser_automation_studio.v1.PointB\x02\x18\x01R\vcursorTrail\x12#\n" +
-	"\vzoom_factor\x18\x16 \x01(\x01B\x02\x18\x01R\n" +
-	"zoomFactor\x12T\n" +
-	"\n" +
-	"screenshot\x18\x17 \x01(\v20.browser_automation_studio.v1.TimelineScreenshotB\x02\x18\x01R\n" +
-	"screenshot\x12L\n" +
-	"\tartifacts\x18\x18 \x03(\v2..browser_automation_studio.v1.TimelineArtifactR\tartifacts\x12K\n" +
-	"\tassertion\x18\x19 \x01(\v2-.browser_automation_studio.v1.AssertionResultR\tassertion\x12L\n" +
-	"\fretry_status\x18% \x01(\v2).browser_automation_studio.v1.RetryStatusR\vretryStatus\x120\n" +
-	"\x14dom_snapshot_preview\x18  \x01(\tR\x12domSnapshotPreview\x12Q\n" +
-	"\fdom_snapshot\x18! \x01(\v2..browser_automation_studio.v1.TimelineArtifactR\vdomSnapshot\x12J\n" +
-	"\x16extracted_data_preview\x18\" \x01(\v2\x14.common.v1.JsonValueR\x14extractedDataPreview\x12K\n" +
-	"\ttelemetry\x18$ \x01(\v2-.browser_automation_studio.v1.ActionTelemetryR\ttelemetryB\b\n" +
-	"\x06_errorJ\x04\b\x0f\x10\x10J\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 \"\x9c\x04\n" +
-	"\x10TimelineArtifact\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12>\n" +
-	"\x04type\x18\x02 \x01(\x0e2*.browser_automation_studio.v1.ArtifactTypeR\x04type\x12\x19\n" +
-	"\x05label\x18\x03 \x01(\tH\x00R\x05label\x88\x01\x01\x12\x1f\n" +
-	"\vstorage_url\x18\x04 \x01(\tR\n" +
-	"storageUrl\x12(\n" +
-	"\rthumbnail_url\x18\x05 \x01(\tH\x01R\fthumbnailUrl\x88\x01\x01\x12!\n" +
-	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\"\n" +
-	"\n" +
-	"size_bytes\x18\a \x01(\x03H\x02R\tsizeBytes\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"step_index\x18\b \x01(\x05H\x03R\tstepIndex\x88\x01\x01\x12U\n" +
-	"\apayload\x18\n" +
-	" \x03(\v2;.browser_automation_studio.v1.TimelineArtifact.PayloadEntryR\apayload\x1aP\n" +
-	"\fPayloadEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
-	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\b\n" +
-	"\x06_labelB\x10\n" +
-	"\x0e_thumbnail_urlB\r\n" +
-	"\v_size_bytesB\r\n" +
-	"\v_step_indexJ\x04\b\t\x10\n" +
-	"\"x\n" +
-	"\fElementFocus\x12\x1a\n" +
-	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
-	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\"\xdf\x01\n" +
-	"\vTimelineLog\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12<\n" +
-	"\x05level\x18\x02 \x01(\x0e2&.browser_automation_studio.v1.LogLevelR\x05level\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\x12 \n" +
-	"\tstep_name\x18\x04 \x01(\tH\x00R\bstepName\x88\x01\x01\x128\n" +
-	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestampB\f\n" +
-	"\n" +
-	"_step_nameBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"\r_completed_at\"V\n" +
+	"\rTimelineFrame\x12A\n" +
+	"\x05entry\x18\x01 \x01(\v2+.browser_automation_studio.v1.TimelineEntryR\x05entry:\x02\x18\x01BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_timeline_proto_rawDescOnce sync.Once
@@ -836,66 +214,27 @@ func file_browser_automation_studio_v1_timeline_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_timeline_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_browser_automation_studio_v1_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_browser_automation_studio_v1_timeline_proto_goTypes = []any{
 	(*ExecutionTimeline)(nil),     // 0: browser_automation_studio.v1.ExecutionTimeline
 	(*TimelineFrame)(nil),         // 1: browser_automation_studio.v1.TimelineFrame
-	(*TimelineArtifact)(nil),      // 2: browser_automation_studio.v1.TimelineArtifact
-	(*ElementFocus)(nil),          // 3: browser_automation_studio.v1.ElementFocus
-	(*TimelineLog)(nil),           // 4: browser_automation_studio.v1.TimelineLog
-	nil,                           // 5: browser_automation_studio.v1.TimelineArtifact.PayloadEntry
-	(ExecutionStatus)(0),          // 6: browser_automation_studio.v1.ExecutionStatus
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
-	(ActionType)(0),               // 8: browser_automation_studio.v1.ActionType
-	(*ActionDefinition)(nil),      // 9: browser_automation_studio.v1.ActionDefinition
-	(StepStatus)(0),               // 10: browser_automation_studio.v1.StepStatus
-	(*HighlightRegion)(nil),       // 11: browser_automation_studio.v1.HighlightRegion
-	(*MaskRegion)(nil),            // 12: browser_automation_studio.v1.MaskRegion
-	(*BoundingBox)(nil),           // 13: browser_automation_studio.v1.BoundingBox
-	(*Point)(nil),                 // 14: browser_automation_studio.v1.Point
-	(*TimelineScreenshot)(nil),    // 15: browser_automation_studio.v1.TimelineScreenshot
-	(*AssertionResult)(nil),       // 16: browser_automation_studio.v1.AssertionResult
-	(*RetryStatus)(nil),           // 17: browser_automation_studio.v1.RetryStatus
-	(*v1.JsonValue)(nil),          // 18: common.v1.JsonValue
-	(*ActionTelemetry)(nil),       // 19: browser_automation_studio.v1.ActionTelemetry
-	(ArtifactType)(0),             // 20: browser_automation_studio.v1.ArtifactType
-	(LogLevel)(0),                 // 21: browser_automation_studio.v1.LogLevel
+	(ExecutionStatus)(0),          // 2: browser_automation_studio.v1.ExecutionStatus
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(*TimelineEntry)(nil),         // 4: browser_automation_studio.v1.TimelineEntry
+	(*TimelineLog)(nil),           // 5: browser_automation_studio.v1.TimelineLog
 }
 var file_browser_automation_studio_v1_timeline_proto_depIdxs = []int32{
-	6,  // 0: browser_automation_studio.v1.ExecutionTimeline.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	7,  // 1: browser_automation_studio.v1.ExecutionTimeline.started_at:type_name -> google.protobuf.Timestamp
-	7,  // 2: browser_automation_studio.v1.ExecutionTimeline.completed_at:type_name -> google.protobuf.Timestamp
-	1,  // 3: browser_automation_studio.v1.ExecutionTimeline.frames:type_name -> browser_automation_studio.v1.TimelineFrame
-	4,  // 4: browser_automation_studio.v1.ExecutionTimeline.logs:type_name -> browser_automation_studio.v1.TimelineLog
-	8,  // 5: browser_automation_studio.v1.TimelineFrame.action_type:type_name -> browser_automation_studio.v1.ActionType
-	9,  // 6: browser_automation_studio.v1.TimelineFrame.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	10, // 7: browser_automation_studio.v1.TimelineFrame.status:type_name -> browser_automation_studio.v1.StepStatus
-	7,  // 8: browser_automation_studio.v1.TimelineFrame.started_at:type_name -> google.protobuf.Timestamp
-	7,  // 9: browser_automation_studio.v1.TimelineFrame.completed_at:type_name -> google.protobuf.Timestamp
-	11, // 10: browser_automation_studio.v1.TimelineFrame.highlight_regions:type_name -> browser_automation_studio.v1.HighlightRegion
-	12, // 11: browser_automation_studio.v1.TimelineFrame.mask_regions:type_name -> browser_automation_studio.v1.MaskRegion
-	3,  // 12: browser_automation_studio.v1.TimelineFrame.focused_element:type_name -> browser_automation_studio.v1.ElementFocus
-	13, // 13: browser_automation_studio.v1.TimelineFrame.element_bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	14, // 14: browser_automation_studio.v1.TimelineFrame.click_position:type_name -> browser_automation_studio.v1.Point
-	14, // 15: browser_automation_studio.v1.TimelineFrame.cursor_trail:type_name -> browser_automation_studio.v1.Point
-	15, // 16: browser_automation_studio.v1.TimelineFrame.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	2,  // 17: browser_automation_studio.v1.TimelineFrame.artifacts:type_name -> browser_automation_studio.v1.TimelineArtifact
-	16, // 18: browser_automation_studio.v1.TimelineFrame.assertion:type_name -> browser_automation_studio.v1.AssertionResult
-	17, // 19: browser_automation_studio.v1.TimelineFrame.retry_status:type_name -> browser_automation_studio.v1.RetryStatus
-	2,  // 20: browser_automation_studio.v1.TimelineFrame.dom_snapshot:type_name -> browser_automation_studio.v1.TimelineArtifact
-	18, // 21: browser_automation_studio.v1.TimelineFrame.extracted_data_preview:type_name -> common.v1.JsonValue
-	19, // 22: browser_automation_studio.v1.TimelineFrame.telemetry:type_name -> browser_automation_studio.v1.ActionTelemetry
-	20, // 23: browser_automation_studio.v1.TimelineArtifact.type:type_name -> browser_automation_studio.v1.ArtifactType
-	5,  // 24: browser_automation_studio.v1.TimelineArtifact.payload:type_name -> browser_automation_studio.v1.TimelineArtifact.PayloadEntry
-	13, // 25: browser_automation_studio.v1.ElementFocus.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	21, // 26: browser_automation_studio.v1.TimelineLog.level:type_name -> browser_automation_studio.v1.LogLevel
-	7,  // 27: browser_automation_studio.v1.TimelineLog.timestamp:type_name -> google.protobuf.Timestamp
-	18, // 28: browser_automation_studio.v1.TimelineArtifact.PayloadEntry.value:type_name -> common.v1.JsonValue
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	2, // 0: browser_automation_studio.v1.ExecutionTimeline.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	3, // 1: browser_automation_studio.v1.ExecutionTimeline.started_at:type_name -> google.protobuf.Timestamp
+	3, // 2: browser_automation_studio.v1.ExecutionTimeline.completed_at:type_name -> google.protobuf.Timestamp
+	4, // 3: browser_automation_studio.v1.ExecutionTimeline.entries:type_name -> browser_automation_studio.v1.TimelineEntry
+	5, // 4: browser_automation_studio.v1.ExecutionTimeline.logs:type_name -> browser_automation_studio.v1.TimelineLog
+	4, // 5: browser_automation_studio.v1.TimelineFrame.entry:type_name -> browser_automation_studio.v1.TimelineEntry
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_timeline_proto_init() }
@@ -904,21 +243,15 @@ func file_browser_automation_studio_v1_timeline_proto_init() {
 		return
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
-	file_browser_automation_studio_v1_action_proto_init()
-	file_browser_automation_studio_v1_geometry_proto_init()
-	file_browser_automation_studio_v1_selectors_proto_init()
-	file_browser_automation_studio_v1_telemetry_proto_init()
+	file_browser_automation_studio_v1_timeline_entry_proto_init()
 	file_browser_automation_studio_v1_timeline_proto_msgTypes[0].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_timeline_proto_msgTypes[1].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_timeline_proto_msgTypes[2].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_timeline_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_timeline_proto_rawDesc), len(file_browser_automation_studio_v1_timeline_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

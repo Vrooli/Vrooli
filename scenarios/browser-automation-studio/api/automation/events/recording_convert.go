@@ -1,20 +1,27 @@
 // Package events provides conversion utilities for recording actions to the
-// unified browser_automation_studio_v1.TimelineEvent proto format.
+// unified browser_automation_studio_v1.TimelineEntry proto format.
 //
 // This enables recording telemetry to use the same data structure as execution
 // telemetry, supporting the shared Record/Execute UX on the timeline.
+//
+// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
 package events
 
 import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/params"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // RecordedAction represents an action captured during recording.
 // This mirrors the JSON structure sent from playwright-driver.
+// This is the canonical Go type for recorded actions - use this type throughout
+// the codebase instead of defining local copies.
 type RecordedAction struct {
 	ID          string                 `json:"id"`
 	SessionID   string                 `json:"sessionId"`
@@ -25,11 +32,11 @@ type RecordedAction struct {
 	Confidence  float64                `json:"confidence"`
 	Selector    *SelectorSet           `json:"selector,omitempty"`
 	ElementMeta *ElementMeta           `json:"elementMeta,omitempty"`
-	BoundingBox *RecBoundingBox        `json:"boundingBox,omitempty"`
+	BoundingBox *contracts.BoundingBox `json:"boundingBox,omitempty"`
 	Payload     map[string]interface{} `json:"payload,omitempty"`
 	URL         string                 `json:"url"`
 	FrameID     string                 `json:"frameId,omitempty"`
-	CursorPos   *RecPoint              `json:"cursorPos,omitempty"`
+	CursorPos   *contracts.Point       `json:"cursorPos,omitempty"`
 }
 
 // SelectorSet contains multiple selector strategies for resilience.
@@ -59,23 +66,9 @@ type ElementMeta struct {
 	AriaLabel  string            `json:"ariaLabel,omitempty"`
 }
 
-// RecBoundingBox for element position on screen.
-type RecBoundingBox struct {
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
-}
-
-// RecPoint represents a 2D coordinate.
-type RecPoint struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
-
-// RecordedActionToTimelineEvent converts a RecordedAction from the recording
-// controller to the unified TimelineEvent proto format.
-func RecordedActionToTimelineEvent(action *RecordedAction) *basv1.TimelineEvent {
+// RecordedActionToTimelineEntry converts a RecordedAction from the recording
+// controller to the unified TimelineEntry proto format.
+func RecordedActionToTimelineEntry(action *RecordedAction) *basv1.TimelineEntry {
 	if action == nil {
 		return nil
 	}
@@ -86,33 +79,39 @@ func RecordedActionToTimelineEvent(action *RecordedAction) *basv1.TimelineEvent 
 	// Build telemetry
 	telemetry := buildRecordingTelemetry(action)
 
-	// Build recording-specific data
-	recording := buildRecordingEventData(action)
+	// Build event context with recording origin
+	context := buildRecordingEventContext(action)
 
-	event := &basv1.TimelineEvent{
+	entry := &basv1.TimelineEntry{
 		Id:          action.ID,
 		SequenceNum: int32(action.SequenceNum),
 		Action:      actionDef,
 		Telemetry:   telemetry,
-		ModeData:    &basv1.TimelineEvent_Recording{Recording: recording},
+		Context:     context,
 	}
 
 	// Parse and set timestamp
 	if action.Timestamp != "" {
 		if ts, err := time.Parse(time.RFC3339Nano, action.Timestamp); err == nil {
-			event.Timestamp = timestamppb.New(ts)
+			entry.Timestamp = timestamppb.New(ts)
 		} else if ts, err := time.Parse(time.RFC3339, action.Timestamp); err == nil {
-			event.Timestamp = timestamppb.New(ts)
+			entry.Timestamp = timestamppb.New(ts)
 		}
 	}
 
 	// Set duration if present
 	if action.DurationMs > 0 {
 		durationMs := int32(action.DurationMs)
-		event.DurationMs = &durationMs
+		entry.DurationMs = &durationMs
 	}
 
-	return event
+	return entry
+}
+
+// RecordedActionToTimelineEvent is deprecated. Use RecordedActionToTimelineEntry instead.
+// This wrapper exists for backwards compatibility during migration.
+func RecordedActionToTimelineEvent(action *RecordedAction) *basv1.TimelineEntry {
+	return RecordedActionToTimelineEntry(action)
 }
 
 // buildRecordingActionDefinition creates an ActionDefinition from a RecordedAction.
@@ -147,7 +146,8 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 			Selector: selector,
 		}
 		if button, ok := action.Payload["button"].(string); ok {
-			clickParams.Button = &button
+			btn := params.StringToMouseButton(button)
+			clickParams.Button = &btn
 		}
 		if clickCount, ok := extractInt32FromPayload(action.Payload, "clickCount"); ok {
 			clickParams.ClickCount = &clickCount
@@ -155,7 +155,7 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 		if modifiers, ok := action.Payload["modifiers"].([]any); ok {
 			for _, m := range modifiers {
 				if s, ok := m.(string); ok {
-					clickParams.Modifiers = append(clickParams.Modifiers, s)
+					clickParams.Modifiers = append(clickParams.Modifiers, params.StringToKeyboardModifier(s))
 				}
 			}
 		}
@@ -231,7 +231,7 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 		if modifiers, ok := action.Payload["modifiers"].([]any); ok {
 			for _, m := range modifiers {
 				if s, ok := m.(string); ok {
-					keyboardParams.Modifiers = append(keyboardParams.Modifiers, s)
+					keyboardParams.Modifiers = append(keyboardParams.Modifiers, params.StringToKeyboardModifier(s))
 				}
 			}
 		}
@@ -249,7 +249,7 @@ func buildRecordingActionDefinition(action *RecordedAction) *basv1.ActionDefinit
 	case basv1.ActionType_ACTION_TYPE_ASSERT:
 		assertParams := &basv1.AssertParams{
 			Selector: selector,
-			Mode:     "exists",
+			Mode:     basv1.AssertionMode_ASSERTION_MODE_EXISTS,
 		}
 		def.Params = &basv1.ActionDefinition_Assert{Assert: assertParams}
 
@@ -293,18 +293,18 @@ func buildRecordingMetadata(action *RecordedAction) *basv1.ActionMetadata {
 		meta.Confidence = &action.Confidence
 	}
 
-	// Add recorded timestamp
+	// Add captured timestamp (renamed from recorded_at)
 	if action.Timestamp != "" {
 		if ts, err := time.Parse(time.RFC3339Nano, action.Timestamp); err == nil {
-			meta.RecordedAt = timestamppb.New(ts)
+			meta.CapturedAt = timestamppb.New(ts)
 		} else if ts, err := time.Parse(time.RFC3339, action.Timestamp); err == nil {
-			meta.RecordedAt = timestamppb.New(ts)
+			meta.CapturedAt = timestamppb.New(ts)
 		}
 	}
 
-	// Add bounding box
+	// Add bounding box (renamed from recorded_bounding_box)
 	if action.BoundingBox != nil {
-		meta.RecordedBoundingBox = &basv1.BoundingBox{
+		meta.CapturedBoundingBox = &basv1.BoundingBox{
 			X:      action.BoundingBox.X,
 			Y:      action.BoundingBox.Y,
 			Width:  action.BoundingBox.Width,
@@ -317,7 +317,7 @@ func buildRecordingMetadata(action *RecordedAction) *basv1.ActionMetadata {
 		meta.SelectorCandidates = make([]*basv1.SelectorCandidate, 0, len(action.Selector.Candidates))
 		for _, c := range action.Selector.Candidates {
 			meta.SelectorCandidates = append(meta.SelectorCandidates, &basv1.SelectorCandidate{
-				Type:        c.Type,
+				Type:        typeconv.StringToSelectorType(c.Type),
 				Value:       c.Value,
 				Confidence:  c.Confidence,
 				Specificity: int32(c.Specificity),
@@ -376,65 +376,29 @@ func buildRecordingTelemetry(action *RecordedAction) *basv1.ActionTelemetry {
 	return tel
 }
 
-// buildRecordingEventData creates recording-specific metadata.
-func buildRecordingEventData(action *RecordedAction) *basv1.RecordingEventData {
-	recording := &basv1.RecordingEventData{
-		SessionId:         action.SessionID,
-		Source:            "auto",
-		NeedsConfirmation: false,
-	}
-
-	// Add selector candidates
+// buildRecordingEventContext creates EventContext with recording origin.
+// EventContext is the unified context type that replaces RecordingContext/ExecutionContext.
+func buildRecordingEventContext(action *RecordedAction) *basv1.EventContext {
+	// Determine if user confirmation is needed
+	needsConfirmation := false
 	if action.Selector != nil && len(action.Selector.Candidates) > 0 {
-		recording.SelectorCandidates = make([]*basv1.SelectorCandidate, 0, len(action.Selector.Candidates))
-		for _, c := range action.Selector.Candidates {
-			recording.SelectorCandidates = append(recording.SelectorCandidates, &basv1.SelectorCandidate{
-				Type:        c.Type,
-				Value:       c.Value,
-				Confidence:  c.Confidence,
-				Specificity: int32(c.Specificity),
-			})
-		}
-
-		// Needs confirmation if multiple candidates or low confidence
-		recording.NeedsConfirmation = len(action.Selector.Candidates) > 1 || action.Confidence < 0.8
+		needsConfirmation = len(action.Selector.Candidates) > 1 || action.Confidence < 0.8
 	}
 
-	return recording
+	source := basv1.RecordingSource_RECORDING_SOURCE_AUTO
+	ctx := &basv1.EventContext{
+		Origin:            &basv1.EventContext_SessionId{SessionId: action.SessionID},
+		Source:            &source,
+		NeedsConfirmation: &needsConfirmation,
+	}
+
+	return ctx
 }
 
 // mapRecordingActionType converts an action type string to ActionType enum.
+// Delegates to typeconv.StringToActionType for the canonical implementation.
 func mapRecordingActionType(actionType string) basv1.ActionType {
-	switch strings.ToLower(strings.TrimSpace(actionType)) {
-	case "navigate", "goto":
-		return basv1.ActionType_ACTION_TYPE_NAVIGATE
-	case "click":
-		return basv1.ActionType_ACTION_TYPE_CLICK
-	case "input", "type", "fill":
-		return basv1.ActionType_ACTION_TYPE_INPUT
-	case "wait":
-		return basv1.ActionType_ACTION_TYPE_WAIT
-	case "assert":
-		return basv1.ActionType_ACTION_TYPE_ASSERT
-	case "scroll":
-		return basv1.ActionType_ACTION_TYPE_SCROLL
-	case "select":
-		return basv1.ActionType_ACTION_TYPE_SELECT
-	case "evaluate", "eval":
-		return basv1.ActionType_ACTION_TYPE_EVALUATE
-	case "keyboard", "keypress", "press":
-		return basv1.ActionType_ACTION_TYPE_KEYBOARD
-	case "hover":
-		return basv1.ActionType_ACTION_TYPE_HOVER
-	case "screenshot":
-		return basv1.ActionType_ACTION_TYPE_SCREENSHOT
-	case "focus":
-		return basv1.ActionType_ACTION_TYPE_FOCUS
-	case "blur":
-		return basv1.ActionType_ACTION_TYPE_BLUR
-	default:
-		return basv1.ActionType_ACTION_TYPE_UNSPECIFIED
-	}
+	return typeconv.StringToActionType(actionType)
 }
 
 // generateRecordingLabel creates a human-readable label for an action.
@@ -508,3 +472,4 @@ func extractInt32FromPayload(payload map[string]any, key string) (int32, bool) {
 		return 0, false
 	}
 }
+

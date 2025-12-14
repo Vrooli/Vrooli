@@ -11,9 +11,85 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // =============================================================================
 //
 // This file contains shared enumerations and types used across the
-// browser-automation-studio domain.
+// browser-automation-studio domain. It is the BASE file that other proto
+// files import from.
 //
-// TIMESTAMP FIELD NAMING CONVENTION:
+// =============================================================================
+// UNIFIED RECORDING/EXECUTION MODEL
+// =============================================================================
+//
+// Browser Automation Studio treats recording and execution as the SAME operation
+// with different controllers:
+//
+//   RECORDING: Human controls browser via Playwright, system captures telemetry
+//   EXECUTION: Code controls browser via Playwright, system captures telemetry
+//
+// Both modes capture identical data:
+//   - ActionDefinition: What action was performed (navigate, click, input, etc.)
+//   - ActionMetadata: Rich context (selector candidates, element snapshots, etc.)
+//   - ActionTelemetry: Observable state (screenshots, DOM, console, network)
+//   - EventContext: Origin (session/execution ID) and outcome (success/error)
+//
+// This unified model enables:
+//   1. Live execution preview with same UX as recording playback
+//   2. Workflow storage retains all captured data for later editing
+//   3. Users can fix/adjust selectors on failed steps using captured alternatives
+//   4. Debugging with full visibility into what the system "saw"
+//
+// The philosophy: Store raw data so you can reprocess/edit later (like photo RAW).
+//
+// =============================================================================
+// IMPORT HIERARCHY
+// =============================================================================
+//
+// The browser-automation-studio proto files follow this import hierarchy:
+//
+//   LAYER 0 (No BAS imports - base types):
+//     - shared.proto      : Enums, RetryStatus, AssertionResult, EventContext
+//     - geometry.proto    : BoundingBox, Point, NodePosition
+//
+//   LAYER 1 (Imports Layer 0 only):
+//     - selectors.proto   : SelectorCandidate, ElementMeta, HighlightRegion, MaskRegion
+//     - telemetry.proto   : ConsoleLogEntry, NetworkEvent, ActionTelemetry, TimelineScreenshot
+//
+//   LAYER 2 (Imports Layer 0-1):
+//     - action.proto      : ActionType enum, *Params messages, ActionDefinition
+//     - workflow_v2.proto : WorkflowDefinitionV2, WorkflowNodeV2, WorkflowEdgeV2
+//
+//   LAYER 3 (Imports Layer 0-2):
+//     - timeline_entry.proto  : TimelineEntry (unified streaming + batch format)
+//     - recording_session.proto : Recording session management
+//
+//   LAYER 4 (Imports Layer 0-3):
+//     - timeline.proto       : ExecutionTimeline (container for TimelineEntry list)
+//     - execution.proto      : Execution, ExecutionResult, event payloads
+//     - workflow_service.proto : gRPC service definitions, CRUD operations
+//
+//   LAYER 5 (Aggregate/project-level):
+//     - project.proto : Project, ProjectStats
+//
+// When adding new types, place them in the appropriate layer to avoid
+// circular dependencies. Types should only import from lower layers.
+//
+// =============================================================================
+// NODE vs STEP TERMINOLOGY
+// =============================================================================
+//
+// These terms are used throughout the proto schemas:
+//
+//   - NODE: A vertex in the workflow graph (WorkflowNodeV2). Has a unique `id`
+//           (UUID format). Represents the definition of an action.
+//
+//   - STEP: A node during execution. Has a `step_index` (0-based order in which
+//           nodes are executed). Multiple executions of the same workflow will
+//           have the same node IDs but different step indices per execution.
+//
+// In timeline entries:
+//   - `node_id`: Links to the WorkflowNodeV2 definition (stable across executions)
+//   - `step_index`: Position in this particular execution run (varies per run)
+//
+// =============================================================================
+// TIMESTAMP FIELD NAMING CONVENTION
 // The following suffixes are used for google.protobuf.Timestamp fields:
 //
 //   - `created_at`   : When a resource was first created (immutable)
@@ -81,32 +157,6 @@ enum ArtifactType {
   ARTIFACT_TYPE_DOM_SNAPSHOT = 5;
   ARTIFACT_TYPE_TRACE = 6;
   ARTIFACT_TYPE_CUSTOM = 7;
-}
-
-// EventKind enumerates WebSocket event types.
-//
-// DEPRECATED: This enum and ExecutionEventEnvelope (in execution.proto) are
-// superseded by the unified streaming format:
-//   - Use TimelineMessageType (timeline_event.proto) for message routing
-//   - Use TimelineStreamMessage (timeline_event.proto) as the envelope
-//   - Use TimelineEvent (timeline_event.proto) for action/telemetry data
-//
-// MIGRATION GUIDE:
-//   EVENT_KIND_STATUS_UPDATE  → TIMELINE_MESSAGE_TYPE_STATUS + TimelineStatusUpdate
-//   EVENT_KIND_TIMELINE_FRAME → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent
-//   EVENT_KIND_LOG            → (logs are now embedded in TimelineEvent.telemetry.console_logs)
-//   EVENT_KIND_HEARTBEAT      → TIMELINE_MESSAGE_TYPE_HEARTBEAT + TimelineHeartbeat
-//   EVENT_KIND_TELEMETRY      → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent.telemetry
-//
-// This enum will be removed once all consumers migrate to TimelineStreamMessage.
-enum EventKind {
-  option deprecated = true;
-  EVENT_KIND_UNSPECIFIED = 0;
-  EVENT_KIND_STATUS_UPDATE = 1;
-  EVENT_KIND_TIMELINE_FRAME = 2;
-  EVENT_KIND_LOG = 3;
-  EVENT_KIND_HEARTBEAT = 4;
-  EVENT_KIND_TELEMETRY = 5;
 }
 
 // ExportStatus indicates readiness for execution export.
@@ -267,4 +317,58 @@ message AssertionResult {
   bool case_sensitive = 7;
   // Optional custom message.
   optional string message = 8;
+}
+
+// =============================================================================
+// EVENT CONTEXT (UNIFIED RECORDING/EXECUTION)
+// =============================================================================
+
+// EventContext captures the origin and outcome of a timeline entry.
+// This type unifies what was previously RecordingContext and ExecutionContext,
+// reflecting the fact that recording and execution capture the same data.
+//
+// Populated during both:
+//   - Recording: Human controls browser, system captures events
+//   - Execution: Code controls browser, system captures events
+//
+// The only distinction is the origin (session_id vs execution_id) and whether
+// certain UI workflow flags apply (needs_confirmation).
+message EventContext {
+  // === ORIGIN ===
+  // Exactly one of these is set, indicating where the event originated.
+  oneof origin {
+    // Recording session ID (UUID format). Set when event comes from recording.
+    string session_id = 1;
+    // Execution run ID (UUID format). Set when event comes from execution.
+    string execution_id = 2;
+  }
+
+  // === CAPTURE METADATA ===
+  // How the action was captured. Primarily relevant for recording, but could
+  // apply to AI-assisted execution in the future.
+  optional RecordingSource source = 5;
+  // UI workflow flag: user should confirm/edit this action before proceeding.
+  // Used during recording to flag uncertain actions for human review.
+  optional bool needs_confirmation = 6;
+
+  // === EXECUTION OUTCOME ===
+  // These fields are populated after the action completes (in either mode).
+  // Whether the action succeeded.
+  optional bool success = 10;
+  // Error message if the action failed.
+  optional string error = 11;
+  // Error code for programmatic handling.
+  optional string error_code = 12;
+
+  // === RETRY TRACKING ===
+  // Retry status for this action (populated if retries are configured).
+  optional RetryStatus retry_status = 20;
+
+  // === ASSERTION RESULT ===
+  // Assertion result (for assert actions only).
+  optional AssertionResult assertion = 25;
+
+  // === EXTRACTED DATA ===
+  // Extracted data from evaluate actions (variable name -> value).
+  map<string, common.v1.JsonValue> extracted_data = 30;
 }

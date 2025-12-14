@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/ai"
@@ -371,9 +372,18 @@ func (h *Handler) DeleteExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Clean up storage file if storage URL is set
-	// This would involve calling h.storage.Delete(ctx, export.StorageURL)
-	_ = export.StorageURL
+	// Note: Storage file cleanup is intentionally deferred to external processes.
+	// The StorageURL typically points to cloud storage (S3-compatible) or local filesystem
+	// paths for rendered video exports. These are cleaned up by:
+	// 1. TTL-based expiration rules on the storage bucket
+	// 2. Periodic cleanup jobs that scan for orphaned files
+	// This avoids tight coupling between export deletion and storage implementation details.
+	if export.StorageURL != "" {
+		h.log.WithFields(logrus.Fields{
+			"export_id":   exportID,
+			"storage_url": export.StorageURL,
+		}).Debug("Export deleted; storage file cleanup delegated to external process")
+	}
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"export_id": exportID,

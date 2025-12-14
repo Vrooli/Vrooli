@@ -2,10 +2,8 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from common.v1 import types_pb2 as _types_pb2
-from browser_automation_studio.v1 import action_pb2 as _action_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1 import telemetry_pb2 as _telemetry_pb2
-from browser_automation_studio.v1 import timeline_pb2 as _timeline_pb2
 from browser_automation_studio.v1 import workflow_v2_pb2 as _workflow_v2_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -103,7 +101,7 @@ class Execution(_message.Message):
     TRIGGER_TYPE_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
-    LAST_HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
+    LAST_HEARTBEAT_AT_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
     CURRENT_STEP_FIELD_NUMBER: _ClassVar[int]
@@ -122,7 +120,7 @@ class Execution(_message.Message):
     trigger_type: _shared_pb2.TriggerType
     started_at: _timestamp_pb2.Timestamp
     completed_at: _timestamp_pb2.Timestamp
-    last_heartbeat: _timestamp_pb2.Timestamp
+    last_heartbeat_at: _timestamp_pb2.Timestamp
     error: str
     progress: int
     current_step: str
@@ -134,7 +132,7 @@ class Execution(_message.Message):
     trace_id: str
     correlation_id: str
     request_id: str
-    def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., trigger_type: _Optional[_Union[_shared_pb2.TriggerType, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., result: _Optional[_Union[ExecutionResult, _Mapping]] = ..., trigger_metadata: _Optional[_Union[TriggerMetadata, _Mapping]] = ..., trace_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., trigger_type: _Optional[_Union[_shared_pb2.TriggerType, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_heartbeat_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., result: _Optional[_Union[ExecutionResult, _Mapping]] = ..., trigger_metadata: _Optional[_Union[TriggerMetadata, _Mapping]] = ..., trace_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
 class ExecuteAdhocRequest(_message.Message):
     __slots__ = ()
@@ -178,13 +176,13 @@ class ExecutionScreenshot(_message.Message):
     STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     STEP_LABEL_FIELD_NUMBER: _ClassVar[int]
-    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     screenshot: _telemetry_pb2.TimelineScreenshot
     step_index: int
     node_id: str
     step_label: str
-    captured_at: _timestamp_pb2.Timestamp
-    def __init__(self, screenshot: _Optional[_Union[_telemetry_pb2.TimelineScreenshot, _Mapping]] = ..., step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., step_label: _Optional[str] = ..., captured_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    timestamp: _timestamp_pb2.Timestamp
+    def __init__(self, screenshot: _Optional[_Union[_telemetry_pb2.TimelineScreenshot, _Mapping]] = ..., step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., step_label: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetScreenshotsResponse(_message.Message):
     __slots__ = ()
@@ -195,38 +193,6 @@ class GetScreenshotsResponse(_message.Message):
     screenshots: _containers.RepeatedCompositeFieldContainer[ExecutionScreenshot]
     total: int
     def __init__(self, execution_id: _Optional[str] = ..., screenshots: _Optional[_Iterable[_Union[ExecutionScreenshot, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
-
-class ExecutionEventEnvelope(_message.Message):
-    __slots__ = ()
-    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
-    PAYLOAD_VERSION_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
-    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
-    STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
-    ATTEMPT_FIELD_NUMBER: _ClassVar[int]
-    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
-    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
-    STATUS_UPDATE_FIELD_NUMBER: _ClassVar[int]
-    TIMELINE_FRAME_FIELD_NUMBER: _ClassVar[int]
-    LOG_FIELD_NUMBER: _ClassVar[int]
-    HEARTBEAT_FIELD_NUMBER: _ClassVar[int]
-    TELEMETRY_FIELD_NUMBER: _ClassVar[int]
-    schema_version: str
-    payload_version: str
-    kind: _shared_pb2.EventKind
-    execution_id: str
-    workflow_id: str
-    step_index: int
-    attempt: int
-    sequence: int
-    timestamp: _timestamp_pb2.Timestamp
-    status_update: StatusUpdateEvent
-    timeline_frame: TimelineFrameEvent
-    log: LogEvent
-    heartbeat: HeartbeatEvent
-    telemetry: TelemetryEvent
-    def __init__(self, schema_version: _Optional[str] = ..., payload_version: _Optional[str] = ..., kind: _Optional[_Union[_shared_pb2.EventKind, str]] = ..., execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., step_index: _Optional[int] = ..., attempt: _Optional[int] = ..., sequence: _Optional[int] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status_update: _Optional[_Union[StatusUpdateEvent, _Mapping]] = ..., timeline_frame: _Optional[_Union[TimelineFrameEvent, _Mapping]] = ..., log: _Optional[_Union[LogEvent, _Mapping]] = ..., heartbeat: _Optional[_Union[HeartbeatEvent, _Mapping]] = ..., telemetry: _Optional[_Union[TelemetryEvent, _Mapping]] = ...) -> None: ...
 
 class ExecutionExportPreview(_message.Message):
     __slots__ = ()
@@ -248,79 +214,17 @@ class ExecutionExportPreview(_message.Message):
     package: _types_pb2.JsonObject
     def __init__(self, execution_id: _Optional[str] = ..., spec_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExportStatus, str]] = ..., message: _Optional[str] = ..., captured_frame_count: _Optional[int] = ..., available_asset_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., package: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...
 
-class StatusUpdateEvent(_message.Message):
-    __slots__ = ()
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    PROGRESS_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_STEP_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
-    status: _shared_pb2.ExecutionStatus
-    progress: int
-    current_step: str
-    error: str
-    occurred_at: _timestamp_pb2.Timestamp
-    def __init__(self, status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., error: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class TimelineFrameEvent(_message.Message):
-    __slots__ = ()
-    FRAME_FIELD_NUMBER: _ClassVar[int]
-    frame: _timeline_pb2.TimelineFrame
-    def __init__(self, frame: _Optional[_Union[_timeline_pb2.TimelineFrame, _Mapping]] = ...) -> None: ...
-
-class LogMetadata(_message.Message):
-    __slots__ = ()
-    NODE_ID_FIELD_NUMBER: _ClassVar[int]
-    ACTION_TYPE_FIELD_NUMBER: _ClassVar[int]
-    URL_FIELD_NUMBER: _ClassVar[int]
-    STACK_TRACE_FIELD_NUMBER: _ClassVar[int]
-    COMPONENT_FIELD_NUMBER: _ClassVar[int]
-    node_id: str
-    action_type: _action_pb2.ActionType
-    url: str
-    stack_trace: str
-    component: str
-    def __init__(self, node_id: _Optional[str] = ..., action_type: _Optional[_Union[_action_pb2.ActionType, str]] = ..., url: _Optional[str] = ..., stack_trace: _Optional[str] = ..., component: _Optional[str] = ...) -> None: ...
-
-class LogEvent(_message.Message):
-    __slots__ = ()
-    LEVEL_FIELD_NUMBER: _ClassVar[int]
-    MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
-    OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
-    METADATA_FIELD_NUMBER: _ClassVar[int]
-    level: _shared_pb2.LogLevel
-    message: str
-    step_index: int
-    occurred_at: _timestamp_pb2.Timestamp
-    metadata: LogMetadata
-    def __init__(self, level: _Optional[_Union[_shared_pb2.LogLevel, str]] = ..., message: _Optional[str] = ..., step_index: _Optional[int] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metadata: _Optional[_Union[LogMetadata, _Mapping]] = ...) -> None: ...
-
-class HeartbeatMetrics(_message.Message):
+class ExecutorMetrics(_message.Message):
     __slots__ = ()
     MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
     CPU_PERCENT_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_PAGES_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_STEP_FIELD_NUMBER: _ClassVar[int]
-    TOTAL_STEPS_FIELD_NUMBER: _ClassVar[int]
     memory_bytes: int
     cpu_percent: float
     active_pages: int
-    current_step: int
-    total_steps: int
-    def __init__(self, memory_bytes: _Optional[int] = ..., cpu_percent: _Optional[float] = ..., active_pages: _Optional[int] = ..., current_step: _Optional[int] = ..., total_steps: _Optional[int] = ...) -> None: ...
+    def __init__(self, memory_bytes: _Optional[int] = ..., cpu_percent: _Optional[float] = ..., active_pages: _Optional[int] = ...) -> None: ...
 
-class HeartbeatEvent(_message.Message):
-    __slots__ = ()
-    RECEIVED_AT_FIELD_NUMBER: _ClassVar[int]
-    PROGRESS_FIELD_NUMBER: _ClassVar[int]
-    METRICS_FIELD_NUMBER: _ClassVar[int]
-    received_at: _timestamp_pb2.Timestamp
-    progress: int
-    metrics: HeartbeatMetrics
-    def __init__(self, received_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress: _Optional[int] = ..., metrics: _Optional[_Union[HeartbeatMetrics, _Mapping]] = ...) -> None: ...
-
-class TelemetryMetrics(_message.Message):
+class PerformanceMetrics(_message.Message):
     __slots__ = ()
     NETWORK_REQUESTS_FIELD_NUMBER: _ClassVar[int]
     BYTES_TRANSFERRED_FIELD_NUMBER: _ClassVar[int]
@@ -339,11 +243,3 @@ class TelemetryMetrics(_message.Message):
     fid_ms: int
     cls: float
     def __init__(self, network_requests: _Optional[int] = ..., bytes_transferred: _Optional[int] = ..., dom_nodes: _Optional[int] = ..., js_heap_bytes: _Optional[int] = ..., ttfb_ms: _Optional[int] = ..., lcp_ms: _Optional[int] = ..., fid_ms: _Optional[int] = ..., cls: _Optional[float] = ...) -> None: ...
-
-class TelemetryEvent(_message.Message):
-    __slots__ = ()
-    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
-    METRICS_FIELD_NUMBER: _ClassVar[int]
-    recorded_at: _timestamp_pb2.Timestamp
-    metrics: TelemetryMetrics
-    def __init__(self, recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metrics: _Optional[_Union[TelemetryMetrics, _Mapping]] = ...) -> None: ...

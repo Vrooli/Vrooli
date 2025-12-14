@@ -2,141 +2,51 @@
 // @generated from file browser-automation-studio/v1/timeline_event.proto (package browser_automation_studio.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { JsonValue } from "../../common/v1/types_pb";
-import { file_common_v1_types } from "../../common/v1/types_pb";
-import type { AssertionResult, ExecutionStatus, RecordingSource, RetryStatus } from "./shared_pb";
-import { file_browser_automation_studio_v1_shared } from "./shared_pb";
-import type { ActionDefinition } from "./action_pb";
-import { file_browser_automation_studio_v1_action } from "./action_pb";
-import type { SelectorCandidate } from "./selectors_pb";
-import { file_browser_automation_studio_v1_selectors } from "./selectors_pb";
-import type { ActionTelemetry } from "./telemetry_pb";
-import { file_browser_automation_studio_v1_telemetry } from "./telemetry_pb";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { TimelineEntry } from "./timeline_entry_pb";
+import { file_browser_automation_studio_v1_timeline_entry } from "./timeline_entry_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/timeline_event.proto.
  */
 export const file_browser_automation_studio_v1_timeline_event: GenFile = /*@__PURE__*/
-  fileDesc("CjFicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lX2V2ZW50LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIsQECg1UaW1lbGluZUV2ZW50EgoKAmlkGAEgASgJEhQKDHNlcXVlbmNlX251bRgCIAEoBRItCgl0aW1lc3RhbXAYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKC2R1cmF0aW9uX21zGAQgASgFSAGIAQESFwoKc3RlcF9pbmRleBgFIAEoBUgCiAEBEhQKB25vZGVfaWQYBiABKAlIA4gBARI+CgZhY3Rpb24YCiABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvbkRlZmluaXRpb24SQAoJdGVsZW1ldHJ5GAsgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25UZWxlbWV0cnkSQwoJcmVjb3JkaW5nGBQgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRpbmdDb250ZXh0SAASQwoJZXhlY3V0aW9uGBUgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25Db250ZXh0SAASFQoIdHJhY2VfaWQYHiABKAlIBIgBARIbCg5jb3JyZWxhdGlvbl9pZBgfIAEoCUgFiAEBQg4KDG1vZGVfY29udGV4dEIOCgxfZHVyYXRpb25fbXNCDQoLX3N0ZXBfaW5kZXhCCgoIX25vZGVfaWRCCwoJX3RyYWNlX2lkQhEKD19jb3JyZWxhdGlvbl9pZCLPAQoQUmVjb3JkaW5nQ29udGV4dBISCgpzZXNzaW9uX2lkGAEgASgJEkwKE3NlbGVjdG9yX2NhbmRpZGF0ZXMYAiADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yQ2FuZGlkYXRlEhoKEm5lZWRzX2NvbmZpcm1hdGlvbhgDIAEoCBI9CgZzb3VyY2UYBCABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZGluZ1NvdXJjZSLgAwoQRXhlY3V0aW9uQ29udGV4dBIUCgxleGVjdXRpb25faWQYASABKAkSDwoHc3VjY2VzcxgKIAEoCBISCgVlcnJvchgLIAEoCUgAiAEBEhcKCmVycm9yX2NvZGUYDCABKAlIAYgBARI/CgxyZXRyeV9zdGF0dXMYGSABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJldHJ5U3RhdHVzEkUKCWFzc2VydGlvbhgeIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0aW9uUmVzdWx0SAKIAQESWQoOZXh0cmFjdGVkX2RhdGEYHyADKAsyQS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbkNvbnRleHQuRXh0cmFjdGVkRGF0YUVudHJ5GkoKEkV4dHJhY3RlZERhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIICgZfZXJyb3JCDQoLX2Vycm9yX2NvZGVCDAoKX2Fzc2VydGlvbkoECAIQA0oECBQQFUoECBUQFkoECBYQF0oECBcQGEoECBgQGSKtAgoVVGltZWxpbmVTdHJlYW1NZXNzYWdlEj8KBHR5cGUYASABKA4yMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lTWVzc2FnZVR5cGUSPAoFZXZlbnQYCiABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRXZlbnRIABJECgZzdGF0dXMYCyABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lU3RhdHVzVXBkYXRlSAASRAoJaGVhcnRiZWF0GAwgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUhlYXJ0YmVhdEgAQgkKB3BheWxvYWQipgEKFFRpbWVsaW5lU3RhdHVzVXBkYXRlEgoKAmlkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhAKCHByb2dyZXNzGAMgASgFEhMKC2V2ZW50X2NvdW50GAQgASgFEhIKBWVycm9yGAUgASgJSACIAQFCCAoGX2Vycm9yIlYKEVRpbWVsaW5lSGVhcnRiZWF0Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2Vzc2lvbl9pZBgCIAEoCSqkAQoTVGltZWxpbmVNZXNzYWdlVHlwZRIlCiFUSU1FTElORV9NRVNTQUdFX1RZUEVfVU5TUEVDSUZJRUQQABIfChtUSU1FTElORV9NRVNTQUdFX1RZUEVfRVZFTlQQARIgChxUSU1FTElORV9NRVNTQUdFX1RZUEVfU1RBVFVTEAISIwofVElNRUxJTkVfTUVTU0FHRV9UWVBFX0hFQVJUQkVBVBADQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_selectors, file_browser_automation_studio_v1_telemetry]);
+  fileDesc("CjFicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lX2V2ZW50LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIk8KDVRpbWVsaW5lRXZlbnQSOgoFZW50cnkYASABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRW50cnk6AhgBIjwKEFJlY29yZGluZ0NvbnRleHQSEgoKc2Vzc2lvbl9pZBgBIAEoCToCGAFKBAgCEANKBAgDEARKBAgEEAUidAoQRXhlY3V0aW9uQ29udGV4dBIUCgxleGVjdXRpb25faWQYASABKAk6AhgBSgQIAhADSgQIChALSgQICxAMSgQIDBANSgQIFBAVSgQIFRAWSgQIFhAXSgQIFxAYSgQIGBAZSgQIGRAaSgQIHhAfSgQIHxAgQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_browser_automation_studio_v1_timeline_entry]);
 
 /**
- * TimelineEvent is streamed to the UI during BOTH recording and execution.
- * This is the canonical streaming format for real-time action/telemetry data.
+ * Re-export TimelineEntry as TimelineEvent for backwards compatibility.
+ * DEPRECATED: Use TimelineEntry from timeline_entry.proto instead.
  *
  * @generated from message browser_automation_studio.v1.TimelineEvent
+ * @deprecated
  */
 export type TimelineEvent = Message<"browser_automation_studio.v1.TimelineEvent"> & {
   /**
-   * Unique event identifier (UUID format).
+   * All fields delegate to TimelineEntry.
+   * This message exists only for backwards compatibility during migration.
+   * See timeline_entry.proto for the canonical type definition.
    *
-   * @generated from field: string id = 1;
+   * @generated from field: browser_automation_studio.v1.TimelineEntry entry = 1;
    */
-  id: string;
-
-  /**
-   * Zero-based sequence number (monotonic across all events in a session).
-   *
-   * @generated from field: int32 sequence_num = 2;
-   */
-  sequenceNum: number;
-
-  /**
-   * When this event occurred.
-   *
-   * @generated from field: google.protobuf.Timestamp timestamp = 3;
-   */
-  timestamp?: Timestamp;
-
-  /**
-   * Action duration in milliseconds.
-   *
-   * @generated from field: optional int32 duration_ms = 4;
-   */
-  durationMs?: number;
-
-  /**
-   * Zero-based step index in the workflow (identifies which workflow node).
-   * This is critical for correlating streaming events with batch TimelineFrame data.
-   *
-   * @generated from field: optional int32 step_index = 5;
-   */
-  stepIndex?: number;
-
-  /**
-   * Node ID from the workflow definition (UUID format).
-   * Links this event to the specific WorkflowNodeV2.
-   *
-   * @generated from field: optional string node_id = 6;
-   */
-  nodeId?: string;
-
-  /**
-   * The action performed or to be performed.
-   *
-   * @generated from field: browser_automation_studio.v1.ActionDefinition action = 10;
-   */
-  action?: ActionDefinition;
-
-  /**
-   * Observable telemetry captured during the action.
-   *
-   * @generated from field: browser_automation_studio.v1.ActionTelemetry telemetry = 11;
-   */
-  telemetry?: ActionTelemetry;
-
-  /**
-   * Mode-specific context (exactly one populated based on context).
-   * These are contextual data containers, not standalone events.
-   *
-   * @generated from oneof browser_automation_studio.v1.TimelineEvent.mode_context
-   */
-  modeContext: {
-    /**
-     * @generated from field: browser_automation_studio.v1.RecordingContext recording = 20;
-     */
-    value: RecordingContext;
-    case: "recording";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.ExecutionContext execution = 21;
-     */
-    value: ExecutionContext;
-    case: "execution";
-  } | { case: undefined; value?: undefined };
-
-  /**
-   * Distributed tracing fields for observability.
-   * Trace ID for distributed tracing (e.g., OpenTelemetry trace ID).
-   *
-   * @generated from field: optional string trace_id = 30;
-   */
-  traceId?: string;
-
-  /**
-   * Correlation ID for linking related operations across services.
-   *
-   * @generated from field: optional string correlation_id = 31;
-   */
-  correlationId?: string;
+  entry?: TimelineEntry;
 };
 
 /**
  * Describes the message browser_automation_studio.v1.TimelineEvent.
  * Use `create(TimelineEventSchema)` to create a new message.
+ * @deprecated
  */
 export const TimelineEventSchema: GenMessage<TimelineEvent> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline_event, 0);
 
 /**
- * RecordingContext contains recording-specific contextual data.
- * This is populated when the TimelineEvent originates from a recording session.
+ * Re-export RecordingContext for backwards compatibility.
+ * DEPRECATED: Use EventContext from shared.proto instead.
+ * The origin oneof in EventContext distinguishes recording vs execution.
  *
  * @generated from message browser_automation_studio.v1.RecordingContext
+ * @deprecated
  */
 export type RecordingContext = Message<"browser_automation_studio.v1.RecordingContext"> & {
   /**
@@ -145,41 +55,22 @@ export type RecordingContext = Message<"browser_automation_studio.v1.RecordingCo
    * @generated from field: string session_id = 1;
    */
   sessionId: string;
-
-  /**
-   * Selector candidates for user to choose from.
-   *
-   * @generated from field: repeated browser_automation_studio.v1.SelectorCandidate selector_candidates = 2;
-   */
-  selectorCandidates: SelectorCandidate[];
-
-  /**
-   * Whether user needs to confirm/edit this action.
-   *
-   * @generated from field: bool needs_confirmation = 3;
-   */
-  needsConfirmation: boolean;
-
-  /**
-   * How the action was captured (auto-detected or manually inserted).
-   *
-   * @generated from field: browser_automation_studio.v1.RecordingSource source = 4;
-   */
-  source: RecordingSource;
 };
 
 /**
  * Describes the message browser_automation_studio.v1.RecordingContext.
  * Use `create(RecordingContextSchema)` to create a new message.
+ * @deprecated
  */
 export const RecordingContextSchema: GenMessage<RecordingContext> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline_event, 1);
 
 /**
- * ExecutionContext contains execution-specific contextual data.
- * This is populated when the TimelineEvent originates from workflow execution.
+ * Re-export ExecutionContext for backwards compatibility.
+ * DEPRECATED: Use EventContext from shared.proto instead.
  *
  * @generated from message browser_automation_studio.v1.ExecutionContext
+ * @deprecated
  */
 export type ExecutionContext = Message<"browser_automation_studio.v1.ExecutionContext"> & {
   /**
@@ -188,204 +79,13 @@ export type ExecutionContext = Message<"browser_automation_studio.v1.ExecutionCo
    * @generated from field: string execution_id = 1;
    */
   executionId: string;
-
-  /**
-   * Execution outcome.
-   *
-   * @generated from field: bool success = 10;
-   */
-  success: boolean;
-
-  /**
-   * @generated from field: optional string error = 11;
-   */
-  error?: string;
-
-  /**
-   * @generated from field: optional string error_code = 12;
-   */
-  errorCode?: string;
-
-  /**
-   * Retry status (uses unified RetryStatus type from shared.proto).
-   *
-   * @generated from field: browser_automation_studio.v1.RetryStatus retry_status = 25;
-   */
-  retryStatus?: RetryStatus;
-
-  /**
-   * Assertion result (for assert steps).
-   *
-   * @generated from field: optional browser_automation_studio.v1.AssertionResult assertion = 30;
-   */
-  assertion?: AssertionResult;
-
-  /**
-   * Extracted data (for evaluate steps).
-   *
-   * @generated from field: map<string, common.v1.JsonValue> extracted_data = 31;
-   */
-  extractedData: { [key: string]: JsonValue };
 };
 
 /**
  * Describes the message browser_automation_studio.v1.ExecutionContext.
  * Use `create(ExecutionContextSchema)` to create a new message.
+ * @deprecated
  */
 export const ExecutionContextSchema: GenMessage<ExecutionContext> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline_event, 2);
-
-/**
- * TimelineStreamMessage wraps timeline events for WebSocket transport.
- *
- * @generated from message browser_automation_studio.v1.TimelineStreamMessage
- */
-export type TimelineStreamMessage = Message<"browser_automation_studio.v1.TimelineStreamMessage"> & {
-  /**
-   * Message type for routing.
-   *
-   * @generated from field: browser_automation_studio.v1.TimelineMessageType type = 1;
-   */
-  type: TimelineMessageType;
-
-  /**
-   * @generated from oneof browser_automation_studio.v1.TimelineStreamMessage.payload
-   */
-  payload: {
-    /**
-     * @generated from field: browser_automation_studio.v1.TimelineEvent event = 10;
-     */
-    value: TimelineEvent;
-    case: "event";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.TimelineStatusUpdate status = 11;
-     */
-    value: TimelineStatusUpdate;
-    case: "status";
-  } | {
-    /**
-     * @generated from field: browser_automation_studio.v1.TimelineHeartbeat heartbeat = 12;
-     */
-    value: TimelineHeartbeat;
-    case: "heartbeat";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineStreamMessage.
- * Use `create(TimelineStreamMessageSchema)` to create a new message.
- */
-export const TimelineStreamMessageSchema: GenMessage<TimelineStreamMessage> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline_event, 3);
-
-/**
- * TimelineStatusUpdate reports overall session/execution status.
- *
- * @generated from message browser_automation_studio.v1.TimelineStatusUpdate
- */
-export type TimelineStatusUpdate = Message<"browser_automation_studio.v1.TimelineStatusUpdate"> & {
-  /**
-   * Session ID (recording) or Execution ID (playback) - UUID format.
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Current execution status.
-   *
-   * @generated from field: browser_automation_studio.v1.ExecutionStatus status = 2;
-   */
-  status: ExecutionStatus;
-
-  /**
-   * Progress percentage (0-100).
-   *
-   * @generated from field: int32 progress = 3;
-   */
-  progress: number;
-
-  /**
-   * Total event count.
-   *
-   * @generated from field: int32 event_count = 4;
-   */
-  eventCount: number;
-
-  /**
-   * Error message if status is failed.
-   *
-   * @generated from field: optional string error = 5;
-   */
-  error?: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineStatusUpdate.
- * Use `create(TimelineStatusUpdateSchema)` to create a new message.
- */
-export const TimelineStatusUpdateSchema: GenMessage<TimelineStatusUpdate> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline_event, 4);
-
-/**
- * TimelineHeartbeat keeps WebSocket connection alive.
- *
- * @generated from message browser_automation_studio.v1.TimelineHeartbeat
- */
-export type TimelineHeartbeat = Message<"browser_automation_studio.v1.TimelineHeartbeat"> & {
-  /**
-   * Heartbeat timestamp.
-   *
-   * @generated from field: google.protobuf.Timestamp timestamp = 1;
-   */
-  timestamp?: Timestamp;
-
-  /**
-   * Session ID for connection routing (UUID format).
-   *
-   * @generated from field: string session_id = 2;
-   */
-  sessionId: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineHeartbeat.
- * Use `create(TimelineHeartbeatSchema)` to create a new message.
- */
-export const TimelineHeartbeatSchema: GenMessage<TimelineHeartbeat> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline_event, 5);
-
-/**
- * TimelineMessageType enumerates WebSocket message types.
- *
- * @generated from enum browser_automation_studio.v1.TimelineMessageType
- */
-export enum TimelineMessageType {
-  /**
-   * @generated from enum value: TIMELINE_MESSAGE_TYPE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: TIMELINE_MESSAGE_TYPE_EVENT = 1;
-   */
-  EVENT = 1,
-
-  /**
-   * @generated from enum value: TIMELINE_MESSAGE_TYPE_STATUS = 2;
-   */
-  STATUS = 2,
-
-  /**
-   * @generated from enum value: TIMELINE_MESSAGE_TYPE_HEARTBEAT = 3;
-   */
-  HEARTBEAT = 3,
-}
-
-/**
- * Describes the enum browser_automation_studio.v1.TimelineMessageType.
- */
-export const TimelineMessageTypeSchema: GenEnum<TimelineMessageType> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_timeline_event, 0);
 

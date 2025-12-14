@@ -23,65 +23,18 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// RecordedAction represents a single user action captured during recording.
-// This mirrors the TypeScript RecordedAction type from playwright-driver.
-type RecordedAction struct {
-	ID          string                 `json:"id"`
-	SessionID   string                 `json:"sessionId"`
-	SequenceNum int                    `json:"sequenceNum"`
-	Timestamp   string                 `json:"timestamp"`
-	DurationMs  int                    `json:"durationMs,omitempty"`
-	ActionType  string                 `json:"actionType"`
-	Confidence  float64                `json:"confidence"`
-	Selector    *SelectorSet           `json:"selector,omitempty"`
-	ElementMeta *ElementMeta           `json:"elementMeta,omitempty"`
-	BoundingBox *BoundingBox           `json:"boundingBox,omitempty"`
-	Payload     map[string]interface{} `json:"payload,omitempty"`
-	URL         string                 `json:"url"`
-	FrameID     string                 `json:"frameId,omitempty"`
-	CursorPos   *Point                 `json:"cursorPos,omitempty"`
-}
+// RecordedAction is an alias for events.RecordedAction to maintain API compatibility.
+// Use events.RecordedAction directly in new code.
+type RecordedAction = events.RecordedAction
 
-// SelectorSet contains multiple selector strategies for resilience.
-type SelectorSet struct {
-	Primary    string              `json:"primary"`
-	Candidates []SelectorCandidate `json:"candidates"`
-}
+// SelectorSet is an alias for events.SelectorSet to maintain API compatibility.
+type SelectorSet = events.SelectorSet
 
-// SelectorCandidate is a single selector with metadata.
-type SelectorCandidate struct {
-	Type        string  `json:"type"`
-	Value       string  `json:"value"`
-	Confidence  float64 `json:"confidence"`
-	Specificity int     `json:"specificity"`
-}
+// SelectorCandidate is an alias for events.SelectorCandidate to maintain API compatibility.
+type SelectorCandidate = events.SelectorCandidate
 
-// ElementMeta captures information about the target element.
-type ElementMeta struct {
-	TagName    string            `json:"tagName"`
-	ID         string            `json:"id,omitempty"`
-	ClassName  string            `json:"className,omitempty"`
-	InnerText  string            `json:"innerText,omitempty"`
-	Attributes map[string]string `json:"attributes,omitempty"`
-	IsVisible  bool              `json:"isVisible"`
-	IsEnabled  bool              `json:"isEnabled"`
-	Role       string            `json:"role,omitempty"`
-	AriaLabel  string            `json:"ariaLabel,omitempty"`
-}
-
-// BoundingBox for element position on screen.
-type BoundingBox struct {
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
-}
-
-// Point for cursor/click positions.
-type Point struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-}
+// ElementMeta is an alias for events.ElementMeta to maintain API compatibility.
+type ElementMeta = events.ElementMeta
 
 // CreateRecordingSessionRequest is the request body for creating a browser session for recording.
 type CreateRecordingSessionRequest struct {
@@ -1517,7 +1470,7 @@ func extractHostname(urlStr string) string {
 
 // ReceiveRecordingAction handles POST /api/v1/recordings/live/{sessionId}/action
 // Receives a streamed action from the playwright-driver and broadcasts it via WebSocket.
-// The action is converted to a unified TimelineEvent for V2 format compatibility.
+// The action is converted to a unified TimelineEntry for V2 format compatibility.
 func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "sessionId")
 	if sessionID == "" {
@@ -1535,12 +1488,12 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Convert to unified TimelineEvent format for V2 migration
-	timelineEvent := h.convertRecordedActionToTimelineEvent(&action)
+	// Convert to unified TimelineEntry format for V2 migration
+	timelineEntry := h.convertRecordedActionToTimelineEntry(&action)
 
-	// Broadcast with both legacy action and timeline_event
-	if timelineEvent != nil {
-		h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, action, timelineEvent)
+	// Broadcast with both legacy action and timeline_entry
+	if timelineEntry != nil {
+		h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, action, timelineEntry)
 	} else {
 		// Fallback to legacy format if conversion fails
 		h.wsHub.BroadcastRecordingAction(sessionID, action)
@@ -1557,74 +1510,12 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// convertRecordedActionToTimelineEvent converts a handler RecordedAction to events.RecordedAction
-// then to a TimelineEvent proto, and finally to a map for JSON serialization.
-func (h *Handler) convertRecordedActionToTimelineEvent(action *RecordedAction) map[string]any {
-	// Convert handler types to events types
-	eventsAction := &events.RecordedAction{
-		ID:          action.ID,
-		SessionID:   action.SessionID,
-		SequenceNum: action.SequenceNum,
-		Timestamp:   action.Timestamp,
-		DurationMs:  action.DurationMs,
-		ActionType:  action.ActionType,
-		Confidence:  action.Confidence,
-		Payload:     action.Payload,
-		URL:         action.URL,
-		FrameID:     action.FrameID,
-	}
-
-	// Convert selector
-	if action.Selector != nil {
-		eventsAction.Selector = &events.SelectorSet{
-			Primary: action.Selector.Primary,
-		}
-		for _, c := range action.Selector.Candidates {
-			eventsAction.Selector.Candidates = append(eventsAction.Selector.Candidates, events.SelectorCandidate{
-				Type:        c.Type,
-				Value:       c.Value,
-				Confidence:  c.Confidence,
-				Specificity: c.Specificity,
-			})
-		}
-	}
-
-	// Convert element meta
-	if action.ElementMeta != nil {
-		eventsAction.ElementMeta = &events.ElementMeta{
-			TagName:    action.ElementMeta.TagName,
-			ID:         action.ElementMeta.ID,
-			ClassName:  action.ElementMeta.ClassName,
-			InnerText:  action.ElementMeta.InnerText,
-			Attributes: action.ElementMeta.Attributes,
-			IsVisible:  action.ElementMeta.IsVisible,
-			IsEnabled:  action.ElementMeta.IsEnabled,
-			Role:       action.ElementMeta.Role,
-			AriaLabel:  action.ElementMeta.AriaLabel,
-		}
-	}
-
-	// Convert bounding box
-	if action.BoundingBox != nil {
-		eventsAction.BoundingBox = &events.RecBoundingBox{
-			X:      action.BoundingBox.X,
-			Y:      action.BoundingBox.Y,
-			Width:  action.BoundingBox.Width,
-			Height: action.BoundingBox.Height,
-		}
-	}
-
-	// Convert cursor position
-	if action.CursorPos != nil {
-		eventsAction.CursorPos = &events.RecPoint{
-			X: action.CursorPos.X,
-			Y: action.CursorPos.Y,
-		}
-	}
-
-	// Convert to TimelineEvent proto
-	timelineEvent := events.RecordedActionToTimelineEvent(eventsAction)
-	if timelineEvent == nil {
+// convertRecordedActionToTimelineEntry converts a RecordedAction to a TimelineEntry proto,
+// then to a map for JSON serialization over WebSocket.
+func (h *Handler) convertRecordedActionToTimelineEntry(action *RecordedAction) map[string]any {
+	// RecordedAction is now an alias for events.RecordedAction, so we can pass it directly
+	timelineEntry := events.RecordedActionToTimelineEntry(action)
+	if timelineEntry == nil {
 		return nil
 	}
 
@@ -1632,16 +1523,16 @@ func (h *Handler) convertRecordedActionToTimelineEvent(action *RecordedAction) m
 	jsonBytes, err := protojson.MarshalOptions{
 		UseProtoNames:   true,
 		EmitUnpopulated: false,
-	}.Marshal(timelineEvent)
+	}.Marshal(timelineEntry)
 	if err != nil {
-		h.log.WithError(err).Debug("Failed to marshal TimelineEvent to JSON")
+		h.log.WithError(err).Debug("Failed to marshal TimelineEntry to JSON")
 		return nil
 	}
 
 	// Unmarshal to map for inclusion in WebSocket message
 	var result map[string]any
 	if err := json.Unmarshal(jsonBytes, &result); err != nil {
-		h.log.WithError(err).Debug("Failed to unmarshal TimelineEvent JSON to map")
+		h.log.WithError(err).Debug("Failed to unmarshal TimelineEntry JSON to map")
 		return nil
 	}
 

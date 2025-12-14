@@ -6,42 +6,34 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { JsonValue } from "../../common/v1/types_pb";
-import { file_common_v1_types } from "../../common/v1/types_pb";
-import type { ArtifactType, AssertionResult, ExecutionStatus, LogLevel, RetryStatus, StepStatus } from "./shared_pb";
+import type { ExecutionStatus } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
-import type { ActionDefinition, ActionType } from "./action_pb";
-import { file_browser_automation_studio_v1_action } from "./action_pb";
-import type { BoundingBox, Point } from "./geometry_pb";
-import { file_browser_automation_studio_v1_geometry } from "./geometry_pb";
-import type { HighlightRegion, MaskRegion } from "./selectors_pb";
-import { file_browser_automation_studio_v1_selectors } from "./selectors_pb";
-import type { ActionTelemetry, TimelineScreenshot } from "./telemetry_pb";
-import { file_browser_automation_studio_v1_telemetry } from "./telemetry_pb";
+import type { TimelineEntry, TimelineLog } from "./timeline_entry_pb";
+import { file_browser_automation_studio_v1_timeline_entry } from "./timeline_entry_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/timeline.proto.
  */
 export const file_browser_automation_studio_v1_timeline: GenFile = /*@__PURE__*/
-  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIv0CChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjsKBmZyYW1lcxgHIAMoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVGcmFtZRI3CgRsb2dzGAggAygLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUxvZ0IPCg1fY29tcGxldGVkX2F0It4LCg1UaW1lbGluZUZyYW1lEhIKCnN0ZXBfaW5kZXgYASABKAUSDwoHbm9kZV9pZBgCIAEoCRI9CgthY3Rpb25fdHlwZRgDIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZRI+CgZhY3Rpb24YIyABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvbkRlZmluaXRpb24SOAoGc3RhdHVzGAQgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGVwU3RhdHVzEg8KB3N1Y2Nlc3MYBSABKAgSEwoLZHVyYXRpb25fbXMYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSEAoIcHJvZ3Jlc3MYCCABKAUSLgoKc3RhcnRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglmaW5hbF91cmwYCyABKAkSEgoFZXJyb3IYDCABKAlIAIgBARIZChFjb25zb2xlX2xvZ19jb3VudBgNIAEoBRIbChNuZXR3b3JrX2V2ZW50X2NvdW50GA4gASgFEkwKEWhpZ2hsaWdodF9yZWdpb25zGBAgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5IaWdobGlnaHRSZWdpb25CAhgBEkIKDG1hc2tfcmVnaW9ucxgRIAMoCzIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTWFza1JlZ2lvbkICGAESQwoPZm9jdXNlZF9lbGVtZW50GBIgASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FbGVtZW50Rm9jdXMSSwoUZWxlbWVudF9ib3VuZGluZ19ib3gYEyABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkJvdW5kaW5nQm94QgIYARI/Cg5jbGlja19wb3NpdGlvbhgUIAEoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnRCAhgBEj0KDGN1cnNvcl90cmFpbBgVIAMoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnRCAhgBEhcKC3pvb21fZmFjdG9yGBYgASgBQgIYARJICgpzY3JlZW5zaG90GBcgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZVNjcmVlbnNob3RCAhgBEkEKCWFydGlmYWN0cxgYIAMoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdBJACglhc3NlcnRpb24YGSABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFzc2VydGlvblJlc3VsdBI/CgxyZXRyeV9zdGF0dXMYJSABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJldHJ5U3RhdHVzEhwKFGRvbV9zbmFwc2hvdF9wcmV2aWV3GCAgASgJEkQKDGRvbV9zbmFwc2hvdBghIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdBI0ChZleHRyYWN0ZWRfZGF0YV9wcmV2aWV3GCIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZRJACgl0ZWxlbWV0cnkYJCABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvblRlbGVtZXRyeUIICgZfZXJyb3JKBAgPEBBKBAgaEBtKBAgbEBxKBAgcEB1KBAgdEB5KBAgeEB9KBAgfECAiuQMKEFRpbWVsaW5lQXJ0aWZhY3QSCgoCaWQYASABKAkSOAoEdHlwZRgCIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXJ0aWZhY3RUeXBlEhIKBWxhYmVsGAMgASgJSACIAQESEwoLc3RvcmFnZV91cmwYBCABKAkSGgoNdGh1bWJuYWlsX3VybBgFIAEoCUgBiAEBEhQKDGNvbnRlbnRfdHlwZRgGIAEoCRIXCgpzaXplX2J5dGVzGAcgASgDSAKIAQESFwoKc3RlcF9pbmRleBgIIAEoBUgDiAEBEkwKB3BheWxvYWQYCiADKAsyOy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lQXJ0aWZhY3QuUGF5bG9hZEVudHJ5GkQKDFBheWxvYWRFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIICgZfbGFiZWxCEAoOX3RodW1ibmFpbF91cmxCDQoLX3NpemVfYnl0ZXNCDQoLX3N0ZXBfaW5kZXhKBAgJEAoiYQoMRWxlbWVudEZvY3VzEhAKCHNlbGVjdG9yGAEgASgJEj8KDGJvdW5kaW5nX2JveBgCIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3gitgEKC1RpbWVsaW5lTG9nEgoKAmlkGAEgASgJEjUKBWxldmVsGAIgASgOMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Mb2dMZXZlbBIPCgdtZXNzYWdlGAMgASgJEhYKCXN0ZXBfbmFtZRgEIAEoCUgAiAEBEi0KCXRpbWVzdGFtcBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCDAoKX3N0ZXBfbmFtZUJqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_geometry, file_browser_automation_studio_v1_selectors, file_browser_automation_studio_v1_telemetry]);
+  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIv4CChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjwKB2VudHJpZXMYByADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRW50cnkSNwoEbG9ncxgIIAMoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVMb2dCDwoNX2NvbXBsZXRlZF9hdCJPCg1UaW1lbGluZUZyYW1lEjoKBWVudHJ5GAEgASgLMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUVudHJ5OgIYAUJqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_timeline_entry]);
 
 /**
  * ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
- * This is the batch format containing all frames from a completed execution.
+ * Contains all timeline entries from a completed or in-progress execution.
  *
  * @generated from message browser_automation_studio.v1.ExecutionTimeline
  */
 export type ExecutionTimeline = Message<"browser_automation_studio.v1.ExecutionTimeline"> & {
   /**
-   * Unique identifier for this execution (UUID).
+   * Unique identifier for this execution (UUID format).
    *
    * @generated from field: string execution_id = 1;
    */
   executionId: string;
 
   /**
-   * Workflow ID associated with the execution (UUID).
+   * Workflow ID associated with the execution (UUID format).
    *
    * @generated from field: string workflow_id = 2;
    */
@@ -76,11 +68,12 @@ export type ExecutionTimeline = Message<"browser_automation_studio.v1.ExecutionT
   completedAt?: Timestamp;
 
   /**
-   * Ordered list of execution frames (one per workflow step).
+   * Ordered list of timeline entries (one per action/step).
+   * Uses the unified TimelineEntry format.
    *
-   * @generated from field: repeated browser_automation_studio.v1.TimelineFrame frames = 7;
+   * @generated from field: repeated browser_automation_studio.v1.TimelineEntry entries = 7;
    */
-  frames: TimelineFrame[];
+  entries: TimelineEntry[];
 
   /**
    * Console and execution logs captured during the run.
@@ -98,404 +91,26 @@ export const ExecutionTimelineSchema: GenMessage<ExecutionTimeline> = /*@__PURE_
   messageDesc(file_browser_automation_studio_v1_timeline, 0);
 
 /**
- * TimelineFrame captures a single workflow step in the execution timeline.
- *
- * DEPRECATION NOTICE: Several inline fields duplicate data in the `telemetry` field.
- * New consumers MUST use `telemetry.*` fields. Inline duplicates are deprecated
- * and will be removed in a future version.
- *
- * Deprecated inline fields → Use instead:
- *   - highlight_regions (16) → telemetry.highlight_regions
- *   - mask_regions (17)      → telemetry.mask_regions
- *   - element_bounding_box (19) → telemetry.element_bounding_box
- *   - click_position (20)    → telemetry.click_position
- *   - cursor_trail (21)      → telemetry.cursor_trail
- *   - zoom_factor (22)       → telemetry.zoom_factor
- *   - screenshot (23)        → telemetry.screenshot
+ * DEPRECATED: Use TimelineEntry from timeline_entry.proto instead.
+ * TimelineFrame is an alias for backwards compatibility.
  *
  * @generated from message browser_automation_studio.v1.TimelineFrame
+ * @deprecated
  */
 export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"> & {
   /**
-   * Zero-based index of this step in the execution.
+   * Delegate to TimelineEntry for all data.
    *
-   * @generated from field: int32 step_index = 1;
+   * @generated from field: browser_automation_studio.v1.TimelineEntry entry = 1;
    */
-  stepIndex: number;
-
-  /**
-   * Node ID from the workflow definition (UUID format).
-   *
-   * @generated from field: string node_id = 2;
-   */
-  nodeId: string;
-
-  /**
-   * Action type enum (for filtering/grouping without parsing full action).
-   *
-   * @generated from field: browser_automation_studio.v1.ActionType action_type = 3;
-   */
-  actionType: ActionType;
-
-  /**
-   * Full action definition with parameters and metadata.
-   * This provides complete action details for replay and debugging.
-   *
-   * @generated from field: browser_automation_studio.v1.ActionDefinition action = 35;
-   */
-  action?: ActionDefinition;
-
-  /**
-   * Step execution status.
-   *
-   * @generated from field: browser_automation_studio.v1.StepStatus status = 4;
-   */
-  status: StepStatus;
-
-  /**
-   * Whether this step succeeded.
-   *
-   * @generated from field: bool success = 5;
-   */
-  success: boolean;
-
-  /**
-   * Execution duration in milliseconds for this attempt.
-   *
-   * @generated from field: int32 duration_ms = 6;
-   */
-  durationMs: number;
-
-  /**
-   * Total time for the step including retries.
-   *
-   * @generated from field: int32 total_duration_ms = 7;
-   */
-  totalDurationMs: number;
-
-  /**
-   * Progress percentage at this step (0-100).
-   *
-   * @generated from field: int32 progress = 8;
-   */
-  progress: number;
-
-  /**
-   * When the step started.
-   *
-   * @generated from field: google.protobuf.Timestamp started_at = 9;
-   */
-  startedAt?: Timestamp;
-
-  /**
-   * When the step finished.
-   *
-   * @generated from field: google.protobuf.Timestamp completed_at = 10;
-   */
-  completedAt?: Timestamp;
-
-  /**
-   * Final URL after step execution (for navigation steps).
-   *
-   * @generated from field: string final_url = 11;
-   */
-  finalUrl: string;
-
-  /**
-   * Error message if the step failed.
-   *
-   * @generated from field: optional string error = 12;
-   */
-  error?: string;
-
-  /**
-   * Number of console log entries captured for this step.
-   *
-   * @generated from field: int32 console_log_count = 13;
-   */
-  consoleLogCount: number;
-
-  /**
-   * Number of network events captured for this step.
-   *
-   * @generated from field: int32 network_event_count = 14;
-   */
-  networkEventCount: number;
-
-  /**
-   * DEPRECATED: Use telemetry.highlight_regions instead.
-   *
-   * @generated from field: repeated browser_automation_studio.v1.HighlightRegion highlight_regions = 16 [deprecated = true];
-   * @deprecated
-   */
-  highlightRegions: HighlightRegion[];
-
-  /**
-   * DEPRECATED: Use telemetry.mask_regions instead.
-   *
-   * @generated from field: repeated browser_automation_studio.v1.MaskRegion mask_regions = 17 [deprecated = true];
-   * @deprecated
-   */
-  maskRegions: MaskRegion[];
-
-  /**
-   * Focused element metadata for the step.
-   *
-   * @generated from field: browser_automation_studio.v1.ElementFocus focused_element = 18;
-   */
-  focusedElement?: ElementFocus;
-
-  /**
-   * DEPRECATED: Use telemetry.element_bounding_box instead.
-   *
-   * @generated from field: browser_automation_studio.v1.BoundingBox element_bounding_box = 19 [deprecated = true];
-   * @deprecated
-   */
-  elementBoundingBox?: BoundingBox;
-
-  /**
-   * DEPRECATED: Use telemetry.click_position instead.
-   *
-   * @generated from field: browser_automation_studio.v1.Point click_position = 20 [deprecated = true];
-   * @deprecated
-   */
-  clickPosition?: Point;
-
-  /**
-   * DEPRECATED: Use telemetry.cursor_trail instead.
-   *
-   * @generated from field: repeated browser_automation_studio.v1.Point cursor_trail = 21 [deprecated = true];
-   * @deprecated
-   */
-  cursorTrail: Point[];
-
-  /**
-   * DEPRECATED: Use telemetry.zoom_factor instead.
-   *
-   * @generated from field: double zoom_factor = 22 [deprecated = true];
-   * @deprecated
-   */
-  zoomFactor: number;
-
-  /**
-   * DEPRECATED: Use telemetry.screenshot instead.
-   *
-   * @generated from field: browser_automation_studio.v1.TimelineScreenshot screenshot = 23 [deprecated = true];
-   * @deprecated
-   */
-  screenshot?: TimelineScreenshot;
-
-  /**
-   * Related artifacts (console logs, network traces, etc.).
-   *
-   * @generated from field: repeated browser_automation_studio.v1.TimelineArtifact artifacts = 24;
-   */
-  artifacts: TimelineArtifact[];
-
-  /**
-   * Assertion result for assert steps.
-   *
-   * @generated from field: browser_automation_studio.v1.AssertionResult assertion = 25;
-   */
-  assertion?: AssertionResult;
-
-  /**
-   * Retry status for this step (uses unified RetryStatus type).
-   * This replaces the individual retry_* fields for consistency.
-   *
-   * @generated from field: browser_automation_studio.v1.RetryStatus retry_status = 37;
-   */
-  retryStatus?: RetryStatus;
-
-  /**
-   * Truncated DOM snapshot preview text.
-   *
-   * @generated from field: string dom_snapshot_preview = 32;
-   */
-  domSnapshotPreview: string;
-
-  /**
-   * Artifact reference for the stored DOM snapshot.
-   *
-   * @generated from field: browser_automation_studio.v1.TimelineArtifact dom_snapshot = 33;
-   */
-  domSnapshot?: TimelineArtifact;
-
-  /**
-   * Typed preview of extracted data.
-   *
-   * @generated from field: common.v1.JsonValue extracted_data_preview = 34;
-   */
-  extractedDataPreview?: JsonValue;
-
-  /**
-   * Composed telemetry captured during this step.
-   * This is the CANONICAL source for telemetry data.
-   * Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
-   *
-   * @generated from field: browser_automation_studio.v1.ActionTelemetry telemetry = 36;
-   */
-  telemetry?: ActionTelemetry;
+  entry?: TimelineEntry;
 };
 
 /**
  * Describes the message browser_automation_studio.v1.TimelineFrame.
  * Use `create(TimelineFrameSchema)` to create a new message.
+ * @deprecated
  */
 export const TimelineFrameSchema: GenMessage<TimelineFrame> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline, 1);
-
-/**
- * TimelineArtifact exposes related artifacts such as console or network logs.
- *
- * @generated from message browser_automation_studio.v1.TimelineArtifact
- */
-export type TimelineArtifact = Message<"browser_automation_studio.v1.TimelineArtifact"> & {
-  /**
-   * Unique artifact ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Artifact type (timeline_frame, console_log, network_event, etc.).
-   *
-   * @generated from field: browser_automation_studio.v1.ArtifactType type = 2;
-   */
-  type: ArtifactType;
-
-  /**
-   * Optional human-readable label.
-   *
-   * @generated from field: optional string label = 3;
-   */
-  label?: string;
-
-  /**
-   * URL to download the artifact content.
-   *
-   * @generated from field: string storage_url = 4;
-   */
-  storageUrl: string;
-
-  /**
-   * URL to download an artifact thumbnail if available.
-   *
-   * @generated from field: optional string thumbnail_url = 5;
-   */
-  thumbnailUrl?: string;
-
-  /**
-   * MIME type for the artifact.
-   *
-   * @generated from field: string content_type = 6;
-   */
-  contentType: string;
-
-  /**
-   * Optional size in bytes for the artifact.
-   *
-   * @generated from field: optional int64 size_bytes = 7;
-   */
-  sizeBytes?: bigint;
-
-  /**
-   * Step index associated with this artifact, if any.
-   *
-   * @generated from field: optional int32 step_index = 8;
-   */
-  stepIndex?: number;
-
-  /**
-   * Provider-specific payload describing the artifact.
-   *
-   * @generated from field: map<string, common.v1.JsonValue> payload = 10;
-   */
-  payload: { [key: string]: JsonValue };
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineArtifact.
- * Use `create(TimelineArtifactSchema)` to create a new message.
- */
-export const TimelineArtifactSchema: GenMessage<TimelineArtifact> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 2);
-
-/**
- * ElementFocus captures focus metadata for screenshot framing.
- *
- * @generated from message browser_automation_studio.v1.ElementFocus
- */
-export type ElementFocus = Message<"browser_automation_studio.v1.ElementFocus"> & {
-  /**
-   * CSS selector of the focused element.
-   *
-   * @generated from field: string selector = 1;
-   */
-  selector: string;
-
-  /**
-   * Bounding box for the focused element - from unified.proto.
-   *
-   * @generated from field: browser_automation_studio.v1.BoundingBox bounding_box = 2;
-   */
-  boundingBox?: BoundingBox;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.ElementFocus.
- * Use `create(ElementFocusSchema)` to create a new message.
- */
-export const ElementFocusSchema: GenMessage<ElementFocus> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 3);
-
-/**
- * TimelineLog captures execution log output for replay consumers.
- *
- * @generated from message browser_automation_studio.v1.TimelineLog
- */
-export type TimelineLog = Message<"browser_automation_studio.v1.TimelineLog"> & {
-  /**
-   * Unique log entry ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Log level (debug, info, warn, error).
-   *
-   * @generated from field: browser_automation_studio.v1.LogLevel level = 2;
-   */
-  level: LogLevel;
-
-  /**
-   * Log message content.
-   *
-   * @generated from field: string message = 3;
-   */
-  message: string;
-
-  /**
-   * Associated step name, if any.
-   *
-   * @generated from field: optional string step_name = 4;
-   */
-  stepName?: string;
-
-  /**
-   * Timestamp when the log was recorded.
-   *
-   * @generated from field: google.protobuf.Timestamp timestamp = 5;
-   */
-  timestamp?: Timestamp;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineLog.
- * Use `create(TimelineLogSchema)` to create a new message.
- */
-export const TimelineLogSchema: GenMessage<TimelineLog> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 4);
 

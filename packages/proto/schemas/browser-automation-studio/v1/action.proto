@@ -267,31 +267,49 @@ message BlurParams {
 // ACTION METADATA
 // =============================================================================
 
-// ActionMetadata captures optional rich data from recording for debugging and fallbacks.
+// ActionMetadata captures optional rich context captured during action execution.
+// This data is captured identically during BOTH recording and execution, enabling:
+//   - Selector fallbacks: If primary selector fails, try alternatives
+//   - Debugging: See exactly what the system saw when it executed the action
+//   - Editing: Users can adjust selectors on failed steps using captured alternatives
+//
+// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
 message ActionMetadata {
   // Human-readable label for the action.
   optional string label = 1;
-  // Alternative selectors ranked by confidence (from recording).
+  // Alternative selectors ranked by confidence.
+  // Captured during both recording (user interactions) and execution (code-driven).
+  // Enables fallback selector strategies and user editing of failed steps.
   repeated SelectorCandidate selector_candidates = 2;
-  // Element state snapshot when action was recorded.
+  // Element state snapshot when action was captured.
+  // Provides context about the target element for debugging and selector refinement.
   optional ElementMeta element_snapshot = 3;
-  // Recording confidence score (0.0-1.0).
+  // Confidence score (0.0-1.0) for the primary selector.
+  // Higher values indicate more reliable selectors (data-testid > css class > xpath).
   optional double confidence = 4;
-  // When this action was originally recorded.
-  optional google.protobuf.Timestamp recorded_at = 5;
-  // Element bounding box when recorded.
-  optional BoundingBox recorded_bounding_box = 6;
+  // When this action was captured (during recording or execution).
+  optional google.protobuf.Timestamp captured_at = 5;
+  // Element bounding box when captured.
+  // Used for visual debugging and screenshot annotations.
+  optional BoundingBox captured_bounding_box = 6;
 }
 
 // =============================================================================
 // CORE ACTION DEFINITION
 // =============================================================================
 
-// ActionDefinition is THE unified action type used across:
-// - Recording (captured from user interactions)
-// - Workflows (stored definition)
-// - Execution (sent to playwright-driver)
-// - Timeline events (streamed to UI)
+// ActionDefinition is THE unified action type used across all BAS operations:
+//
+//   CONTEXT                   USAGE
+//   ─────────────────────────────────────────────────────────────────────────
+//   Recording                 Captured from user interactions with browser
+//   Workflow Storage          Persisted in WorkflowNodeV2.action
+//   Execution                 Sent to playwright-driver for replay
+//   Timeline Streaming        Streamed to UI during live recording/execution
+//   Timeline Batch            Returned in historical timeline queries
+//
+// This is the canonical representation of "what action to perform" throughout
+// the entire system. See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto.
 //
 // IMPORTANT: Type-Params Consistency Requirement
 // The `type` field MUST match the populated `params` oneof case:

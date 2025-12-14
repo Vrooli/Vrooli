@@ -22,6 +22,8 @@ const (
 )
 
 // SelectorCandidate is a single selector with metadata.
+// Used in ActionMetadata.selector_candidates to provide fallback selectors
+// captured during recording.
 type SelectorCandidate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Selector strategy type (css, xpath, id, data-testid, aria, text, etc.).
@@ -94,77 +96,6 @@ func (x *SelectorCandidate) GetSpecificity() int32 {
 	return 0
 }
 
-// SelectorSet contains multiple selector strategies for resilience.
-// This enables fallback behavior when the primary selector fails:
-// 1. Try primary selector first
-// 2. If primary fails, iterate through candidates by confidence score
-// 3. Store successful selector for future runs
-//
-// USAGE STATUS: Currently used internally by playwright-driver for resilient
-// element targeting. NOT exposed in ActionDefinition params - actions use
-// a simple string selector, with ActionMetadata.selector_candidates providing
-// fallback options from recording.
-//
-// FUTURE CONSIDERATION: May be integrated into action params to give users
-// explicit control over selector fallback behavior. Alternatively, this type
-// may be deprecated if ActionMetadata.selector_candidates proves sufficient.
-//
-// If you need resilient selectors, use ActionMetadata.selector_candidates
-// (populated during recording) rather than constructing SelectorSet manually.
-type SelectorSet struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Primary selector to use first.
-	Primary string `protobuf:"bytes,1,opt,name=primary,proto3" json:"primary,omitempty"`
-	// Alternative selector candidates ranked by preference.
-	Candidates    []*SelectorCandidate `protobuf:"bytes,2,rep,name=candidates,proto3" json:"candidates,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SelectorSet) Reset() {
-	*x = SelectorSet{}
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SelectorSet) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SelectorSet) ProtoMessage() {}
-
-func (x *SelectorSet) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SelectorSet.ProtoReflect.Descriptor instead.
-func (*SelectorSet) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_selectors_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *SelectorSet) GetPrimary() string {
-	if x != nil {
-		return x.Primary
-	}
-	return ""
-}
-
-func (x *SelectorSet) GetCandidates() []*SelectorCandidate {
-	if x != nil {
-		return x.Candidates
-	}
-	return nil
-}
-
 // ElementMeta captures information about a DOM element.
 type ElementMeta struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -192,7 +123,7 @@ type ElementMeta struct {
 
 func (x *ElementMeta) Reset() {
 	*x = ElementMeta{}
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -204,7 +135,7 @@ func (x *ElementMeta) String() string {
 func (*ElementMeta) ProtoMessage() {}
 
 func (x *ElementMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -217,7 +148,7 @@ func (x *ElementMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ElementMeta.ProtoReflect.Descriptor instead.
 func (*ElementMeta) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_selectors_proto_rawDescGZIP(), []int{2}
+	return file_browser_automation_studio_v1_selectors_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ElementMeta) GetTagName() string {
@@ -292,16 +223,9 @@ type HighlightRegion struct {
 	BoundingBox *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
 	// Padding in pixels around the region.
 	Padding int32 `protobuf:"varint,3,opt,name=padding,proto3" json:"padding,omitempty"`
-	// DEPRECATED: Use highlight_color enum instead.
-	// Legacy color as CSS string (e.g., "#ff0000" or "rgba(255,0,0,0.5)").
-	// Consumers should migrate to highlight_color for type safety.
-	//
-	// Deprecated: Marked as deprecated in browser-automation-studio/v1/selectors.proto.
-	Color string `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
-	// Typed highlight color. Prefer this over the deprecated 'color' field.
-	// When both are set, highlight_color takes precedence.
+	// Typed highlight color from the HighlightColor enum.
 	HighlightColor HighlightColor `protobuf:"varint,5,opt,name=highlight_color,json=highlightColor,proto3,enum=browser_automation_studio.v1.HighlightColor" json:"highlight_color,omitempty"`
-	// Custom RGBA color when highlight_color is insufficient.
+	// Custom RGBA color when the enum is insufficient.
 	// Format: "rgba(r,g,b,a)" where r,g,b are 0-255 and a is 0.0-1.0.
 	// Only used when highlight_color = HIGHLIGHT_COLOR_UNSPECIFIED.
 	CustomRgba    *string `protobuf:"bytes,6,opt,name=custom_rgba,json=customRgba,proto3,oneof" json:"custom_rgba,omitempty"`
@@ -311,7 +235,7 @@ type HighlightRegion struct {
 
 func (x *HighlightRegion) Reset() {
 	*x = HighlightRegion{}
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +247,7 @@ func (x *HighlightRegion) String() string {
 func (*HighlightRegion) ProtoMessage() {}
 
 func (x *HighlightRegion) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +260,7 @@ func (x *HighlightRegion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HighlightRegion.ProtoReflect.Descriptor instead.
 func (*HighlightRegion) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_selectors_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_selectors_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *HighlightRegion) GetSelector() string {
@@ -358,14 +282,6 @@ func (x *HighlightRegion) GetPadding() int32 {
 		return x.Padding
 	}
 	return 0
-}
-
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/selectors.proto.
-func (x *HighlightRegion) GetColor() string {
-	if x != nil {
-		return x.Color
-	}
-	return ""
 }
 
 func (x *HighlightRegion) GetHighlightColor() HighlightColor {
@@ -397,7 +313,7 @@ type MaskRegion struct {
 
 func (x *MaskRegion) Reset() {
 	*x = MaskRegion{}
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -409,7 +325,7 @@ func (x *MaskRegion) String() string {
 func (*MaskRegion) ProtoMessage() {}
 
 func (x *MaskRegion) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_selectors_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -422,7 +338,7 @@ func (x *MaskRegion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaskRegion.ProtoReflect.Descriptor instead.
 func (*MaskRegion) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_selectors_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_selectors_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *MaskRegion) GetSelector() string {
@@ -457,12 +373,7 @@ const file_browser_automation_studio_v1_selectors_proto_rawDesc = "" +
 	"\n" +
 	"confidence\x18\x03 \x01(\x01R\n" +
 	"confidence\x12 \n" +
-	"\vspecificity\x18\x04 \x01(\x05R\vspecificity\"x\n" +
-	"\vSelectorSet\x12\x18\n" +
-	"\aprimary\x18\x01 \x01(\tR\aprimary\x12O\n" +
-	"\n" +
-	"candidates\x18\x02 \x03(\v2/.browser_automation_studio.v1.SelectorCandidateR\n" +
-	"candidates\"\x81\x03\n" +
+	"\vspecificity\x18\x04 \x01(\x05R\vspecificity\"\x81\x03\n" +
 	"\vElementMeta\x12\x19\n" +
 	"\btag_name\x18\x01 \x01(\tR\atagName\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1d\n" +
@@ -482,16 +393,15 @@ const file_browser_automation_studio_v1_selectors_proto_rawDesc = "" +
 	"aria_label\x18\t \x01(\tR\tariaLabel\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbc\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa8\x02\n" +
 	"\x0fHighlightRegion\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
 	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\x12\x18\n" +
-	"\apadding\x18\x03 \x01(\x05R\apadding\x12\x18\n" +
-	"\x05color\x18\x04 \x01(\tB\x02\x18\x01R\x05color\x12U\n" +
+	"\apadding\x18\x03 \x01(\x05R\apadding\x12U\n" +
 	"\x0fhighlight_color\x18\x05 \x01(\x0e2,.browser_automation_studio.v1.HighlightColorR\x0ehighlightColor\x12$\n" +
 	"\vcustom_rgba\x18\x06 \x01(\tH\x00R\n" +
 	"customRgba\x88\x01\x01B\x0e\n" +
-	"\f_custom_rgba\"\x90\x01\n" +
+	"\f_custom_rgbaJ\x04\b\x04\x10\x05\"\x90\x01\n" +
 	"\n" +
 	"MaskRegion\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
@@ -510,30 +420,28 @@ func file_browser_automation_studio_v1_selectors_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_selectors_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_selectors_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_browser_automation_studio_v1_selectors_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_browser_automation_studio_v1_selectors_proto_goTypes = []any{
 	(*SelectorCandidate)(nil), // 0: browser_automation_studio.v1.SelectorCandidate
-	(*SelectorSet)(nil),       // 1: browser_automation_studio.v1.SelectorSet
-	(*ElementMeta)(nil),       // 2: browser_automation_studio.v1.ElementMeta
-	(*HighlightRegion)(nil),   // 3: browser_automation_studio.v1.HighlightRegion
-	(*MaskRegion)(nil),        // 4: browser_automation_studio.v1.MaskRegion
-	nil,                       // 5: browser_automation_studio.v1.ElementMeta.AttributesEntry
-	(SelectorType)(0),         // 6: browser_automation_studio.v1.SelectorType
-	(*BoundingBox)(nil),       // 7: browser_automation_studio.v1.BoundingBox
-	(HighlightColor)(0),       // 8: browser_automation_studio.v1.HighlightColor
+	(*ElementMeta)(nil),       // 1: browser_automation_studio.v1.ElementMeta
+	(*HighlightRegion)(nil),   // 2: browser_automation_studio.v1.HighlightRegion
+	(*MaskRegion)(nil),        // 3: browser_automation_studio.v1.MaskRegion
+	nil,                       // 4: browser_automation_studio.v1.ElementMeta.AttributesEntry
+	(SelectorType)(0),         // 5: browser_automation_studio.v1.SelectorType
+	(*BoundingBox)(nil),       // 6: browser_automation_studio.v1.BoundingBox
+	(HighlightColor)(0),       // 7: browser_automation_studio.v1.HighlightColor
 }
 var file_browser_automation_studio_v1_selectors_proto_depIdxs = []int32{
-	6, // 0: browser_automation_studio.v1.SelectorCandidate.type:type_name -> browser_automation_studio.v1.SelectorType
-	0, // 1: browser_automation_studio.v1.SelectorSet.candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
-	5, // 2: browser_automation_studio.v1.ElementMeta.attributes:type_name -> browser_automation_studio.v1.ElementMeta.AttributesEntry
-	7, // 3: browser_automation_studio.v1.HighlightRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	8, // 4: browser_automation_studio.v1.HighlightRegion.highlight_color:type_name -> browser_automation_studio.v1.HighlightColor
-	7, // 5: browser_automation_studio.v1.MaskRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	5, // 0: browser_automation_studio.v1.SelectorCandidate.type:type_name -> browser_automation_studio.v1.SelectorType
+	4, // 1: browser_automation_studio.v1.ElementMeta.attributes:type_name -> browser_automation_studio.v1.ElementMeta.AttributesEntry
+	6, // 2: browser_automation_studio.v1.HighlightRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	7, // 3: browser_automation_studio.v1.HighlightRegion.highlight_color:type_name -> browser_automation_studio.v1.HighlightColor
+	6, // 4: browser_automation_studio.v1.MaskRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_selectors_proto_init() }
@@ -543,14 +451,14 @@ func file_browser_automation_studio_v1_selectors_proto_init() {
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
 	file_browser_automation_studio_v1_geometry_proto_init()
-	file_browser_automation_studio_v1_selectors_proto_msgTypes[3].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_selectors_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_selectors_proto_rawDesc), len(file_browser_automation_studio_v1_selectors_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

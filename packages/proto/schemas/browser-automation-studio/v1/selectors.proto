@@ -12,6 +12,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // =============================================================================
 
 // SelectorCandidate is a single selector with metadata.
+// Used in ActionMetadata.selector_candidates to provide fallback selectors
+// captured during recording.
 message SelectorCandidate {
   // Selector strategy type (css, xpath, id, data-testid, aria, text, etc.).
   SelectorType type = 1;
@@ -21,30 +23,6 @@ message SelectorCandidate {
   double confidence = 3;
   // Specificity score for ranking selector candidates.
   int32 specificity = 4;
-}
-
-// SelectorSet contains multiple selector strategies for resilience.
-// This enables fallback behavior when the primary selector fails:
-// 1. Try primary selector first
-// 2. If primary fails, iterate through candidates by confidence score
-// 3. Store successful selector for future runs
-//
-// USAGE STATUS: Currently used internally by playwright-driver for resilient
-// element targeting. NOT exposed in ActionDefinition params - actions use
-// a simple string selector, with ActionMetadata.selector_candidates providing
-// fallback options from recording.
-//
-// FUTURE CONSIDERATION: May be integrated into action params to give users
-// explicit control over selector fallback behavior. Alternatively, this type
-// may be deprecated if ActionMetadata.selector_candidates proves sufficient.
-//
-// If you need resilient selectors, use ActionMetadata.selector_candidates
-// (populated during recording) rather than constructing SelectorSet manually.
-message SelectorSet {
-  // Primary selector to use first.
-  string primary = 1;
-  // Alternative selector candidates ranked by preference.
-  repeated SelectorCandidate candidates = 2;
 }
 
 // =============================================================================
@@ -77,9 +55,9 @@ message ElementMeta {
 // VISUAL OVERLAYS
 // =============================================================================
 //
-// NOTE: These types logically belong with screenshot/telemetry data.
-// They are kept here temporarily for backward compatibility but should
-// be considered part of the visualization/telemetry domain.
+// These types are used for screenshot annotations and element highlighting.
+// They are defined here alongside selectors because they reference element
+// targeting (selectors, bounding boxes).
 // =============================================================================
 
 // HighlightRegion describes an overlay applied to screenshots for emphasis.
@@ -90,14 +68,11 @@ message HighlightRegion {
   BoundingBox bounding_box = 2;
   // Padding in pixels around the region.
   int32 padding = 3;
-  // DEPRECATED: Use highlight_color enum instead.
-  // Legacy color as CSS string (e.g., "#ff0000" or "rgba(255,0,0,0.5)").
-  // Consumers should migrate to highlight_color for type safety.
-  string color = 4 [deprecated = true];
-  // Typed highlight color. Prefer this over the deprecated 'color' field.
-  // When both are set, highlight_color takes precedence.
+  // Reserved: field 4 was deprecated 'color' string.
+  reserved 4;
+  // Typed highlight color from the HighlightColor enum.
   HighlightColor highlight_color = 5;
-  // Custom RGBA color when highlight_color is insufficient.
+  // Custom RGBA color when the enum is insufficient.
   // Format: "rgba(r,g,b,a)" where r,g,b are 0-255 and a is 0.0-1.0.
   // Only used when highlight_color = HIGHLIGHT_COLOR_UNSPECIFIED.
   optional string custom_rgba = 6;
@@ -112,6 +87,3 @@ message MaskRegion {
   // Mask opacity value (0.0-1.0, where 1.0 is fully opaque).
   double opacity = 3;
 }
-
-// NOTE: TimelineScreenshot has been moved to telemetry.proto where it
-// logically belongs alongside ActionTelemetry.

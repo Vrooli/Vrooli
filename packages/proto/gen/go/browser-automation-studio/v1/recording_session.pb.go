@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: browser-automation-studio/v1/record_mode.proto
+// source: browser-automation-studio/v1/recording_session.proto
 
 package browser_automation_studio_v1
 
@@ -41,7 +41,7 @@ type RecordingState struct {
 
 func (x *RecordingState) Reset() {
 	*x = RecordingState{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -53,7 +53,7 @@ func (x *RecordingState) String() string {
 func (*RecordingState) ProtoMessage() {}
 
 func (x *RecordingState) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[0]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,7 +66,7 @@ func (x *RecordingState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordingState.ProtoReflect.Descriptor instead.
 func (*RecordingState) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{0}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *RecordingState) GetIsRecording() bool {
@@ -119,7 +119,7 @@ type CreateRecordingSessionRequest struct {
 
 func (x *CreateRecordingSessionRequest) Reset() {
 	*x = CreateRecordingSessionRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -131,7 +131,7 @@ func (x *CreateRecordingSessionRequest) String() string {
 func (*CreateRecordingSessionRequest) ProtoMessage() {}
 
 func (x *CreateRecordingSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[1]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -144,7 +144,7 @@ func (x *CreateRecordingSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRecordingSessionRequest.ProtoReflect.Descriptor instead.
 func (*CreateRecordingSessionRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{1}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreateRecordingSessionRequest) GetViewportWidth() int32 {
@@ -181,7 +181,7 @@ type CreateRecordingSessionResponse struct {
 
 func (x *CreateRecordingSessionResponse) Reset() {
 	*x = CreateRecordingSessionResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -193,7 +193,7 @@ func (x *CreateRecordingSessionResponse) String() string {
 func (*CreateRecordingSessionResponse) ProtoMessage() {}
 
 func (x *CreateRecordingSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[2]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -206,7 +206,7 @@ func (x *CreateRecordingSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRecordingSessionResponse.ProtoReflect.Descriptor instead.
 func (*CreateRecordingSessionResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{2}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateRecordingSessionResponse) GetSessionId() string {
@@ -236,7 +236,7 @@ type StartRecordingRequest struct {
 
 func (x *StartRecordingRequest) Reset() {
 	*x = StartRecordingRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -248,7 +248,7 @@ func (x *StartRecordingRequest) String() string {
 func (*StartRecordingRequest) ProtoMessage() {}
 
 func (x *StartRecordingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[3]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -261,7 +261,7 @@ func (x *StartRecordingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRecordingRequest.ProtoReflect.Descriptor instead.
 func (*StartRecordingRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{3}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *StartRecordingRequest) GetSessionId() string {
@@ -293,7 +293,7 @@ type StartRecordingResponse struct {
 
 func (x *StartRecordingResponse) Reset() {
 	*x = StartRecordingResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -305,7 +305,7 @@ func (x *StartRecordingResponse) String() string {
 func (*StartRecordingResponse) ProtoMessage() {}
 
 func (x *StartRecordingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[4]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -318,7 +318,7 @@ func (x *StartRecordingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRecordingResponse.ProtoReflect.Descriptor instead.
 func (*StartRecordingResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{4}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StartRecordingResponse) GetRecordingId() string {
@@ -351,15 +351,15 @@ type StopRecordingResponse struct {
 	SessionId string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Total number of actions captured.
 	ActionCount int32 `protobuf:"varint,3,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
-	// When recording stopped.
-	StoppedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=stopped_at,json=stoppedAt,proto3" json:"stopped_at,omitempty"`
+	// When recording completed.
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StopRecordingResponse) Reset() {
 	*x = StopRecordingResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -371,7 +371,7 @@ func (x *StopRecordingResponse) String() string {
 func (*StopRecordingResponse) ProtoMessage() {}
 
 func (x *StopRecordingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[5]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -384,7 +384,7 @@ func (x *StopRecordingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopRecordingResponse.ProtoReflect.Descriptor instead.
 func (*StopRecordingResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{5}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StopRecordingResponse) GetRecordingId() string {
@@ -408,9 +408,9 @@ func (x *StopRecordingResponse) GetActionCount() int32 {
 	return 0
 }
 
-func (x *StopRecordingResponse) GetStoppedAt() *timestamppb.Timestamp {
+func (x *StopRecordingResponse) GetCompletedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.StoppedAt
+		return x.CompletedAt
 	}
 	return nil
 }
@@ -434,7 +434,7 @@ type RecordingStatusResponse struct {
 
 func (x *RecordingStatusResponse) Reset() {
 	*x = RecordingStatusResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +446,7 @@ func (x *RecordingStatusResponse) String() string {
 func (*RecordingStatusResponse) ProtoMessage() {}
 
 func (x *RecordingStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[6]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +459,7 @@ func (x *RecordingStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordingStatusResponse.ProtoReflect.Descriptor instead.
 func (*RecordingStatusResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RecordingStatusResponse) GetSessionId() string {
@@ -497,14 +497,14 @@ func (x *RecordingStatusResponse) GetStartedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// GetActionsResponse returns captured timeline events from a recording session.
+// GetActionsResponse returns captured timeline entries from a recording session.
 type GetActionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session ID the events belong to.
+	// Session ID the entries belong to.
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	// Captured timeline events (unified format).
-	Events []*TimelineEvent `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
-	// Total number of events.
+	// Captured timeline entries (unified format).
+	Entries []*TimelineEntry `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Total number of entries.
 	Count         int32 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -512,7 +512,7 @@ type GetActionsResponse struct {
 
 func (x *GetActionsResponse) Reset() {
 	*x = GetActionsResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +524,7 @@ func (x *GetActionsResponse) String() string {
 func (*GetActionsResponse) ProtoMessage() {}
 
 func (x *GetActionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +537,7 @@ func (x *GetActionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetActionsResponse.ProtoReflect.Descriptor instead.
 func (*GetActionsResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetActionsResponse) GetSessionId() string {
@@ -547,9 +547,9 @@ func (x *GetActionsResponse) GetSessionId() string {
 	return ""
 }
 
-func (x *GetActionsResponse) GetEvents() []*TimelineEvent {
+func (x *GetActionsResponse) GetEntries() []*TimelineEntry {
 	if x != nil {
-		return x.Events
+		return x.Entries
 	}
 	return nil
 }
@@ -561,7 +561,7 @@ func (x *GetActionsResponse) GetCount() int32 {
 	return 0
 }
 
-// GenerateWorkflowRequest generates a workflow from recorded events.
+// GenerateWorkflowRequest generates a workflow from recorded entries.
 type GenerateWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Session ID to generate workflow from.
@@ -572,17 +572,17 @@ type GenerateWorkflowRequest struct {
 	ProjectId string `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Project name (for display).
 	ProjectName string `protobuf:"bytes,4,opt,name=project_name,json=projectName,proto3" json:"project_name,omitempty"`
-	// Event range to include (optional, defaults to all).
-	EventRange *GenerateWorkflowRequest_EventRange `protobuf:"bytes,5,opt,name=event_range,json=eventRange,proto3" json:"event_range,omitempty"`
-	// Timeline events to convert (optional, uses session events if empty).
-	Events        []*TimelineEvent `protobuf:"bytes,6,rep,name=events,proto3" json:"events,omitempty"`
+	// Entry range to include (optional, defaults to all).
+	EntryRange *GenerateWorkflowRequest_EntryRange `protobuf:"bytes,5,opt,name=entry_range,json=entryRange,proto3" json:"entry_range,omitempty"`
+	// Timeline entries to convert (optional, uses session entries if empty).
+	Entries       []*TimelineEntry `protobuf:"bytes,6,rep,name=entries,proto3" json:"entries,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GenerateWorkflowRequest) Reset() {
 	*x = GenerateWorkflowRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -594,7 +594,7 @@ func (x *GenerateWorkflowRequest) String() string {
 func (*GenerateWorkflowRequest) ProtoMessage() {}
 
 func (x *GenerateWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -607,7 +607,7 @@ func (x *GenerateWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*GenerateWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{8}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GenerateWorkflowRequest) GetSessionId() string {
@@ -638,16 +638,16 @@ func (x *GenerateWorkflowRequest) GetProjectName() string {
 	return ""
 }
 
-func (x *GenerateWorkflowRequest) GetEventRange() *GenerateWorkflowRequest_EventRange {
+func (x *GenerateWorkflowRequest) GetEntryRange() *GenerateWorkflowRequest_EntryRange {
 	if x != nil {
-		return x.EventRange
+		return x.EntryRange
 	}
 	return nil
 }
 
-func (x *GenerateWorkflowRequest) GetEvents() []*TimelineEvent {
+func (x *GenerateWorkflowRequest) GetEntries() []*TimelineEntry {
 	if x != nil {
-		return x.Events
+		return x.Entries
 	}
 	return nil
 }
@@ -663,15 +663,15 @@ type GenerateWorkflowResponse struct {
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	// Number of nodes in the generated workflow.
 	NodeCount int32 `protobuf:"varint,4,opt,name=node_count,json=nodeCount,proto3" json:"node_count,omitempty"`
-	// Number of events that were converted.
-	EventCount    int32 `protobuf:"varint,5,opt,name=event_count,json=eventCount,proto3" json:"event_count,omitempty"`
+	// Number of entries that were converted.
+	EntryCount    int32 `protobuf:"varint,5,opt,name=entry_count,json=entryCount,proto3" json:"entry_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GenerateWorkflowResponse) Reset() {
 	*x = GenerateWorkflowResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +683,7 @@ func (x *GenerateWorkflowResponse) String() string {
 func (*GenerateWorkflowResponse) ProtoMessage() {}
 
 func (x *GenerateWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +696,7 @@ func (x *GenerateWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*GenerateWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{9}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GenerateWorkflowResponse) GetWorkflowId() string {
@@ -727,21 +727,21 @@ func (x *GenerateWorkflowResponse) GetNodeCount() int32 {
 	return 0
 }
 
-func (x *GenerateWorkflowResponse) GetEventCount() int32 {
+func (x *GenerateWorkflowResponse) GetEntryCount() int32 {
 	if x != nil {
-		return x.EventCount
+		return x.EntryCount
 	}
 	return 0
 }
 
-// ReplayPreviewRequest tests recorded events by replaying them.
+// ReplayPreviewRequest tests recorded entries by replaying them.
 type ReplayPreviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Session ID to replay on.
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	// Timeline events to replay.
-	Events []*TimelineEvent `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
-	// Maximum number of events to replay.
+	// Timeline entries to replay.
+	Entries []*TimelineEntry `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Maximum number of entries to replay.
 	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Stop on first failure.
 	StopOnFailure bool `protobuf:"varint,4,opt,name=stop_on_failure,json=stopOnFailure,proto3" json:"stop_on_failure,omitempty"`
@@ -753,7 +753,7 @@ type ReplayPreviewRequest struct {
 
 func (x *ReplayPreviewRequest) Reset() {
 	*x = ReplayPreviewRequest{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +765,7 @@ func (x *ReplayPreviewRequest) String() string {
 func (*ReplayPreviewRequest) ProtoMessage() {}
 
 func (x *ReplayPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +778,7 @@ func (x *ReplayPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayPreviewRequest.ProtoReflect.Descriptor instead.
 func (*ReplayPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ReplayPreviewRequest) GetSessionId() string {
@@ -788,9 +788,9 @@ func (x *ReplayPreviewRequest) GetSessionId() string {
 	return ""
 }
 
-func (x *ReplayPreviewRequest) GetEvents() []*TimelineEvent {
+func (x *ReplayPreviewRequest) GetEntries() []*TimelineEntry {
 	if x != nil {
-		return x.Events
+		return x.Entries
 	}
 	return nil
 }
@@ -833,7 +833,7 @@ type ReplayEventError struct {
 
 func (x *ReplayEventError) Reset() {
 	*x = ReplayEventError{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -845,7 +845,7 @@ func (x *ReplayEventError) String() string {
 func (*ReplayEventError) ProtoMessage() {}
 
 func (x *ReplayEventError) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -858,7 +858,7 @@ func (x *ReplayEventError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayEventError.ProtoReflect.Descriptor instead.
 func (*ReplayEventError) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ReplayEventError) GetMessage() string {
@@ -889,12 +889,12 @@ func (x *ReplayEventError) GetSelector() string {
 	return ""
 }
 
-// ReplayEventResult is the result of replaying a single timeline event.
-type ReplayEventResult struct {
+// ReplayEntryResult is the result of replaying a single timeline entry.
+type ReplayEntryResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Event ID that was replayed.
-	EventId string `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Sequence number of the event.
+	// Entry ID that was replayed.
+	EntryId string `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	// Sequence number of the entry.
 	SequenceNum int32 `protobuf:"varint,2,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`
 	// Whether the replay succeeded.
 	Success bool `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
@@ -910,21 +910,21 @@ type ReplayEventResult struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ReplayEventResult) Reset() {
-	*x = ReplayEventResult{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[12]
+func (x *ReplayEntryResult) Reset() {
+	*x = ReplayEntryResult{}
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReplayEventResult) String() string {
+func (x *ReplayEntryResult) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReplayEventResult) ProtoMessage() {}
+func (*ReplayEntryResult) ProtoMessage() {}
 
-func (x *ReplayEventResult) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[12]
+func (x *ReplayEntryResult) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -935,54 +935,54 @@ func (x *ReplayEventResult) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReplayEventResult.ProtoReflect.Descriptor instead.
-func (*ReplayEventResult) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{12}
+// Deprecated: Use ReplayEntryResult.ProtoReflect.Descriptor instead.
+func (*ReplayEntryResult) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *ReplayEventResult) GetEventId() string {
+func (x *ReplayEntryResult) GetEntryId() string {
 	if x != nil {
-		return x.EventId
+		return x.EntryId
 	}
 	return ""
 }
 
-func (x *ReplayEventResult) GetSequenceNum() int32 {
+func (x *ReplayEntryResult) GetSequenceNum() int32 {
 	if x != nil {
 		return x.SequenceNum
 	}
 	return 0
 }
 
-func (x *ReplayEventResult) GetSuccess() bool {
+func (x *ReplayEntryResult) GetSuccess() bool {
 	if x != nil {
 		return x.Success
 	}
 	return false
 }
 
-func (x *ReplayEventResult) GetDurationMs() int32 {
+func (x *ReplayEntryResult) GetDurationMs() int32 {
 	if x != nil {
 		return x.DurationMs
 	}
 	return 0
 }
 
-func (x *ReplayEventResult) GetError() *ReplayEventError {
+func (x *ReplayEntryResult) GetError() *ReplayEventError {
 	if x != nil {
 		return x.Error
 	}
 	return nil
 }
 
-func (x *ReplayEventResult) GetScreenshotOnError() string {
+func (x *ReplayEntryResult) GetScreenshotOnError() string {
 	if x != nil {
 		return x.ScreenshotOnError
 	}
 	return ""
 }
 
-func (x *ReplayEventResult) GetAction() *ActionDefinition {
+func (x *ReplayEntryResult) GetAction() *ActionDefinition {
 	if x != nil {
 		return x.Action
 	}
@@ -992,16 +992,16 @@ func (x *ReplayEventResult) GetAction() *ActionDefinition {
 // ReplayPreviewResponse is returned from replay preview.
 type ReplayPreviewResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Overall success (all events passed).
+	// Overall success (all entries passed).
 	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// Total number of events attempted.
-	TotalEvents int32 `protobuf:"varint,2,opt,name=total_events,json=totalEvents,proto3" json:"total_events,omitempty"`
-	// Number of events that passed.
-	PassedEvents int32 `protobuf:"varint,3,opt,name=passed_events,json=passedEvents,proto3" json:"passed_events,omitempty"`
-	// Number of events that failed.
-	FailedEvents int32 `protobuf:"varint,4,opt,name=failed_events,json=failedEvents,proto3" json:"failed_events,omitempty"`
+	// Total number of entries attempted.
+	TotalEntries int32 `protobuf:"varint,2,opt,name=total_entries,json=totalEntries,proto3" json:"total_entries,omitempty"`
+	// Number of entries that passed.
+	PassedEntries int32 `protobuf:"varint,3,opt,name=passed_entries,json=passedEntries,proto3" json:"passed_entries,omitempty"`
+	// Number of entries that failed.
+	FailedEntries int32 `protobuf:"varint,4,opt,name=failed_entries,json=failedEntries,proto3" json:"failed_entries,omitempty"`
 	// Individual replay results.
-	Results []*ReplayEventResult `protobuf:"bytes,5,rep,name=results,proto3" json:"results,omitempty"`
+	Results []*ReplayEntryResult `protobuf:"bytes,5,rep,name=results,proto3" json:"results,omitempty"`
 	// Total duration of the replay in milliseconds.
 	TotalDurationMs int32 `protobuf:"varint,6,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
 	// Whether replay stopped early due to failure.
@@ -1012,7 +1012,7 @@ type ReplayPreviewResponse struct {
 
 func (x *ReplayPreviewResponse) Reset() {
 	*x = ReplayPreviewResponse{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1024,7 @@ func (x *ReplayPreviewResponse) String() string {
 func (*ReplayPreviewResponse) ProtoMessage() {}
 
 func (x *ReplayPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1037,7 @@ func (x *ReplayPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayPreviewResponse.ProtoReflect.Descriptor instead.
 func (*ReplayPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{13}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReplayPreviewResponse) GetSuccess() bool {
@@ -1047,28 +1047,28 @@ func (x *ReplayPreviewResponse) GetSuccess() bool {
 	return false
 }
 
-func (x *ReplayPreviewResponse) GetTotalEvents() int32 {
+func (x *ReplayPreviewResponse) GetTotalEntries() int32 {
 	if x != nil {
-		return x.TotalEvents
+		return x.TotalEntries
 	}
 	return 0
 }
 
-func (x *ReplayPreviewResponse) GetPassedEvents() int32 {
+func (x *ReplayPreviewResponse) GetPassedEntries() int32 {
 	if x != nil {
-		return x.PassedEvents
+		return x.PassedEntries
 	}
 	return 0
 }
 
-func (x *ReplayPreviewResponse) GetFailedEvents() int32 {
+func (x *ReplayPreviewResponse) GetFailedEntries() int32 {
 	if x != nil {
-		return x.FailedEvents
+		return x.FailedEntries
 	}
 	return 0
 }
 
-func (x *ReplayPreviewResponse) GetResults() []*ReplayEventResult {
+func (x *ReplayPreviewResponse) GetResults() []*ReplayEntryResult {
 	if x != nil {
 		return x.Results
 	}
@@ -1106,7 +1106,7 @@ type SelectorValidation struct {
 
 func (x *SelectorValidation) Reset() {
 	*x = SelectorValidation{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1118,7 +1118,7 @@ func (x *SelectorValidation) String() string {
 func (*SelectorValidation) ProtoMessage() {}
 
 func (x *SelectorValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[14]
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1131,7 +1131,7 @@ func (x *SelectorValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectorValidation.ProtoReflect.Descriptor instead.
 func (*SelectorValidation) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{14}
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SelectorValidation) GetValid() bool {
@@ -1162,8 +1162,8 @@ func (x *SelectorValidation) GetError() string {
 	return ""
 }
 
-// Optional range of events to include.
-type GenerateWorkflowRequest_EventRange struct {
+// Optional range of entries to include.
+type GenerateWorkflowRequest_EntryRange struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Start index (inclusive).
 	Start int32 `protobuf:"varint,1,opt,name=start,proto3" json:"start,omitempty"`
@@ -1173,21 +1173,21 @@ type GenerateWorkflowRequest_EventRange struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GenerateWorkflowRequest_EventRange) Reset() {
-	*x = GenerateWorkflowRequest_EventRange{}
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[15]
+func (x *GenerateWorkflowRequest_EntryRange) Reset() {
+	*x = GenerateWorkflowRequest_EntryRange{}
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GenerateWorkflowRequest_EventRange) String() string {
+func (x *GenerateWorkflowRequest_EntryRange) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GenerateWorkflowRequest_EventRange) ProtoMessage() {}
+func (*GenerateWorkflowRequest_EntryRange) ProtoMessage() {}
 
-func (x *GenerateWorkflowRequest_EventRange) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_record_mode_proto_msgTypes[15]
+func (x *GenerateWorkflowRequest_EntryRange) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_recording_session_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1198,30 +1198,30 @@ func (x *GenerateWorkflowRequest_EventRange) ProtoReflect() protoreflect.Message
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GenerateWorkflowRequest_EventRange.ProtoReflect.Descriptor instead.
-func (*GenerateWorkflowRequest_EventRange) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP(), []int{8, 0}
+// Deprecated: Use GenerateWorkflowRequest_EntryRange.ProtoReflect.Descriptor instead.
+func (*GenerateWorkflowRequest_EntryRange) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP(), []int{8, 0}
 }
 
-func (x *GenerateWorkflowRequest_EventRange) GetStart() int32 {
+func (x *GenerateWorkflowRequest_EntryRange) GetStart() int32 {
 	if x != nil {
 		return x.Start
 	}
 	return 0
 }
 
-func (x *GenerateWorkflowRequest_EventRange) GetEnd() int32 {
+func (x *GenerateWorkflowRequest_EntryRange) GetEnd() int32 {
 	if x != nil {
 		return x.End
 	}
 	return 0
 }
 
-var File_browser_automation_studio_v1_record_mode_proto protoreflect.FileDescriptor
+var File_browser_automation_studio_v1_recording_session_proto protoreflect.FileDescriptor
 
-const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
+const file_browser_automation_studio_v1_recording_session_proto_rawDesc = "" +
 	"\n" +
-	".browser-automation-studio/v1/record_mode.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)browser-automation-studio/v1/action.proto\x1a1browser-automation-studio/v1/timeline_event.proto\"\xd3\x01\n" +
+	"4browser-automation-studio/v1/recording_session.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)browser-automation-studio/v1/action.proto\x1a1browser-automation-studio/v1/timeline_entry.proto\"\xd3\x01\n" +
 	"\x0eRecordingState\x12!\n" +
 	"\fis_recording\x18\x01 \x01(\bR\visRecording\x12!\n" +
 	"\frecording_id\x18\x02 \x01(\tR\vrecordingId\x12\x1d\n" +
@@ -1249,14 +1249,13 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x129\n" +
 	"\n" +
-	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\xb7\x01\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\xbb\x01\n" +
 	"\x15StopRecordingResponse\x12!\n" +
 	"\frecording_id\x18\x01 \x01(\tR\vrecordingId\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x12!\n" +
-	"\faction_count\x18\x03 \x01(\x05R\vactionCount\x129\n" +
-	"\n" +
-	"stopped_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstoppedAt\"\xf0\x01\n" +
+	"\faction_count\x18\x03 \x01(\x05R\vactionCount\x12=\n" +
+	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\"\xf0\x01\n" +
 	"\x17RecordingStatusResponse\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
@@ -1265,12 +1264,12 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\faction_count\x18\x04 \x01(\x05R\vactionCount\x12>\n" +
 	"\n" +
 	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\tstartedAt\x88\x01\x01B\r\n" +
-	"\v_started_at\"\x8e\x01\n" +
+	"\v_started_at\"\x90\x01\n" +
 	"\x12GetActionsResponse\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12C\n" +
-	"\x06events\x18\x02 \x03(\v2+.browser_automation_studio.v1.TimelineEventR\x06events\x12\x14\n" +
-	"\x05count\x18\x03 \x01(\x05R\x05count\"\xec\x02\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12E\n" +
+	"\aentries\x18\x02 \x03(\v2+.browser_automation_studio.v1.TimelineEntryR\aentries\x12\x14\n" +
+	"\x05count\x18\x03 \x01(\x05R\x05count\"\xee\x02\n" +
 	"\x17GenerateWorkflowRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
@@ -1278,11 +1277,11 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x03 \x01(\tR\tprojectId\x12!\n" +
 	"\fproject_name\x18\x04 \x01(\tR\vprojectName\x12a\n" +
-	"\vevent_range\x18\x05 \x01(\v2@.browser_automation_studio.v1.GenerateWorkflowRequest.EventRangeR\n" +
-	"eventRange\x12C\n" +
-	"\x06events\x18\x06 \x03(\v2+.browser_automation_studio.v1.TimelineEventR\x06events\x1a4\n" +
+	"\ventry_range\x18\x05 \x01(\v2@.browser_automation_studio.v1.GenerateWorkflowRequest.EntryRangeR\n" +
+	"entryRange\x12E\n" +
+	"\aentries\x18\x06 \x03(\v2+.browser_automation_studio.v1.TimelineEntryR\aentries\x1a4\n" +
 	"\n" +
-	"EventRange\x12\x14\n" +
+	"EntryRange\x12\x14\n" +
 	"\x05start\x18\x01 \x01(\x05R\x05start\x12\x10\n" +
 	"\x03end\x18\x02 \x01(\x05R\x03end\"\xae\x01\n" +
 	"\x18GenerateWorkflowResponse\x12\x1f\n" +
@@ -1293,12 +1292,12 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
 	"node_count\x18\x04 \x01(\x05R\tnodeCount\x12\x1f\n" +
-	"\vevent_count\x18\x05 \x01(\x05R\n" +
-	"eventCount\"\xe4\x01\n" +
+	"\ventry_count\x18\x05 \x01(\x05R\n" +
+	"entryCount\"\xe6\x01\n" +
 	"\x14ReplayPreviewRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12C\n" +
-	"\x06events\x18\x02 \x03(\v2+.browser_automation_studio.v1.TimelineEventR\x06events\x12\x14\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12E\n" +
+	"\aentries\x18\x02 \x03(\v2+.browser_automation_studio.v1.TimelineEntryR\aentries\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12&\n" +
 	"\x0fstop_on_failure\x18\x04 \x01(\bR\rstopOnFailure\x12*\n" +
 	"\x11action_timeout_ms\x18\x05 \x01(\x05R\x0factionTimeoutMs\"}\n" +
@@ -1308,21 +1307,21 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\vmatch_count\x18\x03 \x01(\x05R\n" +
 	"matchCount\x12\x1a\n" +
 	"\bselector\x18\x04 \x01(\tR\bselector\"\xca\x02\n" +
-	"\x11ReplayEventResult\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12!\n" +
+	"\x11ReplayEntryResult\x12\x19\n" +
+	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12!\n" +
 	"\fsequence_num\x18\x02 \x01(\x05R\vsequenceNum\x12\x18\n" +
 	"\asuccess\x18\x03 \x01(\bR\asuccess\x12\x1f\n" +
 	"\vduration_ms\x18\x04 \x01(\x05R\n" +
 	"durationMs\x12D\n" +
 	"\x05error\x18\x05 \x01(\v2..browser_automation_studio.v1.ReplayEventErrorR\x05error\x12.\n" +
 	"\x13screenshot_on_error\x18\x06 \x01(\tR\x11screenshotOnError\x12F\n" +
-	"\x06action\x18\a \x01(\v2..browser_automation_studio.v1.ActionDefinitionR\x06action\"\xba\x02\n" +
+	"\x06action\x18\a \x01(\v2..browser_automation_studio.v1.ActionDefinitionR\x06action\"\xc0\x02\n" +
 	"\x15ReplayPreviewResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12!\n" +
-	"\ftotal_events\x18\x02 \x01(\x05R\vtotalEvents\x12#\n" +
-	"\rpassed_events\x18\x03 \x01(\x05R\fpassedEvents\x12#\n" +
-	"\rfailed_events\x18\x04 \x01(\x05R\ffailedEvents\x12I\n" +
-	"\aresults\x18\x05 \x03(\v2/.browser_automation_studio.v1.ReplayEventResultR\aresults\x12*\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
+	"\rtotal_entries\x18\x02 \x01(\x05R\ftotalEntries\x12%\n" +
+	"\x0epassed_entries\x18\x03 \x01(\x05R\rpassedEntries\x12%\n" +
+	"\x0efailed_entries\x18\x04 \x01(\x05R\rfailedEntries\x12I\n" +
+	"\aresults\x18\x05 \x03(\v2/.browser_automation_studio.v1.ReplayEntryResultR\aresults\x12*\n" +
 	"\x11total_duration_ms\x18\x06 \x01(\x05R\x0ftotalDurationMs\x12#\n" +
 	"\rstopped_early\x18\a \x01(\bR\fstoppedEarly\"}\n" +
 	"\x12SelectorValidation\x12\x14\n" +
@@ -1333,19 +1332,19 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\x05error\x18\x04 \x01(\tR\x05errorBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
-	file_browser_automation_studio_v1_record_mode_proto_rawDescOnce sync.Once
-	file_browser_automation_studio_v1_record_mode_proto_rawDescData []byte
+	file_browser_automation_studio_v1_recording_session_proto_rawDescOnce sync.Once
+	file_browser_automation_studio_v1_recording_session_proto_rawDescData []byte
 )
 
-func file_browser_automation_studio_v1_record_mode_proto_rawDescGZIP() []byte {
-	file_browser_automation_studio_v1_record_mode_proto_rawDescOnce.Do(func() {
-		file_browser_automation_studio_v1_record_mode_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_record_mode_proto_rawDesc), len(file_browser_automation_studio_v1_record_mode_proto_rawDesc)))
+func file_browser_automation_studio_v1_recording_session_proto_rawDescGZIP() []byte {
+	file_browser_automation_studio_v1_recording_session_proto_rawDescOnce.Do(func() {
+		file_browser_automation_studio_v1_recording_session_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_recording_session_proto_rawDesc), len(file_browser_automation_studio_v1_recording_session_proto_rawDesc)))
 	})
-	return file_browser_automation_studio_v1_record_mode_proto_rawDescData
+	return file_browser_automation_studio_v1_recording_session_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_record_mode_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
-var file_browser_automation_studio_v1_record_mode_proto_goTypes = []any{
+var file_browser_automation_studio_v1_recording_session_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_browser_automation_studio_v1_recording_session_proto_goTypes = []any{
 	(*RecordingState)(nil),                     // 0: browser_automation_studio.v1.RecordingState
 	(*CreateRecordingSessionRequest)(nil),      // 1: browser_automation_studio.v1.CreateRecordingSessionRequest
 	(*CreateRecordingSessionResponse)(nil),     // 2: browser_automation_studio.v1.CreateRecordingSessionResponse
@@ -1358,27 +1357,27 @@ var file_browser_automation_studio_v1_record_mode_proto_goTypes = []any{
 	(*GenerateWorkflowResponse)(nil),           // 9: browser_automation_studio.v1.GenerateWorkflowResponse
 	(*ReplayPreviewRequest)(nil),               // 10: browser_automation_studio.v1.ReplayPreviewRequest
 	(*ReplayEventError)(nil),                   // 11: browser_automation_studio.v1.ReplayEventError
-	(*ReplayEventResult)(nil),                  // 12: browser_automation_studio.v1.ReplayEventResult
+	(*ReplayEntryResult)(nil),                  // 12: browser_automation_studio.v1.ReplayEntryResult
 	(*ReplayPreviewResponse)(nil),              // 13: browser_automation_studio.v1.ReplayPreviewResponse
 	(*SelectorValidation)(nil),                 // 14: browser_automation_studio.v1.SelectorValidation
-	(*GenerateWorkflowRequest_EventRange)(nil), // 15: browser_automation_studio.v1.GenerateWorkflowRequest.EventRange
+	(*GenerateWorkflowRequest_EntryRange)(nil), // 15: browser_automation_studio.v1.GenerateWorkflowRequest.EntryRange
 	(*timestamppb.Timestamp)(nil),              // 16: google.protobuf.Timestamp
-	(*TimelineEvent)(nil),                      // 17: browser_automation_studio.v1.TimelineEvent
+	(*TimelineEntry)(nil),                      // 17: browser_automation_studio.v1.TimelineEntry
 	(*ActionDefinition)(nil),                   // 18: browser_automation_studio.v1.ActionDefinition
 }
-var file_browser_automation_studio_v1_record_mode_proto_depIdxs = []int32{
+var file_browser_automation_studio_v1_recording_session_proto_depIdxs = []int32{
 	16, // 0: browser_automation_studio.v1.RecordingState.started_at:type_name -> google.protobuf.Timestamp
 	16, // 1: browser_automation_studio.v1.CreateRecordingSessionResponse.created_at:type_name -> google.protobuf.Timestamp
 	16, // 2: browser_automation_studio.v1.StartRecordingResponse.started_at:type_name -> google.protobuf.Timestamp
-	16, // 3: browser_automation_studio.v1.StopRecordingResponse.stopped_at:type_name -> google.protobuf.Timestamp
+	16, // 3: browser_automation_studio.v1.StopRecordingResponse.completed_at:type_name -> google.protobuf.Timestamp
 	16, // 4: browser_automation_studio.v1.RecordingStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	17, // 5: browser_automation_studio.v1.GetActionsResponse.events:type_name -> browser_automation_studio.v1.TimelineEvent
-	15, // 6: browser_automation_studio.v1.GenerateWorkflowRequest.event_range:type_name -> browser_automation_studio.v1.GenerateWorkflowRequest.EventRange
-	17, // 7: browser_automation_studio.v1.GenerateWorkflowRequest.events:type_name -> browser_automation_studio.v1.TimelineEvent
-	17, // 8: browser_automation_studio.v1.ReplayPreviewRequest.events:type_name -> browser_automation_studio.v1.TimelineEvent
-	11, // 9: browser_automation_studio.v1.ReplayEventResult.error:type_name -> browser_automation_studio.v1.ReplayEventError
-	18, // 10: browser_automation_studio.v1.ReplayEventResult.action:type_name -> browser_automation_studio.v1.ActionDefinition
-	12, // 11: browser_automation_studio.v1.ReplayPreviewResponse.results:type_name -> browser_automation_studio.v1.ReplayEventResult
+	17, // 5: browser_automation_studio.v1.GetActionsResponse.entries:type_name -> browser_automation_studio.v1.TimelineEntry
+	15, // 6: browser_automation_studio.v1.GenerateWorkflowRequest.entry_range:type_name -> browser_automation_studio.v1.GenerateWorkflowRequest.EntryRange
+	17, // 7: browser_automation_studio.v1.GenerateWorkflowRequest.entries:type_name -> browser_automation_studio.v1.TimelineEntry
+	17, // 8: browser_automation_studio.v1.ReplayPreviewRequest.entries:type_name -> browser_automation_studio.v1.TimelineEntry
+	11, // 9: browser_automation_studio.v1.ReplayEntryResult.error:type_name -> browser_automation_studio.v1.ReplayEventError
+	18, // 10: browser_automation_studio.v1.ReplayEntryResult.action:type_name -> browser_automation_studio.v1.ActionDefinition
+	12, // 11: browser_automation_studio.v1.ReplayPreviewResponse.results:type_name -> browser_automation_studio.v1.ReplayEntryResult
 	12, // [12:12] is the sub-list for method output_type
 	12, // [12:12] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
@@ -1386,29 +1385,29 @@ var file_browser_automation_studio_v1_record_mode_proto_depIdxs = []int32{
 	0,  // [0:12] is the sub-list for field type_name
 }
 
-func init() { file_browser_automation_studio_v1_record_mode_proto_init() }
-func file_browser_automation_studio_v1_record_mode_proto_init() {
-	if File_browser_automation_studio_v1_record_mode_proto != nil {
+func init() { file_browser_automation_studio_v1_recording_session_proto_init() }
+func file_browser_automation_studio_v1_recording_session_proto_init() {
+	if File_browser_automation_studio_v1_recording_session_proto != nil {
 		return
 	}
 	file_browser_automation_studio_v1_action_proto_init()
-	file_browser_automation_studio_v1_timeline_event_proto_init()
-	file_browser_automation_studio_v1_record_mode_proto_msgTypes[6].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_timeline_entry_proto_init()
+	file_browser_automation_studio_v1_recording_session_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_record_mode_proto_rawDesc), len(file_browser_automation_studio_v1_record_mode_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_recording_session_proto_rawDesc), len(file_browser_automation_studio_v1_recording_session_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_browser_automation_studio_v1_record_mode_proto_goTypes,
-		DependencyIndexes: file_browser_automation_studio_v1_record_mode_proto_depIdxs,
-		MessageInfos:      file_browser_automation_studio_v1_record_mode_proto_msgTypes,
+		GoTypes:           file_browser_automation_studio_v1_recording_session_proto_goTypes,
+		DependencyIndexes: file_browser_automation_studio_v1_recording_session_proto_depIdxs,
+		MessageInfos:      file_browser_automation_studio_v1_recording_session_proto_msgTypes,
 	}.Build()
-	File_browser_automation_studio_v1_record_mode_proto = out.File
-	file_browser_automation_studio_v1_record_mode_proto_goTypes = nil
-	file_browser_automation_studio_v1_record_mode_proto_depIdxs = nil
+	File_browser_automation_studio_v1_recording_session_proto = out.File
+	file_browser_automation_studio_v1_recording_session_proto_goTypes = nil
+	file_browser_automation_studio_v1_recording_session_proto_depIdxs = nil
 }

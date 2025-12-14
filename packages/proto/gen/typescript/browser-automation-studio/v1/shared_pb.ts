@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/shared.proto.
  */
 export const file_browser_automation_studio_v1_shared: GenFile = /*@__PURE__*/
-  fileDesc("Cilicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NoYXJlZC5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSJjCgxSZXRyeUF0dGVtcHQSDwoHYXR0ZW1wdBgBIAEoBRIPCgdzdWNjZXNzGAIgASgIEhMKC2R1cmF0aW9uX21zGAMgASgFEhIKBWVycm9yGAQgASgJSACIAQFCCAoGX2Vycm9yIrcBCgtSZXRyeVN0YXR1cxIXCg9jdXJyZW50X2F0dGVtcHQYASABKAUSFAoMbWF4X2F0dGVtcHRzGAIgASgFEhAKCGRlbGF5X21zGAMgASgFEhYKDmJhY2tvZmZfZmFjdG9yGAQgASgBEhIKCmNvbmZpZ3VyZWQYBSABKAgSOwoHaGlzdG9yeRgGIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmV0cnlBdHRlbXB0IqoCCg9Bc3NlcnRpb25SZXN1bHQSOQoEbW9kZRgBIAEoDjIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0aW9uTW9kZRIQCghzZWxlY3RvchgCIAEoCRIrCghleHBlY3RlZBgDIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWVIAIgBARIpCgZhY3R1YWwYBCABKAsyFC5jb21tb24udjEuSnNvblZhbHVlSAGIAQESDwoHc3VjY2VzcxgFIAEoCBIPCgduZWdhdGVkGAYgASgIEhYKDmNhc2Vfc2Vuc2l0aXZlGAcgASgIEhQKB21lc3NhZ2UYCCABKAlIAogBAUILCglfZXhwZWN0ZWRCCQoHX2FjdHVhbEIKCghfbWVzc2FnZSrMAQoPRXhlY3V0aW9uU3RhdHVzEiAKHEVYRUNVVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhFWEVDVVRJT05fU1RBVFVTX1BFTkRJTkcQARIcChhFWEVDVVRJT05fU1RBVFVTX1JVTk5JTkcQAhIeChpFWEVDVVRJT05fU1RBVFVTX0NPTVBMRVRFRBADEhsKF0VYRUNVVElPTl9TVEFUVVNfRkFJTEVEEAQSHgoaRVhFQ1VUSU9OX1NUQVRVU19DQU5DRUxMRUQQBSqQAQoLVHJpZ2dlclR5cGUSHAoYVFJJR0dFUl9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTVFJJR0dFUl9UWVBFX01BTlVBTBABEhoKFlRSSUdHRVJfVFlQRV9TQ0hFRFVMRUQQAhIUChBUUklHR0VSX1RZUEVfQVBJEAMSGAoUVFJJR0dFUl9UWVBFX1dFQkhPT0sQBCrcAQoKU3RlcFN0YXR1cxIbChdTVEVQX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE1NURVBfU1RBVFVTX1BFTkRJTkcQARIXChNTVEVQX1NUQVRVU19SVU5OSU5HEAISGQoVU1RFUF9TVEFUVVNfQ09NUExFVEVEEAMSFgoSU1RFUF9TVEFUVVNfRkFJTEVEEAQSGQoVU1RFUF9TVEFUVVNfQ0FOQ0VMTEVEEAUSFwoTU1RFUF9TVEFUVVNfU0tJUFBFRBAGEhgKFFNURVBfU1RBVFVTX1JFVFJZSU5HEAcqdwoITG9nTGV2ZWwSGQoVTE9HX0xFVkVMX1VOU1BFQ0lGSUVEEAASEwoPTE9HX0xFVkVMX0RFQlVHEAESEgoOTE9HX0xFVkVMX0lORk8QAhISCg5MT0dfTEVWRUxfV0FSThADEhMKD0xPR19MRVZFTF9FUlJPUhAEKoACCgxBcnRpZmFjdFR5cGUSHQoZQVJUSUZBQ1RfVFlQRV9VTlNQRUNJRklFRBAAEiAKHEFSVElGQUNUX1RZUEVfVElNRUxJTkVfRlJBTUUQARIdChlBUlRJRkFDVF9UWVBFX0NPTlNPTEVfTE9HEAISHwobQVJUSUZBQ1RfVFlQRV9ORVRXT1JLX0VWRU5UEAMSHAoYQVJUSUZBQ1RfVFlQRV9TQ1JFRU5TSE9UEAQSHgoaQVJUSUZBQ1RfVFlQRV9ET01fU05BUFNIT1QQBRIXChNBUlRJRkFDVF9UWVBFX1RSQUNFEAYSGAoUQVJUSUZBQ1RfVFlQRV9DVVNUT00QByqwAQoJRXZlbnRLaW5kEhoKFkVWRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIcChhFVkVOVF9LSU5EX1NUQVRVU19VUERBVEUQARIdChlFVkVOVF9LSU5EX1RJTUVMSU5FX0ZSQU1FEAISEgoORVZFTlRfS0lORF9MT0cQAxIYChRFVkVOVF9LSU5EX0hFQVJUQkVBVBAEEhgKFEVWRU5UX0tJTkRfVEVMRU1FVFJZEAUaAhgBKpkBCgxFeHBvcnRTdGF0dXMSHQoZRVhQT1JUX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE0VYUE9SVF9TVEFUVVNfUkVBRFkQARIZChVFWFBPUlRfU1RBVFVTX1BFTkRJTkcQAhIXChNFWFBPUlRfU1RBVFVTX0VSUk9SEAMSHQoZRVhQT1JUX1NUQVRVU19VTkFWQUlMQUJMRRAEKq4CCgxTZWxlY3RvclR5cGUSHQoZU0VMRUNUT1JfVFlQRV9VTlNQRUNJRklFRBAAEhUKEVNFTEVDVE9SX1RZUEVfQ1NTEAESFwoTU0VMRUNUT1JfVFlQRV9YUEFUSBACEhQKEFNFTEVDVE9SX1RZUEVfSUQQAxIdChlTRUxFQ1RPUl9UWVBFX0RBVEFfVEVTVElEEAQSFgoSU0VMRUNUT1JfVFlQRV9BUklBEAUSFgoSU0VMRUNUT1JfVFlQRV9URVhUEAYSFgoSU0VMRUNUT1JfVFlQRV9ST0xFEAcSHQoZU0VMRUNUT1JfVFlQRV9QTEFDRUhPTERFUhAIEhoKFlNFTEVDVE9SX1RZUEVfQUxUX1RFWFQQCRIXChNTRUxFQ1RPUl9UWVBFX1RJVExFEAoqlwEKEE5ldHdvcmtFdmVudFR5cGUSIgoeTkVUV09SS19FVkVOVF9UWVBFX1VOU1BFQ0lGSUVEEAASHgoaTkVUV09SS19FVkVOVF9UWVBFX1JFUVVFU1QQARIfChtORVRXT1JLX0VWRU5UX1RZUEVfUkVTUE9OU0UQAhIeChpORVRXT1JLX0VWRU5UX1RZUEVfRkFJTFVSRRADKmsKD1JlY29yZGluZ1NvdXJjZRIgChxSRUNPUkRJTkdfU09VUkNFX1VOU1BFQ0lGSUVEEAASGQoVUkVDT1JESU5HX1NPVVJDRV9BVVRPEAESGwoXUkVDT1JESU5HX1NPVVJDRV9NQU5VQUwQAirWAQoQV29ya2Zsb3dFZGdlVHlwZRIiCh5XT1JLRkxPV19FREdFX1RZUEVfVU5TUEVDSUZJRUQQABIeChpXT1JLRkxPV19FREdFX1RZUEVfREVGQVVMVBABEiEKHVdPUktGTE9XX0VER0VfVFlQRV9TTU9PVEhTVEVQEAISGwoXV09SS0ZMT1dfRURHRV9UWVBFX1NURVAQAxIfChtXT1JLRkxPV19FREdFX1RZUEVfU1RSQUlHSFQQBBIdChlXT1JLRkxPV19FREdFX1RZUEVfQkVaSUVSEAUqlwEKElZhbGlkYXRpb25TZXZlcml0eRIjCh9WQUxJREFUSU9OX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASHQoZVkFMSURBVElPTl9TRVZFUklUWV9FUlJPUhABEh8KG1ZBTElEQVRJT05fU0VWRVJJVFlfV0FSTklORxACEhwKGFZBTElEQVRJT05fU0VWRVJJVFlfSU5GTxADKroBCgxDaGFuZ2VTb3VyY2USHQoZQ0hBTkdFX1NPVVJDRV9VTlNQRUNJRklFRBAAEhgKFENIQU5HRV9TT1VSQ0VfTUFOVUFMEAESGgoWQ0hBTkdFX1NPVVJDRV9BVVRPU0FWRRACEhgKFENIQU5HRV9TT1VSQ0VfSU1QT1JUEAMSHgoaQ0hBTkdFX1NPVVJDRV9BSV9HRU5FUkFURUQQBBIbChdDSEFOR0VfU09VUkNFX1JFQ09SRElORxAFKq4CCg1Bc3NlcnRpb25Nb2RlEh4KGkFTU0VSVElPTl9NT0RFX1VOU1BFQ0lGSUVEEAASGQoVQVNTRVJUSU9OX01PREVfRVhJU1RTEAESHQoZQVNTRVJUSU9OX01PREVfTk9UX0VYSVNUUxACEhoKFkFTU0VSVElPTl9NT0RFX1ZJU0lCTEUQAxIZChVBU1NFUlRJT05fTU9ERV9ISURERU4QBBIeChpBU1NFUlRJT05fTU9ERV9URVhUX0VRVUFMUxAFEiAKHEFTU0VSVElPTl9NT0RFX1RFWFRfQ09OVEFJTlMQBhIjCh9BU1NFUlRJT05fTU9ERV9BVFRSSUJVVEVfRVFVQUxTEAcSJQohQVNTRVJUSU9OX01PREVfQVRUUklCVVRFX0NPTlRBSU5TEAgq1wIKDkhpZ2hsaWdodENvbG9yEh8KG0hJR0hMSUdIVF9DT0xPUl9VTlNQRUNJRklFRBAAEhcKE0hJR0hMSUdIVF9DT0xPUl9SRUQQARIZChVISUdITElHSFRfQ09MT1JfR1JFRU4QAhIYChRISUdITElHSFRfQ09MT1JfQkxVRRADEhoKFkhJR0hMSUdIVF9DT0xPUl9ZRUxMT1cQBBIaChZISUdITElHSFRfQ09MT1JfT1JBTkdFEAUSGgoWSElHSExJR0hUX0NPTE9SX1BVUlBMRRAGEhgKFEhJR0hMSUdIVF9DT0xPUl9DWUFOEAcSGAoUSElHSExJR0hUX0NPTE9SX1BJTksQCBIZChVISUdITElHSFRfQ09MT1JfV0hJVEUQCRIYChRISUdITElHSFRfQ09MT1JfR1JBWRAKEhkKFUhJR0hMSUdIVF9DT0xPUl9CTEFDSxALQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_common_v1_types]);
+  fileDesc("Cilicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NoYXJlZC5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSJjCgxSZXRyeUF0dGVtcHQSDwoHYXR0ZW1wdBgBIAEoBRIPCgdzdWNjZXNzGAIgASgIEhMKC2R1cmF0aW9uX21zGAMgASgFEhIKBWVycm9yGAQgASgJSACIAQFCCAoGX2Vycm9yIrcBCgtSZXRyeVN0YXR1cxIXCg9jdXJyZW50X2F0dGVtcHQYASABKAUSFAoMbWF4X2F0dGVtcHRzGAIgASgFEhAKCGRlbGF5X21zGAMgASgFEhYKDmJhY2tvZmZfZmFjdG9yGAQgASgBEhIKCmNvbmZpZ3VyZWQYBSABKAgSOwoHaGlzdG9yeRgGIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmV0cnlBdHRlbXB0IqoCCg9Bc3NlcnRpb25SZXN1bHQSOQoEbW9kZRgBIAEoDjIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0aW9uTW9kZRIQCghzZWxlY3RvchgCIAEoCRIrCghleHBlY3RlZBgDIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWVIAIgBARIpCgZhY3R1YWwYBCABKAsyFC5jb21tb24udjEuSnNvblZhbHVlSAGIAQESDwoHc3VjY2VzcxgFIAEoCBIPCgduZWdhdGVkGAYgASgIEhYKDmNhc2Vfc2Vuc2l0aXZlGAcgASgIEhQKB21lc3NhZ2UYCCABKAlIAogBAUILCglfZXhwZWN0ZWRCCQoHX2FjdHVhbEIKCghfbWVzc2FnZSKEBQoMRXZlbnRDb250ZXh0EhQKCnNlc3Npb25faWQYASABKAlIABIWCgxleGVjdXRpb25faWQYAiABKAlIABJCCgZzb3VyY2UYBSABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZGluZ1NvdXJjZUgBiAEBEh8KEm5lZWRzX2NvbmZpcm1hdGlvbhgGIAEoCEgCiAEBEhQKB3N1Y2Nlc3MYCiABKAhIA4gBARISCgVlcnJvchgLIAEoCUgEiAEBEhcKCmVycm9yX2NvZGUYDCABKAlIBYgBARJECgxyZXRyeV9zdGF0dXMYFCABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJldHJ5U3RhdHVzSAaIAQESRQoJYXNzZXJ0aW9uGBkgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Bc3NlcnRpb25SZXN1bHRIB4gBARJVCg5leHRyYWN0ZWRfZGF0YRgeIAMoCzI9LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXZlbnRDb250ZXh0LkV4dHJhY3RlZERhdGFFbnRyeRpKChJFeHRyYWN0ZWREYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCCAoGb3JpZ2luQgkKB19zb3VyY2VCFQoTX25lZWRzX2NvbmZpcm1hdGlvbkIKCghfc3VjY2Vzc0IICgZfZXJyb3JCDQoLX2Vycm9yX2NvZGVCDwoNX3JldHJ5X3N0YXR1c0IMCgpfYXNzZXJ0aW9uKswBCg9FeGVjdXRpb25TdGF0dXMSIAocRVhFQ1VUSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEhwKGEVYRUNVVElPTl9TVEFUVVNfUEVORElORxABEhwKGEVYRUNVVElPTl9TVEFUVVNfUlVOTklORxACEh4KGkVYRUNVVElPTl9TVEFUVVNfQ09NUExFVEVEEAMSGwoXRVhFQ1VUSU9OX1NUQVRVU19GQUlMRUQQBBIeChpFWEVDVVRJT05fU1RBVFVTX0NBTkNFTExFRBAFKpABCgtUcmlnZ2VyVHlwZRIcChhUUklHR0VSX1RZUEVfVU5TUEVDSUZJRUQQABIXChNUUklHR0VSX1RZUEVfTUFOVUFMEAESGgoWVFJJR0dFUl9UWVBFX1NDSEVEVUxFRBACEhQKEFRSSUdHRVJfVFlQRV9BUEkQAxIYChRUUklHR0VSX1RZUEVfV0VCSE9PSxAEKtwBCgpTdGVwU3RhdHVzEhsKF1NURVBfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFwoTU1RFUF9TVEFUVVNfUEVORElORxABEhcKE1NURVBfU1RBVFVTX1JVTk5JTkcQAhIZChVTVEVQX1NUQVRVU19DT01QTEVURUQQAxIWChJTVEVQX1NUQVRVU19GQUlMRUQQBBIZChVTVEVQX1NUQVRVU19DQU5DRUxMRUQQBRIXChNTVEVQX1NUQVRVU19TS0lQUEVEEAYSGAoUU1RFUF9TVEFUVVNfUkVUUllJTkcQByp3CghMb2dMZXZlbBIZChVMT0dfTEVWRUxfVU5TUEVDSUZJRUQQABITCg9MT0dfTEVWRUxfREVCVUcQARISCg5MT0dfTEVWRUxfSU5GTxACEhIKDkxPR19MRVZFTF9XQVJOEAMSEwoPTE9HX0xFVkVMX0VSUk9SEAQqgAIKDEFydGlmYWN0VHlwZRIdChlBUlRJRkFDVF9UWVBFX1VOU1BFQ0lGSUVEEAASIAocQVJUSUZBQ1RfVFlQRV9USU1FTElORV9GUkFNRRABEh0KGUFSVElGQUNUX1RZUEVfQ09OU09MRV9MT0cQAhIfChtBUlRJRkFDVF9UWVBFX05FVFdPUktfRVZFTlQQAxIcChhBUlRJRkFDVF9UWVBFX1NDUkVFTlNIT1QQBBIeChpBUlRJRkFDVF9UWVBFX0RPTV9TTkFQU0hPVBAFEhcKE0FSVElGQUNUX1RZUEVfVFJBQ0UQBhIYChRBUlRJRkFDVF9UWVBFX0NVU1RPTRAHKpkBCgxFeHBvcnRTdGF0dXMSHQoZRVhQT1JUX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE0VYUE9SVF9TVEFUVVNfUkVBRFkQARIZChVFWFBPUlRfU1RBVFVTX1BFTkRJTkcQAhIXChNFWFBPUlRfU1RBVFVTX0VSUk9SEAMSHQoZRVhQT1JUX1NUQVRVU19VTkFWQUlMQUJMRRAEKq4CCgxTZWxlY3RvclR5cGUSHQoZU0VMRUNUT1JfVFlQRV9VTlNQRUNJRklFRBAAEhUKEVNFTEVDVE9SX1RZUEVfQ1NTEAESFwoTU0VMRUNUT1JfVFlQRV9YUEFUSBACEhQKEFNFTEVDVE9SX1RZUEVfSUQQAxIdChlTRUxFQ1RPUl9UWVBFX0RBVEFfVEVTVElEEAQSFgoSU0VMRUNUT1JfVFlQRV9BUklBEAUSFgoSU0VMRUNUT1JfVFlQRV9URVhUEAYSFgoSU0VMRUNUT1JfVFlQRV9ST0xFEAcSHQoZU0VMRUNUT1JfVFlQRV9QTEFDRUhPTERFUhAIEhoKFlNFTEVDVE9SX1RZUEVfQUxUX1RFWFQQCRIXChNTRUxFQ1RPUl9UWVBFX1RJVExFEAoqlwEKEE5ldHdvcmtFdmVudFR5cGUSIgoeTkVUV09SS19FVkVOVF9UWVBFX1VOU1BFQ0lGSUVEEAASHgoaTkVUV09SS19FVkVOVF9UWVBFX1JFUVVFU1QQARIfChtORVRXT1JLX0VWRU5UX1RZUEVfUkVTUE9OU0UQAhIeChpORVRXT1JLX0VWRU5UX1RZUEVfRkFJTFVSRRADKmsKD1JlY29yZGluZ1NvdXJjZRIgChxSRUNPUkRJTkdfU09VUkNFX1VOU1BFQ0lGSUVEEAASGQoVUkVDT1JESU5HX1NPVVJDRV9BVVRPEAESGwoXUkVDT1JESU5HX1NPVVJDRV9NQU5VQUwQAirWAQoQV29ya2Zsb3dFZGdlVHlwZRIiCh5XT1JLRkxPV19FREdFX1RZUEVfVU5TUEVDSUZJRUQQABIeChpXT1JLRkxPV19FREdFX1RZUEVfREVGQVVMVBABEiEKHVdPUktGTE9XX0VER0VfVFlQRV9TTU9PVEhTVEVQEAISGwoXV09SS0ZMT1dfRURHRV9UWVBFX1NURVAQAxIfChtXT1JLRkxPV19FREdFX1RZUEVfU1RSQUlHSFQQBBIdChlXT1JLRkxPV19FREdFX1RZUEVfQkVaSUVSEAUqlwEKElZhbGlkYXRpb25TZXZlcml0eRIjCh9WQUxJREFUSU9OX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASHQoZVkFMSURBVElPTl9TRVZFUklUWV9FUlJPUhABEh8KG1ZBTElEQVRJT05fU0VWRVJJVFlfV0FSTklORxACEhwKGFZBTElEQVRJT05fU0VWRVJJVFlfSU5GTxADKroBCgxDaGFuZ2VTb3VyY2USHQoZQ0hBTkdFX1NPVVJDRV9VTlNQRUNJRklFRBAAEhgKFENIQU5HRV9TT1VSQ0VfTUFOVUFMEAESGgoWQ0hBTkdFX1NPVVJDRV9BVVRPU0FWRRACEhgKFENIQU5HRV9TT1VSQ0VfSU1QT1JUEAMSHgoaQ0hBTkdFX1NPVVJDRV9BSV9HRU5FUkFURUQQBBIbChdDSEFOR0VfU09VUkNFX1JFQ09SRElORxAFKq4CCg1Bc3NlcnRpb25Nb2RlEh4KGkFTU0VSVElPTl9NT0RFX1VOU1BFQ0lGSUVEEAASGQoVQVNTRVJUSU9OX01PREVfRVhJU1RTEAESHQoZQVNTRVJUSU9OX01PREVfTk9UX0VYSVNUUxACEhoKFkFTU0VSVElPTl9NT0RFX1ZJU0lCTEUQAxIZChVBU1NFUlRJT05fTU9ERV9ISURERU4QBBIeChpBU1NFUlRJT05fTU9ERV9URVhUX0VRVUFMUxAFEiAKHEFTU0VSVElPTl9NT0RFX1RFWFRfQ09OVEFJTlMQBhIjCh9BU1NFUlRJT05fTU9ERV9BVFRSSUJVVEVfRVFVQUxTEAcSJQohQVNTRVJUSU9OX01PREVfQVRUUklCVVRFX0NPTlRBSU5TEAgq1wIKDkhpZ2hsaWdodENvbG9yEh8KG0hJR0hMSUdIVF9DT0xPUl9VTlNQRUNJRklFRBAAEhcKE0hJR0hMSUdIVF9DT0xPUl9SRUQQARIZChVISUdITElHSFRfQ09MT1JfR1JFRU4QAhIYChRISUdITElHSFRfQ09MT1JfQkxVRRADEhoKFkhJR0hMSUdIVF9DT0xPUl9ZRUxMT1cQBBIaChZISUdITElHSFRfQ09MT1JfT1JBTkdFEAUSGgoWSElHSExJR0hUX0NPTE9SX1BVUlBMRRAGEhgKFEhJR0hMSUdIVF9DT0xPUl9DWUFOEAcSGAoUSElHSExJR0hUX0NPTE9SX1BJTksQCBIZChVISUdITElHSFRfQ09MT1JfV0hJVEUQCRIYChRISUdITElHSFRfQ09MT1JfR1JBWRAKEhkKFUhJR0hMSUdIVF9DT0xPUl9CTEFDSxALQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_common_v1_types]);
 
 /**
  * RetryAttempt captures the outcome of a single retry attempt.
@@ -185,6 +185,117 @@ export type AssertionResult = Message<"browser_automation_studio.v1.AssertionRes
  */
 export const AssertionResultSchema: GenMessage<AssertionResult> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_shared, 2);
+
+/**
+ * EventContext captures the origin and outcome of a timeline entry.
+ * This type unifies what was previously RecordingContext and ExecutionContext,
+ * reflecting the fact that recording and execution capture the same data.
+ *
+ * Populated during both:
+ *   - Recording: Human controls browser, system captures events
+ *   - Execution: Code controls browser, system captures events
+ *
+ * The only distinction is the origin (session_id vs execution_id) and whether
+ * certain UI workflow flags apply (needs_confirmation).
+ *
+ * @generated from message browser_automation_studio.v1.EventContext
+ */
+export type EventContext = Message<"browser_automation_studio.v1.EventContext"> & {
+  /**
+   * === ORIGIN ===
+   * Exactly one of these is set, indicating where the event originated.
+   *
+   * @generated from oneof browser_automation_studio.v1.EventContext.origin
+   */
+  origin: {
+    /**
+     * Recording session ID (UUID format). Set when event comes from recording.
+     *
+     * @generated from field: string session_id = 1;
+     */
+    value: string;
+    case: "sessionId";
+  } | {
+    /**
+     * Execution run ID (UUID format). Set when event comes from execution.
+     *
+     * @generated from field: string execution_id = 2;
+     */
+    value: string;
+    case: "executionId";
+  } | { case: undefined; value?: undefined };
+
+  /**
+   * === CAPTURE METADATA ===
+   * How the action was captured. Primarily relevant for recording, but could
+   * apply to AI-assisted execution in the future.
+   *
+   * @generated from field: optional browser_automation_studio.v1.RecordingSource source = 5;
+   */
+  source?: RecordingSource;
+
+  /**
+   * UI workflow flag: user should confirm/edit this action before proceeding.
+   * Used during recording to flag uncertain actions for human review.
+   *
+   * @generated from field: optional bool needs_confirmation = 6;
+   */
+  needsConfirmation?: boolean;
+
+  /**
+   * === EXECUTION OUTCOME ===
+   * These fields are populated after the action completes (in either mode).
+   * Whether the action succeeded.
+   *
+   * @generated from field: optional bool success = 10;
+   */
+  success?: boolean;
+
+  /**
+   * Error message if the action failed.
+   *
+   * @generated from field: optional string error = 11;
+   */
+  error?: string;
+
+  /**
+   * Error code for programmatic handling.
+   *
+   * @generated from field: optional string error_code = 12;
+   */
+  errorCode?: string;
+
+  /**
+   * === RETRY TRACKING ===
+   * Retry status for this action (populated if retries are configured).
+   *
+   * @generated from field: optional browser_automation_studio.v1.RetryStatus retry_status = 20;
+   */
+  retryStatus?: RetryStatus;
+
+  /**
+   * === ASSERTION RESULT ===
+   * Assertion result (for assert actions only).
+   *
+   * @generated from field: optional browser_automation_studio.v1.AssertionResult assertion = 25;
+   */
+  assertion?: AssertionResult;
+
+  /**
+   * === EXTRACTED DATA ===
+   * Extracted data from evaluate actions (variable name -> value).
+   *
+   * @generated from field: map<string, common.v1.JsonValue> extracted_data = 30;
+   */
+  extractedData: { [key: string]: JsonValue };
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.EventContext.
+ * Use `create(EventContextSchema)` to create a new message.
+ */
+export const EventContextSchema: GenMessage<EventContext> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_shared, 3);
 
 /**
  * ExecutionStatus enumerates high-level execution states.
@@ -412,66 +523,6 @@ export const ArtifactTypeSchema: GenEnum<ArtifactType> = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_shared, 4);
 
 /**
- * EventKind enumerates WebSocket event types.
- *
- * DEPRECATED: This enum and ExecutionEventEnvelope (in execution.proto) are
- * superseded by the unified streaming format:
- *   - Use TimelineMessageType (timeline_event.proto) for message routing
- *   - Use TimelineStreamMessage (timeline_event.proto) as the envelope
- *   - Use TimelineEvent (timeline_event.proto) for action/telemetry data
- *
- * MIGRATION GUIDE:
- *   EVENT_KIND_STATUS_UPDATE  → TIMELINE_MESSAGE_TYPE_STATUS + TimelineStatusUpdate
- *   EVENT_KIND_TIMELINE_FRAME → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent
- *   EVENT_KIND_LOG            → (logs are now embedded in TimelineEvent.telemetry.console_logs)
- *   EVENT_KIND_HEARTBEAT      → TIMELINE_MESSAGE_TYPE_HEARTBEAT + TimelineHeartbeat
- *   EVENT_KIND_TELEMETRY      → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent.telemetry
- *
- * This enum will be removed once all consumers migrate to TimelineStreamMessage.
- *
- * @generated from enum browser_automation_studio.v1.EventKind
- * @deprecated
- */
-export enum EventKind {
-  /**
-   * @generated from enum value: EVENT_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: EVENT_KIND_STATUS_UPDATE = 1;
-   */
-  STATUS_UPDATE = 1,
-
-  /**
-   * @generated from enum value: EVENT_KIND_TIMELINE_FRAME = 2;
-   */
-  TIMELINE_FRAME = 2,
-
-  /**
-   * @generated from enum value: EVENT_KIND_LOG = 3;
-   */
-  LOG = 3,
-
-  /**
-   * @generated from enum value: EVENT_KIND_HEARTBEAT = 4;
-   */
-  HEARTBEAT = 4,
-
-  /**
-   * @generated from enum value: EVENT_KIND_TELEMETRY = 5;
-   */
-  TELEMETRY = 5,
-}
-
-/**
- * Describes the enum browser_automation_studio.v1.EventKind.
- * @deprecated
- */
-export const EventKindSchema: GenEnum<EventKind> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 5);
-
-/**
  * ExportStatus indicates readiness for execution export.
  *
  * @generated from enum browser_automation_studio.v1.ExportStatus
@@ -507,7 +558,7 @@ export enum ExportStatus {
  * Describes the enum browser_automation_studio.v1.ExportStatus.
  */
 export const ExportStatusSchema: GenEnum<ExportStatus> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 6);
+  enumDesc(file_browser_automation_studio_v1_shared, 5);
 
 /**
  * SelectorType enumerates supported selector strategies for element targeting.
@@ -575,7 +626,7 @@ export enum SelectorType {
  * Describes the enum browser_automation_studio.v1.SelectorType.
  */
 export const SelectorTypeSchema: GenEnum<SelectorType> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 7);
+  enumDesc(file_browser_automation_studio_v1_shared, 6);
 
 /**
  * NetworkEventType enumerates network event kinds captured during execution.
@@ -608,7 +659,7 @@ export enum NetworkEventType {
  * Describes the enum browser_automation_studio.v1.NetworkEventType.
  */
 export const NetworkEventTypeSchema: GenEnum<NetworkEventType> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 8);
+  enumDesc(file_browser_automation_studio_v1_shared, 7);
 
 /**
  * RecordingSource indicates how an action was captured during recording.
@@ -636,7 +687,7 @@ export enum RecordingSource {
  * Describes the enum browser_automation_studio.v1.RecordingSource.
  */
 export const RecordingSourceSchema: GenEnum<RecordingSource> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 9);
+  enumDesc(file_browser_automation_studio_v1_shared, 8);
 
 /**
  * WorkflowEdgeType enumerates visual edge rendering styles.
@@ -679,7 +730,7 @@ export enum WorkflowEdgeType {
  * Describes the enum browser_automation_studio.v1.WorkflowEdgeType.
  */
 export const WorkflowEdgeTypeSchema: GenEnum<WorkflowEdgeType> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 10);
+  enumDesc(file_browser_automation_studio_v1_shared, 9);
 
 /**
  * ValidationSeverity enumerates issue severity levels for workflow validation.
@@ -712,7 +763,7 @@ export enum ValidationSeverity {
  * Describes the enum browser_automation_studio.v1.ValidationSeverity.
  */
 export const ValidationSeveritySchema: GenEnum<ValidationSeverity> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 11);
+  enumDesc(file_browser_automation_studio_v1_shared, 10);
 
 /**
  * ChangeSource indicates the origin of a workflow modification.
@@ -755,7 +806,7 @@ export enum ChangeSource {
  * Describes the enum browser_automation_studio.v1.ChangeSource.
  */
 export const ChangeSourceSchema: GenEnum<ChangeSource> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 12);
+  enumDesc(file_browser_automation_studio_v1_shared, 11);
 
 /**
  * AssertionMode enumerates supported assertion types.
@@ -813,7 +864,7 @@ export enum AssertionMode {
  * Describes the enum browser_automation_studio.v1.AssertionMode.
  */
 export const AssertionModeSchema: GenEnum<AssertionMode> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 13);
+  enumDesc(file_browser_automation_studio_v1_shared, 12);
 
 /**
  * HighlightColor enumerates supported highlight overlay colors.
@@ -915,5 +966,5 @@ export enum HighlightColor {
  * Describes the enum browser_automation_studio.v1.HighlightColor.
  */
 export const HighlightColorSchema: GenEnum<HighlightColor> = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_shared, 14);
+  enumDesc(file_browser_automation_studio_v1_shared, 13);
 

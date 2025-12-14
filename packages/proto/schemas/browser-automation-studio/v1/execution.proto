@@ -4,10 +4,8 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/timestamp.proto";
 import "common/v1/types.proto";
-import "browser-automation-studio/v1/action.proto";
 import "browser-automation-studio/v1/shared.proto";
 import "browser-automation-studio/v1/telemetry.proto";
-import "browser-automation-studio/v1/timeline.proto";
 import "browser-automation-studio/v1/workflow_v2.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
@@ -104,7 +102,7 @@ message Execution {
   // When the execution completed (null if still running).
   optional google.protobuf.Timestamp completed_at = 9;
   // Last heartbeat received from the executor.
-  google.protobuf.Timestamp last_heartbeat = 10;
+  google.protobuf.Timestamp last_heartbeat_at = 10;
   // Error message if the execution failed.
   optional string error = 11;
   // Progress percentage (0-100).
@@ -190,7 +188,7 @@ message ExecutionScreenshot {
   // Human-readable step label (derived from action type/metadata).
   optional string step_label = 4;
   // When the screenshot was captured.
-  google.protobuf.Timestamp captured_at = 5;
+  google.protobuf.Timestamp timestamp = 5;
 }
 
 // GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
@@ -201,59 +199,6 @@ message GetScreenshotsResponse {
   repeated ExecutionScreenshot screenshots = 2;
   // Total count of screenshots.
   int32 total = 3;
-}
-
-// =============================================================================
-// WEBSOCKET EVENTS (LEGACY)
-// =============================================================================
-//
-// DEPRECATION NOTICE: The types in this section are superseded by the unified
-// streaming format in timeline_event.proto. See EventKind migration guide in
-// shared.proto for details.
-//
-// New implementations MUST use:
-//   - TimelineStreamMessage (envelope)
-//   - TimelineEvent (action + telemetry)
-//   - TimelineStatusUpdate (status changes)
-//   - TimelineHeartbeat (keep-alive)
-// =============================================================================
-
-// ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
-//
-// DEPRECATED: Use TimelineStreamMessage from timeline_event.proto instead.
-// TimelineStreamMessage provides a unified format for both recording and execution
-// streaming, with proper ActionDefinition and ActionTelemetry composition.
-//
-// This message is retained ONLY for backward compatibility with existing consumers
-// and will be removed in a future version.
-message ExecutionEventEnvelope {
-  option deprecated = true;
-  // Schema version for the envelope.
-  string schema_version = 1;
-  // Payload version for downstream consumers.
-  string payload_version = 2;
-  // Event kind (status_update, timeline_frame, log, heartbeat, telemetry, etc.).
-  EventKind kind = 3;
-  // Execution ID the event belongs to.
-  string execution_id = 4;
-  // Workflow ID the execution belongs to.
-  string workflow_id = 5;
-  // Zero-based step index if applicable.
-  optional int32 step_index = 6;
-  // Attempt number for retries.
-  optional int32 attempt = 7;
-  // Monotonic sequence number for ordering.
-  optional int64 sequence = 8;
-  // RFC3339 timestamp for the event.
-  google.protobuf.Timestamp timestamp = 9;
-  // Event payload typed by kind.
-  oneof payload {
-    StatusUpdateEvent status_update = 11;
-    TimelineFrameEvent timeline_frame = 12;
-    LogEvent log = 13;
-    HeartbeatEvent heartbeat = 14;
-    TelemetryEvent telemetry = 15;
-  }
 }
 
 // =============================================================================
@@ -283,87 +228,27 @@ message ExecutionExportPreview {
 }
 
 // =============================================================================
-// EVENT PAYLOADS
+// EXECUTOR METRICS
+// =============================================================================
+//
+// These types capture executor health and performance data for monitoring.
+// Used by TimelineHeartbeat in timeline_event.proto.
 // =============================================================================
 
-// StatusUpdateEvent carries execution-level status changes.
-message StatusUpdateEvent {
-  // Current execution status.
-  ExecutionStatus status = 1;
-  // Progress percentage (0-100).
-  int32 progress = 2;
-  // Current step description when available.
-  optional string current_step = 3;
-  // Error details when status is failed.
-  optional string error = 4;
-  // When the status change occurred.
-  google.protobuf.Timestamp occurred_at = 5;
-}
-
-// TimelineFrameEvent transports timeline frame updates.
-message TimelineFrameEvent {
-  // The timeline frame data.
-  TimelineFrame frame = 1;
-}
-
-// LogMetadata provides typed context for log events.
-message LogMetadata {
-  // Node ID where the log originated (UUID format).
-  optional string node_id = 1;
-  // Action type for step-related logs.
-  optional ActionType action_type = 2;
-  // URL at the time of logging.
-  optional string url = 3;
-  // Stack trace for error logs.
-  optional string stack_trace = 4;
-  // Component/module that emitted the log.
-  optional string component = 5;
-}
-
-// LogEvent captures execution log events.
-message LogEvent {
-  // Log level.
-  LogLevel level = 1;
-  // Log message.
-  string message = 2;
-  // Optional step context for the log.
-  optional int32 step_index = 3;
-  // When the log occurred.
-  google.protobuf.Timestamp occurred_at = 4;
-  // Reserved: field 5 was 'context', field 6 was untyped metadata map.
-  reserved 5, 6;
-  // Typed log metadata.
-  LogMetadata metadata = 7;
-}
-
-// HeartbeatMetrics provides typed executor metrics.
-message HeartbeatMetrics {
+// ExecutorMetrics provides typed health metrics from the executor process.
+message ExecutorMetrics {
   // Memory usage in bytes.
   optional int64 memory_bytes = 1;
   // CPU usage percentage (0-100).
   optional double cpu_percent = 2;
   // Number of active browser pages.
   optional int32 active_pages = 3;
-  // Current step being executed.
-  optional int32 current_step = 4;
-  // Total steps in the workflow.
-  optional int32 total_steps = 5;
+  // Reserved: fields 4-5 were current_step/total_steps (redundant with progress).
+  reserved 4, 5;
 }
 
-// HeartbeatEvent reports liveness/progress signals.
-message HeartbeatEvent {
-  // When the heartbeat was received.
-  google.protobuf.Timestamp received_at = 1;
-  // Progress percentage.
-  int32 progress = 2;
-  // Reserved: field 3 was 'context', field 4 was untyped metrics map.
-  reserved 3, 4;
-  // Typed executor metrics.
-  HeartbeatMetrics metrics = 5;
-}
-
-// TelemetryMetrics provides typed telemetry data.
-message TelemetryMetrics {
+// PerformanceMetrics provides web performance data captured during execution.
+message PerformanceMetrics {
   // Network request count.
   optional int32 network_requests = 1;
   // Total bytes transferred.
@@ -380,14 +265,4 @@ message TelemetryMetrics {
   optional int32 fid_ms = 7;
   // Cumulative layout shift score.
   optional double cls = 8;
-}
-
-// TelemetryEvent emits structured telemetry metrics.
-message TelemetryEvent {
-  // Reserved: field 1 was 'type', field 3 was untyped metrics map.
-  reserved 1, 3;
-  // When telemetry was recorded.
-  google.protobuf.Timestamp recorded_at = 2;
-  // Typed telemetry metrics.
-  TelemetryMetrics metrics = 4;
 }

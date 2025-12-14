@@ -3,12 +3,8 @@ syntax = "proto3";
 package browser_automation_studio.v1;
 
 import "google/protobuf/timestamp.proto";
-import "common/v1/types.proto";
 import "browser-automation-studio/v1/shared.proto";
-import "browser-automation-studio/v1/action.proto";
-import "browser-automation-studio/v1/geometry.proto";
-import "browser-automation-studio/v1/selectors.proto";
-import "browser-automation-studio/v1/telemetry.proto";
+import "browser-automation-studio/v1/timeline_entry.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
@@ -16,29 +12,21 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // EXECUTION TIMELINE (BATCH API FORMAT)
 // =============================================================================
 //
-// This file defines the BATCH format for execution timeline data, used by
+// This file defines the container for batch timeline data, returned by
 // REST API endpoints like GET /api/v1/executions/{id}/timeline.
 //
-// RELATIONSHIP TO STREAMING FORMAT (timeline_event.proto):
-// - TimelineEvent: Streaming format sent over WebSocket during execution/recording
-// - TimelineFrame: Batch format stored after execution completes
-// - ExecutionTimeline: Container for all TimelineFrames from an execution
+// The individual entries use TimelineEntry from timeline_entry.proto, which is
+// the unified format for both streaming and batch access.
 //
-// The TimelineEvent streaming format is converted to TimelineFrame batch format
-// when an execution completes. Both formats share common types:
-// - ActionDefinition (from action.proto)
-// - ActionTelemetry (from telemetry.proto)
-// - RetryStatus, AssertionResult (from shared.proto)
-//
-// Prefer TimelineEvent for live streaming; use TimelineFrame for historical data.
+// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
 // =============================================================================
 
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
-// This is the batch format containing all frames from a completed execution.
+// Contains all timeline entries from a completed or in-progress execution.
 message ExecutionTimeline {
-  // Unique identifier for this execution (UUID).
+  // Unique identifier for this execution (UUID format).
   string execution_id = 1;
-  // Workflow ID associated with the execution (UUID).
+  // Workflow ID associated with the execution (UUID format).
   string workflow_id = 2;
   // Current execution status (pending, running, completed, failed, cancelled).
   ExecutionStatus status = 3;
@@ -48,172 +36,38 @@ message ExecutionTimeline {
   google.protobuf.Timestamp started_at = 5;
   // When the execution completed (null if still running).
   optional google.protobuf.Timestamp completed_at = 6;
-  // Ordered list of execution frames (one per workflow step).
-  repeated TimelineFrame frames = 7;
+  // Ordered list of timeline entries (one per action/step).
+  // Uses the unified TimelineEntry format.
+  repeated TimelineEntry entries = 7;
   // Console and execution logs captured during the run.
   repeated TimelineLog logs = 8;
 }
 
 // =============================================================================
-// TIMELINE FRAME
+// DEPRECATED TYPES - FOR BACKWARDS COMPATIBILITY
+// =============================================================================
+//
+// TimelineFrame has been replaced by TimelineEntry from timeline_entry.proto.
+// This alias is provided for backwards compatibility during migration.
+//
+// MIGRATION GUIDE:
+//   - TimelineFrame → TimelineEntry
+//   - frame.step_index → entry.step_index
+//   - frame.node_id → entry.node_id
+//   - frame.action → entry.action
+//   - frame.telemetry → entry.telemetry
+//   - frame.success → entry.context.success
+//   - frame.error → entry.context.error
+//   - frame.retry_status → entry.context.retry_status
+//   - frame.assertion → entry.context.assertion
+//   - (other fields) → entry.aggregates.*
 // =============================================================================
 
-// TimelineFrame captures a single workflow step in the execution timeline.
-//
-// DEPRECATION NOTICE: Several inline fields duplicate data in the `telemetry` field.
-// New consumers MUST use `telemetry.*` fields. Inline duplicates are deprecated
-// and will be removed in a future version.
-//
-// Deprecated inline fields → Use instead:
-//   - highlight_regions (16) → telemetry.highlight_regions
-//   - mask_regions (17)      → telemetry.mask_regions
-//   - element_bounding_box (19) → telemetry.element_bounding_box
-//   - click_position (20)    → telemetry.click_position
-//   - cursor_trail (21)      → telemetry.cursor_trail
-//   - zoom_factor (22)       → telemetry.zoom_factor
-//   - screenshot (23)        → telemetry.screenshot
+// DEPRECATED: Use TimelineEntry from timeline_entry.proto instead.
+// TimelineFrame is an alias for backwards compatibility.
 message TimelineFrame {
-  // Zero-based index of this step in the execution.
-  int32 step_index = 1;
-  // Node ID from the workflow definition (UUID format).
-  string node_id = 2;
-  // Action type enum (for filtering/grouping without parsing full action).
-  ActionType action_type = 3;
-  // Full action definition with parameters and metadata.
-  // This provides complete action details for replay and debugging.
-  ActionDefinition action = 35;
-  // Step execution status.
-  StepStatus status = 4;
-  // Whether this step succeeded.
-  bool success = 5;
-  // Execution duration in milliseconds for this attempt.
-  int32 duration_ms = 6;
-  // Total time for the step including retries.
-  int32 total_duration_ms = 7;
-  // Progress percentage at this step (0-100).
-  int32 progress = 8;
-  // When the step started.
-  google.protobuf.Timestamp started_at = 9;
-  // When the step finished.
-  google.protobuf.Timestamp completed_at = 10;
-  // Final URL after step execution (for navigation steps).
-  string final_url = 11;
-  // Error message if the step failed.
-  optional string error = 12;
-  // Number of console log entries captured for this step.
-  int32 console_log_count = 13;
-  // Number of network events captured for this step.
-  int32 network_event_count = 14;
-  // Reserved: field 15 was 'step_type' (replaced by action_type from ActionType enum)
-  reserved 15;
+  option deprecated = true;
 
-  // ---------------------------------------------------------------------------
-  // DEPRECATED INLINE FIELDS - Use telemetry.* instead
-  // These fields duplicate data in ActionTelemetry for backward compatibility.
-  // They will be removed in a future version.
-  // ---------------------------------------------------------------------------
-
-  // DEPRECATED: Use telemetry.highlight_regions instead.
-  repeated HighlightRegion highlight_regions = 16 [deprecated = true];
-  // DEPRECATED: Use telemetry.mask_regions instead.
-  repeated MaskRegion mask_regions = 17 [deprecated = true];
-  // Focused element metadata for the step.
-  ElementFocus focused_element = 18;
-  // DEPRECATED: Use telemetry.element_bounding_box instead.
-  BoundingBox element_bounding_box = 19 [deprecated = true];
-  // DEPRECATED: Use telemetry.click_position instead.
-  Point click_position = 20 [deprecated = true];
-  // DEPRECATED: Use telemetry.cursor_trail instead.
-  repeated Point cursor_trail = 21 [deprecated = true];
-  // DEPRECATED: Use telemetry.zoom_factor instead.
-  double zoom_factor = 22 [deprecated = true];
-  // DEPRECATED: Use telemetry.screenshot instead.
-  TimelineScreenshot screenshot = 23 [deprecated = true];
-
-  // ---------------------------------------------------------------------------
-  // END DEPRECATED INLINE FIELDS
-  // ---------------------------------------------------------------------------
-
-  // Related artifacts (console logs, network traces, etc.).
-  repeated TimelineArtifact artifacts = 24;
-  // Assertion result for assert steps.
-  AssertionResult assertion = 25;
-  // Retry status for this step (uses unified RetryStatus type).
-  // This replaces the individual retry_* fields for consistency.
-  RetryStatus retry_status = 37;
-  // Reserved: fields 26-31 were individual retry fields, now consolidated in retry_status.
-  reserved 26, 27, 28, 29, 30, 31;
-  // Truncated DOM snapshot preview text.
-  string dom_snapshot_preview = 32;
-  // Artifact reference for the stored DOM snapshot.
-  TimelineArtifact dom_snapshot = 33;
-  // Typed preview of extracted data.
-  common.v1.JsonValue extracted_data_preview = 34;
-
-  // Composed telemetry captured during this step.
-  // This is the CANONICAL source for telemetry data.
-  // Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
-  ActionTelemetry telemetry = 36;
-}
-
-// =============================================================================
-// ARTIFACTS
-// =============================================================================
-
-// TimelineArtifact exposes related artifacts such as console or network logs.
-message TimelineArtifact {
-  // Reserved: field 9 was 'metadata' (replaced by typed payload map)
-  reserved 9;
-  // Unique artifact ID.
-  string id = 1;
-  // Artifact type (timeline_frame, console_log, network_event, etc.).
-  ArtifactType type = 2;
-  // Optional human-readable label.
-  optional string label = 3;
-  // URL to download the artifact content.
-  string storage_url = 4;
-  // URL to download an artifact thumbnail if available.
-  optional string thumbnail_url = 5;
-  // MIME type for the artifact.
-  string content_type = 6;
-  // Optional size in bytes for the artifact.
-  optional int64 size_bytes = 7;
-  // Step index associated with this artifact, if any.
-  optional int32 step_index = 8;
-  // Provider-specific payload describing the artifact.
-  map<string, common.v1.JsonValue> payload = 10;
-}
-
-// NOTE: RetryAttempt is now defined in shared.proto for unified usage.
-// The old RetryHistoryEntry had a call_duration_ms field which has been removed
-// as it was redundant with duration_ms.
-
-// =============================================================================
-// ELEMENT FOCUS
-// =============================================================================
-
-// ElementFocus captures focus metadata for screenshot framing.
-message ElementFocus {
-  // CSS selector of the focused element.
-  string selector = 1;
-  // Bounding box for the focused element - from unified.proto.
-  BoundingBox bounding_box = 2;
-}
-
-// =============================================================================
-// LOGGING
-// =============================================================================
-
-// TimelineLog captures execution log output for replay consumers.
-message TimelineLog {
-  // Unique log entry ID.
-  string id = 1;
-  // Log level (debug, info, warn, error).
-  LogLevel level = 2;
-  // Log message content.
-  string message = 3;
-  // Associated step name, if any.
-  optional string step_name = 4;
-  // Timestamp when the log was recorded.
-  google.protobuf.Timestamp timestamp = 5;
+  // Delegate to TimelineEntry for all data.
+  TimelineEntry entry = 1;
 }

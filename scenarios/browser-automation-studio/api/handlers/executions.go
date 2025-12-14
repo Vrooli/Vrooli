@@ -35,7 +35,7 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	pbScreenshots, err := protoconv.ScreenshotsToProto(screenshots)
+	pbScreenshots, err := protoconv.ScreenshotsToProto(screenshots, executionID.String())
 	if err != nil {
 		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to convert screenshots to proto")
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{

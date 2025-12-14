@@ -1,26 +1,29 @@
 // Package events provides conversion utilities between legacy contracts.StepOutcome
-// and the unified browser_automation_studio_v1.TimelineEvent proto format.
+// and the unified browser_automation_studio_v1.TimelineEntry proto format.
 //
-// This enables the execution engine to produce TimelineEvent messages that can be
+// This enables the execution engine to produce TimelineEntry messages that can be
 // streamed to the UI via WebSocket, supporting the shared Record/Execute UX.
+//
+// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
 package events
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/params"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// StepOutcomeToTimelineEvent converts a legacy StepOutcome to the unified TimelineEvent format.
+// StepOutcomeToTimelineEntry converts a legacy StepOutcome to the unified TimelineEntry format.
 // This enables execution telemetry to use the same data structure as recording telemetry.
-func StepOutcomeToTimelineEvent(outcome contracts.StepOutcome, executionID uuid.UUID) *basv1.TimelineEvent {
-	// Generate event ID from execution and step
-	eventID := fmt.Sprintf("%s-step-%d-attempt-%d", executionID.String(), outcome.StepIndex, outcome.Attempt)
+func StepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *basv1.TimelineEntry {
+	// Generate entry ID from execution and step
+	entryID := fmt.Sprintf("%s-step-%d-attempt-%d", executionID.String(), outcome.StepIndex, outcome.Attempt)
 
 	// Build action definition from step outcome
 	action := buildActionDefinition(outcome)
@@ -28,29 +31,36 @@ func StepOutcomeToTimelineEvent(outcome contracts.StepOutcome, executionID uuid.
 	// Build telemetry from step outcome
 	telemetry := buildActionTelemetry(outcome)
 
-	// Build execution-specific data
-	execution := buildExecutionEventData(outcome, executionID)
+	// Build event context (unified for recording/execution)
+	context := buildEventContext(outcome, executionID)
 
-	event := &basv1.TimelineEvent{
-		Id:          eventID,
+	stepIndex := int32(outcome.StepIndex)
+	entry := &basv1.TimelineEntry{
+		Id:          entryID,
 		SequenceNum: int32(outcome.StepIndex),
+		StepIndex:   &stepIndex,
 		Action:      action,
 		Telemetry:   telemetry,
-		ModeData:    &basv1.TimelineEvent_Execution{Execution: execution},
+		Context:     context,
+	}
+
+	// Set node_id if available
+	if outcome.NodeID != "" {
+		entry.NodeId = &outcome.NodeID
 	}
 
 	// Set timestamp
 	if !outcome.StartedAt.IsZero() {
-		event.Timestamp = timestamppb.New(outcome.StartedAt)
+		entry.Timestamp = timestamppb.New(outcome.StartedAt)
 	}
 
 	// Set duration
 	if outcome.DurationMs > 0 {
 		durationMs := int32(outcome.DurationMs)
-		event.DurationMs = &durationMs
+		entry.DurationMs = &durationMs
 	}
 
-	return event
+	return entry
 }
 
 // buildActionDefinition creates an ActionDefinition from the step outcome's type and params.
@@ -89,7 +99,7 @@ func buildActionDefinition(outcome contracts.StepOutcome) *basv1.ActionDefinitio
 			def.Params = &basv1.ActionDefinition_Assert{
 				Assert: &basv1.AssertParams{
 					Selector: outcome.Assertion.Selector,
-					Mode:     outcome.Assertion.Mode,
+					Mode:     params.StringToAssertionMode(outcome.Assertion.Mode),
 					Negated:  &outcome.Assertion.Negated,
 				},
 			}
@@ -187,12 +197,17 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 	if len(outcome.HighlightRegions) > 0 {
 		tel.HighlightRegions = make([]*basv1.HighlightRegion, 0, len(outcome.HighlightRegions))
 		for _, r := range outcome.HighlightRegions {
-			tel.HighlightRegions = append(tel.HighlightRegions, &basv1.HighlightRegion{
-				Selector:    r.Selector,
-				BoundingBox: convertBoundingBoxToProto(r.BoundingBox),
-				Padding:     int32(r.Padding),
-				Color:       r.Color,
-			})
+			region := &basv1.HighlightRegion{
+				Selector:       r.Selector,
+				BoundingBox:    convertBoundingBoxToProto(r.BoundingBox),
+				Padding:        int32(r.Padding),
+				HighlightColor: typeconv.StringToHighlightColor(r.Color),
+			}
+			// If we couldn't map to an enum value, preserve the original as custom RGBA
+			if region.HighlightColor == basv1.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED && r.Color != "" {
+				region.CustomRgba = &r.Color
+			}
+			tel.HighlightRegions = append(tel.HighlightRegions, region)
 		}
 	}
 
@@ -215,10 +230,10 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 
 	// Add console logs
 	if len(outcome.ConsoleLogs) > 0 {
-		tel.ConsoleLogs = make([]*basv1.ConsoleLogEntryUnified, 0, len(outcome.ConsoleLogs))
+		tel.ConsoleLogs = make([]*basv1.ConsoleLogEntry, 0, len(outcome.ConsoleLogs))
 		for _, log := range outcome.ConsoleLogs {
-			entry := &basv1.ConsoleLogEntryUnified{
-				Level: log.Type, // Type maps to Level (log, warn, error, etc.)
+			entry := &basv1.ConsoleLogEntry{
+				Level: typeconv.StringToLogLevel(log.Type),
 				Text:  log.Text,
 			}
 			if log.Stack != "" {
@@ -236,10 +251,10 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 
 	// Add network events
 	if len(outcome.Network) > 0 {
-		tel.NetworkEvents = make([]*basv1.NetworkEventUnified, 0, len(outcome.Network))
+		tel.NetworkEvents = make([]*basv1.NetworkEvent, 0, len(outcome.Network))
 		for _, net := range outcome.Network {
-			event := &basv1.NetworkEventUnified{
-				Type: net.Type,
+			event := &basv1.NetworkEvent{
+				Type: typeconv.StringToNetworkEventType(net.Type),
 				Url:  net.URL,
 			}
 			if net.Method != "" {
@@ -268,91 +283,71 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basv1.ActionTelemetry 
 	return tel
 }
 
-// buildExecutionEventData creates execution-specific metadata for the timeline event.
-func buildExecutionEventData(outcome contracts.StepOutcome, executionID uuid.UUID) *basv1.ExecutionEventData {
-	exec := &basv1.ExecutionEventData{
-		ExecutionId: executionID.String(),
-		NodeId:      outcome.NodeID,
-		Success:     outcome.Success,
-		Attempt:     int32(outcome.Attempt),
+// buildEventContext creates the unified EventContext for a timeline entry.
+// This is the same structure used for both recording and execution events.
+// Note: node_id is set on the parent TimelineEntry, not in EventContext.
+func buildEventContext(outcome contracts.StepOutcome, executionID uuid.UUID) *basv1.EventContext {
+	ctx := &basv1.EventContext{
+		// Set execution_id as the origin (vs session_id for recordings)
+		Origin:  &basv1.EventContext_ExecutionId{ExecutionId: executionID.String()},
+		Success: &outcome.Success,
+	}
+
+	// Add retry status with current attempt
+	ctx.RetryStatus = &basv1.RetryStatus{
+		CurrentAttempt: int32(outcome.Attempt),
+		MaxAttempts:    1, // Default, could be enhanced with actual retry config
+		Configured:     outcome.Attempt > 0,
 	}
 
 	// Add failure information
 	if outcome.Failure != nil {
 		if outcome.Failure.Message != "" {
-			exec.Error = &outcome.Failure.Message
+			ctx.Error = &outcome.Failure.Message
 		}
 		if outcome.Failure.Code != "" {
-			exec.ErrorCode = &outcome.Failure.Code
+			ctx.ErrorCode = &outcome.Failure.Code
 		}
 	}
 
 	// Add assertion result
 	if outcome.Assertion != nil {
 		assertionMsg := outcome.Assertion.Message
-		exec.Assertion = &basv1.AssertionResultProto{
+		ctx.Assertion = &basv1.AssertionResult{
 			Success:       outcome.Assertion.Success,
-			Mode:          outcome.Assertion.Mode,
+			Mode:          typeconv.StringToAssertionMode(outcome.Assertion.Mode),
 			Selector:      outcome.Assertion.Selector,
 			Negated:       outcome.Assertion.Negated,
 			CaseSensitive: outcome.Assertion.CaseSensitive,
 		}
 		if assertionMsg != "" {
-			exec.Assertion.Message = &assertionMsg
+			ctx.Assertion.Message = &assertionMsg
 		}
 		if outcome.Assertion.Expected != nil {
-			exec.Assertion.Expected = anyToJsonValue(outcome.Assertion.Expected)
+			ctx.Assertion.Expected = typeconv.AnyToJsonValue(outcome.Assertion.Expected)
 		}
 		if outcome.Assertion.Actual != nil {
-			exec.Assertion.Actual = anyToJsonValue(outcome.Assertion.Actual)
+			ctx.Assertion.Actual = typeconv.AnyToJsonValue(outcome.Assertion.Actual)
 		}
 	}
 
 	// Add extracted data
 	if len(outcome.ExtractedData) > 0 {
-		exec.ExtractedData = make(map[string]*commonv1.JsonValue, len(outcome.ExtractedData))
+		ctx.ExtractedData = make(map[string]*commonv1.JsonValue, len(outcome.ExtractedData))
 		for k, v := range outcome.ExtractedData {
-			if jsonVal := anyToJsonValue(v); jsonVal != nil {
-				exec.ExtractedData[k] = jsonVal
+			if jsonVal := typeconv.AnyToJsonValue(v); jsonVal != nil {
+				ctx.ExtractedData[k] = jsonVal
 			}
 		}
 	}
 
-	return exec
+	return ctx
 }
 
 // mapStepTypeToActionType converts a step type string to ActionType enum.
+// Delegates to typeconv.StringToActionType for the canonical implementation.
 func mapStepTypeToActionType(stepType string) basv1.ActionType {
-	switch strings.ToLower(strings.TrimSpace(stepType)) {
-	case "navigate", "goto":
-		return basv1.ActionType_ACTION_TYPE_NAVIGATE
-	case "click":
-		return basv1.ActionType_ACTION_TYPE_CLICK
-	case "input", "type", "fill":
-		return basv1.ActionType_ACTION_TYPE_INPUT
-	case "wait":
-		return basv1.ActionType_ACTION_TYPE_WAIT
-	case "assert":
-		return basv1.ActionType_ACTION_TYPE_ASSERT
-	case "scroll":
-		return basv1.ActionType_ACTION_TYPE_SCROLL
-	case "select":
-		return basv1.ActionType_ACTION_TYPE_SELECT
-	case "evaluate", "eval":
-		return basv1.ActionType_ACTION_TYPE_EVALUATE
-	case "keyboard", "press":
-		return basv1.ActionType_ACTION_TYPE_KEYBOARD
-	case "hover":
-		return basv1.ActionType_ACTION_TYPE_HOVER
-	case "screenshot":
-		return basv1.ActionType_ACTION_TYPE_SCREENSHOT
-	case "focus":
-		return basv1.ActionType_ACTION_TYPE_FOCUS
-	case "blur":
-		return basv1.ActionType_ACTION_TYPE_BLUR
-	default:
-		return basv1.ActionType_ACTION_TYPE_UNSPECIFIED
-	}
+	return typeconv.StringToActionType(stepType)
 }
 
 // convertBoundingBoxToProto converts a contracts.BoundingBox to proto format.
@@ -379,60 +374,6 @@ func convertPointToProto(p *contracts.Point) *basv1.Point {
 	}
 }
 
-// anyToJsonValue converts any Go value to a commonv1.JsonValue proto message.
-func anyToJsonValue(v any) *commonv1.JsonValue {
-	if v == nil {
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{}}
-	}
-	switch val := v.(type) {
-	case bool:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}
-	case int:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}
-	case uint:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case uint32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case uint64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case float32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
-	case float64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}
-	case string:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}
-	case []byte:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
-	case map[string]any:
-		obj := make(map[string]*commonv1.JsonValue, len(val))
-		for k, v := range val {
-			if nested := anyToJsonValue(v); nested != nil {
-				obj[k] = nested
-			}
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{
-			ObjectValue: &commonv1.JsonObject{Fields: obj},
-		}}
-	case []any:
-		items := make([]*commonv1.JsonValue, 0, len(val))
-		for _, item := range val {
-			if nested := anyToJsonValue(item); nested != nil {
-				items = append(items, nested)
-			}
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{
-			ListValue: &commonv1.JsonList{Values: items},
-		}}
-	default:
-		// Fallback: try to convert to string
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: fmt.Sprintf("%v", val)}}
-	}
-}
-
 // CompiledInstructionToActionDefinition converts a CompiledInstruction to ActionDefinition.
 // This is used when we have the original instruction params available.
 func CompiledInstructionToActionDefinition(instr contracts.CompiledInstruction) *basv1.ActionDefinition {
@@ -446,55 +387,55 @@ func CompiledInstructionToActionDefinition(instr contracts.CompiledInstruction) 
 	switch actionType {
 	case basv1.ActionType_ACTION_TYPE_NAVIGATE:
 		def.Params = &basv1.ActionDefinition_Navigate{
-			Navigate: buildNavigateParams(instr.Params),
+			Navigate: params.BuildNavigateParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_CLICK:
 		def.Params = &basv1.ActionDefinition_Click{
-			Click: buildClickParams(instr.Params),
+			Click: params.BuildClickParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_INPUT:
 		def.Params = &basv1.ActionDefinition_Input{
-			Input: buildInputParams(instr.Params),
+			Input: params.BuildInputParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_WAIT:
 		def.Params = &basv1.ActionDefinition_Wait{
-			Wait: buildWaitParams(instr.Params),
+			Wait: params.BuildWaitParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_ASSERT:
 		def.Params = &basv1.ActionDefinition_Assert{
-			Assert: buildAssertParams(instr.Params),
+			Assert: params.BuildAssertParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_SCROLL:
 		def.Params = &basv1.ActionDefinition_Scroll{
-			Scroll: buildScrollParams(instr.Params),
+			Scroll: params.BuildScrollParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_SELECT:
 		def.Params = &basv1.ActionDefinition_SelectOption{
-			SelectOption: buildSelectParams(instr.Params),
+			SelectOption: params.BuildSelectParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_EVALUATE:
 		def.Params = &basv1.ActionDefinition_Evaluate{
-			Evaluate: buildEvaluateParams(instr.Params),
+			Evaluate: params.BuildEvaluateParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_KEYBOARD:
 		def.Params = &basv1.ActionDefinition_Keyboard{
-			Keyboard: buildKeyboardParams(instr.Params),
+			Keyboard: params.BuildKeyboardParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_HOVER:
 		def.Params = &basv1.ActionDefinition_Hover{
-			Hover: buildHoverParams(instr.Params),
+			Hover: params.BuildHoverParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_SCREENSHOT:
 		def.Params = &basv1.ActionDefinition_Screenshot{
-			Screenshot: buildScreenshotParams(instr.Params),
+			Screenshot: params.BuildScreenshotParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_FOCUS:
 		def.Params = &basv1.ActionDefinition_Focus{
-			Focus: buildFocusParams(instr.Params),
+			Focus: params.BuildFocusParams(instr.Params),
 		}
 	case basv1.ActionType_ACTION_TYPE_BLUR:
 		def.Params = &basv1.ActionDefinition_Blur{
-			Blur: buildBlurParams(instr.Params),
+			Blur: params.BuildBlurParams(instr.Params),
 		}
 	}
 
@@ -506,250 +447,3 @@ func CompiledInstructionToActionDefinition(instr contracts.CompiledInstruction) 
 	return def
 }
 
-// Helper functions to build params from instruction maps
-
-func buildNavigateParams(params map[string]any) *basv1.NavigateParams {
-	p := &basv1.NavigateParams{}
-	if url, ok := params["url"].(string); ok {
-		p.Url = url
-	}
-	if waitFor, ok := params["waitForSelector"].(string); ok {
-		p.WaitForSelector = &waitFor
-	}
-	if timeout, ok := extractInt32(params, "timeoutMs"); ok {
-		p.TimeoutMs = &timeout
-	}
-	if waitUntil, ok := params["waitUntil"].(string); ok {
-		p.WaitUntil = &waitUntil
-	}
-	return p
-}
-
-func buildClickParams(params map[string]any) *basv1.ClickParams {
-	p := &basv1.ClickParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = selector
-	}
-	if button, ok := params["button"].(string); ok {
-		p.Button = &button
-	}
-	if clickCount, ok := extractInt32(params, "clickCount"); ok {
-		p.ClickCount = &clickCount
-	}
-	if delay, ok := extractInt32(params, "delayMs"); ok {
-		p.DelayMs = &delay
-	}
-	if modifiers, ok := params["modifiers"].([]any); ok {
-		for _, m := range modifiers {
-			if s, ok := m.(string); ok {
-				p.Modifiers = append(p.Modifiers, s)
-			}
-		}
-	}
-	if force, ok := params["force"].(bool); ok {
-		p.Force = &force
-	}
-	return p
-}
-
-func buildInputParams(params map[string]any) *basv1.InputParams {
-	p := &basv1.InputParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = selector
-	}
-	if value, ok := params["value"].(string); ok {
-		p.Value = value
-	}
-	if sensitive, ok := params["isSensitive"].(bool); ok {
-		p.IsSensitive = &sensitive
-	}
-	if submit, ok := params["submit"].(bool); ok {
-		p.Submit = &submit
-	}
-	if clear, ok := params["clearFirst"].(bool); ok {
-		p.ClearFirst = &clear
-	}
-	if delay, ok := extractInt32(params, "delayMs"); ok {
-		p.DelayMs = &delay
-	}
-	return p
-}
-
-func buildWaitParams(params map[string]any) *basv1.WaitParams {
-	p := &basv1.WaitParams{}
-	if duration, ok := extractInt32(params, "durationMs"); ok {
-		p.WaitFor = &basv1.WaitParams_DurationMs{DurationMs: duration}
-	} else if selector, ok := params["selector"].(string); ok {
-		p.WaitFor = &basv1.WaitParams_Selector{Selector: selector}
-	}
-	if state, ok := params["state"].(string); ok {
-		p.State = &state
-	}
-	if timeout, ok := extractInt32(params, "timeoutMs"); ok {
-		p.TimeoutMs = &timeout
-	}
-	return p
-}
-
-func buildAssertParams(params map[string]any) *basv1.AssertParams {
-	p := &basv1.AssertParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = selector
-	}
-	if mode, ok := params["mode"].(string); ok {
-		p.Mode = mode
-	}
-	if negated, ok := params["negated"].(bool); ok {
-		p.Negated = &negated
-	}
-	if caseSensitive, ok := params["caseSensitive"].(bool); ok {
-		p.CaseSensitive = &caseSensitive
-	}
-	if attrName, ok := params["attributeName"].(string); ok {
-		p.AttributeName = &attrName
-	}
-	if failureMsg, ok := params["failureMessage"].(string); ok {
-		p.FailureMessage = &failureMsg
-	}
-	return p
-}
-
-func buildScrollParams(params map[string]any) *basv1.ScrollParams {
-	p := &basv1.ScrollParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = &selector
-	}
-	if x, ok := extractInt32(params, "x"); ok {
-		p.X = &x
-	}
-	if y, ok := extractInt32(params, "y"); ok {
-		p.Y = &y
-	}
-	if behavior, ok := params["behavior"].(string); ok {
-		p.Behavior = &behavior
-	}
-	return p
-}
-
-func buildSelectParams(params map[string]any) *basv1.SelectParams {
-	p := &basv1.SelectParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = selector
-	}
-	if value, ok := params["value"].(string); ok {
-		p.SelectBy = &basv1.SelectParams_Value{Value: value}
-	} else if label, ok := params["label"].(string); ok {
-		p.SelectBy = &basv1.SelectParams_Label{Label: label}
-	} else if index, ok := extractInt32(params, "index"); ok {
-		p.SelectBy = &basv1.SelectParams_Index{Index: index}
-	}
-	if timeout, ok := extractInt32(params, "timeoutMs"); ok {
-		p.TimeoutMs = &timeout
-	}
-	return p
-}
-
-func buildEvaluateParams(params map[string]any) *basv1.EvaluateParams {
-	p := &basv1.EvaluateParams{}
-	if expr, ok := params["expression"].(string); ok {
-		p.Expression = expr
-	}
-	if storeResult, ok := params["storeResult"].(string); ok {
-		p.StoreResult = &storeResult
-	}
-	return p
-}
-
-func buildKeyboardParams(params map[string]any) *basv1.KeyboardParams {
-	p := &basv1.KeyboardParams{}
-	if key, ok := params["key"].(string); ok {
-		p.Key = &key
-	}
-	if keys, ok := params["keys"].([]any); ok {
-		for _, k := range keys {
-			if s, ok := k.(string); ok {
-				p.Keys = append(p.Keys, s)
-			}
-		}
-	}
-	if modifiers, ok := params["modifiers"].([]any); ok {
-		for _, m := range modifiers {
-			if s, ok := m.(string); ok {
-				p.Modifiers = append(p.Modifiers, s)
-			}
-		}
-	}
-	if action, ok := params["action"].(string); ok {
-		p.Action = &action
-	}
-	return p
-}
-
-func buildHoverParams(params map[string]any) *basv1.HoverParams {
-	p := &basv1.HoverParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = selector
-	}
-	if timeout, ok := extractInt32(params, "timeoutMs"); ok {
-		p.TimeoutMs = &timeout
-	}
-	return p
-}
-
-func buildScreenshotParams(params map[string]any) *basv1.ScreenshotParams {
-	p := &basv1.ScreenshotParams{}
-	if fullPage, ok := params["fullPage"].(bool); ok {
-		p.FullPage = &fullPage
-	}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = &selector
-	}
-	if quality, ok := extractInt32(params, "quality"); ok {
-		p.Quality = &quality
-	}
-	return p
-}
-
-func buildFocusParams(params map[string]any) *basv1.FocusParams {
-	p := &basv1.FocusParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = selector
-	}
-	if timeout, ok := extractInt32(params, "timeoutMs"); ok {
-		p.TimeoutMs = &timeout
-	}
-	return p
-}
-
-func buildBlurParams(params map[string]any) *basv1.BlurParams {
-	p := &basv1.BlurParams{}
-	if selector, ok := params["selector"].(string); ok {
-		p.Selector = &selector
-	}
-	if timeout, ok := extractInt32(params, "timeoutMs"); ok {
-		p.TimeoutMs = &timeout
-	}
-	return p
-}
-
-// extractInt32 extracts an int32 value from a map with various numeric types.
-func extractInt32(params map[string]any, key string) (int32, bool) {
-	raw, ok := params[key]
-	if !ok {
-		return 0, false
-	}
-	switch v := raw.(type) {
-	case int:
-		return int32(v), true
-	case int32:
-		return v, true
-	case int64:
-		return int32(v), true
-	case float64:
-		return int32(v), true
-	case float32:
-		return int32(v), true
-	default:
-		return 0, false
-	}
-}

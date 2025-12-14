@@ -323,83 +323,6 @@ func (ArtifactType) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{4}
 }
 
-// EventKind enumerates WebSocket event types.
-//
-// DEPRECATED: This enum and ExecutionEventEnvelope (in execution.proto) are
-// superseded by the unified streaming format:
-//   - Use TimelineMessageType (timeline_event.proto) for message routing
-//   - Use TimelineStreamMessage (timeline_event.proto) as the envelope
-//   - Use TimelineEvent (timeline_event.proto) for action/telemetry data
-//
-// MIGRATION GUIDE:
-//
-//	EVENT_KIND_STATUS_UPDATE  → TIMELINE_MESSAGE_TYPE_STATUS + TimelineStatusUpdate
-//	EVENT_KIND_TIMELINE_FRAME → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent
-//	EVENT_KIND_LOG            → (logs are now embedded in TimelineEvent.telemetry.console_logs)
-//	EVENT_KIND_HEARTBEAT      → TIMELINE_MESSAGE_TYPE_HEARTBEAT + TimelineHeartbeat
-//	EVENT_KIND_TELEMETRY      → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent.telemetry
-//
-// This enum will be removed once all consumers migrate to TimelineStreamMessage.
-//
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/shared.proto.
-type EventKind int32
-
-const (
-	EventKind_EVENT_KIND_UNSPECIFIED    EventKind = 0
-	EventKind_EVENT_KIND_STATUS_UPDATE  EventKind = 1
-	EventKind_EVENT_KIND_TIMELINE_FRAME EventKind = 2
-	EventKind_EVENT_KIND_LOG            EventKind = 3
-	EventKind_EVENT_KIND_HEARTBEAT      EventKind = 4
-	EventKind_EVENT_KIND_TELEMETRY      EventKind = 5
-)
-
-// Enum value maps for EventKind.
-var (
-	EventKind_name = map[int32]string{
-		0: "EVENT_KIND_UNSPECIFIED",
-		1: "EVENT_KIND_STATUS_UPDATE",
-		2: "EVENT_KIND_TIMELINE_FRAME",
-		3: "EVENT_KIND_LOG",
-		4: "EVENT_KIND_HEARTBEAT",
-		5: "EVENT_KIND_TELEMETRY",
-	}
-	EventKind_value = map[string]int32{
-		"EVENT_KIND_UNSPECIFIED":    0,
-		"EVENT_KIND_STATUS_UPDATE":  1,
-		"EVENT_KIND_TIMELINE_FRAME": 2,
-		"EVENT_KIND_LOG":            3,
-		"EVENT_KIND_HEARTBEAT":      4,
-		"EVENT_KIND_TELEMETRY":      5,
-	}
-)
-
-func (x EventKind) Enum() *EventKind {
-	p := new(EventKind)
-	*p = x
-	return p
-}
-
-func (x EventKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (EventKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[5].Descriptor()
-}
-
-func (EventKind) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[5]
-}
-
-func (x EventKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use EventKind.Descriptor instead.
-func (EventKind) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{5}
-}
-
 // ExportStatus indicates readiness for execution export.
 type ExportStatus int32
 
@@ -440,11 +363,11 @@ func (x ExportStatus) String() string {
 }
 
 func (ExportStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[6].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[5].Descriptor()
 }
 
 func (ExportStatus) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[6]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[5]
 }
 
 func (x ExportStatus) Number() protoreflect.EnumNumber {
@@ -453,7 +376,7 @@ func (x ExportStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ExportStatus.Descriptor instead.
 func (ExportStatus) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{6}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{5}
 }
 
 // SelectorType enumerates supported selector strategies for element targeting.
@@ -514,11 +437,11 @@ func (x SelectorType) String() string {
 }
 
 func (SelectorType) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[7].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[6].Descriptor()
 }
 
 func (SelectorType) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[7]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[6]
 }
 
 func (x SelectorType) Number() protoreflect.EnumNumber {
@@ -527,7 +450,7 @@ func (x SelectorType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SelectorType.Descriptor instead.
 func (SelectorType) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{6}
 }
 
 // NetworkEventType enumerates network event kinds captured during execution.
@@ -567,11 +490,11 @@ func (x NetworkEventType) String() string {
 }
 
 func (NetworkEventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[8].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[7].Descriptor()
 }
 
 func (NetworkEventType) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[8]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[7]
 }
 
 func (x NetworkEventType) Number() protoreflect.EnumNumber {
@@ -580,7 +503,7 @@ func (x NetworkEventType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use NetworkEventType.Descriptor instead.
 func (NetworkEventType) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{8}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{7}
 }
 
 // RecordingSource indicates how an action was captured during recording.
@@ -617,11 +540,11 @@ func (x RecordingSource) String() string {
 }
 
 func (RecordingSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[9].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[8].Descriptor()
 }
 
 func (RecordingSource) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[9]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[8]
 }
 
 func (x RecordingSource) Number() protoreflect.EnumNumber {
@@ -630,7 +553,7 @@ func (x RecordingSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RecordingSource.Descriptor instead.
 func (RecordingSource) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{9}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{8}
 }
 
 // WorkflowEdgeType enumerates visual edge rendering styles.
@@ -676,11 +599,11 @@ func (x WorkflowEdgeType) String() string {
 }
 
 func (WorkflowEdgeType) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[10].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[9].Descriptor()
 }
 
 func (WorkflowEdgeType) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[10]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[9]
 }
 
 func (x WorkflowEdgeType) Number() protoreflect.EnumNumber {
@@ -689,7 +612,7 @@ func (x WorkflowEdgeType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WorkflowEdgeType.Descriptor instead.
 func (WorkflowEdgeType) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{9}
 }
 
 // ValidationSeverity enumerates issue severity levels for workflow validation.
@@ -729,11 +652,11 @@ func (x ValidationSeverity) String() string {
 }
 
 func (ValidationSeverity) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[11].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[10].Descriptor()
 }
 
 func (ValidationSeverity) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[11]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[10]
 }
 
 func (x ValidationSeverity) Number() protoreflect.EnumNumber {
@@ -742,7 +665,7 @@ func (x ValidationSeverity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ValidationSeverity.Descriptor instead.
 func (ValidationSeverity) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{10}
 }
 
 // ChangeSource indicates the origin of a workflow modification.
@@ -788,11 +711,11 @@ func (x ChangeSource) String() string {
 }
 
 func (ChangeSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[12].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[11].Descriptor()
 }
 
 func (ChangeSource) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[12]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[11]
 }
 
 func (x ChangeSource) Number() protoreflect.EnumNumber {
@@ -801,7 +724,7 @@ func (x ChangeSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ChangeSource.Descriptor instead.
 func (ChangeSource) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{12}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{11}
 }
 
 // AssertionMode enumerates supported assertion types.
@@ -856,11 +779,11 @@ func (x AssertionMode) String() string {
 }
 
 func (AssertionMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[13].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[12].Descriptor()
 }
 
 func (AssertionMode) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[13]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[12]
 }
 
 func (x AssertionMode) Number() protoreflect.EnumNumber {
@@ -869,7 +792,7 @@ func (x AssertionMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AssertionMode.Descriptor instead.
 func (AssertionMode) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{13}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{12}
 }
 
 // HighlightColor enumerates supported highlight overlay colors.
@@ -937,11 +860,11 @@ func (x HighlightColor) String() string {
 }
 
 func (HighlightColor) Descriptor() protoreflect.EnumDescriptor {
-	return file_browser_automation_studio_v1_shared_proto_enumTypes[14].Descriptor()
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[13].Descriptor()
 }
 
 func (HighlightColor) Type() protoreflect.EnumType {
-	return &file_browser_automation_studio_v1_shared_proto_enumTypes[14]
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[13]
 }
 
 func (x HighlightColor) Number() protoreflect.EnumNumber {
@@ -950,7 +873,7 @@ func (x HighlightColor) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use HighlightColor.Descriptor instead.
 func (HighlightColor) EnumDescriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{14}
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{13}
 }
 
 // RetryAttempt captures the outcome of a single retry attempt.
@@ -1230,6 +1153,183 @@ func (x *AssertionResult) GetMessage() string {
 	return ""
 }
 
+// EventContext captures the origin and outcome of a timeline entry.
+// This type unifies what was previously RecordingContext and ExecutionContext,
+// reflecting the fact that recording and execution capture the same data.
+//
+// Populated during both:
+//   - Recording: Human controls browser, system captures events
+//   - Execution: Code controls browser, system captures events
+//
+// The only distinction is the origin (session_id vs execution_id) and whether
+// certain UI workflow flags apply (needs_confirmation).
+type EventContext struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// === ORIGIN ===
+	// Exactly one of these is set, indicating where the event originated.
+	//
+	// Types that are valid to be assigned to Origin:
+	//
+	//	*EventContext_SessionId
+	//	*EventContext_ExecutionId
+	Origin isEventContext_Origin `protobuf_oneof:"origin"`
+	// === CAPTURE METADATA ===
+	// How the action was captured. Primarily relevant for recording, but could
+	// apply to AI-assisted execution in the future.
+	Source *RecordingSource `protobuf:"varint,5,opt,name=source,proto3,enum=browser_automation_studio.v1.RecordingSource,oneof" json:"source,omitempty"`
+	// UI workflow flag: user should confirm/edit this action before proceeding.
+	// Used during recording to flag uncertain actions for human review.
+	NeedsConfirmation *bool `protobuf:"varint,6,opt,name=needs_confirmation,json=needsConfirmation,proto3,oneof" json:"needs_confirmation,omitempty"`
+	// === EXECUTION OUTCOME ===
+	// These fields are populated after the action completes (in either mode).
+	// Whether the action succeeded.
+	Success *bool `protobuf:"varint,10,opt,name=success,proto3,oneof" json:"success,omitempty"`
+	// Error message if the action failed.
+	Error *string `protobuf:"bytes,11,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	// Error code for programmatic handling.
+	ErrorCode *string `protobuf:"bytes,12,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
+	// === RETRY TRACKING ===
+	// Retry status for this action (populated if retries are configured).
+	RetryStatus *RetryStatus `protobuf:"bytes,20,opt,name=retry_status,json=retryStatus,proto3,oneof" json:"retry_status,omitempty"`
+	// === ASSERTION RESULT ===
+	// Assertion result (for assert actions only).
+	Assertion *AssertionResult `protobuf:"bytes,25,opt,name=assertion,proto3,oneof" json:"assertion,omitempty"`
+	// === EXTRACTED DATA ===
+	// Extracted data from evaluate actions (variable name -> value).
+	ExtractedData map[string]*v1.JsonValue `protobuf:"bytes,30,rep,name=extracted_data,json=extractedData,proto3" json:"extracted_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventContext) Reset() {
+	*x = EventContext{}
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventContext) ProtoMessage() {}
+
+func (x *EventContext) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventContext.ProtoReflect.Descriptor instead.
+func (*EventContext) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *EventContext) GetOrigin() isEventContext_Origin {
+	if x != nil {
+		return x.Origin
+	}
+	return nil
+}
+
+func (x *EventContext) GetSessionId() string {
+	if x != nil {
+		if x, ok := x.Origin.(*EventContext_SessionId); ok {
+			return x.SessionId
+		}
+	}
+	return ""
+}
+
+func (x *EventContext) GetExecutionId() string {
+	if x != nil {
+		if x, ok := x.Origin.(*EventContext_ExecutionId); ok {
+			return x.ExecutionId
+		}
+	}
+	return ""
+}
+
+func (x *EventContext) GetSource() RecordingSource {
+	if x != nil && x.Source != nil {
+		return *x.Source
+	}
+	return RecordingSource_RECORDING_SOURCE_UNSPECIFIED
+}
+
+func (x *EventContext) GetNeedsConfirmation() bool {
+	if x != nil && x.NeedsConfirmation != nil {
+		return *x.NeedsConfirmation
+	}
+	return false
+}
+
+func (x *EventContext) GetSuccess() bool {
+	if x != nil && x.Success != nil {
+		return *x.Success
+	}
+	return false
+}
+
+func (x *EventContext) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *EventContext) GetErrorCode() string {
+	if x != nil && x.ErrorCode != nil {
+		return *x.ErrorCode
+	}
+	return ""
+}
+
+func (x *EventContext) GetRetryStatus() *RetryStatus {
+	if x != nil {
+		return x.RetryStatus
+	}
+	return nil
+}
+
+func (x *EventContext) GetAssertion() *AssertionResult {
+	if x != nil {
+		return x.Assertion
+	}
+	return nil
+}
+
+func (x *EventContext) GetExtractedData() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.ExtractedData
+	}
+	return nil
+}
+
+type isEventContext_Origin interface {
+	isEventContext_Origin()
+}
+
+type EventContext_SessionId struct {
+	// Recording session ID (UUID format). Set when event comes from recording.
+	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3,oneof"`
+}
+
+type EventContext_ExecutionId struct {
+	// Execution run ID (UUID format). Set when event comes from execution.
+	ExecutionId string `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3,oneof"`
+}
+
+func (*EventContext_SessionId) isEventContext_Origin() {}
+
+func (*EventContext_ExecutionId) isEventContext_Origin() {}
+
 var File_browser_automation_studio_v1_shared_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
@@ -1263,7 +1363,34 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\t_expectedB\t\n" +
 	"\a_actualB\n" +
 	"\n" +
-	"\b_message*\xcc\x01\n" +
+	"\b_message\"\x85\x06\n" +
+	"\fEventContext\x12\x1f\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tH\x00R\tsessionId\x12#\n" +
+	"\fexecution_id\x18\x02 \x01(\tH\x00R\vexecutionId\x12J\n" +
+	"\x06source\x18\x05 \x01(\x0e2-.browser_automation_studio.v1.RecordingSourceH\x01R\x06source\x88\x01\x01\x122\n" +
+	"\x12needs_confirmation\x18\x06 \x01(\bH\x02R\x11needsConfirmation\x88\x01\x01\x12\x1d\n" +
+	"\asuccess\x18\n" +
+	" \x01(\bH\x03R\asuccess\x88\x01\x01\x12\x19\n" +
+	"\x05error\x18\v \x01(\tH\x04R\x05error\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"error_code\x18\f \x01(\tH\x05R\terrorCode\x88\x01\x01\x12Q\n" +
+	"\fretry_status\x18\x14 \x01(\v2).browser_automation_studio.v1.RetryStatusH\x06R\vretryStatus\x88\x01\x01\x12P\n" +
+	"\tassertion\x18\x19 \x01(\v2-.browser_automation_studio.v1.AssertionResultH\aR\tassertion\x88\x01\x01\x12d\n" +
+	"\x0eextracted_data\x18\x1e \x03(\v2=.browser_automation_studio.v1.EventContext.ExtractedDataEntryR\rextractedData\x1aV\n" +
+	"\x12ExtractedDataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\b\n" +
+	"\x06originB\t\n" +
+	"\a_sourceB\x15\n" +
+	"\x13_needs_confirmationB\n" +
+	"\n" +
+	"\b_successB\b\n" +
+	"\x06_errorB\r\n" +
+	"\v_error_codeB\x0f\n" +
+	"\r_retry_statusB\f\n" +
+	"\n" +
+	"_assertion*\xcc\x01\n" +
 	"\x0fExecutionStatus\x12 \n" +
 	"\x1cEXECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EXECUTION_STATUS_PENDING\x10\x01\x12\x1c\n" +
@@ -1301,14 +1428,7 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\x18ARTIFACT_TYPE_SCREENSHOT\x10\x04\x12\x1e\n" +
 	"\x1aARTIFACT_TYPE_DOM_SNAPSHOT\x10\x05\x12\x17\n" +
 	"\x13ARTIFACT_TYPE_TRACE\x10\x06\x12\x18\n" +
-	"\x14ARTIFACT_TYPE_CUSTOM\x10\a*\xb0\x01\n" +
-	"\tEventKind\x12\x1a\n" +
-	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18EVENT_KIND_STATUS_UPDATE\x10\x01\x12\x1d\n" +
-	"\x19EVENT_KIND_TIMELINE_FRAME\x10\x02\x12\x12\n" +
-	"\x0eEVENT_KIND_LOG\x10\x03\x12\x18\n" +
-	"\x14EVENT_KIND_HEARTBEAT\x10\x04\x12\x18\n" +
-	"\x14EVENT_KIND_TELEMETRY\x10\x05\x1a\x02\x18\x01*\x99\x01\n" +
+	"\x14ARTIFACT_TYPE_CUSTOM\x10\a*\x99\x01\n" +
 	"\fExportStatus\x12\x1d\n" +
 	"\x19EXPORT_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13EXPORT_STATUS_READY\x10\x01\x12\x19\n" +
@@ -1393,39 +1513,45 @@ func file_browser_automation_studio_v1_shared_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_shared_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 15)
-var file_browser_automation_studio_v1_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
+var file_browser_automation_studio_v1_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_browser_automation_studio_v1_shared_proto_goTypes = []any{
 	(ExecutionStatus)(0),    // 0: browser_automation_studio.v1.ExecutionStatus
 	(TriggerType)(0),        // 1: browser_automation_studio.v1.TriggerType
 	(StepStatus)(0),         // 2: browser_automation_studio.v1.StepStatus
 	(LogLevel)(0),           // 3: browser_automation_studio.v1.LogLevel
 	(ArtifactType)(0),       // 4: browser_automation_studio.v1.ArtifactType
-	(EventKind)(0),          // 5: browser_automation_studio.v1.EventKind
-	(ExportStatus)(0),       // 6: browser_automation_studio.v1.ExportStatus
-	(SelectorType)(0),       // 7: browser_automation_studio.v1.SelectorType
-	(NetworkEventType)(0),   // 8: browser_automation_studio.v1.NetworkEventType
-	(RecordingSource)(0),    // 9: browser_automation_studio.v1.RecordingSource
-	(WorkflowEdgeType)(0),   // 10: browser_automation_studio.v1.WorkflowEdgeType
-	(ValidationSeverity)(0), // 11: browser_automation_studio.v1.ValidationSeverity
-	(ChangeSource)(0),       // 12: browser_automation_studio.v1.ChangeSource
-	(AssertionMode)(0),      // 13: browser_automation_studio.v1.AssertionMode
-	(HighlightColor)(0),     // 14: browser_automation_studio.v1.HighlightColor
-	(*RetryAttempt)(nil),    // 15: browser_automation_studio.v1.RetryAttempt
-	(*RetryStatus)(nil),     // 16: browser_automation_studio.v1.RetryStatus
-	(*AssertionResult)(nil), // 17: browser_automation_studio.v1.AssertionResult
-	(*v1.JsonValue)(nil),    // 18: common.v1.JsonValue
+	(ExportStatus)(0),       // 5: browser_automation_studio.v1.ExportStatus
+	(SelectorType)(0),       // 6: browser_automation_studio.v1.SelectorType
+	(NetworkEventType)(0),   // 7: browser_automation_studio.v1.NetworkEventType
+	(RecordingSource)(0),    // 8: browser_automation_studio.v1.RecordingSource
+	(WorkflowEdgeType)(0),   // 9: browser_automation_studio.v1.WorkflowEdgeType
+	(ValidationSeverity)(0), // 10: browser_automation_studio.v1.ValidationSeverity
+	(ChangeSource)(0),       // 11: browser_automation_studio.v1.ChangeSource
+	(AssertionMode)(0),      // 12: browser_automation_studio.v1.AssertionMode
+	(HighlightColor)(0),     // 13: browser_automation_studio.v1.HighlightColor
+	(*RetryAttempt)(nil),    // 14: browser_automation_studio.v1.RetryAttempt
+	(*RetryStatus)(nil),     // 15: browser_automation_studio.v1.RetryStatus
+	(*AssertionResult)(nil), // 16: browser_automation_studio.v1.AssertionResult
+	(*EventContext)(nil),    // 17: browser_automation_studio.v1.EventContext
+	nil,                     // 18: browser_automation_studio.v1.EventContext.ExtractedDataEntry
+	(*v1.JsonValue)(nil),    // 19: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_shared_proto_depIdxs = []int32{
-	15, // 0: browser_automation_studio.v1.RetryStatus.history:type_name -> browser_automation_studio.v1.RetryAttempt
-	13, // 1: browser_automation_studio.v1.AssertionResult.mode:type_name -> browser_automation_studio.v1.AssertionMode
-	18, // 2: browser_automation_studio.v1.AssertionResult.expected:type_name -> common.v1.JsonValue
-	18, // 3: browser_automation_studio.v1.AssertionResult.actual:type_name -> common.v1.JsonValue
-	4,  // [4:4] is the sub-list for method output_type
-	4,  // [4:4] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	14, // 0: browser_automation_studio.v1.RetryStatus.history:type_name -> browser_automation_studio.v1.RetryAttempt
+	12, // 1: browser_automation_studio.v1.AssertionResult.mode:type_name -> browser_automation_studio.v1.AssertionMode
+	19, // 2: browser_automation_studio.v1.AssertionResult.expected:type_name -> common.v1.JsonValue
+	19, // 3: browser_automation_studio.v1.AssertionResult.actual:type_name -> common.v1.JsonValue
+	8,  // 4: browser_automation_studio.v1.EventContext.source:type_name -> browser_automation_studio.v1.RecordingSource
+	15, // 5: browser_automation_studio.v1.EventContext.retry_status:type_name -> browser_automation_studio.v1.RetryStatus
+	16, // 6: browser_automation_studio.v1.EventContext.assertion:type_name -> browser_automation_studio.v1.AssertionResult
+	18, // 7: browser_automation_studio.v1.EventContext.extracted_data:type_name -> browser_automation_studio.v1.EventContext.ExtractedDataEntry
+	19, // 8: browser_automation_studio.v1.EventContext.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_shared_proto_init() }
@@ -1435,13 +1561,17 @@ func file_browser_automation_studio_v1_shared_proto_init() {
 	}
 	file_browser_automation_studio_v1_shared_proto_msgTypes[0].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_shared_proto_msgTypes[2].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_shared_proto_msgTypes[3].OneofWrappers = []any{
+		(*EventContext_SessionId)(nil),
+		(*EventContext_ExecutionId)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_shared_proto_rawDesc), len(file_browser_automation_studio_v1_shared_proto_rawDesc)),
-			NumEnums:      15,
-			NumMessages:   3,
+			NumEnums:      14,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

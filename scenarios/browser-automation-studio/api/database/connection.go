@@ -4,20 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq" // PostgreSQL driver
+	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/constants"
 	"io"
 	"math/rand"
+	_ "modernc.org/sqlite"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // PostgreSQL driver
-	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/config"
-	"github.com/vrooli/browser-automation-studio/constants"
-	_ "modernc.org/sqlite"
 )
 
 type DB struct {

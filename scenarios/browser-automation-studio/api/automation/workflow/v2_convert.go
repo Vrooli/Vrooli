@@ -3,8 +3,8 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 )
 
@@ -73,7 +73,8 @@ func V1EdgeToWorkflowEdgeV2(edge V1Edge) *basv1.WorkflowEdgeV2 {
 	}
 
 	if edge.Type != "" {
-		result.Type = &edge.Type
+		edgeType := stringToWorkflowEdgeType(edge.Type)
+		result.Type = &edgeType
 	}
 	if edge.Label != "" {
 		result.Label = &edge.Label
@@ -101,7 +102,7 @@ func WorkflowEdgeV2ToV1Edge(edge *basv1.WorkflowEdgeV2) V1Edge {
 	}
 
 	if edge.Type != nil {
-		result.Type = *edge.Type
+		result.Type = workflowEdgeTypeToString(*edge.Type)
 	}
 	if edge.Label != nil {
 		result.Label = *edge.Label
@@ -407,71 +408,15 @@ func actionDefinitionToV1Data(action *basv1.ActionDefinition) (string, map[strin
 }
 
 // mapV1TypeToActionType converts V1 node type string to ActionType enum.
+// Delegates to typeconv.StringToActionType for the canonical implementation.
 func mapV1TypeToActionType(nodeType string) basv1.ActionType {
-	switch strings.ToLower(nodeType) {
-	case "navigate", "goto":
-		return basv1.ActionType_ACTION_TYPE_NAVIGATE
-	case "click":
-		return basv1.ActionType_ACTION_TYPE_CLICK
-	case "input", "fill", "type":
-		return basv1.ActionType_ACTION_TYPE_INPUT
-	case "wait":
-		return basv1.ActionType_ACTION_TYPE_WAIT
-	case "assert":
-		return basv1.ActionType_ACTION_TYPE_ASSERT
-	case "scroll":
-		return basv1.ActionType_ACTION_TYPE_SCROLL
-	case "select", "selectoption":
-		return basv1.ActionType_ACTION_TYPE_SELECT
-	case "evaluate", "eval":
-		return basv1.ActionType_ACTION_TYPE_EVALUATE
-	case "keyboard", "keypress":
-		return basv1.ActionType_ACTION_TYPE_KEYBOARD
-	case "hover":
-		return basv1.ActionType_ACTION_TYPE_HOVER
-	case "screenshot":
-		return basv1.ActionType_ACTION_TYPE_SCREENSHOT
-	case "focus":
-		return basv1.ActionType_ACTION_TYPE_FOCUS
-	case "blur":
-		return basv1.ActionType_ACTION_TYPE_BLUR
-	default:
-		return basv1.ActionType_ACTION_TYPE_UNSPECIFIED
-	}
+	return typeconv.StringToActionType(nodeType)
 }
 
 // mapActionTypeToV1Type converts ActionType enum to V1 node type string.
+// Delegates to typeconv.ActionTypeToString for the canonical implementation.
 func mapActionTypeToV1Type(actionType basv1.ActionType) string {
-	switch actionType {
-	case basv1.ActionType_ACTION_TYPE_NAVIGATE:
-		return "navigate"
-	case basv1.ActionType_ACTION_TYPE_CLICK:
-		return "click"
-	case basv1.ActionType_ACTION_TYPE_INPUT:
-		return "input"
-	case basv1.ActionType_ACTION_TYPE_WAIT:
-		return "wait"
-	case basv1.ActionType_ACTION_TYPE_ASSERT:
-		return "assert"
-	case basv1.ActionType_ACTION_TYPE_SCROLL:
-		return "scroll"
-	case basv1.ActionType_ACTION_TYPE_SELECT:
-		return "select"
-	case basv1.ActionType_ACTION_TYPE_EVALUATE:
-		return "evaluate"
-	case basv1.ActionType_ACTION_TYPE_KEYBOARD:
-		return "keyboard"
-	case basv1.ActionType_ACTION_TYPE_HOVER:
-		return "hover"
-	case basv1.ActionType_ACTION_TYPE_SCREENSHOT:
-		return "screenshot"
-	case basv1.ActionType_ACTION_TYPE_FOCUS:
-		return "focus"
-	case basv1.ActionType_ACTION_TYPE_BLUR:
-		return "blur"
-	default:
-		return "unknown"
-	}
+	return typeconv.ActionTypeToString(actionType)
 }
 
 // extractExecutionSettings extracts NodeExecutionSettings from V1 node data.
@@ -638,8 +583,14 @@ func extractV2Settings(v1Settings map[string]any) *basv1.WorkflowSettingsV2 {
 		settings.Locale = &locale
 		hasData = true
 	}
+	// Handle both legacy timeout_seconds and new timeout_ms
 	if ts, ok := toInt32(v1Settings["timeout_seconds"]); ok {
-		settings.TimeoutSeconds = &ts
+		// Convert seconds to milliseconds for the proto field
+		timeoutMs := ts * 1000
+		settings.TimeoutMs = &timeoutMs
+		hasData = true
+	} else if tm, ok := toInt32(v1Settings["timeout_ms"]); ok {
+		settings.TimeoutMs = &tm
 		hasData = true
 	}
 	if headless, ok := v1Settings["headless"].(bool); ok {
@@ -707,8 +658,9 @@ func v2SettingsToMap(settings *basv1.WorkflowSettingsV2) map[string]any {
 	if settings.Locale != nil {
 		result["locale"] = *settings.Locale
 	}
-	if settings.TimeoutSeconds != nil {
-		result["timeout_seconds"] = *settings.TimeoutSeconds
+	if settings.TimeoutMs != nil {
+		// Convert milliseconds back to seconds for legacy format
+		result["timeout_seconds"] = *settings.TimeoutMs / 1000
 	}
 	if settings.Headless != nil {
 		result["headless"] = *settings.Headless
@@ -723,4 +675,40 @@ func v2SettingsToMap(settings *basv1.WorkflowSettingsV2) map[string]any {
 		return nil
 	}
 	return result
+}
+
+// stringToWorkflowEdgeType converts a string edge type to the proto enum.
+func stringToWorkflowEdgeType(s string) basv1.WorkflowEdgeType {
+	switch s {
+	case "default":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT
+	case "smoothstep":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP
+	case "step":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP
+	case "straight":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT
+	case "bezier":
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER
+	default:
+		return basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_UNSPECIFIED
+	}
+}
+
+// workflowEdgeTypeToString converts the proto enum to a string edge type.
+func workflowEdgeTypeToString(t basv1.WorkflowEdgeType) string {
+	switch t {
+	case basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT:
+		return "default"
+	case basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP:
+		return "smoothstep"
+	case basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP:
+		return "step"
+	case basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT:
+		return "straight"
+	case basv1.WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER:
+		return "bezier"
+	default:
+		return ""
+	}
 }

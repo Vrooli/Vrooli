@@ -76,7 +76,7 @@ func validateWorkflowProtoShape(definition map[string]any) error {
 	}
 
 	// Disallow unknown fields so UI/CLI drifts surface immediately.
-	return (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &browser_automation_studio_v1.WorkflowDefinition{})
+	return (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &browser_automation_studio_v1.WorkflowDefinitionV2{})
 }
 
 // definitionFromNodesEdges constructs a workflow definition map from separate

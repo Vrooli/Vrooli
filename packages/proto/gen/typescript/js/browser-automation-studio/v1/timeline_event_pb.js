@@ -2,23 +2,19 @@
 // @generated from file browser-automation-studio/v1/timeline_event.proto (package browser_automation_studio.v1, syntax proto3)
 /* eslint-disable */
 
-import { enumDesc, fileDesc, messageDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import { file_common_v1_types } from "../../common/v1/types_pb.js";
-import { file_browser_automation_studio_v1_shared } from "./shared_pb.js";
-import { file_browser_automation_studio_v1_action } from "./action_pb.js";
-import { file_browser_automation_studio_v1_selectors } from "./selectors_pb.js";
-import { file_browser_automation_studio_v1_telemetry } from "./telemetry_pb.js";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_browser_automation_studio_v1_timeline_entry } from "./timeline_entry_pb.js";
 
 /**
  * Describes the file browser-automation-studio/v1/timeline_event.proto.
  */
 export const file_browser_automation_studio_v1_timeline_event = /*@__PURE__*/
-  fileDesc("CjFicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lX2V2ZW50LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIsQECg1UaW1lbGluZUV2ZW50EgoKAmlkGAEgASgJEhQKDHNlcXVlbmNlX251bRgCIAEoBRItCgl0aW1lc3RhbXAYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKC2R1cmF0aW9uX21zGAQgASgFSAGIAQESFwoKc3RlcF9pbmRleBgFIAEoBUgCiAEBEhQKB25vZGVfaWQYBiABKAlIA4gBARI+CgZhY3Rpb24YCiABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvbkRlZmluaXRpb24SQAoJdGVsZW1ldHJ5GAsgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25UZWxlbWV0cnkSQwoJcmVjb3JkaW5nGBQgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZWNvcmRpbmdDb250ZXh0SAASQwoJZXhlY3V0aW9uGBUgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25Db250ZXh0SAASFQoIdHJhY2VfaWQYHiABKAlIBIgBARIbCg5jb3JyZWxhdGlvbl9pZBgfIAEoCUgFiAEBQg4KDG1vZGVfY29udGV4dEIOCgxfZHVyYXRpb25fbXNCDQoLX3N0ZXBfaW5kZXhCCgoIX25vZGVfaWRCCwoJX3RyYWNlX2lkQhEKD19jb3JyZWxhdGlvbl9pZCLPAQoQUmVjb3JkaW5nQ29udGV4dBISCgpzZXNzaW9uX2lkGAEgASgJEkwKE3NlbGVjdG9yX2NhbmRpZGF0ZXMYAiADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yQ2FuZGlkYXRlEhoKEm5lZWRzX2NvbmZpcm1hdGlvbhgDIAEoCBI9CgZzb3VyY2UYBCABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJlY29yZGluZ1NvdXJjZSLgAwoQRXhlY3V0aW9uQ29udGV4dBIUCgxleGVjdXRpb25faWQYASABKAkSDwoHc3VjY2VzcxgKIAEoCBISCgVlcnJvchgLIAEoCUgAiAEBEhcKCmVycm9yX2NvZGUYDCABKAlIAYgBARI/CgxyZXRyeV9zdGF0dXMYGSABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJldHJ5U3RhdHVzEkUKCWFzc2VydGlvbhgeIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0aW9uUmVzdWx0SAKIAQESWQoOZXh0cmFjdGVkX2RhdGEYHyADKAsyQS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbkNvbnRleHQuRXh0cmFjdGVkRGF0YUVudHJ5GkoKEkV4dHJhY3RlZERhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIICgZfZXJyb3JCDQoLX2Vycm9yX2NvZGVCDAoKX2Fzc2VydGlvbkoECAIQA0oECBQQFUoECBUQFkoECBYQF0oECBcQGEoECBgQGSKtAgoVVGltZWxpbmVTdHJlYW1NZXNzYWdlEj8KBHR5cGUYASABKA4yMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lTWVzc2FnZVR5cGUSPAoFZXZlbnQYCiABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRXZlbnRIABJECgZzdGF0dXMYCyABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lU3RhdHVzVXBkYXRlSAASRAoJaGVhcnRiZWF0GAwgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUhlYXJ0YmVhdEgAQgkKB3BheWxvYWQipgEKFFRpbWVsaW5lU3RhdHVzVXBkYXRlEgoKAmlkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhAKCHByb2dyZXNzGAMgASgFEhMKC2V2ZW50X2NvdW50GAQgASgFEhIKBWVycm9yGAUgASgJSACIAQFCCAoGX2Vycm9yIlYKEVRpbWVsaW5lSGVhcnRiZWF0Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2Vzc2lvbl9pZBgCIAEoCSqkAQoTVGltZWxpbmVNZXNzYWdlVHlwZRIlCiFUSU1FTElORV9NRVNTQUdFX1RZUEVfVU5TUEVDSUZJRUQQABIfChtUSU1FTElORV9NRVNTQUdFX1RZUEVfRVZFTlQQARIgChxUSU1FTElORV9NRVNTQUdFX1RZUEVfU1RBVFVTEAISIwofVElNRUxJTkVfTUVTU0FHRV9UWVBFX0hFQVJUQkVBVBADQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_selectors, file_browser_automation_studio_v1_telemetry]);
+  fileDesc("CjFicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lX2V2ZW50LnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIk8KDVRpbWVsaW5lRXZlbnQSOgoFZW50cnkYASABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRW50cnk6AhgBIjwKEFJlY29yZGluZ0NvbnRleHQSEgoKc2Vzc2lvbl9pZBgBIAEoCToCGAFKBAgCEANKBAgDEARKBAgEEAUidAoQRXhlY3V0aW9uQ29udGV4dBIUCgxleGVjdXRpb25faWQYASABKAk6AhgBSgQIAhADSgQIChALSgQICxAMSgQIDBANSgQIFBAVSgQIFRAWSgQIFhAXSgQIFxAYSgQIGBAZSgQIGRAaSgQIHhAfSgQIHxAgQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_browser_automation_studio_v1_timeline_entry]);
 
 /**
  * Describes the message browser_automation_studio.v1.TimelineEvent.
  * Use `create(TimelineEventSchema)` to create a new message.
+ * @deprecated
  */
 export const TimelineEventSchema = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline_event, 0);
@@ -26,6 +22,7 @@ export const TimelineEventSchema = /*@__PURE__*/
 /**
  * Describes the message browser_automation_studio.v1.RecordingContext.
  * Use `create(RecordingContextSchema)` to create a new message.
+ * @deprecated
  */
 export const RecordingContextSchema = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline_event, 1);
@@ -33,42 +30,8 @@ export const RecordingContextSchema = /*@__PURE__*/
 /**
  * Describes the message browser_automation_studio.v1.ExecutionContext.
  * Use `create(ExecutionContextSchema)` to create a new message.
+ * @deprecated
  */
 export const ExecutionContextSchema = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline_event, 2);
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineStreamMessage.
- * Use `create(TimelineStreamMessageSchema)` to create a new message.
- */
-export const TimelineStreamMessageSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline_event, 3);
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineStatusUpdate.
- * Use `create(TimelineStatusUpdateSchema)` to create a new message.
- */
-export const TimelineStatusUpdateSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline_event, 4);
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineHeartbeat.
- * Use `create(TimelineHeartbeatSchema)` to create a new message.
- */
-export const TimelineHeartbeatSchema = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline_event, 5);
-
-/**
- * Describes the enum browser_automation_studio.v1.TimelineMessageType.
- */
-export const TimelineMessageTypeSchema = /*@__PURE__*/
-  enumDesc(file_browser_automation_studio_v1_timeline_event, 0);
-
-/**
- * TimelineMessageType enumerates WebSocket message types.
- *
- * @generated from enum browser_automation_studio.v1.TimelineMessageType
- */
-export const TimelineMessageType = /*@__PURE__*/
-  tsEnum(TimelineMessageTypeSchema);
 
