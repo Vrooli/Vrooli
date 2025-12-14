@@ -2,16 +2,85 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
-import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "common/v1/types.proto";
+import "browser-automation-studio/v1/action.proto";
 import "browser-automation-studio/v1/shared.proto";
+import "browser-automation-studio/v1/telemetry.proto";
 import "browser-automation-studio/v1/timeline.proto";
-import "browser-automation-studio/v1/workflow.proto";
+import "browser-automation-studio/v1/workflow_v2.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
-// Execution is returned by GET /api/v1/executions/{id}` and list APIs.
+// =============================================================================
+// EXECUTION PARAMETERS & RESULT (typed alternatives to JsonValue maps)
+// =============================================================================
+
+// ExecutionParameters captures typed runtime parameters for workflow execution.
+message ExecutionParameters {
+  // Initial URL to start the execution (for workflows without a navigate step).
+  optional string start_url = 1;
+  // Variables to inject into the workflow (e.g., login credentials).
+  map<string, string> variables = 2;
+  // Viewport dimensions override.
+  optional int32 viewport_width = 3;
+  optional int32 viewport_height = 4;
+  // Reserved: field 5 was timeout_seconds (migrated to timeout_ms for consistency).
+  reserved 5;
+  // Run in headless mode override.
+  optional bool headless = 6;
+  // User agent override.
+  optional string user_agent = 7;
+  // Locale override (e.g., "en-US").
+  optional string locale = 8;
+  // Timeout override in milliseconds (default: 300000 = 5 minutes).
+  optional int32 timeout_ms = 9;
+}
+
+// ExecutionResult captures typed execution outcomes.
+// Use this instead of map<string, JsonValue> result for type safety.
+message ExecutionResult {
+  // Whether the execution completed successfully.
+  bool success = 1;
+  // Number of steps executed.
+  int32 steps_executed = 2;
+  // Number of steps that failed.
+  int32 steps_failed = 3;
+  // Final URL after execution completed.
+  optional string final_url = 4;
+  // Error message if execution failed.
+  optional string error = 5;
+  // Error code for programmatic handling.
+  optional string error_code = 6;
+  // Extracted data from evaluate steps (variable name -> value).
+  map<string, common.v1.JsonValue> extracted_data = 7;
+  // Screenshots captured during execution (step_index -> artifact_id).
+  map<int32, string> screenshot_artifacts = 8;
+}
+
+// TriggerMetadata captures contextual information about how an execution was triggered.
+message TriggerMetadata {
+  // User ID who initiated the execution (for manual triggers).
+  optional string user_id = 1;
+  // API client ID (for API triggers).
+  optional string client_id = 2;
+  // Schedule ID (for scheduled triggers).
+  optional string schedule_id = 3;
+  // Webhook ID (for webhook triggers).
+  optional string webhook_id = 4;
+  // External request ID for correlation with upstream systems.
+  optional string external_request_id = 5;
+  // Source IP address of the trigger request.
+  optional string source_ip = 6;
+  // User agent of the trigger request.
+  optional string user_agent = 7;
+}
+
+// =============================================================================
+// EXECUTION
+// =============================================================================
+
+// Execution is returned by GET /api/v1/executions/{id} and list APIs.
 message Execution {
   // Unique execution ID (UUID). JSON name preserved as "id" for backwards compatibility.
   string execution_id = 1 [json_name = "id"];
@@ -23,48 +92,62 @@ message Execution {
   ExecutionStatus status = 4;
   // How the execution was triggered (manual, scheduled, api, webhook).
   TriggerType trigger_type = 5;
-  // Trigger metadata payload.
-  map<string, google.protobuf.Value> trigger_metadata = 6 [deprecated = true];
-  // Strongly typed trigger metadata; prefer over Value maps.
-  map<string, common.v1.JsonValue> trigger_metadata_typed = 19;
-  // Runtime parameters passed to the execution.
-  map<string, google.protobuf.Value> parameters = 7 [deprecated = true];
-  // Strongly typed runtime parameters; prefer over Value maps.
-  map<string, common.v1.JsonValue> parameters_typed = 17;
+  // Reserved fields from migrations:
+  // - 6: trigger_data (migrated to trigger_metadata)
+  // - 7: source (migrated to trigger_type)
+  // - 12: result_data (migrated to result)
+  // - 17: parameters map (migrated to parameters typed)
+  // - 18: result map (migrated to result typed)
+  reserved 6, 7, 12, 17, 18;
   // When the execution started.
   google.protobuf.Timestamp started_at = 8;
   // When the execution completed (null if still running).
-  google.protobuf.Timestamp completed_at = 9;
+  optional google.protobuf.Timestamp completed_at = 9;
   // Last heartbeat received from the executor.
   google.protobuf.Timestamp last_heartbeat = 10;
   // Error message if the execution failed.
   optional string error = 11;
-  // Structured result payload reported by the executor.
-  map<string, google.protobuf.Value> result = 12 [deprecated = true];
-  // Strongly typed execution results; prefer over Value maps.
-  map<string, common.v1.JsonValue> result_typed = 18;
   // Progress percentage (0-100).
   int32 progress = 13;
   // Human-readable description of the current step.
-  string current_step = 14;
+  optional string current_step = 14;
   // Creation timestamp for the execution record.
   google.protobuf.Timestamp created_at = 15;
   // Last update timestamp for the execution record.
   google.protobuf.Timestamp updated_at = 16;
+  // Typed runtime parameters for the execution.
+  ExecutionParameters parameters = 20;
+  // Typed execution result.
+  ExecutionResult result = 21;
+  // Trigger metadata (typed).
+  TriggerMetadata trigger_metadata = 22;
+
+  // Distributed tracing fields for observability.
+  // Trace ID for distributed tracing (e.g., OpenTelemetry trace ID).
+  optional string trace_id = 30;
+  // Correlation ID for linking related operations across services.
+  optional string correlation_id = 31;
+  // Idempotency key for request deduplication.
+  optional string request_id = 32;
 }
+
+// =============================================================================
+// ADHOC EXECUTION
+// =============================================================================
 
 // ExecuteAdhocRequest represents POST /api/v1/workflows/execute-adhoc.
 message ExecuteAdhocRequest {
-  // Workflow definition to execute without persisting.
-  WorkflowDefinition flow_definition = 1;
-  // Runtime parameters for the adhoc execution.
-  map<string, google.protobuf.Value> parameters = 2;
-  // Strongly typed runtime parameters; prefer over Value maps.
-  map<string, common.v1.JsonValue> parameters_typed = 5;
+  // Workflow definition to execute without persisting (V2 format).
+  WorkflowDefinitionV2 flow_definition = 1;
+  // Reserved: field 2 was 'flow_definition_v1' (migrated to flow_definition V2)
+  // Reserved: field 5 was untyped parameters map (migrated to typed parameters)
+  reserved 2, 5;
   // Whether to wait for completion before responding.
   bool wait_for_completion = 3;
   // Optional metadata for labeling the execution.
   ExecutionMetadata metadata = 4;
+  // Typed runtime parameters for the adhoc execution.
+  ExecutionParameters parameters = 6;
 }
 
 // ExecutionMetadata captures optional labels for adhoc runs.
@@ -85,44 +168,52 @@ message ExecuteAdhocResponse {
   optional string workflow_id = 3;
   // Human-readable status message.
   string message = 4;
-  // Completion timestamp when wait_for_completion is true.
-  google.protobuf.Timestamp completed_at = 5;
+  // Completion timestamp when wait_for_completion is true (null if async or failed).
+  optional google.protobuf.Timestamp completed_at = 5;
   // Error message when execution fails.
   optional string error = 6;
 }
 
-// Screenshot represents metadata for a captured screenshot.
-message Screenshot {
-  // Unique screenshot artifact ID.
-  string id = 1;
-  // Execution ID this screenshot belongs to.
-  string execution_id = 2;
-  // Human-readable step name when captured.
-  string step_name = 3;
+// =============================================================================
+// SCREENSHOTS
+// =============================================================================
+
+// ExecutionScreenshot wraps TimelineScreenshot with execution context.
+// This provides the canonical screenshot data plus execution-specific metadata.
+message ExecutionScreenshot {
+  // The screenshot data (canonical type from telemetry.proto).
+  TimelineScreenshot screenshot = 1;
   // Zero-based step index in the execution.
-  int32 step_index = 4;
+  int32 step_index = 2;
+  // Node ID from the workflow definition (UUID format).
+  string node_id = 3;
+  // Human-readable step label (derived from action type/metadata).
+  optional string step_label = 4;
   // When the screenshot was captured.
-  google.protobuf.Timestamp timestamp = 5;
-  // URL to download the full screenshot.
-  string storage_url = 6;
-  // URL to download a thumbnail.
-  string thumbnail_url = 7;
-  // Image width in pixels.
-  int32 width = 8;
-  // Image height in pixels.
-  int32 height = 9;
-  // File size in bytes.
-  int64 size_bytes = 10;
+  google.protobuf.Timestamp captured_at = 5;
 }
 
 // GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
 message GetScreenshotsResponse {
-  // List of screenshots for the execution.
-  repeated Screenshot screenshots = 1;
+  // Execution ID the screenshots belong to.
+  string execution_id = 1;
+  // List of screenshots with execution context.
+  repeated ExecutionScreenshot screenshots = 2;
+  // Total count of screenshots.
+  int32 total = 3;
 }
 
+// =============================================================================
+// WEBSOCKET EVENTS (LEGACY)
+// =============================================================================
+
 // ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
+// DEPRECATED: Use TimelineStreamMessage from timeline_event.proto instead.
+// TimelineStreamMessage provides a unified format for both recording and execution
+// streaming, with proper ActionDefinition and ActionTelemetry composition.
+// This message is retained for backward compatibility with existing consumers.
 message ExecutionEventEnvelope {
+  option deprecated = true;
   // Schema version for the envelope.
   string schema_version = 1;
   // Payload version for downstream consumers.
@@ -151,6 +242,10 @@ message ExecutionEventEnvelope {
   }
 }
 
+// =============================================================================
+// EXPORT PREVIEW
+// =============================================================================
+
 // ExecutionExportPreview summarizes export readiness and metadata.
 message ExecutionExportPreview {
   // Execution ID being exported.
@@ -167,54 +262,118 @@ message ExecutionExportPreview {
   int32 available_asset_count = 6;
   // Total duration in milliseconds of the replay.
   int32 total_duration_ms = 7;
-  // Replay movie package encoded as JSON (movie spec).
-  google.protobuf.Struct package = 8 [deprecated = true];
-  // Typed replay movie package; prefer over Struct when available.
-  common.v1.JsonObject package_typed = 9;
+  // Reserved: field 8 was 'export_url' (replaced with package containing full spec)
+  reserved 8;
+  // Replay movie package.
+  common.v1.JsonObject package = 9;
 }
+
+// =============================================================================
+// EVENT PAYLOADS
+// =============================================================================
 
 // StatusUpdateEvent carries execution-level status changes.
 message StatusUpdateEvent {
+  // Current execution status.
   ExecutionStatus status = 1;
+  // Progress percentage (0-100).
   int32 progress = 2;
   // Current step description when available.
   optional string current_step = 3;
   // Error details when status is failed.
   optional string error = 4;
+  // When the status change occurred.
   google.protobuf.Timestamp occurred_at = 5;
 }
 
 // TimelineFrameEvent transports timeline frame updates.
 message TimelineFrameEvent {
+  // The timeline frame data.
   TimelineFrame frame = 1;
+}
+
+// LogMetadata provides typed context for log events.
+message LogMetadata {
+  // Node ID where the log originated (UUID format).
+  optional string node_id = 1;
+  // Action type for step-related logs.
+  optional ActionType action_type = 2;
+  // URL at the time of logging.
+  optional string url = 3;
+  // Stack trace for error logs.
+  optional string stack_trace = 4;
+  // Component/module that emitted the log.
+  optional string component = 5;
 }
 
 // LogEvent captures execution log events.
 message LogEvent {
+  // Log level.
   LogLevel level = 1;
+  // Log message.
   string message = 2;
   // Optional step context for the log.
   optional int32 step_index = 3;
+  // When the log occurred.
   google.protobuf.Timestamp occurred_at = 4;
-  map<string, google.protobuf.Value> metadata = 5 [deprecated = true];
-  // Typed metadata; prefer over the Value map.
-  map<string, common.v1.JsonValue> metadata_typed = 6;
+  // Reserved: field 5 was 'context', field 6 was untyped metadata map.
+  reserved 5, 6;
+  // Typed log metadata.
+  LogMetadata metadata = 7;
+}
+
+// HeartbeatMetrics provides typed executor metrics.
+message HeartbeatMetrics {
+  // Memory usage in bytes.
+  optional int64 memory_bytes = 1;
+  // CPU usage percentage (0-100).
+  optional double cpu_percent = 2;
+  // Number of active browser pages.
+  optional int32 active_pages = 3;
+  // Current step being executed.
+  optional int32 current_step = 4;
+  // Total steps in the workflow.
+  optional int32 total_steps = 5;
 }
 
 // HeartbeatEvent reports liveness/progress signals.
 message HeartbeatEvent {
+  // When the heartbeat was received.
   google.protobuf.Timestamp received_at = 1;
+  // Progress percentage.
   int32 progress = 2;
-  // Executor supplied metrics.
-  map<string, google.protobuf.Value> metrics = 3 [deprecated = true];
-  // Typed executor metrics; prefer over the Value map.
-  map<string, common.v1.JsonValue> metrics_typed = 4;
+  // Reserved: field 3 was 'context', field 4 was untyped metrics map.
+  reserved 3, 4;
+  // Typed executor metrics.
+  HeartbeatMetrics metrics = 5;
+}
+
+// TelemetryMetrics provides typed telemetry data.
+message TelemetryMetrics {
+  // Network request count.
+  optional int32 network_requests = 1;
+  // Total bytes transferred.
+  optional int64 bytes_transferred = 2;
+  // DOM node count.
+  optional int32 dom_nodes = 3;
+  // JavaScript heap size in bytes.
+  optional int64 js_heap_bytes = 4;
+  // Time to first byte in milliseconds.
+  optional int32 ttfb_ms = 5;
+  // Largest contentful paint in milliseconds.
+  optional int32 lcp_ms = 6;
+  // First input delay in milliseconds.
+  optional int32 fid_ms = 7;
+  // Cumulative layout shift score.
+  optional double cls = 8;
 }
 
 // TelemetryEvent emits structured telemetry metrics.
 message TelemetryEvent {
-  map<string, google.protobuf.Value> metrics = 1 [deprecated = true];
+  // Reserved: field 1 was 'type', field 3 was untyped metrics map.
+  reserved 1, 3;
+  // When telemetry was recorded.
   google.protobuf.Timestamp recorded_at = 2;
-  // Typed telemetry metrics; prefer over the Value map.
-  map<string, common.v1.JsonValue> metrics_typed = 3;
+  // Typed telemetry metrics.
+  TelemetryMetrics metrics = 4;
 }

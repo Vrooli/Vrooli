@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from common.v1 import types_pb2 as common_dot_v1_dot_types__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)browser-automation-studio/v1/shared.proto\x12\x1c\x62rowser_automation_studio.v1*\xcc\x01\n\x0f\x45xecutionStatus\x12 \n\x1c\x45XECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45XECUTION_STATUS_PENDING\x10\x01\x12\x1c\n\x18\x45XECUTION_STATUS_RUNNING\x10\x02\x12\x1e\n\x1a\x45XECUTION_STATUS_COMPLETED\x10\x03\x12\x1b\n\x17\x45XECUTION_STATUS_FAILED\x10\x04\x12\x1e\n\x1a\x45XECUTION_STATUS_CANCELLED\x10\x05*\x90\x01\n\x0bTriggerType\x12\x1c\n\x18TRIGGER_TYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13TRIGGER_TYPE_MANUAL\x10\x01\x12\x1a\n\x16TRIGGER_TYPE_SCHEDULED\x10\x02\x12\x14\n\x10TRIGGER_TYPE_API\x10\x03\x12\x18\n\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xdc\x01\n\nStepStatus\x12\x1b\n\x17STEP_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13STEP_STATUS_PENDING\x10\x01\x12\x17\n\x13STEP_STATUS_RUNNING\x10\x02\x12\x19\n\x15STEP_STATUS_COMPLETED\x10\x03\x12\x16\n\x12STEP_STATUS_FAILED\x10\x04\x12\x19\n\x15STEP_STATUS_CANCELLED\x10\x05\x12\x17\n\x13STEP_STATUS_SKIPPED\x10\x06\x12\x18\n\x14STEP_STATUS_RETRYING\x10\x07*w\n\x08LogLevel\x12\x19\n\x15LOG_LEVEL_UNSPECIFIED\x10\x00\x12\x13\n\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n\x0fLOG_LEVEL_ERROR\x10\x04*\x80\x02\n\x0c\x41rtifactType\x12\x1d\n\x19\x41RTIFACT_TYPE_UNSPECIFIED\x10\x00\x12 \n\x1c\x41RTIFACT_TYPE_TIMELINE_FRAME\x10\x01\x12\x1d\n\x19\x41RTIFACT_TYPE_CONSOLE_LOG\x10\x02\x12\x1f\n\x1b\x41RTIFACT_TYPE_NETWORK_EVENT\x10\x03\x12\x1c\n\x18\x41RTIFACT_TYPE_SCREENSHOT\x10\x04\x12\x1e\n\x1a\x41RTIFACT_TYPE_DOM_SNAPSHOT\x10\x05\x12\x17\n\x13\x41RTIFACT_TYPE_TRACE\x10\x06\x12\x18\n\x14\x41RTIFACT_TYPE_CUSTOM\x10\x07*\xac\x01\n\tEventKind\x12\x1a\n\x16\x45VENT_KIND_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45VENT_KIND_STATUS_UPDATE\x10\x01\x12\x1d\n\x19\x45VENT_KIND_TIMELINE_FRAME\x10\x02\x12\x12\n\x0e\x45VENT_KIND_LOG\x10\x03\x12\x18\n\x14\x45VENT_KIND_HEARTBEAT\x10\x04\x12\x18\n\x14\x45VENT_KIND_TELEMETRY\x10\x05*\x99\x01\n\x0c\x45xportStatus\x12\x1d\n\x19\x45XPORT_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13\x45XPORT_STATUS_READY\x10\x01\x12\x19\n\x15\x45XPORT_STATUS_PENDING\x10\x02\x12\x17\n\x13\x45XPORT_STATUS_ERROR\x10\x03\x12\x1d\n\x19\x45XPORT_STATUS_UNAVAILABLE\x10\x04\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)browser-automation-studio/v1/shared.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x15\x63ommon/v1/types.proto\"\x88\x01\n\x0cRetryAttempt\x12\x18\n\x07\x61ttempt\x18\x01 \x01(\x05R\x07\x61ttempt\x12\x18\n\x07success\x18\x02 \x01(\x08R\x07success\x12\x1f\n\x0b\x64uration_ms\x18\x03 \x01(\x05R\ndurationMs\x12\x19\n\x05\x65rror\x18\x04 \x01(\tH\x00R\x05\x65rror\x88\x01\x01\x42\x08\n\x06_error\"\x81\x02\n\x0bRetryStatus\x12\'\n\x0f\x63urrent_attempt\x18\x01 \x01(\x05R\x0e\x63urrentAttempt\x12!\n\x0cmax_attempts\x18\x02 \x01(\x05R\x0bmaxAttempts\x12\x19\n\x08\x64\x65lay_ms\x18\x03 \x01(\x05R\x07\x64\x65layMs\x12%\n\x0e\x62\x61\x63koff_factor\x18\x04 \x01(\x01R\rbackoffFactor\x12\x1e\n\nconfigured\x18\x05 \x01(\x08R\nconfigured\x12\x44\n\x07history\x18\x06 \x03(\x0b\x32*.browser_automation_studio.v1.RetryAttemptR\x07history\"\xf6\x02\n\x0f\x41ssertionResult\x12?\n\x04mode\x18\x01 \x01(\x0e\x32+.browser_automation_studio.v1.AssertionModeR\x04mode\x12\x1a\n\x08selector\x18\x02 \x01(\tR\x08selector\x12\x35\n\x08\x65xpected\x18\x03 \x01(\x0b\x32\x14.common.v1.JsonValueH\x00R\x08\x65xpected\x88\x01\x01\x12\x31\n\x06\x61\x63tual\x18\x04 \x01(\x0b\x32\x14.common.v1.JsonValueH\x01R\x06\x61\x63tual\x88\x01\x01\x12\x18\n\x07success\x18\x05 \x01(\x08R\x07success\x12\x18\n\x07negated\x18\x06 \x01(\x08R\x07negated\x12%\n\x0e\x63\x61se_sensitive\x18\x07 \x01(\x08R\rcaseSensitive\x12\x1d\n\x07message\x18\x08 \x01(\tH\x02R\x07message\x88\x01\x01\x42\x0b\n\t_expectedB\t\n\x07_actualB\n\n\x08_message*\xcc\x01\n\x0f\x45xecutionStatus\x12 \n\x1c\x45XECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45XECUTION_STATUS_PENDING\x10\x01\x12\x1c\n\x18\x45XECUTION_STATUS_RUNNING\x10\x02\x12\x1e\n\x1a\x45XECUTION_STATUS_COMPLETED\x10\x03\x12\x1b\n\x17\x45XECUTION_STATUS_FAILED\x10\x04\x12\x1e\n\x1a\x45XECUTION_STATUS_CANCELLED\x10\x05*\x90\x01\n\x0bTriggerType\x12\x1c\n\x18TRIGGER_TYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13TRIGGER_TYPE_MANUAL\x10\x01\x12\x1a\n\x16TRIGGER_TYPE_SCHEDULED\x10\x02\x12\x14\n\x10TRIGGER_TYPE_API\x10\x03\x12\x18\n\x14TRIGGER_TYPE_WEBHOOK\x10\x04*\xdc\x01\n\nStepStatus\x12\x1b\n\x17STEP_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13STEP_STATUS_PENDING\x10\x01\x12\x17\n\x13STEP_STATUS_RUNNING\x10\x02\x12\x19\n\x15STEP_STATUS_COMPLETED\x10\x03\x12\x16\n\x12STEP_STATUS_FAILED\x10\x04\x12\x19\n\x15STEP_STATUS_CANCELLED\x10\x05\x12\x17\n\x13STEP_STATUS_SKIPPED\x10\x06\x12\x18\n\x14STEP_STATUS_RETRYING\x10\x07*w\n\x08LogLevel\x12\x19\n\x15LOG_LEVEL_UNSPECIFIED\x10\x00\x12\x13\n\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n\x0fLOG_LEVEL_ERROR\x10\x04*\x80\x02\n\x0c\x41rtifactType\x12\x1d\n\x19\x41RTIFACT_TYPE_UNSPECIFIED\x10\x00\x12 \n\x1c\x41RTIFACT_TYPE_TIMELINE_FRAME\x10\x01\x12\x1d\n\x19\x41RTIFACT_TYPE_CONSOLE_LOG\x10\x02\x12\x1f\n\x1b\x41RTIFACT_TYPE_NETWORK_EVENT\x10\x03\x12\x1c\n\x18\x41RTIFACT_TYPE_SCREENSHOT\x10\x04\x12\x1e\n\x1a\x41RTIFACT_TYPE_DOM_SNAPSHOT\x10\x05\x12\x17\n\x13\x41RTIFACT_TYPE_TRACE\x10\x06\x12\x18\n\x14\x41RTIFACT_TYPE_CUSTOM\x10\x07*\xb0\x01\n\tEventKind\x12\x1a\n\x16\x45VENT_KIND_UNSPECIFIED\x10\x00\x12\x1c\n\x18\x45VENT_KIND_STATUS_UPDATE\x10\x01\x12\x1d\n\x19\x45VENT_KIND_TIMELINE_FRAME\x10\x02\x12\x12\n\x0e\x45VENT_KIND_LOG\x10\x03\x12\x18\n\x14\x45VENT_KIND_HEARTBEAT\x10\x04\x12\x18\n\x14\x45VENT_KIND_TELEMETRY\x10\x05\x1a\x02\x18\x01*\x99\x01\n\x0c\x45xportStatus\x12\x1d\n\x19\x45XPORT_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13\x45XPORT_STATUS_READY\x10\x01\x12\x19\n\x15\x45XPORT_STATUS_PENDING\x10\x02\x12\x17\n\x13\x45XPORT_STATUS_ERROR\x10\x03\x12\x1d\n\x19\x45XPORT_STATUS_UNAVAILABLE\x10\x04*\xae\x02\n\x0cSelectorType\x12\x1d\n\x19SELECTOR_TYPE_UNSPECIFIED\x10\x00\x12\x15\n\x11SELECTOR_TYPE_CSS\x10\x01\x12\x17\n\x13SELECTOR_TYPE_XPATH\x10\x02\x12\x14\n\x10SELECTOR_TYPE_ID\x10\x03\x12\x1d\n\x19SELECTOR_TYPE_DATA_TESTID\x10\x04\x12\x16\n\x12SELECTOR_TYPE_ARIA\x10\x05\x12\x16\n\x12SELECTOR_TYPE_TEXT\x10\x06\x12\x16\n\x12SELECTOR_TYPE_ROLE\x10\x07\x12\x1d\n\x19SELECTOR_TYPE_PLACEHOLDER\x10\x08\x12\x1a\n\x16SELECTOR_TYPE_ALT_TEXT\x10\t\x12\x17\n\x13SELECTOR_TYPE_TITLE\x10\n*\x97\x01\n\x10NetworkEventType\x12\"\n\x1eNETWORK_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n\x1aNETWORK_EVENT_TYPE_REQUEST\x10\x01\x12\x1f\n\x1bNETWORK_EVENT_TYPE_RESPONSE\x10\x02\x12\x1e\n\x1aNETWORK_EVENT_TYPE_FAILURE\x10\x03*k\n\x0fRecordingSource\x12 \n\x1cRECORDING_SOURCE_UNSPECIFIED\x10\x00\x12\x19\n\x15RECORDING_SOURCE_AUTO\x10\x01\x12\x1b\n\x17RECORDING_SOURCE_MANUAL\x10\x02*\xd6\x01\n\x10WorkflowEdgeType\x12\"\n\x1eWORKFLOW_EDGE_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n\x1aWORKFLOW_EDGE_TYPE_DEFAULT\x10\x01\x12!\n\x1dWORKFLOW_EDGE_TYPE_SMOOTHSTEP\x10\x02\x12\x1b\n\x17WORKFLOW_EDGE_TYPE_STEP\x10\x03\x12\x1f\n\x1bWORKFLOW_EDGE_TYPE_STRAIGHT\x10\x04\x12\x1d\n\x19WORKFLOW_EDGE_TYPE_BEZIER\x10\x05*\x97\x01\n\x12ValidationSeverity\x12#\n\x1fVALIDATION_SEVERITY_UNSPECIFIED\x10\x00\x12\x1d\n\x19VALIDATION_SEVERITY_ERROR\x10\x01\x12\x1f\n\x1bVALIDATION_SEVERITY_WARNING\x10\x02\x12\x1c\n\x18VALIDATION_SEVERITY_INFO\x10\x03*\xba\x01\n\x0c\x43hangeSource\x12\x1d\n\x19\x43HANGE_SOURCE_UNSPECIFIED\x10\x00\x12\x18\n\x14\x43HANGE_SOURCE_MANUAL\x10\x01\x12\x1a\n\x16\x43HANGE_SOURCE_AUTOSAVE\x10\x02\x12\x18\n\x14\x43HANGE_SOURCE_IMPORT\x10\x03\x12\x1e\n\x1a\x43HANGE_SOURCE_AI_GENERATED\x10\x04\x12\x1b\n\x17\x43HANGE_SOURCE_RECORDING\x10\x05*\xae\x02\n\rAssertionMode\x12\x1e\n\x1a\x41SSERTION_MODE_UNSPECIFIED\x10\x00\x12\x19\n\x15\x41SSERTION_MODE_EXISTS\x10\x01\x12\x1d\n\x19\x41SSERTION_MODE_NOT_EXISTS\x10\x02\x12\x1a\n\x16\x41SSERTION_MODE_VISIBLE\x10\x03\x12\x19\n\x15\x41SSERTION_MODE_HIDDEN\x10\x04\x12\x1e\n\x1a\x41SSERTION_MODE_TEXT_EQUALS\x10\x05\x12 \n\x1c\x41SSERTION_MODE_TEXT_CONTAINS\x10\x06\x12#\n\x1f\x41SSERTION_MODE_ATTRIBUTE_EQUALS\x10\x07\x12%\n!ASSERTION_MODE_ATTRIBUTE_CONTAINS\x10\x08\x42jZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,18 +33,40 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'browser_automation_studio.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1'
-  _globals['_EXECUTIONSTATUS']._serialized_start=76
-  _globals['_EXECUTIONSTATUS']._serialized_end=280
-  _globals['_TRIGGERTYPE']._serialized_start=283
-  _globals['_TRIGGERTYPE']._serialized_end=427
-  _globals['_STEPSTATUS']._serialized_start=430
-  _globals['_STEPSTATUS']._serialized_end=650
-  _globals['_LOGLEVEL']._serialized_start=652
-  _globals['_LOGLEVEL']._serialized_end=771
-  _globals['_ARTIFACTTYPE']._serialized_start=774
-  _globals['_ARTIFACTTYPE']._serialized_end=1030
-  _globals['_EVENTKIND']._serialized_start=1033
-  _globals['_EVENTKIND']._serialized_end=1205
-  _globals['_EXPORTSTATUS']._serialized_start=1208
-  _globals['_EXPORTSTATUS']._serialized_end=1361
+  _globals['_EVENTKIND']._loaded_options = None
+  _globals['_EVENTKIND']._serialized_options = b'\030\001'
+  _globals['_EXECUTIONSTATUS']._serialized_start=875
+  _globals['_EXECUTIONSTATUS']._serialized_end=1079
+  _globals['_TRIGGERTYPE']._serialized_start=1082
+  _globals['_TRIGGERTYPE']._serialized_end=1226
+  _globals['_STEPSTATUS']._serialized_start=1229
+  _globals['_STEPSTATUS']._serialized_end=1449
+  _globals['_LOGLEVEL']._serialized_start=1451
+  _globals['_LOGLEVEL']._serialized_end=1570
+  _globals['_ARTIFACTTYPE']._serialized_start=1573
+  _globals['_ARTIFACTTYPE']._serialized_end=1829
+  _globals['_EVENTKIND']._serialized_start=1832
+  _globals['_EVENTKIND']._serialized_end=2008
+  _globals['_EXPORTSTATUS']._serialized_start=2011
+  _globals['_EXPORTSTATUS']._serialized_end=2164
+  _globals['_SELECTORTYPE']._serialized_start=2167
+  _globals['_SELECTORTYPE']._serialized_end=2469
+  _globals['_NETWORKEVENTTYPE']._serialized_start=2472
+  _globals['_NETWORKEVENTTYPE']._serialized_end=2623
+  _globals['_RECORDINGSOURCE']._serialized_start=2625
+  _globals['_RECORDINGSOURCE']._serialized_end=2732
+  _globals['_WORKFLOWEDGETYPE']._serialized_start=2735
+  _globals['_WORKFLOWEDGETYPE']._serialized_end=2949
+  _globals['_VALIDATIONSEVERITY']._serialized_start=2952
+  _globals['_VALIDATIONSEVERITY']._serialized_end=3103
+  _globals['_CHANGESOURCE']._serialized_start=3106
+  _globals['_CHANGESOURCE']._serialized_end=3292
+  _globals['_ASSERTIONMODE']._serialized_start=3295
+  _globals['_ASSERTIONMODE']._serialized_end=3597
+  _globals['_RETRYATTEMPT']._serialized_start=99
+  _globals['_RETRYATTEMPT']._serialized_end=235
+  _globals['_RETRYSTATUS']._serialized_start=238
+  _globals['_RETRYSTATUS']._serialized_end=495
+  _globals['_ASSERTIONRESULT']._serialized_start=498
+  _globals['_ASSERTIONRESULT']._serialized_end=872
 # @@protoc_insertion_point(module_scope)

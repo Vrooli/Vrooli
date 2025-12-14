@@ -2,17 +2,17 @@
 // @generated from file common/v1/types.proto (package common.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { NullValue, Value } from "@bufbuild/protobuf/wkt";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { NullValue } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { JsonObject as JsonObject$1, Message } from "@bufbuild/protobuf";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file common/v1/types.proto.
  */
 export const file_common_v1_types: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSKRAgoJSnNvblZhbHVlEhQKCmJvb2xfdmFsdWUYASABKAhIABITCglpbnRfdmFsdWUYAiABKANIABIWCgxkb3VibGVfdmFsdWUYAyABKAFIABIWCgxzdHJpbmdfdmFsdWUYBCABKAlIABItCgxvYmplY3RfdmFsdWUYBSABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEgAEikKCmxpc3RfdmFsdWUYBiABKAsyEy5jb21tb24udjEuSnNvbkxpc3RIABIwCgpudWxsX3ZhbHVlGAcgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhUKC2J5dGVzX3ZhbHVlGAggASgMSABCBgoEa2luZCKEAQoKSnNvbk9iamVjdBIxCgZmaWVsZHMYASADKAsyIS5jb21tb24udjEuSnNvbk9iamVjdC5GaWVsZHNFbnRyeRpDCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ASIwCghKc29uTGlzdBIkCgZ2YWx1ZXMYASADKAsyFC5jb21tb24udjEuSnNvblZhbHVlIjIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJUChJQYWdpbmF0aW9uUmVzcG9uc2USDQoFdG90YWwYASABKAUSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFEhAKCGhhc19tb3JlGAQgASgIIlgKDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEigKB2RldGFpbHMYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IvkCCg5IZWFsdGhSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHc2VydmljZRgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSEQoJcmVhZGluZXNzGAQgASgIEg8KB3ZlcnNpb24YBSABKAkSQQoMZGVwZW5kZW5jaWVzGAYgAygLMisuY29tbW9uLnYxLkhlYWx0aFJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5EjcKB21ldHJpY3MYByADKAsyJi5jb21tb24udjEuSGVhbHRoUmVzcG9uc2UuTWV0cmljc0VudHJ5GksKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEaRgoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAFCQ1pBZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb21tb24vdjE7Y29tbW9udjFiBnByb3RvMw", [file_google_protobuf_struct]);
+  fileDesc("ChVjb21tb24vdjEvdHlwZXMucHJvdG8SCWNvbW1vbi52MSKRAgoJSnNvblZhbHVlEhQKCmJvb2xfdmFsdWUYASABKAhIABITCglpbnRfdmFsdWUYAiABKANIABIWCgxkb3VibGVfdmFsdWUYAyABKAFIABIWCgxzdHJpbmdfdmFsdWUYBCABKAlIABItCgxvYmplY3RfdmFsdWUYBSABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEgAEikKCmxpc3RfdmFsdWUYBiABKAsyEy5jb21tb24udjEuSnNvbkxpc3RIABIwCgpudWxsX3ZhbHVlGAcgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhUKC2J5dGVzX3ZhbHVlGAggASgMSABCBgoEa2luZCKEAQoKSnNvbk9iamVjdBIxCgZmaWVsZHMYASADKAsyIS5jb21tb24udjEuSnNvbk9iamVjdC5GaWVsZHNFbnRyeRpDCgtGaWVsZHNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ASIwCghKc29uTGlzdBIkCgZ2YWx1ZXMYASADKAsyFC5jb21tb24udjEuSnNvblZhbHVlIjIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJUChJQYWdpbmF0aW9uUmVzcG9uc2USDQoFdG90YWwYASABKAUSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFEhAKCGhhc19tb3JlGAQgASgIIlwKDUVycm9yUmVzcG9uc2USDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEiYKB2RldGFpbHMYBCABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEoECAMQBCKaAwoOSGVhbHRoUmVzcG9uc2USJwoGc3RhdHVzGAEgASgOMhcuY29tbW9uLnYxLkhlYWx0aFN0YXR1cxIPCgdzZXJ2aWNlGAIgASgJEhEKCXRpbWVzdGFtcBgDIAEoCRIRCglyZWFkaW5lc3MYBCABKAgSDwoHdmVyc2lvbhgFIAEoCRJBCgxkZXBlbmRlbmNpZXMYCCADKAsyKy5jb21tb24udjEuSGVhbHRoUmVzcG9uc2UuRGVwZW5kZW5jaWVzRW50cnkSNwoHbWV0cmljcxgJIAMoCzImLmNvbW1vbi52MS5IZWFsdGhSZXNwb25zZS5NZXRyaWNzRW50cnkaSQoRRGVwZW5kZW5jaWVzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAEaRAoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBSgQIBhAHSgQIBxAIKoEBCgxIZWFsdGhTdGF0dXMSHQoZSEVBTFRIX1NUQVRVU19VTlNQRUNJRklFRBAAEhkKFUhFQUxUSF9TVEFUVVNfSEVBTFRIWRABEhoKFkhFQUxUSF9TVEFUVVNfREVHUkFERUQQAhIbChdIRUFMVEhfU1RBVFVTX1VOSEVBTFRIWRADQkNaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
  * JsonValue models a typed JSON value for scenarios that need stronger typing
@@ -216,11 +216,10 @@ export type ErrorResponse = Message<"common.v1.ErrorResponse"> & {
 
   /**
    * Additional structured context about the error.
-   * Uses Struct to support rich nested details (e.g., validation errors, stats).
    *
-   * @generated from field: google.protobuf.Struct details = 3;
+   * @generated from field: common.v1.JsonObject details = 4;
    */
-  details?: JsonObject$1;
+  details?: JsonObject;
 };
 
 /**
@@ -237,11 +236,11 @@ export const ErrorResponseSchema: GenMessage<ErrorResponse> = /*@__PURE__*/
  */
 export type HealthResponse = Message<"common.v1.HealthResponse"> & {
   /**
-   * Service status: healthy, degraded, or unhealthy.
+   * Service health status.
    *
-   * @generated from field: string status = 1;
+   * @generated from field: common.v1.HealthStatus status = 1;
    */
-  status: string;
+  status: HealthStatus;
 
   /**
    * Identifier for the service reporting health.
@@ -274,16 +273,16 @@ export type HealthResponse = Message<"common.v1.HealthResponse"> & {
   /**
    * Status of downstream dependencies.
    *
-   * @generated from field: map<string, google.protobuf.Value> dependencies = 6;
+   * @generated from field: map<string, common.v1.JsonValue> dependencies = 8;
    */
-  dependencies: { [key: string]: Value };
+  dependencies: { [key: string]: JsonValue };
 
   /**
    * Additional health metrics.
    *
-   * @generated from field: map<string, google.protobuf.Value> metrics = 7;
+   * @generated from field: map<string, common.v1.JsonValue> metrics = 9;
    */
-  metrics: { [key: string]: Value };
+  metrics: { [key: string]: JsonValue };
 };
 
 /**
@@ -292,4 +291,37 @@ export type HealthResponse = Message<"common.v1.HealthResponse"> & {
  */
 export const HealthResponseSchema: GenMessage<HealthResponse> = /*@__PURE__*/
   messageDesc(file_common_v1_types, 6);
+
+/**
+ * HealthStatus enumerates service health states.
+ *
+ * @generated from enum common.v1.HealthStatus
+ */
+export enum HealthStatus {
+  /**
+   * @generated from enum value: HEALTH_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: HEALTH_STATUS_HEALTHY = 1;
+   */
+  HEALTHY = 1,
+
+  /**
+   * @generated from enum value: HEALTH_STATUS_DEGRADED = 2;
+   */
+  DEGRADED = 2,
+
+  /**
+   * @generated from enum value: HEALTH_STATUS_UNHEALTHY = 3;
+   */
+  UNHEALTHY = 3,
+}
+
+/**
+ * Describes the enum common.v1.HealthStatus.
+ */
+export const HealthStatusSchema: GenEnum<HealthStatus> = /*@__PURE__*/
+  enumDesc(file_common_v1_types, 0);
 

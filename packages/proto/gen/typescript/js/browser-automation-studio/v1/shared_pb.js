@@ -2,13 +2,35 @@
 // @generated from file browser-automation-studio/v1/shared.proto (package browser_automation_studio.v1, syntax proto3)
 /* eslint-disable */
 
-import { enumDesc, fileDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
+import { file_common_v1_types } from "../../common/v1/types_pb.js";
 
 /**
  * Describes the file browser-automation-studio/v1/shared.proto.
  */
 export const file_browser_automation_studio_v1_shared = /*@__PURE__*/
-  fileDesc("Cilicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NoYXJlZC5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSrMAQoPRXhlY3V0aW9uU3RhdHVzEiAKHEVYRUNVVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhFWEVDVVRJT05fU1RBVFVTX1BFTkRJTkcQARIcChhFWEVDVVRJT05fU1RBVFVTX1JVTk5JTkcQAhIeChpFWEVDVVRJT05fU1RBVFVTX0NPTVBMRVRFRBADEhsKF0VYRUNVVElPTl9TVEFUVVNfRkFJTEVEEAQSHgoaRVhFQ1VUSU9OX1NUQVRVU19DQU5DRUxMRUQQBSqQAQoLVHJpZ2dlclR5cGUSHAoYVFJJR0dFUl9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTVFJJR0dFUl9UWVBFX01BTlVBTBABEhoKFlRSSUdHRVJfVFlQRV9TQ0hFRFVMRUQQAhIUChBUUklHR0VSX1RZUEVfQVBJEAMSGAoUVFJJR0dFUl9UWVBFX1dFQkhPT0sQBCrcAQoKU3RlcFN0YXR1cxIbChdTVEVQX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE1NURVBfU1RBVFVTX1BFTkRJTkcQARIXChNTVEVQX1NUQVRVU19SVU5OSU5HEAISGQoVU1RFUF9TVEFUVVNfQ09NUExFVEVEEAMSFgoSU1RFUF9TVEFUVVNfRkFJTEVEEAQSGQoVU1RFUF9TVEFUVVNfQ0FOQ0VMTEVEEAUSFwoTU1RFUF9TVEFUVVNfU0tJUFBFRBAGEhgKFFNURVBfU1RBVFVTX1JFVFJZSU5HEAcqdwoITG9nTGV2ZWwSGQoVTE9HX0xFVkVMX1VOU1BFQ0lGSUVEEAASEwoPTE9HX0xFVkVMX0RFQlVHEAESEgoOTE9HX0xFVkVMX0lORk8QAhISCg5MT0dfTEVWRUxfV0FSThADEhMKD0xPR19MRVZFTF9FUlJPUhAEKoACCgxBcnRpZmFjdFR5cGUSHQoZQVJUSUZBQ1RfVFlQRV9VTlNQRUNJRklFRBAAEiAKHEFSVElGQUNUX1RZUEVfVElNRUxJTkVfRlJBTUUQARIdChlBUlRJRkFDVF9UWVBFX0NPTlNPTEVfTE9HEAISHwobQVJUSUZBQ1RfVFlQRV9ORVRXT1JLX0VWRU5UEAMSHAoYQVJUSUZBQ1RfVFlQRV9TQ1JFRU5TSE9UEAQSHgoaQVJUSUZBQ1RfVFlQRV9ET01fU05BUFNIT1QQBRIXChNBUlRJRkFDVF9UWVBFX1RSQUNFEAYSGAoUQVJUSUZBQ1RfVFlQRV9DVVNUT00QByqsAQoJRXZlbnRLaW5kEhoKFkVWRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIcChhFVkVOVF9LSU5EX1NUQVRVU19VUERBVEUQARIdChlFVkVOVF9LSU5EX1RJTUVMSU5FX0ZSQU1FEAISEgoORVZFTlRfS0lORF9MT0cQAxIYChRFVkVOVF9LSU5EX0hFQVJUQkVBVBAEEhgKFEVWRU5UX0tJTkRfVEVMRU1FVFJZEAUqmQEKDEV4cG9ydFN0YXR1cxIdChlFWFBPUlRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFwoTRVhQT1JUX1NUQVRVU19SRUFEWRABEhkKFUVYUE9SVF9TVEFUVVNfUEVORElORxACEhcKE0VYUE9SVF9TVEFUVVNfRVJST1IQAxIdChlFWFBPUlRfU1RBVFVTX1VOQVZBSUxBQkxFEARCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw");
+  fileDesc("Cilicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NoYXJlZC5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSJjCgxSZXRyeUF0dGVtcHQSDwoHYXR0ZW1wdBgBIAEoBRIPCgdzdWNjZXNzGAIgASgIEhMKC2R1cmF0aW9uX21zGAMgASgFEhIKBWVycm9yGAQgASgJSACIAQFCCAoGX2Vycm9yIrcBCgtSZXRyeVN0YXR1cxIXCg9jdXJyZW50X2F0dGVtcHQYASABKAUSFAoMbWF4X2F0dGVtcHRzGAIgASgFEhAKCGRlbGF5X21zGAMgASgFEhYKDmJhY2tvZmZfZmFjdG9yGAQgASgBEhIKCmNvbmZpZ3VyZWQYBSABKAgSOwoHaGlzdG9yeRgGIAMoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmV0cnlBdHRlbXB0IqoCCg9Bc3NlcnRpb25SZXN1bHQSOQoEbW9kZRgBIAEoDjIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0aW9uTW9kZRIQCghzZWxlY3RvchgCIAEoCRIrCghleHBlY3RlZBgDIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWVIAIgBARIpCgZhY3R1YWwYBCABKAsyFC5jb21tb24udjEuSnNvblZhbHVlSAGIAQESDwoHc3VjY2VzcxgFIAEoCBIPCgduZWdhdGVkGAYgASgIEhYKDmNhc2Vfc2Vuc2l0aXZlGAcgASgIEhQKB21lc3NhZ2UYCCABKAlIAogBAUILCglfZXhwZWN0ZWRCCQoHX2FjdHVhbEIKCghfbWVzc2FnZSrMAQoPRXhlY3V0aW9uU3RhdHVzEiAKHEVYRUNVVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhFWEVDVVRJT05fU1RBVFVTX1BFTkRJTkcQARIcChhFWEVDVVRJT05fU1RBVFVTX1JVTk5JTkcQAhIeChpFWEVDVVRJT05fU1RBVFVTX0NPTVBMRVRFRBADEhsKF0VYRUNVVElPTl9TVEFUVVNfRkFJTEVEEAQSHgoaRVhFQ1VUSU9OX1NUQVRVU19DQU5DRUxMRUQQBSqQAQoLVHJpZ2dlclR5cGUSHAoYVFJJR0dFUl9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTVFJJR0dFUl9UWVBFX01BTlVBTBABEhoKFlRSSUdHRVJfVFlQRV9TQ0hFRFVMRUQQAhIUChBUUklHR0VSX1RZUEVfQVBJEAMSGAoUVFJJR0dFUl9UWVBFX1dFQkhPT0sQBCrcAQoKU3RlcFN0YXR1cxIbChdTVEVQX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE1NURVBfU1RBVFVTX1BFTkRJTkcQARIXChNTVEVQX1NUQVRVU19SVU5OSU5HEAISGQoVU1RFUF9TVEFUVVNfQ09NUExFVEVEEAMSFgoSU1RFUF9TVEFUVVNfRkFJTEVEEAQSGQoVU1RFUF9TVEFUVVNfQ0FOQ0VMTEVEEAUSFwoTU1RFUF9TVEFUVVNfU0tJUFBFRBAGEhgKFFNURVBfU1RBVFVTX1JFVFJZSU5HEAcqdwoITG9nTGV2ZWwSGQoVTE9HX0xFVkVMX1VOU1BFQ0lGSUVEEAASEwoPTE9HX0xFVkVMX0RFQlVHEAESEgoOTE9HX0xFVkVMX0lORk8QAhISCg5MT0dfTEVWRUxfV0FSThADEhMKD0xPR19MRVZFTF9FUlJPUhAEKoACCgxBcnRpZmFjdFR5cGUSHQoZQVJUSUZBQ1RfVFlQRV9VTlNQRUNJRklFRBAAEiAKHEFSVElGQUNUX1RZUEVfVElNRUxJTkVfRlJBTUUQARIdChlBUlRJRkFDVF9UWVBFX0NPTlNPTEVfTE9HEAISHwobQVJUSUZBQ1RfVFlQRV9ORVRXT1JLX0VWRU5UEAMSHAoYQVJUSUZBQ1RfVFlQRV9TQ1JFRU5TSE9UEAQSHgoaQVJUSUZBQ1RfVFlQRV9ET01fU05BUFNIT1QQBRIXChNBUlRJRkFDVF9UWVBFX1RSQUNFEAYSGAoUQVJUSUZBQ1RfVFlQRV9DVVNUT00QByqwAQoJRXZlbnRLaW5kEhoKFkVWRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIcChhFVkVOVF9LSU5EX1NUQVRVU19VUERBVEUQARIdChlFVkVOVF9LSU5EX1RJTUVMSU5FX0ZSQU1FEAISEgoORVZFTlRfS0lORF9MT0cQAxIYChRFVkVOVF9LSU5EX0hFQVJUQkVBVBAEEhgKFEVWRU5UX0tJTkRfVEVMRU1FVFJZEAUaAhgBKpkBCgxFeHBvcnRTdGF0dXMSHQoZRVhQT1JUX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE0VYUE9SVF9TVEFUVVNfUkVBRFkQARIZChVFWFBPUlRfU1RBVFVTX1BFTkRJTkcQAhIXChNFWFBPUlRfU1RBVFVTX0VSUk9SEAMSHQoZRVhQT1JUX1NUQVRVU19VTkFWQUlMQUJMRRAEKq4CCgxTZWxlY3RvclR5cGUSHQoZU0VMRUNUT1JfVFlQRV9VTlNQRUNJRklFRBAAEhUKEVNFTEVDVE9SX1RZUEVfQ1NTEAESFwoTU0VMRUNUT1JfVFlQRV9YUEFUSBACEhQKEFNFTEVDVE9SX1RZUEVfSUQQAxIdChlTRUxFQ1RPUl9UWVBFX0RBVEFfVEVTVElEEAQSFgoSU0VMRUNUT1JfVFlQRV9BUklBEAUSFgoSU0VMRUNUT1JfVFlQRV9URVhUEAYSFgoSU0VMRUNUT1JfVFlQRV9ST0xFEAcSHQoZU0VMRUNUT1JfVFlQRV9QTEFDRUhPTERFUhAIEhoKFlNFTEVDVE9SX1RZUEVfQUxUX1RFWFQQCRIXChNTRUxFQ1RPUl9UWVBFX1RJVExFEAoqlwEKEE5ldHdvcmtFdmVudFR5cGUSIgoeTkVUV09SS19FVkVOVF9UWVBFX1VOU1BFQ0lGSUVEEAASHgoaTkVUV09SS19FVkVOVF9UWVBFX1JFUVVFU1QQARIfChtORVRXT1JLX0VWRU5UX1RZUEVfUkVTUE9OU0UQAhIeChpORVRXT1JLX0VWRU5UX1RZUEVfRkFJTFVSRRADKmsKD1JlY29yZGluZ1NvdXJjZRIgChxSRUNPUkRJTkdfU09VUkNFX1VOU1BFQ0lGSUVEEAASGQoVUkVDT1JESU5HX1NPVVJDRV9BVVRPEAESGwoXUkVDT1JESU5HX1NPVVJDRV9NQU5VQUwQAirWAQoQV29ya2Zsb3dFZGdlVHlwZRIiCh5XT1JLRkxPV19FREdFX1RZUEVfVU5TUEVDSUZJRUQQABIeChpXT1JLRkxPV19FREdFX1RZUEVfREVGQVVMVBABEiEKHVdPUktGTE9XX0VER0VfVFlQRV9TTU9PVEhTVEVQEAISGwoXV09SS0ZMT1dfRURHRV9UWVBFX1NURVAQAxIfChtXT1JLRkxPV19FREdFX1RZUEVfU1RSQUlHSFQQBBIdChlXT1JLRkxPV19FREdFX1RZUEVfQkVaSUVSEAUqlwEKElZhbGlkYXRpb25TZXZlcml0eRIjCh9WQUxJREFUSU9OX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASHQoZVkFMSURBVElPTl9TRVZFUklUWV9FUlJPUhABEh8KG1ZBTElEQVRJT05fU0VWRVJJVFlfV0FSTklORxACEhwKGFZBTElEQVRJT05fU0VWRVJJVFlfSU5GTxADKroBCgxDaGFuZ2VTb3VyY2USHQoZQ0hBTkdFX1NPVVJDRV9VTlNQRUNJRklFRBAAEhgKFENIQU5HRV9TT1VSQ0VfTUFOVUFMEAESGgoWQ0hBTkdFX1NPVVJDRV9BVVRPU0FWRRACEhgKFENIQU5HRV9TT1VSQ0VfSU1QT1JUEAMSHgoaQ0hBTkdFX1NPVVJDRV9BSV9HRU5FUkFURUQQBBIbChdDSEFOR0VfU09VUkNFX1JFQ09SRElORxAFKq4CCg1Bc3NlcnRpb25Nb2RlEh4KGkFTU0VSVElPTl9NT0RFX1VOU1BFQ0lGSUVEEAASGQoVQVNTRVJUSU9OX01PREVfRVhJU1RTEAESHQoZQVNTRVJUSU9OX01PREVfTk9UX0VYSVNUUxACEhoKFkFTU0VSVElPTl9NT0RFX1ZJU0lCTEUQAxIZChVBU1NFUlRJT05fTU9ERV9ISURERU4QBBIeChpBU1NFUlRJT05fTU9ERV9URVhUX0VRVUFMUxAFEiAKHEFTU0VSVElPTl9NT0RFX1RFWFRfQ09OVEFJTlMQBhIjCh9BU1NFUlRJT05fTU9ERV9BVFRSSUJVVEVfRVFVQUxTEAcSJQohQVNTRVJUSU9OX01PREVfQVRUUklCVVRFX0NPTlRBSU5TEAhCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_common_v1_types]);
+
+/**
+ * Describes the message browser_automation_studio.v1.RetryAttempt.
+ * Use `create(RetryAttemptSchema)` to create a new message.
+ */
+export const RetryAttemptSchema = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_shared, 0);
+
+/**
+ * Describes the message browser_automation_studio.v1.RetryStatus.
+ * Use `create(RetryStatusSchema)` to create a new message.
+ */
+export const RetryStatusSchema = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_shared, 1);
+
+/**
+ * Describes the message browser_automation_studio.v1.AssertionResult.
+ * Use `create(AssertionResultSchema)` to create a new message.
+ */
+export const AssertionResultSchema = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_shared, 2);
 
 /**
  * Describes the enum browser_automation_studio.v1.ExecutionStatus.
@@ -82,14 +104,18 @@ export const ArtifactType = /*@__PURE__*/
 
 /**
  * Describes the enum browser_automation_studio.v1.EventKind.
+ * @deprecated
  */
 export const EventKindSchema = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_shared, 5);
 
 /**
  * EventKind enumerates WebSocket event types.
+ * DEPRECATED: Use TimelineMessageType from timeline_event.proto instead.
+ * EventKind is used only in the legacy ExecutionEventEnvelope.
  *
  * @generated from enum browser_automation_studio.v1.EventKind
+ * @deprecated
  */
 export const EventKind = /*@__PURE__*/
   tsEnum(EventKindSchema);
@@ -107,4 +133,102 @@ export const ExportStatusSchema = /*@__PURE__*/
  */
 export const ExportStatus = /*@__PURE__*/
   tsEnum(ExportStatusSchema);
+
+/**
+ * Describes the enum browser_automation_studio.v1.SelectorType.
+ */
+export const SelectorTypeSchema = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_shared, 7);
+
+/**
+ * SelectorType enumerates supported selector strategies for element targeting.
+ *
+ * @generated from enum browser_automation_studio.v1.SelectorType
+ */
+export const SelectorType = /*@__PURE__*/
+  tsEnum(SelectorTypeSchema);
+
+/**
+ * Describes the enum browser_automation_studio.v1.NetworkEventType.
+ */
+export const NetworkEventTypeSchema = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_shared, 8);
+
+/**
+ * NetworkEventType enumerates network event kinds captured during execution.
+ *
+ * @generated from enum browser_automation_studio.v1.NetworkEventType
+ */
+export const NetworkEventType = /*@__PURE__*/
+  tsEnum(NetworkEventTypeSchema);
+
+/**
+ * Describes the enum browser_automation_studio.v1.RecordingSource.
+ */
+export const RecordingSourceSchema = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_shared, 9);
+
+/**
+ * RecordingSource indicates how an action was captured during recording.
+ *
+ * @generated from enum browser_automation_studio.v1.RecordingSource
+ */
+export const RecordingSource = /*@__PURE__*/
+  tsEnum(RecordingSourceSchema);
+
+/**
+ * Describes the enum browser_automation_studio.v1.WorkflowEdgeType.
+ */
+export const WorkflowEdgeTypeSchema = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_shared, 10);
+
+/**
+ * WorkflowEdgeType enumerates visual edge rendering styles.
+ *
+ * @generated from enum browser_automation_studio.v1.WorkflowEdgeType
+ */
+export const WorkflowEdgeType = /*@__PURE__*/
+  tsEnum(WorkflowEdgeTypeSchema);
+
+/**
+ * Describes the enum browser_automation_studio.v1.ValidationSeverity.
+ */
+export const ValidationSeveritySchema = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_shared, 11);
+
+/**
+ * ValidationSeverity enumerates issue severity levels for workflow validation.
+ *
+ * @generated from enum browser_automation_studio.v1.ValidationSeverity
+ */
+export const ValidationSeverity = /*@__PURE__*/
+  tsEnum(ValidationSeveritySchema);
+
+/**
+ * Describes the enum browser_automation_studio.v1.ChangeSource.
+ */
+export const ChangeSourceSchema = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_shared, 12);
+
+/**
+ * ChangeSource indicates the origin of a workflow modification.
+ *
+ * @generated from enum browser_automation_studio.v1.ChangeSource
+ */
+export const ChangeSource = /*@__PURE__*/
+  tsEnum(ChangeSourceSchema);
+
+/**
+ * Describes the enum browser_automation_studio.v1.AssertionMode.
+ */
+export const AssertionModeSchema = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_shared, 13);
+
+/**
+ * AssertionMode enumerates supported assertion types.
+ *
+ * @generated from enum browser_automation_studio.v1.AssertionMode
+ */
+export const AssertionMode = /*@__PURE__*/
+  tsEnum(AssertionModeSchema);
 

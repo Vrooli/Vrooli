@@ -7,6 +7,7 @@
 package browser_automation_studio_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -323,6 +324,10 @@ func (ArtifactType) EnumDescriptor() ([]byte, []int) {
 }
 
 // EventKind enumerates WebSocket event types.
+// DEPRECATED: Use TimelineMessageType from timeline_event.proto instead.
+// EventKind is used only in the legacy ExecutionEventEnvelope.
+//
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/shared.proto.
 type EventKind int32
 
 const (
@@ -437,11 +442,733 @@ func (ExportStatus) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{6}
 }
 
+// SelectorType enumerates supported selector strategies for element targeting.
+type SelectorType int32
+
+const (
+	SelectorType_SELECTOR_TYPE_UNSPECIFIED SelectorType = 0
+	SelectorType_SELECTOR_TYPE_CSS         SelectorType = 1
+	SelectorType_SELECTOR_TYPE_XPATH       SelectorType = 2
+	SelectorType_SELECTOR_TYPE_ID          SelectorType = 3
+	SelectorType_SELECTOR_TYPE_DATA_TESTID SelectorType = 4
+	SelectorType_SELECTOR_TYPE_ARIA        SelectorType = 5
+	SelectorType_SELECTOR_TYPE_TEXT        SelectorType = 6
+	SelectorType_SELECTOR_TYPE_ROLE        SelectorType = 7
+	SelectorType_SELECTOR_TYPE_PLACEHOLDER SelectorType = 8
+	SelectorType_SELECTOR_TYPE_ALT_TEXT    SelectorType = 9
+	SelectorType_SELECTOR_TYPE_TITLE       SelectorType = 10
+)
+
+// Enum value maps for SelectorType.
+var (
+	SelectorType_name = map[int32]string{
+		0:  "SELECTOR_TYPE_UNSPECIFIED",
+		1:  "SELECTOR_TYPE_CSS",
+		2:  "SELECTOR_TYPE_XPATH",
+		3:  "SELECTOR_TYPE_ID",
+		4:  "SELECTOR_TYPE_DATA_TESTID",
+		5:  "SELECTOR_TYPE_ARIA",
+		6:  "SELECTOR_TYPE_TEXT",
+		7:  "SELECTOR_TYPE_ROLE",
+		8:  "SELECTOR_TYPE_PLACEHOLDER",
+		9:  "SELECTOR_TYPE_ALT_TEXT",
+		10: "SELECTOR_TYPE_TITLE",
+	}
+	SelectorType_value = map[string]int32{
+		"SELECTOR_TYPE_UNSPECIFIED": 0,
+		"SELECTOR_TYPE_CSS":         1,
+		"SELECTOR_TYPE_XPATH":       2,
+		"SELECTOR_TYPE_ID":          3,
+		"SELECTOR_TYPE_DATA_TESTID": 4,
+		"SELECTOR_TYPE_ARIA":        5,
+		"SELECTOR_TYPE_TEXT":        6,
+		"SELECTOR_TYPE_ROLE":        7,
+		"SELECTOR_TYPE_PLACEHOLDER": 8,
+		"SELECTOR_TYPE_ALT_TEXT":    9,
+		"SELECTOR_TYPE_TITLE":       10,
+	}
+)
+
+func (x SelectorType) Enum() *SelectorType {
+	p := new(SelectorType)
+	*p = x
+	return p
+}
+
+func (x SelectorType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SelectorType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[7].Descriptor()
+}
+
+func (SelectorType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[7]
+}
+
+func (x SelectorType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SelectorType.Descriptor instead.
+func (SelectorType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{7}
+}
+
+// NetworkEventType enumerates network event kinds captured during execution.
+type NetworkEventType int32
+
+const (
+	NetworkEventType_NETWORK_EVENT_TYPE_UNSPECIFIED NetworkEventType = 0
+	NetworkEventType_NETWORK_EVENT_TYPE_REQUEST     NetworkEventType = 1
+	NetworkEventType_NETWORK_EVENT_TYPE_RESPONSE    NetworkEventType = 2
+	NetworkEventType_NETWORK_EVENT_TYPE_FAILURE     NetworkEventType = 3
+)
+
+// Enum value maps for NetworkEventType.
+var (
+	NetworkEventType_name = map[int32]string{
+		0: "NETWORK_EVENT_TYPE_UNSPECIFIED",
+		1: "NETWORK_EVENT_TYPE_REQUEST",
+		2: "NETWORK_EVENT_TYPE_RESPONSE",
+		3: "NETWORK_EVENT_TYPE_FAILURE",
+	}
+	NetworkEventType_value = map[string]int32{
+		"NETWORK_EVENT_TYPE_UNSPECIFIED": 0,
+		"NETWORK_EVENT_TYPE_REQUEST":     1,
+		"NETWORK_EVENT_TYPE_RESPONSE":    2,
+		"NETWORK_EVENT_TYPE_FAILURE":     3,
+	}
+)
+
+func (x NetworkEventType) Enum() *NetworkEventType {
+	p := new(NetworkEventType)
+	*p = x
+	return p
+}
+
+func (x NetworkEventType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NetworkEventType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[8].Descriptor()
+}
+
+func (NetworkEventType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[8]
+}
+
+func (x NetworkEventType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NetworkEventType.Descriptor instead.
+func (NetworkEventType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{8}
+}
+
+// RecordingSource indicates how an action was captured during recording.
+type RecordingSource int32
+
+const (
+	RecordingSource_RECORDING_SOURCE_UNSPECIFIED RecordingSource = 0
+	RecordingSource_RECORDING_SOURCE_AUTO        RecordingSource = 1
+	RecordingSource_RECORDING_SOURCE_MANUAL      RecordingSource = 2
+)
+
+// Enum value maps for RecordingSource.
+var (
+	RecordingSource_name = map[int32]string{
+		0: "RECORDING_SOURCE_UNSPECIFIED",
+		1: "RECORDING_SOURCE_AUTO",
+		2: "RECORDING_SOURCE_MANUAL",
+	}
+	RecordingSource_value = map[string]int32{
+		"RECORDING_SOURCE_UNSPECIFIED": 0,
+		"RECORDING_SOURCE_AUTO":        1,
+		"RECORDING_SOURCE_MANUAL":      2,
+	}
+)
+
+func (x RecordingSource) Enum() *RecordingSource {
+	p := new(RecordingSource)
+	*p = x
+	return p
+}
+
+func (x RecordingSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RecordingSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[9].Descriptor()
+}
+
+func (RecordingSource) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[9]
+}
+
+func (x RecordingSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RecordingSource.Descriptor instead.
+func (RecordingSource) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{9}
+}
+
+// WorkflowEdgeType enumerates visual edge rendering styles.
+type WorkflowEdgeType int32
+
+const (
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_UNSPECIFIED WorkflowEdgeType = 0
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_DEFAULT     WorkflowEdgeType = 1
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_SMOOTHSTEP  WorkflowEdgeType = 2
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STEP        WorkflowEdgeType = 3
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_STRAIGHT    WorkflowEdgeType = 4
+	WorkflowEdgeType_WORKFLOW_EDGE_TYPE_BEZIER      WorkflowEdgeType = 5
+)
+
+// Enum value maps for WorkflowEdgeType.
+var (
+	WorkflowEdgeType_name = map[int32]string{
+		0: "WORKFLOW_EDGE_TYPE_UNSPECIFIED",
+		1: "WORKFLOW_EDGE_TYPE_DEFAULT",
+		2: "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+		3: "WORKFLOW_EDGE_TYPE_STEP",
+		4: "WORKFLOW_EDGE_TYPE_STRAIGHT",
+		5: "WORKFLOW_EDGE_TYPE_BEZIER",
+	}
+	WorkflowEdgeType_value = map[string]int32{
+		"WORKFLOW_EDGE_TYPE_UNSPECIFIED": 0,
+		"WORKFLOW_EDGE_TYPE_DEFAULT":     1,
+		"WORKFLOW_EDGE_TYPE_SMOOTHSTEP":  2,
+		"WORKFLOW_EDGE_TYPE_STEP":        3,
+		"WORKFLOW_EDGE_TYPE_STRAIGHT":    4,
+		"WORKFLOW_EDGE_TYPE_BEZIER":      5,
+	}
+)
+
+func (x WorkflowEdgeType) Enum() *WorkflowEdgeType {
+	p := new(WorkflowEdgeType)
+	*p = x
+	return p
+}
+
+func (x WorkflowEdgeType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WorkflowEdgeType) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[10].Descriptor()
+}
+
+func (WorkflowEdgeType) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[10]
+}
+
+func (x WorkflowEdgeType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WorkflowEdgeType.Descriptor instead.
+func (WorkflowEdgeType) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{10}
+}
+
+// ValidationSeverity enumerates issue severity levels for workflow validation.
+type ValidationSeverity int32
+
+const (
+	ValidationSeverity_VALIDATION_SEVERITY_UNSPECIFIED ValidationSeverity = 0
+	ValidationSeverity_VALIDATION_SEVERITY_ERROR       ValidationSeverity = 1
+	ValidationSeverity_VALIDATION_SEVERITY_WARNING     ValidationSeverity = 2
+	ValidationSeverity_VALIDATION_SEVERITY_INFO        ValidationSeverity = 3
+)
+
+// Enum value maps for ValidationSeverity.
+var (
+	ValidationSeverity_name = map[int32]string{
+		0: "VALIDATION_SEVERITY_UNSPECIFIED",
+		1: "VALIDATION_SEVERITY_ERROR",
+		2: "VALIDATION_SEVERITY_WARNING",
+		3: "VALIDATION_SEVERITY_INFO",
+	}
+	ValidationSeverity_value = map[string]int32{
+		"VALIDATION_SEVERITY_UNSPECIFIED": 0,
+		"VALIDATION_SEVERITY_ERROR":       1,
+		"VALIDATION_SEVERITY_WARNING":     2,
+		"VALIDATION_SEVERITY_INFO":        3,
+	}
+)
+
+func (x ValidationSeverity) Enum() *ValidationSeverity {
+	p := new(ValidationSeverity)
+	*p = x
+	return p
+}
+
+func (x ValidationSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ValidationSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[11].Descriptor()
+}
+
+func (ValidationSeverity) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[11]
+}
+
+func (x ValidationSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ValidationSeverity.Descriptor instead.
+func (ValidationSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{11}
+}
+
+// ChangeSource indicates the origin of a workflow modification.
+type ChangeSource int32
+
+const (
+	ChangeSource_CHANGE_SOURCE_UNSPECIFIED  ChangeSource = 0
+	ChangeSource_CHANGE_SOURCE_MANUAL       ChangeSource = 1
+	ChangeSource_CHANGE_SOURCE_AUTOSAVE     ChangeSource = 2
+	ChangeSource_CHANGE_SOURCE_IMPORT       ChangeSource = 3
+	ChangeSource_CHANGE_SOURCE_AI_GENERATED ChangeSource = 4
+	ChangeSource_CHANGE_SOURCE_RECORDING    ChangeSource = 5
+)
+
+// Enum value maps for ChangeSource.
+var (
+	ChangeSource_name = map[int32]string{
+		0: "CHANGE_SOURCE_UNSPECIFIED",
+		1: "CHANGE_SOURCE_MANUAL",
+		2: "CHANGE_SOURCE_AUTOSAVE",
+		3: "CHANGE_SOURCE_IMPORT",
+		4: "CHANGE_SOURCE_AI_GENERATED",
+		5: "CHANGE_SOURCE_RECORDING",
+	}
+	ChangeSource_value = map[string]int32{
+		"CHANGE_SOURCE_UNSPECIFIED":  0,
+		"CHANGE_SOURCE_MANUAL":       1,
+		"CHANGE_SOURCE_AUTOSAVE":     2,
+		"CHANGE_SOURCE_IMPORT":       3,
+		"CHANGE_SOURCE_AI_GENERATED": 4,
+		"CHANGE_SOURCE_RECORDING":    5,
+	}
+)
+
+func (x ChangeSource) Enum() *ChangeSource {
+	p := new(ChangeSource)
+	*p = x
+	return p
+}
+
+func (x ChangeSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ChangeSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[12].Descriptor()
+}
+
+func (ChangeSource) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[12]
+}
+
+func (x ChangeSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ChangeSource.Descriptor instead.
+func (ChangeSource) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{12}
+}
+
+// AssertionMode enumerates supported assertion types.
+type AssertionMode int32
+
+const (
+	AssertionMode_ASSERTION_MODE_UNSPECIFIED        AssertionMode = 0
+	AssertionMode_ASSERTION_MODE_EXISTS             AssertionMode = 1
+	AssertionMode_ASSERTION_MODE_NOT_EXISTS         AssertionMode = 2
+	AssertionMode_ASSERTION_MODE_VISIBLE            AssertionMode = 3
+	AssertionMode_ASSERTION_MODE_HIDDEN             AssertionMode = 4
+	AssertionMode_ASSERTION_MODE_TEXT_EQUALS        AssertionMode = 5
+	AssertionMode_ASSERTION_MODE_TEXT_CONTAINS      AssertionMode = 6
+	AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS   AssertionMode = 7
+	AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS AssertionMode = 8
+)
+
+// Enum value maps for AssertionMode.
+var (
+	AssertionMode_name = map[int32]string{
+		0: "ASSERTION_MODE_UNSPECIFIED",
+		1: "ASSERTION_MODE_EXISTS",
+		2: "ASSERTION_MODE_NOT_EXISTS",
+		3: "ASSERTION_MODE_VISIBLE",
+		4: "ASSERTION_MODE_HIDDEN",
+		5: "ASSERTION_MODE_TEXT_EQUALS",
+		6: "ASSERTION_MODE_TEXT_CONTAINS",
+		7: "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+		8: "ASSERTION_MODE_ATTRIBUTE_CONTAINS",
+	}
+	AssertionMode_value = map[string]int32{
+		"ASSERTION_MODE_UNSPECIFIED":        0,
+		"ASSERTION_MODE_EXISTS":             1,
+		"ASSERTION_MODE_NOT_EXISTS":         2,
+		"ASSERTION_MODE_VISIBLE":            3,
+		"ASSERTION_MODE_HIDDEN":             4,
+		"ASSERTION_MODE_TEXT_EQUALS":        5,
+		"ASSERTION_MODE_TEXT_CONTAINS":      6,
+		"ASSERTION_MODE_ATTRIBUTE_EQUALS":   7,
+		"ASSERTION_MODE_ATTRIBUTE_CONTAINS": 8,
+	}
+)
+
+func (x AssertionMode) Enum() *AssertionMode {
+	p := new(AssertionMode)
+	*p = x
+	return p
+}
+
+func (x AssertionMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssertionMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[13].Descriptor()
+}
+
+func (AssertionMode) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[13]
+}
+
+func (x AssertionMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssertionMode.Descriptor instead.
+func (AssertionMode) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{13}
+}
+
+// RetryAttempt captures the outcome of a single retry attempt.
+// Used in both timeline frames (batch API) and timeline events (streaming).
+type RetryAttempt struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Retry attempt number (1-based, where 1 is the first retry after initial failure).
+	Attempt int32 `protobuf:"varint,1,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	// Whether this attempt succeeded.
+	Success bool `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
+	// Duration in milliseconds for the attempt.
+	DurationMs int32 `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// Error message if failed.
+	Error         *string `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryAttempt) Reset() {
+	*x = RetryAttempt{}
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryAttempt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryAttempt) ProtoMessage() {}
+
+func (x *RetryAttempt) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryAttempt.ProtoReflect.Descriptor instead.
+func (*RetryAttempt) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *RetryAttempt) GetAttempt() int32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *RetryAttempt) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *RetryAttempt) GetDurationMs() int32 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *RetryAttempt) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+// RetryStatus captures the current state of retry execution for a step.
+// This is the canonical type for runtime retry state, used in both
+// TimelineFrame (batch) and ExecutionContext (streaming).
+type RetryStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current attempt number (0 for initial attempt, 1+ for retries).
+	CurrentAttempt int32 `protobuf:"varint,1,opt,name=current_attempt,json=currentAttempt,proto3" json:"current_attempt,omitempty"`
+	// Maximum number of attempts configured (1 = no retries).
+	MaxAttempts int32 `protobuf:"varint,2,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	// Delay between retries in milliseconds.
+	DelayMs int32 `protobuf:"varint,3,opt,name=delay_ms,json=delayMs,proto3" json:"delay_ms,omitempty"`
+	// Backoff multiplier for exponential backoff (e.g., 2.0 doubles delay each retry).
+	BackoffFactor float64 `protobuf:"fixed64,4,opt,name=backoff_factor,json=backoffFactor,proto3" json:"backoff_factor,omitempty"`
+	// Whether retries are configured for this step.
+	Configured bool `protobuf:"varint,5,opt,name=configured,proto3" json:"configured,omitempty"`
+	// History of previous retry attempts.
+	History       []*RetryAttempt `protobuf:"bytes,6,rep,name=history,proto3" json:"history,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryStatus) Reset() {
+	*x = RetryStatus{}
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryStatus) ProtoMessage() {}
+
+func (x *RetryStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryStatus.ProtoReflect.Descriptor instead.
+func (*RetryStatus) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RetryStatus) GetCurrentAttempt() int32 {
+	if x != nil {
+		return x.CurrentAttempt
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetDelayMs() int32 {
+	if x != nil {
+		return x.DelayMs
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetBackoffFactor() float64 {
+	if x != nil {
+		return x.BackoffFactor
+	}
+	return 0
+}
+
+func (x *RetryStatus) GetConfigured() bool {
+	if x != nil {
+		return x.Configured
+	}
+	return false
+}
+
+func (x *RetryStatus) GetHistory() []*RetryAttempt {
+	if x != nil {
+		return x.History
+	}
+	return nil
+}
+
+// AssertionResult captures assertion evaluation outcome.
+// Used in both timeline frames (batch API) and timeline events (streaming).
+type AssertionResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Assertion mode used.
+	Mode AssertionMode `protobuf:"varint,1,opt,name=mode,proto3,enum=browser_automation_studio.v1.AssertionMode" json:"mode,omitempty"`
+	// Selector that was asserted on.
+	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Expected value.
+	Expected *v1.JsonValue `protobuf:"bytes,3,opt,name=expected,proto3,oneof" json:"expected,omitempty"`
+	// Actual value observed.
+	Actual *v1.JsonValue `protobuf:"bytes,4,opt,name=actual,proto3,oneof" json:"actual,omitempty"`
+	// Whether the assertion passed.
+	Success bool `protobuf:"varint,5,opt,name=success,proto3" json:"success,omitempty"`
+	// Whether the assertion was negated.
+	Negated bool `protobuf:"varint,6,opt,name=negated,proto3" json:"negated,omitempty"`
+	// Whether comparison was case-sensitive.
+	CaseSensitive bool `protobuf:"varint,7,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
+	// Optional custom message.
+	Message       *string `protobuf:"bytes,8,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssertionResult) Reset() {
+	*x = AssertionResult{}
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssertionResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssertionResult) ProtoMessage() {}
+
+func (x *AssertionResult) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_shared_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssertionResult.ProtoReflect.Descriptor instead.
+func (*AssertionResult) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AssertionResult) GetMode() AssertionMode {
+	if x != nil {
+		return x.Mode
+	}
+	return AssertionMode_ASSERTION_MODE_UNSPECIFIED
+}
+
+func (x *AssertionResult) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *AssertionResult) GetExpected() *v1.JsonValue {
+	if x != nil {
+		return x.Expected
+	}
+	return nil
+}
+
+func (x *AssertionResult) GetActual() *v1.JsonValue {
+	if x != nil {
+		return x.Actual
+	}
+	return nil
+}
+
+func (x *AssertionResult) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *AssertionResult) GetNegated() bool {
+	if x != nil {
+		return x.Negated
+	}
+	return false
+}
+
+func (x *AssertionResult) GetCaseSensitive() bool {
+	if x != nil {
+		return x.CaseSensitive
+	}
+	return false
+}
+
+func (x *AssertionResult) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
 var File_browser_automation_studio_v1_shared_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\n" +
-	")browser-automation-studio/v1/shared.proto\x12\x1cbrowser_automation_studio.v1*\xcc\x01\n" +
+	")browser-automation-studio/v1/shared.proto\x12\x1cbrowser_automation_studio.v1\x1a\x15common/v1/types.proto\"\x88\x01\n" +
+	"\fRetryAttempt\x12\x18\n" +
+	"\aattempt\x18\x01 \x01(\x05R\aattempt\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x1f\n" +
+	"\vduration_ms\x18\x03 \x01(\x05R\n" +
+	"durationMs\x12\x19\n" +
+	"\x05error\x18\x04 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
+	"\x06_error\"\x81\x02\n" +
+	"\vRetryStatus\x12'\n" +
+	"\x0fcurrent_attempt\x18\x01 \x01(\x05R\x0ecurrentAttempt\x12!\n" +
+	"\fmax_attempts\x18\x02 \x01(\x05R\vmaxAttempts\x12\x19\n" +
+	"\bdelay_ms\x18\x03 \x01(\x05R\adelayMs\x12%\n" +
+	"\x0ebackoff_factor\x18\x04 \x01(\x01R\rbackoffFactor\x12\x1e\n" +
+	"\n" +
+	"configured\x18\x05 \x01(\bR\n" +
+	"configured\x12D\n" +
+	"\ahistory\x18\x06 \x03(\v2*.browser_automation_studio.v1.RetryAttemptR\ahistory\"\xf6\x02\n" +
+	"\x0fAssertionResult\x12?\n" +
+	"\x04mode\x18\x01 \x01(\x0e2+.browser_automation_studio.v1.AssertionModeR\x04mode\x12\x1a\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\x125\n" +
+	"\bexpected\x18\x03 \x01(\v2\x14.common.v1.JsonValueH\x00R\bexpected\x88\x01\x01\x121\n" +
+	"\x06actual\x18\x04 \x01(\v2\x14.common.v1.JsonValueH\x01R\x06actual\x88\x01\x01\x12\x18\n" +
+	"\asuccess\x18\x05 \x01(\bR\asuccess\x12\x18\n" +
+	"\anegated\x18\x06 \x01(\bR\anegated\x12%\n" +
+	"\x0ecase_sensitive\x18\a \x01(\bR\rcaseSensitive\x12\x1d\n" +
+	"\amessage\x18\b \x01(\tH\x02R\amessage\x88\x01\x01B\v\n" +
+	"\t_expectedB\t\n" +
+	"\a_actualB\n" +
+	"\n" +
+	"\b_message*\xcc\x01\n" +
 	"\x0fExecutionStatus\x12 \n" +
 	"\x1cEXECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EXECUTION_STATUS_PENDING\x10\x01\x12\x1c\n" +
@@ -479,20 +1206,71 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\x18ARTIFACT_TYPE_SCREENSHOT\x10\x04\x12\x1e\n" +
 	"\x1aARTIFACT_TYPE_DOM_SNAPSHOT\x10\x05\x12\x17\n" +
 	"\x13ARTIFACT_TYPE_TRACE\x10\x06\x12\x18\n" +
-	"\x14ARTIFACT_TYPE_CUSTOM\x10\a*\xac\x01\n" +
+	"\x14ARTIFACT_TYPE_CUSTOM\x10\a*\xb0\x01\n" +
 	"\tEventKind\x12\x1a\n" +
 	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EVENT_KIND_STATUS_UPDATE\x10\x01\x12\x1d\n" +
 	"\x19EVENT_KIND_TIMELINE_FRAME\x10\x02\x12\x12\n" +
 	"\x0eEVENT_KIND_LOG\x10\x03\x12\x18\n" +
 	"\x14EVENT_KIND_HEARTBEAT\x10\x04\x12\x18\n" +
-	"\x14EVENT_KIND_TELEMETRY\x10\x05*\x99\x01\n" +
+	"\x14EVENT_KIND_TELEMETRY\x10\x05\x1a\x02\x18\x01*\x99\x01\n" +
 	"\fExportStatus\x12\x1d\n" +
 	"\x19EXPORT_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13EXPORT_STATUS_READY\x10\x01\x12\x19\n" +
 	"\x15EXPORT_STATUS_PENDING\x10\x02\x12\x17\n" +
 	"\x13EXPORT_STATUS_ERROR\x10\x03\x12\x1d\n" +
-	"\x19EXPORT_STATUS_UNAVAILABLE\x10\x04BjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"\x19EXPORT_STATUS_UNAVAILABLE\x10\x04*\xae\x02\n" +
+	"\fSelectorType\x12\x1d\n" +
+	"\x19SELECTOR_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11SELECTOR_TYPE_CSS\x10\x01\x12\x17\n" +
+	"\x13SELECTOR_TYPE_XPATH\x10\x02\x12\x14\n" +
+	"\x10SELECTOR_TYPE_ID\x10\x03\x12\x1d\n" +
+	"\x19SELECTOR_TYPE_DATA_TESTID\x10\x04\x12\x16\n" +
+	"\x12SELECTOR_TYPE_ARIA\x10\x05\x12\x16\n" +
+	"\x12SELECTOR_TYPE_TEXT\x10\x06\x12\x16\n" +
+	"\x12SELECTOR_TYPE_ROLE\x10\a\x12\x1d\n" +
+	"\x19SELECTOR_TYPE_PLACEHOLDER\x10\b\x12\x1a\n" +
+	"\x16SELECTOR_TYPE_ALT_TEXT\x10\t\x12\x17\n" +
+	"\x13SELECTOR_TYPE_TITLE\x10\n" +
+	"*\x97\x01\n" +
+	"\x10NetworkEventType\x12\"\n" +
+	"\x1eNETWORK_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aNETWORK_EVENT_TYPE_REQUEST\x10\x01\x12\x1f\n" +
+	"\x1bNETWORK_EVENT_TYPE_RESPONSE\x10\x02\x12\x1e\n" +
+	"\x1aNETWORK_EVENT_TYPE_FAILURE\x10\x03*k\n" +
+	"\x0fRecordingSource\x12 \n" +
+	"\x1cRECORDING_SOURCE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15RECORDING_SOURCE_AUTO\x10\x01\x12\x1b\n" +
+	"\x17RECORDING_SOURCE_MANUAL\x10\x02*\xd6\x01\n" +
+	"\x10WorkflowEdgeType\x12\"\n" +
+	"\x1eWORKFLOW_EDGE_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aWORKFLOW_EDGE_TYPE_DEFAULT\x10\x01\x12!\n" +
+	"\x1dWORKFLOW_EDGE_TYPE_SMOOTHSTEP\x10\x02\x12\x1b\n" +
+	"\x17WORKFLOW_EDGE_TYPE_STEP\x10\x03\x12\x1f\n" +
+	"\x1bWORKFLOW_EDGE_TYPE_STRAIGHT\x10\x04\x12\x1d\n" +
+	"\x19WORKFLOW_EDGE_TYPE_BEZIER\x10\x05*\x97\x01\n" +
+	"\x12ValidationSeverity\x12#\n" +
+	"\x1fVALIDATION_SEVERITY_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19VALIDATION_SEVERITY_ERROR\x10\x01\x12\x1f\n" +
+	"\x1bVALIDATION_SEVERITY_WARNING\x10\x02\x12\x1c\n" +
+	"\x18VALIDATION_SEVERITY_INFO\x10\x03*\xba\x01\n" +
+	"\fChangeSource\x12\x1d\n" +
+	"\x19CHANGE_SOURCE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14CHANGE_SOURCE_MANUAL\x10\x01\x12\x1a\n" +
+	"\x16CHANGE_SOURCE_AUTOSAVE\x10\x02\x12\x18\n" +
+	"\x14CHANGE_SOURCE_IMPORT\x10\x03\x12\x1e\n" +
+	"\x1aCHANGE_SOURCE_AI_GENERATED\x10\x04\x12\x1b\n" +
+	"\x17CHANGE_SOURCE_RECORDING\x10\x05*\xae\x02\n" +
+	"\rAssertionMode\x12\x1e\n" +
+	"\x1aASSERTION_MODE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ASSERTION_MODE_EXISTS\x10\x01\x12\x1d\n" +
+	"\x19ASSERTION_MODE_NOT_EXISTS\x10\x02\x12\x1a\n" +
+	"\x16ASSERTION_MODE_VISIBLE\x10\x03\x12\x19\n" +
+	"\x15ASSERTION_MODE_HIDDEN\x10\x04\x12\x1e\n" +
+	"\x1aASSERTION_MODE_TEXT_EQUALS\x10\x05\x12 \n" +
+	"\x1cASSERTION_MODE_TEXT_CONTAINS\x10\x06\x12#\n" +
+	"\x1fASSERTION_MODE_ATTRIBUTE_EQUALS\x10\a\x12%\n" +
+	"!ASSERTION_MODE_ATTRIBUTE_CONTAINS\x10\bBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_shared_proto_rawDescOnce sync.Once
@@ -506,22 +1284,38 @@ func file_browser_automation_studio_v1_shared_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_shared_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
+var file_browser_automation_studio_v1_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_browser_automation_studio_v1_shared_proto_goTypes = []any{
-	(ExecutionStatus)(0), // 0: browser_automation_studio.v1.ExecutionStatus
-	(TriggerType)(0),     // 1: browser_automation_studio.v1.TriggerType
-	(StepStatus)(0),      // 2: browser_automation_studio.v1.StepStatus
-	(LogLevel)(0),        // 3: browser_automation_studio.v1.LogLevel
-	(ArtifactType)(0),    // 4: browser_automation_studio.v1.ArtifactType
-	(EventKind)(0),       // 5: browser_automation_studio.v1.EventKind
-	(ExportStatus)(0),    // 6: browser_automation_studio.v1.ExportStatus
+	(ExecutionStatus)(0),    // 0: browser_automation_studio.v1.ExecutionStatus
+	(TriggerType)(0),        // 1: browser_automation_studio.v1.TriggerType
+	(StepStatus)(0),         // 2: browser_automation_studio.v1.StepStatus
+	(LogLevel)(0),           // 3: browser_automation_studio.v1.LogLevel
+	(ArtifactType)(0),       // 4: browser_automation_studio.v1.ArtifactType
+	(EventKind)(0),          // 5: browser_automation_studio.v1.EventKind
+	(ExportStatus)(0),       // 6: browser_automation_studio.v1.ExportStatus
+	(SelectorType)(0),       // 7: browser_automation_studio.v1.SelectorType
+	(NetworkEventType)(0),   // 8: browser_automation_studio.v1.NetworkEventType
+	(RecordingSource)(0),    // 9: browser_automation_studio.v1.RecordingSource
+	(WorkflowEdgeType)(0),   // 10: browser_automation_studio.v1.WorkflowEdgeType
+	(ValidationSeverity)(0), // 11: browser_automation_studio.v1.ValidationSeverity
+	(ChangeSource)(0),       // 12: browser_automation_studio.v1.ChangeSource
+	(AssertionMode)(0),      // 13: browser_automation_studio.v1.AssertionMode
+	(*RetryAttempt)(nil),    // 14: browser_automation_studio.v1.RetryAttempt
+	(*RetryStatus)(nil),     // 15: browser_automation_studio.v1.RetryStatus
+	(*AssertionResult)(nil), // 16: browser_automation_studio.v1.AssertionResult
+	(*v1.JsonValue)(nil),    // 17: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_shared_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	14, // 0: browser_automation_studio.v1.RetryStatus.history:type_name -> browser_automation_studio.v1.RetryAttempt
+	13, // 1: browser_automation_studio.v1.AssertionResult.mode:type_name -> browser_automation_studio.v1.AssertionMode
+	17, // 2: browser_automation_studio.v1.AssertionResult.expected:type_name -> common.v1.JsonValue
+	17, // 3: browser_automation_studio.v1.AssertionResult.actual:type_name -> common.v1.JsonValue
+	4,  // [4:4] is the sub-list for method output_type
+	4,  // [4:4] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_shared_proto_init() }
@@ -529,19 +1323,22 @@ func file_browser_automation_studio_v1_shared_proto_init() {
 	if File_browser_automation_studio_v1_shared_proto != nil {
 		return
 	}
+	file_browser_automation_studio_v1_shared_proto_msgTypes[0].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_shared_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_shared_proto_rawDesc), len(file_browser_automation_studio_v1_shared_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   0,
+			NumEnums:      14,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_browser_automation_studio_v1_shared_proto_goTypes,
 		DependencyIndexes: file_browser_automation_studio_v1_shared_proto_depIdxs,
 		EnumInfos:         file_browser_automation_studio_v1_shared_proto_enumTypes,
+		MessageInfos:      file_browser_automation_studio_v1_shared_proto_msgTypes,
 	}.Build()
 	File_browser_automation_studio_v1_shared_proto = out.File
 	file_browser_automation_studio_v1_shared_proto_goTypes = nil

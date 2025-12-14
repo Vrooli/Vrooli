@@ -6,6 +6,14 @@ import "google/protobuf/struct.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
 
+// HealthStatus enumerates service health states.
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
+
 // JsonValue models a typed JSON value for scenarios that need stronger typing
 // than google.protobuf.Value while retaining a JSON-compatible shape.
 message JsonValue {
@@ -59,15 +67,16 @@ message ErrorResponse {
   string code = 1;
   // Human-readable error message.
   string message = 2;
+  // Reserved for removed untyped 'details' field.
+  reserved 3;
   // Additional structured context about the error.
-  // Uses Struct to support rich nested details (e.g., validation errors, stats).
-  google.protobuf.Struct details = 3;
+  JsonObject details = 4;
 }
 
 // HealthResponse mirrors the BAS health response contract.
 message HealthResponse {
-  // Service status: healthy, degraded, or unhealthy.
-  string status = 1;
+  // Service health status.
+  HealthStatus status = 1;
   // Identifier for the service reporting health.
   string service = 2;
   // RFC3339 timestamp when the check was produced.
@@ -76,8 +85,10 @@ message HealthResponse {
   bool readiness = 4;
   // Optional service version string.
   string version = 5;
+  // Reserved for removed untyped fields.
+  reserved 6, 7;
   // Status of downstream dependencies.
-  map<string, google.protobuf.Value> dependencies = 6;
+  map<string, JsonValue> dependencies = 8;
   // Additional health metrics.
-  map<string, google.protobuf.Value> metrics = 7;
+  map<string, JsonValue> metrics = 9;
 }

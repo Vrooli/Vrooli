@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
+
+// =============================================================================
+// GEOMETRY TYPES
+// =============================================================================
+
+// BoundingBox captures the position and dimensions of a rectangular region.
+message BoundingBox {
+  // X coordinate in viewport pixels.
+  double x = 1;
+  // Y coordinate in viewport pixels.
+  double y = 2;
+  // Width in viewport pixels.
+  double width = 3;
+  // Height in viewport pixels.
+  double height = 4;
+}
+
+// Point represents a 2D coordinate.
+message Point {
+  // X coordinate in viewport pixels.
+  double x = 1;
+  // Y coordinate in viewport pixels.
+  double y = 2;
+}
+
+// NodePosition captures canvas placement for visual editors.
+message NodePosition {
+  // X coordinate on the canvas.
+  double x = 1;
+  // Y coordinate on the canvas.
+  double y = 2;
+}

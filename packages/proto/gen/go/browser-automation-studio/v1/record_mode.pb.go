@@ -427,7 +427,7 @@ type RecordingStatusResponse struct {
 	// Number of actions captured.
 	ActionCount int32 `protobuf:"varint,4,opt,name=action_count,json=actionCount,proto3" json:"action_count,omitempty"`
 	// When recording started (null if not recording).
-	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1221,7 +1221,7 @@ var File_browser_automation_studio_v1_record_mode_proto protoreflect.FileDescrip
 
 const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"\n" +
-	".browser-automation-studio/v1/record_mode.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*browser-automation-studio/v1/unified.proto\"\xd3\x01\n" +
+	".browser-automation-studio/v1/record_mode.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a)browser-automation-studio/v1/action.proto\x1a1browser-automation-studio/v1/timeline_event.proto\"\xd3\x01\n" +
 	"\x0eRecordingState\x12!\n" +
 	"\fis_recording\x18\x01 \x01(\bR\visRecording\x12!\n" +
 	"\frecording_id\x18\x02 \x01(\tR\vrecordingId\x12\x1d\n" +
@@ -1256,15 +1256,16 @@ const file_browser_automation_studio_v1_record_mode_proto_rawDesc = "" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x12!\n" +
 	"\faction_count\x18\x03 \x01(\x05R\vactionCount\x129\n" +
 	"\n" +
-	"stopped_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstoppedAt\"\xdc\x01\n" +
+	"stopped_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstoppedAt\"\xf0\x01\n" +
 	"\x17RecordingStatusResponse\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
 	"\fis_recording\x18\x02 \x01(\bR\visRecording\x12!\n" +
 	"\frecording_id\x18\x03 \x01(\tR\vrecordingId\x12!\n" +
-	"\faction_count\x18\x04 \x01(\x05R\vactionCount\x129\n" +
+	"\faction_count\x18\x04 \x01(\x05R\vactionCount\x12>\n" +
 	"\n" +
-	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\x8e\x01\n" +
+	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\tstartedAt\x88\x01\x01B\r\n" +
+	"\v_started_at\"\x8e\x01\n" +
 	"\x12GetActionsResponse\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12C\n" +
@@ -1390,7 +1391,9 @@ func file_browser_automation_studio_v1_record_mode_proto_init() {
 	if File_browser_automation_studio_v1_record_mode_proto != nil {
 		return
 	}
-	file_browser_automation_studio_v1_unified_proto_init()
+	file_browser_automation_studio_v1_action_proto_init()
+	file_browser_automation_studio_v1_timeline_event_proto_init()
+	file_browser_automation_studio_v1_record_mode_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -1,7 +1,8 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from browser_automation_studio.v1 import unified_pb2 as _unified_pb2
+from browser_automation_studio.v1 import action_pb2 as _action_pb2
+from browser_automation_studio.v1 import timeline_event_pb2 as _timeline_event_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -92,9 +93,9 @@ class GetActionsResponse(_message.Message):
     EVENTS_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
     session_id: str
-    events: _containers.RepeatedCompositeFieldContainer[_unified_pb2.TimelineEvent]
+    events: _containers.RepeatedCompositeFieldContainer[_timeline_event_pb2.TimelineEvent]
     count: int
-    def __init__(self, session_id: _Optional[str] = ..., events: _Optional[_Iterable[_Union[_unified_pb2.TimelineEvent, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
+    def __init__(self, session_id: _Optional[str] = ..., events: _Optional[_Iterable[_Union[_timeline_event_pb2.TimelineEvent, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
 
 class GenerateWorkflowRequest(_message.Message):
     __slots__ = ()
@@ -116,8 +117,8 @@ class GenerateWorkflowRequest(_message.Message):
     project_id: str
     project_name: str
     event_range: GenerateWorkflowRequest.EventRange
-    events: _containers.RepeatedCompositeFieldContainer[_unified_pb2.TimelineEvent]
-    def __init__(self, session_id: _Optional[str] = ..., name: _Optional[str] = ..., project_id: _Optional[str] = ..., project_name: _Optional[str] = ..., event_range: _Optional[_Union[GenerateWorkflowRequest.EventRange, _Mapping]] = ..., events: _Optional[_Iterable[_Union[_unified_pb2.TimelineEvent, _Mapping]]] = ...) -> None: ...
+    events: _containers.RepeatedCompositeFieldContainer[_timeline_event_pb2.TimelineEvent]
+    def __init__(self, session_id: _Optional[str] = ..., name: _Optional[str] = ..., project_id: _Optional[str] = ..., project_name: _Optional[str] = ..., event_range: _Optional[_Union[GenerateWorkflowRequest.EventRange, _Mapping]] = ..., events: _Optional[_Iterable[_Union[_timeline_event_pb2.TimelineEvent, _Mapping]]] = ...) -> None: ...
 
 class GenerateWorkflowResponse(_message.Message):
     __slots__ = ()
@@ -141,11 +142,11 @@ class ReplayPreviewRequest(_message.Message):
     STOP_ON_FAILURE_FIELD_NUMBER: _ClassVar[int]
     ACTION_TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     session_id: str
-    events: _containers.RepeatedCompositeFieldContainer[_unified_pb2.TimelineEvent]
+    events: _containers.RepeatedCompositeFieldContainer[_timeline_event_pb2.TimelineEvent]
     limit: int
     stop_on_failure: bool
     action_timeout_ms: int
-    def __init__(self, session_id: _Optional[str] = ..., events: _Optional[_Iterable[_Union[_unified_pb2.TimelineEvent, _Mapping]]] = ..., limit: _Optional[int] = ..., stop_on_failure: _Optional[bool] = ..., action_timeout_ms: _Optional[int] = ...) -> None: ...
+    def __init__(self, session_id: _Optional[str] = ..., events: _Optional[_Iterable[_Union[_timeline_event_pb2.TimelineEvent, _Mapping]]] = ..., limit: _Optional[int] = ..., stop_on_failure: _Optional[bool] = ..., action_timeout_ms: _Optional[int] = ...) -> None: ...
 
 class ReplayEventError(_message.Message):
     __slots__ = ()
@@ -174,8 +175,8 @@ class ReplayEventResult(_message.Message):
     duration_ms: int
     error: ReplayEventError
     screenshot_on_error: str
-    action: _unified_pb2.ActionDefinition
-    def __init__(self, event_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., error: _Optional[_Union[ReplayEventError, _Mapping]] = ..., screenshot_on_error: _Optional[str] = ..., action: _Optional[_Union[_unified_pb2.ActionDefinition, _Mapping]] = ...) -> None: ...
+    action: _action_pb2.ActionDefinition
+    def __init__(self, event_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., error: _Optional[_Union[ReplayEventError, _Mapping]] = ..., screenshot_on_error: _Optional[str] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ...) -> None: ...
 
 class ReplayPreviewResponse(_message.Message):
     __slots__ = ()

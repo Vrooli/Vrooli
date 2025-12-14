@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
+import "browser-automation-studio/v1/shared.proto";
+import "browser-automation-studio/v1/action.proto";
+import "browser-automation-studio/v1/selectors.proto";
+import "browser-automation-studio/v1/telemetry.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
+
+// =============================================================================
+// TIMELINE EVENT (STREAMING FORMAT)
+// =============================================================================
+//
+// This file defines the STREAMING format for timeline events, sent over WebSocket
+// during live execution or recording sessions.
+//
+// RELATIONSHIP TO BATCH FORMAT (timeline.proto):
+// - TimelineEvent: Streaming format sent over WebSocket in real-time
+// - TimelineFrame: Batch format stored in ExecutionTimeline after completion
+// - TimelineStreamMessage: WebSocket envelope wrapping TimelineEvent
+//
+// When an execution/recording completes, TimelineEvents are converted to
+// TimelineFrames for storage and retrieval via REST API.
+//
+// Both formats share common types:
+// - ActionDefinition (from action.proto)
+// - ActionTelemetry (from telemetry.proto)
+// - RetryStatus, AssertionResult (from shared.proto)
+//
+// Prefer TimelineEvent for live streaming; use TimelineFrame for historical data.
+// =============================================================================
+
+// TimelineEvent is streamed to the UI during BOTH recording and execution.
+// This is the canonical streaming format for real-time action/telemetry data.
+message TimelineEvent {
+  // Unique event identifier (UUID format).
+  string id = 1;
+  // Zero-based sequence number (monotonic across all events in a session).
+  int32 sequence_num = 2;
+  // When this event occurred.
+  google.protobuf.Timestamp timestamp = 3;
+  // Action duration in milliseconds.
+  optional int32 duration_ms = 4;
+  // Zero-based step index in the workflow (identifies which workflow node).
+  // This is critical for correlating streaming events with batch TimelineFrame data.
+  optional int32 step_index = 5;
+  // Node ID from the workflow definition (UUID format).
+  // Links this event to the specific WorkflowNodeV2.
+  optional string node_id = 6;
+
+  // The action performed or to be performed.
+  ActionDefinition action = 10;
+
+  // Observable telemetry captured during the action.
+  ActionTelemetry telemetry = 11;
+
+  // Mode-specific context (exactly one populated based on context).
+  // These are contextual data containers, not standalone events.
+  oneof mode_context {
+    RecordingContext recording = 20;
+    ExecutionContext execution = 21;
+  }
+
+  // Distributed tracing fields for observability.
+  // Trace ID for distributed tracing (e.g., OpenTelemetry trace ID).
+  optional string trace_id = 30;
+  // Correlation ID for linking related operations across services.
+  optional string correlation_id = 31;
+}
+
+// RecordingContext contains recording-specific contextual data.
+// This is populated when the TimelineEvent originates from a recording session.
+message RecordingContext {
+  // Recording session ID (UUID format).
+  string session_id = 1;
+  // Selector candidates for user to choose from.
+  repeated SelectorCandidate selector_candidates = 2;
+  // Whether user needs to confirm/edit this action.
+  bool needs_confirmation = 3;
+  // How the action was captured (auto-detected or manually inserted).
+  RecordingSource source = 4;
+}
+
+// ExecutionContext contains execution-specific contextual data.
+// This is populated when the TimelineEvent originates from workflow execution.
+message ExecutionContext {
+  // Execution run ID (UUID format).
+  string execution_id = 1;
+  // Reserved: field 2 was node_id, now in parent TimelineEvent.
+  reserved 2;
+
+  // Execution outcome.
+  bool success = 10;
+  optional string error = 11;
+  optional string error_code = 12;
+
+  // Retry status (uses unified RetryStatus type from shared.proto).
+  RetryStatus retry_status = 25;
+  // Reserved: fields 20-24 were individual retry fields, now consolidated in retry_status.
+  reserved 20, 21, 22, 23, 24;
+
+  // Assertion result (for assert steps).
+  optional AssertionResult assertion = 30;
+
+  // Extracted data (for evaluate steps).
+  map<string, common.v1.JsonValue> extracted_data = 31;
+}
+
+// NOTE: RetryAttempt, RetryStatus, and AssertionResult are defined in shared.proto
+// for unified usage across timeline.proto and timeline_event.proto.
+
+// =============================================================================
+// WEBSOCKET MESSAGE ENVELOPE
+// =============================================================================
+
+// TimelineMessageType enumerates WebSocket message types.
+enum TimelineMessageType {
+  TIMELINE_MESSAGE_TYPE_UNSPECIFIED = 0;
+  TIMELINE_MESSAGE_TYPE_EVENT = 1;
+  TIMELINE_MESSAGE_TYPE_STATUS = 2;
+  TIMELINE_MESSAGE_TYPE_HEARTBEAT = 3;
+}
+
+// TimelineStreamMessage wraps timeline events for WebSocket transport.
+message TimelineStreamMessage {
+  // Message type for routing.
+  TimelineMessageType type = 1;
+
+  oneof payload {
+    TimelineEvent event = 10;
+    TimelineStatusUpdate status = 11;
+    TimelineHeartbeat heartbeat = 12;
+  }
+}
+
+// TimelineStatusUpdate reports overall session/execution status.
+message TimelineStatusUpdate {
+  // Session ID (recording) or Execution ID (playback) - UUID format.
+  string id = 1;
+  // Current execution status.
+  ExecutionStatus status = 2;
+  // Progress percentage (0-100).
+  int32 progress = 3;
+  // Total event count.
+  int32 event_count = 4;
+  // Error message if status is failed.
+  optional string error = 5;
+}
+
+// TimelineHeartbeat keeps WebSocket connection alive.
+message TimelineHeartbeat {
+  // Heartbeat timestamp.
+  google.protobuf.Timestamp timestamp = 1;
+  // Session ID for connection routing (UUID format).
+  string session_id = 2;
+}

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package landing_page_react_vite.v1;
 
-import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "common/v1/types.proto";
 
@@ -33,6 +32,8 @@ enum IntroPricingType {
 
 // Bundle captures Stripe product metadata and credit conversion rules.
 message Bundle {
+  reserved 8;
+
   // Stable key used by clients and downstream scenarios.
   string bundle_key = 1;
   // Human-readable bundle name.
@@ -48,13 +49,13 @@ message Bundle {
   // Environment label (e.g., "production", "staging").
   string environment = 7;
   // Additional metadata passed through to clients.
-  map<string, google.protobuf.Value> metadata = 8 [deprecated = true];
-  // Typed metadata; prefer over the deprecated Value map.
-  map<string, common.v1.JsonValue> metadata_typed = 9;
+  map<string, common.v1.JsonValue> metadata = 9;
 }
 
 // PlanOption represents a purchasable Stripe price for a bundle.
 message PlanOption {
+  reserved 21;
+
   // User-facing plan name (e.g., "Pro", "Team").
   string plan_name = 1;
   // Tier key used for entitlement checks.
@@ -96,9 +97,7 @@ message PlanOption {
   // Weight for ordering within its interval group.
   int32 display_weight = 20;
   // Arbitrary structured metadata.
-  map<string, google.protobuf.Value> metadata = 21 [deprecated = true];
-  // Typed structured metadata; prefer over the deprecated Value map.
-  map<string, common.v1.JsonValue> metadata_typed = 22;
+  map<string, common.v1.JsonValue> metadata = 22;
 }
 
 // PricingOverview groups bundle metadata with available plans.

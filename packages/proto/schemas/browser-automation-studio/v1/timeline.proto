@@ -2,15 +2,39 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
-import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "common/v1/types.proto";
 import "browser-automation-studio/v1/shared.proto";
+import "browser-automation-studio/v1/action.proto";
+import "browser-automation-studio/v1/geometry.proto";
+import "browser-automation-studio/v1/selectors.proto";
+import "browser-automation-studio/v1/telemetry.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
+// =============================================================================
+// EXECUTION TIMELINE (BATCH API FORMAT)
+// =============================================================================
+//
+// This file defines the BATCH format for execution timeline data, used by
+// REST API endpoints like GET /api/v1/executions/{id}/timeline.
+//
+// RELATIONSHIP TO STREAMING FORMAT (timeline_event.proto):
+// - TimelineEvent: Streaming format sent over WebSocket during execution/recording
+// - TimelineFrame: Batch format stored after execution completes
+// - ExecutionTimeline: Container for all TimelineFrames from an execution
+//
+// The TimelineEvent streaming format is converted to TimelineFrame batch format
+// when an execution completes. Both formats share common types:
+// - ActionDefinition (from action.proto)
+// - ActionTelemetry (from telemetry.proto)
+// - RetryStatus, AssertionResult (from shared.proto)
+//
+// Prefer TimelineEvent for live streaming; use TimelineFrame for historical data.
+// =============================================================================
+
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
-// It mirrors the existing BAS timeline JSON contract.
+// This is the batch format containing all frames from a completed execution.
 message ExecutionTimeline {
   // Unique identifier for this execution (UUID).
   string execution_id = 1;
@@ -23,12 +47,16 @@ message ExecutionTimeline {
   // When the execution started.
   google.protobuf.Timestamp started_at = 5;
   // When the execution completed (null if still running).
-  google.protobuf.Timestamp completed_at = 6;
+  optional google.protobuf.Timestamp completed_at = 6;
   // Ordered list of execution frames (one per workflow step).
   repeated TimelineFrame frames = 7;
   // Console and execution logs captured during the run.
   repeated TimelineLog logs = 8;
 }
+
+// =============================================================================
+// TIMELINE FRAME
+// =============================================================================
 
 // TimelineFrame captures a single workflow step in the execution timeline.
 message TimelineFrame {
@@ -36,8 +64,11 @@ message TimelineFrame {
   int32 step_index = 1;
   // Node ID from the workflow definition.
   string node_id = 2;
-  // Node type (navigate, click, assert, etc.).
-  StepType step_type = 3;
+  // Action type enum (for filtering/grouping without parsing full action).
+  ActionType action_type = 3;
+  // Full action definition with parameters and metadata.
+  // This provides complete action details for replay and debugging.
+  ActionDefinition action = 35;
   // Step execution status.
   StepStatus status = 4;
   // Whether this step succeeded.
@@ -60,68 +91,55 @@ message TimelineFrame {
   int32 console_log_count = 13;
   // Number of network events captured for this step.
   int32 network_event_count = 14;
-  // Preview of extracted data (shape depends on workflow).
-  google.protobuf.Value extracted_data_preview = 15;
-  // Typed preview of extracted data; prefer over the Value when available.
-  common.v1.JsonValue extracted_data_preview_typed = 34;
-  // Highlight overlays applied to the screenshot.
+  // Reserved: field 15 was 'step_type' (replaced by action_type from ActionType enum)
+  reserved 15;
+  // Highlight overlays applied to the screenshot - from unified.proto.
   repeated HighlightRegion highlight_regions = 16;
-  // Masked regions applied during capture.
+  // Masked regions applied during capture - from unified.proto.
   repeated MaskRegion mask_regions = 17;
   // Focused element metadata for the step.
   ElementFocus focused_element = 18;
-  // Bounding box for the primary element interacted with.
+  // Bounding box for the primary element interacted with - from unified.proto.
   BoundingBox element_bounding_box = 19;
-  // Actual click coordinates used.
+  // Actual click coordinates used - from unified.proto.
   Point click_position = 20;
-  // Cursor trail captured during the step.
+  // Cursor trail captured during the step - from unified.proto.
   repeated Point cursor_trail = 21;
   // Applied zoom factor during capture.
   double zoom_factor = 22;
-  // Screenshot captured during/after this step.
+  // Screenshot captured during/after this step - from unified.proto.
   TimelineScreenshot screenshot = 23;
   // Related artifacts (console logs, network traces, etc.).
   repeated TimelineArtifact artifacts = 24;
-  // Assertion outcome for assert steps.
-  AssertionOutcome assertion = 25;
-  // Current retry attempt number (0 for first attempt).
-  int32 retry_attempt = 26;
-  // Max retries configured for this step.
-  int32 retry_max_attempts = 27;
-  // Whether retries were configured for this step.
-  optional bool retry_configured = 28;
-  // Delay applied before retrying (milliseconds).
-  int32 retry_delay_ms = 29;
-  // Exponential backoff factor used for retries.
-  double retry_backoff_factor = 30;
-  // History of previous retry attempts.
-  repeated RetryHistoryEntry retry_history = 31;
+  // Assertion result for assert steps.
+  AssertionResult assertion = 25;
+  // Retry status for this step (uses unified RetryStatus type).
+  // This replaces the individual retry_* fields for consistency.
+  RetryStatus retry_status = 37;
+  // Reserved: fields 26-31 were individual retry fields, now consolidated in retry_status.
+  reserved 26, 27, 28, 29, 30, 31;
   // Truncated DOM snapshot preview text.
   string dom_snapshot_preview = 32;
   // Artifact reference for the stored DOM snapshot.
   TimelineArtifact dom_snapshot = 33;
+  // Typed preview of extracted data.
+  common.v1.JsonValue extracted_data_preview = 34;
+
+  // Composed telemetry captured during this step.
+  // Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
+  // NOTE: Some fields in this message duplicate inline fields above for backward compatibility.
+  // New consumers should prefer telemetry.* fields; inline fields may be deprecated.
+  ActionTelemetry telemetry = 36;
 }
 
-// TimelineScreenshot describes screenshot metadata associated with a frame.
-message TimelineScreenshot {
-  // Unique artifact ID for the screenshot.
-  string artifact_id = 1;
-  // URL to download the full screenshot.
-  string url = 2;
-  // URL to download a thumbnail.
-  string thumbnail_url = 3;
-  // Image width in pixels.
-  int32 width = 4;
-  // Image height in pixels.
-  int32 height = 5;
-  // Image MIME type (e.g., image/png).
-  string content_type = 6;
-  // Optional size in bytes for the screenshot.
-  optional int64 size_bytes = 7;
-}
+// =============================================================================
+// ARTIFACTS
+// =============================================================================
 
 // TimelineArtifact exposes related artifacts such as console or network logs.
 message TimelineArtifact {
+  // Reserved: field 9 was 'metadata' (replaced by typed payload map)
+  reserved 9;
   // Unique artifact ID.
   string id = 1;
   // Artifact type (timeline_frame, console_log, network_event, etc.).
@@ -139,98 +157,28 @@ message TimelineArtifact {
   // Step index associated with this artifact, if any.
   optional int32 step_index = 8;
   // Provider-specific payload describing the artifact.
-  map<string, google.protobuf.Value> payload = 9 [deprecated = true];
-  // Typed payload describing the artifact; prefer over the Value map.
-  map<string, common.v1.JsonValue> payload_typed = 10;
+  map<string, common.v1.JsonValue> payload = 10;
 }
 
-// RetryHistoryEntry captures the outcome of a retry attempt.
-message RetryHistoryEntry {
-  // Retry attempt number starting at 1.
-  int32 attempt = 1;
-  // True if the attempt succeeded.
-  bool success = 2;
-  // Duration in milliseconds for the attempt.
-  int32 duration_ms = 3;
-  // Duration of the call that triggered the attempt.
-  int32 call_duration_ms = 4;
-  // Error message for the attempt, if any.
-  string error = 5;
-}
+// NOTE: RetryAttempt is now defined in shared.proto for unified usage.
+// The old RetryHistoryEntry had a call_duration_ms field which has been removed
+// as it was redundant with duration_ms.
 
-// HighlightRegion describes an overlay applied to the screenshot for emphasis.
-message HighlightRegion {
-  // CSS selector for the region.
-  string selector = 1;
-  // Bounding box for the highlighted area.
-  BoundingBox bounding_box = 2;
-  // Padding in pixels around the region.
-  int32 padding = 3;
-  // Highlight color (CSS string).
-  string color = 4;
-}
-
-// MaskRegion describes areas that were dimmed or masked during capture.
-message MaskRegion {
-  // CSS selector for the region to mask.
-  string selector = 1;
-  // Bounding box for the masked area.
-  BoundingBox bounding_box = 2;
-  // Mask opacity value (0-1).
-  double opacity = 3;
-}
+// =============================================================================
+// ELEMENT FOCUS
+// =============================================================================
 
 // ElementFocus captures focus metadata for screenshot framing.
 message ElementFocus {
   // CSS selector of the focused element.
   string selector = 1;
-  // Bounding box for the focused element.
+  // Bounding box for the focused element - from unified.proto.
   BoundingBox bounding_box = 2;
 }
 
-// BoundingBox captures the position of an element within the viewport.
-message BoundingBox {
-  // X coordinate in viewport pixels.
-  double x = 1;
-  // Y coordinate in viewport pixels.
-  double y = 2;
-  // Width in viewport pixels.
-  double width = 3;
-  // Height in viewport pixels.
-  double height = 4;
-}
-
-// Point represents a 2D coordinate used for pointer highlights.
-message Point {
-  // X coordinate in viewport pixels.
-  double x = 1;
-  // Y coordinate in viewport pixels.
-  double y = 2;
-}
-
-// AssertionOutcome captures the outcome of an assert step.
-message AssertionOutcome {
-  // Assertion mode (exists, visible, text_equals, etc.).
-  string mode = 1;
-  // CSS selector being asserted on.
-  string selector = 2;
-  // Expected value for the assertion.
-  google.protobuf.Value expected = 3;
-  // Actual value observed.
-  google.protobuf.Value actual = 4;
-  // Typed expected value; prefer over the Value field.
-  common.v1.JsonValue expected_typed = 9;
-  // Typed actual value; prefer over the Value field.
-  common.v1.JsonValue actual_typed = 10;
-  // True if the assertion succeeded.
-  bool success = 5;
-  // True if the assertion was negated.
-  bool negated = 6;
-  // True if the assertion was case sensitive.
-  bool case_sensitive = 7;
-  // Optional custom message for the assertion.
-  string message = 8;
-}
+// =============================================================================
+// LOGGING
+// =============================================================================
 
 // TimelineLog captures execution log output for replay consumers.
 message TimelineLog {

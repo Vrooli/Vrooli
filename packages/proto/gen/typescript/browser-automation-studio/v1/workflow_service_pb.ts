@@ -7,19 +7,21 @@ import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_api_annotations } from "../../google/api/annotations_pb";
-import type { JsonValue } from "../../common/v1/types_pb";
-import { file_common_v1_types } from "../../common/v1/types_pb";
-import type { ExecutionStatus } from "./shared_pb";
+import type { ChangeSource, ExecutionStatus, ValidationSeverity } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
-import type { WorkflowDefinitionV2, WorkflowDefinitionV2Schema } from "./unified_pb";
-import { file_browser_automation_studio_v1_unified } from "./unified_pb";
+import type { ActionType } from "./action_pb";
+import { file_browser_automation_studio_v1_action } from "./action_pb";
+import type { WorkflowDefinitionV2 } from "./workflow_v2_pb";
+import { file_browser_automation_studio_v1_workflow_v2 } from "./workflow_v2_pb";
+import type { Execution, ExecutionParameters } from "./execution_pb";
+import { file_browser_automation_studio_v1_execution } from "./execution_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/workflow_service.proto.
  */
 export const file_browser_automation_studio_v1_workflow_service: GenFile = /*@__PURE__*/
-  fileDesc("CjNicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93X3NlcnZpY2UucHJvdG8SHGJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEimwMKD1dvcmtmbG93U3VtbWFyeRIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZm9sZGVyX3BhdGgYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSDAoEdGFncxgGIAMoCRIPCgd2ZXJzaW9uGAcgASgFEhMKC2lzX3RlbXBsYXRlGAggASgIEhIKCmNyZWF0ZWRfYnkYCSABKAkSGgoSbGFzdF9jaGFuZ2Vfc291cmNlGAogASgJEh8KF2xhc3RfY2hhbmdlX2Rlc2NyaXB0aW9uGAsgASgJEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEksKD2Zsb3dfZGVmaW5pdGlvbhgOIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIi5AEKD1dvcmtmbG93VmVyc2lvbhITCgt3b3JrZmxvd19pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFEksKD2Zsb3dfZGVmaW5pdGlvbhgDIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISGgoSY2hhbmdlX2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiUAoMV29ya2Zsb3dMaXN0EkAKCXdvcmtmbG93cxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5IlYKE1dvcmtmbG93VmVyc2lvbkxpc3QSPwoIdmVyc2lvbnMYASADKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmVyc2lvbiKuAQoVQ3JlYXRlV29ya2Zsb3dSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtmb2xkZXJfcGF0aBgDIAEoCRJLCg9mbG93X2RlZmluaXRpb24YBCABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyEhEKCWFpX3Byb21wdBgFIAEoCSKmAQoWQ3JlYXRlV29ya2Zsb3dSZXNwb25zZRI/Cgh3b3JrZmxvdxgBIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dTdW1tYXJ5EksKD2Zsb3dfZGVmaW5pdGlvbhgCIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjIimgIKFVVwZGF0ZVdvcmtmbG93UmVxdWVzdBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhMKC2ZvbGRlcl9wYXRoGAMgASgJEgwKBHRhZ3MYBCADKAkSSwoPZmxvd19kZWZpbml0aW9uGAUgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMhIaChJjaGFuZ2VfZGVzY3JpcHRpb24YBiABKAkSDgoGc291cmNlGAcgASgJEhgKEGV4cGVjdGVkX3ZlcnNpb24YCCABKAUSGAoLd29ya2Zsb3dfaWQYCSABKAlIAIgBAUIOCgxfd29ya2Zsb3dfaWQipgEKFlVwZGF0ZVdvcmtmbG93UmVzcG9uc2USPwoId29ya2Zsb3cYASABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U3VtbWFyeRJLCg9mbG93X2RlZmluaXRpb24YAiABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyIqcCChZFeGVjdXRlV29ya2Zsb3dSZXF1ZXN0ElgKCnBhcmFtZXRlcnMYAyADKAsyRC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVXb3JrZmxvd1JlcXVlc3QuUGFyYW1ldGVyc0VudHJ5EhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAiABKAgSEwoLd29ya2Zsb3dfaWQYBCABKAkSHQoQd29ya2Zsb3dfdmVyc2lvbhgFIAEoBUgAiAEBGkcKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUITChFfd29ya2Zsb3dfdmVyc2lvbkoECAEQAiK+AQoXRXhlY3V0ZVdvcmtmbG93UmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEjAKDGNvbXBsZXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYBCABKAlIAIgBAUIICgZfZXJyb3IinAEKF1dvcmtmbG93VmFsaWRhdGlvbklzc3VlEhAKCHNldmVyaXR5GAEgASgJEgwKBGNvZGUYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIPCgdub2RlX2lkGAQgASgJEhEKCW5vZGVfdHlwZRgFIAEoCRINCgVmaWVsZBgGIAEoCRIPCgdwb2ludGVyGAcgASgJEgwKBGhpbnQYCCABKAkiygEKF1dvcmtmbG93VmFsaWRhdGlvblN0YXRzEhIKCm5vZGVfY291bnQYASABKAUSEgoKZWRnZV9jb3VudBgCIAEoBRIWCg5zZWxlY3Rvcl9jb3VudBgDIAEoBRIdChV1bmlxdWVfc2VsZWN0b3JfY291bnQYBCABKAUSGgoSZWxlbWVudF93YWl0X2NvdW50GAUgASgFEhQKDGhhc19tZXRhZGF0YRgGIAEoCBIeChZoYXNfZXhlY3V0aW9uX3ZpZXdwb3J0GAcgASgIItwCChhXb3JrZmxvd1ZhbGlkYXRpb25SZXN1bHQSDQoFdmFsaWQYASABKAgSRQoGZXJyb3JzGAIgAygLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25Jc3N1ZRJHCgh3YXJuaW5ncxgDIAMoCzI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWYWxpZGF0aW9uSXNzdWUSRAoFc3RhdHMYBCABKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmFsaWRhdGlvblN0YXRzEhYKDnNjaGVtYV92ZXJzaW9uGAUgASgJEi4KCmNoZWNrZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC2R1cmF0aW9uX21zGAcgASgDIqoBCh5SZXN0b3JlV29ya2Zsb3dWZXJzaW9uUmVzcG9uc2USPwoId29ya2Zsb3cYASABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U3VtbWFyeRJHChByZXN0b3JlZF92ZXJzaW9uGAIgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZlcnNpb24yuwUKD1dvcmtmbG93U2VydmljZRKgAQoOQ3JlYXRlV29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNyZWF0ZVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3JlYXRlV29ya2Zsb3dSZXNwb25zZSIjgtPkkwIdOgEqIhgvYXBpL3YxL3dvcmtmbG93cy9jcmVhdGUSpwEKDlVwZGF0ZVdvcmtmbG93EjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5VcGRhdGVXb3JrZmxvd1JlcXVlc3QaNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlVwZGF0ZVdvcmtmbG93UmVzcG9uc2UiKoLT5JMCJDoBKhofL2FwaS92MS93b3JrZmxvd3Mve3dvcmtmbG93X2lkfRKyAQoPRXhlY3V0ZVdvcmtmbG93EjQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRlV29ya2Zsb3dSZXF1ZXN0GjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRlV29ya2Zsb3dSZXNwb25zZSIygtPkkwIsOgEqIicvYXBpL3YxL3dvcmtmbG93cy97d29ya2Zsb3dfaWR9L2V4ZWN1dGUSpQEKEFZhbGlkYXRlV29ya2Zsb3cSMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyGjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25SZXN1bHQiJYLT5JMCHzoBKiIaL2FwaS92MS93b3JrZmxvd3MvdmFsaWRhdGVCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_api_annotations, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_unified]);
+  fileDesc("CjNicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3dvcmtmbG93X3NlcnZpY2UucHJvdG8SHGJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEixwMKD1dvcmtmbG93U3VtbWFyeRIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZm9sZGVyX3BhdGgYBCABKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSDAoEdGFncxgGIAMoCRIPCgd2ZXJzaW9uGAcgASgFEhMKC2lzX3RlbXBsYXRlGAggASgIEhIKCmNyZWF0ZWRfYnkYCSABKAkSRgoSbGFzdF9jaGFuZ2Vfc291cmNlGAogASgOMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5DaGFuZ2VTb3VyY2USHwoXbGFzdF9jaGFuZ2VfZGVzY3JpcHRpb24YCyABKAkSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASSwoPZmxvd19kZWZpbml0aW9uGA4gASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMiLkAQoPV29ya2Zsb3dWZXJzaW9uEhMKC3dvcmtmbG93X2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAUSSwoPZmxvd19kZWZpbml0aW9uGAMgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMhIaChJjaGFuZ2VfZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJQCgxXb3JrZmxvd0xpc3QSQAoJd29ya2Zsb3dzGAEgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1N1bW1hcnkiVgoTV29ya2Zsb3dWZXJzaW9uTGlzdBI/Cgh2ZXJzaW9ucxgBIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWZXJzaW9uIqYBChRMaXN0V29ya2Zsb3dzUmVxdWVzdBIXCgpwcm9qZWN0X2lkGAEgASgJSACIAQESGAoLZm9sZGVyX3BhdGgYAiABKAlIAYgBARISCgVsaW1pdBgDIAEoBUgCiAEBEhMKBm9mZnNldBgEIAEoBUgDiAEBQg0KC19wcm9qZWN0X2lkQg4KDF9mb2xkZXJfcGF0aEIICgZfbGltaXRCCQoHX29mZnNldCJ6ChVMaXN0V29ya2Zsb3dzUmVzcG9uc2USQAoJd29ya2Zsb3dzGAEgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1N1bW1hcnkSDQoFdG90YWwYAiABKAUSEAoIaGFzX21vcmUYAyABKAgiSwoSR2V0V29ya2Zsb3dSZXF1ZXN0EhMKC3dvcmtmbG93X2lkGAEgASgJEhQKB3ZlcnNpb24YAiABKAVIAIgBAUIKCghfdmVyc2lvbiJWChNHZXRXb3JrZmxvd1Jlc3BvbnNlEj8KCHdvcmtmbG93GAEgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1N1bW1hcnkirgEKFUNyZWF0ZVdvcmtmbG93UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZm9sZGVyX3BhdGgYAyABKAkSSwoPZmxvd19kZWZpbml0aW9uGAQgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMhIRCglhaV9wcm9tcHQYBSABKAkipgEKFkNyZWF0ZVdvcmtmbG93UmVzcG9uc2USPwoId29ya2Zsb3cYASABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U3VtbWFyeRJLCg9mbG93X2RlZmluaXRpb24YAiABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyIsYCChVVcGRhdGVXb3JrZmxvd1JlcXVlc3QSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRITCgtmb2xkZXJfcGF0aBgDIAEoCRIMCgR0YWdzGAQgAygJEksKD2Zsb3dfZGVmaW5pdGlvbhgFIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISGgoSY2hhbmdlX2Rlc2NyaXB0aW9uGAYgASgJEjoKBnNvdXJjZRgHIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ2hhbmdlU291cmNlEhgKEGV4cGVjdGVkX3ZlcnNpb24YCCABKAUSGAoLd29ya2Zsb3dfaWQYCSABKAlIAIgBAUIOCgxfd29ya2Zsb3dfaWQipgEKFlVwZGF0ZVdvcmtmbG93UmVzcG9uc2USPwoId29ya2Zsb3cYASABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93U3VtbWFyeRJLCg9mbG93X2RlZmluaXRpb24YAiABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyIiwKFURlbGV0ZVdvcmtmbG93UmVxdWVzdBITCgt3b3JrZmxvd19pZBgBIAEoCSI+ChZEZWxldGVXb3JrZmxvd1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEwoLd29ya2Zsb3dfaWQYAiABKAki0QEKFkV4ZWN1dGVXb3JrZmxvd1JlcXVlc3QSGwoTd2FpdF9mb3JfY29tcGxldGlvbhgCIAEoCBITCgt3b3JrZmxvd19pZBgEIAEoCRIdChB3b3JrZmxvd192ZXJzaW9uGAUgASgFSACIAQESRQoKcGFyYW1ldGVycxgGIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUGFyYW1ldGVyc0ITChFfd29ya2Zsb3dfdmVyc2lvbkoECAEQAkoECAMQBCLUAQoXRXhlY3V0ZVdvcmtmbG93UmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEjUKDGNvbXBsZXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARISCgVlcnJvchgEIAEoCUgBiAEBQg8KDV9jb21wbGV0ZWRfYXRCCAoGX2Vycm9yIs4BChVMaXN0RXhlY3V0aW9uc1JlcXVlc3QSGAoLd29ya2Zsb3dfaWQYASABKAlIAIgBARJCCgZzdGF0dXMYAiABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1c0gBiAEBEhIKBWxpbWl0GAMgASgFSAKIAQESEwoGb2Zmc2V0GAQgASgFSAOIAQFCDgoMX3dvcmtmbG93X2lkQgkKB19zdGF0dXNCCAoGX2xpbWl0QgkKB19vZmZzZXQidgoWTGlzdEV4ZWN1dGlvbnNSZXNwb25zZRI7CgpleGVjdXRpb25zGAEgAygLMicuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24SDQoFdG90YWwYAiABKAUSEAoIaGFzX21vcmUYAyABKAgiKwoTR2V0RXhlY3V0aW9uUmVxdWVzdBIUCgxleGVjdXRpb25faWQYASABKAkiUgoUR2V0RXhlY3V0aW9uUmVzcG9uc2USOgoJZXhlY3V0aW9uGAEgASgLMicuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24iXwoXVmFsaWRhdGVXb3JrZmxvd1JlcXVlc3QSRAoId29ya2Zsb3cYASABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyImIKGFZhbGlkYXRlV29ya2Zsb3dSZXNwb25zZRJGCgZyZXN1bHQYASABKAsyNi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmFsaWRhdGlvblJlc3VsdCL4AQoXV29ya2Zsb3dWYWxpZGF0aW9uSXNzdWUSQgoIc2V2ZXJpdHkYASABKA4yMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlZhbGlkYXRpb25TZXZlcml0eRIMCgRjb2RlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSDwoHbm9kZV9pZBgEIAEoCRI7Cglub2RlX3R5cGUYBSABKA4yKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvblR5cGUSDQoFZmllbGQYBiABKAkSDwoHcG9pbnRlchgHIAEoCRIMCgRoaW50GAggASgJIsoBChdXb3JrZmxvd1ZhbGlkYXRpb25TdGF0cxISCgpub2RlX2NvdW50GAEgASgFEhIKCmVkZ2VfY291bnQYAiABKAUSFgoOc2VsZWN0b3JfY291bnQYAyABKAUSHQoVdW5pcXVlX3NlbGVjdG9yX2NvdW50GAQgASgFEhoKEmVsZW1lbnRfd2FpdF9jb3VudBgFIAEoBRIUCgxoYXNfbWV0YWRhdGEYBiABKAgSHgoWaGFzX2V4ZWN1dGlvbl92aWV3cG9ydBgHIAEoCCLcAgoYV29ya2Zsb3dWYWxpZGF0aW9uUmVzdWx0Eg0KBXZhbGlkGAEgASgIEkUKBmVycm9ycxgCIAMoCzI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWYWxpZGF0aW9uSXNzdWUSRwoId2FybmluZ3MYAyADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93VmFsaWRhdGlvbklzc3VlEkQKBXN0YXRzGAQgASgLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1ZhbGlkYXRpb25TdGF0cxIWCg5zY2hlbWFfdmVyc2lvbhgFIAEoCRIuCgpjaGVja2VkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtkdXJhdGlvbl9tcxgHIAEoAyKqAQoeUmVzdG9yZVdvcmtmbG93VmVyc2lvblJlc3BvbnNlEj8KCHdvcmtmbG93GAEgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd1N1bW1hcnkSRwoQcmVzdG9yZWRfdmVyc2lvbhgCIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dWZXJzaW9uMtYLCg9Xb3JrZmxvd1NlcnZpY2USkwEKDUxpc3RXb3JrZmxvd3MSMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxpc3RXb3JrZmxvd3NSZXF1ZXN0GjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5MaXN0V29ya2Zsb3dzUmVzcG9uc2UiGYLT5JMCExIRL2FwaS92MS93b3JrZmxvd3MSmwEKC0dldFdvcmtmbG93EjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXRXb3JrZmxvd1JlcXVlc3QaMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkdldFdvcmtmbG93UmVzcG9uc2UiJ4LT5JMCIRIfL2FwaS92MS93b3JrZmxvd3Mve3dvcmtmbG93X2lkfRKgAQoOQ3JlYXRlV29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNyZWF0ZVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ3JlYXRlV29ya2Zsb3dSZXNwb25zZSIjgtPkkwIdOgEqIhgvYXBpL3YxL3dvcmtmbG93cy9jcmVhdGUSpwEKDlVwZGF0ZVdvcmtmbG93EjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5VcGRhdGVXb3JrZmxvd1JlcXVlc3QaNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlVwZGF0ZVdvcmtmbG93UmVzcG9uc2UiKoLT5JMCJDoBKhofL2FwaS92MS93b3JrZmxvd3Mve3dvcmtmbG93X2lkfRKkAQoORGVsZXRlV29ya2Zsb3cSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkRlbGV0ZVdvcmtmbG93UmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRGVsZXRlV29ya2Zsb3dSZXNwb25zZSIngtPkkwIhKh8vYXBpL3YxL3dvcmtmbG93cy97d29ya2Zsb3dfaWR9ErIBCg9FeGVjdXRlV29ya2Zsb3cSNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVXb3JrZmxvd1JlcXVlc3QaNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGVXb3JrZmxvd1Jlc3BvbnNlIjKC0+STAiw6ASoiJy9hcGkvdjEvd29ya2Zsb3dzL3t3b3JrZmxvd19pZH0vZXhlY3V0ZRKoAQoQVmFsaWRhdGVXb3JrZmxvdxI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVmFsaWRhdGVXb3JrZmxvd1JlcXVlc3QaNi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlZhbGlkYXRlV29ya2Zsb3dSZXNwb25zZSIlgtPkkwIfOgEqIhovYXBpL3YxL3dvcmtmbG93cy92YWxpZGF0ZRKXAQoOTGlzdEV4ZWN1dGlvbnMSMy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxpc3RFeGVjdXRpb25zUmVxdWVzdBo0LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTGlzdEV4ZWN1dGlvbnNSZXNwb25zZSIagtPkkwIUEhIvYXBpL3YxL2V4ZWN1dGlvbnMSoAEKDEdldEV4ZWN1dGlvbhIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2V0RXhlY3V0aW9uUmVxdWVzdBoyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuR2V0RXhlY3V0aW9uUmVzcG9uc2UiKYLT5JMCIxIhL2FwaS92MS9leGVjdXRpb25zL3tleGVjdXRpb25faWR9QmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_api_annotations, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_workflow_v2, file_browser_automation_studio_v1_execution]);
 
 /**
  * WorkflowSummary captures the primary workflow fields without the full definition.
@@ -91,11 +93,11 @@ export type WorkflowSummary = Message<"browser_automation_studio.v1.WorkflowSumm
   createdBy: string;
 
   /**
-   * Source of the last change (manual, autosave, etc.).
+   * Source of the last change (manual, autosave, import, ai_generated, recording).
    *
-   * @generated from field: string last_change_source = 10;
+   * @generated from field: browser_automation_studio.v1.ChangeSource last_change_source = 10;
    */
-  lastChangeSource: string;
+  lastChangeSource: ChangeSource;
 
   /**
    * Description of the last change.
@@ -228,6 +230,132 @@ export const WorkflowVersionListSchema: GenMessage<WorkflowVersionList> = /*@__P
   messageDesc(file_browser_automation_studio_v1_workflow_service, 3);
 
 /**
+ * ListWorkflowsRequest filters and paginates workflow listings.
+ *
+ * @generated from message browser_automation_studio.v1.ListWorkflowsRequest
+ */
+export type ListWorkflowsRequest = Message<"browser_automation_studio.v1.ListWorkflowsRequest"> & {
+  /**
+   * Filter by project ID (UUID format).
+   *
+   * @generated from field: optional string project_id = 1;
+   */
+  projectId?: string;
+
+  /**
+   * Filter by folder path.
+   *
+   * @generated from field: optional string folder_path = 2;
+   */
+  folderPath?: string;
+
+  /**
+   * Pagination: maximum number of results (default: 50, max: 100).
+   *
+   * @generated from field: optional int32 limit = 3;
+   */
+  limit?: number;
+
+  /**
+   * Pagination: offset for results (default: 0).
+   *
+   * @generated from field: optional int32 offset = 4;
+   */
+  offset?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ListWorkflowsRequest.
+ * Use `create(ListWorkflowsRequestSchema)` to create a new message.
+ */
+export const ListWorkflowsRequestSchema: GenMessage<ListWorkflowsRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 4);
+
+/**
+ * ListWorkflowsResponse returns a list of workflows with pagination.
+ *
+ * @generated from message browser_automation_studio.v1.ListWorkflowsResponse
+ */
+export type ListWorkflowsResponse = Message<"browser_automation_studio.v1.ListWorkflowsResponse"> & {
+  /**
+   * List of workflow summaries.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.WorkflowSummary workflows = 1;
+   */
+  workflows: WorkflowSummary[];
+
+  /**
+   * Total count of matching workflows.
+   *
+   * @generated from field: int32 total = 2;
+   */
+  total: number;
+
+  /**
+   * Whether more results are available.
+   *
+   * @generated from field: bool has_more = 3;
+   */
+  hasMore: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ListWorkflowsResponse.
+ * Use `create(ListWorkflowsResponseSchema)` to create a new message.
+ */
+export const ListWorkflowsResponseSchema: GenMessage<ListWorkflowsResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 5);
+
+/**
+ * GetWorkflowRequest identifies a workflow to retrieve.
+ *
+ * @generated from message browser_automation_studio.v1.GetWorkflowRequest
+ */
+export type GetWorkflowRequest = Message<"browser_automation_studio.v1.GetWorkflowRequest"> & {
+  /**
+   * Workflow ID (UUID format).
+   *
+   * @generated from field: string workflow_id = 1;
+   */
+  workflowId: string;
+
+  /**
+   * Specific version to retrieve (latest if not specified).
+   *
+   * @generated from field: optional int32 version = 2;
+   */
+  version?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetWorkflowRequest.
+ * Use `create(GetWorkflowRequestSchema)` to create a new message.
+ */
+export const GetWorkflowRequestSchema: GenMessage<GetWorkflowRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 6);
+
+/**
+ * GetWorkflowResponse returns a single workflow.
+ *
+ * @generated from message browser_automation_studio.v1.GetWorkflowResponse
+ */
+export type GetWorkflowResponse = Message<"browser_automation_studio.v1.GetWorkflowResponse"> & {
+  /**
+   * The workflow summary with definition.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowSummary workflow = 1;
+   */
+  workflow?: WorkflowSummary;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetWorkflowResponse.
+ * Use `create(GetWorkflowResponseSchema)` to create a new message.
+ */
+export const GetWorkflowResponseSchema: GenMessage<GetWorkflowResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 7);
+
+/**
  * CreateWorkflowRequest creates a new workflow.
  *
  * @generated from message browser_automation_studio.v1.CreateWorkflowRequest
@@ -274,7 +402,7 @@ export type CreateWorkflowRequest = Message<"browser_automation_studio.v1.Create
  * Use `create(CreateWorkflowRequestSchema)` to create a new message.
  */
 export const CreateWorkflowRequestSchema: GenMessage<CreateWorkflowRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 4);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 8);
 
 /**
  * CreateWorkflowResponse returns the created workflow.
@@ -302,7 +430,7 @@ export type CreateWorkflowResponse = Message<"browser_automation_studio.v1.Creat
  * Use `create(CreateWorkflowResponseSchema)` to create a new message.
  */
 export const CreateWorkflowResponseSchema: GenMessage<CreateWorkflowResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 5);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 9);
 
 /**
  * UpdateWorkflowRequest updates an existing workflow.
@@ -353,11 +481,11 @@ export type UpdateWorkflowRequest = Message<"browser_automation_studio.v1.Update
   changeDescription: string;
 
   /**
-   * Source of the change (manual, autosave, etc.).
+   * Source of the change (manual, autosave, import, ai_generated, recording).
    *
-   * @generated from field: string source = 7;
+   * @generated from field: browser_automation_studio.v1.ChangeSource source = 7;
    */
-  source: string;
+  source: ChangeSource;
 
   /**
    * Expected version for optimistic locking.
@@ -367,7 +495,7 @@ export type UpdateWorkflowRequest = Message<"browser_automation_studio.v1.Update
   expectedVersion: number;
 
   /**
-   * Target workflow ID (path param for REST).
+   * Target workflow ID (path param for REST, UUID format).
    *
    * @generated from field: optional string workflow_id = 9;
    */
@@ -379,7 +507,7 @@ export type UpdateWorkflowRequest = Message<"browser_automation_studio.v1.Update
  * Use `create(UpdateWorkflowRequestSchema)` to create a new message.
  */
 export const UpdateWorkflowRequestSchema: GenMessage<UpdateWorkflowRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 6);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 10);
 
 /**
  * UpdateWorkflowResponse returns the updated workflow.
@@ -407,7 +535,56 @@ export type UpdateWorkflowResponse = Message<"browser_automation_studio.v1.Updat
  * Use `create(UpdateWorkflowResponseSchema)` to create a new message.
  */
 export const UpdateWorkflowResponseSchema: GenMessage<UpdateWorkflowResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 7);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 11);
+
+/**
+ * DeleteWorkflowRequest identifies a workflow to delete.
+ *
+ * @generated from message browser_automation_studio.v1.DeleteWorkflowRequest
+ */
+export type DeleteWorkflowRequest = Message<"browser_automation_studio.v1.DeleteWorkflowRequest"> & {
+  /**
+   * Workflow ID to delete (UUID format).
+   *
+   * @generated from field: string workflow_id = 1;
+   */
+  workflowId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.DeleteWorkflowRequest.
+ * Use `create(DeleteWorkflowRequestSchema)` to create a new message.
+ */
+export const DeleteWorkflowRequestSchema: GenMessage<DeleteWorkflowRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 12);
+
+/**
+ * DeleteWorkflowResponse confirms workflow deletion.
+ *
+ * @generated from message browser_automation_studio.v1.DeleteWorkflowResponse
+ */
+export type DeleteWorkflowResponse = Message<"browser_automation_studio.v1.DeleteWorkflowResponse"> & {
+  /**
+   * Whether the deletion was successful.
+   *
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * Workflow ID that was deleted.
+   *
+   * @generated from field: string workflow_id = 2;
+   */
+  workflowId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.DeleteWorkflowResponse.
+ * Use `create(DeleteWorkflowResponseSchema)` to create a new message.
+ */
+export const DeleteWorkflowResponseSchema: GenMessage<DeleteWorkflowResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 13);
 
 /**
  * ExecuteWorkflowRequest starts a workflow execution.
@@ -416,13 +593,6 @@ export const UpdateWorkflowResponseSchema: GenMessage<UpdateWorkflowResponse> = 
  */
 export type ExecuteWorkflowRequest = Message<"browser_automation_studio.v1.ExecuteWorkflowRequest"> & {
   /**
-   * Runtime parameters for the execution.
-   *
-   * @generated from field: map<string, common.v1.JsonValue> parameters = 3;
-   */
-  parameters: { [key: string]: JsonValue };
-
-  /**
    * Whether to wait for completion before responding.
    *
    * @generated from field: bool wait_for_completion = 2;
@@ -430,7 +600,7 @@ export type ExecuteWorkflowRequest = Message<"browser_automation_studio.v1.Execu
   waitForCompletion: boolean;
 
   /**
-   * Workflow ID to execute.
+   * Workflow ID to execute (UUID format).
    *
    * @generated from field: string workflow_id = 4;
    */
@@ -442,6 +612,13 @@ export type ExecuteWorkflowRequest = Message<"browser_automation_studio.v1.Execu
    * @generated from field: optional int32 workflow_version = 5;
    */
   workflowVersion?: number;
+
+  /**
+   * Typed runtime parameters for the execution.
+   *
+   * @generated from field: browser_automation_studio.v1.ExecutionParameters parameters = 6;
+   */
+  parameters?: ExecutionParameters;
 };
 
 /**
@@ -449,7 +626,7 @@ export type ExecuteWorkflowRequest = Message<"browser_automation_studio.v1.Execu
  * Use `create(ExecuteWorkflowRequestSchema)` to create a new message.
  */
 export const ExecuteWorkflowRequestSchema: GenMessage<ExecuteWorkflowRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 8);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 14);
 
 /**
  * ExecuteWorkflowResponse returns the execution status.
@@ -472,9 +649,9 @@ export type ExecuteWorkflowResponse = Message<"browser_automation_studio.v1.Exec
   status: ExecutionStatus;
 
   /**
-   * Completion timestamp (if wait_for_completion was true).
+   * Completion timestamp (null if async or still running).
    *
-   * @generated from field: google.protobuf.Timestamp completed_at = 3;
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 3;
    */
   completedAt?: Timestamp;
 
@@ -491,7 +668,168 @@ export type ExecuteWorkflowResponse = Message<"browser_automation_studio.v1.Exec
  * Use `create(ExecuteWorkflowResponseSchema)` to create a new message.
  */
 export const ExecuteWorkflowResponseSchema: GenMessage<ExecuteWorkflowResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 9);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 15);
+
+/**
+ * ListExecutionsRequest filters and paginates execution listings.
+ *
+ * @generated from message browser_automation_studio.v1.ListExecutionsRequest
+ */
+export type ListExecutionsRequest = Message<"browser_automation_studio.v1.ListExecutionsRequest"> & {
+  /**
+   * Filter by workflow ID (UUID format).
+   *
+   * @generated from field: optional string workflow_id = 1;
+   */
+  workflowId?: string;
+
+  /**
+   * Filter by execution status.
+   *
+   * @generated from field: optional browser_automation_studio.v1.ExecutionStatus status = 2;
+   */
+  status?: ExecutionStatus;
+
+  /**
+   * Pagination: maximum number of results (default: 50, max: 100).
+   *
+   * @generated from field: optional int32 limit = 3;
+   */
+  limit?: number;
+
+  /**
+   * Pagination: offset for results (default: 0).
+   *
+   * @generated from field: optional int32 offset = 4;
+   */
+  offset?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ListExecutionsRequest.
+ * Use `create(ListExecutionsRequestSchema)` to create a new message.
+ */
+export const ListExecutionsRequestSchema: GenMessage<ListExecutionsRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 16);
+
+/**
+ * ListExecutionsResponse returns a list of executions with pagination.
+ *
+ * @generated from message browser_automation_studio.v1.ListExecutionsResponse
+ */
+export type ListExecutionsResponse = Message<"browser_automation_studio.v1.ListExecutionsResponse"> & {
+  /**
+   * List of executions.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.Execution executions = 1;
+   */
+  executions: Execution[];
+
+  /**
+   * Total count of matching executions.
+   *
+   * @generated from field: int32 total = 2;
+   */
+  total: number;
+
+  /**
+   * Whether more results are available.
+   *
+   * @generated from field: bool has_more = 3;
+   */
+  hasMore: boolean;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ListExecutionsResponse.
+ * Use `create(ListExecutionsResponseSchema)` to create a new message.
+ */
+export const ListExecutionsResponseSchema: GenMessage<ListExecutionsResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 17);
+
+/**
+ * GetExecutionRequest identifies an execution to retrieve.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionRequest
+ */
+export type GetExecutionRequest = Message<"browser_automation_studio.v1.GetExecutionRequest"> & {
+  /**
+   * Execution ID (UUID format).
+   *
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionRequest.
+ * Use `create(GetExecutionRequestSchema)` to create a new message.
+ */
+export const GetExecutionRequestSchema: GenMessage<GetExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 18);
+
+/**
+ * GetExecutionResponse returns a single execution.
+ *
+ * @generated from message browser_automation_studio.v1.GetExecutionResponse
+ */
+export type GetExecutionResponse = Message<"browser_automation_studio.v1.GetExecutionResponse"> & {
+  /**
+   * The execution details.
+   *
+   * @generated from field: browser_automation_studio.v1.Execution execution = 1;
+   */
+  execution?: Execution;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GetExecutionResponse.
+ * Use `create(GetExecutionResponseSchema)` to create a new message.
+ */
+export const GetExecutionResponseSchema: GenMessage<GetExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 19);
+
+/**
+ * ValidateWorkflowRequest contains a workflow definition to validate.
+ *
+ * @generated from message browser_automation_studio.v1.ValidateWorkflowRequest
+ */
+export type ValidateWorkflowRequest = Message<"browser_automation_studio.v1.ValidateWorkflowRequest"> & {
+  /**
+   * The workflow definition to validate.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowDefinitionV2 workflow = 1;
+   */
+  workflow?: WorkflowDefinitionV2;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ValidateWorkflowRequest.
+ * Use `create(ValidateWorkflowRequestSchema)` to create a new message.
+ */
+export const ValidateWorkflowRequestSchema: GenMessage<ValidateWorkflowRequest> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 20);
+
+/**
+ * ValidateWorkflowResponse wraps the validation result.
+ *
+ * @generated from message browser_automation_studio.v1.ValidateWorkflowResponse
+ */
+export type ValidateWorkflowResponse = Message<"browser_automation_studio.v1.ValidateWorkflowResponse"> & {
+  /**
+   * The validation result.
+   *
+   * @generated from field: browser_automation_studio.v1.WorkflowValidationResult result = 1;
+   */
+  result?: WorkflowValidationResult;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ValidateWorkflowResponse.
+ * Use `create(ValidateWorkflowResponseSchema)` to create a new message.
+ */
+export const ValidateWorkflowResponseSchema: GenMessage<ValidateWorkflowResponse> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 21);
 
 /**
  * WorkflowValidationIssue represents a validation error or warning.
@@ -500,11 +838,11 @@ export const ExecuteWorkflowResponseSchema: GenMessage<ExecuteWorkflowResponse> 
  */
 export type WorkflowValidationIssue = Message<"browser_automation_studio.v1.WorkflowValidationIssue"> & {
   /**
-   * Severity: error, warning, info.
+   * Severity level (error, warning, info).
    *
-   * @generated from field: string severity = 1;
+   * @generated from field: browser_automation_studio.v1.ValidationSeverity severity = 1;
    */
-  severity: string;
+  severity: ValidationSeverity;
 
   /**
    * Machine-readable error code.
@@ -521,7 +859,7 @@ export type WorkflowValidationIssue = Message<"browser_automation_studio.v1.Work
   message: string;
 
   /**
-   * Node ID where the issue was found.
+   * Node ID where the issue was found (UUID format).
    *
    * @generated from field: string node_id = 4;
    */
@@ -530,9 +868,9 @@ export type WorkflowValidationIssue = Message<"browser_automation_studio.v1.Work
   /**
    * Node type (action type).
    *
-   * @generated from field: string node_type = 5;
+   * @generated from field: browser_automation_studio.v1.ActionType node_type = 5;
    */
-  nodeType: string;
+  nodeType: ActionType;
 
   /**
    * Field name within the node.
@@ -561,7 +899,7 @@ export type WorkflowValidationIssue = Message<"browser_automation_studio.v1.Work
  * Use `create(WorkflowValidationIssueSchema)` to create a new message.
  */
 export const WorkflowValidationIssueSchema: GenMessage<WorkflowValidationIssue> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 10);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 22);
 
 /**
  * WorkflowValidationStats summarizes the validated workflow.
@@ -624,7 +962,7 @@ export type WorkflowValidationStats = Message<"browser_automation_studio.v1.Work
  * Use `create(WorkflowValidationStatsSchema)` to create a new message.
  */
 export const WorkflowValidationStatsSchema: GenMessage<WorkflowValidationStats> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 11);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 23);
 
 /**
  * WorkflowValidationResult is returned by validation endpoints.
@@ -687,7 +1025,7 @@ export type WorkflowValidationResult = Message<"browser_automation_studio.v1.Wor
  * Use `create(WorkflowValidationResultSchema)` to create a new message.
  */
 export const WorkflowValidationResultSchema: GenMessage<WorkflowValidationResult> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 12);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 24);
 
 /**
  * RestoreWorkflowVersionResponse wraps the restored workflow and version metadata.
@@ -715,7 +1053,7 @@ export type RestoreWorkflowVersionResponse = Message<"browser_automation_studio.
  * Use `create(RestoreWorkflowVersionResponseSchema)` to create a new message.
  */
 export const RestoreWorkflowVersionResponseSchema: GenMessage<RestoreWorkflowVersionResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_workflow_service, 13);
+  messageDesc(file_browser_automation_studio_v1_workflow_service, 25);
 
 /**
  * WorkflowService declares the core BAS workflow lifecycle operations.
@@ -723,6 +1061,26 @@ export const RestoreWorkflowVersionResponseSchema: GenMessage<RestoreWorkflowVer
  * @generated from service browser_automation_studio.v1.WorkflowService
  */
 export const WorkflowService: GenService<{
+  /**
+   * Lists workflows, optionally filtered by project.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowService.ListWorkflows
+   */
+  listWorkflows: {
+    methodKind: "unary";
+    input: typeof ListWorkflowsRequestSchema;
+    output: typeof ListWorkflowsResponseSchema;
+  },
+  /**
+   * Gets a workflow by ID.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowService.GetWorkflow
+   */
+  getWorkflow: {
+    methodKind: "unary";
+    input: typeof GetWorkflowRequestSchema;
+    output: typeof GetWorkflowResponseSchema;
+  },
   /**
    * Creates a new workflow in a project.
    *
@@ -744,6 +1102,16 @@ export const WorkflowService: GenService<{
     output: typeof UpdateWorkflowResponseSchema;
   },
   /**
+   * Deletes a workflow by ID.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowService.DeleteWorkflow
+   */
+  deleteWorkflow: {
+    methodKind: "unary";
+    input: typeof DeleteWorkflowRequestSchema;
+    output: typeof DeleteWorkflowResponseSchema;
+  },
+  /**
    * Executes a workflow by ID/version with optional parameters.
    *
    * @generated from rpc browser_automation_studio.v1.WorkflowService.ExecuteWorkflow
@@ -760,8 +1128,28 @@ export const WorkflowService: GenService<{
    */
   validateWorkflow: {
     methodKind: "unary";
-    input: typeof WorkflowDefinitionV2Schema;
-    output: typeof WorkflowValidationResultSchema;
+    input: typeof ValidateWorkflowRequestSchema;
+    output: typeof ValidateWorkflowResponseSchema;
+  },
+  /**
+   * Lists executions, optionally filtered by workflow.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowService.ListExecutions
+   */
+  listExecutions: {
+    methodKind: "unary";
+    input: typeof ListExecutionsRequestSchema;
+    output: typeof ListExecutionsResponseSchema;
+  },
+  /**
+   * Gets an execution by ID.
+   *
+   * @generated from rpc browser_automation_studio.v1.WorkflowService.GetExecution
+   */
+  getExecution: {
+    methodKind: "unary";
+    input: typeof GetExecutionRequestSchema;
+    output: typeof GetExecutionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_browser_automation_studio_v1_workflow_service, 0);

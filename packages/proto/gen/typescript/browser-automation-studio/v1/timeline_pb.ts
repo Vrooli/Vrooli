@@ -8,20 +8,27 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonValue } from "../../common/v1/types_pb";
 import { file_common_v1_types } from "../../common/v1/types_pb";
-import type { ArtifactType, ExecutionStatus, LogLevel, StepStatus } from "./shared_pb";
+import type { ArtifactType, AssertionResult, ExecutionStatus, LogLevel, RetryStatus, StepStatus } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
-import type { ActionType, AssertionResultProto, BoundingBox, HighlightRegion, MaskRegion, Point, TimelineScreenshot } from "./unified_pb";
-import { file_browser_automation_studio_v1_unified } from "./unified_pb";
+import type { ActionDefinition, ActionType } from "./action_pb";
+import { file_browser_automation_studio_v1_action } from "./action_pb";
+import type { BoundingBox, Point } from "./geometry_pb";
+import { file_browser_automation_studio_v1_geometry } from "./geometry_pb";
+import type { HighlightRegion, MaskRegion } from "./selectors_pb";
+import { file_browser_automation_studio_v1_selectors } from "./selectors_pb";
+import type { ActionTelemetry, TimelineScreenshot } from "./telemetry_pb";
+import { file_browser_automation_studio_v1_telemetry } from "./telemetry_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/timeline.proto.
  */
 export const file_browser_automation_studio_v1_timeline: GenFile = /*@__PURE__*/
-  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIucCChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI7CgZmcmFtZXMYByADKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRnJhbWUSNwoEbG9ncxgIIAMoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVMb2cixQsKDVRpbWVsaW5lRnJhbWUSEgoKc3RlcF9pbmRleBgBIAEoBRIPCgdub2RlX2lkGAIgASgJEj0KC2FjdGlvbl90eXBlGAMgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25UeXBlEjgKBnN0YXR1cxgEIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RlcFN0YXR1cxIPCgdzdWNjZXNzGAUgASgIEhMKC2R1cmF0aW9uX21zGAYgASgFEhkKEXRvdGFsX2R1cmF0aW9uX21zGAcgASgFEhAKCHByb2dyZXNzGAggASgFEi4KCnN0YXJ0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJZmluYWxfdXJsGAsgASgJEhIKBWVycm9yGAwgASgJSACIAQESGQoRY29uc29sZV9sb2dfY291bnQYDSABKAUSGwoTbmV0d29ya19ldmVudF9jb3VudBgOIAEoBRJIChFoaWdobGlnaHRfcmVnaW9ucxgQIAMoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSGlnaGxpZ2h0UmVnaW9uEj4KDG1hc2tfcmVnaW9ucxgRIAMoCzIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTWFza1JlZ2lvbhJDCg9mb2N1c2VkX2VsZW1lbnQYEiABKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkVsZW1lbnRGb2N1cxJHChRlbGVtZW50X2JvdW5kaW5nX2JveBgTIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3gSOwoOY2xpY2tfcG9zaXRpb24YFCABKAsyIy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlBvaW50EjkKDGN1cnNvcl90cmFpbBgVIAMoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnQSEwoLem9vbV9mYWN0b3IYFiABKAESRAoKc2NyZWVuc2hvdBgXIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVTY3JlZW5zaG90EkEKCWFydGlmYWN0cxgYIAMoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdBJFCglhc3NlcnRpb24YGSABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFzc2VydGlvblJlc3VsdFByb3RvEhUKDXJldHJ5X2F0dGVtcHQYGiABKAUSGgoScmV0cnlfbWF4X2F0dGVtcHRzGBsgASgFEh0KEHJldHJ5X2NvbmZpZ3VyZWQYHCABKAhIAYgBARIWCg5yZXRyeV9kZWxheV9tcxgdIAEoBRIcChRyZXRyeV9iYWNrb2ZmX2ZhY3RvchgeIAEoARJGCg1yZXRyeV9oaXN0b3J5GB8gAygLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5SZXRyeUhpc3RvcnlFbnRyeRIcChRkb21fc25hcHNob3RfcHJldmlldxggIAEoCRJECgxkb21fc25hcHNob3QYISABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lQXJ0aWZhY3QSNAoWZXh0cmFjdGVkX2RhdGFfcHJldmlldxgiIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWVCCAoGX2Vycm9yQhMKEV9yZXRyeV9jb25maWd1cmVkSgQIDxAQIrkDChBUaW1lbGluZUFydGlmYWN0EgoKAmlkGAEgASgJEjgKBHR5cGUYAiABKA4yKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFydGlmYWN0VHlwZRISCgVsYWJlbBgDIAEoCUgAiAEBEhMKC3N0b3JhZ2VfdXJsGAQgASgJEhoKDXRodW1ibmFpbF91cmwYBSABKAlIAYgBARIUCgxjb250ZW50X3R5cGUYBiABKAkSFwoKc2l6ZV9ieXRlcxgHIAEoA0gCiAEBEhcKCnN0ZXBfaW5kZXgYCCABKAVIA4gBARJMCgdwYXlsb2FkGAogAygLMjsuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUFydGlmYWN0LlBheWxvYWRFbnRyeRpECgxQYXlsb2FkRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCCAoGX2xhYmVsQhAKDl90aHVtYm5haWxfdXJsQg0KC19zaXplX2J5dGVzQg0KC19zdGVwX2luZGV4SgQICRAKInMKEVJldHJ5SGlzdG9yeUVudHJ5Eg8KB2F0dGVtcHQYASABKAUSDwoHc3VjY2VzcxgCIAEoCBITCgtkdXJhdGlvbl9tcxgDIAEoBRIYChBjYWxsX2R1cmF0aW9uX21zGAQgASgFEg0KBWVycm9yGAUgASgJImEKDEVsZW1lbnRGb2N1cxIQCghzZWxlY3RvchgBIAEoCRI/Cgxib3VuZGluZ19ib3gYAiABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkJvdW5kaW5nQm94IrYBCgtUaW1lbGluZUxvZxIKCgJpZBgBIAEoCRI1CgVsZXZlbBgCIAEoDjImLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTG9nTGV2ZWwSDwoHbWVzc2FnZRgDIAEoCRIWCglzdGVwX25hbWUYBCABKAlIAIgBARItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgwKCl9zdGVwX25hbWVCalpoZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxO2Jyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW9fdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_unified]);
+  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIv0CChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjsKBmZyYW1lcxgHIAMoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVGcmFtZRI3CgRsb2dzGAggAygLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUxvZ0IPCg1fY29tcGxldGVkX2F0IsILCg1UaW1lbGluZUZyYW1lEhIKCnN0ZXBfaW5kZXgYASABKAUSDwoHbm9kZV9pZBgCIAEoCRI9CgthY3Rpb25fdHlwZRgDIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZRI+CgZhY3Rpb24YIyABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvbkRlZmluaXRpb24SOAoGc3RhdHVzGAQgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGVwU3RhdHVzEg8KB3N1Y2Nlc3MYBSABKAgSEwoLZHVyYXRpb25fbXMYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSEAoIcHJvZ3Jlc3MYCCABKAUSLgoKc3RhcnRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglmaW5hbF91cmwYCyABKAkSEgoFZXJyb3IYDCABKAlIAIgBARIZChFjb25zb2xlX2xvZ19jb3VudBgNIAEoBRIbChNuZXR3b3JrX2V2ZW50X2NvdW50GA4gASgFEkgKEWhpZ2hsaWdodF9yZWdpb25zGBAgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5IaWdobGlnaHRSZWdpb24SPgoMbWFza19yZWdpb25zGBEgAygLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5NYXNrUmVnaW9uEkMKD2ZvY3VzZWRfZWxlbWVudBgSIAEoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRWxlbWVudEZvY3VzEkcKFGVsZW1lbnRfYm91bmRpbmdfYm94GBMgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBI7Cg5jbGlja19wb3NpdGlvbhgUIAEoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnQSOQoMY3Vyc29yX3RyYWlsGBUgAygLMiMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Qb2ludBITCgt6b29tX2ZhY3RvchgWIAEoARJECgpzY3JlZW5zaG90GBcgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZVNjcmVlbnNob3QSQQoJYXJ0aWZhY3RzGBggAygLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUFydGlmYWN0EkAKCWFzc2VydGlvbhgZIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0aW9uUmVzdWx0Ej8KDHJldHJ5X3N0YXR1cxglIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmV0cnlTdGF0dXMSHAoUZG9tX3NuYXBzaG90X3ByZXZpZXcYICABKAkSRAoMZG9tX3NuYXBzaG90GCEgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUFydGlmYWN0EjQKFmV4dHJhY3RlZF9kYXRhX3ByZXZpZXcYIiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlEkAKCXRlbGVtZXRyeRgkIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVGVsZW1ldHJ5QggKBl9lcnJvckoECA8QEEoECBoQG0oECBsQHEoECBwQHUoECB0QHkoECB4QH0oECB8QICK5AwoQVGltZWxpbmVBcnRpZmFjdBIKCgJpZBgBIAEoCRI4CgR0eXBlGAIgASgOMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BcnRpZmFjdFR5cGUSEgoFbGFiZWwYAyABKAlIAIgBARITCgtzdG9yYWdlX3VybBgEIAEoCRIaCg10aHVtYm5haWxfdXJsGAUgASgJSAGIAQESFAoMY29udGVudF90eXBlGAYgASgJEhcKCnNpemVfYnl0ZXMYByABKANIAogBARIXCgpzdGVwX2luZGV4GAggASgFSAOIAQESTAoHcGF5bG9hZBgKIAMoCzI7LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdC5QYXlsb2FkRW50cnkaRAoMUGF5bG9hZEVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBQggKBl9sYWJlbEIQCg5fdGh1bWJuYWlsX3VybEINCgtfc2l6ZV9ieXRlc0INCgtfc3RlcF9pbmRleEoECAkQCiJhCgxFbGVtZW50Rm9jdXMSEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveCK2AQoLVGltZWxpbmVMb2cSCgoCaWQYASABKAkSNQoFbGV2ZWwYAiABKA4yJi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ0xldmVsEg8KB21lc3NhZ2UYAyABKAkSFgoJc3RlcF9uYW1lGAQgASgJSACIAQESLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIMCgpfc3RlcF9uYW1lQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_geometry, file_browser_automation_studio_v1_selectors, file_browser_automation_studio_v1_telemetry]);
 
 /**
  * ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
+ * This is the batch format containing all frames from a completed execution.
  *
  * @generated from message browser_automation_studio.v1.ExecutionTimeline
  */
@@ -64,7 +71,7 @@ export type ExecutionTimeline = Message<"browser_automation_studio.v1.ExecutionT
   /**
    * When the execution completed (null if still running).
    *
-   * @generated from field: google.protobuf.Timestamp completed_at = 6;
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 6;
    */
   completedAt?: Timestamp;
 
@@ -111,11 +118,19 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   nodeId: string;
 
   /**
-   * Action type (navigate, click, assert, etc.) - from unified.proto.
+   * Action type enum (for filtering/grouping without parsing full action).
    *
    * @generated from field: browser_automation_studio.v1.ActionType action_type = 3;
    */
   actionType: ActionType;
+
+  /**
+   * Full action definition with parameters and metadata.
+   * This provides complete action details for replay and debugging.
+   *
+   * @generated from field: browser_automation_studio.v1.ActionDefinition action = 35;
+   */
+  action?: ActionDefinition;
 
   /**
    * Step execution status.
@@ -258,53 +273,19 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   artifacts: TimelineArtifact[];
 
   /**
-   * Assertion result for assert steps - from unified.proto.
+   * Assertion result for assert steps.
    *
-   * @generated from field: browser_automation_studio.v1.AssertionResultProto assertion = 25;
+   * @generated from field: browser_automation_studio.v1.AssertionResult assertion = 25;
    */
-  assertion?: AssertionResultProto;
+  assertion?: AssertionResult;
 
   /**
-   * Current retry attempt number (0 for first attempt).
+   * Retry status for this step (uses unified RetryStatus type).
+   * This replaces the individual retry_* fields for consistency.
    *
-   * @generated from field: int32 retry_attempt = 26;
+   * @generated from field: browser_automation_studio.v1.RetryStatus retry_status = 37;
    */
-  retryAttempt: number;
-
-  /**
-   * Max retries configured for this step.
-   *
-   * @generated from field: int32 retry_max_attempts = 27;
-   */
-  retryMaxAttempts: number;
-
-  /**
-   * Whether retries were configured for this step.
-   *
-   * @generated from field: optional bool retry_configured = 28;
-   */
-  retryConfigured?: boolean;
-
-  /**
-   * Delay applied before retrying (milliseconds).
-   *
-   * @generated from field: int32 retry_delay_ms = 29;
-   */
-  retryDelayMs: number;
-
-  /**
-   * Exponential backoff factor used for retries.
-   *
-   * @generated from field: double retry_backoff_factor = 30;
-   */
-  retryBackoffFactor: number;
-
-  /**
-   * History of previous retry attempts.
-   *
-   * @generated from field: repeated browser_automation_studio.v1.RetryHistoryEntry retry_history = 31;
-   */
-  retryHistory: RetryHistoryEntry[];
+  retryStatus?: RetryStatus;
 
   /**
    * Truncated DOM snapshot preview text.
@@ -326,6 +307,16 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
    * @generated from field: common.v1.JsonValue extracted_data_preview = 34;
    */
   extractedDataPreview?: JsonValue;
+
+  /**
+   * Composed telemetry captured during this step.
+   * Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
+   * NOTE: Some fields in this message duplicate inline fields above for backward compatibility.
+   * New consumers should prefer telemetry.* fields; inline fields may be deprecated.
+   *
+   * @generated from field: browser_automation_studio.v1.ActionTelemetry telemetry = 36;
+   */
+  telemetry?: ActionTelemetry;
 };
 
 /**
@@ -413,55 +404,6 @@ export const TimelineArtifactSchema: GenMessage<TimelineArtifact> = /*@__PURE__*
   messageDesc(file_browser_automation_studio_v1_timeline, 2);
 
 /**
- * RetryHistoryEntry captures the outcome of a retry attempt.
- *
- * @generated from message browser_automation_studio.v1.RetryHistoryEntry
- */
-export type RetryHistoryEntry = Message<"browser_automation_studio.v1.RetryHistoryEntry"> & {
-  /**
-   * Retry attempt number starting at 1.
-   *
-   * @generated from field: int32 attempt = 1;
-   */
-  attempt: number;
-
-  /**
-   * True if the attempt succeeded.
-   *
-   * @generated from field: bool success = 2;
-   */
-  success: boolean;
-
-  /**
-   * Duration in milliseconds for the attempt.
-   *
-   * @generated from field: int32 duration_ms = 3;
-   */
-  durationMs: number;
-
-  /**
-   * Duration of the call that triggered the attempt.
-   *
-   * @generated from field: int32 call_duration_ms = 4;
-   */
-  callDurationMs: number;
-
-  /**
-   * Error message for the attempt, if any.
-   *
-   * @generated from field: string error = 5;
-   */
-  error: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.RetryHistoryEntry.
- * Use `create(RetryHistoryEntrySchema)` to create a new message.
- */
-export const RetryHistoryEntrySchema: GenMessage<RetryHistoryEntry> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 3);
-
-/**
  * ElementFocus captures focus metadata for screenshot framing.
  *
  * @generated from message browser_automation_studio.v1.ElementFocus
@@ -487,7 +429,7 @@ export type ElementFocus = Message<"browser_automation_studio.v1.ElementFocus"> 
  * Use `create(ElementFocusSchema)` to create a new message.
  */
 export const ElementFocusSchema: GenMessage<ElementFocus> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 4);
+  messageDesc(file_browser_automation_studio_v1_timeline, 3);
 
 /**
  * TimelineLog captures execution log output for replay consumers.
@@ -536,5 +478,5 @@ export type TimelineLog = Message<"browser_automation_studio.v1.TimelineLog"> & 
  * Use `create(TimelineLogSchema)` to create a new message.
  */
 export const TimelineLogSchema: GenMessage<TimelineLog> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline, 5);
+  messageDesc(file_browser_automation_studio_v1_timeline, 4);
 

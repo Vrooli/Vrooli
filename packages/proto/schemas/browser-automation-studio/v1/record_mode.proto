@@ -2,291 +2,230 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
-import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
-import "common/v1/types.proto";
+import "browser-automation-studio/v1/action.proto";
+import "browser-automation-studio/v1/timeline_event.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
-// RecordedActionType enumerates supported action kinds captured during recording.
-enum RecordedActionType {
-  RECORDED_ACTION_TYPE_UNSPECIFIED = 0;
-  RECORDED_ACTION_TYPE_NAVIGATE = 1;
-  RECORDED_ACTION_TYPE_CLICK = 2;
-  RECORDED_ACTION_TYPE_INPUT = 3;
-  RECORDED_ACTION_TYPE_WAIT = 4;
-  RECORDED_ACTION_TYPE_ASSERT = 5;
-  RECORDED_ACTION_TYPE_CUSTOM_SCRIPT = 6;
-}
+// =============================================================================
+// NOTE: SelectorCandidate, SelectorSet, and ElementMeta are defined in
+// selectors.proto (imported via timeline_event.proto -> selectors.proto).
+// =============================================================================
 
-// SelectorCandidate is a single selector with metadata.
-message SelectorCandidate {
-  string type = 1;
-  string value = 2;
-  double confidence = 3;
-  int32 specificity = 4;
-}
+// =============================================================================
+// RECORDING SESSION MANAGEMENT
+// =============================================================================
 
-// SelectorSet contains multiple selector strategies for resilience.
-message SelectorSet {
-  string primary = 1;
-  repeated SelectorCandidate candidates = 2;
-}
-
-// ElementMeta captures information about the target element.
-message ElementMeta {
-  string tag_name = 1;
-  string id = 2;
-  string class_name = 3;
-  string inner_text = 4;
-  map<string, string> attributes = 5;
-  bool is_visible = 6;
-  bool is_enabled = 7;
-  string role = 8;
-  string aria_label = 9;
-}
-
-// RecordBoundingBox for element position on screen.
-message RecordBoundingBox {
-  double x = 1;
-  double y = 2;
-  double width = 3;
-  double height = 4;
-}
-
-// RecordPoint for cursor/click positions.
-message RecordPoint {
-  double x = 1;
-  double y = 2;
-}
-
-// RecordedAction represents a single user action captured during recording.
-message RecordedAction {
-  string id = 1;
-  string session_id = 2;
-  int32 sequence_num = 3;
-  google.protobuf.Timestamp timestamp = 4;
-  int32 duration_ms = 5;
-  string action_type = 6 [deprecated = true];
-  double confidence = 7;
-  SelectorSet selector = 8;
-  ElementMeta element_meta = 9;
-  RecordBoundingBox bounding_box = 10;
-  google.protobuf.Struct payload = 11 [deprecated = true];
-  // Typed payload; prefer over Struct when available.
-  common.v1.JsonObject payload_typed = 15;
-  string url = 12;
-  string frame_id = 13;
-  RecordPoint cursor_pos = 14;
-  // Discrete action kind; prefer over the free-form action_type string.
-  RecordedActionType action_kind = 16;
-  // Typed action payloads; prefer over payload/payload_typed.
-  oneof typed_action {
-    NavigateActionPayload navigate = 17;
-    ClickActionPayload click = 18;
-    InputActionPayload input = 19;
-    WaitActionPayload wait = 20;
-    AssertActionPayload assert = 21;
-    CustomScriptActionPayload custom_script = 22;
-  }
-}
-
-// NavigateActionPayload captures navigation inputs.
-message NavigateActionPayload {
-  string url = 1;
-  // Optional selector to wait for before proceeding.
-  optional string wait_for_selector = 2;
-  // Timeout in milliseconds for the wait.
-  optional int32 timeout_ms = 3;
-}
-
-// ClickActionPayload captures pointer click configuration.
-message ClickActionPayload {
-  // Mouse button (left, middle, right); defaults to left when empty.
-  string button = 1;
-  // Number of clicks; defaults to 1.
-  optional int32 click_count = 2;
-  // Delay between mousedown and mouseup in milliseconds.
-  optional int32 delay_ms = 3;
-  // Whether to scroll element into view before clicking.
-  optional bool scroll_into_view = 4;
-}
-
-// InputActionPayload captures text entry.
-message InputActionPayload {
-  string value = 1;
-  // Treat value as sensitive and mask in logs.
-  bool is_sensitive = 2;
-  // Whether to press Enter after input.
-  optional bool submit = 3;
-}
-
-// WaitActionPayload captures a fixed wait.
-message WaitActionPayload {
-  // Duration to wait in milliseconds.
-  int32 duration_ms = 1;
-}
-
-// AssertActionPayload captures assertion metadata.
-message AssertActionPayload {
-  // Assertion mode (exists, visible, text_equals, etc.).
-  string mode = 1;
-  // CSS selector being asserted on.
-  string selector = 2;
-  // Expected value for the assertion.
-  google.protobuf.Value expected = 3;
-  // Typed expected value; prefer over the Value field.
-  common.v1.JsonValue expected_typed = 7;
-  // Whether the assertion is negated.
-  bool negated = 4;
-  // Case sensitivity flag.
-  bool case_sensitive = 5;
-}
-
-// CustomScriptActionPayload captures custom script execution data.
-message CustomScriptActionPayload {
-  // Language for the script (e.g., "javascript").
-  string language = 1;
-  // Source code to execute.
-  string source = 2;
-}
-
-// Recording session state.
+// RecordingState captures current recording session state.
 message RecordingState {
+  // Whether recording is currently active.
   bool is_recording = 1;
+  // Current recording ID.
   string recording_id = 2;
+  // Session ID for the browser session.
   string session_id = 3;
+  // Number of actions captured so far.
   int32 action_count = 4;
+  // When recording started.
   google.protobuf.Timestamp started_at = 5;
 }
 
-// CreateRecordingSessionRequest is the request body for creating a browser session for recording.
+// CreateRecordingSessionRequest creates a browser session for recording.
 message CreateRecordingSessionRequest {
+  // Viewport width in pixels.
   int32 viewport_width = 1;
+  // Viewport height in pixels.
   int32 viewport_height = 2;
+  // Initial URL to navigate to.
   string initial_url = 3;
 }
 
-// CreateRecordingSessionResponse is the response after creating a recording session.
+// CreateRecordingSessionResponse is returned after creating a recording session.
 message CreateRecordingSessionResponse {
+  // Unique session identifier.
   string session_id = 1;
+  // When the session was created.
   google.protobuf.Timestamp created_at = 2;
 }
 
-// StartRecordingRequest is the request body for starting a live recording.
+// StartRecordingRequest starts recording on an existing session.
 message StartRecordingRequest {
+  // Session ID to start recording on.
   string session_id = 1;
+  // Callback URL for streaming events (optional).
   string callback_url = 2;
 }
 
-// StartRecordingResponse is the response after starting recording.
+// StartRecordingResponse is returned after starting recording.
 message StartRecordingResponse {
+  // Unique recording identifier.
   string recording_id = 1;
+  // Session ID the recording is attached to.
   string session_id = 2;
+  // When recording started.
   google.protobuf.Timestamp started_at = 3;
 }
 
-// StopRecordingResponse is the response after stopping recording.
+// StopRecordingResponse is returned after stopping recording.
 message StopRecordingResponse {
+  // Recording ID that was stopped.
   string recording_id = 1;
+  // Session ID the recording was attached to.
   string session_id = 2;
+  // Total number of actions captured.
   int32 action_count = 3;
+  // When recording stopped.
   google.protobuf.Timestamp stopped_at = 4;
 }
 
-// RecordingStatusResponse is the response for recording status.
+// RecordingStatusResponse returns current recording status.
 message RecordingStatusResponse {
+  // Session ID being queried.
   string session_id = 1;
+  // Whether recording is active.
   bool is_recording = 2;
+  // Current recording ID (empty if not recording).
   string recording_id = 3;
+  // Number of actions captured.
   int32 action_count = 4;
-  google.protobuf.Timestamp started_at = 5;
+  // When recording started (null if not recording).
+  optional google.protobuf.Timestamp started_at = 5;
 }
 
-// GetActionsResponse is the response for getting recorded actions.
+// =============================================================================
+// RECORDED ACTIONS (using unified TimelineEvent)
+// =============================================================================
+
+// GetActionsResponse returns captured timeline events from a recording session.
 message GetActionsResponse {
+  // Session ID the events belong to.
   string session_id = 1;
-  repeated RecordedAction actions = 2;
+  // Captured timeline events (unified format).
+  repeated TimelineEvent events = 2;
+  // Total number of events.
   int32 count = 3;
 }
 
-// GenerateWorkflowRequest is the request body for generating a workflow from recording.
+// =============================================================================
+// WORKFLOW GENERATION
+// =============================================================================
+
+// GenerateWorkflowRequest generates a workflow from recorded events.
 message GenerateWorkflowRequest {
+  // Session ID to generate workflow from.
   string session_id = 1;
+  // Name for the generated workflow.
   string name = 2;
+  // Project ID to save the workflow to.
   string project_id = 3;
+  // Project name (for display).
   string project_name = 4;
-  message ActionRange {
+  // Optional range of events to include.
+  message EventRange {
+    // Start index (inclusive).
     int32 start = 1;
+    // End index (exclusive).
     int32 end = 2;
   }
-  ActionRange action_range = 5;
-  repeated RecordedAction actions = 6;
+  // Event range to include (optional, defaults to all).
+  EventRange event_range = 5;
+  // Timeline events to convert (optional, uses session events if empty).
+  repeated TimelineEvent events = 6;
 }
 
-// GenerateWorkflowResponse is the response after generating a workflow.
+// GenerateWorkflowResponse is returned after generating a workflow.
 message GenerateWorkflowResponse {
+  // Generated workflow ID.
   string workflow_id = 1;
+  // Project ID the workflow was saved to.
   string project_id = 2;
+  // Workflow name.
   string name = 3;
+  // Number of nodes in the generated workflow.
   int32 node_count = 4;
-  int32 action_count = 5;
+  // Number of events that were converted.
+  int32 event_count = 5;
 }
 
-// ReplayPreviewRequest is the request body for testing recorded actions.
+// =============================================================================
+// REPLAY PREVIEW (testing recorded events)
+// =============================================================================
+
+// ReplayPreviewRequest tests recorded events by replaying them.
 message ReplayPreviewRequest {
+  // Session ID to replay on.
   string session_id = 1;
-  repeated RecordedAction actions = 2;
+  // Timeline events to replay.
+  repeated TimelineEvent events = 2;
+  // Maximum number of events to replay.
   int32 limit = 3;
+  // Stop on first failure.
   bool stop_on_failure = 4;
-  int32 action_timeout = 5;
+  // Timeout per action in milliseconds.
+  int32 action_timeout_ms = 5;
 }
 
-// ActionReplayError contains error details for a failed action.
-message ActionReplayError {
+// ReplayEventError contains error details for a failed replay event.
+message ReplayEventError {
+  // Error message.
   string message = 1;
+  // Error code.
   string code = 2;
+  // Number of elements matching the selector.
   int32 match_count = 3;
+  // Selector that failed.
   string selector = 4;
 }
 
-// ActionReplayResult is the result of replaying a single action.
-message ActionReplayResult {
-  string action_id = 1;
+// ReplayEventResult is the result of replaying a single timeline event.
+message ReplayEventResult {
+  // Event ID that was replayed.
+  string event_id = 1;
+  // Sequence number of the event.
   int32 sequence_num = 2;
-  string action_type = 3 [deprecated = true];
-  bool success = 4;
-  int32 duration_ms = 5;
-  ActionReplayError error = 6;
-  string screenshot_on_error = 7;
-  // Discrete action kind; prefer over the legacy action_type string.
-  RecordedActionType action_kind = 8;
-  // Typed action payload that was replayed; prefer over action_type.
-  oneof typed_action {
-    NavigateActionPayload navigate = 9;
-    ClickActionPayload click = 10;
-    InputActionPayload input = 11;
-    WaitActionPayload wait = 12;
-    AssertActionPayload assert = 13;
-    CustomScriptActionPayload custom_script = 14;
-  }
+  // Whether the replay succeeded.
+  bool success = 3;
+  // Duration of the replay in milliseconds.
+  int32 duration_ms = 4;
+  // Error details if replay failed.
+  ReplayEventError error = 5;
+  // Screenshot captured on error.
+  string screenshot_on_error = 6;
+  // The action that was replayed.
+  ActionDefinition action = 7;
 }
 
-// ReplayPreviewResponse is the response from replay preview.
+// ReplayPreviewResponse is returned from replay preview.
 message ReplayPreviewResponse {
+  // Overall success (all events passed).
   bool success = 1;
-  int32 total_actions = 2;
-  int32 passed_actions = 3;
-  int32 failed_actions = 4;
-  repeated ActionReplayResult results = 5;
+  // Total number of events attempted.
+  int32 total_events = 2;
+  // Number of events that passed.
+  int32 passed_events = 3;
+  // Number of events that failed.
+  int32 failed_events = 4;
+  // Individual replay results.
+  repeated ReplayEventResult results = 5;
+  // Total duration of the replay in milliseconds.
   int32 total_duration_ms = 6;
+  // Whether replay stopped early due to failure.
   bool stopped_early = 7;
 }
 
-// SelectorValidation result from driver.
+// =============================================================================
+// SELECTOR VALIDATION
+// =============================================================================
+
+// SelectorValidation contains selector validation results from the driver.
 message SelectorValidation {
+  // Whether the selector is valid.
   bool valid = 1;
+  // Number of elements matching the selector.
   int32 match_count = 2;
+  // The selector that was validated.
   string selector = 3;
+  // Error message if validation failed.
   string error = 4;
 }

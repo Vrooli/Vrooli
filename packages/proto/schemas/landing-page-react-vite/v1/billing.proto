@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package landing_page_react_vite.v1;
 
-import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "common/v1/types.proto";
 import "landing-page-react-vite/v1/pricing.proto";
@@ -49,6 +48,8 @@ enum TransactionType {
 
 // CheckoutSession represents a created Stripe checkout session.
 message CheckoutSession {
+  reserved 16;
+
   // Stripe session identifier (cs_*).
   string session_id = 1;
   // Kind of session (subscription, credits top-up, supporter contribution).
@@ -80,13 +81,13 @@ message CheckoutSession {
   // Creation timestamp.
   google.protobuf.Timestamp created_at = 15;
   // Additional structured metadata.
-  map<string, google.protobuf.Value> metadata = 16 [deprecated = true];
-  // Typed structured metadata; prefer over the deprecated Value map.
-  map<string, common.v1.JsonValue> metadata_typed = 17;
+  map<string, common.v1.JsonValue> metadata = 17;
 }
 
 // CreateCheckoutSessionRequest starts a new checkout flow for a price.
 message CreateCheckoutSessionRequest {
+  reserved 6;
+
   // Stripe price identifier to purchase.
   string price_id = 1;
   // Customer email address.
@@ -98,9 +99,7 @@ message CreateCheckoutSessionRequest {
   // Intended session kind (defaults to subscription).
   SessionKind session_kind = 5;
   // Arbitrary metadata to associate with the session.
-  map<string, google.protobuf.Value> metadata = 6 [deprecated = true];
-  // Typed metadata; prefer over the deprecated Value map.
-  map<string, common.v1.JsonValue> metadata_typed = 7;
+  map<string, common.v1.JsonValue> metadata = 7;
 }
 
 // CreateCheckoutSessionResponse returns the created checkout session.
@@ -117,6 +116,8 @@ message VerifySubscriptionRequest {
 
 // SubscriptionStatus reports the current subscription state.
 message SubscriptionStatus {
+  reserved 11;
+
   // Lifecycle state of the subscription.
   SubscriptionState state = 1;
   // Subscription identifier (sub_*).
@@ -138,9 +139,7 @@ message SubscriptionStatus {
   // Human-readable status message.
   optional string message = 10;
   // Additional metadata about the subscription.
-  map<string, google.protobuf.Value> metadata = 11 [deprecated = true];
-  // Typed metadata; prefer over the deprecated Value map.
-  map<string, common.v1.JsonValue> metadata_typed = 12;
+  map<string, common.v1.JsonValue> metadata = 12;
 }
 
 // VerifySubscriptionResponse returns the current subscription status.
@@ -181,20 +180,18 @@ message CreditsBalance {
 
 // CreditTransaction describes a wallet credit/debit entry.
 message CreditTransaction {
+  reserved 4, 5;
+
   // Unique transaction identifier.
   string id = 1;
   // Customer email associated with the transaction.
   string customer_email = 2;
   // Amount in credits (positive for additions, negative for debits).
   int64 amount_credits = 3;
-  // Transaction type (e.g., credit_topup, consumption).
-  string transaction_type = 4 [deprecated = true];
-  // Typed transaction type; prefer over the deprecated string field.
+  // Transaction type classification.
   TransactionType type = 7;
   // Structured metadata describing the transaction.
-  map<string, google.protobuf.Value> metadata = 5 [deprecated = true];
-  // Typed metadata describing the transaction; prefer over the deprecated Value map.
-  map<string, common.v1.JsonValue> metadata_typed = 8;
+  map<string, common.v1.JsonValue> metadata = 8;
   // Creation timestamp for the transaction.
   google.protobuf.Timestamp created_at = 6;
 }

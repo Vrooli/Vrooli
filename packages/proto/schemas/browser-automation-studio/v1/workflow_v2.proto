@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "browser-automation-studio/v1/shared.proto";
+import "browser-automation-studio/v1/geometry.proto";
+import "browser-automation-studio/v1/action.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
+
+// =============================================================================
+// WORKFLOW DEFINITION V2
+// =============================================================================
+
+// WorkflowDefinitionV2 is the canonical workflow storage format.
+message WorkflowDefinitionV2 {
+  // Workflow metadata.
+  WorkflowMetadataV2 metadata = 1;
+  // Browser/execution settings.
+  WorkflowSettingsV2 settings = 2;
+  // Workflow nodes (steps).
+  repeated WorkflowNodeV2 nodes = 3;
+  // Workflow edges (connections).
+  repeated WorkflowEdgeV2 edges = 4;
+}
+
+// WorkflowMetadataV2 captures workflow-level descriptors.
+message WorkflowMetadataV2 {
+  // Workflow name.
+  optional string name = 1;
+  // Workflow description.
+  optional string description = 2;
+  // Labels for categorization.
+  map<string, string> labels = 3;
+  // Version tag.
+  optional string version = 4;
+  // Requirement ID if generated from a requirement.
+  optional string requirement = 5;
+  // Owner identifier.
+  optional string owner = 6;
+}
+
+// WorkflowSettingsV2 captures browser/execution configuration.
+message WorkflowSettingsV2 {
+  // Viewport width in pixels (default: 1280).
+  optional int32 viewport_width = 1;
+  // Viewport height in pixels (default: 720).
+  optional int32 viewport_height = 2;
+  // User agent string.
+  optional string user_agent = 3;
+  // Browser locale (e.g., "en-US").
+  optional string locale = 4;
+  // Reserved: field 5 was timeout_seconds (migrated to timeout_ms for consistency).
+  reserved 5;
+  // Run in headless mode.
+  optional bool headless = 6;
+  // Entry selector to wait for before starting.
+  optional string entry_selector = 7;
+  // Timeout for entry selector in milliseconds (default: 30000).
+  optional int32 entry_selector_timeout_ms = 8;
+  // Overall timeout in milliseconds (default: 300000 = 5 minutes).
+  optional int32 timeout_ms = 9;
+}
+
+// WorkflowNodeV2 represents a single workflow step.
+message WorkflowNodeV2 {
+  // Unique node identifier (UUID format).
+  string id = 1;
+  // The action to perform.
+  ActionDefinition action = 2;
+  // UI canvas position (optional).
+  optional NodePosition position = 3;
+  // Per-node execution settings (optional).
+  optional NodeExecutionSettings execution_settings = 4;
+}
+
+// NodeExecutionSettings captures per-step execution configuration.
+message NodeExecutionSettings {
+  // Maximum time for this step in milliseconds (default: 30000).
+  optional int32 timeout_ms = 1;
+  // Wait time after step completes before proceeding in milliseconds.
+  optional int32 wait_after_ms = 2;
+  // Continue workflow if this step fails.
+  optional bool continue_on_error = 3;
+  // Retry/resilience configuration.
+  optional ResilienceConfig resilience = 4;
+}
+
+// ResilienceConfig captures retry and precondition settings.
+message ResilienceConfig {
+  // Maximum retry attempts (default: 1, meaning no retries).
+  optional int32 max_attempts = 1;
+  // Delay between retries in milliseconds (default: 1000).
+  optional int32 delay_ms = 2;
+  // Backoff multiplier for retries (e.g., 2.0 doubles delay each retry).
+  optional double backoff_factor = 3;
+  // CSS selector to check before executing step.
+  optional string precondition_selector = 4;
+  // Timeout for precondition check in milliseconds (default: 5000).
+  optional int32 precondition_timeout_ms = 5;
+  // Wait after precondition succeeds in milliseconds.
+  optional int32 precondition_wait_ms = 6;
+  // CSS selector to verify step success.
+  optional string success_selector = 7;
+  // Timeout for success check in milliseconds (default: 5000).
+  optional int32 success_timeout_ms = 8;
+  // Wait after success confirmed in milliseconds.
+  optional int32 success_wait_ms = 9;
+}
+
+// WorkflowEdgeV2 connects nodes in the workflow graph.
+message WorkflowEdgeV2 {
+  // Unique edge identifier (UUID format).
+  string id = 1;
+  // Source node ID (UUID format).
+  string source = 2;
+  // Target node ID (UUID format).
+  string target = 3;
+  // Edge rendering type (default, smoothstep, step, straight, bezier).
+  optional WorkflowEdgeType type = 4;
+  // Edge label for conditional branching.
+  optional string label = 5;
+  // Source handle position identifier.
+  optional string source_handle = 6;
+  // Target handle position identifier.
+  optional string target_handle = 7;
+}

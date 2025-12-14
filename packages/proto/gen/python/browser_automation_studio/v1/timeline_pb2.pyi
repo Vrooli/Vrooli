@@ -3,7 +3,10 @@ import datetime
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from common.v1 import types_pb2 as _types_pb2
 from browser_automation_studio.v1 import shared_pb2 as _shared_pb2
-from browser_automation_studio.v1 import unified_pb2 as _unified_pb2
+from browser_automation_studio.v1 import action_pb2 as _action_pb2
+from browser_automation_studio.v1 import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1 import selectors_pb2 as _selectors_pb2
+from browser_automation_studio.v1 import telemetry_pb2 as _telemetry_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -37,6 +40,7 @@ class TimelineFrame(_message.Message):
     STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     ACTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
@@ -58,18 +62,15 @@ class TimelineFrame(_message.Message):
     SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     ASSERTION_FIELD_NUMBER: _ClassVar[int]
-    RETRY_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
-    RETRY_MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
-    RETRY_CONFIGURED_FIELD_NUMBER: _ClassVar[int]
-    RETRY_DELAY_MS_FIELD_NUMBER: _ClassVar[int]
-    RETRY_BACKOFF_FACTOR_FIELD_NUMBER: _ClassVar[int]
-    RETRY_HISTORY_FIELD_NUMBER: _ClassVar[int]
+    RETRY_STATUS_FIELD_NUMBER: _ClassVar[int]
     DOM_SNAPSHOT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     DOM_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     EXTRACTED_DATA_PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    TELEMETRY_FIELD_NUMBER: _ClassVar[int]
     step_index: int
     node_id: str
-    action_type: _unified_pb2.ActionType
+    action_type: _action_pb2.ActionType
+    action: _action_pb2.ActionDefinition
     status: _shared_pb2.StepStatus
     success: bool
     duration_ms: int
@@ -81,26 +82,22 @@ class TimelineFrame(_message.Message):
     error: str
     console_log_count: int
     network_event_count: int
-    highlight_regions: _containers.RepeatedCompositeFieldContainer[_unified_pb2.HighlightRegion]
-    mask_regions: _containers.RepeatedCompositeFieldContainer[_unified_pb2.MaskRegion]
+    highlight_regions: _containers.RepeatedCompositeFieldContainer[_selectors_pb2.HighlightRegion]
+    mask_regions: _containers.RepeatedCompositeFieldContainer[_selectors_pb2.MaskRegion]
     focused_element: ElementFocus
-    element_bounding_box: _unified_pb2.BoundingBox
-    click_position: _unified_pb2.Point
-    cursor_trail: _containers.RepeatedCompositeFieldContainer[_unified_pb2.Point]
+    element_bounding_box: _geometry_pb2.BoundingBox
+    click_position: _geometry_pb2.Point
+    cursor_trail: _containers.RepeatedCompositeFieldContainer[_geometry_pb2.Point]
     zoom_factor: float
-    screenshot: _unified_pb2.TimelineScreenshot
+    screenshot: _telemetry_pb2.TimelineScreenshot
     artifacts: _containers.RepeatedCompositeFieldContainer[TimelineArtifact]
-    assertion: _unified_pb2.AssertionResultProto
-    retry_attempt: int
-    retry_max_attempts: int
-    retry_configured: bool
-    retry_delay_ms: int
-    retry_backoff_factor: float
-    retry_history: _containers.RepeatedCompositeFieldContainer[RetryHistoryEntry]
+    assertion: _shared_pb2.AssertionResult
+    retry_status: _shared_pb2.RetryStatus
     dom_snapshot_preview: str
     dom_snapshot: TimelineArtifact
     extracted_data_preview: _types_pb2.JsonValue
-    def __init__(self, step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., action_type: _Optional[_Union[_unified_pb2.ActionType, str]] = ..., status: _Optional[_Union[_shared_pb2.StepStatus, str]] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., progress: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., final_url: _Optional[str] = ..., error: _Optional[str] = ..., console_log_count: _Optional[int] = ..., network_event_count: _Optional[int] = ..., highlight_regions: _Optional[_Iterable[_Union[_unified_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_unified_pb2.MaskRegion, _Mapping]]] = ..., focused_element: _Optional[_Union[ElementFocus, _Mapping]] = ..., element_bounding_box: _Optional[_Union[_unified_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_unified_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_unified_pb2.Point, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., screenshot: _Optional[_Union[_unified_pb2.TimelineScreenshot, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[TimelineArtifact, _Mapping]]] = ..., assertion: _Optional[_Union[_unified_pb2.AssertionResultProto, _Mapping]] = ..., retry_attempt: _Optional[int] = ..., retry_max_attempts: _Optional[int] = ..., retry_configured: _Optional[bool] = ..., retry_delay_ms: _Optional[int] = ..., retry_backoff_factor: _Optional[float] = ..., retry_history: _Optional[_Iterable[_Union[RetryHistoryEntry, _Mapping]]] = ..., dom_snapshot_preview: _Optional[str] = ..., dom_snapshot: _Optional[_Union[TimelineArtifact, _Mapping]] = ..., extracted_data_preview: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    telemetry: _telemetry_pb2.ActionTelemetry
+    def __init__(self, step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., action_type: _Optional[_Union[_action_pb2.ActionType, str]] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ..., status: _Optional[_Union[_shared_pb2.StepStatus, str]] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., progress: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., final_url: _Optional[str] = ..., error: _Optional[str] = ..., console_log_count: _Optional[int] = ..., network_event_count: _Optional[int] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., focused_element: _Optional[_Union[ElementFocus, _Mapping]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_geometry_pb2.Point, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., screenshot: _Optional[_Union[_telemetry_pb2.TimelineScreenshot, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[TimelineArtifact, _Mapping]]] = ..., assertion: _Optional[_Union[_shared_pb2.AssertionResult, _Mapping]] = ..., retry_status: _Optional[_Union[_shared_pb2.RetryStatus, _Mapping]] = ..., dom_snapshot_preview: _Optional[str] = ..., dom_snapshot: _Optional[_Union[TimelineArtifact, _Mapping]] = ..., extracted_data_preview: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., telemetry: _Optional[_Union[_telemetry_pb2.ActionTelemetry, _Mapping]] = ...) -> None: ...
 
 class TimelineArtifact(_message.Message):
     __slots__ = ()
@@ -131,27 +128,13 @@ class TimelineArtifact(_message.Message):
     payload: _containers.MessageMap[str, _types_pb2.JsonValue]
     def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.ArtifactType, str]] = ..., label: _Optional[str] = ..., storage_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., step_index: _Optional[int] = ..., payload: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
-class RetryHistoryEntry(_message.Message):
-    __slots__ = ()
-    ATTEMPT_FIELD_NUMBER: _ClassVar[int]
-    SUCCESS_FIELD_NUMBER: _ClassVar[int]
-    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
-    CALL_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    attempt: int
-    success: bool
-    duration_ms: int
-    call_duration_ms: int
-    error: str
-    def __init__(self, attempt: _Optional[int] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., call_duration_ms: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
-
 class ElementFocus(_message.Message):
     __slots__ = ()
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     selector: str
-    bounding_box: _unified_pb2.BoundingBox
-    def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[_unified_pb2.BoundingBox, _Mapping]] = ...) -> None: ...
+    bounding_box: _geometry_pb2.BoundingBox
+    def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ...) -> None: ...
 
 class TimelineLog(_message.Message):
     __slots__ = ()

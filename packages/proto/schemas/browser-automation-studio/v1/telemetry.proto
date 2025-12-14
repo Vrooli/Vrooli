@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "browser-automation-studio/v1/shared.proto";
+import "browser-automation-studio/v1/geometry.proto";
+import "browser-automation-studio/v1/selectors.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
+
+// =============================================================================
+// CONSOLE AND NETWORK TELEMETRY
+// =============================================================================
+
+// ConsoleLogEntry captures browser console output for telemetry.
+message ConsoleLogEntry {
+  // Log level (debug, info, warn, error).
+  LogLevel level = 1;
+  // Log message text.
+  string text = 2;
+  // When the log was emitted.
+  google.protobuf.Timestamp timestamp = 3;
+  // Stack trace if available.
+  optional string stack = 4;
+  // Source location (file:line:column).
+  optional string location = 5;
+}
+
+// NetworkEvent captures network activity for telemetry.
+message NetworkEvent {
+  // Event type (request, response, failure).
+  NetworkEventType type = 1;
+  // Request URL.
+  string url = 2;
+  // HTTP method (GET, POST, etc.).
+  optional string method = 3;
+  // Resource type (document, script, xhr, fetch, etc.).
+  optional string resource_type = 4;
+  // HTTP status code (for response events).
+  optional int32 status = 5;
+  // Whether response was successful (2xx status).
+  optional bool ok = 6;
+  // Failure reason if failed.
+  optional string failure = 7;
+  // Event timestamp.
+  google.protobuf.Timestamp timestamp = 8;
+}
+
+// =============================================================================
+// ACTION TELEMETRY
+// =============================================================================
+
+// ActionTelemetry captures observable data during action recording or execution.
+message ActionTelemetry {
+  // Page URL at capture time.
+  string url = 1;
+  // Frame ID if action occurred in iframe.
+  optional string frame_id = 2;
+
+  // Visual captures.
+  optional TimelineScreenshot screenshot = 10;
+  // Truncated DOM preview text.
+  optional string dom_snapshot_preview = 11;
+  // Full DOM HTML snapshot.
+  optional string dom_snapshot_html = 12;
+
+  // Element interaction data.
+  optional BoundingBox element_bounding_box = 20;
+  optional Point click_position = 21;
+  optional Point cursor_position = 22;
+  repeated Point cursor_trail = 23;
+  repeated HighlightRegion highlight_regions = 24;
+  repeated MaskRegion mask_regions = 25;
+  // Zoom factor applied during capture (1.0 = 100%).
+  optional double zoom_factor = 26;
+
+  // Browser telemetry.
+  repeated ConsoleLogEntry console_logs = 30;
+  repeated NetworkEvent network_events = 31;
+}
+
+// =============================================================================
+// SCREENSHOT
+// =============================================================================
+
+// TimelineScreenshot describes screenshot metadata.
+// This type is used in ActionTelemetry and TimelineFrame for visual captures.
+message TimelineScreenshot {
+  // Unique artifact ID for the screenshot (UUID format).
+  string artifact_id = 1;
+  // URL to download the full screenshot.
+  string url = 2;
+  // URL to download a thumbnail.
+  string thumbnail_url = 3;
+  // Image width in pixels.
+  int32 width = 4;
+  // Image height in pixels.
+  int32 height = 5;
+  // Image MIME type (e.g., "image/png", "image/jpeg").
+  string content_type = 6;
+  // Size in bytes for the screenshot.
+  optional int64 size_bytes = 7;
+}

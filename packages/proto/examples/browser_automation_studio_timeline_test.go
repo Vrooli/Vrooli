@@ -23,10 +23,18 @@ func TestTimelineSerialization(t *testing.T) {
 			{
 				StepIndex:  0,
 				NodeId:     "navigate-1",
-				StepType:   browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
+				ActionType: browser_automation_studio_v1.ActionType_ACTION_TYPE_NAVIGATE,
 				Status:     browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
 				Success:    true,
 				DurationMs: 1200,
+				Action: &browser_automation_studio_v1.ActionDefinition{
+					Type: browser_automation_studio_v1.ActionType_ACTION_TYPE_NAVIGATE,
+					Params: &browser_automation_studio_v1.ActionDefinition_Navigate{
+						Navigate: &browser_automation_studio_v1.NavigateParams{
+							Url: "https://example.com",
+						},
+					},
+				},
 			},
 		},
 	}

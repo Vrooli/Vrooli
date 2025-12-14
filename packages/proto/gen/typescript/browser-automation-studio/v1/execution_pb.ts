@@ -8,19 +8,225 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonObject, JsonValue } from "../../common/v1/types_pb";
 import { file_common_v1_types } from "../../common/v1/types_pb";
+import type { ActionType } from "./action_pb";
+import { file_browser_automation_studio_v1_action } from "./action_pb";
 import type { EventKind, ExecutionStatus, ExportStatus, LogLevel, TriggerType } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
+import type { TimelineScreenshot } from "./telemetry_pb";
+import { file_browser_automation_studio_v1_telemetry } from "./telemetry_pb";
 import type { TimelineFrame } from "./timeline_pb";
 import { file_browser_automation_studio_v1_timeline } from "./timeline_pb";
-import type { WorkflowDefinitionV2 } from "./unified_pb";
-import { file_browser_automation_studio_v1_unified } from "./unified_pb";
+import type { WorkflowDefinitionV2 } from "./workflow_v2_pb";
+import { file_browser_automation_studio_v1_workflow_v2 } from "./workflow_v2_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file browser-automation-studio/v1/execution.proto.
  */
 export const file_browser_automation_studio_v1_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSLoBwoJRXhlY3V0aW9uEhgKDGV4ZWN1dGlvbl9pZBgBIAEoCVICaWQSEwoLd29ya2Zsb3dfaWQYAiABKAkSGAoQd29ya2Zsb3dfdmVyc2lvbhgDIAEoBRI9CgZzdGF0dXMYBCABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxI/Cgx0cmlnZ2VyX3R5cGUYBSABKA4yKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRyaWdnZXJUeXBlEi4KCnN0YXJ0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoObGFzdF9oZWFydGJlYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKBWVycm9yGAsgASgJSACIAQESEAoIcHJvZ3Jlc3MYDSABKAUSFAoMY3VycmVudF9zdGVwGA4gASgJEi4KCmNyZWF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEksKCnBhcmFtZXRlcnMYESADKAsyNy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbi5QYXJhbWV0ZXJzRW50cnkSQwoGcmVzdWx0GBIgAygLMjMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb24uUmVzdWx0RW50cnkSVgoQdHJpZ2dlcl9tZXRhZGF0YRgTIAMoCzI8LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uLlRyaWdnZXJNZXRhZGF0YUVudHJ5GkcKD1BhcmFtZXRlcnNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ARpDCgtSZXN1bHRFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ARpMChRUcmlnZ2VyTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIICgZfZXJyb3JKBAgGEAdKBAgHEAhKBAgMEA0i6AIKE0V4ZWN1dGVBZGhvY1JlcXVlc3QSSwoPZmxvd19kZWZpbml0aW9uGAEgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMhIbChN3YWl0X2Zvcl9jb21wbGV0aW9uGAMgASgIEkEKCG1ldGFkYXRhGAQgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25NZXRhZGF0YRJVCgpwYXJhbWV0ZXJzGAUgAygLMkEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRlQWRob2NSZXF1ZXN0LlBhcmFtZXRlcnNFbnRyeRpHCg9QYXJhbWV0ZXJzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFKBAgCEAMiNgoRRXhlY3V0aW9uTWV0YWRhdGESDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCSL2AQoURXhlY3V0ZUFkaG9jUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhgKC3dvcmtmbG93X2lkGAMgASgJSACIAQESDwoHbWVzc2FnZRgEIAEoCRIwCgxjb21wbGV0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKBWVycm9yGAYgASgJSAGIAQFCDgoMX3dvcmtmbG93X2lkQggKBl9lcnJvciLjAQoKU2NyZWVuc2hvdBIKCgJpZBgBIAEoCRIUCgxleGVjdXRpb25faWQYAiABKAkSEQoJc3RlcF9uYW1lGAMgASgJEhIKCnN0ZXBfaW5kZXgYBCABKAUSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgtzdG9yYWdlX3VybBgGIAEoCRIVCg10aHVtYm5haWxfdXJsGAcgASgJEg0KBXdpZHRoGAggASgFEg4KBmhlaWdodBgJIAEoBRISCgpzaXplX2J5dGVzGAogASgDIlcKFkdldFNjcmVlbnNob3RzUmVzcG9uc2USPQoLc2NyZWVuc2hvdHMYASADKAsyKC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNjcmVlbnNob3QipgUKFkV4ZWN1dGlvbkV2ZW50RW52ZWxvcGUSFgoOc2NoZW1hX3ZlcnNpb24YASABKAkSFwoPcGF5bG9hZF92ZXJzaW9uGAIgASgJEjUKBGtpbmQYAyABKA4yJy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV2ZW50S2luZBIUCgxleGVjdXRpb25faWQYBCABKAkSEwoLd29ya2Zsb3dfaWQYBSABKAkSFwoKc3RlcF9pbmRleBgGIAEoBUgBiAEBEhQKB2F0dGVtcHQYByABKAVIAogBARIVCghzZXF1ZW5jZRgIIAEoA0gDiAEBEi0KCXRpbWVzdGFtcBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASSAoNc3RhdHVzX3VwZGF0ZRgLIAEoCzIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RhdHVzVXBkYXRlRXZlbnRIABJKCg50aW1lbGluZV9mcmFtZRgMIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVGcmFtZUV2ZW50SAASNQoDbG9nGA0gASgLMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Mb2dFdmVudEgAEkEKCWhlYXJ0YmVhdBgOIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSGVhcnRiZWF0RXZlbnRIABJBCgl0ZWxlbWV0cnkYDyABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRlbGVtZXRyeUV2ZW50SABCCQoHcGF5bG9hZEINCgtfc3RlcF9pbmRleEIKCghfYXR0ZW1wdEILCglfc2VxdWVuY2UikgIKFkV4ZWN1dGlvbkV4cG9ydFByZXZpZXcSFAoMZXhlY3V0aW9uX2lkGAEgASgJEg8KB3NwZWNfaWQYAiABKAkSOgoGc3RhdHVzGAMgASgOMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeHBvcnRTdGF0dXMSDwoHbWVzc2FnZRgEIAEoCRIcChRjYXB0dXJlZF9mcmFtZV9jb3VudBgFIAEoBRIdChVhdmFpbGFibGVfYXNzZXRfY291bnQYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSJgoHcGFja2FnZRgJIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0SgQICBAJIt8BChFTdGF0dXNVcGRhdGVFdmVudBI9CgZzdGF0dXMYASABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxIQCghwcm9ncmVzcxgCIAEoBRIZCgxjdXJyZW50X3N0ZXAYAyABKAlIAIgBARISCgVlcnJvchgEIAEoCUgBiAEBEi8KC29jY3VycmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIPCg1fY3VycmVudF9zdGVwQggKBl9lcnJvciJQChJUaW1lbGluZUZyYW1lRXZlbnQSOgoFZnJhbWUYASABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRnJhbWUiwAIKCExvZ0V2ZW50EjUKBWxldmVsGAEgASgOMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Mb2dMZXZlbBIPCgdtZXNzYWdlGAIgASgJEhcKCnN0ZXBfaW5kZXgYAyABKAVIAIgBARIvCgtvY2N1cnJlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASRgoIbWV0YWRhdGEYBiADKAsyNC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ0V2ZW50Lk1ldGFkYXRhRW50cnkaRQoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUINCgtfc3RlcF9pbmRleEoECAUQBiLrAQoOSGVhcnRiZWF0RXZlbnQSLwoLcmVjZWl2ZWRfYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHByb2dyZXNzGAIgASgFEkoKB21ldHJpY3MYBCADKAsyOS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkhlYXJ0YmVhdEV2ZW50Lk1ldHJpY3NFbnRyeRpECgxNZXRyaWNzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFKBAgDEAQi2QEKDlRlbGVtZXRyeUV2ZW50Ei8KC3JlY29yZGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJKCgdtZXRyaWNzGAMgAygLMjkuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UZWxlbWV0cnlFdmVudC5NZXRyaWNzRW50cnkaRAoMTWV0cmljc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBSgQIARACQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_timeline, file_browser_automation_studio_v1_unified]);
+  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSK+AwoTRXhlY3V0aW9uUGFyYW1ldGVycxIWCglzdGFydF91cmwYASABKAlIAIgBARJTCgl2YXJpYWJsZXMYAiADKAsyQC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblBhcmFtZXRlcnMuVmFyaWFibGVzRW50cnkSGwoOdmlld3BvcnRfd2lkdGgYAyABKAVIAYgBARIcCg92aWV3cG9ydF9oZWlnaHQYBCABKAVIAogBARIVCghoZWFkbGVzcxgGIAEoCEgDiAEBEhcKCnVzZXJfYWdlbnQYByABKAlIBIgBARITCgZsb2NhbGUYCCABKAlIBYgBARIXCgp0aW1lb3V0X21zGAkgASgFSAaIAQEaMAoOVmFyaWFibGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIMCgpfc3RhcnRfdXJsQhEKD192aWV3cG9ydF93aWR0aEISChBfdmlld3BvcnRfaGVpZ2h0QgsKCV9oZWFkbGVzc0INCgtfdXNlcl9hZ2VudEIJCgdfbG9jYWxlQg0KC190aW1lb3V0X21zSgQIBRAGIoQECg9FeGVjdXRpb25SZXN1bHQSDwoHc3VjY2VzcxgBIAEoCBIWCg5zdGVwc19leGVjdXRlZBgCIAEoBRIUCgxzdGVwc19mYWlsZWQYAyABKAUSFgoJZmluYWxfdXJsGAQgASgJSACIAQESEgoFZXJyb3IYBSABKAlIAYgBARIXCgplcnJvcl9jb2RlGAYgASgJSAKIAQESWAoOZXh0cmFjdGVkX2RhdGEYByADKAsyQC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblJlc3VsdC5FeHRyYWN0ZWREYXRhRW50cnkSZAoUc2NyZWVuc2hvdF9hcnRpZmFjdHMYCCADKAsyRi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblJlc3VsdC5TY3JlZW5zaG90QXJ0aWZhY3RzRW50cnkaSgoSRXh0cmFjdGVkRGF0YUVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBGjoKGFNjcmVlbnNob3RBcnRpZmFjdHNFbnRyeRILCgNrZXkYASABKAUSDQoFdmFsdWUYAiABKAk6AjgBQgwKCl9maW5hbF91cmxCCAoGX2Vycm9yQg0KC19lcnJvcl9jb2RlIrMCCg9UcmlnZ2VyTWV0YWRhdGESFAoHdXNlcl9pZBgBIAEoCUgAiAEBEhYKCWNsaWVudF9pZBgCIAEoCUgBiAEBEhgKC3NjaGVkdWxlX2lkGAMgASgJSAKIAQESFwoKd2ViaG9va19pZBgEIAEoCUgDiAEBEiAKE2V4dGVybmFsX3JlcXVlc3RfaWQYBSABKAlIBIgBARIWCglzb3VyY2VfaXAYBiABKAlIBYgBARIXCgp1c2VyX2FnZW50GAcgASgJSAaIAQFCCgoIX3VzZXJfaWRCDAoKX2NsaWVudF9pZEIOCgxfc2NoZWR1bGVfaWRCDQoLX3dlYmhvb2tfaWRCFgoUX2V4dGVybmFsX3JlcXVlc3RfaWRCDAoKX3NvdXJjZV9pcEINCgtfdXNlcl9hZ2VudCKlBwoJRXhlY3V0aW9uEhgKDGV4ZWN1dGlvbl9pZBgBIAEoCVICaWQSEwoLd29ya2Zsb3dfaWQYAiABKAkSGAoQd29ya2Zsb3dfdmVyc2lvbhgDIAEoBRI9CgZzdGF0dXMYBCABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxI/Cgx0cmlnZ2VyX3R5cGUYBSABKA4yKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRyaWdnZXJUeXBlEi4KCnN0YXJ0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARIyCg5sYXN0X2hlYXJ0YmVhdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoFZXJyb3IYCyABKAlIAYgBARIQCghwcm9ncmVzcxgNIAEoBRIZCgxjdXJyZW50X3N0ZXAYDiABKAlIAogBARIuCgpjcmVhdGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJFCgpwYXJhbWV0ZXJzGBQgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzEj0KBnJlc3VsdBgVIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUmVzdWx0EkcKEHRyaWdnZXJfbWV0YWRhdGEYFiABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRyaWdnZXJNZXRhZGF0YRIVCgh0cmFjZV9pZBgeIAEoCUgDiAEBEhsKDmNvcnJlbGF0aW9uX2lkGB8gASgJSASIAQESFwoKcmVxdWVzdF9pZBggIAEoCUgFiAEBQg8KDV9jb21wbGV0ZWRfYXRCCAoGX2Vycm9yQg8KDV9jdXJyZW50X3N0ZXBCCwoJX3RyYWNlX2lkQhEKD19jb3JyZWxhdGlvbl9pZEINCgtfcmVxdWVzdF9pZEoECAYQB0oECAcQCEoECAwQDUoECBEQEkoECBIQEyKVAgoTRXhlY3V0ZUFkaG9jUmVxdWVzdBJLCg9mbG93X2RlZmluaXRpb24YASABKAsyMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldvcmtmbG93RGVmaW5pdGlvblYyEhsKE3dhaXRfZm9yX2NvbXBsZXRpb24YAyABKAgSQQoIbWV0YWRhdGEYBCABKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvbk1ldGFkYXRhEkUKCnBhcmFtZXRlcnMYBiABKAsyMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblBhcmFtZXRlcnNKBAgCEANKBAgFEAYiNgoRRXhlY3V0aW9uTWV0YWRhdGESDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCSKMAgoURXhlY3V0ZUFkaG9jUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEj0KBnN0YXR1cxgCIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhgKC3dvcmtmbG93X2lkGAMgASgJSACIAQESDwoHbWVzc2FnZRgEIAEoCRI1Cgxjb21wbGV0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESEgoFZXJyb3IYBiABKAlIAogBAUIOCgxfd29ya2Zsb3dfaWRCDwoNX2NvbXBsZXRlZF9hdEIICgZfZXJyb3Ii2QEKE0V4ZWN1dGlvblNjcmVlbnNob3QSRAoKc2NyZWVuc2hvdBgBIAEoCzIwLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVTY3JlZW5zaG90EhIKCnN0ZXBfaW5kZXgYAiABKAUSDwoHbm9kZV9pZBgDIAEoCRIXCgpzdGVwX2xhYmVsGAQgASgJSACIAQESLwoLY2FwdHVyZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQg0KC19zdGVwX2xhYmVsIoUBChZHZXRTY3JlZW5zaG90c1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRJGCgtzY3JlZW5zaG90cxgCIAMoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU2NyZWVuc2hvdBINCgV0b3RhbBgDIAEoBSKqBQoWRXhlY3V0aW9uRXZlbnRFbnZlbG9wZRIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoCRIXCg9wYXlsb2FkX3ZlcnNpb24YAiABKAkSNQoEa2luZBgDIAEoDjInLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXZlbnRLaW5kEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRITCgt3b3JrZmxvd19pZBgFIAEoCRIXCgpzdGVwX2luZGV4GAYgASgFSAGIAQESFAoHYXR0ZW1wdBgHIAEoBUgCiAEBEhUKCHNlcXVlbmNlGAggASgDSAOIAQESLQoJdGltZXN0YW1wGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJICg1zdGF0dXNfdXBkYXRlGAsgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGF0dXNVcGRhdGVFdmVudEgAEkoKDnRpbWVsaW5lX2ZyYW1lGAwgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUZyYW1lRXZlbnRIABI1CgNsb2cYDSABKAsyJi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ0V2ZW50SAASQQoJaGVhcnRiZWF0GA4gASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5IZWFydGJlYXRFdmVudEgAEkEKCXRlbGVtZXRyeRgPIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGVsZW1ldHJ5RXZlbnRIADoCGAFCCQoHcGF5bG9hZEINCgtfc3RlcF9pbmRleEIKCghfYXR0ZW1wdEILCglfc2VxdWVuY2UikgIKFkV4ZWN1dGlvbkV4cG9ydFByZXZpZXcSFAoMZXhlY3V0aW9uX2lkGAEgASgJEg8KB3NwZWNfaWQYAiABKAkSOgoGc3RhdHVzGAMgASgOMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeHBvcnRTdGF0dXMSDwoHbWVzc2FnZRgEIAEoCRIcChRjYXB0dXJlZF9mcmFtZV9jb3VudBgFIAEoBRIdChVhdmFpbGFibGVfYXNzZXRfY291bnQYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSJgoHcGFja2FnZRgJIAEoCzIVLmNvbW1vbi52MS5Kc29uT2JqZWN0SgQICBAJIt8BChFTdGF0dXNVcGRhdGVFdmVudBI9CgZzdGF0dXMYASABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxIQCghwcm9ncmVzcxgCIAEoBRIZCgxjdXJyZW50X3N0ZXAYAyABKAlIAIgBARISCgVlcnJvchgEIAEoCUgBiAEBEi8KC29jY3VycmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIPCg1fY3VycmVudF9zdGVwQggKBl9lcnJvciJQChJUaW1lbGluZUZyYW1lRXZlbnQSOgoFZnJhbWUYASABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lRnJhbWUi7QEKC0xvZ01ldGFkYXRhEhQKB25vZGVfaWQYASABKAlIAIgBARJCCgthY3Rpb25fdHlwZRgCIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZUgBiAEBEhAKA3VybBgDIAEoCUgCiAEBEhgKC3N0YWNrX3RyYWNlGAQgASgJSAOIAQESFgoJY29tcG9uZW50GAUgASgJSASIAQFCCgoIX25vZGVfaWRCDgoMX2FjdGlvbl90eXBlQgYKBF91cmxCDgoMX3N0YWNrX3RyYWNlQgwKCl9jb21wb25lbnQi9AEKCExvZ0V2ZW50EjUKBWxldmVsGAEgASgOMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Mb2dMZXZlbBIPCgdtZXNzYWdlGAIgASgJEhcKCnN0ZXBfaW5kZXgYAyABKAVIAIgBARIvCgtvY2N1cnJlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASOwoIbWV0YWRhdGEYByABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ01ldGFkYXRhQg0KC19zdGVwX2luZGV4SgQIBRAGSgQIBhAHIuoBChBIZWFydGJlYXRNZXRyaWNzEhkKDG1lbW9yeV9ieXRlcxgBIAEoA0gAiAEBEhgKC2NwdV9wZXJjZW50GAIgASgBSAGIAQESGQoMYWN0aXZlX3BhZ2VzGAMgASgFSAKIAQESGQoMY3VycmVudF9zdGVwGAQgASgFSAOIAQESGAoLdG90YWxfc3RlcHMYBSABKAVIBIgBAUIPCg1fbWVtb3J5X2J5dGVzQg4KDF9jcHVfcGVyY2VudEIPCg1fYWN0aXZlX3BhZ2VzQg8KDV9jdXJyZW50X3N0ZXBCDgoMX3RvdGFsX3N0ZXBzIqABCg5IZWFydGJlYXRFdmVudBIvCgtyZWNlaXZlZF9hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIcHJvZ3Jlc3MYAiABKAUSPwoHbWV0cmljcxgFIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSGVhcnRiZWF0TWV0cmljc0oECAMQBEoECAQQBSLMAgoQVGVsZW1ldHJ5TWV0cmljcxIdChBuZXR3b3JrX3JlcXVlc3RzGAEgASgFSACIAQESHgoRYnl0ZXNfdHJhbnNmZXJyZWQYAiABKANIAYgBARIWCglkb21fbm9kZXMYAyABKAVIAogBARIaCg1qc19oZWFwX2J5dGVzGAQgASgDSAOIAQESFAoHdHRmYl9tcxgFIAEoBUgEiAEBEhMKBmxjcF9tcxgGIAEoBUgFiAEBEhMKBmZpZF9tcxgHIAEoBUgGiAEBEhAKA2NscxgIIAEoAUgHiAEBQhMKEV9uZXR3b3JrX3JlcXVlc3RzQhQKEl9ieXRlc190cmFuc2ZlcnJlZEIMCgpfZG9tX25vZGVzQhAKDl9qc19oZWFwX2J5dGVzQgoKCF90dGZiX21zQgkKB19sY3BfbXNCCQoHX2ZpZF9tc0IGCgRfY2xzIo4BCg5UZWxlbWV0cnlFdmVudBIvCgtyZWNvcmRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPwoHbWV0cmljcxgEIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGVsZW1ldHJ5TWV0cmljc0oECAEQAkoECAMQBEJqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_telemetry, file_browser_automation_studio_v1_timeline, file_browser_automation_studio_v1_workflow_v2]);
+
+/**
+ * ExecutionParameters captures typed runtime parameters for workflow execution.
+ *
+ * @generated from message browser_automation_studio.v1.ExecutionParameters
+ */
+export type ExecutionParameters = Message<"browser_automation_studio.v1.ExecutionParameters"> & {
+  /**
+   * Initial URL to start the execution (for workflows without a navigate step).
+   *
+   * @generated from field: optional string start_url = 1;
+   */
+  startUrl?: string;
+
+  /**
+   * Variables to inject into the workflow (e.g., login credentials).
+   *
+   * @generated from field: map<string, string> variables = 2;
+   */
+  variables: { [key: string]: string };
+
+  /**
+   * Viewport dimensions override.
+   *
+   * @generated from field: optional int32 viewport_width = 3;
+   */
+  viewportWidth?: number;
+
+  /**
+   * @generated from field: optional int32 viewport_height = 4;
+   */
+  viewportHeight?: number;
+
+  /**
+   * Run in headless mode override.
+   *
+   * @generated from field: optional bool headless = 6;
+   */
+  headless?: boolean;
+
+  /**
+   * User agent override.
+   *
+   * @generated from field: optional string user_agent = 7;
+   */
+  userAgent?: string;
+
+  /**
+   * Locale override (e.g., "en-US").
+   *
+   * @generated from field: optional string locale = 8;
+   */
+  locale?: string;
+
+  /**
+   * Timeout override in milliseconds (default: 300000 = 5 minutes).
+   *
+   * @generated from field: optional int32 timeout_ms = 9;
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ExecutionParameters.
+ * Use `create(ExecutionParametersSchema)` to create a new message.
+ */
+export const ExecutionParametersSchema: GenMessage<ExecutionParameters> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 0);
+
+/**
+ * ExecutionResult captures typed execution outcomes.
+ * Use this instead of map<string, JsonValue> result for type safety.
+ *
+ * @generated from message browser_automation_studio.v1.ExecutionResult
+ */
+export type ExecutionResult = Message<"browser_automation_studio.v1.ExecutionResult"> & {
+  /**
+   * Whether the execution completed successfully.
+   *
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * Number of steps executed.
+   *
+   * @generated from field: int32 steps_executed = 2;
+   */
+  stepsExecuted: number;
+
+  /**
+   * Number of steps that failed.
+   *
+   * @generated from field: int32 steps_failed = 3;
+   */
+  stepsFailed: number;
+
+  /**
+   * Final URL after execution completed.
+   *
+   * @generated from field: optional string final_url = 4;
+   */
+  finalUrl?: string;
+
+  /**
+   * Error message if execution failed.
+   *
+   * @generated from field: optional string error = 5;
+   */
+  error?: string;
+
+  /**
+   * Error code for programmatic handling.
+   *
+   * @generated from field: optional string error_code = 6;
+   */
+  errorCode?: string;
+
+  /**
+   * Extracted data from evaluate steps (variable name -> value).
+   *
+   * @generated from field: map<string, common.v1.JsonValue> extracted_data = 7;
+   */
+  extractedData: { [key: string]: JsonValue };
+
+  /**
+   * Screenshots captured during execution (step_index -> artifact_id).
+   *
+   * @generated from field: map<int32, string> screenshot_artifacts = 8;
+   */
+  screenshotArtifacts: { [key: number]: string };
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ExecutionResult.
+ * Use `create(ExecutionResultSchema)` to create a new message.
+ */
+export const ExecutionResultSchema: GenMessage<ExecutionResult> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 1);
+
+/**
+ * TriggerMetadata captures contextual information about how an execution was triggered.
+ *
+ * @generated from message browser_automation_studio.v1.TriggerMetadata
+ */
+export type TriggerMetadata = Message<"browser_automation_studio.v1.TriggerMetadata"> & {
+  /**
+   * User ID who initiated the execution (for manual triggers).
+   *
+   * @generated from field: optional string user_id = 1;
+   */
+  userId?: string;
+
+  /**
+   * API client ID (for API triggers).
+   *
+   * @generated from field: optional string client_id = 2;
+   */
+  clientId?: string;
+
+  /**
+   * Schedule ID (for scheduled triggers).
+   *
+   * @generated from field: optional string schedule_id = 3;
+   */
+  scheduleId?: string;
+
+  /**
+   * Webhook ID (for webhook triggers).
+   *
+   * @generated from field: optional string webhook_id = 4;
+   */
+  webhookId?: string;
+
+  /**
+   * External request ID for correlation with upstream systems.
+   *
+   * @generated from field: optional string external_request_id = 5;
+   */
+  externalRequestId?: string;
+
+  /**
+   * Source IP address of the trigger request.
+   *
+   * @generated from field: optional string source_ip = 6;
+   */
+  sourceIp?: string;
+
+  /**
+   * User agent of the trigger request.
+   *
+   * @generated from field: optional string user_agent = 7;
+   */
+  userAgent?: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.TriggerMetadata.
+ * Use `create(TriggerMetadataSchema)` to create a new message.
+ */
+export const TriggerMetadataSchema: GenMessage<TriggerMetadata> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 2);
 
 /**
  * Execution is returned by GET /api/v1/executions/{id} and list APIs.
@@ -73,7 +279,7 @@ export type Execution = Message<"browser_automation_studio.v1.Execution"> & {
   /**
    * When the execution completed (null if still running).
    *
-   * @generated from field: google.protobuf.Timestamp completed_at = 9;
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 9;
    */
   completedAt?: Timestamp;
 
@@ -101,9 +307,9 @@ export type Execution = Message<"browser_automation_studio.v1.Execution"> & {
   /**
    * Human-readable description of the current step.
    *
-   * @generated from field: string current_step = 14;
+   * @generated from field: optional string current_step = 14;
    */
-  currentStep: string;
+  currentStep?: string;
 
   /**
    * Creation timestamp for the execution record.
@@ -120,25 +326,47 @@ export type Execution = Message<"browser_automation_studio.v1.Execution"> & {
   updatedAt?: Timestamp;
 
   /**
-   * Runtime parameters passed to the execution.
+   * Typed runtime parameters for the execution.
    *
-   * @generated from field: map<string, common.v1.JsonValue> parameters = 17;
+   * @generated from field: browser_automation_studio.v1.ExecutionParameters parameters = 20;
    */
-  parameters: { [key: string]: JsonValue };
+  parameters?: ExecutionParameters;
 
   /**
-   * Structured result payload reported by the executor.
+   * Typed execution result.
    *
-   * @generated from field: map<string, common.v1.JsonValue> result = 18;
+   * @generated from field: browser_automation_studio.v1.ExecutionResult result = 21;
    */
-  result: { [key: string]: JsonValue };
+  result?: ExecutionResult;
 
   /**
-   * Trigger metadata payload.
+   * Trigger metadata (typed).
    *
-   * @generated from field: map<string, common.v1.JsonValue> trigger_metadata = 19;
+   * @generated from field: browser_automation_studio.v1.TriggerMetadata trigger_metadata = 22;
    */
-  triggerMetadata: { [key: string]: JsonValue };
+  triggerMetadata?: TriggerMetadata;
+
+  /**
+   * Distributed tracing fields for observability.
+   * Trace ID for distributed tracing (e.g., OpenTelemetry trace ID).
+   *
+   * @generated from field: optional string trace_id = 30;
+   */
+  traceId?: string;
+
+  /**
+   * Correlation ID for linking related operations across services.
+   *
+   * @generated from field: optional string correlation_id = 31;
+   */
+  correlationId?: string;
+
+  /**
+   * Idempotency key for request deduplication.
+   *
+   * @generated from field: optional string request_id = 32;
+   */
+  requestId?: string;
 };
 
 /**
@@ -146,7 +374,7 @@ export type Execution = Message<"browser_automation_studio.v1.Execution"> & {
  * Use `create(ExecutionSchema)` to create a new message.
  */
 export const ExecutionSchema: GenMessage<Execution> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 0);
+  messageDesc(file_browser_automation_studio_v1_execution, 3);
 
 /**
  * ExecuteAdhocRequest represents POST /api/v1/workflows/execute-adhoc.
@@ -176,11 +404,11 @@ export type ExecuteAdhocRequest = Message<"browser_automation_studio.v1.ExecuteA
   metadata?: ExecutionMetadata;
 
   /**
-   * Runtime parameters for the adhoc execution.
+   * Typed runtime parameters for the adhoc execution.
    *
-   * @generated from field: map<string, common.v1.JsonValue> parameters = 5;
+   * @generated from field: browser_automation_studio.v1.ExecutionParameters parameters = 6;
    */
-  parameters: { [key: string]: JsonValue };
+  parameters?: ExecutionParameters;
 };
 
 /**
@@ -188,7 +416,7 @@ export type ExecuteAdhocRequest = Message<"browser_automation_studio.v1.ExecuteA
  * Use `create(ExecuteAdhocRequestSchema)` to create a new message.
  */
 export const ExecuteAdhocRequestSchema: GenMessage<ExecuteAdhocRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 1);
+  messageDesc(file_browser_automation_studio_v1_execution, 4);
 
 /**
  * ExecutionMetadata captures optional labels for adhoc runs.
@@ -216,7 +444,7 @@ export type ExecutionMetadata = Message<"browser_automation_studio.v1.ExecutionM
  * Use `create(ExecutionMetadataSchema)` to create a new message.
  */
 export const ExecutionMetadataSchema: GenMessage<ExecutionMetadata> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 2);
+  messageDesc(file_browser_automation_studio_v1_execution, 5);
 
 /**
  * ExecuteAdhocResponse mirrors the adhoc execution response payload.
@@ -253,9 +481,9 @@ export type ExecuteAdhocResponse = Message<"browser_automation_studio.v1.Execute
   message: string;
 
   /**
-   * Completion timestamp when wait_for_completion is true.
+   * Completion timestamp when wait_for_completion is true (null if async or failed).
    *
-   * @generated from field: google.protobuf.Timestamp completed_at = 5;
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 5;
    */
   completedAt?: Timestamp;
 
@@ -272,91 +500,57 @@ export type ExecuteAdhocResponse = Message<"browser_automation_studio.v1.Execute
  * Use `create(ExecuteAdhocResponseSchema)` to create a new message.
  */
 export const ExecuteAdhocResponseSchema: GenMessage<ExecuteAdhocResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 3);
+  messageDesc(file_browser_automation_studio_v1_execution, 6);
 
 /**
- * Screenshot represents metadata for a captured screenshot.
+ * ExecutionScreenshot wraps TimelineScreenshot with execution context.
+ * This provides the canonical screenshot data plus execution-specific metadata.
  *
- * @generated from message browser_automation_studio.v1.Screenshot
+ * @generated from message browser_automation_studio.v1.ExecutionScreenshot
  */
-export type Screenshot = Message<"browser_automation_studio.v1.Screenshot"> & {
+export type ExecutionScreenshot = Message<"browser_automation_studio.v1.ExecutionScreenshot"> & {
   /**
-   * Unique screenshot artifact ID.
+   * The screenshot data (canonical type from telemetry.proto).
    *
-   * @generated from field: string id = 1;
+   * @generated from field: browser_automation_studio.v1.TimelineScreenshot screenshot = 1;
    */
-  id: string;
-
-  /**
-   * Execution ID this screenshot belongs to.
-   *
-   * @generated from field: string execution_id = 2;
-   */
-  executionId: string;
-
-  /**
-   * Human-readable step name when captured.
-   *
-   * @generated from field: string step_name = 3;
-   */
-  stepName: string;
+  screenshot?: TimelineScreenshot;
 
   /**
    * Zero-based step index in the execution.
    *
-   * @generated from field: int32 step_index = 4;
+   * @generated from field: int32 step_index = 2;
    */
   stepIndex: number;
 
   /**
+   * Node ID from the workflow definition (UUID format).
+   *
+   * @generated from field: string node_id = 3;
+   */
+  nodeId: string;
+
+  /**
+   * Human-readable step label (derived from action type/metadata).
+   *
+   * @generated from field: optional string step_label = 4;
+   */
+  stepLabel?: string;
+
+  /**
    * When the screenshot was captured.
    *
-   * @generated from field: google.protobuf.Timestamp timestamp = 5;
+   * @generated from field: google.protobuf.Timestamp captured_at = 5;
    */
-  timestamp?: Timestamp;
-
-  /**
-   * URL to download the full screenshot.
-   *
-   * @generated from field: string storage_url = 6;
-   */
-  storageUrl: string;
-
-  /**
-   * URL to download a thumbnail.
-   *
-   * @generated from field: string thumbnail_url = 7;
-   */
-  thumbnailUrl: string;
-
-  /**
-   * Image width in pixels.
-   *
-   * @generated from field: int32 width = 8;
-   */
-  width: number;
-
-  /**
-   * Image height in pixels.
-   *
-   * @generated from field: int32 height = 9;
-   */
-  height: number;
-
-  /**
-   * File size in bytes.
-   *
-   * @generated from field: int64 size_bytes = 10;
-   */
-  sizeBytes: bigint;
+  capturedAt?: Timestamp;
 };
 
 /**
- * Describes the message browser_automation_studio.v1.Screenshot.
- * Use `create(ScreenshotSchema)` to create a new message.
+ * Describes the message browser_automation_studio.v1.ExecutionScreenshot.
+ * Use `create(ExecutionScreenshotSchema)` to create a new message.
  */
-export const ScreenshotSchema: GenMessage<Screenshot> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 4);
+export const ExecutionScreenshotSchema: GenMessage<ExecutionScreenshot> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 7);
 
 /**
  * GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
@@ -365,11 +559,25 @@ export const ScreenshotSchema: GenMessage<Screenshot> = /*@__PURE__*/
  */
 export type GetScreenshotsResponse = Message<"browser_automation_studio.v1.GetScreenshotsResponse"> & {
   /**
-   * List of screenshots for the execution.
+   * Execution ID the screenshots belong to.
    *
-   * @generated from field: repeated browser_automation_studio.v1.Screenshot screenshots = 1;
+   * @generated from field: string execution_id = 1;
    */
-  screenshots: Screenshot[];
+  executionId: string;
+
+  /**
+   * List of screenshots with execution context.
+   *
+   * @generated from field: repeated browser_automation_studio.v1.ExecutionScreenshot screenshots = 2;
+   */
+  screenshots: ExecutionScreenshot[];
+
+  /**
+   * Total count of screenshots.
+   *
+   * @generated from field: int32 total = 3;
+   */
+  total: number;
 };
 
 /**
@@ -377,12 +585,17 @@ export type GetScreenshotsResponse = Message<"browser_automation_studio.v1.GetSc
  * Use `create(GetScreenshotsResponseSchema)` to create a new message.
  */
 export const GetScreenshotsResponseSchema: GenMessage<GetScreenshotsResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 5);
+  messageDesc(file_browser_automation_studio_v1_execution, 8);
 
 /**
  * ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
+ * DEPRECATED: Use TimelineStreamMessage from timeline_event.proto instead.
+ * TimelineStreamMessage provides a unified format for both recording and execution
+ * streaming, with proper ActionDefinition and ActionTelemetry composition.
+ * This message is retained for backward compatibility with existing consumers.
  *
  * @generated from message browser_automation_studio.v1.ExecutionEventEnvelope
+ * @deprecated
  */
 export type ExecutionEventEnvelope = Message<"browser_automation_studio.v1.ExecutionEventEnvelope"> & {
   /**
@@ -452,6 +665,7 @@ export type ExecutionEventEnvelope = Message<"browser_automation_studio.v1.Execu
    * Event payload typed by kind.
    *
    * @generated from oneof browser_automation_studio.v1.ExecutionEventEnvelope.payload
+   * @deprecated
    */
   payload: {
     /**
@@ -489,9 +703,10 @@ export type ExecutionEventEnvelope = Message<"browser_automation_studio.v1.Execu
 /**
  * Describes the message browser_automation_studio.v1.ExecutionEventEnvelope.
  * Use `create(ExecutionEventEnvelopeSchema)` to create a new message.
+ * @deprecated
  */
 export const ExecutionEventEnvelopeSchema: GenMessage<ExecutionEventEnvelope> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 6);
+  messageDesc(file_browser_automation_studio_v1_execution, 9);
 
 /**
  * ExecutionExportPreview summarizes export readiness and metadata.
@@ -561,7 +776,7 @@ export type ExecutionExportPreview = Message<"browser_automation_studio.v1.Execu
  * Use `create(ExecutionExportPreviewSchema)` to create a new message.
  */
 export const ExecutionExportPreviewSchema: GenMessage<ExecutionExportPreview> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 7);
+  messageDesc(file_browser_automation_studio_v1_execution, 10);
 
 /**
  * StatusUpdateEvent carries execution-level status changes.
@@ -610,7 +825,7 @@ export type StatusUpdateEvent = Message<"browser_automation_studio.v1.StatusUpda
  * Use `create(StatusUpdateEventSchema)` to create a new message.
  */
 export const StatusUpdateEventSchema: GenMessage<StatusUpdateEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 8);
+  messageDesc(file_browser_automation_studio_v1_execution, 11);
 
 /**
  * TimelineFrameEvent transports timeline frame updates.
@@ -631,7 +846,56 @@ export type TimelineFrameEvent = Message<"browser_automation_studio.v1.TimelineF
  * Use `create(TimelineFrameEventSchema)` to create a new message.
  */
 export const TimelineFrameEventSchema: GenMessage<TimelineFrameEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 9);
+  messageDesc(file_browser_automation_studio_v1_execution, 12);
+
+/**
+ * LogMetadata provides typed context for log events.
+ *
+ * @generated from message browser_automation_studio.v1.LogMetadata
+ */
+export type LogMetadata = Message<"browser_automation_studio.v1.LogMetadata"> & {
+  /**
+   * Node ID where the log originated (UUID format).
+   *
+   * @generated from field: optional string node_id = 1;
+   */
+  nodeId?: string;
+
+  /**
+   * Action type for step-related logs.
+   *
+   * @generated from field: optional browser_automation_studio.v1.ActionType action_type = 2;
+   */
+  actionType?: ActionType;
+
+  /**
+   * URL at the time of logging.
+   *
+   * @generated from field: optional string url = 3;
+   */
+  url?: string;
+
+  /**
+   * Stack trace for error logs.
+   *
+   * @generated from field: optional string stack_trace = 4;
+   */
+  stackTrace?: string;
+
+  /**
+   * Component/module that emitted the log.
+   *
+   * @generated from field: optional string component = 5;
+   */
+  component?: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.LogMetadata.
+ * Use `create(LogMetadataSchema)` to create a new message.
+ */
+export const LogMetadataSchema: GenMessage<LogMetadata> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 13);
 
 /**
  * LogEvent captures execution log events.
@@ -668,11 +932,11 @@ export type LogEvent = Message<"browser_automation_studio.v1.LogEvent"> & {
   occurredAt?: Timestamp;
 
   /**
-   * Log metadata.
+   * Typed log metadata.
    *
-   * @generated from field: map<string, common.v1.JsonValue> metadata = 6;
+   * @generated from field: browser_automation_studio.v1.LogMetadata metadata = 7;
    */
-  metadata: { [key: string]: JsonValue };
+  metadata?: LogMetadata;
 };
 
 /**
@@ -680,7 +944,56 @@ export type LogEvent = Message<"browser_automation_studio.v1.LogEvent"> & {
  * Use `create(LogEventSchema)` to create a new message.
  */
 export const LogEventSchema: GenMessage<LogEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 10);
+  messageDesc(file_browser_automation_studio_v1_execution, 14);
+
+/**
+ * HeartbeatMetrics provides typed executor metrics.
+ *
+ * @generated from message browser_automation_studio.v1.HeartbeatMetrics
+ */
+export type HeartbeatMetrics = Message<"browser_automation_studio.v1.HeartbeatMetrics"> & {
+  /**
+   * Memory usage in bytes.
+   *
+   * @generated from field: optional int64 memory_bytes = 1;
+   */
+  memoryBytes?: bigint;
+
+  /**
+   * CPU usage percentage (0-100).
+   *
+   * @generated from field: optional double cpu_percent = 2;
+   */
+  cpuPercent?: number;
+
+  /**
+   * Number of active browser pages.
+   *
+   * @generated from field: optional int32 active_pages = 3;
+   */
+  activePages?: number;
+
+  /**
+   * Current step being executed.
+   *
+   * @generated from field: optional int32 current_step = 4;
+   */
+  currentStep?: number;
+
+  /**
+   * Total steps in the workflow.
+   *
+   * @generated from field: optional int32 total_steps = 5;
+   */
+  totalSteps?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.HeartbeatMetrics.
+ * Use `create(HeartbeatMetricsSchema)` to create a new message.
+ */
+export const HeartbeatMetricsSchema: GenMessage<HeartbeatMetrics> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 15);
 
 /**
  * HeartbeatEvent reports liveness/progress signals.
@@ -703,11 +1016,11 @@ export type HeartbeatEvent = Message<"browser_automation_studio.v1.HeartbeatEven
   progress: number;
 
   /**
-   * Executor metrics.
+   * Typed executor metrics.
    *
-   * @generated from field: map<string, common.v1.JsonValue> metrics = 4;
+   * @generated from field: browser_automation_studio.v1.HeartbeatMetrics metrics = 5;
    */
-  metrics: { [key: string]: JsonValue };
+  metrics?: HeartbeatMetrics;
 };
 
 /**
@@ -715,7 +1028,77 @@ export type HeartbeatEvent = Message<"browser_automation_studio.v1.HeartbeatEven
  * Use `create(HeartbeatEventSchema)` to create a new message.
  */
 export const HeartbeatEventSchema: GenMessage<HeartbeatEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 11);
+  messageDesc(file_browser_automation_studio_v1_execution, 16);
+
+/**
+ * TelemetryMetrics provides typed telemetry data.
+ *
+ * @generated from message browser_automation_studio.v1.TelemetryMetrics
+ */
+export type TelemetryMetrics = Message<"browser_automation_studio.v1.TelemetryMetrics"> & {
+  /**
+   * Network request count.
+   *
+   * @generated from field: optional int32 network_requests = 1;
+   */
+  networkRequests?: number;
+
+  /**
+   * Total bytes transferred.
+   *
+   * @generated from field: optional int64 bytes_transferred = 2;
+   */
+  bytesTransferred?: bigint;
+
+  /**
+   * DOM node count.
+   *
+   * @generated from field: optional int32 dom_nodes = 3;
+   */
+  domNodes?: number;
+
+  /**
+   * JavaScript heap size in bytes.
+   *
+   * @generated from field: optional int64 js_heap_bytes = 4;
+   */
+  jsHeapBytes?: bigint;
+
+  /**
+   * Time to first byte in milliseconds.
+   *
+   * @generated from field: optional int32 ttfb_ms = 5;
+   */
+  ttfbMs?: number;
+
+  /**
+   * Largest contentful paint in milliseconds.
+   *
+   * @generated from field: optional int32 lcp_ms = 6;
+   */
+  lcpMs?: number;
+
+  /**
+   * First input delay in milliseconds.
+   *
+   * @generated from field: optional int32 fid_ms = 7;
+   */
+  fidMs?: number;
+
+  /**
+   * Cumulative layout shift score.
+   *
+   * @generated from field: optional double cls = 8;
+   */
+  cls?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.TelemetryMetrics.
+ * Use `create(TelemetryMetricsSchema)` to create a new message.
+ */
+export const TelemetryMetricsSchema: GenMessage<TelemetryMetrics> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_execution, 17);
 
 /**
  * TelemetryEvent emits structured telemetry metrics.
@@ -731,11 +1114,11 @@ export type TelemetryEvent = Message<"browser_automation_studio.v1.TelemetryEven
   recordedAt?: Timestamp;
 
   /**
-   * Telemetry metrics.
+   * Typed telemetry metrics.
    *
-   * @generated from field: map<string, common.v1.JsonValue> metrics = 3;
+   * @generated from field: browser_automation_studio.v1.TelemetryMetrics metrics = 4;
    */
-  metrics: { [key: string]: JsonValue };
+  metrics?: TelemetryMetrics;
 };
 
 /**
@@ -743,5 +1126,5 @@ export type TelemetryEvent = Message<"browser_automation_studio.v1.TelemetryEven
  * Use `create(TelemetryEventSchema)` to create a new message.
  */
 export const TelemetryEventSchema: GenMessage<TelemetryEvent> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_execution, 12);
+  messageDesc(file_browser_automation_studio_v1_execution, 18);
 

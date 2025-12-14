@@ -22,6 +22,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// HealthStatus enumerates service health states.
+type HealthStatus int32
+
+const (
+	HealthStatus_HEALTH_STATUS_UNSPECIFIED HealthStatus = 0
+	HealthStatus_HEALTH_STATUS_HEALTHY     HealthStatus = 1
+	HealthStatus_HEALTH_STATUS_DEGRADED    HealthStatus = 2
+	HealthStatus_HEALTH_STATUS_UNHEALTHY   HealthStatus = 3
+)
+
+// Enum value maps for HealthStatus.
+var (
+	HealthStatus_name = map[int32]string{
+		0: "HEALTH_STATUS_UNSPECIFIED",
+		1: "HEALTH_STATUS_HEALTHY",
+		2: "HEALTH_STATUS_DEGRADED",
+		3: "HEALTH_STATUS_UNHEALTHY",
+	}
+	HealthStatus_value = map[string]int32{
+		"HEALTH_STATUS_UNSPECIFIED": 0,
+		"HEALTH_STATUS_HEALTHY":     1,
+		"HEALTH_STATUS_DEGRADED":    2,
+		"HEALTH_STATUS_UNHEALTHY":   3,
+	}
+)
+
+func (x HealthStatus) Enum() *HealthStatus {
+	p := new(HealthStatus)
+	*p = x
+	return p
+}
+
+func (x HealthStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (HealthStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_v1_types_proto_enumTypes[0].Descriptor()
+}
+
+func (HealthStatus) Type() protoreflect.EnumType {
+	return &file_common_v1_types_proto_enumTypes[0]
+}
+
+func (x HealthStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use HealthStatus.Descriptor instead.
+func (HealthStatus) EnumDescriptor() ([]byte, []int) {
+	return file_common_v1_types_proto_rawDescGZIP(), []int{0}
+}
+
 // JsonValue models a typed JSON value for scenarios that need stronger typing
 // than google.protobuf.Value while retaining a JSON-compatible shape.
 type JsonValue struct {
@@ -430,8 +483,7 @@ type ErrorResponse struct {
 	// Human-readable error message.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	// Additional structured context about the error.
-	// Uses Struct to support rich nested details (e.g., validation errors, stats).
-	Details       *structpb.Struct `protobuf:"bytes,3,opt,name=details,proto3" json:"details,omitempty"`
+	Details       *JsonObject `protobuf:"bytes,4,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -480,7 +532,7 @@ func (x *ErrorResponse) GetMessage() string {
 	return ""
 }
 
-func (x *ErrorResponse) GetDetails() *structpb.Struct {
+func (x *ErrorResponse) GetDetails() *JsonObject {
 	if x != nil {
 		return x.Details
 	}
@@ -490,8 +542,8 @@ func (x *ErrorResponse) GetDetails() *structpb.Struct {
 // HealthResponse mirrors the BAS health response contract.
 type HealthResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Service status: healthy, degraded, or unhealthy.
-	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	// Service health status.
+	Status HealthStatus `protobuf:"varint,1,opt,name=status,proto3,enum=common.v1.HealthStatus" json:"status,omitempty"`
 	// Identifier for the service reporting health.
 	Service string `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
 	// RFC3339 timestamp when the check was produced.
@@ -501,9 +553,9 @@ type HealthResponse struct {
 	// Optional service version string.
 	Version string `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
 	// Status of downstream dependencies.
-	Dependencies map[string]*structpb.Value `protobuf:"bytes,6,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Dependencies map[string]*JsonValue `protobuf:"bytes,8,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Additional health metrics.
-	Metrics       map[string]*structpb.Value `protobuf:"bytes,7,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metrics       map[string]*JsonValue `protobuf:"bytes,9,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -538,11 +590,11 @@ func (*HealthResponse) Descriptor() ([]byte, []int) {
 	return file_common_v1_types_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *HealthResponse) GetStatus() string {
+func (x *HealthResponse) GetStatus() HealthStatus {
 	if x != nil {
 		return x.Status
 	}
-	return ""
+	return HealthStatus_HEALTH_STATUS_UNSPECIFIED
 }
 
 func (x *HealthResponse) GetService() string {
@@ -573,14 +625,14 @@ func (x *HealthResponse) GetVersion() string {
 	return ""
 }
 
-func (x *HealthResponse) GetDependencies() map[string]*structpb.Value {
+func (x *HealthResponse) GetDependencies() map[string]*JsonValue {
 	if x != nil {
 		return x.Dependencies
 	}
 	return nil
 }
 
-func (x *HealthResponse) GetMetrics() map[string]*structpb.Value {
+func (x *HealthResponse) GetMetrics() map[string]*JsonValue {
 	if x != nil {
 		return x.Metrics
 	}
@@ -621,25 +673,30 @@ const file_common_v1_types_proto_rawDesc = "" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06offset\x18\x03 \x01(\x05R\x06offset\x12\x19\n" +
-	"\bhas_more\x18\x04 \x01(\bR\ahasMore\"p\n" +
+	"\bhas_more\x18\x04 \x01(\bR\ahasMore\"t\n" +
 	"\rErrorResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x121\n" +
-	"\adetails\x18\x03 \x01(\v2\x17.google.protobuf.StructR\adetails\"\xd8\x03\n" +
-	"\x0eHealthResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12/\n" +
+	"\adetails\x18\x04 \x01(\v2\x15.common.v1.JsonObjectR\adetailsJ\x04\b\x03\x10\x04\"\xf9\x03\n" +
+	"\x0eHealthResponse\x12/\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x17.common.v1.HealthStatusR\x06status\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
 	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n" +
 	"\treadiness\x18\x04 \x01(\bR\treadiness\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12O\n" +
-	"\fdependencies\x18\x06 \x03(\v2+.common.v1.HealthResponse.DependenciesEntryR\fdependencies\x12@\n" +
-	"\ametrics\x18\a \x03(\v2&.common.v1.HealthResponse.MetricsEntryR\ametrics\x1aW\n" +
+	"\fdependencies\x18\b \x03(\v2+.common.v1.HealthResponse.DependenciesEntryR\fdependencies\x12@\n" +
+	"\ametrics\x18\t \x03(\v2&.common.v1.HealthResponse.MetricsEntryR\ametrics\x1aU\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aR\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aP\n" +
 	"\fMetricsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01BCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01J\x04\b\x06\x10\aJ\x04\b\a\x10\b*\x81\x01\n" +
+	"\fHealthStatus\x12\x1d\n" +
+	"\x19HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15HEALTH_STATUS_HEALTHY\x10\x01\x12\x1a\n" +
+	"\x16HEALTH_STATUS_DEGRADED\x10\x02\x12\x1b\n" +
+	"\x17HEALTH_STATUS_UNHEALTHY\x10\x03BCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
 
 var (
 	file_common_v1_types_proto_rawDescOnce sync.Once
@@ -653,39 +710,40 @@ func file_common_v1_types_proto_rawDescGZIP() []byte {
 	return file_common_v1_types_proto_rawDescData
 }
 
+var file_common_v1_types_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_common_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_common_v1_types_proto_goTypes = []any{
-	(*JsonValue)(nil),          // 0: common.v1.JsonValue
-	(*JsonObject)(nil),         // 1: common.v1.JsonObject
-	(*JsonList)(nil),           // 2: common.v1.JsonList
-	(*PaginationRequest)(nil),  // 3: common.v1.PaginationRequest
-	(*PaginationResponse)(nil), // 4: common.v1.PaginationResponse
-	(*ErrorResponse)(nil),      // 5: common.v1.ErrorResponse
-	(*HealthResponse)(nil),     // 6: common.v1.HealthResponse
-	nil,                        // 7: common.v1.JsonObject.FieldsEntry
-	nil,                        // 8: common.v1.HealthResponse.DependenciesEntry
-	nil,                        // 9: common.v1.HealthResponse.MetricsEntry
-	(structpb.NullValue)(0),    // 10: google.protobuf.NullValue
-	(*structpb.Struct)(nil),    // 11: google.protobuf.Struct
-	(*structpb.Value)(nil),     // 12: google.protobuf.Value
+	(HealthStatus)(0),          // 0: common.v1.HealthStatus
+	(*JsonValue)(nil),          // 1: common.v1.JsonValue
+	(*JsonObject)(nil),         // 2: common.v1.JsonObject
+	(*JsonList)(nil),           // 3: common.v1.JsonList
+	(*PaginationRequest)(nil),  // 4: common.v1.PaginationRequest
+	(*PaginationResponse)(nil), // 5: common.v1.PaginationResponse
+	(*ErrorResponse)(nil),      // 6: common.v1.ErrorResponse
+	(*HealthResponse)(nil),     // 7: common.v1.HealthResponse
+	nil,                        // 8: common.v1.JsonObject.FieldsEntry
+	nil,                        // 9: common.v1.HealthResponse.DependenciesEntry
+	nil,                        // 10: common.v1.HealthResponse.MetricsEntry
+	(structpb.NullValue)(0),    // 11: google.protobuf.NullValue
 }
 var file_common_v1_types_proto_depIdxs = []int32{
-	1,  // 0: common.v1.JsonValue.object_value:type_name -> common.v1.JsonObject
-	2,  // 1: common.v1.JsonValue.list_value:type_name -> common.v1.JsonList
-	10, // 2: common.v1.JsonValue.null_value:type_name -> google.protobuf.NullValue
-	7,  // 3: common.v1.JsonObject.fields:type_name -> common.v1.JsonObject.FieldsEntry
-	0,  // 4: common.v1.JsonList.values:type_name -> common.v1.JsonValue
-	11, // 5: common.v1.ErrorResponse.details:type_name -> google.protobuf.Struct
-	8,  // 6: common.v1.HealthResponse.dependencies:type_name -> common.v1.HealthResponse.DependenciesEntry
-	9,  // 7: common.v1.HealthResponse.metrics:type_name -> common.v1.HealthResponse.MetricsEntry
-	0,  // 8: common.v1.JsonObject.FieldsEntry.value:type_name -> common.v1.JsonValue
-	12, // 9: common.v1.HealthResponse.DependenciesEntry.value:type_name -> google.protobuf.Value
-	12, // 10: common.v1.HealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	2,  // 0: common.v1.JsonValue.object_value:type_name -> common.v1.JsonObject
+	3,  // 1: common.v1.JsonValue.list_value:type_name -> common.v1.JsonList
+	11, // 2: common.v1.JsonValue.null_value:type_name -> google.protobuf.NullValue
+	8,  // 3: common.v1.JsonObject.fields:type_name -> common.v1.JsonObject.FieldsEntry
+	1,  // 4: common.v1.JsonList.values:type_name -> common.v1.JsonValue
+	2,  // 5: common.v1.ErrorResponse.details:type_name -> common.v1.JsonObject
+	0,  // 6: common.v1.HealthResponse.status:type_name -> common.v1.HealthStatus
+	9,  // 7: common.v1.HealthResponse.dependencies:type_name -> common.v1.HealthResponse.DependenciesEntry
+	10, // 8: common.v1.HealthResponse.metrics:type_name -> common.v1.HealthResponse.MetricsEntry
+	1,  // 9: common.v1.JsonObject.FieldsEntry.value:type_name -> common.v1.JsonValue
+	1,  // 10: common.v1.HealthResponse.DependenciesEntry.value:type_name -> common.v1.JsonValue
+	1,  // 11: common.v1.HealthResponse.MetricsEntry.value:type_name -> common.v1.JsonValue
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_types_proto_init() }
@@ -708,13 +766,14 @@ func file_common_v1_types_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_types_proto_rawDesc), len(file_common_v1_types_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_common_v1_types_proto_goTypes,
 		DependencyIndexes: file_common_v1_types_proto_depIdxs,
+		EnumInfos:         file_common_v1_types_proto_enumTypes,
 		MessageInfos:      file_common_v1_types_proto_msgTypes,
 	}.Build()
 	File_common_v1_types_proto = out.File

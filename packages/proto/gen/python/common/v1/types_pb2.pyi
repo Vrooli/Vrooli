@@ -1,11 +1,23 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class HealthStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    HEALTH_STATUS_UNSPECIFIED: _ClassVar[HealthStatus]
+    HEALTH_STATUS_HEALTHY: _ClassVar[HealthStatus]
+    HEALTH_STATUS_DEGRADED: _ClassVar[HealthStatus]
+    HEALTH_STATUS_UNHEALTHY: _ClassVar[HealthStatus]
+HEALTH_STATUS_UNSPECIFIED: HealthStatus
+HEALTH_STATUS_HEALTHY: HealthStatus
+HEALTH_STATUS_DEGRADED: HealthStatus
+HEALTH_STATUS_UNHEALTHY: HealthStatus
 
 class JsonValue(_message.Message):
     __slots__ = ()
@@ -73,8 +85,8 @@ class ErrorResponse(_message.Message):
     DETAILS_FIELD_NUMBER: _ClassVar[int]
     code: str
     message: str
-    details: _struct_pb2.Struct
-    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., details: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    details: JsonObject
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., details: _Optional[_Union[JsonObject, _Mapping]] = ...) -> None: ...
 
 class HealthResponse(_message.Message):
     __slots__ = ()
@@ -83,15 +95,15 @@ class HealthResponse(_message.Message):
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+        value: JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[JsonValue, _Mapping]] = ...) -> None: ...
     class MetricsEntry(_message.Message):
         __slots__ = ()
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: _struct_pb2.Value
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+        value: JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[JsonValue, _Mapping]] = ...) -> None: ...
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SERVICE_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
@@ -99,11 +111,11 @@ class HealthResponse(_message.Message):
     VERSION_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
     METRICS_FIELD_NUMBER: _ClassVar[int]
-    status: str
+    status: HealthStatus
     service: str
     timestamp: str
     readiness: bool
     version: str
-    dependencies: _containers.MessageMap[str, _struct_pb2.Value]
-    metrics: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, status: _Optional[str] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., dependencies: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., metrics: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    dependencies: _containers.MessageMap[str, JsonValue]
+    metrics: _containers.MessageMap[str, JsonValue]
+    def __init__(self, status: _Optional[_Union[HealthStatus, str]] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., dependencies: _Optional[_Mapping[str, JsonValue]] = ..., metrics: _Optional[_Mapping[str, JsonValue]] = ...) -> None: ...
