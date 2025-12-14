@@ -24,9 +24,7 @@ v1/
 │
 ├── timeline/       Layers 3-4: Execution history (imports layers 0-2)
 │   ├── entry.proto         TimelineEntry (unified streaming + batch format)
-│   ├── container.proto     ExecutionTimeline (batch container)
-│   └── _deprecated/
-│       └── event.proto     TimelineEvent (backwards compat only)
+│   └── container.proto     ExecutionTimeline (batch container)
 │
 ├── recording/      Layer 3: Recording sessions (imports actions/, timeline/)
 │   └── session.proto       RecordingState, session lifecycle messages
@@ -84,16 +82,6 @@ v1/
 | `execution/` | Execution, ExecutionResult, ExecutionParameters | Runtime execution state |
 | `api/` | WorkflowService, WorkflowSummary, CRUD messages | gRPC service definitions |
 | `projects/` | Project, ProjectStats | Project organization |
-
-## Deprecated Types
-
-Types in `timeline/_deprecated/` are maintained for backwards compatibility only:
-
-| Old Type | Replacement | Location |
-|----------|-------------|----------|
-| `TimelineEvent` | `TimelineEntry` | `timeline/entry.proto` |
-| `RecordingContext` | `EventContext` | `base/shared.proto` |
-| `ExecutionContext` | `EventContext` | `base/shared.proto` |
 
 ## Unified Recording/Execution Model
 

@@ -30,14 +30,16 @@ export const file_browser_automation_studio_v1_api_service: GenFile = /*@__PURE_
  */
 export type WorkflowSummary = Message<"browser_automation_studio.v1.WorkflowSummary"> & {
   /**
-   * Unique workflow identifier (UUID format).
+   * Unique workflow identifier.
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * Project ID the workflow belongs to (UUID format).
+   * Project ID the workflow belongs to.
+   * @format uuid
    *
    * @generated from field: string project_id = 2;
    */
@@ -142,7 +144,8 @@ export const WorkflowSummarySchema: GenMessage<WorkflowSummary> = /*@__PURE__*/
  */
 export type WorkflowVersion = Message<"browser_automation_studio.v1.WorkflowVersion"> & {
   /**
-   * Workflow ID this version belongs to (UUID format).
+   * Workflow ID this version belongs to.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 1;
    */
@@ -236,7 +239,8 @@ export const WorkflowVersionListSchema: GenMessage<WorkflowVersionList> = /*@__P
  */
 export type ListWorkflowsRequest = Message<"browser_automation_studio.v1.ListWorkflowsRequest"> & {
   /**
-   * Filter by project ID (UUID format).
+   * Filter by project ID.
+   * @format uuid
    *
    * @generated from field: optional string project_id = 1;
    */
@@ -313,7 +317,8 @@ export const ListWorkflowsResponseSchema: GenMessage<ListWorkflowsResponse> = /*
  */
 export type GetWorkflowRequest = Message<"browser_automation_studio.v1.GetWorkflowRequest"> & {
   /**
-   * Workflow ID (UUID format).
+   * Workflow ID to retrieve.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 1;
    */
@@ -362,7 +367,8 @@ export const GetWorkflowResponseSchema: GenMessage<GetWorkflowResponse> = /*@__P
  */
 export type CreateWorkflowRequest = Message<"browser_automation_studio.v1.CreateWorkflowRequest"> & {
   /**
-   * Project ID to create the workflow in (UUID format).
+   * Project ID to create the workflow in.
+   * @format uuid
    *
    * @generated from field: string project_id = 1;
    */
@@ -495,7 +501,8 @@ export type UpdateWorkflowRequest = Message<"browser_automation_studio.v1.Update
   expectedVersion: number;
 
   /**
-   * Target workflow ID (path param for REST, UUID format).
+   * Target workflow ID (path param for REST).
+   * @format uuid
    *
    * @generated from field: optional string workflow_id = 9;
    */
@@ -544,7 +551,8 @@ export const UpdateWorkflowResponseSchema: GenMessage<UpdateWorkflowResponse> = 
  */
 export type DeleteWorkflowRequest = Message<"browser_automation_studio.v1.DeleteWorkflowRequest"> & {
   /**
-   * Workflow ID to delete (UUID format).
+   * Workflow ID to delete.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 1;
    */
@@ -572,7 +580,8 @@ export type DeleteWorkflowResponse = Message<"browser_automation_studio.v1.Delet
   success: boolean;
 
   /**
-   * Workflow ID that was deleted (UUID format).
+   * Workflow ID that was deleted.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 2;
    */
@@ -600,7 +609,8 @@ export type ExecuteWorkflowRequest = Message<"browser_automation_studio.v1.Execu
   waitForCompletion: boolean;
 
   /**
-   * Workflow ID to execute (UUID format).
+   * Workflow ID to execute.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 4;
    */
@@ -635,7 +645,8 @@ export const ExecuteWorkflowRequestSchema: GenMessage<ExecuteWorkflowRequest> = 
  */
 export type ExecuteWorkflowResponse = Message<"browser_automation_studio.v1.ExecuteWorkflowResponse"> & {
   /**
-   * The created execution ID (UUID format).
+   * The created execution identifier.
+   * @format uuid
    *
    * @generated from field: string execution_id = 1;
    */
@@ -677,7 +688,8 @@ export const ExecuteWorkflowResponseSchema: GenMessage<ExecuteWorkflowResponse> 
  */
 export type ListExecutionsRequest = Message<"browser_automation_studio.v1.ListExecutionsRequest"> & {
   /**
-   * Filter by workflow ID (UUID format).
+   * Filter by workflow ID.
+   * @format uuid
    *
    * @generated from field: optional string workflow_id = 1;
    */
@@ -754,7 +766,8 @@ export const ListExecutionsResponseSchema: GenMessage<ListExecutionsResponse> = 
  */
 export type GetExecutionRequest = Message<"browser_automation_studio.v1.GetExecutionRequest"> & {
   /**
-   * Execution ID (UUID format).
+   * Execution ID to retrieve.
+   * @format uuid
    *
    * @generated from field: string execution_id = 1;
    */
@@ -859,7 +872,8 @@ export type WorkflowValidationIssue = Message<"browser_automation_studio.v1.Work
   message: string;
 
   /**
-   * Node ID where the issue was found (UUID format).
+   * Node ID where the issue was found.
+   * @format uuid
    *
    * @generated from field: string node_id = 4;
    */

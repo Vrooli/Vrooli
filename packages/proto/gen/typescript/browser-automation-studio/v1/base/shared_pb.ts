@@ -18,6 +18,8 @@ export const file_browser_automation_studio_v1_base_shared: GenFile = /*@__PURE_
  * RetryAttempt captures the outcome of a single retry attempt.
  * Used in both timeline frames (batch API) and timeline events (streaming).
  *
+ * @usage RetryStatus.history
+ *
  * @generated from message browser_automation_studio.v1.RetryAttempt
  */
 export type RetryAttempt = Message<"browser_automation_studio.v1.RetryAttempt"> & {
@@ -60,7 +62,9 @@ export const RetryAttemptSchema: GenMessage<RetryAttempt> = /*@__PURE__*/
 /**
  * RetryStatus captures the current state of retry execution for a step.
  * This is the canonical type for runtime retry state, used in both
- * TimelineFrame (batch) and ExecutionContext (streaming).
+ * TimelineEntry (batch) and EventContext (streaming).
+ *
+ * @usage EventContext.retry_status
  *
  * @generated from message browser_automation_studio.v1.RetryStatus
  */
@@ -117,7 +121,9 @@ export const RetryStatusSchema: GenMessage<RetryStatus> = /*@__PURE__*/
 
 /**
  * AssertionResult captures assertion evaluation outcome.
- * Used in both timeline frames (batch API) and timeline events (streaming).
+ * Used in both timeline entries (batch API) and streaming events.
+ *
+ * @usage EventContext.assertion
  *
  * @generated from message browser_automation_studio.v1.AssertionResult
  */
@@ -198,6 +204,8 @@ export const AssertionResultSchema: GenMessage<AssertionResult> = /*@__PURE__*/
  * The only distinction is the origin (session_id vs execution_id) and whether
  * certain UI workflow flags apply (needs_confirmation).
  *
+ * @usage TimelineEntry.context
+ *
  * @generated from message browser_automation_studio.v1.EventContext
  */
 export type EventContext = Message<"browser_automation_studio.v1.EventContext"> & {
@@ -209,7 +217,8 @@ export type EventContext = Message<"browser_automation_studio.v1.EventContext"> 
    */
   origin: {
     /**
-     * Recording session ID (UUID format). Set when event comes from recording.
+     * Recording session ID. Set when event comes from recording.
+     * @format uuid
      *
      * @generated from field: string session_id = 1;
      */
@@ -217,7 +226,8 @@ export type EventContext = Message<"browser_automation_studio.v1.EventContext"> 
     case: "sessionId";
   } | {
     /**
-     * Execution run ID (UUID format). Set when event comes from execution.
+     * Execution run ID. Set when event comes from execution.
+     * @format uuid
      *
      * @generated from field: string execution_id = 2;
      */

@@ -13,6 +13,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // @layer 5
 // @domain projects
 // @imports none (standalone)
+// @stability stable
 //
 // Projects organize workflows into logical units tied to filesystem directories.
 // Each project maps 1:1 with a folder on disk where workflow definitions are
@@ -37,8 +38,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // @usage Returned by GET /api/v1/projects/{id}, POST /api/v1/projects
 // @see WorkflowSummary.project_id for the foreign key relationship
 message Project {
-  // Unique project identifier (UUID format).
-  // Generated server-side on creation; immutable after creation.
+  // Unique project identifier. Generated server-side on creation; immutable.
+  // @format uuid
   string id = 1;
 
   // Human-readable project name.
@@ -75,8 +76,8 @@ message Project {
 // @usage Returned alongside Project in list/get responses
 // @see GetProjectStats repository method for computation logic
 message ProjectStats {
-  // Project ID these stats belong to (UUID format).
-  // Foreign key reference to Project.id.
+  // Project ID these stats belong to. Foreign key reference to Project.id.
+  // @format uuid
   string project_id = 1;
 
   // Total number of workflows in this project.

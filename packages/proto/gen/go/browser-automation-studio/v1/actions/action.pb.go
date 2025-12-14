@@ -1803,7 +1803,8 @@ type isSubflowParams_Target interface {
 }
 
 type SubflowParams_WorkflowId struct {
-	// Workflow ID to invoke as a subflow (UUID format).
+	// Workflow ID to invoke as a subflow.
+	// @format uuid
 	WorkflowId string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3,oneof"`
 }
 
@@ -1823,6 +1824,8 @@ func (*SubflowParams_WorkflowPath) isSubflowParams_Target() {}
 //   - Editing: Users can adjust selectors on failed steps using captured alternatives
 //
 // See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
+//
+// @usage ActionDefinition.metadata
 type ActionMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-readable label for the action.

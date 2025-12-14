@@ -87,21 +87,22 @@ parsed = json_format.ParseDict(
 
 ## BAS schema notes
 
-The BAS proto files follow a layered import hierarchy (documented in `shared.proto`):
+The BAS proto files follow a layered import hierarchy (documented in each file's header via `@layer`, `@domain`, `@imports` annotations):
 
-- **Layer 0 (Base):** `shared.proto` (enums, RetryStatus), `geometry.proto` (BoundingBox, Point)
-- **Layer 1:** `selectors.proto`, `telemetry.proto`
-- **Layer 2:** `action.proto` (ActionDefinition), `workflow_v2.proto` (WorkflowDefinitionV2)
-- **Layer 3:** `timeline.proto` (batch), `timeline_event.proto` (streaming), `recording_session.proto`
-- **Layer 4:** `execution.proto`, `workflow_service.proto`
-- **Layer 5:** `project.proto`
+- **Layer 0 (Base):** `base/shared.proto` (enums, RetryStatus, EventContext), `base/geometry.proto` (BoundingBox, Point, NodePosition)
+- **Layer 1 (Domain):** `domain/selectors.proto` (SelectorCandidate, ElementMeta), `domain/telemetry.proto` (ActionTelemetry, TimelineScreenshot)
+- **Layer 2 (Actions/Workflows):** `actions/action.proto` (ActionDefinition), `workflows/definition.proto` (WorkflowDefinitionV2)
+- **Layer 3 (Timeline/Recording):** `timeline/entry.proto` (TimelineEntry - unified format), `recording/session.proto`
+- **Layer 4 (Execution/Timeline Container):** `execution/execution.proto`, `timeline/container.proto` (ExecutionTimeline)
+- **Layer 5 (API/Projects):** `api/service.proto` (WorkflowService gRPC), `projects/project.proto`
 
 Key types:
-- `ActionDefinition` (action.proto): Unified action type for recording, workflows, and execution
-- `TimelineEvent` (timeline_event.proto): Streaming format for real-time events
-- `TimelineFrame` (timeline.proto): Batch format for completed executions
-- `WorkflowDefinitionV2` (workflow_v2.proto): Canonical workflow storage format
-- `recording_session.proto`: Session management (create, start, stop, get actions)
+- `ActionDefinition` (actions/action.proto): Unified action type for recording, workflows, and execution
+- `TimelineEntry` (timeline/entry.proto): **Unified format** for both streaming and batch timeline data
+- `EventContext` (base/shared.proto): Unified origin/outcome context for recording and execution
+- `ExecutionTimeline` (timeline/container.proto): Container for batch timeline retrieval
+- `WorkflowDefinitionV2` (workflows/definition.proto): Canonical workflow storage format
+- `recording/session.proto`: Session management (create, start, stop, get actions)
 
 ## Landing-page schema notes
 

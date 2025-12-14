@@ -7,8 +7,25 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // =============================================================================
 // GEOMETRY TYPES
 // =============================================================================
+//
+// @layer 0
+// @domain base
+// @imports none
+// @stability stable
+//
+// Defines geometric primitives used for element positioning, bounding boxes,
+// and visual editor canvas layouts.
+//
+// USAGE CONTEXTS:
+//   - ActionTelemetry: Element bounding boxes, click positions, cursor trails
+//   - WorkflowNodeV2: Canvas position in visual workflow editor
+//   - HighlightRegion/MaskRegion: Screenshot annotation regions
+//
+// =============================================================================
 
 // BoundingBox captures the position and dimensions of a rectangular region.
+//
+// @usage ActionTelemetry.element_bounding_box, HighlightRegion.bounding_box
 message BoundingBox {
   // X coordinate in viewport pixels.
   double x = 1;
@@ -21,6 +38,8 @@ message BoundingBox {
 }
 
 // Point represents a 2D coordinate.
+//
+// @usage ActionTelemetry.click_position, ActionTelemetry.cursor_position, ActionTelemetry.cursor_trail
 message Point {
   // X coordinate in viewport pixels.
   double x = 1;
@@ -29,6 +48,8 @@ message Point {
 }
 
 // NodePosition captures canvas placement for visual editors.
+//
+// @usage WorkflowNodeV2.position
 message NodePosition {
   // X coordinate on the canvas.
   double x = 1;

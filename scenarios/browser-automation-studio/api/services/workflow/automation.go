@@ -69,6 +69,16 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		PlanCompiler:      compiler,
 		MaxSubflowDepth:   config.Load().Execution.MaxSubflowDepth,
 	}
+
+	// Check for namespace-aware parameters stored by ExecuteAdhocWorkflowWithParams.
+	// If present, populate the executor request with namespace fields.
+	if nsParams := getAndClearExecutionParams(execution.ID); nsParams != nil {
+		req.ProjectRoot = nsParams.ProjectRoot
+		req.InitialParams = nsParams.InitialParams
+		req.InitialStore = nsParams.InitialStore
+		req.Env = nsParams.Env
+	}
+
 	return s.executor.Execute(ctx, req)
 }
 

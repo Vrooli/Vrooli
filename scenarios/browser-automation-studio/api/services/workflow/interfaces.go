@@ -33,10 +33,37 @@ type CatalogService interface {
 	GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error)
 }
 
+// AdhocExecutionParams contains typed execution parameters for namespace-aware adhoc execution.
+// These parameters support the ${@namespace/path} variable interpolation system.
+type AdhocExecutionParams struct {
+	// FlowDefinition is the workflow to execute.
+	FlowDefinition map[string]any
+	// Name is the human-readable name for the execution.
+	Name string
+	// ProjectRoot is the absolute path to the project root for workflowPath resolution.
+	// Example: "/home/user/Vrooli/scenarios/my-scenario/bas"
+	ProjectRoot string
+	// InitialParams are read-only input parameters (@params/ namespace).
+	// Subflows inherit parent's params unless explicitly overridden.
+	InitialParams map[string]any
+	// InitialStore is pre-seeded mutable runtime state (@store/ namespace).
+	// Modified via setVariable steps and storeResult params.
+	InitialStore map[string]any
+	// Env contains project/user configuration (@env/ namespace).
+	// Read-only, inherited by all subflows unchanged.
+	Env map[string]any
+	// LegacyParameters is the deprecated flat parameters map for backward compatibility.
+	// If InitialStore is empty, this maps to @store/ namespace.
+	LegacyParameters map[string]any
+}
+
 // ExecutionService handles execution lifecycle, telemetry, and health.
 type ExecutionService interface {
 	ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
 	ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error)
+	// ExecuteAdhocWorkflowWithParams executes an adhoc workflow with namespace-aware parameters.
+	// This is the preferred method for callers that support the new variable interpolation system.
+	ExecuteAdhocWorkflowWithParams(ctx context.Context, params AdhocExecutionParams) (*database.Execution, error)
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error)
 	GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
 	StopExecution(ctx context.Context, executionID uuid.UUID) error

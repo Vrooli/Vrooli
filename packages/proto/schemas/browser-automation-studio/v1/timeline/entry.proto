@@ -15,6 +15,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // TIMELINE ENTRY (UNIFIED FORMAT)
 // =============================================================================
 //
+// @layer 3
+// @domain timeline
+// @imports base, actions, domain
+// @stability stable
+//
 // TimelineEntry is THE canonical format for timeline data, used for both:
 //   - Real-time streaming (WebSocket during recording/execution)
 //   - Batch retrieval (REST API for historical data)
@@ -23,35 +28,34 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // TimelineFrame (batch) types, reflecting the fact that recording and
 // execution capture identical data.
 //
-// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
+// USAGE CONTEXTS:
+//   - STREAMING (WebSocket): Sent incrementally during recording/execution
+//   - BATCH (REST API): Returned in ExecutionTimeline.entries
+//   - Recording: GetActionsResponse.entries
+//   - Replay: ReplayPreviewRequest.entries
 //
-// USAGE BY CONTEXT:
-//
-//   STREAMING (WebSocket):
-//   - Sent incrementally as actions occur during recording or execution
-//   - `context.origin` indicates session_id (recording) or execution_id (execution)
-//   - `aggregates` field is NOT populated (computed post-completion)
-//
-//   BATCH (REST API):
-//   - Returned as part of ExecutionTimeline.entries after completion
-//   - `aggregates` field IS populated with computed/derived data
-//   - Full historical view of the execution
+// @see shared.proto for "UNIFIED RECORDING/EXECUTION MODEL" design rationale
 //
 // =============================================================================
 
 // TimelineEntry captures a single action in the timeline.
 // This is the unified format for both streaming and batch access.
+//
+// @usage ExecutionTimeline.entries, GetActionsResponse.entries, TimelineStreamMessage.entry
 message TimelineEntry {
   // === IDENTITY ===
-  // Unique entry identifier (UUID format).
+  // Unique entry identifier.
+  // @format uuid
   string id = 1;
   // Monotonic sequence number within the session/execution (0-based).
   int32 sequence_num = 2;
   // Zero-based step index in the workflow execution order.
   // See "NODE vs STEP TERMINOLOGY" in shared.proto.
   optional int32 step_index = 3;
-  // Node ID from the workflow definition (UUID format).
+  // Node ID from the workflow definition.
   // Links this entry to the specific WorkflowNodeV2.
+  // @format uuid
+  // @see WorkflowNodeV2.id
   optional string node_id = 4;
 
   // === TIMING ===
@@ -87,6 +91,8 @@ message TimelineEntry {
 // TimelineEntryAggregates contains computed/derived data for batch responses.
 // This data is calculated when an execution completes and is NOT populated
 // during real-time streaming.
+//
+// @usage TimelineEntry.aggregates
 message TimelineEntryAggregates {
   // Step execution status (pending, running, completed, failed, etc.).
   StepStatus status = 1;
@@ -116,8 +122,11 @@ message TimelineEntryAggregates {
 
 // TimelineArtifact represents a stored artifact from execution.
 // Examples: screenshots, console logs, network traces, DOM snapshots.
+//
+// @usage TimelineEntryAggregates.artifacts, TimelineEntryAggregates.dom_snapshot
 message TimelineArtifact {
-  // Unique artifact ID (UUID format).
+  // Unique artifact identifier.
+  // @format uuid
   string id = 1;
   // Artifact type (screenshot, console_log, network_event, dom_snapshot, etc.).
   ArtifactType type = 2;
@@ -144,6 +153,8 @@ message TimelineArtifact {
 // =============================================================================
 
 // ElementFocus captures focus metadata for screenshot framing and highlighting.
+//
+// @usage TimelineEntryAggregates.focused_element
 message ElementFocus {
   // CSS selector of the focused element.
   string selector = 1;
@@ -156,8 +167,11 @@ message ElementFocus {
 // =============================================================================
 
 // TimelineLog captures execution log output for the timeline.
+//
+// @usage ExecutionTimeline.logs, TimelineStreamMessage.log
 message TimelineLog {
-  // Unique log entry ID (UUID format).
+  // Unique log entry identifier.
+  // @format uuid
   string id = 1;
   // Log level (debug, info, warn, error).
   LogLevel level = 2;
@@ -174,6 +188,8 @@ message TimelineLog {
 // =============================================================================
 
 // TimelineMessageType enumerates WebSocket message types for streaming.
+//
+// @usage TimelineStreamMessage.type
 enum TimelineMessageType {
   TIMELINE_MESSAGE_TYPE_UNSPECIFIED = 0;
   TIMELINE_MESSAGE_TYPE_ENTRY = 1;       // TimelineEntry payload
@@ -184,6 +200,8 @@ enum TimelineMessageType {
 
 // TimelineStreamMessage wraps timeline data for WebSocket transport.
 // This is the envelope format for all streaming timeline messages.
+//
+// @usage WebSocket timeline streaming endpoint
 message TimelineStreamMessage {
   // Message type for routing and parsing.
   TimelineMessageType type = 1;
@@ -198,8 +216,11 @@ message TimelineStreamMessage {
 }
 
 // TimelineStatusUpdate reports overall session/execution status.
+//
+// @usage TimelineStreamMessage.status
 message TimelineStatusUpdate {
-  // Session ID (recording) or Execution ID (playback) - UUID format.
+  // Session ID (recording) or Execution ID (playback).
+  // @format uuid
   string id = 1;
   // Current execution status.
   ExecutionStatus status = 2;
@@ -212,9 +233,12 @@ message TimelineStatusUpdate {
 }
 
 // TimelineHeartbeat keeps WebSocket connection alive.
+//
+// @usage TimelineStreamMessage.heartbeat
 message TimelineHeartbeat {
   // Heartbeat timestamp.
   google.protobuf.Timestamp timestamp = 1;
-  // Session ID for connection routing (UUID format).
+  // Session ID for connection routing.
+  // @format uuid
   string session_id = 2;
 }

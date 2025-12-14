@@ -32,14 +32,16 @@ export type RecordingState = Message<"browser_automation_studio.v1.RecordingStat
   isRecording: boolean;
 
   /**
-   * Current recording ID (UUID format).
+   * Current recording identifier.
+   * @format uuid
    *
    * @generated from field: string recording_id = 2;
    */
   recordingId: string;
 
   /**
-   * Session ID for the browser session (UUID format).
+   * Session ID for the browser session.
+   * @format uuid
    *
    * @generated from field: string session_id = 3;
    */
@@ -109,7 +111,8 @@ export const CreateRecordingSessionRequestSchema: GenMessage<CreateRecordingSess
  */
 export type CreateRecordingSessionResponse = Message<"browser_automation_studio.v1.CreateRecordingSessionResponse"> & {
   /**
-   * Unique session identifier (UUID format).
+   * Unique session identifier.
+   * @format uuid
    *
    * @generated from field: string session_id = 1;
    */
@@ -137,7 +140,8 @@ export const CreateRecordingSessionResponseSchema: GenMessage<CreateRecordingSes
  */
 export type StartRecordingRequest = Message<"browser_automation_studio.v1.StartRecordingRequest"> & {
   /**
-   * Session ID to start recording on (UUID format).
+   * Session ID to start recording on.
+   * @format uuid
    *
    * @generated from field: string session_id = 1;
    */
@@ -165,14 +169,16 @@ export const StartRecordingRequestSchema: GenMessage<StartRecordingRequest> = /*
  */
 export type StartRecordingResponse = Message<"browser_automation_studio.v1.StartRecordingResponse"> & {
   /**
-   * Unique recording identifier (UUID format).
+   * Unique recording identifier.
+   * @format uuid
    *
    * @generated from field: string recording_id = 1;
    */
   recordingId: string;
 
   /**
-   * Session ID the recording is attached to (UUID format).
+   * Session ID the recording is attached to.
+   * @format uuid
    *
    * @generated from field: string session_id = 2;
    */
@@ -200,14 +206,16 @@ export const StartRecordingResponseSchema: GenMessage<StartRecordingResponse> = 
  */
 export type StopRecordingResponse = Message<"browser_automation_studio.v1.StopRecordingResponse"> & {
   /**
-   * Recording ID that was stopped (UUID format).
+   * Recording ID that was stopped.
+   * @format uuid
    *
    * @generated from field: string recording_id = 1;
    */
   recordingId: string;
 
   /**
-   * Session ID the recording was attached to (UUID format).
+   * Session ID the recording was attached to.
+   * @format uuid
    *
    * @generated from field: string session_id = 2;
    */
@@ -242,7 +250,8 @@ export const StopRecordingResponseSchema: GenMessage<StopRecordingResponse> = /*
  */
 export type RecordingStatusResponse = Message<"browser_automation_studio.v1.RecordingStatusResponse"> & {
   /**
-   * Session ID being queried (UUID format).
+   * Session ID being queried.
+   * @format uuid
    *
    * @generated from field: string session_id = 1;
    */
@@ -256,7 +265,8 @@ export type RecordingStatusResponse = Message<"browser_automation_studio.v1.Reco
   isRecording: boolean;
 
   /**
-   * Current recording ID (UUID format, empty if not recording).
+   * Current recording ID (empty if not recording).
+   * @format uuid
    *
    * @generated from field: string recording_id = 3;
    */
@@ -291,7 +301,8 @@ export const RecordingStatusResponseSchema: GenMessage<RecordingStatusResponse> 
  */
 export type GetActionsResponse = Message<"browser_automation_studio.v1.GetActionsResponse"> & {
   /**
-   * Session ID the entries belong to (UUID format).
+   * Session ID the entries belong to.
+   * @format uuid
    *
    * @generated from field: string session_id = 1;
    */
@@ -326,7 +337,8 @@ export const GetActionsResponseSchema: GenMessage<GetActionsResponse> = /*@__PUR
  */
 export type GenerateWorkflowRequest = Message<"browser_automation_studio.v1.GenerateWorkflowRequest"> & {
   /**
-   * Session ID to generate workflow from (UUID format).
+   * Session ID to generate workflow from.
+   * @format uuid
    *
    * @generated from field: string session_id = 1;
    */
@@ -340,7 +352,8 @@ export type GenerateWorkflowRequest = Message<"browser_automation_studio.v1.Gene
   name: string;
 
   /**
-   * Project ID to save the workflow to (UUID format).
+   * Project ID to save the workflow to.
+   * @format uuid
    *
    * @generated from field: string project_id = 3;
    */
@@ -410,14 +423,16 @@ export const GenerateWorkflowRequest_EntryRangeSchema: GenMessage<GenerateWorkfl
  */
 export type GenerateWorkflowResponse = Message<"browser_automation_studio.v1.GenerateWorkflowResponse"> & {
   /**
-   * Generated workflow ID (UUID format).
+   * Generated workflow identifier.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 1;
    */
   workflowId: string;
 
   /**
-   * Project ID the workflow was saved to (UUID format).
+   * Project ID the workflow was saved to.
+   * @format uuid
    *
    * @generated from field: string project_id = 2;
    */
@@ -459,7 +474,8 @@ export const GenerateWorkflowResponseSchema: GenMessage<GenerateWorkflowResponse
  */
 export type ReplayPreviewRequest = Message<"browser_automation_studio.v1.ReplayPreviewRequest"> & {
   /**
-   * Session ID to replay on (UUID format).
+   * Session ID to replay on.
+   * @format uuid
    *
    * @generated from field: string session_id = 1;
    */
@@ -550,7 +566,8 @@ export const ReplayEventErrorSchema: GenMessage<ReplayEventError> = /*@__PURE__*
  */
 export type ReplayEntryResult = Message<"browser_automation_studio.v1.ReplayEntryResult"> & {
   /**
-   * Entry ID that was replayed (UUID format).
+   * Entry ID that was replayed.
+   * @format uuid
    *
    * @generated from field: string entry_id = 1;
    */

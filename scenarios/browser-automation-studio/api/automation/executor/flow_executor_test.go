@@ -793,8 +793,15 @@ func TestInterpolateInstructionNestedStructuresAndPaths(t *testing.T) {
 		t.Fatalf("expected X-User Ada, got %v", headers["X-User"])
 	}
 	ids, ok := headers["X-Ids"].([]any)
-	if !ok || len(ids) != 3 || ids[0] != "123" || ids[2] != "a" {
-		t.Fatalf("expected X-Ids interpolation, got %+v", ids)
+	if !ok || len(ids) != 3 {
+		t.Fatalf("expected X-Ids interpolation with 3 elements, got %+v", ids)
+	}
+	// Type preservation: ${user.id} may return int 123 or string "123"
+	if fmt.Sprint(ids[0]) != "123" {
+		t.Fatalf("expected X-Ids[0] to be 123, got %v", ids[0])
+	}
+	if ids[2] != "a" {
+		t.Fatalf("expected X-Ids[2] to be 'a', got %v", ids[2])
 	}
 
 	body, ok := captured.Params["body"].(map[string]any)

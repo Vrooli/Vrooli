@@ -51,6 +51,24 @@ type ExecuteAdhocWorkflowRequest struct {
 		Name        string `json:"name,omitempty"`
 		Description string `json:"description,omitempty"`
 	} `json:"metadata,omitempty"`
+	// Typed execution parameters for namespace-aware variable interpolation (Phase 2).
+	// If provided, these take precedence over the legacy Parameters map.
+	ExecutionParams *ExecutionParametersRequest `json:"execution_params,omitempty"`
+}
+
+// ExecutionParametersRequest mirrors the proto ExecutionParameters for HTTP/JSON requests.
+// Supports namespace-aware variable interpolation with @store/, @params/, @env/.
+type ExecutionParametersRequest struct {
+	// Absolute path to project root for workflowPath resolution.
+	ProjectRoot string `json:"project_root,omitempty"`
+	// Initial @params/ values - read-only input parameters.
+	InitialParams map[string]any `json:"initial_params,omitempty"`
+	// Initial @store/ values - mutable runtime state.
+	InitialStore map[string]any `json:"initial_store,omitempty"`
+	// Environment values - project/user configuration.
+	Env map[string]any `json:"env,omitempty"`
+	// Legacy variables (maps to @store/ for backward compat).
+	Variables map[string]string `json:"variables,omitempty"`
 }
 
 // ModifyWorkflowRequest represents the request to modify a workflow with AI support
@@ -728,17 +746,37 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
 	defer cancel()
 
-	execution, err := h.executionService.ExecuteAdhocWorkflow(
-		ctx,
-		req.FlowDefinition,
-		req.Parameters,
-		workflowName,
-	)
-	if err != nil {
-		h.log.WithError(err).WithField("workflow_name", workflowName).Error("Failed to execute adhoc workflow")
+	var execution *database.Execution
+	var execErr error
+
+	// Use namespace-aware execution if ExecutionParams is provided (Phase 2+ clients)
+	if req.ExecutionParams != nil {
+		execution, execErr = h.executionService.ExecuteAdhocWorkflowWithParams(
+			ctx,
+			workflow.AdhocExecutionParams{
+				FlowDefinition:   req.FlowDefinition,
+				Name:             workflowName,
+				ProjectRoot:      req.ExecutionParams.ProjectRoot,
+				InitialParams:    req.ExecutionParams.InitialParams,
+				InitialStore:     req.ExecutionParams.InitialStore,
+				Env:              req.ExecutionParams.Env,
+				LegacyParameters: req.Parameters,
+			},
+		)
+	} else {
+		// Legacy path for backward compatibility
+		execution, execErr = h.executionService.ExecuteAdhocWorkflow(
+			ctx,
+			req.FlowDefinition,
+			req.Parameters,
+			workflowName,
+		)
+	}
+	if execErr != nil {
+		h.log.WithError(execErr).WithField("workflow_name", workflowName).Error("Failed to execute adhoc workflow")
 		h.respondError(w, ErrWorkflowExecutionFailed.WithDetails(map[string]string{
 			"workflow_name": workflowName,
-			"error":         err.Error(),
+			"error":         execErr.Error(),
 		}))
 		return
 	}

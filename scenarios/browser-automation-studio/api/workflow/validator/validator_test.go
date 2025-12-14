@@ -1921,7 +1921,10 @@ func TestValidateResolvedUnresolvedFixture(t *testing.T) {
 	assertIssue(t, res.Errors, "WF_UNRESOLVED_FIXTURE")
 }
 
-func TestValidateResolvedUnresolvedSelector(t *testing.T) {
+// TestValidateResolvedSelectorTokensAllowed verifies that @selector/ tokens are NOT flagged
+// as unresolved by ValidateResolved(), since they are resolved at compile time by BAS compiler.
+// This allows test-genie to pass @selector/ tokens through to BAS for native resolution.
+func TestValidateResolvedSelectorTokensAllowed(t *testing.T) {
 	v, err := NewValidator()
 	if err != nil {
 		t.Fatalf("failed to init validator: %v", err)
@@ -1944,10 +1947,10 @@ func TestValidateResolvedUnresolvedSelector(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validation returned error: %v", err)
 	}
-	if res.Valid {
-		t.Fatalf("expected unresolved selector to fail validation")
+	// @selector/ tokens should NOT be flagged as errors - they're resolved at compile time
+	if !res.Valid {
+		t.Fatalf("expected @selector/ tokens to be allowed (resolved at compile time), but got errors: %+v", res.Errors)
 	}
-	assertIssue(t, res.Errors, "WF_UNRESOLVED_SELECTOR")
 }
 
 func TestValidateResolvedUnresolvedSeed(t *testing.T) {
@@ -2118,12 +2121,13 @@ func TestValidateResolvedMultipleIssues(t *testing.T) {
 		t.Fatalf("expected multiple unresolved tokens to fail validation")
 	}
 
-	// Should have at least 3 errors
-	if len(res.Errors) < 3 {
-		t.Errorf("expected at least 3 errors, got %d: %+v", len(res.Errors), res.Errors)
+	// Should have at least 2 errors (placeholder and seed - selector is allowed)
+	// @selector/ tokens are NOT flagged as unresolved since they're resolved at compile time
+	if len(res.Errors) < 2 {
+		t.Errorf("expected at least 2 errors, got %d: %+v", len(res.Errors), res.Errors)
 	}
 
 	assertIssue(t, res.Errors, "WF_UNRESOLVED_PLACEHOLDER")
-	assertIssue(t, res.Errors, "WF_UNRESOLVED_SELECTOR")
+	// NOTE: @selector/ is intentionally NOT checked - it's resolved at compile time by BAS compiler
 	assertIssue(t, res.Errors, "WF_UNRESOLVED_SEED")
 }

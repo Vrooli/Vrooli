@@ -13,10 +13,161 @@ import (
 
 // flow_utils.go holds small helpers for graph traversal and value coercion.
 
+// executionState provides namespace-aware variable management for workflow execution.
+// It separates runtime state (@store/), input parameters (@params/), and environment
+// configuration (@env/) into distinct namespaces with different mutability semantics.
+type executionState struct {
+	store  map[string]any // @store/ - mutable runtime state, writable via setVariable/storeResult
+	params map[string]any // @params/ - read-only input parameters from execution request or subflow call
+	env    map[string]any // @env/ - read-only environment configuration from project settings
+}
+
+// newExecutionState creates a new executionState with the given initial values.
+func newExecutionState(initialStore, initialParams, env map[string]any) *executionState {
+	state := &executionState{
+		store:  make(map[string]any),
+		params: make(map[string]any),
+		env:    make(map[string]any),
+	}
+	for k, v := range initialStore {
+		state.store[k] = v
+	}
+	for k, v := range initialParams {
+		state.params[k] = v
+	}
+	for k, v := range env {
+		state.env[k] = v
+	}
+	return state
+}
+
+// getNamespace returns the appropriate map for the given namespace.
+func (s *executionState) getNamespace(namespace string) map[string]any {
+	if s == nil {
+		return nil
+	}
+	switch namespace {
+	case "store":
+		return s.store
+	case "params":
+		return s.params
+	case "env":
+		return s.env
+	default:
+		return nil
+	}
+}
+
+// resolveNamespaced looks up a value in the specified namespace using dot notation.
+// Returns (value, true) if found, (nil, false) otherwise.
+func (s *executionState) resolveNamespaced(namespace, path string) (any, bool) {
+	if s == nil {
+		return nil, false
+	}
+	ns := s.getNamespace(namespace)
+	if ns == nil {
+		return nil, false
+	}
+	return resolvePath(ns, path)
+}
+
+// setStore sets a value in the @store/ namespace (the only mutable namespace).
+func (s *executionState) setStore(key string, value any) {
+	if s == nil {
+		return
+	}
+	if s.store == nil {
+		s.store = make(map[string]any)
+	}
+	s.store[key] = value
+}
+
+// mergeStore merges the given map into the @store/ namespace.
+func (s *executionState) mergeStore(vars map[string]any) {
+	if s == nil || vars == nil {
+		return
+	}
+	for k, v := range vars {
+		s.setStore(k, v)
+	}
+}
+
+// copyStore returns a copy of the @store/ namespace.
+func (s *executionState) copyStore() map[string]any {
+	if s == nil {
+		return make(map[string]any)
+	}
+	return copyMap(s.store)
+}
+
+// copyParams returns a copy of the @params/ namespace.
+func (s *executionState) copyParams() map[string]any {
+	if s == nil {
+		return make(map[string]any)
+	}
+	return copyMap(s.params)
+}
+
+// copyEnv returns a copy of the @env/ namespace.
+func (s *executionState) copyEnv() map[string]any {
+	if s == nil {
+		return make(map[string]any)
+	}
+	return copyMap(s.env)
+}
+
+// resolvePath resolves a dot-notation path against a map.
+func resolvePath(m map[string]any, path string) (any, bool) {
+	if m == nil || path == "" {
+		return nil, false
+	}
+
+	// Try direct lookup first
+	if v, ok := m[path]; ok {
+		return v, true
+	}
+
+	// Handle dot notation
+	parts := strings.Split(path, ".")
+	if len(parts) == 0 {
+		return nil, false
+	}
+
+	current, ok := m[parts[0]]
+	if !ok {
+		return nil, false
+	}
+
+	for _, part := range parts[1:] {
+		switch val := current.(type) {
+		case map[string]any:
+			current, ok = val[part]
+		case []any:
+			idx, err := strconv.Atoi(part)
+			if err != nil || idx < 0 || idx >= len(val) {
+				return nil, false
+			}
+			current = val[idx]
+			ok = true
+		default:
+			return nil, false
+		}
+		if !ok {
+			return nil, false
+		}
+	}
+	return current, true
+}
+
+// flowState is the legacy state container used for backward compatibility.
+// New code should use executionState for namespace-aware variable management.
 type flowState struct {
 	vars         map[string]any
 	nextIndex    int
 	entryChecked bool
+
+	// Namespace-aware state (optional, for migration)
+	namespaced *executionState
 }
 
 func newFlowState(seed map[string]any) *flowState {
@@ -25,6 +176,25 @@ func newFlowState(seed map[string]any) *flowState {
 		state.vars[k] = v
 	}
 	return state
+}
+
+// newFlowStateWithNamespaces creates a flowState with namespace-aware state management.
+// The legacy vars map is populated from initialStore for backward compatibility.
+func newFlowStateWithNamespaces(initialStore, initialParams, env map[string]any) *flowState {
+	state := &flowState{
+		vars:       make(map[string]any),
+		namespaced: newExecutionState(initialStore, initialParams, env),
+	}
+	// Populate legacy vars from store for backward compatibility
+	for k, v := range initialStore {
+		state.vars[k] = v
+	}
+	return state
+}
+
+// hasNamespaces returns true if this flowState has namespace-aware state.
+func (s *flowState) hasNamespaces() bool {
+	return s != nil && s.namespaced != nil
 }
 
 func (s *flowState) markEntryChecked() {
@@ -98,6 +268,22 @@ func (s *flowState) set(key string, value any) {
 		s.vars = map[string]any{}
 	}
 	s.vars[key] = value
+	// Also update namespaced store if available
+	if s.namespaced != nil {
+		s.namespaced.setStore(key, value)
+	}
+}
+
+// setNamespaced sets a value in the specified namespace.
+// Only @store/ is writable; attempts to write to @params/ or @env/ are silently ignored.
+func (s *flowState) setNamespaced(namespace, key string, value any) {
+	if s == nil {
+		return
+	}
+	if namespace != "store" {
+		return // Only store is writable
+	}
+	s.set(key, value)
 }
 
 func (s *flowState) merge(vars map[string]any) {
@@ -107,6 +293,28 @@ func (s *flowState) merge(vars map[string]any) {
 	for k, v := range vars {
 		s.set(k, v)
 	}
+}
+
+// mergeNamespacedStore merges vars into the @store/ namespace.
+func (s *flowState) mergeNamespacedStore(vars map[string]any) {
+	if s == nil || vars == nil {
+		return
+	}
+	for k, v := range vars {
+		s.set(k, v)
+	}
+}
+
+// getNamespacedState returns the underlying executionState, creating one if needed.
+func (s *flowState) getNamespacedState() *executionState {
+	if s == nil {
+		return nil
+	}
+	if s.namespaced == nil {
+		// Upgrade to namespaced state on demand
+		s.namespaced = newExecutionState(s.vars, nil, nil)
+	}
+	return s.namespaced
 }
 
 func (s *flowState) setNextIndexFromPlan(plan contracts.ExecutionPlan) {
@@ -280,10 +488,12 @@ func (e *SimpleExecutor) interpolatePlanStep(step contracts.PlanStep, state *flo
 	return step
 }
 
+// interpolateValue performs variable substitution recursively on any value.
+// For strings, it supports type preservation when the entire value is a single interpolation.
 func interpolateValue(v any, state *flowState) any {
 	switch typed := v.(type) {
 	case string:
-		return interpolateString(typed, state)
+		return interpolateStringTyped(typed, state)
 	case map[string]any:
 		clone := make(map[string]any, len(typed))
 		for key, val := range typed {
@@ -301,6 +511,197 @@ func interpolateValue(v any, state *flowState) any {
 	}
 }
 
+// interpolateStringTyped performs interpolation with type preservation.
+// If the string is a single interpolation (e.g., "${@store/count}"), the original
+// type is preserved. If it contains mixed content, the result is always a string.
+func interpolateStringTyped(s string, state *flowState) any {
+	// Check if this is a single interpolation that should preserve type
+	if isSingleInterpolation(s) {
+		token := extractSingleToken(s)
+		if resolved, ok := resolveTokenWithFallback(token, state); ok {
+			return resolved
+		}
+		return "" // Return empty string for unresolved single interpolation
+	}
+
+	// For mixed content or no interpolation, return string
+	return interpolateString(s, state)
+}
+
+// isSingleInterpolation returns true if the string contains exactly one interpolation
+// that spans the entire value (after trimming).
+func isSingleInterpolation(s string) bool {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "${") && strings.HasSuffix(s, "}") {
+		// Check there's no nested ${
+		inner := s[2 : len(s)-1]
+		return !strings.Contains(inner, "${") && !strings.Contains(inner, "{{")
+	}
+	if strings.HasPrefix(s, "{{") && strings.HasSuffix(s, "}}") {
+		inner := s[2 : len(s)-2]
+		return !strings.Contains(inner, "${") && !strings.Contains(inner, "{{")
+	}
+	return false
+}
+
+// extractSingleToken extracts the token from a single interpolation string.
+func extractSingleToken(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "${") && strings.HasSuffix(s, "}") {
+		return s[2 : len(s)-1]
+	}
+	if strings.HasPrefix(s, "{{") && strings.HasSuffix(s, "}}") {
+		return s[2 : len(s)-2]
+	}
+	return s
+}
+
+// resolveTokenWithFallback resolves a token that may contain fallback chains.
+// Syntax: @namespace/path|@namespace/path2|"default"
+// Returns the first defined value or (nil, false) if all are undefined.
+func resolveTokenWithFallback(token string, state *flowState) (any, bool) {
+	alternatives := parseFallbackChain(token)
+	for _, alt := range alternatives {
+		if val, ok := resolveAlternative(alt, state); ok {
+			return val, true
+		}
+	}
+	return nil, false
+}
+
+// parseFallbackChain splits a token by | into alternatives, respecting quoted strings.
+func parseFallbackChain(token string) []string {
+	var alternatives []string
+	var current strings.Builder
+	inQuote := rune(0)
+	escaped := false
+
+	for _, r := range token {
+		if escaped {
+			current.WriteRune(r)
+			escaped = false
+			continue
+		}
+		if r == '\\' {
+			escaped = true
+			continue
+		}
+		if inQuote != 0 {
+			current.WriteRune(r)
+			if r == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+		if r == '"' || r == '\'' {
+			inQuote = r
+			current.WriteRune(r)
+			continue
+		}
+		if r == '|' {
+			alternatives = append(alternatives, strings.TrimSpace(current.String()))
+			current.Reset()
+			continue
+		}
+		current.WriteRune(r)
+	}
+	if current.Len() > 0 {
+		alternatives = append(alternatives, strings.TrimSpace(current.String()))
+	}
+	return alternatives
+}
+
+// resolveAlternative resolves a single alternative (namespace reference or literal).
+func resolveAlternative(alt string, state *flowState) (any, bool) {
+	alt = strings.TrimSpace(alt)
+	if alt == "" {
+		return nil, false
+	}
+
+	// Check for literal string value (quoted)
+	if (strings.HasPrefix(alt, "\"") && strings.HasSuffix(alt, "\"")) ||
+		(strings.HasPrefix(alt, "'") && strings.HasSuffix(alt, "'")) {
+		return alt[1 : len(alt)-1], true
+	}
+
+	// Check for literal boolean
+	if alt == "true" {
+		return true, true
+	}
+	if alt == "false" {
+		return false, true
+	}
+
+	// Check for literal number
+	if i, err := strconv.Atoi(alt); err == nil {
+		return i, true
+	}
+	if f, err := strconv.ParseFloat(alt, 64); err == nil {
+		return f, true
+	}
+
+	// Check for namespace reference (@namespace/path)
+	if strings.HasPrefix(alt, "@") {
+		return resolveNamespacedToken(alt, state)
+	}
+
+	// Legacy: resolve against flat state (backward compatibility)
+	return state.resolve(alt)
+}
+
+// resolveNamespacedToken resolves a @namespace/path reference.
+func resolveNamespacedToken(token string, state *flowState) (any, bool) {
+	if state == nil {
+		return nil, false
+	}
+
+	// Strip leading @
+	token = strings.TrimPrefix(token, "@")
+
+	// Split into namespace and path
+	slashIdx := strings.Index(token, "/")
+	if slashIdx == -1 {
+		// No path, just namespace - return entire namespace map
+		if ns := state.getNamespace(token); ns != nil {
+			return copyMap(ns), true
+		}
+		return nil, false
+	}
+
+	namespace := token[:slashIdx]
+	path := token[slashIdx+1:]
+
+	// If namespaced state exists, use it
+	if state.namespaced != nil {
+		return state.namespaced.resolveNamespaced(namespace, path)
+	}
+
+	// Fallback to legacy state for @store/ only
+	if namespace == "store" {
+		return state.resolve(path)
+	}
+
+	return nil, false
+}
+
+// getNamespace returns the namespace map for the given name.
+// Used when resolving @namespace without a path.
+func (s *flowState) getNamespace(namespace string) map[string]any {
+	if s == nil {
+		return nil
+	}
+	if s.namespaced != nil {
+		return s.namespaced.getNamespace(namespace)
+	}
+	// Legacy fallback: only store is available
+	if namespace == "store" {
+		return s.vars
+	}
+	return nil
+}
+
+// interpolateString performs string interpolation, always returning a string.
+// Supports both ${...} and {{...}} syntax with namespace and fallback support.
 func interpolateString(s string, state *flowState) string {
 	// Support both ${var} and {{var}} template syntax
 	if !strings.Contains(s, "${") && !strings.Contains(s, "{{") {
@@ -308,7 +709,8 @@ func interpolateString(s string, state *flowState) string {
 	}
 
 	out := s
-	for {
+	maxIterations := 100 // Prevent infinite loops
+	for i := 0; i < maxIterations; i++ {
 		// Look for both ${...} and {{...}} patterns
 		dollarStart := strings.Index(out, "${")
 		braceStart := strings.Index(out, "{{")
@@ -330,21 +732,39 @@ func interpolateString(s string, state *flowState) string {
 			break
 		}
 
-		end := strings.Index(out[start+len(prefix):], suffix)
+		// Find matching closing bracket, handling nested brackets
+		end := findMatchingClose(out[start+len(prefix):], suffix)
 		if end == -1 {
 			break
 		}
 		end = start + len(prefix) + end
 		token := out[start+len(prefix) : end]
 
-		if resolved, ok := state.resolve(token); ok {
+		if resolved, ok := resolveTokenWithFallback(token, state); ok {
 			out = out[:start] + stringify(resolved) + out[end+len(suffix):]
 		} else {
-			// Drop unresolved token to avoid infinite loops.
+			// Drop unresolved token to avoid infinite loops
 			out = out[:start] + out[end+len(suffix):]
 		}
 	}
 	return out
+}
+
+// findMatchingClose finds the closing bracket, handling nested brackets.
+func findMatchingClose(s, suffix string) int {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		if strings.HasPrefix(s[i:], "${") || strings.HasPrefix(s[i:], "{{") {
+			depth++
+		}
+		if strings.HasPrefix(s[i:], suffix) {
+			if depth == 0 {
+				return i
+			}
+			depth--
+		}
+	}
+	return -1
 }
 
 func stringify(val any) string {

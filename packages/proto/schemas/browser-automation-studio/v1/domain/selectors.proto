@@ -10,10 +10,27 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // =============================================================================
 // SELECTOR TYPES
 // =============================================================================
+//
+// @layer 1
+// @domain domain
+// @imports base
+// @stability stable
+//
+// Defines element targeting types including selector candidates, element
+// metadata, and visual overlay regions for screenshot annotations.
+//
+// USAGE CONTEXTS:
+//   - Recording: Capture alternative selectors for element interactions
+//   - Execution: Fallback selector strategies when primary fails
+//   - Debugging: Element state snapshots for troubleshooting
+//   - Screenshots: Highlight and mask regions for visual annotations
+//
+// =============================================================================
 
 // SelectorCandidate is a single selector with metadata.
-// Used in ActionMetadata.selector_candidates to provide fallback selectors
-// captured during recording.
+// Used to provide fallback selectors captured during recording.
+//
+// @usage ActionMetadata.selector_candidates
 message SelectorCandidate {
   // Selector strategy type (css, xpath, id, data-testid, aria, text, etc.).
   SelectorType type = 1;
@@ -30,6 +47,8 @@ message SelectorCandidate {
 // =============================================================================
 
 // ElementMeta captures information about a DOM element.
+//
+// @usage ActionMetadata.element_snapshot
 message ElementMeta {
   // HTML tag name (e.g., "button", "input", "div").
   string tag_name = 1;
@@ -61,6 +80,8 @@ message ElementMeta {
 // =============================================================================
 
 // HighlightRegion describes an overlay applied to screenshots for emphasis.
+//
+// @usage ActionTelemetry.highlight_regions
 message HighlightRegion {
   // CSS selector for the region.
   string selector = 1;
@@ -68,7 +89,7 @@ message HighlightRegion {
   BoundingBox bounding_box = 2;
   // Padding in pixels around the region.
   int32 padding = 3;
-  // Reserved: field 4 was deprecated 'color' string.
+  // Reserved: field 4 was 'color' string (removed, replaced by typed highlight_color enum).
   reserved 4;
   // Typed highlight color from the HighlightColor enum.
   HighlightColor highlight_color = 5;
@@ -79,6 +100,8 @@ message HighlightRegion {
 }
 
 // MaskRegion describes areas that were dimmed or masked during capture.
+//
+// @usage ActionTelemetry.mask_regions
 message MaskRegion {
   // CSS selector for the region to mask.
   string selector = 1;

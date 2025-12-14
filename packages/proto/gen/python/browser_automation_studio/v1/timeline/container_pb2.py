@@ -27,7 +27,7 @@ from browser_automation_studio.v1.base import shared_pb2 as browser__automation_
 from browser_automation_studio.v1.timeline import entry_pb2 as browser__automation__studio_dot_v1_dot_timeline_dot_entry__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n5browser-automation-studio/v1/timeline/container.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a\x31\x62rowser-automation-studio/v1/timeline/entry.proto\"\xd0\x03\n\x11\x45xecutionTimeline\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x1f\n\x0bworkflow_id\x18\x02 \x01(\tR\nworkflowId\x12\x45\n\x06status\x18\x03 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12\x1a\n\x08progress\x18\x04 \x01(\x05R\x08progress\x12\x39\n\nstarted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x42\n\x0c\x63ompleted_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00R\x0b\x63ompletedAt\x88\x01\x01\x12\x45\n\x07\x65ntries\x18\x07 \x03(\x0b\x32+.browser_automation_studio.v1.TimelineEntryR\x07\x65ntries\x12=\n\x04logs\x18\x08 \x03(\x0b\x32).browser_automation_studio.v1.TimelineLogR\x04logsB\x0f\n\r_completed_at\"V\n\rTimelineFrame\x12\x41\n\x05\x65ntry\x18\x01 \x01(\x0b\x32+.browser_automation_studio.v1.TimelineEntryR\x05\x65ntry:\x02\x18\x01\x42_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline;timelineb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n5browser-automation-studio/v1/timeline/container.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a\x31\x62rowser-automation-studio/v1/timeline/entry.proto\"\xd0\x03\n\x11\x45xecutionTimeline\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x1f\n\x0bworkflow_id\x18\x02 \x01(\tR\nworkflowId\x12\x45\n\x06status\x18\x03 \x01(\x0e\x32-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12\x1a\n\x08progress\x18\x04 \x01(\x05R\x08progress\x12\x39\n\nstarted_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tstartedAt\x12\x42\n\x0c\x63ompleted_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00R\x0b\x63ompletedAt\x88\x01\x01\x12\x45\n\x07\x65ntries\x18\x07 \x03(\x0b\x32+.browser_automation_studio.v1.TimelineEntryR\x07\x65ntries\x12=\n\x04logs\x18\x08 \x03(\x0b\x32).browser_automation_studio.v1.TimelineLogR\x04logsB\x0f\n\r_completed_atB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline;timelineb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,10 +35,6 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'browser_automation_studio.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline;timeline'
-  _globals['_TIMELINEFRAME']._loaded_options = None
-  _globals['_TIMELINEFRAME']._serialized_options = b'\030\001'
   _globals['_EXECUTIONTIMELINE']._serialized_start=220
   _globals['_EXECUTIONTIMELINE']._serialized_end=684
-  _globals['_TIMELINEFRAME']._serialized_start=686
-  _globals['_TIMELINEFRAME']._serialized_end=772
 # @@protoc_insertion_point(module_scope)

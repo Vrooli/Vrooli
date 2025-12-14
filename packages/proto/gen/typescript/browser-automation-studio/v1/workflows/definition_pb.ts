@@ -21,6 +21,8 @@ export const file_browser_automation_studio_v1_workflows_definition: GenFile = /
 /**
  * WorkflowDefinitionV2 is the canonical workflow storage format.
  *
+ * @usage WorkflowSummary.flow_definition, CreateWorkflowRequest.flow_definition
+ *
  * @generated from message browser_automation_studio.v1.WorkflowDefinitionV2
  */
 export type WorkflowDefinitionV2 = Message<"browser_automation_studio.v1.WorkflowDefinitionV2"> & {
@@ -62,6 +64,8 @@ export const WorkflowDefinitionV2Schema: GenMessage<WorkflowDefinitionV2> = /*@_
 
 /**
  * WorkflowMetadataV2 captures workflow-level descriptors.
+ *
+ * @usage WorkflowDefinitionV2.metadata
  *
  * @generated from message browser_automation_studio.v1.WorkflowMetadataV2
  */
@@ -118,6 +122,8 @@ export const WorkflowMetadataV2Schema: GenMessage<WorkflowMetadataV2> = /*@__PUR
 
 /**
  * WorkflowSettingsV2 captures browser/execution configuration.
+ *
+ * @usage WorkflowDefinitionV2.settings
  *
  * @generated from message browser_automation_studio.v1.WorkflowSettingsV2
  */
@@ -189,11 +195,14 @@ export const WorkflowSettingsV2Schema: GenMessage<WorkflowSettingsV2> = /*@__PUR
 /**
  * WorkflowNodeV2 represents a single workflow step.
  *
+ * @usage WorkflowDefinitionV2.nodes
+ *
  * @generated from message browser_automation_studio.v1.WorkflowNodeV2
  */
 export type WorkflowNodeV2 = Message<"browser_automation_studio.v1.WorkflowNodeV2"> & {
   /**
-   * Unique node identifier (UUID format).
+   * Unique node identifier.
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
@@ -230,6 +239,8 @@ export const WorkflowNodeV2Schema: GenMessage<WorkflowNodeV2> = /*@__PURE__*/
 
 /**
  * NodeExecutionSettings captures per-step execution configuration.
+ *
+ * @usage WorkflowNodeV2.execution_settings
  *
  * @generated from message browser_automation_studio.v1.NodeExecutionSettings
  */
@@ -272,6 +283,8 @@ export const NodeExecutionSettingsSchema: GenMessage<NodeExecutionSettings> = /*
 
 /**
  * ResilienceConfig captures retry and precondition settings.
+ *
+ * @usage NodeExecutionSettings.resilience
  *
  * @generated from message browser_automation_studio.v1.ResilienceConfig
  */
@@ -350,25 +363,32 @@ export const ResilienceConfigSchema: GenMessage<ResilienceConfig> = /*@__PURE__*
 /**
  * WorkflowEdgeV2 connects nodes in the workflow graph.
  *
+ * @usage WorkflowDefinitionV2.edges
+ *
  * @generated from message browser_automation_studio.v1.WorkflowEdgeV2
  */
 export type WorkflowEdgeV2 = Message<"browser_automation_studio.v1.WorkflowEdgeV2"> & {
   /**
-   * Unique edge identifier (UUID format).
+   * Unique edge identifier.
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * Source node ID (UUID format).
+   * Source node ID.
+   * @format uuid
+   * @see WorkflowNodeV2.id
    *
    * @generated from field: string source = 2;
    */
   source: string;
 
   /**
-   * Target node ID (UUID format).
+   * Target node ID.
+   * @format uuid
+   * @see WorkflowNodeV2.id
    *
    * @generated from field: string target = 3;
    */

@@ -17,9 +17,11 @@ var (
 	dataTestIDPattern = regexp.MustCompile(`(?i)data-testid\s*=\s*(?:"([^"]+)"|'([^']+)')`)
 
 	// Patterns for detecting unresolved tokens that should have been substituted
+	// NOTE: @selector/ is NOT included here because selectors are resolved at compile time
+	// by BAS's compiler (compiler.go:resolveSelectors), not at workflow definition time.
+	// This allows test-genie to pass @selector/ tokens through to BAS for native resolution.
 	unresolvedTokenPatterns = []*unresolvedPattern{
 		{regexp.MustCompile(`@fixture/[A-Za-z0-9_.-]+`), "fixture reference", "WF_UNRESOLVED_FIXTURE"},
-		{regexp.MustCompile(`@selector/[A-Za-z0-9_.-]+`), "selector reference", "WF_UNRESOLVED_SELECTOR"},
 		{regexp.MustCompile(`@seed/[A-Za-z0-9_.-]+`), "seed reference", "WF_UNRESOLVED_SEED"},
 		{regexp.MustCompile(`\$\{[A-Za-z0-9_]+\}`), "placeholder", "WF_UNRESOLVED_PLACEHOLDER"},
 		{regexp.MustCompile(`\{\{[A-Za-z0-9_]+\}\}`), "template variable", "WF_UNRESOLVED_TEMPLATE"},

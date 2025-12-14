@@ -15,6 +15,8 @@ export const file_browser_automation_studio_v1_base_geometry: GenFile = /*@__PUR
 /**
  * BoundingBox captures the position and dimensions of a rectangular region.
  *
+ * @usage ActionTelemetry.element_bounding_box, HighlightRegion.bounding_box
+ *
  * @generated from message browser_automation_studio.v1.BoundingBox
  */
 export type BoundingBox = Message<"browser_automation_studio.v1.BoundingBox"> & {
@@ -57,6 +59,8 @@ export const BoundingBoxSchema: GenMessage<BoundingBox> = /*@__PURE__*/
 /**
  * Point represents a 2D coordinate.
  *
+ * @usage ActionTelemetry.click_position, ActionTelemetry.cursor_position, ActionTelemetry.cursor_trail
+ *
  * @generated from message browser_automation_studio.v1.Point
  */
 export type Point = Message<"browser_automation_studio.v1.Point"> & {
@@ -84,6 +88,8 @@ export const PointSchema: GenMessage<Point> = /*@__PURE__*/
 
 /**
  * NodePosition captures canvas placement for visual editors.
+ *
+ * @usage WorkflowNodeV2.position
  *
  * @generated from message browser_automation_studio.v1.NodePosition
  */

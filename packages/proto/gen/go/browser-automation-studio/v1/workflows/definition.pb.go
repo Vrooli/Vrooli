@@ -24,6 +24,8 @@ const (
 )
 
 // WorkflowDefinitionV2 is the canonical workflow storage format.
+//
+// @usage WorkflowSummary.flow_definition, CreateWorkflowRequest.flow_definition
 type WorkflowDefinitionV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow metadata.
@@ -97,6 +99,8 @@ func (x *WorkflowDefinitionV2) GetEdges() []*WorkflowEdgeV2 {
 }
 
 // WorkflowMetadataV2 captures workflow-level descriptors.
+//
+// @usage WorkflowDefinitionV2.metadata
 type WorkflowMetadataV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Workflow name.
@@ -188,6 +192,8 @@ func (x *WorkflowMetadataV2) GetOwner() string {
 }
 
 // WorkflowSettingsV2 captures browser/execution configuration.
+//
+// @usage WorkflowDefinitionV2.settings
 type WorkflowSettingsV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Viewport width in pixels (default: 1280).
@@ -297,9 +303,12 @@ func (x *WorkflowSettingsV2) GetTimeoutMs() int32 {
 }
 
 // WorkflowNodeV2 represents a single workflow step.
+//
+// @usage WorkflowDefinitionV2.nodes
 type WorkflowNodeV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique node identifier (UUID format).
+	// Unique node identifier.
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// The action to perform.
 	Action *actions.ActionDefinition `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
@@ -370,6 +379,8 @@ func (x *WorkflowNodeV2) GetExecutionSettings() *NodeExecutionSettings {
 }
 
 // NodeExecutionSettings captures per-step execution configuration.
+//
+// @usage WorkflowNodeV2.execution_settings
 type NodeExecutionSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum time for this step in milliseconds (default: 30000).
@@ -443,6 +454,8 @@ func (x *NodeExecutionSettings) GetResilience() *ResilienceConfig {
 }
 
 // ResilienceConfig captures retry and precondition settings.
+//
+// @usage NodeExecutionSettings.resilience
 type ResilienceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum retry attempts (default: 1, meaning no retries).
@@ -561,13 +574,20 @@ func (x *ResilienceConfig) GetSuccessWaitMs() int32 {
 }
 
 // WorkflowEdgeV2 connects nodes in the workflow graph.
+//
+// @usage WorkflowDefinitionV2.edges
 type WorkflowEdgeV2 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique edge identifier (UUID format).
+	// Unique edge identifier.
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Source node ID (UUID format).
+	// Source node ID.
+	// @format uuid
+	// @see WorkflowNodeV2.id
 	Source string `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
-	// Target node ID (UUID format).
+	// Target node ID.
+	// @format uuid
+	// @see WorkflowNodeV2.id
 	Target string `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
 	// Edge rendering type (default, smoothstep, step, straight, bezier).
 	Type *base.WorkflowEdgeType `protobuf:"varint,4,opt,name=type,proto3,enum=browser_automation_studio.v1.WorkflowEdgeType,oneof" json:"type,omitempty"`

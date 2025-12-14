@@ -18,6 +18,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // @layer 5
 // @domain api
 // @imports base, actions, workflows, execution
+// @stability stable
 //
 // gRPC service definition for Browser Automation Studio workflow operations.
 // Defines CRUD operations for workflows and execution lifecycle.
@@ -101,9 +102,11 @@ service WorkflowService {
 
 // WorkflowSummary captures the primary workflow fields without the full definition.
 message WorkflowSummary {
-  // Unique workflow identifier (UUID format).
+  // Unique workflow identifier.
+  // @format uuid
   string id = 1;
-  // Project ID the workflow belongs to (UUID format).
+  // Project ID the workflow belongs to.
+  // @format uuid
   string project_id = 2;
   // Workflow name.
   string name = 3;
@@ -133,7 +136,8 @@ message WorkflowSummary {
 
 // WorkflowVersion represents a historic version of a workflow.
 message WorkflowVersion {
-  // Workflow ID this version belongs to (UUID format).
+  // Workflow ID this version belongs to.
+  // @format uuid
   string workflow_id = 1;
   // Version number.
   int32 version = 2;
@@ -163,7 +167,8 @@ message WorkflowVersionList {
 
 // ListWorkflowsRequest filters and paginates workflow listings.
 message ListWorkflowsRequest {
-  // Filter by project ID (UUID format).
+  // Filter by project ID.
+  // @format uuid
   optional string project_id = 1;
   // Filter by folder path.
   optional string folder_path = 2;
@@ -185,7 +190,8 @@ message ListWorkflowsResponse {
 
 // GetWorkflowRequest identifies a workflow to retrieve.
 message GetWorkflowRequest {
-  // Workflow ID (UUID format).
+  // Workflow ID to retrieve.
+  // @format uuid
   string workflow_id = 1;
   // Specific version to retrieve (latest if not specified).
   optional int32 version = 2;
@@ -199,7 +205,8 @@ message GetWorkflowResponse {
 
 // CreateWorkflowRequest creates a new workflow.
 message CreateWorkflowRequest {
-  // Project ID to create the workflow in (UUID format).
+  // Project ID to create the workflow in.
+  // @format uuid
   string project_id = 1;
   // Workflow name.
   string name = 2;
@@ -237,7 +244,8 @@ message UpdateWorkflowRequest {
   ChangeSource source = 7;
   // Expected version for optimistic locking.
   int32 expected_version = 8;
-  // Target workflow ID (path param for REST, UUID format).
+  // Target workflow ID (path param for REST).
+  // @format uuid
   optional string workflow_id = 9;
 }
 
@@ -251,7 +259,8 @@ message UpdateWorkflowResponse {
 
 // DeleteWorkflowRequest identifies a workflow to delete.
 message DeleteWorkflowRequest {
-  // Workflow ID to delete (UUID format).
+  // Workflow ID to delete.
+  // @format uuid
   string workflow_id = 1;
 }
 
@@ -259,7 +268,8 @@ message DeleteWorkflowRequest {
 message DeleteWorkflowResponse {
   // Whether the deletion was successful.
   bool success = 1;
-  // Workflow ID that was deleted (UUID format).
+  // Workflow ID that was deleted.
+  // @format uuid
   string workflow_id = 2;
 }
 
@@ -269,11 +279,14 @@ message DeleteWorkflowResponse {
 
 // ExecuteWorkflowRequest starts a workflow execution.
 message ExecuteWorkflowRequest {
-  // Reserved: field 1 was removed, field 3 was untyped parameters map.
+  // Reserved fields from migrations:
+  // - 1: (removed, purpose unknown)
+  // - 3: parameters map (migrated to typed ExecutionParameters)
   reserved 1, 3;
   // Whether to wait for completion before responding.
   bool wait_for_completion = 2;
-  // Workflow ID to execute (UUID format).
+  // Workflow ID to execute.
+  // @format uuid
   string workflow_id = 4;
   // Optional workflow version to execute.
   optional int32 workflow_version = 5;
@@ -283,7 +296,8 @@ message ExecuteWorkflowRequest {
 
 // ExecuteWorkflowResponse returns the execution status.
 message ExecuteWorkflowResponse {
-  // The created execution ID (UUID format).
+  // The created execution identifier.
+  // @format uuid
   string execution_id = 1;
   // Initial execution status.
   ExecutionStatus status = 2;
@@ -295,7 +309,8 @@ message ExecuteWorkflowResponse {
 
 // ListExecutionsRequest filters and paginates execution listings.
 message ListExecutionsRequest {
-  // Filter by workflow ID (UUID format).
+  // Filter by workflow ID.
+  // @format uuid
   optional string workflow_id = 1;
   // Filter by execution status.
   optional ExecutionStatus status = 2;
@@ -317,7 +332,8 @@ message ListExecutionsResponse {
 
 // GetExecutionRequest identifies an execution to retrieve.
 message GetExecutionRequest {
-  // Execution ID (UUID format).
+  // Execution ID to retrieve.
+  // @format uuid
   string execution_id = 1;
 }
 
@@ -351,7 +367,8 @@ message WorkflowValidationIssue {
   string code = 2;
   // Human-readable message.
   string message = 3;
-  // Node ID where the issue was found (UUID format).
+  // Node ID where the issue was found.
+  // @format uuid
   string node_id = 4;
   // Node type (action type).
   ActionType node_type = 5;

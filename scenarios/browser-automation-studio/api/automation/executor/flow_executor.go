@@ -490,14 +490,11 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 	baseIndex := state.allocateIndexRange(childCount)
 	rebasePlanIndices(&childPlan, baseIndex)
 
-	seedVars := copyMap(state.vars)
-	if len(specData.params) > 0 {
-		for k, v := range specData.params {
-			seedVars[k] = v
-		}
-	}
-
-	childState := newFlowState(seedVars)
+	// Build child state with proper namespace semantics:
+	// - @store/: Child receives copy of parent's store, merges back on completion
+	// - @params/: Default: inherit parent's params. Override: use ONLY specified params
+	// - @env/: Always inherited from parent, read-only
+	childState := buildSubflowState(state, specData.params)
 	childState.setNextIndexFromPlan(childPlan)
 
 	childReq := req
@@ -525,8 +522,70 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 	}
 	logrus.WithFields(logFields).Debug("Subflow execution completed")
 
-	state.merge(childState.vars)
+	// Merge only @store/ back from child to parent (params and env are not propagated)
+	mergeSubflowStore(state, childState)
 	return updatedSession, err
+}
+
+// buildSubflowState creates child state with proper namespace semantics for subflow execution.
+// - @store/: Copy of parent's store
+// - @params/: If params specified, use ONLY those; otherwise inherit parent's params
+// - @env/: Always inherited from parent
+func buildSubflowState(parentState *flowState, subflowParams map[string]any) *flowState {
+	if parentState == nil {
+		return newFlowState(nil)
+	}
+
+	// Get parent's namespaced state if available
+	if parentState.namespaced != nil {
+		// Copy parent's store
+		childStore := parentState.namespaced.copyStore()
+
+		// Determine child params: override if specified, otherwise inherit
+		var childParams map[string]any
+		if len(subflowParams) > 0 {
+			// Override: use ONLY specified params (no inheritance)
+			childParams = copyMap(subflowParams)
+		} else {
+			// Inherit: copy parent's params
+			childParams = parentState.namespaced.copyParams()
+		}
+
+		// Inherit env unchanged
+		childEnv := parentState.namespaced.copyEnv()
+
+		return newFlowStateWithNamespaces(childStore, childParams, childEnv)
+	}
+
+	// Legacy fallback: use the old behavior
+	seedVars := copyMap(parentState.vars)
+	if len(subflowParams) > 0 {
+		for k, v := range subflowParams {
+			seedVars[k] = v
+		}
+	}
+	return newFlowState(seedVars)
+}
+
+// mergeSubflowStore merges child's @store/ back to parent after subflow completion.
+// Only store is merged; params and env changes in child are discarded.
+func mergeSubflowStore(parentState, childState *flowState) {
+	if parentState == nil || childState == nil {
+		return
+	}
+
+	// If both have namespaced state, merge stores properly
+	if parentState.namespaced != nil && childState.namespaced != nil {
+		parentState.namespaced.mergeStore(childState.namespaced.store)
+		// Also update legacy vars for backward compatibility
+		for k, v := range childState.namespaced.store {
+			parentState.vars[k] = v
+		}
+		return
+	}
+
+	// Legacy fallback: merge all vars
+	parentState.merge(childState.vars)
 }
 
 type loopControl struct {

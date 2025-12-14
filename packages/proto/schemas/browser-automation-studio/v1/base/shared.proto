@@ -10,9 +10,19 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // SHARED TYPES AND ENUMS
 // =============================================================================
 //
+// @layer 0
+// @domain base
+// @imports common (external: common.v1)
+// @stability stable
+//
 // This file contains shared enumerations and types used across the
 // browser-automation-studio domain. It is the BASE file that other proto
 // files import from.
+//
+// USAGE CONTEXTS:
+//   - Enums: ExecutionStatus, StepStatus, LogLevel, TriggerType, etc.
+//   - Types: RetryStatus, AssertionResult, EventContext
+//   - Design: Unified recording/execution model foundation
 //
 // =============================================================================
 // UNIFIED RECORDING/EXECUTION MODEL
@@ -109,8 +119,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // in future versions where possible.
 //
 // UUID FIELD CONVENTION:
-// Fields containing UUIDs should include "(UUID format)" in their comment
-// to indicate the expected format. Examples: workflow_id, execution_id, node_id.
+// Fields containing UUIDs MUST include the `@format uuid` annotation.
+// Examples: workflow_id, execution_id, node_id.
 // =============================================================================
 
 // ExecutionStatus enumerates high-level execution lifecycle states.
@@ -547,6 +557,8 @@ enum HighlightColor {
 
 // RetryAttempt captures the outcome of a single retry attempt.
 // Used in both timeline frames (batch API) and timeline events (streaming).
+//
+// @usage RetryStatus.history
 message RetryAttempt {
   // Retry attempt number (1-based, where 1 is the first retry after initial failure).
   int32 attempt = 1;
@@ -560,7 +572,9 @@ message RetryAttempt {
 
 // RetryStatus captures the current state of retry execution for a step.
 // This is the canonical type for runtime retry state, used in both
-// TimelineFrame (batch) and ExecutionContext (streaming).
+// TimelineEntry (batch) and EventContext (streaming).
+//
+// @usage EventContext.retry_status
 message RetryStatus {
   // Current attempt number (0 for initial attempt, 1+ for retries).
   int32 current_attempt = 1;
@@ -581,7 +595,9 @@ message RetryStatus {
 // =============================================================================
 
 // AssertionResult captures assertion evaluation outcome.
-// Used in both timeline frames (batch API) and timeline events (streaming).
+// Used in both timeline entries (batch API) and streaming events.
+//
+// @usage EventContext.assertion
 message AssertionResult {
   // Assertion mode used.
   AssertionMode mode = 1;
@@ -615,13 +631,17 @@ message AssertionResult {
 //
 // The only distinction is the origin (session_id vs execution_id) and whether
 // certain UI workflow flags apply (needs_confirmation).
+//
+// @usage TimelineEntry.context
 message EventContext {
   // === ORIGIN ===
   // Exactly one of these is set, indicating where the event originated.
   oneof origin {
-    // Recording session ID (UUID format). Set when event comes from recording.
+    // Recording session ID. Set when event comes from recording.
+    // @format uuid
     string session_id = 1;
-    // Execution run ID (UUID format). Set when event comes from execution.
+    // Execution run ID. Set when event comes from execution.
+    // @format uuid
     string execution_id = 2;
   }
 

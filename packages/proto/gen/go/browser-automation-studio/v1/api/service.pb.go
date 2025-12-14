@@ -30,9 +30,11 @@ const (
 // WorkflowSummary captures the primary workflow fields without the full definition.
 type WorkflowSummary struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique workflow identifier (UUID format).
+	// Unique workflow identifier.
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Project ID the workflow belongs to (UUID format).
+	// Project ID the workflow belongs to.
+	// @format uuid
 	ProjectId string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Workflow name.
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
@@ -193,7 +195,8 @@ func (x *WorkflowSummary) GetFlowDefinition() *workflows.WorkflowDefinitionV2 {
 // WorkflowVersion represents a historic version of a workflow.
 type WorkflowVersion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workflow ID this version belongs to (UUID format).
+	// Workflow ID this version belongs to.
+	// @format uuid
 	WorkflowId string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Version number.
 	Version int32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
@@ -374,7 +377,8 @@ func (x *WorkflowVersionList) GetVersions() []*WorkflowVersion {
 // ListWorkflowsRequest filters and paginates workflow listings.
 type ListWorkflowsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Filter by project ID (UUID format).
+	// Filter by project ID.
+	// @format uuid
 	ProjectId *string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3,oneof" json:"project_id,omitempty"`
 	// Filter by folder path.
 	FolderPath *string `protobuf:"bytes,2,opt,name=folder_path,json=folderPath,proto3,oneof" json:"folder_path,omitempty"`
@@ -511,7 +515,8 @@ func (x *ListWorkflowsResponse) GetHasMore() bool {
 // GetWorkflowRequest identifies a workflow to retrieve.
 type GetWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workflow ID (UUID format).
+	// Workflow ID to retrieve.
+	// @format uuid
 	WorkflowId string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Specific version to retrieve (latest if not specified).
 	Version       *int32 `protobuf:"varint,2,opt,name=version,proto3,oneof" json:"version,omitempty"`
@@ -612,7 +617,8 @@ func (x *GetWorkflowResponse) GetWorkflow() *WorkflowSummary {
 // CreateWorkflowRequest creates a new workflow.
 type CreateWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Project ID to create the workflow in (UUID format).
+	// Project ID to create the workflow in.
+	// @format uuid
 	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Workflow name.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -765,7 +771,8 @@ type UpdateWorkflowRequest struct {
 	Source base.ChangeSource `protobuf:"varint,7,opt,name=source,proto3,enum=browser_automation_studio.v1.ChangeSource" json:"source,omitempty"`
 	// Expected version for optimistic locking.
 	ExpectedVersion int32 `protobuf:"varint,8,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
-	// Target workflow ID (path param for REST, UUID format).
+	// Target workflow ID (path param for REST).
+	// @format uuid
 	WorkflowId    *string `protobuf:"bytes,9,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -922,7 +929,8 @@ func (x *UpdateWorkflowResponse) GetFlowDefinition() *workflows.WorkflowDefiniti
 // DeleteWorkflowRequest identifies a workflow to delete.
 type DeleteWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Workflow ID to delete (UUID format).
+	// Workflow ID to delete.
+	// @format uuid
 	WorkflowId    string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -970,7 +978,8 @@ type DeleteWorkflowResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether the deletion was successful.
 	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// Workflow ID that was deleted (UUID format).
+	// Workflow ID that was deleted.
+	// @format uuid
 	WorkflowId    string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1025,7 +1034,8 @@ type ExecuteWorkflowRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether to wait for completion before responding.
 	WaitForCompletion bool `protobuf:"varint,2,opt,name=wait_for_completion,json=waitForCompletion,proto3" json:"wait_for_completion,omitempty"`
-	// Workflow ID to execute (UUID format).
+	// Workflow ID to execute.
+	// @format uuid
 	WorkflowId string `protobuf:"bytes,4,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Optional workflow version to execute.
 	WorkflowVersion *int32 `protobuf:"varint,5,opt,name=workflow_version,json=workflowVersion,proto3,oneof" json:"workflow_version,omitempty"`
@@ -1096,7 +1106,8 @@ func (x *ExecuteWorkflowRequest) GetParameters() *execution.ExecutionParameters 
 // ExecuteWorkflowResponse returns the execution status.
 type ExecuteWorkflowResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The created execution ID (UUID format).
+	// The created execution identifier.
+	// @format uuid
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	// Initial execution status.
 	Status base.ExecutionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
@@ -1169,7 +1180,8 @@ func (x *ExecuteWorkflowResponse) GetError() string {
 // ListExecutionsRequest filters and paginates execution listings.
 type ListExecutionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Filter by workflow ID (UUID format).
+	// Filter by workflow ID.
+	// @format uuid
 	WorkflowId *string `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
 	// Filter by execution status.
 	Status *base.ExecutionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus,oneof" json:"status,omitempty"`
@@ -1306,7 +1318,8 @@ func (x *ListExecutionsResponse) GetHasMore() bool {
 // GetExecutionRequest identifies an execution to retrieve.
 type GetExecutionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Execution ID (UUID format).
+	// Execution ID to retrieve.
+	// @format uuid
 	ExecutionId   string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1496,7 +1509,8 @@ type WorkflowValidationIssue struct {
 	Code string `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
 	// Human-readable message.
 	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	// Node ID where the issue was found (UUID format).
+	// Node ID where the issue was found.
+	// @format uuid
 	NodeId string `protobuf:"bytes,4,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	// Node type (action type).
 	NodeType actions.ActionType `protobuf:"varint,5,opt,name=node_type,json=nodeType,proto3,enum=browser_automation_studio.v1.ActionType" json:"node_type,omitempty"`

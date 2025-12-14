@@ -13,6 +13,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page
 // @layer 0
 // @domain settings
 // @imports none
+// @stability stable
 //
 // Defines Stripe credential configuration types for admin management.
 // Settings control which Stripe keys the API uses for payment processing.

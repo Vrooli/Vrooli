@@ -31,8 +31,15 @@ type Request struct {
 	// Resume support: when set, execution starts from the step after StartFromStepIndex.
 	// InitialVariables provides state accumulated from previously completed steps.
 	StartFromStepIndex int            // -1 means start from beginning (default).
-	InitialVariables   map[string]any // Variables restored from previous execution.
+	InitialVariables   map[string]any // Variables restored from previous execution (merged into store).
 	ResumedFromID      *uuid.UUID     // ID of the original execution being resumed.
+
+	// Namespace-aware variable support (Phase 2).
+	// These fields map to ExecutionParameters proto fields.
+	ProjectRoot  string         // Absolute path to project root for workflowPath resolution.
+	InitialStore map[string]any // Initial @store/ values - pre-seeded runtime state.
+	InitialParams map[string]any // Initial @params/ values - workflow input contract.
+	Env          map[string]any // Environment values - project/user configuration.
 }
 
 // Executor orchestrates plan execution using an engine, recorder, and event sink.

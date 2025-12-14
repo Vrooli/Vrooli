@@ -11,6 +11,34 @@ import "browser-automation-studio/v1/domain/selectors.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions;actions";
 
 // =============================================================================
+// ACTION DEFINITIONS
+// =============================================================================
+//
+// @layer 2
+// @domain actions
+// @imports base, domain
+// @stability stable
+//
+// Defines the canonical ActionDefinition type used across all BAS operations:
+// recording capture, workflow storage, execution replay, and timeline streaming.
+//
+// This file contains:
+//   - ActionType enum: All supported browser automation action kinds
+//   - *Params messages: Type-specific parameters for each action
+//   - ActionMetadata: Optional rich context captured during action execution
+//   - ActionDefinition: The unified action type used everywhere
+//
+// USAGE CONTEXTS:
+//   - Recording: Captured from user interactions with browser
+//   - Workflow Storage: Persisted in WorkflowNodeV2.action
+//   - Execution: Sent to playwright-driver for replay
+//   - Timeline: Streamed/returned in TimelineEntry.action
+//
+// @see shared.proto for "UNIFIED RECORDING/EXECUTION MODEL" design rationale
+//
+// =============================================================================
+
+// =============================================================================
 // ACTION TYPE ENUM
 // =============================================================================
 
@@ -453,7 +481,8 @@ message BlurParams {
 // reject absolute paths and any traversal segments ('.' or '..').
 message SubflowParams {
   oneof target {
-    // Workflow ID to invoke as a subflow (UUID format).
+    // Workflow ID to invoke as a subflow.
+    // @format uuid
     string workflow_id = 1;
     // Project-relative path to a workflow definition file (e.g. "actions/dismiss-tutorial.json").
     string workflow_path = 2;
@@ -475,6 +504,8 @@ message SubflowParams {
 //   - Editing: Users can adjust selectors on failed steps using captured alternatives
 //
 // See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
+//
+// @usage ActionDefinition.metadata
 message ActionMetadata {
   // Human-readable label for the action.
   optional string label = 1;

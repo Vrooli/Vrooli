@@ -20,7 +20,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/execution/execution.proto.
  */
 export const file_browser_automation_studio_v1_execution_execution: GenFile = /*@__PURE__*/
-  fileDesc("CjZicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi9leGVjdXRpb24ucHJvdG8SHGJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEivgMKE0V4ZWN1dGlvblBhcmFtZXRlcnMSFgoJc3RhcnRfdXJsGAEgASgJSACIAQESUwoJdmFyaWFibGVzGAIgAygLMkAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzLlZhcmlhYmxlc0VudHJ5EhsKDnZpZXdwb3J0X3dpZHRoGAMgASgFSAGIAQESHAoPdmlld3BvcnRfaGVpZ2h0GAQgASgFSAKIAQESFQoIaGVhZGxlc3MYBiABKAhIA4gBARIXCgp1c2VyX2FnZW50GAcgASgJSASIAQESEwoGbG9jYWxlGAggASgJSAWIAQESFwoKdGltZW91dF9tcxgJIAEoBUgGiAEBGjAKDlZhcmlhYmxlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDAoKX3N0YXJ0X3VybEIRCg9fdmlld3BvcnRfd2lkdGhCEgoQX3ZpZXdwb3J0X2hlaWdodEILCglfaGVhZGxlc3NCDQoLX3VzZXJfYWdlbnRCCQoHX2xvY2FsZUINCgtfdGltZW91dF9tc0oECAUQBiKEBAoPRXhlY3V0aW9uUmVzdWx0Eg8KB3N1Y2Nlc3MYASABKAgSFgoOc3RlcHNfZXhlY3V0ZWQYAiABKAUSFAoMc3RlcHNfZmFpbGVkGAMgASgFEhYKCWZpbmFsX3VybBgEIAEoCUgAiAEBEhIKBWVycm9yGAUgASgJSAGIAQESFwoKZXJyb3JfY29kZRgGIAEoCUgCiAEBElgKDmV4dHJhY3RlZF9kYXRhGAcgAygLMkAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25SZXN1bHQuRXh0cmFjdGVkRGF0YUVudHJ5EmQKFHNjcmVlbnNob3RfYXJ0aWZhY3RzGAggAygLMkYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25SZXN1bHQuU2NyZWVuc2hvdEFydGlmYWN0c0VudHJ5GkoKEkV4dHJhY3RlZERhdGFFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ARo6ChhTY3JlZW5zaG90QXJ0aWZhY3RzRW50cnkSCwoDa2V5GAEgASgFEg0KBXZhbHVlGAIgASgJOgI4AUIMCgpfZmluYWxfdXJsQggKBl9lcnJvckINCgtfZXJyb3JfY29kZSKzAgoPVHJpZ2dlck1ldGFkYXRhEhQKB3VzZXJfaWQYASABKAlIAIgBARIWCgljbGllbnRfaWQYAiABKAlIAYgBARIYCgtzY2hlZHVsZV9pZBgDIAEoCUgCiAEBEhcKCndlYmhvb2tfaWQYBCABKAlIA4gBARIgChNleHRlcm5hbF9yZXF1ZXN0X2lkGAUgASgJSASIAQESFgoJc291cmNlX2lwGAYgASgJSAWIAQESFwoKdXNlcl9hZ2VudBgHIAEoCUgGiAEBQgoKCF91c2VyX2lkQgwKCl9jbGllbnRfaWRCDgoMX3NjaGVkdWxlX2lkQg0KC193ZWJob29rX2lkQhYKFF9leHRlcm5hbF9yZXF1ZXN0X2lkQgwKCl9zb3VyY2VfaXBCDQoLX3VzZXJfYWdlbnQiqAcKCUV4ZWN1dGlvbhIYCgxleGVjdXRpb25faWQYASABKAlSAmlkEhMKC3dvcmtmbG93X2lkGAIgASgJEhgKEHdvcmtmbG93X3ZlcnNpb24YAyABKAUSPQoGc3RhdHVzGAQgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSPwoMdHJpZ2dlcl90eXBlGAUgASgOMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UcmlnZ2VyVHlwZRIuCgpzdGFydGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI1Cgxjb21wbGV0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESNQoRbGFzdF9oZWFydGJlYXRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhIKBWVycm9yGAsgASgJSAGIAQESEAoIcHJvZ3Jlc3MYDSABKAUSGQoMY3VycmVudF9zdGVwGA4gASgJSAKIAQESLgoKY3JlYXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASRQoKcGFyYW1ldGVycxgUIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUGFyYW1ldGVycxI9CgZyZXN1bHQYFSABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblJlc3VsdBJHChB0cmlnZ2VyX21ldGFkYXRhGBYgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UcmlnZ2VyTWV0YWRhdGESFQoIdHJhY2VfaWQYHiABKAlIA4gBARIbCg5jb3JyZWxhdGlvbl9pZBgfIAEoCUgEiAEBEhcKCnJlcXVlc3RfaWQYICABKAlIBYgBAUIPCg1fY29tcGxldGVkX2F0QggKBl9lcnJvckIPCg1fY3VycmVudF9zdGVwQgsKCV90cmFjZV9pZEIRCg9fY29ycmVsYXRpb25faWRCDQoLX3JlcXVlc3RfaWRKBAgGEAdKBAgHEAhKBAgMEA1KBAgREBJKBAgSEBMilQIKE0V4ZWN1dGVBZGhvY1JlcXVlc3QSSwoPZmxvd19kZWZpbml0aW9uGAEgASgLMjIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Xb3JrZmxvd0RlZmluaXRpb25WMhIbChN3YWl0X2Zvcl9jb21wbGV0aW9uGAMgASgIEkEKCG1ldGFkYXRhGAQgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25NZXRhZGF0YRJFCgpwYXJhbWV0ZXJzGAYgASgLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzSgQIAhADSgQIBRAGIjYKEUV4ZWN1dGlvbk1ldGFkYXRhEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkijAIKFEV4ZWN1dGVBZGhvY1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRI9CgZzdGF0dXMYAiABKA4yLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblN0YXR1cxIYCgt3b3JrZmxvd19pZBgDIAEoCUgAiAEBEg8KB21lc3NhZ2UYBCABKAkSNQoMY29tcGxldGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBEhIKBWVycm9yGAYgASgJSAKIAQFCDgoMX3dvcmtmbG93X2lkQg8KDV9jb21wbGV0ZWRfYXRCCAoGX2Vycm9yItcBChNFeGVjdXRpb25TY3JlZW5zaG90EkQKCnNjcmVlbnNob3QYASABKAsyMC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lU2NyZWVuc2hvdBISCgpzdGVwX2luZGV4GAIgASgFEg8KB25vZGVfaWQYAyABKAkSFwoKc3RlcF9sYWJlbBgEIAEoCUgAiAEBEi0KCXRpbWVzdGFtcBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCDQoLX3N0ZXBfbGFiZWwihQEKFkdldFNjcmVlbnNob3RzUmVzcG9uc2USFAoMZXhlY3V0aW9uX2lkGAEgASgJEkYKC3NjcmVlbnNob3RzGAIgAygLMjEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TY3JlZW5zaG90Eg0KBXRvdGFsGAMgASgFIpICChZFeGVjdXRpb25FeHBvcnRQcmV2aWV3EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIPCgdzcGVjX2lkGAIgASgJEjoKBnN0YXR1cxgDIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhwb3J0U3RhdHVzEg8KB21lc3NhZ2UYBCABKAkSHAoUY2FwdHVyZWRfZnJhbWVfY291bnQYBSABKAUSHQoVYXZhaWxhYmxlX2Fzc2V0X2NvdW50GAYgASgFEhkKEXRvdGFsX2R1cmF0aW9uX21zGAcgASgFEiYKB3BhY2thZ2UYCSABKAsyFS5jb21tb24udjEuSnNvbk9iamVjdEoECAgQCSKfAQoPRXhlY3V0b3JNZXRyaWNzEhkKDG1lbW9yeV9ieXRlcxgBIAEoA0gAiAEBEhgKC2NwdV9wZXJjZW50GAIgASgBSAGIAQESGQoMYWN0aXZlX3BhZ2VzGAMgASgFSAKIAQFCDwoNX21lbW9yeV9ieXRlc0IOCgxfY3B1X3BlcmNlbnRCDwoNX2FjdGl2ZV9wYWdlc0oECAQQBUoECAUQBiLOAgoSUGVyZm9ybWFuY2VNZXRyaWNzEh0KEG5ldHdvcmtfcmVxdWVzdHMYASABKAVIAIgBARIeChFieXRlc190cmFuc2ZlcnJlZBgCIAEoA0gBiAEBEhYKCWRvbV9ub2RlcxgDIAEoBUgCiAEBEhoKDWpzX2hlYXBfYnl0ZXMYBCABKANIA4gBARIUCgd0dGZiX21zGAUgASgFSASIAQESEwoGbGNwX21zGAYgASgFSAWIAQESEwoGZmlkX21zGAcgASgFSAaIAQESEAoDY2xzGAggASgBSAeIAQFCEwoRX25ldHdvcmtfcmVxdWVzdHNCFAoSX2J5dGVzX3RyYW5zZmVycmVkQgwKCl9kb21fbm9kZXNCEAoOX2pzX2hlYXBfYnl0ZXNCCgoIX3R0ZmJfbXNCCQoHX2xjcF9tc0IJCgdfZmlkX21zQgYKBF9jbHNCYVpfZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbjtleGVjdXRpb25iBnByb3RvMw", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_domain_telemetry, file_browser_automation_studio_v1_workflows_definition]);
+  fileDesc("CjZicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2V4ZWN1dGlvbi9leGVjdXRpb24ucHJvdG8SHGJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEixgcKE0V4ZWN1dGlvblBhcmFtZXRlcnMSFgoJc3RhcnRfdXJsGAEgASgJSACIAQESUwoJdmFyaWFibGVzGAIgAygLMkAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzLlZhcmlhYmxlc0VudHJ5EhsKDnZpZXdwb3J0X3dpZHRoGAMgASgFSAGIAQESHAoPdmlld3BvcnRfaGVpZ2h0GAQgASgFSAKIAQESFQoIaGVhZGxlc3MYBiABKAhIA4gBARIXCgp1c2VyX2FnZW50GAcgASgJSASIAQESEwoGbG9jYWxlGAggASgJSAWIAQESFwoKdGltZW91dF9tcxgJIAEoBUgGiAEBEhkKDHByb2plY3Rfcm9vdBgKIAEoCUgHiAEBElwKDmluaXRpYWxfcGFyYW1zGAsgAygLMkQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzLkluaXRpYWxQYXJhbXNFbnRyeRJaCg1pbml0aWFsX3N0b3JlGAwgAygLMkMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25QYXJhbWV0ZXJzLkluaXRpYWxTdG9yZUVudHJ5EkcKA2VudhgNIAMoCzI6LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUGFyYW1ldGVycy5FbnZFbnRyeRowCg5WYXJpYWJsZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGkoKEkluaXRpYWxQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ARpJChFJbml0aWFsU3RvcmVFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4ARpACghFbnZFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIMCgpfc3RhcnRfdXJsQhEKD192aWV3cG9ydF93aWR0aEISChBfdmlld3BvcnRfaGVpZ2h0QgsKCV9oZWFkbGVzc0INCgtfdXNlcl9hZ2VudEIJCgdfbG9jYWxlQg0KC190aW1lb3V0X21zQg8KDV9wcm9qZWN0X3Jvb3RKBAgFEAYihAQKD0V4ZWN1dGlvblJlc3VsdBIPCgdzdWNjZXNzGAEgASgIEhYKDnN0ZXBzX2V4ZWN1dGVkGAIgASgFEhQKDHN0ZXBzX2ZhaWxlZBgDIAEoBRIWCglmaW5hbF91cmwYBCABKAlIAIgBARISCgVlcnJvchgFIAEoCUgBiAEBEhcKCmVycm9yX2NvZGUYBiABKAlIAogBARJYCg5leHRyYWN0ZWRfZGF0YRgHIAMoCzJALmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUmVzdWx0LkV4dHJhY3RlZERhdGFFbnRyeRJkChRzY3JlZW5zaG90X2FydGlmYWN0cxgIIAMoCzJGLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUmVzdWx0LlNjcmVlbnNob3RBcnRpZmFjdHNFbnRyeRpKChJFeHRyYWN0ZWREYXRhRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAEaOgoYU2NyZWVuc2hvdEFydGlmYWN0c0VudHJ5EgsKA2tleRgBIAEoBRINCgV2YWx1ZRgCIAEoCToCOAFCDAoKX2ZpbmFsX3VybEIICgZfZXJyb3JCDQoLX2Vycm9yX2NvZGUiswIKD1RyaWdnZXJNZXRhZGF0YRIUCgd1c2VyX2lkGAEgASgJSACIAQESFgoJY2xpZW50X2lkGAIgASgJSAGIAQESGAoLc2NoZWR1bGVfaWQYAyABKAlIAogBARIXCgp3ZWJob29rX2lkGAQgASgJSAOIAQESIAoTZXh0ZXJuYWxfcmVxdWVzdF9pZBgFIAEoCUgEiAEBEhYKCXNvdXJjZV9pcBgGIAEoCUgFiAEBEhcKCnVzZXJfYWdlbnQYByABKAlIBogBAUIKCghfdXNlcl9pZEIMCgpfY2xpZW50X2lkQg4KDF9zY2hlZHVsZV9pZEINCgtfd2ViaG9va19pZEIWChRfZXh0ZXJuYWxfcmVxdWVzdF9pZEIMCgpfc291cmNlX2lwQg0KC191c2VyX2FnZW50IqgHCglFeGVjdXRpb24SGAoMZXhlY3V0aW9uX2lkGAEgASgJUgJpZBITCgt3b3JrZmxvd19pZBgCIAEoCRIYChB3b3JrZmxvd192ZXJzaW9uGAMgASgFEj0KBnN0YXR1cxgEIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEj8KDHRyaWdnZXJfdHlwZRgFIAEoDjIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVHJpZ2dlclR5cGUSLgoKc3RhcnRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjUKEWxhc3RfaGVhcnRiZWF0X2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgVlcnJvchgLIAEoCUgBiAEBEhAKCHByb2dyZXNzGA0gASgFEhkKDGN1cnJlbnRfc3RlcBgOIAEoCUgCiAEBEi4KCmNyZWF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkUKCnBhcmFtZXRlcnMYFCABKAsyMS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4ZWN1dGlvblBhcmFtZXRlcnMSPQoGcmVzdWx0GBUgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25SZXN1bHQSRwoQdHJpZ2dlcl9tZXRhZGF0YRgWIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVHJpZ2dlck1ldGFkYXRhEhUKCHRyYWNlX2lkGB4gASgJSAOIAQESGwoOY29ycmVsYXRpb25faWQYHyABKAlIBIgBARIXCgpyZXF1ZXN0X2lkGCAgASgJSAWIAQFCDwoNX2NvbXBsZXRlZF9hdEIICgZfZXJyb3JCDwoNX2N1cnJlbnRfc3RlcEILCglfdHJhY2VfaWRCEQoPX2NvcnJlbGF0aW9uX2lkQg0KC19yZXF1ZXN0X2lkSgQIBhAHSgQIBxAISgQIDBANSgQIERASSgQIEhATIpUCChNFeGVjdXRlQWRob2NSZXF1ZXN0EksKD2Zsb3dfZGVmaW5pdGlvbhgBIAEoCzIyLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuV29ya2Zsb3dEZWZpbml0aW9uVjISGwoTd2FpdF9mb3JfY29tcGxldGlvbhgDIAEoCBJBCghtZXRhZGF0YRgEIAEoCzIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uTWV0YWRhdGESRQoKcGFyYW1ldGVycxgGIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uUGFyYW1ldGVyc0oECAIQA0oECAUQBiI2ChFFeGVjdXRpb25NZXRhZGF0YRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJIowCChRFeGVjdXRlQWRob2NSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSPQoGc3RhdHVzGAIgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSGAoLd29ya2Zsb3dfaWQYAyABKAlIAIgBARIPCgdtZXNzYWdlGAQgASgJEjUKDGNvbXBsZXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBARISCgVlcnJvchgGIAEoCUgCiAEBQg4KDF93b3JrZmxvd19pZEIPCg1fY29tcGxldGVkX2F0QggKBl9lcnJvciLXAQoTRXhlY3V0aW9uU2NyZWVuc2hvdBJECgpzY3JlZW5zaG90GAEgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZVNjcmVlbnNob3QSEgoKc3RlcF9pbmRleBgCIAEoBRIPCgdub2RlX2lkGAMgASgJEhcKCnN0ZXBfbGFiZWwYBCABKAlIAIgBARItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQg0KC19zdGVwX2xhYmVsIoUBChZHZXRTY3JlZW5zaG90c1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRJGCgtzY3JlZW5zaG90cxgCIAMoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU2NyZWVuc2hvdBINCgV0b3RhbBgDIAEoBSKSAgoWRXhlY3V0aW9uRXhwb3J0UHJldmlldxIUCgxleGVjdXRpb25faWQYASABKAkSDwoHc3BlY19pZBgCIAEoCRI6CgZzdGF0dXMYAyABKA4yKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4cG9ydFN0YXR1cxIPCgdtZXNzYWdlGAQgASgJEhwKFGNhcHR1cmVkX2ZyYW1lX2NvdW50GAUgASgFEh0KFWF2YWlsYWJsZV9hc3NldF9jb3VudBgGIAEoBRIZChF0b3RhbF9kdXJhdGlvbl9tcxgHIAEoBRImCgdwYWNrYWdlGAkgASgLMhUuY29tbW9uLnYxLkpzb25PYmplY3RKBAgIEAkinwEKD0V4ZWN1dG9yTWV0cmljcxIZCgxtZW1vcnlfYnl0ZXMYASABKANIAIgBARIYCgtjcHVfcGVyY2VudBgCIAEoAUgBiAEBEhkKDGFjdGl2ZV9wYWdlcxgDIAEoBUgCiAEBQg8KDV9tZW1vcnlfYnl0ZXNCDgoMX2NwdV9wZXJjZW50Qg8KDV9hY3RpdmVfcGFnZXNKBAgEEAVKBAgFEAYizgIKElBlcmZvcm1hbmNlTWV0cmljcxIdChBuZXR3b3JrX3JlcXVlc3RzGAEgASgFSACIAQESHgoRYnl0ZXNfdHJhbnNmZXJyZWQYAiABKANIAYgBARIWCglkb21fbm9kZXMYAyABKAVIAogBARIaCg1qc19oZWFwX2J5dGVzGAQgASgDSAOIAQESFAoHdHRmYl9tcxgFIAEoBUgEiAEBEhMKBmxjcF9tcxgGIAEoBUgFiAEBEhMKBmZpZF9tcxgHIAEoBUgGiAEBEhAKA2NscxgIIAEoAUgHiAEBQhMKEV9uZXR3b3JrX3JlcXVlc3RzQhQKEl9ieXRlc190cmFuc2ZlcnJlZEIMCgpfZG9tX25vZGVzQhAKDl9qc19oZWFwX2J5dGVzQgoKCF90dGZiX21zQgkKB19sY3BfbXNCCQoHX2ZpZF9tc0IGCgRfY2xzQmFaX2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9leGVjdXRpb247ZXhlY3V0aW9uYgZwcm90bzM", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_domain_telemetry, file_browser_automation_studio_v1_workflows_definition]);
 
 /**
  * ExecutionParameters captures typed runtime parameters for workflow execution.
@@ -37,6 +37,7 @@ export type ExecutionParameters = Message<"browser_automation_studio.v1.Executio
 
   /**
    * Variables to inject into the workflow (e.g., login credentials).
+   * DEPRECATED: Use initial_store or initial_params instead.
    *
    * @generated from field: map<string, string> variables = 2;
    */
@@ -81,6 +82,42 @@ export type ExecutionParameters = Message<"browser_automation_studio.v1.Executio
    * @generated from field: optional int32 timeout_ms = 9;
    */
   timeoutMs?: number;
+
+  /**
+   * Absolute path to project root for workflowPath resolution.
+   * Used to resolve relative paths like "actions/login.json".
+   * Example: "/home/user/Vrooli/scenarios/my-scenario/bas"
+   *
+   * @generated from field: optional string project_root = 10;
+   */
+  projectRoot?: string;
+
+  /**
+   * Initial @params/ values - the workflow's input contract.
+   * These are read-only within the workflow. Subflows inherit parent's params
+   * unless the subflow call explicitly specifies override params.
+   *
+   * @generated from field: map<string, common.v1.JsonValue> initial_params = 11;
+   */
+  initialParams: { [key: string]: JsonValue };
+
+  /**
+   * Initial @store/ values - pre-seeded runtime state.
+   * These are mutable via setVariable steps and storeResult params.
+   * Child subflows receive a copy and merge back on completion.
+   *
+   * @generated from field: map<string, common.v1.JsonValue> initial_store = 12;
+   */
+  initialStore: { [key: string]: JsonValue };
+
+  /**
+   * Environment values - project/user configuration.
+   * Read-only, inherited by all subflows unchanged.
+   * Intended for project-wide settings like API endpoints, feature flags.
+   *
+   * @generated from field: map<string, common.v1.JsonValue> env = 13;
+   */
+  env: { [key: string]: JsonValue };
 };
 
 /**
@@ -168,28 +205,32 @@ export const ExecutionResultSchema: GenMessage<ExecutionResult> = /*@__PURE__*/
  */
 export type TriggerMetadata = Message<"browser_automation_studio.v1.TriggerMetadata"> & {
   /**
-   * User ID who initiated the execution (UUID format, for manual triggers).
+   * User ID who initiated the execution (for manual triggers).
+   * @format uuid
    *
    * @generated from field: optional string user_id = 1;
    */
   userId?: string;
 
   /**
-   * API client ID (UUID format, for API triggers).
+   * API client ID (for API triggers).
+   * @format uuid
    *
    * @generated from field: optional string client_id = 2;
    */
   clientId?: string;
 
   /**
-   * Schedule ID (UUID format, for scheduled triggers).
+   * Schedule ID (for scheduled triggers).
+   * @format uuid
    *
    * @generated from field: optional string schedule_id = 3;
    */
   scheduleId?: string;
 
   /**
-   * Webhook ID (UUID format, for webhook triggers).
+   * Webhook ID (for webhook triggers).
+   * @format uuid
    *
    * @generated from field: optional string webhook_id = 4;
    */
@@ -231,14 +272,16 @@ export const TriggerMetadataSchema: GenMessage<TriggerMetadata> = /*@__PURE__*/
  */
 export type Execution = Message<"browser_automation_studio.v1.Execution"> & {
   /**
-   * Unique execution ID (UUID format). JSON name preserved as "id" for backwards compatibility.
+   * Unique execution identifier. JSON name preserved as "id" for backwards compatibility.
+   * @format uuid
    *
    * @generated from field: string execution_id = 1 [json_name = "id"];
    */
   executionId: string;
 
   /**
-   * Workflow ID associated with the execution (UUID format).
+   * Workflow ID associated with this execution.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 2;
    */
@@ -449,7 +492,8 @@ export const ExecutionMetadataSchema: GenMessage<ExecutionMetadata> = /*@__PURE_
  */
 export type ExecuteAdhocResponse = Message<"browser_automation_studio.v1.ExecuteAdhocResponse"> & {
   /**
-   * The created execution ID (UUID format).
+   * The created execution identifier.
+   * @format uuid
    *
    * @generated from field: string execution_id = 1;
    */
@@ -463,7 +507,8 @@ export type ExecuteAdhocResponse = Message<"browser_automation_studio.v1.Execute
   status: ExecutionStatus;
 
   /**
-   * Workflow ID if persisted (UUID format, null for adhoc).
+   * Workflow ID if persisted (null for adhoc).
+   * @format uuid
    *
    * @generated from field: optional string workflow_id = 3;
    */
@@ -520,7 +565,8 @@ export type ExecutionScreenshot = Message<"browser_automation_studio.v1.Executio
   stepIndex: number;
 
   /**
-   * Node ID from the workflow definition (UUID format).
+   * Node ID from the workflow definition.
+   * @format uuid
    *
    * @generated from field: string node_id = 3;
    */
@@ -555,7 +601,8 @@ export const ExecutionScreenshotSchema: GenMessage<ExecutionScreenshot> = /*@__P
  */
 export type GetScreenshotsResponse = Message<"browser_automation_studio.v1.GetScreenshotsResponse"> & {
   /**
-   * Execution ID the screenshots belong to (UUID format).
+   * Execution ID the screenshots belong to.
+   * @format uuid
    *
    * @generated from field: string execution_id = 1;
    */
@@ -590,14 +637,16 @@ export const GetScreenshotsResponseSchema: GenMessage<GetScreenshotsResponse> = 
  */
 export type ExecutionExportPreview = Message<"browser_automation_studio.v1.ExecutionExportPreview"> & {
   /**
-   * Execution ID being exported (UUID format).
+   * Execution ID being exported.
+   * @format uuid
    *
    * @generated from field: string execution_id = 1;
    */
   executionId: string;
 
   /**
-   * Identifier for the generated export spec (UUID format).
+   * Identifier for the generated export spec.
+   * @format uuid
    *
    * @generated from field: string spec_id = 2;
    */

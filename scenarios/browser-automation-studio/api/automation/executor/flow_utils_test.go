@@ -528,3 +528,313 @@ func TestMinMaxInt(t *testing.T) {
 		t.Error("maxInt(5,3) should be 5")
 	}
 }
+
+// ============================================================================
+// Namespace Interpolation Tests
+// ============================================================================
+
+func TestExecutionStateBasics(t *testing.T) {
+	state := newExecutionState(
+		map[string]any{"count": 42, "name": "test"},
+		map[string]any{"userId": "user-123"},
+		map[string]any{"apiUrl": "https://api.test"},
+	)
+
+	// Test store access
+	if v, ok := state.resolveNamespaced("store", "count"); !ok || v != 42 {
+		t.Errorf("store/count: expected 42, got %v (ok=%v)", v, ok)
+	}
+
+	// Test params access
+	if v, ok := state.resolveNamespaced("params", "userId"); !ok || v != "user-123" {
+		t.Errorf("params/userId: expected user-123, got %v (ok=%v)", v, ok)
+	}
+
+	// Test env access
+	if v, ok := state.resolveNamespaced("env", "apiUrl"); !ok || v != "https://api.test" {
+		t.Errorf("env/apiUrl: expected https://api.test, got %v (ok=%v)", v, ok)
+	}
+
+	// Test store mutation
+	state.setStore("newKey", "newValue")
+	if v, ok := state.resolveNamespaced("store", "newKey"); !ok || v != "newValue" {
+		t.Errorf("store/newKey after set: expected newValue, got %v", v)
+	}
+
+	// Test unknown namespace
+	if _, ok := state.resolveNamespaced("unknown", "key"); ok {
+		t.Error("unknown namespace should return false")
+	}
+}
+
+func TestNamespacedInterpolation(t *testing.T) {
+	state := newFlowStateWithNamespaces(
+		map[string]any{"projectName": "Demo", "count": 5},
+		map[string]any{"userName": "Alice", "timeout": 3000},
+		map[string]any{"apiUrl": "https://api.example.com"},
+	)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"store reference", "Project: ${@store/projectName}", "Project: Demo"},
+		{"params reference", "User: ${@params/userName}", "User: Alice"},
+		{"env reference", "API: ${@env/apiUrl}", "API: https://api.example.com"},
+		{"mixed namespaces", "${@params/userName} has ${@store/count} items", "Alice has 5 items"},
+		{"legacy syntax still works", "Count: ${count}", "Count: 5"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := interpolateString(tc.input, state)
+			if result != tc.expected {
+				t.Errorf("interpolateString(%q): expected %q, got %q", tc.input, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestFallbackChains(t *testing.T) {
+	state := newFlowStateWithNamespaces(
+		map[string]any{"present": "from_store"},
+		map[string]any{"alsoPresent": "from_params"},
+		map[string]any{},
+	)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected any
+	}{
+		{"first defined wins", "${@store/present|@params/alsoPresent}", "from_store"},
+		{"fallback to second", "${@store/missing|@params/alsoPresent}", "from_params"},
+		{"fallback to literal string", `${@store/missing|"default"}`, "default"},
+		{"fallback to literal number", "${@store/missing|42}", 42},
+		{"fallback to literal boolean", "${@store/missing|true}", true},
+		{"all missing empty string", "${@store/missing|@params/missing}", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := interpolateStringTyped(tc.input, state)
+			if result != tc.expected {
+				t.Errorf("interpolateStringTyped(%q): expected %v (%T), got %v (%T)",
+					tc.input, tc.expected, tc.expected, result, result)
+			}
+		})
+	}
+}
+
+func TestTypePreservation(t *testing.T) {
+	state := newFlowStateWithNamespaces(
+		map[string]any{
+			"number":  42,
+			"float":   3.14,
+			"boolean": true,
+			"text":    "hello",
+			"array":   []any{1, 2, 3},
+			"object":  map[string]any{"key": "value"},
+		},
+		nil, nil,
+	)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected any
+	}{
+		{"preserve int", "${@store/number}", 42},
+		{"preserve float", "${@store/float}", 3.14},
+		{"preserve bool", "${@store/boolean}", true},
+		{"preserve string", "${@store/text}", "hello"},
+		{"mixed becomes string", "Value: ${@store/number}", "Value: 42"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := interpolateStringTyped(tc.input, state)
+			if result != tc.expected {
+				t.Errorf("interpolateStringTyped(%q): expected %v (%T), got %v (%T)",
+					tc.input, tc.expected, tc.expected, result, result)
+			}
+		})
+	}
+}
+
+func TestNestedPathResolution(t *testing.T) {
+	state := newFlowStateWithNamespaces(
+		map[string]any{
+			"user": map[string]any{
+				"profile": map[string]any{
+					"name": "Alice",
+				},
+			},
+			"items": []any{"first", "second", "third"},
+		},
+		nil, nil,
+	)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"nested object", "${@store/user.profile.name}", "Alice"},
+		{"array index", "${@store/items.0}", "first"},
+		{"array index 2", "${@store/items.2}", "third"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := interpolateString(tc.input, state)
+			if result != tc.expected {
+				t.Errorf("interpolateString(%q): expected %q, got %q", tc.input, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestSubflowStateBehavior(t *testing.T) {
+	// Create parent state
+	parent := newFlowStateWithNamespaces(
+		map[string]any{"parentStore": "original"},
+		map[string]any{"parentParam": "inherited"},
+		map[string]any{"envVar": "environment"},
+	)
+
+	t.Run("inherits params when none specified", func(t *testing.T) {
+		child := buildSubflowState(parent, nil)
+		if v, ok := child.namespaced.resolveNamespaced("params", "parentParam"); !ok || v != "inherited" {
+			t.Errorf("child should inherit parent params, got %v", v)
+		}
+	})
+
+	t.Run("overrides params when specified", func(t *testing.T) {
+		child := buildSubflowState(parent, map[string]any{"childParam": "override"})
+		// Should have override param
+		if v, ok := child.namespaced.resolveNamespaced("params", "childParam"); !ok || v != "override" {
+			t.Errorf("child should have override param, got %v", v)
+		}
+		// Should NOT have parent param (override replaces all)
+		if _, ok := child.namespaced.resolveNamespaced("params", "parentParam"); ok {
+			t.Error("child should not inherit parent params when override specified")
+		}
+	})
+
+	t.Run("always inherits env", func(t *testing.T) {
+		child := buildSubflowState(parent, map[string]any{"childParam": "override"})
+		if v, ok := child.namespaced.resolveNamespaced("env", "envVar"); !ok || v != "environment" {
+			t.Errorf("child should always inherit env, got %v", v)
+		}
+	})
+
+	t.Run("store merges back to parent", func(t *testing.T) {
+		child := buildSubflowState(parent, nil)
+		child.namespaced.setStore("childStore", "childValue")
+		child.namespaced.setStore("parentStore", "modified")
+
+		mergeSubflowStore(parent, child)
+
+		// Parent should have child's new key
+		if v, ok := parent.namespaced.resolveNamespaced("store", "childStore"); !ok || v != "childValue" {
+			t.Errorf("parent should have child's new store key, got %v", v)
+		}
+		// Parent's existing key should be overwritten
+		if v, ok := parent.namespaced.resolveNamespaced("store", "parentStore"); !ok || v != "modified" {
+			t.Errorf("parent store should be modified, got %v", v)
+		}
+	})
+}
+
+func TestParseFallbackChain(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []string
+	}{
+		{"single", []string{"single"}},
+		{"a|b", []string{"a", "b"}},
+		{"a|b|c", []string{"a", "b", "c"}},
+		{`a|"contains|pipe"`, []string{"a", `"contains|pipe"`}},
+		{`"quoted"|fallback`, []string{`"quoted"`, "fallback"}},
+		{"@store/x|@params/y|42", []string{"@store/x", "@params/y", "42"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result := parseFallbackChain(tc.input)
+			if len(result) != len(tc.expected) {
+				t.Errorf("parseFallbackChain(%q): expected %d parts, got %d: %v",
+					tc.input, len(tc.expected), len(result), result)
+				return
+			}
+			for i, exp := range tc.expected {
+				if result[i] != exp {
+					t.Errorf("parseFallbackChain(%q)[%d]: expected %q, got %q",
+						tc.input, i, exp, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestIsSingleInterpolation(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"${var}", true},
+		{"${@store/var}", true},
+		{"${a|b}", true},
+		{"  ${var}  ", true},
+		{"{{var}}", true},
+		{"prefix ${var}", false},
+		{"${var} suffix", false},
+		{"${a} ${b}", false},
+		{"no interpolation", false},
+		{"", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result := isSingleInterpolation(tc.input)
+			if result != tc.expected {
+				t.Errorf("isSingleInterpolation(%q): expected %v, got %v", tc.input, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestLegacyBackwardCompatibility(t *testing.T) {
+	// Test that old-style ${var} syntax still works with legacy flowState
+	state := newFlowState(map[string]any{
+		"name":   "Test",
+		"count":  42,
+		"nested": map[string]any{"value": "deep"},
+	})
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"${name}", "Test"},
+		{"Value: ${count}", "Value: 42"},
+		{"${nested.value}", "deep"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result := interpolateString(tc.input, state)
+			if result != tc.expected {
+				t.Errorf("legacy interpolation %q: expected %q, got %q", tc.input, tc.expected, result)
+			}
+		})
+	}
+
+	// Test that @store/ works with upgraded legacy state
+	result := interpolateString("${@store/name}", state)
+	if result != "Test" {
+		t.Errorf("@store/ with legacy state: expected 'Test', got %q", result)
+	}
+}

@@ -24,6 +24,8 @@ const (
 )
 
 // ConsoleLogEntry captures browser console output for telemetry.
+//
+// @usage ActionTelemetry.console_logs
 type ConsoleLogEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Log level (debug, info, warn, error).
@@ -106,6 +108,8 @@ func (x *ConsoleLogEntry) GetLocation() string {
 }
 
 // NetworkEvent captures network activity for telemetry.
+//
+// @usage ActionTelemetry.network_events
 type NetworkEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Event type (request, response, failure).
@@ -215,6 +219,8 @@ func (x *NetworkEvent) GetTimestamp() *timestamppb.Timestamp {
 }
 
 // ActionTelemetry captures observable data during action recording or execution.
+//
+// @usage TimelineEntry.telemetry
 type ActionTelemetry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page URL at capture time.
@@ -372,10 +378,12 @@ func (x *ActionTelemetry) GetNetworkEvents() []*NetworkEvent {
 }
 
 // TimelineScreenshot describes screenshot metadata.
-// This type is used in ActionTelemetry and TimelineFrame for visual captures.
+//
+// @usage ActionTelemetry.screenshot, ExecutionScreenshot.screenshot
 type TimelineScreenshot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique artifact ID for the screenshot (UUID format).
+	// Unique artifact ID for the screenshot.
+	// @format uuid
 	ArtifactId string `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
 	// URL to download the full screenshot.
 	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`

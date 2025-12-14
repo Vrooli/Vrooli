@@ -25,11 +25,15 @@ const (
 
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
 // Contains all timeline entries from a completed or in-progress execution.
+//
+// @usage GET /api/v1/executions/{id}/timeline response body
 type ExecutionTimeline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique identifier for this execution (UUID format).
+	// Unique identifier for this execution.
+	// @format uuid
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
-	// Workflow ID associated with the execution (UUID format).
+	// Workflow ID associated with the execution.
+	// @format uuid
 	WorkflowId string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Current execution status (pending, running, completed, failed, cancelled).
 	Status base.ExecutionStatus `protobuf:"varint,3,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
@@ -134,55 +138,6 @@ func (x *ExecutionTimeline) GetLogs() []*TimelineLog {
 	return nil
 }
 
-// DEPRECATED: Use TimelineEntry from timeline_entry.proto instead.
-// TimelineFrame is an alias for backwards compatibility.
-//
-// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline/container.proto.
-type TimelineFrame struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Delegate to TimelineEntry for all data.
-	Entry         *TimelineEntry `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TimelineFrame) Reset() {
-	*x = TimelineFrame{}
-	mi := &file_browser_automation_studio_v1_timeline_container_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TimelineFrame) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TimelineFrame) ProtoMessage() {}
-
-func (x *TimelineFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_timeline_container_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TimelineFrame.ProtoReflect.Descriptor instead.
-func (*TimelineFrame) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_timeline_container_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *TimelineFrame) GetEntry() *TimelineEntry {
-	if x != nil {
-		return x.Entry
-	}
-	return nil
-}
-
 var File_browser_automation_studio_v1_timeline_container_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_timeline_container_proto_rawDesc = "" +
@@ -199,9 +154,7 @@ const file_browser_automation_studio_v1_timeline_container_proto_rawDesc = "" +
 	"\fcompleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12E\n" +
 	"\aentries\x18\a \x03(\v2+.browser_automation_studio.v1.TimelineEntryR\aentries\x12=\n" +
 	"\x04logs\x18\b \x03(\v2).browser_automation_studio.v1.TimelineLogR\x04logsB\x0f\n" +
-	"\r_completed_at\"V\n" +
-	"\rTimelineFrame\x12A\n" +
-	"\x05entry\x18\x01 \x01(\v2+.browser_automation_studio.v1.TimelineEntryR\x05entry:\x02\x18\x01B_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline;timelineb\x06proto3"
+	"\r_completed_atB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline;timelineb\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_timeline_container_proto_rawDescOnce sync.Once
@@ -215,27 +168,25 @@ func file_browser_automation_studio_v1_timeline_container_proto_rawDescGZIP() []
 	return file_browser_automation_studio_v1_timeline_container_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_timeline_container_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_browser_automation_studio_v1_timeline_container_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_browser_automation_studio_v1_timeline_container_proto_goTypes = []any{
 	(*ExecutionTimeline)(nil),     // 0: browser_automation_studio.v1.ExecutionTimeline
-	(*TimelineFrame)(nil),         // 1: browser_automation_studio.v1.TimelineFrame
-	(base.ExecutionStatus)(0),     // 2: browser_automation_studio.v1.ExecutionStatus
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
-	(*TimelineEntry)(nil),         // 4: browser_automation_studio.v1.TimelineEntry
-	(*TimelineLog)(nil),           // 5: browser_automation_studio.v1.TimelineLog
+	(base.ExecutionStatus)(0),     // 1: browser_automation_studio.v1.ExecutionStatus
+	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*TimelineEntry)(nil),         // 3: browser_automation_studio.v1.TimelineEntry
+	(*TimelineLog)(nil),           // 4: browser_automation_studio.v1.TimelineLog
 }
 var file_browser_automation_studio_v1_timeline_container_proto_depIdxs = []int32{
-	2, // 0: browser_automation_studio.v1.ExecutionTimeline.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	3, // 1: browser_automation_studio.v1.ExecutionTimeline.started_at:type_name -> google.protobuf.Timestamp
-	3, // 2: browser_automation_studio.v1.ExecutionTimeline.completed_at:type_name -> google.protobuf.Timestamp
-	4, // 3: browser_automation_studio.v1.ExecutionTimeline.entries:type_name -> browser_automation_studio.v1.TimelineEntry
-	5, // 4: browser_automation_studio.v1.ExecutionTimeline.logs:type_name -> browser_automation_studio.v1.TimelineLog
-	4, // 5: browser_automation_studio.v1.TimelineFrame.entry:type_name -> browser_automation_studio.v1.TimelineEntry
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	1, // 0: browser_automation_studio.v1.ExecutionTimeline.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	2, // 1: browser_automation_studio.v1.ExecutionTimeline.started_at:type_name -> google.protobuf.Timestamp
+	2, // 2: browser_automation_studio.v1.ExecutionTimeline.completed_at:type_name -> google.protobuf.Timestamp
+	3, // 3: browser_automation_studio.v1.ExecutionTimeline.entries:type_name -> browser_automation_studio.v1.TimelineEntry
+	4, // 4: browser_automation_studio.v1.ExecutionTimeline.logs:type_name -> browser_automation_studio.v1.TimelineLog
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_timeline_container_proto_init() }
@@ -251,7 +202,7 @@ func file_browser_automation_studio_v1_timeline_container_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_timeline_container_proto_rawDesc), len(file_browser_automation_studio_v1_timeline_container_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

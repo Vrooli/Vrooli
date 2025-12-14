@@ -382,19 +382,6 @@ func convertEventToProto(ev contracts.EventEnvelope) (*bastimeline.TimelineStrea
 	}
 }
 
-// buildTimelineFrame creates a TimelineFrame from a contracts.EventEnvelope.
-// DEPRECATED: TimelineFrame is now a wrapper around TimelineEntry. This function
-// creates a TimelineEntry and wraps it in a TimelineFrame for backwards compatibility.
-func buildTimelineFrame(ev contracts.EventEnvelope) *bastimeline.TimelineFrame {
-	entry := buildTimelineEntryFromEnvelope(ev)
-	if entry == nil {
-		return nil
-	}
-	return &bastimeline.TimelineFrame{
-		Entry: entry,
-	}
-}
-
 // buildTimelineEntryFromEnvelope creates a TimelineEntry from a contracts.EventEnvelope.
 // This is the unified format for timeline data used in both streaming and batch contexts.
 func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.TimelineEntry {

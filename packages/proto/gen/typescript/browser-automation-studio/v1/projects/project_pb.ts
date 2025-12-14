@@ -28,8 +28,8 @@ export const file_browser_automation_studio_v1_projects_project: GenFile = /*@__
  */
 export type Project = Message<"browser_automation_studio.v1.Project"> & {
   /**
-   * Unique project identifier (UUID format).
-   * Generated server-side on creation; immutable after creation.
+   * Unique project identifier. Generated server-side on creation; immutable.
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
@@ -101,8 +101,8 @@ export const ProjectSchema: GenMessage<Project> = /*@__PURE__*/
  */
 export type ProjectStats = Message<"browser_automation_studio.v1.ProjectStats"> & {
   /**
-   * Project ID these stats belong to (UUID format).
-   * Foreign key reference to Project.id.
+   * Project ID these stats belong to. Foreign key reference to Project.id.
+   * @format uuid
    *
    * @generated from field: string project_id = 1;
    */

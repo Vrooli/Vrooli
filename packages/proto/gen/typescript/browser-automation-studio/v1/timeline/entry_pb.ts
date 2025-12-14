@@ -28,12 +28,15 @@ export const file_browser_automation_studio_v1_timeline_entry: GenFile = /*@__PU
  * TimelineEntry captures a single action in the timeline.
  * This is the unified format for both streaming and batch access.
  *
+ * @usage ExecutionTimeline.entries, GetActionsResponse.entries, TimelineStreamMessage.entry
+ *
  * @generated from message browser_automation_studio.v1.TimelineEntry
  */
 export type TimelineEntry = Message<"browser_automation_studio.v1.TimelineEntry"> & {
   /**
    * === IDENTITY ===
-   * Unique entry identifier (UUID format).
+   * Unique entry identifier.
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
@@ -55,8 +58,10 @@ export type TimelineEntry = Message<"browser_automation_studio.v1.TimelineEntry"
   stepIndex?: number;
 
   /**
-   * Node ID from the workflow definition (UUID format).
+   * Node ID from the workflow definition.
    * Links this entry to the specific WorkflowNodeV2.
+   * @format uuid
+   * @see WorkflowNodeV2.id
    *
    * @generated from field: optional string node_id = 4;
    */
@@ -145,6 +150,8 @@ export const TimelineEntrySchema: GenMessage<TimelineEntry> = /*@__PURE__*/
  * This data is calculated when an execution completes and is NOT populated
  * during real-time streaming.
  *
+ * @usage TimelineEntry.aggregates
+ *
  * @generated from message browser_automation_studio.v1.TimelineEntryAggregates
  */
 export type TimelineEntryAggregates = Message<"browser_automation_studio.v1.TimelineEntryAggregates"> & {
@@ -230,11 +237,14 @@ export const TimelineEntryAggregatesSchema: GenMessage<TimelineEntryAggregates> 
  * TimelineArtifact represents a stored artifact from execution.
  * Examples: screenshots, console logs, network traces, DOM snapshots.
  *
+ * @usage TimelineEntryAggregates.artifacts, TimelineEntryAggregates.dom_snapshot
+ *
  * @generated from message browser_automation_studio.v1.TimelineArtifact
  */
 export type TimelineArtifact = Message<"browser_automation_studio.v1.TimelineArtifact"> & {
   /**
-   * Unique artifact ID (UUID format).
+   * Unique artifact identifier.
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
@@ -307,6 +317,8 @@ export const TimelineArtifactSchema: GenMessage<TimelineArtifact> = /*@__PURE__*
 /**
  * ElementFocus captures focus metadata for screenshot framing and highlighting.
  *
+ * @usage TimelineEntryAggregates.focused_element
+ *
  * @generated from message browser_automation_studio.v1.ElementFocus
  */
 export type ElementFocus = Message<"browser_automation_studio.v1.ElementFocus"> & {
@@ -335,11 +347,14 @@ export const ElementFocusSchema: GenMessage<ElementFocus> = /*@__PURE__*/
 /**
  * TimelineLog captures execution log output for the timeline.
  *
+ * @usage ExecutionTimeline.logs, TimelineStreamMessage.log
+ *
  * @generated from message browser_automation_studio.v1.TimelineLog
  */
 export type TimelineLog = Message<"browser_automation_studio.v1.TimelineLog"> & {
   /**
-   * Unique log entry ID (UUID format).
+   * Unique log entry identifier.
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
@@ -384,6 +399,8 @@ export const TimelineLogSchema: GenMessage<TimelineLog> = /*@__PURE__*/
 /**
  * TimelineStreamMessage wraps timeline data for WebSocket transport.
  * This is the envelope format for all streaming timeline messages.
+ *
+ * @usage WebSocket timeline streaming endpoint
  *
  * @generated from message browser_automation_studio.v1.TimelineStreamMessage
  */
@@ -445,11 +462,14 @@ export const TimelineStreamMessageSchema: GenMessage<TimelineStreamMessage> = /*
 /**
  * TimelineStatusUpdate reports overall session/execution status.
  *
+ * @usage TimelineStreamMessage.status
+ *
  * @generated from message browser_automation_studio.v1.TimelineStatusUpdate
  */
 export type TimelineStatusUpdate = Message<"browser_automation_studio.v1.TimelineStatusUpdate"> & {
   /**
-   * Session ID (recording) or Execution ID (playback) - UUID format.
+   * Session ID (recording) or Execution ID (playback).
+   * @format uuid
    *
    * @generated from field: string id = 1;
    */
@@ -494,6 +514,8 @@ export const TimelineStatusUpdateSchema: GenMessage<TimelineStatusUpdate> = /*@_
 /**
  * TimelineHeartbeat keeps WebSocket connection alive.
  *
+ * @usage TimelineStreamMessage.heartbeat
+ *
  * @generated from message browser_automation_studio.v1.TimelineHeartbeat
  */
 export type TimelineHeartbeat = Message<"browser_automation_studio.v1.TimelineHeartbeat"> & {
@@ -505,7 +527,8 @@ export type TimelineHeartbeat = Message<"browser_automation_studio.v1.TimelineHe
   timestamp?: Timestamp;
 
   /**
-   * Session ID for connection routing (UUID format).
+   * Session ID for connection routing.
+   * @format uuid
    *
    * @generated from field: string session_id = 2;
    */
@@ -521,6 +544,8 @@ export const TimelineHeartbeatSchema: GenMessage<TimelineHeartbeat> = /*@__PURE_
 
 /**
  * TimelineMessageType enumerates WebSocket message types for streaming.
+ *
+ * @usage TimelineStreamMessage.type
  *
  * @generated from enum browser_automation_studio.v1.TimelineMessageType
  */

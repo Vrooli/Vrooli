@@ -32,8 +32,8 @@ const (
 // @see WorkflowSummary.project_id for the foreign key relationship
 type Project struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique project identifier (UUID format).
-	// Generated server-side on creation; immutable after creation.
+	// Unique project identifier. Generated server-side on creation; immutable.
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Human-readable project name.
 	// Used in UI displays and search. Must be non-empty.
@@ -141,8 +141,8 @@ func (x *Project) GetUpdatedAt() *timestamppb.Timestamp {
 // @see GetProjectStats repository method for computation logic
 type ProjectStats struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Project ID these stats belong to (UUID format).
-	// Foreign key reference to Project.id.
+	// Project ID these stats belong to. Foreign key reference to Project.id.
+	// @format uuid
 	ProjectId string `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	// Total number of workflows in this project.
 	// Computed as: COUNT(DISTINCT workflows.id) WHERE project_id = this.project_id

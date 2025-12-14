@@ -13,7 +13,6 @@ generate:
 	      gen/python/browser_automation_studio/v1/actions/py.typed \
 	      gen/python/browser_automation_studio/v1/workflows/py.typed \
 	      gen/python/browser_automation_studio/v1/timeline/py.typed \
-	      gen/python/browser_automation_studio/v1/timeline/_deprecated/py.typed \
 	      gen/python/browser_automation_studio/v1/execution/py.typed \
 	      gen/python/browser_automation_studio/v1/recording/py.typed \
 	      gen/python/browser_automation_studio/v1/projects/py.typed \

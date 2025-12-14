@@ -22,6 +22,27 @@ class ExecutionParameters(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    class InitialParamsEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    class InitialStoreEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    class EnvEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _types_pb2.JsonValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     START_URL_FIELD_NUMBER: _ClassVar[int]
     VARIABLES_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
@@ -30,6 +51,10 @@ class ExecutionParameters(_message.Message):
     USER_AGENT_FIELD_NUMBER: _ClassVar[int]
     LOCALE_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_ROOT_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_STORE_FIELD_NUMBER: _ClassVar[int]
+    ENV_FIELD_NUMBER: _ClassVar[int]
     start_url: str
     variables: _containers.ScalarMap[str, str]
     viewport_width: int
@@ -38,7 +63,11 @@ class ExecutionParameters(_message.Message):
     user_agent: str
     locale: str
     timeout_ms: int
-    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+    project_root: str
+    initial_params: _containers.MessageMap[str, _types_pb2.JsonValue]
+    initial_store: _containers.MessageMap[str, _types_pb2.JsonValue]
+    env: _containers.MessageMap[str, _types_pb2.JsonValue]
+    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class ExecutionResult(_message.Message):
     __slots__ = ()

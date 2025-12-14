@@ -111,12 +111,6 @@ func RecordedActionToTimelineEntry(action *RecordedAction) *bastimeline.Timeline
 	return entry
 }
 
-// RecordedActionToTimelineEvent is deprecated. Use RecordedActionToTimelineEntry instead.
-// This wrapper exists for backwards compatibility during migration.
-func RecordedActionToTimelineEvent(action *RecordedAction) *bastimeline.TimelineEntry {
-	return RecordedActionToTimelineEntry(action)
-}
-
 // buildRecordingActionDefinition creates an ActionDefinition from a RecordedAction.
 func buildRecordingActionDefinition(action *RecordedAction) *basactions.ActionDefinition {
 	actionType := mapRecordingActionType(action.ActionType)

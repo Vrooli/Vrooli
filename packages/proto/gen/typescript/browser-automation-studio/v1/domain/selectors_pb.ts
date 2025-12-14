@@ -18,8 +18,9 @@ export const file_browser_automation_studio_v1_domain_selectors: GenFile = /*@__
 
 /**
  * SelectorCandidate is a single selector with metadata.
- * Used in ActionMetadata.selector_candidates to provide fallback selectors
- * captured during recording.
+ * Used to provide fallback selectors captured during recording.
+ *
+ * @usage ActionMetadata.selector_candidates
  *
  * @generated from message browser_automation_studio.v1.SelectorCandidate
  */
@@ -62,6 +63,8 @@ export const SelectorCandidateSchema: GenMessage<SelectorCandidate> = /*@__PURE_
 
 /**
  * ElementMeta captures information about a DOM element.
+ *
+ * @usage ActionMetadata.element_snapshot
  *
  * @generated from message browser_automation_studio.v1.ElementMeta
  */
@@ -140,6 +143,8 @@ export const ElementMetaSchema: GenMessage<ElementMeta> = /*@__PURE__*/
 /**
  * HighlightRegion describes an overlay applied to screenshots for emphasis.
  *
+ * @usage ActionTelemetry.highlight_regions
+ *
  * @generated from message browser_automation_studio.v1.HighlightRegion
  */
 export type HighlightRegion = Message<"browser_automation_studio.v1.HighlightRegion"> & {
@@ -190,6 +195,8 @@ export const HighlightRegionSchema: GenMessage<HighlightRegion> = /*@__PURE__*/
 
 /**
  * MaskRegion describes areas that were dimmed or masked during capture.
+ *
+ * @usage ActionTelemetry.mask_regions
  *
  * @generated from message browser_automation_studio.v1.MaskRegion
  */

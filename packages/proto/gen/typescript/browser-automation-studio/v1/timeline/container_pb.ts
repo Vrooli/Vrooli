@@ -16,24 +16,28 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/timeline/container.proto.
  */
 export const file_browser_automation_studio_v1_timeline_container: GenFile = /*@__PURE__*/
-  fileDesc("CjVicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lL2NvbnRhaW5lci5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSL+AgoRRXhlY3V0aW9uVGltZWxpbmUSFAoMZXhlY3V0aW9uX2lkGAEgASgJEhMKC3dvcmtmbG93X2lkGAIgASgJEj0KBnN0YXR1cxgDIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhAKCHByb2dyZXNzGAQgASgFEi4KCnN0YXJ0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARI8CgdlbnRyaWVzGAcgAygLMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUVudHJ5EjcKBGxvZ3MYCCADKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lTG9nQg8KDV9jb21wbGV0ZWRfYXQiTwoNVGltZWxpbmVGcmFtZRI6CgVlbnRyeRgBIAEoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVFbnRyeToCGAFCX1pdZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lO3RpbWVsaW5lYgZwcm90bzM", [file_google_protobuf_timestamp, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_timeline_entry]);
+  fileDesc("CjVicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lL2NvbnRhaW5lci5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSL+AgoRRXhlY3V0aW9uVGltZWxpbmUSFAoMZXhlY3V0aW9uX2lkGAEgASgJEhMKC3dvcmtmbG93X2lkGAIgASgJEj0KBnN0YXR1cxgDIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRXhlY3V0aW9uU3RhdHVzEhAKCHByb2dyZXNzGAQgASgFEi4KCnN0YXJ0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARI8CgdlbnRyaWVzGAcgAygLMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUVudHJ5EjcKBGxvZ3MYCCADKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lTG9nQg8KDV9jb21wbGV0ZWRfYXRCX1pdZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lO3RpbWVsaW5lYgZwcm90bzM", [file_google_protobuf_timestamp, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_timeline_entry]);
 
 /**
  * ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
  * Contains all timeline entries from a completed or in-progress execution.
  *
+ * @usage GET /api/v1/executions/{id}/timeline response body
+ *
  * @generated from message browser_automation_studio.v1.ExecutionTimeline
  */
 export type ExecutionTimeline = Message<"browser_automation_studio.v1.ExecutionTimeline"> & {
   /**
-   * Unique identifier for this execution (UUID format).
+   * Unique identifier for this execution.
+   * @format uuid
    *
    * @generated from field: string execution_id = 1;
    */
   executionId: string;
 
   /**
-   * Workflow ID associated with the execution (UUID format).
+   * Workflow ID associated with the execution.
+   * @format uuid
    *
    * @generated from field: string workflow_id = 2;
    */
@@ -89,28 +93,4 @@ export type ExecutionTimeline = Message<"browser_automation_studio.v1.ExecutionT
  */
 export const ExecutionTimelineSchema: GenMessage<ExecutionTimeline> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_timeline_container, 0);
-
-/**
- * DEPRECATED: Use TimelineEntry from timeline_entry.proto instead.
- * TimelineFrame is an alias for backwards compatibility.
- *
- * @generated from message browser_automation_studio.v1.TimelineFrame
- * @deprecated
- */
-export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"> & {
-  /**
-   * Delegate to TimelineEntry for all data.
-   *
-   * @generated from field: browser_automation_studio.v1.TimelineEntry entry = 1;
-   */
-  entry?: TimelineEntry;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.TimelineFrame.
- * Use `create(TimelineFrameSchema)` to create a new message.
- * @deprecated
- */
-export const TimelineFrameSchema: GenMessage<TimelineFrame> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_timeline_container, 1);
 

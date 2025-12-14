@@ -1090,6 +1090,8 @@ func (HighlightColor) EnumDescriptor() ([]byte, []int) {
 
 // RetryAttempt captures the outcome of a single retry attempt.
 // Used in both timeline frames (batch API) and timeline events (streaming).
+//
+// @usage RetryStatus.history
 type RetryAttempt struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Retry attempt number (1-based, where 1 is the first retry after initial failure).
@@ -1164,7 +1166,9 @@ func (x *RetryAttempt) GetError() string {
 
 // RetryStatus captures the current state of retry execution for a step.
 // This is the canonical type for runtime retry state, used in both
-// TimelineFrame (batch) and ExecutionContext (streaming).
+// TimelineEntry (batch) and EventContext (streaming).
+//
+// @usage EventContext.retry_status
 type RetryStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current attempt number (0 for initial attempt, 1+ for retries).
@@ -1256,7 +1260,9 @@ func (x *RetryStatus) GetHistory() []*RetryAttempt {
 }
 
 // AssertionResult captures assertion evaluation outcome.
-// Used in both timeline frames (batch API) and timeline events (streaming).
+// Used in both timeline entries (batch API) and streaming events.
+//
+// @usage EventContext.assertion
 type AssertionResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Assertion mode used.
@@ -1375,6 +1381,8 @@ func (x *AssertionResult) GetMessage() string {
 //
 // The only distinction is the origin (session_id vs execution_id) and whether
 // certain UI workflow flags apply (needs_confirmation).
+//
+// @usage TimelineEntry.context
 type EventContext struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// === ORIGIN ===
@@ -1529,12 +1537,14 @@ type isEventContext_Origin interface {
 }
 
 type EventContext_SessionId struct {
-	// Recording session ID (UUID format). Set when event comes from recording.
+	// Recording session ID. Set when event comes from recording.
+	// @format uuid
 	SessionId string `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3,oneof"`
 }
 
 type EventContext_ExecutionId struct {
-	// Execution run ID (UUID format). Set when event comes from execution.
+	// Execution run ID. Set when event comes from execution.
+	// @format uuid
 	ExecutionId string `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3,oneof"`
 }
 

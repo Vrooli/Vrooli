@@ -32,6 +32,7 @@ type ExecutionParameters struct {
 	// Initial URL to start the execution (for workflows without a navigate step).
 	StartUrl *string `protobuf:"bytes,1,opt,name=start_url,json=startUrl,proto3,oneof" json:"start_url,omitempty"`
 	// Variables to inject into the workflow (e.g., login credentials).
+	// DEPRECATED: Use initial_store or initial_params instead.
 	Variables map[string]string `protobuf:"bytes,2,rep,name=variables,proto3" json:"variables,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Viewport dimensions override.
 	ViewportWidth  *int32 `protobuf:"varint,3,opt,name=viewport_width,json=viewportWidth,proto3,oneof" json:"viewport_width,omitempty"`
@@ -43,7 +44,23 @@ type ExecutionParameters struct {
 	// Locale override (e.g., "en-US").
 	Locale *string `protobuf:"bytes,8,opt,name=locale,proto3,oneof" json:"locale,omitempty"`
 	// Timeout override in milliseconds (default: 300000 = 5 minutes).
-	TimeoutMs     *int32 `protobuf:"varint,9,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	TimeoutMs *int32 `protobuf:"varint,9,opt,name=timeout_ms,json=timeoutMs,proto3,oneof" json:"timeout_ms,omitempty"`
+	// Absolute path to project root for workflowPath resolution.
+	// Used to resolve relative paths like "actions/login.json".
+	// Example: "/home/user/Vrooli/scenarios/my-scenario/bas"
+	ProjectRoot *string `protobuf:"bytes,10,opt,name=project_root,json=projectRoot,proto3,oneof" json:"project_root,omitempty"`
+	// Initial @params/ values - the workflow's input contract.
+	// These are read-only within the workflow. Subflows inherit parent's params
+	// unless the subflow call explicitly specifies override params.
+	InitialParams map[string]*v1.JsonValue `protobuf:"bytes,11,rep,name=initial_params,json=initialParams,proto3" json:"initial_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Initial @store/ values - pre-seeded runtime state.
+	// These are mutable via setVariable steps and storeResult params.
+	// Child subflows receive a copy and merge back on completion.
+	InitialStore map[string]*v1.JsonValue `protobuf:"bytes,12,rep,name=initial_store,json=initialStore,proto3" json:"initial_store,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Environment values - project/user configuration.
+	// Read-only, inherited by all subflows unchanged.
+	// Intended for project-wide settings like API endpoints, feature flags.
+	Env           map[string]*v1.JsonValue `protobuf:"bytes,13,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -132,6 +149,34 @@ func (x *ExecutionParameters) GetTimeoutMs() int32 {
 		return *x.TimeoutMs
 	}
 	return 0
+}
+
+func (x *ExecutionParameters) GetProjectRoot() string {
+	if x != nil && x.ProjectRoot != nil {
+		return *x.ProjectRoot
+	}
+	return ""
+}
+
+func (x *ExecutionParameters) GetInitialParams() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.InitialParams
+	}
+	return nil
+}
+
+func (x *ExecutionParameters) GetInitialStore() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.InitialStore
+	}
+	return nil
+}
+
+func (x *ExecutionParameters) GetEnv() map[string]*v1.JsonValue {
+	if x != nil {
+		return x.Env
+	}
+	return nil
 }
 
 // ExecutionResult captures typed execution outcomes.
@@ -247,13 +292,17 @@ func (x *ExecutionResult) GetScreenshotArtifacts() map[int32]string {
 // TriggerMetadata captures contextual information about how an execution was triggered.
 type TriggerMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// User ID who initiated the execution (UUID format, for manual triggers).
+	// User ID who initiated the execution (for manual triggers).
+	// @format uuid
 	UserId *string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
-	// API client ID (UUID format, for API triggers).
+	// API client ID (for API triggers).
+	// @format uuid
 	ClientId *string `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3,oneof" json:"client_id,omitempty"`
-	// Schedule ID (UUID format, for scheduled triggers).
+	// Schedule ID (for scheduled triggers).
+	// @format uuid
 	ScheduleId *string `protobuf:"bytes,3,opt,name=schedule_id,json=scheduleId,proto3,oneof" json:"schedule_id,omitempty"`
-	// Webhook ID (UUID format, for webhook triggers).
+	// Webhook ID (for webhook triggers).
+	// @format uuid
 	WebhookId *string `protobuf:"bytes,4,opt,name=webhook_id,json=webhookId,proto3,oneof" json:"webhook_id,omitempty"`
 	// External request ID for correlation with upstream systems.
 	ExternalRequestId *string `protobuf:"bytes,5,opt,name=external_request_id,json=externalRequestId,proto3,oneof" json:"external_request_id,omitempty"`
@@ -347,9 +396,11 @@ func (x *TriggerMetadata) GetUserAgent() string {
 // Execution is returned by GET /api/v1/executions/{id} and list APIs.
 type Execution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique execution ID (UUID format). JSON name preserved as "id" for backwards compatibility.
+	// Unique execution identifier. JSON name preserved as "id" for backwards compatibility.
+	// @format uuid
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=id,proto3" json:"execution_id,omitempty"`
-	// Workflow ID associated with the execution (UUID format).
+	// Workflow ID associated with this execution.
+	// @format uuid
 	WorkflowId string `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	// Version of the workflow used for this execution.
 	WorkflowVersion int32 `protobuf:"varint,3,opt,name=workflow_version,json=workflowVersion,proto3" json:"workflow_version,omitempty"`
@@ -684,11 +735,13 @@ func (x *ExecutionMetadata) GetDescription() string {
 // ExecuteAdhocResponse mirrors the adhoc execution response payload.
 type ExecuteAdhocResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The created execution ID (UUID format).
+	// The created execution identifier.
+	// @format uuid
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	// Initial execution status.
 	Status base.ExecutionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
-	// Workflow ID if persisted (UUID format, null for adhoc).
+	// Workflow ID if persisted (null for adhoc).
+	// @format uuid
 	WorkflowId *string `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
 	// Human-readable status message.
 	Message string `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
@@ -780,7 +833,8 @@ type ExecutionScreenshot struct {
 	Screenshot *domain.TimelineScreenshot `protobuf:"bytes,1,opt,name=screenshot,proto3" json:"screenshot,omitempty"`
 	// Zero-based step index in the execution.
 	StepIndex int32 `protobuf:"varint,2,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
-	// Node ID from the workflow definition (UUID format).
+	// Node ID from the workflow definition.
+	// @format uuid
 	NodeId string `protobuf:"bytes,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	// Human-readable step label (derived from action type/metadata).
 	StepLabel *string `protobuf:"bytes,4,opt,name=step_label,json=stepLabel,proto3,oneof" json:"step_label,omitempty"`
@@ -858,7 +912,8 @@ func (x *ExecutionScreenshot) GetTimestamp() *timestamppb.Timestamp {
 // GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
 type GetScreenshotsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Execution ID the screenshots belong to (UUID format).
+	// Execution ID the screenshots belong to.
+	// @format uuid
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
 	// List of screenshots with execution context.
 	Screenshots []*ExecutionScreenshot `protobuf:"bytes,2,rep,name=screenshots,proto3" json:"screenshots,omitempty"`
@@ -922,9 +977,11 @@ func (x *GetScreenshotsResponse) GetTotal() int32 {
 // ExecutionExportPreview summarizes export readiness and metadata.
 type ExecutionExportPreview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Execution ID being exported (UUID format).
+	// Execution ID being exported.
+	// @format uuid
 	ExecutionId string `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
-	// Identifier for the generated export spec (UUID format).
+	// Identifier for the generated export spec.
+	// @format uuid
 	SpecId string `protobuf:"bytes,2,opt,name=spec_id,json=specId,proto3" json:"spec_id,omitempty"`
 	// Status: ready, pending, error, unavailable.
 	Status base.ExportStatus `protobuf:"varint,3,opt,name=status,proto3,enum=browser_automation_studio.v1.ExportStatus" json:"status,omitempty"`
@@ -1205,7 +1262,7 @@ var File_browser_automation_studio_v1_execution_execution_proto protoreflect.Fil
 
 const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
-	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\"\xa6\x04\n" +
+	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\"\x81\t\n" +
 	"\x13ExecutionParameters\x12 \n" +
 	"\tstart_url\x18\x01 \x01(\tH\x00R\bstartUrl\x88\x01\x01\x12^\n" +
 	"\tvariables\x18\x02 \x03(\v2@.browser_automation_studio.v1.ExecutionParameters.VariablesEntryR\tvariables\x12*\n" +
@@ -1216,10 +1273,24 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"user_agent\x18\a \x01(\tH\x04R\tuserAgent\x88\x01\x01\x12\x1b\n" +
 	"\x06locale\x18\b \x01(\tH\x05R\x06locale\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"timeout_ms\x18\t \x01(\x05H\x06R\ttimeoutMs\x88\x01\x01\x1a<\n" +
+	"timeout_ms\x18\t \x01(\x05H\x06R\ttimeoutMs\x88\x01\x01\x12&\n" +
+	"\fproject_root\x18\n" +
+	" \x01(\tH\aR\vprojectRoot\x88\x01\x01\x12k\n" +
+	"\x0einitial_params\x18\v \x03(\v2D.browser_automation_studio.v1.ExecutionParameters.InitialParamsEntryR\rinitialParams\x12h\n" +
+	"\rinitial_store\x18\f \x03(\v2C.browser_automation_studio.v1.ExecutionParameters.InitialStoreEntryR\finitialStore\x12L\n" +
+	"\x03env\x18\r \x03(\v2:.browser_automation_studio.v1.ExecutionParameters.EnvEntryR\x03env\x1a<\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\f\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aV\n" +
+	"\x12InitialParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aU\n" +
+	"\x11InitialStoreEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aL\n" +
+	"\bEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01B\f\n" +
 	"\n" +
 	"_start_urlB\x11\n" +
 	"\x0f_viewport_widthB\x12\n" +
@@ -1227,7 +1298,8 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\t_headlessB\r\n" +
 	"\v_user_agentB\t\n" +
 	"\a_localeB\r\n" +
-	"\v_timeout_msJ\x04\b\x05\x10\x06\"\x81\x05\n" +
+	"\v_timeout_msB\x0f\n" +
+	"\r_project_rootJ\x04\b\x05\x10\x06\"\x81\x05\n" +
 	"\x0fExecutionResult\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12%\n" +
 	"\x0esteps_executed\x18\x02 \x01(\x05R\rstepsExecuted\x12!\n" +
@@ -1388,7 +1460,7 @@ func file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP() [
 	return file_browser_automation_studio_v1_execution_execution_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_browser_automation_studio_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
 	(*ExecutionParameters)(nil),            // 0: browser_automation_studio.v1.ExecutionParameters
 	(*ExecutionResult)(nil),                // 1: browser_automation_studio.v1.ExecutionResult
@@ -1403,47 +1475,56 @@ var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
 	(*ExecutorMetrics)(nil),                // 10: browser_automation_studio.v1.ExecutorMetrics
 	(*PerformanceMetrics)(nil),             // 11: browser_automation_studio.v1.PerformanceMetrics
 	nil,                                    // 12: browser_automation_studio.v1.ExecutionParameters.VariablesEntry
-	nil,                                    // 13: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
-	nil,                                    // 14: browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
-	(base.ExecutionStatus)(0),              // 15: browser_automation_studio.v1.ExecutionStatus
-	(base.TriggerType)(0),                  // 16: browser_automation_studio.v1.TriggerType
-	(*timestamppb.Timestamp)(nil),          // 17: google.protobuf.Timestamp
-	(*workflows.WorkflowDefinitionV2)(nil), // 18: browser_automation_studio.v1.WorkflowDefinitionV2
-	(*domain.TimelineScreenshot)(nil),      // 19: browser_automation_studio.v1.TimelineScreenshot
-	(base.ExportStatus)(0),                 // 20: browser_automation_studio.v1.ExportStatus
-	(*v1.JsonObject)(nil),                  // 21: common.v1.JsonObject
-	(*v1.JsonValue)(nil),                   // 22: common.v1.JsonValue
+	nil,                                    // 13: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
+	nil,                                    // 14: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
+	nil,                                    // 15: browser_automation_studio.v1.ExecutionParameters.EnvEntry
+	nil,                                    // 16: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
+	nil,                                    // 17: browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
+	(base.ExecutionStatus)(0),              // 18: browser_automation_studio.v1.ExecutionStatus
+	(base.TriggerType)(0),                  // 19: browser_automation_studio.v1.TriggerType
+	(*timestamppb.Timestamp)(nil),          // 20: google.protobuf.Timestamp
+	(*workflows.WorkflowDefinitionV2)(nil), // 21: browser_automation_studio.v1.WorkflowDefinitionV2
+	(*domain.TimelineScreenshot)(nil),      // 22: browser_automation_studio.v1.TimelineScreenshot
+	(base.ExportStatus)(0),                 // 23: browser_automation_studio.v1.ExportStatus
+	(*v1.JsonObject)(nil),                  // 24: common.v1.JsonObject
+	(*v1.JsonValue)(nil),                   // 25: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int32{
 	12, // 0: browser_automation_studio.v1.ExecutionParameters.variables:type_name -> browser_automation_studio.v1.ExecutionParameters.VariablesEntry
-	13, // 1: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
-	14, // 2: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
-	15, // 3: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	16, // 4: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
-	17, // 5: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
-	17, // 6: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
-	17, // 7: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
-	17, // 8: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
-	17, // 9: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 10: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
-	1,  // 11: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.ExecutionResult
-	2,  // 12: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.TriggerMetadata
-	18, // 13: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	5,  // 14: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
-	0,  // 15: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
-	15, // 16: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	17, // 17: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
-	19, // 18: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	17, // 19: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
-	7,  // 20: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
-	20, // 21: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
-	21, // 22: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
-	22, // 23: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	13, // 1: browser_automation_studio.v1.ExecutionParameters.initial_params:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
+	14, // 2: browser_automation_studio.v1.ExecutionParameters.initial_store:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
+	15, // 3: browser_automation_studio.v1.ExecutionParameters.env:type_name -> browser_automation_studio.v1.ExecutionParameters.EnvEntry
+	16, // 4: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
+	17, // 5: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
+	18, // 6: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	19, // 7: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
+	20, // 8: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
+	20, // 9: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
+	20, // 10: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
+	20, // 11: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
+	20, // 12: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 13: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
+	1,  // 14: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.ExecutionResult
+	2,  // 15: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.TriggerMetadata
+	21, // 16: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	5,  // 17: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
+	0,  // 18: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
+	18, // 19: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	20, // 20: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
+	22, // 21: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
+	20, // 22: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
+	7,  // 23: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
+	23, // 24: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
+	24, // 25: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
+	25, // 26: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
+	25, // 27: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
+	25, // 28: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue
+	25, // 29: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_execution_proto_init() }
@@ -1465,7 +1546,7 @@ func file_browser_automation_studio_v1_execution_execution_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_execution_execution_proto_rawDesc), len(file_browser_automation_studio_v1_execution_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

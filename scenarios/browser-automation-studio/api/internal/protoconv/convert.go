@@ -337,16 +337,6 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 	return entry, nil
 }
 
-// timelineFrameToProto is deprecated. Use timelineFrameToEntry instead.
-// This wrapper exists for backwards compatibility.
-func timelineFrameToProto(frame export.TimelineFrame) (*bastimeline.TimelineFrame, error) {
-	entry, err := timelineFrameToEntry(frame)
-	if err != nil {
-		return nil, err
-	}
-	return &bastimeline.TimelineFrame{Entry: entry}, nil
-}
-
 // buildTelemetryFromFrame creates ActionTelemetry from a TimelineFrame.
 func buildTelemetryFromFrame(frame export.TimelineFrame) *basdomain.ActionTelemetry {
 	tel := &basdomain.ActionTelemetry{

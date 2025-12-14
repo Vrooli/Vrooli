@@ -27,6 +27,8 @@ const (
 )
 
 // TimelineMessageType enumerates WebSocket message types for streaming.
+//
+// @usage TimelineStreamMessage.type
 type TimelineMessageType int32
 
 const (
@@ -84,18 +86,23 @@ func (TimelineMessageType) EnumDescriptor() ([]byte, []int) {
 
 // TimelineEntry captures a single action in the timeline.
 // This is the unified format for both streaming and batch access.
+//
+// @usage ExecutionTimeline.entries, GetActionsResponse.entries, TimelineStreamMessage.entry
 type TimelineEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// === IDENTITY ===
-	// Unique entry identifier (UUID format).
+	// Unique entry identifier.
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Monotonic sequence number within the session/execution (0-based).
 	SequenceNum int32 `protobuf:"varint,2,opt,name=sequence_num,json=sequenceNum,proto3" json:"sequence_num,omitempty"`
 	// Zero-based step index in the workflow execution order.
 	// See "NODE vs STEP TERMINOLOGY" in shared.proto.
 	StepIndex *int32 `protobuf:"varint,3,opt,name=step_index,json=stepIndex,proto3,oneof" json:"step_index,omitempty"`
-	// Node ID from the workflow definition (UUID format).
+	// Node ID from the workflow definition.
 	// Links this entry to the specific WorkflowNodeV2.
+	// @format uuid
+	// @see WorkflowNodeV2.id
 	NodeId *string `protobuf:"bytes,4,opt,name=node_id,json=nodeId,proto3,oneof" json:"node_id,omitempty"`
 	// === TIMING ===
 	// When this entry was captured.
@@ -250,6 +257,8 @@ func (x *TimelineEntry) GetCorrelationId() string {
 // TimelineEntryAggregates contains computed/derived data for batch responses.
 // This data is calculated when an execution completes and is NOT populated
 // during real-time streaming.
+//
+// @usage TimelineEntry.aggregates
 type TimelineEntryAggregates struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Step execution status (pending, running, completed, failed, etc.).
@@ -378,9 +387,12 @@ func (x *TimelineEntryAggregates) GetProgress() int32 {
 
 // TimelineArtifact represents a stored artifact from execution.
 // Examples: screenshots, console logs, network traces, DOM snapshots.
+//
+// @usage TimelineEntryAggregates.artifacts, TimelineEntryAggregates.dom_snapshot
 type TimelineArtifact struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique artifact ID (UUID format).
+	// Unique artifact identifier.
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Artifact type (screenshot, console_log, network_event, dom_snapshot, etc.).
 	Type base.ArtifactType `protobuf:"varint,2,opt,name=type,proto3,enum=browser_automation_studio.v1.ArtifactType" json:"type,omitempty"`
@@ -496,6 +508,8 @@ func (x *TimelineArtifact) GetPayload() map[string]*v1.JsonValue {
 }
 
 // ElementFocus captures focus metadata for screenshot framing and highlighting.
+//
+// @usage TimelineEntryAggregates.focused_element
 type ElementFocus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector of the focused element.
@@ -551,9 +565,12 @@ func (x *ElementFocus) GetBoundingBox() *base.BoundingBox {
 }
 
 // TimelineLog captures execution log output for the timeline.
+//
+// @usage ExecutionTimeline.logs, TimelineStreamMessage.log
 type TimelineLog struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique log entry ID (UUID format).
+	// Unique log entry identifier.
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Log level (debug, info, warn, error).
 	Level base.LogLevel `protobuf:"varint,2,opt,name=level,proto3,enum=browser_automation_studio.v1.LogLevel" json:"level,omitempty"`
@@ -634,6 +651,8 @@ func (x *TimelineLog) GetTimestamp() *timestamppb.Timestamp {
 
 // TimelineStreamMessage wraps timeline data for WebSocket transport.
 // This is the envelope format for all streaming timeline messages.
+//
+// @usage WebSocket timeline streaming endpoint
 type TimelineStreamMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Message type for routing and parsing.
@@ -760,9 +779,12 @@ func (*TimelineStreamMessage_Heartbeat) isTimelineStreamMessage_Payload() {}
 func (*TimelineStreamMessage_Log) isTimelineStreamMessage_Payload() {}
 
 // TimelineStatusUpdate reports overall session/execution status.
+//
+// @usage TimelineStreamMessage.status
 type TimelineStatusUpdate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session ID (recording) or Execution ID (playback) - UUID format.
+	// Session ID (recording) or Execution ID (playback).
+	// @format uuid
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Current execution status.
 	Status base.ExecutionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=browser_automation_studio.v1.ExecutionStatus" json:"status,omitempty"`
@@ -842,11 +864,14 @@ func (x *TimelineStatusUpdate) GetError() string {
 }
 
 // TimelineHeartbeat keeps WebSocket connection alive.
+//
+// @usage TimelineStreamMessage.heartbeat
 type TimelineHeartbeat struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Heartbeat timestamp.
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// Session ID for connection routing (UUID format).
+	// Session ID for connection routing.
+	// @format uuid
 	SessionId     string `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

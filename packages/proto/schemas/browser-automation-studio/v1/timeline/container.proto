@@ -12,21 +12,36 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // EXECUTION TIMELINE (BATCH API FORMAT)
 // =============================================================================
 //
-// This file defines the container for batch timeline data, returned by
-// REST API endpoints like GET /api/v1/executions/{id}/timeline.
+// @layer 4
+// @domain timeline
+// @imports base, timeline
+// @stability stable
 //
-// The individual entries use TimelineEntry from timeline_entry.proto, which is
+// Defines the container for batch timeline data, returned by REST API
+// endpoints like GET /api/v1/executions/{id}/timeline.
+//
+// The individual entries use TimelineEntry from entry.proto, which is
 // the unified format for both streaming and batch access.
 //
-// See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
+// USAGE CONTEXTS:
+//   - API: GET /api/v1/executions/{id}/timeline response
+//   - UI: Timeline viewer component data source
+//   - Export: Source data for execution replay videos
+//
+// @see shared.proto for "UNIFIED RECORDING/EXECUTION MODEL" design rationale
+//
 // =============================================================================
 
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
 // Contains all timeline entries from a completed or in-progress execution.
+//
+// @usage GET /api/v1/executions/{id}/timeline response body
 message ExecutionTimeline {
-  // Unique identifier for this execution (UUID format).
+  // Unique identifier for this execution.
+  // @format uuid
   string execution_id = 1;
-  // Workflow ID associated with the execution (UUID format).
+  // Workflow ID associated with the execution.
+  // @format uuid
   string workflow_id = 2;
   // Current execution status (pending, running, completed, failed, cancelled).
   ExecutionStatus status = 3;
@@ -41,33 +56,4 @@ message ExecutionTimeline {
   repeated TimelineEntry entries = 7;
   // Console and execution logs captured during the run.
   repeated TimelineLog logs = 8;
-}
-
-// =============================================================================
-// DEPRECATED TYPES - FOR BACKWARDS COMPATIBILITY
-// =============================================================================
-//
-// TimelineFrame has been replaced by TimelineEntry from timeline_entry.proto.
-// This alias is provided for backwards compatibility during migration.
-//
-// MIGRATION GUIDE:
-//   - TimelineFrame → TimelineEntry
-//   - frame.step_index → entry.step_index
-//   - frame.node_id → entry.node_id
-//   - frame.action → entry.action
-//   - frame.telemetry → entry.telemetry
-//   - frame.success → entry.context.success
-//   - frame.error → entry.context.error
-//   - frame.retry_status → entry.context.retry_status
-//   - frame.assertion → entry.context.assertion
-//   - (other fields) → entry.aggregates.*
-// =============================================================================
-
-// DEPRECATED: Use TimelineEntry from timeline_entry.proto instead.
-// TimelineFrame is an alias for backwards compatibility.
-message TimelineFrame {
-  option deprecated = true;
-
-  // Delegate to TimelineEntry for all data.
-  TimelineEntry entry = 1;
 }

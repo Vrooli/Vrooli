@@ -163,19 +163,50 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) error {
 		}
 	}()
 
-	seedVars := map[string]any{}
-	if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
-		for k, v := range metaVars {
-			seedVars[k] = v
+	// Initialize execution state based on whether namespace-aware fields are provided.
+	// Priority for @store/ initialization:
+	//   1. req.InitialStore (explicit namespace-aware seed)
+	//   2. req.InitialVariables (resume support, backward compat)
+	//   3. req.Plan.Metadata["variables"] (legacy plan-embedded variables)
+	var state *flowState
+	if req.InitialStore != nil || req.InitialParams != nil || req.Env != nil {
+		// Namespace-aware execution: build initial store from multiple sources
+		initialStore := map[string]any{}
+		// Start with plan metadata variables (lowest priority)
+		if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
+			for k, v := range metaVars {
+				initialStore[k] = v
+			}
 		}
-	}
-	// Merge initial variables from a resumed execution (takes precedence over plan defaults)
-	if req.InitialVariables != nil {
-		for k, v := range req.InitialVariables {
-			seedVars[k] = v
+		// Merge InitialVariables from resume (middle priority)
+		if req.InitialVariables != nil {
+			for k, v := range req.InitialVariables {
+				initialStore[k] = v
+			}
 		}
+		// Merge InitialStore (highest priority)
+		if req.InitialStore != nil {
+			for k, v := range req.InitialStore {
+				initialStore[k] = v
+			}
+		}
+		state = newFlowStateWithNamespaces(initialStore, req.InitialParams, req.Env)
+	} else {
+		// Legacy execution: use flat variable map
+		seedVars := map[string]any{}
+		if metaVars, ok := req.Plan.Metadata["variables"].(map[string]any); ok {
+			for k, v := range metaVars {
+				seedVars[k] = v
+			}
+		}
+		// Merge initial variables from a resumed execution (takes precedence over plan defaults)
+		if req.InitialVariables != nil {
+			for k, v := range req.InitialVariables {
+				seedVars[k] = v
+			}
+		}
+		state = newFlowState(seedVars)
 	}
-	state := newFlowState(seedVars)
 
 	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
 	}

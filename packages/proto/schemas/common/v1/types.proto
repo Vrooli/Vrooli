@@ -13,6 +13,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;co
 // @layer 0
 // @domain common
 // @imports none (external only: google.protobuf)
+// @stability stable
 //
 // Shared types used across all Vrooli scenarios. Contains fundamental
 // primitives for JSON modeling, pagination, error handling, and health checks.

@@ -664,7 +664,8 @@ export type SubflowParams = Message<"browser_automation_studio.v1.SubflowParams"
    */
   target: {
     /**
-     * Workflow ID to invoke as a subflow (UUID format).
+     * Workflow ID to invoke as a subflow.
+     * @format uuid
      *
      * @generated from field: string workflow_id = 1;
      */
@@ -710,6 +711,8 @@ export const SubflowParamsSchema: GenMessage<SubflowParams> = /*@__PURE__*/
  *   - Editing: Users can adjust selectors on failed steps using captured alternatives
  *
  * See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for the design rationale.
+ *
+ * @usage ActionDefinition.metadata
  *
  * @generated from message browser_automation_studio.v1.ActionMetadata
  */

@@ -16,7 +16,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 //
 // @layer 4
 // @domain execution
-// @imports base, domain, workflows
+// @imports base, domain (telemetry), workflows
+// @stability stable
 //
 // This file defines the runtime state of workflow executions:
 //   - ExecutionParameters: Typed runtime parameters for workflow execution
@@ -37,6 +38,7 @@ message ExecutionParameters {
   // Initial URL to start the execution (for workflows without a navigate step).
   optional string start_url = 1;
   // Variables to inject into the workflow (e.g., login credentials).
+  // DEPRECATED: Use initial_store or initial_params instead.
   map<string, string> variables = 2;
   // Viewport dimensions override.
   optional int32 viewport_width = 3;
@@ -51,6 +53,38 @@ message ExecutionParameters {
   optional string locale = 8;
   // Timeout override in milliseconds (default: 300000 = 5 minutes).
   optional int32 timeout_ms = 9;
+
+  // =============================================================================
+  // NAMESPACE-AWARE VARIABLE SUPPORT (Phase 2)
+  // =============================================================================
+  //
+  // These fields support the namespace-aware interpolation system:
+  // - @store/ : Mutable runtime state (initial_store -> setVariable/storeResult mutations)
+  // - @params/: Read-only input parameters (initial_params)
+  // - @env/   : Read-only environment configuration (env)
+  //
+  // Workflows reference these via ${@namespace/path} syntax with fallback support:
+  // e.g., ${@params/timeout|@env/defaultTimeout|30000}
+
+  // Absolute path to project root for workflowPath resolution.
+  // Used to resolve relative paths like "actions/login.json".
+  // Example: "/home/user/Vrooli/scenarios/my-scenario/bas"
+  optional string project_root = 10;
+
+  // Initial @params/ values - the workflow's input contract.
+  // These are read-only within the workflow. Subflows inherit parent's params
+  // unless the subflow call explicitly specifies override params.
+  map<string, common.v1.JsonValue> initial_params = 11;
+
+  // Initial @store/ values - pre-seeded runtime state.
+  // These are mutable via setVariable steps and storeResult params.
+  // Child subflows receive a copy and merge back on completion.
+  map<string, common.v1.JsonValue> initial_store = 12;
+
+  // Environment values - project/user configuration.
+  // Read-only, inherited by all subflows unchanged.
+  // Intended for project-wide settings like API endpoints, feature flags.
+  map<string, common.v1.JsonValue> env = 13;
 }
 
 // ExecutionResult captures typed execution outcomes.
@@ -76,13 +110,17 @@ message ExecutionResult {
 
 // TriggerMetadata captures contextual information about how an execution was triggered.
 message TriggerMetadata {
-  // User ID who initiated the execution (UUID format, for manual triggers).
+  // User ID who initiated the execution (for manual triggers).
+  // @format uuid
   optional string user_id = 1;
-  // API client ID (UUID format, for API triggers).
+  // API client ID (for API triggers).
+  // @format uuid
   optional string client_id = 2;
-  // Schedule ID (UUID format, for scheduled triggers).
+  // Schedule ID (for scheduled triggers).
+  // @format uuid
   optional string schedule_id = 3;
-  // Webhook ID (UUID format, for webhook triggers).
+  // Webhook ID (for webhook triggers).
+  // @format uuid
   optional string webhook_id = 4;
   // External request ID for correlation with upstream systems.
   optional string external_request_id = 5;
@@ -98,9 +136,11 @@ message TriggerMetadata {
 
 // Execution is returned by GET /api/v1/executions/{id} and list APIs.
 message Execution {
-  // Unique execution ID (UUID format). JSON name preserved as "id" for backwards compatibility.
+  // Unique execution identifier. JSON name preserved as "id" for backwards compatibility.
+  // @format uuid
   string execution_id = 1 [json_name = "id"];
-  // Workflow ID associated with the execution (UUID format).
+  // Workflow ID associated with this execution.
+  // @format uuid
   string workflow_id = 2;
   // Version of the workflow used for this execution.
   int32 workflow_version = 3;
@@ -109,11 +149,11 @@ message Execution {
   // How the execution was triggered (manual, scheduled, api, webhook).
   TriggerType trigger_type = 5;
   // Reserved fields from migrations:
-  // - 6: trigger_data (migrated to trigger_metadata)
-  // - 7: source (migrated to trigger_type)
-  // - 12: result_data (migrated to result)
-  // - 17: parameters map (migrated to parameters typed)
-  // - 18: result map (migrated to result typed)
+  // - 6: trigger_data (removed, migrated to trigger_metadata typed message)
+  // - 7: source (removed, migrated to trigger_type enum)
+  // - 12: result_data (removed, migrated to result typed message)
+  // - 17: parameters map<string, JsonValue> (removed, migrated to ExecutionParameters)
+  // - 18: result map<string, JsonValue> (removed, migrated to ExecutionResult)
   reserved 6, 7, 12, 17, 18;
   // When the execution started.
   google.protobuf.Timestamp started_at = 8;
@@ -176,11 +216,13 @@ message ExecutionMetadata {
 
 // ExecuteAdhocResponse mirrors the adhoc execution response payload.
 message ExecuteAdhocResponse {
-  // The created execution ID (UUID format).
+  // The created execution identifier.
+  // @format uuid
   string execution_id = 1;
   // Initial execution status.
   ExecutionStatus status = 2;
-  // Workflow ID if persisted (UUID format, null for adhoc).
+  // Workflow ID if persisted (null for adhoc).
+  // @format uuid
   optional string workflow_id = 3;
   // Human-readable status message.
   string message = 4;
@@ -201,7 +243,8 @@ message ExecutionScreenshot {
   TimelineScreenshot screenshot = 1;
   // Zero-based step index in the execution.
   int32 step_index = 2;
-  // Node ID from the workflow definition (UUID format).
+  // Node ID from the workflow definition.
+  // @format uuid
   string node_id = 3;
   // Human-readable step label (derived from action type/metadata).
   optional string step_label = 4;
@@ -211,7 +254,8 @@ message ExecutionScreenshot {
 
 // GetScreenshotsResponse is returned by GET /api/v1/executions/{id}/screenshots.
 message GetScreenshotsResponse {
-  // Execution ID the screenshots belong to (UUID format).
+  // Execution ID the screenshots belong to.
+  // @format uuid
   string execution_id = 1;
   // List of screenshots with execution context.
   repeated ExecutionScreenshot screenshots = 2;
@@ -225,9 +269,11 @@ message GetScreenshotsResponse {
 
 // ExecutionExportPreview summarizes export readiness and metadata.
 message ExecutionExportPreview {
-  // Execution ID being exported (UUID format).
+  // Execution ID being exported.
+  // @format uuid
   string execution_id = 1;
-  // Identifier for the generated export spec (UUID format).
+  // Identifier for the generated export spec.
+  // @format uuid
   string spec_id = 2;
   // Status: ready, pending, error, unavailable.
   ExportStatus status = 3;

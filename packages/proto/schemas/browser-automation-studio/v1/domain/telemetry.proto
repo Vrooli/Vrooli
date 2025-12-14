@@ -13,8 +13,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // TELEMETRY DOMAIN
 // =============================================================================
 //
-// This file contains types for capturing observable data during action
-// recording or execution, including:
+// @layer 1
+// @domain domain
+// @imports base (also: domain/selectors within same layer)
+// @stability stable
+//
+// Defines types for capturing observable data during action recording or
+// execution, including:
 //   - Console output (ConsoleLogEntry)
 //   - Network activity (NetworkEvent)
 //   - Action telemetry (ActionTelemetry)
@@ -23,6 +28,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // NOTE: HighlightRegion and MaskRegion (screenshot overlay types) are
 // defined in selectors.proto for backward compatibility, but logically
 // belong to this telemetry domain. They are imported via selectors.proto.
+//
+// USAGE CONTEXTS:
+//   - Recording: Capture browser state during user interactions
+//   - Execution: Capture browser state during workflow replay
+//   - Debugging: Screenshots, console logs, network events for troubleshooting
+//   - Timeline: ActionTelemetry attached to each TimelineEntry
+//
 // =============================================================================
 
 // =============================================================================
@@ -30,6 +42,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // =============================================================================
 
 // ConsoleLogEntry captures browser console output for telemetry.
+//
+// @usage ActionTelemetry.console_logs
 message ConsoleLogEntry {
   // Log level (debug, info, warn, error).
   LogLevel level = 1;
@@ -44,6 +58,8 @@ message ConsoleLogEntry {
 }
 
 // NetworkEvent captures network activity for telemetry.
+//
+// @usage ActionTelemetry.network_events
 message NetworkEvent {
   // Event type (request, response, failure).
   NetworkEventType type = 1;
@@ -68,6 +84,8 @@ message NetworkEvent {
 // =============================================================================
 
 // ActionTelemetry captures observable data during action recording or execution.
+//
+// @usage TimelineEntry.telemetry
 message ActionTelemetry {
   // Page URL at capture time.
   string url = 1;
@@ -101,9 +119,11 @@ message ActionTelemetry {
 // =============================================================================
 
 // TimelineScreenshot describes screenshot metadata.
-// This type is used in ActionTelemetry and TimelineFrame for visual captures.
+//
+// @usage ActionTelemetry.screenshot, ExecutionScreenshot.screenshot
 message TimelineScreenshot {
-  // Unique artifact ID for the screenshot (UUID format).
+  // Unique artifact ID for the screenshot.
+  // @format uuid
   string artifact_id = 1;
   // URL to download the full screenshot.
   string url = 2;

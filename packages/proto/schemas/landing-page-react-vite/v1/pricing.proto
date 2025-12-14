@@ -14,6 +14,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page
 // @layer 0
 // @domain pricing
 // @imports common
+// @stability stable
 //
 // Defines Stripe product/price structures for landing page checkout flows.
 // Contains bundle metadata, plan options, and pricing overview types used

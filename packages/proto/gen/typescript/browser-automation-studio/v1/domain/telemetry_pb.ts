@@ -23,6 +23,8 @@ export const file_browser_automation_studio_v1_domain_telemetry: GenFile = /*@__
 /**
  * ConsoleLogEntry captures browser console output for telemetry.
  *
+ * @usage ActionTelemetry.console_logs
+ *
  * @generated from message browser_automation_studio.v1.ConsoleLogEntry
  */
 export type ConsoleLogEntry = Message<"browser_automation_studio.v1.ConsoleLogEntry"> & {
@@ -71,6 +73,8 @@ export const ConsoleLogEntrySchema: GenMessage<ConsoleLogEntry> = /*@__PURE__*/
 
 /**
  * NetworkEvent captures network activity for telemetry.
+ *
+ * @usage ActionTelemetry.network_events
  *
  * @generated from message browser_automation_studio.v1.NetworkEvent
  */
@@ -141,6 +145,8 @@ export const NetworkEventSchema: GenMessage<NetworkEvent> = /*@__PURE__*/
 
 /**
  * ActionTelemetry captures observable data during action recording or execution.
+ *
+ * @usage TimelineEntry.telemetry
  *
  * @generated from message browser_automation_studio.v1.ActionTelemetry
  */
@@ -241,13 +247,15 @@ export const ActionTelemetrySchema: GenMessage<ActionTelemetry> = /*@__PURE__*/
 
 /**
  * TimelineScreenshot describes screenshot metadata.
- * This type is used in ActionTelemetry and TimelineFrame for visual captures.
+ *
+ * @usage ActionTelemetry.screenshot, ExecutionScreenshot.screenshot
  *
  * @generated from message browser_automation_studio.v1.TimelineScreenshot
  */
 export type TimelineScreenshot = Message<"browser_automation_studio.v1.TimelineScreenshot"> & {
   /**
-   * Unique artifact ID for the screenshot (UUID format).
+   * Unique artifact ID for the screenshot.
+   * @format uuid
    *
    * @generated from field: string artifact_id = 1;
    */

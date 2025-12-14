@@ -16,6 +16,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page
 // @layer 1
 // @domain billing
 // @imports common, pricing, settings
+// @stability stable
 //
 // Defines checkout, subscription, and credit wallet types for the landing page
 // billing system. Integrates with Stripe for payment processing.
