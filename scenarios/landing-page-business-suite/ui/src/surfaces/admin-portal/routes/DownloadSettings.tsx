@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import {
   createDownloadAppAdmin,
   deleteDownloadAppAdmin,
@@ -12,7 +13,7 @@ import {
   type DownloadAsset,
   type DownloadStorefront,
 } from '../../../shared/api';
-import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, Trash2, GripVertical } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, Trash2, GripVertical, ImageIcon } from 'lucide-react';
 
 type PlatformKey = 'windows' | 'mac' | 'linux';
 
@@ -31,6 +32,8 @@ interface AppFormValues {
   name: string;
   tagline: string;
   description: string;
+  iconUrl: string;
+  screenshotUrl: string;
   installOverview: string;
   installSteps: string;
   displayOrder: number;
@@ -93,6 +96,8 @@ function deserializeApp(app: DownloadApp): AppFormValues {
     name: app.name ?? '',
     tagline: app.tagline ?? '',
     description: app.description ?? '',
+    iconUrl: app.icon_url ?? '',
+    screenshotUrl: app.screenshot_url ?? '',
     installOverview: app.install_overview ?? '',
     installSteps: (app.install_steps ?? []).join('\n'),
     displayOrder: app.display_order ?? 0,
@@ -122,6 +127,8 @@ function buildDefaultAppValues(appKey = ''): AppFormValues {
     name: '',
     tagline: '',
     description: '',
+    iconUrl: '',
+    screenshotUrl: '',
     installOverview: '',
     installSteps: '',
     displayOrder: 0,
@@ -183,6 +190,8 @@ function serializeApp(values: AppFormValues): DownloadAppInput {
     name: values.name.trim(),
     tagline: values.tagline.trim(),
     description: values.description.trim(),
+    icon_url: values.iconUrl.trim() || undefined,
+    screenshot_url: values.screenshotUrl.trim() || undefined,
     install_overview: values.installOverview.trim(),
     install_steps: installSteps,
     display_order: values.displayOrder,
@@ -786,6 +795,45 @@ export function DownloadSettings() {
                           className="w-full rounded-xl border border-white/10 bg-[#05070E] px-4 py-3 text-sm text-white"
                         />
                       </div>
+
+                      {/* App Images Section */}
+                      <div className="space-y-4 rounded-2xl border border-white/10 bg-[#05070E] p-4">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                          <ImageIcon className="h-4 w-4 text-blue-300" />
+                          App Images
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Icon</label>
+                            <p className="text-xs text-slate-500 mb-2">Small icon shown in the download section (recommended: 128x128px)</p>
+                            <ImageUploader
+                              value={form.values.iconUrl}
+                              onChange={(url) => handleFieldChange(form.key, 'iconUrl', url ?? '')}
+                              category="general"
+                              placeholder="No icon set"
+                              uploadLabel="Upload icon"
+                              previewSize="md"
+                              allowUrlInput
+                              clearable
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Screenshot</label>
+                            <p className="text-xs text-slate-500 mb-2">Preview image shown in expanded view (recommended: 1280x720px)</p>
+                            <ImageUploader
+                              value={form.values.screenshotUrl}
+                              onChange={(url) => handleFieldChange(form.key, 'screenshotUrl', url ?? '')}
+                              category="general"
+                              placeholder="No screenshot set"
+                              uploadLabel="Upload screenshot"
+                              previewSize="lg"
+                              allowUrlInput
+                              clearable
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Install overview</label>
                         <textarea

@@ -214,7 +214,7 @@ var (
 				"enabled": true,
 				"content": {
 					"title": "Download Vrooli Ascension",
-					"subtitle": "macOS, Windows, Linux builds respect entitlements. Install, sign in, and start automating."
+					"subtitle": "Install now and start automating today."
 				}
 			},
 			{

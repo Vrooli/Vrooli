@@ -96,7 +96,7 @@ DECLARE
         {"question":"Can I cancel or switch?","answer":"Yes. Plans are flat, cancellable, and your price is honored as the suite expands."}
       ]
     }';
-    downloads_json TEXT := '{"title":"Download Vrooli Ascension","subtitle":"macOS, Windows, Linux builds respect entitlements. Install, sign in, and start automating."}';
+    downloads_json TEXT := '{"title":"Download Vrooli Ascension","subtitle":"Install now and start automating today."}';
 BEGIN
     -- Reset sections for control and curated variants so seeds overwrite stale content
     DELETE FROM content_sections WHERE variant_id IN (
@@ -231,13 +231,15 @@ ON CONFLICT (stripe_price_id) DO UPDATE SET
     updated_at = NOW();
 
 -- Download apps + platform installers
-INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)
+INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order)
 VALUES
-('business_suite', 'automation_studio', 'Vrooli Ascension', 'Silent Founder OS · Day-one value', 'Desktop suite for visual browser automation, tests, and cinematic replays.', 'Download the installer for your OS and sign in with the email tied to your active subscription.', '["Download the installer for your OS","Launch the setup wizard","Sign in with your subscription email to unlock downloads"]', '[{"store":"app_store","label":"macOS App Store","url":"https://apps.apple.com/app/id000000","badge":"Download on the App Store"}]', '{"bundle":"business_suite"}', 1)
+('business_suite', 'automation_studio', 'Vrooli Ascension', 'Desktop app for browser automation and cinematic workflow replays.', 'Automate repetitive browser tasks, record workflows passively, and export studio-quality video replays of your work.', NULL, NULL, 'Pick your platform below. The app verifies your subscription after install.', '["Run the installer","Follow the setup wizard","Sign in with your subscription email"]', '[{"store":"app_store","label":"macOS App Store","url":"https://apps.apple.com/app/id000000","badge":"Download on the App Store"}]', '{"bundle":"business_suite"}', 1)
 ON CONFLICT (bundle_key, app_key) DO UPDATE SET
     name = EXCLUDED.name,
     tagline = EXCLUDED.tagline,
     description = EXCLUDED.description,
+    icon_url = EXCLUDED.icon_url,
+    screenshot_url = EXCLUDED.screenshot_url,
     install_overview = EXCLUDED.install_overview,
     install_steps = EXCLUDED.install_steps,
     storefronts = EXCLUDED.storefronts,
@@ -245,18 +247,25 @@ ON CONFLICT (bundle_key, app_key) DO UPDATE SET
     display_order = EXCLUDED.display_order,
     updated_at = NOW();
 
-INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata)
+INSERT INTO download_assets (bundle_key, app_key, platform, variant_key, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata, display_order)
 VALUES
-('business_suite', 'automation_studio', 'windows', 'https://downloads.vrooli.local/business-suite/win/VrooliAscensionSetup.exe', '1.2.0', 'Includes fresh launch console + webdriver upgrades.', 'sha256-win-placeholder', TRUE, '{"size_mb":230}'),
-('business_suite', 'automation_studio', 'mac', 'https://downloads.vrooli.local/business-suite/mac/VrooliAscension.dmg', '1.2.0', 'Signed universal build for Apple Silicon + Intel.', 'sha256-mac-placeholder', TRUE, '{"size_mb":215}'),
-('business_suite', 'automation_studio', 'linux', 'https://downloads.vrooli.local/business-suite/linux/vrooli-ascension.tar.gz', '1.2.0', 'AppImage bundle tested on Ubuntu/Debian.', 'sha256-linux-placeholder', TRUE, '{"size_mb":225}')
-ON CONFLICT (bundle_key, app_key, platform) DO UPDATE SET
+-- Windows variants
+('business_suite', 'automation_studio', 'windows', 'installer', 'https://downloads.vrooli.local/business-suite/win/VrooliAscensionSetup.exe', '1.0.0', NULL, 'sha256-win-exe', TRUE, '{"size_mb":210}', 1),
+('business_suite', 'automation_studio', 'windows', 'portable', 'https://downloads.vrooli.local/business-suite/win/VrooliAscension-portable.zip', '1.0.0', NULL, 'sha256-win-zip', TRUE, '{"size_mb":195}', 2),
+-- macOS variants
+('business_suite', 'automation_studio', 'mac', 'dmg', 'https://downloads.vrooli.local/business-suite/mac/VrooliAscension.dmg', '1.0.0', NULL, 'sha256-mac-dmg', TRUE, '{"size_mb":190}', 1),
+('business_suite', 'automation_studio', 'mac', 'pkg', 'https://downloads.vrooli.local/business-suite/mac/VrooliAscension.pkg', '1.0.0', NULL, 'sha256-mac-pkg', TRUE, '{"size_mb":195}', 2),
+-- Linux variants
+('business_suite', 'automation_studio', 'linux', 'appimage', 'https://downloads.vrooli.local/business-suite/linux/VrooliAscension.AppImage', '1.0.0', NULL, 'sha256-linux-appimage', TRUE, '{"size_mb":205}', 1),
+('business_suite', 'automation_studio', 'linux', 'deb', 'https://downloads.vrooli.local/business-suite/linux/vrooli-ascension_1.0.0_amd64.deb', '1.0.0', NULL, 'sha256-linux-deb', TRUE, '{"size_mb":200}', 2)
+ON CONFLICT (bundle_key, app_key, platform, variant_key) DO UPDATE SET
     artifact_url = EXCLUDED.artifact_url,
     release_version = EXCLUDED.release_version,
     release_notes = EXCLUDED.release_notes,
     checksum = EXCLUDED.checksum,
     requires_entitlement = EXCLUDED.requires_entitlement,
     metadata = EXCLUDED.metadata,
+    display_order = EXCLUDED.display_order,
     updated_at = NOW();
 
 -- Seed credit wallets for demo accounts

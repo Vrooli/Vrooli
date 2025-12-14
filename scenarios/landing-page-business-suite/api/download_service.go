@@ -59,6 +59,8 @@ type DownloadApp struct {
 	Name            string                 `json:"name"`
 	Tagline         string                 `json:"tagline,omitempty"`
 	Description     string                 `json:"description,omitempty"`
+	IconURL         string                 `json:"icon_url,omitempty"`
+	ScreenshotURL   string                 `json:"screenshot_url,omitempty"`
 	InstallOverview string                 `json:"install_overview,omitempty"`
 	InstallSteps    []string               `json:"install_steps,omitempty"`
 	Storefronts     []DownloadStorefront   `json:"storefronts,omitempty"`
@@ -78,7 +80,7 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 		       release_notes, checksum, requires_entitlement, metadata
 		FROM download_assets
 		WHERE bundle_key = $1
-		ORDER BY app_key, platform
+		ORDER BY app_key, platform, COALESCE(display_order, 0), id
 	`
 
 	rows, err := s.db.Query(query, bundleKey)
@@ -123,7 +125,7 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 	query := `
 		SELECT id, bundle_key, app_key, name, tagline, description,
-		       install_overview, install_steps, storefronts, metadata, display_order
+		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order
 		FROM download_apps
 		WHERE bundle_key = $1
 		ORDER BY display_order, name
@@ -138,6 +140,7 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 	var apps []DownloadApp
 	for rows.Next() {
 		var app DownloadApp
+		var iconURL, screenshotURL sql.NullString
 		var installStepsBytes, storefrontBytes, metadataBytes []byte
 		if err := rows.Scan(
 			&app.ID,
@@ -146,6 +149,8 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 			&app.Name,
 			&app.Tagline,
 			&app.Description,
+			&iconURL,
+			&screenshotURL,
 			&app.InstallOverview,
 			&installStepsBytes,
 			&storefrontBytes,
@@ -154,6 +159,8 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 		); err != nil {
 			return nil, err
 		}
+		app.IconURL = iconURL.String
+		app.ScreenshotURL = screenshotURL.String
 
 		if len(installStepsBytes) > 0 {
 			var steps []string
@@ -205,7 +212,7 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error) {
 	query := `
 		SELECT id, bundle_key, app_key, name, tagline, description,
-		       install_overview, install_steps, storefronts, metadata, display_order
+		       icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order
 		FROM download_apps
 		WHERE bundle_key = $1 AND app_key = $2
 		LIMIT 1
@@ -213,6 +220,7 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 
 	row := s.db.QueryRow(query, bundleKey, appKey)
 	var app DownloadApp
+	var iconURL, screenshotURL sql.NullString
 	var installStepsBytes, storefrontBytes, metadataBytes []byte
 	if err := row.Scan(
 		&app.ID,
@@ -221,6 +229,8 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 		&app.Name,
 		&app.Tagline,
 		&app.Description,
+		&iconURL,
+		&screenshotURL,
 		&app.InstallOverview,
 		&installStepsBytes,
 		&storefrontBytes,
@@ -232,6 +242,8 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 		}
 		return nil, err
 	}
+	app.IconURL = iconURL.String
+	app.ScreenshotURL = screenshotURL.String
 
 	if len(installStepsBytes) > 0 {
 		var steps []string
@@ -257,7 +269,7 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 		       release_notes, checksum, requires_entitlement, metadata
 		FROM download_assets
 		WHERE bundle_key = $1 AND app_key = $2
-		ORDER BY platform
+		ORDER BY platform, COALESCE(display_order, 0), id
 	`, bundleKey, appKey)
 	if err != nil {
 		return nil, err
@@ -326,22 +338,33 @@ func (s *DownloadService) UpsertDownloadApp(app DownloadApp) (*DownloadApp, erro
 		return nil, fmt.Errorf("marshal metadata: %w", err)
 	}
 
+	// Convert empty strings to nil for nullable columns
+	var iconURL, screenshotURL interface{}
+	if strings.TrimSpace(app.IconURL) != "" {
+		iconURL = app.IconURL
+	}
+	if strings.TrimSpace(app.ScreenshotURL) != "" {
+		screenshotURL = app.ScreenshotURL
+	}
+
 	_, err = tx.Exec(`
 		INSERT INTO download_apps (
 			bundle_key, app_key, name, tagline, description,
-			install_overview, install_steps, storefronts, metadata, display_order
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+			icon_url, screenshot_url, install_overview, install_steps, storefronts, metadata, display_order
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		ON CONFLICT (bundle_key, app_key) DO UPDATE SET
 			name = EXCLUDED.name,
 			tagline = EXCLUDED.tagline,
 			description = EXCLUDED.description,
+			icon_url = EXCLUDED.icon_url,
+			screenshot_url = EXCLUDED.screenshot_url,
 			install_overview = EXCLUDED.install_overview,
 			install_steps = EXCLUDED.install_steps,
 			storefronts = EXCLUDED.storefronts,
 			metadata = EXCLUDED.metadata,
 			display_order = EXCLUDED.display_order,
 			updated_at = NOW()
-	`, app.BundleKey, app.AppKey, app.Name, app.Tagline, app.Description, app.InstallOverview, installStepsBytes, storefrontBytes, metadataBytes, app.DisplayOrder)
+	`, app.BundleKey, app.AppKey, app.Name, app.Tagline, app.Description, iconURL, screenshotURL, app.InstallOverview, installStepsBytes, storefrontBytes, metadataBytes, app.DisplayOrder)
 	if err != nil {
 		return nil, fmt.Errorf("upsert download app: %w", err)
 	}

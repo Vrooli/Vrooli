@@ -193,6 +193,8 @@ CREATE TABLE IF NOT EXISTS download_apps (
     name VARCHAR(255) NOT NULL,
     tagline TEXT,
     description TEXT,
+    icon_url TEXT,
+    screenshot_url TEXT,
     install_overview TEXT,
     install_steps JSONB DEFAULT '[]'::jsonb,
     storefronts JSONB DEFAULT '[]'::jsonb,
@@ -208,12 +210,14 @@ CREATE TABLE IF NOT EXISTS download_assets (
     bundle_key VARCHAR(100) NOT NULL,
     app_key VARCHAR(100) NOT NULL,
     platform VARCHAR(50) NOT NULL CHECK (platform IN ('windows','mac','linux')),
+    variant_key VARCHAR(50) NOT NULL DEFAULT 'default',
     artifact_url TEXT NOT NULL,
     release_version VARCHAR(50) NOT NULL,
     release_notes TEXT,
     checksum VARCHAR(255),
     requires_entitlement BOOLEAN DEFAULT TRUE,
     metadata JSONB DEFAULT '{}'::jsonb,
+    display_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT fk_download_app FOREIGN KEY (bundle_key, app_key)
@@ -232,7 +236,7 @@ CREATE TABLE IF NOT EXISTS payment_settings (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX idx_download_assets_bundle_app_platform ON download_assets(bundle_key, app_key, platform);
+CREATE UNIQUE INDEX idx_download_assets_bundle_app_platform_variant ON download_assets(bundle_key, app_key, platform, variant_key);
 
 -- Credit wallets and transactions
 CREATE TABLE IF NOT EXISTS credit_wallets (

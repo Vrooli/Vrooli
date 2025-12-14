@@ -154,6 +154,8 @@ export interface DownloadApp {
   name: string;
   tagline?: string;
   description?: string;
+  icon_url?: string;
+  screenshot_url?: string;
   install_overview?: string;
   install_steps?: string[];
   storefronts?: DownloadStorefront[];

@@ -1126,6 +1126,8 @@ func ensureSchema(db *sql.DB) error {
 			name VARCHAR(255) NOT NULL,
 			tagline TEXT,
 			description TEXT,
+			icon_url TEXT,
+			screenshot_url TEXT,
 			install_overview TEXT,
 			install_steps JSONB DEFAULT '[]'::jsonb,
 			storefronts JSONB DEFAULT '[]'::jsonb,
@@ -1135,6 +1137,8 @@ func ensureSchema(db *sql.DB) error {
 			updated_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE (bundle_key, app_key)
 		);`,
+		`ALTER TABLE download_apps ADD COLUMN IF NOT EXISTS icon_url TEXT;`,
+		`ALTER TABLE download_apps ADD COLUMN IF NOT EXISTS screenshot_url TEXT;`,
 		`CREATE TABLE IF NOT EXISTS download_assets (
 			id SERIAL PRIMARY KEY,
 			bundle_key VARCHAR(100) NOT NULL,
@@ -1159,7 +1163,10 @@ func ensureSchema(db *sql.DB) error {
 		`ALTER TABLE download_assets ADD CONSTRAINT fk_download_app FOREIGN KEY (bundle_key, app_key)
 			REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE;`,
 		`DROP INDEX IF EXISTS idx_download_assets_bundle_platform;`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_download_assets_bundle_app_platform ON download_assets(bundle_key, app_key, platform);`,
+		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS variant_key VARCHAR(50) NOT NULL DEFAULT 'default';`,
+		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0;`,
+		`DROP INDEX IF EXISTS idx_download_assets_bundle_app_platform;`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_download_assets_bundle_app_platform_variant ON download_assets(bundle_key, app_key, platform, variant_key);`,
 		`INSERT INTO download_apps (bundle_key, app_key, name, display_order)
 			SELECT DISTINCT bundle_key, app_key, CONCAT(bundle_key, ' downloads'), 0
 			FROM download_assets

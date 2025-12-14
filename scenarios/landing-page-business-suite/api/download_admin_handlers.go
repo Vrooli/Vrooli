@@ -15,6 +15,8 @@ type downloadAppRequest struct {
 	Name            string                 `json:"name"`
 	Tagline         string                 `json:"tagline"`
 	Description     string                 `json:"description"`
+	IconURL         string                 `json:"icon_url"`
+	ScreenshotURL   string                 `json:"screenshot_url"`
 	InstallOverview string                 `json:"install_overview"`
 	InstallSteps    []string               `json:"install_steps"`
 	Storefronts     []DownloadStorefront   `json:"storefronts"`
@@ -144,6 +146,8 @@ func buildDownloadAppFromPayload(payload downloadAppRequest, bundleKey string, o
 		Name:            strings.TrimSpace(payload.Name),
 		Tagline:         strings.TrimSpace(payload.Tagline),
 		Description:     strings.TrimSpace(payload.Description),
+		IconURL:         strings.TrimSpace(payload.IconURL),
+		ScreenshotURL:   strings.TrimSpace(payload.ScreenshotURL),
 		InstallOverview: strings.TrimSpace(payload.InstallOverview),
 		InstallSteps:    filterStrings(payload.InstallSteps),
 		Storefronts:     payload.Storefronts,

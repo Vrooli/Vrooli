@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
@@ -66,10 +66,15 @@ describe('getDownloadAssetKey', () => {
 
 describe('DownloadSection', () => {
   const originalWindowOpen = window.open;
+  const originalNavigator = window.navigator;
 
   afterEach(() => {
     requestDownloadMock.mockReset();
     window.open = originalWindowOpen;
+    Object.defineProperty(window, 'navigator', {
+      value: originalNavigator,
+      writable: true,
+    });
   });
 
   const buildApp = (overrides?: Partial<DownloadApp>, platforms?: DownloadAsset[]): DownloadApp => ({
@@ -95,7 +100,14 @@ describe('DownloadSection', () => {
     ...overrides,
   });
 
-  it('renders unique cards even when platforms repeat within an app', () => {
+  it('renders primary download card for first platform', () => {
+    render(<DownloadSection downloads={[buildApp()]} />);
+
+    expect(screen.getByTestId('download-card-primary')).toBeInTheDocument();
+    expect(screen.getByTestId('download-btn-primary')).toBeInTheDocument();
+  });
+
+  it('shows other platforms toggle when multiple platforms exist', async () => {
     const platforms: DownloadAsset[] = [
       {
         bundle_key: 'bundle',
@@ -108,18 +120,22 @@ describe('DownloadSection', () => {
       {
         bundle_key: 'bundle',
         app_key: 'automation',
-        platform: 'windows',
-        artifact_url: 'https://example.com/app-beta.exe',
-        release_version: '1.1.0-beta',
+        platform: 'mac',
+        artifact_url: 'https://example.com/app.dmg',
+        release_version: '1.0.0',
         requires_entitlement: false,
       },
     ];
 
     render(<DownloadSection downloads={[buildApp(undefined, platforms)]} />);
 
-    const cards = screen.getAllByTestId(/download-card-/);
-    expect(cards).toHaveLength(2);
-    expect(cards[0]).not.toBe(cards[1]);
+    const toggleButton = screen.getByTestId('toggle-other-platforms');
+    expect(toggleButton).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(toggleButton);
+
+    expect(screen.getByTestId('other-platforms-list')).toBeInTheDocument();
   });
 
   it('shows a helpful message when an artifact URL is missing', async () => {
@@ -150,9 +166,9 @@ describe('DownloadSection', () => {
     render(<DownloadSection downloads={apps} />);
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /download/i }));
+    await user.click(screen.getByTestId('download-btn-primary'));
 
-    expect(await screen.findByText('Download artifact is not available yet. Please try again later.')).toBeInTheDocument();
+    expect(await screen.findByText('Download not available yet. Check back soon.')).toBeInTheDocument();
     expect(window.open).not.toHaveBeenCalled();
   });
 
@@ -175,9 +191,9 @@ describe('DownloadSection', () => {
     render(<DownloadSection downloads={[app]} />);
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /download/i }));
+    await user.click(screen.getByTestId('download-btn-primary'));
 
-    expect(await screen.findByText('Unable to open download. Allow pop-ups and try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Pop-up blocked. Allow pop-ups and try again.')).toBeInTheDocument();
     expect(window.open).toHaveBeenCalledWith('https://example.com/app.dmg', '_blank', 'noopener,noreferrer');
   });
 
@@ -203,10 +219,10 @@ describe('DownloadSection', () => {
     render(<DownloadSection downloads={[app]} />);
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /download/i }));
+    await user.click(screen.getByTestId('download-btn-primary'));
 
     expect(window.open).toHaveBeenCalledWith('/downloads/app.tar.gz', '_blank', 'noopener,noreferrer');
-    expect(await screen.findByText('Download started in a new tab.')).toBeInTheDocument();
+    expect(await screen.findByText('Download started!')).toBeInTheDocument();
   });
 
   it('rejects dangerous artifact URL schemes before opening a new window', async () => {
@@ -231,9 +247,46 @@ describe('DownloadSection', () => {
     render(<DownloadSection downloads={[app]} />);
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /download/i }));
+    await user.click(screen.getByTestId('download-btn-primary'));
 
-    expect(await screen.findByText('Download artifact is not available yet. Please try again later.')).toBeInTheDocument();
+    expect(await screen.findByText('Download not available yet. Check back soon.')).toBeInTheDocument();
     expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('shows post-download instructions after successful download', async () => {
+    const app = buildApp(undefined, [
+      {
+        bundle_key: 'bundle',
+        app_key: 'automation',
+        platform: 'windows',
+        artifact_url: 'https://example.com/app.exe',
+        release_version: '1.0.0',
+        requires_entitlement: false,
+      },
+    ]);
+
+    requestDownloadMock.mockResolvedValueOnce(app.platforms[0]);
+    window.open = vi.fn(() => ({} as Window));
+
+    render(<DownloadSection downloads={[app]} />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('download-btn-primary'));
+
+    expect(await screen.findByTestId('post-download-instructions')).toBeInTheDocument();
+    expect(screen.getByText('Download started')).toBeInTheDocument();
+  });
+
+  it('shows subscription input toggle', async () => {
+    render(<DownloadSection downloads={[buildApp()]} />);
+
+    const toggleButton = screen.getByTestId('toggle-subscription-input');
+    expect(toggleButton).toBeInTheDocument();
+    expect(toggleButton).toHaveTextContent('Already have a subscription?');
+
+    const user = userEvent.setup();
+    await user.click(toggleButton);
+
+    expect(screen.getByTestId('subscription-input-panel')).toBeInTheDocument();
   });
 });
