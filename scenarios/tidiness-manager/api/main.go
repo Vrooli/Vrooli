@@ -112,6 +112,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/agent/issues", s.handleAgentStoreIssue).Methods("POST", "OPTIONS")
 	s.router.HandleFunc("/api/v1/agent/issues/{id}", s.handleAgentUpdateIssue).Methods("PATCH", "OPTIONS")
 	s.router.HandleFunc("/api/v1/agent/issues/generate-from-metrics", s.handleGenerateIssuesFromMetrics).Methods("POST", "OPTIONS")
+	s.router.HandleFunc("/api/v1/agent/staleness", s.handleGetStalenessInfo).Methods("GET", "OPTIONS")
 
 	// Scenario detail endpoint (OT-P0-010) - must be registered before generic list endpoint
 	s.router.HandleFunc("/api/v1/agent/scenarios/{name}", s.handleAgentGetScenarioDetail).Methods("GET", "OPTIONS")

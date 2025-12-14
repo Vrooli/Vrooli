@@ -23,6 +23,16 @@ type ComplexityResult struct {
 	Skipped             bool          `json:"skipped"`
 	SkipReason          string        `json:"skip_reason,omitempty"`
 	Tool                string        `json:"tool,omitempty"`
+	// FileComplexity maps file paths to their aggregate complexity stats (avg, max)
+	// This includes ALL files, not just those with high-complexity functions
+	FileComplexity map[string]FileComplexityStats `json:"file_complexity,omitempty"`
+}
+
+// FileComplexityStats holds per-file aggregate complexity statistics
+type FileComplexityStats struct {
+	Avg           float64 `json:"avg"`
+	Max           int     `json:"max"`
+	FunctionCount int     `json:"function_count"`
 }
 
 // ComplexFile represents a function with high cyclomatic complexity
@@ -125,6 +135,9 @@ func (ca *ComplexityAnalyzer) analyzeGoComplexity(ctx context.Context, files []s
 	allOutput := stdout2.String()
 	allComplexity := ca.parseGoCycloOutputAll(allOutput)
 
+	// Parse per-file complexity from all functions output
+	fileComplexity := ca.parseGoCycloPerFile(allOutput)
+
 	// Calculate statistics
 	avgComplexity := 0.0
 	maxComplexity := 0
@@ -150,6 +163,7 @@ func (ca *ComplexityAnalyzer) analyzeGoComplexity(ctx context.Context, files []s
 		TotalFunctions:      totalFunctions,
 		Skipped:             false,
 		Tool:                "gocyclo",
+		FileComplexity:      fileComplexity,
 	}, nil
 }
 
@@ -217,6 +231,65 @@ func (ca *ComplexityAnalyzer) parseGoCycloOutputAll(output string) []int {
 	}
 
 	return complexities
+}
+
+// parseGoCycloPerFile parses gocyclo output and aggregates complexity per file
+// Returns a map of file path -> FileComplexityStats (avg, max, function count)
+func (ca *ComplexityAnalyzer) parseGoCycloPerFile(output string) map[string]FileComplexityStats {
+	// Temporary structure to collect complexities per file
+	fileComplexities := make(map[string][]int)
+
+	// Example line: 15 main (*Server).handleLightScan /path/to/file.go:26:1
+	re := regexp.MustCompile(`^(\d+)\s+\S+\s+\S+\s+(.+?):\d+:`)
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		matches := re.FindStringSubmatch(line)
+		if len(matches) < 3 {
+			continue
+		}
+
+		complexity, _ := strconv.Atoi(matches[1])
+		filePath := matches[2]
+
+		// Convert absolute path to relative path
+		relPath, err := filepath.Rel(ca.scenarioPath, filePath)
+		if err != nil {
+			relPath = filePath // Use absolute if conversion fails
+		}
+
+		fileComplexities[relPath] = append(fileComplexities[relPath], complexity)
+	}
+
+	// Calculate stats per file
+	result := make(map[string]FileComplexityStats)
+	for path, complexities := range fileComplexities {
+		if len(complexities) == 0 {
+			continue
+		}
+
+		sum := 0
+		max := 0
+		for _, c := range complexities {
+			sum += c
+			if c > max {
+				max = c
+			}
+		}
+
+		result[path] = FileComplexityStats{
+			Avg:           float64(sum) / float64(len(complexities)),
+			Max:           max,
+			FunctionCount: len(complexities),
+		}
+	}
+
+	return result
 }
 
 // commandExists checks if a command is available in PATH

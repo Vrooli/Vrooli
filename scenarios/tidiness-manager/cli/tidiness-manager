@@ -16,6 +16,7 @@ readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
 readonly NC='\033[0m'
 
 init_config() {
@@ -202,14 +203,31 @@ cmd_scan() {
         esac
     done
 
-    echo -e "${BLUE}Running light scan on $scenario_path...${NC}"
+    local abs_path=""
+    # First, try treating the argument as a direct path
+    if [[ -d "$scenario_path" ]]; then
+        abs_path=$(cd "$scenario_path" && pwd 2>/dev/null) || abs_path=""
+    fi
 
-    local abs_path
-    abs_path=$(cd "$scenario_path" && pwd 2>/dev/null)
+    # If not a valid path, try resolving as a scenario name
     if [[ -z "$abs_path" ]]; then
-        echo -e "${RED}✗${NC} Invalid scenario path: $scenario_path"
+        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+        local scenario_dir="$vrooli_root/scenarios/$scenario_path"
+        if [[ -d "$scenario_dir" ]]; then
+            abs_path=$(cd "$scenario_dir" && pwd 2>/dev/null)
+            echo -e "${BLUE}Resolved scenario '$scenario_path' to $abs_path${NC}"
+        fi
+    fi
+
+    if [[ -z "$abs_path" ]]; then
+        echo -e "${RED}✗${NC} Invalid scenario path or name: $scenario_path"
+        echo "Provide either:"
+        echo "  • A valid directory path (e.g., /home/user/Vrooli/scenarios/my-scenario)"
+        echo "  • A scenario name (e.g., my-scenario) - resolves to \$VROOLI_ROOT/scenarios/<name>"
         return 1
     fi
+
+    echo -e "${BLUE}Running light scan on $abs_path...${NC}"
 
     local request_body
     request_body=$(jq -n --arg path "$abs_path" --argjson timeout "$timeout_sec" \
@@ -242,7 +260,7 @@ cmd_scan() {
         "📊 Results:",
         "  Lint issues: \(.lint_issues // 0)",
         "  Type issues: \(.type_issues // 0)",
-        "  Long files: \(.long_files // 0)",
+        "  Long files: \(.long_files_count // (.long_files | length) // 0)",
         "  Total files scanned: \(.total_files // 0)"
     ' 2>/dev/null || echo "$response"
 }
@@ -310,10 +328,37 @@ cmd_issues() {
         return 1
     fi
 
+    # Check if response is an empty array (no issues)
+    local issue_count
+    issue_count=$(echo "$response" | jq 'if type == "array" then length else .count // 0 end' 2>/dev/null || echo "0")
+
+    if [[ "$issue_count" == "0" ]]; then
+        echo -e "${GREEN}✓${NC} Issues retrieved"
+
+        # Check if the scenario exists/has been scanned
+        local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
+        local scenario_dir="$vrooli_root/scenarios/$scenario"
+
+        if [[ ! -d "$scenario_dir" ]]; then
+            echo -e "${YELLOW}⚠${NC} No issues found for '$scenario'"
+            echo "  Note: Scenario directory not found at $scenario_dir"
+            echo "  This scenario may not exist or may use a different name."
+        else
+            echo -e "${YELLOW}⚠${NC} No issues found for '$scenario'"
+            echo "  Possible reasons:"
+            echo "    • No scans have been run yet - try: tidiness-manager scan $scenario"
+            echo "    • All issues have been resolved"
+            echo "    • Category filter excludes all issues"
+        fi
+        return 0
+    fi
+
     # Display results
     echo -e "${GREEN}✓${NC} Issues retrieved"
     echo "$response" | jq -r '
-        if .issues then
+        if type == "array" then
+            .
+        elif .issues then
             "Total issues: \(.count)",
             "",
             (if .count > 0 then .issues[] | "  • [\(.severity)] \(.file_path):\(.line_number // "?"): \(.title)" else "  No issues found" end)
@@ -321,6 +366,26 @@ cmd_issues() {
             .
         end
     ' 2>/dev/null || echo "$response"
+
+    # Check for staleness (issues might be outdated)
+    local staleness_response
+    staleness_response=$(api_request GET "/agent/staleness?scenario=$scenario" 2>/dev/null || true)
+    if [[ -n "$staleness_response" ]]; then
+        local is_stale
+        is_stale=$(echo "$staleness_response" | jq -r '.is_stale // false' 2>/dev/null || echo "false")
+        if [[ "$is_stale" == "true" ]]; then
+            local stale_reason rescan_cmd modified_files
+            stale_reason=$(echo "$staleness_response" | jq -r '.stale_reason // "unknown"' 2>/dev/null)
+            rescan_cmd=$(echo "$staleness_response" | jq -r '.rescan_command // ""' 2>/dev/null)
+            modified_files=$(echo "$staleness_response" | jq -r '.modified_files // 0' 2>/dev/null)
+
+            echo ""
+            echo -e "${YELLOW}⚠ Stale data warning:${NC} $stale_reason"
+            if [[ -n "$rescan_cmd" ]]; then
+                echo -e "  Run ${CYAN}$rescan_cmd${NC} to refresh issue data"
+            fi
+        fi
+    fi
 }
 
 cmd_campaigns() {
@@ -409,31 +474,52 @@ cmd_campaigns() {
             # For pause/stop/resume, we need a campaign ID
             # Try to find campaign by scenario if no ID provided
             if [[ -z "$campaign_id" && -n "$scenario" ]]; then
-                # Look up campaign ID by scenario name using temp file (avoids pipe buffering issues)
-                local tmpfile
-                tmpfile=$(mktemp)
-                curl -s "${API_BASE}/campaigns" > "$tmpfile" 2>/dev/null
-
-                # Find campaign for this scenario (paused for resume, active for others)
-                if [[ "$subcommand" == "resume" ]]; then
-                    campaign_id=$(jq -r --arg scenario "$scenario" \
-                        '[.campaigns[]? | select(.scenario == $scenario and .status == "paused")] | first | .id // empty' "$tmpfile" 2>/dev/null)
+                # Check if the argument looks like a numeric ID
+                if [[ "$scenario" =~ ^[0-9]+$ ]]; then
+                    # User provided what looks like a campaign ID as positional arg
+                    campaign_id="$scenario"
+                    scenario=""
                 else
-                    campaign_id=$(jq -r --arg scenario "$scenario" \
-                        '[.campaigns[]? | select(.scenario == $scenario and .status == "active")] | first | .id // empty' "$tmpfile" 2>/dev/null)
-                fi
-                rm -f "$tmpfile"
+                    # Look up campaign ID by scenario name using temp file (avoids pipe buffering issues)
+                    local tmpfile
+                    tmpfile=$(mktemp)
+                    curl -s "${API_BASE}/campaigns" > "$tmpfile" 2>/dev/null
 
-                if [[ -z "$campaign_id" ]]; then
-                    echo -e "${RED}✗${NC} No suitable campaign found for scenario: $scenario"
-                    echo "Use 'tidiness-manager campaigns list' to see available campaigns"
-                    return 1
+                    # Find campaign for this scenario (paused for resume, active for others)
+                    local status_filter="active"
+                    if [[ "$subcommand" == "resume" ]]; then
+                        status_filter="paused"
+                    fi
+
+                    campaign_id=$(jq -r --arg scenario "$scenario" --arg status "$status_filter" \
+                        '[.campaigns[]? | select(.scenario == $scenario and .status == $status)] | first | .id // empty' "$tmpfile" 2>/dev/null)
+
+                    if [[ -z "$campaign_id" ]]; then
+                        # Provide helpful error with available campaigns for this scenario
+                        local available
+                        available=$(jq -r --arg scenario "$scenario" \
+                            '[.campaigns[]? | select(.scenario == $scenario)] | map("\(.id) (\(.status))") | join(", ")' "$tmpfile" 2>/dev/null)
+                        rm -f "$tmpfile"
+
+                        echo -e "${RED}✗${NC} No ${status_filter} campaign found for scenario: $scenario"
+                        if [[ -n "$available" && "$available" != "" ]]; then
+                            echo "  Available campaigns for '$scenario': $available"
+                            echo "  Use --id to specify a specific campaign"
+                        else
+                            echo "  No campaigns exist for this scenario."
+                            echo "  Start a new campaign: tidiness-manager campaigns start $scenario"
+                        fi
+                        return 1
+                    fi
+                    rm -f "$tmpfile"
                 fi
             fi
 
             if [[ -z "$campaign_id" ]]; then
-                echo -e "${RED}✗${NC} Campaign ID or scenario name required for $subcommand"
-                echo "Usage: tidiness-manager campaigns $subcommand <scenario> [--id <campaign-id>]"
+                echo -e "${RED}✗${NC} Scenario name or campaign ID required for $subcommand"
+                echo "Usage:"
+                echo "  tidiness-manager campaigns $subcommand <scenario-name>"
+                echo "  tidiness-manager campaigns $subcommand --id <campaign-id>"
                 return 1
             fi
 
@@ -574,6 +660,24 @@ cmd_recommend_refactors() {
             ;;
         detailed|*)
             # Default: Human-readable detailed output
+            local count
+            count=$(echo "$response" | jq -r '.count // 0' 2>/dev/null)
+
+            if [[ "$count" == "0" ]]; then
+                # Check if API returned a specific warning
+                local warning
+                warning=$(echo "$response" | jq -r '.warning // empty' 2>/dev/null)
+
+                echo -e "${YELLOW}⚠${NC} No recommendations found for scenario '$scenario'" >&2
+                if [[ -n "$warning" ]]; then
+                    echo "  $warning" >&2
+                else
+                    echo "  This could mean:" >&2
+                    echo "    • All files have been recently visited (use --max-visits to include them)" >&2
+                fi
+                return 0
+            fi
+
             echo -e "${GREEN}✓${NC} Recommendations retrieved (sorted by: $sort_by)" >&2
             echo "$response" | jq -r '
                 if .recommendations then
@@ -796,11 +900,14 @@ COMMANDS
     status
         Check API health and dependency status
 
-    scan [--scenario-path PATH] [--timeout SEC]
+    scan [SCENARIO_PATH_OR_NAME] [--timeout SEC]
         Run light scan (lint + type checks) on scenario
+        Accepts either a full path or a scenario name (resolves to \$VROOLI_ROOT/scenarios/<name>)
         Default: current directory, 120s timeout
-        Example:
+        Examples:
+          tidiness-manager scan tidiness-manager
           tidiness-manager scan ~/Vrooli/scenarios/browser-automation-studio
+          tidiness-manager scan . --timeout 300
 
     recommend-refactors SCENARIO [OPTIONS]
         Get refactor recommendations combining visited-tracker data with code metrics

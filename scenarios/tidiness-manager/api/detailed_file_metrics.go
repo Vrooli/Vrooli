@@ -136,7 +136,7 @@ type fileComplexityInfo struct {
 }
 
 // buildFileComplexityMap extracts per-file complexity from language metrics
-// by aggregating function-level complexity data
+// by using the FileComplexity map which contains ALL files, not just high-complexity ones
 func buildFileComplexityMap(langMetrics map[Language]*LanguageMetrics) map[string]fileComplexityInfo {
 	result := make(map[string]fileComplexityInfo)
 
@@ -144,38 +144,46 @@ func buildFileComplexityMap(langMetrics map[Language]*LanguageMetrics) map[strin
 		return result
 	}
 
-	// Group complexity by file
-	fileComplexities := make(map[string][]int)
-
 	for _, lm := range langMetrics {
 		if lm.Complexity == nil || lm.Complexity.Skipped {
 			continue
 		}
 
-		// Process high complexity files (these have detailed per-function data)
-		for _, cf := range lm.Complexity.HighComplexityFiles {
-			fileComplexities[cf.Path] = append(fileComplexities[cf.Path], cf.Complexity)
-		}
-	}
-
-	// Calculate avg and max per file
-	for path, complexities := range fileComplexities {
-		if len(complexities) == 0 {
-			continue
-		}
-
-		sum := 0
-		max := 0
-		for _, c := range complexities {
-			sum += c
-			if c > max {
-				max = c
+		// Use the new FileComplexity map which has per-file stats for ALL files
+		if lm.Complexity.FileComplexity != nil {
+			for path, stats := range lm.Complexity.FileComplexity {
+				result[path] = fileComplexityInfo{
+					avg: stats.Avg,
+					max: stats.Max,
+				}
 			}
-		}
+		} else {
+			// Fallback to old behavior for backwards compatibility
+			// (in case older scan results don't have FileComplexity)
+			fileComplexities := make(map[string][]int)
+			for _, cf := range lm.Complexity.HighComplexityFiles {
+				fileComplexities[cf.Path] = append(fileComplexities[cf.Path], cf.Complexity)
+			}
 
-		result[path] = fileComplexityInfo{
-			avg: float64(sum) / float64(len(complexities)),
-			max: max,
+			for path, complexities := range fileComplexities {
+				if len(complexities) == 0 {
+					continue
+				}
+
+				sum := 0
+				max := 0
+				for _, c := range complexities {
+					sum += c
+					if c > max {
+						max = c
+					}
+				}
+
+				result[path] = fileComplexityInfo{
+					avg: float64(sum) / float64(len(complexities)),
+					max: max,
+				}
+			}
 		}
 	}
 

@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -480,6 +482,42 @@ func (s *Server) handleAgentGetScenarioDetail(w http.ResponseWriter, r *http.Req
 		"longFiles":   longFiles,
 		"files":       files,
 	})
+}
+
+// handleGetStalenessInfo returns information about whether issues might be stale
+// for a given scenario (i.e., files have been modified since the last scan)
+func (s *Server) handleGetStalenessInfo(w http.ResponseWriter, r *http.Request) {
+	scenario := r.URL.Query().Get("scenario")
+	if scenario == "" {
+		respondError(w, http.StatusBadRequest, "scenario parameter is required")
+		return
+	}
+
+	// Resolve scenario path
+	vrooli_root := os.Getenv("VROOLI_ROOT")
+	if vrooli_root == "" {
+		vrooli_root = os.Getenv("HOME") + "/Vrooli"
+	}
+	scenarioPath := vrooli_root + "/scenarios/" + scenario
+
+	// Check if scenario directory exists
+	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+		respondJSON(w, http.StatusOK, &StalenessInfo{
+			IsStale:       true,
+			StaleReason:   "scenario directory not found",
+			RescanCommand: fmt.Sprintf("tidiness-manager scan %s", scenario),
+		})
+		return
+	}
+
+	info, err := s.store.GetStalenessInfo(r.Context(), scenario, scenarioPath)
+	if err != nil {
+		s.logQueryError("get staleness info", err)
+		respondError(w, http.StatusInternalServerError, "failed to get staleness info")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, info)
 }
 
 // getAllScenarios fetches all scenarios from the vrooli CLI with caching

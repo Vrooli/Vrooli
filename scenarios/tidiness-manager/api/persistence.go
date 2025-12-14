@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -470,4 +473,108 @@ func (ts *TidinessStore) GetDetailedFileMetrics(ctx context.Context, scenario st
 	}
 
 	return metrics, nil
+}
+
+// StalenessInfo contains metadata about scan freshness
+type StalenessInfo struct {
+	LastScanAt       *string `json:"last_scan_at,omitempty"`
+	IsStale          bool    `json:"is_stale"`
+	ModifiedFiles    int     `json:"modified_files,omitempty"`
+	StaleReason      string  `json:"stale_reason,omitempty"`
+	RescanCommand    string  `json:"rescan_command,omitempty"`
+}
+
+// GetStalenessInfo checks if issues might be out-of-date for a scenario
+// by comparing the last scan time against the scenario's file modification times
+func (ts *TidinessStore) GetStalenessInfo(ctx context.Context, scenario, scenarioPath string) (*StalenessInfo, error) {
+	info := &StalenessInfo{
+		RescanCommand: fmt.Sprintf("tidiness-manager scan %s", scenario),
+	}
+
+	// Get last scan time from scan_history first
+	var lastScan sql.NullTime
+	err := ts.db.QueryRowContext(ctx, `
+		SELECT MAX(created_at) FROM scan_history WHERE scenario = $1
+	`, scenario).Scan(&lastScan)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("failed to get last scan time: %w", err)
+	}
+
+	// If scan_history has no records, try file_metrics.updated_at as fallback
+	// (light scans write to file_metrics but not always to scan_history)
+	if !lastScan.Valid {
+		err = ts.db.QueryRowContext(ctx, `
+			SELECT MAX(updated_at) FROM file_metrics WHERE scenario = $1
+		`, scenario).Scan(&lastScan)
+		if err != nil && err != sql.ErrNoRows {
+			// Non-fatal
+			lastScan.Valid = false
+		}
+	}
+
+	if !lastScan.Valid {
+		// No scans ever run (neither scan_history nor file_metrics have data)
+		info.IsStale = true
+		info.StaleReason = "no scans have been run yet"
+		return info, nil
+	}
+
+	scanTime := lastScan.Time.Format("2006-01-02T15:04:05Z")
+	info.LastScanAt = &scanTime
+
+	// Check if any files have been modified since the last scan
+	if scenarioPath != "" {
+		modifiedCount := countModifiedFilesSince(scenarioPath, lastScan.Time)
+		if modifiedCount > 0 {
+			info.IsStale = true
+			info.ModifiedFiles = modifiedCount
+			info.StaleReason = fmt.Sprintf("%d file(s) modified since last scan", modifiedCount)
+		}
+	}
+
+	return info, nil
+}
+
+// countModifiedFilesSince walks the scenario directory and counts source files
+// that have been modified after the given time
+func countModifiedFilesSince(scenarioPath string, since time.Time) int {
+	count := 0
+	extensions := map[string]bool{
+		".go":  true,
+		".ts":  true,
+		".tsx": true,
+		".js":  true,
+		".jsx": true,
+		".py":  true,
+	}
+
+	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		// Skip directories we don't care about
+		if info.IsDir() {
+			name := info.Name()
+			if name == "node_modules" || name == ".git" || name == "vendor" ||
+				name == "dist" || name == "build" || strings.HasPrefix(name, ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Only check source files
+		ext := filepath.Ext(path)
+		if !extensions[ext] {
+			return nil
+		}
+
+		// Check if modified after scan
+		if info.ModTime().After(since) {
+			count++
+		}
+		return nil
+	})
+
+	return count
 }
