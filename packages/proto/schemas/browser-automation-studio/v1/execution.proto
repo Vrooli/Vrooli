@@ -206,12 +206,26 @@ message GetScreenshotsResponse {
 // =============================================================================
 // WEBSOCKET EVENTS (LEGACY)
 // =============================================================================
+//
+// DEPRECATION NOTICE: The types in this section are superseded by the unified
+// streaming format in timeline_event.proto. See EventKind migration guide in
+// shared.proto for details.
+//
+// New implementations MUST use:
+//   - TimelineStreamMessage (envelope)
+//   - TimelineEvent (action + telemetry)
+//   - TimelineStatusUpdate (status changes)
+//   - TimelineHeartbeat (keep-alive)
+// =============================================================================
 
 // ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
+//
 // DEPRECATED: Use TimelineStreamMessage from timeline_event.proto instead.
 // TimelineStreamMessage provides a unified format for both recording and execution
 // streaming, with proper ActionDefinition and ActionTelemetry composition.
-// This message is retained for backward compatibility with existing consumers.
+//
+// This message is retained ONLY for backward compatibility with existing consumers
+// and will be removed in a future version.
 message ExecutionEventEnvelope {
   option deprecated = true;
   // Schema version for the envelope.

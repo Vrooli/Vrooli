@@ -685,95 +685,138 @@ export const ActionMetadataSchema: GenMessage<ActionMetadata> = /*@__PURE__*/
  * - Execution (sent to playwright-driver)
  * - Timeline events (streamed to UI)
  *
+ * IMPORTANT: Type-Params Consistency Requirement
+ * The `type` field MUST match the populated `params` oneof case:
+ *   - ACTION_TYPE_NAVIGATE requires `navigate` params
+ *   - ACTION_TYPE_CLICK requires `click` params
+ *   - ACTION_TYPE_INPUT requires `input` params
+ *   - etc.
+ *
+ * The `type` field exists for:
+ * 1. Efficient filtering/grouping without parsing params
+ * 2. Forward compatibility when new params are added
+ * 3. Explicit documentation of intent
+ *
+ * Consumers SHOULD validate type-params consistency. Invalid combinations
+ * (e.g., type=CLICK with navigate params) are malformed and should be rejected.
+ *
  * @generated from message browser_automation_studio.v1.ActionDefinition
  */
 export type ActionDefinition = Message<"browser_automation_studio.v1.ActionDefinition"> & {
   /**
-   * Action type classification.
+   * Action type classification. MUST match the populated params oneof case.
+   * See message-level comment for consistency requirements.
    *
    * @generated from field: browser_automation_studio.v1.ActionType type = 1;
    */
   type: ActionType;
 
   /**
-   * Type-specific parameters (exactly one must be set based on type).
+   * Type-specific parameters. Exactly one MUST be set, matching the `type` field.
+   * The mapping is: ACTION_TYPE_X requires the corresponding `x` params field.
    *
    * @generated from oneof browser_automation_studio.v1.ActionDefinition.params
    */
   params: {
     /**
+     * Required when type = ACTION_TYPE_NAVIGATE
+     *
      * @generated from field: browser_automation_studio.v1.NavigateParams navigate = 10;
      */
     value: NavigateParams;
     case: "navigate";
   } | {
     /**
+     * Required when type = ACTION_TYPE_CLICK
+     *
      * @generated from field: browser_automation_studio.v1.ClickParams click = 11;
      */
     value: ClickParams;
     case: "click";
   } | {
     /**
+     * Required when type = ACTION_TYPE_INPUT
+     *
      * @generated from field: browser_automation_studio.v1.InputParams input = 12;
      */
     value: InputParams;
     case: "input";
   } | {
     /**
+     * Required when type = ACTION_TYPE_WAIT
+     *
      * @generated from field: browser_automation_studio.v1.WaitParams wait = 13;
      */
     value: WaitParams;
     case: "wait";
   } | {
     /**
+     * Required when type = ACTION_TYPE_ASSERT
+     *
      * @generated from field: browser_automation_studio.v1.AssertParams assert = 14;
      */
     value: AssertParams;
     case: "assert";
   } | {
     /**
+     * Required when type = ACTION_TYPE_SCROLL
+     *
      * @generated from field: browser_automation_studio.v1.ScrollParams scroll = 15;
      */
     value: ScrollParams;
     case: "scroll";
   } | {
     /**
+     * Required when type = ACTION_TYPE_SELECT
+     *
      * @generated from field: browser_automation_studio.v1.SelectParams select_option = 16;
      */
     value: SelectParams;
     case: "selectOption";
   } | {
     /**
+     * Required when type = ACTION_TYPE_EVALUATE
+     *
      * @generated from field: browser_automation_studio.v1.EvaluateParams evaluate = 17;
      */
     value: EvaluateParams;
     case: "evaluate";
   } | {
     /**
+     * Required when type = ACTION_TYPE_KEYBOARD
+     *
      * @generated from field: browser_automation_studio.v1.KeyboardParams keyboard = 18;
      */
     value: KeyboardParams;
     case: "keyboard";
   } | {
     /**
+     * Required when type = ACTION_TYPE_HOVER
+     *
      * @generated from field: browser_automation_studio.v1.HoverParams hover = 19;
      */
     value: HoverParams;
     case: "hover";
   } | {
     /**
+     * Required when type = ACTION_TYPE_SCREENSHOT
+     *
      * @generated from field: browser_automation_studio.v1.ScreenshotParams screenshot = 20;
      */
     value: ScreenshotParams;
     case: "screenshot";
   } | {
     /**
+     * Required when type = ACTION_TYPE_FOCUS
+     *
      * @generated from field: browser_automation_studio.v1.FocusParams focus = 21;
      */
     value: FocusParams;
     case: "focus";
   } | {
     /**
+     * Required when type = ACTION_TYPE_BLUR
+     *
      * @generated from field: browser_automation_studio.v1.BlurParams blur = 22;
      */
     value: BlurParams;

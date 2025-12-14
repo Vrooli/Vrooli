@@ -10,6 +10,22 @@ import "browser-automation-studio/v1/selectors.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
 // =============================================================================
+// TELEMETRY DOMAIN
+// =============================================================================
+//
+// This file contains types for capturing observable data during action
+// recording or execution, including:
+//   - Console output (ConsoleLogEntry)
+//   - Network activity (NetworkEvent)
+//   - Action telemetry (ActionTelemetry)
+//   - Screenshots (TimelineScreenshot)
+//
+// NOTE: HighlightRegion and MaskRegion (screenshot overlay types) are
+// defined in selectors.proto for backward compatibility, but logically
+// belong to this telemetry domain. They are imported via selectors.proto.
+// =============================================================================
+
+// =============================================================================
 // CONSOLE AND NETWORK TELEMETRY
 // =============================================================================
 

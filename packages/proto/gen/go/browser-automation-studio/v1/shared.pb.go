@@ -324,8 +324,22 @@ func (ArtifactType) EnumDescriptor() ([]byte, []int) {
 }
 
 // EventKind enumerates WebSocket event types.
-// DEPRECATED: Use TimelineMessageType from timeline_event.proto instead.
-// EventKind is used only in the legacy ExecutionEventEnvelope.
+//
+// DEPRECATED: This enum and ExecutionEventEnvelope (in execution.proto) are
+// superseded by the unified streaming format:
+//   - Use TimelineMessageType (timeline_event.proto) for message routing
+//   - Use TimelineStreamMessage (timeline_event.proto) as the envelope
+//   - Use TimelineEvent (timeline_event.proto) for action/telemetry data
+//
+// MIGRATION GUIDE:
+//
+//	EVENT_KIND_STATUS_UPDATE  → TIMELINE_MESSAGE_TYPE_STATUS + TimelineStatusUpdate
+//	EVENT_KIND_TIMELINE_FRAME → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent
+//	EVENT_KIND_LOG            → (logs are now embedded in TimelineEvent.telemetry.console_logs)
+//	EVENT_KIND_HEARTBEAT      → TIMELINE_MESSAGE_TYPE_HEARTBEAT + TimelineHeartbeat
+//	EVENT_KIND_TELEMETRY      → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent.telemetry
+//
+// This enum will be removed once all consumers migrate to TimelineStreamMessage.
 //
 // Deprecated: Marked as deprecated in browser-automation-studio/v1/shared.proto.
 type EventKind int32
@@ -858,6 +872,87 @@ func (AssertionMode) EnumDescriptor() ([]byte, []int) {
 	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{13}
 }
 
+// HighlightColor enumerates supported highlight overlay colors.
+// Used by HighlightRegion for screenshot annotations.
+type HighlightColor int32
+
+const (
+	HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED HighlightColor = 0
+	// Primary action colors
+	HighlightColor_HIGHLIGHT_COLOR_RED    HighlightColor = 1 // Error, failure, critical elements
+	HighlightColor_HIGHLIGHT_COLOR_GREEN  HighlightColor = 2 // Success, verified elements
+	HighlightColor_HIGHLIGHT_COLOR_BLUE   HighlightColor = 3 // Information, focus
+	HighlightColor_HIGHLIGHT_COLOR_YELLOW HighlightColor = 4 // Warning, attention
+	// Secondary colors
+	HighlightColor_HIGHLIGHT_COLOR_ORANGE HighlightColor = 5 // Caution
+	HighlightColor_HIGHLIGHT_COLOR_PURPLE HighlightColor = 6 // Special emphasis
+	HighlightColor_HIGHLIGHT_COLOR_CYAN   HighlightColor = 7 // Secondary info
+	HighlightColor_HIGHLIGHT_COLOR_PINK   HighlightColor = 8 // Accent
+	// Neutral colors
+	HighlightColor_HIGHLIGHT_COLOR_WHITE HighlightColor = 9  // Light backgrounds
+	HighlightColor_HIGHLIGHT_COLOR_GRAY  HighlightColor = 10 // Subtle emphasis
+	HighlightColor_HIGHLIGHT_COLOR_BLACK HighlightColor = 11 // Dark backgrounds
+)
+
+// Enum value maps for HighlightColor.
+var (
+	HighlightColor_name = map[int32]string{
+		0:  "HIGHLIGHT_COLOR_UNSPECIFIED",
+		1:  "HIGHLIGHT_COLOR_RED",
+		2:  "HIGHLIGHT_COLOR_GREEN",
+		3:  "HIGHLIGHT_COLOR_BLUE",
+		4:  "HIGHLIGHT_COLOR_YELLOW",
+		5:  "HIGHLIGHT_COLOR_ORANGE",
+		6:  "HIGHLIGHT_COLOR_PURPLE",
+		7:  "HIGHLIGHT_COLOR_CYAN",
+		8:  "HIGHLIGHT_COLOR_PINK",
+		9:  "HIGHLIGHT_COLOR_WHITE",
+		10: "HIGHLIGHT_COLOR_GRAY",
+		11: "HIGHLIGHT_COLOR_BLACK",
+	}
+	HighlightColor_value = map[string]int32{
+		"HIGHLIGHT_COLOR_UNSPECIFIED": 0,
+		"HIGHLIGHT_COLOR_RED":         1,
+		"HIGHLIGHT_COLOR_GREEN":       2,
+		"HIGHLIGHT_COLOR_BLUE":        3,
+		"HIGHLIGHT_COLOR_YELLOW":      4,
+		"HIGHLIGHT_COLOR_ORANGE":      5,
+		"HIGHLIGHT_COLOR_PURPLE":      6,
+		"HIGHLIGHT_COLOR_CYAN":        7,
+		"HIGHLIGHT_COLOR_PINK":        8,
+		"HIGHLIGHT_COLOR_WHITE":       9,
+		"HIGHLIGHT_COLOR_GRAY":        10,
+		"HIGHLIGHT_COLOR_BLACK":       11,
+	}
+)
+
+func (x HighlightColor) Enum() *HighlightColor {
+	p := new(HighlightColor)
+	*p = x
+	return p
+}
+
+func (x HighlightColor) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (HighlightColor) Descriptor() protoreflect.EnumDescriptor {
+	return file_browser_automation_studio_v1_shared_proto_enumTypes[14].Descriptor()
+}
+
+func (HighlightColor) Type() protoreflect.EnumType {
+	return &file_browser_automation_studio_v1_shared_proto_enumTypes[14]
+}
+
+func (x HighlightColor) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use HighlightColor.Descriptor instead.
+func (HighlightColor) EnumDescriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_shared_proto_rawDescGZIP(), []int{14}
+}
+
 // RetryAttempt captures the outcome of a single retry attempt.
 // Used in both timeline frames (batch API) and timeline events (streaming).
 type RetryAttempt struct {
@@ -1270,7 +1365,21 @@ const file_browser_automation_studio_v1_shared_proto_rawDesc = "" +
 	"\x1aASSERTION_MODE_TEXT_EQUALS\x10\x05\x12 \n" +
 	"\x1cASSERTION_MODE_TEXT_CONTAINS\x10\x06\x12#\n" +
 	"\x1fASSERTION_MODE_ATTRIBUTE_EQUALS\x10\a\x12%\n" +
-	"!ASSERTION_MODE_ATTRIBUTE_CONTAINS\x10\bBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
+	"!ASSERTION_MODE_ATTRIBUTE_CONTAINS\x10\b*\xd7\x02\n" +
+	"\x0eHighlightColor\x12\x1f\n" +
+	"\x1bHIGHLIGHT_COLOR_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13HIGHLIGHT_COLOR_RED\x10\x01\x12\x19\n" +
+	"\x15HIGHLIGHT_COLOR_GREEN\x10\x02\x12\x18\n" +
+	"\x14HIGHLIGHT_COLOR_BLUE\x10\x03\x12\x1a\n" +
+	"\x16HIGHLIGHT_COLOR_YELLOW\x10\x04\x12\x1a\n" +
+	"\x16HIGHLIGHT_COLOR_ORANGE\x10\x05\x12\x1a\n" +
+	"\x16HIGHLIGHT_COLOR_PURPLE\x10\x06\x12\x18\n" +
+	"\x14HIGHLIGHT_COLOR_CYAN\x10\a\x12\x18\n" +
+	"\x14HIGHLIGHT_COLOR_PINK\x10\b\x12\x19\n" +
+	"\x15HIGHLIGHT_COLOR_WHITE\x10\t\x12\x18\n" +
+	"\x14HIGHLIGHT_COLOR_GRAY\x10\n" +
+	"\x12\x19\n" +
+	"\x15HIGHLIGHT_COLOR_BLACK\x10\vBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3"
 
 var (
 	file_browser_automation_studio_v1_shared_proto_rawDescOnce sync.Once
@@ -1284,7 +1393,7 @@ func file_browser_automation_studio_v1_shared_proto_rawDescGZIP() []byte {
 	return file_browser_automation_studio_v1_shared_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
+var file_browser_automation_studio_v1_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 15)
 var file_browser_automation_studio_v1_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_browser_automation_studio_v1_shared_proto_goTypes = []any{
 	(ExecutionStatus)(0),    // 0: browser_automation_studio.v1.ExecutionStatus
@@ -1301,16 +1410,17 @@ var file_browser_automation_studio_v1_shared_proto_goTypes = []any{
 	(ValidationSeverity)(0), // 11: browser_automation_studio.v1.ValidationSeverity
 	(ChangeSource)(0),       // 12: browser_automation_studio.v1.ChangeSource
 	(AssertionMode)(0),      // 13: browser_automation_studio.v1.AssertionMode
-	(*RetryAttempt)(nil),    // 14: browser_automation_studio.v1.RetryAttempt
-	(*RetryStatus)(nil),     // 15: browser_automation_studio.v1.RetryStatus
-	(*AssertionResult)(nil), // 16: browser_automation_studio.v1.AssertionResult
-	(*v1.JsonValue)(nil),    // 17: common.v1.JsonValue
+	(HighlightColor)(0),     // 14: browser_automation_studio.v1.HighlightColor
+	(*RetryAttempt)(nil),    // 15: browser_automation_studio.v1.RetryAttempt
+	(*RetryStatus)(nil),     // 16: browser_automation_studio.v1.RetryStatus
+	(*AssertionResult)(nil), // 17: browser_automation_studio.v1.AssertionResult
+	(*v1.JsonValue)(nil),    // 18: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_shared_proto_depIdxs = []int32{
-	14, // 0: browser_automation_studio.v1.RetryStatus.history:type_name -> browser_automation_studio.v1.RetryAttempt
+	15, // 0: browser_automation_studio.v1.RetryStatus.history:type_name -> browser_automation_studio.v1.RetryAttempt
 	13, // 1: browser_automation_studio.v1.AssertionResult.mode:type_name -> browser_automation_studio.v1.AssertionMode
-	17, // 2: browser_automation_studio.v1.AssertionResult.expected:type_name -> common.v1.JsonValue
-	17, // 3: browser_automation_studio.v1.AssertionResult.actual:type_name -> common.v1.JsonValue
+	18, // 2: browser_automation_studio.v1.AssertionResult.expected:type_name -> common.v1.JsonValue
+	18, // 3: browser_automation_studio.v1.AssertionResult.actual:type_name -> common.v1.JsonValue
 	4,  // [4:4] is the sub-list for method output_type
 	4,  // [4:4] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
@@ -1330,7 +1440,7 @@ func file_browser_automation_studio_v1_shared_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_shared_proto_rawDesc), len(file_browser_automation_studio_v1_shared_proto_rawDesc)),
-			NumEnums:      14,
+			NumEnums:      15,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,

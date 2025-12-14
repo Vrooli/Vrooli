@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { SelectorType } from "./shared_pb";
+import type { HighlightColor, SelectorType } from "./shared_pb";
 import { file_browser_automation_studio_v1_shared } from "./shared_pb";
 import type { BoundingBox } from "./geometry_pb";
 import { file_browser_automation_studio_v1_geometry } from "./geometry_pb";
@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/selectors.proto.
  */
 export const file_browser_automation_studio_v1_selectors: GenFile = /*@__PURE__*/
-  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NlbGVjdG9ycy5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSKFAQoRU2VsZWN0b3JDYW5kaWRhdGUSOAoEdHlwZRgBIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU2VsZWN0b3JUeXBlEg0KBXZhbHVlGAIgASgJEhIKCmNvbmZpZGVuY2UYAyABKAESEwoLc3BlY2lmaWNpdHkYBCABKAUiYwoLU2VsZWN0b3JTZXQSDwoHcHJpbWFyeRgBIAEoCRJDCgpjYW5kaWRhdGVzGAIgAygLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TZWxlY3RvckNhbmRpZGF0ZSKfAgoLRWxlbWVudE1ldGESEAoIdGFnX25hbWUYASABKAkSCgoCaWQYAiABKAkSEgoKY2xhc3NfbmFtZRgDIAEoCRISCgppbm5lcl90ZXh0GAQgASgJEk0KCmF0dHJpYnV0ZXMYBSADKAsyOS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkVsZW1lbnRNZXRhLkF0dHJpYnV0ZXNFbnRyeRISCgppc192aXNpYmxlGAYgASgIEhIKCmlzX2VuYWJsZWQYByABKAgSDAoEcm9sZRgIIAEoCRISCgphcmlhX2xhYmVsGAkgASgJGjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoQBCg9IaWdobGlnaHRSZWdpb24SEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBIPCgdwYWRkaW5nGAMgASgFEg0KBWNvbG9yGAQgASgJInAKCk1hc2tSZWdpb24SEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBIPCgdvcGFjaXR5GAMgASgBQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_geometry]);
+  fileDesc("Cixicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3NlbGVjdG9ycy5wcm90bxIcYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MSKFAQoRU2VsZWN0b3JDYW5kaWRhdGUSOAoEdHlwZRgBIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU2VsZWN0b3JUeXBlEg0KBXZhbHVlGAIgASgJEhIKCmNvbmZpZGVuY2UYAyABKAESEwoLc3BlY2lmaWNpdHkYBCABKAUiYwoLU2VsZWN0b3JTZXQSDwoHcHJpbWFyeRgBIAEoCRJDCgpjYW5kaWRhdGVzGAIgAygLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TZWxlY3RvckNhbmRpZGF0ZSKfAgoLRWxlbWVudE1ldGESEAoIdGFnX25hbWUYASABKAkSCgoCaWQYAiABKAkSEgoKY2xhc3NfbmFtZRgDIAEoCRISCgppbm5lcl90ZXh0GAQgASgJEk0KCmF0dHJpYnV0ZXMYBSADKAsyOS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkVsZW1lbnRNZXRhLkF0dHJpYnV0ZXNFbnRyeRISCgppc192aXNpYmxlGAYgASgIEhIKCmlzX2VuYWJsZWQYByABKAgSDAoEcm9sZRgIIAEoCRISCgphcmlhX2xhYmVsGAkgASgJGjEKD0F0dHJpYnV0ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIvkBCg9IaWdobGlnaHRSZWdpb24SEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBIPCgdwYWRkaW5nGAMgASgFEhEKBWNvbG9yGAQgASgJQgIYARJFCg9oaWdobGlnaHRfY29sb3IYBSABKA4yLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkhpZ2hsaWdodENvbG9yEhgKC2N1c3RvbV9yZ2JhGAYgASgJSACIAQFCDgoMX2N1c3RvbV9yZ2JhInAKCk1hc2tSZWdpb24SEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBIPCgdvcGFjaXR5GAMgASgBQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_geometry]);
 
 /**
  * SelectorCandidate is a single selector with metadata.
@@ -65,8 +65,17 @@ export const SelectorCandidateSchema: GenMessage<SelectorCandidate> = /*@__PURE_
  * 2. If primary fails, iterate through candidates by confidence score
  * 3. Store successful selector for future runs
  *
- * Used internally by the playwright-driver for resilient element targeting.
- * May be added to ActionDefinition params in future for explicit fallback control.
+ * USAGE STATUS: Currently used internally by playwright-driver for resilient
+ * element targeting. NOT exposed in ActionDefinition params - actions use
+ * a simple string selector, with ActionMetadata.selector_candidates providing
+ * fallback options from recording.
+ *
+ * FUTURE CONSIDERATION: May be integrated into action params to give users
+ * explicit control over selector fallback behavior. Alternatively, this type
+ * may be deprecated if ActionMetadata.selector_candidates proves sufficient.
+ *
+ * If you need resilient selectors, use ActionMetadata.selector_candidates
+ * (populated during recording) rather than constructing SelectorSet manually.
  *
  * @generated from message browser_automation_studio.v1.SelectorSet
  */
@@ -198,11 +207,31 @@ export type HighlightRegion = Message<"browser_automation_studio.v1.HighlightReg
   padding: number;
 
   /**
-   * Highlight color (CSS string, e.g., "#ff0000" or "rgba(255,0,0,0.5)").
+   * DEPRECATED: Use highlight_color enum instead.
+   * Legacy color as CSS string (e.g., "#ff0000" or "rgba(255,0,0,0.5)").
+   * Consumers should migrate to highlight_color for type safety.
    *
-   * @generated from field: string color = 4;
+   * @generated from field: string color = 4 [deprecated = true];
+   * @deprecated
    */
   color: string;
+
+  /**
+   * Typed highlight color. Prefer this over the deprecated 'color' field.
+   * When both are set, highlight_color takes precedence.
+   *
+   * @generated from field: browser_automation_studio.v1.HighlightColor highlight_color = 5;
+   */
+  highlightColor: HighlightColor;
+
+  /**
+   * Custom RGBA color when highlight_color is insufficient.
+   * Format: "rgba(r,g,b,a)" where r,g,b are 0-255 and a is 0.0-1.0.
+   * Only used when highlight_color = HIGHLIGHT_COLOR_UNSPECIFIED.
+   *
+   * @generated from field: optional string custom_rgba = 6;
+   */
+  customRgba?: string;
 };
 
 /**

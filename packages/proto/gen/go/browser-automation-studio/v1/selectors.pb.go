@@ -100,8 +100,17 @@ func (x *SelectorCandidate) GetSpecificity() int32 {
 // 2. If primary fails, iterate through candidates by confidence score
 // 3. Store successful selector for future runs
 //
-// Used internally by the playwright-driver for resilient element targeting.
-// May be added to ActionDefinition params in future for explicit fallback control.
+// USAGE STATUS: Currently used internally by playwright-driver for resilient
+// element targeting. NOT exposed in ActionDefinition params - actions use
+// a simple string selector, with ActionMetadata.selector_candidates providing
+// fallback options from recording.
+//
+// FUTURE CONSIDERATION: May be integrated into action params to give users
+// explicit control over selector fallback behavior. Alternatively, this type
+// may be deprecated if ActionMetadata.selector_candidates proves sufficient.
+//
+// If you need resilient selectors, use ActionMetadata.selector_candidates
+// (populated during recording) rather than constructing SelectorSet manually.
 type SelectorSet struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Primary selector to use first.
@@ -283,8 +292,19 @@ type HighlightRegion struct {
 	BoundingBox *BoundingBox `protobuf:"bytes,2,opt,name=bounding_box,json=boundingBox,proto3" json:"bounding_box,omitempty"`
 	// Padding in pixels around the region.
 	Padding int32 `protobuf:"varint,3,opt,name=padding,proto3" json:"padding,omitempty"`
-	// Highlight color (CSS string, e.g., "#ff0000" or "rgba(255,0,0,0.5)").
-	Color         string `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	// DEPRECATED: Use highlight_color enum instead.
+	// Legacy color as CSS string (e.g., "#ff0000" or "rgba(255,0,0,0.5)").
+	// Consumers should migrate to highlight_color for type safety.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/selectors.proto.
+	Color string `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	// Typed highlight color. Prefer this over the deprecated 'color' field.
+	// When both are set, highlight_color takes precedence.
+	HighlightColor HighlightColor `protobuf:"varint,5,opt,name=highlight_color,json=highlightColor,proto3,enum=browser_automation_studio.v1.HighlightColor" json:"highlight_color,omitempty"`
+	// Custom RGBA color when highlight_color is insufficient.
+	// Format: "rgba(r,g,b,a)" where r,g,b are 0-255 and a is 0.0-1.0.
+	// Only used when highlight_color = HIGHLIGHT_COLOR_UNSPECIFIED.
+	CustomRgba    *string `protobuf:"bytes,6,opt,name=custom_rgba,json=customRgba,proto3,oneof" json:"custom_rgba,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -340,9 +360,24 @@ func (x *HighlightRegion) GetPadding() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/selectors.proto.
 func (x *HighlightRegion) GetColor() string {
 	if x != nil {
 		return x.Color
+	}
+	return ""
+}
+
+func (x *HighlightRegion) GetHighlightColor() HighlightColor {
+	if x != nil {
+		return x.HighlightColor
+	}
+	return HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED
+}
+
+func (x *HighlightRegion) GetCustomRgba() string {
+	if x != nil && x.CustomRgba != nil {
+		return *x.CustomRgba
 	}
 	return ""
 }
@@ -447,12 +482,16 @@ const file_browser_automation_studio_v1_selectors_proto_rawDesc = "" +
 	"aria_label\x18\t \x01(\tR\tariaLabel\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xab\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbc\x02\n" +
 	"\x0fHighlightRegion\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
 	"\fbounding_box\x18\x02 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\vboundingBox\x12\x18\n" +
-	"\apadding\x18\x03 \x01(\x05R\apadding\x12\x14\n" +
-	"\x05color\x18\x04 \x01(\tR\x05color\"\x90\x01\n" +
+	"\apadding\x18\x03 \x01(\x05R\apadding\x12\x18\n" +
+	"\x05color\x18\x04 \x01(\tB\x02\x18\x01R\x05color\x12U\n" +
+	"\x0fhighlight_color\x18\x05 \x01(\x0e2,.browser_automation_studio.v1.HighlightColorR\x0ehighlightColor\x12$\n" +
+	"\vcustom_rgba\x18\x06 \x01(\tH\x00R\n" +
+	"customRgba\x88\x01\x01B\x0e\n" +
+	"\f_custom_rgba\"\x90\x01\n" +
 	"\n" +
 	"MaskRegion\x12\x1a\n" +
 	"\bselector\x18\x01 \x01(\tR\bselector\x12L\n" +
@@ -481,18 +520,20 @@ var file_browser_automation_studio_v1_selectors_proto_goTypes = []any{
 	nil,                       // 5: browser_automation_studio.v1.ElementMeta.AttributesEntry
 	(SelectorType)(0),         // 6: browser_automation_studio.v1.SelectorType
 	(*BoundingBox)(nil),       // 7: browser_automation_studio.v1.BoundingBox
+	(HighlightColor)(0),       // 8: browser_automation_studio.v1.HighlightColor
 }
 var file_browser_automation_studio_v1_selectors_proto_depIdxs = []int32{
 	6, // 0: browser_automation_studio.v1.SelectorCandidate.type:type_name -> browser_automation_studio.v1.SelectorType
 	0, // 1: browser_automation_studio.v1.SelectorSet.candidates:type_name -> browser_automation_studio.v1.SelectorCandidate
 	5, // 2: browser_automation_studio.v1.ElementMeta.attributes:type_name -> browser_automation_studio.v1.ElementMeta.AttributesEntry
 	7, // 3: browser_automation_studio.v1.HighlightRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	7, // 4: browser_automation_studio.v1.MaskRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	8, // 4: browser_automation_studio.v1.HighlightRegion.highlight_color:type_name -> browser_automation_studio.v1.HighlightColor
+	7, // 5: browser_automation_studio.v1.MaskRegion.bounding_box:type_name -> browser_automation_studio.v1.BoundingBox
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_selectors_proto_init() }
@@ -502,6 +543,7 @@ func file_browser_automation_studio_v1_selectors_proto_init() {
 	}
 	file_browser_automation_studio_v1_shared_proto_init()
 	file_browser_automation_studio_v1_geometry_proto_init()
+	file_browser_automation_studio_v1_selectors_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -917,10 +917,13 @@ func (x *GetScreenshotsResponse) GetTotal() int32 {
 }
 
 // ExecutionEventEnvelope represents WebSocket event envelopes emitted by BAS.
+//
 // DEPRECATED: Use TimelineStreamMessage from timeline_event.proto instead.
 // TimelineStreamMessage provides a unified format for both recording and execution
 // streaming, with proper ActionDefinition and ActionTelemetry composition.
-// This message is retained for backward compatibility with existing consumers.
+//
+// This message is retained ONLY for backward compatibility with existing consumers
+// and will be removed in a future version.
 //
 // Deprecated: Marked as deprecated in browser-automation-studio/v1/execution.proto.
 type ExecutionEventEnvelope struct {

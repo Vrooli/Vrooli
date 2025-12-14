@@ -26,7 +26,7 @@ from browser_automation_studio.v1 import shared_pb2 as browser__automation__stud
 from browser_automation_studio.v1 import geometry_pb2 as browser__automation__studio_dot_v1_dot_geometry__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,browser-automation-studio/v1/selectors.proto\x12\x1c\x62rowser_automation_studio.v1\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/geometry.proto\"\xab\x01\n\x11SelectorCandidate\x12>\n\x04type\x18\x01 \x01(\x0e\x32*.browser_automation_studio.v1.SelectorTypeR\x04type\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12 \n\x0bspecificity\x18\x04 \x01(\x05R\x0bspecificity\"x\n\x0bSelectorSet\x12\x18\n\x07primary\x18\x01 \x01(\tR\x07primary\x12O\n\ncandidates\x18\x02 \x03(\x0b\x32/.browser_automation_studio.v1.SelectorCandidateR\ncandidates\"\x81\x03\n\x0b\x45lementMeta\x12\x19\n\x08tag_name\x18\x01 \x01(\tR\x07tagName\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x1d\n\nclass_name\x18\x03 \x01(\tR\tclassName\x12\x1d\n\ninner_text\x18\x04 \x01(\tR\tinnerText\x12Y\n\nattributes\x18\x05 \x03(\x0b\x32\x39.browser_automation_studio.v1.ElementMeta.AttributesEntryR\nattributes\x12\x1d\n\nis_visible\x18\x06 \x01(\x08R\tisVisible\x12\x1d\n\nis_enabled\x18\x07 \x01(\x08R\tisEnabled\x12\x12\n\x04role\x18\x08 \x01(\tR\x04role\x12\x1d\n\naria_label\x18\t \x01(\tR\tariaLabel\x1a=\n\x0f\x41ttributesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xab\x01\n\x0fHighlightRegion\x12\x1a\n\x08selector\x18\x01 \x01(\tR\x08selector\x12L\n\x0c\x62ounding_box\x18\x02 \x01(\x0b\x32).browser_automation_studio.v1.BoundingBoxR\x0b\x62oundingBox\x12\x18\n\x07padding\x18\x03 \x01(\x05R\x07padding\x12\x14\n\x05\x63olor\x18\x04 \x01(\tR\x05\x63olor\"\x90\x01\n\nMaskRegion\x12\x1a\n\x08selector\x18\x01 \x01(\tR\x08selector\x12L\n\x0c\x62ounding_box\x18\x02 \x01(\x0b\x32).browser_automation_studio.v1.BoundingBoxR\x0b\x62oundingBox\x12\x18\n\x07opacity\x18\x03 \x01(\x01R\x07opacityBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,browser-automation-studio/v1/selectors.proto\x12\x1c\x62rowser_automation_studio.v1\x1a)browser-automation-studio/v1/shared.proto\x1a+browser-automation-studio/v1/geometry.proto\"\xab\x01\n\x11SelectorCandidate\x12>\n\x04type\x18\x01 \x01(\x0e\x32*.browser_automation_studio.v1.SelectorTypeR\x04type\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12 \n\x0bspecificity\x18\x04 \x01(\x05R\x0bspecificity\"x\n\x0bSelectorSet\x12\x18\n\x07primary\x18\x01 \x01(\tR\x07primary\x12O\n\ncandidates\x18\x02 \x03(\x0b\x32/.browser_automation_studio.v1.SelectorCandidateR\ncandidates\"\x81\x03\n\x0b\x45lementMeta\x12\x19\n\x08tag_name\x18\x01 \x01(\tR\x07tagName\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x1d\n\nclass_name\x18\x03 \x01(\tR\tclassName\x12\x1d\n\ninner_text\x18\x04 \x01(\tR\tinnerText\x12Y\n\nattributes\x18\x05 \x03(\x0b\x32\x39.browser_automation_studio.v1.ElementMeta.AttributesEntryR\nattributes\x12\x1d\n\nis_visible\x18\x06 \x01(\x08R\tisVisible\x12\x1d\n\nis_enabled\x18\x07 \x01(\x08R\tisEnabled\x12\x12\n\x04role\x18\x08 \x01(\tR\x04role\x12\x1d\n\naria_label\x18\t \x01(\tR\tariaLabel\x1a=\n\x0f\x41ttributesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xbc\x02\n\x0fHighlightRegion\x12\x1a\n\x08selector\x18\x01 \x01(\tR\x08selector\x12L\n\x0c\x62ounding_box\x18\x02 \x01(\x0b\x32).browser_automation_studio.v1.BoundingBoxR\x0b\x62oundingBox\x12\x18\n\x07padding\x18\x03 \x01(\x05R\x07padding\x12\x18\n\x05\x63olor\x18\x04 \x01(\tB\x02\x18\x01R\x05\x63olor\x12U\n\x0fhighlight_color\x18\x05 \x01(\x0e\x32,.browser_automation_studio.v1.HighlightColorR\x0ehighlightColor\x12$\n\x0b\x63ustom_rgba\x18\x06 \x01(\tH\x00R\ncustomRgba\x88\x01\x01\x42\x0e\n\x0c_custom_rgba\"\x90\x01\n\nMaskRegion\x12\x1a\n\x08selector\x18\x01 \x01(\tR\x08selector\x12L\n\x0c\x62ounding_box\x18\x02 \x01(\x0b\x32).browser_automation_studio.v1.BoundingBoxR\x0b\x62oundingBox\x12\x18\n\x07opacity\x18\x03 \x01(\x01R\x07opacityBjZhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,6 +36,8 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'Zhgithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1'
   _globals['_ELEMENTMETA_ATTRIBUTESENTRY']._loaded_options = None
   _globals['_ELEMENTMETA_ATTRIBUTESENTRY']._serialized_options = b'8\001'
+  _globals['_HIGHLIGHTREGION'].fields_by_name['color']._loaded_options = None
+  _globals['_HIGHLIGHTREGION'].fields_by_name['color']._serialized_options = b'\030\001'
   _globals['_SELECTORCANDIDATE']._serialized_start=167
   _globals['_SELECTORCANDIDATE']._serialized_end=338
   _globals['_SELECTORSET']._serialized_start=340
@@ -45,7 +47,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_ELEMENTMETA_ATTRIBUTESENTRY']._serialized_start=787
   _globals['_ELEMENTMETA_ATTRIBUTESENTRY']._serialized_end=848
   _globals['_HIGHLIGHTREGION']._serialized_start=851
-  _globals['_HIGHLIGHTREGION']._serialized_end=1022
-  _globals['_MASKREGION']._serialized_start=1025
-  _globals['_MASKREGION']._serialized_end=1169
+  _globals['_HIGHLIGHTREGION']._serialized_end=1167
+  _globals['_MASKREGION']._serialized_start=1170
+  _globals['_MASKREGION']._serialized_end=1314
 # @@protoc_insertion_point(module_scope)

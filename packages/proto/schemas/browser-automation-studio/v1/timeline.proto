@@ -59,10 +59,23 @@ message ExecutionTimeline {
 // =============================================================================
 
 // TimelineFrame captures a single workflow step in the execution timeline.
+//
+// DEPRECATION NOTICE: Several inline fields duplicate data in the `telemetry` field.
+// New consumers MUST use `telemetry.*` fields. Inline duplicates are deprecated
+// and will be removed in a future version.
+//
+// Deprecated inline fields → Use instead:
+//   - highlight_regions (16) → telemetry.highlight_regions
+//   - mask_regions (17)      → telemetry.mask_regions
+//   - element_bounding_box (19) → telemetry.element_bounding_box
+//   - click_position (20)    → telemetry.click_position
+//   - cursor_trail (21)      → telemetry.cursor_trail
+//   - zoom_factor (22)       → telemetry.zoom_factor
+//   - screenshot (23)        → telemetry.screenshot
 message TimelineFrame {
   // Zero-based index of this step in the execution.
   int32 step_index = 1;
-  // Node ID from the workflow definition.
+  // Node ID from the workflow definition (UUID format).
   string node_id = 2;
   // Action type enum (for filtering/grouping without parsing full action).
   ActionType action_type = 3;
@@ -93,22 +106,34 @@ message TimelineFrame {
   int32 network_event_count = 14;
   // Reserved: field 15 was 'step_type' (replaced by action_type from ActionType enum)
   reserved 15;
-  // Highlight overlays applied to the screenshot - from unified.proto.
-  repeated HighlightRegion highlight_regions = 16;
-  // Masked regions applied during capture - from unified.proto.
-  repeated MaskRegion mask_regions = 17;
+
+  // ---------------------------------------------------------------------------
+  // DEPRECATED INLINE FIELDS - Use telemetry.* instead
+  // These fields duplicate data in ActionTelemetry for backward compatibility.
+  // They will be removed in a future version.
+  // ---------------------------------------------------------------------------
+
+  // DEPRECATED: Use telemetry.highlight_regions instead.
+  repeated HighlightRegion highlight_regions = 16 [deprecated = true];
+  // DEPRECATED: Use telemetry.mask_regions instead.
+  repeated MaskRegion mask_regions = 17 [deprecated = true];
   // Focused element metadata for the step.
   ElementFocus focused_element = 18;
-  // Bounding box for the primary element interacted with - from unified.proto.
-  BoundingBox element_bounding_box = 19;
-  // Actual click coordinates used - from unified.proto.
-  Point click_position = 20;
-  // Cursor trail captured during the step - from unified.proto.
-  repeated Point cursor_trail = 21;
-  // Applied zoom factor during capture.
-  double zoom_factor = 22;
-  // Screenshot captured during/after this step - from unified.proto.
-  TimelineScreenshot screenshot = 23;
+  // DEPRECATED: Use telemetry.element_bounding_box instead.
+  BoundingBox element_bounding_box = 19 [deprecated = true];
+  // DEPRECATED: Use telemetry.click_position instead.
+  Point click_position = 20 [deprecated = true];
+  // DEPRECATED: Use telemetry.cursor_trail instead.
+  repeated Point cursor_trail = 21 [deprecated = true];
+  // DEPRECATED: Use telemetry.zoom_factor instead.
+  double zoom_factor = 22 [deprecated = true];
+  // DEPRECATED: Use telemetry.screenshot instead.
+  TimelineScreenshot screenshot = 23 [deprecated = true];
+
+  // ---------------------------------------------------------------------------
+  // END DEPRECATED INLINE FIELDS
+  // ---------------------------------------------------------------------------
+
   // Related artifacts (console logs, network traces, etc.).
   repeated TimelineArtifact artifacts = 24;
   // Assertion result for assert steps.
@@ -126,9 +151,8 @@ message TimelineFrame {
   common.v1.JsonValue extracted_data_preview = 34;
 
   // Composed telemetry captured during this step.
+  // This is the CANONICAL source for telemetry data.
   // Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
-  // NOTE: Some fields in this message duplicate inline fields above for backward compatibility.
-  // New consumers should prefer telemetry.* fields; inline fields may be deprecated.
   ActionTelemetry telemetry = 36;
 }
 

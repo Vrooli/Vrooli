@@ -6,6 +6,31 @@ import "common/v1/types.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1;browser_automation_studio_v1";
 
+// =============================================================================
+// SHARED TYPES AND ENUMS
+// =============================================================================
+//
+// This file contains shared enumerations and types used across the
+// browser-automation-studio domain.
+//
+// TIMESTAMP FIELD NAMING CONVENTION:
+// The following suffixes are used for google.protobuf.Timestamp fields:
+//
+//   - `created_at`   : When a resource was first created (immutable)
+//   - `updated_at`   : When a resource was last modified
+//   - `started_at`   : When an operation/execution began
+//   - `completed_at` : When an operation/execution finished (success or failure)
+//   - `timestamp`    : Generic event occurrence time (for logs, events, etc.)
+//
+// Legacy fields may use other suffixes (occurred_at, recorded_at, captured_at,
+// checked_at, stopped_at) - these should migrate to the standard suffixes
+// in future versions where possible.
+//
+// UUID FIELD CONVENTION:
+// Fields containing UUIDs should include "(UUID format)" in their comment
+// to indicate the expected format. Examples: workflow_id, execution_id, node_id.
+// =============================================================================
+
 // ExecutionStatus enumerates high-level execution states.
 enum ExecutionStatus {
   EXECUTION_STATUS_UNSPECIFIED = 0;
@@ -59,8 +84,21 @@ enum ArtifactType {
 }
 
 // EventKind enumerates WebSocket event types.
-// DEPRECATED: Use TimelineMessageType from timeline_event.proto instead.
-// EventKind is used only in the legacy ExecutionEventEnvelope.
+//
+// DEPRECATED: This enum and ExecutionEventEnvelope (in execution.proto) are
+// superseded by the unified streaming format:
+//   - Use TimelineMessageType (timeline_event.proto) for message routing
+//   - Use TimelineStreamMessage (timeline_event.proto) as the envelope
+//   - Use TimelineEvent (timeline_event.proto) for action/telemetry data
+//
+// MIGRATION GUIDE:
+//   EVENT_KIND_STATUS_UPDATE  → TIMELINE_MESSAGE_TYPE_STATUS + TimelineStatusUpdate
+//   EVENT_KIND_TIMELINE_FRAME → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent
+//   EVENT_KIND_LOG            → (logs are now embedded in TimelineEvent.telemetry.console_logs)
+//   EVENT_KIND_HEARTBEAT      → TIMELINE_MESSAGE_TYPE_HEARTBEAT + TimelineHeartbeat
+//   EVENT_KIND_TELEMETRY      → TIMELINE_MESSAGE_TYPE_EVENT + TimelineEvent.telemetry
+//
+// This enum will be removed once all consumers migrate to TimelineStreamMessage.
 enum EventKind {
   option deprecated = true;
   EVENT_KIND_UNSPECIFIED = 0;
@@ -149,6 +187,26 @@ enum AssertionMode {
   ASSERTION_MODE_TEXT_CONTAINS = 6;
   ASSERTION_MODE_ATTRIBUTE_EQUALS = 7;
   ASSERTION_MODE_ATTRIBUTE_CONTAINS = 8;
+}
+
+// HighlightColor enumerates supported highlight overlay colors.
+// Used by HighlightRegion for screenshot annotations.
+enum HighlightColor {
+  HIGHLIGHT_COLOR_UNSPECIFIED = 0;
+  // Primary action colors
+  HIGHLIGHT_COLOR_RED = 1;        // Error, failure, critical elements
+  HIGHLIGHT_COLOR_GREEN = 2;      // Success, verified elements
+  HIGHLIGHT_COLOR_BLUE = 3;       // Information, focus
+  HIGHLIGHT_COLOR_YELLOW = 4;     // Warning, attention
+  // Secondary colors
+  HIGHLIGHT_COLOR_ORANGE = 5;     // Caution
+  HIGHLIGHT_COLOR_PURPLE = 6;     // Special emphasis
+  HIGHLIGHT_COLOR_CYAN = 7;       // Secondary info
+  HIGHLIGHT_COLOR_PINK = 8;       // Accent
+  // Neutral colors
+  HIGHLIGHT_COLOR_WHITE = 9;      // Light backgrounds
+  HIGHLIGHT_COLOR_GRAY = 10;      // Subtle emphasis
+  HIGHLIGHT_COLOR_BLACK = 11;     // Dark backgrounds
 }
 
 // =============================================================================

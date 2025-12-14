@@ -135,6 +135,21 @@ class AssertionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ASSERTION_MODE_TEXT_CONTAINS: _ClassVar[AssertionMode]
     ASSERTION_MODE_ATTRIBUTE_EQUALS: _ClassVar[AssertionMode]
     ASSERTION_MODE_ATTRIBUTE_CONTAINS: _ClassVar[AssertionMode]
+
+class HighlightColor(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    HIGHLIGHT_COLOR_UNSPECIFIED: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_RED: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_GREEN: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_BLUE: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_YELLOW: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_ORANGE: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_PURPLE: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_CYAN: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_PINK: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_WHITE: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_GRAY: _ClassVar[HighlightColor]
+    HIGHLIGHT_COLOR_BLACK: _ClassVar[HighlightColor]
 EXECUTION_STATUS_UNSPECIFIED: ExecutionStatus
 EXECUTION_STATUS_PENDING: ExecutionStatus
 EXECUTION_STATUS_RUNNING: ExecutionStatus
@@ -221,6 +236,18 @@ ASSERTION_MODE_TEXT_EQUALS: AssertionMode
 ASSERTION_MODE_TEXT_CONTAINS: AssertionMode
 ASSERTION_MODE_ATTRIBUTE_EQUALS: AssertionMode
 ASSERTION_MODE_ATTRIBUTE_CONTAINS: AssertionMode
+HIGHLIGHT_COLOR_UNSPECIFIED: HighlightColor
+HIGHLIGHT_COLOR_RED: HighlightColor
+HIGHLIGHT_COLOR_GREEN: HighlightColor
+HIGHLIGHT_COLOR_BLUE: HighlightColor
+HIGHLIGHT_COLOR_YELLOW: HighlightColor
+HIGHLIGHT_COLOR_ORANGE: HighlightColor
+HIGHLIGHT_COLOR_PURPLE: HighlightColor
+HIGHLIGHT_COLOR_CYAN: HighlightColor
+HIGHLIGHT_COLOR_PINK: HighlightColor
+HIGHLIGHT_COLOR_WHITE: HighlightColor
+HIGHLIGHT_COLOR_GRAY: HighlightColor
+HIGHLIGHT_COLOR_BLACK: HighlightColor
 
 class RetryAttempt(_message.Message):
     __slots__ = ()

@@ -1589,11 +1589,28 @@ func (x *ActionMetadata) GetRecordedBoundingBox() *BoundingBox {
 // - Workflows (stored definition)
 // - Execution (sent to playwright-driver)
 // - Timeline events (streamed to UI)
+//
+// IMPORTANT: Type-Params Consistency Requirement
+// The `type` field MUST match the populated `params` oneof case:
+//   - ACTION_TYPE_NAVIGATE requires `navigate` params
+//   - ACTION_TYPE_CLICK requires `click` params
+//   - ACTION_TYPE_INPUT requires `input` params
+//   - etc.
+//
+// The `type` field exists for:
+// 1. Efficient filtering/grouping without parsing params
+// 2. Forward compatibility when new params are added
+// 3. Explicit documentation of intent
+//
+// Consumers SHOULD validate type-params consistency. Invalid combinations
+// (e.g., type=CLICK with navigate params) are malformed and should be rejected.
 type ActionDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Action type classification.
+	// Action type classification. MUST match the populated params oneof case.
+	// See message-level comment for consistency requirements.
 	Type ActionType `protobuf:"varint,1,opt,name=type,proto3,enum=browser_automation_studio.v1.ActionType" json:"type,omitempty"`
-	// Type-specific parameters (exactly one must be set based on type).
+	// Type-specific parameters. Exactly one MUST be set, matching the `type` field.
+	// The mapping is: ACTION_TYPE_X requires the corresponding `x` params field.
 	//
 	// Types that are valid to be assigned to Params:
 	//
@@ -1790,55 +1807,55 @@ type isActionDefinition_Params interface {
 }
 
 type ActionDefinition_Navigate struct {
-	Navigate *NavigateParams `protobuf:"bytes,10,opt,name=navigate,proto3,oneof"`
+	Navigate *NavigateParams `protobuf:"bytes,10,opt,name=navigate,proto3,oneof"` // Required when type = ACTION_TYPE_NAVIGATE
 }
 
 type ActionDefinition_Click struct {
-	Click *ClickParams `protobuf:"bytes,11,opt,name=click,proto3,oneof"`
+	Click *ClickParams `protobuf:"bytes,11,opt,name=click,proto3,oneof"` // Required when type = ACTION_TYPE_CLICK
 }
 
 type ActionDefinition_Input struct {
-	Input *InputParams `protobuf:"bytes,12,opt,name=input,proto3,oneof"`
+	Input *InputParams `protobuf:"bytes,12,opt,name=input,proto3,oneof"` // Required when type = ACTION_TYPE_INPUT
 }
 
 type ActionDefinition_Wait struct {
-	Wait *WaitParams `protobuf:"bytes,13,opt,name=wait,proto3,oneof"`
+	Wait *WaitParams `protobuf:"bytes,13,opt,name=wait,proto3,oneof"` // Required when type = ACTION_TYPE_WAIT
 }
 
 type ActionDefinition_Assert struct {
-	Assert *AssertParams `protobuf:"bytes,14,opt,name=assert,proto3,oneof"`
+	Assert *AssertParams `protobuf:"bytes,14,opt,name=assert,proto3,oneof"` // Required when type = ACTION_TYPE_ASSERT
 }
 
 type ActionDefinition_Scroll struct {
-	Scroll *ScrollParams `protobuf:"bytes,15,opt,name=scroll,proto3,oneof"`
+	Scroll *ScrollParams `protobuf:"bytes,15,opt,name=scroll,proto3,oneof"` // Required when type = ACTION_TYPE_SCROLL
 }
 
 type ActionDefinition_SelectOption struct {
-	SelectOption *SelectParams `protobuf:"bytes,16,opt,name=select_option,json=selectOption,proto3,oneof"`
+	SelectOption *SelectParams `protobuf:"bytes,16,opt,name=select_option,json=selectOption,proto3,oneof"` // Required when type = ACTION_TYPE_SELECT
 }
 
 type ActionDefinition_Evaluate struct {
-	Evaluate *EvaluateParams `protobuf:"bytes,17,opt,name=evaluate,proto3,oneof"`
+	Evaluate *EvaluateParams `protobuf:"bytes,17,opt,name=evaluate,proto3,oneof"` // Required when type = ACTION_TYPE_EVALUATE
 }
 
 type ActionDefinition_Keyboard struct {
-	Keyboard *KeyboardParams `protobuf:"bytes,18,opt,name=keyboard,proto3,oneof"`
+	Keyboard *KeyboardParams `protobuf:"bytes,18,opt,name=keyboard,proto3,oneof"` // Required when type = ACTION_TYPE_KEYBOARD
 }
 
 type ActionDefinition_Hover struct {
-	Hover *HoverParams `protobuf:"bytes,19,opt,name=hover,proto3,oneof"`
+	Hover *HoverParams `protobuf:"bytes,19,opt,name=hover,proto3,oneof"` // Required when type = ACTION_TYPE_HOVER
 }
 
 type ActionDefinition_Screenshot struct {
-	Screenshot *ScreenshotParams `protobuf:"bytes,20,opt,name=screenshot,proto3,oneof"`
+	Screenshot *ScreenshotParams `protobuf:"bytes,20,opt,name=screenshot,proto3,oneof"` // Required when type = ACTION_TYPE_SCREENSHOT
 }
 
 type ActionDefinition_Focus struct {
-	Focus *FocusParams `protobuf:"bytes,21,opt,name=focus,proto3,oneof"`
+	Focus *FocusParams `protobuf:"bytes,21,opt,name=focus,proto3,oneof"` // Required when type = ACTION_TYPE_FOCUS
 }
 
 type ActionDefinition_Blur struct {
-	Blur *BlurParams `protobuf:"bytes,22,opt,name=blur,proto3,oneof"`
+	Blur *BlurParams `protobuf:"bytes,22,opt,name=blur,proto3,oneof"` // Required when type = ACTION_TYPE_BLUR
 }
 
 func (*ActionDefinition_Navigate) isActionDefinition_Params() {}

@@ -292,25 +292,42 @@ message ActionMetadata {
 // - Workflows (stored definition)
 // - Execution (sent to playwright-driver)
 // - Timeline events (streamed to UI)
+//
+// IMPORTANT: Type-Params Consistency Requirement
+// The `type` field MUST match the populated `params` oneof case:
+//   - ACTION_TYPE_NAVIGATE requires `navigate` params
+//   - ACTION_TYPE_CLICK requires `click` params
+//   - ACTION_TYPE_INPUT requires `input` params
+//   - etc.
+//
+// The `type` field exists for:
+// 1. Efficient filtering/grouping without parsing params
+// 2. Forward compatibility when new params are added
+// 3. Explicit documentation of intent
+//
+// Consumers SHOULD validate type-params consistency. Invalid combinations
+// (e.g., type=CLICK with navigate params) are malformed and should be rejected.
 message ActionDefinition {
-  // Action type classification.
+  // Action type classification. MUST match the populated params oneof case.
+  // See message-level comment for consistency requirements.
   ActionType type = 1;
 
-  // Type-specific parameters (exactly one must be set based on type).
+  // Type-specific parameters. Exactly one MUST be set, matching the `type` field.
+  // The mapping is: ACTION_TYPE_X requires the corresponding `x` params field.
   oneof params {
-    NavigateParams navigate = 10;
-    ClickParams click = 11;
-    InputParams input = 12;
-    WaitParams wait = 13;
-    AssertParams assert = 14;
-    ScrollParams scroll = 15;
-    SelectParams select_option = 16;
-    EvaluateParams evaluate = 17;
-    KeyboardParams keyboard = 18;
-    HoverParams hover = 19;
-    ScreenshotParams screenshot = 20;
-    FocusParams focus = 21;
-    BlurParams blur = 22;
+    NavigateParams navigate = 10;    // Required when type = ACTION_TYPE_NAVIGATE
+    ClickParams click = 11;          // Required when type = ACTION_TYPE_CLICK
+    InputParams input = 12;          // Required when type = ACTION_TYPE_INPUT
+    WaitParams wait = 13;            // Required when type = ACTION_TYPE_WAIT
+    AssertParams assert = 14;        // Required when type = ACTION_TYPE_ASSERT
+    ScrollParams scroll = 15;        // Required when type = ACTION_TYPE_SCROLL
+    SelectParams select_option = 16; // Required when type = ACTION_TYPE_SELECT
+    EvaluateParams evaluate = 17;    // Required when type = ACTION_TYPE_EVALUATE
+    KeyboardParams keyboard = 18;    // Required when type = ACTION_TYPE_KEYBOARD
+    HoverParams hover = 19;          // Required when type = ACTION_TYPE_HOVER
+    ScreenshotParams screenshot = 20;// Required when type = ACTION_TYPE_SCREENSHOT
+    FocusParams focus = 21;          // Required when type = ACTION_TYPE_FOCUS
+    BlurParams blur = 22;            // Required when type = ACTION_TYPE_BLUR
   }
 
   // Optional rich metadata - preserved from recording, useful for debugging/fallbacks.

@@ -29,8 +29,17 @@ message SelectorCandidate {
 // 2. If primary fails, iterate through candidates by confidence score
 // 3. Store successful selector for future runs
 //
-// Used internally by the playwright-driver for resilient element targeting.
-// May be added to ActionDefinition params in future for explicit fallback control.
+// USAGE STATUS: Currently used internally by playwright-driver for resilient
+// element targeting. NOT exposed in ActionDefinition params - actions use
+// a simple string selector, with ActionMetadata.selector_candidates providing
+// fallback options from recording.
+//
+// FUTURE CONSIDERATION: May be integrated into action params to give users
+// explicit control over selector fallback behavior. Alternatively, this type
+// may be deprecated if ActionMetadata.selector_candidates proves sufficient.
+//
+// If you need resilient selectors, use ActionMetadata.selector_candidates
+// (populated during recording) rather than constructing SelectorSet manually.
 message SelectorSet {
   // Primary selector to use first.
   string primary = 1;
@@ -67,6 +76,11 @@ message ElementMeta {
 // =============================================================================
 // VISUAL OVERLAYS
 // =============================================================================
+//
+// NOTE: These types logically belong with screenshot/telemetry data.
+// They are kept here temporarily for backward compatibility but should
+// be considered part of the visualization/telemetry domain.
+// =============================================================================
 
 // HighlightRegion describes an overlay applied to screenshots for emphasis.
 message HighlightRegion {
@@ -76,8 +90,17 @@ message HighlightRegion {
   BoundingBox bounding_box = 2;
   // Padding in pixels around the region.
   int32 padding = 3;
-  // Highlight color (CSS string, e.g., "#ff0000" or "rgba(255,0,0,0.5)").
-  string color = 4;
+  // DEPRECATED: Use highlight_color enum instead.
+  // Legacy color as CSS string (e.g., "#ff0000" or "rgba(255,0,0,0.5)").
+  // Consumers should migrate to highlight_color for type safety.
+  string color = 4 [deprecated = true];
+  // Typed highlight color. Prefer this over the deprecated 'color' field.
+  // When both are set, highlight_color takes precedence.
+  HighlightColor highlight_color = 5;
+  // Custom RGBA color when highlight_color is insufficient.
+  // Format: "rgba(r,g,b,a)" where r,g,b are 0-255 and a is 0.0-1.0.
+  // Only used when highlight_color = HIGHLIGHT_COLOR_UNSPECIFIED.
+  optional string custom_rgba = 6;
 }
 
 // MaskRegion describes areas that were dimmed or masked during capture.

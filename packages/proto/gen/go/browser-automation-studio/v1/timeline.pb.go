@@ -134,11 +134,24 @@ func (x *ExecutionTimeline) GetLogs() []*TimelineLog {
 }
 
 // TimelineFrame captures a single workflow step in the execution timeline.
+//
+// DEPRECATION NOTICE: Several inline fields duplicate data in the `telemetry` field.
+// New consumers MUST use `telemetry.*` fields. Inline duplicates are deprecated
+// and will be removed in a future version.
+//
+// Deprecated inline fields → Use instead:
+//   - highlight_regions (16) → telemetry.highlight_regions
+//   - mask_regions (17)      → telemetry.mask_regions
+//   - element_bounding_box (19) → telemetry.element_bounding_box
+//   - click_position (20)    → telemetry.click_position
+//   - cursor_trail (21)      → telemetry.cursor_trail
+//   - zoom_factor (22)       → telemetry.zoom_factor
+//   - screenshot (23)        → telemetry.screenshot
 type TimelineFrame struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Zero-based index of this step in the execution.
 	StepIndex int32 `protobuf:"varint,1,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
-	// Node ID from the workflow definition.
+	// Node ID from the workflow definition (UUID format).
 	NodeId string `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	// Action type enum (for filtering/grouping without parsing full action).
 	ActionType ActionType `protobuf:"varint,3,opt,name=action_type,json=actionType,proto3,enum=browser_automation_studio.v1.ActionType" json:"action_type,omitempty"`
@@ -167,21 +180,35 @@ type TimelineFrame struct {
 	ConsoleLogCount int32 `protobuf:"varint,13,opt,name=console_log_count,json=consoleLogCount,proto3" json:"console_log_count,omitempty"`
 	// Number of network events captured for this step.
 	NetworkEventCount int32 `protobuf:"varint,14,opt,name=network_event_count,json=networkEventCount,proto3" json:"network_event_count,omitempty"`
-	// Highlight overlays applied to the screenshot - from unified.proto.
+	// DEPRECATED: Use telemetry.highlight_regions instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 	HighlightRegions []*HighlightRegion `protobuf:"bytes,16,rep,name=highlight_regions,json=highlightRegions,proto3" json:"highlight_regions,omitempty"`
-	// Masked regions applied during capture - from unified.proto.
+	// DEPRECATED: Use telemetry.mask_regions instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 	MaskRegions []*MaskRegion `protobuf:"bytes,17,rep,name=mask_regions,json=maskRegions,proto3" json:"mask_regions,omitempty"`
 	// Focused element metadata for the step.
 	FocusedElement *ElementFocus `protobuf:"bytes,18,opt,name=focused_element,json=focusedElement,proto3" json:"focused_element,omitempty"`
-	// Bounding box for the primary element interacted with - from unified.proto.
+	// DEPRECATED: Use telemetry.element_bounding_box instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 	ElementBoundingBox *BoundingBox `protobuf:"bytes,19,opt,name=element_bounding_box,json=elementBoundingBox,proto3" json:"element_bounding_box,omitempty"`
-	// Actual click coordinates used - from unified.proto.
+	// DEPRECATED: Use telemetry.click_position instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 	ClickPosition *Point `protobuf:"bytes,20,opt,name=click_position,json=clickPosition,proto3" json:"click_position,omitempty"`
-	// Cursor trail captured during the step - from unified.proto.
+	// DEPRECATED: Use telemetry.cursor_trail instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 	CursorTrail []*Point `protobuf:"bytes,21,rep,name=cursor_trail,json=cursorTrail,proto3" json:"cursor_trail,omitempty"`
-	// Applied zoom factor during capture.
+	// DEPRECATED: Use telemetry.zoom_factor instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 	ZoomFactor float64 `protobuf:"fixed64,22,opt,name=zoom_factor,json=zoomFactor,proto3" json:"zoom_factor,omitempty"`
-	// Screenshot captured during/after this step - from unified.proto.
+	// DEPRECATED: Use telemetry.screenshot instead.
+	//
+	// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 	Screenshot *TimelineScreenshot `protobuf:"bytes,23,opt,name=screenshot,proto3" json:"screenshot,omitempty"`
 	// Related artifacts (console logs, network traces, etc.).
 	Artifacts []*TimelineArtifact `protobuf:"bytes,24,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
@@ -197,9 +224,8 @@ type TimelineFrame struct {
 	// Typed preview of extracted data.
 	ExtractedDataPreview *v1.JsonValue `protobuf:"bytes,34,opt,name=extracted_data_preview,json=extractedDataPreview,proto3" json:"extracted_data_preview,omitempty"`
 	// Composed telemetry captured during this step.
+	// This is the CANONICAL source for telemetry data.
 	// Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
-	// NOTE: Some fields in this message duplicate inline fields above for backward compatibility.
-	// New consumers should prefer telemetry.* fields; inline fields may be deprecated.
 	Telemetry     *ActionTelemetry `protobuf:"bytes,36,opt,name=telemetry,proto3" json:"telemetry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -340,6 +366,7 @@ func (x *TimelineFrame) GetNetworkEventCount() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 func (x *TimelineFrame) GetHighlightRegions() []*HighlightRegion {
 	if x != nil {
 		return x.HighlightRegions
@@ -347,6 +374,7 @@ func (x *TimelineFrame) GetHighlightRegions() []*HighlightRegion {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 func (x *TimelineFrame) GetMaskRegions() []*MaskRegion {
 	if x != nil {
 		return x.MaskRegions
@@ -361,6 +389,7 @@ func (x *TimelineFrame) GetFocusedElement() *ElementFocus {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 func (x *TimelineFrame) GetElementBoundingBox() *BoundingBox {
 	if x != nil {
 		return x.ElementBoundingBox
@@ -368,6 +397,7 @@ func (x *TimelineFrame) GetElementBoundingBox() *BoundingBox {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 func (x *TimelineFrame) GetClickPosition() *Point {
 	if x != nil {
 		return x.ClickPosition
@@ -375,6 +405,7 @@ func (x *TimelineFrame) GetClickPosition() *Point {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 func (x *TimelineFrame) GetCursorTrail() []*Point {
 	if x != nil {
 		return x.CursorTrail
@@ -382,6 +413,7 @@ func (x *TimelineFrame) GetCursorTrail() []*Point {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 func (x *TimelineFrame) GetZoomFactor() float64 {
 	if x != nil {
 		return x.ZoomFactor
@@ -389,6 +421,7 @@ func (x *TimelineFrame) GetZoomFactor() float64 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in browser-automation-studio/v1/timeline.proto.
 func (x *TimelineFrame) GetScreenshot() *TimelineScreenshot {
 	if x != nil {
 		return x.Screenshot
@@ -716,7 +749,7 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\fcompleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12C\n" +
 	"\x06frames\x18\a \x03(\v2+.browser_automation_studio.v1.TimelineFrameR\x06frames\x12=\n" +
 	"\x04logs\x18\b \x03(\v2).browser_automation_studio.v1.TimelineLogR\x04logsB\x0f\n" +
-	"\r_completed_at\"\xca\x0e\n" +
+	"\r_completed_at\"\xe6\x0e\n" +
 	"\rTimelineFrame\x12\x1d\n" +
 	"\n" +
 	"step_index\x18\x01 \x01(\x05R\tstepIndex\x12\x17\n" +
@@ -737,17 +770,17 @@ const file_browser_automation_studio_v1_timeline_proto_rawDesc = "" +
 	"\tfinal_url\x18\v \x01(\tR\bfinalUrl\x12\x19\n" +
 	"\x05error\x18\f \x01(\tH\x00R\x05error\x88\x01\x01\x12*\n" +
 	"\x11console_log_count\x18\r \x01(\x05R\x0fconsoleLogCount\x12.\n" +
-	"\x13network_event_count\x18\x0e \x01(\x05R\x11networkEventCount\x12Z\n" +
-	"\x11highlight_regions\x18\x10 \x03(\v2-.browser_automation_studio.v1.HighlightRegionR\x10highlightRegions\x12K\n" +
-	"\fmask_regions\x18\x11 \x03(\v2(.browser_automation_studio.v1.MaskRegionR\vmaskRegions\x12S\n" +
-	"\x0ffocused_element\x18\x12 \x01(\v2*.browser_automation_studio.v1.ElementFocusR\x0efocusedElement\x12[\n" +
-	"\x14element_bounding_box\x18\x13 \x01(\v2).browser_automation_studio.v1.BoundingBoxR\x12elementBoundingBox\x12J\n" +
-	"\x0eclick_position\x18\x14 \x01(\v2#.browser_automation_studio.v1.PointR\rclickPosition\x12F\n" +
-	"\fcursor_trail\x18\x15 \x03(\v2#.browser_automation_studio.v1.PointR\vcursorTrail\x12\x1f\n" +
-	"\vzoom_factor\x18\x16 \x01(\x01R\n" +
-	"zoomFactor\x12P\n" +
+	"\x13network_event_count\x18\x0e \x01(\x05R\x11networkEventCount\x12^\n" +
+	"\x11highlight_regions\x18\x10 \x03(\v2-.browser_automation_studio.v1.HighlightRegionB\x02\x18\x01R\x10highlightRegions\x12O\n" +
+	"\fmask_regions\x18\x11 \x03(\v2(.browser_automation_studio.v1.MaskRegionB\x02\x18\x01R\vmaskRegions\x12S\n" +
+	"\x0ffocused_element\x18\x12 \x01(\v2*.browser_automation_studio.v1.ElementFocusR\x0efocusedElement\x12_\n" +
+	"\x14element_bounding_box\x18\x13 \x01(\v2).browser_automation_studio.v1.BoundingBoxB\x02\x18\x01R\x12elementBoundingBox\x12N\n" +
+	"\x0eclick_position\x18\x14 \x01(\v2#.browser_automation_studio.v1.PointB\x02\x18\x01R\rclickPosition\x12J\n" +
+	"\fcursor_trail\x18\x15 \x03(\v2#.browser_automation_studio.v1.PointB\x02\x18\x01R\vcursorTrail\x12#\n" +
+	"\vzoom_factor\x18\x16 \x01(\x01B\x02\x18\x01R\n" +
+	"zoomFactor\x12T\n" +
 	"\n" +
-	"screenshot\x18\x17 \x01(\v20.browser_automation_studio.v1.TimelineScreenshotR\n" +
+	"screenshot\x18\x17 \x01(\v20.browser_automation_studio.v1.TimelineScreenshotB\x02\x18\x01R\n" +
 	"screenshot\x12L\n" +
 	"\tartifacts\x18\x18 \x03(\v2..browser_automation_studio.v1.TimelineArtifactR\tartifacts\x12K\n" +
 	"\tassertion\x18\x19 \x01(\v2-.browser_automation_studio.v1.AssertionResultR\tassertion\x12L\n" +

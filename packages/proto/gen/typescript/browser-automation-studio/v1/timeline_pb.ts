@@ -24,7 +24,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/timeline.proto.
  */
 export const file_browser_automation_studio_v1_timeline: GenFile = /*@__PURE__*/
-  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIv0CChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjsKBmZyYW1lcxgHIAMoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVGcmFtZRI3CgRsb2dzGAggAygLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUxvZ0IPCg1fY29tcGxldGVkX2F0IsILCg1UaW1lbGluZUZyYW1lEhIKCnN0ZXBfaW5kZXgYASABKAUSDwoHbm9kZV9pZBgCIAEoCRI9CgthY3Rpb25fdHlwZRgDIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZRI+CgZhY3Rpb24YIyABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvbkRlZmluaXRpb24SOAoGc3RhdHVzGAQgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGVwU3RhdHVzEg8KB3N1Y2Nlc3MYBSABKAgSEwoLZHVyYXRpb25fbXMYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSEAoIcHJvZ3Jlc3MYCCABKAUSLgoKc3RhcnRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglmaW5hbF91cmwYCyABKAkSEgoFZXJyb3IYDCABKAlIAIgBARIZChFjb25zb2xlX2xvZ19jb3VudBgNIAEoBRIbChNuZXR3b3JrX2V2ZW50X2NvdW50GA4gASgFEkgKEWhpZ2hsaWdodF9yZWdpb25zGBAgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5IaWdobGlnaHRSZWdpb24SPgoMbWFza19yZWdpb25zGBEgAygLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5NYXNrUmVnaW9uEkMKD2ZvY3VzZWRfZWxlbWVudBgSIAEoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRWxlbWVudEZvY3VzEkcKFGVsZW1lbnRfYm91bmRpbmdfYm94GBMgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveBI7Cg5jbGlja19wb3NpdGlvbhgUIAEoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnQSOQoMY3Vyc29yX3RyYWlsGBUgAygLMiMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Qb2ludBITCgt6b29tX2ZhY3RvchgWIAEoARJECgpzY3JlZW5zaG90GBcgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZVNjcmVlbnNob3QSQQoJYXJ0aWZhY3RzGBggAygLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUFydGlmYWN0EkAKCWFzc2VydGlvbhgZIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXNzZXJ0aW9uUmVzdWx0Ej8KDHJldHJ5X3N0YXR1cxglIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUmV0cnlTdGF0dXMSHAoUZG9tX3NuYXBzaG90X3ByZXZpZXcYICABKAkSRAoMZG9tX3NuYXBzaG90GCEgASgLMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUFydGlmYWN0EjQKFmV4dHJhY3RlZF9kYXRhX3ByZXZpZXcYIiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlEkAKCXRlbGVtZXRyeRgkIAEoCzItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVGVsZW1ldHJ5QggKBl9lcnJvckoECA8QEEoECBoQG0oECBsQHEoECBwQHUoECB0QHkoECB4QH0oECB8QICK5AwoQVGltZWxpbmVBcnRpZmFjdBIKCgJpZBgBIAEoCRI4CgR0eXBlGAIgASgOMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BcnRpZmFjdFR5cGUSEgoFbGFiZWwYAyABKAlIAIgBARITCgtzdG9yYWdlX3VybBgEIAEoCRIaCg10aHVtYm5haWxfdXJsGAUgASgJSAGIAQESFAoMY29udGVudF90eXBlGAYgASgJEhcKCnNpemVfYnl0ZXMYByABKANIAogBARIXCgpzdGVwX2luZGV4GAggASgFSAOIAQESTAoHcGF5bG9hZBgKIAMoCzI7LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdC5QYXlsb2FkRW50cnkaRAoMUGF5bG9hZEVudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBQggKBl9sYWJlbEIQCg5fdGh1bWJuYWlsX3VybEINCgtfc2l6ZV9ieXRlc0INCgtfc3RlcF9pbmRleEoECAkQCiJhCgxFbGVtZW50Rm9jdXMSEAoIc2VsZWN0b3IYASABKAkSPwoMYm91bmRpbmdfYm94GAIgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Cb3VuZGluZ0JveCK2AQoLVGltZWxpbmVMb2cSCgoCaWQYASABKAkSNQoFbGV2ZWwYAiABKA4yJi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkxvZ0xldmVsEg8KB21lc3NhZ2UYAyABKAkSFgoJc3RlcF9uYW1lGAQgASgJSACIAQESLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIMCgpfc3RlcF9uYW1lQmpaaGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MTticm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_geometry, file_browser_automation_studio_v1_selectors, file_browser_automation_studio_v1_telemetry]);
+  fileDesc("Citicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL3RpbWVsaW5lLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIv0CChFFeGVjdXRpb25UaW1lbGluZRIUCgxleGVjdXRpb25faWQYASABKAkSEwoLd29ya2Zsb3dfaWQYAiABKAkSPQoGc3RhdHVzGAMgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeGVjdXRpb25TdGF0dXMSEAoIcHJvZ3Jlc3MYBCABKAUSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjsKBmZyYW1lcxgHIAMoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVGcmFtZRI3CgRsb2dzGAggAygLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZUxvZ0IPCg1fY29tcGxldGVkX2F0It4LCg1UaW1lbGluZUZyYW1lEhIKCnN0ZXBfaW5kZXgYASABKAUSDwoHbm9kZV9pZBgCIAEoCRI9CgthY3Rpb25fdHlwZRgDIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZRI+CgZhY3Rpb24YIyABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvbkRlZmluaXRpb24SOAoGc3RhdHVzGAQgASgOMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdGVwU3RhdHVzEg8KB3N1Y2Nlc3MYBSABKAgSEwoLZHVyYXRpb25fbXMYBiABKAUSGQoRdG90YWxfZHVyYXRpb25fbXMYByABKAUSEAoIcHJvZ3Jlc3MYCCABKAUSLgoKc3RhcnRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglmaW5hbF91cmwYCyABKAkSEgoFZXJyb3IYDCABKAlIAIgBARIZChFjb25zb2xlX2xvZ19jb3VudBgNIAEoBRIbChNuZXR3b3JrX2V2ZW50X2NvdW50GA4gASgFEkwKEWhpZ2hsaWdodF9yZWdpb25zGBAgAygLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5IaWdobGlnaHRSZWdpb25CAhgBEkIKDG1hc2tfcmVnaW9ucxgRIAMoCzIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTWFza1JlZ2lvbkICGAESQwoPZm9jdXNlZF9lbGVtZW50GBIgASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FbGVtZW50Rm9jdXMSSwoUZWxlbWVudF9ib3VuZGluZ19ib3gYEyABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkJvdW5kaW5nQm94QgIYARI/Cg5jbGlja19wb3NpdGlvbhgUIAEoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnRCAhgBEj0KDGN1cnNvcl90cmFpbBgVIAMoCzIjLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUG9pbnRCAhgBEhcKC3pvb21fZmFjdG9yGBYgASgBQgIYARJICgpzY3JlZW5zaG90GBcgASgLMjAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UaW1lbGluZVNjcmVlbnNob3RCAhgBEkEKCWFydGlmYWN0cxgYIAMoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdBJACglhc3NlcnRpb24YGSABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFzc2VydGlvblJlc3VsdBI/CgxyZXRyeV9zdGF0dXMYJSABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlJldHJ5U3RhdHVzEhwKFGRvbV9zbmFwc2hvdF9wcmV2aWV3GCAgASgJEkQKDGRvbV9zbmFwc2hvdBghIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGltZWxpbmVBcnRpZmFjdBI0ChZleHRyYWN0ZWRfZGF0YV9wcmV2aWV3GCIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZRJACgl0ZWxlbWV0cnkYJCABKAsyLS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvblRlbGVtZXRyeUIICgZfZXJyb3JKBAgPEBBKBAgaEBtKBAgbEBxKBAgcEB1KBAgdEB5KBAgeEB9KBAgfECAiuQMKEFRpbWVsaW5lQXJ0aWZhY3QSCgoCaWQYASABKAkSOAoEdHlwZRgCIAEoDjIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQXJ0aWZhY3RUeXBlEhIKBWxhYmVsGAMgASgJSACIAQESEwoLc3RvcmFnZV91cmwYBCABKAkSGgoNdGh1bWJuYWlsX3VybBgFIAEoCUgBiAEBEhQKDGNvbnRlbnRfdHlwZRgGIAEoCRIXCgpzaXplX2J5dGVzGAcgASgDSAKIAQESFwoKc3RlcF9pbmRleBgIIAEoBUgDiAEBEkwKB3BheWxvYWQYCiADKAsyOy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlRpbWVsaW5lQXJ0aWZhY3QuUGF5bG9hZEVudHJ5GkQKDFBheWxvYWRFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIICgZfbGFiZWxCEAoOX3RodW1ibmFpbF91cmxCDQoLX3NpemVfYnl0ZXNCDQoLX3N0ZXBfaW5kZXhKBAgJEAoiYQoMRWxlbWVudEZvY3VzEhAKCHNlbGVjdG9yGAEgASgJEj8KDGJvdW5kaW5nX2JveBgCIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3gitgEKC1RpbWVsaW5lTG9nEgoKAmlkGAEgASgJEjUKBWxldmVsGAIgASgOMiYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Mb2dMZXZlbBIPCgdtZXNzYWdlGAMgASgJEhYKCXN0ZXBfbmFtZRgEIAEoCUgAiAEBEi0KCXRpbWVzdGFtcBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCDAoKX3N0ZXBfbmFtZUJqWmhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2Jyb3dzZXItYXV0b21hdGlvbi1zdHVkaW8vdjE7YnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpb192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_shared, file_browser_automation_studio_v1_action, file_browser_automation_studio_v1_geometry, file_browser_automation_studio_v1_selectors, file_browser_automation_studio_v1_telemetry]);
 
 /**
  * ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
@@ -100,6 +100,19 @@ export const ExecutionTimelineSchema: GenMessage<ExecutionTimeline> = /*@__PURE_
 /**
  * TimelineFrame captures a single workflow step in the execution timeline.
  *
+ * DEPRECATION NOTICE: Several inline fields duplicate data in the `telemetry` field.
+ * New consumers MUST use `telemetry.*` fields. Inline duplicates are deprecated
+ * and will be removed in a future version.
+ *
+ * Deprecated inline fields → Use instead:
+ *   - highlight_regions (16) → telemetry.highlight_regions
+ *   - mask_regions (17)      → telemetry.mask_regions
+ *   - element_bounding_box (19) → telemetry.element_bounding_box
+ *   - click_position (20)    → telemetry.click_position
+ *   - cursor_trail (21)      → telemetry.cursor_trail
+ *   - zoom_factor (22)       → telemetry.zoom_factor
+ *   - screenshot (23)        → telemetry.screenshot
+ *
  * @generated from message browser_automation_studio.v1.TimelineFrame
  */
 export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"> & {
@@ -111,7 +124,7 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   stepIndex: number;
 
   /**
-   * Node ID from the workflow definition.
+   * Node ID from the workflow definition (UUID format).
    *
    * @generated from field: string node_id = 2;
    */
@@ -210,16 +223,18 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   networkEventCount: number;
 
   /**
-   * Highlight overlays applied to the screenshot - from unified.proto.
+   * DEPRECATED: Use telemetry.highlight_regions instead.
    *
-   * @generated from field: repeated browser_automation_studio.v1.HighlightRegion highlight_regions = 16;
+   * @generated from field: repeated browser_automation_studio.v1.HighlightRegion highlight_regions = 16 [deprecated = true];
+   * @deprecated
    */
   highlightRegions: HighlightRegion[];
 
   /**
-   * Masked regions applied during capture - from unified.proto.
+   * DEPRECATED: Use telemetry.mask_regions instead.
    *
-   * @generated from field: repeated browser_automation_studio.v1.MaskRegion mask_regions = 17;
+   * @generated from field: repeated browser_automation_studio.v1.MaskRegion mask_regions = 17 [deprecated = true];
+   * @deprecated
    */
   maskRegions: MaskRegion[];
 
@@ -231,37 +246,42 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
   focusedElement?: ElementFocus;
 
   /**
-   * Bounding box for the primary element interacted with - from unified.proto.
+   * DEPRECATED: Use telemetry.element_bounding_box instead.
    *
-   * @generated from field: browser_automation_studio.v1.BoundingBox element_bounding_box = 19;
+   * @generated from field: browser_automation_studio.v1.BoundingBox element_bounding_box = 19 [deprecated = true];
+   * @deprecated
    */
   elementBoundingBox?: BoundingBox;
 
   /**
-   * Actual click coordinates used - from unified.proto.
+   * DEPRECATED: Use telemetry.click_position instead.
    *
-   * @generated from field: browser_automation_studio.v1.Point click_position = 20;
+   * @generated from field: browser_automation_studio.v1.Point click_position = 20 [deprecated = true];
+   * @deprecated
    */
   clickPosition?: Point;
 
   /**
-   * Cursor trail captured during the step - from unified.proto.
+   * DEPRECATED: Use telemetry.cursor_trail instead.
    *
-   * @generated from field: repeated browser_automation_studio.v1.Point cursor_trail = 21;
+   * @generated from field: repeated browser_automation_studio.v1.Point cursor_trail = 21 [deprecated = true];
+   * @deprecated
    */
   cursorTrail: Point[];
 
   /**
-   * Applied zoom factor during capture.
+   * DEPRECATED: Use telemetry.zoom_factor instead.
    *
-   * @generated from field: double zoom_factor = 22;
+   * @generated from field: double zoom_factor = 22 [deprecated = true];
+   * @deprecated
    */
   zoomFactor: number;
 
   /**
-   * Screenshot captured during/after this step - from unified.proto.
+   * DEPRECATED: Use telemetry.screenshot instead.
    *
-   * @generated from field: browser_automation_studio.v1.TimelineScreenshot screenshot = 23;
+   * @generated from field: browser_automation_studio.v1.TimelineScreenshot screenshot = 23 [deprecated = true];
+   * @deprecated
    */
   screenshot?: TimelineScreenshot;
 
@@ -310,9 +330,8 @@ export type TimelineFrame = Message<"browser_automation_studio.v1.TimelineFrame"
 
   /**
    * Composed telemetry captured during this step.
+   * This is the CANONICAL source for telemetry data.
    * Mirrors TimelineEvent.telemetry for consistency between streaming and batch formats.
-   * NOTE: Some fields in this message duplicate inline fields above for backward compatibility.
-   * New consumers should prefer telemetry.* fields; inline fields may be deprecated.
    *
    * @generated from field: browser_automation_studio.v1.ActionTelemetry telemetry = 36;
    */

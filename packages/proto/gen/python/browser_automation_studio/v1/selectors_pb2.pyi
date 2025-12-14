@@ -63,11 +63,15 @@ class HighlightRegion(_message.Message):
     BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     PADDING_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
+    HIGHLIGHT_COLOR_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_RGBA_FIELD_NUMBER: _ClassVar[int]
     selector: str
     bounding_box: _geometry_pb2.BoundingBox
     padding: int
     color: str
-    def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., padding: _Optional[int] = ..., color: _Optional[str] = ...) -> None: ...
+    highlight_color: _shared_pb2.HighlightColor
+    custom_rgba: str
+    def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., padding: _Optional[int] = ..., color: _Optional[str] = ..., highlight_color: _Optional[_Union[_shared_pb2.HighlightColor, str]] = ..., custom_rgba: _Optional[str] = ...) -> None: ...
 
 class MaskRegion(_message.Message):
     __slots__ = ()
