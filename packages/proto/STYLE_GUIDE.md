@@ -100,6 +100,14 @@ Use consistent separators to group related types:
 Use `@` annotations for machine-parseable metadata. These MUST appear at the
 start of a line within a comment block.
 
+## Validation (Protovalidate)
+
+Use Protovalidate rules as the canonical, machine-readable source of truth for validation constraints.
+
+- Prefer `buf/validate/validate.proto` rules (e.g., required, bounds, formats, CEL) over documenting constraints purely in comments.
+- Keep comments for semantics and context (why the field exists, units, API behavior, defaults), even when Protovalidate rules exist.
+- Treat `@constraint` as a documentation aid only; when a constraint is enforceable, encode it with Protovalidate.
+
 ### Standard Annotations
 
 | Annotation | Purpose | Example |

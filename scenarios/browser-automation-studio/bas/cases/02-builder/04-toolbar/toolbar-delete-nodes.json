@@ -17,7 +17,12 @@
       "type": "subflow",
       "data": {
         "label": "Open seeded workflow via fixture",
-        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
+        "workflowPath": "actions/open-demo-workflow.json",
+        "params": {
+              "projectName": "${@params/projectName}",
+              "projectFolder": "${@params/projectFolder}",
+              "workflowName": "${@params/workflowName}"
+        }
       }
     },
     {

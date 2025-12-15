@@ -201,8 +201,8 @@ Vrooli employs a sophisticated, automated testing system with **zero-overhead re
 # Test a scenario
 cd scenarios/my-scenario && make test
 
-# Run specific phase
-./test/phases/test-unit.sh
+# Run via test-genie CLI
+test-genie execute my-scenario --preset comprehensive
 
 # Generate tests automatically
 test-genie generate my-scenario --types unit,integration

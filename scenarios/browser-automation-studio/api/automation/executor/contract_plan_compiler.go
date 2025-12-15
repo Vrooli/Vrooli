@@ -2,11 +2,13 @@ package executor
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	autoworkflow "github.com/vrooli/browser-automation-studio/automation/workflow"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -28,7 +30,8 @@ func (c *ContractPlanCompiler) Compile(ctx context.Context, executionID uuid.UUI
 		for k, v := range step.Params {
 			params[k] = v
 		}
-		instructions = append(instructions, contracts.CompiledInstruction{
+
+		instr := contracts.CompiledInstruction{
 			Index:       step.Index,
 			NodeID:      step.NodeID,
 			Type:        string(step.Type),
@@ -36,7 +39,19 @@ func (c *ContractPlanCompiler) Compile(ctx context.Context, executionID uuid.UUI
 			PreloadHTML: "",
 			Context:     map[string]any{},
 			Metadata:    map[string]string{},
-		})
+		}
+
+		// MIGRATION: Populate typed Action field from V1 type/params
+		// This enables protovalidate and typed param access in playwright-driver
+		action, actionErr := autoworkflow.V1DataToActionDefinition(string(step.Type), step.Params)
+		if actionErr != nil {
+			// Log but don't fail - Action is optional during migration
+			log.Printf("[COMPILER] Warning: failed to build ActionDefinition for step %d (%s): %v", step.Index, step.Type, actionErr)
+		} else {
+			instr.Action = action
+		}
+
+		instructions = append(instructions, instr)
 	}
 
 	contractPlan := contracts.ExecutionPlan{

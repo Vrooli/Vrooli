@@ -30,7 +30,7 @@
       "type": "subflow",
       "data": {
         "label": "Dismiss onboarding tutorial if present",
-        "workflowId": "@fixture/dismiss-tutorial"
+        "workflowPath": "actions/dismiss-tutorial.json"
       }
     },
     {
@@ -81,7 +81,7 @@
       "data": {
         "label": "Enter project name",
         "selector": "@selector/dialogs.project.nameInput",
-        "text": "@store/projectName",
+        "text": "${@store/projectName}",
         "clearFirst": true,
         "timeoutMs": 5000
       }

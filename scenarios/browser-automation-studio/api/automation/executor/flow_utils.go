@@ -972,6 +972,7 @@ func planStepToInstruction(step contracts.PlanStep) contracts.CompiledInstructio
 		PreloadHTML: step.Preload,
 		Context:     step.Context,
 		Metadata:    step.Metadata,
+		Action:      step.Action, // NEW: Preserve typed Action field
 	}
 }
 
@@ -984,6 +985,7 @@ func planStepToInstructionStep(instr contracts.CompiledInstruction) contracts.Pl
 		Metadata: instr.Metadata,
 		Context:  instr.Context,
 		Preload:  instr.PreloadHTML,
+		Action:   instr.Action, // NEW: Preserve typed Action field
 	}
 }
 

@@ -1,4 +1,8 @@
 version: v2
+inputs:
+  - directory: schemas
+  # Include protovalidate to generate its TypeScript types
+  - module: buf.build/bufbuild/protovalidate
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen/go

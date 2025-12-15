@@ -17,7 +17,13 @@
       "type": "subflow",
       "data": {
         "label": "Open demo workflow in builder",
-        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowId=@seed/workflowId, workflowName=@seed/workflowName)"
+        "workflowPath": "actions/open-demo-workflow.json",
+        "params": {
+              "projectName": "${@params/projectName}",
+              "projectFolder": "${@params/projectFolder}",
+              "workflowId": "${@params/workflowId}",
+              "workflowName": "${@params/workflowName}"
+        }
       }
     },
     {

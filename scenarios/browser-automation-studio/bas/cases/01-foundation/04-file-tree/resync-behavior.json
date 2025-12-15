@@ -1,0 +1,235 @@
+{
+  "metadata": {
+    "description": "Tests the resync-from-disk functionality: verifies that the resync operation rebuilds the file index and is accessible via the UI menu",
+    "version": 1,
+    "reset": "full"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "open-demo-project",
+      "type": "subflow",
+      "data": {
+        "label": "Open seeded demo project",
+        "workflowPath": "actions/open-demo-project.json"
+      }
+    },
+    {
+      "id": "switch-to-tree-view",
+      "type": "click",
+      "data": {
+        "label": "Switch to File Tree view",
+        "selector": "@selector/projects.fileTree.viewModeToggle",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "assert-tree-visible",
+      "type": "assert",
+      "data": {
+        "label": "File tree root is visible",
+        "selector": "@selector/projects.fileTree.root",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "File tree should be visible after switching view mode"
+      }
+    },
+    {
+      "id": "capture-initial-tree-state",
+      "type": "evaluate",
+      "data": {
+        "label": "Capture initial tree state",
+        "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; return { initialFolderCount: folders, initialFileCount: files }; })()",
+        "storeResult": "initialTreeState"
+      }
+    },
+    {
+      "id": "click-new-menu",
+      "type": "click",
+      "data": {
+        "label": "Open New file menu to access resync",
+        "selector": "@selector/workflows.newButton",
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "assert-resync-button-visible",
+      "type": "assert",
+      "data": {
+        "label": "Resync from Disk option is visible in menu",
+        "selector": "button:has-text('Resync From Disk')",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Resync from Disk button should be visible in the New menu"
+      }
+    },
+    {
+      "id": "click-resync-button",
+      "type": "click",
+      "data": {
+        "label": "Click Resync from Disk",
+        "selector": "button:has-text('Resync From Disk')",
+        "timeoutMs": 3000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-for-confirm-dialog",
+      "type": "wait",
+      "data": {
+        "label": "Wait for confirmation dialog",
+        "selector": "@selector/dialogs.responsive.content",
+        "timeoutMs": 5000,
+        "waitForMs": 300,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-confirm-dialog-text",
+      "type": "assert",
+      "data": {
+        "label": "Confirmation dialog shows resync message",
+        "selector": "@selector/dialogs.responsive.content",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Resync confirmation dialog should appear with warning message"
+      }
+    },
+    {
+      "id": "confirm-resync",
+      "type": "click",
+      "data": {
+        "label": "Confirm resync operation",
+        "selector": "button:has-text('Resync')",
+        "timeoutMs": 3000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-tree-refresh",
+      "type": "wait",
+      "data": {
+        "label": "Wait for tree to refresh after resync",
+        "waitType": "duration",
+        "durationMs": 2000
+      }
+    },
+    {
+      "id": "assert-tree-still-visible",
+      "type": "assert",
+      "data": {
+        "label": "File tree is still visible after resync",
+        "selector": "@selector/projects.fileTree.root",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "File tree should remain visible after resync completes"
+      }
+    },
+    {
+      "id": "verify-post-resync-state",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify tree state after resync",
+        "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; const treeRoot = document.querySelector('[data-testid=\"project-file-tree\"]'); return { postResyncFolderCount: folders, postResyncFileCount: files, treeRootExists: !!treeRoot }; })()",
+        "storeResult": "postResyncTreeState"
+      }
+    },
+    {
+      "id": "assert-no-errors",
+      "type": "evaluate",
+      "data": {
+        "label": "Check no error toasts appeared",
+        "expression": "(() => { const errorToasts = document.querySelectorAll('[data-sonner-toast][data-type=\"error\"]'); return { hasErrors: errorToasts.length > 0, errorCount: errorToasts.length }; })()",
+        "storeResult": "errorCheck"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "open-demo-project",
+      "target": "switch-to-tree-view",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e1",
+      "source": "switch-to-tree-view",
+      "target": "assert-tree-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "assert-tree-visible",
+      "target": "capture-initial-tree-state",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "capture-initial-tree-state",
+      "target": "click-new-menu",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "click-new-menu",
+      "target": "assert-resync-button-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "assert-resync-button-visible",
+      "target": "click-resync-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-resync-button",
+      "target": "wait-for-confirm-dialog",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-for-confirm-dialog",
+      "target": "assert-confirm-dialog-text",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-confirm-dialog-text",
+      "target": "confirm-resync",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "confirm-resync",
+      "target": "wait-for-tree-refresh",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-tree-refresh",
+      "target": "assert-tree-still-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "assert-tree-still-visible",
+      "target": "verify-post-resync-state",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "verify-post-resync-state",
+      "target": "assert-no-errors",
+      "type": "smoothstep"
+    }
+  ]
+}

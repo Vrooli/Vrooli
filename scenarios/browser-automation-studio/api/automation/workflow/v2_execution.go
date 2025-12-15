@@ -14,6 +14,9 @@ import (
 
 // WorkflowNodeV2ToCompiledInstruction converts a WorkflowNodeV2 proto to a
 // CompiledInstruction that can be executed by the automation engine.
+//
+// MIGRATION: This function populates both the new typed Action field and the
+// deprecated Type/Params fields for backward compatibility during migration.
 func WorkflowNodeV2ToCompiledInstruction(node *basworkflows.WorkflowNodeV2, index int) contracts.CompiledInstruction {
 	if node == nil {
 		return contracts.CompiledInstruction{Index: index}
@@ -27,6 +30,10 @@ func WorkflowNodeV2ToCompiledInstruction(node *basworkflows.WorkflowNodeV2, inde
 
 	// Extract type and params from ActionDefinition
 	if node.Action != nil {
+		// NEW: Populate the typed Action field directly
+		instruction.Action = node.Action
+
+		// DEPRECATED: Still populate for backward compatibility with legacy consumers
 		instruction.Type = mapActionTypeToV1Type(node.Action.Type)
 		instruction.Params = actionDefinitionToParams(node.Action)
 	}
@@ -48,6 +55,8 @@ func WorkflowNodeV2ToCompiledInstruction(node *basworkflows.WorkflowNodeV2, inde
 
 // WorkflowDefinitionV2ToExecutionPlan converts a complete V2 workflow definition
 // to an execution plan with CompiledInstructions and PlanGraph.
+//
+// MIGRATION: Both typed Action and deprecated Type/Params are populated.
 func WorkflowDefinitionV2ToExecutionPlan(def *basworkflows.WorkflowDefinitionV2) ([]contracts.CompiledInstruction, *contracts.PlanGraph) {
 	if def == nil {
 		return nil, nil
@@ -65,9 +74,14 @@ func WorkflowDefinitionV2ToExecutionPlan(def *basworkflows.WorkflowDefinitionV2)
 		step := contracts.PlanStep{
 			Index:    i,
 			NodeID:   node.Id,
-			Type:     mapActionTypeToV1Type(node.Action.Type),
-			Params:   actionDefinitionToParams(node.Action),
 			Outgoing: findOutgoingEdges(node.Id, def.Edges),
+		}
+		// NEW: Populate typed Action field
+		if node.Action != nil {
+			step.Action = node.Action
+			// DEPRECATED: Still populate for backward compatibility
+			step.Type = mapActionTypeToV1Type(node.Action.Type)
+			step.Params = actionDefinitionToParams(node.Action)
 		}
 		// Copy execution settings to context
 		if node.ExecutionSettings != nil {
@@ -378,7 +392,7 @@ func CompiledInstructionToWorkflowNodeV2(instr contracts.CompiledInstruction) (*
 	}
 
 	// Build ActionDefinition from type and params
-	action, err := v1DataToActionDefinition(instr.Type, instr.Params)
+	action, err := V1DataToActionDefinition(instr.Type, instr.Params)
 	if err != nil {
 		return nil, err
 	}

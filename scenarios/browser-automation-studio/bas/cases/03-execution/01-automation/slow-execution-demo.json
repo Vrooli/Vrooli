@@ -17,7 +17,7 @@
       "type": "subflow",
       "data": {
         "label": "Run slow execution demo fixture",
-        "workflowId": "@fixture/slow-execution-demo()"
+        "workflowPath": "actions/slow-execution-demo.json"
       }
     }
   ],

@@ -83,7 +83,22 @@ parsed = json_format.ParseDict(
 
 - Go: use the repo `go.work` so scenarios can import `github.com/vrooli/vrooli/packages/proto/gen/go/...`. Go package names mirror scenario slugs with underscores, e.g. `browser_automation_studio_v1` and `landing_page_react_vite_v1`.
 - TypeScript/JavaScript: `@vrooli/proto-types` is published from `gen/typescript` (ESM JS lives under `js/`) and linked via the pnpm workspace.
-- Python: install `packages/proto/gen/python` in editable mode for local development.
+- Python: generated under `packages/proto/gen/python`; Tier 1 import support is not guaranteed yet (Protovalidate annotations require additional Python packaging), but you can install this directory in editable mode for local experiments.
+
+## Language support matrix
+
+This repo generates Protobuf code for multiple languages, but “generated” does not necessarily mean “supported”.
+
+Definitions:
+- Tier 0 (Generate): Code is generated in `packages/proto/gen/<lang>/`.
+- Tier 1 (Import): Downstream projects can import the generated code without extra, undocumented dependencies.
+- Tier 2 (Validate): We run Protovalidate in this language at defined boundaries (ingress/compile/runtime).
+
+| Language | Tier 0 | Tier 1 | Tier 2 | Notes |
+|---|:---:|:---:|:---:|---|
+| Go | Yes | Yes | Partial/Planned | Protovalidate annotations may require adding protovalidate Go deps in consumers. |
+| TypeScript | Yes | Yes | Partial/Planned | Runtime validation uses `@bufbuild/protovalidate` in validating services only. |
+| Python | Yes | No (today) | No | If any schema imports `buf/validate/validate.proto`, generated Python imports `buf.validate.validate_pb2`, which is not currently shipped in `gen/python`. Python Tier 1 requires either vendoring/generating Protovalidate protos into `gen/python` or depending on a Protovalidate Python SDK that provides them. |
 
 ## BAS schema notes
 

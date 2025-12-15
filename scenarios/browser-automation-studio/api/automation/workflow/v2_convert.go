@@ -12,7 +12,7 @@ import (
 
 // V1NodeToWorkflowNodeV2 converts a legacy V1 node to the proto WorkflowNodeV2 format.
 func V1NodeToWorkflowNodeV2(node V1Node) (*basworkflows.WorkflowNodeV2, error) {
-	action, err := v1DataToActionDefinition(node.Type, node.Data)
+	action, err := V1DataToActionDefinition(node.Type, node.Data)
 	if err != nil {
 		return nil, fmt.Errorf("convert node %s: %w", node.ID, err)
 	}
@@ -171,8 +171,10 @@ func WorkflowDefinitionV2ToV1(def *basworkflows.WorkflowDefinitionV2) (V1FlowDef
 	return result, nil
 }
 
-// v1DataToActionDefinition converts V1 node data to an ActionDefinition.
-func v1DataToActionDefinition(nodeType string, data map[string]any) (*basactions.ActionDefinition, error) {
+// V1DataToActionDefinition converts V1 node data to an ActionDefinition.
+// This is the bridge between legacy untyped params and new typed action.
+// Used by ContractPlanCompiler to populate CompiledInstruction.Action.
+func V1DataToActionDefinition(nodeType string, data map[string]any) (*basactions.ActionDefinition, error) {
 	action := &basactions.ActionDefinition{}
 
 	// Map node type to ActionType

@@ -29,7 +29,7 @@
       "type": "subflow",
       "data": {
         "label": "Dismiss onboarding tutorial if present",
-        "workflowId": "@fixture/dismiss-tutorial"
+        "workflowPath": "actions/dismiss-tutorial.json"
       }
     },
     {

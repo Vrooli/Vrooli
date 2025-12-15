@@ -17,7 +17,11 @@
       "type": "subflow",
       "data": {
         "label": "Open builder via fixture",
-        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+        "workflowPath": "actions/open-builder-from-demo.json",
+        "params": {
+              "projectName": "${@params/projectName}",
+              "projectFolder": "${@params/projectFolder}"
+        }
       }
     },
     {

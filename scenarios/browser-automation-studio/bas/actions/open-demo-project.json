@@ -1,119 +1,127 @@
 {
   "metadata": {
+    "name": "open-demo-project",
     "description": "Navigates to the BAS dashboard and opens the seeded demo project",
-    "fixture_id": "open-demo-project",
-    "requirements": [
-      "BAS-WORKFLOW-DEMO-SEED"
-    ],
-    "parameters": [
-      {
-        "name": "projectId",
-        "type": "string",
-        "required": true,
-        "default": "@seed/projectId",
-        "description": "Project identifier created by the seed script"
-      },
-      {
-        "name": "projectName",
-        "type": "string",
-        "required": true,
-        "default": "@seed/projectName",
-        "description": "Project name created by the seed script"
-      },
-      {
-        "name": "projectFolder",
-        "type": "string",
-        "required": true,
-        "default": "@seed/projectFolder",
-        "description": "Seed project folder path"
-      }
-    ],
-    "reset": "none"
+    "labels": {
+      "fixture_id": "open-demo-project",
+      "reset": "none",
+      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
+      "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier created by the seed script\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project name created by the seed script\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Seed project folder path\"}]"
+    }
   },
+  "settings": {},
   "nodes": [
     {
       "id": "fixture-seed-state",
-      "type": "subflow",
-      "data": {
-        "label": "Load seed metadata",
-        "workflowId": "@fixture/load-seed-state"
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/load-seed-state.json",
+          "args": {
+            "projectId": { "string_value": "${@params/projectId}" },
+            "projectName": { "string_value": "${@params/projectName}" },
+            "projectFolder": { "string_value": "${@params/projectFolder}" },
+            "workflowId": { "string_value": "${@params/workflowId}" },
+            "workflowName": { "string_value": "${@params/workflowName}" }
+          }
+        },
+        "metadata": { "label": "Load seed metadata" }
       }
     },
     {
       "id": "fixture-navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "url": "",
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 45000
+        },
+        "metadata": { "label": "Open BAS dashboard" }
+      },
+      "execution_settings": {
+        "wait_after_ms": 2000
       }
     },
     {
       "id": "fixture-dismiss-tutorial",
-      "type": "subflow",
-      "data": {
-        "label": "Dismiss onboarding tutorial if present",
-        "workflowId": "@fixture/dismiss-tutorial"
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "metadata": { "label": "Dismiss onboarding tutorial if present" }
       }
     },
     {
       "id": "fixture-click-projects-tab",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Projects tab",
-        "selector": "@selector/dashboard.tabs.projects",
-        "timeoutMs": 5000,
-        "waitForMs": 500
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/dashboard.tabs.projects" },
+        "metadata": { "label": "Navigate to Projects tab" }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "wait_after_ms": 500
       }
     },
     {
       "id": "fixture-wait-for-projects",
-      "type": "wait",
-      "data": {
-        "label": "Wait for Projects tab to load",
-        "selector": "@selector/dashboard.newProjectButton",
-        "timeoutMs": 15000,
-        "waitForMs": 1000,
-        "waitType": "element"
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dashboard.newProjectButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for Projects tab to load" }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
       }
     },
     {
       "id": "fixture-assert-seed-project",
-      "type": "assert",
-      "data": {
-        "label": "Verify seed project exists",
-        "selector": "@selector/projects.cardById(id=\"${fixture.projectId}\")",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Seed project with ID ${fixture.projectId} should exist. Ensure seed script ran successfully."
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/projects.cardById(id=\"${@params/projectId}\")",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000,
+          "failure_message": "Seed project with ID ${@params/projectId} should exist. Ensure seed script ran successfully."
+        },
+        "metadata": { "label": "Verify seed project exists" }
       }
     },
     {
       "id": "fixture-click-demo",
-      "type": "click",
-      "data": {
-        "label": "Select demo project",
-        "selector": "@selector/projects.cardById(id=\"${fixture.projectId}\")",
-        "timeoutMs": 10000,
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/projects.cardById(id=\"${@params/projectId}\")" },
+        "metadata": { "label": "Select demo project" }
+      },
+      "execution_settings": {
+        "timeout_ms": 10000,
         "resilience": {
-          "successSelector": "h1",
-          "successTimeoutMs": 10000
+          "success_selector": "h1",
+          "success_timeout_ms": 10000
         }
       }
     },
     {
       "id": "fixture-assert-demo-heading",
-      "type": "assert",
-      "data": {
-        "label": "Verify project header",
-        "selector": "h1",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Project header should be visible"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "h1",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Project header should be visible"
+        },
+        "metadata": { "label": "Verify project header" }
       }
     }
   ],
@@ -122,43 +130,43 @@
       "id": "fixture-edge-0",
       "source": "fixture-seed-state",
       "target": "fixture-navigate-dashboard",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-edge-1",
       "source": "fixture-navigate-dashboard",
       "target": "fixture-dismiss-tutorial",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-edge-1b",
       "source": "fixture-dismiss-tutorial",
       "target": "fixture-click-projects-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-edge-1c",
       "source": "fixture-click-projects-tab",
       "target": "fixture-wait-for-projects",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-edge-1a",
       "source": "fixture-wait-for-projects",
       "target": "fixture-assert-seed-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-edge-1b",
       "source": "fixture-assert-seed-project",
       "target": "fixture-click-demo",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-edge-2",
       "source": "fixture-click-demo",
       "target": "fixture-assert-demo-heading",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

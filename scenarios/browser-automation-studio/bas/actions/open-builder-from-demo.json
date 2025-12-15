@@ -1,80 +1,73 @@
 {
   "metadata": {
+    "name": "open-builder-from-demo",
     "description": "Ensures the workflow builder is opened from the Demo project",
-    "fixture_id": "open-builder-from-demo",
-    "requirements": [
-      "BAS-WORKFLOW-DEMO-SEED"
-    ],
-    "parameters": [
-      {
-        "name": "projectId",
-        "type": "string",
-        "required": true,
-        "default": "@seed/projectId",
-        "description": "Project identifier to load"
-      },
-      {
-        "name": "projectName",
-        "type": "string",
-        "required": true,
-        "default": "@seed/projectName",
-        "description": "Project to load before entering the builder"
-      },
-      {
-        "name": "projectFolder",
-        "type": "string",
-        "required": true,
-        "default": "@seed/projectFolder",
-        "description": "Folder path for the seeded project"
-      }
-    ],
-    "reset": "none"
+    "labels": {
+      "fixture_id": "open-builder-from-demo",
+      "reset": "none",
+      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
+      "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier to load\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project to load before entering the builder\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Folder path for the seeded project\"}]"
+    }
   },
+  "settings": {},
   "nodes": [
     {
       "id": "fixture-call-open-project",
-      "type": "subflow",
-      "data": {
-        "label": "Open Demo project",
-        "workflowId": "@fixture/open-demo-project(projectId=\"${fixture.projectId}\", projectName=\"${fixture.projectName}\", projectFolder=\"${fixture.projectFolder}\")"
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/open-demo-project.json",
+          "args": {
+            "projectId": { "string_value": "${@params/projectId}" },
+            "projectName": { "string_value": "${@params/projectName}" },
+            "projectFolder": { "string_value": "${@params/projectFolder}" }
+          }
+        },
+        "metadata": { "label": "Open Demo project" }
       }
     },
     {
       "id": "fixture-click-new-workflow",
-      "type": "click",
-      "data": {
-        "label": "Click New Workflow",
-        "selector": "@selector/workflows.newButton",
-        "timeoutMs": 15000,
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/workflows.newButton" },
+        "metadata": { "label": "Click New Workflow" }
+      },
+      "execution_settings": {
+        "timeout_ms": 15000,
         "resilience": {
-          "successSelector": "@selector/ai.modal.root, @selector/workflowBuilder.canvas.root",
-          "successTimeoutMs": 15000
+          "success_selector": "@selector/ai.modal.root, @selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 15000
         }
       }
     },
     {
       "id": "fixture-switch-to-manual",
-      "type": "click",
-      "data": {
-        "label": "Switch to manual builder",
-        "selector": "@selector/ai.modal.switchToManualButton",
-        "timeoutMs": 5000,
-        "continueOnError": true,
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/ai.modal.switchToManualButton" },
+        "metadata": { "label": "Switch to manual builder" }
+      },
+      "execution_settings": {
+        "timeout_ms": 5000,
+        "continue_on_error": true,
         "resilience": {
-          "successSelector": "@selector/workflowBuilder.canvas.root",
-          "successTimeoutMs": 15000
+          "success_selector": "@selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 15000
         }
       }
     },
     {
       "id": "fixture-assert-builder",
-      "type": "assert",
-      "data": {
-        "label": "Builder fully initialized and interactive",
-        "selector": "@selector/workflowBuilder.reactFlowReady",
-        "assertMode": "exists",
-        "timeoutMs": 15000,
-        "failureMessage": "Workflow builder should be fully initialized and ready for automation. This indicates React Flow has completed its initialization, viewport calculations, and fitView animation."
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workflowBuilder.reactFlowReady",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Workflow builder should be fully initialized and ready for automation. This indicates React Flow has completed its initialization, viewport calculations, and fitView animation."
+        },
+        "metadata": { "label": "Builder fully initialized and interactive" }
       }
     }
   ],
@@ -83,19 +76,19 @@
       "id": "fixture-builder-edge-1",
       "source": "fixture-call-open-project",
       "target": "fixture-click-new-workflow",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-builder-edge-2",
       "source": "fixture-click-new-workflow",
       "target": "fixture-switch-to-manual",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "fixture-builder-edge-3",
       "source": "fixture-switch-to-manual",
       "target": "fixture-assert-builder",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
   ]
 }

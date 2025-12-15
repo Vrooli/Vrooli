@@ -17,7 +17,11 @@
       "type": "subflow",
       "data": {
         "label": "Open builder via fixture",
-        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+        "workflowPath": "actions/open-builder-from-demo.json",
+        "params": {
+              "projectName": "${@params/projectName}",
+              "projectFolder": "${@params/projectFolder}"
+        }
       }
     },
     {
@@ -94,7 +98,7 @@
       "type": "evaluate",
       "data": {
         "label": "Verify node count increased",
-        "expression": "(() => { const initial = Number(@store/initialNodeCount || 0); const final = Number(@store/finalNodeCount || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
+        "expression": "(() => { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
         "storeResult": "nodeWasAdded"
       }
     },

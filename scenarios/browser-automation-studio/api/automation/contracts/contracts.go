@@ -4,10 +4,20 @@
 // Browserless, Desktop/Playwright) can plug in without changing downstream
 // consumers.
 //
-// Where possible, this package uses or re-exports proto-generated types from
-// packages/proto/gen/go/browser-automation-studio/v1 to ensure type consistency
-// with the API layer. Types that are internal to the execution engine or have
-// fields not suitable for API exposure (e.g., raw bytes) remain defined here.
+// PROTO TYPE STRATEGY:
+// This package re-exports proto-generated types from packages/proto/gen/go/
+// browser-automation-studio/v1 to ensure type consistency with the API layer.
+// Types are organized into three categories:
+//
+//  1. Direct re-exports: Types that work directly as proto types (geometry, selectors)
+//  2. Proto driver types: New types from driver.proto for engine<->driver contracts
+//  3. Native Go types: Types with time.Time or []byte that need conversion helpers
+//
+// For types with time.Time fields (like StepOutcome), native Go types are kept
+// for backward compatibility. Use the Proto* aliases and conversion helpers
+// when you need to work with the proto types directly.
+//
+// See: packages/proto/schemas/browser-automation-studio/v1/execution/driver.proto
 package contracts
 
 import (
@@ -17,13 +27,16 @@ import (
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
-// Re-export proto types that are used directly in contracts.
-// These are types that don't require Go-specific fields like time.Time.
-// Types with API-vs-engine differences (ConsoleLogEntry, NetworkEvent)
-// are defined locally below because they have time.Time fields.
+// =============================================================================
+// PROTO TYPE RE-EXPORTS (Direct Aliases)
+// =============================================================================
+// These proto types are used directly without conversion. They don't contain
+// Go-specific types like time.Time that would require special handling.
+
 type (
 	// === Geometry types from proto geometry.proto ===
 	// BoundingBox captures the position and dimensions of a rectangular region.
@@ -63,6 +76,99 @@ type (
 	// ActionDefinition from proto action.proto - action with params.
 	ActionDefinition = basactions.ActionDefinition
 )
+
+// =============================================================================
+// PROTO DRIVER TYPE RE-EXPORTS
+// =============================================================================
+// These types from driver.proto define the canonical engine<->driver contract.
+// They use google.protobuf.Timestamp for time fields and are the SINGLE SOURCE
+// OF TRUTH for the wire format between Go engine and TypeScript driver.
+//
+// For backward compatibility, native Go types (StepOutcome, StepFailure, etc.)
+// are still defined below. Use the Proto* types when working directly with
+// proto serialization, or use the conversion helpers in protoconv package.
+
+type (
+	// ProtoStepOutcome is the proto-generated StepOutcome type.
+	// Use this when you need proto serialization. For native Go code with
+	// time.Time fields, use the StepOutcome type defined below.
+	ProtoStepOutcome = basexecution.StepOutcome
+
+	// ProtoStepFailure is the proto-generated StepFailure type.
+	ProtoStepFailure = basexecution.StepFailure
+
+	// ProtoDriverScreenshot is the proto-generated DriverScreenshot type.
+	// Contains binary screenshot data as bytes.
+	ProtoDriverScreenshot = basexecution.DriverScreenshot
+
+	// ProtoDOMSnapshot is the proto-generated DOMSnapshot type.
+	ProtoDOMSnapshot = basexecution.DOMSnapshot
+
+	// ProtoDriverConsoleLogEntry is the proto-generated console log entry.
+	ProtoDriverConsoleLogEntry = basexecution.DriverConsoleLogEntry
+
+	// ProtoDriverNetworkEvent is the proto-generated network event.
+	ProtoDriverNetworkEvent = basexecution.DriverNetworkEvent
+
+	// ProtoCursorPosition is the proto-generated cursor position type.
+	ProtoCursorPosition = basexecution.CursorPosition
+
+	// ProtoConditionOutcome is the proto-generated condition outcome.
+	ProtoConditionOutcome = basexecution.ConditionOutcome
+
+	// ProtoAssertionOutcome is the proto-generated assertion outcome.
+	ProtoAssertionOutcome = basexecution.AssertionOutcome
+
+	// ProtoCompiledInstruction is the proto-generated instruction type.
+	ProtoCompiledInstruction = basexecution.CompiledInstruction
+
+	// ProtoExecutionPlan is the proto-generated execution plan.
+	ProtoExecutionPlan = basexecution.ExecutionPlan
+
+	// ProtoPlanGraph is the proto-generated plan graph.
+	ProtoPlanGraph = basexecution.PlanGraph
+
+	// ProtoPlanStep is the proto-generated plan step.
+	ProtoPlanStep = basexecution.PlanStep
+
+	// ProtoPlanEdge is the proto-generated plan edge.
+	ProtoPlanEdge = basexecution.PlanEdge
+)
+
+// Proto enum type aliases for failure taxonomy.
+type (
+	// ProtoFailureKind is the proto-generated failure kind enum.
+	ProtoFailureKind = basexecution.FailureKind
+
+	// ProtoFailureSource is the proto-generated failure source enum.
+	ProtoFailureSource = basexecution.FailureSource
+)
+
+// Proto enum value constants for FailureKind.
+const (
+	ProtoFailureKindUnspecified   = basexecution.FailureKind_FAILURE_KIND_UNSPECIFIED
+	ProtoFailureKindEngine        = basexecution.FailureKind_FAILURE_KIND_ENGINE
+	ProtoFailureKindInfra         = basexecution.FailureKind_FAILURE_KIND_INFRA
+	ProtoFailureKindOrchestration = basexecution.FailureKind_FAILURE_KIND_ORCHESTRATION
+	ProtoFailureKindUser          = basexecution.FailureKind_FAILURE_KIND_USER
+	ProtoFailureKindTimeout       = basexecution.FailureKind_FAILURE_KIND_TIMEOUT
+	ProtoFailureKindCancelled     = basexecution.FailureKind_FAILURE_KIND_CANCELLED
+)
+
+// Proto enum value constants for FailureSource.
+const (
+	ProtoFailureSourceUnspecified = basexecution.FailureSource_FAILURE_SOURCE_UNSPECIFIED
+	ProtoFailureSourceEngine      = basexecution.FailureSource_FAILURE_SOURCE_ENGINE
+	ProtoFailureSourceExecutor    = basexecution.FailureSource_FAILURE_SOURCE_EXECUTOR
+	ProtoFailureSourceRecorder    = basexecution.FailureSource_FAILURE_SOURCE_RECORDER
+)
+
+// =============================================================================
+// NATIVE GO TYPES (Backward Compatibility)
+// =============================================================================
+// The following types are native Go structs with time.Time fields. They are
+// kept for backward compatibility with existing code. For new code that needs
+// proto interoperability, prefer the Proto* types above with conversion helpers.
 
 const (
 	// StepOutcomeSchemaVersion tracks the shape of StepOutcome and its nested
