@@ -1,7 +1,19 @@
+// Package database provides database index types and repository operations.
+//
+// IMPORTANT: This package contains INDEX types, not domain types.
+// Domain types are defined as Protocol Buffers in packages/proto.
+//
+// The database stores minimal index data for queryable operations:
+// - projects: id, name, folder_path
+// - workflows: id, project_id, name, folder_path, file_path, version
+// - executions: id, workflow_id, status, started_at, completed_at, error_message, result_path
+// - schedules: id, workflow_id, name, cron, timezone, is_active, next_run_at, last_run_at
+// - settings: key, value
+//
+// Rich domain data lives on disk as protojson and is assembled by higher layers.
 package database
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -9,7 +21,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 )
 
 // Common errors
@@ -17,27 +28,117 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-// currentDialect is set by NewConnection; defaults to postgres for tests that bypass it.
-// Deprecated: prefer using DB.dialect; kept for value types that still rely on the global.
-var currentDialect Dialect = DialectPostgres
+// ============================================================================
+// INDEX TYPES - Stored in database for queryable lookups
+// ============================================================================
 
-// dialectProvider lets value encoders/decoders read the active dialect without a package-global.
-var dialectProvider DialectProvider
-
-// SetDialectProvider sets the provider used by value types; intended to be called once per process
-// by NewConnection. Falls back to currentDialect when nil.
-func SetDialectProvider(p DialectProvider) {
-	dialectProvider = p
+// ProjectIndex is the database index for a project.
+// Use basprojects.Project for domain operations.
+type ProjectIndex struct {
+	ID         uuid.UUID `json:"id" db:"id"`
+	Name       string    `json:"name" db:"name"`
+	FolderPath string    `json:"folder_path" db:"folder_path"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
 }
 
-func activeDialect() Dialect {
-	if dialectProvider != nil {
-		return dialectProvider.Dialect()
+// ProjectStats captures computed project metrics (not persisted as domain state).
+// These are derived from the index tables and used for UI summaries.
+type ProjectStats struct {
+	ProjectID      uuid.UUID  `json:"project_id" db:"project_id"`
+	WorkflowCount  int        `json:"workflow_count" db:"workflow_count"`
+	ExecutionCount int        `json:"execution_count" db:"execution_count"`
+	LastExecution  *time.Time `json:"last_execution,omitempty" db:"last_execution"`
+}
+
+// WorkflowIndex is the database index for a workflow.
+// Use basworkflows.WorkflowDefinitionV2 for workflow definitions.
+type WorkflowIndex struct {
+	ID         uuid.UUID  `json:"id" db:"id"`
+	ProjectID  *uuid.UUID `json:"project_id,omitempty" db:"project_id"`
+	Name       string     `json:"name" db:"name"`
+	FolderPath string     `json:"folder_path" db:"folder_path"`
+	FilePath   string     `json:"file_path,omitempty" db:"file_path"`
+	Version    int        `json:"version" db:"version"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// ExecutionIndex is the database index for an execution.
+// Use basexecution.Execution for full execution details.
+type ExecutionIndex struct {
+	ID           uuid.UUID  `json:"id" db:"id"`
+	WorkflowID   uuid.UUID  `json:"workflow_id" db:"workflow_id"`
+	Status       string     `json:"status" db:"status"`
+	StartedAt    time.Time  `json:"started_at" db:"started_at"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+	ErrorMessage string     `json:"error_message,omitempty" db:"error_message"`
+	ResultPath   string     `json:"result_path,omitempty" db:"result_path"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// Execution status constants
+const (
+	ExecutionStatusPending   = "pending"
+	ExecutionStatusRunning   = "running"
+	ExecutionStatusCompleted = "completed"
+	ExecutionStatusFailed    = "failed"
+)
+
+// ScheduleIndex is the database index for a workflow schedule.
+type ScheduleIndex struct {
+	ID             uuid.UUID  `json:"id" db:"id"`
+	WorkflowID     uuid.UUID  `json:"workflow_id" db:"workflow_id"`
+	Name           string     `json:"name" db:"name"`
+	CronExpression string     `json:"cron_expression" db:"cron_expression"`
+	Timezone       string     `json:"timezone" db:"timezone"`
+	IsActive       bool       `json:"is_active" db:"is_active"`
+	ParametersJSON string     `json:"parameters_json,omitempty" db:"parameters_json"`
+	NextRunAt      *time.Time `json:"next_run_at,omitempty" db:"next_run_at"`
+	LastRunAt      *time.Time `json:"last_run_at,omitempty" db:"last_run_at"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// GetParameters parses the JSON parameters into a map
+func (s *ScheduleIndex) GetParameters() (map[string]any, error) {
+	if s.ParametersJSON == "" || s.ParametersJSON == "{}" {
+		return make(map[string]any), nil
 	}
-	return currentDialect
+	var params map[string]any
+	if err := json.Unmarshal([]byte(s.ParametersJSON), &params); err != nil {
+		return nil, fmt.Errorf("failed to parse schedule parameters: %w", err)
+	}
+	return params, nil
 }
 
-// JSONMap represents a JSON object stored in the database
+// SetParameters serializes a map to JSON parameters
+func (s *ScheduleIndex) SetParameters(params map[string]any) error {
+	if params == nil {
+		s.ParametersJSON = "{}"
+		return nil
+	}
+	data, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("failed to serialize schedule parameters: %w", err)
+	}
+	s.ParametersJSON = string(data)
+	return nil
+}
+
+// Setting is a key-value pair for user preferences.
+type Setting struct {
+	Key       string    `json:"key" db:"key"`
+	Value     string    `json:"value" db:"value"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ============================================================================
+// HELPER TYPES
+// ============================================================================
+
+// JSONMap represents a JSON object for marshaling/unmarshaling
 type JSONMap map[string]any
 
 func (j JSONMap) Value() (driver.Value, error) {
@@ -67,7 +168,8 @@ func (j *JSONMap) Scan(value any) error {
 
 // NullableString represents a nullable string in the database
 type NullableString struct {
-	sql.NullString
+	String string
+	Valid  bool
 }
 
 func (ns NullableString) MarshalJSON() ([]byte, error) {
@@ -91,237 +193,11 @@ func (ns *NullableString) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func normalizeString(src any) (string, bool) {
-	switch v := src.(type) {
-	case []byte:
-		return string(v), true
-	case string:
-		return v, true
-	default:
-		return "", false
-	}
-}
-
-// Project represents a project containing related workflows
-type Project struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Description string    `json:"description,omitempty" db:"description"`
-	FolderPath  string    `json:"folder_path" db:"folder_path"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
-}
-
-// ProjectStats captures aggregated metrics for a project.
-type ProjectStats struct {
-	ProjectID      uuid.UUID  `json:"project_id" db:"project_id"`
-	WorkflowCount  int        `json:"workflow_count" db:"workflow_count"`
-	ExecutionCount int        `json:"execution_count" db:"execution_count"`
-	LastExecution  *time.Time `json:"last_execution,omitempty" db:"last_execution"`
-}
-
-// WorkflowFolder represents a workflow organization folder
-type WorkflowFolder struct {
-	ID          uuid.UUID  `json:"id" db:"id"`
-	Path        string     `json:"path" db:"path"`
-	ParentID    *uuid.UUID `json:"parent_id,omitempty" db:"parent_id"`
-	Name        string     `json:"name" db:"name"`
-	Description string     `json:"description,omitempty" db:"description"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
-}
-
-// ProjectEntryKind captures the logical role of an entry in the project's file tree.
-type ProjectEntryKind string
-
-const (
-	ProjectEntryKindFolder       ProjectEntryKind = "folder"
-	ProjectEntryKindWorkflowFile ProjectEntryKind = "workflow_file"
-	ProjectEntryKindAssetFile    ProjectEntryKind = "asset_file"
-)
-
-// ProjectEntry indexes a file-tree entry for a project, backed by disk but searchable via DB.
-// Paths are project-root-relative (no leading slash).
-type ProjectEntry struct {
-	ID         uuid.UUID        `json:"id" db:"id"`
-	ProjectID  uuid.UUID        `json:"project_id" db:"project_id"`
-	Path       string           `json:"path" db:"path"`
-	Kind       ProjectEntryKind `json:"kind" db:"kind"`
-	WorkflowID *uuid.UUID       `json:"workflow_id,omitempty" db:"workflow_id"`
-	Metadata   JSONMap          `json:"metadata,omitempty" db:"metadata"`
-	CreatedAt  time.Time        `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time        `json:"updated_at" db:"updated_at"`
-}
-
-// Workflow represents a browser automation workflow
-type Workflow struct {
-	ID                    uuid.UUID   `json:"id" db:"id"`
-	ProjectID             *uuid.UUID  `json:"project_id,omitempty" db:"project_id"`
-	Name                  string      `json:"name" db:"name"`
-	FolderPath            string      `json:"folder_path" db:"folder_path"`
-	WorkflowType          string      `json:"workflow_type" db:"workflow_type"`
-	FlowDefinition        JSONMap     `json:"flow_definition" db:"flow_definition"`
-	Inputs                JSONMap     `json:"inputs,omitempty" db:"inputs"`
-	Outputs               JSONMap     `json:"outputs,omitempty" db:"outputs"`
-	ExpectedOutcome       JSONMap     `json:"expected_outcome,omitempty" db:"expected_outcome"`
-	WorkflowMetadata      JSONMap     `json:"workflow_metadata,omitempty" db:"workflow_metadata"`
-	Description           string      `json:"description,omitempty" db:"description"`
-	Tags                  StringArray `json:"tags" db:"tags"`
-	Version               int         `json:"version" db:"version"`
-	IsTemplate            bool        `json:"is_template" db:"is_template"`
-	CreatedBy             string      `json:"created_by,omitempty" db:"created_by"`
-	LastChangeSource      string      `json:"last_change_source,omitempty" db:"last_change_source"`
-	LastChangeDescription string      `json:"last_change_description,omitempty" db:"last_change_description"`
-	CreatedAt             time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt             time.Time   `json:"updated_at" db:"updated_at"`
-}
-
-// WorkflowVersion represents a version of a workflow
-type WorkflowVersion struct {
-	ID                uuid.UUID `json:"id" db:"id"`
-	WorkflowID        uuid.UUID `json:"workflow_id" db:"workflow_id"`
-	Version           int       `json:"version" db:"version"`
-	FlowDefinition    JSONMap   `json:"flow_definition" db:"flow_definition"`
-	ChangeDescription string    `json:"change_description,omitempty" db:"change_description"`
-	CreatedBy         string    `json:"created_by,omitempty" db:"created_by"`
-	CreatedAt         time.Time `json:"created_at" db:"created_at"`
-}
-
-// Execution represents a workflow execution
-type Execution struct {
-	ID              uuid.UUID      `json:"id" db:"id"`
-	WorkflowID      uuid.UUID      `json:"workflow_id" db:"workflow_id"`
-	WorkflowVersion int            `json:"workflow_version,omitempty" db:"workflow_version"`
-	Status          string         `json:"status" db:"status"`
-	TriggerType     string         `json:"trigger_type" db:"trigger_type"`
-	TriggerMetadata JSONMap        `json:"trigger_metadata,omitempty" db:"trigger_metadata"`
-	Parameters      JSONMap        `json:"parameters,omitempty" db:"parameters"`
-	StartedAt       time.Time      `json:"started_at" db:"started_at"`
-	CompletedAt     *time.Time     `json:"completed_at,omitempty" db:"completed_at"`
-	LastHeartbeat   *time.Time     `json:"last_heartbeat,omitempty" db:"last_heartbeat"`
-	Error           NullableString `json:"error,omitempty" db:"error"`
-	Result          JSONMap        `json:"result,omitempty" db:"result"`
-	Progress        int            `json:"progress" db:"progress"`
-	CurrentStep     string         `json:"current_step,omitempty" db:"current_step"`
-	CreatedAt       time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at" db:"updated_at"`
-}
-
-// ExecutionLog represents a log entry for a workflow execution
-type ExecutionLog struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	ExecutionID uuid.UUID `json:"execution_id" db:"execution_id"`
-	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
-	Level       string    `json:"level" db:"level"`
-	StepName    string    `json:"step_name,omitempty" db:"step_name"`
-	Message     string    `json:"message" db:"message"`
-	Metadata    JSONMap   `json:"metadata,omitempty" db:"metadata"`
-}
-
-// Screenshot represents a captured screenshot during execution
-type Screenshot struct {
-	ID           uuid.UUID `json:"id" db:"id"`
-	ExecutionID  uuid.UUID `json:"execution_id" db:"execution_id"`
-	StepName     string    `json:"step_name" db:"step_name"`
-	Timestamp    time.Time `json:"timestamp" db:"timestamp"`
-	StorageURL   string    `json:"storage_url" db:"storage_url"`
-	ThumbnailURL string    `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
-	Width        int       `json:"width,omitempty" db:"width"`
-	Height       int       `json:"height,omitempty" db:"height"`
-	SizeBytes    int64     `json:"size_bytes,omitempty" db:"size_bytes"`
-	Metadata     JSONMap   `json:"metadata,omitempty" db:"metadata"`
-}
-
-// ExtractedData represents data extracted during workflow execution
-type ExtractedData struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	ExecutionID uuid.UUID `json:"execution_id" db:"execution_id"`
-	StepName    string    `json:"step_name" db:"step_name"`
-	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
-	DataKey     string    `json:"data_key" db:"data_key"`
-	DataValue   JSONMap   `json:"data_value" db:"data_value"`
-	DataType    string    `json:"data_type,omitempty" db:"data_type"`
-	Metadata    JSONMap   `json:"metadata,omitempty" db:"metadata"`
-}
-
-// ExecutionStep represents the normalized record for each executed workflow step.
-type ExecutionStep struct {
-	ID          uuid.UUID  `json:"id" db:"id"`
-	ExecutionID uuid.UUID  `json:"execution_id" db:"execution_id"`
-	StepIndex   int        `json:"step_index" db:"step_index"`
-	NodeID      string     `json:"node_id" db:"node_id"`
-	StepType    string     `json:"step_type" db:"step_type"`
-	Status      string     `json:"status" db:"status"`
-	StartedAt   time.Time  `json:"started_at" db:"started_at"`
-	CompletedAt *time.Time `json:"completed_at,omitempty" db:"completed_at"`
-	DurationMs  int        `json:"duration_ms,omitempty" db:"duration_ms"`
-	Error       string     `json:"error,omitempty" db:"error"`
-	Input       JSONMap    `json:"input,omitempty" db:"input"`
-	Output      JSONMap    `json:"output,omitempty" db:"output"`
-	Metadata    JSONMap    `json:"metadata,omitempty" db:"metadata"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
-}
-
-// ExecutionArtifact stores artifacts (screenshots, telemetry blobs, etc.) linked to a step.
-type ExecutionArtifact struct {
-	ID           uuid.UUID  `json:"id" db:"id"`
-	ExecutionID  uuid.UUID  `json:"execution_id" db:"execution_id"`
-	StepID       *uuid.UUID `json:"step_id,omitempty" db:"step_id"`
-	StepIndex    *int       `json:"step_index,omitempty" db:"step_index"`
-	ArtifactType string     `json:"artifact_type" db:"artifact_type"`
-	Label        string     `json:"label,omitempty" db:"label"`
-	StorageURL   string     `json:"storage_url,omitempty" db:"storage_url"`
-	ThumbnailURL string     `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
-	ContentType  string     `json:"content_type,omitempty" db:"content_type"`
-	SizeBytes    *int64     `json:"size_bytes,omitempty" db:"size_bytes"`
-	Payload      JSONMap    `json:"payload,omitempty" db:"payload"`
-	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
-}
-
-// WorkflowSchedule represents a scheduled workflow execution
-type WorkflowSchedule struct {
-	ID             uuid.UUID  `json:"id" db:"id"`
-	WorkflowID     uuid.UUID  `json:"workflow_id" db:"workflow_id"`
-	Name           string     `json:"name" db:"name"`
-	Description    string     `json:"description,omitempty" db:"description"`
-	CronExpression string     `json:"cron_expression" db:"cron_expression"`
-	Timezone       string     `json:"timezone" db:"timezone"`
-	IsActive       bool       `json:"is_active" db:"is_active"`
-	Parameters     JSONMap    `json:"parameters,omitempty" db:"parameters"`
-	NextRunAt      *time.Time `json:"next_run_at,omitempty" db:"next_run_at"`
-	LastRunAt      *time.Time `json:"last_run_at,omitempty" db:"last_run_at"`
-	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
-}
-
-// WorkflowTemplate represents a reusable workflow template
-type WorkflowTemplate struct {
-	ID                uuid.UUID   `json:"id" db:"id"`
-	Name              string      `json:"name" db:"name"`
-	Category          string      `json:"category" db:"category"`
-	Description       string      `json:"description,omitempty" db:"description"`
-	FlowDefinition    JSONMap     `json:"flow_definition" db:"flow_definition"`
-	Icon              string      `json:"icon,omitempty" db:"icon"`
-	ExampleParameters JSONMap     `json:"example_parameters,omitempty" db:"example_parameters"`
-	Tags              StringArray `json:"tags" db:"tags"`
-	UsageCount        int         `json:"usage_count" db:"usage_count"`
-	CreatedAt         time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time   `json:"updated_at" db:"updated_at"`
-}
-
-// StringArray stores string slices in a backend-friendly format.
-// - Postgres: uses pq array encoding.
-// - SQLite: stores as JSON text for compatibility.
+// StringArray stores string slices in a database-friendly format
 type StringArray []string
 
 func (s StringArray) Value() (driver.Value, error) {
-	// Dialect will be injected at runtime; see WithDialect.
-	if activeDialect().IsSQLite() {
-		return json.Marshal([]string(s))
-	}
-	return pq.StringArray(s).Value() // Postgres path
+	return json.Marshal([]string(s))
 }
 
 func (s *StringArray) Scan(src any) error {
@@ -329,17 +205,13 @@ func (s *StringArray) Scan(src any) error {
 		*s = nil
 		return nil
 	}
-	// Attempt Postgres array parsing first when dialect is Postgres.
-	if activeDialect().IsPostgres() {
-		var arr pq.StringArray
-		if err := arr.Scan(src); err == nil {
-			*s = StringArray(arr)
-			return nil
-		}
-	}
-	// Fallback to JSON string for SQLite or when array parsing fails.
-	raw, ok := normalizeString(src)
-	if !ok {
+	var raw string
+	switch v := src.(type) {
+	case []byte:
+		raw = string(v)
+	case string:
+		raw = v
+	default:
 		return fmt.Errorf("StringArray: unsupported scan type %T", src)
 	}
 	var out []string
@@ -348,45 +220,4 @@ func (s *StringArray) Scan(src any) error {
 	}
 	*s = out
 	return nil
-}
-
-// AIGeneration represents an AI-generated workflow
-type AIGeneration struct {
-	ID               uuid.UUID  `json:"id" db:"id"`
-	WorkflowID       *uuid.UUID `json:"workflow_id,omitempty" db:"workflow_id"`
-	Prompt           string     `json:"prompt" db:"prompt"`
-	GeneratedFlow    JSONMap    `json:"generated_flow" db:"generated_flow"`
-	Model            string     `json:"model,omitempty" db:"model"`
-	GenerationTimeMs int        `json:"generation_time_ms,omitempty" db:"generation_time_ms"`
-	Success          bool       `json:"success" db:"success"`
-	Error            string     `json:"error,omitempty" db:"error"`
-	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
-}
-
-// Export represents an exported replay asset (video, gif, or json package)
-type Export struct {
-	ID                   uuid.UUID  `json:"id" db:"id"`
-	ExecutionID          uuid.UUID  `json:"execution_id" db:"execution_id"`
-	WorkflowID           *uuid.UUID `json:"workflow_id,omitempty" db:"workflow_id"`
-	Name                 string     `json:"name" db:"name"`
-	Format               string     `json:"format" db:"format"`
-	Settings             JSONMap    `json:"settings,omitempty" db:"settings"`
-	StorageURL           string     `json:"storage_url,omitempty" db:"storage_url"`
-	ThumbnailURL         string     `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
-	FileSizeBytes        *int64     `json:"file_size_bytes,omitempty" db:"file_size_bytes"`
-	DurationMs           *int       `json:"duration_ms,omitempty" db:"duration_ms"`
-	FrameCount           *int       `json:"frame_count,omitempty" db:"frame_count"`
-	AICaption            string     `json:"ai_caption,omitempty" db:"ai_caption"`
-	AICaptionGeneratedAt *time.Time `json:"ai_caption_generated_at,omitempty" db:"ai_caption_generated_at"`
-	Status               string     `json:"status" db:"status"`
-	Error                string     `json:"error,omitempty" db:"error"`
-	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
-}
-
-// ExportWithDetails includes related workflow and execution info for display
-type ExportWithDetails struct {
-	Export
-	WorkflowName  string `json:"workflow_name,omitempty" db:"workflow_name"`
-	ExecutionDate string `json:"execution_date,omitempty" db:"execution_date"`
 }

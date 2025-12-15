@@ -74,14 +74,20 @@ type ExecutionRecovery struct {
 // RecoverStaleExecutions finds and marks all stale executions as interrupted.
 // This should be called during startup to clean up any executions that were
 // abandoned due to process termination.
+//
+// In the new architecture, execution details are stored in JSON files.
+// We find stale executions by looking for "running" or "pending" executions
+// that haven't been updated within the stale threshold.
 func (s *Service) RecoverStaleExecutions(ctx context.Context) (*RecoveryResult, error) {
 	startedAt := time.Now()
 	result := &RecoveryResult{
 		StartedAt: startedAt,
 	}
 
-	// Find all stale executions
-	staleExecutions, err := s.repo.FindStaleExecutions(ctx, s.staleThreshold)
+	// Find all stale executions by listing running/pending executions
+	// and checking their updated_at timestamp
+	staleThreshold := time.Now().Add(-s.staleThreshold)
+	staleExecutions, err := s.findStaleExecutions(ctx, staleThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find stale executions: %w", err)
 	}
@@ -104,41 +110,31 @@ func (s *Service) RecoverStaleExecutions(ctx context.Context) (*RecoveryResult, 
 			Status:      exec.Status,
 		}
 
-		// Check if the execution has any completed steps (making it resumable)
-		lastStepIndex, stepErr := s.repo.GetLastSuccessfulStepIndex(ctx, exec.ID)
-		if stepErr != nil {
-			s.log.WithError(stepErr).WithField("execution_id", exec.ID).Warn("Failed to get last step index")
-			recovery.Error = stepErr.Error()
-			recovery.RecoveryAction = "error_checking_steps"
-			result.Failed++
-			result.Executions = append(result.Executions, recovery)
-			continue
-		}
+		// In the new architecture, step details are in result JSON files.
+		// We mark the execution as failed with an interrupt reason.
+		// Resumability should be determined by checking the result file.
+		recovery.LastStepIndex = -1 // Unknown without reading result file
+		recovery.Resumable = false   // Conservative default
 
-		recovery.LastStepIndex = lastStepIndex
-		recovery.Resumable = lastStepIndex >= 0
+		// Mark the execution as failed/interrupted
+		exec.Status = database.ExecutionStatusFailed
+		exec.ErrorMessage = fmt.Sprintf("Execution interrupted due to service restart at %s",
+			startedAt.Format(time.RFC3339))
+		now := time.Now()
+		exec.CompletedAt = &now
+		exec.UpdatedAt = now
 
-		if recovery.Resumable {
-			result.Resumable++
-		}
-
-		// Mark the execution as interrupted
-		interruptReason := fmt.Sprintf("Execution interrupted due to service restart. Last successful step: %d. Resumable: %v",
-			lastStepIndex, recovery.Resumable)
-
-		if markErr := s.repo.MarkExecutionInterrupted(ctx, exec.ID, interruptReason); markErr != nil {
-			s.log.WithError(markErr).WithField("execution_id", exec.ID).Error("Failed to mark execution interrupted")
-			recovery.Error = markErr.Error()
+		if updateErr := s.repo.UpdateExecution(ctx, exec); updateErr != nil {
+			s.log.WithError(updateErr).WithField("execution_id", exec.ID).Error("Failed to mark execution interrupted")
+			recovery.Error = updateErr.Error()
 			recovery.RecoveryAction = "error_marking_interrupted"
 			result.Failed++
 		} else {
 			recovery.RecoveryAction = "marked_interrupted"
 			result.Recovered++
 			s.log.WithFields(logrus.Fields{
-				"execution_id":    exec.ID,
-				"workflow_id":     exec.WorkflowID,
-				"last_step_index": lastStepIndex,
-				"resumable":       recovery.Resumable,
+				"execution_id": exec.ID,
+				"workflow_id":  exec.WorkflowID,
 			}).Info("Recovered stale execution")
 		}
 
@@ -147,22 +143,29 @@ func (s *Service) RecoverStaleExecutions(ctx context.Context) (*RecoveryResult, 
 
 	result.CompletedAt = time.Now()
 	result.DurationMs = time.Since(startedAt).Milliseconds()
-
-	s.log.WithFields(logrus.Fields{
-		"total_stale": result.TotalStale,
-		"recovered":   result.Recovered,
-		"resumable":   result.Resumable,
-		"failed":      result.Failed,
-		"duration_ms": result.DurationMs,
-	}).Info("Stale execution recovery completed")
-
 	return result, nil
 }
 
-// CanResume checks if an execution can be resumed from its last checkpoint.
-// Returns the step index to resume from, or -1 if not resumable.
-func (s *Service) CanResume(ctx context.Context, executionID string) (int, bool, error) {
-	// For now, resumption is tracked but not implemented.
-	// This method provides the foundation for future resume functionality.
-	return -1, false, nil
+// findStaleExecutions finds executions that are in running/pending state
+// but haven't been updated since the stale threshold.
+func (s *Service) findStaleExecutions(ctx context.Context, staleThreshold time.Time) ([]*database.ExecutionIndex, error) {
+	// List all executions and filter for stale ones
+	// In a production system, this should be a database query with filters
+	allExecutions, err := s.repo.ListExecutions(ctx, nil, 1000, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var stale []*database.ExecutionIndex
+	for _, exec := range allExecutions {
+		// Check if execution is in a running state
+		if exec.Status != database.ExecutionStatusRunning && exec.Status != database.ExecutionStatusPending {
+			continue
+		}
+		// Check if it hasn't been updated recently
+		if exec.UpdatedAt.Before(staleThreshold) {
+			stale = append(stale, exec)
+		}
+	}
+	return stale, nil
 }

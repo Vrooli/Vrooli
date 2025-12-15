@@ -10,7 +10,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/automation/recorder"
-	"github.com/vrooli/browser-automation-studio/database"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
 // Request wires together the dependencies required to run a compiled plan.
@@ -64,7 +64,7 @@ func (e *CapabilityError) Error() string {
 
 // WorkflowResolver fetches workflow definitions for subflow execution.
 type WorkflowResolver interface {
-	GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*database.Workflow, error)
-	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.Workflow, error)
-	GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*database.Workflow, error)
+	GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowSummary, error)
+	GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*basapi.WorkflowSummary, error)
+	GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*basapi.WorkflowSummary, error)
 }

@@ -9,6 +9,7 @@ import (
 )
 
 // Recorder normalizes and persists artifacts derived from engine output.
+// Execution details are written to JSON files on disk; the database stores only index data.
 type Recorder interface {
 	RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error)
 	RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error
@@ -19,12 +20,11 @@ type Recorder interface {
 	UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error
 }
 
-// ExecutionRepository captures the minimal persistence surface needed by the recorder.
-type ExecutionRepository interface {
-	CreateExecutionStep(ctx context.Context, step *database.ExecutionStep) error
-	CreateExecutionArtifact(ctx context.Context, artifact *database.ExecutionArtifact) error
-	CreateExecutionLog(ctx context.Context, log *database.ExecutionLog) error
-	UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error
+// ExecutionIndexRepository captures the minimal persistence surface needed by the recorder.
+// This updates the database index only; detailed execution data is written to JSON files.
+type ExecutionIndexRepository interface {
+	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
+	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
 }
 
 // RecordResult exposes IDs generated during persistence for downstream sinks.

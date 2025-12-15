@@ -2,11 +2,13 @@ package workflow
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/database"
+	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 )
@@ -22,52 +24,61 @@ type (
 )
 
 // GetExecutionTimeline assembles replay-ready artifacts for a given execution.
+// Reads execution data from the result JSON file stored on disk.
 func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*ExecutionTimeline, error) {
 	execution, err := s.repo.GetExecution(ctx, executionID)
 	if err != nil {
 		return nil, err
 	}
 
-	artifacts, err := s.repo.ListExecutionArtifacts(ctx, executionID)
-	if err != nil {
-		return nil, err
+	// If no result file exists yet, return a minimal timeline
+	if execution.ResultPath == "" {
+		return &ExecutionTimeline{
+			ExecutionID: execution.ID,
+			WorkflowID:  execution.WorkflowID,
+			Status:      execution.Status,
+			StartedAt:   execution.StartedAt,
+			CompletedAt: execution.CompletedAt,
+			Frames:      []TimelineFrame{},
+			Logs:        []TimelineLog{},
+		}, nil
 	}
 
-	steps, err := s.repo.ListExecutionSteps(ctx, executionID)
+	// Read the execution result file
+	resultData, err := s.readExecutionResult(execution.ResultPath)
 	if err != nil {
-		return nil, err
-	}
-
-	stepByID := make(map[uuid.UUID]*database.ExecutionStep, len(steps))
-	stepByIndex := make(map[int]*database.ExecutionStep, len(steps))
-	for _, step := range steps {
-		if step == nil {
-			continue
+		if os.IsNotExist(err) {
+			// Result file not found, return minimal timeline
+			return &ExecutionTimeline{
+				ExecutionID: execution.ID,
+				WorkflowID:  execution.WorkflowID,
+				Status:      execution.Status,
+				StartedAt:   execution.StartedAt,
+				CompletedAt: execution.CompletedAt,
+				Frames:      []TimelineFrame{},
+				Logs:        []TimelineLog{},
+			}, nil
 		}
-		stepByID[step.ID] = step
+		return nil, fmt.Errorf("read result file: %w", err)
+	}
+
+	// Build indexes for artifacts and steps
+	stepByIndex := make(map[int]*autorecorder.StepResultData, len(resultData.Steps))
+	for i := range resultData.Steps {
+		step := &resultData.Steps[i]
 		stepByIndex[step.StepIndex] = step
 	}
 
-	artifactByID := make(map[string]*database.ExecutionArtifact, len(artifacts))
-	for _, artifact := range artifacts {
-		if artifact == nil {
-			continue
-		}
-		artifactByID[artifact.ID.String()] = artifact
+	artifactByID := make(map[string]*autorecorder.ArtifactData, len(resultData.Artifacts))
+	for i := range resultData.Artifacts {
+		artifact := &resultData.Artifacts[i]
+		artifactByID[artifact.ArtifactID] = artifact
 	}
 
-	frames := make([]TimelineFrame, 0, len(artifacts))
-	for _, artifact := range artifacts {
-		if artifact == nil || artifact.ArtifactType != "timeline_frame" {
-			continue
-		}
-		frame, buildErr := s.buildTimelineFrame(artifact, artifactByID, stepByID, stepByIndex)
-		if buildErr != nil {
-			if s.log != nil {
-				s.log.WithError(buildErr).WithField("timeline_artifact_id", artifact.ID).Warn("Failed to build timeline frame")
-			}
-			continue
-		}
+	// Build timeline frames from timeline frame data
+	frames := make([]TimelineFrame, 0, len(resultData.TimelineFrame))
+	for _, frameData := range resultData.TimelineFrame {
+		frame := s.buildTimelineFrameFromData(&frameData, artifactByID, stepByIndex)
 		frames = append(frames, frame)
 	}
 
@@ -78,34 +89,36 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 		return frames[i].NodeID < frames[j].NodeID
 	})
 
-	logs, err := s.repo.GetExecutionLogs(ctx, executionID)
-	if err != nil {
-		return nil, err
+	// Build logs from telemetry data (telemetry can contain log-level information)
+	timelineLogs := make([]TimelineLog, 0)
+	for i, telemetry := range resultData.Telemetry {
+		// Extract log entries from telemetry if present
+		if telemetry.Data.Message != "" {
+			level := strings.ToLower(strings.TrimSpace(telemetry.Data.Level))
+			if level == "" {
+				level = "info"
+			}
+			timelineLogs = append(timelineLogs, TimelineLog{
+				ID:        fmt.Sprintf("log-%d", i),
+				Level:     level,
+				Message:   telemetry.Data.Message,
+				StepName:  fmt.Sprintf("step-%d", telemetry.StepIndex),
+				Timestamp: telemetry.Timestamp,
+			})
+		}
 	}
 
-	timelineLogs := make([]TimelineLog, 0, len(logs))
-	for _, log := range logs {
-		if log == nil {
-			continue
-		}
-		level := strings.ToLower(strings.TrimSpace(log.Level))
-		if level == "" {
-			level = "info"
-		}
-		timelineLogs = append(timelineLogs, TimelineLog{
-			ID:        log.ID.String(),
-			Level:     level,
-			Message:   log.Message,
-			StepName:  log.StepName,
-			Timestamp: log.Timestamp,
-		})
+	// Calculate progress from summary
+	progress := 0
+	if resultData.Summary.TotalSteps > 0 {
+		progress = (resultData.Summary.CompletedSteps * 100) / resultData.Summary.TotalSteps
 	}
 
 	return &ExecutionTimeline{
 		ExecutionID: execution.ID,
 		WorkflowID:  execution.WorkflowID,
 		Status:      execution.Status,
-		Progress:    execution.Progress,
+		Progress:    progress,
 		StartedAt:   execution.StartedAt,
 		CompletedAt: execution.CompletedAt,
 		Frames:      frames,
@@ -113,22 +126,26 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 	}, nil
 }
 
-func (s *WorkflowService) buildTimelineFrame(
-	timelineArtifact *database.ExecutionArtifact,
-	artifacts map[string]*database.ExecutionArtifact,
-	stepsByID map[uuid.UUID]*database.ExecutionStep,
-	stepsByIndex map[int]*database.ExecutionStep,
-) (TimelineFrame, error) {
-	payload := map[string]any{}
-	if timelineArtifact.Payload != nil {
-		payload = map[string]any(timelineArtifact.Payload)
+// buildTimelineFrameFromData constructs a TimelineFrame from recorder data types.
+// This reads from the execution result JSON file format.
+func (s *WorkflowService) buildTimelineFrameFromData(
+	frameData *autorecorder.TimelineFrameData,
+	artifacts map[string]*autorecorder.ArtifactData,
+	stepsByIndex map[int]*autorecorder.StepResultData,
+) TimelineFrame {
+	payload := frameData.Payload
+	if payload == nil {
+		payload = map[string]any{}
 	}
 
-	stepIndex := typeconv.ToInt(payload["stepIndex"])
-	nodeID := typeconv.ToString(payload["nodeId"])
-	stepType := typeconv.ToString(payload["stepType"])
-	success := typeconv.ToBool(payload["success"])
-	duration := typeconv.ToInt(payload["durationMs"])
+	// Extract data from payload (timeline frame metadata)
+	stepIndex := frameData.StepIndex
+	nodeID := frameData.NodeID
+	stepType := frameData.StepType
+	success := frameData.Success
+	duration := frameData.DurationMs
+
+	// Additional metadata from payload
 	progress := typeconv.ToInt(payload["progress"])
 	finalURL := typeconv.ToString(payload["finalUrl"])
 	errorMsg := typeconv.ToString(payload["error"])
@@ -139,42 +156,30 @@ func (s *WorkflowService) buildTimelineFrame(
 	cursorTrail := typeconv.ToPointSlice(payload["cursorTrail"])
 	assertion := typeconv.ToAssertionOutcome(payload["assertion"])
 	totalDuration := typeconv.ToInt(payload["totalDurationMs"])
-	retryAttempt := typeconv.ToInt(payload["retryAttempt"])
+
+	// Retry information
+	retryAttempt := frameData.Attempt
 	if retryAttempt == 0 {
-		retryAttempt = typeconv.ToInt(payload["retry_attempt"])
+		retryAttempt = typeconv.ToInt(payload["retryAttempt"])
 	}
 	retryMaxAttempts := typeconv.ToInt(payload["retryMaxAttempts"])
-	if retryMaxAttempts == 0 {
-		retryMaxAttempts = typeconv.ToInt(payload["retry_max_attempts"])
-	}
 	retryConfigured := typeconv.ToInt(payload["retryConfigured"])
-	if retryConfigured == 0 {
-		retryConfigured = typeconv.ToInt(payload["retry_configured"])
-	}
 	retryDelayMs := typeconv.ToInt(payload["retryDelayMs"])
-	if retryDelayMs == 0 {
-		retryDelayMs = typeconv.ToInt(payload["retry_delay_ms"])
-	}
 	retryBackoff := typeconv.ToFloat(payload["retryBackoffFactor"])
-	if retryBackoff == 0 {
-		retryBackoff = typeconv.ToFloat(payload["retry_backoff_factor"])
-	}
 	retryHistory := typeconv.ToRetryHistory(payload["retryHistory"])
-	if len(retryHistory) == 0 {
-		retryHistory = typeconv.ToRetryHistory(payload["retry_history"])
-	}
+
+	// DOM snapshot info
 	domSnapshotPreview := typeconv.ToString(payload["domSnapshotPreview"])
-	if domSnapshotPreview == "" {
-		domSnapshotPreview = typeconv.ToString(payload["dom_snapshot_preview"])
-	}
-	domSnapshotArtifactID := typeconv.ToString(payload["domSnapshotArtifactId"])
+	domSnapshotArtifactID := frameData.DOMSnapshotArtifactID
 	if domSnapshotArtifactID == "" {
-		domSnapshotArtifactID = typeconv.ToString(payload["dom_snapshot_artifact_id"])
+		domSnapshotArtifactID = typeconv.ToString(payload["domSnapshotArtifactId"])
 	}
 
+	// Timestamps
 	startedAt := typeconv.ToTimePtr(payload["startedAt"])
 	completedAt := typeconv.ToTimePtr(payload["completedAt"])
 
+	// Determine status
 	var status string
 	if success {
 		status = "completed"
@@ -182,29 +187,22 @@ func (s *WorkflowService) buildTimelineFrame(
 		status = "failed"
 	}
 
-	if stepID := typeconv.ToString(payload["executionStepId"]); stepID != "" {
-		if parsedID, err := uuid.Parse(stepID); err == nil {
-			if step := stepsByID[parsedID]; step != nil {
-				if status == "" && step.Status != "" {
-					status = step.Status
-				}
-				if duration == 0 && step.DurationMs > 0 {
-					duration = step.DurationMs
-				}
-				if startedAt == nil {
-					startedAt = &step.StartedAt
-				}
-				if completedAt == nil && step.CompletedAt != nil {
-					completedAt = step.CompletedAt
-				}
-				if errorMsg == "" && step.Error != "" {
-					errorMsg = step.Error
-				}
-			}
-		}
-	} else if step := stepsByIndex[stepIndex]; step != nil {
+	// Enrich from step data if available
+	if step := stepsByIndex[stepIndex]; step != nil {
 		if status == "" && step.Status != "" {
 			status = step.Status
+		}
+		if duration == 0 && step.DurationMs > 0 {
+			duration = step.DurationMs
+		}
+		if startedAt == nil {
+			startedAt = &step.StartedAt
+		}
+		if completedAt == nil && step.CompletedAt != nil {
+			completedAt = step.CompletedAt
+		}
+		if errorMsg == "" && step.Error != "" {
+			errorMsg = step.Error
 		}
 	}
 
@@ -218,19 +216,26 @@ func (s *WorkflowService) buildTimelineFrame(
 		}
 	}
 
+	// Visual metadata
 	highlightRegions := typeconv.ToHighlightRegions(payload["highlightRegions"])
 	maskRegions := typeconv.ToMaskRegions(payload["maskRegions"])
 	focusedElement := typeconv.ToElementFocus(payload["focusedElement"])
 	elementBoundingBox := typeconv.ToBoundingBox(payload["elementBoundingBox"])
 	clickPosition := typeconv.ToPoint(payload["clickPosition"])
 
+	// Screenshot
 	var screenshot *TimelineScreenshot
-	if screenshotID := typeconv.ToString(payload["screenshotArtifactId"]); screenshotID != "" {
+	screenshotID := frameData.ScreenshotArtifactID
+	if screenshotID == "" {
+		screenshotID = typeconv.ToString(payload["screenshotArtifactId"])
+	}
+	if screenshotID != "" {
 		if artifact := artifacts[screenshotID]; artifact != nil {
 			screenshot = typeconv.ToTimelineScreenshot(artifact)
 		}
 	}
 
+	// Related artifacts
 	artifactRefs := make([]TimelineArtifact, 0)
 	for _, id := range typeconv.ToStringSlice(payload["artifactIds"]) {
 		if artifact := artifacts[id]; artifact != nil {
@@ -238,6 +243,7 @@ func (s *WorkflowService) buildTimelineFrame(
 		}
 	}
 
+	// DOM snapshot artifact
 	var domSnapshot *TimelineArtifact
 	if domSnapshotArtifactID != "" {
 		if artifact := artifacts[domSnapshotArtifactID]; artifact != nil {
@@ -246,7 +252,7 @@ func (s *WorkflowService) buildTimelineFrame(
 		}
 	}
 
-	frame := TimelineFrame{
+	return TimelineFrame{
 		StepIndex:            stepIndex,
 		NodeID:               nodeID,
 		StepType:             stepType,
@@ -281,6 +287,4 @@ func (s *WorkflowService) buildTimelineFrame(
 		DomSnapshotPreview:   domSnapshotPreview,
 		DomSnapshot:          domSnapshot,
 	}
-
-	return frame, nil
 }

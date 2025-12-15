@@ -27,6 +27,20 @@ var executionParamsStore = struct {
 	params map[uuid.UUID]*executionNamespaceParams
 }{params: make(map[uuid.UUID]*executionNamespaceParams)}
 
+// adhocFlowDefinition stores the flow definition and parameters for adhoc workflows.
+// Since WorkflowIndex doesn't store FlowDefinition, we keep it in memory for the executor.
+type adhocFlowDefinition struct {
+	FlowDefinition map[string]any
+	Parameters     map[string]any
+}
+
+// adhocFlowStore holds flow definitions for adhoc workflows.
+// Access is synchronized since definitions are written during creation and read during async execution.
+var adhocFlowStore = struct {
+	sync.RWMutex
+	flows map[uuid.UUID]*adhocFlowDefinition
+}{flows: make(map[uuid.UUID]*adhocFlowDefinition)}
+
 // storeExecutionParams stores namespace params for later retrieval by the async runner.
 func storeExecutionParams(executionID uuid.UUID, params *executionNamespaceParams) {
 	if params == nil {
@@ -44,6 +58,33 @@ func getAndClearExecutionParams(executionID uuid.UUID) *executionNamespaceParams
 	params := executionParamsStore.params[executionID]
 	delete(executionParamsStore.params, executionID)
 	return params
+}
+
+// storeAdhocFlowDefinition stores the flow definition for an adhoc workflow.
+// This is called by the WorkflowService when creating adhoc executions.
+func (s *WorkflowService) storeAdhocFlowDefinition(workflowID uuid.UUID, flowDef map[string]any, params map[string]any) {
+	adhocFlowStore.Lock()
+	defer adhocFlowStore.Unlock()
+	adhocFlowStore.flows[workflowID] = &adhocFlowDefinition{
+		FlowDefinition: flowDef,
+		Parameters:     params,
+	}
+}
+
+// getAndClearAdhocFlowDefinition retrieves and removes the flow definition for an adhoc workflow.
+func getAndClearAdhocFlowDefinition(workflowID uuid.UUID) *adhocFlowDefinition {
+	adhocFlowStore.Lock()
+	defer adhocFlowStore.Unlock()
+	def := adhocFlowStore.flows[workflowID]
+	delete(adhocFlowStore.flows, workflowID)
+	return def
+}
+
+// getAdhocFlowDefinition retrieves (without removing) the flow definition for an adhoc workflow.
+func getAdhocFlowDefinition(workflowID uuid.UUID) *adhocFlowDefinition {
+	adhocFlowStore.RLock()
+	defer adhocFlowStore.RUnlock()
+	return adhocFlowStore.flows[workflowID]
 }
 
 // ExecuteAdhocWorkflow executes a workflow definition without persisting it to the database.
@@ -81,15 +122,20 @@ func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefiniti
 	ephemeralID := uuid.New()
 	ephemeralName := fmt.Sprintf("%s [adhoc-%s]", name, ephemeralID.String()[:8])
 
+	// NOTE: WorkflowIndex doesn't store FlowDefinition - it's stored on disk.
+	// For adhoc workflows, the flow definition is passed to the executor directly.
 	ephemeralWorkflow := &database.Workflow{
-		ID:             ephemeralID,
-		Name:           ephemeralName,
-		FlowDefinition: database.JSONMap(flowDefinition),
-		Version:        0, // Version 0 indicates adhoc/ephemeral workflow
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		ID:        ephemeralID,
+		Name:      ephemeralName,
+		Version:   0, // Version 0 indicates adhoc/ephemeral workflow
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 		// ProjectID is intentionally nil - adhoc workflows have no project context
+		// FlowDefinition stored in memory, passed to executor
 	}
+
+	// Store flow definition for the async executor to use
+	s.storeAdhocFlowDefinition(ephemeralID, flowDefinition, parameters)
 
 	// Temporarily persist ephemeral workflow to satisfy executions.workflow_id FK constraint
 	// This allows executions table to maintain referential integrity while still being ephemeral
@@ -98,16 +144,13 @@ func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefiniti
 	}
 
 	// Create execution record (persists for telemetry/replay)
+	// NOTE: ExecutionIndex only stores queryable fields.
+	// WorkflowVersion, TriggerType, Parameters stored in result file.
 	execution := &database.Execution{
-		ID:              uuid.New(),
-		WorkflowID:      ephemeralWorkflow.ID, // Reference ephemeral workflow ID
-		WorkflowVersion: 0,                    // 0 indicates adhoc execution
-		Status:          "pending",
-		TriggerType:     "adhoc", // Special trigger type for ephemeral workflows
-		Parameters:      database.JSONMap(parameters),
-		StartedAt:       time.Now(),
-		Progress:        0,
-		CurrentStep:     "Initializing",
+		ID:         uuid.New(),
+		WorkflowID: ephemeralWorkflow.ID, // Reference ephemeral workflow ID
+		Status:     "pending",
+		StartedAt:  time.Now(),
 	}
 
 	if err := s.repo.CreateExecution(ctx, execution); err != nil {
@@ -223,17 +266,14 @@ func (s *WorkflowService) ExecuteAdhocWorkflowWithParams(ctx context.Context, pa
 	}
 	ephemeralName := fmt.Sprintf("%s [adhoc-%s]", name, ephemeralID.String()[:8])
 
+	// NOTE: WorkflowIndex doesn't store FlowDefinition - it's stored on disk.
+	// For adhoc workflows, the flow definition is passed to the executor directly.
 	ephemeralWorkflow := &database.Workflow{
-		ID:             ephemeralID,
-		Name:           ephemeralName,
-		FlowDefinition: database.JSONMap(params.FlowDefinition),
-		Version:        0, // Version 0 indicates adhoc/ephemeral workflow
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-	}
-
-	if err := s.repo.CreateWorkflow(ctx, ephemeralWorkflow); err != nil {
-		return nil, fmt.Errorf("failed to create ephemeral workflow: %w", err)
+		ID:        ephemeralID,
+		Name:      ephemeralName,
+		Version:   0, // Version 0 indicates adhoc/ephemeral workflow
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	// Determine initial store: prefer explicit InitialStore, fall back to LegacyParameters
@@ -242,7 +282,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowWithParams(ctx context.Context, pa
 		initialStore = params.LegacyParameters
 	}
 
-	// Build combined parameters for DB storage (for backward compat and auditing)
+	// Build combined parameters for passing to executor (stored in memory, not DB)
 	combinedParams := make(map[string]any)
 	for k, v := range params.LegacyParameters {
 		combinedParams[k] = v
@@ -260,17 +300,21 @@ func (s *WorkflowService) ExecuteAdhocWorkflowWithParams(ctx context.Context, pa
 		combinedParams["__env"] = params.Env
 	}
 
+	// Store flow definition for the async executor to use
+	s.storeAdhocFlowDefinition(ephemeralID, params.FlowDefinition, combinedParams)
+
+	if err := s.repo.CreateWorkflow(ctx, ephemeralWorkflow); err != nil {
+		return nil, fmt.Errorf("failed to create ephemeral workflow: %w", err)
+	}
+
 	// Create execution record
+	// NOTE: ExecutionIndex only stores queryable fields.
+	// WorkflowVersion, TriggerType, Parameters stored in result file.
 	execution := &database.Execution{
-		ID:              uuid.New(),
-		WorkflowID:      ephemeralWorkflow.ID,
-		WorkflowVersion: 0, // 0 indicates adhoc execution
-		Status:          "pending",
-		TriggerType:     "adhoc",
-		Parameters:      database.JSONMap(combinedParams),
-		StartedAt:       time.Now(),
-		Progress:        0,
-		CurrentStep:     "Initializing",
+		ID:         uuid.New(),
+		WorkflowID: ephemeralWorkflow.ID,
+		Status:     "pending",
+		StartedAt:  time.Now(),
 	}
 
 	if err := s.repo.CreateExecution(ctx, execution); err != nil {

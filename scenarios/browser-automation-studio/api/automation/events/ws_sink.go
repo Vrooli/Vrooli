@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -423,7 +424,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 	stepType := extractStepType(outcome, payloadMap)
 	if stepType != "" {
 		entry.Action = &basactions.ActionDefinition{
-			Type: mapActionType(stepType),
+			Type: typeconv.StringToActionType(stepType),
 		}
 	}
 
@@ -553,41 +554,6 @@ func mapStepStatus(kind contracts.EventKind) basbase.StepStatus {
 		return basbase.StepStatus_STEP_STATUS_FAILED
 	default:
 		return basbase.StepStatus_STEP_STATUS_UNSPECIFIED
-	}
-}
-
-func mapActionType(stepType string) basactions.ActionType {
-	switch strings.ToLower(strings.TrimSpace(stepType)) {
-	case "navigate":
-		return basactions.ActionType_ACTION_TYPE_NAVIGATE
-	case "click":
-		return basactions.ActionType_ACTION_TYPE_CLICK
-	case "input", "type":
-		return basactions.ActionType_ACTION_TYPE_INPUT
-	case "assert":
-		return basactions.ActionType_ACTION_TYPE_ASSERT
-	case "wait":
-		return basactions.ActionType_ACTION_TYPE_WAIT
-	case "screenshot":
-		return basactions.ActionType_ACTION_TYPE_SCREENSHOT
-	case "scroll":
-		return basactions.ActionType_ACTION_TYPE_SCROLL
-	case "select":
-		return basactions.ActionType_ACTION_TYPE_SELECT
-	case "hover":
-		return basactions.ActionType_ACTION_TYPE_HOVER
-	case "keyboard":
-		return basactions.ActionType_ACTION_TYPE_KEYBOARD
-	case "evaluate", "extract":
-		return basactions.ActionType_ACTION_TYPE_EVALUATE
-	case "focus":
-		return basactions.ActionType_ACTION_TYPE_FOCUS
-	case "blur":
-		return basactions.ActionType_ACTION_TYPE_BLUR
-	// Control-flow types (subflow, condition, loop) are not action types;
-	// they're handled differently in the workflow graph, so map to UNSPECIFIED.
-	default:
-		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 	}
 }
 
@@ -782,7 +748,7 @@ func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *basbase.Ass
 		return nil
 	}
 	result := &basbase.AssertionResult{
-		Mode:          stringToAssertionModeWS(assertion.Mode),
+		Mode:          typeconv.StringToAssertionMode(assertion.Mode),
 		Selector:      assertion.Selector,
 		Success:       assertion.Success,
 		Negated:       assertion.Negated,
@@ -798,30 +764,6 @@ func convertAssertionOutcome(assertion *contracts.AssertionOutcome) *basbase.Ass
 		result.Actual = toJsonValue(assertion.Actual)
 	}
 	return result
-}
-
-// stringToAssertionModeWS converts an assertion mode string to AssertionMode enum.
-func stringToAssertionModeWS(s string) basbase.AssertionMode {
-	switch s {
-	case "exists":
-		return basbase.AssertionMode_ASSERTION_MODE_EXISTS
-	case "not_exists":
-		return basbase.AssertionMode_ASSERTION_MODE_NOT_EXISTS
-	case "visible":
-		return basbase.AssertionMode_ASSERTION_MODE_VISIBLE
-	case "hidden":
-		return basbase.AssertionMode_ASSERTION_MODE_HIDDEN
-	case "text_equals":
-		return basbase.AssertionMode_ASSERTION_MODE_TEXT_EQUALS
-	case "text_contains":
-		return basbase.AssertionMode_ASSERTION_MODE_TEXT_CONTAINS
-	case "attribute_equals":
-		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_EQUALS
-	case "attribute_contains":
-		return basbase.AssertionMode_ASSERTION_MODE_ATTRIBUTE_CONTAINS
-	default:
-		return basbase.AssertionMode_ASSERTION_MODE_UNSPECIFIED
-	}
 }
 
 func convertBoundingBox(b *contracts.BoundingBox) *basbase.BoundingBox {
@@ -872,30 +814,6 @@ func convertHighlightRegions(regions []contracts.HighlightRegion) []*basdomain.H
 		out = append(out, region)
 	}
 	return out
-}
-
-// stringToHighlightColor converts a color string to HighlightColor enum.
-func stringToHighlightColor(s string) basbase.HighlightColor {
-	switch strings.ToLower(s) {
-	case "red":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_RED
-	case "green":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_GREEN
-	case "blue":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_BLUE
-	case "yellow":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_YELLOW
-	case "orange":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_ORANGE
-	case "purple":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_PURPLE
-	case "cyan":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_CYAN
-	case "magenta", "pink":
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_PINK
-	default:
-		return basbase.HighlightColor_HIGHLIGHT_COLOR_UNSPECIFIED
-	}
 }
 
 func convertMaskRegions(regions []contracts.MaskRegion) []*basdomain.MaskRegion {

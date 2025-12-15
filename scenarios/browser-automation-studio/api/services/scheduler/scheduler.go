@@ -18,7 +18,7 @@ import (
 // WorkflowExecutor defines the interface for executing workflows.
 // This is implemented by the workflow service.
 type WorkflowExecutor interface {
-	ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
+	ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error)
 }
 
 // ScheduleNotifier defines the interface for notifying about schedule events.
@@ -119,7 +119,7 @@ func (s *Scheduler) Start() error {
 	s.log.Info("Starting scheduler service...")
 
 	// Load all active schedules from database
-	schedules, err := s.repo.GetActiveSchedules(s.ctx)
+	schedules, err := s.repo.ListSchedules(s.ctx, nil, true, -1, 0)
 	if err != nil {
 		return fmt.Errorf("failed to load active schedules: %w", err)
 	}
@@ -171,7 +171,7 @@ func (s *Scheduler) Stop() error {
 
 // RegisterSchedule adds or updates a schedule in the cron scheduler.
 // This is called when a schedule is created or updated via the API.
-func (s *Scheduler) RegisterSchedule(schedule *database.WorkflowSchedule) error {
+func (s *Scheduler) RegisterSchedule(schedule *database.ScheduleIndex) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -209,7 +209,7 @@ func (s *Scheduler) UnregisterSchedule(scheduleID uuid.UUID) error {
 }
 
 // registerSchedule adds a schedule to the cron scheduler (internal, not thread-safe).
-func (s *Scheduler) registerSchedule(schedule *database.WorkflowSchedule) error {
+func (s *Scheduler) registerSchedule(schedule *database.ScheduleIndex) error {
 	// Parse the timezone
 	loc, err := time.LoadLocation(schedule.Timezone)
 	if err != nil {
@@ -266,11 +266,12 @@ func (s *Scheduler) registerSchedule(schedule *database.WorkflowSchedule) error 
 }
 
 // createJob creates the function that will be executed on schedule.
-func (s *Scheduler) createJob(schedule *database.WorkflowSchedule) func() {
+func (s *Scheduler) createJob(schedule *database.ScheduleIndex) func() {
 	scheduleID := schedule.ID
 	workflowID := schedule.WorkflowID
 	scheduleName := schedule.Name
-	params := schedule.Parameters
+	// Parameters are stored as JSON in ParametersJSON field
+	params, _ := schedule.GetParameters()
 
 	return func() {
 		s.log.WithFields(logrus.Fields{

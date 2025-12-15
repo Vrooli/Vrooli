@@ -9,7 +9,7 @@ import (
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoworkflow "github.com/vrooli/browser-automation-studio/automation/workflow"
-	"github.com/vrooli/browser-automation-studio/database"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
 // ContractPlanCompiler produces contract-native plans without touching the
@@ -18,8 +18,13 @@ import (
 // same plan shape.
 type ContractPlanCompiler struct{}
 
-func (c *ContractPlanCompiler) Compile(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
+func (c *ContractPlanCompiler) Compile(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
 	plan, err := autocompiler.CompileWorkflow(workflow)
+	if err != nil {
+		return contracts.ExecutionPlan{}, nil, err
+	}
+
+	workflowID, err := uuid.Parse(workflow.GetId())
 	if err != nil {
 		return contracts.ExecutionPlan{}, nil, err
 	}
@@ -58,7 +63,7 @@ func (c *ContractPlanCompiler) Compile(ctx context.Context, executionID uuid.UUI
 		SchemaVersion:  contracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: contracts.PayloadVersion,
 		ExecutionID:    executionID,
-		WorkflowID:     workflow.ID,
+		WorkflowID:     workflowID,
 		Instructions:   instructions,
 		Graph:          toContractsGraphFromAutomation(plan),
 		Metadata:       plan.Metadata,

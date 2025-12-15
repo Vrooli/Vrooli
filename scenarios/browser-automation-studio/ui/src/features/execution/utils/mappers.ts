@@ -1,4 +1,3 @@
-import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import {
   ArtifactType,
   ExecutionStatus as ProtoExecutionStatus,
@@ -6,6 +5,14 @@ import {
   StepStatus,
 } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import { ActionType } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+import {
+  ExecutionStatusName,
+  ActionTypeName,
+  StepStatusName,
+  ArtifactTypeName,
+  LogLevelName,
+} from '@vrooli/proto-types/enum-names';
+
 export type MappedLogLevel = 'info' | 'warning' | 'error' | 'success';
 
 export type ExecutionStatus =
@@ -15,25 +22,22 @@ export type ExecutionStatus =
   | 'failed'
   | 'cancelled';
 
+/**
+ * Maps ExecutionStatus proto enum to UI status string.
+ * Uses generated enum names for numeric values, with fallback aliases for string input.
+ */
 export const mapExecutionStatus = (
   status?: ProtoExecutionStatus | string | null,
 ): ExecutionStatus => {
   if (typeof status === 'number') {
-    switch (status) {
-      case ProtoExecutionStatus.PENDING:
-        return 'pending';
-      case ProtoExecutionStatus.RUNNING:
-        return 'running';
-      case ProtoExecutionStatus.COMPLETED:
-        return 'completed';
-      case ProtoExecutionStatus.FAILED:
-        return 'failed';
-      case ProtoExecutionStatus.CANCELLED:
-        return 'cancelled';
-      default:
-        return 'pending';
+    const name = ExecutionStatusName[status as ProtoExecutionStatus];
+    // Map to valid ExecutionStatus (exclude 'unspecified')
+    if (name === 'pending' || name === 'running' || name === 'completed' || name === 'failed' || name === 'cancelled') {
+      return name;
     }
+    return 'pending'; // default for unspecified
   }
+  // String fallback with aliases for legacy compatibility
   switch ((status ?? '').toLowerCase()) {
     case 'pending':
     case 'queued':
@@ -57,107 +61,61 @@ export const mapExecutionStatus = (
 
 /**
  * Maps ActionType enum to display string.
- * Note: StepType was replaced by ActionType in the unified model.
+ * Uses generated enum names, returns undefined for unspecified.
  */
 export const mapStepType = (actionType?: ActionType | string): string | undefined => {
   if (typeof actionType === 'number') {
-    switch (actionType) {
-      case ActionType.NAVIGATE:
-        return 'navigate';
-      case ActionType.CLICK:
-        return 'click';
-      case ActionType.INPUT:
-        return 'input';
-      case ActionType.WAIT:
-        return 'wait';
-      case ActionType.ASSERT:
-        return 'assert';
-      case ActionType.SCROLL:
-        return 'scroll';
-      case ActionType.SELECT:
-        return 'select';
-      case ActionType.EVALUATE:
-        return 'evaluate';
-      case ActionType.KEYBOARD:
-        return 'keyboard';
-      case ActionType.HOVER:
-        return 'hover';
-      case ActionType.SCREENSHOT:
-        return 'screenshot';
-      case ActionType.FOCUS:
-        return 'focus';
-      case ActionType.BLUR:
-        return 'blur';
-      default:
-        return undefined;
-    }
+    const name = ActionTypeName[actionType as ActionType];
+    return name === 'unspecified' ? undefined : name;
   }
   return actionType;
 };
 
+/**
+ * Maps StepStatus enum to display string.
+ * Uses generated enum names, returns undefined for unspecified.
+ */
 export const mapStepStatus = (status?: StepStatus | string): string | undefined => {
   if (typeof status === 'number') {
-    switch (status) {
-      case StepStatus.PENDING:
-        return 'pending';
-      case StepStatus.RUNNING:
-        return 'running';
-      case StepStatus.COMPLETED:
-        return 'completed';
-      case StepStatus.FAILED:
-        return 'failed';
-      case StepStatus.CANCELLED:
-        return 'cancelled';
-      case StepStatus.SKIPPED:
-        return 'skipped';
-      case StepStatus.RETRYING:
-        return 'retrying';
-      default:
-        return undefined;
-    }
+    const name = StepStatusName[status as StepStatus];
+    return name === 'unspecified' ? undefined : name;
   }
   return status;
 };
 
+/**
+ * Maps ArtifactType enum to display string.
+ * Uses generated enum names, returns undefined for unspecified.
+ */
 export const mapArtifactType = (type?: ArtifactType | string): string | undefined => {
   if (typeof type === 'number') {
-    switch (type) {
-      case ArtifactType.TIMELINE_FRAME:
-        return 'timeline_frame';
-      case ArtifactType.CONSOLE_LOG:
-        return 'console_log';
-      case ArtifactType.NETWORK_EVENT:
-        return 'network_event';
-      case ArtifactType.SCREENSHOT:
-        return 'screenshot';
-      case ArtifactType.DOM_SNAPSHOT:
-        return 'dom_snapshot';
-      case ArtifactType.TRACE:
-        return 'trace';
-      case ArtifactType.CUSTOM:
-        return 'custom';
-      default:
-        return undefined;
-    }
+    const name = ArtifactTypeName[type as ArtifactType];
+    return name === 'unspecified' ? undefined : name;
   }
   return type;
 };
 
+/**
+ * Maps LogLevel enum to UI-specific log level.
+ * Note: DEBUG and INFO both map to 'info', WARN maps to 'warning'.
+ * The 'success' level is UI-only (not in proto).
+ */
 export const mapProtoLogLevel = (level?: ProtoLogLevel | string): MappedLogLevel => {
   if (typeof level === 'number') {
-    switch (level) {
-      case ProtoLogLevel.DEBUG:
+    const name = LogLevelName[level as ProtoLogLevel];
+    switch (name) {
+      case 'debug':
+      case 'info':
         return 'info';
-      case ProtoLogLevel.INFO:
-        return 'info';
-      case ProtoLogLevel.WARN:
+      case 'warn':
         return 'warning';
-      case ProtoLogLevel.ERROR:
+      case 'error':
         return 'error';
       default:
         return 'info';
     }
   }
+  // String fallback
   switch ((level ?? '').toLowerCase()) {
     case 'debug':
     case 'info':
@@ -172,11 +130,5 @@ export const mapProtoLogLevel = (level?: ProtoLogLevel | string): MappedLogLevel
   }
 };
 
-export const timestampToDate = (value?: Timestamp | null): Date | undefined => {
-  if (!value) return undefined;
-  const millis =
-    Number(value.seconds ?? 0) * 1000 +
-    Math.floor(Number(value.nanos ?? 0) / 1_000_000);
-  const result = new Date(millis);
-  return Number.isNaN(result.valueOf()) ? undefined : result;
-};
+// Re-export centralized timestamp utility for backwards compatibility
+export { protoTimestampToDate as timestampToDate } from '../../../utils/timestamps';

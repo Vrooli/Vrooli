@@ -67,26 +67,22 @@ var (
 var ErrRecordingTooManyFrames = errors.New("recording exceeds maximum frame count")
 
 // RecordingRepository captures the repository functionality required for recording ingestion.
+// Uses index-only database operations; rich data is stored in JSON files.
 type RecordingRepository interface {
-	GetProject(ctx context.Context, id uuid.UUID) (*database.Project, error)
-	GetProjectByName(ctx context.Context, name string) (*database.Project, error)
-	CreateProject(ctx context.Context, project *database.Project) error
+	GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error)
+	GetProjectByName(ctx context.Context, name string) (*database.ProjectIndex, error)
+	CreateProject(ctx context.Context, project *database.ProjectIndex) error
 	DeleteProject(ctx context.Context, id uuid.UUID) error
 
-	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
-	GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error)
-	CreateWorkflow(ctx context.Context, workflow *database.Workflow) error
+	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.WorkflowIndex, error)
+	GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.WorkflowIndex, error)
+	CreateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error
 	DeleteWorkflow(ctx context.Context, id uuid.UUID) error
 
-	CreateExecution(ctx context.Context, execution *database.Execution) error
-	UpdateExecution(ctx context.Context, execution *database.Execution) error
+	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
+	CreateExecution(ctx context.Context, execution *database.ExecutionIndex) error
+	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
-
-	CreateExecutionStep(ctx context.Context, step *database.ExecutionStep) error
-	UpdateExecutionStep(ctx context.Context, step *database.ExecutionStep) error
-	CreateExecutionArtifact(ctx context.Context, artifact *database.ExecutionArtifact) error
-	CreateExecutionLog(ctx context.Context, log *database.ExecutionLog) error
-	UpdateExecutionCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, progress int) error
 }
 
 // RecordingImportOptions capture optional metadata supplied during ingestion.
@@ -99,12 +95,12 @@ type RecordingImportOptions struct {
 
 // RecordingImportResult summarises the outcome of a recording import.
 type RecordingImportResult struct {
-	Execution  *database.Execution `json:"execution"`
-	Workflow   *database.Workflow  `json:"workflow"`
-	Project    *database.Project   `json:"project"`
-	FrameCount int                 `json:"frame_count"`
-	AssetCount int                 `json:"asset_count"`
-	DurationMs int                 `json:"duration_ms"`
+	Execution  *database.ExecutionIndex `json:"execution"`
+	Workflow   *database.WorkflowIndex  `json:"workflow"`
+	Project    *database.ProjectIndex   `json:"project"`
+	FrameCount int                      `json:"frame_count"`
+	AssetCount int                      `json:"asset_count"`
+	DurationMs int                      `json:"duration_ms"`
 }
 
 // RecordingService ingests Chrome extension recording archives and normalises them into execution artifacts.
@@ -140,13 +136,32 @@ func NewRecordingService(repo RecordingRepository, storageClient storage.Storage
 
 	store := selectRecordingStorage(storageClient, absRoot, log)
 
+	// Create the recorder with the execution index repository adapter
+	var execRepo autorecorder.ExecutionIndexRepository
+	if repo != nil {
+		execRepo = &executionIndexRepoAdapter{repo: repo}
+	}
+
 	return &RecordingService{
 		repo:           repo,
 		storage:        store,
-		recorder:       autorecorder.NewDBRecorder(repo, store, log),
+		recorder:       autorecorder.NewFileRecorder(execRepo, store, log, absRoot),
 		log:            log,
 		recordingsRoot: absRoot,
 	}
+}
+
+// executionIndexRepoAdapter adapts RecordingRepository to ExecutionIndexRepository
+type executionIndexRepoAdapter struct {
+	repo RecordingRepository
+}
+
+func (a *executionIndexRepoAdapter) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	return a.repo.GetExecution(ctx, id)
+}
+
+func (a *executionIndexRepoAdapter) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
+	return a.repo.UpdateExecution(ctx, execution)
 }
 
 // ImportArchive ingests a Chrome extension recording archive located on disk.
@@ -196,24 +211,15 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 		return nil, err
 	}
 
-	execution := &database.Execution{
-		ID:          uuid.New(),
-		WorkflowID:  workflow.ID,
-		Status:      "running",
-		TriggerType: "extension",
-		TriggerMetadata: database.JSONMap{
-			"source":     "chrome_extension",
-			"runId":      manifest.RunID,
-			"frameCount": len(manifest.Frames),
-			"recordedAt": manifest.RecordedAt,
-			"viewport":   manifest.Viewport,
-			"extension":  manifest.Extension,
-			"importedAt": time.Now().UTC().Format(time.RFC3339),
-		},
-		StartedAt: time.Now().UTC(),
-		Progress:  0,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+	// Create execution index - only stores queryable fields
+	// Rich metadata is stored in the result JSON file
+	execution := &database.ExecutionIndex{
+		ID:         uuid.New(),
+		WorkflowID: workflow.ID,
+		Status:     database.ExecutionStatusRunning,
+		StartedAt:  time.Now().UTC(),
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
 	}
 
 	if err := s.repo.CreateExecution(ctx, execution); err != nil {
@@ -227,35 +233,23 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 		return nil, err
 	}
 
-	execution.Status = "completed"
-	execution.Progress = 100
+	// Update execution index with completion status
+	execution.Status = database.ExecutionStatusCompleted
 	completedAt := execution.StartedAt.Add(time.Duration(frameResult.totalDurationMs) * time.Millisecond)
 	execution.CompletedAt = &completedAt
-	execution.CurrentStep = frameResult.lastNodeID
-	execution.Result = database.JSONMap{
-		"origin":     "extension",
-		"frameCount": frameResult.frameCount,
-		"durationMs": frameResult.totalDurationMs,
-	}
 	execution.UpdatedAt = time.Now().UTC()
+	// ResultPath is set by the recorder when writing the result file
 
 	if err := s.repo.UpdateExecution(ctx, execution); err != nil {
 		return nil, fmt.Errorf("failed to finalise execution: %w", err)
 	}
 
-	logEntry := &database.ExecutionLog{
-		ID:          uuid.New(),
-		ExecutionID: execution.ID,
-		Timestamp:   time.Now().UTC(),
-		Level:       "info",
-		Message:     fmt.Sprintf("Imported recording with %d frame(s)", frameResult.frameCount),
-		Metadata: database.JSONMap{
-			"origin":     "extension",
-			"frameCount": frameResult.frameCount,
-			"durationMs": frameResult.totalDurationMs,
-		},
+	// Log entry is now written to the result JSON file by the recorder
+	if s.log != nil {
+		s.log.WithField("frame_count", frameResult.frameCount).
+			WithField("duration_ms", frameResult.totalDurationMs).
+			Info("Imported recording")
 	}
-	_ = s.repo.CreateExecutionLog(ctx, logEntry)
 
 	return &RecordingImportResult{
 		Execution:  execution,

@@ -13,8 +13,9 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/database"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.
@@ -53,19 +54,29 @@ type Position struct {
 }
 
 // CompileWorkflow converts a stored workflow definition into an execution plan.
-func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
+// It accepts a proto WorkflowSummary which contains the ID, name, and flow definition.
+func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	if workflow == nil {
 		return nil, errors.New("workflow is nil")
 	}
 
-	log.Printf("[COMPILER_DEBUG] CompileWorkflow called for workflow: %s (ID: %s)", workflow.Name, workflow.ID)
+	workflowID, err := uuid.Parse(workflow.GetId())
+	if err != nil {
+		return nil, fmt.Errorf("invalid workflow ID: %w", err)
+	}
+	workflowName := workflow.GetName()
 
-	if workflow.FlowDefinition == nil {
+	log.Printf("[COMPILER_DEBUG] CompileWorkflow called for workflow: %s (ID: %s)", workflowName, workflowID)
+
+	flowDef := workflow.GetFlowDefinition()
+	if flowDef == nil {
 		return nil, errors.New("workflow has no flow_definition")
 	}
 
+	// Convert proto flow definition to internal flowDefinition struct
+	// We use protojson.Marshal to properly serialize proto messages to JSON
 	var raw flowDefinition
-	data, err := json.Marshal(workflow.FlowDefinition)
+	data, err := protojson.Marshal(flowDef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal workflow definition: %w", err)
 	}
@@ -78,15 +89,15 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 
 	if len(raw.Nodes) == 0 {
 		return &ExecutionPlan{
-			WorkflowID:   workflow.ID,
-			WorkflowName: workflow.Name,
+			WorkflowID:   workflowID,
+			WorkflowName: workflowName,
 			Steps:        []ExecutionStep{},
 			Metadata:     map[string]any{},
 		}, nil
 	}
 
-	log.Printf("[COMPILER_DEBUG] Calling compileFlow for workflow: %s", workflow.Name)
-	plan, err := compileFlow(flowFragment{definition: raw}, workflow.ID, workflow.Name)
+	log.Printf("[COMPILER_DEBUG] Calling compileFlow for workflow: %s", workflowName)
+	plan, err := compileFlow(flowFragment{definition: raw}, workflowID, workflowName)
 	if err != nil {
 		return nil, err
 	}
@@ -292,20 +303,175 @@ type flowFragment struct {
 	specialEdges map[string][]EdgeRef
 }
 
+// rawNode supports both V1 (legacy) and V2 (proto-native) workflow formats.
+// V1 format: has Type and Data fields
+// V2 format: has Action field with nested type and params
 type rawNode struct {
 	ID       string         `json:"id"`
-	Type     string         `json:"type"`
-	Data     map[string]any `json:"data"`
-	Position map[string]any `json:"position"`
+	Type     string         `json:"type,omitempty"`              // V1 format
+	Data     map[string]any `json:"data,omitempty"`              // V1 format
+	Action   map[string]any `json:"action,omitempty"`            // V2 format
+	Position map[string]any `json:"position,omitempty"`
+	ExecSettings map[string]any `json:"execution_settings,omitempty"` // V2 format
+}
+
+// isV2Format returns true if the node uses V2 proto-native format
+func (n rawNode) isV2Format() bool {
+	return n.Action != nil
+}
+
+// getStepType extracts the step type from either V1 or V2 format
+func (n rawNode) getStepType() (string, error) {
+	if n.isV2Format() {
+		// V2 format: action.type contains "ACTION_TYPE_CLICK" etc.
+		actionType, ok := n.Action["type"].(string)
+		if !ok || actionType == "" {
+			return "", fmt.Errorf("V2 node %s missing action.type", n.ID)
+		}
+		return v2ActionTypeToStepType(actionType), nil
+	}
+	// V1 format: type field contains "click" etc.
+	return n.Type, nil
+}
+
+// getParams extracts params from either V1 or V2 format
+func (n rawNode) getParams() map[string]any {
+	if n.isV2Format() {
+		return extractV2Params(n.Action)
+	}
+	return n.Data
+}
+
+// v2ActionTypeToStepType converts V2 action type enum to V1 step type string
+func v2ActionTypeToStepType(actionType string) string {
+	switch actionType {
+	case "ACTION_TYPE_NAVIGATE":
+		return "navigate"
+	case "ACTION_TYPE_CLICK":
+		return "click"
+	case "ACTION_TYPE_INPUT":
+		return "type"
+	case "ACTION_TYPE_WAIT":
+		return "wait"
+	case "ACTION_TYPE_ASSERT":
+		return "assert"
+	case "ACTION_TYPE_SCROLL":
+		return "scroll"
+	case "ACTION_TYPE_SELECT":
+		return "select"
+	case "ACTION_TYPE_EVALUATE":
+		return "evaluate"
+	case "ACTION_TYPE_KEYBOARD":
+		return "keyboard"
+	case "ACTION_TYPE_HOVER":
+		return "hover"
+	case "ACTION_TYPE_SCREENSHOT":
+		return "screenshot"
+	case "ACTION_TYPE_FOCUS":
+		return "focus"
+	case "ACTION_TYPE_BLUR":
+		return "blur"
+	case "ACTION_TYPE_SUBFLOW":
+		return "subflow"
+	case "ACTION_TYPE_EXTRACT":
+		return "extract"
+	case "ACTION_TYPE_UPLOAD_FILE":
+		return "uploadFile"
+	case "ACTION_TYPE_DOWNLOAD":
+		return "download"
+	case "ACTION_TYPE_FRAME_SWITCH":
+		return "frameSwitch"
+	case "ACTION_TYPE_TAB_SWITCH":
+		return "tabSwitch"
+	case "ACTION_TYPE_COOKIE_STORAGE":
+		return "setCookie" // Generic, actual operation determined by params
+	case "ACTION_TYPE_SHORTCUT":
+		return "shortcut"
+	case "ACTION_TYPE_DRAG_DROP":
+		return "dragDrop"
+	case "ACTION_TYPE_GESTURE":
+		return "gesture"
+	case "ACTION_TYPE_NETWORK_MOCK":
+		return "networkMock"
+	case "ACTION_TYPE_ROTATE":
+		return "rotate"
+	default:
+		return "custom"
+	}
+}
+
+// extractV2Params extracts params from V2 action structure and normalizes to V1 param names
+func extractV2Params(action map[string]any) map[string]any {
+	params := make(map[string]any)
+
+	// Extract label from metadata
+	if metadata, ok := action["metadata"].(map[string]any); ok {
+		if label, ok := metadata["label"].(string); ok {
+			params["label"] = label
+		}
+	}
+
+	// Extract action-specific params and convert snake_case to camelCase
+	actionFields := []string{
+		"navigate", "click", "input", "wait", "assert", "scroll",
+		"select_option", "evaluate", "keyboard", "hover", "screenshot",
+		"focus", "blur", "subflow", "extract", "upload_file", "download",
+		"frame_switch", "tab_switch", "cookie_storage", "shortcut",
+		"drag_drop", "gesture", "network_mock", "rotate",
+	}
+
+	for _, field := range actionFields {
+		if actionParams, ok := action[field].(map[string]any); ok {
+			for k, v := range actionParams {
+				// Convert snake_case to camelCase for executor compatibility
+				camelKey := snakeToCamel(k)
+				params[camelKey] = v
+			}
+			break // Only one action field should be populated
+		}
+	}
+
+	return params
+}
+
+// snakeToCamel converts snake_case to camelCase
+func snakeToCamel(s string) string {
+	parts := strings.Split(s, "_")
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 {
+			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+		}
+	}
+	return strings.Join(parts, "")
 }
 
 type rawEdge struct {
 	ID           string         `json:"id"`
 	Source       string         `json:"source"`
 	Target       string         `json:"target"`
-	SourceHandle string         `json:"sourceHandle"`
-	TargetHandle string         `json:"targetHandle"`
-	Data         map[string]any `json:"data"`
+	SourceHandle string         `json:"sourceHandle,omitempty"`   // V1 format (camelCase)
+	TargetHandle string         `json:"targetHandle,omitempty"`   // V1 format (camelCase)
+	SourceHandleV2 string       `json:"source_handle,omitempty"`  // V2 format (snake_case)
+	TargetHandleV2 string       `json:"target_handle,omitempty"`  // V2 format (snake_case)
+	Data         map[string]any `json:"data,omitempty"`
+	Type         string         `json:"type,omitempty"`           // V2 format edge type
+	Label        string         `json:"label,omitempty"`          // V2 format edge label
+}
+
+// getSourceHandle returns the source handle from either V1 or V2 format
+func (e rawEdge) getSourceHandle() string {
+	if e.SourceHandle != "" {
+		return e.SourceHandle
+	}
+	return e.SourceHandleV2
+}
+
+// getTargetHandle returns the target handle from either V1 or V2 format
+func (e rawEdge) getTargetHandle() string {
+	if e.TargetHandle != "" {
+		return e.TargetHandle
+	}
+	return e.TargetHandleV2
 }
 
 func toPositiveInt(value any) int {
@@ -346,6 +512,15 @@ func extractViewportFromSettings(settings map[string]any) (int, int) {
 	if settings == nil {
 		return 0, 0
 	}
+
+	// Try V2 format first (snake_case direct fields)
+	width := toPositiveInt(settings["viewport_width"])
+	height := toPositiveInt(settings["viewport_height"])
+	if width > 0 && height > 0 {
+		return width, height
+	}
+
+	// Fall back to V1 format (nested executionViewport object)
 	viewportValue, ok := settings["executionViewport"]
 	if !ok {
 		return 0, 0
@@ -354,8 +529,8 @@ func extractViewportFromSettings(settings map[string]any) (int, int) {
 	if !ok {
 		return 0, 0
 	}
-	width := toPositiveInt(viewportMap["width"])
-	height := toPositiveInt(viewportMap["height"])
+	width = toPositiveInt(viewportMap["width"])
+	height = toPositiveInt(viewportMap["height"])
 	if width <= 0 || height <= 0 {
 		return 0, 0
 	}
@@ -366,6 +541,16 @@ func extractEntryFromSettings(settings map[string]any) (string, int) {
 	if settings == nil {
 		return "", 0
 	}
+
+	// Try V2 format first (snake_case)
+	if raw, ok := settings["entry_selector"]; ok {
+		if selector, ok := raw.(string); ok && strings.TrimSpace(selector) != "" {
+			timeout := toPositiveInt(settings["entry_selector_timeout_ms"])
+			return strings.TrimSpace(selector), timeout
+		}
+	}
+
+	// Fall back to V1 format (camelCase)
 	raw, ok := settings["entrySelector"]
 	if !ok {
 		return "", 0
@@ -428,7 +613,11 @@ func (p *planner) extractLoopBodies() (map[string]flowFragment, error) {
 	assigned := make(map[string]string)
 
 	for _, node := range p.definition.Nodes {
-		stepType, err := normalizeStepType(node.Type)
+		nodeType, err := node.getStepType()
+		if err != nil {
+			return nil, err
+		}
+		stepType, err := normalizeStepType(nodeType)
 		if err != nil {
 			return nil, err
 		}
@@ -617,7 +806,11 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 	steps := make([]ExecutionStep, 0, len(order))
 	for idx, nodeID := range order {
 		node := p.nodesByID[nodeID]
-		stepType, err := normalizeStepType(node.Type)
+		nodeType, err := node.getStepType()
+		if err != nil {
+			return nil, err
+		}
+		stepType, err := normalizeStepType(nodeType)
 		if err != nil {
 			return nil, err
 		}
@@ -626,8 +819,17 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 			SourceIndex: p.order[nodeID],
 			NodeID:      node.ID,
 			Type:        stepType,
-			Params:      copyMap(node.Data),
+			Params:      copyMap(node.getParams()),
 		}
+
+		// Merge V2 execution_settings into params for executor compatibility
+		if node.ExecSettings != nil {
+			for k, v := range node.ExecSettings {
+				camelKey := snakeToCamel(k)
+				step.Params[camelKey] = v
+			}
+		}
+
 		if pos := toPosition(node.Position); pos != nil {
 			step.SourcePosition = pos
 		}
@@ -659,8 +861,8 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 				ID:         edge.ID,
 				TargetNode: edge.Target,
 				Condition:  strings.TrimSpace(edgeCondition(edge)),
-				SourcePort: strings.TrimSpace(edge.SourceHandle),
-				TargetPort: strings.TrimSpace(edge.TargetHandle),
+				SourcePort: strings.TrimSpace(edge.getSourceHandle()),
+				TargetPort: strings.TrimSpace(edge.getTargetHandle()),
 			})
 		}
 		steps = append(steps, step)
@@ -805,12 +1007,12 @@ func rawNodeMapToSlice(m map[string]rawNode) []rawNode {
 }
 
 func isLoopBodyEdge(edge rawEdge) bool {
-	return strings.EqualFold(strings.TrimSpace(edge.SourceHandle), loopHandleBody) ||
-		strings.EqualFold(strings.TrimSpace(edge.TargetHandle), loopConditionBody)
+	return strings.EqualFold(strings.TrimSpace(edge.getSourceHandle()), loopHandleBody) ||
+		strings.EqualFold(strings.TrimSpace(edge.getTargetHandle()), loopConditionBody)
 }
 
 func loopDirectiveFromEdge(edge rawEdge) (EdgeRef, bool) {
-	handle := strings.ToLower(strings.TrimSpace(edge.TargetHandle))
+	handle := strings.ToLower(strings.TrimSpace(edge.getTargetHandle()))
 	switch handle {
 	case loopHandleContinue, loopConditionContinue:
 		return EdgeRef{ID: edge.ID, TargetNode: LoopContinueTarget, Condition: loopConditionContinue}, true

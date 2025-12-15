@@ -890,9 +890,9 @@ func ProtoToExecutionPlan(pb *basexecution.ExecutionPlan) *autocontracts.Executi
 
 // CompiledInstructionToProto converts a native CompiledInstruction to proto.
 //
-// MIGRATION: This function handles both old (Type/Params) and new (Action) fields.
-// When Action is set, it takes precedence. Legacy Type/Params are still populated
-// for backward compatibility with consumers that haven't migrated yet.
+// The typed Action field is the canonical representation. Legacy Type/Params fields
+// are no longer populated - all consumers have migrated to the typed action system.
+// The proto schema retains these fields for wire compatibility but they are not used.
 func CompiledInstructionToProto(instr *autocontracts.CompiledInstruction) *basexecution.CompiledInstruction {
 	if instr == nil {
 		return nil
@@ -903,18 +903,14 @@ func CompiledInstructionToProto(instr *autocontracts.CompiledInstruction) *basex
 		NodeId: instr.NodeID,
 	}
 
-	// NEW: Populate typed action field if present
+	// Typed action field - the canonical representation
 	if instr.Action != nil {
 		pb.Action = instr.Action
 	}
 
-	// DEPRECATED: Still populate legacy fields for backward compatibility
-	if instr.Type != "" {
-		pb.Type = instr.Type
-	}
-	if len(instr.Params) > 0 {
-		pb.Params = toJsonValueMap(instr.Params)
-	}
+	// NOTE: Legacy Type/Params fields are intentionally not populated.
+	// All consumers now use the typed Action field. Keeping them empty
+	// reduces JSON payload size and avoids expensive toJsonValueMap() calls.
 
 	if instr.PreloadHTML != "" {
 		pb.PreloadHtml = &instr.PreloadHTML
@@ -997,7 +993,8 @@ func ProtoToPlanGraph(pb *basexecution.PlanGraph) *autocontracts.PlanGraph {
 
 // PlanStepToProto converts a native PlanStep to proto.
 //
-// MIGRATION: Same transition as CompiledInstruction - handles both old and new fields.
+// The typed Action field is the canonical representation. Legacy Type/Params fields
+// are no longer populated - all consumers have migrated to the typed action system.
 func PlanStepToProto(step *autocontracts.PlanStep) *basexecution.PlanStep {
 	if step == nil {
 		return nil
@@ -1008,18 +1005,13 @@ func PlanStepToProto(step *autocontracts.PlanStep) *basexecution.PlanStep {
 		NodeId: step.NodeID,
 	}
 
-	// NEW: Populate typed action field if present
+	// Typed action field - the canonical representation
 	if step.Action != nil {
 		pb.Action = step.Action
 	}
 
-	// DEPRECATED: Still populate legacy fields for backward compatibility
-	if step.Type != "" {
-		pb.Type = step.Type
-	}
-	if len(step.Params) > 0 {
-		pb.Params = toJsonValueMap(step.Params)
-	}
+	// NOTE: Legacy Type/Params fields are intentionally not populated.
+	// All consumers now use the typed Action field.
 
 	for _, edge := range step.Outgoing {
 		pb.Outgoing = append(pb.Outgoing, PlanEdgeToProto(&edge))

@@ -51,7 +51,7 @@ func shortID(id uuid.UUID) string {
 	return strings.ToLower(id.String()[:8])
 }
 
-func (s *WorkflowService) projectWorkflowsDir(project *database.Project) string {
+func projectWorkflowsDir(project *database.ProjectIndex) string {
 	root := strings.TrimSpace(project.FolderPath)
 	if root == "" {
 		return workflowDirectoryName
@@ -85,11 +85,11 @@ func workflowsSubdir(folderPath string) string {
 	return filepath.FromSlash(trimmed)
 }
 
-func (s *WorkflowService) desiredWorkflowFilePath(project *database.Project, workflow *database.Workflow) (string, string) {
-	subdir := workflowsSubdir(workflow.FolderPath)
-	slug := sanitizeWorkflowSlug(workflow.Name)
-	fileName := fmt.Sprintf("%s--%s%s", slug, shortID(workflow.ID), workflowFileExt)
-	baseDir := s.projectWorkflowsDir(project)
+func (s *WorkflowService) desiredWorkflowFilePath(project *database.ProjectIndex, workflowID uuid.UUID, name string, folderPath string) (string, string) {
+	subdir := workflowsSubdir(folderPath)
+	slug := sanitizeWorkflowSlug(name)
+	fileName := fmt.Sprintf("%s--%s%s", slug, shortID(workflowID), workflowFileExt)
+	baseDir := projectWorkflowsDir(project)
 	if subdir != "" {
 		return filepath.Join(baseDir, subdir, fileName), filepath.Join(subdir, fileName)
 	}

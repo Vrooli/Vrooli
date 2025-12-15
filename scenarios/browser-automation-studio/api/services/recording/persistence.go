@@ -25,9 +25,9 @@ type framePersistResult struct {
 func (s *RecordingService) persistFrames(
 	ctx context.Context,
 	zr *zip.Reader,
-	project *database.Project,
-	workflow *database.Workflow,
-	execution *database.Execution,
+	project *database.ProjectIndex,
+	workflow *database.WorkflowIndex,
+	execution *database.ExecutionIndex,
 	manifest *recordingManifest,
 ) (*framePersistResult, error) {
 	// Build a map of archive files for efficient lookup
@@ -96,7 +96,7 @@ func (s *RecordingService) persistFrames(
 
 // cleanupRecordingArtifacts removes partially created database records and filesystem artifacts
 // when a recording import fails. It attempts to clean up execution, workflow, and project in order.
-func (s *RecordingService) cleanupRecordingArtifacts(baseCtx context.Context, projectCreated, workflowCreated bool, project *database.Project, workflow *database.Workflow, execution *database.Execution) {
+func (s *RecordingService) cleanupRecordingArtifacts(baseCtx context.Context, projectCreated, workflowCreated bool, project *database.ProjectIndex, workflow *database.WorkflowIndex, execution *database.ExecutionIndex) {
 	ctx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
 	defer cancel()
 

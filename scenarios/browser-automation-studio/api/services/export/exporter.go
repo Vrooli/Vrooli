@@ -241,8 +241,8 @@ type ExportNormalizedRect struct {
 
 // BuildReplayMovieSpec compiles execution timeline data into an export-ready movie specification.
 func BuildReplayMovieSpec(
-	execution *database.Execution,
-	workflow *database.Workflow,
+	execution *database.ExecutionIndex,
+	workflow *database.WorkflowIndex,
 	timeline *ExecutionTimeline,
 ) (*ReplayMovieSpec, error) {
 	if execution == nil {
@@ -406,6 +406,13 @@ func BuildReplayMovieSpec(
 		MaxFrameDurationMs: maxFrameDuration,
 	}
 
+	// Progress is now stored in the result JSON file, not the index.
+	// For export, we infer progress from status: completed = 100, else 0.
+	progress := 0
+	if execution.Status == database.ExecutionStatusCompleted {
+		progress = 100
+	}
+
 	executionMeta := ExportExecutionMetadata{
 		ExecutionID:   execution.ID,
 		WorkflowID:    execution.WorkflowID,
@@ -413,7 +420,7 @@ func BuildReplayMovieSpec(
 		Status:        execution.Status,
 		StartedAt:     execution.StartedAt,
 		CompletedAt:   execution.CompletedAt,
-		Progress:      execution.Progress,
+		Progress:      progress,
 		TotalDuration: totalDuration,
 	}
 

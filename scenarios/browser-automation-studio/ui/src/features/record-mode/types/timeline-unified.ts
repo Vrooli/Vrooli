@@ -60,6 +60,9 @@ import {
   SelectorType as ProtoSelectorType,
 } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 
+// Import centralized timestamp utility
+import { protoTimestampToDate } from '../../../utils/timestamps';
+
 /**
  * Mode discriminator for timeline events.
  * - recording: Event from live recording session
@@ -129,7 +132,7 @@ export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem 
   return {
     id: entry.id,
     sequenceNum: entry.sequenceNum,
-    timestamp: entry.timestamp ? timestampToDate(entry.timestamp) : new Date(),
+    timestamp: entry.timestamp ? protoTimestampToDate(entry.timestamp) ?? new Date() : new Date(),
     durationMs: entry.durationMs,
     actionType,
     selector,
@@ -141,14 +144,6 @@ export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem 
   };
 }
 
-/**
- * Convert a protobuf Timestamp to a JavaScript Date.
- */
-function timestampToDate(timestamp: { seconds?: bigint; nanos?: number }): Date {
-  const seconds = Number(timestamp.seconds ?? 0n);
-  const millis = Math.floor((timestamp.nanos ?? 0) / 1_000_000);
-  return new Date(seconds * 1000 + millis);
-}
 
 /**
  * Convert ActionType enum to display string.
@@ -257,7 +252,7 @@ export function timelineEntryToRecordedAction(entry: TimelineEntry): RecordedAct
     id: entry.id,
     sessionId,
     sequenceNum: entry.sequenceNum,
-    timestamp: entry.timestamp ? timestampToDate(entry.timestamp).toISOString() : new Date().toISOString(),
+    timestamp: entry.timestamp ? (protoTimestampToDate(entry.timestamp)?.toISOString() ?? new Date().toISOString()) : new Date().toISOString(),
     durationMs: entry.durationMs,
     actionType: actionType as RecordedAction['actionType'],
     confidence: entry.action.metadata?.confidence ?? 1.0,

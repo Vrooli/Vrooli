@@ -39,9 +39,9 @@ type replayRenderer interface {
 
 // Handler contains all HTTP handlers
 type Handler struct {
-	workflowCatalog   workflow.CatalogService
-	executionService  workflow.ExecutionService
-	exportService     workflow.ExportService
+	workflowCatalog   *workflow.WorkflowService
+	executionService  *workflow.WorkflowService
+	exportService     *workflow.WorkflowService
 	workflowValidator *workflowvalidator.Validator
 	repo              database.Repository
 	wsHub             wsHub.HubInterface
@@ -91,13 +91,6 @@ func eventBufferLimits() autocontracts.EventBufferLimits {
 	return limits
 }
 
-type workflowResponse struct {
-	*database.Workflow
-	WorkflowID uuid.UUID `json:"workflow_id"`
-	Nodes      []any     `json:"nodes"`
-	Edges      []any     `json:"edges"`
-}
-
 // HealthResponse represents the health check response following Vrooli standards
 type HealthResponse struct {
 	Status       string         `json:"status"`
@@ -112,9 +105,9 @@ type HealthResponse struct {
 // HandlerDeps holds all dependencies for the Handler.
 // This struct separates dependency wiring from handler construction.
 type HandlerDeps struct {
-	WorkflowCatalog   workflow.CatalogService
-	ExecutionService  workflow.ExecutionService
-	ExportService     workflow.ExportService
+	WorkflowCatalog   *workflow.WorkflowService
+	ExecutionService  *workflow.WorkflowService
+	ExportService     *workflow.WorkflowService
 	WorkflowValidator *workflowvalidator.Validator
 	Storage           storage.StorageInterface
 	RecordingService  recording.RecordingServiceInterface
@@ -269,81 +262,13 @@ func (h *Handler) isOriginAllowed(r *http.Request) bool {
 
 // GetExecutionService returns the workflow execution service for use by other components
 // such as the scheduler service.
-func (h *Handler) GetExecutionService() workflow.ExecutionService {
+func (h *Handler) GetExecutionService() *workflow.WorkflowService {
 	return h.executionService
 }
 
 // GetPerfRegistry returns the performance collector registry for use by debug endpoints.
 func (h *Handler) GetPerfRegistry() *performance.CollectorRegistry {
 	return h.perfRegistry
-}
-
-func newWorkflowResponse(workflow *database.Workflow) workflowResponse {
-	nodes, edges := normalizeWorkflowFlowDefinition(workflow)
-	if workflow == nil {
-		return workflowResponse{
-			Workflow:   &database.Workflow{},
-			WorkflowID: uuid.Nil,
-			Nodes:      nodes,
-			Edges:      edges,
-		}
-	}
-
-	return workflowResponse{
-		Workflow:   workflow,
-		WorkflowID: workflow.ID,
-		Nodes:      nodes,
-		Edges:      edges,
-	}
-}
-
-func normalizeWorkflowFlowDefinition(workflow *database.Workflow) ([]any, []any) {
-	if workflow == nil {
-		return []any{}, []any{}
-	}
-
-	if workflow.FlowDefinition == nil {
-		workflow.FlowDefinition = database.JSONMap{}
-	}
-
-	nodes := toInterfaceSlice(workflow.FlowDefinition["nodes"])
-	edges := toInterfaceSlice(workflow.FlowDefinition["edges"])
-
-	workflow.FlowDefinition["nodes"] = nodes
-	workflow.FlowDefinition["edges"] = edges
-
-	return nodes, edges
-}
-
-func toInterfaceSlice(value any) []any {
-	switch v := value.(type) {
-	case nil:
-		return []any{}
-	case []any:
-		return v
-	case []map[string]any:
-		result := make([]any, len(v))
-		for i := range v {
-			result[i] = v[i]
-		}
-		return result
-	case []database.JSONMap:
-		result := make([]any, len(v))
-		for i := range v {
-			result[i] = v[i]
-		}
-		return result
-	default:
-		bytes, err := json.Marshal(v)
-		if err != nil {
-			return []any{}
-		}
-		var result []any
-		if err := json.Unmarshal(bytes, &result); err != nil {
-			return []any{}
-		}
-		return result
-	}
 }
 
 // AI handler delegation methods

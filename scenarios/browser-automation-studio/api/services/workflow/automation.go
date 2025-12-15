@@ -17,8 +17,10 @@ import (
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // executeWithAutomationEngine is the sole execution path; the legacy
@@ -35,7 +37,14 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		compiler = autoexecutor.PlanCompilerForEngine(engineName)
 	}
 
-	plan, _, err := autoexecutor.BuildContractsPlanWithCompiler(ctx, execution.ID, workflow, compiler)
+	// Convert database.Workflow (index) to basapi.WorkflowSummary (proto)
+	// The workflow may have FlowDefinition from adhoc store or from disk
+	workflowProto, err := s.workflowIndexToProto(ctx, workflow)
+	if err != nil {
+		return fmt.Errorf("convert workflow to proto: %w", err)
+	}
+
+	plan, _, err := autoexecutor.BuildContractsPlanWithCompiler(ctx, execution.ID, workflowProto, compiler)
 	if err != nil {
 		return err
 	}
@@ -65,7 +74,7 @@ func (s *WorkflowService) executeWithAutomationEngine(ctx context.Context, execu
 		Recorder:          s.artifactRecorder,
 		EventSink:         eventSink,
 		HeartbeatInterval: config.Load().Execution.HeartbeatInterval,
-		WorkflowResolver:  &executorWorkflowResolver{repo: s.repo},
+		WorkflowResolver:  &executorWorkflowResolver{repo: s.repo, service: s},
 		PlanCompiler:      compiler,
 		MaxSubflowDepth:   config.Load().Execution.MaxSubflowDepth,
 	}
@@ -96,7 +105,13 @@ func (s *WorkflowService) executeResumedWithAutomationEngine(ctx context.Context
 		compiler = autoexecutor.PlanCompilerForEngine(engineName)
 	}
 
-	plan, _, err := autoexecutor.BuildContractsPlanWithCompiler(ctx, execution.ID, workflow, compiler)
+	// Convert database.Workflow (index) to basapi.WorkflowSummary (proto)
+	workflowProto, err := s.workflowIndexToProto(ctx, workflow)
+	if err != nil {
+		return fmt.Errorf("convert workflow to proto: %w", err)
+	}
+
+	plan, _, err := autoexecutor.BuildContractsPlanWithCompiler(ctx, execution.ID, workflowProto, compiler)
 	if err != nil {
 		return err
 	}
@@ -126,7 +141,7 @@ func (s *WorkflowService) executeResumedWithAutomationEngine(ctx context.Context
 		Recorder:           s.artifactRecorder,
 		EventSink:          eventSink,
 		HeartbeatInterval:  config.Load().Execution.HeartbeatInterval,
-		WorkflowResolver:   &executorWorkflowResolver{repo: s.repo},
+		WorkflowResolver:   &executorWorkflowResolver{repo: s.repo, service: s},
 		PlanCompiler:       compiler,
 		MaxSubflowDepth:    config.Load().Execution.MaxSubflowDepth,
 		StartFromStepIndex: startFromStepIndex,
@@ -137,41 +152,57 @@ func (s *WorkflowService) executeResumedWithAutomationEngine(ctx context.Context
 }
 
 type executorWorkflowResolver struct {
-	repo database.Repository
+	repo    database.Repository
+	service *WorkflowService
 }
 
-func (r *executorWorkflowResolver) GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*database.Workflow, error) {
-	return r.repo.GetWorkflow(ctx, workflowID)
+func (r *executorWorkflowResolver) GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowSummary, error) {
+	workflow, err := r.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return nil, err
+	}
+	return r.service.workflowIndexToProto(ctx, workflow)
 }
 
-func (r *executorWorkflowResolver) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*database.Workflow, error) {
+func (r *executorWorkflowResolver) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*basapi.WorkflowSummary, error) {
 	if version <= 0 {
-		return r.repo.GetWorkflow(ctx, workflowID)
+		return r.GetWorkflow(ctx, workflowID)
 	}
 
-	base, err := r.repo.GetWorkflow(ctx, workflowID)
-	if err != nil {
-		return nil, err
-	}
-	v, err := r.repo.GetWorkflowVersion(ctx, workflowID, version)
+	workflow, err := r.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Rehydrate a Workflow struct with the versioned definition.
-	// Only fields required by the executor/compiler are populated.
-	return &database.Workflow{
-		ID:             base.ID,
-		ProjectID:      base.ProjectID,
-		Name:           base.Name,
-		FolderPath:     base.FolderPath,
-		WorkflowType:   base.WorkflowType,
-		FlowDefinition: v.FlowDefinition,
-		Version:        v.Version,
-	}, nil
+	// For file-based versioning, load the specific version from disk
+	fileVersion, err := r.service.getFileVersion(workflow, version)
+	if err != nil {
+		// Fall back to current version if specific version not found
+		return r.GetWorkflow(ctx, workflowID)
+	}
+
+	// Build proto from file version
+	flowDef, err := flowDefinitionToProto(fileVersion.FlowDefinition)
+	if err != nil {
+		return nil, fmt.Errorf("convert flow definition to proto: %w", err)
+	}
+
+	pb := &basapi.WorkflowSummary{
+		Id:             workflow.ID.String(),
+		Name:           workflow.Name,
+		FolderPath:     workflow.FolderPath,
+		Version:        int32(fileVersion.Version),
+		CreatedAt:      timestamppb.New(fileVersion.CreatedAt),
+		UpdatedAt:      timestamppb.New(workflow.UpdatedAt),
+		FlowDefinition: flowDef,
+	}
+	if workflow.ProjectID != nil {
+		pb.ProjectId = workflow.ProjectID.String()
+	}
+	return pb, nil
 }
 
-func (r *executorWorkflowResolver) GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*database.Workflow, error) {
+func (r *executorWorkflowResolver) GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string) (*basapi.WorkflowSummary, error) {
 	callingWorkflow, err := r.repo.GetWorkflow(ctx, callingWorkflowID)
 	if err != nil {
 		return nil, err
@@ -208,25 +239,20 @@ func (r *executorWorkflowResolver) GetWorkflowByProjectPath(ctx context.Context,
 		return nil, fmt.Errorf("workflowPath=%q is empty", workflowPath)
 	}
 
-	var def map[string]any
-	if err := json.Unmarshal(raw, &def); err != nil {
-		return nil, fmt.Errorf("workflowPath=%q is not valid JSON: %w", workflowPath, err)
-	}
-
-	// Fail-fast: ensure the definition matches the canonical proto shape.
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &basworkflows.WorkflowDefinitionV2{}); err != nil {
+	// Parse as proto WorkflowDefinitionV2
+	var protoDef basworkflows.WorkflowDefinitionV2
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &protoDef); err != nil {
 		return nil, fmt.Errorf("workflowPath=%q does not match proto schema: %w", workflowPath, err)
 	}
 
 	id := uuid.New()
-	return &database.Workflow{
-		ID:             id,
-		ProjectID:      callingWorkflow.ProjectID,
+	return &basapi.WorkflowSummary{
+		Id:             id.String(),
+		ProjectId:      callingWorkflow.ProjectID.String(),
 		Name:           normalized,
 		FolderPath:     "/",
-		WorkflowType:   callingWorkflow.WorkflowType,
-		FlowDefinition: database.JSONMap(def),
 		Version:        1,
+		FlowDefinition: &protoDef,
 	}, nil
 }
 
@@ -323,4 +349,140 @@ func extractString(m map[string]any, key string) string {
 		}
 	}
 	return ""
+}
+
+// flowDefinitionToProto converts a JSON map flow definition to proto.
+// This is an inline version to avoid import cycle with protoconv package.
+func flowDefinitionToProto(definition database.JSONMap) (*basworkflows.WorkflowDefinitionV2, error) {
+	pb := &basworkflows.WorkflowDefinitionV2{}
+	if definition == nil {
+		return pb, nil
+	}
+	raw, err := json.Marshal(definition)
+	if err != nil {
+		return nil, fmt.Errorf("marshal flow_definition: %w", err)
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, pb); err != nil {
+		return nil, fmt.Errorf("unmarshal flow_definition: %w", err)
+	}
+	return pb, nil
+}
+
+// workflowIndexToProto converts a database.Workflow (index) to basapi.WorkflowSummary (proto).
+// It loads the flow definition from:
+// 1. Adhoc flow store (for ephemeral workflows)
+// 2. Disk file (for persisted workflows)
+func (s *WorkflowService) workflowIndexToProto(ctx context.Context, workflow *database.Workflow) (*basapi.WorkflowSummary, error) {
+	if workflow == nil {
+		return nil, errors.New("workflow is nil")
+	}
+
+	// First, check if this is an adhoc workflow with definition stored in memory
+	if adhocDef := getAdhocFlowDefinition(workflow.ID); adhocDef != nil {
+		flowDef, err := flowDefinitionToProto(database.JSONMap(adhocDef.FlowDefinition))
+		if err != nil {
+			return nil, fmt.Errorf("convert adhoc flow definition to proto: %w", err)
+		}
+		pb := &basapi.WorkflowSummary{
+			Id:             workflow.ID.String(),
+			Name:           workflow.Name,
+			FolderPath:     workflow.FolderPath,
+			Version:        int32(workflow.Version),
+			CreatedAt:      timestamppb.New(workflow.CreatedAt),
+			UpdatedAt:      timestamppb.New(workflow.UpdatedAt),
+			FlowDefinition: flowDef,
+		}
+		if workflow.ProjectID != nil {
+			pb.ProjectId = workflow.ProjectID.String()
+		}
+		return pb, nil
+	}
+
+	// Otherwise, load from disk file
+	if workflow.FilePath == "" {
+		// No file path - return minimal proto with empty definition
+		pb := &basapi.WorkflowSummary{
+			Id:             workflow.ID.String(),
+			Name:           workflow.Name,
+			FolderPath:     workflow.FolderPath,
+			Version:        int32(workflow.Version),
+			CreatedAt:      timestamppb.New(workflow.CreatedAt),
+			UpdatedAt:      timestamppb.New(workflow.UpdatedAt),
+			FlowDefinition: &basworkflows.WorkflowDefinitionV2{},
+		}
+		if workflow.ProjectID != nil {
+			pb.ProjectId = workflow.ProjectID.String()
+		}
+		return pb, nil
+	}
+
+	// Read workflow file from disk
+	raw, err := os.ReadFile(workflow.FilePath)
+	if err != nil {
+		return nil, fmt.Errorf("read workflow file %s: %w", workflow.FilePath, err)
+	}
+
+	// Parse file as JSON to extract all fields
+	var fileData map[string]any
+	if err := json.Unmarshal(raw, &fileData); err != nil {
+		return nil, fmt.Errorf("parse workflow file %s: %w", workflow.FilePath, err)
+	}
+
+	// Extract flow definition and convert to proto
+	var flowDef *basworkflows.WorkflowDefinitionV2
+	if rawDef, ok := fileData["definition_v2"].(map[string]any); ok {
+		defBytes, _ := json.Marshal(rawDef)
+		flowDef = &basworkflows.WorkflowDefinitionV2{}
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(defBytes, flowDef); err != nil {
+			return nil, fmt.Errorf("parse definition_v2: %w", err)
+		}
+	} else if rawDef, ok := fileData["flow_definition"].(map[string]any); ok {
+		flowDef, err = flowDefinitionToProto(database.JSONMap(rawDef))
+		if err != nil {
+			return nil, fmt.Errorf("convert flow_definition: %w", err)
+		}
+	} else {
+		// Try to parse the whole file as flow definition
+		flowDef, err = flowDefinitionToProto(database.JSONMap(fileData))
+		if err != nil {
+			flowDef = &basworkflows.WorkflowDefinitionV2{}
+		}
+	}
+
+	// Build proto
+	pb := &basapi.WorkflowSummary{
+		Id:             workflow.ID.String(),
+		Name:           workflow.Name,
+		FolderPath:     workflow.FolderPath,
+		Version:        int32(workflow.Version),
+		CreatedAt:      timestamppb.New(workflow.CreatedAt),
+		UpdatedAt:      timestamppb.New(workflow.UpdatedAt),
+		FlowDefinition: flowDef,
+	}
+	if workflow.ProjectID != nil {
+		pb.ProjectId = workflow.ProjectID.String()
+	}
+
+	// Extract optional fields from file
+	if desc, ok := fileData["description"].(string); ok {
+		pb.Description = desc
+	}
+	if tags, ok := fileData["tags"].([]any); ok {
+		for _, t := range tags {
+			if s, ok := t.(string); ok {
+				pb.Tags = append(pb.Tags, s)
+			}
+		}
+	}
+	if createdBy, ok := fileData["created_by"].(string); ok {
+		pb.CreatedBy = createdBy
+	}
+	if isTemplate, ok := fileData["is_template"].(bool); ok {
+		pb.IsTemplate = isTemplate
+	}
+	if changeDesc, ok := fileData["change_description"].(string); ok {
+		pb.LastChangeDescription = changeDesc
+	}
+
+	return pb, nil
 }

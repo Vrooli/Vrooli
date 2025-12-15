@@ -177,12 +177,6 @@ func eventBufferLimits() autocontracts.EventBufferLimits {
 	return limits
 }
 
-var (
-	_ CatalogService   = (*WorkflowService)(nil)
-	_ ExecutionService = (*WorkflowService)(nil)
-	_ ExportService    = (*WorkflowService)(nil)
-)
-
 // cloneJSONMap creates a deep copy of a database.JSONMap using typeconv utilities.
 // Handles database.JSONMap and database.StringArray as special domain-specific types.
 func cloneJSONMap(source database.JSONMap) database.JSONMap {

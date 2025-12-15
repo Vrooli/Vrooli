@@ -3,16 +3,32 @@ package workflow
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
-func newWorkflowVersionSummary(version *database.WorkflowVersion) *WorkflowVersionSummary {
+// fileWorkflowVersion represents a workflow version stored on disk.
+// Versions are stored in a ".versions" subdirectory alongside workflow files.
+type fileWorkflowVersion struct {
+	Version           int              `json:"version"`
+	WorkflowID        uuid.UUID        `json:"workflow_id"`
+	CreatedAt         time.Time        `json:"created_at"`
+	CreatedBy         string           `json:"created_by"`
+	ChangeDescription string           `json:"change_description"`
+	FlowDefinition    database.JSONMap `json:"flow_definition"`
+}
+
+// newWorkflowVersionSummaryFromFile creates a WorkflowVersionSummary from file-based version data.
+func newWorkflowVersionSummaryFromFile(version *fileWorkflowVersion) *WorkflowVersionSummary {
 	if version == nil {
 		return nil
 	}
@@ -32,7 +48,74 @@ func newWorkflowVersionSummary(version *database.WorkflowVersion) *WorkflowVersi
 	}
 }
 
+// getVersionsDir returns the directory path where versions are stored for a workflow.
+func (s *WorkflowService) getVersionsDir(workflow *database.Workflow) string {
+	if workflow.FilePath != "" {
+		// Versions stored alongside the workflow file
+		dir := filepath.Dir(workflow.FilePath)
+		return filepath.Join(dir, ".versions", workflow.ID.String())
+	}
+	// Fallback for workflows without a file path
+	return filepath.Join(workflow.FolderPath, ".versions", workflow.ID.String())
+}
+
+// listFileVersions reads all version files from disk for a workflow.
+func (s *WorkflowService) listFileVersions(workflow *database.Workflow) ([]*fileWorkflowVersion, error) {
+	versionsDir := s.getVersionsDir(workflow)
+	entries, err := os.ReadDir(versionsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []*fileWorkflowVersion{}, nil
+		}
+		return nil, fmt.Errorf("read versions directory: %w", err)
+	}
+
+	versions := make([]*fileWorkflowVersion, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		versionPath := filepath.Join(versionsDir, entry.Name())
+		version, err := s.readVersionFile(versionPath)
+		if err != nil {
+			if s.log != nil {
+				s.log.WithError(err).WithField("path", versionPath).Warn("Failed to read version file")
+			}
+			continue
+		}
+		versions = append(versions, version)
+	}
+
+	// Sort by version number descending (newest first)
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].Version > versions[j].Version
+	})
+
+	return versions, nil
+}
+
+// readVersionFile reads a single version file from disk.
+func (s *WorkflowService) readVersionFile(path string) (*fileWorkflowVersion, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var version fileWorkflowVersion
+	if err := json.Unmarshal(data, &version); err != nil {
+		return nil, fmt.Errorf("parse version file: %w", err)
+	}
+	return &version, nil
+}
+
+// getFileVersion retrieves a specific version from disk.
+func (s *WorkflowService) getFileVersion(workflow *database.Workflow, versionNum int) (*fileWorkflowVersion, error) {
+	versionsDir := s.getVersionsDir(workflow)
+	versionPath := filepath.Join(versionsDir, fmt.Sprintf("v%d.json", versionNum))
+	return s.readVersionFile(versionPath)
+}
+
 // ListWorkflowVersions returns version metadata for a workflow ordered by newest first.
+// Reads versions from disk files stored alongside the workflow.
 func (s *WorkflowService) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*WorkflowVersionSummary, error) {
 	if limit <= 0 {
 		limit = 50
@@ -51,22 +134,32 @@ func (s *WorkflowService) ListWorkflowVersions(ctx context.Context, workflowID u
 		}
 	}
 
-	versions, err := s.repo.ListWorkflowVersions(ctx, workflowID, limit, offset)
+	versions, err := s.listFileVersions(workflow)
 	if err != nil {
 		return nil, err
 	}
+
+	// Apply pagination
+	if offset >= len(versions) {
+		return []*WorkflowVersionSummary{}, nil
+	}
+	end := offset + limit
+	if end > len(versions) {
+		end = len(versions)
+	}
+	versions = versions[offset:end]
 
 	results := make([]*WorkflowVersionSummary, 0, len(versions))
 	for _, version := range versions {
 		if version == nil {
 			continue
 		}
-		summary := newWorkflowVersionSummary(version)
+		summary := newWorkflowVersionSummaryFromFile(version)
 		if summary == nil {
 			continue
 		}
 		if strings.TrimSpace(summary.CreatedBy) == "" {
-			summary.CreatedBy = firstNonEmpty(workflow.LastChangeSource, fileSourceManual)
+			summary.CreatedBy = fileSourceManual
 		}
 		results = append(results, summary)
 	}
@@ -74,26 +167,25 @@ func (s *WorkflowService) ListWorkflowVersions(ctx context.Context, workflowID u
 	return results, nil
 }
 
-// GetWorkflowVersion retrieves a specific workflow version summary.
+// GetWorkflowVersion retrieves a specific workflow version summary from disk.
 func (s *WorkflowService) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*WorkflowVersionSummary, error) {
 	if version <= 0 {
 		return nil, fmt.Errorf("invalid workflow version: %d", version)
 	}
 
-	if _, err := s.repo.GetWorkflow(ctx, workflowID); err != nil {
+	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
 		return nil, err
 	}
 
-	versionRow, err := s.repo.GetWorkflowVersion(ctx, workflowID, version)
+	fileVersion, err := s.getFileVersion(workflow, version)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows), errors.Is(err, database.ErrNotFound):
+		if os.IsNotExist(err) {
 			return nil, ErrWorkflowVersionNotFound
-		default:
-			return nil, fmt.Errorf("%w: %v", ErrWorkflowVersionNotFound, err)
 		}
+		return nil, fmt.Errorf("%w: %v", ErrWorkflowVersionNotFound, err)
 	}
-	return newWorkflowVersionSummary(versionRow), nil
+	return newWorkflowVersionSummaryFromFile(fileVersion), nil
 }
 
 // RestoreWorkflowVersion restores the specified version and creates a new version entry that mirrors the change.
@@ -116,17 +208,15 @@ func (s *WorkflowService) RestoreWorkflowVersion(ctx context.Context, workflowID
 		return nil, ErrWorkflowRestoreProjectMismatch
 	}
 
-	versionRow, err := s.repo.GetWorkflowVersion(ctx, workflowID, version)
+	fileVersion, err := s.getFileVersion(workflow, version)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows), errors.Is(err, database.ErrNotFound):
+		if os.IsNotExist(err) {
 			return nil, ErrWorkflowVersionNotFound
-		default:
-			return nil, fmt.Errorf("%w: %v", ErrWorkflowVersionNotFound, err)
 		}
+		return nil, fmt.Errorf("%w: %v", ErrWorkflowVersionNotFound, err)
 	}
 
-	restoreDefinition := cloneJSONMap(versionRow.FlowDefinition)
+	restoreDefinition := cloneJSONMap(fileVersion.FlowDefinition)
 	definitionMap := map[string]any{}
 	for k, v := range restoreDefinition {
 		definitionMap[k] = v
@@ -139,9 +229,7 @@ func (s *WorkflowService) RestoreWorkflowVersion(ctx context.Context, workflowID
 
 	input := WorkflowUpdateInput{
 		Name:              workflow.Name,
-		Description:       workflow.Description,
 		FolderPath:        workflow.FolderPath,
-		Tags:              append([]string(nil), []string(workflow.Tags)...),
 		FlowDefinition:    definitionMap,
 		ChangeDescription: description,
 		Source:            "version-restore",
@@ -171,18 +259,30 @@ func (s *WorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID 
 		return err
 	}
 
+	// Collect workflow info before deletion for file cleanup
 	workflows := make(map[uuid.UUID]*database.Workflow, len(workflowIDs))
 	for _, workflowID := range workflowIDs {
 		if wf, err := s.repo.GetWorkflow(ctx, workflowID); err == nil {
+			// Verify workflow belongs to the project
+			if wf.ProjectID == nil || *wf.ProjectID != projectID {
+				continue
+			}
 			workflows[workflowID] = wf
 		}
 	}
 
-	if err := s.repo.DeleteProjectWorkflows(ctx, projectID, workflowIDs); err != nil {
-		return err
+	// Delete workflows from database (one at a time since we don't have batch delete)
+	for workflowID := range workflows {
+		if err := s.repo.DeleteWorkflow(ctx, workflowID); err != nil {
+			if s.log != nil {
+				s.log.WithError(err).WithField("workflow_id", workflowID).Warn("Failed to delete workflow from database")
+			}
+			// Continue with other deletions
+		}
 	}
 
-	for _, workflowID := range workflowIDs {
+	// Clean up workflow files from disk
+	for workflowID := range workflows {
 		entry, hasEntry := s.lookupWorkflowPath(workflowID)
 		if hasEntry {
 			if removeErr := os.Remove(entry.AbsolutePath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
@@ -203,28 +303,18 @@ func (s *WorkflowService) DeleteProjectWorkflows(ctx context.Context, projectID 
 	return nil
 }
 
-func (s *WorkflowService) ensureWorkflowChangeMetadata(ctx context.Context, workflow *database.Workflow) error {
-	if workflow == nil {
-		return nil
-	}
-	if !s.coalesceWorkflowChangeMetadata(workflow) {
-		return nil
-	}
-	return s.repo.UpdateWorkflow(ctx, workflow)
+// ensureWorkflowChangeMetadata is a no-op in the simplified schema.
+// Change metadata (source, description) is stored in the workflow JSON file, not the index.
+func (s *WorkflowService) ensureWorkflowChangeMetadata(_ context.Context, _ *database.Workflow) error {
+	// In the new architecture, change metadata is stored in the workflow JSON file on disk,
+	// not in the database index. This method is retained for interface compatibility.
+	return nil
 }
 
-func (s *WorkflowService) coalesceWorkflowChangeMetadata(workflow *database.Workflow) bool {
-	if workflow == nil {
-		return false
-	}
-	changed := false
-	if strings.TrimSpace(workflow.LastChangeSource) == "" {
-		workflow.LastChangeSource = fileSourceManual
-		changed = true
-	}
-	if strings.TrimSpace(workflow.LastChangeDescription) == "" {
-		workflow.LastChangeDescription = "Manual save"
-		changed = true
-	}
-	return changed
+// coalesceWorkflowChangeMetadata is a no-op in the simplified schema.
+// Change metadata is stored in the workflow JSON file, not the database index.
+func (s *WorkflowService) coalesceWorkflowChangeMetadata(_ *database.Workflow) bool {
+	// In the new architecture, change metadata is stored in the workflow JSON file on disk,
+	// not in the database index. This method is retained for interface compatibility.
+	return false
 }

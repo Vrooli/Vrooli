@@ -2,14 +2,19 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
 // Package-level configuration for adhoc workflow cleanup.
@@ -125,9 +130,93 @@ func workflowHasNodeType(definition database.JSONMap, nodeType string) bool {
 	return false
 }
 
-// GetExecutionScreenshots gets screenshots for an execution
-func (s *WorkflowService) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
-	return s.repo.GetExecutionScreenshots(ctx, executionID)
+// GetExecutionScreenshots reads screenshots from the execution result file.
+// Returns proto ExecutionScreenshot types for type safety.
+func (s *WorkflowService) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*basexecution.ExecutionScreenshot, error) {
+	// Get execution to find result file path
+	execution, err := s.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, fmt.Errorf("get execution: %w", err)
+	}
+
+	if execution.ResultPath == "" {
+		// No result file yet - return empty
+		return []*basexecution.ExecutionScreenshot{}, nil
+	}
+
+	// Read and parse result file
+	resultData, err := s.readExecutionResult(execution.ResultPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []*basexecution.ExecutionScreenshot{}, nil
+		}
+		return nil, fmt.Errorf("read result file: %w", err)
+	}
+
+	// Extract screenshots from artifacts
+	screenshots := make([]*basexecution.ExecutionScreenshot, 0)
+	for _, artifact := range resultData.Artifacts {
+		if artifact.ArtifactType != "screenshot" && artifact.ArtifactType != "screenshot_inline" {
+			continue
+		}
+
+		// Build proto screenshot
+		screenshot := &basexecution.ExecutionScreenshot{
+			Screenshot: &bastelemetry.TimelineScreenshot{
+				ArtifactId:   artifact.ArtifactID,
+				Url:          artifact.StorageURL,
+				ThumbnailUrl: artifact.ThumbnailURL,
+				ContentType:  artifact.ContentType,
+			},
+		}
+
+		// Extract dimensions from payload
+		if artifact.Payload != nil {
+			if w, ok := artifact.Payload["width"].(float64); ok {
+				screenshot.Screenshot.Width = int32(w)
+			}
+			if h, ok := artifact.Payload["height"].(float64); ok {
+				screenshot.Screenshot.Height = int32(h)
+			}
+		}
+
+		if artifact.SizeBytes != nil {
+			screenshot.Screenshot.SizeBytes = artifact.SizeBytes
+		}
+
+		// Set step metadata
+		if artifact.StepIndex != nil {
+			screenshot.StepIndex = int32(*artifact.StepIndex)
+		}
+		screenshot.StepLabel = &artifact.Label
+
+		// Find the step to get node ID
+		for _, step := range resultData.Steps {
+			if artifact.StepIndex != nil && step.StepIndex == *artifact.StepIndex {
+				screenshot.NodeId = step.NodeID
+				break
+			}
+		}
+
+		screenshots = append(screenshots, screenshot)
+	}
+
+	return screenshots, nil
+}
+
+// readExecutionResult reads and parses the execution result JSON file.
+func (s *WorkflowService) readExecutionResult(resultPath string) (*autorecorder.ExecutionResultData, error) {
+	data, err := os.ReadFile(resultPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var result autorecorder.ExecutionResultData
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("parse result JSON: %w", err)
+	}
+
+	return &result, nil
 }
 
 // GetExecution gets an execution by ID

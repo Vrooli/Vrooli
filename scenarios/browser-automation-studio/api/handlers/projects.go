@@ -13,7 +13,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/internal/protoconv"
+	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -93,13 +95,12 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := &database.Project{
-		Name:        req.Name,
-		Description: req.Description,
-		FolderPath:  absPath,
+	project := &database.ProjectIndex{
+		Name:       req.Name,
+		FolderPath: absPath,
 	}
 
-	if err := h.workflowCatalog.CreateProject(ctx, project); err != nil {
+	if err := h.workflowCatalog.CreateProject(ctx, project, req.Description); err != nil {
 		h.log.WithError(err).Error("Failed to create project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_project"}))
 		return
@@ -119,10 +120,15 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.respondProto(w, http.StatusCreated, protoconv.ProjectToProto(project))
+	pb, err := h.workflowCatalog.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+	h.respondProto(w, http.StatusCreated, pb)
 }
 
-func (h *Handler) applyProjectPreset(ctx context.Context, project *database.Project, preset string, presetPaths []string) error {
+func (h *Handler) applyProjectPreset(ctx context.Context, project *database.ProjectIndex, preset string, presetPaths []string) error {
 	if h == nil || project == nil {
 		return errors.New("invalid handler or project")
 	}
@@ -195,11 +201,23 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]proto.Message, 0, len(projects))
 	for _, project := range projects {
-		stats := protoconv.ProjectStatsFromMap(statsByProject[project.ID], project.ID)
-		pb := protoconv.ProjectWithStatsToProto(project, stats)
-		if pb != nil {
-			items = append(items, pb)
+		projectProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+		if err != nil {
+			continue
 		}
+		stats := statsByProject[project.ID]
+		statsProto := &basprojects.ProjectStats{
+			ProjectId:      project.ID.String(),
+			WorkflowCount:  int32(stats.WorkflowCount),
+			ExecutionCount: int32(stats.ExecutionCount),
+		}
+		if stats.LastExecution != nil {
+			statsProto.LastExecution = timestamppb.New(*stats.LastExecution)
+		}
+		items = append(items, &basprojects.ProjectWithStats{
+			Project: projectProto,
+			Stats:   statsProto,
+		})
 	}
 
 	h.respondProtoList(w, http.StatusOK, "projects", items)
@@ -226,11 +244,26 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.workflowCatalog.GetProjectStats(ctx, id)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", id).Warn("Failed to get project stats")
-		stats = make(map[string]any)
+		stats = &database.ProjectStats{ProjectID: id}
 	}
 
-	pb := protoconv.ProjectWithStatsToProto(project, protoconv.ProjectStatsFromMap(stats, id))
-	h.respondProto(w, http.StatusOK, pb)
+	projectProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+	statsProto := &basprojects.ProjectStats{
+		ProjectId:      id.String(),
+		WorkflowCount:  int32(stats.WorkflowCount),
+		ExecutionCount: int32(stats.ExecutionCount),
+	}
+	if stats.LastExecution != nil {
+		statsProto.LastExecution = timestamppb.New(*stats.LastExecution)
+	}
+	h.respondProto(w, http.StatusOK, &basprojects.ProjectWithStats{
+		Project: projectProto,
+		Stats:   statsProto,
+	})
 }
 
 // UpdateProject handles PUT /api/v1/projects/{id}
@@ -258,12 +291,19 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	projectProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+
 	// Update fields if provided
 	if req.Name != "" {
 		project.Name = req.Name
 	}
+	description := projectProto.Description
 	if req.Description != "" {
-		project.Description = req.Description
+		description = req.Description
 	}
 	if req.FolderPath != "" {
 		// Validate and update folder path
@@ -275,13 +315,18 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		project.FolderPath = absPath
 	}
 
-	if err := h.workflowCatalog.UpdateProject(ctx, project); err != nil {
+	if err := h.workflowCatalog.UpdateProject(ctx, project, description); err != nil {
 		h.log.WithError(err).WithField("id", id).Error("Failed to update project")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_project"}))
 		return
 	}
 
-	h.respondProto(w, http.StatusOK, protoconv.ProjectToProto(project))
+	updatedProto, err := h.workflowCatalog.HydrateProject(ctx, project)
+	if err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_project"}))
+		return
+	}
+	h.respondProto(w, http.StatusOK, updatedProto)
 }
 
 // DeleteProject handles DELETE /api/v1/projects/{id}
@@ -315,16 +360,19 @@ func (h *Handler) GetProjectWorkflows(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	workflows, err := h.workflowCatalog.ListWorkflowsByProject(ctx, projectID, 100, 0)
+	reqProto := &basapi.ListWorkflowsRequest{
+		ProjectId: proto.String(projectID.String()),
+		Limit:     proto.Int32(100),
+		Offset:    proto.Int32(0),
+	}
+	respProto, err := h.workflowCatalog.ListWorkflows(ctx, reqProto)
 	if err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to list project workflows")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"workflows": workflows,
-	})
+	h.respondProto(w, http.StatusOK, respProto)
 }
 
 // BulkDeleteProjectWorkflows handles POST /api/v1/projects/{id}/workflows/bulk-delete

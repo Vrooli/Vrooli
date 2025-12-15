@@ -14,7 +14,7 @@ import (
 // resolveProject finds an existing project or creates a new one for the recording.
 // It attempts to match by explicit ID, then by name from opts or manifest, then creates a default.
 // Returns the project, whether it was newly created, and any error.
-func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordingManifest, opts RecordingImportOptions) (*database.Project, bool, error) {
+func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordingManifest, opts RecordingImportOptions) (*database.ProjectIndex, bool, error) {
 	// First priority: explicit project ID from options
 	if opts.ProjectID != nil {
 		if project, err := s.repo.GetProject(ctx, *opts.ProjectID); err == nil {
@@ -40,8 +40,9 @@ func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordi
 		}
 	}
 
-	// Last resort: create a new project for extension recordings
-	project := &database.Project{
+	// Last resort: create a new project index for extension recordings
+	// Rich project data is stored on disk
+	project := &database.ProjectIndex{
 		ID:         uuid.New(),
 		Name:       "Extension Recordings",
 		FolderPath: filepath.Join("scenarios", "browser-automation-studio", "data", "projects", "extension-recordings"),
@@ -63,7 +64,7 @@ func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordi
 // resolveWorkflow finds an existing workflow or creates a new one for the recording.
 // It attempts to match by explicit ID, then by name from opts or manifest, then creates a default.
 // Returns the workflow, whether it was newly created, and any error.
-func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *recordingManifest, project *database.Project, opts RecordingImportOptions) (*database.Workflow, bool, error) {
+func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *recordingManifest, project *database.ProjectIndex, opts RecordingImportOptions) (*database.WorkflowIndex, bool, error) {
 	// First priority: explicit workflow ID from options
 	if opts.WorkflowID != nil {
 		if workflow, err := s.repo.GetWorkflow(ctx, *opts.WorkflowID); err == nil {
@@ -90,21 +91,16 @@ func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *record
 		}
 	}
 
-	// Last resort: create a new workflow for this recording
-	workflow := &database.Workflow{
+	// Last resort: create a new workflow index for this recording
+	// Rich workflow data (flow definition, description) is stored on disk
+	workflow := &database.WorkflowIndex{
 		ID:         uuid.New(),
 		ProjectID:  &project.ID,
 		Name:       deriveWorkflowName(manifest, opts),
 		FolderPath: defaultRecordingWorkflowFolder,
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{},
-			"edges": []any{},
-		},
-		Description: "Imported Chrome extension recording",
-		Version:     1,
-		CreatedBy:   "extension",
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
+		Version:    1,
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
 	}
 
 	if err := s.repo.CreateWorkflow(ctx, workflow); err != nil {

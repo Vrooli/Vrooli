@@ -1,7 +1,7 @@
 package typeconv
 
 import (
-	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/automation/recorder"
 )
 
 // RetryHistoryEntry captures the outcome of a single retry attempt for a step.
@@ -92,35 +92,34 @@ func ToRetryHistoryEntry(value any) *RetryHistoryEntry {
 	return &entry
 }
 
-// ToTimelineScreenshot converts a database artifact to *TimelineScreenshot.
+// ToTimelineScreenshot converts an artifact to *TimelineScreenshot.
 // Returns nil if artifact is nil.
-func ToTimelineScreenshot(artifact *database.ExecutionArtifact) *TimelineScreenshot {
+func ToTimelineScreenshot(artifact *recorder.ArtifactData) *TimelineScreenshot {
 	if artifact == nil {
 		return nil
 	}
 	shot := &TimelineScreenshot{
-		ArtifactID:   artifact.ID.String(),
+		ArtifactID:   artifact.ArtifactID,
 		URL:          artifact.StorageURL,
 		ThumbnailURL: artifact.ThumbnailURL,
 		ContentType:  artifact.ContentType,
 		SizeBytes:    artifact.SizeBytes,
 	}
 	if artifact.Payload != nil {
-		payload := map[string]any(artifact.Payload)
-		shot.Width = ToInt(payload["width"])
-		shot.Height = ToInt(payload["height"])
+		shot.Width = ToInt(artifact.Payload["width"])
+		shot.Height = ToInt(artifact.Payload["height"])
 	}
 	return shot
 }
 
-// ToTimelineArtifact converts a database artifact to TimelineArtifact.
-func ToTimelineArtifact(artifact *database.ExecutionArtifact) TimelineArtifact {
+// ToTimelineArtifact converts an artifact to TimelineArtifact.
+func ToTimelineArtifact(artifact *recorder.ArtifactData) TimelineArtifact {
 	payload := map[string]any{}
 	if artifact.Payload != nil {
-		payload = map[string]any(artifact.Payload)
+		payload = artifact.Payload
 	}
 	return TimelineArtifact{
-		ID:           artifact.ID.String(),
+		ID:           artifact.ArtifactID,
 		Type:         artifact.ArtifactType,
 		Label:        artifact.Label,
 		StorageURL:   artifact.StorageURL,

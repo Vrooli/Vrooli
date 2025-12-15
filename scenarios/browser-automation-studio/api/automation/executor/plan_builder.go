@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	"github.com/vrooli/browser-automation-studio/database"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 // PlanCompiler emits engine-agnostic execution plans and compiled instructions
 // ready for orchestration.
 type PlanCompiler interface {
-	Compile(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error)
+	Compile(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error)
 }
 
 // DefaultPlanCompiler supplies the contract-native compiler so multiple engines
@@ -27,13 +27,13 @@ var DefaultPlanCompiler PlanCompiler = &ContractPlanCompiler{}
 
 // BuildContractsPlan compiles a workflow into the engine-agnostic plan +
 // instructions expected by the executor path.
-func BuildContractsPlan(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
+func BuildContractsPlan(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
 	return BuildContractsPlanWithCompiler(ctx, executionID, workflow, DefaultPlanCompiler)
 }
 
 // BuildContractsPlanWithCompiler allows callers to inject a custom compiler
 // (e.g., desktop automation) without altering executor orchestration.
-func BuildContractsPlanWithCompiler(ctx context.Context, executionID uuid.UUID, workflow *database.Workflow, compiler PlanCompiler) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
+func BuildContractsPlanWithCompiler(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary, compiler PlanCompiler) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
 	if compiler == nil {
 		compiler = DefaultPlanCompiler
 	}

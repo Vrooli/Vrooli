@@ -1,305 +1,104 @@
--- Vrooli Ascension Database Schema
--- This schema defines the complete database structure for the browser automation platform.
--- It includes tables for projects, workflows, executions, artifacts, and related entities.
+-- Browser Automation Studio - Simplified Schema
+--
+-- Design principle: Database is an INDEX, not the source of truth.
+-- - Workflows live on disk as JSON files
+-- - Execution results live on disk as JSON files
+-- - Database provides queryable indexes for:
+--   1. Active/recent executions (status filtering)
+--   2. Scheduled runs (next_run_at queries)
+--   3. Project/workflow lookups (by name/path)
+--   4. User settings (key-value store)
 
--- Create projects table
+-- ============================================================================
+-- PROJECTS: Top-level containers for workflows
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL UNIQUE,
-    description TEXT,
     folder_path VARCHAR(500) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create workflow folders table
-CREATE TABLE IF NOT EXISTS workflow_folders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    path VARCHAR(500) NOT NULL UNIQUE,
-    parent_id UUID REFERENCES workflow_folders(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name);
+CREATE INDEX IF NOT EXISTS idx_projects_folder_path ON projects(folder_path);
 
--- Create workflows table
+-- ============================================================================
+-- WORKFLOWS: Index of workflow files on disk
+-- ============================================================================
+-- Note: flow_definition, inputs, outputs, etc. are NOT stored here.
+-- They live in JSON files on disk. This table is just for lookups.
 CREATE TABLE IF NOT EXISTS workflows (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     folder_path VARCHAR(500) NOT NULL,
-    workflow_type VARCHAR(20) NOT NULL DEFAULT 'flow',
-    flow_definition JSONB DEFAULT '{}',
-    inputs JSONB DEFAULT '{}',
-    outputs JSONB DEFAULT '{}',
-    expected_outcome JSONB DEFAULT '{}',
-    workflow_metadata JSONB DEFAULT '{}',
-    description TEXT,
-    tags TEXT[] DEFAULT '{}',
+    file_path VARCHAR(1000),  -- Relative path to JSON file on disk
     version INTEGER DEFAULT 1,
-    is_template BOOLEAN DEFAULT FALSE,
-    created_by VARCHAR(255),
-    last_change_source VARCHAR(255) DEFAULT 'manual',
-    last_change_description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(name, folder_path)
 );
 
--- Ensure newer workflow metadata columns exist for legacy databases
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS workflow_type VARCHAR(20) DEFAULT 'flow';
-ALTER TABLE workflows
-    ALTER COLUMN workflow_type SET DEFAULT 'flow';
-UPDATE workflows SET workflow_type = 'flow' WHERE workflow_type IS NULL OR workflow_type = '';
+CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
+CREATE INDEX IF NOT EXISTS idx_workflows_name ON workflows(name);
 
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS inputs JSONB DEFAULT '{}';
-ALTER TABLE workflows
-    ALTER COLUMN inputs SET DEFAULT '{}';
-
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS outputs JSONB DEFAULT '{}';
-ALTER TABLE workflows
-    ALTER COLUMN outputs SET DEFAULT '{}';
-
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS expected_outcome JSONB DEFAULT '{}';
-ALTER TABLE workflows
-    ALTER COLUMN expected_outcome SET DEFAULT '{}';
-
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS workflow_metadata JSONB DEFAULT '{}';
-ALTER TABLE workflows
-    ALTER COLUMN workflow_metadata SET DEFAULT '{}';
-
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS last_change_source VARCHAR(255) DEFAULT 'manual';
-ALTER TABLE workflows
-    ALTER COLUMN last_change_source SET DEFAULT 'manual';
-UPDATE workflows SET last_change_source = 'manual' WHERE last_change_source IS NULL;
-
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS last_change_description TEXT;
-ALTER TABLE workflows
-    ALTER COLUMN last_change_description SET DEFAULT '';
-UPDATE workflows SET last_change_description = '' WHERE last_change_description IS NULL;
-
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
-
-ALTER TABLE workflows
-    ADD COLUMN IF NOT EXISTS project_id UUID;
-
--- Create workflow versions table
-CREATE TABLE IF NOT EXISTS workflow_versions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
-    version INTEGER NOT NULL,
-    flow_definition JSONB NOT NULL,
-    change_description TEXT,
-    created_by VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(workflow_id, version)
-);
-
--- Create executions table
+-- ============================================================================
+-- EXECUTIONS: Track workflow runs (queryable for status/recent)
+-- ============================================================================
+-- Note: Detailed step data, logs, and artifacts live in JSON files on disk.
+-- This table only stores what we need to query.
 CREATE TABLE IF NOT EXISTS executions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
-    workflow_version INTEGER,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    trigger_type VARCHAR(50) NOT NULL DEFAULT 'manual',
-    trigger_metadata JSONB DEFAULT '{}',
-    parameters JSONB DEFAULT '{}',
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',  -- pending|running|completed|failed
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP,
-    last_heartbeat TIMESTAMP,
-    error TEXT,
-    result JSONB,
-    progress INTEGER DEFAULT 0,
-    current_step VARCHAR(255)
-);
-
--- Create execution logs table
-CREATE TABLE IF NOT EXISTS execution_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    level VARCHAR(20) NOT NULL DEFAULT 'info',
-    step_name VARCHAR(255),
-    message TEXT NOT NULL,
-    metadata JSONB DEFAULT '{}'
-);
-
--- Create screenshots table
-CREATE TABLE IF NOT EXISTS screenshots (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    step_name VARCHAR(255) NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    storage_url VARCHAR(1000) NOT NULL,
-    thumbnail_url VARCHAR(1000),
-    width INTEGER,
-    height INTEGER,
-    size_bytes BIGINT,
-    metadata JSONB DEFAULT '{}'
-);
-
--- Create execution steps table
-CREATE TABLE IF NOT EXISTS execution_steps (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    step_index INTEGER NOT NULL,
-    node_id VARCHAR(255) NOT NULL,
-    step_type VARCHAR(50) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'running',
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    duration_ms INTEGER,
-    error TEXT,
-    input JSONB DEFAULT '{}',
-    output JSONB DEFAULT '{}',
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_execution_step UNIQUE (execution_id, step_index),
-    CONSTRAINT chk_execution_step_status CHECK (status IN ('pending','running','completed','failed'))
-);
-
--- Create execution artifacts table
-CREATE TABLE IF NOT EXISTS execution_artifacts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    step_id UUID REFERENCES execution_steps(id) ON DELETE CASCADE,
-    step_index INTEGER,
-    artifact_type VARCHAR(100) NOT NULL,
-    label VARCHAR(255),
-    storage_url VARCHAR(1000),
-    thumbnail_url VARCHAR(1000),
-    content_type VARCHAR(100),
-    size_bytes BIGINT,
-    payload JSONB DEFAULT '{}',
+    error_message TEXT,  -- Brief error summary for display
+    result_path VARCHAR(1000),  -- Path to detailed results JSON on disk
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create extracted data table
-CREATE TABLE IF NOT EXISTS extracted_data (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    step_name VARCHAR(255) NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    data_key VARCHAR(255) NOT NULL,
-    data_value JSONB NOT NULL,
-    data_type VARCHAR(50),
-    metadata JSONB DEFAULT '{}'
-);
+CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
+CREATE INDEX IF NOT EXISTS idx_executions_started_at ON executions(started_at DESC);
 
--- Create workflow schedules table
-CREATE TABLE IF NOT EXISTS workflow_schedules (
+-- ============================================================================
+-- SCHEDULES: Cron-based workflow scheduling
+-- ============================================================================
+-- This MUST be in the database for efficient next-run queries.
+CREATE TABLE IF NOT EXISTS schedules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    description TEXT,
     cron_expression VARCHAR(100) NOT NULL,
     timezone VARCHAR(50) DEFAULT 'UTC',
     is_active BOOLEAN DEFAULT TRUE,
-    parameters JSONB DEFAULT '{}',
+    parameters_json TEXT DEFAULT '{}',  -- JSON string, not queried
     next_run_at TIMESTAMP,
     last_run_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create workflow templates table
-CREATE TABLE IF NOT EXISTS workflow_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL UNIQUE,
-    category VARCHAR(100) NOT NULL,
-    description TEXT,
-    flow_definition JSONB NOT NULL,
-    icon VARCHAR(100),
-    example_parameters JSONB DEFAULT '{}',
-    tags TEXT[] DEFAULT '{}',
-    usage_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+CREATE INDEX IF NOT EXISTS idx_schedules_workflow_id ON schedules(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_active ON schedules(is_active);
+CREATE INDEX IF NOT EXISTS idx_schedules_next_run ON schedules(next_run_at) WHERE is_active = TRUE;
+
+-- ============================================================================
+-- SETTINGS: Key-value store for user preferences
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS settings (
+    key VARCHAR(255) PRIMARY KEY,
+    value TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create AI generations table
-CREATE TABLE IF NOT EXISTS ai_generations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
-    prompt TEXT NOT NULL,
-    generated_flow JSONB NOT NULL,
-    model VARCHAR(100),
-    generation_time_ms INTEGER,
-    success BOOLEAN DEFAULT FALSE,
-    error TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create exports table for tracking exported replay assets
-CREATE TABLE IF NOT EXISTS exports (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
-    name VARCHAR(255) NOT NULL,
-    format VARCHAR(50) NOT NULL DEFAULT 'mp4',
-    settings JSONB DEFAULT '{}',
-    storage_url VARCHAR(1000),
-    thumbnail_url VARCHAR(1000),
-    file_size_bytes BIGINT,
-    duration_ms INTEGER,
-    frame_count INTEGER,
-    ai_caption TEXT,
-    ai_caption_generated_at TIMESTAMP,
-    status VARCHAR(50) NOT NULL DEFAULT 'completed',
-    error TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_export_format CHECK (format IN ('mp4', 'gif', 'json', 'html')),
-    CONSTRAINT chk_export_status CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
-);
-
--- Project file tree index (hybrid DB+disk)
-CREATE TABLE IF NOT EXISTS project_entries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    path VARCHAR(1000) NOT NULL,
-    kind VARCHAR(50) NOT NULL,
-    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(project_id, path),
-    CONSTRAINT chk_project_entries_kind CHECK (kind IN ('folder', 'workflow_file', 'asset_file'))
-);
-
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
-CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
-CREATE INDEX IF NOT EXISTS idx_project_entries_project_id ON project_entries(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_entries_kind ON project_entries(project_id, kind);
-CREATE INDEX IF NOT EXISTS idx_project_entries_workflow_id ON project_entries(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
-CREATE INDEX IF NOT EXISTS idx_executions_last_heartbeat ON executions(last_heartbeat);
-CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id ON execution_logs(execution_id);
-CREATE INDEX IF NOT EXISTS idx_screenshots_execution_id ON screenshots(execution_id);
-CREATE INDEX IF NOT EXISTS idx_execution_steps_execution ON execution_steps(execution_id);
-CREATE INDEX IF NOT EXISTS idx_execution_artifacts_execution ON execution_artifacts(execution_id);
-CREATE INDEX IF NOT EXISTS idx_execution_artifacts_step ON execution_artifacts(step_id);
-CREATE INDEX IF NOT EXISTS idx_extracted_data_execution_id ON extracted_data(execution_id);
-CREATE INDEX IF NOT EXISTS idx_workflow_schedules_active ON workflow_schedules(is_active);
-CREATE INDEX IF NOT EXISTS idx_ai_generations_workflow_id ON ai_generations(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_exports_execution_id ON exports(execution_id);
-CREATE INDEX IF NOT EXISTS idx_exports_workflow_id ON exports(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_exports_created_at ON exports(created_at DESC);
-
--- Create updated_at trigger function
+-- ============================================================================
+-- TRIGGERS: Auto-update timestamps
+-- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -308,30 +107,27 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at
 DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
-CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_workflow_folders_updated_at ON workflow_folders;
-CREATE TRIGGER update_workflow_folders_updated_at BEFORE UPDATE ON workflow_folders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_projects_updated_at
+    BEFORE UPDATE ON projects
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_workflows_updated_at ON workflows;
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_workflows_updated_at
+    BEFORE UPDATE ON workflows
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_workflow_schedules_updated_at ON workflow_schedules;
-CREATE TRIGGER update_workflow_schedules_updated_at BEFORE UPDATE ON workflow_schedules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_executions_updated_at ON executions;
+CREATE TRIGGER update_executions_updated_at
+    BEFORE UPDATE ON executions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_workflow_templates_updated_at ON workflow_templates;
-CREATE TRIGGER update_workflow_templates_updated_at BEFORE UPDATE ON workflow_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_schedules_updated_at ON schedules;
+CREATE TRIGGER update_schedules_updated_at
+    BEFORE UPDATE ON schedules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_execution_steps_updated_at ON execution_steps;
-CREATE TRIGGER update_execution_steps_updated_at BEFORE UPDATE ON execution_steps FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_execution_artifacts_updated_at ON execution_artifacts;
-CREATE TRIGGER update_execution_artifacts_updated_at BEFORE UPDATE ON execution_artifacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_exports_updated_at ON exports;
-CREATE TRIGGER update_exports_updated_at BEFORE UPDATE ON exports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_project_entries_updated_at ON project_entries;
-CREATE TRIGGER update_project_entries_updated_at BEFORE UPDATE ON project_entries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
+CREATE TRIGGER update_settings_updated_at
+    BEFORE UPDATE ON settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

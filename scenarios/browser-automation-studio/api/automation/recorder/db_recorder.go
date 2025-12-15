@@ -3,9 +3,10 @@ package recorder
 import (
 	"context"
 	"encoding/base64"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -14,46 +15,185 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
-// DBRecorder persists step outcomes and telemetry into the scenario database.
-// It intentionally normalizes payloads into existing ExecutionStep/Artifact
-// tables so UI/replay consumers can evolve without engine-specific fields.
-type DBRecorder struct {
-	repo    ExecutionRepository
+// FileRecorder persists step outcomes and telemetry to JSON files on disk.
+// The database stores only execution index data (status, progress, result_path).
+// Detailed execution data lives in JSON files at the result_path location.
+type FileRecorder struct {
+	repo    ExecutionIndexRepository
 	storage storage.StorageInterface
 	log     *logrus.Logger
+	dataDir string // Base directory for execution result files
 
-	// best-effort recovery cache to avoid re-checking the same execution ID repeatedly
-	checkedExecutions sync.Map
+	// Mutex for concurrent file writes
+	mu sync.Mutex
+	// Cache of execution result data being built up
+	results sync.Map // executionID -> *ExecutionResultData
 }
 
-// NewDBRecorder constructs a Recorder backed by the database + optional storage.
-func NewDBRecorder(repo ExecutionRepository, storage storage.StorageInterface, log *logrus.Logger) *DBRecorder {
-	return &DBRecorder{repo: repo, storage: storage, log: log}
+// ExecutionResultData accumulates execution results to be written to disk.
+// This is the file format stored at ExecutionIndex.ResultPath.
+type ExecutionResultData struct {
+	ExecutionID   string                   `json:"execution_id"`
+	WorkflowID    string                   `json:"workflow_id"`
+	Steps         []StepResultData         `json:"steps"`
+	Artifacts     []ArtifactData           `json:"artifacts"`
+	Telemetry     []TelemetryData          `json:"telemetry"`
+	TimelineFrame []TimelineFrameData      `json:"timeline_frames"`
+	Summary       ExecutionSummary         `json:"summary"`
+	mu            sync.Mutex               `json:"-"`
 }
 
-// RecordStepOutcome stores the execution step and key artifacts. For now, this
-// focuses on minimal parity: step row + outcome artifact + optional screenshot.
-func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
-	if r == nil || r.repo == nil {
+// StepResultData captures individual step execution results.
+type StepResultData struct {
+	StepID      string                 `json:"step_id"`
+	StepIndex   int                    `json:"step_index"`
+	NodeID      string                 `json:"node_id"`
+	StepType    string                 `json:"step_type"`
+	Status      string                 `json:"status"`
+	StartedAt   time.Time              `json:"started_at"`
+	CompletedAt *time.Time             `json:"completed_at,omitempty"`
+	DurationMs  int                    `json:"duration_ms"`
+	Error       string                 `json:"error,omitempty"`
+	Metadata    map[string]any         `json:"metadata,omitempty"`
+}
+
+// ArtifactData captures execution artifacts (screenshots, DOM snapshots, etc).
+type ArtifactData struct {
+	ArtifactID   string         `json:"artifact_id"`
+	StepID       string         `json:"step_id,omitempty"`
+	StepIndex    *int           `json:"step_index,omitempty"`
+	ArtifactType string         `json:"artifact_type"`
+	Label        string         `json:"label,omitempty"`
+	StorageURL   string         `json:"storage_url,omitempty"`
+	ThumbnailURL string         `json:"thumbnail_url,omitempty"`
+	ContentType  string         `json:"content_type,omitempty"`
+	SizeBytes    *int64         `json:"size_bytes,omitempty"`
+	Payload      map[string]any `json:"payload,omitempty"`
+}
+
+// TelemetryData captures step telemetry for debugging.
+type TelemetryData struct {
+	StepIndex int                      `json:"step_index"`
+	Data      contracts.StepTelemetry  `json:"data"`
+	Timestamp time.Time                `json:"timestamp"`
+}
+
+// TimelineFrameData captures timeline frame data for replay.
+type TimelineFrameData struct {
+	StepIndex            int            `json:"step_index"`
+	NodeID               string         `json:"node_id"`
+	StepType             string         `json:"step_type"`
+	ScreenshotURL        string         `json:"screenshot_url,omitempty"`
+	ScreenshotArtifactID string         `json:"screenshot_artifact_id,omitempty"`
+	DOMSnapshotArtifactID string        `json:"dom_snapshot_artifact_id,omitempty"`
+	Success              bool           `json:"success"`
+	Attempt              int            `json:"attempt"`
+	DurationMs           int            `json:"duration_ms"`
+	Payload              map[string]any `json:"payload,omitempty"`
+}
+
+// ExecutionSummary provides aggregate statistics.
+type ExecutionSummary struct {
+	TotalSteps      int       `json:"total_steps"`
+	CompletedSteps  int       `json:"completed_steps"`
+	FailedSteps     int       `json:"failed_steps"`
+	TotalDurationMs int       `json:"total_duration_ms"`
+	LastUpdated     time.Time `json:"last_updated"`
+}
+
+// NewFileRecorder constructs a Recorder that writes to files and updates the DB index.
+func NewFileRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger, dataDir string) *FileRecorder {
+	if dataDir == "" {
+		dataDir = "/tmp/bas-executions"
+	}
+	return &FileRecorder{
+		repo:    repo,
+		storage: storage,
+		log:     log,
+		dataDir: dataDir,
+	}
+}
+
+// NewDBRecorder is an alias for NewFileRecorder for backward compatibility.
+// MIGRATION: Callers should migrate to NewFileRecorder.
+func NewDBRecorder(repo ExecutionIndexRepository, storage storage.StorageInterface, log *logrus.Logger) *FileRecorder {
+	return NewFileRecorder(repo, storage, log, "")
+}
+
+// getOrCreateResult gets or creates the result data for an execution.
+func (r *FileRecorder) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionResultData {
+	key := plan.ExecutionID.String()
+	if val, ok := r.results.Load(key); ok {
+		return val.(*ExecutionResultData)
+	}
+
+	result := &ExecutionResultData{
+		ExecutionID: plan.ExecutionID.String(),
+		WorkflowID:  plan.WorkflowID.String(),
+		Steps:       make([]StepResultData, 0),
+		Artifacts:   make([]ArtifactData, 0),
+		Telemetry:   make([]TelemetryData, 0),
+		TimelineFrame: make([]TimelineFrameData, 0),
+		Summary: ExecutionSummary{
+			LastUpdated: time.Now().UTC(),
+		},
+	}
+	r.results.Store(key, result)
+	return result
+}
+
+// resultFilePath returns the path where execution results should be stored.
+func (r *FileRecorder) resultFilePath(executionID uuid.UUID) string {
+	return filepath.Join(r.dataDir, executionID.String(), "result.json")
+}
+
+// writeResultFile persists the execution result data to disk.
+func (r *FileRecorder) writeResultFile(executionID uuid.UUID, result *ExecutionResultData) error {
+	result.mu.Lock()
+	defer result.mu.Unlock()
+
+	result.Summary.LastUpdated = time.Now().UTC()
+
+	filePath := r.resultFilePath(executionID)
+	dir := filepath.Dir(filePath)
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create result directory: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal result data: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("write result file: %w", err)
+	}
+
+	return nil
+}
+
+// RecordStepOutcome stores the execution step and key artifacts to files.
+func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
+	if r == nil {
 		return RecordResult{}, nil
 	}
 
-	if err := r.ensureExecutionExists(ctx, plan); err != nil {
-		return RecordResult{}, err
-	}
-
 	outcome = sanitizeOutcome(outcome)
+	result := r.getOrCreateResult(plan)
 
-	step := &database.ExecutionStep{
-		ID:          uuid.New(),
-		ExecutionID: plan.ExecutionID,
+	stepID := uuid.New()
+	artifactIDs := make([]uuid.UUID, 0, 8)
+
+	// Build step result
+	step := StepResultData{
+		StepID:      stepID.String(),
 		StepIndex:   outcome.StepIndex,
 		NodeID:      outcome.NodeID,
 		StepType:    outcome.StepType,
@@ -61,189 +201,172 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		StartedAt:   outcome.StartedAt,
 		CompletedAt: outcome.CompletedAt,
 		DurationMs:  outcome.DurationMs,
-		Metadata: database.JSONMap{
+		Metadata: map[string]any{
 			"attempt":         outcome.Attempt,
 			"payload_version": outcome.PayloadVersion,
 		},
 	}
 	if outcome.Failure != nil {
 		step.Metadata["failure"] = outcome.Failure
-		if step.Error == "" {
-			step.Error = outcome.Failure.Message
-		}
-	}
-	if err := r.repo.CreateExecutionStep(ctx, step); err != nil {
-		recovered, recErr := r.recoverMissingExecution(ctx, plan, err)
-		if recErr != nil {
-			return RecordResult{}, recErr
-		}
-		if recovered {
-			// Retry once after recreating the execution row.
-			if retryErr := r.repo.CreateExecutionStep(ctx, step); retryErr != nil {
-				return RecordResult{}, retryErr
-			}
-		} else {
-			return RecordResult{}, err
-		}
+		step.Error = outcome.Failure.Message
 	}
 
-	artifactIDs := make([]uuid.UUID, 0, 3)
+	result.mu.Lock()
+	result.Steps = append(result.Steps, step)
+	result.Summary.TotalSteps = len(result.Steps)
+	if step.Status == "completed" {
+		result.Summary.CompletedSteps++
+	} else {
+		result.Summary.FailedSteps++
+	}
+	result.Summary.TotalDurationMs += outcome.DurationMs
+	result.mu.Unlock()
 
-	// Store core outcome payload as JSON artifact to keep parity with existing exports.
-	outcomeArtifact := &database.ExecutionArtifact{
-		ID:           uuid.New(),
-		ExecutionID:  plan.ExecutionID,
-		StepID:       &step.ID,
+	// Store core outcome payload as artifact
+	outcomeArtifactID := uuid.New()
+	outcomeArtifact := ArtifactData{
+		ArtifactID:   outcomeArtifactID.String(),
+		StepID:       stepID.String(),
 		StepIndex:    &outcome.StepIndex,
 		ArtifactType: "step_outcome",
-		Payload:      database.JSONMap{"outcome": outcome},
+		Payload:      map[string]any{"outcome": outcome},
 	}
-	if err := r.repo.CreateExecutionArtifact(ctx, outcomeArtifact); err == nil {
-		artifactIDs = append(artifactIDs, outcomeArtifact.ID)
-	}
+	result.mu.Lock()
+	result.Artifacts = append(result.Artifacts, outcomeArtifact)
+	result.mu.Unlock()
+	artifactIDs = append(artifactIDs, outcomeArtifactID)
 
 	// Console logs
 	if len(outcome.ConsoleLogs) > 0 {
-		artifact := &database.ExecutionArtifact{
-			ID:           uuid.New(),
-			ExecutionID:  plan.ExecutionID,
-			StepID:       &step.ID,
+		id := uuid.New()
+		artifact := ArtifactData{
+			ArtifactID:   id.String(),
+			StepID:       stepID.String(),
 			StepIndex:    &outcome.StepIndex,
 			ArtifactType: "console",
 			Label:        deriveStepLabel(outcome),
-			Payload: database.JSONMap{
-				"entries": outcome.ConsoleLogs,
-			},
+			Payload:      map[string]any{"entries": outcome.ConsoleLogs},
 		}
-		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-			artifactIDs = append(artifactIDs, artifact.ID)
-		}
+		result.mu.Lock()
+		result.Artifacts = append(result.Artifacts, artifact)
+		result.mu.Unlock()
+		artifactIDs = append(artifactIDs, id)
 	}
 
 	// Network events
 	if len(outcome.Network) > 0 {
-		artifact := &database.ExecutionArtifact{
-			ID:           uuid.New(),
-			ExecutionID:  plan.ExecutionID,
-			StepID:       &step.ID,
+		id := uuid.New()
+		artifact := ArtifactData{
+			ArtifactID:   id.String(),
+			StepID:       stepID.String(),
 			StepIndex:    &outcome.StepIndex,
 			ArtifactType: "network",
 			Label:        deriveStepLabel(outcome),
-			Payload: database.JSONMap{
-				"events": outcome.Network,
-			},
+			Payload:      map[string]any{"events": outcome.Network},
 		}
-		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-			artifactIDs = append(artifactIDs, artifact.ID)
-		}
+		result.mu.Lock()
+		result.Artifacts = append(result.Artifacts, artifact)
+		result.mu.Unlock()
+		artifactIDs = append(artifactIDs, id)
 	}
 
 	// Assertion result
 	if outcome.Assertion != nil {
-		artifact := &database.ExecutionArtifact{
-			ID:           uuid.New(),
-			ExecutionID:  plan.ExecutionID,
-			StepID:       &step.ID,
+		id := uuid.New()
+		artifact := ArtifactData{
+			ArtifactID:   id.String(),
+			StepID:       stepID.String(),
 			StepIndex:    &outcome.StepIndex,
 			ArtifactType: "assertion",
 			Label:        deriveStepLabel(outcome),
-			Payload: database.JSONMap{
-				"assertion": outcome.Assertion,
-			},
+			Payload:      map[string]any{"assertion": outcome.Assertion},
 		}
-		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-			artifactIDs = append(artifactIDs, artifact.ID)
-		}
+		result.mu.Lock()
+		result.Artifacts = append(result.Artifacts, artifact)
+		result.mu.Unlock()
+		artifactIDs = append(artifactIDs, id)
 	}
 
 	// Extracted data
-	if outcome.ExtractedData != nil {
-		if len(outcome.ExtractedData) > 0 {
-			artifact := &database.ExecutionArtifact{
-				ID:           uuid.New(),
-				ExecutionID:  plan.ExecutionID,
-				StepID:       &step.ID,
-				StepIndex:    &outcome.StepIndex,
-				ArtifactType: "extracted_data",
-				Label:        deriveStepLabel(outcome),
-				Payload: database.JSONMap{
-					"value": outcome.ExtractedData,
-				},
-			}
-			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-				artifactIDs = append(artifactIDs, artifact.ID)
-			}
+	if outcome.ExtractedData != nil && len(outcome.ExtractedData) > 0 {
+		id := uuid.New()
+		artifact := ArtifactData{
+			ArtifactID:   id.String(),
+			StepID:       stepID.String(),
+			StepIndex:    &outcome.StepIndex,
+			ArtifactType: "extracted_data",
+			Label:        deriveStepLabel(outcome),
+			Payload:      map[string]any{"value": outcome.ExtractedData},
 		}
+		result.mu.Lock()
+		result.Artifacts = append(result.Artifacts, artifact)
+		result.mu.Unlock()
+		artifactIDs = append(artifactIDs, id)
 	}
 
-	// Engine-provided metadata (video/trace/HAR paths for desktop engines).
+	// Engine-provided metadata (video/trace/HAR paths)
 	if outcome.Notes != nil {
-		if path := strings.TrimSpace(outcome.Notes["video_path"]); path != "" {
-			if id := r.persistExternalFile(ctx, plan.ExecutionID, &step.ID, outcome.StepIndex, "video_meta", path); id != nil {
-				artifactIDs = append(artifactIDs, *id)
-			}
-		}
-		if path := strings.TrimSpace(outcome.Notes["trace_path"]); path != "" {
-			if id := r.persistExternalFile(ctx, plan.ExecutionID, &step.ID, outcome.StepIndex, "trace_meta", path); id != nil {
-				artifactIDs = append(artifactIDs, *id)
-			}
-		}
-		if path := strings.TrimSpace(outcome.Notes["har_path"]); path != "" {
-			if id := r.persistExternalFile(ctx, plan.ExecutionID, &step.ID, outcome.StepIndex, "har_meta", path); id != nil {
-				artifactIDs = append(artifactIDs, *id)
+		for _, key := range []string{"video_path", "trace_path", "har_path"} {
+			if path := strings.TrimSpace(outcome.Notes[key]); path != "" {
+				if id := r.persistExternalFile(result, stepID.String(), outcome.StepIndex, strings.TrimSuffix(key, "_path")+"_meta", path); id != nil {
+					artifactIDs = append(artifactIDs, *id)
+				}
 			}
 		}
 	}
 
-	var timelineScreenshot string
+	var timelineScreenshotURL string
 	var timelineScreenshotID *uuid.UUID
 
-	// Persist screenshot if available.
+	// Persist screenshot if available
 	if outcome.Screenshot != nil && len(outcome.Screenshot.Data) > 0 {
 		screenshotInfo, err := r.persistScreenshot(ctx, plan.ExecutionID, outcome)
 		if err != nil && r.log != nil {
 			r.log.WithError(err).Warn("Failed to persist screenshot artifact")
-		} else if screenshotInfo != nil {
-			artifact := &database.ExecutionArtifact{
-				ID:           uuid.New(),
-				ExecutionID:  plan.ExecutionID,
-				StepID:       &step.ID,
+		}
+		if screenshotInfo != nil {
+			id := uuid.New()
+			artifact := ArtifactData{
+				ArtifactID:   id.String(),
+				StepID:       stepID.String(),
 				StepIndex:    &outcome.StepIndex,
 				ArtifactType: "screenshot",
 				StorageURL:   screenshotInfo.URL,
 				ThumbnailURL: screenshotInfo.ThumbnailURL,
 				SizeBytes:    &screenshotInfo.SizeBytes,
-				Payload: database.JSONMap{
+				Payload: map[string]any{
 					"width":      screenshotInfo.Width,
 					"height":     screenshotInfo.Height,
 					"from_cache": outcome.Screenshot.FromCache,
 					"hash":       outcome.Screenshot.Hash,
 				},
 			}
-			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-				artifactIDs = append(artifactIDs, artifact.ID)
-				timelineScreenshotID = &artifact.ID
-			}
-			timelineScreenshot = screenshotInfo.URL
+			result.mu.Lock()
+			result.Artifacts = append(result.Artifacts, artifact)
+			result.mu.Unlock()
+			artifactIDs = append(artifactIDs, id)
+			timelineScreenshotID = &id
+			timelineScreenshotURL = screenshotInfo.URL
 		} else {
-			// Fallback: embed base64 if storage is unavailable.
-			artifact := &database.ExecutionArtifact{
-				ID:           uuid.New(),
-				ExecutionID:  plan.ExecutionID,
-				StepID:       &step.ID,
+			// Fallback: embed base64 if storage is unavailable
+			id := uuid.New()
+			artifact := ArtifactData{
+				ArtifactID:   id.String(),
+				StepID:       stepID.String(),
 				StepIndex:    &outcome.StepIndex,
 				ArtifactType: "screenshot_inline",
 				ContentType:  outcome.Screenshot.MediaType,
-				Payload: database.JSONMap{
+				Payload: map[string]any{
 					"base64": base64.StdEncoding.EncodeToString(outcome.Screenshot.Data),
 					"hash":   outcome.Screenshot.Hash,
 				},
 			}
-			if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-				artifactIDs = append(artifactIDs, artifact.ID)
-				timelineScreenshotID = &artifact.ID
-			}
-			timelineScreenshot = fmt.Sprintf("inline:%s", deriveStepLabel(outcome))
+			result.mu.Lock()
+			result.Artifacts = append(result.Artifacts, artifact)
+			result.mu.Unlock()
+			artifactIDs = append(artifactIDs, id)
+			timelineScreenshotID = &id
+			timelineScreenshotURL = fmt.Sprintf("inline:%s", deriveStepLabel(outcome))
 		}
 	}
 
@@ -259,58 +382,76 @@ func (r *DBRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			truncated = true
 			outcome.DOMSnapshot.Truncated = true
 		}
-		artifact := &database.ExecutionArtifact{
-			ID:           uuid.New(),
-			ExecutionID:  plan.ExecutionID,
-			StepID:       &step.ID,
+		id := uuid.New()
+		payload := map[string]any{"html": html}
+		if truncated {
+			payload["truncated"] = true
+		}
+		artifact := ArtifactData{
+			ArtifactID:   id.String(),
+			StepID:       stepID.String(),
 			StepIndex:    &outcome.StepIndex,
 			ArtifactType: "dom_snapshot",
 			Label:        deriveStepLabel(outcome),
-			Payload: database.JSONMap{
-				"html": html,
-			},
+			Payload:      payload,
 		}
-		if truncated {
-			artifact.Payload["truncated"] = true
-		}
-		if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-			artifactIDs = append(artifactIDs, artifact.ID)
-			domSnapshotArtifactID = &artifact.ID
-			domSnapshotPreview = truncateRunes(html, 256)
+		result.mu.Lock()
+		result.Artifacts = append(result.Artifacts, artifact)
+		result.mu.Unlock()
+		artifactIDs = append(artifactIDs, id)
+		domSnapshotArtifactID = &id
+		domSnapshotPreview = truncateRunes(html, 256)
+	}
+
+	// Build timeline frame
+	timelinePayload := buildTimelinePayload(outcome, timelineScreenshotURL, timelineScreenshotID, domSnapshotArtifactID, domSnapshotPreview, artifactIDs)
+	timelineFrame := TimelineFrameData{
+		StepIndex:     outcome.StepIndex,
+		NodeID:        outcome.NodeID,
+		StepType:      outcome.StepType,
+		ScreenshotURL: timelineScreenshotURL,
+		Success:       outcome.Success,
+		Attempt:       outcome.Attempt,
+		DurationMs:    outcome.DurationMs,
+		Payload:       timelinePayload,
+	}
+	if timelineScreenshotID != nil {
+		timelineFrame.ScreenshotArtifactID = timelineScreenshotID.String()
+	}
+	if domSnapshotArtifactID != nil {
+		timelineFrame.DOMSnapshotArtifactID = domSnapshotArtifactID.String()
+	}
+	result.mu.Lock()
+	result.TimelineFrame = append(result.TimelineFrame, timelineFrame)
+	result.mu.Unlock()
+
+	// Write result to file
+	if err := r.writeResultFile(plan.ExecutionID, result); err != nil {
+		if r.log != nil {
+			r.log.WithError(err).Warn("Failed to write execution result file")
 		}
 	}
 
-	// Timeline frame for replay parity; include references to persisted artifacts.
-	timelinePayload := buildTimelinePayload(outcome, timelineScreenshot, timelineScreenshotID, domSnapshotArtifactID, domSnapshotPreview, artifactIDs)
-	artifact := &database.ExecutionArtifact{
-		ID:           uuid.New(),
-		ExecutionID:  plan.ExecutionID,
-		StepID:       &step.ID,
-		StepIndex:    &outcome.StepIndex,
-		ArtifactType: "timeline_frame",
-		Label:        deriveStepLabel(outcome),
-		Payload:      timelinePayload,
-	}
-	if err := r.repo.CreateExecutionArtifact(ctx, artifact); err == nil {
-		artifactIDs = append(artifactIDs, artifact.ID)
-		timelineID := artifact.ID
-		return RecordResult{
-			StepID:             step.ID,
-			ArtifactIDs:        artifactIDs,
-			TimelineArtifactID: &timelineID,
-		}, nil
+	// Update database index with result path
+	if r.repo != nil {
+		resultPath := r.resultFilePath(plan.ExecutionID)
+		if err := r.updateExecutionIndex(ctx, plan.ExecutionID, resultPath); err != nil {
+			if r.log != nil {
+				r.log.WithError(err).Warn("Failed to update execution index")
+			}
+		}
 	}
 
+	timelineID := uuid.New()
 	return RecordResult{
-		StepID:      step.ID,
-		ArtifactIDs: artifactIDs,
+		StepID:             stepID,
+		ArtifactIDs:        artifactIDs,
+		TimelineArtifactID: &timelineID,
 	}, nil
 }
 
-const maxEmbeddedExternalBytes = 5 * 1024 * 1024
-
-// persistExternalFile stores metadata (and optionally inline base64) for engine-provided files (trace/video/HAR).
-func (r *DBRecorder) persistExternalFile(ctx context.Context, executionID uuid.UUID, stepID *uuid.UUID, stepIndex int, artifactType, filePath string) *uuid.UUID {
+// persistExternalFile stores metadata for engine-provided files (trace/video/HAR).
+func (r *FileRecorder) persistExternalFile(result *ExecutionResultData, stepID string, stepIndex int, artifactType, filePath string) *uuid.UUID {
 	info, err := os.Stat(filePath)
 	if err != nil {
 		if r.log != nil {
@@ -318,10 +459,13 @@ func (r *DBRecorder) persistExternalFile(ctx context.Context, executionID uuid.U
 		}
 		return nil
 	}
-	payload := database.JSONMap{
+
+	payload := map[string]any{
 		"path":       filePath,
 		"size_bytes": info.Size(),
 	}
+
+	const maxEmbeddedExternalBytes = 5 * 1024 * 1024
 	if info.Size() > 0 && info.Size() <= maxEmbeddedExternalBytes {
 		if data, readErr := os.ReadFile(filePath); readErr == nil {
 			payload["base64"] = base64.StdEncoding.EncodeToString(data)
@@ -329,51 +473,56 @@ func (r *DBRecorder) persistExternalFile(ctx context.Context, executionID uuid.U
 		}
 	}
 
-	artifact := &database.ExecutionArtifact{
-		ID:           uuid.New(),
-		ExecutionID:  executionID,
+	id := uuid.New()
+	artifact := ArtifactData{
+		ArtifactID:   id.String(),
 		StepID:       stepID,
 		StepIndex:    &stepIndex,
 		ArtifactType: artifactType,
 		Label:        artifactType,
 		Payload:      payload,
 	}
-	if err := r.repo.CreateExecutionArtifact(ctx, artifact); err != nil {
-		if r.log != nil {
-			r.log.WithError(err).WithField("artifact_type", artifactType).Warn("failed to persist external file artifact")
-		}
-		return nil
-	}
-	return &artifact.ID
+
+	result.mu.Lock()
+	result.Artifacts = append(result.Artifacts, artifact)
+	result.mu.Unlock()
+
+	return &id
 }
 
-// RecordTelemetry persists telemetry as lightweight artifacts so replay can
-// inspect dropped messages during early rollout.
-func (r *DBRecorder) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
-	if r == nil || r.repo == nil {
+// RecordTelemetry persists telemetry data to the result file.
+func (r *FileRecorder) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
+	if r == nil {
 		return nil
 	}
-	artifact := &database.ExecutionArtifact{
-		ID:           uuid.New(),
-		ExecutionID:  plan.ExecutionID,
-		StepIndex:    &telemetry.StepIndex,
-		ArtifactType: "telemetry",
-		Payload: database.JSONMap{
-			"telemetry": telemetry,
-		},
+
+	result := r.getOrCreateResult(plan)
+	telemetryData := TelemetryData{
+		StepIndex: telemetry.StepIndex,
+		Data:      telemetry,
+		Timestamp: time.Now().UTC(),
 	}
-	return r.repo.CreateExecutionArtifact(ctx, artifact)
+
+	result.mu.Lock()
+	result.Telemetry = append(result.Telemetry, telemetryData)
+	result.mu.Unlock()
+
+	return r.writeResultFile(plan.ExecutionID, result)
 }
 
-// MarkCrash annotates executions when the executor/engine terminates abruptly.
-func (r *DBRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
-	if r == nil || r.repo == nil {
+// MarkCrash records a crash event and updates the execution index.
+func (r *FileRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error {
+	if r == nil {
 		return nil
 	}
-	now := time.Now()
-	step := &database.ExecutionStep{
-		ID:          uuid.New(),
-		ExecutionID: executionID,
+
+	// Create a minimal plan for result lookup
+	plan := contracts.ExecutionPlan{ExecutionID: executionID}
+	result := r.getOrCreateResult(plan)
+
+	now := time.Now().UTC()
+	crashStep := StepResultData{
+		StepID:      uuid.New().String(),
 		StepIndex:   -1,
 		NodeID:      "crash",
 		StepType:    "crash",
@@ -381,15 +530,85 @@ func (r *DBRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, failu
 		StartedAt:   now,
 		CompletedAt: &now,
 		Error:       failure.Message,
-		Metadata: database.JSONMap{
+		Metadata: map[string]any{
 			"failure": failure,
 			"partial": true,
 		},
 	}
-	return r.repo.CreateExecutionStep(ctx, step)
+
+	result.mu.Lock()
+	result.Steps = append(result.Steps, crashStep)
+	result.Summary.FailedSteps++
+	result.mu.Unlock()
+
+	if err := r.writeResultFile(executionID, result); err != nil {
+		if r.log != nil {
+			r.log.WithError(err).Warn("Failed to write crash to result file")
+		}
+	}
+
+	// Update database index to mark as failed
+	if r.repo != nil {
+		execution, err := r.repo.GetExecution(ctx, executionID)
+		if err == nil && execution != nil {
+			execution.Status = database.ExecutionStatusFailed
+			execution.ErrorMessage = failure.Message
+			now := time.Now()
+			execution.CompletedAt = &now
+			if err := r.repo.UpdateExecution(ctx, execution); err != nil {
+				return fmt.Errorf("update execution index: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
-func (r *DBRecorder) persistScreenshot(ctx context.Context, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
+// UpdateCheckpoint persists the current execution progress to the database index.
+func (r *FileRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
+	if r == nil || r.repo == nil {
+		return nil
+	}
+
+	execution, err := r.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return fmt.Errorf("get execution: %w", err)
+	}
+
+	// Calculate progress as percentage (0-100)
+	progress := 0
+	if totalSteps > 0 && stepIndex >= 0 {
+		progress = ((stepIndex + 1) * 100) / totalSteps
+		if progress > 100 {
+			progress = 100
+		}
+	}
+
+	// The ExecutionIndex doesn't have Progress/CurrentStep fields anymore
+	// We store progress in the result file instead
+	plan := contracts.ExecutionPlan{ExecutionID: executionID, WorkflowID: execution.WorkflowID}
+	result := r.getOrCreateResult(plan)
+
+	result.mu.Lock()
+	result.Summary.CompletedSteps = stepIndex + 1
+	result.mu.Unlock()
+
+	return r.writeResultFile(executionID, result)
+}
+
+// updateExecutionIndex updates the database index with the result path.
+func (r *FileRecorder) updateExecutionIndex(ctx context.Context, executionID uuid.UUID, resultPath string) error {
+	execution, err := r.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		// Execution may not exist yet - that's OK, it will be created by the workflow service
+		return nil
+	}
+
+	execution.ResultPath = resultPath
+	return r.repo.UpdateExecution(ctx, execution)
+}
+
+func (r *FileRecorder) persistScreenshot(ctx context.Context, executionID uuid.UUID, outcome contracts.StepOutcome) (*storage.ScreenshotInfo, error) {
 	if r.storage == nil {
 		return nil, nil
 	}
@@ -423,115 +642,6 @@ func deriveStepLabel(outcome contracts.StepOutcome) string {
 	return "step"
 }
 
-// executionFetcher optionally exposed by repositories that can surface execution rows.
-type executionFetcher interface {
-	GetExecution(ctx context.Context, id uuid.UUID) (*database.Execution, error)
-}
-
-// executionCreator optionally exposed by repositories that can create execution rows.
-type executionCreator interface {
-	CreateExecution(ctx context.Context, execution *database.Execution) error
-}
-
-// ensureExecutionExists guarantees the parent execution row exists before we
-// start inserting steps. This avoids FK violations when callers forget to
-// pre-create executions.
-func (r *DBRecorder) ensureExecutionExists(ctx context.Context, plan contracts.ExecutionPlan) error {
-	cacheKey := plan.ExecutionID.String()
-	if _, seen := r.checkedExecutions.Load(cacheKey); seen {
-		return nil
-	}
-
-	fetcher, okFetch := r.repo.(executionFetcher)
-	creator, okCreate := r.repo.(executionCreator)
-	if !okCreate {
-		return nil
-	}
-
-	if okFetch {
-		if existing, err := fetcher.GetExecution(ctx, plan.ExecutionID); err == nil && existing != nil {
-			r.checkedExecutions.Store(cacheKey, struct{}{})
-			return nil
-		}
-	}
-
-	exec := &database.Execution{
-		ID:          plan.ExecutionID,
-		WorkflowID:  plan.WorkflowID,
-		Status:      "running",
-		TriggerType: "executor",
-		StartedAt:   time.Now().UTC(),
-		Progress:    0,
-		CurrentStep: "Ensured execution context",
-	}
-
-	if err := creator.CreateExecution(ctx, exec); err != nil {
-		return fmt.Errorf("ensure execution %s: %w", plan.ExecutionID, err)
-	}
-
-	r.checkedExecutions.Store(cacheKey, struct{}{})
-	return nil
-}
-
-// recoverMissingExecution attempts to recreate the execution row when step persistence fails
-// due to a missing execution FK. This guards against out-of-order writes when the executor
-// is invoked without a pre-created execution record (e.g., from adhoc tooling).
-func (r *DBRecorder) recoverMissingExecution(ctx context.Context, plan contracts.ExecutionPlan, originalErr error) (bool, error) {
-	if !isForeignKeyViolation(originalErr) {
-		return false, originalErr
-	}
-
-	cacheKey := plan.ExecutionID.String()
-	if _, seen := r.checkedExecutions.Load(cacheKey); seen {
-		// Already attempted recovery for this execution.
-		return false, originalErr
-	}
-
-	fetcher, okFetch := r.repo.(executionFetcher)
-	creator, okCreate := r.repo.(executionCreator)
-	if !okCreate {
-		return false, originalErr
-	}
-
-	if okFetch {
-		existing, err := fetcher.GetExecution(ctx, plan.ExecutionID)
-		if err == nil && existing != nil {
-			// Execution already exists; bubble original error.
-			r.checkedExecutions.Store(cacheKey, struct{}{})
-			return false, originalErr
-		}
-	}
-
-	exec := &database.Execution{
-		ID:          plan.ExecutionID,
-		WorkflowID:  plan.WorkflowID,
-		Status:      "running",
-		TriggerType: "recovered",
-		StartedAt:   time.Now().UTC(),
-		Progress:    0,
-		CurrentStep: "Recovered execution context",
-	}
-
-	if err := creator.CreateExecution(ctx, exec); err != nil {
-		return false, fmt.Errorf("recover execution %s: %w", plan.ExecutionID, err)
-	}
-
-	if r.log != nil {
-		r.log.WithField("execution_id", plan.ExecutionID).Warn("Recovered missing execution before persisting step outcome")
-	}
-	r.checkedExecutions.Store(cacheKey, struct{}{})
-	return true, nil
-}
-
-func isForeignKeyViolation(err error) bool {
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
-		return pqErr.Code == "23503"
-	}
-	// SQLite reports constraint violations via message; keep best-effort check.
-	return strings.Contains(strings.ToLower(err.Error()), "constraint") && strings.Contains(strings.ToLower(err.Error()), "foreign")
-}
-
 func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
 	if out.Notes == nil {
 		out.Notes = map[string]string{}
@@ -562,7 +672,7 @@ func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
 	}
 
 	out.ConsoleLogs = sanitizeConsole(out.ConsoleLogs)
-	out.Network = sanitizeNetwork(out.Network, &out)
+	out.Network = sanitizeNetwork(out.Network)
 
 	return out
 }
@@ -580,14 +690,14 @@ func sanitizeConsole(entries []contracts.ConsoleLogEntry) []contracts.ConsoleLog
 		}
 		entry.Timestamp = entry.Timestamp.UTC()
 		sanitized = append(sanitized, entry)
-		if idx >= contracts.ConsoleEntryMaxBytes { // prevent runaway artifacts in extreme cases
+		if idx >= contracts.ConsoleEntryMaxBytes {
 			break
 		}
 	}
 	return sanitized
 }
 
-func sanitizeNetwork(events []contracts.NetworkEvent, out *contracts.StepOutcome) []contracts.NetworkEvent {
+func sanitizeNetwork(events []contracts.NetworkEvent) []contracts.NetworkEvent {
 	if len(events) == 0 {
 		return events
 	}
@@ -603,7 +713,7 @@ func sanitizeNetwork(events []contracts.NetworkEvent, out *contracts.StepOutcome
 		}
 		ev.Timestamp = ev.Timestamp.UTC()
 		sanitized = append(sanitized, ev)
-		if idx >= contracts.NetworkPayloadPreviewMaxBytes { // avoid unbounded slices from noisy pages
+		if idx >= contracts.NetworkPayloadPreviewMaxBytes {
 			break
 		}
 	}
@@ -633,8 +743,6 @@ func toStringIDs(ids []uuid.UUID) []string {
 	return out
 }
 
-// truncateRunes trims a string to the specified rune count to avoid cutting
-// multibyte characters mid-codepoint.
 func truncateRunes(s string, limit int) string {
 	if limit <= 0 {
 		return ""
@@ -719,24 +827,9 @@ func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, s
 	return payload
 }
 
-// UpdateCheckpoint persists the current execution progress to the database.
-// This enables progress continuity across restarts and supports resumption.
-func (r *DBRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UUID, stepIndex int, totalSteps int) error {
-	if r == nil || r.repo == nil {
-		return nil
-	}
-
-	progress := 0
-	if totalSteps > 0 && stepIndex >= 0 {
-		// Calculate progress as percentage (0-100)
-		progress = ((stepIndex + 1) * 100) / totalSteps
-		if progress > 100 {
-			progress = 100
-		}
-	}
-
-	return r.repo.UpdateExecutionCheckpoint(ctx, executionID, stepIndex, progress)
-}
+// DBRecorder is an alias for FileRecorder for backward compatibility.
+// MIGRATION: Callers should migrate to FileRecorder.
+type DBRecorder = FileRecorder
 
 // Compile-time interface enforcement
-var _ Recorder = (*DBRecorder)(nil)
+var _ Recorder = (*FileRecorder)(nil)

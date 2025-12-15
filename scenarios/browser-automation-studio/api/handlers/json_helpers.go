@@ -1,11 +1,15 @@
 package handlers
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) error {
@@ -14,6 +18,23 @@ func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst any) error {
 
 func decodeJSONBodyAllowEmpty(w http.ResponseWriter, r *http.Request, dst any) error {
 	return httpjson.DecodeAllowEmpty(w, r, dst)
+}
+
+func decodeProtoJSONBody(r *http.Request, msg proto.Message) error {
+	if r == nil {
+		return fmt.Errorf("request is nil")
+	}
+	if msg == nil {
+		return fmt.Errorf("msg is nil")
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+	if len(body) == 0 {
+		body = []byte("{}")
+	}
+	return (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, msg)
 }
 
 // parseUUIDParam extracts a UUID from the URL parameter with the given name.

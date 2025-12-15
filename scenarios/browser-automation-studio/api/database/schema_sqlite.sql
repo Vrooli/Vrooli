@@ -1,188 +1,97 @@
--- SQLite schema for Browser Automation Studio
--- Simplified types for SQLite: UUID stored as TEXT, JSONB/TEXT[] stored as TEXT/JSON
+-- Browser Automation Studio - Simplified Schema (SQLite)
+--
+-- Design principle: Database is an INDEX, not the source of truth.
+-- - Workflows live on disk as JSON files
+-- - Execution results live on disk as JSON files
+-- - Database provides queryable indexes for:
+--   1. Active/recent executions (status filtering)
+--   2. Scheduled runs (next_run_at queries)
+--   3. Project/workflow lookups (by name/path)
+--   4. User settings (key-value store)
 
+-- ============================================================================
+-- PROJECTS: Top-level containers for workflows
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    description TEXT,
     folder_path TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS workflow_folders (
-    id TEXT PRIMARY KEY,
-    path TEXT NOT NULL UNIQUE,
-    parent_id TEXT REFERENCES workflow_folders(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name);
+CREATE INDEX IF NOT EXISTS idx_projects_folder_path ON projects(folder_path);
 
+-- ============================================================================
+-- WORKFLOWS: Index of workflow files on disk
+-- ============================================================================
+-- Note: flow_definition, inputs, outputs, etc. are NOT stored here.
+-- They live in JSON files on disk. This table is just for lookups.
 CREATE TABLE IF NOT EXISTS workflows (
     id TEXT PRIMARY KEY,
     project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     folder_path TEXT NOT NULL,
-    workflow_type TEXT NOT NULL DEFAULT 'flow',
-    flow_definition TEXT DEFAULT '{}',
-    inputs TEXT DEFAULT '{}',
-    outputs TEXT DEFAULT '{}',
-    expected_outcome TEXT DEFAULT '{}',
-    workflow_metadata TEXT DEFAULT '{}',
-    description TEXT,
-    tags TEXT DEFAULT '[]',
+    file_path TEXT,  -- Relative path to JSON file on disk
     version INTEGER DEFAULT 1,
-    is_template BOOLEAN DEFAULT FALSE,
-    created_by TEXT,
-    last_change_source TEXT DEFAULT 'manual',
-    last_change_description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS workflow_versions (
-    id TEXT PRIMARY KEY,
-    workflow_id TEXT REFERENCES workflows(id) ON DELETE CASCADE,
-    version INTEGER NOT NULL,
-    flow_definition TEXT DEFAULT '{}',
-    change_description TEXT,
-    created_by TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(workflow_id, version)
-);
-
-CREATE TABLE IF NOT EXISTS executions (
-    id TEXT PRIMARY KEY,
-    workflow_id TEXT REFERENCES workflows(id) ON DELETE CASCADE,
-    workflow_version INTEGER,
-    status TEXT NOT NULL,
-    trigger_type TEXT NOT NULL,
-    trigger_metadata TEXT,
-    parameters TEXT,
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    last_heartbeat TIMESTAMP,
-    error TEXT,
-    result TEXT,
-    progress INTEGER DEFAULT 0,
-    current_step TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS execution_steps (
-    id TEXT PRIMARY KEY,
-    execution_id TEXT REFERENCES executions(id) ON DELETE CASCADE,
-    step_index INTEGER NOT NULL,
-    node_id TEXT,
-    step_type TEXT,
-    status TEXT,
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    duration_ms INTEGER,
-    error TEXT,
-    input TEXT,
-    output TEXT,
-    metadata TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS screenshots (
-    id TEXT PRIMARY KEY,
-    execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-    step_name TEXT NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    storage_url TEXT NOT NULL,
-    thumbnail_url TEXT,
-    width INTEGER,
-    height INTEGER,
-    size_bytes INTEGER,
-    metadata TEXT DEFAULT '{}'
-);
-
-CREATE TABLE IF NOT EXISTS execution_logs (
-    id TEXT PRIMARY KEY,
-    execution_id TEXT REFERENCES executions(id) ON DELETE CASCADE,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    level TEXT,
-    step_name TEXT,
-    message TEXT,
-    metadata TEXT
-);
-
-CREATE TABLE IF NOT EXISTS extracted_data (
-    id TEXT PRIMARY KEY,
-    execution_id TEXT REFERENCES executions(id) ON DELETE CASCADE,
-    step_name TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    data_key TEXT,
-    data_value TEXT,
-    data_type TEXT,
-    metadata TEXT
-);
-
-CREATE TABLE IF NOT EXISTS execution_artifacts (
-    id TEXT PRIMARY KEY,
-    execution_id TEXT REFERENCES executions(id) ON DELETE CASCADE,
-    step_id TEXT REFERENCES execution_steps(id) ON DELETE SET NULL,
-    step_index INTEGER,
-    artifact_type TEXT,
-    label TEXT,
-    storage_url TEXT,
-    thumbnail_url TEXT,
-    content_type TEXT,
-    size_bytes INTEGER,
-    payload TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS exports (
-    id TEXT PRIMARY KEY,
-    execution_id TEXT REFERENCES executions(id) ON DELETE CASCADE,
-    workflow_id TEXT REFERENCES workflows(id) ON DELETE SET NULL,
-    name TEXT NOT NULL,
-    format TEXT NOT NULL,
-    settings TEXT,
-    storage_url TEXT,
-    thumbnail_url TEXT,
-    file_size_bytes INTEGER,
-    duration_ms INTEGER,
-    frame_count INTEGER,
-    ai_caption TEXT,
-    ai_caption_generated_at TIMESTAMP,
-    status TEXT NOT NULL,
-    error TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS project_entries (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    path TEXT NOT NULL,
-    kind TEXT NOT NULL,
-    workflow_id TEXT REFERENCES workflows(id) ON DELETE SET NULL,
-    metadata TEXT DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(project_id, path)
+    UNIQUE(name, folder_path)
 );
 
 CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
-CREATE INDEX IF NOT EXISTS idx_workflow_versions_workflow_id ON workflow_versions(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_project_entries_project_id ON project_entries(project_id);
-CREATE INDEX IF NOT EXISTS idx_project_entries_kind ON project_entries(project_id, kind);
-CREATE INDEX IF NOT EXISTS idx_project_entries_workflow_id ON project_entries(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_name ON workflows(name);
+
+-- ============================================================================
+-- EXECUTIONS: Track workflow runs (queryable for status/recent)
+-- ============================================================================
+-- Note: Detailed step data, logs, and artifacts live in JSON files on disk.
+-- This table only stores what we need to query.
+CREATE TABLE IF NOT EXISTS executions (
+    id TEXT PRIMARY KEY,
+    workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending|running|completed|failed
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    error_message TEXT,  -- Brief error summary for display
+    result_path TEXT,  -- Path to detailed results JSON on disk
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
-CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id ON execution_logs(execution_id);
-CREATE INDEX IF NOT EXISTS idx_screenshots_execution_id ON screenshots(execution_id);
-CREATE INDEX IF NOT EXISTS idx_execution_steps_execution_id ON execution_steps(execution_id);
-CREATE INDEX IF NOT EXISTS idx_extracted_data_execution_id ON extracted_data(execution_id);
-CREATE INDEX IF NOT EXISTS idx_execution_artifacts_execution_id ON execution_artifacts(execution_id);
-CREATE INDEX IF NOT EXISTS idx_exports_execution_id ON exports(execution_id);
-CREATE INDEX IF NOT EXISTS idx_exports_workflow_id ON exports(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
+CREATE INDEX IF NOT EXISTS idx_executions_started_at ON executions(started_at DESC);
+
+-- ============================================================================
+-- SCHEDULES: Cron-based workflow scheduling
+-- ============================================================================
+-- This MUST be in the database for efficient next-run queries.
+CREATE TABLE IF NOT EXISTS schedules (
+    id TEXT PRIMARY KEY,
+    workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    cron_expression TEXT NOT NULL,
+    timezone TEXT DEFAULT 'UTC',
+    is_active INTEGER DEFAULT 1,  -- SQLite uses INTEGER for boolean
+    parameters_json TEXT DEFAULT '{}',  -- JSON string, not queried
+    next_run_at TIMESTAMP,
+    last_run_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedules_workflow_id ON schedules(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_active ON schedules(is_active);
+CREATE INDEX IF NOT EXISTS idx_schedules_next_run ON schedules(next_run_at);
+
+-- ============================================================================
+-- SETTINGS: Key-value store for user preferences
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

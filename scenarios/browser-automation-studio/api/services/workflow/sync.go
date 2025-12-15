@@ -58,13 +58,13 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 	lock.Lock()
 	defer lock.Unlock()
 
-	workflowsRoot := s.projectWorkflowsDir(project)
+	workflowsRoot := projectWorkflowsDir(project)
 	if err := os.MkdirAll(workflowsRoot, 0o755); err != nil {
 		return fmt.Errorf("failed to ensure workflows directory: %w", err)
 	}
 
 	// Discover file snapshots.
-	snapshots := make(map[uuid.UUID]*workflowFileSnapshot)
+	snapshots := make(map[uuid.UUID]*workflowProtoSnapshot)
 	var discoveryErr error
 	err = filepath.WalkDir(workflowsRoot, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -76,13 +76,20 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 		if !strings.HasSuffix(strings.ToLower(d.Name()), workflowFileExt) {
 			return nil
 		}
-		snapshot, readErr := s.readWorkflowFile(ctx, project, path)
+		snapshot, readErr := readWorkflowSummaryFile(ctx, project, path)
 		if readErr != nil {
 			discoveryErr = readErr
 			return readErr
 		}
-		snapshots[snapshot.Workflow.ID] = snapshot
-		s.cacheWorkflowPath(snapshot.Workflow.ID, snapshot.AbsolutePath, snapshot.RelativePath)
+		if snapshot.Workflow == nil || strings.TrimSpace(snapshot.Workflow.Id) == "" {
+			return nil
+		}
+		id, parseErr := uuid.Parse(snapshot.Workflow.Id)
+		if parseErr != nil {
+			return fmt.Errorf("workflow file %s has invalid id: %w", snapshot.RelativePath, parseErr)
+		}
+		snapshots[id] = snapshot
+		s.cacheWorkflowPath(id, snapshot.AbsolutePath, snapshot.RelativePath)
 		return nil
 	})
 	if err != nil {
@@ -97,7 +104,7 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 		return err
 	}
 
-	dbByID := make(map[uuid.UUID]*database.Workflow, len(dbWorkflows))
+	dbByID := make(map[uuid.UUID]*database.WorkflowIndex, len(dbWorkflows))
 	for _, wf := range dbWorkflows {
 		dbByID[wf.ID] = wf
 	}
@@ -124,96 +131,58 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 				continue
 			}
 
-			// Create new workflow from file.
-			now := time.Now().UTC()
-			fileWF.Version = max(fileWF.Version, defaultVersionIncrement)
-			fileWF.CreatedAt = now
-			fileWF.UpdatedAt = now
-			fileWF.LastChangeSource = firstNonEmpty(snapshot.SourceLabel, fileSourceFileSync)
-			fileWF.LastChangeDescription = firstNonEmpty(snapshot.ChangeDesc, fileSyncChangeDesc)
-			if err := s.repo.CreateWorkflow(ctx, fileWF); err != nil {
+			// Create new workflow index from file.
+			index := &database.WorkflowIndex{
+				ID:         id,
+				ProjectID:  &project.ID,
+				Name:       fileWF.Name,
+				FolderPath: normalizeFolderPath(fileWF.FolderPath),
+				FilePath:   snapshot.RelativePath,
+				Version:    int(fileWF.Version),
+			}
+			if err := s.repo.CreateWorkflow(ctx, index); err != nil {
 				return fmt.Errorf("failed to create workflow from file %s: %w", snapshot.RelativePath, err)
 			}
-			version := &database.WorkflowVersion{
-				WorkflowID:        fileWF.ID,
-				Version:           fileWF.Version,
-				FlowDefinition:    fileWF.FlowDefinition,
-				ChangeDescription: firstNonEmpty(snapshot.ChangeDesc, fileSyncChangeDesc),
-				CreatedBy:         firstNonEmpty(snapshot.SourceLabel, fileSourceFileSync),
-			}
-			if err := s.repo.CreateWorkflowVersion(ctx, version); err != nil {
-				return fmt.Errorf("failed to record initial workflow version: %w", err)
-			}
-			if _, _, err := s.writeWorkflowFile(project, fileWF, snapshot.Nodes, snapshot.Edges, snapshot.RelativePath); err != nil {
-				return err
+			if snapshot.NeedsWrite {
+				if _, _, err := writeWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
+					return err
+				}
 			}
 			continue
 		}
 
 		needsUpdate := false
-		updateReason := fileSyncChangeDesc
-
-		// Align metadata
 		if existing.Name != fileWF.Name {
 			existing.Name = fileWF.Name
 			needsUpdate = true
 		}
-		if existing.Description != fileWF.Description {
-			existing.Description = fileWF.Description
+		if normalizeFolderPath(existing.FolderPath) != normalizeFolderPath(fileWF.FolderPath) {
+			existing.FolderPath = normalizeFolderPath(fileWF.FolderPath)
 			needsUpdate = true
 		}
-		if existing.FolderPath != fileWF.FolderPath {
-			existing.FolderPath = fileWF.FolderPath
+		if filepath.ToSlash(strings.TrimSpace(existing.FilePath)) != filepath.ToSlash(strings.TrimSpace(snapshot.RelativePath)) {
+			existing.FilePath = snapshot.RelativePath
 			needsUpdate = true
 		}
-		if !equalStringArrays(existing.Tags, fileWF.Tags) {
-			existing.Tags = fileWF.Tags
-			needsUpdate = true
-		}
-
-		fileHash := hashWorkflowDefinition(fileWF.FlowDefinition)
-		dbHash := hashWorkflowDefinition(existing.FlowDefinition)
-		if fileHash != dbHash {
-			existing.FlowDefinition = fileWF.FlowDefinition
+		if existing.Version != int(fileWF.Version) && fileWF.Version > 0 {
+			existing.Version = int(fileWF.Version)
 			needsUpdate = true
 		}
 
 		if needsUpdate {
-			existing.Version = max(existing.Version+1, max(fileWF.Version, defaultVersionIncrement))
-			existing.UpdatedAt = time.Now().UTC()
-			if existing.CreatedAt.IsZero() {
-				existing.CreatedAt = existing.UpdatedAt
-			}
-			existing.LastChangeSource = firstNonEmpty(snapshot.SourceLabel, fileSourceFileSync)
-			existing.LastChangeDescription = firstNonEmpty(snapshot.ChangeDesc, updateReason)
 			if err := s.repo.UpdateWorkflow(ctx, existing); err != nil {
 				return fmt.Errorf("failed to update workflow %s from file: %w", existing.ID, err)
 			}
-			version := &database.WorkflowVersion{
-				WorkflowID:        existing.ID,
-				Version:           existing.Version,
-				FlowDefinition:    existing.FlowDefinition,
-				ChangeDescription: firstNonEmpty(snapshot.ChangeDesc, updateReason),
-				CreatedBy:         firstNonEmpty(snapshot.SourceLabel, fileSourceFileSync),
-			}
-			if err := s.repo.CreateWorkflowVersion(ctx, version); err != nil {
-				return fmt.Errorf("failed to record workflow version: %w", err)
-			}
-			if _, _, err := s.writeWorkflowFile(project, existing, snapshot.Nodes, snapshot.Edges, snapshot.RelativePath); err != nil {
-				return err
+			if snapshot.NeedsWrite {
+				if _, _, err := writeWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
+					return err
+				}
 			}
 			continue
 		}
 
-		// No changes but ensure file has canonical metadata when ID was missing, etc.
-		if snapshot.NeedsWriteBack {
-			existing.UpdatedAt = time.Now().UTC()
-			if existing.CreatedAt.IsZero() {
-				existing.CreatedAt = existing.UpdatedAt
-			}
-			nodes := snapshot.Nodes
-			edges := snapshot.Edges
-			if _, _, err := s.writeWorkflowFile(project, existing, nodes, edges, snapshot.RelativePath); err != nil {
+		if snapshot.NeedsWrite {
+			if _, _, err := writeWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
 				return err
 			}
 		}
