@@ -50,6 +50,8 @@ var failurePatterns = map[string]*regexp.Regexp{
 	"missing":    regexp.MustCompile(`(?i)required (file|directory) missing|no such file or directory|expected file but found directory|expected directory but found file`),
 }
 
+const maxInsightDetailLen = 240
+
 // AnalyzePhaseFailures generates insights for all failed phases.
 func AnalyzePhaseFailures(phases []execTypes.Phase) []PhaseInsight {
 	var insights []PhaseInsight
@@ -59,6 +61,21 @@ func AnalyzePhaseFailures(phases []execTypes.Phase) []PhaseInsight {
 			Phase:        phase.Name,
 			Log:          DescribeLogPath(phase.LogPath),
 			Observations: CleanObservations(phase.Observations),
+		}
+
+		if strings.EqualFold(phase.Name, "standards") {
+			if phase.Error != "" {
+				insight.Cause = phase.Error
+			} else if phase.Classification != "" {
+				insight.Cause = phase.Classification
+			} else {
+				insight.Cause = "Standards scan failed"
+			}
+			if phase.Remediation != "" {
+				insight.Fixes = append(insight.Fixes, strings.TrimSpace(phase.Remediation))
+			}
+			insights = append(insights, insight)
+			continue
 		}
 
 		switch {
@@ -118,6 +135,10 @@ func AnalyzePhaseFailures(phases []execTypes.Phase) []PhaseInsight {
 			} else {
 				insight.Cause = "Unknown failure"
 			}
+		}
+
+		if phase.Remediation != "" {
+			insight.Fixes = append(insight.Fixes, strings.TrimSpace(phase.Remediation))
 		}
 
 		insights = append(insights, insight)
@@ -186,6 +207,26 @@ func DiagnoseFailures(phases []execTypes.Phase) *FailureDiagnosis {
 
 	for _, phase := range failed {
 		content := ReadLogSnippet(phase.LogPath, 48_000)
+
+		if strings.EqualFold(phase.Name, "standards") {
+			if diag.Primary == "" {
+				diag.Primary = "Standards violations detected"
+				diag.PrimaryPhase = phase.Name
+				diag.Details = strings.TrimSpace(phase.Error)
+				if diag.Details == "" {
+					diag.Details = extractLine(content, failurePatterns["tests"])
+				}
+				if phase.Remediation != "" {
+					diag.QuickFixes = append(diag.QuickFixes, strings.TrimSpace(phase.Remediation))
+				} else {
+					diag.QuickFixes = append(diag.QuickFixes, "Re-run: scenario-auditor audit <scenario> --standards-only --timeout 60")
+				}
+			}
+
+			diag.SecondaryIssues = append(diag.SecondaryIssues, fmt.Sprintf("%s: standards violations detected", phase.Name))
+			continue
+		}
+
 		switch {
 		case diag.Primary == "" && failurePatterns["typescript"].MatchString(content):
 			diag.Primary = "TypeScript compilation error"
@@ -268,8 +309,23 @@ func extractLine(content string, re *regexp.Regexp) string {
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
 		if re.MatchString(line) {
-			return strings.TrimSpace(line)
+			return sanitizeInsightDetail(strings.TrimSpace(line))
 		}
 	}
 	return ""
+}
+
+func sanitizeInsightDetail(detail string) string {
+	detail = strings.TrimSpace(detail)
+	if detail == "" {
+		return ""
+	}
+	if len(detail) <= maxInsightDetailLen {
+		return detail
+	}
+	trimmed := strings.TrimSpace(detail)
+	if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+		return ""
+	}
+	return strings.TrimSpace(detail[:maxInsightDetailLen]) + "…"
 }

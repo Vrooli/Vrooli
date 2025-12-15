@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -46,7 +48,11 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+
+	api := s.router.PathPrefix("/api/v1").Subrouter()
+	api.HandleFunc("/health", s.handleHealth).Methods("GET")
+	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
+	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -88,16 +94,67 @@ func (s *Server) Start() error {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
-		"status":    "healthy",
-		"service":   "Scenario To Cloud API",
-		"version":   "0.0.1",
-		"readiness": true,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"status":       "healthy",
+		"service":      "Scenario To Cloud API",
+		"version":      "0.0.1",
+		"readiness":    true,
+		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 		"dependencies": map[string]string{},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handleManifestValidate(w http.ResponseWriter, r *http.Request) {
+	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	resp := ManifestValidateResponse{
+		Valid:      len(issues) == 0,
+		Issues:     issues,
+		Manifest:   normalized,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		SchemaHint: "This endpoint is the consumer-side contract. deployment-manager is responsible for exporting the manifest.",
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handlePlan(w http.ResponseWriter, r *http.Request) {
+	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	if len(issues) > 0 {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	plan := BuildPlan(normalized)
+	writeJSON(w, http.StatusOK, PlanResponse{
+		Plan:      plan,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 // loggingMiddleware prints simple request logs
@@ -123,6 +180,25 @@ func requireEnv(key string) string {
 		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
 	}
 	return value
+}
+
+func decodeJSON[T any](r io.Reader, maxBytes int64) (T, error) {
+	var zero T
+	if r == nil {
+		return zero, errors.New("missing request body")
+	}
+	body := io.LimitReader(r, maxBytes)
+	dec := json.NewDecoder(body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&zero); err != nil {
+		return zero, err
+	}
+	if err := dec.Decode(&struct{}{}); err == nil {
+		return zero, errors.New("unexpected extra JSON values")
+	} else if !errors.Is(err, io.EOF) {
+		return zero, err
+	}
+	return zero, nil
 }
 
 func main() {

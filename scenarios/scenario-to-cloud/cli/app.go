@@ -64,6 +64,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	deploy := cliapp.CommandGroup{
+		Title: "Deploy",
+		Commands: []cliapp.Command{
+			{Name: "manifest-validate", NeedsAPI: true, Description: "Validate a cloud manifest JSON file", Run: a.cmdManifestValidate},
+			{Name: "plan", NeedsAPI: true, Description: "Generate a deploy plan from a cloud manifest JSON file", Run: a.cmdPlan},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -71,7 +79,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, config}
+	return []cliapp.CommandGroup{health, deploy, config}
 }
 
 func (a *App) Run(args []string) error {
