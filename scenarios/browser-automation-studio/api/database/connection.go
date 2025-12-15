@@ -287,7 +287,59 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.applyIndexSchemaMigrations(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to apply index schema migrations")
+		return err
+	}
+
 	db.log.Info("Database schema initialized successfully")
+	return nil
+}
+
+func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
+	if db.dialect != DialectPostgres {
+		return nil
+	}
+
+	// Legacy database instances may already have tables created without newer index columns.
+	// Avoid SELECT * scan breakages by ensuring expected columns exist.
+	statements := []string{
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS folder_path VARCHAR(500)`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS project_id UUID`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS folder_path VARCHAR(500)`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS file_path VARCHAR(1000)`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS status VARCHAR(50)`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS error_message TEXT`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS result_path VARCHAR(1000)`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS name VARCHAR(255)`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS cron_expression VARCHAR(100)`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC'`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS parameters_json TEXT DEFAULT '{}'`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMP`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMP`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+	}
+
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("schema migration failed: %w", err)
+		}
+	}
+
 	return nil
 }
 

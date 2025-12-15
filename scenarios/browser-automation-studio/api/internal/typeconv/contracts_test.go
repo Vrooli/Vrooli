@@ -75,7 +75,7 @@ func TestToHighlightRegions(t *testing.T) {
 		if len(result) != 1 {
 			t.Fatalf("expected 1 region, got %d", len(result))
 		}
-		if result[0].Selector != ".test" {
+		if result[0] == nil || result[0].Selector != ".test" {
 			t.Errorf("selector not preserved")
 		}
 	})
@@ -170,6 +170,9 @@ func TestToMaskRegions(t *testing.T) {
 		result := ToMaskRegions(input)
 		if len(result) != 1 {
 			t.Fatalf("expected 1 region, got %d", len(result))
+		}
+		if result[0] == nil || result[0].Selector != ".mask" {
+			t.Errorf("selector not preserved")
 		}
 	})
 

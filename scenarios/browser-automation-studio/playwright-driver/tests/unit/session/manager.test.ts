@@ -1,39 +1,50 @@
-import { SessionManager } from '../../../src/session/manager';
 import type { SessionSpec } from '../../../src/types';
-import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
 
-// Mock playwright
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn(),
-  },
-}));
-
 describe('SessionManager', () => {
-  let manager: SessionManager;
+  type SessionManagerCtor = typeof import('../../../src/session/manager').SessionManager;
+
+  let SessionManager: SessionManagerCtor;
+  let SessionNotFoundError: typeof import('../../../src/utils/errors').SessionNotFoundError;
+  let ResourceLimitError: typeof import('../../../src/utils/errors').ResourceLimitError;
+  let manager: InstanceType<SessionManagerCtor>;
   let config: ReturnType<typeof createTestConfig>;
   let mockBrowser: ReturnType<typeof createMockBrowser>;
   let mockContext: ReturnType<typeof createMockContext>;
   let mockPage: ReturnType<typeof createMockPage>;
+  let chromiumMock: { launch: jest.Mock };
+
+  beforeAll(async () => {
+    chromiumMock = {
+      launch: jest.fn(),
+    };
+
+    await (jest as any).unstable_mockModule('playwright', () => ({
+      chromium: chromiumMock,
+    }));
+
+    ({ SessionManager } = await import('../../../src/session/manager'));
+    ({ SessionNotFoundError, ResourceLimitError } = await import('../../../src/utils/errors'));
+  });
 
   beforeEach(() => {
-    const { chromium } = require('playwright');
-
     mockBrowser = createMockBrowser();
     mockContext = createMockContext();
     mockPage = createMockPage();
 
     mockBrowser.newContext.mockResolvedValue(mockContext);
     mockContext.newPage.mockResolvedValue(mockPage);
-    chromium.launch.mockResolvedValue(mockBrowser);
+    chromiumMock.launch.mockReset();
+    chromiumMock.launch.mockResolvedValue(mockBrowser);
 
     config = createTestConfig();
     manager = new SessionManager(config);
   });
 
   afterEach(async () => {
-    await manager.shutdown();
+    if (manager) {
+      await manager.shutdown();
+    }
     jest.clearAllMocks();
   });
 
@@ -58,11 +69,9 @@ describe('SessionManager', () => {
     });
 
     it('should launch browser on first session', async () => {
-      const { chromium } = require('playwright');
-
       await manager.startSession(sessionSpec);
 
-      expect(chromium.launch).toHaveBeenCalledWith(
+      expect(chromiumMock.launch).toHaveBeenCalledWith(
         expect.objectContaining({
           headless: config.browser.headless,
         })

@@ -88,6 +88,33 @@ CREATE INDEX IF NOT EXISTS idx_schedules_active ON schedules(is_active);
 CREATE INDEX IF NOT EXISTS idx_schedules_next_run ON schedules(next_run_at) WHERE is_active = TRUE;
 
 -- ============================================================================
+-- EXPORTS: Metadata for exported artifacts (replays, videos, etc.)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS exports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    format VARCHAR(50) NOT NULL,
+    settings JSONB DEFAULT '{}'::jsonb,
+    storage_url TEXT,
+    thumbnail_url TEXT,
+    file_size_bytes BIGINT,
+    duration_ms INTEGER,
+    frame_count INTEGER,
+    ai_caption TEXT,
+    ai_caption_generated_at TIMESTAMP,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_exports_execution_id ON exports(execution_id);
+CREATE INDEX IF NOT EXISTS idx_exports_workflow_id ON exports(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_exports_created_at ON exports(created_at DESC);
+
+-- ============================================================================
 -- SETTINGS: Key-value store for user preferences
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS settings (
@@ -125,6 +152,11 @@ CREATE TRIGGER update_executions_updated_at
 DROP TRIGGER IF EXISTS update_schedules_updated_at ON schedules;
 CREATE TRIGGER update_schedules_updated_at
     BEFORE UPDATE ON schedules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_exports_updated_at ON exports;
+CREATE TRIGGER update_exports_updated_at
+    BEFORE UPDATE ON exports
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;

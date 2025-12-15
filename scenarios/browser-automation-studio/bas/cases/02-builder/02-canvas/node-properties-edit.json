@@ -1,127 +1,153 @@
 {
-  "metadata": {
-    "description": "Validates opening and editing node properties/configuration",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "wait-builder",
-      "type": "wait",
-      "data": {
-        "label": "Wait for builder",
-        "selector": "@selector/workflowBuilder.code.modeButton",
-        "timeoutMs": 15000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "assert-nodes-exist",
-      "type": "assert",
-      "data": {
-        "label": "Nodes exist on canvas",
-        "selector": ".react-flow__node",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Workflow should have nodes"
-      }
-    },
-    {
-      "id": "double-click-node",
-      "type": "click",
-      "data": {
-        "label": "Double-click node to open properties",
-        "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000,
-        "clickCount": 2
-      }
-    },
-    {
-      "id": "wait-for-properties",
-      "type": "wait",
-      "data": {
-        "label": "Wait for properties panel/dialog",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "check-properties-visible",
-      "type": "evaluate",
-      "data": {
-        "label": "Check if properties UI appeared",
-        "expression": "document.querySelector('[role=\"dialog\"], [class*=\"properties\"], [class*=\"config\"], [class*=\"settings\"]') !== null || document.querySelector('input, textarea, select') !== null",
-        "storeResult": "propertiesVisible"
-      }
-    },
-    {
-      "id": "close-properties",
-      "type": "keyboard",
-      "data": {
-        "label": "Close properties with Escape",
-        "waitForMs": 500,
-        "keys": [
-          "Escape"
-        ]
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-wait-builder",
       "source": "call-open-demo-workflow",
       "target": "wait-builder",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "wait-builder",
       "target": "assert-nodes-exist",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "double-click-node",
       "target": "wait-for-properties",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "wait-for-properties",
       "target": "check-properties-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7-bridge-e8",
       "source": "assert-nodes-exist",
       "target": "double-click-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11-bridge-e12",
       "source": "check-properties-visible",
       "target": "close-properties",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates opening and editing node properties/configuration",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflowBuilder.code.modeButton",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-builder"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow should have nodes",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Nodes exist on canvas"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-nodes-exist"
+    },
+    {
+      "action": {
+        "click": {
+          "click_count": 2,
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Double-click node to open properties"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "double-click-node"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for properties panel/dialog"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait-for-properties"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelector('[role=\"dialog\"], [class*=\"properties\"], [class*=\"config\"], [class*=\"settings\"]') !== null || document.querySelector('input, textarea, select') !== null",
+          "store_result": "propertiesVisible"
+        },
+        "metadata": {
+          "label": "Check if properties UI appeared"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-properties-visible"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "keys": [
+            "Escape"
+          ]
+        },
+        "metadata": {
+          "label": "Close properties with Escape"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "close-properties"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

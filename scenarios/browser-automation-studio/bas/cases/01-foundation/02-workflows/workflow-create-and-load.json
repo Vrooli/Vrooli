@@ -1,160 +1,197 @@
 {
-  "metadata": {
-    "description": "Validates workflow creation via AI modal and loading into the workflow builder",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000
-      }
-    },
-    {
-      "id": "dismiss-tutorial",
-      "type": "subflow",
-      "data": {
-        "label": "Dismiss onboarding tutorial if present",
-        "workflowPath": "actions/dismiss-tutorial.json"
-      }
-    },
-    {
-      "id": "click-projects-tab",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Projects tab",
-        "selector": "@selector/dashboard.tabs.projects",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "data": {
-        "label": "Wait for dashboard to load",
-        "selector": "@selector/projects.grid",
-        "timeoutMs": 10000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "data": {
-        "label": "Open first project",
-        "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/workflows.card",
-          "successTimeoutMs": 15000
-        }
-      }
-    },
-    {
-      "id": "click-new-workflow",
-      "type": "click",
-      "data": {
-        "label": "Click New Workflow button",
-        "selector": "@selector/workflows.newButton",
-        "timeoutMs": 10000
-      }
-    },
-    {
-      "id": "check-if-ai-modal",
-      "type": "evaluate",
-      "data": {
-        "label": "Check if AI modal appeared",
-        "expression": "!!document.querySelector('@selector/ai.modal.root, @selector/dialogs.base.content, @selector/dialogs.responsive.overlay')",
-        "storeResult": "aiModalVisible"
-      }
-    },
-    {
-      "id": "switch-to-manual",
-      "type": "click",
-      "data": {
-        "label": "Switch to manual builder",
-        "selector": "@selector/ai.modal.switchToManualButton",
-        "timeoutMs": 5000,
-        "continueOnError": false,
-        "continueOnFailure": true
-      }
-    },
-    {
-      "id": "assert-builder-visible",
-      "type": "assert",
-      "data": {
-        "label": "Verify builder elements exist",
-        "selector": "@selector/workflowBuilder.canvas.root",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Workflow builder should render after creating a workflow"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "navigate-dashboard",
       "target": "dismiss-tutorial",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e1a",
       "source": "dismiss-tutorial",
       "target": "click-projects-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e1b",
       "source": "click-projects-tab",
       "target": "wait-for-dashboard",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "wait-for-dashboard",
       "target": "click-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "click-project",
       "target": "click-new-workflow",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "click-new-workflow",
       "target": "check-if-ai-modal",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "check-if-ai-modal",
       "target": "switch-to-manual",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "switch-to-manual",
       "target": "assert-builder-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates workflow creation via AI modal and loading into the workflow builder",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        },
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-projects-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for dashboard to load"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/projects.grid",
+          "timeout_ms": 10000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-for-dashboard"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open first project"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflows.card",
+          "success_timeout_ms": 15000
+        }
+      },
+      "id": "click-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.newButton"
+        },
+        "metadata": {
+          "label": "Click New Workflow button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-new-workflow"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "!!document.querySelector('@selector/ai.modal.root, @selector/dialogs.base.content, @selector/dialogs.responsive.overlay')",
+          "store_result": "aiModalVisible"
+        },
+        "metadata": {
+          "label": "Check if AI modal appeared"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-if-ai-modal"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/ai.modal.switchToManualButton"
+        },
+        "metadata": {
+          "label": "Switch to manual builder"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      },
+      "id": "switch-to-manual"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow builder should render after creating a workflow",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/workflowBuilder.canvas.root",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Verify builder elements exist"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-builder-visible"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

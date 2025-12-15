@@ -130,9 +130,9 @@ func TestCollector_OnStepCompleted_SavesCursorPath(t *testing.T) {
 		CompletedAt: func() *time.Time { t := now.Add(500 * time.Millisecond); return &t }(),
 		DurationMs:  500,
 		CursorTrail: []autocontracts.CursorPosition{
-			{Point: autocontracts.Point{X: 0, Y: 0}, RecordedAt: now},
-			{Point: autocontracts.Point{X: 100, Y: 0}, RecordedAt: now.Add(100 * time.Millisecond)},
-			{Point: autocontracts.Point{X: 100, Y: 100}, RecordedAt: now.Add(200 * time.Millisecond)},
+			{Point: &autocontracts.Point{X: 0, Y: 0}, RecordedAt: now},
+			{Point: &autocontracts.Point{X: 100, Y: 0}, RecordedAt: now.Add(100 * time.Millisecond)},
+			{Point: &autocontracts.Point{X: 100, Y: 100}, RecordedAt: now.Add(200 * time.Millisecond)},
 		},
 	}
 
@@ -241,9 +241,9 @@ func TestBuildCursorPath(t *testing.T) {
 	end := start.Add(500 * time.Millisecond)
 
 	trail := []autocontracts.CursorPosition{
-		{Point: autocontracts.Point{X: 0, Y: 0}, RecordedAt: start},
-		{Point: autocontracts.Point{X: 100, Y: 0}, RecordedAt: start.Add(200 * time.Millisecond)},
-		{Point: autocontracts.Point{X: 100, Y: 100}, RecordedAt: end},
+		{Point: &autocontracts.Point{X: 0, Y: 0}, RecordedAt: start},
+		{Point: &autocontracts.Point{X: 100, Y: 0}, RecordedAt: start.Add(200 * time.Millisecond)},
+		{Point: &autocontracts.Point{X: 100, Y: 100}, RecordedAt: end},
 	}
 
 	path := collector.buildCursorPath(0, trail, start, &end)

@@ -58,6 +58,15 @@ type Repository interface {
 	GetSetting(ctx context.Context, key string) (string, error)
 	SetSetting(ctx context.Context, key, value string) error
 	DeleteSetting(ctx context.Context, key string) error
+
+	// Export operations (exported artifacts metadata)
+	CreateExport(ctx context.Context, export *ExportIndex) error
+	GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error)
+	UpdateExport(ctx context.Context, export *ExportIndex) error
+	DeleteExport(ctx context.Context, id uuid.UUID) error
+	ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error)
+	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error)
+	ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*ExportIndex, error)
 }
 
 // repository implements the Repository interface
@@ -76,6 +85,26 @@ func NewRepository(db *DB, log *logrus.Logger) Repository {
 
 // Compile-time interface enforcement
 var _ Repository = (*repository)(nil)
+
+const (
+	projectSelectColumns   = "id, name, folder_path, created_at, updated_at"
+	workflowSelectColumns  = "id, project_id, name, folder_path, file_path, version, created_at, updated_at"
+	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, error_message, result_path, created_at, updated_at"
+	scheduleSelectColumns  = "id, workflow_id, name, cron_expression, timezone, is_active, parameters_json, next_run_at, last_run_at, created_at, updated_at"
+)
+
+func appendLimitOffset(query string, limit, offset int) (string, []any) {
+	var args []any
+	if limit > 0 {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	}
+	if offset > 0 {
+		query += " OFFSET ?"
+		args = append(args, offset)
+	}
+	return query, args
+}
 
 // ============================================================================
 // Project Operations
@@ -96,7 +125,7 @@ func (r *repository) CreateProject(ctx context.Context, project *ProjectIndex) e
 }
 
 func (r *repository) GetProject(ctx context.Context, id uuid.UUID) (*ProjectIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM projects WHERE id = ?`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM projects WHERE id = ?", projectSelectColumns))
 	var project ProjectIndex
 	if err := r.db.GetContext(ctx, &project, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -108,7 +137,7 @@ func (r *repository) GetProject(ctx context.Context, id uuid.UUID) (*ProjectInde
 }
 
 func (r *repository) GetProjectByName(ctx context.Context, name string) (*ProjectIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM projects WHERE name = ?`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM projects WHERE name = ?", projectSelectColumns))
 	var project ProjectIndex
 	if err := r.db.GetContext(ctx, &project, query, name); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -120,7 +149,7 @@ func (r *repository) GetProjectByName(ctx context.Context, name string) (*Projec
 }
 
 func (r *repository) GetProjectByFolderPath(ctx context.Context, folderPath string) (*ProjectIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM projects WHERE folder_path = ?`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM projects WHERE folder_path = ?", projectSelectColumns))
 	var project ProjectIndex
 	if err := r.db.GetContext(ctx, &project, query, folderPath); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -150,9 +179,11 @@ func (r *repository) DeleteProject(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repository) ListProjects(ctx context.Context, limit, offset int) ([]*ProjectIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM projects ORDER BY updated_at DESC LIMIT ? OFFSET ?`)
+	base := fmt.Sprintf("SELECT %s FROM projects ORDER BY updated_at DESC", projectSelectColumns)
+	queryWithPaging, args := appendLimitOffset(base, limit, offset)
+	query := r.db.Rebind(queryWithPaging)
 	var projects []*ProjectIndex
-	if err := r.db.SelectContext(ctx, &projects, query, limit, offset); err != nil {
+	if err := r.db.SelectContext(ctx, &projects, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
 	return projects, nil
@@ -234,7 +265,7 @@ func (r *repository) CreateWorkflow(ctx context.Context, workflow *WorkflowIndex
 }
 
 func (r *repository) GetWorkflow(ctx context.Context, id uuid.UUID) (*WorkflowIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM workflows WHERE id = ?`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM workflows WHERE id = ?", workflowSelectColumns))
 	var workflow WorkflowIndex
 	if err := r.db.GetContext(ctx, &workflow, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -246,7 +277,7 @@ func (r *repository) GetWorkflow(ctx context.Context, id uuid.UUID) (*WorkflowIn
 }
 
 func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath string) (*WorkflowIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM workflows WHERE name = ? AND folder_path = ?`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM workflows WHERE name = ? AND folder_path = ?", workflowSelectColumns))
 	var workflow WorkflowIndex
 	if err := r.db.GetContext(ctx, &workflow, query, name, folderPath); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -277,16 +308,16 @@ func (r *repository) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repository) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*WorkflowIndex, error) {
-	var query string
+	base := fmt.Sprintf("SELECT %s FROM workflows", workflowSelectColumns)
 	var args []any
-
 	if folderPath != "" {
-		query = r.db.Rebind(`SELECT * FROM workflows WHERE folder_path = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`)
-		args = []any{folderPath, limit, offset}
-	} else {
-		query = r.db.Rebind(`SELECT * FROM workflows ORDER BY updated_at DESC LIMIT ? OFFSET ?`)
-		args = []any{limit, offset}
+		base += " WHERE folder_path = ?"
+		args = append(args, folderPath)
 	}
+	base += " ORDER BY updated_at DESC"
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args = append(args, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
 
 	var workflows []*WorkflowIndex
 	if err := r.db.SelectContext(ctx, &workflows, query, args...); err != nil {
@@ -296,9 +327,12 @@ func (r *repository) ListWorkflows(ctx context.Context, folderPath string, limit
 }
 
 func (r *repository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*WorkflowIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM workflows WHERE project_id = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`)
+	base := fmt.Sprintf("SELECT %s FROM workflows WHERE project_id = ? ORDER BY updated_at DESC", workflowSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{projectID}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
 	var workflows []*WorkflowIndex
-	if err := r.db.SelectContext(ctx, &workflows, query, projectID, limit, offset); err != nil {
+	if err := r.db.SelectContext(ctx, &workflows, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to list workflows by project: %w", err)
 	}
 	return workflows, nil
@@ -324,7 +358,7 @@ func (r *repository) CreateExecution(ctx context.Context, execution *ExecutionIn
 }
 
 func (r *repository) GetExecution(ctx context.Context, id uuid.UUID) (*ExecutionIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM executions WHERE id = ?`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM executions WHERE id = ?", executionSelectColumns))
 	var execution ExecutionIndex
 	if err := r.db.GetContext(ctx, &execution, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -355,16 +389,16 @@ func (r *repository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*ExecutionIndex, error) {
-	var query string
+	base := fmt.Sprintf("SELECT %s FROM executions", executionSelectColumns)
 	var args []any
-
 	if workflowID != nil {
-		query = r.db.Rebind(`SELECT * FROM executions WHERE workflow_id = ? ORDER BY started_at DESC LIMIT ? OFFSET ?`)
-		args = []any{*workflowID, limit, offset}
-	} else {
-		query = r.db.Rebind(`SELECT * FROM executions ORDER BY started_at DESC LIMIT ? OFFSET ?`)
-		args = []any{limit, offset}
+		base += " WHERE workflow_id = ?"
+		args = append(args, *workflowID)
 	}
+	base += " ORDER BY started_at DESC"
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args = append(args, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
 
 	var executions []*ExecutionIndex
 	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
@@ -374,9 +408,12 @@ func (r *repository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, 
 }
 
 func (r *repository) ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM executions WHERE status = ? ORDER BY started_at DESC LIMIT ? OFFSET ?`)
+	base := fmt.Sprintf("SELECT %s FROM executions WHERE status = ? ORDER BY started_at DESC", executionSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{status}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
 	var executions []*ExecutionIndex
-	if err := r.db.SelectContext(ctx, &executions, query, status, limit, offset); err != nil {
+	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to list executions by status: %w", err)
 	}
 	return executions, nil
@@ -405,7 +442,7 @@ func (r *repository) CreateSchedule(ctx context.Context, schedule *ScheduleIndex
 }
 
 func (r *repository) GetSchedule(ctx context.Context, id uuid.UUID) (*ScheduleIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM schedules WHERE id = ?`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM schedules WHERE id = ?", scheduleSelectColumns))
 	var schedule ScheduleIndex
 	if err := r.db.GetContext(ctx, &schedule, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -437,22 +474,23 @@ func (r *repository) DeleteSchedule(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*ScheduleIndex, error) {
-	var query string
+	base := fmt.Sprintf("SELECT %s FROM schedules", scheduleSelectColumns)
 	var args []any
 
-	if workflowID != nil && activeOnly {
-		query = r.db.Rebind(`SELECT * FROM schedules WHERE workflow_id = ? AND is_active = true ORDER BY next_run_at ASC NULLS LAST LIMIT ? OFFSET ?`)
-		args = []any{*workflowID, limit, offset}
-	} else if workflowID != nil {
-		query = r.db.Rebind(`SELECT * FROM schedules WHERE workflow_id = ? ORDER BY next_run_at ASC NULLS LAST LIMIT ? OFFSET ?`)
-		args = []any{*workflowID, limit, offset}
+	if workflowID != nil {
+		base += " WHERE workflow_id = ?"
+		args = append(args, *workflowID)
+		if activeOnly {
+			base += " AND is_active = true"
+		}
 	} else if activeOnly {
-		query = r.db.Rebind(`SELECT * FROM schedules WHERE is_active = true ORDER BY next_run_at ASC NULLS LAST LIMIT ? OFFSET ?`)
-		args = []any{limit, offset}
-	} else {
-		query = r.db.Rebind(`SELECT * FROM schedules ORDER BY next_run_at ASC NULLS LAST LIMIT ? OFFSET ?`)
-		args = []any{limit, offset}
+		base += " WHERE is_active = true"
 	}
+
+	base += " ORDER BY next_run_at ASC NULLS LAST"
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args = append(args, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
 
 	var schedules []*ScheduleIndex
 	if err := r.db.SelectContext(ctx, &schedules, query, args...); err != nil {
@@ -462,7 +500,7 @@ func (r *repository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, a
 }
 
 func (r *repository) GetActiveSchedulesDue(ctx context.Context, before time.Time) ([]*ScheduleIndex, error) {
-	query := r.db.Rebind(`SELECT * FROM schedules WHERE is_active = true AND next_run_at <= ? ORDER BY next_run_at ASC`)
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM schedules WHERE is_active = true AND next_run_at <= ? ORDER BY next_run_at ASC", scheduleSelectColumns))
 	var schedules []*ScheduleIndex
 	if err := r.db.SelectContext(ctx, &schedules, query, before); err != nil {
 		return nil, fmt.Errorf("failed to get active schedules due: %w", err)
@@ -486,6 +524,144 @@ func (r *repository) UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, la
 		return fmt.Errorf("failed to update schedule last run: %w", err)
 	}
 	return nil
+}
+
+// ============================================================================
+// Export Operations
+// ============================================================================
+
+func (r *repository) CreateExport(ctx context.Context, export *ExportIndex) error {
+	if export == nil {
+		return fmt.Errorf("export is nil")
+	}
+	if export.ID == uuid.Nil {
+		export.ID = uuid.New()
+	}
+	if export.Status == "" {
+		export.Status = "pending"
+	}
+
+	query := `INSERT INTO exports (
+		id, execution_id, workflow_id, name, format, settings, storage_url, thumbnail_url,
+		file_size_bytes, duration_ms, frame_count, ai_caption, ai_caption_generated_at, status, error
+	) VALUES (
+		:id, :execution_id, :workflow_id, :name, :format, :settings, :storage_url, :thumbnail_url,
+		:file_size_bytes, :duration_ms, :frame_count, :ai_caption, :ai_caption_generated_at, :status, :error
+	)`
+	_, err := r.db.NamedExecContext(ctx, query, export)
+	if err != nil {
+		return fmt.Errorf("failed to create export: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error) {
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		WHERE e.id = ?
+	`)
+	var export ExportIndex
+	if err := r.db.GetContext(ctx, &export, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get export: %w", err)
+	}
+	return &export, nil
+}
+
+func (r *repository) UpdateExport(ctx context.Context, export *ExportIndex) error {
+	if export == nil {
+		return fmt.Errorf("export is nil")
+	}
+	query := `UPDATE exports SET
+		execution_id = :execution_id,
+		workflow_id = :workflow_id,
+		name = :name,
+		format = :format,
+		settings = :settings,
+		storage_url = :storage_url,
+		thumbnail_url = :thumbnail_url,
+		file_size_bytes = :file_size_bytes,
+		duration_ms = :duration_ms,
+		frame_count = :frame_count,
+		ai_caption = :ai_caption,
+		ai_caption_generated_at = :ai_caption_generated_at,
+		status = :status,
+		error = :error
+		WHERE id = :id`
+	_, err := r.db.NamedExecContext(ctx, query, export)
+	if err != nil {
+		return fmt.Errorf("failed to update export: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteExport(ctx context.Context, id uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM exports WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete export: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		ORDER BY e.created_at DESC
+		LIMIT ? OFFSET ?
+	`)
+	var exports []*ExportIndex
+	if err := r.db.SelectContext(ctx, &exports, query, limit, offset); err != nil {
+		return nil, fmt.Errorf("failed to list exports: %w", err)
+	}
+	return exports, nil
+}
+
+func (r *repository) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error) {
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		WHERE e.execution_id = ?
+		ORDER BY e.created_at DESC
+	`)
+	var exports []*ExportIndex
+	if err := r.db.SelectContext(ctx, &exports, query, executionID); err != nil {
+		return nil, fmt.Errorf("failed to list exports by execution: %w", err)
+	}
+	return exports, nil
+}
+
+func (r *repository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*ExportIndex, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	query := r.db.Rebind(`
+		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		FROM exports e
+		LEFT JOIN workflows w ON e.workflow_id = w.id
+		LEFT JOIN executions ex ON e.execution_id = ex.id
+		WHERE e.workflow_id = ?
+		ORDER BY e.created_at DESC
+		LIMIT ? OFFSET ?
+	`)
+	var exports []*ExportIndex
+	if err := r.db.SelectContext(ctx, &exports, query, workflowID, limit, offset); err != nil {
+		return nil, fmt.Errorf("failed to list exports by workflow: %w", err)
+	}
+	return exports, nil
 }
 
 // ============================================================================

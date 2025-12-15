@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   Plus,
   WifiOff,
@@ -10,19 +10,27 @@ import {
 } from "lucide-react";
 import { useProjectStore, Project } from "@stores/projectStore";
 import { useDashboardStore } from "@stores/dashboardStore";
-import { useAICapabilityStore } from "@stores/aiCapabilityStore";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { selectors } from "@constants/selectors";
 import { getModifierKey } from "@hooks/useKeyboardShortcuts";
-import { GlobalSearchModal } from "@features/dashboard";
+import { GlobalSearchModal } from "@features/dashboard/GlobalSearchModal";
 import { TabNavigation, type DashboardTab } from "@features/dashboard/TabNavigation";
 import { HomeTab } from "@features/dashboard/HomeTab";
-import { ExecutionsTab } from "@features/dashboard/ExecutionsTab";
-import { ExportsTab } from "@features/dashboard/ExportsTab";
-import { ProjectsTab } from "@features/dashboard/ProjectsTab";
-import { SchedulesTab } from "@features/dashboard/SchedulesTab";
 import { RunningExecutionsBadge } from "@features/dashboard/RunningExecutionsBadge";
 import { WelcomeHero } from "@features/dashboard/WelcomeHero";
+
+const ExecutionsTab = lazy(() =>
+  import("@features/dashboard/ExecutionsTab").then((mod) => ({ default: mod.ExecutionsTab })),
+);
+const ExportsTab = lazy(() =>
+  import("@features/dashboard/ExportsTab").then((mod) => ({ default: mod.ExportsTab })),
+);
+const ProjectsTab = lazy(() =>
+  import("@features/dashboard/ProjectsTab").then((mod) => ({ default: mod.ProjectsTab })),
+);
+const SchedulesTab = lazy(() =>
+  import("@features/dashboard/SchedulesTab").then((mod) => ({ default: mod.SchedulesTab })),
+);
 
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
@@ -72,10 +80,28 @@ function Dashboard({
     fetchRunningExecutions,
     runningExecutions,
   } = useDashboardStore();
-  const { checkCapability: checkAICapability } = useAICapabilityStore();
   const { isConnected: isWebSocketConnected } = useWebSocket();
   const [activeTab, setActiveTab] = useState<DashboardTab>(activeTabProp ?? 'home');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  const scheduleNonCriticalWork = useCallback((work: () => void | Promise<void>) => {
+    if (typeof window === 'undefined') {
+      void work();
+      return;
+    }
+
+    const requestIdleCallback = (window as unknown as { requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number }).requestIdleCallback;
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => {
+        void work();
+      }, { timeout: 1500 });
+      return;
+    }
+
+    window.setTimeout(() => {
+      void work();
+    }, 0);
+  }, []);
 
   useEffect(() => {
     if (activeTabProp && activeTabProp !== activeTab) {
@@ -87,9 +113,10 @@ function Dashboard({
     fetchProjects();
     fetchRecentWorkflows();
     fetchRecentExecutions();
-    fetchRunningExecutions();
-    void checkAICapability();
-  }, [fetchProjects, fetchRecentWorkflows, fetchRecentExecutions, fetchRunningExecutions, checkAICapability]);
+    scheduleNonCriticalWork(() => {
+      void fetchRunningExecutions();
+    });
+  }, [fetchProjects, fetchRecentWorkflows, fetchRecentExecutions, fetchRunningExecutions, scheduleNonCriticalWork]);
 
   // Auto-refresh running executions periodically
   useEffect(() => {
@@ -221,38 +248,70 @@ function Dashboard({
         );
       case 'executions':
         return (
-          <ExecutionsTab
-            onViewExecution={handleViewExecution}
-            onNavigateToHome={() => setActiveTab('home')}
-            onCreateWorkflow={onCreateProject}
-          />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
+              </div>
+            }
+          >
+            <ExecutionsTab
+              onViewExecution={handleViewExecution}
+              onNavigateToHome={() => setActiveTab('home')}
+              onCreateWorkflow={onCreateProject}
+            />
+          </Suspense>
         );
       case 'exports':
         return (
-          <ExportsTab
-            onViewExecution={handleViewExecution}
-            onNavigateToWorkflow={handleNavigateToWorkflow}
-            onNavigateToExecutions={() => setActiveTab('executions')}
-            onNavigateToHome={() => setActiveTab('home')}
-            onCreateWorkflow={onCreateProject}
-            onOpenSettings={handleOpenSettings}
-          />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
+              </div>
+            }
+          >
+            <ExportsTab
+              onViewExecution={handleViewExecution}
+              onNavigateToWorkflow={handleNavigateToWorkflow}
+              onNavigateToExecutions={() => setActiveTab('executions')}
+              onNavigateToHome={() => setActiveTab('home')}
+              onCreateWorkflow={onCreateProject}
+              onOpenSettings={handleOpenSettings}
+            />
+          </Suspense>
         );
       case 'projects':
         return (
-          <ProjectsTab
-            onProjectSelect={onProjectSelect}
-            onCreateProject={onCreateProject}
-            onNavigateToWorkflow={handleNavigateToWorkflow}
-            onRunWorkflow={handleRunWorkflow}
-          />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
+              </div>
+            }
+          >
+            <ProjectsTab
+              onProjectSelect={onProjectSelect}
+              onCreateProject={onCreateProject}
+              onNavigateToWorkflow={handleNavigateToWorkflow}
+              onRunWorkflow={handleRunWorkflow}
+            />
+          </Suspense>
         );
       case 'schedules':
         return (
-          <SchedulesTab
-            onNavigateToExecution={handleViewExecution}
-            onNavigateToHome={() => setActiveTab('home')}
-          />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-flow-accent"></div>
+              </div>
+            }
+          >
+            <SchedulesTab
+              onNavigateToExecution={handleViewExecution}
+              onNavigateToHome={() => setActiveTab('home')}
+            />
+          </Suspense>
         );
       default:
         return null;
@@ -321,11 +380,14 @@ function Dashboard({
                 onClick={() => setIsSearchModalOpen(true)}
                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-subtle hover:text-surface bg-gray-800/50 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors"
                 title={`Search (${getModifierKey()}+K)`}
-                aria-label="Open search"
+                aria-label="Search"
               >
                 <Search size={14} />
                 <span className="text-sm hidden md:inline">Search</span>
-                <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded">
+                <kbd
+                  aria-hidden="true"
+                  className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded"
+                >
                   <Command size={10} />K
                 </kbd>
               </button>
@@ -335,7 +397,7 @@ function Dashboard({
                 onClick={() => setIsSearchModalOpen(true)}
                 className="sm:hidden p-2 text-subtle hover:text-surface hover:bg-gray-700 rounded-lg transition-colors"
                 title="Search"
-                aria-label="Open search"
+                aria-label="Search"
               >
                 <Search size={18} />
               </button>

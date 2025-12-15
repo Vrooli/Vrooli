@@ -1,122 +1,141 @@
 {
-  "metadata": {
-    "description": "Opens the dashboard and verifies that the New Project modal becomes visible.",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000
-      }
-    },
-    {
-      "id": "dismiss-tutorial",
-      "type": "subflow",
-      "data": {
-        "label": "Dismiss onboarding tutorial if present",
-        "workflowPath": "actions/dismiss-tutorial.json"
-      }
-    },
-    {
-      "id": "click-projects-tab",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Projects tab",
-        "selector": "@selector/dashboard.tabs.projects",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-for-projects",
-      "type": "wait",
-      "data": {
-        "label": "Wait for new project button",
-        "selector": "@selector/dashboard.newProjectButton",
-        "timeoutMs": 15000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-new-project",
-      "type": "click",
-      "data": {
-        "label": "Click New Project button",
-        "selector": "@selector/dashboard.newProjectButton",
-        "timeoutMs": 15000,
-        "waitForSelector": "@selector/dashboard.newProjectButton"
-      }
-    },
-    {
-      "id": "assert-modal-visible",
-      "type": "assert",
-      "data": {
-        "label": "Project modal appears",
-        "selector": "@selector/dialogs.project.root",
-        "assertMode": "exists",
-        "timeoutMs": 12000,
-        "failureMessage": "Project modal should be visible after clicking the New Project button"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "edge-nav-wait",
       "source": "navigate-dashboard",
+      "source_handle": "source",
       "target": "dismiss-tutorial",
-      "sourceHandle": "source",
-      "targetHandle": "target",
-      "type": "smoothstep",
-      "data": {}
+      "target_handle": "target",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "edge-dismiss-projects-tab",
       "source": "dismiss-tutorial",
+      "source_handle": "source",
       "target": "click-projects-tab",
-      "sourceHandle": "source",
-      "targetHandle": "target",
-      "type": "smoothstep",
-      "data": {}
+      "target_handle": "target",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "edge-projects-tab-wait",
       "source": "click-projects-tab",
+      "source_handle": "source",
       "target": "wait-for-projects",
-      "sourceHandle": "source",
-      "targetHandle": "target",
-      "type": "smoothstep",
-      "data": {}
+      "target_handle": "target",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "edge-click-assert",
       "source": "click-new-project",
+      "source_handle": "source",
       "target": "assert-modal-visible",
-      "sourceHandle": "source",
-      "targetHandle": "target",
-      "type": "smoothstep",
-      "data": {}
+      "target_handle": "target",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "edge-wait-capture-bridge-edge-capture-click",
       "source": "wait-for-projects",
       "target": "click-new-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Opens the dashboard and verifies that the New Project modal becomes visible.",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        },
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-projects-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for new project button"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dashboard.newProjectButton",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-for-projects"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.newProjectButton"
+        },
+        "metadata": {
+          "label": "Click New Project button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-new-project"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Project modal should be visible after clicking the New Project button",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/dialogs.project.root",
+          "timeout_ms": 12000
+        },
+        "metadata": {
+          "label": "Project modal appears"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-modal-visible"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

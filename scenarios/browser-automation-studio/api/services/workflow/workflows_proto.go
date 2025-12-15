@@ -15,6 +15,7 @@ import (
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -46,6 +47,14 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 	workflowID := uuid.New()
 	folderPath := normalizeFolderPath(req.FolderPath)
 	def := req.FlowDefinition
+	aiPrompt := strings.TrimSpace(req.AiPrompt)
+	if aiPrompt != "" && (def == nil || (len(def.Nodes) == 0 && len(def.Edges) == 0)) {
+		generated, err := s.generateWorkflowDefinitionFromPrompt(ctx, aiPrompt, nil)
+		if err != nil {
+			return nil, err
+		}
+		def = generated
+	}
 	if def == nil {
 		def = &basworkflows.WorkflowDefinitionV2{}
 	}
@@ -60,17 +69,28 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 		Version:     1,
 		IsTemplate:  false,
 		CreatedBy:   "",
-		LastChangeSource: basbase.ChangeSource_CHANGE_SOURCE_MANUAL,
-		LastChangeDescription: "Initial workflow creation",
+		LastChangeSource: func() basbase.ChangeSource {
+			if aiPrompt != "" {
+				return basbase.ChangeSource_CHANGE_SOURCE_AI_GENERATED
+			}
+			return basbase.ChangeSource_CHANGE_SOURCE_MANUAL
+		}(),
+		LastChangeDescription: func() string {
+			if aiPrompt != "" {
+				return "AI generated workflow"
+			}
+			return "Initial workflow creation"
+		}(),
 		CreatedAt:   now,
 		UpdatedAt:   now,
 		FlowDefinition: def,
 	}
 
-	absPath, relPath, err := writeWorkflowSummaryFile(project, summary, "")
+	absPath, relPath, err := WriteWorkflowSummaryFile(project, summary, "")
 	if err != nil {
 		return nil, err
 	}
+	_ = persistWorkflowVersionSnapshot(project, summary)
 
 	index := &database.WorkflowIndex{
 		ID:         workflowID,
@@ -150,13 +170,21 @@ func (s *WorkflowService) ListWorkflows(ctx context.Context, req *basapi.ListWor
 	}, nil
 }
 
-func (s *WorkflowService) GetWorkflow(ctx context.Context, req *basapi.GetWorkflowRequest) (*basapi.GetWorkflowResponse, error) {
+func (s *WorkflowService) GetWorkflowAPI(ctx context.Context, req *basapi.GetWorkflowRequest) (*basapi.GetWorkflowResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
 	workflowID, err := uuid.Parse(strings.TrimSpace(req.WorkflowId))
 	if err != nil {
 		return nil, fmt.Errorf("invalid workflow_id: %w", err)
+	}
+
+	if req.Version != nil && req.GetVersion() > 0 {
+		versionWf, err := s.GetWorkflowVersion(ctx, workflowID, int(req.GetVersion()))
+		if err != nil {
+			return nil, err
+		}
+		return &basapi.GetWorkflowResponse{Workflow: versionWf}, nil
 	}
 
 	index, err := s.repo.GetWorkflow(ctx, workflowID)
@@ -216,7 +244,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 		return nil, fmt.Errorf("%w: expected %d, found %d", ErrWorkflowVersionConflict, expected, currentSummary.Version)
 	}
 
-	updated := *currentSummary
+	updated := proto.Clone(currentSummary).(*basapi.WorkflowSummary)
 	updated.Name = strings.TrimSpace(req.Name)
 	if updated.Name == "" {
 		updated.Name = currentSummary.Name
@@ -238,10 +266,11 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 		updated.LastChangeDescription = "Updated workflow"
 	}
 
-	absPath, relPath, err := writeWorkflowSummaryFile(project, &updated, currentIndex.FilePath)
+	absPath, relPath, err := WriteWorkflowSummaryFile(project, updated, currentIndex.FilePath)
 	if err != nil {
 		return nil, err
 	}
+	_ = persistWorkflowVersionSnapshot(project, updated)
 	s.cacheWorkflowPath(workflowID, absPath, relPath)
 
 	currentIndex.Name = updated.Name
@@ -253,7 +282,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	}
 
 	return &basapi.UpdateWorkflowResponse{
-		Workflow:      &updated,
+		Workflow:      updated,
 		FlowDefinition: updated.FlowDefinition,
 	}, nil
 }
@@ -304,7 +333,7 @@ func (s *WorkflowService) hydrateWorkflowSummary(ctx context.Context, wf *databa
 	}
 
 	abs := filepath.Join(projectWorkflowsDir(project), filepath.FromSlash(wf.FilePath))
-	snapshot, err := readWorkflowSummaryFile(ctx, project, abs)
+	snapshot, err := ReadWorkflowSummaryFile(ctx, project, abs)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +355,7 @@ func (s *WorkflowService) hydrateWorkflowSummary(ctx context.Context, wf *databa
 		snapshot.Workflow.UpdatedAt = snapshot.Workflow.CreatedAt
 	}
 	if snapshot.NeedsWrite {
-		if _, _, err := writeWorkflowSummaryFile(project, snapshot.Workflow, wf.FilePath); err != nil && s.log != nil {
+		if _, _, err := WriteWorkflowSummaryFile(project, snapshot.Workflow, wf.FilePath); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("workflow_id", wf.ID).Warn("Failed to normalize workflow file to proto format")
 		}
 	}
@@ -355,4 +384,3 @@ func (s *WorkflowService) syncProjectsForWorkflowListing(ctx context.Context) er
 	}
 	return nil
 }
-

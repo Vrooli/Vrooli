@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/paths"
 )
 
 func (s *WorkflowService) CheckHealth() string {
@@ -23,6 +25,55 @@ func (s *WorkflowService) CheckHealth() string {
 	}
 
 	return "healthy"
+}
+
+const seedProjectName = "Demo Browser Automations"
+
+// EnsureSeedProject makes sure the default demo project exists so CLI/tests have a stable target.
+// The project is persisted as a DB index row (for queries) plus on-disk proto metadata (source of truth).
+func (s *WorkflowService) EnsureSeedProject(ctx context.Context) (*database.ProjectIndex, error) {
+	if s == nil {
+		return nil, errors.New("workflow service is nil")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if existing, err := s.repo.GetProjectByName(ctx, seedProjectName); err == nil && existing != nil {
+		return existing, nil
+	} else if err != nil && !errors.Is(err, database.ErrNotFound) {
+		return nil, fmt.Errorf("lookup seed project: %w", err)
+	}
+
+	demoFolder := paths.ResolveDemoProjectFolder(s.log)
+	if abs, err := filepath.Abs(demoFolder); err == nil {
+		demoFolder = abs
+	}
+	demoFolder, err := paths.ValidateAndPrepareFolderPath(demoFolder, s.log)
+	if err != nil {
+		return nil, fmt.Errorf("prepare seed project folder: %w", err)
+	}
+
+	// If the folder is already indexed under a different name, reuse it.
+	if existing, err := s.repo.GetProjectByFolderPath(ctx, demoFolder); err == nil && existing != nil {
+		if strings.TrimSpace(existing.Name) == "" || existing.Name != seedProjectName {
+			existing.Name = seedProjectName
+			_ = s.repo.UpdateProject(ctx, existing)
+		}
+		_ = persistProjectProto(existing, "")
+		return existing, nil
+	} else if err != nil && !errors.Is(err, database.ErrNotFound) {
+		return nil, fmt.Errorf("lookup seed project by folder: %w", err)
+	}
+
+	project := &database.ProjectIndex{
+		Name:       seedProjectName,
+		FolderPath: demoFolder,
+	}
+	if err := s.CreateProject(ctx, project, ""); err != nil {
+		return nil, fmt.Errorf("create seed project: %w", err)
+	}
+	return project, nil
 }
 
 // CreateProject creates a new project index row and persists proto metadata to disk.

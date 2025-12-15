@@ -1,242 +1,296 @@
 {
-  "metadata": {
-    "description": "Validates DragDrop node configuration (regression test for camelCase compiler bug)",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-builder",
-      "type": "subflow",
-      "data": {
-        "label": "Open builder via fixture",
-        "workflowPath": "actions/open-builder-from-demo.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "wait-builder",
-      "type": "wait",
-      "data": {
-        "label": "Wait for builder",
-        "selector": "@selector/workflowBuilder.code.modeButton",
-        "timeoutMs": 15000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "drag-dragdrop-node",
-      "type": "dragDrop",
-      "data": {
-        "label": "Drag DragDrop node (camelCase compiler bug regression test)",
-        "sourceSelector": "@selector/nodePalette.cards.dragDrop",
-        "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000
-      }
-    },
-    {
-      "id": "wait-node-render",
-      "type": "wait",
-      "data": {
-        "label": "Wait for DragDrop node",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "verify-dragdrop-node",
-      "type": "assert",
-      "data": {
-        "label": "Verify DragDrop node exists (CRITICAL: this failed before compiler fix)",
-        "selector": ".react-flow__node",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "DragDrop node should appear - previously failed with 'unsupported node type: dragDrop'"
-      }
-    },
-    {
-      "id": "select-dragdrop",
-      "type": "click",
-      "data": {
-        "label": "Select DragDrop node",
-        "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "find-source-selector-input",
-      "type": "assert",
-      "data": {
-        "label": "Source selector input exists",
-        "selector": ".react-flow__node.selected input[placeholder*=\"source\" i], .react-flow__node.selected input:first-of-type",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Source selector input should be visible"
-      }
-    },
-    {
-      "id": "enter-source-selector",
-      "type": "type",
-      "data": {
-        "label": "Enter source selector",
-        "selector": ".react-flow__node.selected input:first-of-type",
-        "text": ".draggable-item",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "find-target-selector-input",
-      "type": "assert",
-      "data": {
-        "label": "Target selector input exists",
-        "selector": ".react-flow__node.selected input[placeholder*=\"target\" i], .react-flow__node.selected input:nth-of-type(2)",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Target selector input should be visible"
-      }
-    },
-    {
-      "id": "enter-target-selector",
-      "type": "type",
-      "data": {
-        "label": "Enter target selector",
-        "selector": ".react-flow__node.selected input[placeholder*=\"target\" i]",
-        "text": ".drop-zone",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "save-configuration",
-      "type": "click",
-      "data": {
-        "label": "Click canvas to save",
-        "selector": ".react-flow__pane",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "re-select-node",
-      "type": "click",
-      "data": {
-        "label": "Re-select to verify persistence",
-        "selector": ".react-flow__node:first-of-type /*dup-1*/",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-source-persisted",
-      "type": "assert",
-      "data": {
-        "label": "Source selector persisted",
-        "selector": ".react-flow__node.selected input[value=\".draggable-item\"]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Source selector should persist"
-      }
-    },
-    {
-      "id": "verify-target-persisted",
-      "type": "assert",
-      "data": {
-        "label": "Target selector persisted",
-        "selector": ".react-flow__node.selected input[value=\".drop-zone\"]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Target selector should persist"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-builder-to-wait-builder",
       "source": "call-open-builder",
       "target": "wait-builder",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "wait-builder",
       "target": "drag-dragdrop-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "drag-dragdrop-node",
       "target": "wait-node-render",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "wait-node-render",
       "target": "verify-dragdrop-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "verify-dragdrop-node",
       "target": "select-dragdrop",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "find-source-selector-input",
       "target": "enter-source-selector",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13",
       "source": "enter-source-selector",
       "target": "find-target-selector-input",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e14",
       "source": "find-target-selector-input",
       "target": "enter-target-selector",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e15",
       "source": "enter-target-selector",
       "target": "save-configuration",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e18",
       "source": "re-select-node",
       "target": "verify-source-persisted",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e19",
       "source": "verify-source-persisted",
       "target": "verify-target-persisted",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e16-bridge-e17",
       "source": "save-configuration",
       "target": "re-select-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10-bridge-e11",
       "source": "select-dragdrop",
       "target": "find-source-selector-input",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates DragDrop node configuration (regression test for camelCase compiler bug)",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open builder via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-builder-from-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-builder"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflowBuilder.code.modeButton",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-builder"
+    },
+    {
+      "action": {
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.dragDrop",
+          "target_selector": ".react-flow__pane",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Drag DragDrop node (camelCase compiler bug regression test)"
+        },
+        "type": "ACTION_TYPE_DRAG_DROP"
+      },
+      "id": "drag-dragdrop-node"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for DragDrop node"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait-node-render"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "DragDrop node should appear - previously failed with 'unsupported node type: dragDrop'",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify DragDrop node exists (CRITICAL: this failed before compiler fix)"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-dragdrop-node"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Select DragDrop node"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "select-dragdrop"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Source selector input should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[placeholder*=\"source\" i], .react-flow__node.selected input:first-of-type",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Source selector input exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-source-selector-input"
+    },
+    {
+      "action": {
+        "input": {
+          "selector": ".react-flow__node.selected input:first-of-type",
+          "value": ".draggable-item"
+        },
+        "metadata": {
+          "label": "Enter source selector"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "id": "enter-source-selector"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Target selector input should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[placeholder*=\"target\" i], .react-flow__node.selected input:nth-of-type(2)",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Target selector input exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-target-selector-input"
+    },
+    {
+      "action": {
+        "input": {
+          "selector": ".react-flow__node.selected input[placeholder*=\"target\" i]",
+          "value": ".drop-zone"
+        },
+        "metadata": {
+          "label": "Enter target selector"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "enter-target-selector"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__pane"
+        },
+        "metadata": {
+          "label": "Click canvas to save"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "save-configuration"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Re-select to verify persistence"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "re-select-node"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Source selector should persist",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[value=\".draggable-item\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Source selector persisted"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-source-persisted"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Target selector should persist",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[value=\".drop-zone\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Target selector persisted"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-target-persisted"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

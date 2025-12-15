@@ -1,366 +1,466 @@
 {
-  "metadata": {
-    "description": "Tests that Action/Flow workflow files show 'Run' button while Case workflow files show 'Test' button with different icons and semantics",
-    "version": 1,
-    "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "open-demo-project",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded demo project",
-        "workflowPath": "actions/open-demo-project.json"
-      }
-    },
-    {
-      "id": "switch-to-tree-view",
-      "type": "click",
-      "data": {
-        "label": "Switch to File Tree view",
-        "selector": "@selector/projects.fileTree.viewModeToggle",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "assert-tree-visible",
-      "type": "assert",
-      "data": {
-        "label": "File tree root is visible",
-        "selector": "@selector/projects.fileTree.root",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "File tree should be visible after switching view mode"
-      }
-    },
-    {
-      "id": "click-new-menu",
-      "type": "click",
-      "data": {
-        "label": "Open New file menu",
-        "selector": "@selector/workflows.newButton",
-        "timeoutMs": 5000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "create-action-file",
-      "type": "click",
-      "data": {
-        "label": "Click New Action button",
-        "selector": "[data-testid=\"file-tree-create-workflow\"][data-workflow-type=\"action\"]",
-        "timeoutMs": 3000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-for-name-dialog",
-      "type": "wait",
-      "data": {
-        "label": "Wait for name input dialog",
-        "selector": "@selector/dialogs.responsive.content",
-        "timeoutMs": 5000,
-        "waitForMs": 300,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "enter-action-name",
-      "type": "type",
-      "data": {
-        "label": "Enter action workflow name",
-        "selector": "input[type=\"text\"]",
-        "text": "test-action-workflow.action.json",
-        "clearFirst": true,
-        "timeoutMs": 3000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "confirm-action-creation",
-      "type": "click",
-      "data": {
-        "label": "Confirm action creation",
-        "selector": "button:has-text('Create')",
-        "timeoutMs": 3000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-action-file",
-      "type": "wait",
-      "data": {
-        "label": "Wait for action file to appear",
-        "waitType": "duration",
-        "durationMs": 1000
-      }
-    },
-    {
-      "id": "go-back-to-project",
-      "type": "click",
-      "data": {
-        "label": "Go back to project detail",
-        "selector": "@selector/header.buttons.backToProject",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "switch-to-tree-view-again",
-      "type": "click",
-      "data": {
-        "label": "Switch to File Tree view again",
-        "selector": "@selector/projects.fileTree.viewModeToggle",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "assert-run-button-for-action",
-      "type": "evaluate",
-      "data": {
-        "label": "Check that action file has Run button",
-        "expression": "(() => { const actionFiles = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let hasRunButton = false; actionFiles.forEach(f => { const text = f.textContent || ''; if (text.includes('action')) { const runBtn = f.querySelector('[data-testid=\"file-tree-run\"]'); if (runBtn) hasRunButton = true; } }); return { hasActionFile: actionFiles.length > 0, hasRunButton }; })()",
-        "storeResult": "actionRunCheck"
-      }
-    },
-    {
-      "id": "click-new-menu-for-case",
-      "type": "click",
-      "data": {
-        "label": "Open New file menu for case",
-        "selector": "@selector/workflows.newButton",
-        "timeoutMs": 5000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "create-case-file",
-      "type": "click",
-      "data": {
-        "label": "Click New Case button",
-        "selector": "[data-testid=\"file-tree-create-workflow\"][data-workflow-type=\"case\"]",
-        "timeoutMs": 3000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-for-case-dialog",
-      "type": "wait",
-      "data": {
-        "label": "Wait for case name input dialog",
-        "selector": "@selector/dialogs.responsive.content",
-        "timeoutMs": 5000,
-        "waitForMs": 300,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "enter-case-name",
-      "type": "type",
-      "data": {
-        "label": "Enter case workflow name",
-        "selector": "input[type=\"text\"]",
-        "text": "test-case-workflow.case.json",
-        "clearFirst": true,
-        "timeoutMs": 3000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "confirm-case-creation",
-      "type": "click",
-      "data": {
-        "label": "Confirm case creation",
-        "selector": "button:has-text('Create')",
-        "timeoutMs": 3000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-case-file",
-      "type": "wait",
-      "data": {
-        "label": "Wait for case file to be created",
-        "waitType": "duration",
-        "durationMs": 1000
-      }
-    },
-    {
-      "id": "go-back-to-project-again",
-      "type": "click",
-      "data": {
-        "label": "Go back to project detail again",
-        "selector": "@selector/header.buttons.backToProject",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "switch-to-tree-view-final",
-      "type": "click",
-      "data": {
-        "label": "Switch to File Tree view final",
-        "selector": "@selector/projects.fileTree.viewModeToggle",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "verify-run-and-test-buttons",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify Run button for actions/flows and Test button for cases",
-        "expression": "(() => { const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let runButtons = document.querySelectorAll('[data-testid=\"file-tree-run\"]').length; let testButtons = document.querySelectorAll('[data-testid=\"file-tree-test\"]').length; return { fileCount: files.length, runButtonCount: runButtons, testButtonCount: testButtons, hasDistinction: runButtons > 0 || testButtons > 0 }; })()",
-        "storeResult": "buttonDistinctionCheck"
-      }
-    },
-    {
-      "id": "assert-distinction-exists",
-      "type": "assert",
-      "data": {
-        "label": "Run or Test buttons should be present",
-        "selector": "[data-testid=\"file-tree-run\"], [data-testid=\"file-tree-test\"]",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "At least one Run or Test button should be visible on workflow files"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e0",
       "source": "open-demo-project",
       "target": "switch-to-tree-view",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e1",
       "source": "switch-to-tree-view",
       "target": "assert-tree-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "assert-tree-visible",
       "target": "click-new-menu",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "click-new-menu",
       "target": "create-action-file",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "create-action-file",
       "target": "wait-for-name-dialog",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "wait-for-name-dialog",
       "target": "enter-action-name",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "enter-action-name",
       "target": "confirm-action-creation",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "confirm-action-creation",
       "target": "wait-for-action-file",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "wait-for-action-file",
       "target": "go-back-to-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "go-back-to-project",
       "target": "switch-to-tree-view-again",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "switch-to-tree-view-again",
       "target": "assert-run-button-for-action",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "assert-run-button-for-action",
       "target": "click-new-menu-for-case",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "click-new-menu-for-case",
       "target": "create-case-file",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13",
       "source": "create-case-file",
       "target": "wait-for-case-dialog",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e14",
       "source": "wait-for-case-dialog",
       "target": "enter-case-name",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e15",
       "source": "enter-case-name",
       "target": "confirm-case-creation",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e16",
       "source": "confirm-case-creation",
       "target": "wait-for-case-file",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e17",
       "source": "wait-for-case-file",
       "target": "go-back-to-project-again",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e18",
       "source": "go-back-to-project-again",
       "target": "switch-to-tree-view-final",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e19",
       "source": "switch-to-tree-view-final",
       "target": "verify-run-and-test-buttons",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e20",
       "source": "verify-run-and-test-buttons",
       "target": "assert-distinction-exists",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Tests that Action/Flow workflow files show 'Run' button while Case workflow files show 'Test' button with different icons and semantics",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded demo project"
+        },
+        "subflow": {
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "open-demo-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.fileTree.viewModeToggle"
+        },
+        "metadata": {
+          "label": "Switch to File Tree view"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "switch-to-tree-view"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "File tree should be visible after switching view mode",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.fileTree.root",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "File tree root is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-tree-visible"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.newButton"
+        },
+        "metadata": {
+          "label": "Open New file menu"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "click-new-menu"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "[data-testid=\"file-tree-create-workflow\"][data-workflow-type=\"action\"]"
+        },
+        "metadata": {
+          "label": "Click New Action button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "create-action-file"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for name input dialog"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dialogs.responsive.content",
+          "timeout_ms": 5000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "wait-for-name-dialog"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "input[type=\"text\"]",
+          "value": "test-action-workflow.action.json"
+        },
+        "metadata": {
+          "label": "Enter action workflow name"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "enter-action-name"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "button:has-text('Create')"
+        },
+        "metadata": {
+          "label": "Confirm action creation"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1500
+      },
+      "id": "confirm-action-creation"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for action file to appear"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        }
+      },
+      "id": "wait-for-action-file"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.backToProject"
+        },
+        "metadata": {
+          "label": "Go back to project detail"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "go-back-to-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.fileTree.viewModeToggle"
+        },
+        "metadata": {
+          "label": "Switch to File Tree view again"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "switch-to-tree-view-again"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const actionFiles = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let hasRunButton = false; actionFiles.forEach(f =\u003e { const text = f.textContent || ''; if (text.includes('action')) { const runBtn = f.querySelector('[data-testid=\"file-tree-run\"]'); if (runBtn) hasRunButton = true; } }); return { hasActionFile: actionFiles.length \u003e 0, hasRunButton }; })()",
+          "store_result": "actionRunCheck"
+        },
+        "metadata": {
+          "label": "Check that action file has Run button"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "assert-run-button-for-action"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.newButton"
+        },
+        "metadata": {
+          "label": "Open New file menu for case"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "click-new-menu-for-case"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "[data-testid=\"file-tree-create-workflow\"][data-workflow-type=\"case\"]"
+        },
+        "metadata": {
+          "label": "Click New Case button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "create-case-file"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for case name input dialog"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dialogs.responsive.content",
+          "timeout_ms": 5000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "wait-for-case-dialog"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "input[type=\"text\"]",
+          "value": "test-case-workflow.case.json"
+        },
+        "metadata": {
+          "label": "Enter case workflow name"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "enter-case-name"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "button:has-text('Create')"
+        },
+        "metadata": {
+          "label": "Confirm case creation"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1500
+      },
+      "id": "confirm-case-creation"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for case file to be created"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        }
+      },
+      "id": "wait-for-case-file"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.backToProject"
+        },
+        "metadata": {
+          "label": "Go back to project detail again"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "go-back-to-project-again"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.fileTree.viewModeToggle"
+        },
+        "metadata": {
+          "label": "Switch to File Tree view final"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "switch-to-tree-view-final"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); let runButtons = document.querySelectorAll('[data-testid=\"file-tree-run\"]').length; let testButtons = document.querySelectorAll('[data-testid=\"file-tree-test\"]').length; return { fileCount: files.length, runButtonCount: runButtons, testButtonCount: testButtons, hasDistinction: runButtons \u003e 0 || testButtons \u003e 0 }; })()",
+          "store_result": "buttonDistinctionCheck"
+        },
+        "metadata": {
+          "label": "Verify Run button for actions/flows and Test button for cases"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-run-and-test-buttons"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "At least one Run or Test button should be visible on workflow files",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-testid=\"file-tree-run\"], [data-testid=\"file-tree-test\"]",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Run or Test buttons should be present"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-distinction-exists"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

@@ -60,6 +60,76 @@ interface DashboardState {
   clearLastEdited: () => void;
 }
 
+const PROJECTS_CACHE_TTL_MS = 30_000;
+const WORKFLOW_NAMES_CACHE_TTL_MS = 30_000;
+
+let projectsCache: {
+  fetchedAt: number;
+  value: Map<string, string>;
+  inFlight: Promise<Map<string, string>> | null;
+} = { fetchedAt: 0, value: new Map(), inFlight: null };
+
+let workflowNamesCache: {
+  fetchedAt: number;
+  value: Map<string, { name: string; projectId?: string; projectName?: string }>;
+  inFlight: Promise<Map<string, { name: string; projectId?: string; projectName?: string }>> | null;
+} = { fetchedAt: 0, value: new Map(), inFlight: null };
+
+const getProjectsMapCached = async (apiBase: string): Promise<Map<string, string>> => {
+  const now = Date.now();
+  if (projectsCache.value.size > 0 && now - projectsCache.fetchedAt < PROJECTS_CACHE_TTL_MS) {
+    return projectsCache.value;
+  }
+  if (projectsCache.inFlight) {
+    return projectsCache.inFlight;
+  }
+
+  projectsCache.inFlight = (async () => {
+    const projectsResponse = await fetch(`${apiBase}/projects`);
+    const projectsData = await projectsResponse.json();
+    const projectEntries = parseProjectList(projectsData);
+    const next = new Map<string, string>();
+    projectEntries.forEach((p) => next.set(p.id, p.name));
+    projectsCache = { fetchedAt: Date.now(), value: next, inFlight: null };
+    return next;
+  })();
+
+  return projectsCache.inFlight;
+};
+
+const getWorkflowNamesCached = async (
+  apiBase: string,
+  projectsMap: Map<string, string>,
+): Promise<Map<string, { name: string; projectId?: string; projectName?: string }>> => {
+  const now = Date.now();
+  if (workflowNamesCache.value.size > 0 && now - workflowNamesCache.fetchedAt < WORKFLOW_NAMES_CACHE_TTL_MS) {
+    return workflowNamesCache.value;
+  }
+  if (workflowNamesCache.inFlight) {
+    return workflowNamesCache.inFlight;
+  }
+
+  workflowNamesCache.inFlight = (async () => {
+    const workflowsResponse = await fetch(`${apiBase}/workflows?limit=100`);
+    const workflowsData = await workflowsResponse.json();
+    const next = new Map<string, { name: string; projectId?: string; projectName?: string }>();
+    if (Array.isArray(workflowsData.workflows)) {
+      workflowsData.workflows.forEach((w: Record<string, unknown>) => {
+        const projectId = String(w.project_id ?? w.projectId ?? '');
+        next.set(String(w.id), {
+          name: String(w.name ?? 'Untitled'),
+          projectId,
+          projectName: projectsMap.get(projectId),
+        });
+      });
+    }
+    workflowNamesCache = { fetchedAt: Date.now(), value: next, inFlight: null };
+    return next;
+  })();
+
+  return workflowNamesCache.inFlight;
+};
+
 // Helper to normalize workflow response
 const normalizeRecentWorkflow = (raw: Record<string, unknown>, projects: Map<string, string>): RecentWorkflow => {
   const projectId = String(raw.project_id ?? raw.projectId ?? '');
@@ -112,12 +182,7 @@ export const useDashboardStore = create<DashboardState>()(
         try {
           const config = await getConfig();
 
-          // Fetch projects first to get names
-          const projectsResponse = await fetch(`${config.API_URL}/projects`);
-          const projectsData = await projectsResponse.json();
-          const projectEntries = parseProjectList(projectsData);
-          const projectsMap = new Map<string, string>();
-          projectEntries.forEach((p) => projectsMap.set(p.id, p.name));
+          const projectsMap = await getProjectsMapCached(config.API_URL);
 
           // Fetch recent workflows (sorted by updated_at desc on server)
           const response = await fetch(`${config.API_URL}/workflows?limit=10`);
@@ -152,36 +217,8 @@ export const useDashboardStore = create<DashboardState>()(
           const data = await response.json();
           const rawExecutions = Array.isArray(data.executions) ? data.executions : [];
 
-          // Collect unique workflow IDs
-          const workflowIds = new Set<string>();
-          rawExecutions.forEach((e: Record<string, unknown>) => {
-            const wfId = String(e.workflow_id ?? e.workflowId ?? '');
-            if (wfId) workflowIds.add(wfId);
-          });
-
-          // Fetch workflow details to get names and project info
-          const workflowNames = new Map<string, { name: string; projectId?: string; projectName?: string }>();
-
-          // Fetch projects for names
-          const projectsResponse = await fetch(`${config.API_URL}/projects`);
-          const projectsData = await projectsResponse.json();
-          const projects = parseProjectList(projectsData);
-          const projectsMap = new Map<string, string>();
-          projects.forEach((p) => projectsMap.set(p.id, p.name));
-
-          // Fetch workflows for names
-          const workflowsResponse = await fetch(`${config.API_URL}/workflows?limit=100`);
-          const workflowsData = await workflowsResponse.json();
-          if (Array.isArray(workflowsData.workflows)) {
-            workflowsData.workflows.forEach((w: Record<string, unknown>) => {
-              const projectId = String(w.project_id ?? w.projectId ?? '');
-              workflowNames.set(String(w.id), {
-                name: String(w.name ?? 'Untitled'),
-                projectId,
-                projectName: projectsMap.get(projectId),
-              });
-            });
-          }
+          const projectsMap = await getProjectsMapCached(config.API_URL);
+          const workflowNames = await getWorkflowNamesCached(config.API_URL, projectsMap);
 
           const executions = rawExecutions.map((e: Record<string, unknown>) =>
             normalizeRecentExecution(e, workflowNames)
@@ -214,28 +251,8 @@ export const useDashboardStore = create<DashboardState>()(
           const data = await response.json();
           const rawExecutions = Array.isArray(data.executions) ? data.executions : [];
 
-          // Fetch workflow names
-          const workflowNames = new Map<string, { name: string; projectId?: string; projectName?: string }>();
-          const workflowsResponse = await fetch(`${config.API_URL}/workflows?limit=100`);
-          const workflowsData = await workflowsResponse.json();
-
-          // Fetch projects for names
-          const projectsResponse = await fetch(`${config.API_URL}/projects`);
-          const projectsData = await projectsResponse.json();
-          const projects = parseProjectList(projectsData);
-          const projectsMap = new Map<string, string>();
-          projects.forEach((p) => projectsMap.set(p.id, p.name));
-
-          if (Array.isArray(workflowsData.workflows)) {
-            workflowsData.workflows.forEach((w: Record<string, unknown>) => {
-              const projectId = String(w.project_id ?? w.projectId ?? '');
-              workflowNames.set(String(w.id), {
-                name: String(w.name ?? 'Untitled'),
-                projectId,
-                projectName: projectsMap.get(projectId),
-              });
-            });
-          }
+          const projectsMap = await getProjectsMapCached(config.API_URL);
+          const workflowNames = await getWorkflowNamesCached(config.API_URL, projectsMap);
 
           const running = rawExecutions
             .filter((e: Record<string, unknown>) => {

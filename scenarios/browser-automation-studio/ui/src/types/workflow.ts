@@ -2,7 +2,7 @@
  * Workflow-related type definitions
  */
 
-import { Node, Edge } from 'reactflow';
+import type { Node, Edge } from 'reactflow';
 
 export interface FlowDefinition {
   nodes: Node[];

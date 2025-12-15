@@ -156,7 +156,9 @@ export function usePopoverPosition(
   useLayoutEffect(() => {
     if (!isOpen) {
       setFloatingStyles((prev) => {
-        if (prev.visibility === 'hidden' && prev.opacity === 0) {
+        const prevVisibility = (prev as CSSProperties & { visibility?: string }).visibility;
+        const prevOpacity = (prev as CSSProperties & { opacity?: number }).opacity;
+        if (prevVisibility === 'hidden' && prevOpacity === 0) {
           return prev;
         }
         return { ...prev, visibility: 'hidden', opacity: 0 };

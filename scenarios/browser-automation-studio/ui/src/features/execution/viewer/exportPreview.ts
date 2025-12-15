@@ -1,4 +1,3 @@
-import { fromJson } from "@bufbuild/protobuf";
 import {
   type ExecutionExportPreview as ProtoExecutionExportPreview,
   ExecutionExportPreviewSchema,
@@ -6,6 +5,7 @@ import {
 import type { ReplayMovieSpec } from "@/types/export";
 import { mapExportStatus, type ExportStatusLabel } from "../utils/exportHelpers";
 import { getConfig } from "@/config";
+import { parseProtoStrict } from "@/utils/proto";
 
 export interface ExportPreviewMetrics {
   capturedFrames: number;
@@ -21,7 +21,21 @@ export const parseExportPreviewPayload = (
   metrics: ExportPreviewMetrics;
   movieSpec: ReplayMovieSpec | null;
 } => {
-  const preview = fromJson(ExecutionExportPreviewSchema, raw as any);
+  const rawRecord =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : null;
+
+  const rawMovieSpec = rawRecord?.package ?? null;
+  const rawForProto = rawRecord ? { ...rawRecord } : raw;
+  if (rawRecord) {
+    delete (rawForProto as Record<string, unknown>).package;
+  }
+
+  const preview = parseProtoStrict<ProtoExecutionExportPreview>(
+    ExecutionExportPreviewSchema,
+    rawForProto,
+  );
 
   const status = mapExportStatus(preview.status);
   const metrics: ExportPreviewMetrics = {
@@ -36,9 +50,10 @@ export const parseExportPreviewPayload = (
       : 0,
   };
 
-  const movieSpec = preview.package
-    ? (preview.package as unknown as ReplayMovieSpec)
-    : null;
+  const movieSpec =
+    rawMovieSpec && typeof rawMovieSpec === "object" && !Array.isArray(rawMovieSpec)
+      ? (rawMovieSpec as ReplayMovieSpec)
+      : null;
 
   return { preview, status, metrics, movieSpec };
 };

@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { API_BASE } from '../config';
 
+const joinApi = (base: string, path: string): string => {
+  const normalizedBase = base.replace(/\/+$/, '');
+  const normalizedPath = path.replace(/^\/+/, '');
+  return `${normalizedBase}/${normalizedPath}`;
+};
+
 // Subscription tier types
 export type SubscriptionTier = 'free' | 'solo' | 'pro' | 'studio' | 'business';
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive';
@@ -102,7 +108,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   fetchStatus: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}entitlement/status`, {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/status'), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +154,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}entitlement/identity`, {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/identity'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,7 +182,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   clearUserEmail: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}entitlement/identity`, {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/identity'), {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -207,7 +213,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   refreshEntitlement: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}entitlement/refresh`, {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/refresh'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -241,7 +247,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
 
   getUserEmail: async (): Promise<string> => {
     try {
-      const response = await fetch(`${API_BASE}entitlement/identity`, {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/identity'), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -3,18 +3,6 @@
   "version": "1.0.0",
   "description": "Protocol Buffer generated TypeScript types for Vrooli",
   "type": "module",
-  "exports": {
-    "./*.ts": "./*.ts",
-    "./*": {
-      "types": "./*.ts",
-      "import": "./*.ts",
-      "default": "./*.ts"
-    }
-  },
-  "types": "./index.d.ts",
-  "dependencies": {
-    "@bufbuild/protobuf": "^2.10.1"
-  },
   "peerDependencies": {
     "@bufbuild/protobuf": "^2.10.1"
   },

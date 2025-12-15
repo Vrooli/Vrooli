@@ -79,8 +79,8 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
           description: 'Description 1',
           folder_path: '/workflows',
           version: 1,
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
           flow_definition: { nodes: [], edges: [] },
         },
         {
@@ -90,8 +90,8 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
           description: 'Description 2',
           folder_path: '/workflows',
           version: 1,
-          created_at: '2025-01-02',
-          updated_at: '2025-01-02',
+          created_at: '2025-01-02T00:00:00Z',
+          updated_at: '2025-01-02T00:00:00Z',
           flow_definition: { nodes: [], edges: [] },
         },
       ];
@@ -120,8 +120,8 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         description: 'Test Description',
         folder_path: '/workflows',
         version: 1,
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
         flow_definition: {
           nodes: [
             { id: 'node-1', type: 'navigate', position: { x: 100, y: 100 }, data: { url: 'https://example.com' } },
@@ -131,7 +131,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       };
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse(mockWorkflow)
+        createFetchResponse({ workflow: mockWorkflow })
       );
 
       await act(async () => {
@@ -156,13 +156,16 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         description: '',
         folder_path: '/workflows/test',
         version: 1,
-        created_at: '2025-01-03',
-        updated_at: '2025-01-03',
+        created_at: '2025-01-03T00:00:00Z',
+        updated_at: '2025-01-03T00:00:00Z',
         flow_definition: { nodes: [], edges: [] },
       };
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse(newWorkflow)
+        createFetchResponse({
+          workflow: newWorkflow,
+          flow_definition: newWorkflow.flow_definition,
+        })
       );
 
       let returnedWorkflow;
@@ -217,13 +220,22 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       });
 
       const savedWorkflow = {
-        ...initialWorkflow,
+        id: initialWorkflow.id,
+        project_id: 'project-1',
+        name: initialWorkflow.name,
+        description: '',
+        folder_path: initialWorkflow.folderPath,
         version: 2,
-        updated_at: '2025-01-02',
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-02T00:00:00Z',
+        flow_definition: { nodes: [], edges: [] },
       };
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse(savedWorkflow)
+        createFetchResponse({
+          workflow: savedWorkflow,
+          flow_definition: savedWorkflow.flow_definition,
+        })
       );
 
       await act(async () => {
@@ -416,7 +428,20 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       });
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ ...workflow, version: 2 })
+        createFetchResponse({
+          workflow: {
+            id: workflow.id,
+            project_id: 'project-1',
+            name: workflow.name,
+            description: '',
+            folder_path: workflow.folderPath,
+            version: 2,
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-02T00:00:00Z',
+            flow_definition: { nodes: [], edges: [] },
+          },
+          flow_definition: { nodes: [], edges: [] },
+        })
       );
 
       act(() => {
@@ -554,7 +579,20 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       });
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ ...workflow, version: 2 })
+        createFetchResponse({
+          workflow: {
+            id: workflow.id,
+            project_id: 'project-1',
+            name: workflow.name,
+            description: '',
+            folder_path: workflow.folderPath,
+            version: 2,
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-02T00:00:00Z',
+            flow_definition: { nodes: [], edges: [] },
+          },
+          flow_definition: { nodes: [], edges: [] },
+        })
       );
 
       await act(async () => {
@@ -576,7 +614,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         {
           version: 2,
           workflow_id: 'workflow-1',
-          created_at: '2025-01-02',
+          created_at: '2025-01-02T00:00:00Z',
           created_by: 'user-1',
           change_description: 'Added nodes',
           definition_hash: 'hash2',
@@ -586,7 +624,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         {
           version: 1,
           workflow_id: 'workflow-1',
-          created_at: '2025-01-01',
+          created_at: '2025-01-01T00:00:00Z',
           created_by: 'user-1',
           change_description: 'Initial version',
           definition_hash: 'hash1',
@@ -634,13 +672,29 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       useWorkflowStore.setState({ currentWorkflow });
 
       const restoredWorkflow = {
-        ...currentWorkflow,
+        id: currentWorkflow.id,
+        project_id: 'project-1',
+        name: currentWorkflow.name,
+        description: '',
+        folder_path: currentWorkflow.folderPath,
         version: 4,
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-02T00:00:00Z',
         flow_definition: { nodes: [], edges: [] },
       };
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse({ workflow: restoredWorkflow })
+        createFetchResponse({
+          workflow: restoredWorkflow,
+          restored_version: {
+            workflow_id: currentWorkflow.id,
+            version: 2,
+            flow_definition: { nodes: [], edges: [] },
+            change_description: 'Restored to version 2',
+            created_by: 'user-1',
+            created_at: '2025-01-01T00:00:00Z',
+          },
+        })
       );
 
       await act(async () => {
@@ -672,23 +726,19 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
         description: 'Generated login workflow',
         folder_path: '/ai-workflows',
         version: 1,
-        created_at: '2025-01-03',
-        updated_at: '2025-01-03',
+        created_at: '2025-01-03T00:00:00Z',
+        updated_at: '2025-01-03T00:00:00Z',
         flow_definition: {
-          nodes: [
-            { id: 'n1', type: 'navigate', data: { url: 'https://app.com/login' } },
-            { id: 'n2', type: 'type', data: { selector: '#email', text: 'user@example.com' } },
-            { id: 'n3', type: 'click', data: { selector: '#submit' } },
-          ],
-          edges: [
-            { id: 'e1', source: 'n1', target: 'n2' },
-            { id: 'e2', source: 'n2', target: 'n3' },
-          ],
+          nodes: [{ id: 'n1' }, { id: 'n2' }, { id: 'n3' }],
+          edges: [{ id: 'e1', source: 'n1', target: 'n2' }, { id: 'e2', source: 'n2', target: 'n3' }],
         },
       };
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse(generatedWorkflow)
+        createFetchResponse({
+          workflow: generatedWorkflow,
+          flow_definition: generatedWorkflow.flow_definition,
+        })
       );
 
       let result;
@@ -739,19 +789,25 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       useWorkflowStore.setState({ currentWorkflow: workflow, nodes: workflow.nodes });
 
       const modifiedWorkflow = {
-        ...workflow,
+        id: workflow.id,
+        project_id: 'project-1',
+        name: workflow.name,
+        description: '',
+        folder_path: workflow.folderPath,
         version: 2,
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-02T00:00:00Z',
         flow_definition: {
-          nodes: [
-            { id: 'n1', type: 'navigate', data: { url: 'https://app.com/login' } },
-            { id: 'n2', type: 'type', data: { selector: '#email', text: 'user@example.com' } },
-          ],
+          nodes: [{ id: 'n1' }, { id: 'n2' }],
           edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
         },
       };
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        createFetchResponse(modifiedWorkflow)
+        createFetchResponse({
+          workflow: modifiedWorkflow,
+          flow_definition: modifiedWorkflow.flow_definition,
+        })
       );
 
       let result;

@@ -389,19 +389,19 @@ func testStepOutcomeContract(t *testing.T) {
 			Selector:    "h1",
 			BoundingBox: &contracts.BoundingBox{X: 100, Y: 50, Width: 200, Height: 40},
 			},
-			HighlightRegions: []contracts.HighlightRegion{
+			HighlightRegions: []*contracts.HighlightRegion{
 				{Selector: "h1", Padding: 4, CustomRgba: &highlightRGBA},
 			},
-			MaskRegions: []contracts.MaskRegion{
+			MaskRegions: []*contracts.MaskRegion{
 				{Selector: ".sidebar", Opacity: 0.5},
 			},
-		ZoomFactor: 1.5,
-		CursorTrail: []contracts.CursorPosition{
-			{Point: contracts.Point{X: 0, Y: 0}, RecordedAt: now, ElapsedMs: 0},
-			{Point: contracts.Point{X: 200, Y: 70}, RecordedAt: now, ElapsedMs: 500},
-		},
-		Notes: map[string]string{"dedupe": "abc123"},
-	}
+			ZoomFactor: 1.5,
+			CursorTrail: []contracts.CursorPosition{
+				{Point: &contracts.Point{X: 0, Y: 0}, RecordedAt: now, ElapsedMs: 0},
+				{Point: &contracts.Point{X: 200, Y: 70}, RecordedAt: now, ElapsedMs: 500},
+			},
+			Notes: map[string]string{"dedupe": "abc123"},
+		}
 
 	data, err := json.Marshal(outcome)
 	if err != nil {

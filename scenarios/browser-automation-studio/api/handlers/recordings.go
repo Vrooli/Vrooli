@@ -67,7 +67,7 @@ func (h *Handler) ImportRecording(w http.ResponseWriter, r *http.Request) {
 		"asset_count":   result.AssetCount,
 		"duration_ms":   result.DurationMs,
 		"message":       "Recording imported",
-		"trigger_type":  result.Execution.TriggerType,
+		"trigger_type":  "recording_import",
 	})
 }
 

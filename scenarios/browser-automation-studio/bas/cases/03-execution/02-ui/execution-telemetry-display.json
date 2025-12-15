@@ -1,229 +1,293 @@
 {
-  "metadata": {
-    "description": "Validates real-time telemetry display including screenshots, console, and network events",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-project",
-      "type": "subflow",
-      "data": {
-        "label": "Open Demo project via fixture",
-        "workflowPath": "actions/open-demo-project.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "start-execution",
-      "type": "click",
-      "data": {
-        "label": "Start execution to observe telemetry",
-        "selector": "@selector/workflowBuilder.executeButton",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-execution-view",
-      "type": "assert",
-      "data": {
-        "label": "Execution viewer should open",
-        "selector": "@selector/executions.viewer.root",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Execution viewer should appear",
-        "continueOnError": true
-      }
-    },
-    {
-      "id": "wait-telemetry-start",
-      "type": "wait",
-      "data": {
-        "label": "Wait for telemetry stream to start",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "capture-initial-telemetry",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture telemetry start",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "check-screenshot-display",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify screenshot display area exists",
-        "expression": "!!document.querySelector('img[src*=\"data:image\"], canvas, [class*=\"screenshot\"]')",
-        "storeResult": "hasScreenshotDisplay"
-      }
-    },
-    {
-      "id": "check-console-tab",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify console tab exists",
-        "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el => el.textContent?.includes('Console'))",
-        "storeResult": "hasConsoleTab",
-        "continueOnError": true
-      }
-    },
-    {
-      "id": "check-network-tab",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify network tab exists",
-        "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el => el.textContent?.includes('Network'))",
-        "storeResult": "hasNetworkTab",
-        "continueOnError": true
-      }
-    },
-    {
-      "id": "capture-telemetry-ui",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture telemetry UI components",
-        "fullPage": true
-      }
-    },
-    {
-      "id": "wait-more-telemetry",
-      "type": "wait",
-      "data": {
-        "label": "Allow telemetry to stream",
-        "durationMs": 5000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "check-telemetry-updates",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify telemetry data is updating",
-        "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length > 0",
-        "storeResult": "hasTelemetryData"
-      }
-    },
-    {
-      "id": "capture-live-telemetry",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture live telemetry stream",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "verify-heartbeat-timestamp",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify heartbeat/timestamp display",
-        "expression": "!!document.querySelector('[class*=\"timestamp\"], [class*=\"time\"], time')",
-        "storeResult": "hasTimestamps"
-      }
-    },
-    {
-      "id": "verify-telemetry-complete",
-      "type": "screenshot",
-      "data": {
-        "label": "Final telemetry display verification",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-project-to-start-execution",
       "source": "call-open-project",
       "target": "start-execution",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "start-execution",
       "target": "verify-execution-view",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "verify-execution-view",
       "target": "wait-telemetry-start",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "wait-telemetry-start",
       "target": "capture-initial-telemetry",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "capture-initial-telemetry",
       "target": "check-screenshot-display",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "check-screenshot-display",
       "target": "check-console-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "check-console-tab",
       "target": "check-network-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "check-network-tab",
       "target": "capture-telemetry-ui",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "capture-telemetry-ui",
       "target": "wait-more-telemetry",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13",
       "source": "wait-more-telemetry",
       "target": "check-telemetry-updates",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e14",
       "source": "check-telemetry-updates",
       "target": "capture-live-telemetry",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e15",
       "source": "capture-live-telemetry",
       "target": "verify-heartbeat-timestamp",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e16",
       "source": "verify-heartbeat-timestamp",
       "target": "verify-telemetry-complete",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates real-time telemetry display including screenshots, console, and network events",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Demo project via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflowBuilder.executeButton"
+        },
+        "metadata": {
+          "label": "Start execution to observe telemetry"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "start-execution"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution viewer should appear",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.root",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Execution viewer should open"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "execution_settings": {
+        "continue_on_error": true
+      },
+      "id": "verify-execution-view"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for telemetry stream to start"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        }
+      },
+      "id": "wait-telemetry-start"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture telemetry start"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "capture-initial-telemetry"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "!!document.querySelector('img[src*=\"data:image\"], canvas, [class*=\"screenshot\"]')",
+          "store_result": "hasScreenshotDisplay"
+        },
+        "metadata": {
+          "label": "Verify screenshot display area exists"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-screenshot-display"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el =\u003e el.textContent?.includes('Console'))",
+          "store_result": "hasConsoleTab"
+        },
+        "metadata": {
+          "label": "Verify console tab exists"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "execution_settings": {
+        "continue_on_error": true
+      },
+      "id": "check-console-tab"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el =\u003e el.textContent?.includes('Network'))",
+          "store_result": "hasNetworkTab"
+        },
+        "metadata": {
+          "label": "Verify network tab exists"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "execution_settings": {
+        "continue_on_error": true
+      },
+      "id": "check-network-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture telemetry UI components"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "id": "capture-telemetry-ui"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Allow telemetry to stream"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 5000
+        }
+      },
+      "id": "wait-more-telemetry"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length \u003e 0",
+          "store_result": "hasTelemetryData"
+        },
+        "metadata": {
+          "label": "Verify telemetry data is updating"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-telemetry-updates"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture live telemetry stream"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "capture-live-telemetry"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "!!document.querySelector('[class*=\"timestamp\"], [class*=\"time\"], time')",
+          "store_result": "hasTimestamps"
+        },
+        "metadata": {
+          "label": "Verify heartbeat/timestamp display"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-heartbeat-timestamp"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Final telemetry display verification"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "verify-telemetry-complete"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

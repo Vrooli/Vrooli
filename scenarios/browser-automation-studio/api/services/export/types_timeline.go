@@ -37,12 +37,12 @@ type TimelineFrame struct {
 	ConsoleLogCount      int                             `json:"console_log_count,omitempty"`
 	NetworkEventCount    int                             `json:"network_event_count,omitempty"`
 	ExtractedDataPreview any                             `json:"extracted_data_preview,omitempty"`
-	HighlightRegions     []autocontracts.HighlightRegion `json:"highlight_regions,omitempty"`
-	MaskRegions          []autocontracts.MaskRegion      `json:"mask_regions,omitempty"`
+	HighlightRegions     []*autocontracts.HighlightRegion `json:"highlight_regions,omitempty"`
+	MaskRegions          []*autocontracts.MaskRegion      `json:"mask_regions,omitempty"`
 	FocusedElement       *autocontracts.ElementFocus     `json:"focused_element,omitempty"`
 	ElementBoundingBox   *autocontracts.BoundingBox      `json:"element_bounding_box,omitempty"`
 	ClickPosition        *autocontracts.Point            `json:"click_position,omitempty"`
-	CursorTrail          []autocontracts.Point           `json:"cursor_trail,omitempty"`
+	CursorTrail          []*autocontracts.Point          `json:"cursor_trail,omitempty"`
 	ZoomFactor           float64                         `json:"zoom_factor,omitempty"`
 	Screenshot           *TimelineScreenshot             `json:"screenshot,omitempty"`
 	Artifacts            []TimelineArtifact              `json:"artifacts,omitempty"`

@@ -21,6 +21,15 @@ type WorkflowExecutor interface {
 	ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error)
 }
 
+// ScheduleRepository captures the subset of database operations required by the scheduler.
+// The DB remains the source of truth for schedules.
+type ScheduleRepository interface {
+	ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*database.ScheduleIndex, error)
+	GetSchedule(ctx context.Context, id uuid.UUID) (*database.ScheduleIndex, error)
+	UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error
+	UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error
+}
+
 // ScheduleNotifier defines the interface for notifying about schedule events.
 // This is used to push WebSocket notifications.
 type ScheduleNotifier interface {
@@ -49,7 +58,7 @@ const (
 
 // Scheduler manages workflow scheduling using cron expressions.
 type Scheduler struct {
-	repo     database.Repository
+	repo     ScheduleRepository
 	executor WorkflowExecutor
 	notifier ScheduleNotifier
 	log      *logrus.Logger
@@ -82,7 +91,7 @@ func DefaultConfig() *Config {
 }
 
 // New creates a new Scheduler instance.
-func New(repo database.Repository, executor WorkflowExecutor, notifier ScheduleNotifier, log *logrus.Logger) *Scheduler {
+func New(repo ScheduleRepository, executor WorkflowExecutor, notifier ScheduleNotifier, log *logrus.Logger) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Create cron scheduler with seconds precision and location support

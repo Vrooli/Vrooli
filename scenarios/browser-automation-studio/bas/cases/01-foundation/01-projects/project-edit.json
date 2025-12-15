@@ -1,160 +1,195 @@
 {
-  "metadata": {
-    "description": "Validates project editing functionality including name and description updates",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-project",
-      "type": "subflow",
-      "data": {
-        "label": "Open Demo project",
-        "workflowPath": "actions/open-demo-project.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "get-original-name",
-      "type": "evaluate",
-      "data": {
-        "label": "Store original project name",
-        "expression": "document.querySelector('h1')?.textContent?.trim() || 'Unknown'",
-        "storeResult": "originalName"
-      }
-    },
-    {
-      "id": "click-edit-button",
-      "type": "click",
-      "data": {
-        "label": "Click edit/pencil button",
-        "selector": "@selector/projects.editButton",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "assert-edit-modal-visible",
-      "type": "assert",
-      "data": {
-        "label": "Edit modal is visible",
-        "selector": "@selector/dialogs.project.root",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Project edit modal should appear after clicking edit button"
-      }
-    },
-    {
-      "id": "generate-new-name",
-      "type": "evaluate",
-      "data": {
-        "label": "Generate updated project name",
-        "expression": "`Updated Project ${Date.now()}`",
-        "storeResult": "updatedName"
-      }
-    },
-	    {
-	      "id": "update-name",
-	      "type": "type",
-	      "data": {
-	        "label": "Enter updated name",
-	        "selector": "@selector/dialogs.project.nameInput",
-	        "text": "Demo Browser Automations Updated",
-	        "clearFirst": true,
-	        "timeoutMs": 5000,
-	        "waitForMs": 300
-	      }
-	    },
-    {
-      "id": "update-description",
-      "type": "type",
-      "data": {
-        "label": "Update description",
-        "selector": "@selector/dialogs.project.descriptionInput",
-        "text": "Updated description for integration test validation",
-        "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "submit-changes",
-      "type": "click",
-      "data": {
-        "label": "Submit project updates",
-        "selector": "@selector/dialogs.project.submitButton",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "assert-modal-closed",
-      "type": "assert",
-      "data": {
-        "label": "Modal is closed after save",
-        "selector": "@selector/dialogs.project.root /*dup-1*/",
-        "assertMode": "not_exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Modal should close after successful project update"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e5",
       "source": "call-open-project",
       "target": "get-original-name",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5a",
       "source": "get-original-name",
       "target": "click-edit-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-edit-button",
       "target": "assert-edit-modal-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "assert-edit-modal-visible",
       "target": "generate-new-name",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "generate-new-name",
       "target": "update-name",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "update-name",
       "target": "update-description",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "update-description",
       "target": "submit-changes",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "submit-changes",
       "target": "assert-modal-closed",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates project editing functionality including name and description updates",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Demo project"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-project"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelector('h1')?.textContent?.trim() || 'Unknown'",
+          "store_result": "originalName"
+        },
+        "metadata": {
+          "label": "Store original project name"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-original-name"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.editButton"
+        },
+        "metadata": {
+          "label": "Click edit/pencil button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-edit-button"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Project edit modal should appear after clicking edit button",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/dialogs.project.root",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Edit modal is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-edit-modal-visible"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "`Updated Project ${Date.now()}`",
+          "store_result": "updatedName"
+        },
+        "metadata": {
+          "label": "Generate updated project name"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "generate-new-name"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "@selector/dialogs.project.nameInput",
+          "value": "Demo Browser Automations Updated"
+        },
+        "metadata": {
+          "label": "Enter updated name"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "update-name"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "@selector/dialogs.project.descriptionInput",
+          "value": "Updated description for integration test validation"
+        },
+        "metadata": {
+          "label": "Update description"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "update-description"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dialogs.project.submitButton"
+        },
+        "metadata": {
+          "label": "Submit project updates"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "submit-changes"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Modal should close after successful project update",
+          "mode": "not_exists",
+          "selector": "@selector/dialogs.project.root /*dup-1*/",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Modal is closed after save"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-modal-closed"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

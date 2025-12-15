@@ -145,7 +145,7 @@ func (h *Handler) applyProjectPreset(ctx context.Context, project *database.Proj
 	case "empty":
 		folders = nil
 	case "recommended":
-		folders = []string{"actions", "flows", "cases", "assets"}
+		folders = []string{"workflows/actions", "workflows/flows", "workflows/cases", "assets"}
 	case "custom":
 		folders = presetPaths
 	default:
@@ -159,19 +159,13 @@ func (h *Handler) applyProjectPreset(ctx context.Context, project *database.Proj
 		}
 
 		abs := filepath.Join(project.FolderPath, filepath.FromSlash(rel))
-		if err := os.MkdirAll(abs, 0o755); err != nil {
-			return fmt.Errorf("failed to create folder %q: %w", rel, err)
+			if err := os.MkdirAll(abs, 0o755); err != nil {
+				return fmt.Errorf("failed to create folder %q: %w", rel, err)
+			}
 		}
-		if h.repo == nil {
-			continue
-		}
-		if err := indexProjectFolderPath(ctx, h.repo, project.ID, rel); err != nil {
-			return fmt.Errorf("failed to index folder %q: %w", rel, err)
-		}
-	}
 
-	return nil
-}
+		return nil
+	}
 
 // ListProjects handles GET /api/v1/projects
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {

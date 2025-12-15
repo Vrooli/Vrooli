@@ -163,15 +163,15 @@ type ExportFrame struct {
 	ScreenshotAssetID       string                          `json:"screenshot_asset_id,omitempty"`
 	Viewport                ExportDimensions                `json:"viewport"`
 	ZoomFactor              float64                         `json:"zoom_factor,omitempty"`
-	HighlightRegions        []autocontracts.HighlightRegion `json:"highlight_regions,omitempty"`
-	MaskRegions             []autocontracts.MaskRegion      `json:"mask_regions,omitempty"`
+	HighlightRegions        []*autocontracts.HighlightRegion `json:"highlight_regions,omitempty"`
+	MaskRegions             []*autocontracts.MaskRegion      `json:"mask_regions,omitempty"`
 	FocusedElement          *autocontracts.ElementFocus     `json:"focused_element,omitempty"`
 	ElementBoundingBox      *autocontracts.BoundingBox      `json:"element_bounding_box,omitempty"`
 	NormalizedFocusBounds   *ExportNormalizedRect           `json:"normalized_focus_bounds,omitempty"`
 	NormalizedElementBounds *ExportNormalizedRect           `json:"normalized_element_bounds,omitempty"`
 	ClickPosition           *autocontracts.Point            `json:"click_position,omitempty"`
 	NormalizedClickPosition *ExportNormalizedPoint          `json:"normalized_click_position,omitempty"`
-	CursorTrail             []autocontracts.Point           `json:"cursor_trail,omitempty"`
+	CursorTrail             []*autocontracts.Point          `json:"cursor_trail,omitempty"`
 	NormalizedCursorTrail   []ExportNormalizedPoint         `json:"normalized_cursor_trail,omitempty"`
 	ConsoleLogCount         int                             `json:"console_log_count,omitempty"`
 	NetworkEventCount       int                             `json:"network_event_count,omitempty"`
@@ -658,12 +658,15 @@ func normalizeRect(box *autocontracts.BoundingBox, dims ExportDimensions) *Expor
 	}
 }
 
-func normalizeTrail(trail []autocontracts.Point, dims ExportDimensions) []ExportNormalizedPoint {
+func normalizeTrail(trail []*autocontracts.Point, dims ExportDimensions) []ExportNormalizedPoint {
 	if len(trail) == 0 || dims.Width <= 0 || dims.Height <= 0 {
 		return nil
 	}
 	normalized := make([]ExportNormalizedPoint, 0, len(trail))
 	for _, point := range trail {
+		if point == nil {
+			continue
+		}
 		normalized = append(normalized, ExportNormalizedPoint{
 			X: clamp01(float64(point.X) / float64(dims.Width)),
 			Y: clamp01(float64(point.Y) / float64(dims.Height)),

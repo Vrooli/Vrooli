@@ -4,11 +4,12 @@
 
 setup() {
     # Ensure API is running and get port
-    if [ -z "${API_PORT}" ]; then
-        export API_PORT=$(vrooli scenario status browser-automation-studio --json 2>/dev/null | jq -r '.allocated_ports.API_PORT' || echo "")
-        if [ -z "${API_PORT}" ] || [ "${API_PORT}" = "null" ]; then
-            skip "browser-automation-studio API not running"
-        fi
+    raw_port=$(vrooli scenario port browser-automation-studio API_PORT 2>/dev/null || echo "")
+    export API_PORT
+    API_PORT="$(printf '%s' "$raw_port" | tail -n 1 | tr -d '\r' | xargs)"
+    export API_PORT
+    if [ -z "${API_PORT}" ] || [ "${API_PORT}" = "null" ]; then
+        skip "browser-automation-studio API not running"
     fi
 
     export API_HOST="localhost"
@@ -20,7 +21,7 @@ setup() {
     fi
 
     # Verify API is healthy
-    if ! curl -sf "http://localhost:${API_PORT}/health" > /dev/null 2>&1; then
+    if ! curl -sf "http://localhost:${API_PORT}/health" &> /dev/null; then
         skip "API health check failed at port ${API_PORT}"
     fi
 }
@@ -36,7 +37,7 @@ setup() {
 @test "CLI: version command shows version info" {
     run "${CLI_PATH}" version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "CLI Version" ]] || [[ "$output" =~ "version" ]]
+    [[ "$output" =~ "Vrooli Ascension CLI" ]] || [[ "$output" =~ "API Version:" ]]
 }
 
 @test "CLI: status command shows operational status" {
@@ -106,6 +107,20 @@ setup() {
     }
   ]
 }
+JSON
+
+    printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==' | base64 -d > "${frames_dir}/0001.png"
+
+    archive_path="${temp_dir}/recording.zip"
+    (cd "$temp_dir" && zip -qr "$archive_path" manifest.json frames)
+
+    run "${CLI_PATH}" recording import "$archive_path" --project-name "Demo Browser Automations" --json
+    rm -rf "$temp_dir"
+
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.execution_id' > /dev/null
+    echo "$output" | jq -e '.frame_count == 1' > /dev/null
+}
 
 @test "CLI: playbooks scaffold creates template" {
     temp_dir=$(mktemp -d)
@@ -131,20 +146,6 @@ setup() {
     [ "$status" -ne 0 ]
 
     rm -rf "$temp_dir"
-}
-JSON
-
-    printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==' | base64 -d > "${frames_dir}/0001.png"
-
-    archive_path="${temp_dir}/recording.zip"
-    (cd "$temp_dir" && zip -qr "$archive_path" manifest.json frames)
-
-    run "${CLI_PATH}" recording import "$archive_path" --project-name "Demo Browser Automations" --json
-    rm -rf "$temp_dir"
-
-    [ "$status" -eq 0 ]
-    echo "$output" | jq -e '.execution_id' > /dev/null
-    echo "$output" | jq -e '.frame_count == 1' > /dev/null
 }
 
 @test "CLI: workflow execute requires workflow argument" {

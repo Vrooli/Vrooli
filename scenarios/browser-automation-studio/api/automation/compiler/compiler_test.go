@@ -50,14 +50,14 @@ func TestCompileWorkflowSequential(t *testing.T) {
 				},
 				Position: &basbase.NodePosition{X: 0, Y: 0},
 			},
-			{
-				Id: "node-2",
-				Action: &basactions.ActionDefinition{
-					Type:   basactions.ActionType_ACTION_TYPE_WAIT,
-					Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{DurationMs: ptr(int32(1000))}},
+				{
+					Id: "node-2",
+					Action: &basactions.ActionDefinition{
+						Type:   basactions.ActionType_ACTION_TYPE_WAIT,
+						Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}},
+					},
+					Position: &basbase.NodePosition{X: 200, Y: 0},
 				},
-				Position: &basbase.NodePosition{X: 200, Y: 0},
-			},
 			{
 				Id: "node-3",
 				Action: &basactions.ActionDefinition{
@@ -104,13 +104,13 @@ func TestCompileWorkflowDetectsCycles(t *testing.T) {
 	workflow := makeTestWorkflow(
 		uuid.New(),
 		"cycle",
-		[]*basworkflows.WorkflowNodeV2{
-			{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
-			{Id: "b", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT, Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{DurationMs: ptr(int32(1000))}}}},
-		},
-		[]*basworkflows.WorkflowEdgeV2{
-			{Id: "ab", Source: "a", Target: "b"},
-			{Id: "ba", Source: "b", Target: "a"},
+			[]*basworkflows.WorkflowNodeV2{
+				{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
+				{Id: "b", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT, Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}}}},
+			},
+			[]*basworkflows.WorkflowEdgeV2{
+				{Id: "ab", Source: "a", Target: "b"},
+				{Id: "ba", Source: "b", Target: "a"},
 		},
 	)
 
@@ -161,7 +161,16 @@ func TestCompileWorkflowEntryMetadata(t *testing.T) {
 	if got := plan.Metadata["entrySelector"]; got != "[data-testid=app-ready]" {
 		t.Fatalf("unexpected entrySelector: %v", got)
 	}
-	if got, ok := plan.Metadata["entrySelectorTimeoutMs"].(float64); !ok || int(got) != 1500 {
+	switch v := plan.Metadata["entrySelectorTimeoutMs"].(type) {
+	case int:
+		if v != 1500 {
+			t.Fatalf("unexpected entrySelectorTimeoutMs: %v (type %T)", v, v)
+		}
+	case float64:
+		if int(v) != 1500 {
+			t.Fatalf("unexpected entrySelectorTimeoutMs: %v (type %T)", v, v)
+		}
+	default:
 		t.Fatalf("unexpected entrySelectorTimeoutMs: %v (type %T)", plan.Metadata["entrySelectorTimeoutMs"], plan.Metadata["entrySelectorTimeoutMs"])
 	}
 }
@@ -206,41 +215,131 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 	// Test all proto-supported action types
 	testCases := []struct {
 		name       string
-		actionType basactions.ActionType
-		params     isActionDefinition_Params
+		action     *basactions.ActionDefinition
 		expected   StepType
 	}{
-		{"navigate", basactions.ActionType_ACTION_TYPE_NAVIGATE, &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}, StepNavigate},
-		{"click", basactions.ActionType_ACTION_TYPE_CLICK, &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#btn"}}, StepClick},
-		{"input", basactions.ActionType_ACTION_TYPE_INPUT, &basactions.ActionDefinition_Input{Input: &basactions.InputParams{Selector: "#input", Value: "test"}}, StepType("type")},
-		{"wait", basactions.ActionType_ACTION_TYPE_WAIT, &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{DurationMs: ptr(int32(1000))}}, StepWait},
-		{"assert", basactions.ActionType_ACTION_TYPE_ASSERT, &basactions.ActionDefinition_Assert{Assert: &basactions.AssertParams{Selector: ptr("#el")}}, StepAssert},
-		{"scroll", basactions.ActionType_ACTION_TYPE_SCROLL, &basactions.ActionDefinition_Scroll{Scroll: &basactions.ScrollParams{}}, StepScroll},
-		{"screenshot", basactions.ActionType_ACTION_TYPE_SCREENSHOT, &basactions.ActionDefinition_Screenshot{Screenshot: &basactions.ScreenshotParams{}}, StepScreenshot},
-		{"hover", basactions.ActionType_ACTION_TYPE_HOVER, &basactions.ActionDefinition_Hover{Hover: &basactions.HoverParams{Selector: "#btn"}}, StepHover},
-		{"focus", basactions.ActionType_ACTION_TYPE_FOCUS, &basactions.ActionDefinition_Focus{Focus: &basactions.FocusParams{Selector: "#input"}}, StepFocus},
-		{"blur", basactions.ActionType_ACTION_TYPE_BLUR, &basactions.ActionDefinition_Blur{Blur: &basactions.BlurParams{Selector: ptr("#input")}}, StepBlur},
-		{"keyboard", basactions.ActionType_ACTION_TYPE_KEYBOARD, &basactions.ActionDefinition_Keyboard{Keyboard: &basactions.KeyboardParams{Key: ptr("Enter")}}, StepKeyboard},
-		{"evaluate", basactions.ActionType_ACTION_TYPE_EVALUATE, &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "document.title"}}, StepEvaluate},
-		{"extract", basactions.ActionType_ACTION_TYPE_EXTRACT, &basactions.ActionDefinition_Extract{Extract: &basactions.ExtractParams{Selector: "#data"}}, StepExtract},
+		{
+			name: "navigate",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+			},
+			expected: StepNavigate,
+		},
+		{
+			name: "click",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_CLICK,
+				Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#btn"}},
+			},
+			expected: StepClick,
+		},
+		{
+			name: "input",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_INPUT,
+				Params: &basactions.ActionDefinition_Input{Input: &basactions.InputParams{Selector: "#input", Value: "test"}},
+			},
+			expected: StepType("type"),
+		},
+		{
+			name: "wait",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_WAIT,
+				Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}},
+			},
+			expected: StepWait,
+		},
+		{
+			name: "assert",
+			action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_ASSERT,
+				Params: &basactions.ActionDefinition_Assert{Assert: &basactions.AssertParams{
+					Selector: "#el",
+					Mode:     basbase.AssertionMode_ASSERTION_MODE_VISIBLE,
+				}},
+			},
+			expected: StepAssert,
+		},
+		{
+			name: "scroll",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_SCROLL,
+				Params: &basactions.ActionDefinition_Scroll{Scroll: &basactions.ScrollParams{}},
+			},
+			expected: StepScroll,
+		},
+		{
+			name: "screenshot",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_SCREENSHOT,
+				Params: &basactions.ActionDefinition_Screenshot{Screenshot: &basactions.ScreenshotParams{}},
+			},
+			expected: StepScreenshot,
+		},
+		{
+			name: "hover",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_HOVER,
+				Params: &basactions.ActionDefinition_Hover{Hover: &basactions.HoverParams{Selector: "#btn"}},
+			},
+			expected: StepHover,
+		},
+		{
+			name: "focus",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_FOCUS,
+				Params: &basactions.ActionDefinition_Focus{Focus: &basactions.FocusParams{Selector: "#input"}},
+			},
+			expected: StepFocus,
+		},
+		{
+			name: "blur",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_BLUR,
+				Params: &basactions.ActionDefinition_Blur{Blur: &basactions.BlurParams{Selector: ptr("#input")}},
+			},
+			expected: StepBlur,
+		},
+		{
+			name: "keyboard",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_KEYBOARD,
+				Params: &basactions.ActionDefinition_Keyboard{Keyboard: &basactions.KeyboardParams{Key: ptr("Enter")}},
+			},
+			expected: StepKeyboard,
+		},
+		{
+			name: "evaluate",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_EVALUATE,
+				Params: &basactions.ActionDefinition_Evaluate{Evaluate: &basactions.EvaluateParams{Expression: "document.title"}},
+			},
+			expected: StepEvaluate,
+		},
+		{
+			name: "extract",
+			action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_EXTRACT,
+				Params: &basactions.ActionDefinition_Extract{Extract: &basactions.ExtractParams{Selector: "#data"}},
+			},
+			expected: StepExtract,
+		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			workflow := makeTestWorkflow(
-				uuid.New(),
-				"test-"+tc.name,
-				[]*basworkflows.WorkflowNodeV2{
-					{
-						Id: "node-1",
-						Action: &basactions.ActionDefinition{
-							Type:   tc.actionType,
-							Params: tc.params,
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				workflow := makeTestWorkflow(
+					uuid.New(),
+					"test-"+tc.name,
+					[]*basworkflows.WorkflowNodeV2{
+						{
+							Id: "node-1",
+							Action: tc.action,
 						},
 					},
-				},
-				[]*basworkflows.WorkflowEdgeV2{},
-			)
+					[]*basworkflows.WorkflowEdgeV2{},
+				)
 
 			plan, err := CompileWorkflow(workflow)
 			require.NoError(t, err, "action type %s should be supported", tc.name)
@@ -250,12 +349,9 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 	}
 }
 
-// isActionDefinition_Params is the interface type for action params
-type isActionDefinition_Params = basactions.ActionDefinition_Params
-
 func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {
-	// With proto types, UNSPECIFIED action type should result in "custom" step type
-	// which is supported. So this test verifies that UNSPECIFIED is handled.
+	// Protojson omits default enum values (0), so an UNSPECIFIED action type ends up
+	// missing `action.type` when marshalled. That should be treated as invalid.
 	workflow := makeTestWorkflow(
 		uuid.New(),
 		"unspecified-type",
@@ -270,10 +366,9 @@ func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {
 		[]*basworkflows.WorkflowEdgeV2{},
 	)
 
-	plan, err := CompileWorkflow(workflow)
-	require.NoError(t, err) // UNSPECIFIED maps to "custom" which is supported
-	require.Len(t, plan.Steps, 1)
-	assert.Equal(t, StepType("custom"), plan.Steps[0].Type)
+	_, err := CompileWorkflow(workflow)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing action.type")
 }
 
 func TestCompileWorkflow_WhitespaceOnlyStepTypeError(t *testing.T) {
@@ -404,7 +499,7 @@ func TestCompileWorkflow_ThreeNodeCycle(t *testing.T) {
 		[]*basworkflows.WorkflowNodeV2{
 			{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
 			{Id: "b", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK, Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#b"}}}},
-			{Id: "c", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT, Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{DurationMs: ptr(int32(1000))}}}},
+			{Id: "c", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_WAIT, Params: &basactions.ActionDefinition_Wait{Wait: &basactions.WaitParams{WaitFor: &basactions.WaitParams_DurationMs{DurationMs: 1000}}}}},
 		},
 		[]*basworkflows.WorkflowEdgeV2{
 			{Id: "ab", Source: "a", Target: "b"},
@@ -443,8 +538,22 @@ func TestCompileWorkflow_ViewportSettings(t *testing.T) {
 
 	viewport, ok := plan.Metadata["executionViewport"].(map[string]any)
 	require.True(t, ok, "executionViewport should be a map")
-	assert.Equal(t, 1920, int(viewport["width"].(float64)))
-	assert.Equal(t, 1080, int(viewport["height"].(float64)))
+	switch v := viewport["width"].(type) {
+	case int:
+		assert.Equal(t, 1920, v)
+	case float64:
+		assert.Equal(t, 1920, int(v))
+	default:
+		t.Fatalf("unexpected viewport.width type %T", viewport["width"])
+	}
+	switch v := viewport["height"].(type) {
+	case int:
+		assert.Equal(t, 1080, v)
+	case float64:
+		assert.Equal(t, 1080, int(v))
+	default:
+		t.Fatalf("unexpected viewport.height type %T", viewport["height"])
+	}
 }
 
 func TestCompileWorkflow_NoSettingsNoMetadata(t *testing.T) {

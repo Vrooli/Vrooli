@@ -182,6 +182,12 @@ var (
 		Message: "A workflow with this name already exists in the target project",
 	}
 
+	ErrWorkflowVersionConflict = &APIError{
+		Status:  http.StatusConflict,
+		Code:    "WORKFLOW_VERSION_CONFLICT",
+		Message: "The workflow has a newer version. Refresh and retry.",
+	}
+
 	ErrConflict = &APIError{
 		Status:  http.StatusConflict,
 		Code:    "WORKFLOW_CONFLICT",

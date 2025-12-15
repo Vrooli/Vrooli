@@ -1,205 +1,250 @@
 {
-  "metadata": {
-    "description": "Validates inline workflow title editing with save/cancel",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "nav",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000,
-        "waitForMs": 1200
-      }
-    },
-    {
-      "id": "proj",
-      "type": "click",
-      "data": {
-        "label": "Open project",
-        "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "wait-workflows",
-      "type": "wait",
-      "data": {
-        "label": "Wait for workflows",
-        "selector": "@selector/workflows.card",
-        "timeoutMs": 10000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "work",
-      "type": "click",
-      "data": {
-        "label": "Open workflow",
-        "selector": "@selector/workflows.card:first-of-type",
-        "timeoutMs": 10000
-      }
-    },
-    {
-      "id": "wait1",
-      "type": "wait",
-      "data": {
-        "label": "Wait",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "get-original",
-      "type": "evaluate",
-      "data": {
-        "label": "Get original title",
-        "expression": "document.querySelector('@selector/header.title.text')?.textContent?.trim() || ''",
-        "storeResult": "originalTitle"
-      }
-    },
-    {
-      "id": "click-edit",
-      "type": "click",
-      "data": {
-        "label": "Click edit button",
-        "selector": "@selector/header.title.editButton",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "assert-input",
-      "type": "assert",
-      "data": {
-        "label": "Input visible",
-        "selector": "@selector/header.title.input",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Title input should appear"
-      }
-    },
-    {
-      "id": "type-new",
-      "type": "type",
-      "data": {
-        "label": "Type new title",
-        "selector": "@selector/header.title.input /*dup-1*/",
-        "text": "Updated Workflow Title",
-        "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "click-save",
-      "type": "click",
-      "data": {
-        "label": "Save title",
-        "selector": "@selector/header.title.saveButton",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "wait2",
-      "type": "wait",
-      "data": {
-        "label": "Wait for save",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "verify-saved",
-      "type": "assert",
-      "data": {
-        "label": "Input hidden",
-        "selector": "@selector/header.title.input /*dup-2*/",
-        "assertMode": "not_exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Input should be hidden after save"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "nav",
       "target": "proj",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "proj",
       "target": "wait-workflows",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e-wait-work",
       "source": "wait-workflows",
       "target": "work",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "work",
       "target": "wait1",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "wait1",
       "target": "get-original",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "get-original",
       "target": "click-edit",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-edit",
       "target": "assert-input",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "assert-input",
       "target": "type-new",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "type-new",
       "target": "click-save",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "click-save",
       "target": "wait2",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "wait2",
       "target": "verify-saved",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates inline workflow title editing with save/cancel",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1200
+      },
+      "id": "nav"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open project"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "proj"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for workflows"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflows.card",
+          "timeout_ms": 10000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-workflows"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open workflow"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "work"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        }
+      },
+      "id": "wait1"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelector('@selector/header.title.text')?.textContent?.trim() || ''",
+          "store_result": "originalTitle"
+        },
+        "metadata": {
+          "label": "Get original title"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-original"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.title.editButton"
+        },
+        "metadata": {
+          "label": "Click edit button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-edit"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Title input should appear",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/header.title.input",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Input visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-input"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "@selector/header.title.input /*dup-1*/",
+          "value": "Updated Workflow Title"
+        },
+        "metadata": {
+          "label": "Type new title"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "type-new"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.title.saveButton"
+        },
+        "metadata": {
+          "label": "Save title"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-save"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for save"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait2"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Input should be hidden after save",
+          "mode": "not_exists",
+          "selector": "@selector/header.title.input /*dup-2*/",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Input hidden"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-saved"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

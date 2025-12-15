@@ -1,11 +1,12 @@
-import { handleSessionReset } from '../../../src/routes/session-reset';
-import { SessionManager } from '../../../src/session/manager';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 
-// Mock playwright - must be inline to avoid hoisting issues
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn().mockResolvedValue({
+describe('Session Reset Route', () => {
+  let handleSessionReset: typeof import('../../../src/routes/session-reset').handleSessionReset;
+  let SessionManager: typeof import('../../../src/session/manager').SessionManager;
+  let sessionManager: InstanceType<typeof SessionManager>;
+
+  beforeAll(async () => {
+    const mockBrowser = {
       newContext: jest.fn().mockResolvedValue({
         newPage: jest.fn().mockResolvedValue({
           on: jest.fn(),
@@ -27,12 +28,17 @@ jest.mock('playwright', () => ({
       close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
       version: jest.fn().mockReturnValue('mock-version'),
-    }),
-  },
-}));
+    };
 
-describe('Session Reset Route', () => {
-  let sessionManager: SessionManager;
+    await (jest as any).unstable_mockModule('playwright', () => ({
+      chromium: {
+        launch: jest.fn().mockResolvedValue(mockBrowser),
+      },
+    }));
+
+    ({ handleSessionReset } = await import('../../../src/routes/session-reset'));
+    ({ SessionManager } = await import('../../../src/session/manager'));
+  });
 
   beforeEach(() => {
     const config = createTestConfig();

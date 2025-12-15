@@ -6,28 +6,31 @@
  * requests correctly.
  */
 
-import { UploadHandler } from '../../../src/handlers/upload';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { createMockPage, createTestConfig, createTypedInstruction } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
-import * as fs from 'fs/promises';
-
-// Mock fs module
-jest.mock('fs/promises');
-const mockFs = fs as jest.Mocked<typeof fs>;
 
 describe('UploadHandler Idempotency', () => {
-  let handler: UploadHandler;
+  let UploadHandlerCtor: typeof import('../../../src/handlers/upload').UploadHandler;
+  let handler: InstanceType<typeof import('../../../src/handlers/upload').UploadHandler>;
   let mockPage: ReturnType<typeof createMockPage>;
   let config: ReturnType<typeof createTestConfig>;
+  let mockAccess: jest.Mock;
 
-  beforeEach(() => {
-    handler = new UploadHandler();
+  beforeEach(async () => {
+    jest.resetModules();
+    (jest as any).unstable_mockModule('fs/promises', () => ({
+      access: jest.fn().mockResolvedValue(undefined),
+    }));
+
+    const fsPromises = await import('fs/promises');
+    mockAccess = fsPromises.access as unknown as jest.Mock;
+
+    const mod = await import('../../../src/handlers/upload');
+    UploadHandlerCtor = mod.UploadHandler;
+    handler = new UploadHandlerCtor();
     mockPage = createMockPage();
     config = createTestConfig();
-
-    // Setup default file access mock to succeed
-    mockFs.access.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -128,7 +131,7 @@ describe('UploadHandler Idempotency', () => {
 
   describe('file validation', () => {
     it('should return error for inaccessible file', async () => {
-      mockFs.access.mockRejectedValue(new Error('ENOENT: file not found'));
+      mockAccess.mockRejectedValue(new Error('ENOENT: file not found'));
 
       const instruction = createTypedInstruction('upload', {
         selector: '#file-input',

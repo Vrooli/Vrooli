@@ -9,15 +9,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ProjectToProto converts a database.Project into the generated proto message.
-func ProjectToProto(project *database.Project) *basprojects.Project {
+// ProjectToProto converts a database.ProjectIndex (DB index-only row) into the generated proto message.
+// Project metadata like description is sourced from filesystem protojson, not the database.
+func ProjectToProto(project *database.ProjectIndex) *basprojects.Project {
 	if project == nil {
 		return nil
 	}
 	pb := &basprojects.Project{
 		Id:          project.ID.String(),
 		Name:        project.Name,
-		Description: project.Description,
 		FolderPath:  project.FolderPath,
 		CreatedAt:   timestamppb.New(project.CreatedAt),
 		UpdatedAt:   timestamppb.New(project.UpdatedAt),
@@ -73,7 +73,7 @@ func ProjectStatsFromMap(stats map[string]any, projectID uuid.UUID) *database.Pr
 }
 
 // ProjectWithStatsToProto bundles project plus stats.
-func ProjectWithStatsToProto(project *database.Project, stats *database.ProjectStats) *basprojects.ProjectWithStats {
+func ProjectWithStatsToProto(project *database.ProjectIndex, stats *database.ProjectStats) *basprojects.ProjectWithStats {
 	if project == nil {
 		return nil
 	}

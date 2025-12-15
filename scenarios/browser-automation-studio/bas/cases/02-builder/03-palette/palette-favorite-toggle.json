@@ -1,110 +1,133 @@
 {
-  "metadata": {
-    "description": "Validates toggling node favorites in the palette",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-builder",
-      "type": "subflow",
-      "data": {
-        "label": "Open builder via fixture",
-        "workflowPath": "actions/open-builder-from-demo.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "data": {
-        "label": "Wait for workflow builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "assert-node-card-visible",
-      "type": "assert",
-      "data": {
-        "label": "Node cards are visible in palette",
-        "selector": "@selector/nodePalette.cards.navigate",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Node palette cards should be visible"
-      }
-    },
-    {
-      "id": "find-favorite-button",
-      "type": "assert",
-      "data": {
-        "label": "Favorite button exists on node card",
-        "selector": "@selector/nodePalette.favoriteButtons.navigate",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Favorite button should exist on node cards"
-      }
-    },
-    {
-      "id": "click-favorite-button",
-      "type": "click",
-      "data": {
-        "label": "Click favorite button to toggle",
-        "selector": "@selector/nodePalette.favoriteButtons.navigate:not([data-dedupe=\"toggle\"])",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "verify-favorite-toggled",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify favorite was toggled",
-        "expression": "true",
-        "storeResult": "favoriteTestComplete"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-builder-to-wait-for-builder",
       "source": "call-open-builder",
       "target": "wait-for-builder",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "wait-for-builder",
       "target": "assert-node-card-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "assert-node-card-visible",
       "target": "find-favorite-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9-bridge-e10",
       "source": "find-favorite-button",
       "target": "click-favorite-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11-bridge-e12",
       "source": "click-favorite-button",
       "target": "verify-favorite-toggled",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates toggling node favorites in the palette",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open builder via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-builder-from-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-builder"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for workflow builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        }
+      },
+      "id": "wait-for-builder"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Node palette cards should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/nodePalette.cards.navigate",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Node cards are visible in palette"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-node-card-visible"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Favorite button should exist on node cards",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/nodePalette.favoriteButtons.navigate",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Favorite button exists on node card"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-favorite-button"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/nodePalette.favoriteButtons.navigate:not([data-dedupe=\"toggle\"])"
+        },
+        "metadata": {
+          "label": "Click favorite button to toggle"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "click-favorite-button"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "true",
+          "store_result": "favoriteTestComplete"
+        },
+        "metadata": {
+          "label": "Verify favorite was toggled"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-favorite-toggled"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

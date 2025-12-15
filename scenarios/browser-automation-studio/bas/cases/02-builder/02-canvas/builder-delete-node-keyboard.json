@@ -1,173 +1,208 @@
 {
-  "metadata": {
-    "description": "Validates deleting a node using keyboard (Delete/Backspace) after selection",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "data": {
-        "label": "Wait for builder to load",
-        "selector": "@selector/workflowBuilder.code.modeButton",
-        "timeoutMs": 15000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "assert-nodes-exist",
-      "type": "assert",
-      "data": {
-        "label": "Workflow has nodes to delete",
-        "selector": ".react-flow__node",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Workflow should have at least one node"
-      }
-    },
-    {
-      "id": "count-initial-nodes",
-      "type": "evaluate",
-      "data": {
-        "label": "Count initial nodes",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "initialNodeCount"
-      }
-    },
-    {
-      "id": "click-first-node",
-      "type": "click",
-      "data": {
-        "label": "Click first node to select it",
-        "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-node-selected",
-      "type": "assert",
-      "data": {
-        "label": "Node is selected (has selected class)",
-        "selector": ".react-flow__node.selected, .react-flow__node[data-selected=\"true\"]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Node should be selected after clicking"
-      }
-    },
-    {
-      "id": "press-delete-key",
-      "type": "keyboard",
-      "data": {
-        "label": "Press Delete key",
-        "timeoutMs": 3000,
-        "keys": [
-          "Delete"
-        ]
-      }
-    },
-    {
-      "id": "wait-for-delete",
-      "type": "wait",
-      "data": {
-        "label": "Wait for node removal",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "count-final-nodes",
-      "type": "evaluate",
-      "data": {
-        "label": "Count remaining nodes",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "finalNodeCount"
-      }
-    },
-    {
-      "id": "verify-node-deleted",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify node count decreased",
-        "expression": "(() => { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final < initial; })()",
-        "storeResult": "nodeWasDeleted"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-wait-for-builder",
       "source": "call-open-demo-workflow",
       "target": "wait-for-builder",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "wait-for-builder",
       "target": "assert-nodes-exist",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "assert-nodes-exist",
       "target": "count-initial-nodes",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "click-first-node",
       "target": "verify-node-selected",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "verify-node-selected",
       "target": "press-delete-key",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "press-delete-key",
       "target": "wait-for-delete",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13",
       "source": "wait-for-delete",
       "target": "count-final-nodes",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e14",
       "source": "count-final-nodes",
       "target": "verify-node-deleted",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8-bridge-e9",
       "source": "count-initial-nodes",
       "target": "click-first-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates deleting a node using keyboard (Delete/Backspace) after selection",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder to load"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflowBuilder.code.modeButton",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-for-builder"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow should have at least one node",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Workflow has nodes to delete"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-nodes-exist"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "initialNodeCount"
+        },
+        "metadata": {
+          "label": "Count initial nodes"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-initial-nodes"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Click first node to select it"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-first-node"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Node should be selected after clicking",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected, .react-flow__node[data-selected=\"true\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Node is selected (has selected class)"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-node-selected"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "keys": [
+            "Delete"
+          ]
+        },
+        "metadata": {
+          "label": "Press Delete key"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "id": "press-delete-key"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for node removal"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait-for-delete"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "finalNodeCount"
+        },
+        "metadata": {
+          "label": "Count remaining nodes"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-final-nodes"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) \u0026\u0026 Number.isFinite(final) \u0026\u0026 final \u003c initial; })()",
+          "store_result": "nodeWasDeleted"
+        },
+        "metadata": {
+          "label": "Verify node count decreased"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-node-deleted"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

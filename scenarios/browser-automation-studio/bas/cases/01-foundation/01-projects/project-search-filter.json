@@ -1,145 +1,177 @@
 {
-  "metadata": {
-    "description": "Validates project search and filtering functionality on the dashboard",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000
-      }
-    },
-    {
-      "id": "dismiss-tutorial",
-      "type": "subflow",
-      "data": {
-        "label": "Dismiss onboarding tutorial if present",
-        "workflowPath": "actions/dismiss-tutorial.json"
-      }
-    },
-    {
-      "id": "click-projects-tab",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Projects tab",
-        "selector": "@selector/dashboard.tabs.projects",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "assert-projects-visible",
-      "type": "assert",
-      "data": {
-        "label": "Projects render on dashboard",
-        "selector": "@selector/projects.card",
-        "assertMode": "exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Projects grid should be visible before searching"
-      }
-    },
-    {
-      "id": "type-nonexistent-search",
-      "type": "type",
-      "data": {
-        "label": "Search for nonexistent project",
-        "selector": "@selector/projects.search.input",
-        "text": "xyznonexistentproject12345",
-        "clearFirst": true,
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "assert-no-results",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify no projects shown",
-        "expression": "document.querySelectorAll('@selector/projects.card').length === 0",
-        "storeResult": "noResults"
-      }
-    },
-    {
-      "id": "clear-search",
-      "type": "click",
-      "data": {
-        "label": "Click clear search button",
-        "selector": "@selector/projects.search.clearButton",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/projects.card",
-          "successTimeoutMs": 10000
-        }
-      }
-    },
-    {
-      "id": "assert-projects-restored",
-      "type": "assert",
-      "data": {
-        "label": "Projects reappear after clearing",
-        "selector": "@selector/projects.card:not([data-dedupe=\"restored\"])",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Projects should reappear when search is cleared"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "navigate-dashboard",
       "target": "dismiss-tutorial",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e1a",
       "source": "dismiss-tutorial",
       "target": "click-projects-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e1b",
       "source": "click-projects-tab",
       "target": "assert-projects-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "assert-projects-visible",
       "target": "type-nonexistent-search",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "type-nonexistent-search",
       "target": "assert-no-results",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "assert-no-results",
       "target": "clear-search",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "clear-search",
       "target": "assert-projects-restored",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates project search and filtering functionality on the dashboard",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        },
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-projects-tab"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Projects grid should be visible before searching",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.card",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Projects render on dashboard"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-projects-visible"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "@selector/projects.search.input",
+          "value": "xyznonexistentproject12345"
+        },
+        "metadata": {
+          "label": "Search for nonexistent project"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "id": "type-nonexistent-search"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('@selector/projects.card').length === 0",
+          "store_result": "noResults"
+        },
+        "metadata": {
+          "label": "Verify no projects shown"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "assert-no-results"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.search.clearButton"
+        },
+        "metadata": {
+          "label": "Click clear search button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/projects.card",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "clear-search"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Projects should reappear when search is cleared",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.card:not([data-dedupe=\"restored\"])",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Projects reappear after clearing"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-projects-restored"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

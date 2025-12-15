@@ -188,18 +188,24 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basdomain.ActionTeleme
 		tel.ClickPosition = convertPointToProto(outcome.ClickPosition)
 	}
 
-	// Add cursor trail
-	if len(outcome.CursorTrail) > 0 {
-		tel.CursorTrail = make([]*basbase.Point, 0, len(outcome.CursorTrail))
-		for _, pos := range outcome.CursorTrail {
-			tel.CursorTrail = append(tel.CursorTrail, convertPointToProto(&pos.Point))
+		// Add cursor trail
+		if len(outcome.CursorTrail) > 0 {
+			tel.CursorTrail = make([]*basbase.Point, 0, len(outcome.CursorTrail))
+			for i := range outcome.CursorTrail {
+				if outcome.CursorTrail[i].Point == nil {
+					continue
+				}
+				tel.CursorTrail = append(tel.CursorTrail, convertPointToProto(outcome.CursorTrail[i].Point))
+			}
 		}
-	}
 
-	// Add highlight regions
+		// Add highlight regions
 		if len(outcome.HighlightRegions) > 0 {
 			tel.HighlightRegions = make([]*basdomain.HighlightRegion, 0, len(outcome.HighlightRegions))
 			for _, r := range outcome.HighlightRegions {
+				if r == nil {
+					continue
+				}
 				region := &basdomain.HighlightRegion{
 					Selector:       r.Selector,
 					BoundingBox:    convertBoundingBoxToProto(r.BoundingBox),
@@ -211,17 +217,20 @@ func buildActionTelemetry(outcome contracts.StepOutcome) *basdomain.ActionTeleme
 			}
 		}
 
-	// Add mask regions
-	if len(outcome.MaskRegions) > 0 {
-		tel.MaskRegions = make([]*basdomain.MaskRegion, 0, len(outcome.MaskRegions))
-		for _, r := range outcome.MaskRegions {
-			tel.MaskRegions = append(tel.MaskRegions, &basdomain.MaskRegion{
-				Selector:    r.Selector,
-				BoundingBox: convertBoundingBoxToProto(r.BoundingBox),
-				Opacity:     r.Opacity,
-			})
+		// Add mask regions
+		if len(outcome.MaskRegions) > 0 {
+			tel.MaskRegions = make([]*basdomain.MaskRegion, 0, len(outcome.MaskRegions))
+			for _, r := range outcome.MaskRegions {
+				if r == nil {
+					continue
+				}
+				tel.MaskRegions = append(tel.MaskRegions, &basdomain.MaskRegion{
+					Selector:    r.Selector,
+					BoundingBox: convertBoundingBoxToProto(r.BoundingBox),
+					Opacity:     r.Opacity,
+				})
+			}
 		}
-	}
 
 	// Add zoom factor
 	if outcome.ZoomFactor != 0 {

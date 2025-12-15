@@ -81,7 +81,7 @@ func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp, err := h.workflowCatalog.GetWorkflow(ctx, req)
+	resp, err := h.workflowCatalog.GetWorkflowAPI(ctx, req)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": idStr}))

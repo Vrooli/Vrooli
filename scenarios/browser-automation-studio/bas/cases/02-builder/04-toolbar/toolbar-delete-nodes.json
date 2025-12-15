@@ -1,125 +1,154 @@
 {
-  "metadata": {
-    "description": "Validates deleting selected nodes using toolbar delete button",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "assert-nodes-exist",
-      "type": "assert",
-      "data": {
-        "label": "Workflow has nodes",
-        "selector": ".react-flow__node",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Workflow should have nodes to delete"
-      }
-    },
-    {
-      "id": "count-initial-nodes",
-      "type": "evaluate",
-      "data": {
-        "label": "Count initial nodes",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "initialNodeCount"
-      }
-    },
-    {
-      "id": "click-first-node",
-      "type": "click",
-      "data": {
-        "label": "Select first node",
-        "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "click-delete-button",
-      "type": "click",
-      "data": {
-        "label": "Click toolbar delete button",
-        "selector": "@selector/toolbar.deleteButton",
-        "timeoutMs": 5000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "count-final-nodes",
-      "type": "evaluate",
-      "data": {
-        "label": "Count nodes after delete",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "finalNodeCount"
-      }
-    },
-    {
-      "id": "verify-node-deleted",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify node count decreased",
-        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final < initial; })()",
-        "storeResult": "nodeWasDeleted"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-assert-nodes-exist",
       "source": "call-open-demo-workflow",
       "target": "assert-nodes-exist",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "assert-nodes-exist",
       "target": "count-initial-nodes",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "count-initial-nodes",
       "target": "click-first-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "click-delete-button",
       "target": "count-final-nodes",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "count-final-nodes",
       "target": "verify-node-deleted",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9-bridge-e10",
       "source": "click-first-node",
       "target": "click-delete-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates deleting selected nodes using toolbar delete button",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow should have nodes to delete",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Workflow has nodes"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-nodes-exist"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "initialNodeCount"
+        },
+        "metadata": {
+          "label": "Count initial nodes"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-initial-nodes"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Select first node"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "click-first-node"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.deleteButton"
+        },
+        "metadata": {
+          "label": "Click toolbar delete button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1500
+      },
+      "id": "click-delete-button"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "finalNodeCount"
+        },
+        "metadata": {
+          "label": "Count nodes after delete"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-final-nodes"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final \u003c initial; })()",
+          "store_result": "nodeWasDeleted"
+        },
+        "metadata": {
+          "label": "Verify node count decreased"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-node-deleted"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

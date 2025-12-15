@@ -20,15 +20,6 @@ import type { SessionManager } from '../../src/session';
 import type { Config } from '../../src/config';
 import { createTestConfig } from '../helpers/test-config';
 
-// Mock the metrics module
-jest.mock('../../src/utils/metrics', () => ({
-  metrics: {
-    recordingActionsTotal: { inc: jest.fn() },
-    recordingSessionsActive: { inc: jest.fn(), dec: jest.fn() },
-  },
-  Metrics: jest.fn(),
-}));
-
 // Helper to create mock request
 function createMockRequest(options: {
   method?: string;

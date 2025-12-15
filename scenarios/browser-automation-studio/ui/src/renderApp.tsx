@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as ReactQuery from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
@@ -22,7 +22,7 @@ interface MountOptions {
   strictMode?: boolean;
 }
 
-const queryClient = new QueryClient({
+const queryClient = new (ReactQuery as any).QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
@@ -84,7 +84,7 @@ function AppWithUpdates(): React.ReactElement {
 
 function renderTree(): ReactNode {
   const content = (
-    <QueryClientProvider client={queryClient}>
+    <ReactQuery.QueryClientProvider client={queryClient as any}>
       <WebSocketProvider>
         <ReadyMarker />
         <AppWithUpdates />
@@ -102,7 +102,7 @@ function renderTree(): ReactNode {
         />
         {/* <ReactQueryDevtools initialIsOpen={false} /> */}
       </WebSocketProvider>
-    </QueryClientProvider>
+    </ReactQuery.QueryClientProvider>
   );
 
   return content;

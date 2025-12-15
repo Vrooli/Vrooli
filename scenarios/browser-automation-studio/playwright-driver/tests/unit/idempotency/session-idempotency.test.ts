@@ -5,19 +5,12 @@
  * These tests verify that repeated operations produce consistent results.
  */
 
-import { SessionManager } from '../../../src/session/manager';
 import type { SessionSpec } from '../../../src/types';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
 
-// Mock playwright
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn(),
-  },
-}));
-
 describe('Session Idempotency', () => {
-  let manager: SessionManager;
+  let SessionManagerCtor: typeof import('../../../src/session/manager').SessionManager;
+  let manager: InstanceType<typeof import('../../../src/session/manager').SessionManager>;
   let config: ReturnType<typeof createTestConfig>;
   let mockBrowser: ReturnType<typeof createMockBrowser>;
   let mockContext: ReturnType<typeof createMockContext>;
@@ -32,8 +25,17 @@ describe('Session Idempotency', () => {
     required_capabilities: {},
   };
 
-  beforeEach(() => {
-    const { chromium } = require('playwright');
+  beforeEach(async () => {
+    jest.resetModules();
+    (jest as any).unstable_mockModule('playwright', () => ({
+      chromium: {
+        launch: jest.fn(),
+      },
+    }));
+
+    const { chromium } = await import('playwright');
+    const { SessionManager } = await import('../../../src/session/manager');
+    SessionManagerCtor = SessionManager;
 
     mockBrowser = createMockBrowser();
     mockContext = createMockContext();
@@ -41,10 +43,10 @@ describe('Session Idempotency', () => {
 
     mockBrowser.newContext.mockResolvedValue(mockContext);
     mockContext.newPage.mockResolvedValue(mockPage);
-    chromium.launch.mockResolvedValue(mockBrowser);
+    (chromium.launch as unknown as jest.Mock).mockResolvedValue(mockBrowser);
 
     config = createTestConfig();
-    manager = new SessionManager(config);
+    manager = new SessionManagerCtor(config);
   });
 
   afterEach(async () => {

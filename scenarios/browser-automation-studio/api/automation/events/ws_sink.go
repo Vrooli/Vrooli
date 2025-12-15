@@ -493,8 +493,8 @@ func buildTelemetryFromOutcome(outcome *contracts.StepOutcome) *basdomain.Action
 
 	if len(outcome.CursorTrail) > 0 {
 		points := make([]*basbase.Point, 0, len(outcome.CursorTrail))
-		for _, trail := range outcome.CursorTrail {
-			points = append(points, convertPoint(&trail.Point))
+		for i := range outcome.CursorTrail {
+			points = append(points, convertPoint(outcome.CursorTrail[i].Point))
 		}
 		tel.CursorTrail = points
 	}
@@ -798,12 +798,15 @@ func convertElementFocus(f *contracts.ElementFocus) *bastimeline.ElementFocus {
 	}
 }
 
-func convertHighlightRegions(regions []contracts.HighlightRegion) []*basdomain.HighlightRegion {
+func convertHighlightRegions(regions []*contracts.HighlightRegion) []*basdomain.HighlightRegion {
 	if len(regions) == 0 {
 		return nil
 	}
 	out := make([]*basdomain.HighlightRegion, 0, len(regions))
 	for _, r := range regions {
+		if r == nil {
+			continue
+		}
 		region := &basdomain.HighlightRegion{
 			Selector:       r.Selector,
 			BoundingBox:    convertBoundingBox(r.BoundingBox),
@@ -816,12 +819,15 @@ func convertHighlightRegions(regions []contracts.HighlightRegion) []*basdomain.H
 	return out
 }
 
-func convertMaskRegions(regions []contracts.MaskRegion) []*basdomain.MaskRegion {
+func convertMaskRegions(regions []*contracts.MaskRegion) []*basdomain.MaskRegion {
 	if len(regions) == 0 {
 		return nil
 	}
 	out := make([]*basdomain.MaskRegion, 0, len(regions))
 	for _, r := range regions {
+		if r == nil {
+			continue
+		}
 		out = append(out, &basdomain.MaskRegion{
 			Selector:    r.Selector,
 			BoundingBox: convertBoundingBox(r.BoundingBox),

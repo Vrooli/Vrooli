@@ -1,277 +1,339 @@
 {
-  "metadata": {
-    "description": "Validates Assert node configuration with mode-specific conditional fields",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-builder",
-      "type": "subflow",
-      "data": {
-        "label": "Open builder via fixture",
-        "workflowPath": "actions/open-builder-from-demo.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "wait-builder",
-      "type": "wait",
-      "data": {
-        "label": "Wait for builder",
-        "selector": "@selector/workflowBuilder.code.modeButton",
-        "timeoutMs": 15000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "drag-assert-node",
-      "type": "dragDrop",
-      "data": {
-        "label": "Drag Assert node onto canvas",
-        "sourceSelector": "@selector/nodePalette.cards.assert",
-        "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000
-      }
-    },
-    {
-      "id": "wait-node-render",
-      "type": "wait",
-      "data": {
-        "label": "Wait for render",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "verify-assert-node",
-      "type": "assert",
-      "data": {
-        "label": "Verify Assert node exists",
-        "selector": ".react-flow__node",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Assert node should appear"
-      }
-    },
-    {
-      "id": "select-assert-node",
-      "type": "click",
-      "data": {
-        "label": "Select Assert node",
-        "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "find-mode-selector",
-      "type": "assert",
-      "data": {
-        "label": "Mode selector exists",
-        "selector": ".react-flow__node.selected select",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Assert mode dropdown should be visible"
-      }
-    },
-    {
-      "id": "switch-to-text-contains",
-      "type": "select",
-      "data": {
-        "label": "Change mode to text_contains",
-        "selector": ".react-flow__node.selected select /*dup-1*/",
-        "value": "text_contains",
-        "optionValue": "text_contains",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-expected-value-appears",
-      "type": "assert",
-      "data": {
-        "label": "Expected value input should appear",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Expected\" i]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Expected value input should appear for text_contains mode"
-      }
-    },
-    {
-      "id": "enter-selector",
-      "type": "type",
-      "data": {
-        "label": "Enter selector",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
-        "text": ".test-element",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "enter-expected-text",
-      "type": "type",
-      "data": {
-        "label": "Enter expected text",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Expected\" i] /*dup-1*/",
-        "text": "Success",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "find-case-sensitive-checkbox",
-      "type": "assert",
-      "data": {
-        "label": "Case sensitive checkbox should exist",
-        "selector": ".react-flow__node.selected input[type=\"checkbox\"]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Case sensitive checkbox should appear for text assertions"
-      }
-    },
-    {
-      "id": "toggle-case-sensitive",
-      "type": "click",
-      "data": {
-        "label": "Toggle case sensitive option",
-        "selector": ".react-flow__node.selected input[type=\"checkbox\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "switch-to-attribute-mode",
-      "type": "select",
-      "data": {
-        "label": "Change mode to attribute_equals",
-        "selector": ".react-flow__node.selected select /*dup-2*/",
-        "value": "attribute_equals",
-        "optionValue": "attribute_equals",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-attribute-name-input",
-      "type": "assert",
-      "data": {
-        "label": "Attribute name input should appear",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Attribute\" i]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Attribute name input should appear for attribute_equals mode"
-      }
-    },
-    {
-      "id": "save-configuration",
-      "type": "click",
-      "data": {
-        "label": "Click canvas to save",
-        "selector": ".react-flow__pane",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-builder-to-wait-builder",
       "source": "call-open-builder",
       "target": "wait-builder",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "wait-builder",
       "target": "drag-assert-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "drag-assert-node",
       "target": "wait-node-render",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "wait-node-render",
       "target": "verify-assert-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "verify-assert-node",
       "target": "select-assert-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "find-mode-selector",
       "target": "switch-to-text-contains",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13",
       "source": "switch-to-text-contains",
       "target": "verify-expected-value-appears",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e16",
       "source": "enter-selector",
       "target": "enter-expected-text",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e17",
       "source": "enter-expected-text",
       "target": "find-case-sensitive-checkbox",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e18",
       "source": "find-case-sensitive-checkbox",
       "target": "toggle-case-sensitive",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e21",
       "source": "switch-to-attribute-mode",
       "target": "verify-attribute-name-input",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e22-bridge-e23",
       "source": "verify-attribute-name-input",
       "target": "save-configuration",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10-bridge-e11",
       "source": "select-assert-node",
       "target": "find-mode-selector",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e19-bridge-e20",
       "source": "toggle-case-sensitive",
       "target": "switch-to-attribute-mode",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e14-bridge-e15",
       "source": "verify-expected-value-appears",
       "target": "enter-selector",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates Assert node configuration with mode-specific conditional fields",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open builder via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-builder-from-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-builder"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflowBuilder.code.modeButton",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-builder"
+    },
+    {
+      "action": {
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.assert",
+          "target_selector": ".react-flow__pane",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Drag Assert node onto canvas"
+        },
+        "type": "ACTION_TYPE_DRAG_DROP"
+      },
+      "id": "drag-assert-node"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for render"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait-node-render"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Assert node should appear",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify Assert node exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-assert-node"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Select Assert node"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "select-assert-node"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Assert mode dropdown should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected select",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Mode selector exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-mode-selector"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Change mode to text_contains"
+        },
+        "select_option": {
+          "label": "Change mode to text_contains",
+          "selector": ".react-flow__node.selected select /*dup-1*/",
+          "value": "text_contains"
+        },
+        "type": "ACTION_TYPE_SELECT"
+      },
+      "id": "switch-to-text-contains"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Expected value input should appear for text_contains mode",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[placeholder*=\"Expected\" i]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Expected value input should appear"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-expected-value-appears"
+    },
+    {
+      "action": {
+        "input": {
+          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+          "value": ".test-element"
+        },
+        "metadata": {
+          "label": "Enter selector"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "enter-selector"
+    },
+    {
+      "action": {
+        "input": {
+          "selector": ".react-flow__node.selected input[placeholder*=\"Expected\" i] /*dup-1*/",
+          "value": "Success"
+        },
+        "metadata": {
+          "label": "Enter expected text"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "id": "enter-expected-text"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Case sensitive checkbox should appear for text assertions",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[type=\"checkbox\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Case sensitive checkbox should exist"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-case-sensitive-checkbox"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node.selected input[type=\"checkbox\"]:first-of-type"
+        },
+        "metadata": {
+          "label": "Toggle case sensitive option"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "toggle-case-sensitive"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Change mode to attribute_equals"
+        },
+        "select_option": {
+          "label": "Change mode to attribute_equals",
+          "selector": ".react-flow__node.selected select /*dup-2*/",
+          "value": "attribute_equals"
+        },
+        "type": "ACTION_TYPE_SELECT"
+      },
+      "id": "switch-to-attribute-mode"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Attribute name input should appear for attribute_equals mode",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[placeholder*=\"Attribute\" i]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Attribute name input should appear"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-attribute-name-input"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__pane"
+        },
+        "metadata": {
+          "label": "Click canvas to save"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "save-configuration"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

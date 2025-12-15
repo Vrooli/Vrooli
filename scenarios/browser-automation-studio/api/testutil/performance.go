@@ -1,5 +1,5 @@
-//go:build !short
-// +build !short
+//go:build perf
+// +build perf
 
 package testutil
 

@@ -27,7 +27,7 @@ import {
 } from '../../../src/utils/validation';
 
 // Mock the logger to prevent console output during tests
-jest.mock('../../../src/utils/logger', () => ({
+jest.mock('@/utils/logger', () => ({
   logger: {
     warn: jest.fn(),
     debug: jest.fn(),

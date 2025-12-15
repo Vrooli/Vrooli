@@ -20,12 +20,6 @@
 import type { SessionState } from '../../../src/types';
 import { createMockPage } from '../../helpers';
 
-// Mock the recording controller
-jest.mock('../../../src/recording/controller', () => ({
-  createRecordModeController: jest.fn(),
-  RecordModeController: jest.fn(),
-}));
-
 describe('Recording Lifecycle Idempotency', () => {
   let mockPage: ReturnType<typeof createMockPage>;
   let mockSession: Partial<SessionState>;
@@ -63,10 +57,6 @@ describe('Recording Lifecycle Idempotency', () => {
       recordingController: mockRecordingController as any,
       recordingId: undefined,
     };
-
-    // Setup createRecordModeController mock
-    const { createRecordModeController } = require('../../../src/recording/controller');
-    createRecordModeController.mockReturnValue(mockRecordingController);
   });
 
   describe('recording state idempotency', () => {

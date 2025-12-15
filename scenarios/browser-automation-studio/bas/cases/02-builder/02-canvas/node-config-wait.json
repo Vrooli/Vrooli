@@ -1,277 +1,342 @@
 {
-  "metadata": {
-    "description": "Validates Wait node configuration with dynamic fields based on wait type selection",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-builder",
-      "type": "subflow",
-      "data": {
-        "label": "Open builder via fixture",
-        "workflowPath": "actions/open-builder-from-demo.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "wait-builder",
-      "type": "wait",
-      "data": {
-        "label": "Wait for builder",
-        "selector": "@selector/workflowBuilder.code.modeButton",
-        "timeoutMs": 15000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "drag-wait-node",
-      "type": "dragDrop",
-      "data": {
-        "label": "Drag Wait node onto canvas",
-        "sourceSelector": "@selector/nodePalette.cards.wait",
-        "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000
-      }
-    },
-    {
-      "id": "wait-node-render",
-      "type": "wait",
-      "data": {
-        "label": "Wait for node to render",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "verify-wait-node",
-      "type": "assert",
-      "data": {
-        "label": "Verify Wait node exists",
-        "selector": ".react-flow__node",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Wait node should appear"
-      }
-    },
-    {
-      "id": "click-wait-node",
-      "type": "click",
-      "data": {
-        "label": "Select Wait node",
-        "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "find-type-selector",
-      "type": "assert",
-      "data": {
-        "label": "Verify wait type selector exists",
-        "selector": ".react-flow__node.selected select",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Wait type dropdown should be visible"
-      }
-    },
-    {
-      "id": "switch-to-element-wait",
-      "type": "select",
-      "data": {
-        "label": "Change wait type to 'element'",
-        "selector": ".react-flow__node.selected select /*dup-1*/",
-        "value": "element",
-        "optionValue": "element",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-selector-input-appears",
-      "type": "assert",
-      "data": {
-        "label": "Selector input should appear for element wait",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Selector input should appear when wait type is 'element'"
-      }
-    },
-    {
-      "id": "type-selector",
-      "type": "type",
-      "data": {
-        "label": "Type selector value",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
-        "text": "#test-element",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "blur-selector-input",
-      "type": "click",
-      "data": {
-        "label": "Click canvas to save",
-        "selector": ".react-flow__pane",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "switch-to-time-wait",
-      "type": "click",
-      "data": {
-        "label": "Re-select node",
-        "selector": ".react-flow__node:first-of-type /*dup-1*/",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "change-to-time-mode",
-      "type": "select",
-      "data": {
-        "label": "Switch back to time mode",
-        "selector": ".react-flow__node.selected select /*dup-2*/",
-        "value": "time",
-        "optionValue": "time",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-duration-input-appears",
-      "type": "assert",
-      "data": {
-        "label": "Duration input should appear for time wait",
-        "selector": ".react-flow__node.selected input[type=\"number\"]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Duration input should appear when wait type is 'time'"
-      }
-    },
-    {
-      "id": "enter-duration",
-      "type": "type",
-      "data": {
-        "label": "Enter duration value",
-        "selector": ".react-flow__node.selected input[type=\"number\"] /*dup-1*/",
-        "text": "3000",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "save-duration",
-      "type": "click",
-      "data": {
-        "label": "Click canvas to save duration",
-        "selector": ".react-flow__pane /*dup-1*/",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-builder-to-wait-builder",
       "source": "call-open-builder",
       "target": "wait-builder",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "wait-builder",
       "target": "drag-wait-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "drag-wait-node",
       "target": "wait-node-render",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "wait-node-render",
       "target": "verify-wait-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "verify-wait-node",
       "target": "click-wait-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "find-type-selector",
       "target": "switch-to-element-wait",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13",
       "source": "switch-to-element-wait",
       "target": "verify-selector-input-appears",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e16",
       "source": "type-selector",
       "target": "blur-selector-input",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e17",
       "source": "blur-selector-input",
       "target": "switch-to-time-wait",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e18",
       "source": "switch-to-time-wait",
       "target": "change-to-time-mode",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e19",
       "source": "change-to-time-mode",
       "target": "verify-duration-input-appears",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e22",
       "source": "enter-duration",
       "target": "save-duration",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10-bridge-e11",
       "source": "click-wait-node",
       "target": "find-type-selector",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e14-bridge-e15",
       "source": "verify-selector-input-appears",
       "target": "type-selector",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e20-bridge-e21",
       "source": "verify-duration-input-appears",
       "target": "enter-duration",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates Wait node configuration with dynamic fields based on wait type selection",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open builder via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-builder-from-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-builder"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflowBuilder.code.modeButton",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-builder"
+    },
+    {
+      "action": {
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.wait",
+          "target_selector": ".react-flow__pane",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Drag Wait node onto canvas"
+        },
+        "type": "ACTION_TYPE_DRAG_DROP"
+      },
+      "id": "drag-wait-node"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for node to render"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        }
+      },
+      "id": "wait-node-render"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Wait node should appear",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify Wait node exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-wait-node"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Select Wait node"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-wait-node"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Wait type dropdown should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected select",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify wait type selector exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-type-selector"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Change wait type to 'element'"
+        },
+        "select_option": {
+          "label": "Change wait type to 'element'",
+          "selector": ".react-flow__node.selected select /*dup-1*/",
+          "value": "element"
+        },
+        "type": "ACTION_TYPE_SELECT"
+      },
+      "id": "switch-to-element-wait"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Selector input should appear when wait type is 'element'",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Selector input should appear for element wait"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-selector-input-appears"
+    },
+    {
+      "action": {
+        "input": {
+          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
+          "value": "#test-element"
+        },
+        "metadata": {
+          "label": "Type selector value"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "type-selector"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__pane"
+        },
+        "metadata": {
+          "label": "Click canvas to save"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "blur-selector-input"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Re-select node"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "switch-to-time-wait"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Switch back to time mode"
+        },
+        "select_option": {
+          "label": "Switch back to time mode",
+          "selector": ".react-flow__node.selected select /*dup-2*/",
+          "value": "time"
+        },
+        "type": "ACTION_TYPE_SELECT"
+      },
+      "id": "change-to-time-mode"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Duration input should appear when wait type is 'time'",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.selected input[type=\"number\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Duration input should appear for time wait"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-duration-input-appears"
+    },
+    {
+      "action": {
+        "input": {
+          "selector": ".react-flow__node.selected input[type=\"number\"] /*dup-1*/",
+          "value": "3000"
+        },
+        "metadata": {
+          "label": "Enter duration value"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "enter-duration"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__pane /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Click canvas to save duration"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "save-duration"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

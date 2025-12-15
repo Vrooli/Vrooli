@@ -9,17 +9,18 @@
  */
 
 import { RecordModeController, createRecordModeController } from '../../../src/recording/controller';
-import type { RawBrowserEvent, RecordedAction, SelectorSet, ElementMeta } from '../../../src/recording/types';
+import { ActionType, type TimelineEntry } from '../../../src/recording/types';
+import type { RawBrowserEvent, RawSelectorSet, RawElementMeta } from '../../../src/recording/types';
 import { createMockPage } from '../../helpers';
 
 // Helper to create a minimal valid RawBrowserEvent
 function createRawEvent(overrides: Partial<RawBrowserEvent> = {}): RawBrowserEvent {
-  const defaultSelector: SelectorSet = {
+  const defaultSelector: RawSelectorSet = {
     primary: 'button',
     candidates: [],
   };
 
-  const defaultElementMeta: ElementMeta = {
+  const defaultElementMeta: RawElementMeta = {
     tagName: 'button',
     isVisible: true,
     isEnabled: true,
@@ -73,8 +74,8 @@ describe('RecordModeController', () => {
 
   describe('startRecording', () => {
     it('should start recording and return recording ID', async () => {
-      const onAction = jest.fn();
-      const recordingId = await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      const recordingId = await controller.startRecording({ sessionId, onEntry });
 
       expect(recordingId).toBeDefined();
       expect(typeof recordingId).toBe('string');
@@ -82,11 +83,11 @@ describe('RecordModeController', () => {
     });
 
     it('should use provided recording ID if specified', async () => {
-      const onAction = jest.fn();
+      const onEntry = jest.fn();
       const customId = 'custom-recording-id';
       const recordingId = await controller.startRecording({
         sessionId,
-        onAction,
+        onEntry,
         recordingId: customId,
       });
 
@@ -94,8 +95,8 @@ describe('RecordModeController', () => {
     });
 
     it('should expose __recordAction function to page', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
 
       expect(mockPage.exposeFunction).toHaveBeenCalledWith(
         '__recordAction',
@@ -104,31 +105,31 @@ describe('RecordModeController', () => {
     });
 
     it('should inject recording script into page', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
 
       expect(mockPage.evaluate).toHaveBeenCalled();
     });
 
     it('should register load event handler for re-injection', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
 
       expect(mockPage.on).toHaveBeenCalledWith('load', expect.any(Function));
     });
 
     it('should throw if already recording', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
 
-      await expect(controller.startRecording({ sessionId, onAction })).rejects.toThrow(
+      await expect(controller.startRecording({ sessionId, onEntry })).rejects.toThrow(
         'Recording already in progress'
       );
     });
 
     it('should set startedAt timestamp', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
 
       const state = controller.getState();
       expect(state.startedAt).toBeDefined();
@@ -137,8 +138,8 @@ describe('RecordModeController', () => {
 
   describe('stopRecording', () => {
     it('should stop recording and return result', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
 
       const result = await controller.stopRecording();
 
@@ -149,16 +150,16 @@ describe('RecordModeController', () => {
     });
 
     it('should remove load event handler', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
       await controller.stopRecording();
 
       expect(mockPage.off).toHaveBeenCalledWith('load', expect.any(Function));
     });
 
     it('should run cleanup script', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
 
       // Reset evaluate mock to track cleanup call
       mockPage.evaluate.mockClear();
@@ -174,8 +175,8 @@ describe('RecordModeController', () => {
     });
 
     it('should reset state after stop', async () => {
-      const onAction = jest.fn();
-      await controller.startRecording({ sessionId, onAction });
+      const onEntry = jest.fn();
+      await controller.startRecording({ sessionId, onEntry });
       await controller.stopRecording();
 
       const state = controller.getState();
@@ -187,10 +188,10 @@ describe('RecordModeController', () => {
     it('should cancel pending injection timeouts on stop', async () => {
       // This tests the temporal flow fix: pending timeouts should be cancelled
       // when recording stops to prevent work after stop
-      const onAction = jest.fn();
+      const onEntry = jest.fn();
       const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
 
-      await controller.startRecording({ sessionId, onAction });
+      await controller.startRecording({ sessionId, onEntry });
 
       // Simulate navigation load event which triggers setTimeout for injection
       const loadHandler = (mockPage.on as jest.Mock).mock.calls.find(
@@ -287,12 +288,12 @@ describe('RecordModeController', () => {
     });
 
     it('should reflect recording state changes', async () => {
-      const onAction = jest.fn();
+      const onEntry = jest.fn();
 
       const stateBefore = controller.getState();
       expect(stateBefore.isRecording).toBe(false);
 
-      await controller.startRecording({ sessionId, onAction });
+      await controller.startRecording({ sessionId, onEntry });
 
       const stateAfter = controller.getState();
       expect(stateAfter.isRecording).toBe(true);
@@ -301,11 +302,11 @@ describe('RecordModeController', () => {
   });
 
   describe('event handling', () => {
-    let onAction: jest.Mock;
+    let onEntry: jest.Mock;
     let exposedCallback: (event: RawBrowserEvent) => void;
 
     beforeEach(async () => {
-      onAction = jest.fn();
+      onEntry = jest.fn();
 
       // Capture the callback passed to exposeFunction
       mockPage.exposeFunction = jest.fn().mockImplementation((name, callback) => {
@@ -315,10 +316,10 @@ describe('RecordModeController', () => {
         return Promise.resolve();
       });
 
-      await controller.startRecording({ sessionId, onAction });
+      await controller.startRecording({ sessionId, onEntry });
     });
 
-    it('should invoke onAction callback for recorded events', () => {
+    it('should invoke onEntry callback for recorded events', () => {
       const rawEvent = createRawEvent({
         actionType: 'click',
         selector: {
@@ -337,13 +338,11 @@ describe('RecordModeController', () => {
 
       exposedCallback(rawEvent);
 
-      expect(onAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          actionType: 'click',
-          sessionId,
-          url: 'https://example.com',
-        })
-      );
+      // Call 0 is initial navigation, call 1 is our event
+      const entry = onEntry.mock.calls[1][0] as TimelineEntry;
+      expect(entry.action?.type).toBe(ActionType.CLICK);
+      expect(entry.context?.origin.case).toBe('sessionId');
+      expect(entry.context?.origin.value).toBe(sessionId);
     });
 
     it('should assign sequential sequence numbers', () => {
@@ -355,10 +354,10 @@ describe('RecordModeController', () => {
 
       // Note: Initial navigation action is captured when recording starts (call 0)
       // So these events are calls 1 and 2
-      expect(onAction).toHaveBeenCalledTimes(3);
+      expect(onEntry).toHaveBeenCalledTimes(3);
 
-      const firstEventCall = onAction.mock.calls[1][0] as RecordedAction;
-      const secondEventCall = onAction.mock.calls[2][0] as RecordedAction;
+      const firstEventCall = onEntry.mock.calls[1][0] as TimelineEntry;
+      const secondEventCall = onEntry.mock.calls[2][0] as TimelineEntry;
 
       // Sequence numbers are 1 and 2 because 0 is the initial navigation
       expect(firstEventCall.sequenceNum).toBe(1);
@@ -367,18 +366,18 @@ describe('RecordModeController', () => {
 
     it('should normalize action types', () => {
       const events = [
-        { actionType: 'CLICK', expected: 'click' },
-        { actionType: 'input', expected: 'type' },
-        { actionType: 'change', expected: 'select' },
-        { actionType: 'keydown', expected: 'keypress' },
+        { actionType: 'CLICK', expected: ActionType.CLICK },
+        { actionType: 'input', expected: ActionType.INPUT },
+        { actionType: 'change', expected: ActionType.SELECT },
+        { actionType: 'keydown', expected: ActionType.KEYBOARD },
       ];
 
       for (const { actionType, expected } of events) {
-        onAction.mockClear();
+        onEntry.mockClear();
         exposedCallback(createRawEvent({ actionType }));
 
-        const action = onAction.mock.calls[0][0] as RecordedAction;
-        expect(action.actionType).toBe(expected);
+        const entry = onEntry.mock.calls[0][0] as TimelineEntry;
+        expect(entry.action?.type).toBe(expected);
       }
     });
 
@@ -395,8 +394,8 @@ describe('RecordModeController', () => {
       exposedCallback(rawEvent);
 
       // Call 0 is initial navigation, call 1 is our event
-      const action = onAction.mock.calls[1][0] as RecordedAction;
-      expect(action.confidence).toBe(0.98);
+      const entry = onEntry.mock.calls[1][0] as TimelineEntry;
+      expect(entry.action?.metadata?.confidence).toBe(0.98);
     });
 
     it('should use default confidence when no selector candidates', () => {
@@ -409,8 +408,8 @@ describe('RecordModeController', () => {
       exposedCallback(rawEvent);
 
       // Call 0 is initial navigation, call 1 is our event
-      const action = onAction.mock.calls[1][0] as RecordedAction;
-      expect(action.confidence).toBe(0.5);
+      const entry = onEntry.mock.calls[1][0] as TimelineEntry;
+      expect(entry.action?.metadata?.confidence).toBe(0.5);
     });
 
     it('should increment actionCount for each event', () => {
@@ -426,10 +425,10 @@ describe('RecordModeController', () => {
     it('should not process events after stop', async () => {
       await controller.stopRecording();
 
-      onAction.mockClear();
+      onEntry.mockClear();
       exposedCallback(createRawEvent({ actionType: 'click' }));
 
-      expect(onAction).not.toHaveBeenCalled();
+      expect(onEntry).not.toHaveBeenCalled();
     });
 
     it('should call onError callback on processing errors', async () => {
@@ -437,10 +436,10 @@ describe('RecordModeController', () => {
       await controller.stopRecording();
 
       // Restart with error callback
-      await controller.startRecording({ sessionId, onAction, onError });
+      await controller.startRecording({ sessionId, onEntry, onError });
 
-      // Make onAction throw
-      onAction.mockImplementation(() => {
+      // Make onEntry throw
+      onEntry.mockImplementation(() => {
         throw new Error('Processing error');
       });
 
@@ -460,7 +459,7 @@ describe('RecordModeController', () => {
         }
       });
 
-      await controller.startRecording({ sessionId, onAction: jest.fn() });
+      await controller.startRecording({ sessionId, onEntry: jest.fn() });
       mockPage.evaluate.mockClear();
 
       // Simulate page load
@@ -480,7 +479,7 @@ describe('RecordModeController', () => {
         }
       });
 
-      await controller.startRecording({ sessionId, onAction: jest.fn() });
+      await controller.startRecording({ sessionId, onEntry: jest.fn() });
       await controller.stopRecording();
       mockPage.evaluate.mockClear();
 

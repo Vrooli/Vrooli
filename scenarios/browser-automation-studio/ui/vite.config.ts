@@ -336,6 +336,16 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    modulePreload: {
+      // Avoid preloading large optional chunks (Monaco/ReactFlow/bootstrap entry)
+      // during initial page load to improve Lighthouse mobile performance.
+      resolveDependencies: (_filename, deps) =>
+        deps.filter((dep) =>
+          !dep.includes('bootstrap.js') &&
+          !dep.includes('monaco-') &&
+          !dep.includes('reactflow-'),
+        ),
+    },
     sourcemap: true,
     minify: 'esbuild',
     target: 'esnext',
@@ -366,6 +376,11 @@ export default defineConfig({
             id.includes('node_modules/@reactflow') ||
             id.includes('node_modules/@xyflow')) {
             return 'reactflow';
+          }
+          // Monaco editor (very large; keep out of initial dashboard load)
+          if (id.includes('node_modules/monaco-editor') ||
+            id.includes('node_modules/@monaco-editor')) {
+            return 'monaco';
           }
           // UI component libraries
           if (id.includes('node_modules/lucide-react') ||

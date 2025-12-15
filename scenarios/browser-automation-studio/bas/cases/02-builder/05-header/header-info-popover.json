@@ -1,155 +1,192 @@
 {
-  "metadata": {
-    "description": "Validates that the info popover displays workflow metadata correctly",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000
-      }
-    },
-    {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "data": {
-        "label": "Wait for projects grid",
-        "selector": "@selector/projects.grid",
-        "timeoutMs": 10000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "data": {
-        "label": "Open first project",
-        "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/workflows.card",
-          "successTimeoutMs": 10000
-        }
-      }
-    },
-    {
-      "id": "click-workflow",
-      "type": "click",
-      "data": {
-        "label": "Open workflow",
-        "selector": "@selector/workflows.card:first-of-type",
-        "timeoutMs": 10000,
-        "resilience": {
-          "successSelector": "@selector/workflowBuilder.canvas.root",
-          "successTimeoutMs": 15000
-        }
-      }
-    },
-    {
-      "id": "find-info-button",
-      "type": "assert",
-      "data": {
-        "label": "Info button exists in header",
-        "selector": "@selector/header.buttons.info",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Info button should be visible in workflow header"
-      }
-    },
-    {
-      "id": "click-info-button",
-      "type": "click",
-      "data": {
-        "label": "Click info button to open popover",
-        "selector": "@selector/header.buttons.info:not([data-dedupe=\"click\"])",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/header.info.popover",
-          "successTimeoutMs": 8000
-        }
-      }
-    },
-    {
-      "id": "assert-popover-visible",
-      "type": "assert",
-      "data": {
-        "label": "Info popover is visible",
-        "selector": "@selector/header.info.popover",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Info popover should appear after clicking info button"
-      }
-    },
-    {
-      "id": "close-popover",
-      "type": "keyboard",
-      "data": {
-        "label": "Close popover with Escape",
-        "waitForMs": 500,
-        "keys": [
-          "Escape"
-        ]
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "navigate-dashboard",
       "target": "wait-for-dashboard",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "wait-for-dashboard",
       "target": "click-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "click-project",
       "target": "click-workflow",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "click-workflow",
       "target": "find-info-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "find-info-button",
       "target": "click-info-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-info-button",
       "target": "assert-popover-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7-bridge-e8",
       "source": "assert-popover-visible",
       "target": "close-popover",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates that the info popover displays workflow metadata correctly",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for projects grid"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/projects.grid",
+          "timeout_ms": 10000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-for-dashboard"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open first project"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflows.card",
+          "success_timeout_ms": 10000
+        }
+      },
+      "id": "click-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open workflow"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 15000
+        }
+      },
+      "id": "click-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Info button should be visible in workflow header",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/header.buttons.info",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Info button exists in header"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-info-button"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.info:not([data-dedupe=\"click\"])"
+        },
+        "metadata": {
+          "label": "Click info button to open popover"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/header.info.popover",
+          "success_timeout_ms": 8000
+        }
+      },
+      "id": "click-info-button"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Info popover should appear after clicking info button",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/header.info.popover",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Info popover is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-popover-visible"
+    },
+    {
+      "action": {
+        "keyboard": {
+          "keys": [
+            "Escape"
+          ]
+        },
+        "metadata": {
+          "label": "Close popover with Escape"
+        },
+        "type": "ACTION_TYPE_KEYBOARD"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "close-popover"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

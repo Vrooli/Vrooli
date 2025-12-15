@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/services/replay"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -35,17 +36,11 @@ func (h *Handler) GetExecutionScreenshots(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	pbScreenshots, err := protoconv.ScreenshotsToProto(screenshots, executionID.String())
-	if err != nil {
-		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to convert screenshots to proto")
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"operation": "screenshots_to_proto",
-			"error":     err.Error(),
-		}))
-		return
-	}
-
-	h.respondProto(w, http.StatusOK, pbScreenshots)
+	h.respondProto(w, http.StatusOK, &basexecution.GetScreenshotsResponse{
+		ExecutionId: executionID.String(),
+		Screenshots: screenshots,
+		Total:       int32(len(screenshots)),
+	})
 }
 
 // GetExecutionTimeline handles GET /api/v1/executions/{id}/timeline
@@ -58,13 +53,19 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
 	defer cancel()
 
+	// Preferred: proto timeline persisted to disk.
+	if pbTimeline, err := h.executionService.GetExecutionTimelineProto(ctx, executionID); err == nil && pbTimeline != nil {
+		h.respondProto(w, http.StatusOK, pbTimeline)
+		return
+	}
+
+	// Fallback: legacy result.json timeline conversion.
 	timeline, err := h.executionService.GetExecutionTimeline(ctx, executionID)
 	if err != nil {
 		h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to get execution timeline")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_timeline", "execution_id": executionID.String()}))
 		return
 	}
-
 	pbTimeline, err := protoconv.TimelineToProto(timeline)
 	if err != nil {
 		if h.log != nil {
@@ -76,7 +77,6 @@ func (h *Handler) GetExecutionTimeline(w http.ResponseWriter, r *http.Request) {
 		}))
 		return
 	}
-
 	h.respondProto(w, http.StatusOK, pbTimeline)
 }
 

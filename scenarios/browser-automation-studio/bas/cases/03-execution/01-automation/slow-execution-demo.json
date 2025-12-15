@@ -1,25 +1,28 @@
 {
+  "edges": [],
   "metadata": {
     "description": "Executes the slow-execution-demo fixture to validate long-running telemetry paths",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
   },
   "nodes": [
     {
-      "id": "call-slow-execution-demo",
-      "type": "subflow",
-      "data": {
-        "label": "Run slow execution demo fixture",
-        "workflowPath": "actions/slow-execution-demo.json"
-      }
+      "action": {
+        "metadata": {
+          "label": "Run slow execution demo fixture"
+        },
+        "subflow": {
+          "workflow_path": "actions/slow-execution-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-slow-execution-demo"
     }
   ],
-  "edges": []
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

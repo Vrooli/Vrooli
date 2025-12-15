@@ -9,6 +9,44 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// ResolveScenarioDir attempts to locate the absolute scenario root directory (scenarios/browser-automation-studio)
+// by walking up from the current working directory. Falls back to a best-effort path under cwd.
+func ResolveScenarioDir(log *logrus.Logger) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		if log != nil {
+			log.WithError(err).Warn("Failed to resolve working directory; using relative scenario path")
+		}
+		return filepath.Join("scenarios", scenarioRoot)
+	}
+
+	absCwd, err := filepath.Abs(cwd)
+	if err == nil {
+		for dir := absCwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+			parent := filepath.Dir(dir)
+			if filepath.Base(dir) == scenarioRoot && filepath.Base(parent) == "scenarios" {
+				return dir
+			}
+		}
+	}
+
+	root := filepath.Join(absCwd, "scenarios", scenarioRoot)
+	if abs, err := filepath.Abs(root); err == nil {
+		return abs
+	}
+	return root
+}
+
+// ResolveProjectsRoot returns the absolute directory where project folders should live.
+func ResolveProjectsRoot(log *logrus.Logger) string {
+	return filepath.Join(ResolveScenarioDir(log), "data", "projects")
+}
+
+// ResolveDemoProjectFolder returns the canonical filesystem folder for the seed/demo project.
+func ResolveDemoProjectFolder(log *logrus.Logger) string {
+	return filepath.Join(ResolveProjectsRoot(log), "demo")
+}
+
 // ValidateAndNormalizeFolderPath validates a folder path and returns the absolute normalized path.
 // Returns an error with appropriate message if validation fails.
 // The folder path must be within the allowed root (VROOLI_ROOT or cwd).

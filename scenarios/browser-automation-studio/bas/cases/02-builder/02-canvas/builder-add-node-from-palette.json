@@ -1,173 +1,214 @@
 {
-  "metadata": {
-    "description": "Validates adding a node from the palette to the canvas via drag-and-drop",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-builder",
-      "type": "subflow",
-      "data": {
-        "label": "Open builder via fixture",
-        "workflowPath": "actions/open-builder-from-demo.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "assert-canvas-visible",
-      "type": "assert",
-      "data": {
-        "label": "Canvas is visible",
-        "selector": "@selector/workflowBuilder.reactFlowReady",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Workflow builder canvas should be visible"
-      }
-    },
-    {
-      "id": "count-initial-nodes",
-      "type": "evaluate",
-      "data": {
-        "label": "Count initial nodes on canvas",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "initialNodeCount"
-      }
-    },
-    {
-      "id": "assert-palette-visible",
-      "type": "assert",
-      "data": {
-        "label": "Node palette is visible",
-        "selector": "@selector/nodePalette.container",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Node palette should be visible in sidebar"
-      }
-    },
-    {
-      "id": "get-navigate-node-position",
-      "type": "evaluate",
-      "data": {
-        "label": "Get navigate node card position",
-        "expression": "(() => { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
-        "storeResult": "nodePalettePosition"
-      }
-    },
-    {
-      "id": "get-canvas-drop-position",
-      "type": "evaluate",
-      "data": {
-        "label": "Calculate canvas drop position",
-        "expression": "(() => { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
-        "storeResult": "canvasDropPosition"
-      }
-    },
-    {
-      "id": "drag-navigate-node",
-      "type": "dragDrop",
-      "data": {
-        "label": "Drag navigate node from palette to canvas",
-        "sourceSelector": "@selector/nodePalette.cards.navigate",
-        "targetSelector": ".react-flow__pane",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "count-final-nodes",
-      "type": "evaluate",
-      "data": {
-        "label": "Count nodes after drag",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "finalNodeCount"
-      }
-    },
-    {
-      "id": "verify-node-count-increased",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify node count increased",
-        "expression": "(() => { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
-        "storeResult": "nodeWasAdded"
-      }
-    },
-    {
-      "id": "check-navigate-node-exists",
-      "type": "assert",
-      "data": {
-        "label": "Navigate node exists on canvas",
-        "selector": ".react-flow__node[data-type=\"navigate\"]",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Navigate node should be visible on canvas after drag-and-drop"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e9",
       "source": "call-open-builder",
       "target": "assert-canvas-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9a",
       "source": "assert-canvas-visible",
       "target": "count-initial-nodes",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "count-initial-nodes",
       "target": "assert-palette-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13",
       "source": "get-navigate-node-position",
       "target": "get-canvas-drop-position",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e14",
       "source": "get-canvas-drop-position",
       "target": "drag-navigate-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e15",
       "source": "drag-navigate-node",
       "target": "count-final-nodes",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e17",
       "source": "count-final-nodes",
       "target": "verify-node-count-increased",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e18",
       "source": "verify-node-count-increased",
       "target": "check-navigate-node-exists",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11-bridge-e12",
       "source": "assert-palette-visible",
       "target": "get-navigate-node-position",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates adding a node from the palette to the canvas via drag-and-drop",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open builder via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-builder-from-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-builder"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow builder canvas should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/workflowBuilder.reactFlowReady",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Canvas is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-canvas-visible"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "initialNodeCount"
+        },
+        "metadata": {
+          "label": "Count initial nodes on canvas"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-initial-nodes"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Node palette should be visible in sidebar",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/nodePalette.container",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Node palette is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-palette-visible"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+          "store_result": "nodePalettePosition"
+        },
+        "metadata": {
+          "label": "Get navigate node card position"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-navigate-node-position"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
+          "store_result": "canvasDropPosition"
+        },
+        "metadata": {
+          "label": "Calculate canvas drop position"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-canvas-drop-position"
+    },
+    {
+      "action": {
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.navigate",
+          "target_selector": ".react-flow__pane",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Drag navigate node from palette to canvas"
+        },
+        "type": "ACTION_TYPE_DRAG_DROP"
+      },
+      "execution_settings": {
+        "wait_after_ms": 2000
+      },
+      "id": "drag-navigate-node"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "finalNodeCount"
+        },
+        "metadata": {
+          "label": "Count nodes after drag"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-final-nodes"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) \u0026\u0026 Number.isFinite(final) \u0026\u0026 final \u003e initial; })()",
+          "store_result": "nodeWasAdded"
+        },
+        "metadata": {
+          "label": "Verify node count increased"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-node-count-increased"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Navigate node should be visible on canvas after drag-and-drop",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node[data-type=\"navigate\"]",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Navigate node exists on canvas"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "check-navigate-node-exists"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

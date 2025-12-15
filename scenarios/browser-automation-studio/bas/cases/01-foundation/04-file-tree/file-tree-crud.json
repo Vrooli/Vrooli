@@ -1,172 +1,213 @@
 {
-  "metadata": {
-    "description": "Validates file tree CRUD operations: switch to tree view, create folder, create workflow file, rename, and delete",
-    "version": 1,
-    "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "open-demo-project",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded demo project",
-        "workflowPath": "actions/open-demo-project.json"
-      }
-    },
-    {
-      "id": "switch-to-tree-view",
-      "type": "click",
-      "data": {
-        "label": "Switch to File Tree view",
-        "selector": "@selector/projects.fileTree.viewModeToggle",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "assert-tree-visible",
-      "type": "assert",
-      "data": {
-        "label": "File tree root is visible",
-        "selector": "@selector/projects.fileTree.root",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "File tree should be visible after switching view mode"
-      }
-    },
-    {
-      "id": "click-new-menu",
-      "type": "click",
-      "data": {
-        "label": "Open New file menu",
-        "selector": "@selector/workflows.newButton",
-        "timeoutMs": 5000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "assert-new-folder-button",
-      "type": "assert",
-      "data": {
-        "label": "New Folder button is visible",
-        "selector": "@selector/projects.fileTree.createFolderButton",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "New Folder button should be visible in the menu"
-      }
-    },
-    {
-      "id": "assert-new-workflow-buttons",
-      "type": "assert",
-      "data": {
-        "label": "New workflow type buttons are visible",
-        "selector": "@selector/projects.fileTree.createWorkflowButton",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "New Action/Flow/Case buttons should be visible in the menu"
-      }
-    },
-    {
-      "id": "click-away-to-close-menu",
-      "type": "click",
-      "data": {
-        "label": "Click away to close menu",
-        "selector": "@selector/projects.fileTree.root",
-        "timeoutMs": 3000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "wait-for-tree-render",
-      "type": "wait",
-      "data": {
-        "label": "Wait for tree to be interactive",
-        "waitType": "duration",
-        "durationMs": 500
-      }
-    },
-    {
-      "id": "assert-folders-or-files-visible",
-      "type": "evaluate",
-      "data": {
-        "label": "Check if tree has content (folders or files)",
-        "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); return folders.length > 0 || files.length > 0 || document.querySelector('[data-testid=\"project-file-tree\"]') !== null; })()",
-        "storeResult": "treeHasContent"
-      }
-    },
-    {
-      "id": "assert-tree-content",
-      "type": "assert",
-      "data": {
-        "label": "Tree container exists",
-        "selector": "@selector/projects.fileTree.root",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "File tree container should exist"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e0",
       "source": "open-demo-project",
       "target": "switch-to-tree-view",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e1",
       "source": "switch-to-tree-view",
       "target": "assert-tree-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "assert-tree-visible",
       "target": "click-new-menu",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "click-new-menu",
       "target": "assert-new-folder-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "assert-new-folder-button",
       "target": "assert-new-workflow-buttons",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "assert-new-workflow-buttons",
       "target": "click-away-to-close-menu",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-away-to-close-menu",
       "target": "wait-for-tree-render",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "wait-for-tree-render",
       "target": "assert-folders-or-files-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "assert-folders-or-files-visible",
       "target": "assert-tree-content",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates file tree CRUD operations: switch to tree view, create folder, create workflow file, rename, and delete",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded demo project"
+        },
+        "subflow": {
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "open-demo-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.fileTree.viewModeToggle"
+        },
+        "metadata": {
+          "label": "Switch to File Tree view"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "switch-to-tree-view"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "File tree should be visible after switching view mode",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.fileTree.root",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "File tree root is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-tree-visible"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.newButton"
+        },
+        "metadata": {
+          "label": "Open New file menu"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "click-new-menu"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "New Folder button should be visible in the menu",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.fileTree.createFolderButton",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "New Folder button is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-new-folder-button"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "New Action/Flow/Case buttons should be visible in the menu",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.fileTree.createWorkflowButton",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "New workflow type buttons are visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-new-workflow-buttons"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.fileTree.root"
+        },
+        "metadata": {
+          "label": "Click away to close menu"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "click-away-to-close-menu"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for tree to be interactive"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 500
+        }
+      },
+      "id": "wait-for-tree-render"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]'); return folders.length \u003e 0 || files.length \u003e 0 || document.querySelector('[data-testid=\"project-file-tree\"]') !== null; })()",
+          "store_result": "treeHasContent"
+        },
+        "metadata": {
+          "label": "Check if tree has content (folders or files)"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "assert-folders-or-files-visible"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "File tree container should exist",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.fileTree.root",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Tree container exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-tree-content"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

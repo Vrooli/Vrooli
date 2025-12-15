@@ -1,4 +1,4 @@
-import { Node, Edge } from 'reactflow';
+import type { Node, Edge } from 'reactflow';
 import { getConfig } from '../config';
 
 // Cache for resolved scenario URLs to avoid redundant API calls

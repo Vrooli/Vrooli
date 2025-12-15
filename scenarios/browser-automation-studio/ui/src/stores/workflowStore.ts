@@ -1,14 +1,17 @@
 import { create } from 'zustand';
-import { Node, Edge } from 'reactflow';
+import type { Node, Edge } from 'reactflow';
+import { isMessage } from '@bufbuild/protobuf';
 import {
   CreateWorkflowResponseSchema,
   UpdateWorkflowResponseSchema,
-  WorkflowListSchema,
+  ListWorkflowsResponseSchema,
+  GetWorkflowResponseSchema,
   WorkflowSummarySchema,
   WorkflowVersionListSchema,
   WorkflowVersionSchema,
   type WorkflowSummary,
-  type WorkflowList,
+  type ListWorkflowsResponse,
+  type GetWorkflowResponse,
   type WorkflowVersionList,
   type WorkflowVersion as ProtoWorkflowVersion,
   type CreateWorkflowResponse,
@@ -417,22 +420,27 @@ const workflowSummaryToPayload = (summary: WorkflowSummary | null | undefined): 
     return null;
   }
 
-  let summaryJson = toJsonRecord(WorkflowSummarySchema, summary);
-  if (Object.keys(summaryJson).length === 0 && isPlainObject(summary)) {
-    summaryJson = summary as Record<string, unknown>;
-  }
-  if (summary.flowDefinition) {
-    const flowJson = toJsonRecord(WorkflowDefinitionV2Schema, summary.flowDefinition);
-    if (Object.keys(flowJson).length > 0) {
-      summaryJson.flow_definition = flowJson;
+  if (isMessage(summary)) {
+    const summaryJson = toJsonRecord(WorkflowSummarySchema, summary as any);
+    const flowDef = (summary as any).flowDefinition;
+    if (flowDef) {
+      const flowJson = toJsonRecord(WorkflowDefinitionV2Schema, flowDef);
+      if (Object.keys(flowJson).length > 0) {
+        summaryJson.flow_definition = flowJson;
+      }
     }
+    return summaryJson;
   }
-  return summaryJson;
+
+  if (isPlainObject(summary)) {
+    return { ...(summary as Record<string, unknown>) };
+  }
+
+  return null;
 };
 
 const parseWorkflowSummaryMessage = (summary: WorkflowSummary | Record<string, unknown> | null | undefined): Workflow | null => {
-  // Accept either parsed proto summary or legacy plain object.
-  const payload = workflowSummaryToPayload(summary as WorkflowSummary) ?? (isPlainObject(summary) ? (summary as Record<string, unknown>) : null);
+  const payload = workflowSummaryToPayload(summary as WorkflowSummary);
   if (!payload) {
     return null;
   }
@@ -455,13 +463,6 @@ const parseWorkflowFromCreateResponse = (raw: unknown): Workflow | null => {
     return normalizeWorkflowResponse(summaryPayload);
   } catch (error) {
     logger.error('Failed to parse create workflow proto response', { component: 'WorkflowStore', action: 'parseCreateWorkflow' }, error);
-    if (raw && typeof raw === 'object') {
-      try {
-        return normalizeWorkflowResponse(raw as Record<string, unknown>);
-      } catch {
-        return null;
-      }
-    }
     return null;
   }
 };
@@ -477,13 +478,6 @@ const parseWorkflowFromUpdateResponse = (raw: unknown): Workflow | null => {
     return normalizeWorkflowResponse(summaryPayload);
   } catch (error) {
     logger.error('Failed to parse update workflow proto response', { component: 'WorkflowStore', action: 'parseUpdateWorkflow' }, error);
-    if (raw && typeof raw === 'object') {
-      try {
-        return normalizeWorkflowResponse(raw as Record<string, unknown>);
-      } catch {
-        return null;
-      }
-    }
     return null;
   }
 };
@@ -688,14 +682,26 @@ const normalizeWorkflowPayloadOrThrow = (payload: unknown, action: string): Work
   let normalized: Workflow | null = null;
 
   try {
-    const proto = parseProtoStrict<WorkflowSummary>(WorkflowSummarySchema, payload);
-    normalized = parseWorkflowSummaryMessage(proto);
+    const proto = parseProtoStrict<GetWorkflowResponse>(GetWorkflowResponseSchema, payload);
+    if (proto.workflow) {
+      normalized = parseWorkflowSummaryMessage(proto.workflow);
+    }
   } catch (err) {
-    logger.error('Failed to parse workflow proto', { component: 'WorkflowStore', action }, err);
+    logger.error('Failed to parse get workflow proto', { component: 'WorkflowStore', action }, err);
+  }
+
+  if (!normalized) {
+    try {
+      const proto = parseProtoStrict<WorkflowSummary>(WorkflowSummarySchema, payload);
+      normalized = parseWorkflowSummaryMessage(proto);
+    } catch (err) {
+      logger.error('Failed to parse workflow summary proto', { component: 'WorkflowStore', action }, err);
+    }
   }
 
   if (!normalized && payload && typeof payload === 'object') {
-    normalized = parseWorkflowSummaryMessage(payload as Record<string, unknown>);
+    const maybeWrapper = payload as Record<string, unknown>;
+    normalized = parseWorkflowSummaryMessage((maybeWrapper.workflow ?? maybeWrapper) as Record<string, unknown>);
   }
 
   if (!normalized) {
@@ -761,7 +767,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
       let workflows: Workflow[] = [];
       try {
-        const protoList = parseProtoStrict<WorkflowList>(WorkflowListSchema, data);
+        const protoList = parseProtoStrict<ListWorkflowsResponse>(ListWorkflowsResponseSchema, data);
         workflows = (protoList.workflows ?? []).map((item, idx) => {
           const parsed = parseWorkflowSummaryMessage(item);
           if (!parsed) {
@@ -1405,10 +1411,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         logger.error('Failed to parse restore workflow proto response', { component: 'WorkflowStore', action: 'restoreWorkflowVersion', workflowId }, err);
       }
 
-      const normalized = parseWorkflowFromUpdateResponse(restoredWorkflowPayload);
-      if (!normalized) {
-        throw new Error('Failed to parse restored workflow payload');
-      }
+      const normalized = normalizeWorkflowPayloadOrThrow(restoredWorkflowPayload, 'restoreWorkflowVersion');
 
       const restoredVersionSummary = restoredVersionPayload
         ? parseWorkflowVersionMessage(restoredVersionPayload)

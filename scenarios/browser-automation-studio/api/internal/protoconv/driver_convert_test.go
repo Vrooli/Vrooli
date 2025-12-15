@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -108,16 +109,16 @@ func TestStepOutcomeToProto(t *testing.T) {
 			Selector:    "#button",
 			BoundingBox: &basbase.BoundingBox{X: 10, Y: 20, Width: 100, Height: 50},
 		},
-		HighlightRegions: []autocontracts.HighlightRegion{
+		HighlightRegions: []*autocontracts.HighlightRegion{
 			{Selector: "#highlight", BoundingBox: &basbase.BoundingBox{X: 0, Y: 0, Width: 200, Height: 100}, Padding: 4, HighlightColor: basbase.HighlightColor_HIGHLIGHT_COLOR_RED},
 		},
-		MaskRegions: []autocontracts.MaskRegion{
+		MaskRegions: []*autocontracts.MaskRegion{
 			{Selector: "#mask", BoundingBox: &basbase.BoundingBox{X: 50, Y: 50, Width: 100, Height: 100}, Opacity: 0.5},
 		},
 		ZoomFactor: 1.5,
 		CursorTrail: []autocontracts.CursorPosition{
-			{Point: basbase.Point{X: 10, Y: 10}, RecordedAt: now, ElapsedMs: 100},
-			{Point: basbase.Point{X: 20, Y: 20}, RecordedAt: now, ElapsedMs: 200},
+			{Point: &autocontracts.Point{X: 10, Y: 10}, RecordedAt: now, ElapsedMs: 100},
+			{Point: &autocontracts.Point{X: 20, Y: 20}, RecordedAt: now, ElapsedMs: 200},
 		},
 		Notes: map[string]string{"note1": "value1"},
 		Failure: &autocontracts.StepFailure{
@@ -465,8 +466,7 @@ func TestExecutionPlanToProto(t *testing.T) {
 			{
 				Index:       0,
 				NodeID:      "node-1",
-				Type:        "navigate",
-				Params:      map[string]any{"url": "https://example.com"},
+				Action:      &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}},
 				PreloadHTML: "<html></html>",
 				Context:     map[string]any{"ctx": "value"},
 				Metadata:    map[string]string{"label": "Navigate to example"},
@@ -474,8 +474,7 @@ func TestExecutionPlanToProto(t *testing.T) {
 			{
 				Index:  1,
 				NodeID: "node-2",
-				Type:   "click",
-				Params: map[string]any{"selector": "#button"},
+				Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK, Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#button"}}},
 			},
 		},
 		Graph: &autocontracts.PlanGraph{
@@ -483,8 +482,7 @@ func TestExecutionPlanToProto(t *testing.T) {
 				{
 					Index:    0,
 					NodeID:   "node-1",
-					Type:     "navigate",
-					Params:   map[string]any{"url": "https://example.com"},
+					Action:   &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}},
 					Metadata: map[string]string{"label": "Navigate"},
 					Outgoing: []autocontracts.PlanEdge{
 						{ID: "edge-1", Target: "node-2"},
@@ -493,8 +491,7 @@ func TestExecutionPlanToProto(t *testing.T) {
 				{
 					Index:  1,
 					NodeID: "node-2",
-					Type:   "click",
-					Params: map[string]any{"selector": "#button"},
+					Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK, Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: "#button"}}},
 				},
 			},
 		},
@@ -514,8 +511,8 @@ func TestExecutionPlanToProto(t *testing.T) {
 	if len(pb.Instructions) != 2 {
 		t.Fatalf("expected 2 instructions, got %d", len(pb.Instructions))
 	}
-	if pb.Instructions[0].Type != "navigate" {
-		t.Errorf("instruction type mismatch: got %s", pb.Instructions[0].Type)
+	if pb.Instructions[0].Action == nil || pb.Instructions[0].Action.Type != basactions.ActionType_ACTION_TYPE_NAVIGATE {
+		t.Errorf("instruction action mismatch: got %+v", pb.Instructions[0].Action)
 	}
 	if pb.Graph == nil || len(pb.Graph.Steps) != 2 {
 		t.Errorf("graph mismatch: got %+v", pb.Graph)

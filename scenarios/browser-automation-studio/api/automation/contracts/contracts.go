@@ -242,8 +242,8 @@ type StepOutcome struct {
 	ElementBoundingBox *BoundingBox      `json:"element_bounding_box,omitempty"` // Target element bounding box (viewport coords).
 	ClickPosition      *Point            `json:"click_position,omitempty"`       // Actual click coordinates used (viewport coords).
 	FocusedElement     *ElementFocus     `json:"focused_element,omitempty"`      // Focus metadata for framing.
-	HighlightRegions   []HighlightRegion `json:"highlight_regions,omitempty"`    // Overlay regions applied for emphasis.
-	MaskRegions        []MaskRegion      `json:"mask_regions,omitempty"`         // Regions masked/dimmed during capture.
+	HighlightRegions   []*HighlightRegion `json:"highlight_regions,omitempty"`   // Overlay regions applied for emphasis.
+	MaskRegions        []*MaskRegion      `json:"mask_regions,omitempty"`        // Regions masked/dimmed during capture.
 	ZoomFactor         float64           `json:"zoom_factor,omitempty"`          // Applied zoom for the attempt.
 	CursorTrail        []CursorPosition  `json:"cursor_trail,omitempty"`         // Ordered cursor path for timeline playback.
 	Notes              map[string]string `json:"notes,omitempty"`                // Freeform annotations (e.g., dedupe hints).
@@ -366,7 +366,7 @@ type ConditionOutcome struct {
 
 // CursorPosition represents a point along the cursor trail for a step attempt.
 type CursorPosition struct {
-	Point      Point     `json:"point"`
+	Point      *Point    `json:"point,omitempty"`
 	RecordedAt time.Time `json:"recorded_at,omitempty"` // UTC timestamp of capture.
 	ElapsedMs  int64     `json:"elapsed_ms,omitempty"`  // Relative to step start for ordering.
 }

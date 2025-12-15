@@ -1,103 +1,124 @@
 {
-  "metadata": {
-    "description": "Validates stopping a running execution from the UI",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open demo workflow in builder",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowId": "${@params/workflowId}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "click-execute",
-      "type": "click",
-      "data": {
-        "label": "Start workflow execution",
-        "selector": "@selector/header.buttons.execute",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/executions.viewer.stopButton",
-          "successTimeoutMs": 15000
-        }
-      }
-    },
-    {
-      "id": "check-running",
-      "type": "evaluate",
-      "data": {
-        "label": "Check execution is running",
-        "expression": "document.querySelector('[class*=\"running\"], [class*=\"executing\"], svg.lucide-loader') !== null",
-        "storeResult": "executionRunning"
-      }
-    },
-    {
-      "id": "click-stop",
-      "type": "click",
-      "data": {
-        "label": "Click stop/cancel button",
-        "selector": "@selector/executions.viewer.stopButton",
-        "timeoutMs": 5000,
-        "continueOnError": true,
-        "resilience": {
-          "successSelector": "@selector/executions.viewer.statusCancelled, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCompleted",
-          "successTimeoutMs": 20000
-        }
-      }
-    },
-    {
-      "id": "assert-execution-stopped",
-      "type": "assert",
-      "data": {
-        "label": "Execution moves to terminal state",
-        "selector": "@selector/executions.viewer.statusCancelled, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCompleted",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Execution status should reflect stop request"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e5",
       "source": "call-open-workflow",
       "target": "click-execute",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5a",
       "source": "click-execute",
       "target": "check-running",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "click-stop",
       "target": "assert-execution-stopped",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8-bridge-e9",
       "source": "check-running",
       "target": "click-stop",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates stopping a running execution from the UI",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open demo workflow in builder"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowId": "${@params/workflowId}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-workflow"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.execute"
+        },
+        "metadata": {
+          "label": "Start workflow execution"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/executions.viewer.stopButton",
+          "success_timeout_ms": 15000
+        }
+      },
+      "id": "click-execute"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelector('[class*=\"running\"], [class*=\"executing\"], svg.lucide-loader') !== null",
+          "store_result": "executionRunning"
+        },
+        "metadata": {
+          "label": "Check execution is running"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-running"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/executions.viewer.stopButton"
+        },
+        "metadata": {
+          "label": "Click stop/cancel button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "continue_on_error": true,
+        "resilience": {
+          "success_selector": "@selector/executions.viewer.statusCancelled, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCompleted",
+          "success_timeout_ms": 20000
+        }
+      },
+      "id": "click-stop"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution status should reflect stop request",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.statusCancelled, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCompleted",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Execution moves to terminal state"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execution-stopped"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

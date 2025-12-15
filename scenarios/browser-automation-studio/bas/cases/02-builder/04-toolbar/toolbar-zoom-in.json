@@ -1,114 +1,138 @@
 {
-  "metadata": {
-    "description": "Validates zoom in button increases canvas zoom level",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "assert-toolbar-visible",
-      "type": "assert",
-      "data": {
-        "label": "Workflow toolbar is visible",
-        "selector": "@selector/toolbar.root",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Workflow toolbar should be visible"
-      }
-    },
-    {
-      "id": "get-initial-zoom",
-      "type": "evaluate",
-      "data": {
-        "label": "Get initial zoom level",
-        "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
-        "storeResult": "initialZoom"
-      }
-    },
-    {
-      "id": "click-zoom-in",
-      "type": "click",
-      "data": {
-        "label": "Click zoom in button",
-        "selector": "@selector/toolbar.zoomInButton",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/workflowBuilder.canvas.root",
-          "successTimeoutMs": 8000
-        }
-      }
-    },
-    {
-      "id": "get-zoomed-level",
-      "type": "evaluate",
-      "data": {
-        "label": "Get zoom level after zoom in",
-        "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
-        "storeResult": "zoomedLevel"
-      }
-    },
-    {
-      "id": "verify-zoom-increased",
-      "type": "assert",
-      "data": {
-        "label": "Zoom level increased",
-        "selector": ".react-flow__viewport[style*=\"scale\"]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Canvas should have zoom transformation applied"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-assert-toolbar",
       "source": "call-open-demo-workflow",
       "target": "assert-toolbar-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "assert-toolbar-visible",
       "target": "get-initial-zoom",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "click-zoom-in",
       "target": "get-zoomed-level",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "get-zoomed-level",
       "target": "verify-zoom-increased",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6-bridge-e7",
       "source": "get-initial-zoom",
       "target": "click-zoom-in",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates zoom in button increases canvas zoom level",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Workflow toolbar should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/toolbar.root",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Workflow toolbar is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-toolbar-visible"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "store_result": "initialZoom"
+        },
+        "metadata": {
+          "label": "Get initial zoom level"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-initial-zoom"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.zoomInButton"
+        },
+        "metadata": {
+          "label": "Click zoom in button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 8000
+        }
+      },
+      "id": "click-zoom-in"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "store_result": "zoomedLevel"
+        },
+        "metadata": {
+          "label": "Get zoom level after zoom in"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-zoomed-level"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Canvas should have zoom transformation applied",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__viewport[style*=\"scale\"]",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Zoom level increased"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-zoom-increased"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

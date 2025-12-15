@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState, lazy, Suspense, useMemo } from "react";
-import { ReactFlowProvider } from "reactflow";
-import "reactflow/dist/style.css";
 
 // Shared layout components
-import { ResponsiveDialog, Sidebar, Header } from "@shared/layout";
-import { ProjectModal } from "@features/projects";
+import ProjectModal from "@features/projects/ProjectModal";
 import { GuidedTour, useGuidedTour } from "@features/onboarding";
 import { DocsModal } from "@features/docs";
 
@@ -17,6 +14,9 @@ import {
 import { type ShortcutContext } from "@stores/keyboardShortcutsStore";
 
 // Lazy load heavy components for better initial load performance
+const Header = lazy(() => import("@shared/layout/Header"));
+const Sidebar = lazy(() => import("@shared/layout/Sidebar"));
+const ResponsiveDialog = lazy(() => import("@shared/layout/ResponsiveDialog"));
 const WorkflowBuilder = lazy(() => import("@features/workflows/builder/WorkflowBuilder"));
 const ExecutionViewer = lazy(() => import("@features/execution/ExecutionViewer"));
 const AIPromptModal = lazy(() => import("@features/ai/AIPromptModal"));
@@ -31,7 +31,6 @@ import { type DashboardTab } from "@features/dashboard";
 // Stores and hooks
 import { useExecutionStore } from "@stores/executionStore";
 import { useProjectStore, type Project, buildProjectFolderPath } from "@stores/projectStore";
-import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
 import { useScenarioStore } from "@stores/scenarioStore";
 import { useDashboardStore, type RecentWorkflow } from "@stores/dashboardStore";
 import { useMediaQuery } from "@hooks/useMediaQuery";
@@ -42,7 +41,7 @@ import toast from "react-hot-toast";
 import { selectors } from "@constants/selectors";
 import { LoadingSpinner } from "@shared/ui";
 
-interface NormalizedWorkflow extends Partial<Workflow> {
+interface NormalizedWorkflow extends Partial<Record<string, unknown>> {
   id: string;
   name: string;
   folderPath: string;
@@ -76,7 +75,6 @@ function App() {
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>("home");
 
   const { projects, currentProject, setCurrentProject } = useProjectStore();
-  const { loadWorkflow } = useWorkflowStore();
   const currentExecution = useExecutionStore((state) => state.currentExecution);
   const viewerWorkflowId = useExecutionStore((state) => state.viewerWorkflowId);
   const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
@@ -88,11 +86,6 @@ function App() {
 
   // Guided tour state
   const { showTour, openTour, closeTour } = useGuidedTour();
-
-  // Debug logging for modal state
-  useEffect(() => {
-    console.log("[DEBUG] App: showProjectModal changed to:", showProjectModal);
-  }, [showProjectModal]);
 
   const clampExecutionWidth = useCallback(
     (value: number) =>
@@ -378,21 +371,11 @@ function App() {
       setLastEditedWorkflow(lastEdited);
 
       try {
-        console.log("[DEBUG] openWorkflow called", {
-          workflowId,
-          projectId: project.id,
-          hasWorkflowData: !!options?.workflowData,
-        });
-
+        const workflowStore = await import("@stores/workflowStore");
         if (options?.workflowData) {
-          console.log("[DEBUG] Using provided workflowData", { workflowId });
           // When workflowData is provided (e.g., from createWorkflow), use it directly
           // to avoid redundant API call that could fail and cause navigation away
           const normalized = transformWorkflow(options.workflowData);
-          console.log("[DEBUG] Normalized workflow from workflowData", {
-            hasNormalized: !!normalized,
-            normalizedId: normalized?.id,
-          });
           if (normalized) {
             setSelectedWorkflow(normalized);
             setSelectedFolder(
@@ -400,23 +383,14 @@ function App() {
             );
           }
           // Verify the store is populated (createWorkflow should have done this)
-          const storeWorkflow = useWorkflowStore.getState().currentWorkflow;
-          console.log("[DEBUG] Checking workflow store", {
-            hasStoreWorkflow: !!storeWorkflow,
-            storeWorkflowId: storeWorkflow?.id,
-            expectedWorkflowId: workflowId,
-          });
+          const storeWorkflow = workflowStore.useWorkflowStore.getState().currentWorkflow;
           if (!storeWorkflow || storeWorkflow.id !== workflowId) {
-            console.warn("[DEBUG] Store not populated, loading from API", { workflowId });
-            await loadWorkflow(workflowId);
-          } else {
-            console.log("[DEBUG] Store already populated, skipping API call", { workflowId });
+            await workflowStore.useWorkflowStore.getState().loadWorkflow(workflowId);
           }
         } else {
-          console.log("[DEBUG] No workflowData, loading from API", { workflowId });
           // No workflowData provided, load from API (e.g., direct URL navigation)
-          await loadWorkflow(workflowId);
-          const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
+          await workflowStore.useWorkflowStore.getState().loadWorkflow(workflowId);
+          const loadedWorkflow = workflowStore.useWorkflowStore.getState().currentWorkflow;
           if (!loadedWorkflow) {
             throw new Error('Workflow data not loaded');
           }
@@ -437,9 +411,7 @@ function App() {
             });
           }
         }
-        console.log("[DEBUG] openWorkflow completed successfully", { workflowId });
       } catch (error) {
-        console.error("[DEBUG] openWorkflow FAILED:", error);
         logger.error(
           "Failed to load workflow",
           {
@@ -452,12 +424,10 @@ function App() {
           error,
         );
         toast.error(`Failed to load workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        console.warn("[DEBUG] Navigating back to project due to error", { workflowId });
         openProject(project, { replace: options?.replace ?? false });
       }
     },
     [
-      loadWorkflow,
       navigateToDashboard,
       openProject,
       safeNavigate,
@@ -470,7 +440,7 @@ function App() {
     openProject(project);
   };
 
-  const handleWorkflowSelect = async (workflow: Workflow) => {
+  const handleWorkflowSelect = async (workflow: Record<string, unknown> & { id?: string }) => {
     if (!currentProject) return;
     await openWorkflow(currentProject, workflow.id, {
       workflowData: workflow as Record<string, unknown>,
@@ -564,7 +534,8 @@ function App() {
 
       // Create an empty workflow in the project
       const workflowName = `my-first-workflow`;
-      const workflow = await useWorkflowStore.getState().createWorkflow(
+      const workflowStore = await import("@stores/workflowStore");
+      const workflow = await workflowStore.useWorkflowStore.getState().createWorkflow(
         workflowName,
         '/',
         project.id
@@ -651,7 +622,8 @@ function App() {
     const folderPath = selectedFolder || "/";
 
     try {
-      const workflow = await useWorkflowStore
+      const workflowStore = await import("@stores/workflowStore");
+      const workflow = await workflowStore.useWorkflowStore
         .getState()
         .createWorkflow(workflowName, folderPath, currentProject.id);
 
@@ -675,13 +647,7 @@ function App() {
   };
 
   const handleSwitchToManualBuilder = async () => {
-    console.log("[DEBUG] handleSwitchToManualBuilder called", {
-      hasCurrentProject: !!currentProject,
-      currentProjectId: currentProject?.id,
-    });
-
     if (!currentProject?.id) {
-      console.error("[DEBUG] No current project, cannot switch to manual builder");
       toast.error("Select a project before using the manual builder.");
       return;
     }
@@ -689,37 +655,26 @@ function App() {
     // Close modal immediately BEFORE async operation
     // This ensures the modal closes instantly for the user and tests don't fail
     // waiting for the async workflow creation to complete
-    console.log("[DEBUG] Closing AI modal immediately");
     setShowAIModal(false);
 
     // Create a new empty workflow and switch to the manual builder
     const workflowName = `new-workflow-${Date.now()}`;
     const folderPath = selectedFolder || "/";
-    console.log("[DEBUG] Creating new workflow", { workflowName, folderPath });
 
     try {
-      const workflow = await useWorkflowStore
+      const workflowStore = await import("@stores/workflowStore");
+      const workflow = await workflowStore.useWorkflowStore
         .getState()
         .createWorkflow(workflowName, folderPath, currentProject.id);
-      console.log("[DEBUG] Workflow created", {
-        hasWorkflow: !!workflow,
-        workflowId: workflow?.id,
-      });
 
       if (currentProject && workflow?.id) {
-        console.log("[DEBUG] Calling openWorkflow with workflowData");
         await openWorkflow(currentProject, workflow.id, {
           workflowData: workflow as Record<string, unknown>,
         });
-        console.log("[DEBUG] openWorkflow completed");
       } else {
-        console.error("[DEBUG] Missing currentProject or workflow.id", {
-          hasCurrentProject: !!currentProject,
-          hasWorkflowId: !!workflow?.id,
-        });
+        toast.error("Failed to create workflow.");
       }
     } catch (error) {
-      console.error("[DEBUG] handleSwitchToManualBuilder FAILED:", error);
       logger.error(
         "Failed to create workflow",
         {
@@ -733,7 +688,7 @@ function App() {
     }
   };
 
-  const handleWorkflowGenerated = async (workflow: Workflow) => {
+  const handleWorkflowGenerated = async (workflow: Record<string, unknown> & { id?: string }) => {
     if (!workflow?.id || !currentProject) {
       return;
     }
@@ -862,43 +817,36 @@ function App() {
     };
 
     const resolvePath = async (path: string, replace = false) => {
-      console.log("[DEBUG] resolvePath called", { path, replace });
       const normalized = path.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
       const searchParams = new URLSearchParams(window.location.search);
       const requestedTab = parseDashboardTab(searchParams.get("tab"));
 
       if (normalized === "/") {
-        console.log("[DEBUG] resolvePath: navigating to dashboard");
         navigateToDashboard({ replace, tab: requestedTab });
         return;
       }
 
       if (normalized === "/schedules") {
-        console.log("[DEBUG] resolvePath: navigating to schedules tab");
         navigateToDashboard({ replace, tab: "schedules" });
         return;
       }
 
       const segments = normalized.split("/").filter(Boolean);
-      console.log("[DEBUG] resolvePath segments", { segments });
 
       // Handle /settings route
       if (segments[0] === "settings") {
-        console.log("[DEBUG] resolvePath: navigating to settings");
         navigateToSettings(replace);
         return;
       }
 
       // Handle /workflows route (global workflows view)
       if (segments[0] === "workflows" && segments.length === 1) {
-        console.log("[DEBUG] resolvePath: navigating to all workflows");
         navigateToAllWorkflows(replace);
         return;
       }
 
       // Handle /executions route (global executions view)
       if (segments[0] === "executions" && segments.length === 1) {
-        console.log("[DEBUG] resolvePath: navigating to all executions");
         navigateToAllExecutions(replace);
         return;
       }
@@ -906,53 +854,42 @@ function App() {
       // Handle /record/{sessionId} route (record mode)
       if (segments[0] === "record" && segments[1]) {
         const sessionId = segments[1] === "new" ? null : segments[1];
-        console.log("[DEBUG] resolvePath: navigating to record mode", { sessionId });
         navigateToRecordMode(sessionId, replace);
         return;
       }
 
       if (segments[0] !== "projects" || !segments[1]) {
-        console.log("[DEBUG] resolvePath: invalid path, navigating to dashboard");
         navigateToDashboard(replace);
         return;
       }
 
       const projectId = segments[1];
-      console.log("[DEBUG] resolvePath: loading project", { projectId });
       const projectState = useProjectStore.getState();
       let project: Project | null | undefined = projectState.projects.find(
         (p) => p.id === projectId,
       );
       if (!project) {
-        console.log("[DEBUG] resolvePath: project not in cache, fetching from API");
         project = (await projectState.getProject(projectId)) as Project | null;
         if (project) {
-          console.log("[DEBUG] resolvePath: project fetched, adding to store");
           useProjectStore.setState((state) => ({
             projects: state.projects.some((p) => p.id === project!.id)
               ? state.projects
               : [project!, ...state.projects],
           }));
         }
-      } else {
-        console.log("[DEBUG] resolvePath: project found in cache");
       }
 
       if (!project) {
-        console.error("[DEBUG] resolvePath: project not found, navigating to dashboard");
         navigateToDashboard(replace);
         return;
       }
 
       if (segments.length >= 4 && segments[2] === "workflows") {
         const workflowId = segments[3];
-        console.log("[DEBUG] resolvePath: calling openWorkflow", { workflowId, hasProject: !!project });
         await openWorkflow(project, workflowId, { replace });
-        console.log("[DEBUG] resolvePath: openWorkflow completed");
         return;
       }
 
-      console.log("[DEBUG] resolvePath: opening project view");
       openProject(project, { replace });
     };
 
@@ -998,7 +935,6 @@ function App() {
   );
 
   if (currentView === "dashboard") {
-    console.log("[DEBUG] App rendering Dashboard view, showProjectModal:", showProjectModal);
     return (
       <div
         className="h-screen flex flex-col bg-flow-bg"
@@ -1041,9 +977,7 @@ function App() {
         <ProjectModal
           isOpen={showProjectModal}
           onClose={() => {
-            console.log("[DEBUG] App: setShowProjectModal(false) called, current value:", showProjectModal);
             setShowProjectModal(false);
-            console.log("[DEBUG] App: setShowProjectModal(false) completed");
           }}
           onSuccess={handleProjectCreated}
         />
@@ -1227,10 +1161,14 @@ function App() {
 
   // Project Workflow View (fallback)
   return (
-    <ReactFlowProvider>
-      <div
-        className="h-screen flex flex-col bg-flow-bg"
-        data-testid={selectors.app.shell.ready}
+    <div
+      className="h-screen flex flex-col bg-flow-bg"
+      data-testid={selectors.app.shell.ready}
+    >
+      <Suspense
+        fallback={
+          <div className="h-[72px] border-b border-gray-800 bg-flow-bg/95 backdrop-blur supports-[backdrop-filter]:bg-flow-bg/90" />
+        }
       >
         <Header
           onNewWorkflow={() => setShowAIModal(true)}
@@ -1247,77 +1185,91 @@ function App() {
             setShowDocs(true);
           }}
         />
+      </Suspense>
 
-        <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        <Suspense
+          fallback={
+            <div className="hidden lg:block w-64 border-r border-gray-800 bg-flow-bg" />
+          }
+        >
           <Sidebar
             selectedFolder={selectedFolder}
             onFolderSelect={setSelectedFolder}
             projectId={currentProject?.id}
           />
+        </Suspense>
 
-          <div
-            className={`flex-1 flex min-h-0 ${isResizingExecution ? "select-none" : ""}`}
-          >
-            <div className="flex-1 flex flex-col min-h-0">
-              <Suspense
-                fallback={
-                  <div className="h-full flex items-center justify-center">
-                    <LoadingSpinner variant="default" size={24} message="Loading workflow builder..." />
-                  </div>
-                }
-              >
-                <WorkflowBuilder
-                  projectId={currentProject?.id}
-                  onStartRecording={handleStartRecording}
-                />
-              </Suspense>
-            </div>
-
-            {isExecutionViewerOpen &&
-              activeExecutionWorkflowId &&
-              isLargeScreen && (
-                <>
-                  <div
-                    role="separator"
-                    aria-orientation="vertical"
-                    className={`w-1 cursor-col-resize transition-colors ${
-                      isResizingExecution
-                        ? "bg-flow-accent/50"
-                        : "bg-transparent hover:bg-flow-accent/40"
-                    }`}
-                    onMouseDown={handleExecutionResizeMouseDown}
-                    aria-label="Resize execution viewer pane"
-                  />
-                  <div
-                    className="border-l border-gray-800 flex flex-col min-h-0"
-                    style={{
-                      width: executionPaneWidth,
-                      minWidth: EXECUTION_MIN_WIDTH,
-                    }}
-                  >
-                    <Suspense
-                      fallback={
-                        <div className="h-full flex items-center justify-center">
-                          <LoadingSpinner variant="minimal" size={20} />
-                        </div>
-                      }
-                    >
-                      <ExecutionViewer
-                        workflowId={activeExecutionWorkflowId}
-                        execution={currentExecution}
-                        onClose={closeExecutionViewer}
-                        showExecutionSwitcher
-                      />
-                    </Suspense>
-                  </div>
-                </>
-              )}
+        <div
+          className={`flex-1 flex min-h-0 ${isResizingExecution ? "select-none" : ""}`}
+        >
+          <div className="flex-1 flex flex-col min-h-0">
+            <Suspense
+              fallback={
+                <div className="h-full flex items-center justify-center">
+                  <LoadingSpinner variant="default" size={24} message="Loading workflow builder..." />
+                </div>
+              }
+            >
+              <WorkflowBuilder
+                projectId={currentProject?.id}
+                onStartRecording={handleStartRecording}
+              />
+            </Suspense>
           </div>
-        </div>
 
-        {isExecutionViewerOpen &&
-          activeExecutionWorkflowId &&
-          !isLargeScreen && (
+          {isExecutionViewerOpen &&
+            activeExecutionWorkflowId &&
+            isLargeScreen && (
+              <>
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  className={`w-1 cursor-col-resize transition-colors ${
+                    isResizingExecution
+                      ? "bg-flow-accent/50"
+                      : "bg-transparent hover:bg-flow-accent/40"
+                  }`}
+                  onMouseDown={handleExecutionResizeMouseDown}
+                  aria-label="Resize execution viewer pane"
+                />
+                <div
+                  className="border-l border-gray-800 flex flex-col min-h-0"
+                  style={{
+                    width: executionPaneWidth,
+                    minWidth: EXECUTION_MIN_WIDTH,
+                  }}
+                >
+                  <Suspense
+                    fallback={
+                      <div className="h-full flex items-center justify-center">
+                        <LoadingSpinner variant="minimal" size={20} />
+                      </div>
+                    }
+                  >
+                    <ExecutionViewer
+                      workflowId={activeExecutionWorkflowId}
+                      execution={currentExecution}
+                      onClose={closeExecutionViewer}
+                      showExecutionSwitcher
+                    />
+                  </Suspense>
+                </div>
+              </>
+            )}
+        </div>
+      </div>
+
+      {isExecutionViewerOpen &&
+        activeExecutionWorkflowId &&
+        !isLargeScreen && (
+          <Suspense
+            fallback={
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <LoadingSpinner variant="minimal" size={20} />
+              </div>
+            }
+          >
             <ResponsiveDialog
               isOpen={true}
               onDismiss={closeExecutionViewer}
@@ -1339,34 +1291,34 @@ function App() {
                 />
               </Suspense>
             </ResponsiveDialog>
-          )}
-
-        {showAIModal && (
-          <Suspense
-            fallback={
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                <LoadingSpinner variant="branded" size={24} message="Loading AI assistant..." />
-              </div>
-            }
-          >
-            <AIPromptModal
-              onClose={() => setShowAIModal(false)}
-              folder={selectedFolder}
-              projectId={currentProject?.id}
-              onSwitchToManual={handleSwitchToManualBuilder}
-              onSuccess={handleWorkflowGenerated}
-            />
           </Suspense>
         )}
 
-        {docsModal}
+      {showAIModal && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <LoadingSpinner variant="branded" size={24} message="Loading AI assistant..." />
+            </div>
+          }
+        >
+          <AIPromptModal
+            onClose={() => setShowAIModal(false)}
+            folder={selectedFolder}
+            projectId={currentProject?.id}
+            onSwitchToManual={handleSwitchToManualBuilder}
+            onSuccess={handleWorkflowGenerated}
+          />
+        </Suspense>
+      )}
 
-        <GuidedTour
-          isOpen={showTour}
-          onClose={closeTour}
-        />
-      </div>
-    </ReactFlowProvider>
+      {docsModal}
+
+      <GuidedTour
+        isOpen={showTour}
+        onClose={closeTour}
+      />
+    </div>
   );
 }
 

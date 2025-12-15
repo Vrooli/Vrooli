@@ -1,189 +1,234 @@
 {
-  "metadata": {
-    "description": "Validates real-time execution progress tracking in the UI",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open demo workflow in builder",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowId": "${@params/workflowId}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "capture-before-execution",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture before execution",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "start-execution",
-      "type": "click",
-      "data": {
-        "label": "Start workflow execution",
-        "selector": "@selector/header.buttons.execute",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "wait-for-execution-start",
-      "type": "wait",
-      "data": {
-        "label": "Wait for execution viewer to render",
-        "selector": "@selector/executions.viewer.root",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "verify-execution-started",
-      "type": "assert",
-      "data": {
-        "label": "Execution indicator appears",
-        "selector": "@selector/executions.viewer.status",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Execution status indicator should appear after starting a run"
-      }
-    },
-    {
-      "id": "capture-execution-progress",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture execution in progress",
-        "fullPage": true
-      }
-    },
-    {
-      "id": "check-for-progress-elements",
-      "type": "assert",
-      "data": {
-        "label": "Progress UI elements exist",
-        "selector": "@selector/executions.viewer.status, @selector/heartbeat.indicator",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Progress UI should render while execution is running"
-      }
-    },
-    {
-      "id": "capture-mid-execution",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture mid-execution state",
-        "fullPage": true
-      }
-    },
-    {
-      "id": "check-heartbeat-indicators",
-      "type": "assert",
-      "data": {
-        "label": "Heartbeat indicators visible",
-        "selector": "@selector/heartbeat.indicator",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Heartbeat indicator should render during execution",
-        "continueOnFailure": true
-      }
-    },
-    {
-      "id": "assert-completion-state",
-      "type": "assert",
-      "data": {
-        "label": "Execution reaches terminal state",
-        "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Execution should complete or fail within expected timeout"
-      }
-    },
-    {
-      "id": "capture-final-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture execution completed state",
-        "fullPage": true,
-        "waitForMs": 1000
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "call-open-workflow",
       "target": "capture-before-execution",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "capture-before-execution",
       "target": "start-execution",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3b",
       "source": "start-execution",
       "target": "wait-for-execution-start",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "wait-for-execution-start",
       "target": "verify-execution-started",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "verify-execution-started",
       "target": "capture-execution-progress",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "capture-execution-progress",
       "target": "check-for-progress-elements",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "check-for-progress-elements",
       "target": "capture-mid-execution",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "capture-mid-execution",
       "target": "check-heartbeat-indicators",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "check-heartbeat-indicators",
       "target": "assert-completion-state",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "assert-completion-state",
       "target": "capture-final-state",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates real-time execution progress tracking in the UI",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open demo workflow in builder"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowId": "${@params/workflowId}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-workflow"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture before execution"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "capture-before-execution"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.execute"
+        },
+        "metadata": {
+          "label": "Start workflow execution"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "start-execution"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for execution viewer to render"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/executions.viewer.root",
+          "timeout_ms": 5000
+        }
+      },
+      "id": "wait-for-execution-start"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution status indicator should appear after starting a run",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.status",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Execution indicator appears"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "verify-execution-started"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture execution in progress"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "id": "capture-execution-progress"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Progress UI should render while execution is running",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.status, @selector/heartbeat.indicator",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Progress UI elements exist"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "check-for-progress-elements"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture mid-execution state"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "id": "capture-mid-execution"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Heartbeat indicator should render during execution",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/heartbeat.indicator",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Heartbeat indicators visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "check-heartbeat-indicators"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution should complete or fail within expected timeout",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Execution reaches terminal state"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-completion-state"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture execution completed state"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "capture-final-state"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

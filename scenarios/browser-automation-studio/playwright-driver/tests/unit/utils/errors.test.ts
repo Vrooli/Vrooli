@@ -1,4 +1,5 @@
 import { z, ZodError } from 'zod';
+import { FailureKind } from '../../../src/proto';
 import {
   PlaywrightDriverError,
   SessionNotFoundError,
@@ -20,20 +21,20 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Test error');
       expect(error.code).toBe('TEST_ERROR');
-      expect(error.kind).toBe('engine');
+      expect(error.kind).toBe(FailureKind.ENGINE);
       expect(error.retryable).toBe(false);
       expect(error.name).toBe('PlaywrightDriverError');
     });
 
     it('should allow custom kind and retryable', () => {
-      const error = new PlaywrightDriverError('Test error', 'TEST_ERROR', 'timeout', true);
+      const error = new PlaywrightDriverError('Test error', 'TEST_ERROR', FailureKind.TIMEOUT, true);
 
-      expect(error.kind).toBe('timeout');
+      expect(error.kind).toBe(FailureKind.TIMEOUT);
       expect(error.retryable).toBe(true);
     });
 
     it('should accept details', () => {
-      const error = new PlaywrightDriverError('Test error', 'TEST_ERROR', 'engine', false, { foo: 'bar' });
+      const error = new PlaywrightDriverError('Test error', 'TEST_ERROR', FailureKind.ENGINE, false, { foo: 'bar' });
 
       expect(error.details).toEqual({ foo: 'bar' });
     });
@@ -45,7 +46,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Session not found: session-123');
       expect(error.code).toBe('SESSION_NOT_FOUND');
-      expect(error.kind).toBe('engine');
+      expect(error.kind).toBe(FailureKind.ENGINE);
       expect(error.retryable).toBe(false);
       expect(error.name).toBe('SessionNotFoundError');
     });
@@ -57,7 +58,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Selector not found: #test-selector');
       expect(error.code).toBe('SELECTOR_NOT_FOUND');
-      expect(error.kind).toBe('engine');
+      expect(error.kind).toBe(FailureKind.ENGINE);
       expect(error.retryable).toBe(true);
       expect(error.name).toBe('SelectorNotFoundError');
     });
@@ -76,7 +77,7 @@ describe('Errors', () => {
       expect(error.message).toContain('Frame not found');
       expect(error.message).toContain('selector=iframe#test');
       expect(error.code).toBe('FRAME_NOT_FOUND');
-      expect(error.kind).toBe('engine');
+      expect(error.kind).toBe(FailureKind.ENGINE);
       expect(error.retryable).toBe(true);
     });
 
@@ -99,7 +100,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Missing selector parameter');
       expect(error.code).toBe('INVALID_INSTRUCTION');
-      expect(error.kind).toBe('orchestration');
+      expect(error.kind).toBe(FailureKind.ORCHESTRATION);
       expect(error.retryable).toBe(false);
     });
   });
@@ -110,7 +111,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Unsupported instruction type: custom-action');
       expect(error.code).toBe('UNSUPPORTED_INSTRUCTION');
-      expect(error.kind).toBe('orchestration');
+      expect(error.kind).toBe(FailureKind.ORCHESTRATION);
       expect(error.retryable).toBe(false);
     });
   });
@@ -121,7 +122,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Too many sessions');
       expect(error.code).toBe('RESOURCE_LIMIT');
-      expect(error.kind).toBe('infra');
+      expect(error.kind).toBe(FailureKind.INFRA);
       expect(error.retryable).toBe(false);
       expect(error.details).toEqual({ limit: 10, current: 10 });
     });
@@ -133,7 +134,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Navigation timed out');
       expect(error.code).toBe('TIMEOUT');
-      expect(error.kind).toBe('timeout');
+      expect(error.kind).toBe(FailureKind.TIMEOUT);
       expect(error.retryable).toBe(true);
       expect(error.details).toEqual({ timeout: 30000 });
     });
@@ -145,7 +146,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Page load failed');
       expect(error.code).toBe('NAVIGATION_ERROR');
-      expect(error.kind).toBe('engine');
+      expect(error.kind).toBe(FailureKind.ENGINE);
       expect(error.retryable).toBe(true);
       expect(error.details).toEqual({ url: 'https://example.com' });
     });
@@ -157,7 +158,7 @@ describe('Errors', () => {
 
       expect(error.message).toBe('Invalid browser config');
       expect(error.code).toBe('CONFIGURATION_ERROR');
-      expect(error.kind).toBe('orchestration');
+      expect(error.kind).toBe(FailureKind.ORCHESTRATION);
       expect(error.retryable).toBe(false);
     });
   });
@@ -232,7 +233,7 @@ describe('Errors', () => {
 
         expect(result).toBeInstanceOf(InvalidInstructionError);
         expect(result.code).toBe('INVALID_INSTRUCTION');
-        expect(result.kind).toBe('orchestration');
+        expect(result.kind).toBe(FailureKind.ORCHESTRATION);
         expect(result.retryable).toBe(false);
         expect(result.message).toContain('selector');
       });

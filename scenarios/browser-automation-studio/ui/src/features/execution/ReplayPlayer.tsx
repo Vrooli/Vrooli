@@ -1836,14 +1836,13 @@ export function ReplayPlayer({
   const basePointerTransform = `translate(calc(-50% + ${pointerOffsetX}px), calc(-50% + ${pointerOffsetY}px))${
     pointerScale !== 1 ? ` scale(${pointerScale})` : ''
   }`;
+  const wrapperTransform = (cursorDecor.wrapperStyle as (CSSProperties & { transform?: string }) | undefined)?.transform;
   const pointerWrapperStyle =
     pointerStyle && isCursorEnabled
       ? {
           ...pointerStyle,
           ...cursorDecor.wrapperStyle,
-          transform: cursorDecor.wrapperStyle?.transform
-            ? `${basePointerTransform} ${cursorDecor.wrapperStyle.transform}`
-            : basePointerTransform,
+          transform: wrapperTransform ? `${basePointerTransform} ${wrapperTransform}` : basePointerTransform,
           transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
           transitionProperty: 'left, top, transform',
         }
@@ -1859,9 +1858,7 @@ export function ReplayPlayer({
     ? {
         ...ghostStyle,
         ...cursorDecor.wrapperStyle,
-        transform: cursorDecor.wrapperStyle?.transform
-          ? `${basePointerTransform} ${cursorDecor.wrapperStyle.transform}`
-          : basePointerTransform,
+        transform: wrapperTransform ? `${basePointerTransform} ${wrapperTransform}` : basePointerTransform,
         transformOrigin: cursorDecor.transformOrigin ?? '50% 50%',
         pointerEvents: 'none' as const,
         opacity: 0.45,

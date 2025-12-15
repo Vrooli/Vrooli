@@ -1,101 +1,122 @@
 {
-  "metadata": {
-    "description": "Validates locking and unlocking canvas to prevent/allow node interaction",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "find-lock-button",
-      "type": "assert",
-      "data": {
-        "label": "Lock button exists",
-        "selector": "@selector/toolbar.lockButton",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Lock button should exist in toolbar"
-      }
-    },
-    {
-      "id": "click-lock",
-      "type": "click",
-      "data": {
-        "label": "Click lock to lock canvas",
-        "selector": "@selector/toolbar.lockButton:not([data-dedupe=\"click\"])",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/toolbar.unlockButton",
-          "successTimeoutMs": 8000
-        }
-      }
-    },
-    {
-      "id": "click-unlock",
-      "type": "click",
-      "data": {
-        "label": "Click lock to unlock canvas",
-        "selector": "@selector/toolbar.unlockButton",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/toolbar.lockButton",
-          "successTimeoutMs": 8000
-        }
-      }
-    },
-    {
-      "id": "verify-toggle",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify lock toggle completed",
-        "expression": "true",
-        "storeResult": "lockToggleComplete"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-find-lock",
       "source": "call-open-demo-workflow",
       "target": "find-lock-button",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9-bridge-e10",
       "source": "click-lock",
       "target": "click-unlock",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7-bridge-e8",
       "source": "find-lock-button",
       "target": "click-lock",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11-bridge-e12",
       "source": "click-unlock",
       "target": "verify-toggle",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates locking and unlocking canvas to prevent/allow node interaction",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Lock button should exist in toolbar",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/toolbar.lockButton",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Lock button exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "find-lock-button"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.lockButton:not([data-dedupe=\"click\"])"
+        },
+        "metadata": {
+          "label": "Click lock to lock canvas"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/toolbar.unlockButton",
+          "success_timeout_ms": 8000
+        }
+      },
+      "id": "click-lock"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.unlockButton"
+        },
+        "metadata": {
+          "label": "Click lock to unlock canvas"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/toolbar.lockButton",
+          "success_timeout_ms": 8000
+        }
+      },
+      "id": "click-unlock"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "true",
+          "store_result": "lockToggleComplete"
+        },
+        "metadata": {
+          "label": "Verify lock toggle completed"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-toggle"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

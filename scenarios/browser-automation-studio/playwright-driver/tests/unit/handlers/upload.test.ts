@@ -1,21 +1,22 @@
 import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
-import { UploadHandler } from '../../../src/handlers/upload';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
 
-// Mock fs/promises to allow file access checks to pass in tests
-jest.mock('fs/promises', () => ({
-  access: jest.fn().mockResolvedValue(undefined),
-  constants: { R_OK: 4 },
-}));
-
 describe('UploadHandler', () => {
-  let handler: UploadHandler;
+  let UploadHandlerCtor: typeof import('../../../src/handlers/upload').UploadHandler;
+  let handler: InstanceType<typeof import('../../../src/handlers/upload').UploadHandler>;
   let mockPage: ReturnType<typeof createMockPage>;
   let context: HandlerContext;
 
-  beforeEach(() => {
-    handler = new UploadHandler();
+  beforeEach(async () => {
+    jest.resetModules();
+    (jest as any).unstable_mockModule('fs/promises', () => ({
+      access: jest.fn().mockResolvedValue(undefined),
+    }));
+
+    const mod = await import('../../../src/handlers/upload');
+    UploadHandlerCtor = mod.UploadHandler;
+    handler = new UploadHandlerCtor();
     mockPage = createMockPage();
     context = {
       page: mockPage,

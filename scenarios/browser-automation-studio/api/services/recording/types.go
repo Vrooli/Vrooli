@@ -170,15 +170,16 @@ func (f *recordingFrame) CursorTrailPoints() []autocontracts.CursorPosition {
 	points := []autocontracts.CursorPosition{}
 	for _, point := range f.CursorTrail {
 		if pt := point.toRuntimePoint(); pt != nil {
-			points = append(points, autocontracts.CursorPosition{Point: *pt})
+			points = append(points, autocontracts.CursorPosition{Point: pt})
 		}
 	}
 	for _, pathPoint := range f.Cursor.Path {
 		if len(pathPoint) != 2 {
 			continue
 		}
+		pt := &autocontracts.Point{X: pathPoint[0], Y: pathPoint[1]}
 		points = append(points, autocontracts.CursorPosition{
-			Point: autocontracts.Point{X: pathPoint[0], Y: pathPoint[1]},
+			Point: pt,
 		})
 	}
 	return points
@@ -246,30 +247,30 @@ func (r recordingRegions) normalise() recordingRegions {
 }
 
 // toContracts converts recording regions to contract highlight regions.
-func (r recordingRegions) toContracts() []autocontracts.HighlightRegion {
-	result := make([]autocontracts.HighlightRegion, 0, len(r))
+func (r recordingRegions) toContracts() []*autocontracts.HighlightRegion {
+	result := make([]*autocontracts.HighlightRegion, 0, len(r))
 	for _, region := range r {
-		runtimeRegion := autocontracts.HighlightRegion{Selector: region.Selector}
+		runtimeRegion := &autocontracts.HighlightRegion{Selector: region.Selector}
 		if region.BoundingBox != nil {
 			runtimeRegion.BoundingBox = region.BoundingBox.toContracts()
 		}
 		if region.Padding != 0 {
 			runtimeRegion.Padding = int32(region.Padding)
 		}
-		if region.Color != "" {
-			color := region.Color
-			runtimeRegion.CustomRgba = &color
-		}
+			if region.Color != "" {
+				color := region.Color
+				runtimeRegion.CustomRgba = &color
+			}
 		result = append(result, runtimeRegion)
 	}
 	return result
 }
 
 // toMaskContracts converts recording regions to contract mask regions.
-func (r recordingRegions) toMaskContracts() []autocontracts.MaskRegion {
-	result := make([]autocontracts.MaskRegion, 0, len(r))
+func (r recordingRegions) toMaskContracts() []*autocontracts.MaskRegion {
+	result := make([]*autocontracts.MaskRegion, 0, len(r))
 	for _, region := range r {
-		maskRegion := autocontracts.MaskRegion{Selector: region.Selector}
+		maskRegion := &autocontracts.MaskRegion{Selector: region.Selector}
 		if region.BoundingBox != nil {
 			maskRegion.BoundingBox = region.BoundingBox.toContracts()
 		}

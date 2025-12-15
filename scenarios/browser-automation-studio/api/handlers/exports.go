@@ -208,11 +208,11 @@ func (h *Handler) CreateExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	export := &database.Export{
+	export := &database.ExportIndex{
 		ExecutionID:   executionID,
 		Name:          req.Name,
 		Format:        strings.ToLower(req.Format),
-		Settings:      req.Settings,
+		Settings:      database.JSONMap(req.Settings),
 		StorageURL:    req.StorageURL,
 		ThumbnailURL:  req.ThumbnailURL,
 		FileSizeBytes: req.FileSizeBytes,
@@ -291,7 +291,7 @@ func (h *Handler) UpdateExport(w http.ResponseWriter, r *http.Request) {
 		export.Name = req.Name
 	}
 	if req.Settings != nil {
-		export.Settings = req.Settings
+		export.Settings = database.JSONMap(req.Settings)
 	}
 	if req.StorageURL != "" {
 		export.StorageURL = req.StorageURL
@@ -419,8 +419,8 @@ func (h *Handler) GenerateExportCaption(w http.ResponseWriter, r *http.Request) 
 	if export.WorkflowID != nil {
 		workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, *export.WorkflowID)
 		if wfErr == nil && workflow != nil {
-			workflowName = workflow.Name
-			workflowDescription = workflow.Description
+			workflowName = workflow.GetName()
+			workflowDescription = workflow.GetDescription()
 		}
 	}
 

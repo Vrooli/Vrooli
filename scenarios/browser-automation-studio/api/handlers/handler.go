@@ -2,13 +2,11 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -164,6 +162,15 @@ func InitDefaultDepsWithUXMetrics(repo database.Repository, wsHub *wsHub.Hub, lo
 		ArtifactRecorder: autoRecorder,
 		EventSinkFactory: eventSinkFactory,
 	})
+
+	// Ensure the demo project exists so file-first operations have a stable project root.
+	if workflowSvc != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if _, err := workflowSvc.EnsureSeedProject(ctx); err != nil && log != nil {
+			log.WithError(err).Warn("Failed to ensure seed project")
+		}
+		cancel()
+	}
 
 	// Create validator
 	validatorInstance, err := workflowvalidator.NewValidator()

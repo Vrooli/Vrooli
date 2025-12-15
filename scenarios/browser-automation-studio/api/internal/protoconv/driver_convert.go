@@ -110,23 +110,27 @@ func StepOutcomeToProto(outcome *autocontracts.StepOutcome) *basexecution.StepOu
 		pb.FocusedElement = outcome.FocusedElement
 	}
 
-	// Visual regions - convert slice of values to slice of pointers
-	for i := range outcome.HighlightRegions {
-		pb.HighlightRegions = append(pb.HighlightRegions, &outcome.HighlightRegions[i])
-	}
-	for i := range outcome.MaskRegions {
-		pb.MaskRegions = append(pb.MaskRegions, &outcome.MaskRegions[i])
-	}
+		// Visual regions (direct proto pointer types via aliases)
+		for _, region := range outcome.HighlightRegions {
+			if region != nil {
+				pb.HighlightRegions = append(pb.HighlightRegions, region)
+			}
+		}
+		for _, region := range outcome.MaskRegions {
+			if region != nil {
+				pb.MaskRegions = append(pb.MaskRegions, region)
+			}
+		}
 
 	// Zoom factor
 	if outcome.ZoomFactor > 0 {
 		pb.ZoomFactor = &outcome.ZoomFactor
 	}
 
-	// Cursor trail
-	for _, pos := range outcome.CursorTrail {
-		pb.CursorTrail = append(pb.CursorTrail, CursorPositionToProto(&pos))
-	}
+		// Cursor trail
+		for i := range outcome.CursorTrail {
+			pb.CursorTrail = append(pb.CursorTrail, CursorPositionToProto(&outcome.CursorTrail[i]))
+		}
 
 	// Notes
 	if len(outcome.Notes) > 0 {
@@ -229,17 +233,17 @@ func ProtoToStepOutcome(pb *basexecution.StepOutcome) *autocontracts.StepOutcome
 	outcome.ClickPosition = pb.ClickPosition
 	outcome.FocusedElement = pb.FocusedElement
 
-	// Visual regions - convert slice of pointers to slice of values
-	for _, region := range pb.HighlightRegions {
-		if region != nil {
-			outcome.HighlightRegions = append(outcome.HighlightRegions, *region)
+		// Visual regions (direct proto pointer types via aliases)
+		for _, region := range pb.HighlightRegions {
+			if region != nil {
+				outcome.HighlightRegions = append(outcome.HighlightRegions, region)
+			}
 		}
-	}
-	for _, region := range pb.MaskRegions {
-		if region != nil {
-			outcome.MaskRegions = append(outcome.MaskRegions, *region)
+		for _, region := range pb.MaskRegions {
+			if region != nil {
+				outcome.MaskRegions = append(outcome.MaskRegions, region)
+			}
 		}
-	}
 
 	// Zoom factor
 	if pb.ZoomFactor != nil {
@@ -646,8 +650,9 @@ func CursorPositionToProto(pos *autocontracts.CursorPosition) *basexecution.Curs
 		return nil
 	}
 
-	pb := &basexecution.CursorPosition{
-		Point: &pos.Point,
+	pb := &basexecution.CursorPosition{}
+	if pos.Point != nil {
+		pb.Point = pos.Point
 	}
 
 	if !pos.RecordedAt.IsZero() {
@@ -666,11 +671,7 @@ func ProtoToCursorPosition(pb *basexecution.CursorPosition) *autocontracts.Curso
 		return nil
 	}
 
-	pos := &autocontracts.CursorPosition{}
-
-	if pb.Point != nil {
-		pos.Point = *pb.Point
-	}
+	pos := &autocontracts.CursorPosition{Point: pb.Point}
 	if pb.RecordedAt != nil {
 		pos.RecordedAt = pb.RecordedAt.AsTime()
 	}

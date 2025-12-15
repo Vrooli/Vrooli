@@ -88,6 +88,33 @@ CREATE INDEX IF NOT EXISTS idx_schedules_active ON schedules(is_active);
 CREATE INDEX IF NOT EXISTS idx_schedules_next_run ON schedules(next_run_at);
 
 -- ============================================================================
+-- EXPORTS: Metadata for exported artifacts (replays, videos, etc.)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS exports (
+    id TEXT PRIMARY KEY,
+    execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    workflow_id TEXT REFERENCES workflows(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    format TEXT NOT NULL,
+    settings TEXT DEFAULT '{}',
+    storage_url TEXT,
+    thumbnail_url TEXT,
+    file_size_bytes INTEGER,
+    duration_ms INTEGER,
+    frame_count INTEGER,
+    ai_caption TEXT,
+    ai_caption_generated_at TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'pending',
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_exports_execution_id ON exports(execution_id);
+CREATE INDEX IF NOT EXISTS idx_exports_workflow_id ON exports(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_exports_created_at ON exports(created_at DESC);
+
+-- ============================================================================
 -- SETTINGS: Key-value store for user preferences
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS settings (
@@ -95,3 +122,46 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================================================
+-- TRIGGERS: Auto-update updated_at timestamps
+-- ============================================================================
+CREATE TRIGGER IF NOT EXISTS update_projects_updated_at
+    AFTER UPDATE ON projects
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_workflows_updated_at
+    AFTER UPDATE ON workflows
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE workflows SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_executions_updated_at
+    AFTER UPDATE ON executions
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE executions SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_schedules_updated_at
+    AFTER UPDATE ON schedules
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE schedules SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_exports_updated_at
+    AFTER UPDATE ON exports
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE exports SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+END;

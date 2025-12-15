@@ -1,118 +1,144 @@
 {
-  "metadata": {
-    "description": "Validates zoom out button decreases canvas zoom level",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "click-zoom-in-twice",
-      "type": "click",
-      "data": {
-        "label": "Zoom in twice first",
-        "selector": "@selector/toolbar.zoomInButton",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/workflowBuilder.canvas.root",
-          "successTimeoutMs": 8000
-        }
-      }
-    },
-    {
-      "id": "click-zoom-in-again",
-      "type": "click",
-      "data": {
-        "label": "Zoom in again",
-        "selector": "@selector/toolbar.zoomInButton /*dup-1*/",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/workflowBuilder.canvas.root",
-          "successTimeoutMs": 8000
-        }
-      }
-    },
-    {
-      "id": "get-zoomed-in-level",
-      "type": "evaluate",
-      "data": {
-        "label": "Get zoomed in level",
-        "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
-        "storeResult": "zoomedInLevel"
-      }
-    },
-    {
-      "id": "click-zoom-out",
-      "type": "click",
-      "data": {
-        "label": "Click zoom out button",
-        "selector": "@selector/toolbar.zoomOutButton",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/workflowBuilder.canvas.root",
-          "successTimeoutMs": 8000
-        }
-      }
-    },
-    {
-      "id": "get-zoomed-out-level",
-      "type": "evaluate",
-      "data": {
-        "label": "Get zoom out level",
-        "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
-        "storeResult": "zoomedOutLevel"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-zoom-in",
       "source": "call-open-demo-workflow",
       "target": "click-zoom-in-twice",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "click-zoom-in-twice",
       "target": "click-zoom-in-again",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-zoom-in-again",
       "target": "get-zoomed-in-level",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "get-zoomed-in-level",
       "target": "click-zoom-out",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "click-zoom-out",
       "target": "get-zoomed-out-level",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates zoom out button decreases canvas zoom level",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.zoomInButton"
+        },
+        "metadata": {
+          "label": "Zoom in twice first"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 8000
+        }
+      },
+      "id": "click-zoom-in-twice"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.zoomInButton /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Zoom in again"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 8000
+        }
+      },
+      "id": "click-zoom-in-again"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "store_result": "zoomedInLevel"
+        },
+        "metadata": {
+          "label": "Get zoomed in level"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-zoomed-in-level"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.zoomOutButton"
+        },
+        "metadata": {
+          "label": "Click zoom out button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/workflowBuilder.canvas.root",
+          "success_timeout_ms": 8000
+        }
+      },
+      "id": "click-zoom-out"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+          "store_result": "zoomedOutLevel"
+        },
+        "metadata": {
+          "label": "Get zoom out level"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "get-zoomed-out-level"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

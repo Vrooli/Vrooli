@@ -2,22 +2,42 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
-	"path"
+	"io/fs"
 	"path/filepath"
-	"reflect"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ProjectFileTreeResponse struct {
-	Entries []*database.ProjectEntry `json:"entries"`
+	Entries []*ProjectEntry `json:"entries"`
+}
+
+type ProjectEntryKind string
+
+const (
+	ProjectEntryKindFolder       ProjectEntryKind = "folder"
+	ProjectEntryKindWorkflowFile ProjectEntryKind = "workflow_file"
+	ProjectEntryKindAssetFile    ProjectEntryKind = "asset_file"
+)
+
+type ProjectEntry struct {
+	ID        string                 `json:"id"`
+	ProjectID string                 `json:"project_id"`
+	Path      string                 `json:"path"`
+	Kind      ProjectEntryKind       `json:"kind"`
+	WorkflowID *string               `json:"workflow_id,omitempty"`
+	Metadata  map[string]any         `json:"metadata,omitempty"`
 }
 
 type MkdirProjectPathRequest struct {
@@ -30,30 +50,13 @@ type WriteProjectWorkflowFileRequest struct {
 }
 
 type ProjectWorkflowFileWrite struct {
-	ID              *uuid.UUID     `json:"id,omitempty"`
-	Name            string         `json:"name"`
-	Type            string         `json:"type"`
-	Description     string         `json:"description,omitempty"`
-	Tags            []string       `json:"tags,omitempty"`
-	Inputs          map[string]any `json:"inputs,omitempty"`
-	Outputs         map[string]any `json:"outputs,omitempty"`
-	ExpectedOutcome map[string]any `json:"expectedOutcome,omitempty"`
-	Metadata        map[string]any `json:"metadata,omitempty"`
-	FlowDefinition  map[string]any `json:"flow_definition"`
-}
-
-type ProjectWorkflowFileOnDisk struct {
-	Version         string         `json:"version"`
-	ID              string         `json:"id"`
-	Name            string         `json:"name"`
-	Type            string         `json:"type"`
-	Description     string         `json:"description,omitempty"`
-	Tags            []string       `json:"tags,omitempty"`
-	Inputs          map[string]any `json:"inputs,omitempty"`
-	Outputs         map[string]any `json:"outputs,omitempty"`
-	ExpectedOutcome map[string]any `json:"expectedOutcome,omitempty"`
-	Metadata        map[string]any `json:"metadata,omitempty"`
-	FlowDefinition  map[string]any `json:"flow_definition"`
+	Name           string         `json:"name"`
+	Type           string         `json:"type,omitempty"`
+	Description    string         `json:"description,omitempty"`
+	Tags           []string       `json:"tags,omitempty"`
+	FlowDefinition map[string]any `json:"flow_definition"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
+	Settings       map[string]any `json:"settings,omitempty"`
 }
 
 type MoveProjectFileRequest struct {
@@ -73,99 +76,19 @@ type ResyncProjectFilesResponse struct {
 	AssetsIndexed    int    `json:"assets_indexed"`
 }
 
-func flowDefinitionHasAssertNode(definition map[string]any) bool {
-	if definition == nil {
-		return false
-	}
-	nodesAny, ok := definition["nodes"]
-	if !ok || nodesAny == nil {
-		return false
-	}
-	nodes, ok := nodesAny.([]any)
-	if !ok {
-		return false
-	}
-	for _, nodeAny := range nodes {
-		node, ok := nodeAny.(map[string]any)
-		if !ok {
-			continue
-		}
-		typAny, ok := node["type"]
-		if !ok {
-			continue
-		}
-		typ, ok := typAny.(string)
-		if !ok {
-			continue
-		}
-		if strings.EqualFold(strings.TrimSpace(typ), "assert") {
-			return true
-		}
-	}
-	return false
-}
-
-func jsonMapIsNonEmpty(m map[string]any) bool {
-	if m == nil {
-		return false
-	}
-	return len(m) > 0
-}
-
-func indexProjectFolderPath(ctx context.Context, repo database.Repository, projectID uuid.UUID, relPath string) error {
-	relPath, ok := normalizeProjectRelPath(relPath)
-	if !ok {
-		return errors.New("invalid folder path")
-	}
-	segments := strings.Split(relPath, "/")
-	for idx := range segments {
-		folder := strings.Join(segments[:idx+1], "/")
-		entry := &database.ProjectEntry{
-			ProjectID: projectID,
-			Path:      folder,
-			Kind:      database.ProjectEntryKindFolder,
-			Metadata:  database.JSONMap{},
-		}
-		if err := repo.UpsertProjectEntry(ctx, entry); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func normalizeProjectRelPath(raw string) (string, bool) {
 	raw = strings.TrimSpace(raw)
 	raw = strings.ReplaceAll(raw, "\\", "/")
 	raw = strings.TrimPrefix(raw, "/")
 	raw = strings.TrimSuffix(raw, "/")
-	if raw == "" {
+	if raw == "" || raw == "." {
 		return "", false
 	}
-
-	parts := strings.Split(raw, "/")
-	clean := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" || part == "." || part == ".." {
-			return "", false
-		}
-		clean = append(clean, part)
-	}
-
-	return strings.Join(clean, "/"), true
-}
-
-func workflowTypeFromFilename(filename string) (string, bool) {
-	switch {
-	case strings.HasSuffix(filename, ".action.json"):
-		return "action", true
-	case strings.HasSuffix(filename, ".flow.json"):
-		return "flow", true
-	case strings.HasSuffix(filename, ".case.json"):
-		return "case", true
-	default:
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(raw)))
+	if clean == "." || strings.HasPrefix(clean, "..") || filepath.IsAbs(clean) {
 		return "", false
 	}
+	return clean, true
 }
 
 func safeJoinProjectPath(projectRoot string, relPath string) (string, error) {
@@ -187,25 +110,25 @@ func safeJoinProjectPath(projectRoot string, relPath string) (string, error) {
 	return abs, nil
 }
 
-func ensureProjectFoldersIndexed(ctx context.Context, repo database.Repository, projectID uuid.UUID, relPath string) error {
-	dir := path.Dir(relPath)
-	if dir == "." {
-		return nil
+func workflowsDir(project *database.ProjectIndex) string {
+	if project == nil {
+		return "workflows"
 	}
-	segments := strings.Split(dir, "/")
-	for idx := range segments {
-		folder := strings.Join(segments[:idx+1], "/")
-		entry := &database.ProjectEntry{
-			ProjectID: projectID,
-			Path:      folder,
-			Kind:      database.ProjectEntryKindFolder,
-			Metadata:  database.JSONMap{},
-		}
-		if err := repo.UpsertProjectEntry(ctx, entry); err != nil {
-			return err
-		}
+	root := strings.TrimSpace(project.FolderPath)
+	if root == "" {
+		return "workflows"
 	}
-	return nil
+	return filepath.Join(root, "workflows")
+}
+
+func workflowFolderPathFromRelPath(relPath string) string {
+	relPath = filepath.ToSlash(relPath)
+	relPath = strings.TrimPrefix(relPath, "workflows/")
+	dir := filepath.ToSlash(filepath.Dir(filepath.FromSlash(relPath)))
+	if dir == "." || dir == "" {
+		return "/"
+	}
+	return "/" + strings.TrimPrefix(dir, "/")
 }
 
 func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
@@ -217,7 +140,7 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	_, err := h.repo.GetProject(ctx, projectID)
+	project, err := h.repo.GetProject(ctx, projectID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrProjectNotFound)
@@ -227,15 +150,118 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entries, err := h.repo.ListProjectEntries(ctx, projectID)
-	if err != nil {
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_project_entries"}))
+	// Ensure DB index reflects filesystem edits.
+	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
+
+	workflows, err := h.repo.ListWorkflowsByProject(ctx, projectID, 10000, 0)
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows_by_project"}))
 		return
 	}
+
+	entries := make([]*ProjectEntry, 0, len(workflows)+4)
+
+	folders := map[string]struct{}{
+		"workflows": {},
+	}
+	for _, wf := range workflows {
+		if wf == nil {
+			continue
+		}
+		filePath := filepath.ToSlash(strings.TrimPrefix(strings.TrimSpace(wf.FilePath), "/"))
+		fullRel := filepath.ToSlash(filepath.Join("workflows", filepath.FromSlash(filePath)))
+		idStr := wf.ID.String()
+		entries = append(entries, &ProjectEntry{
+			ID:         "wf:" + idStr,
+			ProjectID:  projectID.String(),
+			Path:       fullRel,
+			Kind:       ProjectEntryKindWorkflowFile,
+			WorkflowID: &idStr,
+			Metadata: map[string]any{
+				"folder_path": wf.FolderPath,
+				"version":     wf.Version,
+			},
+		})
+
+		dir := filepath.ToSlash(filepath.Dir(filepath.FromSlash(fullRel)))
+		for dir != "." && dir != "" && dir != "/" {
+			folders[dir] = struct{}{}
+			next := filepath.ToSlash(filepath.Dir(filepath.FromSlash(dir)))
+			if next == dir {
+				break
+			}
+			dir = next
+		}
+	}
+
+	// Optional: include assets directory if present.
+	assetsRoot := filepath.Join(project.FolderPath, "assets")
+	if info, statErr := os.Stat(assetsRoot); statErr == nil && info.IsDir() {
+		folders["assets"] = struct{}{}
+		_ = filepath.WalkDir(assetsRoot, func(abs string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				rel, relErr := filepath.Rel(project.FolderPath, abs)
+				if relErr == nil {
+					rel = filepath.ToSlash(rel)
+					if rel != "." && rel != "" {
+						folders[rel] = struct{}{}
+					}
+				}
+				return nil
+			}
+			rel, relErr := filepath.Rel(project.FolderPath, abs)
+			if relErr != nil {
+				return nil
+			}
+			rel = filepath.ToSlash(rel)
+			stat, statErr := os.Stat(abs)
+			if statErr != nil {
+				return nil
+			}
+			entries = append(entries, &ProjectEntry{
+				ID:        "asset:" + rel,
+				ProjectID: projectID.String(),
+				Path:      rel,
+				Kind:      ProjectEntryKindAssetFile,
+				Metadata: map[string]any{
+					"sizeBytes": stat.Size(),
+				},
+			})
+			return nil
+		})
+	}
+
+	folderList := make([]string, 0, len(folders))
+	for folder := range folders {
+		folderList = append(folderList, folder)
+	}
+	sort.Strings(folderList)
+	for _, folder := range folderList {
+		entries = append(entries, &ProjectEntry{
+			ID:        "folder:" + folder,
+			ProjectID: projectID.String(),
+			Path:      folder,
+			Kind:      ProjectEntryKindFolder,
+		})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Kind != entries[j].Kind {
+			return entries[i].Kind < entries[j].Kind
+		}
+		return entries[i].Path < entries[j].Path
+	})
+
+	_ = os.MkdirAll(workflowsDir(project), 0o755)
 
 	h.respondSuccess(w, http.StatusOK, ProjectFileTreeResponse{Entries: entries})
 }
 
+// ReadProjectFile handles GET /api/v1/projects/{id}/files/read?path=workflows/...
+// Returns the canonical protojson workflow summary when the file is a workflow file.
 func (h *Handler) ReadProjectFile(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
 	if !ok {
@@ -251,7 +277,7 @@ func (h *Handler) ReadProjectFile(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	_, err := h.repo.GetProject(ctx, projectID)
+	project, err := h.repo.GetProject(ctx, projectID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			h.respondError(w, ErrProjectNotFound)
@@ -261,46 +287,28 @@ func (h *Handler) ReadProjectFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.repo.GetProjectEntry(ctx, projectID, relPath)
+	abs, joinErr := safeJoinProjectPath(project.FolderPath, relPath)
+	if joinErr != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": joinErr.Error()}))
+		return
+	}
+
+	if !strings.HasPrefix(filepath.ToSlash(relPath), "workflows/") {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "only workflow files are readable"}))
+		return
+	}
+
+	snapshot, err := workflowservice.ReadWorkflowSummaryFile(ctx, project, abs)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			h.respondError(w, ErrProjectFileNotFound)
-			return
-		}
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_entry"}))
+		h.respondError(w, ErrProjectFileNotFound)
+		return
+	}
+	if snapshot.Workflow == nil {
+		h.respondError(w, ErrProjectFileNotFound)
 		return
 	}
 
-	if entry.Kind != database.ProjectEntryKindWorkflowFile || entry.WorkflowID == nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "only workflow files are readable in v1"}))
-		return
-	}
-
-	workflow, err := h.repo.GetWorkflow(ctx, *entry.WorkflowID)
-	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			h.respondError(w, ErrWorkflowNotFound)
-			return
-		}
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_workflow"}))
-		return
-	}
-
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"path": relPath,
-		"workflow": map[string]any{
-			"id":              workflow.ID,
-			"name":            workflow.Name,
-			"type":            workflow.WorkflowType,
-			"description":     workflow.Description,
-			"tags":            workflow.Tags,
-			"inputs":          workflow.Inputs,
-			"outputs":         workflow.Outputs,
-			"expectedOutcome": workflow.ExpectedOutcome,
-			"metadata":        workflow.WorkflowMetadata,
-			"flow_definition": workflow.FlowDefinition,
-		},
-	})
+	h.respondProto(w, http.StatusOK, snapshot.Workflow)
 }
 
 func (h *Handler) MkdirProjectPath(w http.ResponseWriter, r *http.Request) {
@@ -314,7 +322,6 @@ func (h *Handler) MkdirProjectPath(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest)
 		return
 	}
-
 	relPath, ok := normalizeProjectRelPath(req.Path)
 	if !ok {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid path"}))
@@ -334,24 +341,22 @@ func (h *Handler) MkdirProjectPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	absPath, joinErr := safeJoinProjectPath(project.FolderPath, relPath)
+	abs, joinErr := safeJoinProjectPath(project.FolderPath, relPath)
 	if joinErr != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": joinErr.Error()}))
 		return
 	}
-	if err := os.MkdirAll(absPath, 0o755); err != nil {
+
+	if err := os.MkdirAll(abs, 0o755); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "mkdir_project_path"}))
 		return
 	}
 
-	if err := indexProjectFolderPath(ctx, h.repo, projectID, relPath); err != nil {
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "upsert_project_entry"}))
-		return
-	}
-
-	h.respondSuccess(w, http.StatusCreated, map[string]any{"path": relPath})
+	h.respondSuccess(w, http.StatusOK, map[string]any{"path": relPath, "status": "created"})
 }
 
+// WriteProjectWorkflowFile handles POST /api/v1/projects/{id}/files/write.
+// This endpoint is proto-first: it persists a WorkflowSummary protojson file and syncs the DB index.
 func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
 	if !ok {
@@ -369,39 +374,12 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid path"}))
 		return
 	}
-
-	typeFromExt, ok := workflowTypeFromFilename(relPath)
-	if !ok {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "workflow files must end with .action.json, .flow.json, or .case.json"}))
+	if !strings.HasPrefix(filepath.ToSlash(relPath), "workflows/") {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "path must be under workflows/"}))
 		return
 	}
-	if strings.TrimSpace(req.Workflow.Type) == "" {
-		req.Workflow.Type = typeFromExt
-	}
-	if req.Workflow.Type != typeFromExt {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "workflow type does not match file extension"}))
-		return
-	}
-	if strings.TrimSpace(req.Workflow.Name) == "" {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "workflow.name"}))
-		return
-	}
-	if req.Workflow.FlowDefinition == nil {
-		req.Workflow.FlowDefinition = map[string]any{"nodes": []any{}, "edges": []any{}}
-	}
-
-	// Validate workflow definition when non-empty (allow empty as a starting point).
-	hasNodes := len(req.Workflow.FlowDefinition) > 0
-	if nodes, ok := req.Workflow.FlowDefinition["nodes"].([]any); ok {
-		hasNodes = len(nodes) > 0
-	}
-	if hasNodes && !h.validateWorkflowDefinition(w, r, req.Workflow.FlowDefinition, false) {
-		return
-	}
-
-	hasAssert := flowDefinitionHasAssertNode(req.Workflow.FlowDefinition)
-	if req.Workflow.Type == "case" && hasNodes && !hasAssert && !jsonMapIsNonEmpty(req.Workflow.ExpectedOutcome) {
-		h.respondError(w, ErrCaseExpectationMissing)
+	if !strings.HasSuffix(strings.ToLower(filepath.Base(filepath.FromSlash(relPath))), ".workflow.json") {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "workflow files must end with .workflow.json"}))
 		return
 	}
 
@@ -418,122 +396,77 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var workflowID uuid.UUID
-	entry, entryErr := h.repo.GetProjectEntry(ctx, projectID, relPath)
-	if entryErr == nil && entry.WorkflowID != nil {
-		workflowID = *entry.WorkflowID
-	} else if req.Workflow.ID != nil && *req.Workflow.ID != uuid.Nil {
-		workflowID = *req.Workflow.ID
-	} else {
-		workflowID = uuid.New()
+	folderPath := workflowFolderPathFromRelPath(relPath)
+	name := strings.TrimSpace(req.Workflow.Name)
+	if name == "" {
+		base := filepath.Base(filepath.FromSlash(relPath))
+		name = strings.TrimSuffix(base, ".workflow.json")
+		if name == "" {
+			name = "workflow"
+		}
 	}
 
-	if err := ensureProjectFoldersIndexed(ctx, h.repo, projectID, relPath); err != nil {
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "ensure_project_folders"}))
+	flow := req.Workflow.FlowDefinition
+	nodesAny, _ := flow["nodes"]
+	edgesAny, _ := flow["edges"]
+	nodes := workflowservice.ToInterfaceSlice(nodesAny)
+	edges := workflowservice.ToInterfaceSlice(edgesAny)
+	payload := map[string]any{
+		"flow_definition": flow,
+		"metadata":        req.Workflow.Metadata,
+		"settings":        req.Workflow.Settings,
+	}
+	def, convErr := workflowservice.V1NodesEdgesToV2Definition(nodes, edges, payload)
+	if convErr != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": convErr.Error()}))
 		return
 	}
 
-	folder := "/"
-	dir := path.Dir(relPath)
-	if dir != "." {
-		folder = "/" + dir
-	}
-
-	flow := database.JSONMap(req.Workflow.FlowDefinition)
-	inputs := database.JSONMap(req.Workflow.Inputs)
-	outputs := database.JSONMap(req.Workflow.Outputs)
-	expected := database.JSONMap(req.Workflow.ExpectedOutcome)
-	meta := database.JSONMap(req.Workflow.Metadata)
-
-	wf := &database.Workflow{
-		ID:               workflowID,
-		ProjectID:        &projectID,
-		Name:             req.Workflow.Name,
-		FolderPath:       folder,
-		WorkflowType:     req.Workflow.Type,
-		FlowDefinition:   flow,
-		Inputs:           inputs,
-		Outputs:          outputs,
-		ExpectedOutcome:  expected,
-		WorkflowMetadata: meta,
-		Description:      req.Workflow.Description,
-		Tags:             database.StringArray(req.Workflow.Tags),
-		LastChangeSource: "project_files_api",
-	}
-
-	absFilePath, joinErr := safeJoinProjectPath(project.FolderPath, relPath)
-	if joinErr != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": joinErr.Error()}))
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(absFilePath), 0o755); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "mkdir_project_file_dir"}))
+	preferredRel := strings.TrimPrefix(filepath.ToSlash(relPath), "workflows/")
+	if _, statErr := os.Stat(filepath.Join(workflowsDir(project), filepath.FromSlash(preferredRel))); statErr == nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "file already exists"}))
 		return
 	}
 
-	onDisk := ProjectWorkflowFileOnDisk{
-		Version:         "v1",
-		ID:              workflowID.String(),
-		Name:            wf.Name,
-		Type:            wf.WorkflowType,
-		Description:     wf.Description,
-		Tags:            req.Workflow.Tags,
-		Inputs:          req.Workflow.Inputs,
-		Outputs:         req.Workflow.Outputs,
-		ExpectedOutcome: req.Workflow.ExpectedOutcome,
-		Metadata:        req.Workflow.Metadata,
-		FlowDefinition:  req.Workflow.FlowDefinition,
+	now := timestamppb.New(time.Now().UTC())
+	workflowID := uuid.New()
+	summary := &basapi.WorkflowSummary{
+		Id:          workflowID.String(),
+		ProjectId:   projectID.String(),
+		Name:        name,
+		FolderPath:  folderPath,
+		Description: strings.TrimSpace(req.Workflow.Description),
+		Tags:        append([]string(nil), req.Workflow.Tags...),
+		Version:     1,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		FlowDefinition: def,
 	}
-	encoded, err := json.MarshalIndent(onDisk, "", "  ")
-	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "marshal_workflow_file"}))
-		return
-	}
-	encoded = append(encoded, '\n')
-	if err := os.WriteFile(absFilePath, encoded, 0o644); err != nil {
+
+	if _, _, err := workflowservice.WriteWorkflowSummaryFile(project, summary, preferredRel); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "write_workflow_file"}))
 		return
 	}
 
-	if entryErr == nil && entry.WorkflowID != nil {
-		if existing, err := h.repo.GetWorkflow(ctx, workflowID); err == nil && existing != nil {
-			wf.Version = existing.Version + 1
-		}
-		if err := h.repo.UpdateWorkflow(ctx, wf); err != nil {
-			h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_workflow"}))
-			return
-		}
-	} else {
-		if err := h.repo.CreateWorkflow(ctx, wf); err != nil {
-			h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_workflow"}))
-			return
-		}
+	index := &database.WorkflowIndex{
+		ID:         workflowID,
+		ProjectID:  &projectID,
+		Name:       name,
+		FolderPath: folderPath,
+		FilePath:   preferredRel,
+		Version:    1,
 	}
-
-	entryMeta := database.JSONMap{
-		"workflowType": wf.WorkflowType,
-	}
-	entry = &database.ProjectEntry{
-		ProjectID:  projectID,
-		Path:       relPath,
-		Kind:       database.ProjectEntryKindWorkflowFile,
-		WorkflowID: &workflowID,
-		Metadata:   entryMeta,
-	}
-	if err := h.repo.UpsertProjectEntry(ctx, entry); err != nil {
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "upsert_project_entry"}))
+	if err := h.repo.CreateWorkflow(ctx, index); err != nil {
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "create_workflow_index"}))
 		return
 	}
 
-	warnings := make([]string, 0, 1)
-	if (wf.WorkflowType == "action" || wf.WorkflowType == "flow") && hasNodes && hasAssert {
-		warnings = append(warnings, "This workflow has Assert nodes; it is usually stored as a Case.")
-	}
+	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"path":       relPath,
 		"workflowId": workflowID.String(),
-		"warnings":   warnings,
+		"warnings":   []string{},
 	})
 }
 
@@ -573,31 +506,17 @@ func (h *Handler) MoveProjectFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := ensureProjectFoldersIndexed(ctx, h.repo, projectID, toPath); err != nil {
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "ensure_project_folders"}))
-		return
-	}
-
-	entry, err := h.repo.GetProjectEntry(ctx, projectID, fromPath)
+	fromAbs, err := safeJoinProjectPath(project.FolderPath, fromPath)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			h.respondError(w, ErrProjectFileNotFound)
-			return
-		}
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_entry"}))
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
+	toAbs, err := safeJoinProjectPath(project.FolderPath, toPath)
+	if err != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
 
-	fromAbs, joinErr := safeJoinProjectPath(project.FolderPath, fromPath)
-	if joinErr != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": joinErr.Error()}))
-		return
-	}
-	toAbs, joinErr := safeJoinProjectPath(project.FolderPath, toPath)
-	if joinErr != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": joinErr.Error()}))
-		return
-	}
 	if err := os.MkdirAll(filepath.Dir(toAbs), 0o755); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "mkdir_project_move_dir"}))
 		return
@@ -607,91 +526,8 @@ func (h *Handler) MoveProjectFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if entry.Kind == database.ProjectEntryKindFolder {
-		entries, err := h.repo.ListProjectEntries(ctx, projectID)
-		if err != nil {
-			h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_project_entries"}))
-			return
-		}
-		candidates := make([]*database.ProjectEntry, 0)
-		prefix := fromPath + "/"
-		for _, e := range entries {
-			if e.Path == fromPath || strings.HasPrefix(e.Path, prefix) {
-				candidates = append(candidates, e)
-			}
-		}
-		for _, e := range candidates {
-			if err := h.repo.DeleteProjectEntry(ctx, projectID, e.Path); err != nil {
-				h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project_entry"}))
-				return
-			}
-		}
-		for _, e := range candidates {
-			oldPath := e.Path
-			suffix := strings.TrimPrefix(oldPath, fromPath)
-			if suffix != "" && strings.HasPrefix(suffix, "/") {
-				suffix = strings.TrimPrefix(suffix, "/")
-			}
-			newPath := toPath
-			if suffix != "" {
-				newPath = toPath + "/" + suffix
-			}
-			e.Path = newPath
-			if err := h.repo.UpsertProjectEntry(ctx, e); err != nil {
-				h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "upsert_project_entry"}))
-				return
-			}
-			if e.Kind == database.ProjectEntryKindWorkflowFile && e.WorkflowID != nil {
-				if wf, err := h.repo.GetWorkflow(ctx, *e.WorkflowID); err == nil && wf != nil {
-					dir := path.Dir(newPath)
-					folder := "/"
-					if dir != "." {
-						folder = "/" + dir
-					}
-					wf.FolderPath = folder
-					wf.Version++
-					wf.LastChangeSource = "project_files_api"
-					if err := h.repo.UpdateWorkflow(ctx, wf); err != nil {
-						h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_workflow"}))
-						return
-					}
-				}
-			}
-		}
-	} else {
-		if err := h.repo.DeleteProjectEntry(ctx, projectID, fromPath); err != nil {
-			h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project_entry"}))
-			return
-		}
-
-		entry.Path = toPath
-		if err := h.repo.UpsertProjectEntry(ctx, entry); err != nil {
-			h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "upsert_project_entry"}))
-			return
-		}
-
-		if entry.Kind == database.ProjectEntryKindWorkflowFile && entry.WorkflowID != nil {
-			if wf, err := h.repo.GetWorkflow(ctx, *entry.WorkflowID); err == nil && wf != nil {
-				dir := path.Dir(toPath)
-				folder := "/"
-				if dir != "." {
-					folder = "/" + dir
-				}
-				wf.FolderPath = folder
-				wf.Version++
-				wf.LastChangeSource = "project_files_api"
-				if err := h.repo.UpdateWorkflow(ctx, wf); err != nil {
-					h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "update_workflow"}))
-					return
-				}
-			}
-		}
-	}
-
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"from_path": fromPath,
-		"to_path":   toPath,
-	})
+	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
+	h.respondSuccess(w, http.StatusOK, map[string]any{"status": "moved"})
 }
 
 func (h *Handler) DeleteProjectFile(w http.ResponseWriter, r *http.Request) {
@@ -725,61 +561,19 @@ func (h *Handler) DeleteProjectFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.repo.GetProjectEntry(ctx, projectID, relPath)
+	abs, err := safeJoinProjectPath(project.FolderPath, relPath)
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
-			h.respondError(w, ErrProjectFileNotFound)
-			return
-		}
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_entry"}))
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
 
-	absPath, joinErr := safeJoinProjectPath(project.FolderPath, relPath)
-	if joinErr != nil {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": joinErr.Error()}))
-		return
-	}
-	if err := os.RemoveAll(absPath); err != nil {
+	if err := os.RemoveAll(abs); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "delete_project_file"}))
 		return
 	}
 
-	if entry.Kind == database.ProjectEntryKindFolder {
-		entries, err := h.repo.ListProjectEntries(ctx, projectID)
-		if err != nil {
-			h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_project_entries"}))
-			return
-		}
-		prefix := relPath + "/"
-		for _, e := range entries {
-			if e.Path != relPath && !strings.HasPrefix(e.Path, prefix) {
-				continue
-			}
-			if err := h.repo.DeleteProjectEntry(ctx, projectID, e.Path); err != nil {
-				h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project_entry"}))
-				return
-			}
-			if e.Kind == database.ProjectEntryKindWorkflowFile && e.WorkflowID != nil {
-				_ = h.repo.DeleteWorkflow(ctx, *e.WorkflowID)
-			}
-		}
-	} else {
-		if err := h.repo.DeleteProjectEntry(ctx, projectID, relPath); err != nil {
-			h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project_entry"}))
-			return
-		}
-
-		if entry.Kind == database.ProjectEntryKindWorkflowFile && entry.WorkflowID != nil {
-			_ = h.repo.DeleteWorkflow(ctx, *entry.WorkflowID)
-		}
-	}
-
-	h.respondSuccess(w, http.StatusOK, map[string]any{
-		"path":    relPath,
-		"kind":    entry.Kind,
-		"deleted": true,
-	})
+	_ = h.workflowCatalog.SyncProjectWorkflows(ctx, projectID)
+	h.respondSuccess(w, http.StatusOK, map[string]any{"status": "deleted"})
 }
 
 func (h *Handler) ResyncProjectFiles(w http.ResponseWriter, r *http.Request) {
@@ -801,210 +595,32 @@ func (h *Handler) ResyncProjectFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.MkdirAll(project.FolderPath, 0o755); err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "ensure_project_root"}))
+	if err := h.workflowCatalog.SyncProjectWorkflows(ctx, projectID); err != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "sync_project_workflows"}))
 		return
 	}
 
-	if err := h.repo.DeleteProjectEntries(ctx, projectID); err != nil {
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_project_entries"}))
-		return
-	}
-
-	var entriesIndexed, workflowsIndexed, assetsIndexed int
-
-	walkErr := filepath.WalkDir(project.FolderPath, func(abs string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if abs == project.FolderPath {
-			return nil
-		}
-		rel, err := filepath.Rel(project.FolderPath, abs)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		rel = strings.TrimPrefix(rel, "./")
-		if rel == "" || rel == "." {
-			return nil
-		}
-
-		if d.IsDir() {
-			entry := &database.ProjectEntry{
-				ProjectID: projectID,
-				Path:      rel,
-				Kind:      database.ProjectEntryKindFolder,
-				Metadata:  database.JSONMap{},
-			}
-			if err := h.repo.UpsertProjectEntry(ctx, entry); err != nil {
-				return err
-			}
-			entriesIndexed++
-			return nil
-		}
-
-		if err := ensureProjectFoldersIndexed(ctx, h.repo, projectID, rel); err != nil {
-			return err
-		}
-
-		if wfType, ok := workflowTypeFromFilename(rel); ok {
-			raw, err := os.ReadFile(abs)
+	workflows, _ := h.repo.ListWorkflowsByProject(ctx, projectID, 10000, 0)
+	assetsIndexed := 0
+	assetsRoot := filepath.Join(project.FolderPath, "assets")
+	if info, statErr := os.Stat(assetsRoot); statErr == nil && info.IsDir() {
+		_ = filepath.WalkDir(assetsRoot, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
-				return err
-			}
-			var wfFile ProjectWorkflowFileOnDisk
-			if err := json.Unmarshal(raw, &wfFile); err != nil {
-				// Not valid workflow JSON; index as asset.
-				info, statErr := os.Stat(abs)
-				if statErr != nil {
-					return statErr
-				}
-				meta := database.JSONMap{"sizeBytes": info.Size(), "error": "invalid workflow json"}
-				entry := &database.ProjectEntry{ProjectID: projectID, Path: rel, Kind: database.ProjectEntryKindAssetFile, Metadata: meta}
-				if err := h.repo.UpsertProjectEntry(ctx, entry); err != nil {
-					return err
-				}
-				entriesIndexed++
-				assetsIndexed++
 				return nil
 			}
-
-			changedOnDisk := false
-			if strings.TrimSpace(wfFile.Version) == "" {
-				wfFile.Version = "v1"
-				changedOnDisk = true
+			if d.IsDir() {
+				return nil
 			}
-			if strings.TrimSpace(wfFile.Type) == "" || wfFile.Type != wfType {
-				wfFile.Type = wfType
-				changedOnDisk = true
-			}
-			if strings.TrimSpace(wfFile.Name) == "" {
-				base := path.Base(rel)
-				base = strings.TrimSuffix(base, ".json")
-				base = strings.TrimSuffix(base, ".action")
-				base = strings.TrimSuffix(base, ".flow")
-				base = strings.TrimSuffix(base, ".case")
-				wfFile.Name = base
-				changedOnDisk = true
-			}
-
-			workflowID, parseErr := uuid.Parse(strings.TrimSpace(wfFile.ID))
-			if parseErr != nil || workflowID == uuid.Nil {
-				workflowID = uuid.New()
-				wfFile.ID = workflowID.String()
-				changedOnDisk = true
-			}
-
-			if wfFile.FlowDefinition == nil {
-				wfFile.FlowDefinition = map[string]any{"nodes": []any{}, "edges": []any{}}
-				changedOnDisk = true
-			}
-
-			if changedOnDisk {
-				encoded, err := json.MarshalIndent(wfFile, "", "  ")
-				if err != nil {
-					return err
-				}
-				encoded = append(encoded, '\n')
-				if err := os.WriteFile(abs, encoded, 0o644); err != nil {
-					return err
-				}
-			}
-
-			folder := "/"
-			dir := path.Dir(rel)
-			if dir != "." {
-				folder = "/" + dir
-			}
-
-			next := &database.Workflow{
-				ID:               workflowID,
-				ProjectID:        &projectID,
-				Name:             wfFile.Name,
-				FolderPath:       folder,
-				WorkflowType:     wfFile.Type,
-				FlowDefinition:   database.JSONMap(wfFile.FlowDefinition),
-				Inputs:           database.JSONMap(wfFile.Inputs),
-				Outputs:          database.JSONMap(wfFile.Outputs),
-				ExpectedOutcome:  database.JSONMap(wfFile.ExpectedOutcome),
-				WorkflowMetadata: database.JSONMap(wfFile.Metadata),
-				Description:      wfFile.Description,
-				Tags:             database.StringArray(wfFile.Tags),
-				LastChangeSource: "project_files_resync",
-			}
-
-			existing, getErr := h.repo.GetWorkflow(ctx, workflowID)
-			switch {
-			case getErr == nil && existing != nil:
-				needsUpdate := existing.Name != next.Name ||
-					existing.Description != next.Description ||
-					existing.FolderPath != next.FolderPath ||
-					existing.WorkflowType != next.WorkflowType ||
-					!reflect.DeepEqual([]string(existing.Tags), []string(next.Tags)) ||
-					!reflect.DeepEqual(existing.FlowDefinition, next.FlowDefinition) ||
-					!reflect.DeepEqual(existing.Inputs, next.Inputs) ||
-					!reflect.DeepEqual(existing.Outputs, next.Outputs) ||
-					!reflect.DeepEqual(existing.ExpectedOutcome, next.ExpectedOutcome) ||
-					!reflect.DeepEqual(existing.WorkflowMetadata, next.WorkflowMetadata)
-				if needsUpdate {
-					next.Version = existing.Version + 1
-					if err := h.repo.UpdateWorkflow(ctx, next); err != nil {
-						return err
-					}
-				}
-			case errors.Is(getErr, database.ErrNotFound):
-				if err := h.repo.CreateWorkflow(ctx, next); err != nil {
-					return err
-				}
-			default:
-				return getErr
-			}
-
-			entry := &database.ProjectEntry{
-				ProjectID:  projectID,
-				Path:       rel,
-				Kind:       database.ProjectEntryKindWorkflowFile,
-				WorkflowID: &workflowID,
-				Metadata:   database.JSONMap{"workflowType": next.WorkflowType},
-			}
-			if err := h.repo.UpsertProjectEntry(ctx, entry); err != nil {
-				return err
-			}
-
-			entriesIndexed++
-			workflowsIndexed++
+			assetsIndexed++
 			return nil
-		}
-
-		info, statErr := os.Stat(abs)
-		if statErr != nil {
-			return statErr
-		}
-		meta := database.JSONMap{"sizeBytes": info.Size()}
-		entry := &database.ProjectEntry{
-			ProjectID: projectID,
-			Path:      rel,
-			Kind:      database.ProjectEntryKindAssetFile,
-			Metadata:  meta,
-		}
-		if err := h.repo.UpsertProjectEntry(ctx, entry); err != nil {
-			return err
-		}
-		entriesIndexed++
-		assetsIndexed++
-		return nil
-	})
-	if walkErr != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "walk_project_root"}))
-		return
+		})
 	}
 
 	h.respondSuccess(w, http.StatusOK, ResyncProjectFilesResponse{
 		ProjectID:        projectID.String(),
 		ProjectRoot:      project.FolderPath,
-		EntriesIndexed:   entriesIndexed,
-		WorkflowsIndexed: workflowsIndexed,
+		EntriesIndexed:   len(workflows) + assetsIndexed,
+		WorkflowsIndexed: len(workflows),
 		AssetsIndexed:    assetsIndexed,
 	})
 }

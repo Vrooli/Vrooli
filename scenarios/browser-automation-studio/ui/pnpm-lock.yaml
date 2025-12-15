@@ -37,7 +37,7 @@ importers:
         version: file:../../../packages/iframe-bridge
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
-        version: file:../../../packages/proto/gen/typescript
+        version: file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.10.1)
       '@vrooli/vitest-requirement-reporter':
         specifier: file:../../../packages/vitest-requirement-reporter
         version: file:../../../packages/vitest-requirement-reporter(vitest@3.2.4(@types/debug@4.1.12)(jsdom@27.2.0))
@@ -981,7 +981,9 @@ packages:
 
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
-    engines: {node: '>=18'}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.10.1
 
   '@vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter':
     resolution: {directory: ../../../packages/vitest-requirement-reporter, type: directory}
@@ -3679,7 +3681,7 @@ snapshots:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
-  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.10.1)':
     dependencies:
       '@bufbuild/protobuf': 2.10.1
 

@@ -1,80 +1,98 @@
 {
-  "metadata": {
-    "description": "Validates that execution heartbeat monitoring detects stalls and displays appropriate warnings",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open demo workflow in builder",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowId": "${@params/workflowId}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "click-execute-workflow",
-      "type": "click",
-      "data": {
-        "label": "Execute workflow",
-        "selector": "@selector/header.buttons.execute",
-        "timeoutMs": 10000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "capture-after-execute",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture state after clicking execute",
-        "fullPage": true,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "assert-heartbeat-indicator",
-      "type": "assert",
-      "data": {
-        "label": "Execution viewer functional",
-        "selector": "@selector/executions.viewer.root",
-        "assertMode": "exists",
-        "timeoutMs": 20000,
-        "failureMessage": "Execution viewer should render"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "call-open-workflow",
       "target": "click-execute-workflow",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-execute-workflow",
       "target": "capture-after-execute",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "capture-after-execute",
       "target": "assert-heartbeat-indicator",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates that execution heartbeat monitoring detects stalls and displays appropriate warnings",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open demo workflow in builder"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowId": "${@params/workflowId}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-workflow"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.execute"
+        },
+        "metadata": {
+          "label": "Execute workflow"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "click-execute-workflow"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture state after clicking execute"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 2000
+      },
+      "id": "capture-after-execute"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution viewer should render",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.root",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Execution viewer functional"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-heartbeat-indicator"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

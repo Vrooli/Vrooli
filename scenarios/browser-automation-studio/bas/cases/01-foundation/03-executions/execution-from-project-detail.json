@@ -1,84 +1,100 @@
 {
-  "metadata": {
-    "description": "Validates workflow execution triggered from project detail view and monitors execution status",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded demo workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "assert-execute-visible",
-      "type": "assert",
-      "data": {
-        "label": "Execute button visible",
-        "selector": "@selector/workflowBuilder.executeButton",
-        "assertMode": "exists",
-        "timeoutMs": 15000,
-        "failureMessage": "Execute button should be visible once the builder has loaded"
-      }
-    },
-    {
-      "id": "click-execute",
-      "type": "click",
-      "data": {
-        "label": "Click execute button",
-        "selector": "@selector/workflowBuilder.executeButton",
-        "timeoutMs": 30000,
-        "waitForMs": 500,
-        "resilience": {
-          "successSelector": "@selector/executions.viewer.status, @selector/executions.list.item",
-          "successTimeoutMs": 30000
-        }
-      }
-    },
-    {
-      "id": "assert-execution-visible",
-      "type": "assert",
-      "data": {
-        "label": "Execution indicators appear",
-        "selector": "@selector/executions.viewer.status, @selector/executions.list.item, @selector/executions.viewer.stopButton",
-        "assertMode": "exists",
-        "timeoutMs": 30000,
-        "failureMessage": "Execution status/entry should appear after executing"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "call-open-workflow",
       "target": "assert-execute-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "assert-execute-visible",
       "target": "click-execute",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "click-execute",
       "target": "assert-execution-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates workflow execution triggered from project detail view and monitors execution status",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded demo workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execute button should be visible once the builder has loaded",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/workflowBuilder.executeButton",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Execute button visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execute-visible"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflowBuilder.executeButton"
+        },
+        "metadata": {
+          "label": "Click execute button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/executions.viewer.status, @selector/executions.list.item",
+          "success_timeout_ms": 30000
+        },
+        "wait_after_ms": 500
+      },
+      "id": "click-execute"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution status/entry should appear after executing",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.status, @selector/executions.list.item, @selector/executions.viewer.stopButton",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Execution indicators appear"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execution-visible"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

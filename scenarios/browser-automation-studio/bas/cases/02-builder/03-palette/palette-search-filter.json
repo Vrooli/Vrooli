@@ -1,160 +1,196 @@
 {
-  "metadata": {
-    "description": "Validates palette search filters nodes by name, description, and keywords",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-builder",
-      "type": "subflow",
-      "data": {
-        "label": "Open builder via fixture",
-        "workflowPath": "actions/open-builder-from-demo.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "wait1",
-      "type": "wait",
-      "data": {
-        "label": "Wait",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "assert-palette",
-      "type": "assert",
-      "data": {
-        "label": "Palette visible",
-        "selector": "@selector/nodePalette.container",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Palette should be visible"
-      }
-    },
-    {
-      "id": "count-before",
-      "type": "evaluate",
-      "data": {
-        "label": "Count all nodes",
-        "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
-        "storeResult": "totalNodes"
-      }
-    },
-    {
-      "id": "search",
-      "type": "type",
-      "data": {
-        "label": "Search 'navigate'",
-        "selector": "@selector/nodePalette.searchInput",
-        "text": "navigate",
-        "clearFirst": false,
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "count-after",
-      "type": "evaluate",
-      "data": {
-        "label": "Count filtered",
-        "expression": "document.querySelectorAll('@selector/nodePalette.visibleCardList').length",
-        "storeResult": "filteredNodes"
-      }
-    },
-    {
-      "id": "assert-navigate-visible",
-      "type": "assert",
-      "data": {
-        "label": "Navigate node visible",
-        "selector": "@selector/nodePalette.cards.navigate",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Navigate node should be visible after search"
-      }
-    },
-    {
-      "id": "clear",
-      "type": "type",
-      "data": {
-        "label": "Clear search",
-        "selector": "@selector/nodePalette.searchInput /*dup-1*/",
-        "text": "",
-        "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "count-cleared",
-      "type": "evaluate",
-      "data": {
-        "label": "Count after clear",
-        "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
-        "storeResult": "clearedNodes"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-builder-to-wait1",
       "source": "call-open-builder",
       "target": "wait1",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "wait1",
       "target": "assert-palette",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "assert-palette",
       "target": "count-before",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "count-before",
       "target": "search",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "search",
       "target": "count-after",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "count-after",
       "target": "assert-navigate-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "clear",
       "target": "count-cleared",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9-bridge-e10",
       "source": "assert-navigate-visible",
       "target": "clear",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates palette search filters nodes by name, description, and keywords",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open builder via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-builder-from-demo.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-builder"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        }
+      },
+      "id": "wait1"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Palette should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/nodePalette.container",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Palette visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-palette"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
+          "store_result": "totalNodes"
+        },
+        "metadata": {
+          "label": "Count all nodes"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-before"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": false,
+          "selector": "@selector/nodePalette.searchInput",
+          "value": "navigate"
+        },
+        "metadata": {
+          "label": "Search 'navigate'"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "search"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('@selector/nodePalette.visibleCardList').length",
+          "store_result": "filteredNodes"
+        },
+        "metadata": {
+          "label": "Count filtered"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-after"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Navigate node should be visible after search",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/nodePalette.cards.navigate",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Navigate node visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-navigate-visible"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "@selector/nodePalette.searchInput /*dup-1*/",
+          "value": ""
+        },
+        "metadata": {
+          "label": "Clear search"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "clear"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
+          "store_result": "clearedNodes"
+        },
+        "metadata": {
+          "label": "Count after clear"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-cleared"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

@@ -1,154 +1,190 @@
 {
-  "metadata": {
-    "description": "Validates redo button re-applies undone changes",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "click-palette",
-      "type": "click",
-      "data": {
-        "label": "Click navigate node",
-        "selector": "@selector/nodePalette.cards.navigate",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "click-canvas",
-      "type": "click",
-      "data": {
-        "label": "Click canvas to add",
-        "selector": ".react-flow__pane",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "wait2",
-      "type": "wait",
-      "data": {
-        "label": "Wait",
-        "durationMs": 1000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "count-after-add",
-      "type": "evaluate",
-      "data": {
-        "label": "Count after add",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "afterAddCount"
-      }
-    },
-    {
-      "id": "undo",
-      "type": "click",
-      "data": {
-        "label": "Undo",
-        "selector": "@selector/toolbar.undoButton",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "count-after-undo",
-      "type": "evaluate",
-      "data": {
-        "label": "Count after undo",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "afterUndoCount"
-      }
-    },
-    {
-      "id": "redo",
-      "type": "click",
-      "data": {
-        "label": "Redo",
-        "selector": "@selector/toolbar.redoButton",
-        "timeoutMs": 5000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "count-after-redo",
-      "type": "evaluate",
-      "data": {
-        "label": "Count after redo",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "afterRedoCount"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-click-palette",
       "source": "call-open-demo-workflow",
       "target": "click-palette",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "click-palette",
       "target": "click-canvas",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-canvas",
       "target": "wait2",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "wait2",
       "target": "count-after-add",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "count-after-add",
       "target": "undo",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "undo",
       "target": "count-after-undo",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "count-after-undo",
       "target": "redo",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "redo",
       "target": "count-after-redo",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates redo button re-applies undone changes",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/nodePalette.cards.navigate"
+        },
+        "metadata": {
+          "label": "Click navigate node"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-palette"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__pane"
+        },
+        "metadata": {
+          "label": "Click canvas to add"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-canvas"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        }
+      },
+      "id": "wait2"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "afterAddCount"
+        },
+        "metadata": {
+          "label": "Count after add"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-after-add"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.undoButton"
+        },
+        "metadata": {
+          "label": "Undo"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "undo"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "afterUndoCount"
+        },
+        "metadata": {
+          "label": "Count after undo"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-after-undo"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.redoButton"
+        },
+        "metadata": {
+          "label": "Redo"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1500
+      },
+      "id": "redo"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "afterRedoCount"
+        },
+        "metadata": {
+          "label": "Count after redo"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-after-redo"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

@@ -5,6 +5,7 @@ import {
   ResourceLimitError,
   TimeoutError,
 } from '../../../src/utils/errors';
+import { FailureKind } from '../../../src/proto';
 import { createMockHttpResponse } from '../../helpers';
 
 describe('Error Handler', () => {
@@ -56,7 +57,7 @@ describe('Error Handler', () => {
       expect(mockRes.statusCode).toBe(404);
       const json = (mockRes as any).getJSON();
       expect(json.error.code).toBe('SESSION_NOT_FOUND');
-      expect(json.error.kind).toBe('engine');
+      expect(json.error.kind).toBe(FailureKind.ENGINE);
       expect(json.error.retryable).toBe(false);
     });
 
@@ -70,7 +71,7 @@ describe('Error Handler', () => {
       expect(mockRes.statusCode).toBe(500);
       const json = (mockRes as any).getJSON();
       expect(json.error.code).toBe('SELECTOR_NOT_FOUND');
-      expect(json.error.kind).toBe('engine');
+      expect(json.error.kind).toBe(FailureKind.ENGINE);
       expect(json.error.retryable).toBe(true);
     });
 
@@ -97,7 +98,7 @@ describe('Error Handler', () => {
       // TimeoutError is mapped to 500 (engine error), not 408
       expect(mockRes.statusCode).toBe(500);
       const json = (mockRes as any).getJSON();
-      expect(json.error.kind).toBe('timeout');
+      expect(json.error.kind).toBe(FailureKind.TIMEOUT);
       expect(json.error.retryable).toBe(true);
     });
 

@@ -18,8 +18,10 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/websocket"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -898,16 +900,35 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 	// Convert actions to workflow nodes
 	flowDefinition := convertActionsToWorkflow(actions)
 
-	// Create the workflow using existing service
-	workflow, err := h.workflowCatalog.CreateWorkflowWithProject(
-		ctx,
-		req.ProjectID,
-		req.Name,
-		"/",
-		flowDefinition,
-		"", // no AI prompt
-	)
+	if req.ProjectID == nil || *req.ProjectID == uuid.Nil {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "project_id"}))
+		return
+	}
+	projectID := *req.ProjectID
+
+	nodes, _ := flowDefinition["nodes"].([]map[string]interface{})
+	edges, _ := flowDefinition["edges"].([]map[string]interface{})
+	nodesAny := make([]any, 0, len(nodes))
+	for _, n := range nodes {
+		nodesAny = append(nodesAny, n)
+	}
+	edgesAny := make([]any, 0, len(edges))
+	for _, e := range edges {
+		edgesAny = append(edgesAny, e)
+	}
+	v2, err := workflowservice.V1NodesEdgesToV2Definition(nodesAny, edgesAny, map[string]any{"flow_definition": flowDefinition})
 	if err != nil {
+		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
+
+	createResp, err := h.workflowCatalog.CreateWorkflow(ctx, &basapi.CreateWorkflowRequest{
+		ProjectId:     projectID.String(),
+		Name:          req.Name,
+		FolderPath:    "/",
+		FlowDefinition: v2,
+	})
+	if err != nil || createResp == nil || createResp.Workflow == nil {
 		h.log.WithError(err).Error("Failed to create workflow from recording")
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": "Failed to create workflow: " + err.Error(),
@@ -915,16 +936,11 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var projectID uuid.UUID
-	if workflow.ProjectID != nil {
-		projectID = *workflow.ProjectID
-	}
-
 	respPayload := GenerateWorkflowResponse{
-		WorkflowID:  workflow.ID,
+		WorkflowID:  uuid.MustParse(createResp.Workflow.Id),
 		ProjectID:   projectID,
-		Name:        workflow.Name,
-		NodeCount:   len(flowDefinition["nodes"].([]map[string]interface{})),
+		Name:        createResp.Workflow.Name,
+		NodeCount:   len(nodes),
 		ActionCount: len(actions),
 	}
 	if pb, err := protoconv.GenerateWorkflowToProto(respPayload); err == nil && pb != nil {

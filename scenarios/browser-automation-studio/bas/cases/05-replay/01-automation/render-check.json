@@ -1,82 +1,99 @@
 {
-  "metadata": {
-    "description": "Validates that execution replay artifacts are persisted and can be accessed for rendering",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-project",
-      "type": "subflow",
-      "data": {
-        "label": "Open Demo project via fixture",
-        "workflowPath": "actions/open-demo-project.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}"
-        }
-      }
-    },
-    {
-      "id": "click-execute",
-      "type": "click",
-      "data": {
-        "label": "Execute workflow",
-        "selector": "@selector/workflowBuilder.executeButton",
-        "timeoutMs": 10000,
-        "resilience": {
-          "successSelector": "@selector/executions.viewer.status",
-          "successTimeoutMs": 15000
-        }
-      }
-    },
-    {
-      "id": "assert-execution-complete",
-      "type": "assert",
-      "data": {
-        "label": "Execution finished",
-        "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
-        "assertMode": "exists",
-        "timeoutMs": 45000,
-        "failureMessage": "Execution should reach terminal state (completed, failed, or cancelled)"
-      }
-    },
-    {
-      "id": "capture-final-state",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture final replay state",
-        "fullPage": true,
-        "captureDomSnapshot": true,
-        "waitForMs": 500
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e0",
       "source": "call-open-project",
       "target": "click-execute",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-execute",
       "target": "assert-execution-complete",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "assert-execution-complete",
       "target": "capture-final-state",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates that execution replay artifacts are persisted and can be accessed for rendering",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Demo project via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}"
+          },
+          "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflowBuilder.executeButton"
+        },
+        "metadata": {
+          "label": "Execute workflow"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/executions.viewer.status",
+          "success_timeout_ms": 15000
+        }
+      },
+      "id": "click-execute"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execution should reach terminal state (completed, failed, or cancelled)",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
+          "timeout_ms": 45000
+        },
+        "metadata": {
+          "label": "Execution finished"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execution-complete"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Capture final replay state"
+        },
+        "screenshot": {
+          "full_page": true
+        },
+        "type": "ACTION_TYPE_SCREENSHOT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "capture-final-state"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

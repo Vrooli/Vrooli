@@ -7,6 +7,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { logger } from '../utils/logger';
 
 export interface WebSocketMessage {
   type: string;
@@ -72,18 +73,18 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(() => {
     const wsUrl = buildWebSocketUrl();
     if (!wsUrl) {
-      console.error('[WebSocket] URL unavailable');
+      logger.warn('WebSocket URL unavailable', { component: 'WebSocketContext', action: 'connect' });
       return;
     }
 
-    console.log('[WebSocket] Connecting to:', wsUrl);
+    logger.debug('Connecting', { component: 'WebSocketContext', action: 'connect', wsUrl });
 
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[WebSocket] Connected');
+        logger.debug('Connected', { component: 'WebSocketContext', action: 'onopen' });
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
@@ -103,7 +104,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
               try {
                 callback(event.data);
               } catch (err) {
-                console.error('[WebSocket] Binary frame callback error:', err);
+                logger.warn('Binary frame callback error', { component: 'WebSocketContext', action: 'onmessage' }, err);
               }
             });
           }
@@ -117,37 +118,41 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           const message = JSON.parse(event.data) as WebSocketMessage;
           setLastMessage(message);
         } catch (error) {
-          console.error('[WebSocket] Failed to parse message:', error);
+          logger.warn('Failed to parse WebSocket message', { component: 'WebSocketContext', action: 'onmessage' }, error);
         }
       };
 
       ws.onerror = (error) => {
-        console.error('[WebSocket] Error:', error);
+        logger.warn('WebSocket error', { component: 'WebSocketContext', action: 'onerror' }, error);
       };
 
       ws.onclose = () => {
-        console.log('[WebSocket] Disconnected');
+        logger.debug('Disconnected', { component: 'WebSocketContext', action: 'onclose' });
         setIsConnected(false);
         attemptReconnect();
       };
     } catch (error) {
-      console.error('[WebSocket] Failed to create connection:', error);
+      logger.warn('Failed to create WebSocket connection', { component: 'WebSocketContext', action: 'connect' }, error);
       attemptReconnect();
     }
   }, []);
 
   const attemptReconnect = useCallback(() => {
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-      console.error('[WebSocket] Max reconnection attempts reached');
+      logger.warn('Max reconnection attempts reached', { component: 'WebSocketContext', action: 'attemptReconnect' });
       return;
     }
 
     reconnectAttemptsRef.current++;
     const delay = reconnectDelayRef.current;
 
-    console.log(
-      `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`
-    );
+    logger.debug('Reconnecting', {
+      component: 'WebSocketContext',
+      action: 'attemptReconnect',
+      delayMs: delay,
+      attempt: reconnectAttemptsRef.current,
+      maxAttempts: MAX_RECONNECT_ATTEMPTS,
+    });
 
     reconnectTimeoutRef.current = setTimeout(() => {
       connect();
@@ -161,7 +166,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
     } else {
-      console.warn('[WebSocket] Cannot send - not connected');
+      logger.debug('Cannot send - not connected', { component: 'WebSocketContext', action: 'send' });
     }
   }, []);
 

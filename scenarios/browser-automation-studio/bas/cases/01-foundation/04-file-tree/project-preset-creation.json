@@ -1,244 +1,309 @@
 {
-  "metadata": {
-    "description": "Tests creating a new project with the 'Recommended' preset and verifies the expected folder structure is created",
-    "version": 1,
-    "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "dismiss-tutorial",
-      "type": "subflow",
-      "data": {
-        "label": "Dismiss onboarding tutorial if present",
-        "workflowPath": "actions/dismiss-tutorial.json"
-      }
-    },
-    {
-      "id": "click-projects-tab",
-      "type": "click",
-      "data": {
-        "label": "Navigate to Projects tab",
-        "selector": "@selector/dashboard.tabs.projects",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-for-projects",
-      "type": "wait",
-      "data": {
-        "label": "Wait for Projects tab to load",
-        "selector": "@selector/dashboard.newProjectButton",
-        "timeoutMs": 15000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-new-project",
-      "type": "click",
-      "data": {
-        "label": "Click New Project button",
-        "selector": "@selector/dashboard.newProjectButton",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-for-modal",
-      "type": "wait",
-      "data": {
-        "label": "Wait for project modal to appear",
-        "selector": "@selector/dialogs.project.root",
-        "timeoutMs": 5000,
-        "waitForMs": 300,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "assert-recommended-preset-selected",
-      "type": "assert",
-      "data": {
-        "label": "Recommended preset is selected by default",
-        "selector": "@selector/projects.presets.recommendedPreset",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Recommended preset option should be visible in the project creation modal"
-      }
-    },
-    {
-      "id": "enter-project-name",
-      "type": "type",
-      "data": {
-        "label": "Enter project name",
-        "selector": "@selector/dialogs.project.nameInput",
-        "text": "Test Preset Project",
-        "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 300
-      }
-    },
-    {
-      "id": "submit-project",
-      "type": "click",
-      "data": {
-        "label": "Submit project creation",
-        "selector": "@selector/dialogs.project.submitButton",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "data": {
-        "label": "Wait for project detail page to load",
-        "selector": "h1",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "switch-to-tree-view",
-      "type": "click",
-      "data": {
-        "label": "Switch to File Tree view",
-        "selector": "@selector/projects.fileTree.viewModeToggle",
-        "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "assert-tree-visible",
-      "type": "assert",
-      "data": {
-        "label": "File tree root is visible",
-        "selector": "@selector/projects.fileTree.root",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "File tree should be visible after switching view mode"
-      }
-    },
-    {
-      "id": "check-preset-folders",
-      "type": "evaluate",
-      "data": {
-        "label": "Check that preset folders were created",
-        "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const folderNames = Array.from(folders).map(f => f.textContent || ''); const hasActions = folderNames.some(n => n.includes('actions')); const hasFlows = folderNames.some(n => n.includes('flows')); const hasCases = folderNames.some(n => n.includes('cases')); return { hasActions, hasFlows, hasCases, folderCount: folders.length, folderNames }; })()",
-        "storeResult": "presetFolderCheck"
-      }
-    },
-    {
-      "id": "assert-folders-exist",
-      "type": "assert",
-      "data": {
-        "label": "Preset folders (actions/flows/cases) should exist",
-        "selector": "[data-testid=\"file-tree-folder\"]",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Recommended preset should create at least one folder (actions, flows, or cases)"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e0",
       "source": "navigate-dashboard",
       "target": "dismiss-tutorial",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e1",
       "source": "dismiss-tutorial",
       "target": "click-projects-tab",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "click-projects-tab",
       "target": "wait-for-projects",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "wait-for-projects",
       "target": "click-new-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "click-new-project",
       "target": "wait-for-modal",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5",
       "source": "wait-for-modal",
       "target": "assert-recommended-preset-selected",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "assert-recommended-preset-selected",
       "target": "enter-project-name",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "enter-project-name",
       "target": "submit-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "submit-project",
       "target": "wait-for-project-detail",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e9",
       "source": "wait-for-project-detail",
       "target": "switch-to-tree-view",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "switch-to-tree-view",
       "target": "assert-tree-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "assert-tree-visible",
       "target": "check-preset-folders",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "check-preset-folders",
       "target": "assert-folders-exist",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Tests creating a new project with the 'Recommended' preset and verifies the expected folder structure is created",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "execution_settings": {
+        "wait_after_ms": 2000
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        },
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-projects-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for Projects tab to load"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dashboard.newProjectButton",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "wait-for-projects"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.newProjectButton"
+        },
+        "metadata": {
+          "label": "Click New Project button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-new-project"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for project modal to appear"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dialogs.project.root",
+          "timeout_ms": 5000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "wait-for-modal"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Recommended preset option should be visible in the project creation modal",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.presets.recommendedPreset",
+          "timeout_ms": 3000
+        },
+        "metadata": {
+          "label": "Recommended preset is selected by default"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-recommended-preset-selected"
+    },
+    {
+      "action": {
+        "input": {
+          "clear_first": true,
+          "selector": "@selector/dialogs.project.nameInput",
+          "value": "Test Preset Project"
+        },
+        "metadata": {
+          "label": "Enter project name"
+        },
+        "type": "ACTION_TYPE_INPUT"
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      },
+      "id": "enter-project-name"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dialogs.project.submitButton"
+        },
+        "metadata": {
+          "label": "Submit project creation"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 2000
+      },
+      "id": "submit-project"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for project detail page to load"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "h1",
+          "timeout_ms": 10000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "wait-for-project-detail"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.fileTree.viewModeToggle"
+        },
+        "metadata": {
+          "label": "Switch to File Tree view"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "switch-to-tree-view"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "File tree should be visible after switching view mode",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.fileTree.root",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "File tree root is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-tree-visible"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]'); const folderNames = Array.from(folders).map(f =\u003e f.textContent || ''); const hasActions = folderNames.some(n =\u003e n.includes('actions')); const hasFlows = folderNames.some(n =\u003e n.includes('flows')); const hasCases = folderNames.some(n =\u003e n.includes('cases')); return { hasActions, hasFlows, hasCases, folderCount: folders.length, folderNames }; })()",
+          "store_result": "presetFolderCheck"
+        },
+        "metadata": {
+          "label": "Check that preset folders were created"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-preset-folders"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Recommended preset should create at least one folder (actions, flows, or cases)",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-testid=\"file-tree-folder\"]",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Preset folders (actions/flows/cases) should exist"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-folders-exist"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

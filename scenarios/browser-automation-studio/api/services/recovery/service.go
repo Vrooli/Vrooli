@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
 )
@@ -18,9 +19,15 @@ const DefaultStaleThreshold = 5 * time.Minute
 
 // Service handles recovery of interrupted executions on startup.
 type Service struct {
-	repo           database.Repository
+	repo           RecoveryRepository
 	log            *logrus.Logger
 	staleThreshold time.Duration
+}
+
+// RecoveryRepository captures the subset of database operations required for recovery.
+type RecoveryRepository interface {
+	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
+	UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error
 }
 
 // Option configures the recovery service.
@@ -36,7 +43,7 @@ func WithStaleThreshold(d time.Duration) Option {
 }
 
 // NewService creates a new recovery service.
-func NewService(repo database.Repository, log *logrus.Logger, opts ...Option) *Service {
+func NewService(repo RecoveryRepository, log *logrus.Logger, opts ...Option) *Service {
 	s := &Service{
 		repo:           repo,
 		log:            log,

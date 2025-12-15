@@ -13,28 +13,32 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] generates complete replay movie spec", func(t *testing.T) {
 		executionID := uuid.New()
 		workflowID := uuid.New()
+		now := time.Now()
 
-		exec := &database.Execution{
+		exec := &database.ExecutionIndex{
 			ID:         executionID,
 			WorkflowID: workflowID,
-			Status:     "completed",
-			StartedAt:  time.Now().Add(-2 * time.Minute),
+			Status:     database.ExecutionStatusCompleted,
+			StartedAt:  now.Add(-2 * time.Minute),
+			CreatedAt:  now.Add(-2 * time.Minute),
+			UpdatedAt:  now.Add(-time.Minute),
 			CompletedAt: func() *time.Time {
-				ts := time.Now().Add(-time.Minute)
+				ts := now.Add(-time.Minute)
 				return &ts
 			}(),
-			Progress: 100,
 		}
 
-		workflow := &database.Workflow{
-			ID:   workflowID,
-			Name: "Demo Journey",
+		workflow := &database.WorkflowIndex{
+			ID:         workflowID,
+			Name:       "Demo Journey",
+			FolderPath: "/",
+			Version:    1,
 		}
 
 		timeline := &ExecutionTimeline{
 			ExecutionID: executionID,
 			WorkflowID:  workflowID,
-			Status:      "completed",
+			Status:      database.ExecutionStatusCompleted,
 			Progress:    100,
 			StartedAt:   exec.StartedAt,
 			CompletedAt: exec.CompletedAt,
@@ -53,9 +57,14 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 						Width:      1280,
 						Height:     720,
 					},
-					CursorTrail:      []autocontracts.Point{{X: 640, Y: 360}, {X: 700, Y: 420}},
-					ClickPosition:    &autocontracts.Point{X: 700, Y: 420},
-					HighlightRegions: []autocontracts.HighlightRegion{{Selector: "#hero"}},
+					CursorTrail: []*autocontracts.Point{
+						&autocontracts.Point{X: 640, Y: 360},
+						&autocontracts.Point{X: 700, Y: 420},
+					},
+					ClickPosition: &autocontracts.Point{X: 700, Y: 420},
+					HighlightRegions: []*autocontracts.HighlightRegion{
+						&autocontracts.HighlightRegion{Selector: "#hero"},
+					},
 				},
 				{
 					StepIndex:  1,
@@ -174,24 +183,29 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 
 func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {
 	t.Run("errors when timeline missing frames", func(t *testing.T) {
-		exec := &database.Execution{
+		now := time.Now()
+		exec := &database.ExecutionIndex{
 			ID:         uuid.New(),
 			WorkflowID: uuid.New(),
-			Status:     "completed",
-			StartedAt:  time.Now().Add(-time.Minute),
+			Status:     database.ExecutionStatusCompleted,
+			StartedAt:  now.Add(-time.Minute),
+			CreatedAt:  now.Add(-time.Minute),
+			UpdatedAt:  now,
 			CompletedAt: func() *time.Time {
-				ts := time.Now()
+				ts := now
 				return &ts
 			}(),
 		}
-		workflow := &database.Workflow{
-			ID:   exec.WorkflowID,
-			Name: "Missing Frames Workflow",
+		workflow := &database.WorkflowIndex{
+			ID:         exec.WorkflowID,
+			Name:       "Missing Frames Workflow",
+			FolderPath: "/",
+			Version:    1,
 		}
 		timeline := &ExecutionTimeline{
 			ExecutionID: exec.ID,
 			WorkflowID:  exec.WorkflowID,
-			Status:      "completed",
+			Status:      database.ExecutionStatusCompleted,
 			Frames:      nil,
 		}
 
@@ -202,20 +216,25 @@ func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {
 	})
 
 	t.Run("errors when execution and timeline mismatch", func(t *testing.T) {
-		exec := &database.Execution{
+		now := time.Now()
+		exec := &database.ExecutionIndex{
 			ID:         uuid.New(),
 			WorkflowID: uuid.New(),
-			Status:     "completed",
-			StartedAt:  time.Now().Add(-time.Minute),
+			Status:     database.ExecutionStatusCompleted,
+			StartedAt:  now.Add(-time.Minute),
+			CreatedAt:  now.Add(-time.Minute),
+			UpdatedAt:  now,
 		}
-		workflow := &database.Workflow{
-			ID:   exec.WorkflowID,
-			Name: "Mismatch Workflow",
+		workflow := &database.WorkflowIndex{
+			ID:         exec.WorkflowID,
+			Name:       "Mismatch Workflow",
+			FolderPath: "/",
+			Version:    1,
 		}
 		timeline := &ExecutionTimeline{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
-			Status:      "completed",
+			Status:      database.ExecutionStatusCompleted,
 			Frames:      []TimelineFrame{{StepIndex: 0, NodeID: "node-1", StepType: "navigate", Status: "completed"}},
 		}
 
@@ -228,13 +247,16 @@ func TestBuildReplayMovieSpecValidatesInput(t *testing.T) {
 
 func TestBuildReplayMovieSpecHandlesScreenshotAssets(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] deduplicates screenshot assets", func(t *testing.T) {
-		exec := &database.Execution{
+		now := time.Now()
+		exec := &database.ExecutionIndex{
 			ID:         uuid.New(),
 			WorkflowID: uuid.New(),
-			Status:     "completed",
-			StartedAt:  time.Now().Add(-time.Minute),
+			Status:     database.ExecutionStatusCompleted,
+			StartedAt:  now.Add(-time.Minute),
+			CreatedAt:  now.Add(-time.Minute),
+			UpdatedAt:  now,
 		}
-		workflow := &database.Workflow{ID: exec.WorkflowID, Name: "Asset Workflow"}
+		workflow := &database.WorkflowIndex{ID: exec.WorkflowID, Name: "Asset Workflow", FolderPath: "/", Version: 1}
 
 		frame := TimelineFrame{
 			StepIndex: 0,
@@ -267,18 +289,21 @@ func TestBuildReplayMovieSpecHandlesScreenshotAssets(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-REPLAY-EXPORT-BUNDLE] generates asset IDs when missing", func(t *testing.T) {
-		exec := &database.Execution{
+		now := time.Now()
+		exec := &database.ExecutionIndex{
 			ID:         uuid.New(),
 			WorkflowID: uuid.New(),
-			Status:     "completed",
-			StartedAt:  time.Now().Add(-time.Minute),
+			Status:     database.ExecutionStatusCompleted,
+			StartedAt:  now.Add(-time.Minute),
+			CreatedAt:  now.Add(-time.Minute),
+			UpdatedAt:  now,
 		}
-		workflow := &database.Workflow{ID: exec.WorkflowID, Name: "Fallback Asset Workflow"}
+		workflow := &database.WorkflowIndex{ID: exec.WorkflowID, Name: "Fallback Asset Workflow", FolderPath: "/", Version: 1}
 
 		timeline := &ExecutionTimeline{
 			ExecutionID: exec.ID,
 			WorkflowID:  exec.WorkflowID,
-			Status:      "completed",
+			Status:      database.ExecutionStatusCompleted,
 			Frames: []TimelineFrame{
 				{
 					StepIndex: 0,

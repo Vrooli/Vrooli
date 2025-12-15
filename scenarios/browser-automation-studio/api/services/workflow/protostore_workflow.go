@@ -27,7 +27,7 @@ type workflowProtoSnapshot struct {
 	NeedsWrite   bool
 }
 
-func readWorkflowSummaryFile(ctx context.Context, project *database.ProjectIndex, absPath string) (*workflowProtoSnapshot, error) {
+func ReadWorkflowSummaryFile(ctx context.Context, project *database.ProjectIndex, absPath string) (*workflowProtoSnapshot, error) {
 	if project == nil {
 		return nil, errors.New("project is nil")
 	}
@@ -243,7 +243,7 @@ func v1EdgesFromAny(edges []any) []autoworkflow.V1Edge {
 	return out
 }
 
-func writeWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.WorkflowSummary, preferredRel string) (absPath string, relPath string, err error) {
+func WriteWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.WorkflowSummary, preferredRel string) (absPath string, relPath string, err error) {
 	if project == nil {
 		return "", "", errors.New("project is nil")
 	}

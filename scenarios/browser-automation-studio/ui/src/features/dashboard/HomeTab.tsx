@@ -191,11 +191,11 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-flow-text">AI Build</h2>
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--flow-surface))] text-flow-text-muted border border-[rgb(var(--flow-border))]">
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[rgb(var(--flow-surface))] text-flow-text-secondary border border-[rgb(var(--flow-border))]">
               Step 1
             </span>
           </div>
-          <p className="text-sm text-flow-text-muted">Describe what you want. We’ll draft the flow.</p>
+          <p className="text-sm text-flow-text-secondary">Describe what you want. We’ll draft the flow.</p>
         </div>
       </div>
 
@@ -212,6 +212,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <button
             type="submit"
             disabled={!prompt.trim() || isGenerating || !aiCapability.available}
+            aria-label={isGenerating ? "Generating workflow" : "Generate workflow"}
             className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-2 bg-flow-accent hover:bg-flow-accent/90 disabled:bg-flow-text-muted disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center gap-2 text-sm"
           >
             {isGenerating ? (

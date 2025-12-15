@@ -19,8 +19,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ExecutionToProto converts a database.Execution into the generated proto message.
-func ExecutionToProto(execution *database.Execution) (*basexecution.Execution, error) {
+// ExecutionToProto converts a database.ExecutionIndex (DB index-only row) into the generated proto message.
+// Detailed execution data is sourced from filesystem artifacts, not the database.
+func ExecutionToProto(execution *database.ExecutionIndex) (*basexecution.Execution, error) {
 	if execution == nil {
 		return nil, fmt.Errorf("execution is nil")
 	}
@@ -28,66 +29,17 @@ func ExecutionToProto(execution *database.Execution) (*basexecution.Execution, e
 	pb := &basexecution.Execution{
 		ExecutionId:     execution.ID.String(),
 		WorkflowId:      execution.WorkflowID.String(),
-		WorkflowVersion: int32(execution.WorkflowVersion),
 		Status:          typeconv.StringToExecutionStatus(execution.Status),
-		TriggerType:     typeconv.StringToTriggerType(execution.TriggerType),
-		Progress:        int32(execution.Progress),
 		StartedAt:       timestamppb.New(execution.StartedAt),
 		CreatedAt:       timestamppb.New(execution.CreatedAt),
 		UpdatedAt:       timestamppb.New(execution.UpdatedAt),
 	}
 
-	// Set current_step if present (optional string)
-	if execution.CurrentStep != "" {
-		pb.CurrentStep = &execution.CurrentStep
-	}
-
-	// Set trigger_metadata if present (typed message)
-	if execution.TriggerMetadata != nil {
-		pb.TriggerMetadata = mapToTriggerMetadata(execution.TriggerMetadata)
-	}
-
-	// Set parameters if present (typed message)
-	if execution.Parameters != nil {
-		pb.Parameters = mapToExecutionParameters(execution.Parameters)
-	}
-
 	if execution.CompletedAt != nil {
 		pb.CompletedAt = timestamppb.New(*execution.CompletedAt)
 	}
-	if execution.LastHeartbeat != nil {
-		pb.LastHeartbeatAt = timestamppb.New(*execution.LastHeartbeat)
-	}
-	if execution.Error.Valid {
-		errMsg := execution.Error.String
-		pb.Error = &errMsg
-	}
-
-	// Set result if present (typed message)
-	if execution.Result != nil {
-		pb.Result = mapToExecutionResult(execution.Result)
-	}
-
-	return pb, nil
-}
-
-// ExecuteAdhocResponseProto converts the execution into the adhoc response proto.
-func ExecuteAdhocResponseProto(execution *database.Execution, message string) (*basexecution.ExecuteAdhocResponse, error) {
-	if execution == nil {
-		return nil, fmt.Errorf("execution is nil")
-	}
-
-	pb := &basexecution.ExecuteAdhocResponse{
-		ExecutionId: execution.ID.String(),
-		Status:      typeconv.StringToExecutionStatus(execution.Status),
-		Message:     message,
-	}
-
-	if execution.CompletedAt != nil {
-		pb.CompletedAt = timestamppb.New(*execution.CompletedAt)
-	}
-	if execution.Error.Valid {
-		errMsg := execution.Error.String
+	if execution.ErrorMessage != "" {
+		errMsg := execution.ErrorMessage
 		pb.Error = &errMsg
 	}
 
@@ -109,75 +61,6 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 		AvailableAssetCount: int32(preview.AvailableAssetCount),
 		TotalDurationMs:     int32(preview.TotalDurationMs),
 		Package:             toJsonObjectFromAny(preview.Package),
-	}, nil
-}
-
-// ScreenshotsToProto converts database screenshots to the proto response.
-// Uses ExecutionScreenshot which wraps TimelineScreenshot with execution context.
-func ScreenshotsToProto(screenshots []*database.Screenshot, executionID string) (*basexecution.GetScreenshotsResponse, error) {
-	if len(screenshots) == 0 {
-		return &basexecution.GetScreenshotsResponse{
-			ExecutionId: executionID,
-			Total:       0,
-		}, nil
-	}
-
-	result := make([]*basexecution.ExecutionScreenshot, 0, len(screenshots))
-	for idx, shot := range screenshots {
-		if shot == nil {
-			return nil, fmt.Errorf("screenshots[%d] is nil", idx)
-		}
-
-		var stepIndex int32
-		var nodeID string
-		if shot.Metadata != nil {
-			if v, ok := shot.Metadata["step_index"]; ok {
-				stepIndex = toInt32Val(v)
-			}
-			if v, ok := shot.Metadata["node_id"].(string); ok {
-				nodeID = v
-			}
-		}
-
-		thumbURL := shot.ThumbnailURL
-		if thumbURL == "" && shot.Metadata != nil {
-			if v, ok := shot.Metadata["thumbnail_url"].(string); ok {
-				thumbURL = v
-			}
-		}
-
-		// Build TimelineScreenshot (the canonical type)
-		timelineShot := &basdomain.TimelineScreenshot{
-			ArtifactId:   shot.ID.String(),
-			Url:          shot.StorageURL,
-			ThumbnailUrl: thumbURL,
-			Width:        int32(shot.Width),
-			Height:       int32(shot.Height),
-			ContentType:  "image/png", // Default, could be from metadata if stored
-		}
-		if shot.SizeBytes > 0 {
-			sizeBytes := shot.SizeBytes
-			timelineShot.SizeBytes = &sizeBytes
-		}
-
-		// Wrap in ExecutionScreenshot with execution context
-		execShot := &basexecution.ExecutionScreenshot{
-			Screenshot: timelineShot,
-			StepIndex:  stepIndex,
-			NodeId:     nodeID,
-			Timestamp:  timestamppb.New(shot.Timestamp),
-		}
-		if shot.StepName != "" {
-			execShot.StepLabel = &shot.StepName
-		}
-
-		result = append(result, execShot)
-	}
-
-	return &basexecution.GetScreenshotsResponse{
-		ExecutionId: executionID,
-		Screenshots: result,
-		Total:       int32(len(result)),
 	}, nil
 }
 
@@ -353,8 +236,7 @@ func buildTelemetryFromFrame(frame export.TimelineFrame) *basdomain.ActionTeleme
 
 	if frame.CursorTrail != nil {
 		for _, pt := range frame.CursorTrail {
-			point := pt
-			tel.CursorTrail = append(tel.CursorTrail, convertPoint(&point))
+			tel.CursorTrail = append(tel.CursorTrail, convertPoint(pt))
 		}
 	}
 
@@ -410,7 +292,10 @@ func convertRetryHistory(entries []typeconv.RetryHistoryEntry) []*basbase.RetryA
 	return result
 }
 
-func convertHighlightRegion(region autocontracts.HighlightRegion) *basdomain.HighlightRegion {
+func convertHighlightRegion(region *autocontracts.HighlightRegion) *basdomain.HighlightRegion {
+	if region == nil {
+		return nil
+	}
 	pb := &basdomain.HighlightRegion{
 		Selector:       region.Selector,
 		Padding:        region.Padding,
@@ -423,7 +308,10 @@ func convertHighlightRegion(region autocontracts.HighlightRegion) *basdomain.Hig
 	return pb
 }
 
-func convertMaskRegion(region autocontracts.MaskRegion) *basdomain.MaskRegion {
+func convertMaskRegion(region *autocontracts.MaskRegion) *basdomain.MaskRegion {
+	if region == nil {
+		return nil
+	}
 	pb := &basdomain.MaskRegion{
 		Selector: region.Selector,
 		Opacity:  region.Opacity,

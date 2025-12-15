@@ -236,7 +236,7 @@ All 28 supported instruction types with their parameters:
 - **network-mock**: `{ operation, urlPattern, statusCode?, headers?, body?, delayMs? }`
 - **rotate**: `{ orientation: "portrait" | "landscape", angle? }`
 
-See [HANDLERS.md](HANDLERS.md) for detailed parameter documentation.
+See `playwright-driver/src/handlers/` for detailed parameter documentation.
 
 ---
 

@@ -62,18 +62,19 @@ func (c *Collector) Limits() autocontracts.EventBufferLimits {
 	return c.delegate.Limits()
 }
 
-// OnStepOutcome implements uxmetrics.Collector for direct calls.
-func (c *Collector) OnStepOutcome(ctx context.Context, executionID uuid.UUID, outcome uxmetrics.StepOutcomeData) error {
-	// Build cursor path from trail
-	if len(outcome.CursorTrail) > 0 {
-		trail := make([]autocontracts.CursorPosition, len(outcome.CursorTrail))
-		for i, p := range outcome.CursorTrail {
-			trail[i] = autocontracts.CursorPosition{
-				Point: autocontracts.Point{X: p.X, Y: p.Y},
+	// OnStepOutcome implements uxmetrics.Collector for direct calls.
+	func (c *Collector) OnStepOutcome(ctx context.Context, executionID uuid.UUID, outcome uxmetrics.StepOutcomeData) error {
+		// Build cursor path from trail
+		if len(outcome.CursorTrail) > 0 {
+			trail := make([]autocontracts.CursorPosition, len(outcome.CursorTrail))
+			for i := range outcome.CursorTrail {
+				p := &outcome.CursorTrail[i]
+				trail[i] = autocontracts.CursorPosition{
+					Point: &autocontracts.Point{X: p.X, Y: p.Y},
+				}
 			}
-		}
-		path := c.buildCursorPath(outcome.StepIndex, trail, outcome.StartedAt, outcome.CompletedAt)
-		if err := c.repo.SaveCursorPath(ctx, executionID, path); err != nil {
+			path := c.buildCursorPath(outcome.StepIndex, trail, outcome.StartedAt, outcome.CompletedAt)
+			if err := c.repo.SaveCursorPath(ctx, executionID, path); err != nil {
 			return err
 		}
 	}
@@ -151,33 +152,38 @@ func (c *Collector) onStepFailed(ctx context.Context, executionID uuid.UUID, out
 }
 
 func (c *Collector) buildCursorPath(stepIndex int, trail []autocontracts.CursorPosition, start time.Time, end *time.Time) *contracts.CursorPath {
-	points := make([]contracts.TimedPoint, len(trail))
+	points := make([]contracts.TimedPoint, 0, len(trail))
 	totalDist := 0.0
 	maxSpeed := 0.0
 	hesitations := 0
 
-	for i, pos := range trail {
+	var prevPos *autocontracts.CursorPosition
+	for i := range trail {
+		pos := &trail[i]
+		if pos.Point == nil {
+			continue
+		}
 		recordedAt := pos.RecordedAt
 		if recordedAt.IsZero() {
 			// Fallback: use start time + elapsed
 			recordedAt = start.Add(time.Duration(pos.ElapsedMs) * time.Millisecond)
 		}
 
-		points[i] = contracts.TimedPoint{
+		points = append(points, contracts.TimedPoint{
 			X:         pos.Point.X,
 			Y:         pos.Point.Y,
 			Timestamp: recordedAt,
-		}
+		})
 
-		if i > 0 {
-			dx := pos.Point.X - trail[i-1].Point.X
-			dy := pos.Point.Y - trail[i-1].Point.Y
+		if prevPos != nil && prevPos.Point != nil {
+			dx := pos.Point.X - prevPos.Point.X
+			dy := pos.Point.Y - prevPos.Point.Y
 			dist := math.Sqrt(dx*dx + dy*dy)
 			totalDist += dist
 
-			prevTime := trail[i-1].RecordedAt
+			prevTime := prevPos.RecordedAt
 			if prevTime.IsZero() {
-				prevTime = start.Add(time.Duration(trail[i-1].ElapsedMs) * time.Millisecond)
+				prevTime = start.Add(time.Duration(prevPos.ElapsedMs) * time.Millisecond)
 			}
 			dt := recordedAt.Sub(prevTime).Milliseconds()
 			if dt > 0 {
@@ -190,6 +196,7 @@ func (c *Collector) buildCursorPath(stepIndex int, trail []autocontracts.CursorP
 				hesitations++
 			}
 		}
+		prevPos = pos
 	}
 
 	// Calculate directness (straight-line efficiency)

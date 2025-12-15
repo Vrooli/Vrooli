@@ -1,6 +1,7 @@
 package recorder
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -19,6 +20,13 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // FileRecorder persists step outcomes and telemetry to JSON files on disk.
@@ -34,6 +42,8 @@ type FileRecorder struct {
 	mu sync.Mutex
 	// Cache of execution result data being built up
 	results sync.Map // executionID -> *ExecutionResultData
+	// Cache of proto timeline data being built up (preferred on-disk format).
+	timelines sync.Map // executionID -> *executionTimelineData
 }
 
 // ExecutionResultData accumulates execution results to be written to disk.
@@ -47,6 +57,11 @@ type ExecutionResultData struct {
 	TimelineFrame []TimelineFrameData      `json:"timeline_frames"`
 	Summary       ExecutionSummary         `json:"summary"`
 	mu            sync.Mutex               `json:"-"`
+}
+
+type executionTimelineData struct {
+	mu sync.Mutex
+	pb *bastimeline.ExecutionTimeline
 }
 
 // StepResultData captures individual step execution results.
@@ -126,6 +141,11 @@ func NewDBRecorder(repo ExecutionIndexRepository, storage storage.StorageInterfa
 	return NewFileRecorder(repo, storage, log, "")
 }
 
+const (
+	resultFileName        = "result.json"
+	protoTimelineFileName = "timeline.proto.json"
+)
+
 // getOrCreateResult gets or creates the result data for an execution.
 func (r *FileRecorder) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionResultData {
 	key := plan.ExecutionID.String()
@@ -148,9 +168,30 @@ func (r *FileRecorder) getOrCreateResult(plan contracts.ExecutionPlan) *Executio
 	return result
 }
 
+func (r *FileRecorder) getOrCreateTimeline(plan contracts.ExecutionPlan) *executionTimelineData {
+	key := plan.ExecutionID.String()
+	if val, ok := r.timelines.Load(key); ok {
+		return val.(*executionTimelineData)
+	}
+
+	pb := &bastimeline.ExecutionTimeline{
+		ExecutionId: plan.ExecutionID.String(),
+		WorkflowId:  plan.WorkflowID.String(),
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_PENDING,
+		Progress:    0,
+	}
+	entry := &executionTimelineData{pb: pb}
+	r.timelines.Store(key, entry)
+	return entry
+}
+
 // resultFilePath returns the path where execution results should be stored.
 func (r *FileRecorder) resultFilePath(executionID uuid.UUID) string {
-	return filepath.Join(r.dataDir, executionID.String(), "result.json")
+	return filepath.Join(r.dataDir, executionID.String(), resultFileName)
+}
+
+func (r *FileRecorder) protoTimelineFilePath(executionID uuid.UUID) string {
+	return filepath.Join(r.dataDir, executionID.String(), protoTimelineFileName)
 }
 
 // writeResultFile persists the execution result data to disk.
@@ -179,6 +220,41 @@ func (r *FileRecorder) writeResultFile(executionID uuid.UUID, result *ExecutionR
 	return nil
 }
 
+func (r *FileRecorder) writeProtoTimelineFile(executionID uuid.UUID, timeline *executionTimelineData) error {
+	if timeline == nil || timeline.pb == nil {
+		return nil
+	}
+
+	timeline.mu.Lock()
+	defer timeline.mu.Unlock()
+
+	filePath := r.protoTimelineFilePath(executionID)
+	dir := filepath.Dir(filePath)
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create proto timeline directory: %w", err)
+	}
+
+	raw, err := protojson.MarshalOptions{
+		UseProtoNames:   true,
+		EmitUnpopulated: false,
+	}.Marshal(timeline.pb)
+	if err != nil {
+		return fmt.Errorf("marshal proto timeline: %w", err)
+	}
+
+	indented := raw
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, raw, "", "  "); err == nil {
+		indented = buf.Bytes()
+	}
+
+	if err := os.WriteFile(filePath, indented, 0o644); err != nil {
+		return fmt.Errorf("write proto timeline file: %w", err)
+	}
+	return nil
+}
+
 // RecordStepOutcome stores the execution step and key artifacts to files.
 func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error) {
 	if r == nil {
@@ -187,9 +263,11 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 
 	outcome = sanitizeOutcome(outcome)
 	result := r.getOrCreateResult(plan)
+	timeline := r.getOrCreateTimeline(plan)
 
 	stepID := uuid.New()
 	artifactIDs := make([]uuid.UUID, 0, 8)
+	protoArtifacts := make([]*bastimeline.TimelineArtifact, 0, 8)
 
 	// Build step result
 	step := StepResultData{
@@ -235,6 +313,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 	result.Artifacts = append(result.Artifacts, outcomeArtifact)
 	result.mu.Unlock()
 	artifactIDs = append(artifactIDs, outcomeArtifactID)
+	protoArtifacts = append(protoArtifacts, artifactDataToProto(&outcomeArtifact))
 
 	// Console logs
 	if len(outcome.ConsoleLogs) > 0 {
@@ -251,6 +330,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 		artifactIDs = append(artifactIDs, id)
+		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
 	// Network events
@@ -268,6 +348,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 		artifactIDs = append(artifactIDs, id)
+		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
 	// Assertion result
@@ -285,6 +366,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 		artifactIDs = append(artifactIDs, id)
+		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
 	// Extracted data
@@ -302,6 +384,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 		artifactIDs = append(artifactIDs, id)
+		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 	}
 
 	// Engine-provided metadata (video/trace/HAR paths)
@@ -345,6 +428,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
 			artifactIDs = append(artifactIDs, id)
+			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 			timelineScreenshotID = &id
 			timelineScreenshotURL = screenshotInfo.URL
 		} else {
@@ -365,6 +449,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
 			artifactIDs = append(artifactIDs, id)
+			protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 			timelineScreenshotID = &id
 			timelineScreenshotURL = fmt.Sprintf("inline:%s", deriveStepLabel(outcome))
 		}
@@ -399,6 +484,7 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
 		artifactIDs = append(artifactIDs, id)
+		protoArtifacts = append(protoArtifacts, artifactDataToProto(&artifact))
 		domSnapshotArtifactID = &id
 		domSnapshotPreview = truncateRunes(html, 256)
 	}
@@ -431,6 +517,11 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 			r.log.WithError(err).Warn("Failed to write execution result file")
 		}
 	}
+	if err := r.appendProtoTimelineEntry(plan, outcome, protoArtifacts, timelineScreenshotID, timelineScreenshotURL, domSnapshotArtifactID, domSnapshotPreview, timeline); err != nil {
+		if r.log != nil {
+			r.log.WithError(err).Warn("Failed to write proto timeline file")
+		}
+	}
 
 	// Update database index with result path
 	if r.repo != nil {
@@ -448,6 +539,137 @@ func (r *FileRecorder) RecordStepOutcome(ctx context.Context, plan contracts.Exe
 		ArtifactIDs:        artifactIDs,
 		TimelineArtifactID: &timelineID,
 	}, nil
+}
+
+func (r *FileRecorder) appendProtoTimelineEntry(
+	plan contracts.ExecutionPlan,
+	outcome contracts.StepOutcome,
+	artifacts []*bastimeline.TimelineArtifact,
+	screenshotArtifactID *uuid.UUID,
+	screenshotURL string,
+	domSnapshotArtifactID *uuid.UUID,
+	domSnapshotPreview string,
+	timeline *executionTimelineData,
+) error {
+	if r == nil || timeline == nil || timeline.pb == nil {
+		return nil
+	}
+
+	entry := stepOutcomeToTimelineEntry(outcome, plan.ExecutionID)
+	if entry == nil {
+		return nil
+	}
+
+	if screenshotArtifactID != nil && strings.TrimSpace(screenshotURL) != "" {
+		if entry.Telemetry == nil {
+			entry.Telemetry = &basdomain.ActionTelemetry{}
+		}
+		if entry.Telemetry.Screenshot == nil {
+			entry.Telemetry.Screenshot = &basdomain.TimelineScreenshot{}
+		}
+		entry.Telemetry.Screenshot.ArtifactId = screenshotArtifactID.String()
+		entry.Telemetry.Screenshot.Url = screenshotURL
+	}
+	if strings.TrimSpace(domSnapshotPreview) != "" {
+		if entry.Telemetry == nil {
+			entry.Telemetry = &basdomain.ActionTelemetry{}
+		}
+		preview := domSnapshotPreview
+		entry.Telemetry.DomSnapshotPreview = &preview
+	}
+
+	if entry.Aggregates == nil {
+		entry.Aggregates = &bastimeline.TimelineEntryAggregates{}
+	}
+	if outcome.Success {
+		entry.Aggregates.Status = basbase.StepStatus_STEP_STATUS_COMPLETED
+	} else {
+		entry.Aggregates.Status = basbase.StepStatus_STEP_STATUS_FAILED
+	}
+
+	for _, a := range artifacts {
+		if a == nil {
+			continue
+		}
+		entry.Aggregates.Artifacts = append(entry.Aggregates.Artifacts, a)
+	}
+	if domSnapshotArtifactID != nil {
+		for _, a := range entry.Aggregates.Artifacts {
+			if a != nil && a.Id == domSnapshotArtifactID.String() {
+				entry.Aggregates.DomSnapshot = a
+				break
+			}
+		}
+	}
+
+	timeline.mu.Lock()
+	timeline.pb.Entries = append(timeline.pb.Entries, entry)
+	timeline.mu.Unlock()
+
+	return r.writeProtoTimelineFile(plan.ExecutionID, timeline)
+}
+
+func artifactDataToProto(a *ArtifactData) *bastimeline.TimelineArtifact {
+	if a == nil {
+		return nil
+	}
+
+	contentType := strings.TrimSpace(a.ContentType)
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	storageURL := strings.TrimSpace(a.StorageURL)
+	if storageURL == "" {
+		storageURL = "inline:" + a.ArtifactID
+	}
+
+	pb := &bastimeline.TimelineArtifact{
+		Id:          a.ArtifactID,
+		Type:        artifactTypeToProto(a.ArtifactType),
+		StorageUrl:  storageURL,
+		ContentType: contentType,
+		Payload:     map[string]*commonv1.JsonValue{},
+	}
+	if strings.TrimSpace(a.Label) != "" {
+		label := a.Label
+		pb.Label = &label
+	}
+	if strings.TrimSpace(a.ThumbnailURL) != "" {
+		thumb := a.ThumbnailURL
+		pb.ThumbnailUrl = &thumb
+	}
+	if a.SizeBytes != nil {
+		pb.SizeBytes = a.SizeBytes
+	}
+	if a.StepIndex != nil {
+		stepIndex := int32(*a.StepIndex)
+		pb.StepIndex = &stepIndex
+	}
+	if a.Payload != nil {
+		for k, v := range a.Payload {
+			pb.Payload[k] = anyToJsonValue(v)
+		}
+	}
+	return pb
+}
+
+func artifactTypeToProto(kind string) basbase.ArtifactType {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "timeline_frame":
+		return basbase.ArtifactType_ARTIFACT_TYPE_TIMELINE_FRAME
+	case "console":
+		return basbase.ArtifactType_ARTIFACT_TYPE_CONSOLE_LOG
+	case "network":
+		return basbase.ArtifactType_ARTIFACT_TYPE_NETWORK_EVENT
+	case "screenshot", "screenshot_inline":
+		return basbase.ArtifactType_ARTIFACT_TYPE_SCREENSHOT
+	case "dom_snapshot":
+		return basbase.ArtifactType_ARTIFACT_TYPE_DOM_SNAPSHOT
+	case "trace", "video", "har", "trace_meta", "video_meta", "har_meta":
+		return basbase.ArtifactType_ARTIFACT_TYPE_TRACE
+	default:
+		return basbase.ArtifactType_ARTIFACT_TYPE_CUSTOM
+	}
 }
 
 // persistExternalFile stores metadata for engine-provided files (trace/video/HAR).
@@ -497,6 +719,7 @@ func (r *FileRecorder) RecordTelemetry(ctx context.Context, plan contracts.Execu
 	}
 
 	result := r.getOrCreateResult(plan)
+	timeline := r.getOrCreateTimeline(plan)
 	telemetryData := TelemetryData{
 		StepIndex: telemetry.StepIndex,
 		Data:      telemetry,
@@ -507,7 +730,182 @@ func (r *FileRecorder) RecordTelemetry(ctx context.Context, plan contracts.Execu
 	result.Telemetry = append(result.Telemetry, telemetryData)
 	result.mu.Unlock()
 
+	if timeline != nil {
+		if logEntry := telemetryToTimelineLog(telemetryData); logEntry != nil {
+			timeline.mu.Lock()
+			timeline.pb.Logs = append(timeline.pb.Logs, logEntry)
+			timeline.mu.Unlock()
+			_ = r.writeProtoTimelineFile(plan.ExecutionID, timeline)
+		}
+	}
+
 	return r.writeResultFile(plan.ExecutionID, result)
+}
+
+func telemetryToTimelineLog(t TelemetryData) *bastimeline.TimelineLog {
+	message := strings.TrimSpace(t.Data.Note)
+	level := basbase.LogLevel_LOG_LEVEL_INFO
+
+	switch strings.ToLower(strings.TrimSpace(string(t.Data.Kind))) {
+	case "console":
+		if len(t.Data.Console) > 0 && message == "" {
+			first := t.Data.Console[0]
+			message = strings.TrimSpace(first.Text)
+			switch strings.ToLower(strings.TrimSpace(first.Type)) {
+			case "warn", "warning":
+				level = basbase.LogLevel_LOG_LEVEL_WARN
+			case "error":
+				level = basbase.LogLevel_LOG_LEVEL_ERROR
+			case "debug":
+				level = basbase.LogLevel_LOG_LEVEL_DEBUG
+			default:
+				level = basbase.LogLevel_LOG_LEVEL_INFO
+			}
+		}
+	case "network":
+		level = basbase.LogLevel_LOG_LEVEL_DEBUG
+	case "retry":
+		level = basbase.LogLevel_LOG_LEVEL_WARN
+	case "heartbeat", "progress":
+		level = basbase.LogLevel_LOG_LEVEL_INFO
+	}
+
+	if message == "" {
+		return nil
+	}
+
+	return &bastimeline.TimelineLog{
+		Id:        fmt.Sprintf("telemetry-%d-%d", t.StepIndex, t.Timestamp.UnixNano()),
+		Level:     level,
+		Message:   message,
+		Timestamp: timestamppb.New(t.Timestamp),
+	}
+}
+
+func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.UUID) *bastimeline.TimelineEntry {
+	entryID := fmt.Sprintf("%s-step-%d-attempt-%d", executionID.String(), outcome.StepIndex, outcome.Attempt)
+	stepIndex := int32(outcome.StepIndex)
+
+	success := outcome.Success
+	ctx := &basbase.EventContext{
+		Success: &success,
+	}
+	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
+		msg := outcome.Failure.Message
+		ctx.Error = &msg
+	}
+
+	entry := &bastimeline.TimelineEntry{
+		Id:          entryID,
+		SequenceNum: int32(outcome.StepIndex),
+		StepIndex:   &stepIndex,
+		Action: &basactions.ActionDefinition{
+			Type: stepTypeToActionType(outcome.StepType),
+		},
+		Context: ctx,
+	}
+
+	if strings.TrimSpace(outcome.NodeID) != "" {
+		nodeID := outcome.NodeID
+		entry.NodeId = &nodeID
+	}
+	if !outcome.StartedAt.IsZero() {
+		entry.Timestamp = timestamppb.New(outcome.StartedAt)
+	}
+	if outcome.DurationMs > 0 {
+		dur := int32(outcome.DurationMs)
+		entry.DurationMs = &dur
+	}
+
+	// Minimal telemetry - enriched later when persisted screenshot is available.
+	entry.Telemetry = &basdomain.ActionTelemetry{
+		Url: outcome.FinalURL,
+	}
+
+	return entry
+}
+
+func stepTypeToActionType(stepType string) basactions.ActionType {
+	switch strings.ToLower(strings.TrimSpace(stepType)) {
+	case "navigate":
+		return basactions.ActionType_ACTION_TYPE_NAVIGATE
+	case "click":
+		return basactions.ActionType_ACTION_TYPE_CLICK
+	case "input", "type":
+		return basactions.ActionType_ACTION_TYPE_INPUT
+	case "wait":
+		return basactions.ActionType_ACTION_TYPE_WAIT
+	case "assert":
+		return basactions.ActionType_ACTION_TYPE_ASSERT
+	case "scroll":
+		return basactions.ActionType_ACTION_TYPE_SCROLL
+	case "hover":
+		return basactions.ActionType_ACTION_TYPE_HOVER
+	case "keyboard":
+		return basactions.ActionType_ACTION_TYPE_KEYBOARD
+	case "screenshot":
+		return basactions.ActionType_ACTION_TYPE_SCREENSHOT
+	case "select":
+		return basactions.ActionType_ACTION_TYPE_SELECT
+	case "evaluate":
+		return basactions.ActionType_ACTION_TYPE_EVALUATE
+	case "focus":
+		return basactions.ActionType_ACTION_TYPE_FOCUS
+	case "blur":
+		return basactions.ActionType_ACTION_TYPE_BLUR
+	default:
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
+	}
+}
+
+func anyToJsonValue(v any) *commonv1.JsonValue {
+	if v == nil {
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{}}
+	}
+	switch val := v.(type) {
+	case *commonv1.JsonValue:
+		if val == nil {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{}}
+		}
+		return val
+	case bool:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}
+	case int:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
+	case int32:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
+	case int64:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}
+	case float32:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
+	case float64:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}
+	case string:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}
+	case []byte:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
+	case map[string]any:
+		obj := make(map[string]*commonv1.JsonValue, len(val))
+		for k, nested := range val {
+			obj[k] = anyToJsonValue(nested)
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: &commonv1.JsonObject{Fields: obj}}}
+	case map[string]string:
+		obj := make(map[string]*commonv1.JsonValue, len(val))
+		for k, nested := range val {
+			obj[k] = anyToJsonValue(nested)
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: &commonv1.JsonObject{Fields: obj}}}
+	case []any:
+		items := make([]*commonv1.JsonValue, 0, len(val))
+		for _, nested := range val {
+			items = append(items, anyToJsonValue(nested))
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: &commonv1.JsonList{Values: items}}}
+	default:
+		// Fall back to string representation.
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: fmt.Sprintf("%v", val)}}
+	}
 }
 
 // MarkCrash records a crash event and updates the execution index.
@@ -519,6 +917,7 @@ func (r *FileRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, fai
 	// Create a minimal plan for result lookup
 	plan := contracts.ExecutionPlan{ExecutionID: executionID}
 	result := r.getOrCreateResult(plan)
+	timeline := r.getOrCreateTimeline(plan)
 
 	now := time.Now().UTC()
 	crashStep := StepResultData{
@@ -545,6 +944,17 @@ func (r *FileRecorder) MarkCrash(ctx context.Context, executionID uuid.UUID, fai
 		if r.log != nil {
 			r.log.WithError(err).Warn("Failed to write crash to result file")
 		}
+	}
+	if timeline != nil {
+		timeline.mu.Lock()
+		timeline.pb.Logs = append(timeline.pb.Logs, &bastimeline.TimelineLog{
+			Id:        fmt.Sprintf("crash-%d", time.Now().UTC().UnixNano()),
+			Level:     basbase.LogLevel_LOG_LEVEL_ERROR,
+			Message:   failure.Message,
+			Timestamp: timestamppb.New(time.Now().UTC()),
+		})
+		timeline.mu.Unlock()
+		_ = r.writeProtoTimelineFile(executionID, timeline)
 	}
 
 	// Update database index to mark as failed
@@ -588,10 +998,18 @@ func (r *FileRecorder) UpdateCheckpoint(ctx context.Context, executionID uuid.UU
 	// We store progress in the result file instead
 	plan := contracts.ExecutionPlan{ExecutionID: executionID, WorkflowID: execution.WorkflowID}
 	result := r.getOrCreateResult(plan)
+	timeline := r.getOrCreateTimeline(plan)
 
 	result.mu.Lock()
 	result.Summary.CompletedSteps = stepIndex + 1
 	result.mu.Unlock()
+
+	if timeline != nil {
+		timeline.mu.Lock()
+		timeline.pb.Progress = int32(progress)
+		timeline.mu.Unlock()
+		_ = r.writeProtoTimelineFile(executionID, timeline)
+	}
 
 	return r.writeResultFile(executionID, result)
 }

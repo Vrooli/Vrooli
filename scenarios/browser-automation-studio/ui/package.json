@@ -12,9 +12,9 @@
     "dist"
   ],
   "scripts": {
-    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && for pkg in api-base iframe-bridge vitest-requirement-reporter; do ln -snf ../../../../../packages/$pkg node_modules/@vrooli/$pkg; done && ln -snf ../../../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'",
+    "postinstall": "bash -c 'set -e; mkdir -p node_modules/@vrooli; for pkg in api-base iframe-bridge vitest-requirement-reporter; do rm -rf \"node_modules/@vrooli/$pkg\"; cp -a \"../../../packages/$pkg\" \"node_modules/@vrooli/$pkg\"; done; rm -rf node_modules/@vrooli/proto-types; cp -a ../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npx vite'",
-    "build": "tsc && npx vite build",
+    "build": "tsc && npx vite build && node ./scripts/gzip-dist.mjs",
     "preview": "npx vite preview",
     "test": "bash ./scripts/run-vitest.sh",
     "test:stores": "vitest run --project stores",

@@ -117,6 +117,9 @@ WORKFLOW COMMANDS:
         --folder <path>      Folder path for organization (default: /)
         --from-file <file>   Import from JSON file
         --ai-prompt <text>   Generate from natural language
+        --project-id <uuid>  Associate workflow with an existing project
+        --project-name <name> Resolve project by name (default: demo seed)
+        --json               Output raw API response JSON
 
     workflow lint <files...> [--strict] [--json]
         Validate one or more workflow playbooks via /api/v1/workflows/validate
@@ -561,6 +564,11 @@ EOF
         # Human-readable output
         echo -e "${BLUE}Vrooli Ascension Status${NC}"
         echo "================================"
+        if [ "$api_running" = true ]; then
+            echo "status: running"
+        else
+            echo "status: down"
+        fi
 
         if [ "$api_running" = true ]; then
             echo -e "API Server: ${GREEN}✓ Running${NC}"
@@ -602,6 +610,9 @@ create_workflow() {
     local folder="/"
     local from_file=""
     local ai_prompt=""
+    local project_id=""
+    local project_name="Demo Browser Automations"
+    local json_output=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -617,14 +628,54 @@ create_workflow() {
                 ai_prompt="$2"
                 shift 2
                 ;;
+            --project-id)
+                project_id="$2"
+                shift 2
+                ;;
+            --project-name)
+                project_name="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
             *)
                 echo -e "${RED}Unknown option: $1${NC}"
                 exit 1
                 ;;
         esac
     done
-    
-    local json_payload="{\"name\": \"$name\", \"folder_path\": \"$folder\""
+
+    if [ -z "$project_id" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            project_id=$(curl -s "${API_URL}/projects" | jq -r --arg name "$project_name" '.projects[]? | select(.project.name == $name) | .project.id' | head -n 1)
+        else
+            project_id=$(curl -s "${API_URL}/projects" | grep -o "\"id\":\"[^\"]*\"" | head -n 1 | cut -d'"' -f4)
+        fi
+    fi
+
+    if [ -z "$project_id" ] || [ "$project_id" = "null" ]; then
+        if [ "$project_name" = "Demo Browser Automations" ]; then
+            local demo_folder="${SCENARIO_ROOT}/data/projects/demo"
+            local create_payload
+            create_payload=$(printf '{"name":"%s","folder_path":"%s","preset":"recommended"}' "$project_name" "$demo_folder")
+            if command -v jq >/dev/null 2>&1; then
+                project_id=$(curl -s -X POST -H "Content-Type: application/json" -d "$create_payload" "${API_URL}/projects" | jq -r '.id // .project.id // empty')
+            else
+                project_id=$(curl -s -X POST -H "Content-Type: application/json" -d "$create_payload" "${API_URL}/projects" | grep -o "\"id\":\"[^\"]*\"" | head -n 1 | cut -d'"' -f4)
+            fi
+        fi
+    fi
+
+    if [ -z "$project_id" ] || [ "$project_id" = "null" ]; then
+        echo -e "${RED}Error: Unable to resolve project_id${NC}"
+        echo "Provide --project-id or create a project first (or use the demo seed)."
+        exit 1
+    fi
+
+    local json_payload
+    json_payload=$(printf '{"project_id":"%s","name":"%s","folder_path":"%s"' "$project_id" "$name" "$folder")
     
     if [ -n "$from_file" ]; then
         if [ ! -f "$from_file" ]; then
@@ -639,27 +690,41 @@ create_workflow() {
     
     json_payload="$json_payload}"
     
-    echo -e "${BLUE}Creating workflow: $name${NC}"
-    
-    response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        -d "$json_payload" \
-        "${API_URL}/workflows/create")
-    
-    if echo "$response" | grep -q "workflow_id"; then
-        workflow_id=$(echo "$response" | grep -o '"workflow_id":"[^"]*' | cut -d'"' -f4)
-        echo -e "${GREEN}✓ Workflow created successfully!${NC}"
-        echo "Workflow ID: $workflow_id"
-        echo "Folder: $folder"
-        
-        if [ -n "$ai_prompt" ]; then
-            echo -e "${YELLOW}AI generated workflow from prompt${NC}"
+    local response_file http_status
+    response_file=$(mktemp)
+    http_status=$(curl -s -o "$response_file" -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$json_payload" "${API_URL}/workflows/create")
+
+    if [ "$json_output" = true ]; then
+        cat "$response_file"
+        rm -f "$response_file"
+        if [ "$http_status" = "201" ]; then
+            exit 0
         fi
-    else
-        echo -e "${RED}Failed to create workflow${NC}"
-        echo "$response"
         exit 1
     fi
+
+    if [ "$http_status" != "201" ]; then
+        echo -e "${RED}Failed to create workflow (HTTP ${http_status})${NC}"
+        cat "$response_file"
+        rm -f "$response_file"
+        exit 1
+    fi
+
+    echo -e "${BLUE}Creating workflow: $name${NC}"
+    if command -v jq >/dev/null 2>&1; then
+        local workflow_id
+        workflow_id=$(jq -r '.workflow.id // empty' "$response_file" 2>/dev/null)
+        echo -e "${GREEN}✓ Workflow created successfully!${NC}"
+        [ -n "$workflow_id" ] && echo "Workflow ID: $workflow_id"
+        echo "Project: $project_name"
+        echo "Folder: $folder"
+    else
+        echo -e "${GREEN}✓ Workflow created successfully!${NC}"
+        echo "Project: $project_name"
+        echo "Folder: $folder"
+        cat "$response_file"
+    fi
+    rm -f "$response_file"
 }
 
 execute_workflow() {
@@ -748,7 +813,7 @@ execute_workflow() {
             echo "Screenshots saved to: $output_dir"
         fi
     else
-        echo -e "${RED}Failed to start execution${NC}"
+        echo -e "${RED}error: failed to start execution${NC}"
         echo "$response"
         exit 1
     fi
@@ -1677,7 +1742,7 @@ NODE
                     echo -e "${BLUE}Recent Executions${NC}"
                     echo "=================="
 
-                    formatted=$(echo "$response" | jq -r "$EXECUTION_LIST_FILTER" 2>/dev/null)
+                    formatted=$(echo "$response" | jq -r "$EXECUTION_LIST_FILTER" 2>/dev/null || true)
                     if [ -n "$formatted" ]; then
                         printf '%s\n' "$formatted"
                     else

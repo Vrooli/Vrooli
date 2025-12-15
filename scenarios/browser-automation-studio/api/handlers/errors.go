@@ -57,6 +57,7 @@ var (
 var (
 	ErrProjectAlreadyExists  = apierror.ErrProjectAlreadyExists
 	ErrWorkflowAlreadyExists = apierror.ErrWorkflowAlreadyExists
+	ErrWorkflowVersionConflict = apierror.ErrWorkflowVersionConflict
 	ErrConflict              = apierror.ErrConflict
 )
 

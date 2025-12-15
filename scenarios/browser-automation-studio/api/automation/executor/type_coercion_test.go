@@ -1,3 +1,6 @@
+//go:build legacydb
+// +build legacydb
+
 package executor
 
 import (

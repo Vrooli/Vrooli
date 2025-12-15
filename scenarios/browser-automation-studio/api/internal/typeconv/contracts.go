@@ -34,22 +34,26 @@ func ToAssertionOutcome(value any) *contracts.AssertionOutcome {
 	}
 }
 
-// ToHighlightRegions converts various slice types to []contracts.HighlightRegion.
-func ToHighlightRegions(value any) []contracts.HighlightRegion {
-	regions := make([]contracts.HighlightRegion, 0)
+// ToHighlightRegions converts various slice types to []*contracts.HighlightRegion.
+func ToHighlightRegions(value any) []*contracts.HighlightRegion {
+	regions := make([]*contracts.HighlightRegion, 0)
 	switch v := value.(type) {
-	case []contracts.HighlightRegion:
+	case []*contracts.HighlightRegion:
 		return v
+	case []contracts.HighlightRegion:
+		for i := range v {
+			regions = append(regions, &v[i])
+		}
 	case []map[string]any:
 		for _, item := range v {
 			if region := ToHighlightRegion(item); region != nil {
-				regions = append(regions, *region)
+				regions = append(regions, region)
 			}
 		}
 	case []any:
 		for _, item := range v {
 			if region := ToHighlightRegion(item); region != nil {
-				regions = append(regions, *region)
+				regions = append(regions, region)
 			}
 		}
 	}
@@ -87,22 +91,26 @@ func ToHighlightRegion(value any) *contracts.HighlightRegion {
 	return &region
 }
 
-// ToMaskRegions converts various slice types to []contracts.MaskRegion.
-func ToMaskRegions(value any) []contracts.MaskRegion {
-	regions := make([]contracts.MaskRegion, 0)
+// ToMaskRegions converts various slice types to []*contracts.MaskRegion.
+func ToMaskRegions(value any) []*contracts.MaskRegion {
+	regions := make([]*contracts.MaskRegion, 0)
 	switch v := value.(type) {
-	case []contracts.MaskRegion:
+	case []*contracts.MaskRegion:
 		return v
+	case []contracts.MaskRegion:
+		for i := range v {
+			regions = append(regions, &v[i])
+		}
 	case []map[string]any:
 		for _, item := range v {
 			if region := ToMaskRegion(item); region != nil {
-				regions = append(regions, *region)
+				regions = append(regions, region)
 			}
 		}
 	case []any:
 		for _, item := range v {
 			if region := ToMaskRegion(item); region != nil {
-				regions = append(regions, *region)
+				regions = append(regions, region)
 			}
 		}
 	}
@@ -179,33 +187,36 @@ func ToPoint(value any) *contracts.Point {
 	}
 }
 
-// ToPointSlice converts various types to []contracts.Point.
-func ToPointSlice(value any) []contracts.Point {
-	points := make([]contracts.Point, 0)
+// ToPointSlice converts various types to []*contracts.Point.
+func ToPointSlice(value any) []*contracts.Point {
+	points := make([]*contracts.Point, 0)
 	switch v := value.(type) {
-	case []contracts.Point:
-		return v
 	case []*contracts.Point:
 		for _, item := range v {
 			if item != nil {
-				points = append(points, *item)
+				points = append(points, item)
 			}
+		}
+		return points
+	case []contracts.Point:
+		for i := range v {
+			points = append(points, &v[i])
 		}
 	case []map[string]any:
 		for _, item := range v {
 			if pt := ToPoint(item); pt != nil {
-				points = append(points, *pt)
+				points = append(points, pt)
 			}
 		}
 	case []any:
 		for _, item := range v {
 			if pt := ToPoint(item); pt != nil {
-				points = append(points, *pt)
+				points = append(points, pt)
 			}
 		}
 	case map[string]any:
 		if pt := ToPoint(v); pt != nil {
-			points = append(points, *pt)
+			points = append(points, pt)
 		}
 	}
 	return points

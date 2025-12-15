@@ -23,7 +23,11 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   runningCount = 0,
 }) => {
   return (
-    <nav className="flex items-center gap-1 border-b border-gray-800 px-4 sm:px-6 bg-flow-bg">
+    <nav
+      className="flex items-center gap-1 border-b border-gray-800 px-4 sm:px-6 bg-flow-bg"
+      role="tablist"
+      aria-label="Dashboard sections"
+    >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const showBadge = tab.id === 'executions' && runningCount > 0;
@@ -33,6 +37,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
             key={tab.id}
             data-testid={`dashboard-tab-${tab.id}`}
             onClick={() => onTabChange(tab.id)}
+            type="button"
             className={`
               relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors
               border-b-2 -mb-[2px]
@@ -44,6 +49,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
             `}
             aria-selected={isActive}
             role="tab"
+            tabIndex={isActive ? 0 : -1}
           >
             {tab.icon}
             <span>{tab.label}</span>

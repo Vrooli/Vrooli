@@ -1,6 +1,7 @@
-import { useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useState, lazy, Suspense, type MouseEvent as ReactMouseEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { NodePalette } from '@features/workflows';
+
+const NodePalette = lazy(() => import('@features/workflows/builder/NodePalette'));
 
 interface SidebarProps {
   selectedFolder: string;
@@ -104,7 +105,15 @@ function Sidebar({
       {!isCollapsed && (
         <div className="flex flex-1 min-h-0">
           <div className="flex-1 overflow-y-auto">
-            <NodePalette />
+            <Suspense
+              fallback={
+                <div className="p-4 text-sm text-subtle">
+                  Loading palette…
+                </div>
+              }
+            >
+              <NodePalette />
+            </Suspense>
           </div>
           <div
             role="separator"

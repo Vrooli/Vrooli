@@ -23,7 +23,7 @@ func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, execution
 		return nil, err
 	}
 
-	var workflow *database.Workflow
+	var workflow *database.WorkflowIndex
 	if wf, wfErr := s.repo.GetWorkflow(ctx, execution.WorkflowID); wfErr == nil {
 		workflow = wf
 	} else if !errors.Is(wfErr, database.ErrNotFound) {

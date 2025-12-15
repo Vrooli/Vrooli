@@ -1,155 +1,188 @@
 {
-  "metadata": {
-    "description": "Validates execute button runs current workflow with feedback",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "nav",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000,
-        "waitForMs": 1200
-      }
-    },
-    {
-      "id": "proj",
-      "type": "click",
-      "data": {
-        "label": "Open project",
-        "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "wait-workflows",
-      "type": "wait",
-      "data": {
-        "label": "Wait for workflows to load",
-        "selector": "@selector/workflows.card",
-        "timeoutMs": 10000,
-        "waitForMs": 600,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "work",
-      "type": "click",
-      "data": {
-        "label": "Open workflow with nodes",
-        "selector": "@selector/workflows.card:first-of-type",
-        "timeoutMs": 10000
-      }
-    },
-    {
-      "id": "wait1",
-      "type": "wait",
-      "data": {
-        "label": "Wait for builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "assert-execute-btn",
-      "type": "assert",
-      "data": {
-        "label": "Execute button visible",
-        "selector": "@selector/header.buttons.execute",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Execute button should be visible"
-      }
-    },
-    {
-      "id": "click-execute",
-      "type": "click",
-      "data": {
-        "label": "Click execute",
-        "selector": "@selector/header.buttons.execute /*dup-1*/",
-        "timeoutMs": 5000
-      }
-    },
-    {
-      "id": "wait-execution",
-      "type": "wait",
-      "data": {
-        "label": "Wait for execution to start",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "check-feedback",
-      "type": "evaluate",
-      "data": {
-        "label": "Check for execution feedback",
-        "expression": "(() => { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
-        "storeResult": "hasExecutionFeedback"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "nav",
       "target": "proj",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e2",
       "source": "proj",
       "target": "wait-workflows",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "work",
       "target": "wait1",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
       "source": "wait1",
       "target": "assert-execute-btn",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "click-execute",
       "target": "wait-execution",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8",
       "source": "wait-execution",
       "target": "check-feedback",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e-wait-work",
       "source": "wait-workflows",
       "target": "work",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e5-bridge-e6",
       "source": "assert-execute-btn",
       "target": "click-execute",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates execute button runs current workflow with feedback",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1200
+      },
+      "id": "nav"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open project"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "proj"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for workflows to load"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflows.card",
+          "timeout_ms": 10000
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 600
+      },
+      "id": "wait-workflows"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open workflow with nodes"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "work"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for builder"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 3000
+        }
+      },
+      "id": "wait1"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Execute button should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/header.buttons.execute",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Execute button visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-execute-btn"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/header.buttons.execute /*dup-1*/"
+        },
+        "metadata": {
+          "label": "Click execute"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-execute"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for execution to start"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 2000
+        }
+      },
+      "id": "wait-execution"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
+          "store_result": "hasExecutionFeedback"
+        },
+        "metadata": {
+          "label": "Check for execution feedback"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "check-feedback"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

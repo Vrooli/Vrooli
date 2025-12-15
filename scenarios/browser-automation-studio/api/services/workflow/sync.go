@@ -76,7 +76,7 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 		if !strings.HasSuffix(strings.ToLower(d.Name()), workflowFileExt) {
 			return nil
 		}
-		snapshot, readErr := readWorkflowSummaryFile(ctx, project, path)
+		snapshot, readErr := ReadWorkflowSummaryFile(ctx, project, path)
 		if readErr != nil {
 			discoveryErr = readErr
 			return readErr
@@ -144,7 +144,7 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 				return fmt.Errorf("failed to create workflow from file %s: %w", snapshot.RelativePath, err)
 			}
 			if snapshot.NeedsWrite {
-				if _, _, err := writeWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
+				if _, _, err := WriteWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
 					return err
 				}
 			}
@@ -174,7 +174,7 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 				return fmt.Errorf("failed to update workflow %s from file: %w", existing.ID, err)
 			}
 			if snapshot.NeedsWrite {
-				if _, _, err := writeWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
+				if _, _, err := WriteWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
 					return err
 				}
 			}
@@ -182,7 +182,7 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 		}
 
 		if snapshot.NeedsWrite {
-			if _, _, err := writeWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
+			if _, _, err := WriteWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
 				return err
 			}
 		}
@@ -200,4 +200,10 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 	}
 
 	return nil
+}
+
+// SyncProjectWorkflows synchronizes the workflow DB index for a project from the filesystem.
+// The filesystem is the source of truth; the DB is an index.
+func (s *WorkflowService) SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error {
+	return s.syncProjectWorkflows(ctx, projectID)
 }

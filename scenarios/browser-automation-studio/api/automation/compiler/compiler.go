@@ -425,6 +425,21 @@ func extractV2Params(action map[string]any) map[string]any {
 			for k, v := range actionParams {
 				// Convert snake_case to camelCase for executor compatibility
 				camelKey := snakeToCamel(k)
+				// Normalize proto enum strings into the legacy executor values.
+				if camelKey == "waitUntil" {
+					if s, ok := v.(string); ok {
+						switch strings.TrimSpace(s) {
+						case "NAVIGATE_WAIT_EVENT_LOAD":
+							v = "load"
+						case "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED":
+							v = "domcontentloaded"
+						case "NAVIGATE_WAIT_EVENT_NETWORKIDLE":
+							v = "networkidle"
+						case "NAVIGATE_WAIT_EVENT_COMMIT":
+							v = "commit"
+						}
+					}
+				}
 				params[camelKey] = v
 			}
 			break // Only one action field should be populated
@@ -513,9 +528,17 @@ func extractViewportFromSettings(settings map[string]any) (int, int) {
 		return 0, 0
 	}
 
-	// Try V2 format first (snake_case direct fields)
+	// Try V2 format first (proto fields; may be snake_case when UseProtoNames is enabled,
+	// or lowerCamel when using default protojson marshaling).
 	width := toPositiveInt(settings["viewport_width"])
 	height := toPositiveInt(settings["viewport_height"])
+	if width > 0 && height > 0 {
+		return width, height
+	}
+
+	// Default protojson uses lowerCamel.
+	width = toPositiveInt(settings["viewportWidth"])
+	height = toPositiveInt(settings["viewportHeight"])
 	if width > 0 && height > 0 {
 		return width, height
 	}
@@ -1050,7 +1073,12 @@ func resolveNavigateURL(step *ExecutionStep) error {
 
 	// Check if this is a scenario destination
 	destinationType, _ := step.Params["destinationType"].(string)
-	if strings.TrimSpace(destinationType) != "scenario" {
+	if strings.TrimSpace(destinationType) == "" {
+		destinationType, _ = step.Params["destination_type"].(string)
+	}
+	destinationType = strings.TrimSpace(destinationType)
+	isScenario := destinationType == "scenario" || destinationType == "NAVIGATE_DESTINATION_TYPE_SCENARIO"
+	if !isScenario {
 		// Not a scenario destination, no resolution needed
 		return nil
 	}
@@ -1058,6 +1086,9 @@ func resolveNavigateURL(step *ExecutionStep) error {
 	// Extract scenario name and path
 	scenarioName, _ := step.Params["scenario"].(string)
 	scenarioPath, _ := step.Params["scenarioPath"].(string)
+	if strings.TrimSpace(scenarioPath) == "" {
+		scenarioPath, _ = step.Params["scenario_path"].(string)
+	}
 
 	scenarioName = strings.TrimSpace(scenarioName)
 	if scenarioName == "" {

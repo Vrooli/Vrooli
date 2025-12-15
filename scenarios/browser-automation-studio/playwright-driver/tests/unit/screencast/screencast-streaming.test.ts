@@ -12,22 +12,6 @@ import {
   type ScreencastState,
 } from '../../../src/routes/record-mode/screencast-streaming';
 
-// Mock logger to prevent console output during tests
-jest.mock('../../../src/utils', () => ({
-  logger: {
-    info: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-  },
-  scopedLog: jest.fn((_ctx, msg) => msg),
-  LogContext: { RECORDING: 'recording' },
-  metrics: {
-    frameCaptureLatency: { observe: jest.fn() },
-    frameE2ELatency: { observe: jest.fn() },
-  },
-}));
-
 describe('Screencast Streaming', () => {
   let mockCdpSession: jest.Mocked<CDPSession>;
   let mockPage: jest.Mocked<Page>;

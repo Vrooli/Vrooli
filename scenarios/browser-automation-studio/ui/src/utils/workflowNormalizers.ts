@@ -1,4 +1,4 @@
-import { Edge, Node } from 'reactflow';
+import type { Edge, Node } from 'reactflow';
 
 /**
  * Normalizes raw node data from API/storage into valid ReactFlow Node objects.

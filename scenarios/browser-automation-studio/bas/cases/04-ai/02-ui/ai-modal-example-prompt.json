@@ -1,143 +1,176 @@
 {
-  "metadata": {
-    "description": "Validates selecting an example prompt in the AI modal and using it to generate a workflow",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 45000,
-        "waitForMs": 1200
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "data": {
-        "label": "Open first project",
-        "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "click-new-workflow",
-      "type": "click",
-      "data": {
-        "label": "Click New Workflow button",
-        "selector": "@selector/workflows.newButton",
-        "timeoutMs": 10000
-      }
-    },
-    {
-      "id": "assert-ai-modal-visible",
-      "type": "assert",
-      "data": {
-        "label": "AI Workflow Generator modal is visible",
-        "selector": "[role=\"dialog\"]",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "AI modal should appear after clicking New Workflow"
-      }
-    },
-    {
-      "id": "click-example-prompt",
-      "type": "click",
-      "data": {
-        "label": "Click first example prompt",
-        "selector": "@selector/ai.modal.examplePrompts.first",
-        "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea",
-          "successWaitMs": 1000
-        }
-      }
-    },
-    {
-      "id": "verify-prompt-populated",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify prompt textarea has content",
-        "expression": "(() => { const textarea = document.querySelector('textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea'); if (!textarea) return false; return textarea.value.length > 10; })()",
-        "storeResult": "promptHasContent"
-      }
-    },
-    {
-      "id": "verify-workflow-name-populated",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify workflow name input has content",
-        "expression": "(() => { const input = document.querySelector('input[placeholder*=\"name\"], input[type=\"text\"]'); if (!input) return false; return input.value.length > 0; })()",
-        "storeResult": "nameHasContent"
-      }
-    },
-    {
-      "id": "assert-generate-button-enabled",
-      "type": "evaluate",
-      "data": {
-        "label": "Generate button should be enabled",
-        "expression": "(() => { const button = document.querySelector('@selector/ai.modal.generateButton'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",
-        "storeResult": "generateButtonEnabled"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "e1",
       "source": "navigate-dashboard",
       "target": "click-project",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e3",
       "source": "click-project",
       "target": "click-new-workflow",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e6",
       "source": "click-new-workflow",
       "target": "assert-ai-modal-visible",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "click-example-prompt",
       "target": "verify-prompt-populated",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e12",
       "source": "verify-prompt-populated",
       "target": "verify-workflow-name-populated",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7-bridge-e9",
       "source": "assert-ai-modal-visible",
       "target": "click-example-prompt",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e13-bridge-e14",
       "source": "verify-workflow-name-populated",
       "target": "assert-generate-button-enabled",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates selecting an example prompt in the AI modal and using it to generate a workflow",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 45000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1200
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.card:first-of-type"
+        },
+        "metadata": {
+          "label": "Open first project"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 500
+      },
+      "id": "click-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/workflows.newButton"
+        },
+        "metadata": {
+          "label": "Click New Workflow button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-new-workflow"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "AI modal should appear after clicking New Workflow",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[role=\"dialog\"]",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "AI Workflow Generator modal is visible"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-ai-modal-visible"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/ai.modal.examplePrompts.first"
+        },
+        "metadata": {
+          "label": "Click first example prompt"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea"
+        }
+      },
+      "id": "click-example-prompt"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const textarea = document.querySelector('textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea'); if (!textarea) return false; return textarea.value.length \u003e 10; })()",
+          "store_result": "promptHasContent"
+        },
+        "metadata": {
+          "label": "Verify prompt textarea has content"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-prompt-populated"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const input = document.querySelector('input[placeholder*=\"name\"], input[type=\"text\"]'); if (!input) return false; return input.value.length \u003e 0; })()",
+          "store_result": "nameHasContent"
+        },
+        "metadata": {
+          "label": "Verify workflow name input has content"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-workflow-name-populated"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const button = document.querySelector('@selector/ai.modal.generateButton'); if (!button) return false; return !button.disabled \u0026\u0026 !button.hasAttribute('disabled'); })()",
+          "store_result": "generateButtonEnabled"
+        },
+        "metadata": {
+          "label": "Generate button should be enabled"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "assert-generate-button-enabled"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

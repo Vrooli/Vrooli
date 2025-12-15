@@ -1,108 +1,133 @@
 {
-  "metadata": {
-    "description": "Validates duplicating selected nodes using toolbar duplicate button",
-    "version": 1,
-  "reset": "full"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1920,
-      "height": 1080,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "call-open-demo-workflow",
-      "type": "subflow",
-      "data": {
-        "label": "Open seeded workflow via fixture",
-        "workflowPath": "actions/open-demo-workflow.json",
-        "params": {
-              "projectName": "${@params/projectName}",
-              "projectFolder": "${@params/projectFolder}",
-              "workflowName": "${@params/workflowName}"
-        }
-      }
-    },
-    {
-      "id": "count-initial",
-      "type": "evaluate",
-      "data": {
-        "label": "Count initial nodes",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "initialCount"
-      }
-    },
-    {
-      "id": "click-node",
-      "type": "click",
-      "data": {
-        "label": "Select node",
-        "selector": ".react-flow__node:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "click-duplicate",
-      "type": "click",
-      "data": {
-        "label": "Click duplicate button",
-        "selector": "@selector/toolbar.duplicateButton",
-        "timeoutMs": 5000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "count-final",
-      "type": "evaluate",
-      "data": {
-        "label": "Count nodes after duplicate",
-        "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeResult": "finalCount"
-      }
-    },
-    {
-      "id": "verify-increased",
-      "type": "evaluate",
-      "data": {
-        "label": "Verify node count increased",
-        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final > initial; })()",
-        "storeResult": "nodeDuplicated"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "call-open-demo-workflow-to-count-initial",
       "source": "call-open-demo-workflow",
       "target": "count-initial",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e7",
       "source": "count-initial",
       "target": "click-node",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e10",
       "source": "click-duplicate",
       "target": "count-final",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e11",
       "source": "count-final",
       "target": "verify-increased",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e8-bridge-e9",
       "source": "click-node",
       "target": "click-duplicate",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Validates duplicating selected nodes using toolbar duplicate button",
+    "labels": {
+      "reset": "full"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open seeded workflow via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectName": "${@params/projectName}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/open-demo-workflow.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "call-open-demo-workflow"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "initialCount"
+        },
+        "metadata": {
+          "label": "Count initial nodes"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-initial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": ".react-flow__node:first-of-type"
+        },
+        "metadata": {
+          "label": "Select node"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1000
+      },
+      "id": "click-node"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/toolbar.duplicateButton"
+        },
+        "metadata": {
+          "label": "Click duplicate button"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "wait_after_ms": 1500
+      },
+      "id": "click-duplicate"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.querySelectorAll('.react-flow__node').length",
+          "store_result": "finalCount"
+        },
+        "metadata": {
+          "label": "Count nodes after duplicate"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "count-final"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "(() =\u003e { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final \u003e initial; })()",
+          "store_result": "nodeDuplicated"
+        },
+        "metadata": {
+          "label": "Verify node count increased"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "verify-increased"
+    }
+  ],
+  "settings": {
+    "viewport_height": 1080,
+    "viewport_width": 1920
+  }
 }

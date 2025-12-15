@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -11,6 +12,9 @@ import (
 	autorecorder "github.com/vrooli/browser-automation-studio/automation/recorder"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Type aliases for backward compatibility with existing workflow package code.
@@ -22,6 +26,55 @@ type (
 	TimelineScreenshot = typeconv.TimelineScreenshot
 	TimelineArtifact   = typeconv.TimelineArtifact
 )
+
+// GetExecutionTimelineProto reads the on-disk proto timeline (preferred) for a given execution.
+// Falls back to a minimal proto timeline if no file exists yet.
+func (s *WorkflowService) GetExecutionTimelineProto(ctx context.Context, executionID uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
+	execution, err := s.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+
+	pb := &bastimeline.ExecutionTimeline{
+		ExecutionId: execution.ID.String(),
+		WorkflowId:  execution.WorkflowID.String(),
+		Status:      typeconv.StringToExecutionStatus(execution.Status),
+		Progress:    0,
+		StartedAt:   timestamppb.New(execution.StartedAt),
+	}
+	if execution.CompletedAt != nil {
+		pb.CompletedAt = timestamppb.New(*execution.CompletedAt)
+	}
+
+	if strings.TrimSpace(execution.ResultPath) == "" {
+		return pb, nil
+	}
+
+	timelinePath := filepath.Join(filepath.Dir(execution.ResultPath), "timeline.proto.json")
+	raw, err := os.ReadFile(timelinePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return pb, nil
+		}
+		return nil, fmt.Errorf("read proto timeline: %w", err)
+	}
+	var parsed bastimeline.ExecutionTimeline
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &parsed); err != nil {
+		return nil, fmt.Errorf("parse proto timeline: %w", err)
+	}
+
+	// Ensure key fields reflect current index data.
+	if strings.TrimSpace(parsed.ExecutionId) == "" {
+		parsed.ExecutionId = pb.ExecutionId
+	}
+	if strings.TrimSpace(parsed.WorkflowId) == "" {
+		parsed.WorkflowId = pb.WorkflowId
+	}
+	parsed.Status = pb.Status
+	parsed.StartedAt = pb.StartedAt
+	parsed.CompletedAt = pb.CompletedAt
+	return &parsed, nil
+}
 
 // GetExecutionTimeline assembles replay-ready artifacts for a given execution.
 // Reads execution data from the result JSON file stored on disk.
@@ -92,20 +145,46 @@ func (s *WorkflowService) GetExecutionTimeline(ctx context.Context, executionID 
 	// Build logs from telemetry data (telemetry can contain log-level information)
 	timelineLogs := make([]TimelineLog, 0)
 	for i, telemetry := range resultData.Telemetry {
-		// Extract log entries from telemetry if present
-		if telemetry.Data.Message != "" {
-			level := strings.ToLower(strings.TrimSpace(telemetry.Data.Level))
-			if level == "" {
-				level = "info"
+		message := strings.TrimSpace(telemetry.Data.Note)
+		level := "info"
+		switch telemetry.Data.Kind {
+		case "console":
+			level = "info"
+			if len(telemetry.Data.Console) > 0 && strings.TrimSpace(message) == "" {
+				first := telemetry.Data.Console[0]
+				message = strings.TrimSpace(first.Text)
+				if t := strings.TrimSpace(first.Type); t != "" {
+					level = strings.ToLower(t)
+				}
 			}
-			timelineLogs = append(timelineLogs, TimelineLog{
-				ID:        fmt.Sprintf("log-%d", i),
-				Level:     level,
-				Message:   telemetry.Data.Message,
-				StepName:  fmt.Sprintf("step-%d", telemetry.StepIndex),
-				Timestamp: telemetry.Timestamp,
-			})
+		case "network":
+			level = "debug"
+			if len(telemetry.Data.Network) > 0 && strings.TrimSpace(message) == "" {
+				first := telemetry.Data.Network[0]
+				message = strings.TrimSpace(first.URL)
+			}
+		case "retry":
+			level = "warn"
+		case "progress":
+			level = "info"
+		case "heartbeat":
+			level = "info"
+			if telemetry.Data.Heartbeat != nil && strings.TrimSpace(message) == "" {
+				message = strings.TrimSpace(telemetry.Data.Heartbeat.Message)
+			}
 		}
+
+		if message == "" {
+			continue
+		}
+
+		timelineLogs = append(timelineLogs, TimelineLog{
+			ID:        fmt.Sprintf("log-%d", i),
+			Level:     level,
+			Message:   message,
+			StepName:  fmt.Sprintf("step-%d", telemetry.StepIndex),
+			Timestamp: telemetry.Timestamp,
+		})
 	}
 
 	// Calculate progress from summary

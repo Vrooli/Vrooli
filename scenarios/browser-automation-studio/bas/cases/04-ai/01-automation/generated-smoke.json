@@ -1,78 +1,91 @@
 {
-  "metadata": {
-    "description": "Smoke test for AI workflow generation feature - verifies UI elements are present",
-    "version": 1,
-    "reset": "none"
-  },
-  "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
-  },
-  "nodes": [
-    {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle",
-        "timeoutMs": 30000
-      }
-    },
-    {
-      "id": "wait-app-ready",
-      "type": "wait",
-      "data": {
-        "label": "Wait for React app to hydrate",
-        "waitType": "element",
-        "selector": "@selector/app.shell.ready",
-        "timeoutMs": 30000
-      }
-    },
-    {
-      "id": "wait-for-page",
-      "type": "wait",
-      "data": {
-        "label": "Wait for page load",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "assert-dashboard",
-      "type": "assert",
-      "data": {
-        "label": "Dashboard loaded",
-        "selector": "body",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Dashboard body should be visible"
-      }
-    }
-  ],
   "edges": [
     {
       "id": "edge-nav-app-ready",
       "source": "navigate-dashboard",
       "target": "wait-app-ready",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "edge-app-ready-wait",
       "source": "wait-app-ready",
       "target": "wait-for-page",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "edge-wait-screenshot-bridge-edge-screenshot-assert",
       "source": "wait-for-page",
       "target": "assert-dashboard",
-      "type": "smoothstep"
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Smoke test for AI workflow generation feature - verifies UI elements are present",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open BAS dashboard"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for React app to hydrate"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/app.shell.ready",
+          "timeout_ms": 30000
+        }
+      },
+      "id": "wait-app-ready"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for page load"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 2000
+        }
+      },
+      "id": "wait-for-page"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Dashboard body should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "body",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Dashboard loaded"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-dashboard"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
 }

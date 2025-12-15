@@ -34,12 +34,47 @@ type UpdateScheduleRequest struct {
 	IsActive       *bool          `json:"is_active,omitempty"`
 }
 
-// ScheduleResponse extends WorkflowSchedule with additional computed fields
-type ScheduleResponse struct {
-	*database.WorkflowSchedule
-	WorkflowName  string `json:"workflow_name,omitempty"`
-	NextRunHuman  string `json:"next_run_human,omitempty"`
-	LastRunStatus string `json:"last_run_status,omitempty"`
+// WorkflowScheduleResponse matches the UI contract while using ScheduleIndex as the stored index.
+type WorkflowScheduleResponse struct {
+	ID             uuid.UUID      `json:"id"`
+	WorkflowID     uuid.UUID      `json:"workflow_id"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description,omitempty"`
+	CronExpression string         `json:"cron_expression"`
+	Timezone       string         `json:"timezone"`
+	IsActive       bool           `json:"is_active"`
+	Parameters     map[string]any `json:"parameters,omitempty"`
+	NextRunAt      *time.Time     `json:"next_run_at,omitempty"`
+	LastRunAt      *time.Time     `json:"last_run_at,omitempty"`
+	CreatedAt      time.Time      `json:"created_at,omitempty"`
+	UpdatedAt      time.Time      `json:"updated_at,omitempty"`
+	WorkflowName   string         `json:"workflow_name,omitempty"`
+	NextRunHuman   string         `json:"next_run_human,omitempty"`
+	LastRunStatus  string         `json:"last_run_status,omitempty"`
+}
+
+func scheduleToResponse(schedule *database.ScheduleIndex, workflowName string) *WorkflowScheduleResponse {
+	if schedule == nil {
+		return nil
+	}
+	params, _ := schedule.GetParameters()
+	return &WorkflowScheduleResponse{
+		ID:             schedule.ID,
+		WorkflowID:     schedule.WorkflowID,
+		Name:           schedule.Name,
+		Description:    "",
+		CronExpression: schedule.CronExpression,
+		Timezone:       schedule.Timezone,
+		IsActive:       schedule.IsActive,
+		Parameters:     params,
+		NextRunAt:      schedule.NextRunAt,
+		LastRunAt:      schedule.LastRunAt,
+		CreatedAt:      schedule.CreatedAt,
+		UpdatedAt:      schedule.UpdatedAt,
+		WorkflowName:   workflowName,
+		NextRunHuman:   formatRelativeTime(schedule.NextRunAt),
+		LastRunStatus:  getLastRunStatus(schedule.LastRunAt),
+	}
 }
 
 // CreateSchedule handles POST /api/v1/workflows/{workflowID}/schedules
@@ -110,15 +145,14 @@ func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 		isActive = *req.IsActive
 	}
 
-	schedule := &database.WorkflowSchedule{
+	schedule := &database.ScheduleIndex{
 		WorkflowID:     workflowID,
 		Name:           strings.TrimSpace(req.Name),
-		Description:    req.Description,
 		CronExpression: req.CronExpression,
 		Timezone:       timezone,
 		IsActive:       isActive,
-		Parameters:     req.Parameters,
 	}
+	_ = schedule.SetParameters(req.Parameters)
 
 	// Calculate next run time
 	nextRun, err := calculateNextRun(req.CronExpression, timezone)
@@ -132,11 +166,9 @@ func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := &ScheduleResponse{
-		WorkflowSchedule: schedule,
-		WorkflowName:     workflow.Name,
-		NextRunHuman:     formatRelativeTime(schedule.NextRunAt),
-		LastRunStatus:    "never",
+	resp := scheduleToResponse(schedule, workflow.GetName())
+	if resp != nil {
+		resp.LastRunStatus = "never"
 	}
 
 	h.respondSuccess(w, http.StatusCreated, map[string]any{
@@ -166,14 +198,15 @@ func (h *Handler) ListWorkflowSchedules(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	workflowName := ""
+	if wf, wfErr := h.workflowCatalog.GetWorkflow(ctx, workflowID); wfErr == nil && wf != nil {
+		workflowName = wf.GetName()
+	}
+
 	// Build response with computed fields
-	responses := make([]*ScheduleResponse, len(schedules))
+	responses := make([]*WorkflowScheduleResponse, len(schedules))
 	for i, s := range schedules {
-		responses[i] = &ScheduleResponse{
-			WorkflowSchedule: s,
-			NextRunHuman:     formatRelativeTime(s.NextRunAt),
-			LastRunStatus:    getLastRunStatus(s.LastRunAt),
-		}
+		responses[i] = scheduleToResponse(s, workflowName)
 	}
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
@@ -209,13 +242,13 @@ func (h *Handler) ListAllSchedules(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response with computed fields
-	responses := make([]*ScheduleResponse, len(schedules))
+	responses := make([]*WorkflowScheduleResponse, len(schedules))
 	for i, s := range schedules {
-		responses[i] = &ScheduleResponse{
-			WorkflowSchedule: s,
-			NextRunHuman:     formatRelativeTime(s.NextRunAt),
-			LastRunStatus:    getLastRunStatus(s.LastRunAt),
+		workflowName := ""
+		if wf, wfErr := h.workflowCatalog.GetWorkflow(ctx, s.WorkflowID); wfErr == nil && wf != nil {
+			workflowName = wf.GetName()
 		}
+		responses[i] = scheduleToResponse(s, workflowName)
 	}
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
@@ -249,15 +282,10 @@ func (h *Handler) GetSchedule(w http.ResponseWriter, r *http.Request) {
 	var workflowName string
 	workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, schedule.WorkflowID)
 	if wfErr == nil && workflow != nil {
-		workflowName = workflow.Name
+		workflowName = workflow.GetName()
 	}
 
-	resp := &ScheduleResponse{
-		WorkflowSchedule: schedule,
-		WorkflowName:     workflowName,
-		NextRunHuman:     formatRelativeTime(schedule.NextRunAt),
-		LastRunStatus:    getLastRunStatus(schedule.LastRunAt),
-	}
+	resp := scheduleToResponse(schedule, workflowName)
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"schedule": resp,
@@ -297,9 +325,6 @@ func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
 		schedule.Name = strings.TrimSpace(*req.Name)
 	}
-	if req.Description != nil {
-		schedule.Description = *req.Description
-	}
 	if req.CronExpression != nil {
 		if err := validateCronExpression(*req.CronExpression); err != nil {
 			h.respondError(w, ErrInvalidCronExpression.WithDetails(map[string]string{
@@ -337,7 +362,7 @@ func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if req.Parameters != nil {
-		schedule.Parameters = req.Parameters
+		_ = schedule.SetParameters(req.Parameters)
 	}
 	if req.IsActive != nil {
 		schedule.IsActive = *req.IsActive
@@ -353,15 +378,10 @@ func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	var workflowName string
 	workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, schedule.WorkflowID)
 	if wfErr == nil && workflow != nil {
-		workflowName = workflow.Name
+		workflowName = workflow.GetName()
 	}
 
-	resp := &ScheduleResponse{
-		WorkflowSchedule: schedule,
-		WorkflowName:     workflowName,
-		NextRunHuman:     formatRelativeTime(schedule.NextRunAt),
-		LastRunStatus:    getLastRunStatus(schedule.LastRunAt),
-	}
+	resp := scheduleToResponse(schedule, workflowName)
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"schedule_id": schedule.ID,
@@ -439,15 +459,10 @@ func (h *Handler) ToggleSchedule(w http.ResponseWriter, r *http.Request) {
 	var workflowName string
 	workflow, wfErr := h.workflowCatalog.GetWorkflow(ctx, schedule.WorkflowID)
 	if wfErr == nil && workflow != nil {
-		workflowName = workflow.Name
+		workflowName = workflow.GetName()
 	}
 
-	resp := &ScheduleResponse{
-		WorkflowSchedule: schedule,
-		WorkflowName:     workflowName,
-		NextRunHuman:     formatRelativeTime(schedule.NextRunAt),
-		LastRunStatus:    getLastRunStatus(schedule.LastRunAt),
-	}
+	resp := scheduleToResponse(schedule, workflowName)
 
 	h.respondSuccess(w, http.StatusOK, map[string]any{
 		"schedule_id": schedule.ID,
@@ -481,8 +496,8 @@ func (h *Handler) TriggerSchedule(w http.ResponseWriter, r *http.Request) {
 
 	// Execute the workflow with schedule parameters
 	params := make(map[string]any)
-	if schedule.Parameters != nil {
-		for k, v := range schedule.Parameters {
+	if parsed, err := schedule.GetParameters(); err == nil {
+		for k, v := range parsed {
 			params[k] = v
 		}
 	}
