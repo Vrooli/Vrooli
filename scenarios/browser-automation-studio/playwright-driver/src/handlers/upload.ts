@@ -1,8 +1,8 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { UploadFileParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getUploadFileParams } from '../proto';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
-import { normalizeError, validateTimeout, validateParams, logger, scopedLog, LogContext } from '../utils';
+import { normalizeError, validateTimeout, logger, scopedLog, LogContext } from '../utils';
 import * as fs from 'fs/promises';
 
 /**
@@ -40,30 +40,23 @@ export class UploadHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, sessionId } = context;
 
     try {
-      // Hardened: Validate params object exists
-      const rawParams = validateParams(instruction.params, 'uploadfile');
-      const params = UploadFileParamsSchema.parse(rawParams);
+      // Get typed params from instruction.action (required after migration)
+      const typedParams = instruction.action ? getUploadFileParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'uploadfile', instruction.nodeId);
 
       if (!params.selector) {
-        return {
-          success: false,
-          error: {
-            message: 'uploadfile instruction missing selector parameter',
-            code: 'MISSING_PARAM',
-            kind: 'orchestration',
-            retryable: false,
-          },
-        };
+        return this.missingParamError('uploadfile', 'selector');
       }
 
-      const filePath = params.filePath || params.file_path || params.path;
-      if (!filePath) {
+      // Use filePaths from typed params
+      const filePaths = params.filePaths;
+      if (!filePaths || filePaths.length === 0) {
         return {
           success: false,
           error: {
@@ -75,9 +68,8 @@ export class UploadHandler extends BaseHandler {
         };
       }
 
-      // Hardened: Pre-validate file exists and is readable
-      // Note: filePath may be a string or string[] - only validate single files
-      const fileToCheck = Array.isArray(filePath) ? filePath[0] : filePath;
+      // Hardened: Pre-validate first file exists and is readable
+      const fileToCheck = filePaths[0];
       if (fileToCheck) {
         try {
           await fs.access(fileToCheck, fs.constants.R_OK);
@@ -96,6 +88,9 @@ export class UploadHandler extends BaseHandler {
 
       // Hardened: Validate timeout bounds
       const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'uploadfile');
+
+      // Determine the actual file path(s) to upload - single file or array
+      const filePath = filePaths.length === 1 ? filePaths[0] : filePaths;
 
       // Generate idempotency key for this upload operation
       const uploadKey = generateUploadKey(sessionId, params.selector, filePath);

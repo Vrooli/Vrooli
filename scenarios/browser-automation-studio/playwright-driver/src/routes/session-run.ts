@@ -29,10 +29,16 @@ import type { SessionState } from '../types/session';
 import type { HandlerRegistry } from '../handlers';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
-import type { CompiledInstruction, ExecutedInstructionRecord } from '../types';
+import type { ExecutedInstructionRecord } from '../types/session';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
 import { captureScreenshot, captureDOMSnapshot, ConsoleLogCollector, NetworkCollector } from '../telemetry';
 import { buildStepOutcome, toDriverOutcome } from '../outcome';
+import {
+  CompiledInstructionSchema,
+  toHandlerInstruction,
+  parseProtoLenient,
+  type HandlerInstruction,
+} from '../proto';
 import { logger, scopedLog, LogContext, isRecentTimestamp } from '../utils';
 import winston from 'winston';
 
@@ -113,11 +119,11 @@ export function clearSessionIdempotencyCache(sessionId: string): void {
 // =============================================================================
 
 /**
- * Create a unique key for an instruction based on node_id and index.
+ * Create a unique key for an instruction based on nodeId and index.
  * Used to track which instructions have been executed in a session.
  */
-function createInstructionKey(instruction: CompiledInstruction): string {
-  return `${instruction.node_id}:${instruction.index}`;
+function createInstructionKey(instruction: HandlerInstruction): string {
+  return `${instruction.nodeId}:${instruction.index}`;
 }
 
 /**
@@ -160,6 +166,7 @@ function lookupIdempotencyCache(
 
 /**
  * Validate that a raw instruction object has all required fields.
+ * Accepts both wire format (snake_case: node_id) and proto format (camelCase: nodeId).
  *
  * @returns Error message if invalid, null if valid
  */
@@ -169,7 +176,9 @@ function validateInstructionStructure(rawInstruction: unknown): string | null {
   }
   const inst = rawInstruction as Record<string, unknown>;
   if (typeof inst.index !== 'number') return 'Missing or invalid instruction.index: must be a number';
-  if (!inst.node_id || typeof inst.node_id !== 'string') return 'Missing or invalid instruction.node_id: must be a non-empty string';
+  // Accept both node_id (wire format) and nodeId (proto format)
+  const nodeId = inst.node_id ?? inst.nodeId;
+  if (!nodeId || typeof nodeId !== 'string') return 'Missing or invalid instruction.node_id: must be a non-empty string';
   if (!inst.type || typeof inst.type !== 'string') return 'Missing or invalid instruction.type: must be a non-empty string';
   if (!inst.params || typeof inst.params !== 'object') return 'Missing or invalid instruction.params: must be an object';
   return null;
@@ -284,14 +293,16 @@ export async function handleSessionRun(
       return;
     }
 
-    const instruction = rawInstruction as CompiledInstruction;
+    // Parse with proto schema and convert to handler-friendly format
+    const protoInstruction = parseProtoLenient(CompiledInstructionSchema, rawInstruction);
+    const instruction = toHandlerInstruction(protoInstruction);
     const instructionKey = createInstructionKey(instruction);
 
     // Check session-level instruction cache (replay detection)
     const previousExecution = session.executedInstructions?.get(instructionKey);
     if (previousExecution?.cachedOutcome) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
-        sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.node_id,
+        sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.nodeId,
       });
       sessionManager.setSessionPhase(sessionId, session.recordingController?.isRecording() ? 'recording' : 'ready');
       storeInIdempotencyCache(idempotencyKey, sessionId, instructionKey, previousExecution.cachedOutcome);
@@ -306,10 +317,10 @@ export async function handleSessionRun(
     }
 
     logger.info(scopedLog(LogContext.INSTRUCTION, 'executing'), {
-      sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.node_id,
+      sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.nodeId,
       instructionCount: session.instructionCount, isReplay: !!previousExecution,
-      selector: (instruction.params as Record<string, unknown>).selector,
-      url: (instruction.params as Record<string, unknown>).url,
+      selector: instruction.params.selector,
+      url: instruction.params.url,
     });
 
     // Execute instruction with telemetry
@@ -335,7 +346,7 @@ export async function handleSessionRun(
 
     logger.info(scopedLog(LogContext.INSTRUCTION, result.success ? 'completed' : 'failed'), {
       sessionId, type: instruction.type, stepIndex: instruction.index, success: result.success,
-      durationMs: outcome.duration_ms, finalUrl: session.page.url(), instructionCount: session.instructionCount,
+      durationMs: outcome.durationMs, finalUrl: session.page.url(), instructionCount: session.instructionCount,
       ...(result.error && { errorCode: result.error.code, errorKind: result.error.kind, errorMessage: result.error.message }),
     });
 
@@ -361,15 +372,12 @@ export async function handleSessionRun(
 // Execution Helpers
 // =============================================================================
 
-import type { HandlerResult, HandlerContext, InstructionHandler } from '../handlers/base';
-import type { StepOutcome } from '../types';
-
-type ConsoleLogEntry = NonNullable<StepOutcome['console_logs']>[number];
-type NetworkEvent = NonNullable<StepOutcome['network']>[number];
+import type { HandlerContext, InstructionHandler } from '../handlers/base';
+import type { HandlerResult, ConsoleLogEntry, NetworkEvent } from '../outcome';
 
 async function executeWithTelemetry(
   handler: InstructionHandler,
-  instruction: CompiledInstruction,
+  instruction: HandlerInstruction,
   session: SessionState,
   config: Config,
   appLogger: winston.Logger,

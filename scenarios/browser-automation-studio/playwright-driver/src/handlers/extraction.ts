@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { ExtractParamsSchema, EvaluateParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getExtractParams, getEvaluateParams } from '../proto';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 
@@ -15,7 +15,7 @@ export class ExtractionHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { logger } = context;
@@ -60,13 +60,14 @@ export class ExtractionHandler extends BaseHandler {
   }
 
   private async handleExtract(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
-    // Validate parameters
-    const params = ExtractParamsSchema.parse(instruction.params);
+    // Get typed params from instruction.action (required after migration)
+    const typedParams = instruction.action ? getExtractParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'extract', instruction.nodeId);
 
     if (!params.selector) {
       return {
@@ -104,15 +105,16 @@ export class ExtractionHandler extends BaseHandler {
   }
 
   private async handleEvaluate(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
-    // Validate parameters
-    const params = EvaluateParamsSchema.parse(instruction.params);
+    // Get typed params from instruction.action (required after migration)
+    const typedParams = instruction.action ? getEvaluateParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'evaluate', instruction.nodeId);
 
-    const script = params.script || params.expression;
+    const script = params.expression;
     if (!script) {
       return {
         success: false,
@@ -130,7 +132,8 @@ export class ExtractionHandler extends BaseHandler {
     });
 
     // Evaluate script in browser context
-    const result = await page.evaluate(script, params.args || {});
+    // Note: EvaluateParams from proto doesn't support args - evaluate expression directly
+    const result = await page.evaluate(script);
 
     logger.info('Script evaluation successful', {
       resultType: typeof result,

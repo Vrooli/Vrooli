@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { KeyboardParamsSchema, ShortcutParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getKeyboardParams, getShortcutParams } from '../proto';
 import { normalizeError } from '../utils';
 
 /**
@@ -14,7 +14,7 @@ export class KeyboardHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { logger } = context;
@@ -59,13 +59,14 @@ export class KeyboardHandler extends BaseHandler {
   }
 
   private async handleKeyboard(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
-    // Validate parameters
-    const params = KeyboardParamsSchema.parse(instruction.params);
+    // Get typed params from instruction.action (required after migration)
+    const typedParams = instruction.action ? getKeyboardParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'keyboard', instruction.nodeId);
 
     const action = params.action || 'press';
     const keys = params.keys || (params.key ? [params.key] : []);
@@ -119,13 +120,14 @@ export class KeyboardHandler extends BaseHandler {
   }
 
   private async handleShortcut(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
-    // Validate parameters
-    const params = ShortcutParamsSchema.parse(instruction.params);
+    // Get typed params from instruction.action (required after migration)
+    const typedParams = instruction.action ? getShortcutParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'shortcut', instruction.nodeId);
 
     if (!params.shortcut) {
       return {

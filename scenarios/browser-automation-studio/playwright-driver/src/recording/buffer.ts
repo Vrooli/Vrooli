@@ -1,102 +1,105 @@
-import type { RecordedAction } from './types';
-import { MAX_RECORDING_BUFFER_SIZE, logger } from '../utils';
-
 /**
- * Recording Buffer - In-Memory Action Storage
+ * Recording Buffer - In-Memory TimelineEntry Storage
  *
- * Stores recorded actions in memory during a recording session.
+ * Stores proto TimelineEntry objects in memory during a recording session.
  * Each session has its own buffer keyed by session ID.
+ *
+ * PROTO-FIRST ARCHITECTURE:
+ * This buffer stores TimelineEntry directly (the canonical proto format),
+ * eliminating the need for intermediate types like RecordedAction.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │ BUFFER BEHAVIOR:                                                        │
  * │                                                                         │
- * │   bufferRecordedAction()                                                │
+ * │   bufferTimelineEntry()                                                 │
  * │        │                                                                │
- * │        ├──▶ Duplicate? (same action.id) ──▶ Return false (no-op)        │
+ * │        ├──▶ Duplicate? (same entry.id) ──▶ Return false (no-op)         │
  * │        │                                                                │
  * │        ├──▶ Buffer full? ──▶ Evict oldest (FIFO), then add              │
  * │        │                                                                │
  * │        └──▶ Add to buffer, return true                                  │
  * └─────────────────────────────────────────────────────────────────────────┘
  *
- * IDEMPOTENCY: Same action ID inserted twice is a no-op (safe for retries)
- * MEMORY SAFETY: Buffer size is capped, oldest actions evicted when full
+ * IDEMPOTENCY: Same entry ID inserted twice is a no-op (safe for retries)
+ * MEMORY SAFETY: Buffer size is capped, oldest entries evicted when full
  */
 
-// In-memory action buffers keyed by session ID
-const actionBuffers = new Map<string, RecordedAction[]>();
+import type { TimelineEntry } from '../proto/recording';
+import { MAX_RECORDING_BUFFER_SIZE, logger } from '../utils';
+
+// In-memory entry buffers keyed by session ID
+const entryBuffers = new Map<string, TimelineEntry[]>();
 
 // Track eviction counts for observability
 const evictionCounts = new Map<string, number>();
 
-// Track seen action IDs per session for deduplication
-const seenActionIds = new Map<string, Set<string>>();
+// Track seen entry IDs per session for deduplication
+const seenEntryIds = new Map<string, Set<string>>();
 
 // Track last sequence number per session for ordering validation
 const lastSequenceNums = new Map<string, number>();
 
 export function initRecordingBuffer(sessionId: string): void {
-  actionBuffers.set(sessionId, []);
+  entryBuffers.set(sessionId, []);
   evictionCounts.set(sessionId, 0);
-  seenActionIds.set(sessionId, new Set());
+  seenEntryIds.set(sessionId, new Set());
   lastSequenceNums.set(sessionId, -1);
 }
 
 /**
- * Buffer a recorded action.
+ * Buffer a TimelineEntry.
  *
  * Hardened: Enforces maximum buffer size with FIFO eviction.
  * Logs a warning when eviction occurs to signal potential issues.
  *
- * Idempotency: Actions with the same ID are deduplicated (no-op on second insert).
+ * Idempotency: Entries with the same ID are deduplicated (no-op on second insert).
  * This makes buffering safe for replay scenarios where callbacks might fire twice.
  *
- * @returns true if action was buffered, false if it was a duplicate (already seen)
+ * @returns true if entry was buffered, false if it was a duplicate (already seen)
  */
-export function bufferRecordedAction(sessionId: string, action: RecordedAction): boolean {
-  let buffer = actionBuffers.get(sessionId);
+export function bufferTimelineEntry(sessionId: string, entry: TimelineEntry): boolean {
+  let buffer = entryBuffers.get(sessionId);
 
   if (!buffer) {
     buffer = [];
-    actionBuffers.set(sessionId, buffer);
+    entryBuffers.set(sessionId, buffer);
     evictionCounts.set(sessionId, 0);
-    seenActionIds.set(sessionId, new Set());
+    seenEntryIds.set(sessionId, new Set());
     lastSequenceNums.set(sessionId, -1);
   }
 
-  // Idempotency: Check if we've already seen this action ID
-  const seen = seenActionIds.get(sessionId);
-  if (seen?.has(action.id)) {
-    logger.debug('Recording buffer: duplicate action ignored', {
+  // Idempotency: Check if we've already seen this entry ID
+  const seen = seenEntryIds.get(sessionId);
+  if (seen?.has(entry.id)) {
+    logger.debug('Recording buffer: duplicate entry ignored', {
       sessionId,
-      actionId: action.id,
-      sequenceNum: action.sequenceNum,
-      hint: 'Action already buffered, treating as idempotent retry',
+      entryId: entry.id,
+      sequenceNum: entry.sequenceNum,
+      hint: 'Entry already buffered, treating as idempotent retry',
     });
     return false;
   }
 
   // Validate sequence ordering (warn but don't reject - network timing can cause reordering)
   const lastSeq = lastSequenceNums.get(sessionId) ?? -1;
-  if (action.sequenceNum <= lastSeq) {
-    logger.warn('Recording buffer: out-of-order action received', {
+  if (entry.sequenceNum <= lastSeq) {
+    logger.warn('Recording buffer: out-of-order entry received', {
       sessionId,
-      actionId: action.id,
-      sequenceNum: action.sequenceNum,
+      entryId: entry.id,
+      sequenceNum: entry.sequenceNum,
       lastSequenceNum: lastSeq,
-      hint: 'Action arrived out of order, may indicate network issues',
+      hint: 'Entry arrived out of order, may indicate network issues',
     });
   }
 
   // Hardened: Enforce maximum buffer size
   if (buffer.length >= MAX_RECORDING_BUFFER_SIZE) {
-    // Evict oldest action (FIFO)
-    const evictedAction = buffer.shift();
+    // Evict oldest entry (FIFO)
+    const evictedEntry = buffer.shift();
 
     // Also remove from seen set to allow memory cleanup
-    // (though unlikely to see same ID again after eviction)
-    if (evictedAction) {
-      seen?.delete(evictedAction.id);
+    if (evictedEntry) {
+      seen?.delete(evictedEntry.id);
     }
 
     // Track eviction count
@@ -105,7 +108,7 @@ export function bufferRecordedAction(sessionId: string, action: RecordedAction):
 
     // Log warning on first eviction and periodically thereafter
     if (evictions === 1 || evictions % 100 === 0) {
-      logger.warn('Recording buffer full, evicting old actions', {
+      logger.warn('Recording buffer full, evicting old entries', {
         sessionId,
         maxSize: MAX_RECORDING_BUFFER_SIZE,
         totalEvictions: evictions,
@@ -114,56 +117,69 @@ export function bufferRecordedAction(sessionId: string, action: RecordedAction):
     }
   }
 
-  // Add action to buffer and track it
-  buffer.push(action);
-  seen?.add(action.id);
-  lastSequenceNums.set(sessionId, Math.max(lastSeq, action.sequenceNum));
+  // Add entry to buffer and track it
+  buffer.push(entry);
+  seen?.add(entry.id);
+  lastSequenceNums.set(sessionId, Math.max(lastSeq, entry.sequenceNum));
 
   return true;
 }
 
-export function getRecordedActions(sessionId: string): RecordedAction[] {
-  return actionBuffers.get(sessionId) || [];
+/**
+ * Get all buffered TimelineEntry objects for a session.
+ */
+export function getTimelineEntries(sessionId: string): TimelineEntry[] {
+  return entryBuffers.get(sessionId) || [];
 }
 
-export function getRecordedActionCount(sessionId: string): number {
-  return getRecordedActions(sessionId).length;
+/**
+ * Get the count of buffered entries.
+ */
+export function getTimelineEntryCount(sessionId: string): number {
+  return getTimelineEntries(sessionId).length;
 }
 
 /**
  * Get buffer statistics for monitoring.
  */
 export function getBufferStats(sessionId: string): {
-  actionCount: number;
+  entryCount: number;
   evictionCount: number;
   maxSize: number;
 } {
   return {
-    actionCount: getRecordedActionCount(sessionId),
+    entryCount: getTimelineEntryCount(sessionId),
     evictionCount: evictionCounts.get(sessionId) || 0,
     maxSize: MAX_RECORDING_BUFFER_SIZE,
   };
 }
 
-export function clearRecordedActions(sessionId: string): void {
-  actionBuffers.set(sessionId, []);
+/**
+ * Clear all buffered entries for a session but keep the buffer initialized.
+ */
+export function clearTimelineEntries(sessionId: string): void {
+  entryBuffers.set(sessionId, []);
   evictionCounts.set(sessionId, 0);
-  seenActionIds.set(sessionId, new Set());
+  seenEntryIds.set(sessionId, new Set());
   lastSequenceNums.set(sessionId, -1);
 }
 
-export function removeRecordedActions(sessionId: string): void {
-  actionBuffers.delete(sessionId);
+/**
+ * Remove the buffer entirely for a session (cleanup on session end).
+ */
+export function removeRecordingBuffer(sessionId: string): void {
+  entryBuffers.delete(sessionId);
   evictionCounts.delete(sessionId);
-  seenActionIds.delete(sessionId);
+  seenEntryIds.delete(sessionId);
   lastSequenceNums.delete(sessionId);
 }
 
 /**
- * Check if an action ID has already been buffered.
+ * Check if an entry ID has already been buffered.
  * Useful for external code to check before attempting to buffer.
  */
-export function isActionBuffered(sessionId: string, actionId: string): boolean {
-  const seen = seenActionIds.get(sessionId);
-  return seen?.has(actionId) ?? false;
+export function isEntryBuffered(sessionId: string, entryId: string): boolean {
+  const seen = seenEntryIds.get(sessionId);
+  return seen?.has(entryId) ?? false;
 }
+

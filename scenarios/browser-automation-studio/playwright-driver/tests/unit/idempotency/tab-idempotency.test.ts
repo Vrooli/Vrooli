@@ -7,9 +7,8 @@
  */
 
 import { TabHandler } from '../../../src/handlers/tab';
-import type { CompiledInstruction } from '../../../src/types';
 import type { HandlerContext } from '../../../src/handlers/base';
-import { createMockPage, createMockContext, createTestConfig } from '../../helpers';
+import { createMockPage, createMockContext, createTestConfig, createTypedInstruction } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
 describe('TabHandler Idempotency', () => {
@@ -39,15 +38,10 @@ describe('TabHandler Idempotency', () => {
 
   describe('tab-switch open idempotency', () => {
     it('should track concurrent open requests with same URL', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'open',
-          url: 'https://example.com',
-        },
-      };
+      const instruction = createTypedInstruction('tab-switch', {
+        action: 'open',
+        url: 'https://example.com',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -76,25 +70,15 @@ describe('TabHandler Idempotency', () => {
     });
 
     it('should create separate tabs for different URLs', async () => {
-      const instruction1: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'open',
-          url: 'https://example.com/page1',
-        },
-      };
+      const instruction1 = createTypedInstruction('tab-switch', {
+        action: 'open',
+        url: 'https://example.com/page1',
+      });
 
-      const instruction2: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
-        index: 1,
-        params: {
-          action: 'open',
-          url: 'https://example.com/page2',
-        },
-      };
+      const instruction2 = createTypedInstruction('tab-switch', {
+        action: 'open',
+        url: 'https://example.com/page2',
+      }, { index: 1 });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -122,15 +106,10 @@ describe('TabHandler Idempotency', () => {
       // Setup: Create a tab stack with the current page
       const tabStack = [mockPage];
 
-      const instruction: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
+      const instruction = createTypedInstruction('tab-switch', {
+        action: 'switch',
         index: 0,
-        params: {
-          action: 'switch',
-          index: 0,
-        },
-      };
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -164,15 +143,10 @@ describe('TabHandler Idempotency', () => {
 
       const tabStack = [mockPage, secondPage];
 
-      const instruction: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'switch',
-          index: 1,
-        },
-      };
+      const instruction = createTypedInstruction('tab-switch', {
+        action: 'switch',
+        index: 1,
+      });
 
       const context: HandlerContext = {
         page: mockPage, // Currently on first page
@@ -206,15 +180,10 @@ describe('TabHandler Idempotency', () => {
 
       const tabStack = [mockPage, secondPage];
 
-      const instruction: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'switch',
-          index: 1,
-        },
-      };
+      const instruction = createTypedInstruction('tab-switch', {
+        action: 'switch',
+        index: 1,
+      });
 
       const context: HandlerContext = {
         page: secondPage, // Already on second page
@@ -255,15 +224,10 @@ describe('TabHandler Idempotency', () => {
       });
       const tabStack = [mockPage, secondPage];
 
-      const instruction: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'close',
-          index: 5, // Out of range
-        },
-      };
+      const instruction = createTypedInstruction('tab-switch', {
+        action: 'close',
+        index: 5, // Out of range
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -285,15 +249,10 @@ describe('TabHandler Idempotency', () => {
     it('should prevent closing the last tab', async () => {
       const tabStack = [mockPage];
 
-      const instruction: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
+      const instruction = createTypedInstruction('tab-switch', {
+        action: 'close',
         index: 0,
-        params: {
-          action: 'close',
-          index: 0,
-        },
-      };
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -321,14 +280,9 @@ describe('TabHandler Idempotency', () => {
 
       const tabStack = [mockPage, secondPage];
 
-      const instruction: CompiledInstruction = {
-        type: 'tab-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'list',
-        },
-      };
+      const instruction = createTypedInstruction('tab-switch', {
+        action: 'list',
+      });
 
       const context: HandlerContext = {
         page: mockPage,

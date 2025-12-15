@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { ScrollParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getScrollParams } from '../proto';
 import { normalizeError } from '../utils';
 
 /**
@@ -14,14 +14,15 @@ export class ScrollHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
     try {
-      // Validate parameters
-      const params = ScrollParamsSchema.parse(instruction.params);
+      // Extract typed params from action
+      const typedParams = instruction.action ? getScrollParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'scroll', instruction.nodeId);
 
       const x = Number(params.x || 0);
       const y = Number(params.y || 0);

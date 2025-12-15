@@ -4,6 +4,7 @@ package browser_automation_studio.v1;
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "buf/validate/validate.proto";
 import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/actions/action.proto";
 import "browser-automation-studio/v1/workflows/definition.proto";
@@ -169,13 +170,13 @@ message WorkflowVersionList {
 message ListWorkflowsRequest {
   // Filter by project ID.
   // @format uuid
-  optional string project_id = 1;
+  optional string project_id = 1 [(buf.validate.field).string.uuid = true];
   // Filter by folder path.
   optional string folder_path = 2;
   // Pagination: maximum number of results (default: 50, max: 100).
-  optional int32 limit = 3;
+  optional int32 limit = 3 [(buf.validate.field).int32.gte = 1, (buf.validate.field).int32.lte = 100];
   // Pagination: offset for results (default: 0).
-  optional int32 offset = 4;
+  optional int32 offset = 4 [(buf.validate.field).int32.gte = 0];
 }
 
 // ListWorkflowsResponse returns a list of workflows with pagination.
@@ -246,7 +247,7 @@ message UpdateWorkflowRequest {
   int32 expected_version = 8;
   // Target workflow ID (path param for REST).
   // @format uuid
-  optional string workflow_id = 9;
+  optional string workflow_id = 9 [(buf.validate.field).string.uuid = true];
 }
 
 // UpdateWorkflowResponse returns the updated workflow.
@@ -311,13 +312,13 @@ message ExecuteWorkflowResponse {
 message ListExecutionsRequest {
   // Filter by workflow ID.
   // @format uuid
-  optional string workflow_id = 1;
+  optional string workflow_id = 1 [(buf.validate.field).string.uuid = true];
   // Filter by execution status.
   optional ExecutionStatus status = 2;
   // Pagination: maximum number of results (default: 50, max: 100).
-  optional int32 limit = 3;
+  optional int32 limit = 3 [(buf.validate.field).int32.gte = 1, (buf.validate.field).int32.lte = 100];
   // Pagination: offset for results (default: 0).
-  optional int32 offset = 4;
+  optional int32 offset = 4 [(buf.validate.field).int32.gte = 0];
 }
 
 // ListExecutionsResponse returns a list of executions with pagination.

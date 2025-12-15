@@ -1,4 +1,4 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { WaitHandler } from '../../../src/handlers/wait';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -22,11 +22,7 @@ describe('WaitHandler', () => {
   });
 
   it('should wait for selector', async () => {
-    const instruction = createTestInstruction({
-      type: 'wait',
-      params: { selector: '#element' },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('wait', { selector: '#element' }, { nodeId: 'node-1' });
 
     const result = await handler.execute(instruction, context);
 
@@ -35,11 +31,7 @@ describe('WaitHandler', () => {
   });
 
   it('should wait for timeout when no selector', async () => {
-    const instruction = createTestInstruction({
-      type: 'wait',
-      params: { timeoutMs: 1000 },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('wait', { ms: 1000 }, { nodeId: 'node-1' });
 
     const result = await handler.execute(instruction, context);
 

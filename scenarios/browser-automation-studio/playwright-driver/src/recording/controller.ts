@@ -1,6 +1,11 @@
 /**
  * Recording Controller - Orchestrates Record Mode
  *
+ * PROTO-FIRST ARCHITECTURE:
+ * This controller converts RawBrowserEvent directly to TimelineEntry (proto),
+ * eliminating intermediate types. The conversion happens at the earliest
+ * possible point after receiving events from the browser.
+ *
  * ┌────────────────────────────────────────────────────────────────────────┐
  * │ WHAT THIS CLASS DOES:                                                  │
  * │                                                                        │
@@ -9,13 +14,13 @@
  * │    - Receives raw events via page.exposeFunction()                     │
  * │    - Re-injects script after navigation (pages lose injected JS)       │
  * │                                                                        │
- * │ 2. EVENT NORMALIZATION (handleRawEvent, normalizeEvent)                │
- * │    - Converts raw browser events to typed RecordedAction objects       │
- * │    - Calls onAction callback for each normalized action                │
+ * │ 2. EVENT CONVERSION (handleRawEvent)                                   │
+ * │    - Converts RawBrowserEvent → TimelineEntry (proto)                  │
+ * │    - Calls onEntry callback for each converted entry                   │
  * │                                                                        │
  * │ 3. REPLAY PREVIEW (replayPreview)                                      │
- * │    - Executes recorded actions to test them before saving              │
- * │    - Uses action-executor.ts registry for type-specific execution      │
+ * │    - Executes TimelineEntry actions to test them before saving         │
+ * │    - Uses proto-native executeTimelineEntry for direct execution       │
  * │                                                                        │
  * │ 4. SELECTOR VALIDATION (validateSelector)                              │
  * │    - Checks if a selector matches exactly one element on the page      │
@@ -28,40 +33,41 @@
  */
 
 import type { Page } from 'playwright';
-import { v4 as uuidv4 } from 'uuid';
 import { getRecordingScript, getCleanupScript } from './injector';
-import type {
-  RecordedAction,
-  RawBrowserEvent,
-  RecordingState,
-  SelectorValidation,
-  ActionReplayResult,
-  ReplayPreviewRequest,
-  ReplayPreviewResponse,
-} from './types';
 import {
-  normalizeActionType,
-  toRecordedActionKind,
-  buildTypedActionPayload,
-  calculateActionConfidence,
-} from './action-types';
+  rawBrowserEventToTimelineEntry,
+  createNavigateTimelineEntry,
+  type RawBrowserEvent,
+  type TimelineEntry,
+} from '../proto/recording';
 import {
-  getActionExecutor,
-  type ActionExecutorContext,
+  executeTimelineEntry,
+  type ExecutorContext,
+  type ActionReplayResult,
+  type SelectorValidation,
 } from './action-executor';
 
 // =============================================================================
 // Types
 // =============================================================================
 
-/** Callback invoked for each recorded action */
-export type RecordActionCallback = (action: RecordedAction) => void | Promise<void>;
+/** Recording state */
+export interface RecordingState {
+  isRecording: boolean;
+  recordingId?: string;
+  sessionId: string;
+  actionCount: number;
+  startedAt?: string;
+}
+
+/** Callback invoked for each recorded TimelineEntry */
+export type RecordEntryCallback = (entry: TimelineEntry) => void | Promise<void>;
 
 /** Options for starting a recording session */
 export interface StartRecordingOptions {
   sessionId: string;
   recordingId?: string;
-  onAction: RecordActionCallback;
+  onEntry: RecordEntryCallback;
   onError?: (error: Error) => void;
 }
 
@@ -70,6 +76,28 @@ interface InjectionRetryConfig {
   maxAttempts: number;
   baseDelayMs: number;
 }
+
+/** Request for replay preview */
+export interface ReplayPreviewRequest {
+  entries: TimelineEntry[];
+  limit?: number;
+  stopOnFailure?: boolean;
+  actionTimeout?: number;
+}
+
+/** Response from replay preview */
+export interface ReplayPreviewResponse {
+  success: boolean;
+  totalActions: number;
+  passedActions: number;
+  failedActions: number;
+  results: ActionReplayResult[];
+  totalDurationMs: number;
+  stoppedEarly: boolean;
+}
+
+// Re-export types from action-executor for convenience
+export type { ActionReplayResult, SelectorValidation };
 
 /**
  * RecordModeController manages the recording lifecycle for a browser session.
@@ -80,8 +108,8 @@ interface InjectionRetryConfig {
  *
  * await controller.startRecording({
  *   sessionId: 'session-123',
- *   onAction: (action) => {
- *     console.log('Recorded action:', action);
+ *   onEntry: (entry) => {
+ *     console.log('Recorded entry:', entry);
  *   },
  * });
  *
@@ -93,22 +121,14 @@ interface InjectionRetryConfig {
 export class RecordModeController {
   private page: Page;
   private state: RecordingState;
-  private actionCallback: RecordActionCallback | null = null;
+  private entryCallback: RecordEntryCallback | null = null;
   private errorCallback: ((error: Error) => void) | null = null;
   private sequenceNum = 0;
   private exposedFunctionName = '__recordAction';
   private isExposed = false;
   private navigationHandler: (() => void) | null = null;
-  /** Track pending injection timeouts to cancel on stop */
   private pendingInjectionTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
-  /** Track the last URL to detect navigation changes */
   private lastUrl: string | null = null;
-  /**
-   * Monotonically increasing recording generation counter.
-   * Used to detect stale async operations that started during a previous recording session.
-   * Each startRecording() increments this; async operations check their captured generation
-   * against current to detect if they should abort.
-   */
   private recordingGeneration = 0;
 
   constructor(page: Page, sessionId: string) {
@@ -145,7 +165,8 @@ export class RecordModeController {
       throw new Error('Recording already in progress');
     }
 
-    const recordingId = options.recordingId || uuidv4();
+    // Use crypto.randomUUID() for UUID generation (Node 19+)
+    const recordingId = options.recordingId || crypto.randomUUID();
 
     // Increment generation to invalidate any stale async operations from previous recordings
     this.recordingGeneration++;
@@ -160,7 +181,7 @@ export class RecordModeController {
       startedAt: new Date().toISOString(),
     };
 
-    this.actionCallback = options.onAction;
+    this.entryCallback = options.onEntry;
     this.errorCallback = options.onError || null;
     this.sequenceNum = 0;
 
@@ -174,35 +195,27 @@ export class RecordModeController {
       }
 
       // Capture initial navigation action with current URL
-      // This ensures every timeline starts with where the user began
       await this.captureInitialNavigation();
 
       // Inject recording script
       await this.injectRecordingScript();
 
       // Setup navigation handler to re-inject script after page loads
-      // and to capture navigation events
       this.navigationHandler = this.createNavigationHandler(currentGeneration);
       this.page.on('load', this.navigationHandler);
 
       return recordingId;
     } catch (error) {
-      // Reset state on failure
       this.state.isRecording = false;
       throw error;
     }
   }
 
   /**
-   * Create a navigation handler that re-injects the recording script after page loads
-   * and captures navigation events.
-   *
-   * The handler captures the recording generation at creation time to detect staleness.
-   * If the recording has been stopped and restarted, stale handlers won't run.
+   * Create a navigation handler that re-injects the recording script after page loads.
    */
   private createNavigationHandler(generation: number): () => void {
     return (): void => {
-      // Guard: Only run if still recording and generation matches
       if (!this.state.isRecording || this.recordingGeneration !== generation) {
         return;
       }
@@ -220,28 +233,23 @@ export class RecordModeController {
 
   /**
    * Schedule script injection with exponential backoff retry.
-   *
-   * This handles cases where the page isn't fully ready after the load event.
-   * Each retry doubles the delay: 100ms → 200ms → 400ms.
    */
   private scheduleInjectionWithRetry(
     generation: number,
     config: InjectionRetryConfig,
     attempt = 0
   ): void {
-    // Guard: Abort if recording stopped or generation changed
     if (!this.state.isRecording || this.recordingGeneration !== generation) {
       return;
     }
 
     const delay = attempt === 0
-      ? config.baseDelayMs  // Initial delay before first attempt
+      ? config.baseDelayMs
       : config.baseDelayMs * Math.pow(2, attempt);
 
     const timeoutId = setTimeout(async () => {
       this.pendingInjectionTimeouts.delete(timeoutId);
 
-      // Re-check guards after delay
       if (!this.state.isRecording || this.recordingGeneration !== generation) {
         return;
       }
@@ -251,12 +259,10 @@ export class RecordModeController {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
 
-        // Page closed/navigated - nothing to do
         if (this.isPageGoneError(message)) {
           return;
         }
 
-        // Retry if attempts remaining
         if (attempt < config.maxAttempts - 1) {
           this.scheduleInjectionWithRetry(generation, config, attempt + 1);
         } else {
@@ -271,7 +277,7 @@ export class RecordModeController {
   }
 
   /**
-   * Check if an error message indicates the page is gone (closed, navigating, detached).
+   * Check if an error message indicates the page is gone.
    */
   private isPageGoneError(message: string): boolean {
     return message.includes('closed') ||
@@ -281,8 +287,6 @@ export class RecordModeController {
 
   /**
    * Stop recording and cleanup.
-   *
-   * @returns Summary of the recording session
    */
   async stopRecording(): Promise<{ recordingId: string; actionCount: number }> {
     if (!this.state.isRecording || !this.state.recordingId) {
@@ -295,7 +299,7 @@ export class RecordModeController {
     };
 
     try {
-      // Cancel any pending injection timeouts to prevent work after stop
+      // Cancel any pending injection timeouts
       for (const timeoutId of this.pendingInjectionTimeouts) {
         clearTimeout(timeoutId);
       }
@@ -318,7 +322,7 @@ export class RecordModeController {
         sessionId: this.state.sessionId,
         actionCount: 0,
       };
-      this.actionCallback = null;
+      this.entryCallback = null;
       this.errorCallback = null;
     }
 
@@ -327,102 +331,61 @@ export class RecordModeController {
 
   /**
    * Capture initial navigation action at the start of recording.
-   * This ensures the timeline begins with the URL where the user started.
    */
   private async captureInitialNavigation(): Promise<void> {
     try {
       const url = this.page.url();
       this.lastUrl = url;
 
-      // Don't capture about:blank or empty URLs
       if (!url || url === 'about:blank') {
         return;
       }
 
-      // Create a synthetic navigate action
-      const action: RecordedAction = {
-        id: uuidv4(),
+      const entry = createNavigateTimelineEntry(url, {
         sessionId: this.state.sessionId,
         sequenceNum: this.sequenceNum++,
-        timestamp: new Date().toISOString(),
-        actionType: 'navigate',
-        actionKind: toRecordedActionKind('navigate'),
-        confidence: 1, // Navigation actions don't need selectors
-        url,
-        payload: {
-          targetUrl: url,
-        },
-        typedAction: {
-          navigate: {
-            url,
-          },
-        },
-      };
+      });
 
       this.state.actionCount++;
 
-      // Invoke callback
-      if (this.actionCallback) {
-        const result = this.actionCallback(action);
+      if (this.entryCallback) {
+        const result = this.entryCallback(entry);
         if (result instanceof Promise) {
           await result;
         }
       }
     } catch (error) {
-      // Non-fatal: log but don't fail recording start
       console.error('[RecordModeController] Failed to capture initial navigation:', error);
     }
   }
 
   /**
    * Capture a navigation action when URL changes during recording.
-   * Called from the navigation handler after detecting a new URL.
    */
   private captureNavigation(url: string): void {
-    if (!this.state.isRecording || !this.actionCallback || !this.state.recordingId) {
+    if (!this.state.isRecording || !this.entryCallback || !this.state.recordingId) {
       return;
     }
 
-    // Skip if URL hasn't actually changed (can happen with SPA hash changes)
-    if (url === this.lastUrl) {
+    if (url === this.lastUrl || url === 'about:blank') {
       return;
     }
 
     this.lastUrl = url;
 
-    // Don't capture about:blank
-    if (url === 'about:blank') {
-      return;
-    }
-
     try {
-      const action: RecordedAction = {
-        id: uuidv4(),
+      const entry = createNavigateTimelineEntry(url, {
         sessionId: this.state.sessionId,
         sequenceNum: this.sequenceNum++,
-        timestamp: new Date().toISOString(),
-        actionType: 'navigate',
-        actionKind: toRecordedActionKind('navigate'),
-        confidence: 1,
-        url,
-        payload: {
-          targetUrl: url,
-        },
-        typedAction: {
-          navigate: {
-            url,
-          },
-        },
-      };
+      });
 
       this.state.actionCount++;
 
-      // Invoke callback (may be async)
-      const result = this.actionCallback(action);
+      const result = this.entryCallback(entry);
       if (result instanceof Promise) {
         result.catch((err: unknown) => {
           const message = err instanceof Error ? err.message : String(err);
-          this.handleError(new Error(`Action callback failed: ${message}`));
+          this.handleError(new Error(`Entry callback failed: ${message}`));
         });
       }
     } catch (error) {
@@ -431,75 +394,51 @@ export class RecordModeController {
   }
 
   /**
-   * Track in-flight replay operations to prevent duplicate concurrent replays.
-   * Key: stable hash of action IDs being replayed.
+   * Track in-flight replay operations for idempotency.
    */
   private pendingReplays: Map<string, Promise<ReplayPreviewResponse>> = new Map();
 
   /**
-   * Replay recorded actions for preview/testing.
-   *
-   * Executes actions one by one and returns detailed results for each.
-   * This allows users to test their recording before generating a workflow.
-   *
-   * Idempotency guarantees:
-   * - Concurrent replay requests with the same actions will await the first
-   * - Actions are identified by their stable ID, preventing duplicate execution
-   * - If the same replay is requested while in-flight, returns the same result
-   *
-   * @param request - Replay request with actions and options
-   * @returns Detailed results for each action
+   * Replay recorded entries for preview/testing.
    */
   async replayPreview(request: ReplayPreviewRequest): Promise<ReplayPreviewResponse> {
     const {
-      actions,
+      entries,
       limit,
       stopOnFailure = true,
       actionTimeout = 10000,
     } = request;
 
-    // Determine how many actions to replay
-    const actionsToReplay = limit ? actions.slice(0, limit) : actions;
+    const entriesToReplay = limit ? entries.slice(0, limit) : entries;
+    const replayKey = this.generateReplayKey(entriesToReplay);
 
-    // Generate a stable key for this replay operation
-    // Uses action IDs and limit to create a unique identifier
-    const replayKey = this.generateReplayKey(actionsToReplay);
-
-    // Idempotency: Check for in-flight replay with same actions
     const pendingReplay = this.pendingReplays.get(replayKey);
     if (pendingReplay) {
-      // Return the same result as the in-flight replay
       return pendingReplay;
     }
 
-    // Create the replay promise and track it
-    const replayPromise = this.executeReplay(actionsToReplay, stopOnFailure, actionTimeout);
+    const replayPromise = this.executeReplay(entriesToReplay, stopOnFailure, actionTimeout);
     this.pendingReplays.set(replayKey, replayPromise);
 
     try {
       return await replayPromise;
     } finally {
-      // Clean up tracking after completion
       this.pendingReplays.delete(replayKey);
     }
   }
 
   /**
    * Generate a stable key for replay idempotency tracking.
-   * Uses action IDs to create a unique identifier for the replay set.
    */
-  private generateReplayKey(actions: RecordedAction[]): string {
-    // Use a simple hash of action IDs and sequence numbers
-    const actionIds = actions.map((a) => `${a.id}:${a.sequenceNum}`).join('|');
-    return actionIds;
+  private generateReplayKey(entries: TimelineEntry[]): string {
+    return entries.map((e) => `${e.id}:${e.sequenceNum}`).join('|');
   }
 
   /**
    * Internal replay execution logic.
-   * Separated from replayPreview to enable idempotency tracking.
    */
   private async executeReplay(
-    actionsToReplay: RecordedAction[],
+    entriesToReplay: TimelineEntry[],
     stopOnFailure: boolean,
     actionTimeout: number
   ): Promise<ReplayPreviewResponse> {
@@ -507,10 +446,26 @@ export class RecordModeController {
     let stoppedEarly = false;
     const startTime = Date.now();
 
-    for (const action of actionsToReplay) {
-      const actionStart = Date.now();
-      const result = await this.executeAction(action, actionTimeout);
-      result.durationMs = Date.now() - actionStart;
+    // Create executor context once for all entries
+    const context: ExecutorContext = {
+      page: this.page,
+      timeout: actionTimeout,
+      validateSelector: (sel: string) => this.validateSelector(sel),
+    };
+
+    for (const entry of entriesToReplay) {
+      // Execute using proto-native executor
+      const result = await executeTimelineEntry(entry, context);
+
+      // Capture screenshot on error
+      if (!result.success) {
+        try {
+          const screenshot = await this.page.screenshot({ type: 'png' });
+          result.screenshotOnError = screenshot.toString('base64');
+        } catch {
+          // Ignore screenshot errors
+        }
+      }
 
       results.push(result);
 
@@ -535,113 +490,13 @@ export class RecordModeController {
   }
 
   /**
-   * Execute a single recorded action.
-   *
-   * CHANGE AXIS: Replay Execution for Action Types
-   *
-   * Action execution is now handled by the action-executor registry.
-   * When adding a new action type:
-   * 1. Add to ACTION_TYPES in action-types.ts (normalization, kind mapping)
-   * 2. Register executor in action-executor.ts using registerActionExecutor()
-   * 3. No changes needed here!
-   *
-   * @param action - The action to execute
-   * @param timeout - Timeout in ms
-   * @returns Result of the action execution
-   */
-  private async executeAction(action: RecordedAction, timeout: number): Promise<ActionReplayResult> {
-    const baseResult: ActionReplayResult = {
-      actionId: action.id,
-      sequenceNum: action.sequenceNum,
-      actionType: action.actionType,
-      success: false,
-      durationMs: 0,
-    };
-
-    try {
-      // Use the action executor registry
-      const executor = getActionExecutor(action.actionType);
-
-      if (!executor) {
-        return {
-          ...baseResult,
-          error: {
-            message: `Unsupported action type: ${action.actionType}`,
-            code: 'UNKNOWN',
-          },
-        };
-      }
-
-      // Create executor context
-      const context: ActionExecutorContext = {
-        page: this.page,
-        timeout,
-        validateSelector: (selector: string) => this.validateSelector(selector),
-      };
-
-      return await executor(action, context, baseResult);
-    } catch (error) {
-      const errorResult = this.handleActionError(error, action, baseResult);
-      // Capture screenshot on error
-      try {
-        const screenshot = await this.page.screenshot({ type: 'png' });
-        errorResult.screenshotOnError = screenshot.toString('base64');
-      } catch {
-        // Ignore screenshot errors
-      }
-      return errorResult;
-    }
-  }
-
-  // NOTE: Individual execute* methods have been moved to action-executor.ts
-  // This reduces shotgun surgery when adding new action types.
-  // See action-executor.ts for the action executor registry pattern.
-
-  /**
-   * Handle action execution errors.
-   */
-  private handleActionError(
-    error: unknown,
-    action: RecordedAction,
-    baseResult: ActionReplayResult
-  ): ActionReplayResult {
-    const message = error instanceof Error ? error.message : String(error);
-
-    // Categorize the error
-    type ErrorCode = 'SELECTOR_NOT_FOUND' | 'SELECTOR_AMBIGUOUS' | 'ELEMENT_NOT_VISIBLE' | 'ELEMENT_NOT_ENABLED' | 'TIMEOUT' | 'NAVIGATION_FAILED' | 'UNKNOWN';
-    let code: ErrorCode = 'UNKNOWN';
-
-    if (message.includes('waiting for selector') || message.includes('Timeout')) {
-      code = 'TIMEOUT';
-    } else if (message.includes('not visible')) {
-      code = 'ELEMENT_NOT_VISIBLE';
-    } else if (message.includes('disabled')) {
-      code = 'ELEMENT_NOT_ENABLED';
-    }
-
-    return {
-      ...baseResult,
-      error: {
-        message,
-        code,
-        selector: action.selector?.primary,
-      },
-    };
-  }
-
-  /**
    * Validate a selector on the current page.
-   *
-   * @param selector - CSS selector or XPath to validate
-   * @returns Validation result
    */
   async validateSelector(selector: string): Promise<SelectorValidation> {
     try {
-      // Determine if XPath or CSS
       const isXPath = selector.startsWith('/') || selector.startsWith('(');
 
       if (isXPath) {
-        // Use string-based evaluate to avoid TypeScript issues with browser globals
         const count = await this.page.evaluate<number>(`
           (function() {
             try {
@@ -669,7 +524,6 @@ export class RecordModeController {
           selector,
         };
       } else {
-        // CSS selector
         const count = await this.page.locator(selector).count();
         return {
           valid: count === 1,
@@ -695,103 +549,39 @@ export class RecordModeController {
   }
 
   /**
-   * Handle a raw event from the page and convert to RecordedAction.
+   * Handle a raw event from the page and convert to TimelineEntry.
    */
   private handleRawEvent(raw: RawBrowserEvent): void {
-    if (!this.state.isRecording || !this.actionCallback || !this.state.recordingId) {
+    if (!this.state.isRecording || !this.entryCallback || !this.state.recordingId) {
       return;
     }
 
     try {
-      // For navigate events from the injected script, update lastUrl to prevent
-      // duplicate capture from the load handler
+      // For navigate events from the injected script, update lastUrl
       if (raw.actionType === 'navigate' && raw.payload?.targetUrl) {
         this.lastUrl = raw.payload.targetUrl as string;
       }
 
-      const action = this.normalizeEvent(raw);
+      // Convert directly to TimelineEntry (proto)
+      const entry = rawBrowserEventToTimelineEntry(raw, {
+        sessionId: this.state.sessionId,
+        sequenceNum: this.sequenceNum++,
+      });
+
       this.state.actionCount++;
 
-      // Invoke callback (may be async)
-      const result = this.actionCallback(action);
+      // Invoke callback
+      const result = this.entryCallback(entry);
       if (result instanceof Promise) {
         result.catch((err: unknown) => {
           const message = err instanceof Error ? err.message : String(err);
-          this.handleError(new Error(`Action callback failed: ${message}`));
+          this.handleError(new Error(`Entry callback failed: ${message}`));
         });
       }
     } catch (error) {
       this.handleError(error instanceof Error ? error : new Error(String(error)));
     }
   }
-
-  /**
-   * Normalize a raw browser event to a RecordedAction.
-   *
-   * Hardened assumptions:
-   * - raw.timestamp may be invalid (NaN, negative, or future date)
-   * - raw.selector may be missing or have empty primary
-   * - raw.url may be empty or malformed
-   */
-  private normalizeEvent(raw: RawBrowserEvent): RecordedAction {
-    // Use centralized action type normalization (see action-types.ts)
-    const actionType = normalizeActionType(raw.actionType);
-    const actionKind = toRecordedActionKind(actionType);
-
-    // Hardened: Validate and sanitize timestamp
-    let timestamp: string;
-    try {
-      const date = new Date(raw.timestamp);
-      // Check for Invalid Date (NaN check)
-      if (Number.isNaN(date.getTime())) {
-        timestamp = new Date().toISOString();
-      } else {
-        timestamp = date.toISOString();
-      }
-    } catch {
-      // Fallback to current time if Date construction fails
-      timestamp = new Date().toISOString();
-    }
-
-    // Hardened: Ensure selector has valid primary if selector object exists
-    let selector = raw.selector;
-    if (selector && (!selector.primary || selector.primary.trim() === '')) {
-      // If we have candidates but no primary, use the first candidate
-      if (selector.candidates && selector.candidates.length > 0) {
-        selector = {
-          ...selector,
-          primary: selector.candidates[0].value,
-        };
-      }
-      // Otherwise selector.primary will be empty, which handlers should check
-    }
-
-    const action: RecordedAction = {
-      id: uuidv4(),
-      sessionId: this.state.sessionId,
-      sequenceNum: this.sequenceNum++,
-      timestamp,
-      actionType,
-      actionKind,
-      // Use centralized confidence calculation (see action-types.ts)
-      confidence: calculateActionConfidence(actionType, selector),
-      selector,
-      elementMeta: raw.elementMeta,
-      boundingBox: raw.boundingBox,
-      cursorPos: raw.cursorPos || undefined,
-      url: raw.url || '',
-      frameId: raw.frameId || undefined,
-      payload: raw.payload as RecordedAction['payload'],
-      // Use centralized typed payload builder (see action-types.ts)
-      typedAction: buildTypedActionPayload(actionKind, raw),
-    };
-
-    return action;
-  }
-
-  // NOTE: Action type normalization, kind mapping, typed payload building, and confidence
-  // calculation have been centralized in action-types.ts to reduce shotgun surgery
-  // when adding new action types. See the imports at the top of this file.
 
   /**
    * Handle errors during recording.
@@ -807,10 +597,6 @@ export class RecordModeController {
 
 /**
  * Create a new RecordModeController for a page.
- *
- * @param page - Playwright Page instance
- * @param sessionId - Session ID
- * @returns RecordModeController instance
  */
 export function createRecordModeController(page: Page, sessionId: string): RecordModeController {
   return new RecordModeController(page, sessionId);

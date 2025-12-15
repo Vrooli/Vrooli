@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { ScreenshotParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getScreenshotParams } from '../proto';
 import { captureScreenshot, captureCompressedScreenshot } from '../telemetry';
 import { normalizeError } from '../utils';
 
@@ -15,14 +15,15 @@ export class ScreenshotHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, config, logger } = context;
 
     try {
-      // Validate parameters
-      const params = ScreenshotParamsSchema.parse(instruction.params);
+      // Extract typed params from action
+      const typedParams = instruction.action ? getScreenshotParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'screenshot', instruction.nodeId);
 
       logger.debug('Capturing screenshot', {
         fullPage: params.fullPage !== false,

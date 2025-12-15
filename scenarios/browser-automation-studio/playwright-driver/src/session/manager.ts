@@ -4,7 +4,7 @@ import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
 import { buildContext } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
-import { removeRecordedActions } from '../recording/buffer';
+import { removeRecordingBuffer } from '../recording/buffer';
 import { clearSessionRoutes } from '../handlers/network';
 import { clearSessionDownloadCache } from '../handlers/download';
 
@@ -643,8 +643,8 @@ export class SessionManager {
         });
       }
 
-      // Clean up recording action buffer
-      removeRecordedActions(sessionId);
+      // Clean up recording buffer
+      removeRecordingBuffer(sessionId);
 
       // Stop tracing if enabled
       if (session.tracing && session.tracePath) {

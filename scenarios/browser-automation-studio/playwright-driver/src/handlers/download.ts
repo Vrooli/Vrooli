@@ -1,8 +1,8 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { DownloadParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getDownloadParams } from '../proto';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
-import { normalizeError, validateTimeout, validateParams, logger, scopedLog, LogContext } from '../utils';
+import { normalizeError, validateTimeout, logger, scopedLog, LogContext } from '../utils';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -82,15 +82,15 @@ export class DownloadHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, sessionId } = context;
 
     try {
-      // Hardened: Validate params object exists
-      const rawParams = validateParams(instruction.params, 'download');
-      const params = DownloadParamsSchema.parse(rawParams);
+      // Get typed params from instruction.action (required after migration)
+      const typedParams = instruction.action ? getDownloadParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'download', instruction.nodeId);
 
       // Hardened: Validate timeout bounds
       const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'download');

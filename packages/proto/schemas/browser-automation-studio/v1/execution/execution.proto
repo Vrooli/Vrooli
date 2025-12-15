@@ -3,6 +3,7 @@ syntax = "proto3";
 package browser_automation_studio.v1;
 
 import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
 import "common/v1/types.proto";
 import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/domain/telemetry.proto";
@@ -112,16 +113,16 @@ message ExecutionResult {
 message TriggerMetadata {
   // User ID who initiated the execution (for manual triggers).
   // @format uuid
-  optional string user_id = 1;
+  optional string user_id = 1 [(buf.validate.field).string.uuid = true];
   // API client ID (for API triggers).
   // @format uuid
-  optional string client_id = 2;
+  optional string client_id = 2 [(buf.validate.field).string.uuid = true];
   // Schedule ID (for scheduled triggers).
   // @format uuid
-  optional string schedule_id = 3;
+  optional string schedule_id = 3 [(buf.validate.field).string.uuid = true];
   // Webhook ID (for webhook triggers).
   // @format uuid
-  optional string webhook_id = 4;
+  optional string webhook_id = 4 [(buf.validate.field).string.uuid = true];
   // External request ID for correlation with upstream systems.
   optional string external_request_id = 5;
   // Source IP address of the trigger request.
@@ -223,7 +224,7 @@ message ExecuteAdhocResponse {
   ExecutionStatus status = 2;
   // Workflow ID if persisted (null for adhoc).
   // @format uuid
-  optional string workflow_id = 3;
+  optional string workflow_id = 3 [(buf.validate.field).string.uuid = true];
   // Human-readable status message.
   string message = 4;
   // Completion timestamp when wait_for_completion is true (null if async or failed).

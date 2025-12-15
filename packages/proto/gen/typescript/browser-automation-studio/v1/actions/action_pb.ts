@@ -6,6 +6,7 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { JsonValue } from "../../../common/v1/types_pb";
 import { file_common_v1_types } from "../../../common/v1/types_pb";
 import type { AssertionMode } from "../base/shared_pb";
@@ -20,7 +21,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/actions/action.proto.
  */
 export const file_browser_automation_studio_v1_actions_action: GenFile = /*@__PURE__*/
-  fileDesc("CjFicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FjdGlvbnMvYWN0aW9uLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIpEDCg5OYXZpZ2F0ZVBhcmFtcxILCgN1cmwYASABKAkSHgoRd2FpdF9mb3Jfc2VsZWN0b3IYAiABKAlIAIgBARIXCgp0aW1lb3V0X21zGAMgASgFSAGIAQESSAoKd2FpdF91bnRpbBgEIAEoDjIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVXYWl0RXZlbnRIAogBARJUChBkZXN0aW5hdGlvbl90eXBlGAogASgOMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5OYXZpZ2F0ZURlc3RpbmF0aW9uVHlwZUgDiAEBEhUKCHNjZW5hcmlvGAsgASgJSASIAQESGgoNc2NlbmFyaW9fcGF0aBgMIAEoCUgFiAEBQhQKEl93YWl0X2Zvcl9zZWxlY3RvckINCgtfdGltZW91dF9tc0INCgtfd2FpdF91bnRpbEITChFfZGVzdGluYXRpb25fdHlwZUILCglfc2NlbmFyaW9CEAoOX3NjZW5hcmlvX3BhdGgizQIKC0NsaWNrUGFyYW1zEhAKCHNlbGVjdG9yGAEgASgJEj4KBmJ1dHRvbhgCIAEoDjIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTW91c2VCdXR0b25IAIgBARIYCgtjbGlja19jb3VudBgDIAEoBUgBiAEBEhUKCGRlbGF5X21zGAQgASgFSAKIAQESQQoJbW9kaWZpZXJzGAUgAygOMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5LZXlib2FyZE1vZGlmaWVyEhIKBWZvcmNlGAYgASgISAOIAQESHQoQc2Nyb2xsX2ludG9fdmlldxgHIAEoCEgEiAEBQgkKB19idXR0b25CDgoMX2NsaWNrX2NvdW50QgsKCV9kZWxheV9tc0IICgZfZm9yY2VCEwoRX3Njcm9sbF9pbnRvX3ZpZXciyAEKC0lucHV0UGFyYW1zEhAKCHNlbGVjdG9yGAEgASgJEg0KBXZhbHVlGAIgASgJEhkKDGlzX3NlbnNpdGl2ZRgDIAEoCEgAiAEBEhMKBnN1Ym1pdBgEIAEoCEgBiAEBEhgKC2NsZWFyX2ZpcnN0GAUgASgISAKIAQESFQoIZGVsYXlfbXMYBiABKAVIA4gBAUIPCg1faXNfc2Vuc2l0aXZlQgkKB19zdWJtaXRCDgoMX2NsZWFyX2ZpcnN0QgsKCV9kZWxheV9tcyKyAQoKV2FpdFBhcmFtcxIVCgtkdXJhdGlvbl9tcxgBIAEoBUgAEhIKCHNlbGVjdG9yGAIgASgJSAASOwoFc3RhdGUYAyABKA4yJy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLldhaXRTdGF0ZUgBiAEBEhcKCnRpbWVvdXRfbXMYBCABKAVIAogBAUIKCgh3YWl0X2ZvckIICgZfc3RhdGVCDQoLX3RpbWVvdXRfbXMi8QIKDEFzc2VydFBhcmFtcxIQCghzZWxlY3RvchgBIAEoCRI5CgRtb2RlGAIgASgOMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Bc3NlcnRpb25Nb2RlEisKCGV4cGVjdGVkGAMgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZUgAiAEBEhQKB25lZ2F0ZWQYBCABKAhIAYgBARIbCg5jYXNlX3NlbnNpdGl2ZRgFIAEoCEgCiAEBEhsKDmF0dHJpYnV0ZV9uYW1lGAYgASgJSAOIAQESHAoPZmFpbHVyZV9tZXNzYWdlGAcgASgJSASIAQESFwoKdGltZW91dF9tcxgIIAEoBUgFiAEBQgsKCV9leHBlY3RlZEIKCghfbmVnYXRlZEIRCg9fY2FzZV9zZW5zaXRpdmVCEQoPX2F0dHJpYnV0ZV9uYW1lQhIKEF9mYWlsdXJlX21lc3NhZ2VCDQoLX3RpbWVvdXRfbXMi9AEKDFNjcm9sbFBhcmFtcxIVCghzZWxlY3RvchgBIAEoCUgAiAEBEg4KAXgYAiABKAVIAYgBARIOCgF5GAMgASgFSAKIAQESQwoIYmVoYXZpb3IYBCABKA4yLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNjcm9sbEJlaGF2aW9ySAOIAQESFAoHZGVsdGFfeBgFIAEoBUgEiAEBEhQKB2RlbHRhX3kYBiABKAVIBYgBAUILCglfc2VsZWN0b3JCBAoCX3hCBAoCX3lCCwoJX2JlaGF2aW9yQgoKCF9kZWx0YV94QgoKCF9kZWx0YV95IogBCgxTZWxlY3RQYXJhbXMSEAoIc2VsZWN0b3IYASABKAkSDwoFdmFsdWUYAiABKAlIABIPCgVsYWJlbBgDIAEoCUgAEg8KBWluZGV4GAQgASgFSAASFwoKdGltZW91dF9tcxgFIAEoBUgBiAEBQgsKCXNlbGVjdF9ieUINCgtfdGltZW91dF9tcyLZAQoORXZhbHVhdGVQYXJhbXMSEgoKZXhwcmVzc2lvbhgBIAEoCRIZCgxzdG9yZV9yZXN1bHQYAiABKAlIAIgBARJECgRhcmdzGAMgAygLMjYuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FdmFsdWF0ZVBhcmFtcy5BcmdzRW50cnkaQQoJQXJnc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULmNvbW1vbi52MS5Kc29uVmFsdWU6AjgBQg8KDV9zdG9yZV9yZXN1bHQixAEKDktleWJvYXJkUGFyYW1zEhAKA2tleRgBIAEoCUgAiAEBEgwKBGtleXMYAiADKAkSQQoJbW9kaWZpZXJzGAMgAygOMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5LZXlib2FyZE1vZGlmaWVyEjwKBmFjdGlvbhgEIAEoDjInLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuS2V5QWN0aW9uSAGIAQFCBgoEX2tleUIJCgdfYWN0aW9uIkcKC0hvdmVyUGFyYW1zEhAKCHNlbGVjdG9yGAEgASgJEhcKCnRpbWVvdXRfbXMYAiABKAVIAIgBAUINCgtfdGltZW91dF9tcyJ+ChBTY3JlZW5zaG90UGFyYW1zEhYKCWZ1bGxfcGFnZRgBIAEoCEgAiAEBEhUKCHNlbGVjdG9yGAIgASgJSAGIAQESFAoHcXVhbGl0eRgDIAEoBUgCiAEBQgwKCl9mdWxsX3BhZ2VCCwoJX3NlbGVjdG9yQgoKCF9xdWFsaXR5ImcKC0ZvY3VzUGFyYW1zEhAKCHNlbGVjdG9yGAEgASgJEhMKBnNjcm9sbBgCIAEoCEgAiAEBEhcKCnRpbWVvdXRfbXMYAyABKAVIAYgBAUIJCgdfc2Nyb2xsQg0KC190aW1lb3V0X21zIlgKCkJsdXJQYXJhbXMSFQoIc2VsZWN0b3IYASABKAlIAIgBARIXCgp0aW1lb3V0X21zGAIgASgFSAGIAQFCCwoJX3NlbGVjdG9yQg0KC190aW1lb3V0X21zIoUCCg1TdWJmbG93UGFyYW1zEhUKC3dvcmtmbG93X2lkGAEgASgJSAASFwoNd29ya2Zsb3dfcGF0aBgCIAEoCUgAEh0KEHdvcmtmbG93X3ZlcnNpb24YAyABKAVIAYgBARJDCgRhcmdzGAogAygLMjUuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TdWJmbG93UGFyYW1zLkFyZ3NFbnRyeRpBCglBcmdzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCCAoGdGFyZ2V0QhMKEV93b3JrZmxvd192ZXJzaW9uIrIDCg5BY3Rpb25NZXRhZGF0YRISCgVsYWJlbBgBIAEoCUgAiAEBEkwKE3NlbGVjdG9yX2NhbmRpZGF0ZXMYAiADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yQ2FuZGlkYXRlEkgKEGVsZW1lbnRfc25hcHNob3QYAyABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkVsZW1lbnRNZXRhSAGIAQESFwoKY29uZmlkZW5jZRgEIAEoAUgCiAEBEjQKC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEk0KFWNhcHR1cmVkX2JvdW5kaW5nX2JveBgGIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3hIBIgBAUIICgZfbGFiZWxCEwoRX2VsZW1lbnRfc25hcHNob3RCDQoLX2NvbmZpZGVuY2VCDgoMX2NhcHR1cmVkX2F0QhgKFl9jYXB0dXJlZF9ib3VuZGluZ19ib3gihQgKEEFjdGlvbkRlZmluaXRpb24SNgoEdHlwZRgBIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZRJACghuYXZpZ2F0ZRgKIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVQYXJhbXNIABI6CgVjbGljaxgLIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ2xpY2tQYXJhbXNIABI6CgVpbnB1dBgMIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSW5wdXRQYXJhbXNIABI4CgR3YWl0GA0gASgLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5XYWl0UGFyYW1zSAASPAoGYXNzZXJ0GA4gASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Bc3NlcnRQYXJhbXNIABI8CgZzY3JvbGwYDyABKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNjcm9sbFBhcmFtc0gAEkMKDXNlbGVjdF9vcHRpb24YECABKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdFBhcmFtc0gAEkAKCGV2YWx1YXRlGBEgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FdmFsdWF0ZVBhcmFtc0gAEkAKCGtleWJvYXJkGBIgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5LZXlib2FyZFBhcmFtc0gAEjoKBWhvdmVyGBMgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Ib3ZlclBhcmFtc0gAEkQKCnNjcmVlbnNob3QYFCABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNjcmVlbnNob3RQYXJhbXNIABI6CgVmb2N1cxgVIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRm9jdXNQYXJhbXNIABI4CgRibHVyGBYgASgLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5CbHVyUGFyYW1zSAASPgoHc3ViZmxvdxgXIAEoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3ViZmxvd1BhcmFtc0gAEj4KCG1ldGFkYXRhGB4gASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5BY3Rpb25NZXRhZGF0YUIICgZwYXJhbXMq/AIKCkFjdGlvblR5cGUSGwoXQUNUSU9OX1RZUEVfVU5TUEVDSUZJRUQQABIYChRBQ1RJT05fVFlQRV9OQVZJR0FURRABEhUKEUFDVElPTl9UWVBFX0NMSUNLEAISFQoRQUNUSU9OX1RZUEVfSU5QVVQQAxIUChBBQ1RJT05fVFlQRV9XQUlUEAQSFgoSQUNUSU9OX1RZUEVfQVNTRVJUEAUSFgoSQUNUSU9OX1RZUEVfU0NST0xMEAYSFgoSQUNUSU9OX1RZUEVfU0VMRUNUEAcSGAoUQUNUSU9OX1RZUEVfRVZBTFVBVEUQCBIYChRBQ1RJT05fVFlQRV9LRVlCT0FSRBAJEhUKEUFDVElPTl9UWVBFX0hPVkVSEAoSGgoWQUNUSU9OX1RZUEVfU0NSRUVOU0hPVBALEhUKEUFDVElPTl9UWVBFX0ZPQ1VTEAwSFAoQQUNUSU9OX1RZUEVfQkxVUhANEhcKE0FDVElPTl9UWVBFX1NVQkZMT1cQDipzCgtNb3VzZUJ1dHRvbhIcChhNT1VTRV9CVVRUT05fVU5TUEVDSUZJRUQQABIVChFNT1VTRV9CVVRUT05fTEVGVBABEhYKEk1PVVNFX0JVVFRPTl9SSUdIVBACEhcKE01PVVNFX0JVVFRPTl9NSURETEUQAyqlAQoRTmF2aWdhdGVXYWl0RXZlbnQSIwofTkFWSUdBVEVfV0FJVF9FVkVOVF9VTlNQRUNJRklFRBAAEhwKGE5BVklHQVRFX1dBSVRfRVZFTlRfTE9BRBABEigKJE5BVklHQVRFX1dBSVRfRVZFTlRfRE9NQ09OVEVOVExPQURFRBACEiMKH05BVklHQVRFX1dBSVRfRVZFTlRfTkVUV09SS0lETEUQAyqPAQoXTmF2aWdhdGVEZXN0aW5hdGlvblR5cGUSKQolTkFWSUdBVEVfREVTVElOQVRJT05fVFlQRV9VTlNQRUNJRklFRBAAEiEKHU5BVklHQVRFX0RFU1RJTkFUSU9OX1RZUEVfVVJMEAESJgoiTkFWSUdBVEVfREVTVElOQVRJT05fVFlQRV9TQ0VOQVJJTxACKogBCglXYWl0U3RhdGUSGgoWV0FJVF9TVEFURV9VTlNQRUNJRklFRBAAEhcKE1dBSVRfU1RBVEVfQVRUQUNIRUQQARIXChNXQUlUX1NUQVRFX0RFVEFDSEVEEAISFgoSV0FJVF9TVEFURV9WSVNJQkxFEAMSFQoRV0FJVF9TVEFURV9ISURERU4QBCpnCg5TY3JvbGxCZWhhdmlvchIfChtTQ1JPTExfQkVIQVZJT1JfVU5TUEVDSUZJRUQQABIYChRTQ1JPTExfQkVIQVZJT1JfQVVUTxABEhoKFlNDUk9MTF9CRUhBVklPUl9TTU9PVEgQAiplCglLZXlBY3Rpb24SGgoWS0VZX0FDVElPTl9VTlNQRUNJRklFRBAAEhQKEEtFWV9BQ1RJT05fUFJFU1MQARITCg9LRVlfQUNUSU9OX0RPV04QAhIRCg1LRVlfQUNUSU9OX1VQEAMqpQEKEEtleWJvYXJkTW9kaWZpZXISIQodS0VZQk9BUkRfTU9ESUZJRVJfVU5TUEVDSUZJRUQQABIaChZLRVlCT0FSRF9NT0RJRklFUl9DVFJMEAESGwoXS0VZQk9BUkRfTU9ESUZJRVJfU0hJRlQQAhIZChVLRVlCT0FSRF9NT0RJRklFUl9BTFQQAxIaChZLRVlCT0FSRF9NT0RJRklFUl9NRVRBEARCXVpbZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FjdGlvbnM7YWN0aW9uc2IGcHJvdG8z", [file_google_protobuf_timestamp, file_common_v1_types, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_base_geometry, file_browser_automation_studio_v1_domain_selectors]);
+  fileDesc("CjFicm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FjdGlvbnMvYWN0aW9uLnByb3RvEhxicm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxIqcDCg5OYXZpZ2F0ZVBhcmFtcxIUCgN1cmwYASABKAlCB7pIBHICEAESHgoRd2FpdF9mb3Jfc2VsZWN0b3IYAiABKAlIAIgBARIkCgp0aW1lb3V0X21zGAMgASgFQgu6SAgaBhjgpxIoAEgBiAEBEkgKCndhaXRfdW50aWwYBCABKA4yLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLk5hdmlnYXRlV2FpdEV2ZW50SAKIAQESVAoQZGVzdGluYXRpb25fdHlwZRgKIAEoDjI1LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVEZXN0aW5hdGlvblR5cGVIA4gBARIVCghzY2VuYXJpbxgLIAEoCUgEiAEBEhoKDXNjZW5hcmlvX3BhdGgYDCABKAlIBYgBAUIUChJfd2FpdF9mb3Jfc2VsZWN0b3JCDQoLX3RpbWVvdXRfbXNCDQoLX3dhaXRfdW50aWxCEwoRX2Rlc3RpbmF0aW9uX3R5cGVCCwoJX3NjZW5hcmlvQhAKDl9zY2VuYXJpb19wYXRoIuoCCgtDbGlja1BhcmFtcxIZCghzZWxlY3RvchgBIAEoCUIHukgEcgIQARI+CgZidXR0b24YAiABKA4yKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLk1vdXNlQnV0dG9uSACIAQESIwoLY2xpY2tfY291bnQYAyABKAVCCbpIBhoEGAMoAUgBiAEBEh4KCGRlbGF5X21zGAQgASgFQge6SAQaAigASAKIAQESQQoJbW9kaWZpZXJzGAUgAygOMi4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5LZXlib2FyZE1vZGlmaWVyEhIKBWZvcmNlGAYgASgISAOIAQESHQoQc2Nyb2xsX2ludG9fdmlldxgHIAEoCEgEiAEBQgkKB19idXR0b25CDgoMX2NsaWNrX2NvdW50QgsKCV9kZWxheV9tc0IICgZfZm9yY2VCEwoRX3Njcm9sbF9pbnRvX3ZpZXci2gEKC0lucHV0UGFyYW1zEhkKCHNlbGVjdG9yGAEgASgJQge6SARyAhABEg0KBXZhbHVlGAIgASgJEhkKDGlzX3NlbnNpdGl2ZRgDIAEoCEgAiAEBEhMKBnN1Ym1pdBgEIAEoCEgBiAEBEhgKC2NsZWFyX2ZpcnN0GAUgASgISAKIAQESHgoIZGVsYXlfbXMYBiABKAVCB7pIBBoCKABIA4gBAUIPCg1faXNfc2Vuc2l0aXZlQgkKB19zdWJtaXRCDgoMX2NsZWFyX2ZpcnN0QgsKCV9kZWxheV9tcyLVAQoKV2FpdFBhcmFtcxIiCgtkdXJhdGlvbl9tcxgBIAEoBUILukgIGgYY4KcSKABIABIbCghzZWxlY3RvchgCIAEoCUIHukgEcgIQAUgAEjsKBXN0YXRlGAMgASgOMicuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5XYWl0U3RhdGVIAYgBARIkCgp0aW1lb3V0X21zGAQgASgFQgu6SAgaBhjgpxIoAEgCiAEBQgoKCHdhaXRfZm9yQggKBl9zdGF0ZUINCgtfdGltZW91dF9tcyKRAwoMQXNzZXJ0UGFyYW1zEhkKCHNlbGVjdG9yGAEgASgJQge6SARyAhABEkMKBG1vZGUYAiABKA4yKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFzc2VydGlvbk1vZGVCCLpIBYIBAhABEisKCGV4cGVjdGVkGAMgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZUgAiAEBEhQKB25lZ2F0ZWQYBCABKAhIAYgBARIbCg5jYXNlX3NlbnNpdGl2ZRgFIAEoCEgCiAEBEhsKDmF0dHJpYnV0ZV9uYW1lGAYgASgJSAOIAQESHAoPZmFpbHVyZV9tZXNzYWdlGAcgASgJSASIAQESJAoKdGltZW91dF9tcxgIIAEoBUILukgIGgYY4NQDKABIBYgBAUILCglfZXhwZWN0ZWRCCgoIX25lZ2F0ZWRCEQoPX2Nhc2Vfc2Vuc2l0aXZlQhEKD19hdHRyaWJ1dGVfbmFtZUISChBfZmFpbHVyZV9tZXNzYWdlQg0KC190aW1lb3V0X21zIvQBCgxTY3JvbGxQYXJhbXMSFQoIc2VsZWN0b3IYASABKAlIAIgBARIOCgF4GAIgASgFSAGIAQESDgoBeRgDIAEoBUgCiAEBEkMKCGJlaGF2aW9yGAQgASgOMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TY3JvbGxCZWhhdmlvckgDiAEBEhQKB2RlbHRhX3gYBSABKAVIBIgBARIUCgdkZWx0YV95GAYgASgFSAWIAQFCCwoJX3NlbGVjdG9yQgQKAl94QgQKAl95QgsKCV9iZWhhdmlvckIKCghfZGVsdGFfeEIKCghfZGVsdGFfeSKnAQoMU2VsZWN0UGFyYW1zEhkKCHNlbGVjdG9yGAEgASgJQge6SARyAhABEg8KBXZhbHVlGAIgASgJSAASDwoFbGFiZWwYAyABKAlIABIYCgVpbmRleBgEIAEoBUIHukgEGgIoAEgAEiQKCnRpbWVvdXRfbXMYBSABKAVCC7pICBoGGODUAygASAGIAQFCCwoJc2VsZWN0X2J5Qg0KC190aW1lb3V0X21zIuIBCg5FdmFsdWF0ZVBhcmFtcxIbCgpleHByZXNzaW9uGAEgASgJQge6SARyAhABEhkKDHN0b3JlX3Jlc3VsdBgCIAEoCUgAiAEBEkQKBGFyZ3MYAyADKAsyNi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV2YWx1YXRlUGFyYW1zLkFyZ3NFbnRyeRpBCglBcmdzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuY29tbW9uLnYxLkpzb25WYWx1ZToCOAFCDwoNX3N0b3JlX3Jlc3VsdCLEAQoOS2V5Ym9hcmRQYXJhbXMSEAoDa2V5GAEgASgJSACIAQESDAoEa2V5cxgCIAMoCRJBCgltb2RpZmllcnMYAyADKA4yLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLktleWJvYXJkTW9kaWZpZXISPAoGYWN0aW9uGAQgASgOMicuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5LZXlBY3Rpb25IAYgBAUIGCgRfa2V5QgkKB19hY3Rpb24iXQoLSG92ZXJQYXJhbXMSGQoIc2VsZWN0b3IYASABKAlCB7pIBHICEAESJAoKdGltZW91dF9tcxgCIAEoBUILukgIGgYY4NQDKABIAIgBAUINCgtfdGltZW91dF9tcyKJAQoQU2NyZWVuc2hvdFBhcmFtcxIWCglmdWxsX3BhZ2UYASABKAhIAIgBARIVCghzZWxlY3RvchgCIAEoCUgBiAEBEh8KB3F1YWxpdHkYAyABKAVCCbpIBhoEGGQoAUgCiAEBQgwKCl9mdWxsX3BhZ2VCCwoJX3NlbGVjdG9yQgoKCF9xdWFsaXR5In0KC0ZvY3VzUGFyYW1zEhkKCHNlbGVjdG9yGAEgASgJQge6SARyAhABEhMKBnNjcm9sbBgCIAEoCEgAiAEBEiQKCnRpbWVvdXRfbXMYAyABKAVCC7pICBoGGODUAygASAGIAQFCCQoHX3Njcm9sbEINCgtfdGltZW91dF9tcyJlCgpCbHVyUGFyYW1zEhUKCHNlbGVjdG9yGAEgASgJSACIAQESJAoKdGltZW91dF9tcxgCIAEoBUILukgIGgYY4NQDKABIAYgBAUILCglfc2VsZWN0b3JCDQoLX3RpbWVvdXRfbXMihQIKDVN1YmZsb3dQYXJhbXMSFQoLd29ya2Zsb3dfaWQYASABKAlIABIXCg13b3JrZmxvd19wYXRoGAIgASgJSAASHQoQd29ya2Zsb3dfdmVyc2lvbhgDIAEoBUgBiAEBEkMKBGFyZ3MYCiADKAsyNS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlN1YmZsb3dQYXJhbXMuQXJnc0VudHJ5GkEKCUFyZ3NFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5jb21tb24udjEuSnNvblZhbHVlOgI4AUIICgZ0YXJnZXRCEwoRX3dvcmtmbG93X3ZlcnNpb24iuAIKDUV4dHJhY3RQYXJhbXMSGQoIc2VsZWN0b3IYASABKAlCB7pIBHICEAESRAoMZXh0cmFjdF90eXBlGAIgASgOMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FeHRyYWN0VHlwZUgAiAEBEhsKDmF0dHJpYnV0ZV9uYW1lGAMgASgJSAGIAQESGgoNcHJvcGVydHlfbmFtZRgEIAEoCUgCiAEBEhUKCHN0b3JlX2FzGAUgASgJSAOIAQESJAoKdGltZW91dF9tcxgGIAEoBUILukgIGgYY4NQDKABIBIgBAUIPCg1fZXh0cmFjdF90eXBlQhEKD19hdHRyaWJ1dGVfbmFtZUIQCg5fcHJvcGVydHlfbmFtZUILCglfc3RvcmVfYXNCDQoLX3RpbWVvdXRfbXMigAEKEFVwbG9hZEZpbGVQYXJhbXMSGQoIc2VsZWN0b3IYASABKAlCB7pIBHICEAESHAoKZmlsZV9wYXRocxgCIAMoCUIIukgFkgECCAESJAoKdGltZW91dF9tcxgDIAEoBUILukgIGgYY4KcSKABIAIgBAUINCgtfdGltZW91dF9tcyKpAQoORG93bmxvYWRQYXJhbXMSFQoIc2VsZWN0b3IYASABKAlIAIgBARIQCgN1cmwYAiABKAlIAYgBARIWCglzYXZlX3BhdGgYAyABKAlIAogBARIkCgp0aW1lb3V0X21zGAQgASgFQgu6SAgaBhjAzyQoAEgDiAEBQgsKCV9zZWxlY3RvckIGCgRfdXJsQgwKCl9zYXZlX3BhdGhCDQoLX3RpbWVvdXRfbXMigQIKEUZyYW1lU3dpdGNoUGFyYW1zEkkKBmFjdGlvbhgBIAEoDjIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRnJhbWVTd2l0Y2hBY3Rpb25CCLpIBYIBAhABEhUKCHNlbGVjdG9yGAIgASgJSACIAQESFQoIZnJhbWVfaWQYAyABKAlIAYgBARIWCglmcmFtZV91cmwYBCABKAlIAogBARIkCgp0aW1lb3V0X21zGAUgASgFQgu6SAgaBhjg1AMoAEgDiAEBQgsKCV9zZWxlY3RvckILCglfZnJhbWVfaWRCDAoKX2ZyYW1lX3VybEINCgtfdGltZW91dF9tcyLjAQoPVGFiU3dpdGNoUGFyYW1zEkcKBmFjdGlvbhgBIAEoDjItLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVGFiU3dpdGNoQWN0aW9uQgi6SAWCAQIQARIQCgN1cmwYAiABKAlIAIgBARIbCgVpbmRleBgDIAEoBUIHukgEGgIoAEgBiAEBEhIKBXRpdGxlGAQgASgJSAKIAQESGAoLdXJsX3BhdHRlcm4YBSABKAlIA4gBAUIGCgRfdXJsQggKBl9pbmRleEIICgZfdGl0bGVCDgoMX3VybF9wYXR0ZXJuIocCCg1Db29raWVPcHRpb25zEhMKBmRvbWFpbhgBIAEoCUgAiAEBEhEKBHBhdGgYAiABKAlIAYgBARIUCgdleHBpcmVzGAMgASgDSAKIAQESFgoJaHR0cF9vbmx5GAQgASgISAOIAQESEwoGc2VjdXJlGAUgASgISASIAQESRAoJc2FtZV9zaXRlGAYgASgOMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Db29raWVTYW1lU2l0ZUgFiAEBQgkKB19kb21haW5CBwoFX3BhdGhCCgoIX2V4cGlyZXNCDAoKX2h0dHBfb25seUIJCgdfc2VjdXJlQgwKCl9zYW1lX3NpdGUiwQIKE0Nvb2tpZVN0b3JhZ2VQYXJhbXMSSgoJb3BlcmF0aW9uGAEgASgOMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Db29raWVPcGVyYXRpb25CCLpIBYIBAhABEkkKDHN0b3JhZ2VfdHlwZRgCIAEoDjIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3RvcmFnZVR5cGVCCLpIBYIBAhABEhAKA2tleRgDIAEoCUgAiAEBEhIKBXZhbHVlGAQgASgJSAGIAQESSAoOY29va2llX29wdGlvbnMYBSABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkNvb2tpZU9wdGlvbnNIAogBAUIGCgRfa2V5QggKBl92YWx1ZUIRCg9fY29va2llX29wdGlvbnMiTwoOU2hvcnRjdXRQYXJhbXMSGQoIc2hvcnRjdXQYASABKAlCB7pIBHICEAESFQoIc2VsZWN0b3IYAiABKAlIAIgBAUILCglfc2VsZWN0b3IitQIKDkRyYWdEcm9wUGFyYW1zEiAKD3NvdXJjZV9zZWxlY3RvchgBIAEoCUIHukgEcgIQARIcCg90YXJnZXRfc2VsZWN0b3IYAiABKAlIAIgBARIVCghvZmZzZXRfeBgDIAEoBUgBiAEBEhUKCG9mZnNldF95GAQgASgFSAKIAQESGwoFc3RlcHMYBSABKAVCB7pIBBoCKAFIA4gBARIeCghkZWxheV9tcxgGIAEoBUIHukgEGgIoAEgEiAEBEiQKCnRpbWVvdXRfbXMYByABKAVCC7pICBoGGODUAygASAWIAQFCEgoQX3RhcmdldF9zZWxlY3RvckILCglfb2Zmc2V0X3hCCwoJX29mZnNldF95QggKBl9zdGVwc0ILCglfZGVsYXlfbXNCDQoLX3RpbWVvdXRfbXMi4AIKDUdlc3R1cmVQYXJhbXMSSQoMZ2VzdHVyZV90eXBlGAEgASgOMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXN0dXJlVHlwZUIIukgFggECEAESFQoIc2VsZWN0b3IYAiABKAlIAIgBARJECglkaXJlY3Rpb24YAyABKA4yLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlN3aXBlRGlyZWN0aW9uSAGIAQESHgoIZGlzdGFuY2UYBCABKAVCB7pIBBoCKABIAogBARIiCgVzY2FsZRgFIAEoAUIOukgLEgkhAAAAAAAAAABIA4gBARIhCgtkdXJhdGlvbl9tcxgGIAEoBUIHukgEGgIoAEgEiAEBQgsKCV9zZWxlY3RvckIMCgpfZGlyZWN0aW9uQgsKCV9kaXN0YW5jZUIICgZfc2NhbGVCDgoMX2R1cmF0aW9uX21zIqQDChFOZXR3b3JrTW9ja1BhcmFtcxJPCglvcGVyYXRpb24YASABKA4yMi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLk5ldHdvcmtNb2NrT3BlcmF0aW9uQgi6SAWCAQIQARIcCgt1cmxfcGF0dGVybhgCIAEoCUIHukgEcgIQARITCgZtZXRob2QYAyABKAlIAIgBARIkCgtzdGF0dXNfY29kZRgEIAEoBUIKukgHGgUY1wQoZEgBiAEBEk0KB2hlYWRlcnMYBSADKAsyPC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLk5ldHdvcmtNb2NrUGFyYW1zLkhlYWRlcnNFbnRyeRIRCgRib2R5GAYgASgJSAKIAQESIgoIZGVsYXlfbXMYByABKAVCC7pICBoGGODUAygASAOIAQEaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCCQoHX21ldGhvZEIOCgxfc3RhdHVzX2NvZGVCBwoFX2JvZHlCCwoJX2RlbGF5X21zIo0BCgxSb3RhdGVQYXJhbXMSTgoLb3JpZW50YXRpb24YASABKA4yLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkRldmljZU9yaWVudGF0aW9uQgi6SAWCAQIQARIjCgVhbmdsZRgCIAEoBUIPukgMGgowADBaMLQBMI4CSACIAQFCCAoGX2FuZ2xlIrIDCg5BY3Rpb25NZXRhZGF0YRISCgVsYWJlbBgBIAEoCUgAiAEBEkwKE3NlbGVjdG9yX2NhbmRpZGF0ZXMYAiADKAsyLy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdG9yQ2FuZGlkYXRlEkgKEGVsZW1lbnRfc25hcHNob3QYAyABKAsyKS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkVsZW1lbnRNZXRhSAGIAQESFwoKY29uZmlkZW5jZRgEIAEoAUgCiAEBEjQKC2NhcHR1cmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEk0KFWNhcHR1cmVkX2JvdW5kaW5nX2JveBgGIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQm91bmRpbmdCb3hIBIgBAUIICgZfbGFiZWxCEwoRX2VsZW1lbnRfc25hcHNob3RCDQoLX2NvbmZpZGVuY2VCDgoMX2NhcHR1cmVkX2F0QhgKFl9jYXB0dXJlZF9ib3VuZGluZ19ib3gi9Q0KEEFjdGlvbkRlZmluaXRpb24SNgoEdHlwZRgBIAEoDjIoLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQWN0aW9uVHlwZRJACghuYXZpZ2F0ZRgKIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuTmF2aWdhdGVQYXJhbXNIABI6CgVjbGljaxgLIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ2xpY2tQYXJhbXNIABI6CgVpbnB1dBgMIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuSW5wdXRQYXJhbXNIABI4CgR3YWl0GA0gASgLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5XYWl0UGFyYW1zSAASPAoGYXNzZXJ0GA4gASgLMiouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Bc3NlcnRQYXJhbXNIABI8CgZzY3JvbGwYDyABKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNjcm9sbFBhcmFtc0gAEkMKDXNlbGVjdF9vcHRpb24YECABKAsyKi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNlbGVjdFBhcmFtc0gAEkAKCGV2YWx1YXRlGBEgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5FdmFsdWF0ZVBhcmFtc0gAEkAKCGtleWJvYXJkGBIgASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5LZXlib2FyZFBhcmFtc0gAEjoKBWhvdmVyGBMgASgLMikuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Ib3ZlclBhcmFtc0gAEkQKCnNjcmVlbnNob3QYFCABKAsyLi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLlNjcmVlbnNob3RQYXJhbXNIABI6CgVmb2N1cxgVIAEoCzIpLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRm9jdXNQYXJhbXNIABI4CgRibHVyGBYgASgLMiguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5CbHVyUGFyYW1zSAASPgoHc3ViZmxvdxgXIAEoCzIrLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuU3ViZmxvd1BhcmFtc0gAEj4KB2V4dHJhY3QYGCABKAsyKy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkV4dHJhY3RQYXJhbXNIABJFCgt1cGxvYWRfZmlsZRgZIAEoCzIuLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuVXBsb2FkRmlsZVBhcmFtc0gAEkAKCGRvd25sb2FkGBogASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5Eb3dubG9hZFBhcmFtc0gAEkcKDGZyYW1lX3N3aXRjaBgbIAEoCzIvLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRnJhbWVTd2l0Y2hQYXJhbXNIABJDCgp0YWJfc3dpdGNoGBwgASgLMi0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5UYWJTd2l0Y2hQYXJhbXNIABJLCg5jb29raWVfc3RvcmFnZRgdIAEoCzIxLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuQ29va2llU3RvcmFnZVBhcmFtc0gAEkAKCHNob3J0Y3V0GB4gASgLMiwuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5TaG9ydGN1dFBhcmFtc0gAEkEKCWRyYWdfZHJvcBgfIAEoCzIsLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuRHJhZ0Ryb3BQYXJhbXNIABI+CgdnZXN0dXJlGCAgASgLMisuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5HZXN0dXJlUGFyYW1zSAASRwoMbmV0d29ya19tb2NrGCEgASgLMi8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5OZXR3b3JrTW9ja1BhcmFtc0gAEjwKBnJvdGF0ZRgiIAEoCzIqLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEuUm90YXRlUGFyYW1zSAASPgoIbWV0YWRhdGEYMiABKAsyLC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLkFjdGlvbk1ldGFkYXRhQggKBnBhcmFtcyqqBQoKQWN0aW9uVHlwZRIbChdBQ1RJT05fVFlQRV9VTlNQRUNJRklFRBAAEhgKFEFDVElPTl9UWVBFX05BVklHQVRFEAESFQoRQUNUSU9OX1RZUEVfQ0xJQ0sQAhIVChFBQ1RJT05fVFlQRV9JTlBVVBADEhQKEEFDVElPTl9UWVBFX1dBSVQQBBIWChJBQ1RJT05fVFlQRV9BU1NFUlQQBRIWChJBQ1RJT05fVFlQRV9TQ1JPTEwQBhIWChJBQ1RJT05fVFlQRV9TRUxFQ1QQBxIYChRBQ1RJT05fVFlQRV9FVkFMVUFURRAIEhgKFEFDVElPTl9UWVBFX0tFWUJPQVJEEAkSFQoRQUNUSU9OX1RZUEVfSE9WRVIQChIaChZBQ1RJT05fVFlQRV9TQ1JFRU5TSE9UEAsSFQoRQUNUSU9OX1RZUEVfRk9DVVMQDBIUChBBQ1RJT05fVFlQRV9CTFVSEA0SFwoTQUNUSU9OX1RZUEVfU1VCRkxPVxAOEhcKE0FDVElPTl9UWVBFX0VYVFJBQ1QQDxIbChdBQ1RJT05fVFlQRV9VUExPQURfRklMRRAQEhgKFEFDVElPTl9UWVBFX0RPV05MT0FEEBESHAoYQUNUSU9OX1RZUEVfRlJBTUVfU1dJVENIEBISGgoWQUNUSU9OX1RZUEVfVEFCX1NXSVRDSBATEh4KGkFDVElPTl9UWVBFX0NPT0tJRV9TVE9SQUdFEBQSGAoUQUNUSU9OX1RZUEVfU0hPUlRDVVQQFRIZChVBQ1RJT05fVFlQRV9EUkFHX0RST1AQFhIXChNBQ1RJT05fVFlQRV9HRVNUVVJFEBcSHAoYQUNUSU9OX1RZUEVfTkVUV09SS19NT0NLEBgSFgoSQUNUSU9OX1RZUEVfUk9UQVRFEBkqcwoLTW91c2VCdXR0b24SHAoYTU9VU0VfQlVUVE9OX1VOU1BFQ0lGSUVEEAASFQoRTU9VU0VfQlVUVE9OX0xFRlQQARIWChJNT1VTRV9CVVRUT05fUklHSFQQAhIXChNNT1VTRV9CVVRUT05fTUlERExFEAMqpQEKEU5hdmlnYXRlV2FpdEV2ZW50EiMKH05BVklHQVRFX1dBSVRfRVZFTlRfVU5TUEVDSUZJRUQQABIcChhOQVZJR0FURV9XQUlUX0VWRU5UX0xPQUQQARIoCiROQVZJR0FURV9XQUlUX0VWRU5UX0RPTUNPTlRFTlRMT0FERUQQAhIjCh9OQVZJR0FURV9XQUlUX0VWRU5UX05FVFdPUktJRExFEAMqjwEKF05hdmlnYXRlRGVzdGluYXRpb25UeXBlEikKJU5BVklHQVRFX0RFU1RJTkFUSU9OX1RZUEVfVU5TUEVDSUZJRUQQABIhCh1OQVZJR0FURV9ERVNUSU5BVElPTl9UWVBFX1VSTBABEiYKIk5BVklHQVRFX0RFU1RJTkFUSU9OX1RZUEVfU0NFTkFSSU8QAiqIAQoJV2FpdFN0YXRlEhoKFldBSVRfU1RBVEVfVU5TUEVDSUZJRUQQABIXChNXQUlUX1NUQVRFX0FUVEFDSEVEEAESFwoTV0FJVF9TVEFURV9ERVRBQ0hFRBACEhYKEldBSVRfU1RBVEVfVklTSUJMRRADEhUKEVdBSVRfU1RBVEVfSElEREVOEAQqZwoOU2Nyb2xsQmVoYXZpb3ISHwobU0NST0xMX0JFSEFWSU9SX1VOU1BFQ0lGSUVEEAASGAoUU0NST0xMX0JFSEFWSU9SX0FVVE8QARIaChZTQ1JPTExfQkVIQVZJT1JfU01PT1RIEAIqZQoJS2V5QWN0aW9uEhoKFktFWV9BQ1RJT05fVU5TUEVDSUZJRUQQABIUChBLRVlfQUNUSU9OX1BSRVNTEAESEwoPS0VZX0FDVElPTl9ET1dOEAISEQoNS0VZX0FDVElPTl9VUBADKqUBChBLZXlib2FyZE1vZGlmaWVyEiEKHUtFWUJPQVJEX01PRElGSUVSX1VOU1BFQ0lGSUVEEAASGgoWS0VZQk9BUkRfTU9ESUZJRVJfQ1RSTBABEhsKF0tFWUJPQVJEX01PRElGSUVSX1NISUZUEAISGQoVS0VZQk9BUkRfTU9ESUZJRVJfQUxUEAMSGgoWS0VZQk9BUkRfTU9ESUZJRVJfTUVUQRAEKssBCgtFeHRyYWN0VHlwZRIcChhFWFRSQUNUX1RZUEVfVU5TUEVDSUZJRUQQABIVChFFWFRSQUNUX1RZUEVfVEVYVBABEhsKF0VYVFJBQ1RfVFlQRV9JTk5FUl9IVE1MEAISGwoXRVhUUkFDVF9UWVBFX09VVEVSX0hUTUwQAxIaChZFWFRSQUNUX1RZUEVfQVRUUklCVVRFEAQSGQoVRVhUUkFDVF9UWVBFX1BST1BFUlRZEAUSFgoSRVhUUkFDVF9UWVBFX1ZBTFVFEAYqlQEKEUZyYW1lU3dpdGNoQWN0aW9uEiMKH0ZSQU1FX1NXSVRDSF9BQ1RJT05fVU5TUEVDSUZJRUQQABIdChlGUkFNRV9TV0lUQ0hfQUNUSU9OX0VOVEVSEAESHgoaRlJBTUVfU1dJVENIX0FDVElPTl9QQVJFTlQQAhIcChhGUkFNRV9TV0lUQ0hfQUNUSU9OX0VYSVQQAyqnAQoPVGFiU3dpdGNoQWN0aW9uEiEKHVRBQl9TV0lUQ0hfQUNUSU9OX1VOU1BFQ0lGSUVEEAASGgoWVEFCX1NXSVRDSF9BQ1RJT05fT1BFThABEhwKGFRBQl9TV0lUQ0hfQUNUSU9OX1NXSVRDSBACEhsKF1RBQl9TV0lUQ0hfQUNUSU9OX0NMT1NFEAMSGgoWVEFCX1NXSVRDSF9BQ1RJT05fTElTVBAEKqABCg9Db29raWVPcGVyYXRpb24SIAocQ09PS0lFX09QRVJBVElPTl9VTlNQRUNJRklFRBAAEhgKFENPT0tJRV9PUEVSQVRJT05fR0VUEAESGAoUQ09PS0lFX09QRVJBVElPTl9TRVQQAhIbChdDT09LSUVfT1BFUkFUSU9OX0RFTEVURRADEhoKFkNPT0tJRV9PUEVSQVRJT05fQ0xFQVIQBCqGAQoLU3RvcmFnZVR5cGUSHAoYU1RPUkFHRV9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTU1RPUkFHRV9UWVBFX0NPT0tJRRABEh4KGlNUT1JBR0VfVFlQRV9MT0NBTF9TVE9SQUdFEAISIAocU1RPUkFHRV9UWVBFX1NFU1NJT05fU1RPUkFHRRADKqwBCgtHZXN0dXJlVHlwZRIcChhHRVNUVVJFX1RZUEVfVU5TUEVDSUZJRUQQABIWChJHRVNUVVJFX1RZUEVfU1dJUEUQARIWChJHRVNUVVJFX1RZUEVfUElOQ0gQAhIVChFHRVNUVVJFX1RZUEVfWk9PTRADEhsKF0dFU1RVUkVfVFlQRV9MT05HX1BSRVNTEAQSGwoXR0VTVFVSRV9UWVBFX0RPVUJMRV9UQVAQBSqYAQoOU3dpcGVEaXJlY3Rpb24SHwobU1dJUEVfRElSRUNUSU9OX1VOU1BFQ0lGSUVEEAASFgoSU1dJUEVfRElSRUNUSU9OX1VQEAESGAoUU1dJUEVfRElSRUNUSU9OX0RPV04QAhIYChRTV0lQRV9ESVJFQ1RJT05fTEVGVBADEhkKFVNXSVBFX0RJUkVDVElPTl9SSUdIVBAEKvoBChROZXR3b3JrTW9ja09wZXJhdGlvbhImCiJORVRXT1JLX01PQ0tfT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASHwobTkVUV09SS19NT0NLX09QRVJBVElPTl9NT0NLEAESIAocTkVUV09SS19NT0NLX09QRVJBVElPTl9CTE9DSxACEikKJU5FVFdPUktfTU9DS19PUEVSQVRJT05fTU9ESUZZX1JFUVVFU1QQAxIqCiZORVRXT1JLX01PQ0tfT1BFUkFUSU9OX01PRElGWV9SRVNQT05TRRAEEiAKHE5FVFdPUktfTU9DS19PUEVSQVRJT05fQ0xFQVIQBSp6ChFEZXZpY2VPcmllbnRhdGlvbhIiCh5ERVZJQ0VfT1JJRU5UQVRJT05fVU5TUEVDSUZJRUQQABIfChtERVZJQ0VfT1JJRU5UQVRJT05fUE9SVFJBSVQQARIgChxERVZJQ0VfT1JJRU5UQVRJT05fTEFORFNDQVBFEAIqhAEKDkNvb2tpZVNhbWVTaXRlEiAKHENPT0tJRV9TQU1FX1NJVEVfVU5TUEVDSUZJRUQQABIbChdDT09LSUVfU0FNRV9TSVRFX1NUUklDVBABEhgKFENPT0tJRV9TQU1FX1NJVEVfTEFYEAISGQoVQ09PS0lFX1NBTUVfU0lURV9OT05FEANCXVpbZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL2FjdGlvbnM7YWN0aW9uc2IGcHJvdG8z", [file_google_protobuf_timestamp, file_buf_validate_validate, file_common_v1_types, file_browser_automation_studio_v1_base_shared, file_browser_automation_studio_v1_base_geometry, file_browser_automation_studio_v1_domain_selectors]);
 
 /**
  * NavigateParams configures page navigation.
@@ -30,6 +31,7 @@ export const file_browser_automation_studio_v1_actions_action: GenFile = /*@__PU
 export type NavigateParams = Message<"browser_automation_studio.v1.NavigateParams"> & {
   /**
    * Target URL to navigate to.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string url = 1;
    */
@@ -44,6 +46,8 @@ export type NavigateParams = Message<"browser_automation_studio.v1.NavigateParam
 
   /**
    * Timeout in milliseconds for navigation and wait (default: 30000).
+   * @constraint >= 0, <= 300000 (5 minutes max)
+   * @unit milliseconds
    *
    * @generated from field: optional int32 timeout_ms = 3;
    */
@@ -95,6 +99,7 @@ export const NavigateParamsSchema: GenMessage<NavigateParams> = /*@__PURE__*/
 export type ClickParams = Message<"browser_automation_studio.v1.ClickParams"> & {
   /**
    * CSS selector for target element.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string selector = 1;
    */
@@ -109,6 +114,7 @@ export type ClickParams = Message<"browser_automation_studio.v1.ClickParams"> & 
 
   /**
    * Number of clicks (1=single, 2=double, 3=triple).
+   * @constraint 1-3
    *
    * @generated from field: optional int32 click_count = 3;
    */
@@ -116,6 +122,8 @@ export type ClickParams = Message<"browser_automation_studio.v1.ClickParams"> & 
 
   /**
    * Delay between mousedown and mouseup in milliseconds.
+   * @unit milliseconds
+   * @constraint >= 0
    *
    * @generated from field: optional int32 delay_ms = 4;
    */
@@ -158,6 +166,7 @@ export const ClickParamsSchema: GenMessage<ClickParams> = /*@__PURE__*/
 export type InputParams = Message<"browser_automation_studio.v1.InputParams"> & {
   /**
    * CSS selector for target input element.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string selector = 1;
    */
@@ -193,6 +202,8 @@ export type InputParams = Message<"browser_automation_studio.v1.InputParams"> & 
 
   /**
    * Delay between keystrokes in milliseconds.
+   * @unit milliseconds
+   * @constraint >= 0
    *
    * @generated from field: optional int32 delay_ms = 6;
    */
@@ -220,6 +231,8 @@ export type WaitParams = Message<"browser_automation_studio.v1.WaitParams"> & {
   waitFor: {
     /**
      * Fixed duration to wait in milliseconds.
+     * @unit milliseconds
+     * @constraint >= 0, <= 300000 (5 minutes max)
      *
      * @generated from field: int32 duration_ms = 1;
      */
@@ -228,6 +241,7 @@ export type WaitParams = Message<"browser_automation_studio.v1.WaitParams"> & {
   } | {
     /**
      * CSS selector to wait for.
+     * @constraint Minimum 1 character when provided
      *
      * @generated from field: string selector = 2;
      */
@@ -244,6 +258,8 @@ export type WaitParams = Message<"browser_automation_studio.v1.WaitParams"> & {
 
   /**
    * Timeout in milliseconds for selector waits (default: 30000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 300000 (5 minutes max)
    *
    * @generated from field: optional int32 timeout_ms = 4;
    */
@@ -265,6 +281,7 @@ export const WaitParamsSchema: GenMessage<WaitParams> = /*@__PURE__*/
 export type AssertParams = Message<"browser_automation_studio.v1.AssertParams"> & {
   /**
    * CSS selector for element to assert on.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string selector = 1;
    */
@@ -272,6 +289,7 @@ export type AssertParams = Message<"browser_automation_studio.v1.AssertParams"> 
 
   /**
    * Assertion mode to evaluate.
+   * @constraint Required (not UNSPECIFIED)
    *
    * @generated from field: browser_automation_studio.v1.AssertionMode mode = 2;
    */
@@ -314,6 +332,8 @@ export type AssertParams = Message<"browser_automation_studio.v1.AssertParams"> 
 
   /**
    * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000 (1 minute max for assertions)
    *
    * @generated from field: optional int32 timeout_ms = 8;
    */
@@ -391,6 +411,7 @@ export const ScrollParamsSchema: GenMessage<ScrollParams> = /*@__PURE__*/
 export type SelectParams = Message<"browser_automation_studio.v1.SelectParams"> & {
   /**
    * CSS selector for select element.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string selector = 1;
    */
@@ -420,6 +441,7 @@ export type SelectParams = Message<"browser_automation_studio.v1.SelectParams"> 
   } | {
     /**
      * Select by zero-based index.
+     * @constraint >= 0
      *
      * @generated from field: int32 index = 4;
      */
@@ -429,6 +451,8 @@ export type SelectParams = Message<"browser_automation_studio.v1.SelectParams"> 
 
   /**
    * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000
    *
    * @generated from field: optional int32 timeout_ms = 5;
    */
@@ -450,6 +474,7 @@ export const SelectParamsSchema: GenMessage<SelectParams> = /*@__PURE__*/
 export type EvaluateParams = Message<"browser_automation_studio.v1.EvaluateParams"> & {
   /**
    * JavaScript expression to evaluate.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string expression = 1;
    */
@@ -527,6 +552,7 @@ export const KeyboardParamsSchema: GenMessage<KeyboardParams> = /*@__PURE__*/
 export type HoverParams = Message<"browser_automation_studio.v1.HoverParams"> & {
   /**
    * CSS selector for element to hover over.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string selector = 1;
    */
@@ -534,6 +560,8 @@ export type HoverParams = Message<"browser_automation_studio.v1.HoverParams"> & 
 
   /**
    * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000
    *
    * @generated from field: optional int32 timeout_ms = 2;
    */
@@ -569,6 +597,7 @@ export type ScreenshotParams = Message<"browser_automation_studio.v1.ScreenshotP
 
   /**
    * JPEG quality (1-100) for lossy compression.
+   * @constraint 1-100
    *
    * @generated from field: optional int32 quality = 3;
    */
@@ -590,6 +619,7 @@ export const ScreenshotParamsSchema: GenMessage<ScreenshotParams> = /*@__PURE__*
 export type FocusParams = Message<"browser_automation_studio.v1.FocusParams"> & {
   /**
    * CSS selector for element to focus.
+   * @constraint Required, minimum 1 character
    *
    * @generated from field: string selector = 1;
    */
@@ -604,6 +634,8 @@ export type FocusParams = Message<"browser_automation_studio.v1.FocusParams"> & 
 
   /**
    * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000
    *
    * @generated from field: optional int32 timeout_ms = 3;
    */
@@ -632,6 +664,8 @@ export type BlurParams = Message<"browser_automation_studio.v1.BlurParams"> & {
 
   /**
    * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000
    *
    * @generated from field: optional int32 timeout_ms = 2;
    */
@@ -704,6 +738,620 @@ export const SubflowParamsSchema: GenMessage<SubflowParams> = /*@__PURE__*/
   messageDesc(file_browser_automation_studio_v1_actions_action, 13);
 
 /**
+ * ExtractParams configures data extraction from elements.
+ *
+ * @generated from message browser_automation_studio.v1.ExtractParams
+ */
+export type ExtractParams = Message<"browser_automation_studio.v1.ExtractParams"> & {
+  /**
+   * CSS selector for element to extract from.
+   * @constraint Required, minimum 1 character
+   *
+   * @generated from field: string selector = 1;
+   */
+  selector: string;
+
+  /**
+   * What type of data to extract.
+   *
+   * @generated from field: optional browser_automation_studio.v1.ExtractType extract_type = 2;
+   */
+  extractType?: ExtractType;
+
+  /**
+   * Attribute name when extract_type is ATTRIBUTE.
+   *
+   * @generated from field: optional string attribute_name = 3;
+   */
+  attributeName?: string;
+
+  /**
+   * JavaScript property name when extract_type is PROPERTY.
+   *
+   * @generated from field: optional string property_name = 4;
+   */
+  propertyName?: string;
+
+  /**
+   * Variable name to store the extracted value.
+   *
+   * @generated from field: optional string store_as = 5;
+   */
+  storeAs?: string;
+
+  /**
+   * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000
+   *
+   * @generated from field: optional int32 timeout_ms = 6;
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ExtractParams.
+ * Use `create(ExtractParamsSchema)` to create a new message.
+ */
+export const ExtractParamsSchema: GenMessage<ExtractParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 14);
+
+/**
+ * UploadFileParams configures file upload to input elements.
+ *
+ * @generated from message browser_automation_studio.v1.UploadFileParams
+ */
+export type UploadFileParams = Message<"browser_automation_studio.v1.UploadFileParams"> & {
+  /**
+   * CSS selector for file input element.
+   * @constraint Required, minimum 1 character
+   *
+   * @generated from field: string selector = 1;
+   */
+  selector: string;
+
+  /**
+   * File path(s) to upload. Can be single file or multiple.
+   * @constraint At least one file path required
+   *
+   * @generated from field: repeated string file_paths = 2;
+   */
+  filePaths: string[];
+
+  /**
+   * Timeout in milliseconds (default: 30000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 300000 (5 minutes for large uploads)
+   *
+   * @generated from field: optional int32 timeout_ms = 3;
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.UploadFileParams.
+ * Use `create(UploadFileParamsSchema)` to create a new message.
+ */
+export const UploadFileParamsSchema: GenMessage<UploadFileParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 15);
+
+/**
+ * DownloadParams configures file download triggering.
+ *
+ * @generated from message browser_automation_studio.v1.DownloadParams
+ */
+export type DownloadParams = Message<"browser_automation_studio.v1.DownloadParams"> & {
+  /**
+   * CSS selector for element that triggers download (optional).
+   *
+   * @generated from field: optional string selector = 1;
+   */
+  selector?: string;
+
+  /**
+   * Direct URL to download (alternative to clicking selector).
+   *
+   * @generated from field: optional string url = 2;
+   */
+  url?: string;
+
+  /**
+   * Path to save the downloaded file (optional, uses temp dir if not set).
+   *
+   * @generated from field: optional string save_path = 3;
+   */
+  savePath?: string;
+
+  /**
+   * Timeout in milliseconds (default: 60000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 600000 (10 minutes for large downloads)
+   *
+   * @generated from field: optional int32 timeout_ms = 4;
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.DownloadParams.
+ * Use `create(DownloadParamsSchema)` to create a new message.
+ */
+export const DownloadParamsSchema: GenMessage<DownloadParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 16);
+
+/**
+ * FrameSwitchParams configures frame navigation.
+ *
+ * @generated from message browser_automation_studio.v1.FrameSwitchParams
+ */
+export type FrameSwitchParams = Message<"browser_automation_studio.v1.FrameSwitchParams"> & {
+  /**
+   * Frame switch action to perform.
+   * @constraint Required (not UNSPECIFIED)
+   *
+   * @generated from field: browser_automation_studio.v1.FrameSwitchAction action = 1;
+   */
+  action: FrameSwitchAction;
+
+  /**
+   * CSS selector for iframe element (for ENTER action).
+   *
+   * @generated from field: optional string selector = 2;
+   */
+  selector?: string;
+
+  /**
+   * Frame ID to switch to (alternative to selector).
+   *
+   * @generated from field: optional string frame_id = 3;
+   */
+  frameId?: string;
+
+  /**
+   * Frame URL to match (alternative to selector).
+   *
+   * @generated from field: optional string frame_url = 4;
+   */
+  frameUrl?: string;
+
+  /**
+   * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000
+   *
+   * @generated from field: optional int32 timeout_ms = 5;
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.FrameSwitchParams.
+ * Use `create(FrameSwitchParamsSchema)` to create a new message.
+ */
+export const FrameSwitchParamsSchema: GenMessage<FrameSwitchParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 17);
+
+/**
+ * TabSwitchParams configures tab/window management.
+ *
+ * @generated from message browser_automation_studio.v1.TabSwitchParams
+ */
+export type TabSwitchParams = Message<"browser_automation_studio.v1.TabSwitchParams"> & {
+  /**
+   * Tab switch action to perform.
+   * @constraint Required (not UNSPECIFIED)
+   *
+   * @generated from field: browser_automation_studio.v1.TabSwitchAction action = 1;
+   */
+  action: TabSwitchAction;
+
+  /**
+   * URL to navigate to when opening a new tab.
+   *
+   * @generated from field: optional string url = 2;
+   */
+  url?: string;
+
+  /**
+   * Tab index to switch to or close (0-based).
+   * @constraint >= 0
+   *
+   * @generated from field: optional int32 index = 3;
+   */
+  index?: number;
+
+  /**
+   * Tab title to match (for SWITCH action).
+   *
+   * @generated from field: optional string title = 4;
+   */
+  title?: string;
+
+  /**
+   * URL pattern to match (regex, for SWITCH action).
+   *
+   * @generated from field: optional string url_pattern = 5;
+   */
+  urlPattern?: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.TabSwitchParams.
+ * Use `create(TabSwitchParamsSchema)` to create a new message.
+ */
+export const TabSwitchParamsSchema: GenMessage<TabSwitchParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 18);
+
+/**
+ * CookieOptions configures cookie attributes for set operations.
+ *
+ * @generated from message browser_automation_studio.v1.CookieOptions
+ */
+export type CookieOptions = Message<"browser_automation_studio.v1.CookieOptions"> & {
+  /**
+   * Cookie domain.
+   *
+   * @generated from field: optional string domain = 1;
+   */
+  domain?: string;
+
+  /**
+   * Cookie path.
+   *
+   * @generated from field: optional string path = 2;
+   */
+  path?: string;
+
+  /**
+   * Expiration time (Unix timestamp in seconds).
+   *
+   * @generated from field: optional int64 expires = 3;
+   */
+  expires?: bigint;
+
+  /**
+   * HTTP-only flag (not accessible via JavaScript).
+   *
+   * @generated from field: optional bool http_only = 4;
+   */
+  httpOnly?: boolean;
+
+  /**
+   * Secure flag (HTTPS only).
+   *
+   * @generated from field: optional bool secure = 5;
+   */
+  secure?: boolean;
+
+  /**
+   * SameSite attribute.
+   *
+   * @generated from field: optional browser_automation_studio.v1.CookieSameSite same_site = 6;
+   */
+  sameSite?: CookieSameSite;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.CookieOptions.
+ * Use `create(CookieOptionsSchema)` to create a new message.
+ */
+export const CookieOptionsSchema: GenMessage<CookieOptions> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 19);
+
+/**
+ * CookieStorageParams configures cookie and storage operations.
+ *
+ * @generated from message browser_automation_studio.v1.CookieStorageParams
+ */
+export type CookieStorageParams = Message<"browser_automation_studio.v1.CookieStorageParams"> & {
+  /**
+   * Operation to perform.
+   * @constraint Required (not UNSPECIFIED)
+   *
+   * @generated from field: browser_automation_studio.v1.CookieOperation operation = 1;
+   */
+  operation: CookieOperation;
+
+  /**
+   * Storage type to operate on.
+   * @constraint Required (not UNSPECIFIED)
+   *
+   * @generated from field: browser_automation_studio.v1.StorageType storage_type = 2;
+   */
+  storageType: StorageType;
+
+  /**
+   * Key/name for the cookie or storage item.
+   *
+   * @generated from field: optional string key = 3;
+   */
+  key?: string;
+
+  /**
+   * Value to set (for SET operation).
+   *
+   * @generated from field: optional string value = 4;
+   */
+  value?: string;
+
+  /**
+   * Cookie-specific options (for cookie SET operation).
+   *
+   * @generated from field: optional browser_automation_studio.v1.CookieOptions cookie_options = 5;
+   */
+  cookieOptions?: CookieOptions;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.CookieStorageParams.
+ * Use `create(CookieStorageParamsSchema)` to create a new message.
+ */
+export const CookieStorageParamsSchema: GenMessage<CookieStorageParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 20);
+
+/**
+ * ShortcutParams configures keyboard shortcut execution.
+ *
+ * @generated from message browser_automation_studio.v1.ShortcutParams
+ */
+export type ShortcutParams = Message<"browser_automation_studio.v1.ShortcutParams"> & {
+  /**
+   * Shortcut string (e.g., "Ctrl+S", "Cmd+Shift+P").
+   * Format: Modifier+Key or Key. Modifiers: Ctrl, Shift, Alt, Meta/Cmd.
+   * @constraint Required, minimum 1 character
+   *
+   * @generated from field: string shortcut = 1;
+   */
+  shortcut: string;
+
+  /**
+   * Optional selector to focus before executing shortcut.
+   *
+   * @generated from field: optional string selector = 2;
+   */
+  selector?: string;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.ShortcutParams.
+ * Use `create(ShortcutParamsSchema)` to create a new message.
+ */
+export const ShortcutParamsSchema: GenMessage<ShortcutParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 21);
+
+/**
+ * DragDropParams configures drag and drop operations.
+ *
+ * @generated from message browser_automation_studio.v1.DragDropParams
+ */
+export type DragDropParams = Message<"browser_automation_studio.v1.DragDropParams"> & {
+  /**
+   * CSS selector for the element to drag.
+   * @constraint Required, minimum 1 character
+   *
+   * @generated from field: string source_selector = 1;
+   */
+  sourceSelector: string;
+
+  /**
+   * CSS selector for the drop target (optional if using offsets).
+   *
+   * @generated from field: optional string target_selector = 2;
+   */
+  targetSelector?: string;
+
+  /**
+   * Horizontal offset from source center (when not using target_selector).
+   *
+   * @generated from field: optional int32 offset_x = 3;
+   */
+  offsetX?: number;
+
+  /**
+   * Vertical offset from source center (when not using target_selector).
+   *
+   * @generated from field: optional int32 offset_y = 4;
+   */
+  offsetY?: number;
+
+  /**
+   * Number of intermediate steps for the drag motion.
+   * @constraint >= 1
+   *
+   * @generated from field: optional int32 steps = 5;
+   */
+  steps?: number;
+
+  /**
+   * Delay between steps in milliseconds.
+   * @unit milliseconds
+   * @constraint >= 0
+   *
+   * @generated from field: optional int32 delay_ms = 6;
+   */
+  delayMs?: number;
+
+  /**
+   * Timeout in milliseconds (default: 5000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000
+   *
+   * @generated from field: optional int32 timeout_ms = 7;
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.DragDropParams.
+ * Use `create(DragDropParamsSchema)` to create a new message.
+ */
+export const DragDropParamsSchema: GenMessage<DragDropParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 22);
+
+/**
+ * GestureParams configures touch gesture actions.
+ *
+ * @generated from message browser_automation_studio.v1.GestureParams
+ */
+export type GestureParams = Message<"browser_automation_studio.v1.GestureParams"> & {
+  /**
+   * Type of gesture to perform.
+   * @constraint Required (not UNSPECIFIED)
+   *
+   * @generated from field: browser_automation_studio.v1.GestureType gesture_type = 1;
+   */
+  gestureType: GestureType;
+
+  /**
+   * CSS selector for target element (optional, uses viewport center if not set).
+   *
+   * @generated from field: optional string selector = 2;
+   */
+  selector?: string;
+
+  /**
+   * Direction for swipe gestures.
+   *
+   * @generated from field: optional browser_automation_studio.v1.SwipeDirection direction = 3;
+   */
+  direction?: SwipeDirection;
+
+  /**
+   * Distance in pixels for swipe gestures.
+   * @constraint >= 0
+   *
+   * @generated from field: optional int32 distance = 4;
+   */
+  distance?: number;
+
+  /**
+   * Scale factor for pinch/zoom gestures (e.g., 0.5 for pinch, 2.0 for zoom).
+   * @constraint > 0
+   *
+   * @generated from field: optional double scale = 5;
+   */
+  scale?: number;
+
+  /**
+   * Duration of the gesture in milliseconds.
+   * @unit milliseconds
+   * @constraint >= 0
+   *
+   * @generated from field: optional int32 duration_ms = 6;
+   */
+  durationMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.GestureParams.
+ * Use `create(GestureParamsSchema)` to create a new message.
+ */
+export const GestureParamsSchema: GenMessage<GestureParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 23);
+
+/**
+ * NetworkMockParams configures network request interception.
+ *
+ * SECURITY NOTE: delay_ms is capped at 60000ms (60 seconds) to prevent
+ * abuse and indefinite waits.
+ *
+ * @generated from message browser_automation_studio.v1.NetworkMockParams
+ */
+export type NetworkMockParams = Message<"browser_automation_studio.v1.NetworkMockParams"> & {
+  /**
+   * Operation to perform.
+   * @constraint Required (not UNSPECIFIED)
+   *
+   * @generated from field: browser_automation_studio.v1.NetworkMockOperation operation = 1;
+   */
+  operation: NetworkMockOperation;
+
+  /**
+   * URL pattern to match (glob or regex).
+   * @constraint Required, minimum 1 character
+   *
+   * @generated from field: string url_pattern = 2;
+   */
+  urlPattern: string;
+
+  /**
+   * HTTP method to match (optional, matches all if not set).
+   *
+   * @generated from field: optional string method = 3;
+   */
+  method?: string;
+
+  /**
+   * Response status code (for MOCK operation).
+   * @constraint 100-599 (valid HTTP status codes)
+   *
+   * @generated from field: optional int32 status_code = 4;
+   */
+  statusCode?: number;
+
+  /**
+   * Response headers (for MOCK operation).
+   *
+   * @generated from field: map<string, string> headers = 5;
+   */
+  headers: { [key: string]: string };
+
+  /**
+   * Response body (for MOCK operation). Can be string or JSON.
+   *
+   * @generated from field: optional string body = 6;
+   */
+  body?: string;
+
+  /**
+   * Delay before responding in milliseconds (max: 60000).
+   * @unit milliseconds
+   * @constraint >= 0, <= 60000 (1 minute max to prevent abuse)
+   *
+   * @generated from field: optional int32 delay_ms = 7;
+   */
+  delayMs?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.NetworkMockParams.
+ * Use `create(NetworkMockParamsSchema)` to create a new message.
+ */
+export const NetworkMockParamsSchema: GenMessage<NetworkMockParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 24);
+
+/**
+ * RotateParams configures device orientation changes.
+ *
+ * @generated from message browser_automation_studio.v1.RotateParams
+ */
+export type RotateParams = Message<"browser_automation_studio.v1.RotateParams"> & {
+  /**
+   * Target orientation.
+   * @constraint Required (not UNSPECIFIED)
+   *
+   * @generated from field: browser_automation_studio.v1.DeviceOrientation orientation = 1;
+   */
+  orientation: DeviceOrientation;
+
+  /**
+   * Rotation angle in degrees (0, 90, 180, 270).
+   * Only used when fine-grained control is needed.
+   * @constraint One of: 0, 90, 180, 270
+   *
+   * @generated from field: optional int32 angle = 2;
+   */
+  angle?: number;
+};
+
+/**
+ * Describes the message browser_automation_studio.v1.RotateParams.
+ * Use `create(RotateParamsSchema)` to create a new message.
+ */
+export const RotateParamsSchema: GenMessage<RotateParams> = /*@__PURE__*/
+  messageDesc(file_browser_automation_studio_v1_actions_action, 25);
+
+/**
  * ActionMetadata captures optional rich context captured during action execution.
  * This data is captured identically during BOTH recording and execution, enabling:
  *   - Selector fallbacks: If primary selector fails, try alternatives
@@ -770,7 +1418,7 @@ export type ActionMetadata = Message<"browser_automation_studio.v1.ActionMetadat
  * Use `create(ActionMetadataSchema)` to create a new message.
  */
 export const ActionMetadataSchema: GenMessage<ActionMetadata> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_actions_action, 14);
+  messageDesc(file_browser_automation_studio_v1_actions_action, 26);
 
 /**
  * ActionDefinition is THE unified action type used across all BAS operations:
@@ -930,12 +1578,100 @@ export type ActionDefinition = Message<"browser_automation_studio.v1.ActionDefin
      */
     value: SubflowParams;
     case: "subflow";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_EXTRACT
+     *
+     * @generated from field: browser_automation_studio.v1.ExtractParams extract = 24;
+     */
+    value: ExtractParams;
+    case: "extract";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_UPLOAD_FILE
+     *
+     * @generated from field: browser_automation_studio.v1.UploadFileParams upload_file = 25;
+     */
+    value: UploadFileParams;
+    case: "uploadFile";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_DOWNLOAD
+     *
+     * @generated from field: browser_automation_studio.v1.DownloadParams download = 26;
+     */
+    value: DownloadParams;
+    case: "download";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_FRAME_SWITCH
+     *
+     * @generated from field: browser_automation_studio.v1.FrameSwitchParams frame_switch = 27;
+     */
+    value: FrameSwitchParams;
+    case: "frameSwitch";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_TAB_SWITCH
+     *
+     * @generated from field: browser_automation_studio.v1.TabSwitchParams tab_switch = 28;
+     */
+    value: TabSwitchParams;
+    case: "tabSwitch";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_COOKIE_STORAGE
+     *
+     * @generated from field: browser_automation_studio.v1.CookieStorageParams cookie_storage = 29;
+     */
+    value: CookieStorageParams;
+    case: "cookieStorage";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_SHORTCUT
+     *
+     * @generated from field: browser_automation_studio.v1.ShortcutParams shortcut = 30;
+     */
+    value: ShortcutParams;
+    case: "shortcut";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_DRAG_DROP
+     *
+     * @generated from field: browser_automation_studio.v1.DragDropParams drag_drop = 31;
+     */
+    value: DragDropParams;
+    case: "dragDrop";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_GESTURE
+     *
+     * @generated from field: browser_automation_studio.v1.GestureParams gesture = 32;
+     */
+    value: GestureParams;
+    case: "gesture";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_NETWORK_MOCK
+     *
+     * @generated from field: browser_automation_studio.v1.NetworkMockParams network_mock = 33;
+     */
+    value: NetworkMockParams;
+    case: "networkMock";
+  } | {
+    /**
+     * Required when type = ACTION_TYPE_ROTATE
+     *
+     * @generated from field: browser_automation_studio.v1.RotateParams rotate = 34;
+     */
+    value: RotateParams;
+    case: "rotate";
   } | { case: undefined; value?: undefined };
 
   /**
    * Optional rich metadata - preserved from recording, useful for debugging/fallbacks.
    *
-   * @generated from field: browser_automation_studio.v1.ActionMetadata metadata = 30;
+   * @generated from field: browser_automation_studio.v1.ActionMetadata metadata = 50;
    */
   metadata?: ActionMetadata;
 };
@@ -945,7 +1681,7 @@ export type ActionDefinition = Message<"browser_automation_studio.v1.ActionDefin
  * Use `create(ActionDefinitionSchema)` to create a new message.
  */
 export const ActionDefinitionSchema: GenMessage<ActionDefinition> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_actions_action, 15);
+  messageDesc(file_browser_automation_studio_v1_actions_action, 27);
 
 /**
  * ActionType enumerates all supported browser automation action kinds.
@@ -1091,6 +1827,105 @@ export enum ActionType {
    * @generated from enum value: ACTION_TYPE_SUBFLOW = 14;
    */
   SUBFLOW = 14,
+
+  /**
+   * Extract data from an element (text, attribute, property).
+   * Params: ExtractParams (selector, extract_type, attribute_name, store_as)
+   * Example: Extract the order confirmation number
+   *
+   * @generated from enum value: ACTION_TYPE_EXTRACT = 15;
+   */
+  EXTRACT = 15,
+
+  /**
+   * Upload file(s) to a file input element.
+   * Params: UploadFileParams (selector, file_paths)
+   * Example: Upload "resume.pdf" to a form
+   *
+   * @generated from enum value: ACTION_TYPE_UPLOAD_FILE = 16;
+   */
+  UPLOAD_FILE = 16,
+
+  /**
+   * Trigger and wait for a file download.
+   * Params: DownloadParams (selector, url, save_path)
+   * Example: Download the generated report
+   *
+   * @generated from enum value: ACTION_TYPE_DOWNLOAD = 17;
+   */
+  DOWNLOAD = 17,
+
+  /**
+   * Switch between frames (iframes) in the page.
+   * Params: FrameSwitchParams (action, selector, frame_id, frame_url)
+   * Example: Enter an iframe to interact with embedded content
+   *
+   * @generated from enum value: ACTION_TYPE_FRAME_SWITCH = 18;
+   */
+  FRAME_SWITCH = 18,
+
+  /**
+   * Switch between browser tabs/windows.
+   * Params: TabSwitchParams (action, url, index, title, url_pattern)
+   * Example: Switch to a newly opened tab
+   *
+   * @generated from enum value: ACTION_TYPE_TAB_SWITCH = 19;
+   */
+  TAB_SWITCH = 19,
+
+  /**
+   * Manage cookies and browser storage.
+   * Params: CookieStorageParams (operation, storage_type, key, value)
+   * Example: Set an authentication cookie
+   *
+   * @generated from enum value: ACTION_TYPE_COOKIE_STORAGE = 20;
+   */
+  COOKIE_STORAGE = 20,
+
+  /**
+   * Execute a keyboard shortcut (combination of keys).
+   * Params: ShortcutParams (shortcut, selector)
+   * Example: Press Ctrl+S to save
+   *
+   * @generated from enum value: ACTION_TYPE_SHORTCUT = 21;
+   */
+  SHORTCUT = 21,
+
+  /**
+   * Drag and drop an element to a target.
+   * Params: DragDropParams (source_selector, target_selector, offset)
+   * Example: Drag a card to a different column
+   *
+   * @generated from enum value: ACTION_TYPE_DRAG_DROP = 22;
+   */
+  DRAG_DROP = 22,
+
+  /**
+   * Perform touch gestures (swipe, pinch, zoom).
+   * Params: GestureParams (type, selector, direction, distance, scale)
+   * Example: Swipe left to dismiss a notification
+   *
+   * @generated from enum value: ACTION_TYPE_GESTURE = 23;
+   */
+  GESTURE = 23,
+
+  /**
+   * Mock or intercept network requests.
+   * Params: NetworkMockParams (operation, url_pattern, response)
+   * Example: Mock an API response for testing
+   *
+   * @generated from enum value: ACTION_TYPE_NETWORK_MOCK = 24;
+   */
+  NETWORK_MOCK = 24,
+
+  /**
+   * Rotate device orientation (for mobile emulation).
+   * Params: RotateParams (orientation, angle)
+   * Example: Rotate to landscape mode
+   *
+   * @generated from enum value: ACTION_TYPE_ROTATE = 25;
+   */
+  ROTATE = 25,
 }
 
 /**
@@ -1436,4 +2271,497 @@ export enum KeyboardModifier {
  */
 export const KeyboardModifierSchema: GenEnum<KeyboardModifier> = /*@__PURE__*/
   enumDesc(file_browser_automation_studio_v1_actions_action, 7);
+
+/**
+ * ExtractType enumerates what data to extract from an element.
+ *
+ * @usage ExtractParams.extract_type
+ *
+ * @generated from enum browser_automation_studio.v1.ExtractType
+ */
+export enum ExtractType {
+  /**
+   * Default. Extracts inner text.
+   *
+   * @generated from enum value: EXTRACT_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Extract the element's text content (innerText).
+   *
+   * @generated from enum value: EXTRACT_TYPE_TEXT = 1;
+   */
+  TEXT = 1,
+
+  /**
+   * Extract the element's inner HTML.
+   *
+   * @generated from enum value: EXTRACT_TYPE_INNER_HTML = 2;
+   */
+  INNER_HTML = 2,
+
+  /**
+   * Extract the element's outer HTML (including the element itself).
+   *
+   * @generated from enum value: EXTRACT_TYPE_OUTER_HTML = 3;
+   */
+  OUTER_HTML = 3,
+
+  /**
+   * Extract a specific attribute value. Requires attribute_name.
+   *
+   * @generated from enum value: EXTRACT_TYPE_ATTRIBUTE = 4;
+   */
+  ATTRIBUTE = 4,
+
+  /**
+   * Extract a JavaScript property value. Requires property_name.
+   *
+   * @generated from enum value: EXTRACT_TYPE_PROPERTY = 5;
+   */
+  PROPERTY = 5,
+
+  /**
+   * Extract the element's value (for inputs, textareas, selects).
+   *
+   * @generated from enum value: EXTRACT_TYPE_VALUE = 6;
+   */
+  VALUE = 6,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.ExtractType.
+ */
+export const ExtractTypeSchema: GenEnum<ExtractType> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 8);
+
+/**
+ * FrameSwitchAction enumerates frame navigation actions.
+ *
+ * @usage FrameSwitchParams.action
+ *
+ * @generated from enum browser_automation_studio.v1.FrameSwitchAction
+ */
+export enum FrameSwitchAction {
+  /**
+   * Default. No action.
+   *
+   * @generated from enum value: FRAME_SWITCH_ACTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Enter a child frame. Requires selector, frame_id, or frame_url.
+   *
+   * @generated from enum value: FRAME_SWITCH_ACTION_ENTER = 1;
+   */
+  ENTER = 1,
+
+  /**
+   * Exit to parent frame.
+   *
+   * @generated from enum value: FRAME_SWITCH_ACTION_PARENT = 2;
+   */
+  PARENT = 2,
+
+  /**
+   * Exit to the main/top frame.
+   *
+   * @generated from enum value: FRAME_SWITCH_ACTION_EXIT = 3;
+   */
+  EXIT = 3,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.FrameSwitchAction.
+ */
+export const FrameSwitchActionSchema: GenEnum<FrameSwitchAction> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 9);
+
+/**
+ * TabSwitchAction enumerates tab/window management actions.
+ *
+ * @usage TabSwitchParams.action
+ *
+ * @generated from enum browser_automation_studio.v1.TabSwitchAction
+ */
+export enum TabSwitchAction {
+  /**
+   * Default. No action.
+   *
+   * @generated from enum value: TAB_SWITCH_ACTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Open a new tab. Optionally navigate to url.
+   *
+   * @generated from enum value: TAB_SWITCH_ACTION_OPEN = 1;
+   */
+  OPEN = 1,
+
+  /**
+   * Switch to an existing tab by index, title, or url pattern.
+   *
+   * @generated from enum value: TAB_SWITCH_ACTION_SWITCH = 2;
+   */
+  SWITCH = 2,
+
+  /**
+   * Close the current tab or a specific tab by index.
+   *
+   * @generated from enum value: TAB_SWITCH_ACTION_CLOSE = 3;
+   */
+  CLOSE = 3,
+
+  /**
+   * List all open tabs (for debugging/introspection).
+   *
+   * @generated from enum value: TAB_SWITCH_ACTION_LIST = 4;
+   */
+  LIST = 4,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.TabSwitchAction.
+ */
+export const TabSwitchActionSchema: GenEnum<TabSwitchAction> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 10);
+
+/**
+ * CookieOperation enumerates cookie/storage operations.
+ *
+ * @usage CookieStorageParams.operation
+ *
+ * @generated from enum browser_automation_studio.v1.CookieOperation
+ */
+export enum CookieOperation {
+  /**
+   * Default. No operation.
+   *
+   * @generated from enum value: COOKIE_OPERATION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Get a cookie or storage value.
+   *
+   * @generated from enum value: COOKIE_OPERATION_GET = 1;
+   */
+  GET = 1,
+
+  /**
+   * Set a cookie or storage value.
+   *
+   * @generated from enum value: COOKIE_OPERATION_SET = 2;
+   */
+  SET = 2,
+
+  /**
+   * Delete a specific cookie or storage key.
+   *
+   * @generated from enum value: COOKIE_OPERATION_DELETE = 3;
+   */
+  DELETE = 3,
+
+  /**
+   * Clear all cookies or storage.
+   *
+   * @generated from enum value: COOKIE_OPERATION_CLEAR = 4;
+   */
+  CLEAR = 4,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.CookieOperation.
+ */
+export const CookieOperationSchema: GenEnum<CookieOperation> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 11);
+
+/**
+ * StorageType enumerates browser storage types.
+ *
+ * @usage CookieStorageParams.storage_type
+ *
+ * @generated from enum browser_automation_studio.v1.StorageType
+ */
+export enum StorageType {
+  /**
+   * Default. Uses cookies.
+   *
+   * @generated from enum value: STORAGE_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Browser cookies.
+   *
+   * @generated from enum value: STORAGE_TYPE_COOKIE = 1;
+   */
+  COOKIE = 1,
+
+  /**
+   * localStorage (persistent).
+   *
+   * @generated from enum value: STORAGE_TYPE_LOCAL_STORAGE = 2;
+   */
+  LOCAL_STORAGE = 2,
+
+  /**
+   * sessionStorage (cleared on tab close).
+   *
+   * @generated from enum value: STORAGE_TYPE_SESSION_STORAGE = 3;
+   */
+  SESSION_STORAGE = 3,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.StorageType.
+ */
+export const StorageTypeSchema: GenEnum<StorageType> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 12);
+
+/**
+ * GestureType enumerates touch gesture types.
+ *
+ * @usage GestureParams.gesture_type
+ *
+ * @generated from enum browser_automation_studio.v1.GestureType
+ */
+export enum GestureType {
+  /**
+   * Default. No gesture.
+   *
+   * @generated from enum value: GESTURE_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Swipe gesture in a direction.
+   *
+   * @generated from enum value: GESTURE_TYPE_SWIPE = 1;
+   */
+  SWIPE = 1,
+
+  /**
+   * Pinch gesture (zoom out).
+   *
+   * @generated from enum value: GESTURE_TYPE_PINCH = 2;
+   */
+  PINCH = 2,
+
+  /**
+   * Spread/zoom gesture (zoom in).
+   *
+   * @generated from enum value: GESTURE_TYPE_ZOOM = 3;
+   */
+  ZOOM = 3,
+
+  /**
+   * Long press gesture.
+   *
+   * @generated from enum value: GESTURE_TYPE_LONG_PRESS = 4;
+   */
+  LONG_PRESS = 4,
+
+  /**
+   * Double tap gesture.
+   *
+   * @generated from enum value: GESTURE_TYPE_DOUBLE_TAP = 5;
+   */
+  DOUBLE_TAP = 5,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.GestureType.
+ */
+export const GestureTypeSchema: GenEnum<GestureType> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 13);
+
+/**
+ * SwipeDirection enumerates swipe gesture directions.
+ *
+ * @usage GestureParams.direction
+ *
+ * @generated from enum browser_automation_studio.v1.SwipeDirection
+ */
+export enum SwipeDirection {
+  /**
+   * Default. No direction.
+   *
+   * @generated from enum value: SWIPE_DIRECTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Swipe upward.
+   *
+   * @generated from enum value: SWIPE_DIRECTION_UP = 1;
+   */
+  UP = 1,
+
+  /**
+   * Swipe downward.
+   *
+   * @generated from enum value: SWIPE_DIRECTION_DOWN = 2;
+   */
+  DOWN = 2,
+
+  /**
+   * Swipe left.
+   *
+   * @generated from enum value: SWIPE_DIRECTION_LEFT = 3;
+   */
+  LEFT = 3,
+
+  /**
+   * Swipe right.
+   *
+   * @generated from enum value: SWIPE_DIRECTION_RIGHT = 4;
+   */
+  RIGHT = 4,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.SwipeDirection.
+ */
+export const SwipeDirectionSchema: GenEnum<SwipeDirection> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 14);
+
+/**
+ * NetworkMockOperation enumerates network interception operations.
+ *
+ * @usage NetworkMockParams.operation
+ *
+ * @generated from enum browser_automation_studio.v1.NetworkMockOperation
+ */
+export enum NetworkMockOperation {
+  /**
+   * Default. No operation.
+   *
+   * @generated from enum value: NETWORK_MOCK_OPERATION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Mock a response for matching requests.
+   *
+   * @generated from enum value: NETWORK_MOCK_OPERATION_MOCK = 1;
+   */
+  MOCK = 1,
+
+  /**
+   * Block matching requests entirely.
+   *
+   * @generated from enum value: NETWORK_MOCK_OPERATION_BLOCK = 2;
+   */
+  BLOCK = 2,
+
+  /**
+   * Modify the outgoing request before it's sent.
+   *
+   * @generated from enum value: NETWORK_MOCK_OPERATION_MODIFY_REQUEST = 3;
+   */
+  MODIFY_REQUEST = 3,
+
+  /**
+   * Modify the response before it's received.
+   *
+   * @generated from enum value: NETWORK_MOCK_OPERATION_MODIFY_RESPONSE = 4;
+   */
+  MODIFY_RESPONSE = 4,
+
+  /**
+   * Clear all mocks/intercepts for matching pattern.
+   *
+   * @generated from enum value: NETWORK_MOCK_OPERATION_CLEAR = 5;
+   */
+  CLEAR = 5,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.NetworkMockOperation.
+ */
+export const NetworkMockOperationSchema: GenEnum<NetworkMockOperation> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 15);
+
+/**
+ * DeviceOrientation enumerates device orientations.
+ *
+ * @usage RotateParams.orientation
+ *
+ * @generated from enum browser_automation_studio.v1.DeviceOrientation
+ */
+export enum DeviceOrientation {
+  /**
+   * Default. Uses portrait.
+   *
+   * @generated from enum value: DEVICE_ORIENTATION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Portrait mode (taller than wide).
+   *
+   * @generated from enum value: DEVICE_ORIENTATION_PORTRAIT = 1;
+   */
+  PORTRAIT = 1,
+
+  /**
+   * Landscape mode (wider than tall).
+   *
+   * @generated from enum value: DEVICE_ORIENTATION_LANDSCAPE = 2;
+   */
+  LANDSCAPE = 2,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.DeviceOrientation.
+ */
+export const DeviceOrientationSchema: GenEnum<DeviceOrientation> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 16);
+
+/**
+ * CookieSameSite enumerates SameSite cookie attribute values.
+ *
+ * @usage CookieOptions.same_site
+ *
+ * @generated from enum browser_automation_studio.v1.CookieSameSite
+ */
+export enum CookieSameSite {
+  /**
+   * Default. Browser default behavior.
+   *
+   * @generated from enum value: COOKIE_SAME_SITE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Strict same-site enforcement.
+   *
+   * @generated from enum value: COOKIE_SAME_SITE_STRICT = 1;
+   */
+  STRICT = 1,
+
+  /**
+   * Lax same-site (allows top-level navigations).
+   *
+   * @generated from enum value: COOKIE_SAME_SITE_LAX = 2;
+   */
+  LAX = 2,
+
+  /**
+   * No same-site restrictions (requires Secure).
+   *
+   * @generated from enum value: COOKIE_SAME_SITE_NONE = 3;
+   */
+  NONE = 3,
+}
+
+/**
+ * Describes the enum browser_automation_studio.v1.CookieSameSite.
+ */
+export const CookieSameSiteSchema: GenEnum<CookieSameSite> = /*@__PURE__*/
+  enumDesc(file_browser_automation_studio_v1_actions_action, 17);
 

@@ -1,12 +1,18 @@
 import { Page } from 'playwright';
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import {
-  DragDropParamsSchema,
-  GestureParamsSchema,
-  type GestureParams,
-} from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getDragDropParams, getGestureParams } from '../proto';
 import { normalizeError } from '../utils/errors';
+
+/** Internal gesture params type for handler use */
+interface GestureParams {
+  type?: string;
+  selector?: string;
+  direction?: string;
+  distance?: number;
+  scale?: number;
+  durationMs?: number;
+}
 
 /**
  * GestureHandler implements complex mouse/touch gestures
@@ -25,7 +31,7 @@ export class GestureHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { logger } = context;
@@ -40,14 +46,18 @@ export class GestureHandler extends BaseHandler {
         return this.handleGesture(instruction, context);
       } else if (instructionType === 'gesture') {
         // Generic gesture - check params.type
-        const gestureParams = GestureParamsSchema.parse(instruction.params);
-        if (gestureParams.type === 'swipe' || gestureParams.type === 'pinch' || gestureParams.type === 'zoom') {
+        // Get typed params from instruction.action (required after migration)
+        const typedParams = instruction.action ? getGestureParams(instruction.action) : undefined;
+        const gestureParams = this.requireTypedParams(typedParams, 'gesture', instruction.nodeId);
+        // Map typed gestureType to internal type field
+        const gestureType = gestureParams.gestureType;
+        if (gestureType === 'swipe' || gestureType === 'pinch' || gestureType === 'zoom') {
           return this.handleGesture(instruction, context);
         }
         return {
           success: false,
           error: {
-            message: `Unknown gesture type: ${gestureParams.type}`,
+            message: `Unknown gesture type: ${gestureType}`,
             code: 'INVALID_GESTURE',
             kind: 'user',
             retryable: false,
@@ -92,10 +102,12 @@ export class GestureHandler extends BaseHandler {
    * - Animated drag with configurable steps
    */
   private async handleDragDrop(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const validated = DragDropParamsSchema.parse(instruction.params);
+    // Get typed params from instruction.action (required after migration)
+    const typedParams = instruction.action ? getDragDropParams(instruction.action) : undefined;
+    const validated = this.requireTypedParams(typedParams, 'drag-drop', instruction.nodeId);
     const { page, logger } = context;
 
     // Prefer param timeout, fallback to config, then hard-coded default
@@ -277,10 +289,21 @@ export class GestureHandler extends BaseHandler {
    * - zoom: Zoom gesture (scale > 1.0 = zoom in)
    */
   private async handleGesture(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const validated = GestureParamsSchema.parse(instruction.params);
+    // Get typed params from instruction.action (required after migration)
+    const typedParams = instruction.action ? getGestureParams(instruction.action) : undefined;
+    const gestureParams = this.requireTypedParams(typedParams, 'gesture', instruction.nodeId);
+    // Map typed params to expected format
+    const validated: GestureParams = {
+      type: gestureParams.gestureType,
+      selector: gestureParams.selector,
+      direction: gestureParams.direction,
+      distance: gestureParams.distance,
+      scale: gestureParams.scale,
+      durationMs: gestureParams.durationMs,
+    };
     const { page, logger } = context;
 
     logger.debug('Executing gesture', {

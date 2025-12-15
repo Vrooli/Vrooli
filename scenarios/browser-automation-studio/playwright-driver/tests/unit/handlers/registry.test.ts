@@ -76,7 +76,7 @@ describe('HandlerRegistry', () => {
       const instruction = createTestInstruction({
         type: 'navigate',
         params: {},
-        node_id: 'node-1',
+        nodeId: 'node-1',
       });
 
       const handler = handlerRegistry.getHandler(instruction);
@@ -88,7 +88,7 @@ describe('HandlerRegistry', () => {
       const instruction = createTestInstruction({
         type: 'click',
         params: {},
-        node_id: 'node-1',
+        nodeId: 'node-1',
       });
 
       const handler = handlerRegistry.getHandler(instruction);
@@ -100,7 +100,7 @@ describe('HandlerRegistry', () => {
       const instruction = createTestInstruction({
         type: 'wait',
         params: {},
-        node_id: 'node-1',
+        nodeId: 'node-1',
       });
 
       const handler = handlerRegistry.getHandler(instruction);
@@ -112,7 +112,7 @@ describe('HandlerRegistry', () => {
       const instruction = createTestInstruction({
         type: 'unsupported-action',
         params: {},
-        node_id: 'node-1',
+        nodeId: 'node-1',
       });
 
       expect(() => handlerRegistry.getHandler(instruction)).toThrow(UnsupportedInstructionError);

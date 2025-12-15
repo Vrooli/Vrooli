@@ -10,7 +10,7 @@ import type { ExecutedInstructionRecord } from '../../../src/types';
 describe('Instruction Replay Idempotency', () => {
   describe('instruction key generation', () => {
     it('should generate unique keys for different instructions', () => {
-      // Key format: node_id:index
+      // Key format: nodeId:index
       const key1 = 'node-abc:0';
       const key2 = 'node-abc:1';
       const key3 = 'node-xyz:0';
@@ -21,12 +21,12 @@ describe('Instruction Replay Idempotency', () => {
     });
 
     it('should generate same key for same instruction', () => {
-      // Same node_id and index = same key = idempotent lookup
-      const instruction1 = { node_id: 'node-123', index: 5 };
-      const instruction2 = { node_id: 'node-123', index: 5 };
+      // Same nodeId and index = same key = idempotent lookup
+      const instruction1 = { nodeId: 'node-123', index: 5 };
+      const instruction2 = { nodeId: 'node-123', index: 5 };
 
-      const key1 = `${instruction1.node_id}:${instruction1.index}`;
-      const key2 = `${instruction2.node_id}:${instruction2.index}`;
+      const key1 = `${instruction1.nodeId}:${instruction1.index}`;
+      const key2 = `${instruction2.nodeId}:${instruction2.index}`;
 
       expect(key1).toBe(key2);
     });

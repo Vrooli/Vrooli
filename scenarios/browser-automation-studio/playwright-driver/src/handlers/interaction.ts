@@ -1,13 +1,13 @@
 import type { Page } from 'playwright';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
+import type { HandlerInstruction } from '../types';
 import {
-  ClickParamsSchema,
-  HoverParamsSchema,
-  TypeParamsSchema,
-  FocusParamsSchema,
-  BlurParamsSchema,
-} from '../types/instruction';
+  getClickParams,
+  getHoverParams,
+  getInputParams,
+  getFocusParams,
+  getBlurParams,
+} from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 import type winston from 'winston';
@@ -54,7 +54,7 @@ export class InteractionHandler extends BaseHandler {
     return ['click', 'hover', 'type', 'focus', 'blur'];
   }
 
-  async execute(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult> {
+  async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     try {
       switch (instruction.type.toLowerCase()) {
         case 'click': return await this.handleClick(instruction, context);
@@ -70,7 +70,7 @@ export class InteractionHandler extends BaseHandler {
     }
   }
 
-  private handleError(error: unknown, instruction: CompiledInstruction, logger: winston.Logger): HandlerResult {
+  private handleError(error: unknown, instruction: HandlerInstruction, logger: winston.Logger): HandlerResult {
     const driverError = normalizeError(error);
     logger.warn('instruction: interaction failed', {
       type: instruction.type,
@@ -82,9 +82,13 @@ export class InteractionHandler extends BaseHandler {
     return { success: false, error: { message: driverError.message, code: driverError.code, kind: driverError.kind, retryable: driverError.retryable } };
   }
 
-  private async handleClick(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult> {
+  private async handleClick(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { page, logger } = context;
-    const params = ClickParamsSchema.parse(instruction.params);
+
+    // Extract typed params from action
+    const typedParams = instruction.action ? getClickParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'click', instruction.nodeId);
+
     if (!params.selector) return missingSelectorError('click');
 
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
@@ -97,9 +101,13 @@ export class InteractionHandler extends BaseHandler {
     return successWithFocus(params.selector, boundingBox);
   }
 
-  private async handleHover(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult> {
+  private async handleHover(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { page, logger } = context;
-    const params = HoverParamsSchema.parse(instruction.params);
+
+    // Extract typed params from action
+    const typedParams = instruction.action ? getHoverParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'hover', instruction.nodeId);
+
     if (!params.selector) return missingSelectorError('hover');
 
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
@@ -112,25 +120,32 @@ export class InteractionHandler extends BaseHandler {
     return successWithFocus(params.selector, boundingBox);
   }
 
-  private async handleType(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult> {
+  private async handleType(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { page, logger } = context;
-    const params = TypeParamsSchema.parse(instruction.params);
+
+    // Extract typed params from action
+    const typedParams = instruction.action ? getInputParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'type', instruction.nodeId);
+
     if (!params.selector) return missingSelectorError('type');
 
-    const text = params.text || params.value || '';
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
-    logger.debug('instruction: type starting', { selector: params.selector, textLength: text.length, timeout });
+    logger.debug('instruction: type starting', { selector: params.selector, textLength: params.value.length, timeout });
 
     const boundingBox = await this.getBoundingBox(page, params.selector).catch(() => null);
-    await page.fill(params.selector, text, { timeout });
+    await page.fill(params.selector, params.value, { timeout });
 
-    logger.debug('instruction: type completed', { selector: params.selector, textLength: text.length });
+    logger.debug('instruction: type completed', { selector: params.selector, textLength: params.value.length });
     return successWithFocus(params.selector, boundingBox);
   }
 
-  private async handleFocus(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult> {
+  private async handleFocus(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { page, logger } = context;
-    const params = FocusParamsSchema.parse(instruction.params);
+
+    // Extract typed params from action
+    const typedParams = instruction.action ? getFocusParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'focus', instruction.nodeId);
+
     if (!params.selector) return missingSelectorError('focus');
 
     const timeout = resolveTimeout(params.timeoutMs, context.config.execution.defaultTimeoutMs);
@@ -143,11 +158,14 @@ export class InteractionHandler extends BaseHandler {
     return successWithFocus(params.selector, boundingBox);
   }
 
-  private async handleBlur(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult> {
+  private async handleBlur(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { page, logger } = context;
-    const params = BlurParamsSchema.parse(instruction.params);
-    const selectorForLog = params.selector || '(active element)';
 
+    // Extract typed params from action
+    const typedParams = instruction.action ? getBlurParams(instruction.action) : undefined;
+    const params = this.requireTypedParams(typedParams, 'blur', instruction.nodeId);
+
+    const selectorForLog = params.selector || '(active element)';
     logger.debug('instruction: blur starting', { selector: selectorForLog });
     await blurElement(page, params.selector);
     logger.debug('instruction: blur completed', { selector: selectorForLog });

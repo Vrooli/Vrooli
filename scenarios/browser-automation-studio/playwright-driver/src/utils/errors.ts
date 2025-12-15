@@ -1,5 +1,4 @@
-import type { FailureKind } from '../types';
-import { ZodError } from 'zod';
+import { FailureKind } from '../proto';
 
 /**
  * Error codes for playwright driver.
@@ -36,7 +35,7 @@ export class PlaywrightDriverError extends Error {
   constructor(
     message: string,
     public readonly code: string,
-    public readonly kind: FailureKind = 'engine',
+    public readonly kind: FailureKind = FailureKind.ENGINE,
     public readonly retryable: boolean = false,
     public readonly details?: Record<string, unknown>
   ) {
@@ -50,7 +49,7 @@ export class PlaywrightDriverError extends Error {
  */
 export class SessionNotFoundError extends PlaywrightDriverError {
   constructor(sessionId: string) {
-    super(`Session not found: ${sessionId}`, 'SESSION_NOT_FOUND', 'engine', false, {
+    super(`Session not found: ${sessionId}`, 'SESSION_NOT_FOUND', FailureKind.ENGINE, false, {
       sessionId,
     });
     this.name = 'SessionNotFoundError';
@@ -62,7 +61,7 @@ export class SessionNotFoundError extends PlaywrightDriverError {
  */
 export class InvalidInstructionError extends PlaywrightDriverError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'INVALID_INSTRUCTION', 'orchestration', false, details);
+    super(message, 'INVALID_INSTRUCTION', FailureKind.ORCHESTRATION, false, details);
     this.name = 'InvalidInstructionError';
   }
 }
@@ -75,7 +74,7 @@ export class UnsupportedInstructionError extends PlaywrightDriverError {
     super(
       `Unsupported instruction type: ${type}`,
       'UNSUPPORTED_INSTRUCTION',
-      'orchestration',
+      FailureKind.ORCHESTRATION,
       false,
       { type }
     );
@@ -91,7 +90,7 @@ export class SelectorNotFoundError extends PlaywrightDriverError {
     super(
       `Selector not found: ${selector}${timeout ? ` (timeout: ${timeout}ms)` : ''}`,
       'SELECTOR_NOT_FOUND',
-      'engine',
+      FailureKind.ENGINE,
       true,
       { selector, timeout }
     );
@@ -104,7 +103,7 @@ export class SelectorNotFoundError extends PlaywrightDriverError {
  */
 export class TimeoutError extends PlaywrightDriverError {
   constructor(message: string, timeout: number) {
-    super(message, 'TIMEOUT', 'timeout', true, { timeout });
+    super(message, 'TIMEOUT', FailureKind.TIMEOUT, true, { timeout });
     this.name = 'TimeoutError';
   }
 }
@@ -114,7 +113,7 @@ export class TimeoutError extends PlaywrightDriverError {
  */
 export class NavigationError extends PlaywrightDriverError {
   constructor(message: string, url?: string) {
-    super(message, 'NAVIGATION_ERROR', 'engine', true, { url });
+    super(message, 'NAVIGATION_ERROR', FailureKind.ENGINE, true, { url });
     this.name = 'NavigationError';
   }
 }
@@ -124,7 +123,7 @@ export class NavigationError extends PlaywrightDriverError {
  */
 export class ResourceLimitError extends PlaywrightDriverError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'RESOURCE_LIMIT', 'infra', false, details);
+    super(message, 'RESOURCE_LIMIT', FailureKind.INFRA, false, details);
     this.name = 'ResourceLimitError';
   }
 }
@@ -134,7 +133,7 @@ export class ResourceLimitError extends PlaywrightDriverError {
  */
 export class ConfigurationError extends PlaywrightDriverError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'CONFIGURATION_ERROR', 'orchestration', false, details);
+    super(message, 'CONFIGURATION_ERROR', FailureKind.ORCHESTRATION, false, details);
     this.name = 'ConfigurationError';
   }
 }
@@ -147,7 +146,7 @@ export class FrameNotFoundError extends PlaywrightDriverError {
     super(
       `Frame not found${selector ? `: selector=${selector}` : ''}${frameId ? `, frameId=${frameId}` : ''}${frameUrl ? `, url=${frameUrl}` : ''}`,
       'FRAME_NOT_FOUND',
-      'engine',
+      FailureKind.ENGINE,
       true,
       { selector, frameId, frameUrl }
     );
@@ -156,36 +155,10 @@ export class FrameNotFoundError extends PlaywrightDriverError {
 }
 
 /**
- * Format Zod validation errors into a human-readable message.
- * Groups errors by path for cleaner output.
- */
-function formatZodError(error: ZodError): string {
-  const issues = error.issues;
-  if (issues.length === 0) {
-    return 'Validation failed';
-  }
-
-  if (issues.length === 1) {
-    const issue = issues[0];
-    const path = issue.path.length > 0 ? issue.path.join('.') : 'value';
-    return `${path}: ${issue.message}`;
-  }
-
-  // Multiple issues - format as list
-  const formatted = issues.map((issue) => {
-    const path = issue.path.length > 0 ? issue.path.join('.') : 'value';
-    return `${path}: ${issue.message}`;
-  });
-
-  return `Validation errors: ${formatted.join('; ')}`;
-}
-
-/**
  * Convert Playwright error to driver error
  *
  * Handles various error types:
  * - PlaywrightDriverError: Pass through as-is
- * - ZodError: Convert to InvalidInstructionError with formatted message
  * - Playwright-specific errors: Map based on message content
  * - Generic errors: Wrap as PLAYWRIGHT_ERROR
  * - Unknown values: Wrap as UNKNOWN_ERROR
@@ -193,18 +166,6 @@ function formatZodError(error: ZodError): string {
 export function normalizeError(error: unknown): PlaywrightDriverError {
   if (error instanceof PlaywrightDriverError) {
     return error;
-  }
-
-  // Handle Zod validation errors specifically
-  if (error instanceof ZodError) {
-    const message = formatZodError(error);
-    return new InvalidInstructionError(message, {
-      zodIssues: error.issues.map((issue) => ({
-        path: issue.path,
-        message: issue.message,
-        code: issue.code,
-      })),
-    });
   }
 
   if (error instanceof Error) {
@@ -239,14 +200,14 @@ export function normalizeError(error: unknown): PlaywrightDriverError {
     }
 
     // Generic error
-    return new PlaywrightDriverError(error.message, 'PLAYWRIGHT_ERROR', 'engine', false);
+    return new PlaywrightDriverError(error.message, 'PLAYWRIGHT_ERROR', FailureKind.ENGINE, false);
   }
 
   // Unknown error
   return new PlaywrightDriverError(
     'Unknown error occurred',
     'UNKNOWN_ERROR',
-    'engine',
+    FailureKind.ENGINE,
     false,
     { error }
   );

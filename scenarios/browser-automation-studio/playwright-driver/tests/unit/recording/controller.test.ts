@@ -143,7 +143,8 @@ describe('RecordModeController', () => {
       const result = await controller.stopRecording();
 
       expect(result.recordingId).toBeDefined();
-      expect(result.actionCount).toBe(0);
+      // Initial navigation action is captured when recording starts (if page URL is not about:blank)
+      expect(result.actionCount).toBe(1);
       expect(controller.isRecording()).toBe(false);
     });
 
@@ -352,13 +353,16 @@ describe('RecordModeController', () => {
       exposedCallback(event1);
       exposedCallback(event2);
 
-      expect(onAction).toHaveBeenCalledTimes(2);
+      // Note: Initial navigation action is captured when recording starts (call 0)
+      // So these events are calls 1 and 2
+      expect(onAction).toHaveBeenCalledTimes(3);
 
-      const firstCall = onAction.mock.calls[0][0] as RecordedAction;
-      const secondCall = onAction.mock.calls[1][0] as RecordedAction;
+      const firstEventCall = onAction.mock.calls[1][0] as RecordedAction;
+      const secondEventCall = onAction.mock.calls[2][0] as RecordedAction;
 
-      expect(firstCall.sequenceNum).toBe(0);
-      expect(secondCall.sequenceNum).toBe(1);
+      // Sequence numbers are 1 and 2 because 0 is the initial navigation
+      expect(firstEventCall.sequenceNum).toBe(1);
+      expect(secondEventCall.sequenceNum).toBe(2);
     });
 
     it('should normalize action types', () => {
@@ -390,7 +394,8 @@ describe('RecordModeController', () => {
 
       exposedCallback(rawEvent);
 
-      const action = onAction.mock.calls[0][0] as RecordedAction;
+      // Call 0 is initial navigation, call 1 is our event
+      const action = onAction.mock.calls[1][0] as RecordedAction;
       expect(action.confidence).toBe(0.98);
     });
 
@@ -403,7 +408,8 @@ describe('RecordModeController', () => {
 
       exposedCallback(rawEvent);
 
-      const action = onAction.mock.calls[0][0] as RecordedAction;
+      // Call 0 is initial navigation, call 1 is our event
+      const action = onAction.mock.calls[1][0] as RecordedAction;
       expect(action.confidence).toBe(0.5);
     });
 
@@ -413,7 +419,8 @@ describe('RecordModeController', () => {
       exposedCallback(createRawEvent({ actionType: 'click' }));
 
       const state = controller.getState();
-      expect(state.actionCount).toBe(3);
+      // 1 initial navigation + 3 events = 4 total
+      expect(state.actionCount).toBe(4);
     });
 
     it('should not process events after stop', async () => {

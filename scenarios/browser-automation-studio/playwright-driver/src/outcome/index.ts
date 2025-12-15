@@ -10,20 +10,31 @@
  * CRITICAL: Changes here affect the Go API contract.
  *
  * Wire Format:
- * - StepOutcome: Canonical outcome with nested objects
+ * - StepOutcome: Proto-defined canonical outcome (from @vrooli/proto-types)
  * - DriverOutcome: Flattened format for Go parsing (screenshot_base64, etc.)
  *
  * CHANGE AXIS: New Outcome Fields
  *
  * When adding a new field to step outcomes:
- * 1. Add field to StepOutcome in `types/contracts.ts`
- * 2. Add to BuildOutcomeParams if data comes from execution
- * 3. Update buildStepOutcome() to populate the field
- * 4. If field needs flattening, update toDriverOutcome()
- * 5. Coordinate with Go API team for contracts.StepOutcome
+ * 1. Add field to StepOutcome in proto schema (driver.proto)
+ * 2. Run proto generation (make generate in packages/proto)
+ * 3. Add to BuildOutcomeParams if data comes from execution
+ * 4. Update buildStepOutcome() to populate the field
+ * 5. If field needs flattening, update toDriverOutcome()
  *
- * Adding fields is safe (Go uses omitempty).
- * Removing/renaming fields is a BREAKING CHANGE requiring API migration.
+ * Adding fields is safe (proto uses optional by default).
+ * Removing/renaming fields requires proto deprecation pattern.
  */
 
-export * from './outcome-builder';
+export {
+  buildStepOutcome,
+  toDriverOutcome,
+  type BuildOutcomeParams,
+  type HandlerResult,
+  type DriverOutcome,
+  type Screenshot,
+  type DOMSnapshot,
+  type ConsoleLogEntry,
+  type NetworkEvent,
+  type HandlerAssertionOutcome,
+} from './outcome-builder';

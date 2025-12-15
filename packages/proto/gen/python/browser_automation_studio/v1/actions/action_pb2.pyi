@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
@@ -31,6 +32,17 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_FOCUS: _ClassVar[ActionType]
     ACTION_TYPE_BLUR: _ClassVar[ActionType]
     ACTION_TYPE_SUBFLOW: _ClassVar[ActionType]
+    ACTION_TYPE_EXTRACT: _ClassVar[ActionType]
+    ACTION_TYPE_UPLOAD_FILE: _ClassVar[ActionType]
+    ACTION_TYPE_DOWNLOAD: _ClassVar[ActionType]
+    ACTION_TYPE_FRAME_SWITCH: _ClassVar[ActionType]
+    ACTION_TYPE_TAB_SWITCH: _ClassVar[ActionType]
+    ACTION_TYPE_COOKIE_STORAGE: _ClassVar[ActionType]
+    ACTION_TYPE_SHORTCUT: _ClassVar[ActionType]
+    ACTION_TYPE_DRAG_DROP: _ClassVar[ActionType]
+    ACTION_TYPE_GESTURE: _ClassVar[ActionType]
+    ACTION_TYPE_NETWORK_MOCK: _ClassVar[ActionType]
+    ACTION_TYPE_ROTATE: _ClassVar[ActionType]
 
 class MouseButton(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -80,6 +92,85 @@ class KeyboardModifier(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     KEYBOARD_MODIFIER_SHIFT: _ClassVar[KeyboardModifier]
     KEYBOARD_MODIFIER_ALT: _ClassVar[KeyboardModifier]
     KEYBOARD_MODIFIER_META: _ClassVar[KeyboardModifier]
+
+class ExtractType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EXTRACT_TYPE_UNSPECIFIED: _ClassVar[ExtractType]
+    EXTRACT_TYPE_TEXT: _ClassVar[ExtractType]
+    EXTRACT_TYPE_INNER_HTML: _ClassVar[ExtractType]
+    EXTRACT_TYPE_OUTER_HTML: _ClassVar[ExtractType]
+    EXTRACT_TYPE_ATTRIBUTE: _ClassVar[ExtractType]
+    EXTRACT_TYPE_PROPERTY: _ClassVar[ExtractType]
+    EXTRACT_TYPE_VALUE: _ClassVar[ExtractType]
+
+class FrameSwitchAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FRAME_SWITCH_ACTION_UNSPECIFIED: _ClassVar[FrameSwitchAction]
+    FRAME_SWITCH_ACTION_ENTER: _ClassVar[FrameSwitchAction]
+    FRAME_SWITCH_ACTION_PARENT: _ClassVar[FrameSwitchAction]
+    FRAME_SWITCH_ACTION_EXIT: _ClassVar[FrameSwitchAction]
+
+class TabSwitchAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TAB_SWITCH_ACTION_UNSPECIFIED: _ClassVar[TabSwitchAction]
+    TAB_SWITCH_ACTION_OPEN: _ClassVar[TabSwitchAction]
+    TAB_SWITCH_ACTION_SWITCH: _ClassVar[TabSwitchAction]
+    TAB_SWITCH_ACTION_CLOSE: _ClassVar[TabSwitchAction]
+    TAB_SWITCH_ACTION_LIST: _ClassVar[TabSwitchAction]
+
+class CookieOperation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COOKIE_OPERATION_UNSPECIFIED: _ClassVar[CookieOperation]
+    COOKIE_OPERATION_GET: _ClassVar[CookieOperation]
+    COOKIE_OPERATION_SET: _ClassVar[CookieOperation]
+    COOKIE_OPERATION_DELETE: _ClassVar[CookieOperation]
+    COOKIE_OPERATION_CLEAR: _ClassVar[CookieOperation]
+
+class StorageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORAGE_TYPE_UNSPECIFIED: _ClassVar[StorageType]
+    STORAGE_TYPE_COOKIE: _ClassVar[StorageType]
+    STORAGE_TYPE_LOCAL_STORAGE: _ClassVar[StorageType]
+    STORAGE_TYPE_SESSION_STORAGE: _ClassVar[StorageType]
+
+class GestureType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    GESTURE_TYPE_UNSPECIFIED: _ClassVar[GestureType]
+    GESTURE_TYPE_SWIPE: _ClassVar[GestureType]
+    GESTURE_TYPE_PINCH: _ClassVar[GestureType]
+    GESTURE_TYPE_ZOOM: _ClassVar[GestureType]
+    GESTURE_TYPE_LONG_PRESS: _ClassVar[GestureType]
+    GESTURE_TYPE_DOUBLE_TAP: _ClassVar[GestureType]
+
+class SwipeDirection(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SWIPE_DIRECTION_UNSPECIFIED: _ClassVar[SwipeDirection]
+    SWIPE_DIRECTION_UP: _ClassVar[SwipeDirection]
+    SWIPE_DIRECTION_DOWN: _ClassVar[SwipeDirection]
+    SWIPE_DIRECTION_LEFT: _ClassVar[SwipeDirection]
+    SWIPE_DIRECTION_RIGHT: _ClassVar[SwipeDirection]
+
+class NetworkMockOperation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NETWORK_MOCK_OPERATION_UNSPECIFIED: _ClassVar[NetworkMockOperation]
+    NETWORK_MOCK_OPERATION_MOCK: _ClassVar[NetworkMockOperation]
+    NETWORK_MOCK_OPERATION_BLOCK: _ClassVar[NetworkMockOperation]
+    NETWORK_MOCK_OPERATION_MODIFY_REQUEST: _ClassVar[NetworkMockOperation]
+    NETWORK_MOCK_OPERATION_MODIFY_RESPONSE: _ClassVar[NetworkMockOperation]
+    NETWORK_MOCK_OPERATION_CLEAR: _ClassVar[NetworkMockOperation]
+
+class DeviceOrientation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DEVICE_ORIENTATION_UNSPECIFIED: _ClassVar[DeviceOrientation]
+    DEVICE_ORIENTATION_PORTRAIT: _ClassVar[DeviceOrientation]
+    DEVICE_ORIENTATION_LANDSCAPE: _ClassVar[DeviceOrientation]
+
+class CookieSameSite(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COOKIE_SAME_SITE_UNSPECIFIED: _ClassVar[CookieSameSite]
+    COOKIE_SAME_SITE_STRICT: _ClassVar[CookieSameSite]
+    COOKIE_SAME_SITE_LAX: _ClassVar[CookieSameSite]
+    COOKIE_SAME_SITE_NONE: _ClassVar[CookieSameSite]
 ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_NAVIGATE: ActionType
 ACTION_TYPE_CLICK: ActionType
@@ -95,6 +186,17 @@ ACTION_TYPE_SCREENSHOT: ActionType
 ACTION_TYPE_FOCUS: ActionType
 ACTION_TYPE_BLUR: ActionType
 ACTION_TYPE_SUBFLOW: ActionType
+ACTION_TYPE_EXTRACT: ActionType
+ACTION_TYPE_UPLOAD_FILE: ActionType
+ACTION_TYPE_DOWNLOAD: ActionType
+ACTION_TYPE_FRAME_SWITCH: ActionType
+ACTION_TYPE_TAB_SWITCH: ActionType
+ACTION_TYPE_COOKIE_STORAGE: ActionType
+ACTION_TYPE_SHORTCUT: ActionType
+ACTION_TYPE_DRAG_DROP: ActionType
+ACTION_TYPE_GESTURE: ActionType
+ACTION_TYPE_NETWORK_MOCK: ActionType
+ACTION_TYPE_ROTATE: ActionType
 MOUSE_BUTTON_UNSPECIFIED: MouseButton
 MOUSE_BUTTON_LEFT: MouseButton
 MOUSE_BUTTON_RIGHT: MouseButton
@@ -123,6 +225,55 @@ KEYBOARD_MODIFIER_CTRL: KeyboardModifier
 KEYBOARD_MODIFIER_SHIFT: KeyboardModifier
 KEYBOARD_MODIFIER_ALT: KeyboardModifier
 KEYBOARD_MODIFIER_META: KeyboardModifier
+EXTRACT_TYPE_UNSPECIFIED: ExtractType
+EXTRACT_TYPE_TEXT: ExtractType
+EXTRACT_TYPE_INNER_HTML: ExtractType
+EXTRACT_TYPE_OUTER_HTML: ExtractType
+EXTRACT_TYPE_ATTRIBUTE: ExtractType
+EXTRACT_TYPE_PROPERTY: ExtractType
+EXTRACT_TYPE_VALUE: ExtractType
+FRAME_SWITCH_ACTION_UNSPECIFIED: FrameSwitchAction
+FRAME_SWITCH_ACTION_ENTER: FrameSwitchAction
+FRAME_SWITCH_ACTION_PARENT: FrameSwitchAction
+FRAME_SWITCH_ACTION_EXIT: FrameSwitchAction
+TAB_SWITCH_ACTION_UNSPECIFIED: TabSwitchAction
+TAB_SWITCH_ACTION_OPEN: TabSwitchAction
+TAB_SWITCH_ACTION_SWITCH: TabSwitchAction
+TAB_SWITCH_ACTION_CLOSE: TabSwitchAction
+TAB_SWITCH_ACTION_LIST: TabSwitchAction
+COOKIE_OPERATION_UNSPECIFIED: CookieOperation
+COOKIE_OPERATION_GET: CookieOperation
+COOKIE_OPERATION_SET: CookieOperation
+COOKIE_OPERATION_DELETE: CookieOperation
+COOKIE_OPERATION_CLEAR: CookieOperation
+STORAGE_TYPE_UNSPECIFIED: StorageType
+STORAGE_TYPE_COOKIE: StorageType
+STORAGE_TYPE_LOCAL_STORAGE: StorageType
+STORAGE_TYPE_SESSION_STORAGE: StorageType
+GESTURE_TYPE_UNSPECIFIED: GestureType
+GESTURE_TYPE_SWIPE: GestureType
+GESTURE_TYPE_PINCH: GestureType
+GESTURE_TYPE_ZOOM: GestureType
+GESTURE_TYPE_LONG_PRESS: GestureType
+GESTURE_TYPE_DOUBLE_TAP: GestureType
+SWIPE_DIRECTION_UNSPECIFIED: SwipeDirection
+SWIPE_DIRECTION_UP: SwipeDirection
+SWIPE_DIRECTION_DOWN: SwipeDirection
+SWIPE_DIRECTION_LEFT: SwipeDirection
+SWIPE_DIRECTION_RIGHT: SwipeDirection
+NETWORK_MOCK_OPERATION_UNSPECIFIED: NetworkMockOperation
+NETWORK_MOCK_OPERATION_MOCK: NetworkMockOperation
+NETWORK_MOCK_OPERATION_BLOCK: NetworkMockOperation
+NETWORK_MOCK_OPERATION_MODIFY_REQUEST: NetworkMockOperation
+NETWORK_MOCK_OPERATION_MODIFY_RESPONSE: NetworkMockOperation
+NETWORK_MOCK_OPERATION_CLEAR: NetworkMockOperation
+DEVICE_ORIENTATION_UNSPECIFIED: DeviceOrientation
+DEVICE_ORIENTATION_PORTRAIT: DeviceOrientation
+DEVICE_ORIENTATION_LANDSCAPE: DeviceOrientation
+COOKIE_SAME_SITE_UNSPECIFIED: CookieSameSite
+COOKIE_SAME_SITE_STRICT: CookieSameSite
+COOKIE_SAME_SITE_LAX: CookieSameSite
+COOKIE_SAME_SITE_NONE: CookieSameSite
 
 class NavigateParams(_message.Message):
     __slots__ = ()
@@ -322,6 +473,177 @@ class SubflowParams(_message.Message):
     args: _containers.MessageMap[str, _types_pb2.JsonValue]
     def __init__(self, workflow_id: _Optional[str] = ..., workflow_path: _Optional[str] = ..., workflow_version: _Optional[int] = ..., args: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
+class ExtractParams(_message.Message):
+    __slots__ = ()
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    EXTRACT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTE_NAME_FIELD_NUMBER: _ClassVar[int]
+    PROPERTY_NAME_FIELD_NUMBER: _ClassVar[int]
+    STORE_AS_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    selector: str
+    extract_type: ExtractType
+    attribute_name: str
+    property_name: str
+    store_as: str
+    timeout_ms: int
+    def __init__(self, selector: _Optional[str] = ..., extract_type: _Optional[_Union[ExtractType, str]] = ..., attribute_name: _Optional[str] = ..., property_name: _Optional[str] = ..., store_as: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class UploadFileParams(_message.Message):
+    __slots__ = ()
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    FILE_PATHS_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    selector: str
+    file_paths: _containers.RepeatedScalarFieldContainer[str]
+    timeout_ms: int
+    def __init__(self, selector: _Optional[str] = ..., file_paths: _Optional[_Iterable[str]] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class DownloadParams(_message.Message):
+    __slots__ = ()
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    SAVE_PATH_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    selector: str
+    url: str
+    save_path: str
+    timeout_ms: int
+    def __init__(self, selector: _Optional[str] = ..., url: _Optional[str] = ..., save_path: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class FrameSwitchParams(_message.Message):
+    __slots__ = ()
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    FRAME_ID_FIELD_NUMBER: _ClassVar[int]
+    FRAME_URL_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    action: FrameSwitchAction
+    selector: str
+    frame_id: str
+    frame_url: str
+    timeout_ms: int
+    def __init__(self, action: _Optional[_Union[FrameSwitchAction, str]] = ..., selector: _Optional[str] = ..., frame_id: _Optional[str] = ..., frame_url: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class TabSwitchParams(_message.Message):
+    __slots__ = ()
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    URL_FIELD_NUMBER: _ClassVar[int]
+    INDEX_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    URL_PATTERN_FIELD_NUMBER: _ClassVar[int]
+    action: TabSwitchAction
+    url: str
+    index: int
+    title: str
+    url_pattern: str
+    def __init__(self, action: _Optional[_Union[TabSwitchAction, str]] = ..., url: _Optional[str] = ..., index: _Optional[int] = ..., title: _Optional[str] = ..., url_pattern: _Optional[str] = ...) -> None: ...
+
+class CookieOptions(_message.Message):
+    __slots__ = ()
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_FIELD_NUMBER: _ClassVar[int]
+    HTTP_ONLY_FIELD_NUMBER: _ClassVar[int]
+    SECURE_FIELD_NUMBER: _ClassVar[int]
+    SAME_SITE_FIELD_NUMBER: _ClassVar[int]
+    domain: str
+    path: str
+    expires: int
+    http_only: bool
+    secure: bool
+    same_site: CookieSameSite
+    def __init__(self, domain: _Optional[str] = ..., path: _Optional[str] = ..., expires: _Optional[int] = ..., http_only: _Optional[bool] = ..., secure: _Optional[bool] = ..., same_site: _Optional[_Union[CookieSameSite, str]] = ...) -> None: ...
+
+class CookieStorageParams(_message.Message):
+    __slots__ = ()
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    COOKIE_OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    operation: CookieOperation
+    storage_type: StorageType
+    key: str
+    value: str
+    cookie_options: CookieOptions
+    def __init__(self, operation: _Optional[_Union[CookieOperation, str]] = ..., storage_type: _Optional[_Union[StorageType, str]] = ..., key: _Optional[str] = ..., value: _Optional[str] = ..., cookie_options: _Optional[_Union[CookieOptions, _Mapping]] = ...) -> None: ...
+
+class ShortcutParams(_message.Message):
+    __slots__ = ()
+    SHORTCUT_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    shortcut: str
+    selector: str
+    def __init__(self, shortcut: _Optional[str] = ..., selector: _Optional[str] = ...) -> None: ...
+
+class DragDropParams(_message.Message):
+    __slots__ = ()
+    SOURCE_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_X_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_Y_FIELD_NUMBER: _ClassVar[int]
+    STEPS_FIELD_NUMBER: _ClassVar[int]
+    DELAY_MS_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    source_selector: str
+    target_selector: str
+    offset_x: int
+    offset_y: int
+    steps: int
+    delay_ms: int
+    timeout_ms: int
+    def __init__(self, source_selector: _Optional[str] = ..., target_selector: _Optional[str] = ..., offset_x: _Optional[int] = ..., offset_y: _Optional[int] = ..., steps: _Optional[int] = ..., delay_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class GestureParams(_message.Message):
+    __slots__ = ()
+    GESTURE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    DISTANCE_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    gesture_type: GestureType
+    selector: str
+    direction: SwipeDirection
+    distance: int
+    scale: float
+    duration_ms: int
+    def __init__(self, gesture_type: _Optional[_Union[GestureType, str]] = ..., selector: _Optional[str] = ..., direction: _Optional[_Union[SwipeDirection, str]] = ..., distance: _Optional[int] = ..., scale: _Optional[float] = ..., duration_ms: _Optional[int] = ...) -> None: ...
+
+class NetworkMockParams(_message.Message):
+    __slots__ = ()
+    class HeadersEntry(_message.Message):
+        __slots__ = ()
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    URL_PATTERN_FIELD_NUMBER: _ClassVar[int]
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    STATUS_CODE_FIELD_NUMBER: _ClassVar[int]
+    HEADERS_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    DELAY_MS_FIELD_NUMBER: _ClassVar[int]
+    operation: NetworkMockOperation
+    url_pattern: str
+    method: str
+    status_code: int
+    headers: _containers.ScalarMap[str, str]
+    body: str
+    delay_ms: int
+    def __init__(self, operation: _Optional[_Union[NetworkMockOperation, str]] = ..., url_pattern: _Optional[str] = ..., method: _Optional[str] = ..., status_code: _Optional[int] = ..., headers: _Optional[_Mapping[str, str]] = ..., body: _Optional[str] = ..., delay_ms: _Optional[int] = ...) -> None: ...
+
+class RotateParams(_message.Message):
+    __slots__ = ()
+    ORIENTATION_FIELD_NUMBER: _ClassVar[int]
+    ANGLE_FIELD_NUMBER: _ClassVar[int]
+    orientation: DeviceOrientation
+    angle: int
+    def __init__(self, orientation: _Optional[_Union[DeviceOrientation, str]] = ..., angle: _Optional[int] = ...) -> None: ...
+
 class ActionMetadata(_message.Message):
     __slots__ = ()
     LABEL_FIELD_NUMBER: _ClassVar[int]
@@ -355,6 +677,17 @@ class ActionDefinition(_message.Message):
     FOCUS_FIELD_NUMBER: _ClassVar[int]
     BLUR_FIELD_NUMBER: _ClassVar[int]
     SUBFLOW_FIELD_NUMBER: _ClassVar[int]
+    EXTRACT_FIELD_NUMBER: _ClassVar[int]
+    UPLOAD_FILE_FIELD_NUMBER: _ClassVar[int]
+    DOWNLOAD_FIELD_NUMBER: _ClassVar[int]
+    FRAME_SWITCH_FIELD_NUMBER: _ClassVar[int]
+    TAB_SWITCH_FIELD_NUMBER: _ClassVar[int]
+    COOKIE_STORAGE_FIELD_NUMBER: _ClassVar[int]
+    SHORTCUT_FIELD_NUMBER: _ClassVar[int]
+    DRAG_DROP_FIELD_NUMBER: _ClassVar[int]
+    GESTURE_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_MOCK_FIELD_NUMBER: _ClassVar[int]
+    ROTATE_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     type: ActionType
     navigate: NavigateParams
@@ -370,5 +703,16 @@ class ActionDefinition(_message.Message):
     focus: FocusParams
     blur: BlurParams
     subflow: SubflowParams
+    extract: ExtractParams
+    upload_file: UploadFileParams
+    download: DownloadParams
+    frame_switch: FrameSwitchParams
+    tab_switch: TabSwitchParams
+    cookie_storage: CookieStorageParams
+    shortcut: ShortcutParams
+    drag_drop: DragDropParams
+    gesture: GestureParams
+    network_mock: NetworkMockParams
+    rotate: RotateParams
     metadata: ActionMetadata
-    def __init__(self, type: _Optional[_Union[ActionType, str]] = ..., navigate: _Optional[_Union[NavigateParams, _Mapping]] = ..., click: _Optional[_Union[ClickParams, _Mapping]] = ..., input: _Optional[_Union[InputParams, _Mapping]] = ..., wait: _Optional[_Union[WaitParams, _Mapping]] = ..., scroll: _Optional[_Union[ScrollParams, _Mapping]] = ..., select_option: _Optional[_Union[SelectParams, _Mapping]] = ..., evaluate: _Optional[_Union[EvaluateParams, _Mapping]] = ..., keyboard: _Optional[_Union[KeyboardParams, _Mapping]] = ..., hover: _Optional[_Union[HoverParams, _Mapping]] = ..., screenshot: _Optional[_Union[ScreenshotParams, _Mapping]] = ..., focus: _Optional[_Union[FocusParams, _Mapping]] = ..., blur: _Optional[_Union[BlurParams, _Mapping]] = ..., subflow: _Optional[_Union[SubflowParams, _Mapping]] = ..., metadata: _Optional[_Union[ActionMetadata, _Mapping]] = ..., **kwargs) -> None: ...
+    def __init__(self, type: _Optional[_Union[ActionType, str]] = ..., navigate: _Optional[_Union[NavigateParams, _Mapping]] = ..., click: _Optional[_Union[ClickParams, _Mapping]] = ..., input: _Optional[_Union[InputParams, _Mapping]] = ..., wait: _Optional[_Union[WaitParams, _Mapping]] = ..., scroll: _Optional[_Union[ScrollParams, _Mapping]] = ..., select_option: _Optional[_Union[SelectParams, _Mapping]] = ..., evaluate: _Optional[_Union[EvaluateParams, _Mapping]] = ..., keyboard: _Optional[_Union[KeyboardParams, _Mapping]] = ..., hover: _Optional[_Union[HoverParams, _Mapping]] = ..., screenshot: _Optional[_Union[ScreenshotParams, _Mapping]] = ..., focus: _Optional[_Union[FocusParams, _Mapping]] = ..., blur: _Optional[_Union[BlurParams, _Mapping]] = ..., subflow: _Optional[_Union[SubflowParams, _Mapping]] = ..., extract: _Optional[_Union[ExtractParams, _Mapping]] = ..., upload_file: _Optional[_Union[UploadFileParams, _Mapping]] = ..., download: _Optional[_Union[DownloadParams, _Mapping]] = ..., frame_switch: _Optional[_Union[FrameSwitchParams, _Mapping]] = ..., tab_switch: _Optional[_Union[TabSwitchParams, _Mapping]] = ..., cookie_storage: _Optional[_Union[CookieStorageParams, _Mapping]] = ..., shortcut: _Optional[_Union[ShortcutParams, _Mapping]] = ..., drag_drop: _Optional[_Union[DragDropParams, _Mapping]] = ..., gesture: _Optional[_Union[GestureParams, _Mapping]] = ..., network_mock: _Optional[_Union[NetworkMockParams, _Mapping]] = ..., rotate: _Optional[_Union[RotateParams, _Mapping]] = ..., metadata: _Optional[_Union[ActionMetadata, _Mapping]] = ..., **kwargs) -> None: ...

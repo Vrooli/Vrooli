@@ -2,6 +2,7 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.api import annotations_pb2 as _annotations_pb2
+from buf.validate import validate_pb2 as _validate_pb2
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from browser_automation_studio.v1.workflows import definition_pb2 as _definition_pb2

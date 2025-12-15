@@ -1,4 +1,4 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { DownloadHandler } from '../../../src/handlers/download';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -22,11 +22,9 @@ describe('DownloadHandler', () => {
   });
 
   it('should handle download', async () => {
-    const instruction = createTestInstruction({
-      type: 'download',
-      params: { selector: '#download-link' },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('download', {
+      selector: '#download-link',
+    }, { nodeId: 'node-1' });
 
     const mockDownload = {
       suggestedFilename: jest.fn().mockReturnValue('file.pdf'),

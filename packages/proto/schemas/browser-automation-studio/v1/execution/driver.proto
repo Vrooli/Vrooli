@@ -1,0 +1,516 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common/v1/types.proto";
+import "browser-automation-studio/v1/base/geometry.proto";
+import "browser-automation-studio/v1/domain/selectors.proto";
+import "browser-automation-studio/v1/timeline/entry.proto";
+import "browser-automation-studio/v1/actions/action.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution;execution";
+
+// =============================================================================
+// EXECUTION ENGINE <-> DRIVER CONTRACTS
+// =============================================================================
+//
+// @layer 4
+// @domain execution
+// @imports base, domain, timeline
+// @stability stable
+//
+// This file defines the wire format between the execution engine (Go) and
+// browser drivers (TypeScript/Playwright). These types are the SINGLE SOURCE
+// OF TRUTH for both sides of the contract.
+//
+// KEY TYPES:
+//   - CompiledInstruction: Sent TO the driver (what action to perform)
+//   - StepOutcome: Returned FROM the driver (result of executing the action)
+//   - ExecutionPlan: Batch of instructions for a complete workflow execution
+//   - StepFailure: Structured failure information with taxonomy
+//
+// DESIGN NOTES:
+//   - These types use google.protobuf.Timestamp for all time fields
+//   - Binary data (screenshots) use bytes which base64-encodes in JSON
+//   - The JSON wire format uses snake_case field names for Go compatibility
+//   - See execution.proto for API-facing execution types (Execution, ExecutionResult)
+//
+// =============================================================================
+
+// =============================================================================
+// FAILURE TAXONOMY
+// =============================================================================
+
+// FailureKind enumerates the failure taxonomy for step failures.
+// Used by executors to determine retry vs abort policies.
+//
+// @usage StepFailure.kind
+enum FailureKind {
+  // Default/unknown kind. Treat as FAILURE_KIND_ENGINE.
+  FAILURE_KIND_UNSPECIFIED = 0;
+
+  // Engine error: Browser/Playwright failure (element not found, timeout, etc.).
+  // Usually retryable with backoff.
+  FAILURE_KIND_ENGINE = 1;
+
+  // Infrastructure error: Network, resource, or system failure.
+  // May be retryable depending on the specific error.
+  FAILURE_KIND_INFRA = 2;
+
+  // Orchestration error: Workflow logic error (invalid params, missing step, etc.).
+  // Usually NOT retryable - requires workflow fix.
+  FAILURE_KIND_ORCHESTRATION = 3;
+
+  // User error: Invalid user input or configuration.
+  // NOT retryable - requires user correction.
+  FAILURE_KIND_USER = 4;
+
+  // Timeout: Step or operation exceeded time limit.
+  // May be retryable with longer timeout.
+  FAILURE_KIND_TIMEOUT = 5;
+
+  // Cancelled: User or system cancelled the execution.
+  // NOT retryable.
+  FAILURE_KIND_CANCELLED = 6;
+}
+
+// FailureSource indicates which component surfaced the failure.
+//
+// @usage StepFailure.source
+enum FailureSource {
+  // Default/unknown source.
+  FAILURE_SOURCE_UNSPECIFIED = 0;
+
+  // Failure originated in the browser engine/driver.
+  FAILURE_SOURCE_ENGINE = 1;
+
+  // Failure originated in the executor (orchestration layer).
+  FAILURE_SOURCE_EXECUTOR = 2;
+
+  // Failure originated in the recorder (recording mode).
+  FAILURE_SOURCE_RECORDER = 3;
+}
+
+// =============================================================================
+// STEP FAILURE
+// =============================================================================
+
+// StepFailure captures structured failure information for a step.
+// Used to determine retry policies and provide debugging context.
+//
+// @usage StepOutcome.failure
+message StepFailure {
+  // Failure category for policy decisions.
+  FailureKind kind = 1;
+  // Machine-readable error code (e.g., "ELEMENT_NOT_FOUND", "TIMEOUT").
+  optional string code = 2;
+  // Human-readable error description.
+  optional string message = 3;
+  // Whether the executor must abort the entire workflow.
+  bool fatal = 4;
+  // Whether the executor may retry based on retry policy.
+  bool retryable = 5;
+  // When the failure occurred.
+  optional google.protobuf.Timestamp occurred_at = 6;
+  // Additional structured context (non-vendor-specific).
+  map<string, common.v1.JsonValue> details = 7;
+  // Which component surfaced the failure.
+  FailureSource source = 8;
+}
+
+// =============================================================================
+// DRIVER TELEMETRY TYPES
+// =============================================================================
+
+// DriverScreenshot captures screenshot binary data from the driver.
+// Unlike TimelineScreenshot (which has URLs), this contains the actual bytes.
+//
+// @usage StepOutcome.screenshot
+message DriverScreenshot {
+  // Raw PNG/JPEG image bytes.
+  // JSON serialization: base64-encoded string.
+  bytes data = 1;
+  // MIME type (e.g., "image/png", "image/jpeg").
+  string media_type = 2;
+  // When the screenshot was captured.
+  optional google.protobuf.Timestamp capture_time = 3;
+  // Image dimensions in pixels.
+  int32 width = 4;
+  int32 height = 5;
+  // Content hash for deduplication.
+  optional string hash = 6;
+  // Whether this screenshot was reused from cache.
+  bool from_cache = 7;
+  // Whether the image was truncated due to size limits.
+  bool truncated = 8;
+  // Screenshot source context (e.g., "page", "replay", "recording").
+  optional string source = 9;
+}
+
+// DOMSnapshot captures HTML content and preview from the driver.
+//
+// @usage StepOutcome.dom_snapshot
+message DOMSnapshot {
+  // Full HTML content (may be truncated).
+  optional string html = 1;
+  // Short text preview for timeline display.
+  optional string preview = 2;
+  // Content hash for deduplication.
+  optional string hash = 3;
+  // When the snapshot was collected.
+  optional google.protobuf.Timestamp collected_at = 4;
+  // Whether HTML was truncated due to size limits.
+  bool truncated = 5;
+}
+
+// DriverConsoleLogEntry captures console output from the driver.
+// Uses string type field for backwards compatibility with existing wire format.
+//
+// @usage StepOutcome.console_logs
+message DriverConsoleLogEntry {
+  // Log level as string (log|warn|error|info|debug).
+  // NOTE: Using string instead of LogLevel enum for wire format compatibility.
+  string type = 1;
+  // Log message text.
+  string text = 2;
+  // When the log was emitted.
+  google.protobuf.Timestamp timestamp = 3;
+  // Stack trace if available.
+  optional string stack = 4;
+  // Source location (file:line:column).
+  optional string location = 5;
+}
+
+// DriverNetworkEvent captures network activity from the driver.
+// Uses string type field for backwards compatibility with existing wire format.
+//
+// @usage StepOutcome.network_events
+message DriverNetworkEvent {
+  // Event type as string (request|response|failure).
+  // NOTE: Using string instead of NetworkEventType enum for wire format compatibility.
+  string type = 1;
+  // Request URL.
+  string url = 2;
+  // HTTP method (GET, POST, etc.).
+  optional string method = 3;
+  // Resource type (document, script, xhr, fetch, etc.).
+  optional string resource_type = 4;
+  // HTTP status code (for response events).
+  optional int32 status = 5;
+  // Whether response was successful (2xx status).
+  optional bool ok = 6;
+  // Failure reason if failed.
+  optional string failure = 7;
+  // Event timestamp.
+  google.protobuf.Timestamp timestamp = 8;
+  // Request headers (canonicalized keys).
+  map<string, string> request_headers = 9;
+  // Response headers.
+  map<string, string> response_headers = 10;
+  // Truncated request body preview.
+  optional string request_body_preview = 11;
+  // Truncated response body preview.
+  optional string response_body_preview = 12;
+  // Whether previews were truncated.
+  bool truncated = 13;
+}
+
+// CursorPosition captures a point in the cursor trail.
+//
+// @usage StepOutcome.cursor_trail
+message CursorPosition {
+  // Cursor coordinates.
+  Point point = 1;
+  // When this position was recorded.
+  optional google.protobuf.Timestamp recorded_at = 2;
+  // Milliseconds since step start (for ordering).
+  optional int64 elapsed_ms = 3;
+}
+
+// ConditionOutcome captures the result of evaluating a branch condition.
+//
+// @usage StepOutcome.condition
+message ConditionOutcome {
+  // Condition type (e.g., "element_exists", "variable_equals").
+  optional string type = 1;
+  // Whether the condition evaluated to true.
+  bool outcome = 2;
+  // Whether the condition was negated.
+  bool negated = 3;
+  // Comparison operator used.
+  optional string operator = 4;
+  // Variable name if condition involves a variable.
+  optional string variable = 5;
+  // Selector if condition involves an element.
+  optional string selector = 6;
+  // JavaScript expression if applicable.
+  optional string expression = 7;
+  // Actual value observed.
+  optional common.v1.JsonValue actual = 8;
+  // Expected value for comparison.
+  optional common.v1.JsonValue expected = 9;
+}
+
+// AssertionOutcome captures the result of an assertion step.
+// NOTE: This extends the base AssertionResult with driver-specific fields.
+//
+// @usage StepOutcome.assertion
+message AssertionOutcome {
+  // Assertion mode (exists, visible, text_equals, etc.).
+  optional string mode = 1;
+  // Selector that was asserted on.
+  optional string selector = 2;
+  // Expected value.
+  optional common.v1.JsonValue expected = 3;
+  // Actual value observed.
+  optional common.v1.JsonValue actual = 4;
+  // Whether the assertion passed.
+  bool success = 5;
+  // Whether the assertion was negated.
+  bool negated = 6;
+  // Whether comparison was case-sensitive.
+  bool case_sensitive = 7;
+  // Custom assertion message.
+  optional string message = 8;
+}
+
+// =============================================================================
+// STEP OUTCOME (Driver Output)
+// =============================================================================
+
+// StepOutcome captures the complete result of executing a single instruction.
+// This is the primary output format from the driver back to the engine.
+//
+// IMPORTANT: This is the CANONICAL type for driver→engine communication.
+// Both Go and TypeScript implementations MUST use this exact schema.
+//
+// @usage Engine receives this from driver after each step execution
+message StepOutcome {
+  // === SCHEMA VERSION ===
+  // Schema version for compatibility checking.
+  string schema_version = 1;
+  // Payload version for semantic changes.
+  string payload_version = 2;
+
+  // === CORRELATION ===
+  // Execution ID this step belongs to.
+  // @format uuid
+  optional string execution_id = 3;
+  // Correlation ID for this specific step attempt.
+  optional string correlation_id = 4;
+
+  // === STEP IDENTITY ===
+  // Zero-based step index in execution order.
+  int32 step_index = 5;
+  // Retry attempt number (0 for initial, 1+ for retries).
+  int32 attempt = 6;
+  // Node ID from the workflow definition.
+  // @format uuid
+  string node_id = 7;
+  // Step type (navigate, click, input, etc.).
+  string step_type = 8;
+  // Human-readable instruction description.
+  optional string instruction = 9;
+
+  // === OUTCOME ===
+  // Whether the step completed successfully.
+  bool success = 10;
+  // When step execution started.
+  google.protobuf.Timestamp started_at = 11;
+  // When step execution completed (null if still running).
+  optional google.protobuf.Timestamp completed_at = 12;
+  // Duration in milliseconds.
+  optional int32 duration_ms = 13;
+
+  // === PAGE STATE ===
+  // Final URL after step execution (especially for navigation).
+  optional string final_url = 14;
+
+  // === TELEMETRY ===
+  // Screenshot captured after step.
+  optional DriverScreenshot screenshot = 15;
+  // DOM snapshot captured after step.
+  optional DOMSnapshot dom_snapshot = 16;
+  // Console logs captured during step.
+  repeated DriverConsoleLogEntry console_logs = 17;
+  // Network events captured during step.
+  repeated DriverNetworkEvent network_events = 18;
+
+  // === EXTRACTED DATA ===
+  // Data extracted by evaluate steps (variable name -> value).
+  map<string, common.v1.JsonValue> extracted_data = 19;
+  // Assertion result for assert steps.
+  optional AssertionOutcome assertion = 20;
+  // Condition result for branch conditions.
+  optional ConditionOutcome condition = 21;
+  // Probe result for probe nodes.
+  map<string, common.v1.JsonValue> probe_result = 22;
+
+  // === ELEMENT INTERACTION ===
+  // Bounding box of the target element.
+  optional BoundingBox element_bounding_box = 23;
+  // Actual click coordinates used.
+  optional Point click_position = 24;
+  // Focus metadata for screenshot framing.
+  optional ElementFocus focused_element = 25;
+  // Highlight regions applied to screenshot.
+  repeated HighlightRegion highlight_regions = 26;
+  // Mask regions applied to screenshot.
+  repeated MaskRegion mask_regions = 27;
+  // Zoom factor applied during capture.
+  optional double zoom_factor = 28;
+  // Cursor path for timeline playback.
+  repeated CursorPosition cursor_trail = 29;
+
+  // === METADATA ===
+  // Freeform annotations (e.g., dedupe hints).
+  map<string, string> notes = 30;
+
+  // === FAILURE ===
+  // Failure details when success=false.
+  optional StepFailure failure = 31;
+}
+
+// =============================================================================
+// COMPILED INSTRUCTION (Driver Input)
+// =============================================================================
+
+// CompiledInstruction is sent TO the driver to execute a single action.
+// This is the normalized format after workflow compilation.
+//
+// MIGRATION NOTE: This message is transitioning from untyped params to typed ActionDefinition.
+// During migration, both old (type/params) and new (action) fields may be populated.
+// Consumers should prefer the `action` field when present, falling back to type/params.
+// After migration completes, type/params will be reserved and action will be required.
+//
+// @usage Engine sends this to driver for execution
+message CompiledInstruction {
+  // Zero-based index in execution order.
+  int32 index = 1;
+  // Node ID from the workflow definition.
+  // @format uuid
+  string node_id = 2;
+
+  // DEPRECATED: Use action.type instead. Kept for backward compatibility.
+  // Will be removed in a future version.
+  string type = 3 [deprecated = true];
+  // DEPRECATED: Use action's typed params instead. Kept for backward compatibility.
+  // Will be removed in a future version.
+  map<string, common.v1.JsonValue> params = 4 [deprecated = true];
+
+  // Pre-loaded HTML for offline/test scenarios.
+  optional string preload_html = 5;
+  // Execution context (variables, state).
+  map<string, common.v1.JsonValue> context = 6;
+  // Engine-agnostic metadata (labels, hints).
+  map<string, string> metadata = 7;
+
+  // NEW: Typed action definition with full type safety.
+  // When set, this takes precedence over deprecated type/params fields.
+  // Enables protovalidate validation and eliminates need for runtime Zod schemas.
+  // @see action.proto for ActionDefinition and all *Params types
+  optional ActionDefinition action = 10;
+}
+
+// =============================================================================
+// EXECUTION PLAN
+// =============================================================================
+
+// PlanEdge represents a connection between steps in the execution graph.
+//
+// @usage PlanStep.outgoing
+message PlanEdge {
+  // Edge identifier.
+  string id = 1;
+  // Target node ID.
+  // @format uuid
+  string target = 2;
+  // Condition label for conditional edges.
+  optional string condition = 3;
+  // Source port name (for multi-output nodes).
+  optional string source_port = 4;
+  // Target port name (for multi-input nodes).
+  optional string target_port = 5;
+}
+
+// PlanStep represents a node in the execution graph with control flow edges.
+//
+// MIGRATION NOTE: Same transition as CompiledInstruction - prefer `action` over type/params.
+//
+// @usage PlanGraph.steps
+message PlanStep {
+  // Zero-based index in execution order.
+  int32 index = 1;
+  // Node ID from the workflow definition.
+  // @format uuid
+  string node_id = 2;
+
+  // DEPRECATED: Use action.type instead. Kept for backward compatibility.
+  string type = 3 [deprecated = true];
+  // DEPRECATED: Use action's typed params instead. Kept for backward compatibility.
+  map<string, common.v1.JsonValue> params = 4 [deprecated = true];
+
+  // Outgoing edges to other steps.
+  repeated PlanEdge outgoing = 5;
+  // Nested graph for loop nodes.
+  optional PlanGraph loop = 6;
+  // Engine-agnostic metadata.
+  map<string, string> metadata = 7;
+  // Execution context.
+  map<string, common.v1.JsonValue> context = 8;
+  // Pre-loaded HTML.
+  optional string preload_html = 9;
+  // Source position in original workflow (for debugging).
+  map<string, common.v1.JsonValue> source_position = 10;
+
+  // NEW: Typed action definition with full type safety.
+  // When set, this takes precedence over deprecated type/params fields.
+  optional ActionDefinition action = 11;
+}
+
+// PlanGraph captures the execution graph with control flow metadata.
+// Enables the executor to follow branching and looping logic.
+//
+// @usage ExecutionPlan.graph, PlanStep.loop
+message PlanGraph {
+  // Ordered list of steps in the graph.
+  repeated PlanStep steps = 1;
+}
+
+// ExecutionPlan represents a compiled workflow ready for execution.
+// Contains both flat instruction list and optional graph for control flow.
+//
+// @usage Sent to driver at execution start
+message ExecutionPlan {
+  // Schema version for compatibility checking.
+  string schema_version = 1;
+  // Payload version for semantic changes.
+  string payload_version = 2;
+  // Execution ID for this run.
+  // @format uuid
+  string execution_id = 3;
+  // Workflow ID being executed.
+  // @format uuid
+  string workflow_id = 4;
+  // Flat list of instructions (for simple sequential execution).
+  repeated CompiledInstruction instructions = 5;
+  // Graph with control flow (for branching/looping workflows).
+  optional PlanGraph graph = 6;
+  // Plan-level metadata.
+  map<string, common.v1.JsonValue> metadata = 7;
+  // When the plan was created.
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// =============================================================================
+// SCHEMA VERSION CONSTANTS
+// =============================================================================
+//
+// These are defined as string constants in the generated code.
+// Go: const StepOutcomeSchemaVersion = "automation-step-outcome-v1"
+// TypeScript: export const STEP_OUTCOME_SCHEMA_VERSION = "automation-step-outcome-v1"
+//
+// NOTE: Proto3 doesn't support string constants, so these are documented here
+// and must be defined in the consuming code. See contracts.go for Go constants.
+// =============================================================================

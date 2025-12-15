@@ -1,4 +1,4 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { AssertionHandler } from '../../../src/handlers/assertion';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -23,11 +23,7 @@ describe('AssertionHandler', () => {
 
   describe('assert - exists', () => {
     it('should pass when element exists', async () => {
-      const instruction = createTestInstruction({
-        type: 'assert',
-        params: { selector: '#element', mode: 'exists' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('assert', { selector: '#element', mode: 'exists' }, { nodeId: 'node-1' });
 
       const mockLocator = {
         count: jest.fn().mockResolvedValue(1),
@@ -42,11 +38,7 @@ describe('AssertionHandler', () => {
     });
 
     it('should fail when element does not exist', async () => {
-      const instruction = createTestInstruction({
-        type: 'assert',
-        params: { selector: '#missing', mode: 'exists' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('assert', { selector: '#missing', mode: 'exists' }, { nodeId: 'node-1' });
 
       // The assertion handler uses page.$() not page.locator()
       mockPage.$.mockResolvedValue(null);
@@ -63,11 +55,7 @@ describe('AssertionHandler', () => {
 
   describe('assert - visible', () => {
     it('should pass when element is visible', async () => {
-      const instruction = createTestInstruction({
-        type: 'assert',
-        params: { selector: '#element', mode: 'visible' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('assert', { selector: '#element', mode: 'visible' }, { nodeId: 'node-1' });
 
       // The assertion handler uses page.isVisible() not page.locator().isVisible()
       mockPage.isVisible = jest.fn().mockResolvedValue(true);
@@ -82,11 +70,7 @@ describe('AssertionHandler', () => {
 
   describe('assert - text', () => {
     it('should assert text equals', async () => {
-      const instruction = createTestInstruction({
-        type: 'assert',
-        params: { selector: '#element', mode: 'equals', expected: 'Hello' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('assert', { selector: '#element', mode: 'equals', expected: 'Hello' }, { nodeId: 'node-1' });
 
       // The assertion handler uses page.textContent() not page.locator().textContent()
       mockPage.textContent = jest.fn().mockResolvedValue('Hello');
@@ -99,11 +83,7 @@ describe('AssertionHandler', () => {
     });
 
     it('should assert text contains', async () => {
-      const instruction = createTestInstruction({
-        type: 'assert',
-        params: { selector: '#element', mode: 'contains', expected: 'World' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('assert', { selector: '#element', mode: 'contains', expected: 'World' }, { nodeId: 'node-1' });
 
       // The assertion handler uses page.textContent() not page.locator().textContent()
       mockPage.textContent = jest.fn().mockResolvedValue('Hello World');

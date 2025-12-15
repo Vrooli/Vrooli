@@ -7,7 +7,7 @@
  * Changes here affect ALL handlers and should be made with care.
  *
  * - HandlerContext: Stable - only additive changes
- * - HandlerResult: Stable - only additive changes
+ * - HandlerResult: Re-exported from outcome-builder (stable)
  * - InstructionHandler: Stable - contract for all handlers
  * - BaseHandler: Stable - shared utilities
  *
@@ -16,10 +16,25 @@
  */
 
 import type { Page, BrowserContext, Frame } from 'playwright';
-import type { CompiledInstruction, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../types';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
-import winston from 'winston';
+import type winston from 'winston';
+
+// Import types from proto and outcome-builder
+import type { HandlerInstruction } from '../proto';
+import type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../outcome/outcome-builder';
+
+// Re-export for handler use
+export type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent };
+
+// HandlerInstruction is the primary instruction type for handlers
+export type { HandlerInstruction };
+
+/**
+ * CompiledInstruction is an alias for HandlerInstruction.
+ * Handlers use this type for instruction parameters.
+ */
+export type CompiledInstruction = HandlerInstruction;
 
 /**
  * Handler execution context
@@ -46,35 +61,6 @@ export interface HandlerContext {
   domSnapshot?: DOMSnapshot;
   consoleLogs?: ConsoleLogEntry[];
   networkEvents?: NetworkEvent[];
-}
-
-/**
- * Handler result
- *
- * Result of handler execution with optional extracted data
- */
-export interface HandlerResult {
-  success: boolean;
-  extracted_data?: Record<string, unknown>;
-  focus?: {
-    selector?: string;
-    bounding_box?: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    };
-  };
-  screenshot?: Screenshot;
-  domSnapshot?: DOMSnapshot;
-  consoleLogs?: ConsoleLogEntry[];
-  networkEvents?: NetworkEvent[];
-  error?: {
-    message: string;
-    code?: string;
-    kind?: string;
-    retryable?: boolean;
-  };
 }
 
 /**
@@ -174,5 +160,39 @@ export abstract class BaseHandler implements InstructionHandler {
   ): Promise<string | null> {
     const element = await page.locator(selector).first();
     return element.getAttribute(attribute);
+  }
+
+  /**
+   * Require typed params from instruction.action.
+   * Throws an error if the instruction doesn't have a typed action - this indicates
+   * an execution path that hasn't been migrated to populate the Action field.
+   */
+  protected requireTypedParams<T>(
+    params: T | undefined,
+    handlerType: string,
+    nodeId: string
+  ): T {
+    if (!params) {
+      throw new Error(
+        `[${handlerType}] Missing typed action params for node ${nodeId}. ` +
+        `This indicates an unmigrated execution path - all instructions should have action populated.`
+      );
+    }
+    return params;
+  }
+
+  /**
+   * Create a missing required parameter error result.
+   */
+  protected missingParamError(handlerType: string, paramName: string): HandlerResult {
+    return {
+      success: false,
+      error: {
+        message: `${handlerType} instruction missing ${paramName} parameter`,
+        code: 'MISSING_PARAM',
+        kind: 'orchestration',
+        retryable: false,
+      },
+    };
   }
 }

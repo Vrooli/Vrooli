@@ -1,7 +1,8 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { NavigationHandler } from '../../../src/handlers/navigation';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
+import { FailureKind } from '../../../src/proto';
 
 describe('NavigationHandler', () => {
   let handler: NavigationHandler;
@@ -33,11 +34,7 @@ describe('NavigationHandler', () => {
 
   describe('execute', () => {
     it('should navigate to URL from params', async () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
@@ -52,11 +49,7 @@ describe('NavigationHandler', () => {
     });
 
     it('should return error when url not provided', async () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: {},
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', {}, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
@@ -65,11 +58,7 @@ describe('NavigationHandler', () => {
     });
 
     it('should use custom timeout when provided', async () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com', timeoutMs: 60000 },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com', timeoutMs: 60000 }, { nodeId: 'node-1' });
 
       await handler.execute(instruction, context);
 
@@ -83,11 +72,7 @@ describe('NavigationHandler', () => {
     });
 
     it('should use custom waitUntil when provided', async () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com', waitUntil: 'load' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com', waitUntil: 'load' }, { nodeId: 'node-1' });
 
       await handler.execute(instruction, context);
 
@@ -101,11 +86,7 @@ describe('NavigationHandler', () => {
     });
 
     it('should support domcontentloaded waitUntil', async () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com', waitUntil: 'domcontentloaded' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com', waitUntil: 'domcontentloaded' }, { nodeId: 'node-1' });
 
       await handler.execute(instruction, context);
 
@@ -121,11 +102,7 @@ describe('NavigationHandler', () => {
     it('should handle navigation errors', async () => {
       mockPage.goto.mockRejectedValue(new Error('Navigation failed'));
 
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
@@ -137,23 +114,20 @@ describe('NavigationHandler', () => {
     it('should handle timeout errors', async () => {
       mockPage.goto.mockRejectedValue(new Error('Timeout 30000ms exceeded'));
 
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
       expect(result.success).toBe(false);
-      expect(result.error?.kind).toBe('timeout');
+      expect(result.error?.kind).toBe(FailureKind.TIMEOUT);
     });
 
-    it('should validate params with Zod schema', async () => {
+    it('should return error for missing URL with legacy params', async () => {
+      // Test edge case with legacy createTestInstruction (no action field)
       const instruction = createTestInstruction({
         type: 'navigate',
-        params: { waitUntil: 'invalid-value' }, // Invalid waitUntil
-        node_id: 'node-1',
+        params: { waitUntil: 'load' }, // Missing URL
+        nodeId: 'node-1',
       });
 
       const result = await handler.execute(instruction, context);
@@ -163,11 +137,7 @@ describe('NavigationHandler', () => {
     });
 
     it('should use default timeout when not provided', async () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
 
       await handler.execute(instruction, context);
 
@@ -181,11 +151,7 @@ describe('NavigationHandler', () => {
     });
 
     it('should use default waitUntil when not provided', async () => {
-      const instruction = createTestInstruction({
-        type: 'navigate',
-        params: { url: 'https://example.com' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
 
       await handler.execute(instruction, context);
 

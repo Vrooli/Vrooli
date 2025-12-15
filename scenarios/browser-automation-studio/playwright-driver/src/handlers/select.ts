@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { SelectParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getSelectParams } from '../proto';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 
@@ -15,14 +15,15 @@ export class SelectHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
     try {
-      // Validate parameters
-      const params = SelectParamsSchema.parse(instruction.params);
+      // Get typed params from instruction.action (required after migration)
+      const typedParams = instruction.action ? getSelectParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'select', instruction.nodeId);
 
       if (!params.selector) {
         return {

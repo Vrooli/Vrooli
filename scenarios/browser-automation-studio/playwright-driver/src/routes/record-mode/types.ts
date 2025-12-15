@@ -5,7 +5,7 @@
  * These define the HTTP contract for the recording feature.
  */
 
-import type { RecordedAction } from '../../recording/types';
+import type { TimelineEntry } from '../../proto/recording';
 
 /**
  * POST /session/:id/record/start
@@ -73,7 +73,7 @@ export interface ValidateSelectorResponse {
  * POST /session/:id/record/replay-preview
  */
 export interface ReplayPreviewRequest {
-  actions: RecordedAction[];
+  entries: TimelineEntry[];
   limit?: number;
   stop_on_failure?: boolean;
   action_timeout?: number;
@@ -85,9 +85,9 @@ export interface ReplayPreviewResponse {
   passed_actions: number;
   failed_actions: number;
   results: Array<{
-    action_id: string;
+    entry_id: string;
     sequence_num: number;
-    action_type: string;
+    action_type: number; // ActionType enum
     success: boolean;
     duration_ms: number;
     error?: {

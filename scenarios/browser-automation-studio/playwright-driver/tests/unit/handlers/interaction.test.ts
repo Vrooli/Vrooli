@@ -1,4 +1,4 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { InteractionHandler } from '../../../src/handlers/interaction';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -33,11 +33,7 @@ describe('InteractionHandler', () => {
 
   describe('execute - click', () => {
     it('should click element by selector', async () => {
-      const instruction = createTestInstruction({
-        type: 'click',
-        params: { selector: '#button' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('click', { selector: '#button' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
@@ -45,29 +41,24 @@ describe('InteractionHandler', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should use custom timeout for click', async () => {
-      const instruction = createTestInstruction({
-        type: 'click',
-        params: { selector: '#button', timeoutMs: 10000 },
-        node_id: 'node-1',
-      });
+    it('should use config default timeout for click', async () => {
+      // Note: ClickParams in proto does NOT have timeoutMs field
+      // Click timeout is controlled by config.execution.defaultTimeoutMs (30000 in test config)
+      const instruction = createTypedInstruction('click', { selector: '#button' }, { nodeId: 'node-1' });
 
       await handler.execute(instruction, context);
 
+      // Uses config default timeout (30000ms from createTestConfig)
       expect(mockPage.click).toHaveBeenCalledWith(
         '#button',
-        expect.objectContaining({ timeout: 10000 })
+        expect.objectContaining({ timeout: 30000 })
       );
     });
 
     it('should handle click errors', async () => {
       mockPage.click.mockRejectedValue(new Error('Element not found'));
 
-      const instruction = createTestInstruction({
-        type: 'click',
-        params: { selector: '#missing' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('click', { selector: '#missing' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
@@ -78,11 +69,7 @@ describe('InteractionHandler', () => {
 
   describe('execute - hover', () => {
     it('should hover over element by selector', async () => {
-      const instruction = createTestInstruction({
-        type: 'hover',
-        params: { selector: '.item' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('hover', { selector: '.item' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
@@ -93,11 +80,7 @@ describe('InteractionHandler', () => {
 
   describe('execute - type', () => {
     it('should fill text into element', async () => {
-      const instruction = createTestInstruction({
-        type: 'type',
-        params: { selector: '#input', text: 'Hello World' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('type', { selector: '#input', text: 'Hello World' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 
@@ -106,11 +89,7 @@ describe('InteractionHandler', () => {
     });
 
     it('should fill with value param when text not provided', async () => {
-      const instruction = createTestInstruction({
-        type: 'type',
-        params: { selector: '#input', value: 'Test' },
-        node_id: 'node-1',
-      });
+      const instruction = createTypedInstruction('type', { selector: '#input', value: 'Test' }, { nodeId: 'node-1' });
 
       const result = await handler.execute(instruction, context);
 

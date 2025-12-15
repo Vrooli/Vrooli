@@ -60,13 +60,13 @@ export {
 } from './recording-interaction';
 
 // Cleanup utility
-import { removeRecordedActions } from '../../recording/buffer';
+import { removeRecordingBuffer } from '../../recording/buffer';
 import { clearFrameCache } from './recording-interaction';
 
 /**
- * Clean up action buffer and frame cache for a session
+ * Clean up recording buffer and frame cache for a session
  */
 export function cleanupSessionRecording(sessionId: string): void {
-  removeRecordedActions(sessionId);
+  removeRecordingBuffer(sessionId);
   clearFrameCache(sessionId);
 }

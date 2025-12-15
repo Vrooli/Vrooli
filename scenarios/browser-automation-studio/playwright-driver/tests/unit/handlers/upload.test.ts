@@ -1,4 +1,4 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { UploadHandler } from '../../../src/handlers/upload';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -28,11 +28,10 @@ describe('UploadHandler', () => {
   });
 
   it('should upload file', async () => {
-    const instruction = createTestInstruction({
-      type: 'uploadfile',
-      params: { selector: '#file-input', filePath: '/path/to/file.txt' },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('uploadfile', {
+      selector: '#file-input',
+      filePath: '/path/to/file.txt',
+    }, { nodeId: 'node-1' });
 
     const result = await handler.execute(instruction, context);
 
@@ -41,11 +40,10 @@ describe('UploadHandler', () => {
   });
 
   it('should upload multiple files', async () => {
-    const instruction = createTestInstruction({
-      type: 'uploadfile',
-      params: { selector: '#file-input', filePath: ['/file1.txt', '/file2.txt'] },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('uploadfile', {
+      selector: '#file-input',
+      filePaths: ['/file1.txt', '/file2.txt'],
+    }, { nodeId: 'node-1' });
 
     const result = await handler.execute(instruction, context);
 

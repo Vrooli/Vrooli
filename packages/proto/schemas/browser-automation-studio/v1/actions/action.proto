@@ -3,6 +3,7 @@ syntax = "proto3";
 package browser_automation_studio.v1;
 
 import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
 import "common/v1/types.proto";
 import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/base/geometry.proto";
@@ -122,6 +123,61 @@ enum ActionType {
   // Params: SubflowParams (workflow_id OR workflow_path, args)
   // Example: Call "login" workflow before continuing
   ACTION_TYPE_SUBFLOW = 14;
+
+  // Extract data from an element (text, attribute, property).
+  // Params: ExtractParams (selector, extract_type, attribute_name, store_as)
+  // Example: Extract the order confirmation number
+  ACTION_TYPE_EXTRACT = 15;
+
+  // Upload file(s) to a file input element.
+  // Params: UploadFileParams (selector, file_paths)
+  // Example: Upload "resume.pdf" to a form
+  ACTION_TYPE_UPLOAD_FILE = 16;
+
+  // Trigger and wait for a file download.
+  // Params: DownloadParams (selector, url, save_path)
+  // Example: Download the generated report
+  ACTION_TYPE_DOWNLOAD = 17;
+
+  // Switch between frames (iframes) in the page.
+  // Params: FrameSwitchParams (action, selector, frame_id, frame_url)
+  // Example: Enter an iframe to interact with embedded content
+  ACTION_TYPE_FRAME_SWITCH = 18;
+
+  // Switch between browser tabs/windows.
+  // Params: TabSwitchParams (action, url, index, title, url_pattern)
+  // Example: Switch to a newly opened tab
+  ACTION_TYPE_TAB_SWITCH = 19;
+
+  // Manage cookies and browser storage.
+  // Params: CookieStorageParams (operation, storage_type, key, value)
+  // Example: Set an authentication cookie
+  ACTION_TYPE_COOKIE_STORAGE = 20;
+
+  // Execute a keyboard shortcut (combination of keys).
+  // Params: ShortcutParams (shortcut, selector)
+  // Example: Press Ctrl+S to save
+  ACTION_TYPE_SHORTCUT = 21;
+
+  // Drag and drop an element to a target.
+  // Params: DragDropParams (source_selector, target_selector, offset)
+  // Example: Drag a card to a different column
+  ACTION_TYPE_DRAG_DROP = 22;
+
+  // Perform touch gestures (swipe, pinch, zoom).
+  // Params: GestureParams (type, selector, direction, distance, scale)
+  // Example: Swipe left to dismiss a notification
+  ACTION_TYPE_GESTURE = 23;
+
+  // Mock or intercept network requests.
+  // Params: NetworkMockParams (operation, url_pattern, response)
+  // Example: Mock an API response for testing
+  ACTION_TYPE_NETWORK_MOCK = 24;
+
+  // Rotate device orientation (for mobile emulation).
+  // Params: RotateParams (orientation, angle)
+  // Example: Rotate to landscape mode
+  ACTION_TYPE_ROTATE = 25;
 }
 
 // =============================================================================
@@ -286,6 +342,203 @@ enum KeyboardModifier {
   KEYBOARD_MODIFIER_META = 4;
 }
 
+// ExtractType enumerates what data to extract from an element.
+//
+// @usage ExtractParams.extract_type
+enum ExtractType {
+  // Default. Extracts inner text.
+  EXTRACT_TYPE_UNSPECIFIED = 0;
+
+  // Extract the element's text content (innerText).
+  EXTRACT_TYPE_TEXT = 1;
+
+  // Extract the element's inner HTML.
+  EXTRACT_TYPE_INNER_HTML = 2;
+
+  // Extract the element's outer HTML (including the element itself).
+  EXTRACT_TYPE_OUTER_HTML = 3;
+
+  // Extract a specific attribute value. Requires attribute_name.
+  EXTRACT_TYPE_ATTRIBUTE = 4;
+
+  // Extract a JavaScript property value. Requires property_name.
+  EXTRACT_TYPE_PROPERTY = 5;
+
+  // Extract the element's value (for inputs, textareas, selects).
+  EXTRACT_TYPE_VALUE = 6;
+}
+
+// FrameSwitchAction enumerates frame navigation actions.
+//
+// @usage FrameSwitchParams.action
+enum FrameSwitchAction {
+  // Default. No action.
+  FRAME_SWITCH_ACTION_UNSPECIFIED = 0;
+
+  // Enter a child frame. Requires selector, frame_id, or frame_url.
+  FRAME_SWITCH_ACTION_ENTER = 1;
+
+  // Exit to parent frame.
+  FRAME_SWITCH_ACTION_PARENT = 2;
+
+  // Exit to the main/top frame.
+  FRAME_SWITCH_ACTION_EXIT = 3;
+}
+
+// TabSwitchAction enumerates tab/window management actions.
+//
+// @usage TabSwitchParams.action
+enum TabSwitchAction {
+  // Default. No action.
+  TAB_SWITCH_ACTION_UNSPECIFIED = 0;
+
+  // Open a new tab. Optionally navigate to url.
+  TAB_SWITCH_ACTION_OPEN = 1;
+
+  // Switch to an existing tab by index, title, or url pattern.
+  TAB_SWITCH_ACTION_SWITCH = 2;
+
+  // Close the current tab or a specific tab by index.
+  TAB_SWITCH_ACTION_CLOSE = 3;
+
+  // List all open tabs (for debugging/introspection).
+  TAB_SWITCH_ACTION_LIST = 4;
+}
+
+// CookieOperation enumerates cookie/storage operations.
+//
+// @usage CookieStorageParams.operation
+enum CookieOperation {
+  // Default. No operation.
+  COOKIE_OPERATION_UNSPECIFIED = 0;
+
+  // Get a cookie or storage value.
+  COOKIE_OPERATION_GET = 1;
+
+  // Set a cookie or storage value.
+  COOKIE_OPERATION_SET = 2;
+
+  // Delete a specific cookie or storage key.
+  COOKIE_OPERATION_DELETE = 3;
+
+  // Clear all cookies or storage.
+  COOKIE_OPERATION_CLEAR = 4;
+}
+
+// StorageType enumerates browser storage types.
+//
+// @usage CookieStorageParams.storage_type
+enum StorageType {
+  // Default. Uses cookies.
+  STORAGE_TYPE_UNSPECIFIED = 0;
+
+  // Browser cookies.
+  STORAGE_TYPE_COOKIE = 1;
+
+  // localStorage (persistent).
+  STORAGE_TYPE_LOCAL_STORAGE = 2;
+
+  // sessionStorage (cleared on tab close).
+  STORAGE_TYPE_SESSION_STORAGE = 3;
+}
+
+// GestureType enumerates touch gesture types.
+//
+// @usage GestureParams.gesture_type
+enum GestureType {
+  // Default. No gesture.
+  GESTURE_TYPE_UNSPECIFIED = 0;
+
+  // Swipe gesture in a direction.
+  GESTURE_TYPE_SWIPE = 1;
+
+  // Pinch gesture (zoom out).
+  GESTURE_TYPE_PINCH = 2;
+
+  // Spread/zoom gesture (zoom in).
+  GESTURE_TYPE_ZOOM = 3;
+
+  // Long press gesture.
+  GESTURE_TYPE_LONG_PRESS = 4;
+
+  // Double tap gesture.
+  GESTURE_TYPE_DOUBLE_TAP = 5;
+}
+
+// SwipeDirection enumerates swipe gesture directions.
+//
+// @usage GestureParams.direction
+enum SwipeDirection {
+  // Default. No direction.
+  SWIPE_DIRECTION_UNSPECIFIED = 0;
+
+  // Swipe upward.
+  SWIPE_DIRECTION_UP = 1;
+
+  // Swipe downward.
+  SWIPE_DIRECTION_DOWN = 2;
+
+  // Swipe left.
+  SWIPE_DIRECTION_LEFT = 3;
+
+  // Swipe right.
+  SWIPE_DIRECTION_RIGHT = 4;
+}
+
+// NetworkMockOperation enumerates network interception operations.
+//
+// @usage NetworkMockParams.operation
+enum NetworkMockOperation {
+  // Default. No operation.
+  NETWORK_MOCK_OPERATION_UNSPECIFIED = 0;
+
+  // Mock a response for matching requests.
+  NETWORK_MOCK_OPERATION_MOCK = 1;
+
+  // Block matching requests entirely.
+  NETWORK_MOCK_OPERATION_BLOCK = 2;
+
+  // Modify the outgoing request before it's sent.
+  NETWORK_MOCK_OPERATION_MODIFY_REQUEST = 3;
+
+  // Modify the response before it's received.
+  NETWORK_MOCK_OPERATION_MODIFY_RESPONSE = 4;
+
+  // Clear all mocks/intercepts for matching pattern.
+  NETWORK_MOCK_OPERATION_CLEAR = 5;
+}
+
+// DeviceOrientation enumerates device orientations.
+//
+// @usage RotateParams.orientation
+enum DeviceOrientation {
+  // Default. Uses portrait.
+  DEVICE_ORIENTATION_UNSPECIFIED = 0;
+
+  // Portrait mode (taller than wide).
+  DEVICE_ORIENTATION_PORTRAIT = 1;
+
+  // Landscape mode (wider than tall).
+  DEVICE_ORIENTATION_LANDSCAPE = 2;
+}
+
+// CookieSameSite enumerates SameSite cookie attribute values.
+//
+// @usage CookieOptions.same_site
+enum CookieSameSite {
+  // Default. Browser default behavior.
+  COOKIE_SAME_SITE_UNSPECIFIED = 0;
+
+  // Strict same-site enforcement.
+  COOKIE_SAME_SITE_STRICT = 1;
+
+  // Lax same-site (allows top-level navigations).
+  COOKIE_SAME_SITE_LAX = 2;
+
+  // No same-site restrictions (requires Secure).
+  COOKIE_SAME_SITE_NONE = 3;
+}
+
 // =============================================================================
 // ACTION PARAMETERS
 // =============================================================================
@@ -293,11 +546,14 @@ enum KeyboardModifier {
 // NavigateParams configures page navigation.
 message NavigateParams {
   // Target URL to navigate to.
-  string url = 1;
+  // @constraint Required, minimum 1 character
+  string url = 1 [(buf.validate.field).string.min_len = 1];
   // CSS selector to wait for after navigation completes.
   optional string wait_for_selector = 2;
   // Timeout in milliseconds for navigation and wait (default: 30000).
-  optional int32 timeout_ms = 3;
+  // @constraint >= 0, <= 300000 (5 minutes max)
+  // @unit milliseconds
+  optional int32 timeout_ms = 3 [(buf.validate.field).int32 = {gte: 0, lte: 300000}];
   // Event to wait for before considering navigation complete.
   optional NavigateWaitEvent wait_until = 4;
   // Optional: interpret navigation target as a scenario+path instead of a raw URL.
@@ -313,13 +569,17 @@ message NavigateParams {
 // ClickParams configures pointer click interactions.
 message ClickParams {
   // CSS selector for target element.
-  string selector = 1;
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
   // Mouse button (defaults to left if unspecified).
   optional MouseButton button = 2;
   // Number of clicks (1=single, 2=double, 3=triple).
-  optional int32 click_count = 3;
+  // @constraint 1-3
+  optional int32 click_count = 3 [(buf.validate.field).int32 = {gte: 1, lte: 3}];
   // Delay between mousedown and mouseup in milliseconds.
-  optional int32 delay_ms = 4;
+  // @unit milliseconds
+  // @constraint >= 0
+  optional int32 delay_ms = 4 [(buf.validate.field).int32.gte = 0];
   // Keyboard modifiers held during click.
   repeated KeyboardModifier modifiers = 5;
   // Force click even if element is not visible/actionable.
@@ -331,7 +591,8 @@ message ClickParams {
 // InputParams configures text entry into form elements.
 message InputParams {
   // CSS selector for target input element.
-  string selector = 1;
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
   // Text value to type.
   string value = 2;
   // Mask value in logs/telemetry (for passwords, etc.).
@@ -341,7 +602,9 @@ message InputParams {
   // Clear existing text before typing.
   optional bool clear_first = 5;
   // Delay between keystrokes in milliseconds.
-  optional int32 delay_ms = 6;
+  // @unit milliseconds
+  // @constraint >= 0
+  optional int32 delay_ms = 6 [(buf.validate.field).int32.gte = 0];
 }
 
 // WaitParams configures wait conditions.
@@ -349,22 +612,29 @@ message WaitParams {
   // Wait condition: either duration or selector (one must be set).
   oneof wait_for {
     // Fixed duration to wait in milliseconds.
-    int32 duration_ms = 1;
+    // @unit milliseconds
+    // @constraint >= 0, <= 300000 (5 minutes max)
+    int32 duration_ms = 1 [(buf.validate.field).int32 = {gte: 0, lte: 300000}];
     // CSS selector to wait for.
-    string selector = 2;
+    // @constraint Minimum 1 character when provided
+    string selector = 2 [(buf.validate.field).string.min_len = 1];
   }
   // Element state to wait for when using selector.
   optional WaitState state = 3;
   // Timeout in milliseconds for selector waits (default: 30000).
-  optional int32 timeout_ms = 4;
+  // @unit milliseconds
+  // @constraint >= 0, <= 300000 (5 minutes max)
+  optional int32 timeout_ms = 4 [(buf.validate.field).int32 = {gte: 0, lte: 300000}];
 }
 
 // AssertParams configures element assertions.
 message AssertParams {
   // CSS selector for element to assert on.
-  string selector = 1;
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
   // Assertion mode to evaluate.
-  AssertionMode mode = 2;
+  // @constraint Required (not UNSPECIFIED)
+  AssertionMode mode = 2 [(buf.validate.field).enum.defined_only = true];
   // Expected value for comparison assertions.
   optional common.v1.JsonValue expected = 3;
   // Negate the assertion (expect opposite).
@@ -376,7 +646,9 @@ message AssertParams {
   // Custom failure message.
   optional string failure_message = 7;
   // Timeout in milliseconds (default: 5000).
-  optional int32 timeout_ms = 8;
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000 (1 minute max for assertions)
+  optional int32 timeout_ms = 8 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
 }
 
 // ScrollParams configures scroll actions.
@@ -398,7 +670,8 @@ message ScrollParams {
 // SelectParams configures dropdown/select element interaction.
 message SelectParams {
   // CSS selector for select element.
-  string selector = 1;
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
   // Selection method (one must be set).
   oneof select_by {
     // Select by option value attribute.
@@ -406,16 +679,20 @@ message SelectParams {
     // Select by visible text label.
     string label = 3;
     // Select by zero-based index.
-    int32 index = 4;
+    // @constraint >= 0
+    int32 index = 4 [(buf.validate.field).int32.gte = 0];
   }
   // Timeout in milliseconds (default: 5000).
-  optional int32 timeout_ms = 5;
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000
+  optional int32 timeout_ms = 5 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
 }
 
 // EvaluateParams configures JavaScript evaluation.
 message EvaluateParams {
   // JavaScript expression to evaluate.
-  string expression = 1;
+  // @constraint Required, minimum 1 character
+  string expression = 1 [(buf.validate.field).string.min_len = 1];
   // Variable name to store the result.
   optional string store_result = 2;
   // Arguments to pass to the expression.
@@ -437,9 +714,12 @@ message KeyboardParams {
 // HoverParams configures hover interactions.
 message HoverParams {
   // CSS selector for element to hover over.
-  string selector = 1;
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
   // Timeout in milliseconds (default: 5000).
-  optional int32 timeout_ms = 2;
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000
+  optional int32 timeout_ms = 2 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
 }
 
 // ScreenshotParams configures screenshot capture.
@@ -449,17 +729,21 @@ message ScreenshotParams {
   // CSS selector to screenshot specific element.
   optional string selector = 2;
   // JPEG quality (1-100) for lossy compression.
-  optional int32 quality = 3;
+  // @constraint 1-100
+  optional int32 quality = 3 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
 }
 
 // FocusParams configures focus interactions.
 message FocusParams {
   // CSS selector for element to focus.
-  string selector = 1;
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
   // Whether to scroll element into view.
   optional bool scroll = 2;
   // Timeout in milliseconds (default: 5000).
-  optional int32 timeout_ms = 3;
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000
+  optional int32 timeout_ms = 3 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
 }
 
 // BlurParams configures blur (unfocus) interactions.
@@ -467,7 +751,9 @@ message BlurParams {
   // CSS selector for element to blur (blurs active element if not specified).
   optional string selector = 1;
   // Timeout in milliseconds (default: 5000).
-  optional int32 timeout_ms = 2;
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000
+  optional int32 timeout_ms = 2 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
 }
 
 // SubflowParams configures nested workflow execution.
@@ -491,6 +777,210 @@ message SubflowParams {
   optional int32 workflow_version = 3;
   // Arguments exposed to the subflow as the "fixture" namespace (e.g. ${fixture.foo}).
   map<string, common.v1.JsonValue> args = 10;
+}
+
+// ExtractParams configures data extraction from elements.
+message ExtractParams {
+  // CSS selector for element to extract from.
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
+  // What type of data to extract.
+  optional ExtractType extract_type = 2;
+  // Attribute name when extract_type is ATTRIBUTE.
+  optional string attribute_name = 3;
+  // JavaScript property name when extract_type is PROPERTY.
+  optional string property_name = 4;
+  // Variable name to store the extracted value.
+  optional string store_as = 5;
+  // Timeout in milliseconds (default: 5000).
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000
+  optional int32 timeout_ms = 6 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
+}
+
+// UploadFileParams configures file upload to input elements.
+message UploadFileParams {
+  // CSS selector for file input element.
+  // @constraint Required, minimum 1 character
+  string selector = 1 [(buf.validate.field).string.min_len = 1];
+  // File path(s) to upload. Can be single file or multiple.
+  // @constraint At least one file path required
+  repeated string file_paths = 2 [(buf.validate.field).repeated.min_items = 1];
+  // Timeout in milliseconds (default: 30000).
+  // @unit milliseconds
+  // @constraint >= 0, <= 300000 (5 minutes for large uploads)
+  optional int32 timeout_ms = 3 [(buf.validate.field).int32 = {gte: 0, lte: 300000}];
+}
+
+// DownloadParams configures file download triggering.
+message DownloadParams {
+  // CSS selector for element that triggers download (optional).
+  optional string selector = 1;
+  // Direct URL to download (alternative to clicking selector).
+  optional string url = 2;
+  // Path to save the downloaded file (optional, uses temp dir if not set).
+  optional string save_path = 3;
+  // Timeout in milliseconds (default: 60000).
+  // @unit milliseconds
+  // @constraint >= 0, <= 600000 (10 minutes for large downloads)
+  optional int32 timeout_ms = 4 [(buf.validate.field).int32 = {gte: 0, lte: 600000}];
+}
+
+// FrameSwitchParams configures frame navigation.
+message FrameSwitchParams {
+  // Frame switch action to perform.
+  // @constraint Required (not UNSPECIFIED)
+  FrameSwitchAction action = 1 [(buf.validate.field).enum.defined_only = true];
+  // CSS selector for iframe element (for ENTER action).
+  optional string selector = 2;
+  // Frame ID to switch to (alternative to selector).
+  optional string frame_id = 3;
+  // Frame URL to match (alternative to selector).
+  optional string frame_url = 4;
+  // Timeout in milliseconds (default: 5000).
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000
+  optional int32 timeout_ms = 5 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
+}
+
+// TabSwitchParams configures tab/window management.
+message TabSwitchParams {
+  // Tab switch action to perform.
+  // @constraint Required (not UNSPECIFIED)
+  TabSwitchAction action = 1 [(buf.validate.field).enum.defined_only = true];
+  // URL to navigate to when opening a new tab.
+  optional string url = 2;
+  // Tab index to switch to or close (0-based).
+  // @constraint >= 0
+  optional int32 index = 3 [(buf.validate.field).int32.gte = 0];
+  // Tab title to match (for SWITCH action).
+  optional string title = 4;
+  // URL pattern to match (regex, for SWITCH action).
+  optional string url_pattern = 5;
+}
+
+// CookieOptions configures cookie attributes for set operations.
+message CookieOptions {
+  // Cookie domain.
+  optional string domain = 1;
+  // Cookie path.
+  optional string path = 2;
+  // Expiration time (Unix timestamp in seconds).
+  optional int64 expires = 3;
+  // HTTP-only flag (not accessible via JavaScript).
+  optional bool http_only = 4;
+  // Secure flag (HTTPS only).
+  optional bool secure = 5;
+  // SameSite attribute.
+  optional CookieSameSite same_site = 6;
+}
+
+// CookieStorageParams configures cookie and storage operations.
+message CookieStorageParams {
+  // Operation to perform.
+  // @constraint Required (not UNSPECIFIED)
+  CookieOperation operation = 1 [(buf.validate.field).enum.defined_only = true];
+  // Storage type to operate on.
+  // @constraint Required (not UNSPECIFIED)
+  StorageType storage_type = 2 [(buf.validate.field).enum.defined_only = true];
+  // Key/name for the cookie or storage item.
+  optional string key = 3;
+  // Value to set (for SET operation).
+  optional string value = 4;
+  // Cookie-specific options (for cookie SET operation).
+  optional CookieOptions cookie_options = 5;
+}
+
+// ShortcutParams configures keyboard shortcut execution.
+message ShortcutParams {
+  // Shortcut string (e.g., "Ctrl+S", "Cmd+Shift+P").
+  // Format: Modifier+Key or Key. Modifiers: Ctrl, Shift, Alt, Meta/Cmd.
+  // @constraint Required, minimum 1 character
+  string shortcut = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional selector to focus before executing shortcut.
+  optional string selector = 2;
+}
+
+// DragDropParams configures drag and drop operations.
+message DragDropParams {
+  // CSS selector for the element to drag.
+  // @constraint Required, minimum 1 character
+  string source_selector = 1 [(buf.validate.field).string.min_len = 1];
+  // CSS selector for the drop target (optional if using offsets).
+  optional string target_selector = 2;
+  // Horizontal offset from source center (when not using target_selector).
+  optional int32 offset_x = 3;
+  // Vertical offset from source center (when not using target_selector).
+  optional int32 offset_y = 4;
+  // Number of intermediate steps for the drag motion.
+  // @constraint >= 1
+  optional int32 steps = 5 [(buf.validate.field).int32.gte = 1];
+  // Delay between steps in milliseconds.
+  // @unit milliseconds
+  // @constraint >= 0
+  optional int32 delay_ms = 6 [(buf.validate.field).int32.gte = 0];
+  // Timeout in milliseconds (default: 5000).
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000
+  optional int32 timeout_ms = 7 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
+}
+
+// GestureParams configures touch gesture actions.
+message GestureParams {
+  // Type of gesture to perform.
+  // @constraint Required (not UNSPECIFIED)
+  GestureType gesture_type = 1 [(buf.validate.field).enum.defined_only = true];
+  // CSS selector for target element (optional, uses viewport center if not set).
+  optional string selector = 2;
+  // Direction for swipe gestures.
+  optional SwipeDirection direction = 3;
+  // Distance in pixels for swipe gestures.
+  // @constraint >= 0
+  optional int32 distance = 4 [(buf.validate.field).int32.gte = 0];
+  // Scale factor for pinch/zoom gestures (e.g., 0.5 for pinch, 2.0 for zoom).
+  // @constraint > 0
+  optional double scale = 5 [(buf.validate.field).double.gt = 0];
+  // Duration of the gesture in milliseconds.
+  // @unit milliseconds
+  // @constraint >= 0
+  optional int32 duration_ms = 6 [(buf.validate.field).int32.gte = 0];
+}
+
+// NetworkMockParams configures network request interception.
+//
+// SECURITY NOTE: delay_ms is capped at 60000ms (60 seconds) to prevent
+// abuse and indefinite waits.
+message NetworkMockParams {
+  // Operation to perform.
+  // @constraint Required (not UNSPECIFIED)
+  NetworkMockOperation operation = 1 [(buf.validate.field).enum.defined_only = true];
+  // URL pattern to match (glob or regex).
+  // @constraint Required, minimum 1 character
+  string url_pattern = 2 [(buf.validate.field).string.min_len = 1];
+  // HTTP method to match (optional, matches all if not set).
+  optional string method = 3;
+  // Response status code (for MOCK operation).
+  // @constraint 100-599 (valid HTTP status codes)
+  optional int32 status_code = 4 [(buf.validate.field).int32 = {gte: 100, lte: 599}];
+  // Response headers (for MOCK operation).
+  map<string, string> headers = 5;
+  // Response body (for MOCK operation). Can be string or JSON.
+  optional string body = 6;
+  // Delay before responding in milliseconds (max: 60000).
+  // @unit milliseconds
+  // @constraint >= 0, <= 60000 (1 minute max to prevent abuse)
+  optional int32 delay_ms = 7 [(buf.validate.field).int32 = {gte: 0, lte: 60000}];
+}
+
+// RotateParams configures device orientation changes.
+message RotateParams {
+  // Target orientation.
+  // @constraint Required (not UNSPECIFIED)
+  DeviceOrientation orientation = 1 [(buf.validate.field).enum.defined_only = true];
+  // Rotation angle in degrees (0, 90, 180, 270).
+  // Only used when fine-grained control is needed.
+  // @constraint One of: 0, 90, 180, 270
+  optional int32 angle = 2 [(buf.validate.field).int32 = {in: [0, 90, 180, 270]}];
 }
 
 // =============================================================================
@@ -565,22 +1055,33 @@ message ActionDefinition {
   // Type-specific parameters. Exactly one MUST be set, matching the `type` field.
   // The mapping is: ACTION_TYPE_X requires the corresponding `x` params field.
   oneof params {
-    NavigateParams navigate = 10;    // Required when type = ACTION_TYPE_NAVIGATE
-    ClickParams click = 11;          // Required when type = ACTION_TYPE_CLICK
-    InputParams input = 12;          // Required when type = ACTION_TYPE_INPUT
-    WaitParams wait = 13;            // Required when type = ACTION_TYPE_WAIT
-    AssertParams assert = 14;        // Required when type = ACTION_TYPE_ASSERT
-    ScrollParams scroll = 15;        // Required when type = ACTION_TYPE_SCROLL
-    SelectParams select_option = 16; // Required when type = ACTION_TYPE_SELECT
-    EvaluateParams evaluate = 17;    // Required when type = ACTION_TYPE_EVALUATE
-    KeyboardParams keyboard = 18;    // Required when type = ACTION_TYPE_KEYBOARD
-    HoverParams hover = 19;          // Required when type = ACTION_TYPE_HOVER
-    ScreenshotParams screenshot = 20;// Required when type = ACTION_TYPE_SCREENSHOT
-    FocusParams focus = 21;          // Required when type = ACTION_TYPE_FOCUS
-    BlurParams blur = 22;            // Required when type = ACTION_TYPE_BLUR
-    SubflowParams subflow = 23;      // Required when type = ACTION_TYPE_SUBFLOW
+    NavigateParams navigate = 10;        // Required when type = ACTION_TYPE_NAVIGATE
+    ClickParams click = 11;              // Required when type = ACTION_TYPE_CLICK
+    InputParams input = 12;              // Required when type = ACTION_TYPE_INPUT
+    WaitParams wait = 13;                // Required when type = ACTION_TYPE_WAIT
+    AssertParams assert = 14;            // Required when type = ACTION_TYPE_ASSERT
+    ScrollParams scroll = 15;            // Required when type = ACTION_TYPE_SCROLL
+    SelectParams select_option = 16;     // Required when type = ACTION_TYPE_SELECT
+    EvaluateParams evaluate = 17;        // Required when type = ACTION_TYPE_EVALUATE
+    KeyboardParams keyboard = 18;        // Required when type = ACTION_TYPE_KEYBOARD
+    HoverParams hover = 19;              // Required when type = ACTION_TYPE_HOVER
+    ScreenshotParams screenshot = 20;    // Required when type = ACTION_TYPE_SCREENSHOT
+    FocusParams focus = 21;              // Required when type = ACTION_TYPE_FOCUS
+    BlurParams blur = 22;                // Required when type = ACTION_TYPE_BLUR
+    SubflowParams subflow = 23;          // Required when type = ACTION_TYPE_SUBFLOW
+    ExtractParams extract = 24;          // Required when type = ACTION_TYPE_EXTRACT
+    UploadFileParams upload_file = 25;   // Required when type = ACTION_TYPE_UPLOAD_FILE
+    DownloadParams download = 26;        // Required when type = ACTION_TYPE_DOWNLOAD
+    FrameSwitchParams frame_switch = 27; // Required when type = ACTION_TYPE_FRAME_SWITCH
+    TabSwitchParams tab_switch = 28;     // Required when type = ACTION_TYPE_TAB_SWITCH
+    CookieStorageParams cookie_storage = 29; // Required when type = ACTION_TYPE_COOKIE_STORAGE
+    ShortcutParams shortcut = 30;        // Required when type = ACTION_TYPE_SHORTCUT
+    DragDropParams drag_drop = 31;       // Required when type = ACTION_TYPE_DRAG_DROP
+    GestureParams gesture = 32;          // Required when type = ACTION_TYPE_GESTURE
+    NetworkMockParams network_mock = 33; // Required when type = ACTION_TYPE_NETWORK_MOCK
+    RotateParams rotate = 34;            // Required when type = ACTION_TYPE_ROTATE
   }
 
   // Optional rich metadata - preserved from recording, useful for debugging/fallbacks.
-  ActionMetadata metadata = 30;
+  ActionMetadata metadata = 50;
 }

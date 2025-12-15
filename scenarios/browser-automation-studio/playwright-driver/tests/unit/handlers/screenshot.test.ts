@@ -1,4 +1,4 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { ScreenshotHandler } from '../../../src/handlers/screenshot';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -22,11 +22,7 @@ describe('ScreenshotHandler', () => {
   });
 
   it('should capture screenshot', async () => {
-    const instruction = createTestInstruction({
-      type: 'screenshot',
-      params: {},
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('screenshot', {}, { nodeId: 'node-1' });
 
     const result = await handler.execute(instruction, context);
 
@@ -35,11 +31,7 @@ describe('ScreenshotHandler', () => {
   });
 
   it('should capture full page screenshot with quality option', async () => {
-    const instruction = createTestInstruction({
-      type: 'screenshot',
-      params: { quality: 80, fullPage: true },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('screenshot', { quality: 80, fullPage: true }, { nodeId: 'node-1' });
 
     const result = await handler.execute(instruction, context);
 

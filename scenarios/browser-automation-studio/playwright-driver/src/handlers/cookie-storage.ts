@@ -1,7 +1,24 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { CookieStorageParamsSchema, type CookieStorageParams } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getCookieStorageParams } from '../proto';
 import { normalizeError } from '../utils';
+
+/** Internal params type returned by getCookieStorageParams */
+interface CookieStorageParams {
+  operation: string;
+  storageType: string;
+  key?: string;
+  name?: string;
+  value?: string;
+  cookieOptions?: {
+    domain?: string;
+    path?: string;
+    expires?: number;
+    httpOnly?: boolean;
+    secure?: boolean;
+    sameSite?: string;
+  };
+}
 
 /**
  * Cookie and Storage handler
@@ -15,13 +32,15 @@ export class CookieStorageHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { logger } = context;
 
     try {
-      const params = CookieStorageParamsSchema.parse(instruction.params);
+      // Get typed params from instruction.action (required after migration)
+      const typedParams = instruction.action ? getCookieStorageParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'cookie-storage', instruction.nodeId);
 
       const operation = params.operation;
       const storageType = params.storageType;
@@ -94,7 +113,7 @@ export class CookieStorageHandler extends BaseHandler {
             expires: params.cookieOptions?.expires,
             httpOnly: params.cookieOptions?.httpOnly,
             secure: params.cookieOptions?.secure,
-            sameSite: params.cookieOptions?.sameSite,
+            sameSite: params.cookieOptions?.sameSite as 'Strict' | 'Lax' | 'None' | undefined,
           },
         ]);
 

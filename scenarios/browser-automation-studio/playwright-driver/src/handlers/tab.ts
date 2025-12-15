@@ -1,9 +1,18 @@
 import { Page } from 'playwright';
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { TabSwitchParamsSchema, type TabSwitchParams } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getTabSwitchParams } from '../proto';
 import { normalizeError } from '../utils/errors';
 import { logger, scopedLog, LogContext } from '../utils';
+
+/** Internal params type returned by getTabSwitchParams */
+interface TabSwitchParams {
+  action: string;
+  url?: string;
+  index?: number;
+  title?: string;
+  urlPattern?: string;
+}
 
 /**
  * Track pending tab operations to prevent duplicate concurrent operations.
@@ -59,13 +68,15 @@ export class TabHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { logger } = context;
 
     try {
-      const validated = TabSwitchParamsSchema.parse(instruction.params);
+      // Get typed params from instruction.action (required after migration)
+      const typedParams = instruction.action ? getTabSwitchParams(instruction.action) : undefined;
+      const validated = this.requireTypedParams(typedParams, 'tab-switch', instruction.nodeId);
 
       logger.debug('Executing tab operation', {
         action: validated.action,

@@ -1,8 +1,19 @@
 import { BaseHandler, HandlerContext, HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { NetworkMockParamsSchema, type NetworkMockParams } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getNetworkMockParams } from '../proto';
 import { normalizeError } from '../utils/errors';
-import { validateParams, logger, scopedLog, LogContext } from '../utils';
+import { logger, scopedLog, LogContext } from '../utils';
+
+/** Internal params type returned by getNetworkMockParams */
+interface NetworkMockParams {
+  operation: string;
+  urlPattern: string;
+  method?: string;
+  statusCode?: number;
+  headers?: Record<string, string>;
+  body?: string;
+  delayMs?: number;
+}
 
 /**
  * Track registered routes per session to enable idempotency.
@@ -81,13 +92,13 @@ export class NetworkHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     try {
-      // Hardened: Validate params object exists
-      const rawParams = validateParams(instruction.params, 'network-mock');
-      const validated = NetworkMockParamsSchema.parse(rawParams);
+      // Get typed params from instruction.action (required after migration)
+      const typedParams = instruction.action ? getNetworkMockParams(instruction.action) : undefined;
+      const validated = this.requireTypedParams(typedParams, 'network-mock', instruction.nodeId);
 
       logger.debug('Executing network operation', {
         operation: validated.operation,

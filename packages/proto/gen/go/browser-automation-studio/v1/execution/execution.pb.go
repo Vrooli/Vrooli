@@ -7,6 +7,7 @@
 package execution
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	workflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -1262,7 +1263,7 @@ var File_browser_automation_studio_v1_execution_execution_proto protoreflect.Fil
 
 const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
-	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\"\x81\t\n" +
+	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\"\x81\t\n" +
 	"\x13ExecutionParameters\x12 \n" +
 	"\tstart_url\x18\x01 \x01(\tH\x00R\bstartUrl\x88\x01\x01\x12^\n" +
 	"\tvariables\x18\x02 \x03(\v2@.browser_automation_studio.v1.ExecutionParameters.VariablesEntryR\tvariables\x12*\n" +
@@ -1319,14 +1320,14 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
 	"_final_urlB\b\n" +
 	"\x06_errorB\r\n" +
-	"\v_error_code\"\x84\x03\n" +
-	"\x0fTriggerMetadata\x12\x1c\n" +
-	"\auser_id\x18\x01 \x01(\tH\x00R\x06userId\x88\x01\x01\x12 \n" +
-	"\tclient_id\x18\x02 \x01(\tH\x01R\bclientId\x88\x01\x01\x12$\n" +
-	"\vschedule_id\x18\x03 \x01(\tH\x02R\n" +
-	"scheduleId\x88\x01\x01\x12\"\n" +
+	"\v_error_code\"\xac\x03\n" +
+	"\x0fTriggerMetadata\x12&\n" +
+	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x06userId\x88\x01\x01\x12*\n" +
+	"\tclient_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\bclientId\x88\x01\x01\x12.\n" +
+	"\vschedule_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x02R\n" +
+	"scheduleId\x88\x01\x01\x12,\n" +
 	"\n" +
-	"webhook_id\x18\x04 \x01(\tH\x03R\twebhookId\x88\x01\x01\x123\n" +
+	"webhook_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x03R\twebhookId\x88\x01\x01\x123\n" +
 	"\x13external_request_id\x18\x05 \x01(\tH\x04R\x11externalRequestId\x88\x01\x01\x12 \n" +
 	"\tsource_ip\x18\x06 \x01(\tH\x05R\bsourceIp\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -1384,11 +1385,11 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"parametersJ\x04\b\x02\x10\x03J\x04\b\x05\x10\x06\"I\n" +
 	"\x11ExecutionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xca\x02\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xd4\x02\n" +
 	"\x14ExecuteAdhocResponse\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12E\n" +
-	"\x06status\x18\x02 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12$\n" +
-	"\vworkflow_id\x18\x03 \x01(\tH\x00R\n" +
+	"\x06status\x18\x02 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusR\x06status\x12.\n" +
+	"\vworkflow_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\n" +
 	"workflowId\x88\x01\x01\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12B\n" +
 	"\fcompleted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcompletedAt\x88\x01\x01\x12\x19\n" +

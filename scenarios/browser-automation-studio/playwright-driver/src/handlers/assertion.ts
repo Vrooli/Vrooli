@@ -1,7 +1,7 @@
 import type { Page } from 'playwright';
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction, AssertionOutcome } from '../types';
-import { AssertParamsSchema } from '../types/instruction';
+import type { HandlerInstruction, AssertionOutcome } from '../types';
+import { getAssertParams } from '../proto';
 import { DEFAULT_ASSERTION_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 
@@ -16,16 +16,24 @@ export class AssertionHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
     try {
-      // Validate parameters
-      const params = AssertParamsSchema.parse(instruction.params);
+      // Extract typed params from action
+      const typedParams = instruction.action ? getAssertParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'assert', instruction.nodeId);
 
-      if (!params.selector) {
+      // Extract values from typed params
+      const selector = params.selector;
+      const timeoutMs = params.timeoutMs;
+      const mode = params.mode || 'contains';
+      const attributeName = params.attributeName;
+      const expectedValue = params.expected ?? '';
+
+      if (!selector) {
         return {
           success: false,
           error: {
@@ -38,48 +46,44 @@ export class AssertionHandler extends BaseHandler {
       }
 
       // Prefer config timeout, fallback to param, then constant default
-      const timeout = params.timeoutMs || context.config.execution.assertionTimeoutMs || DEFAULT_ASSERTION_TIMEOUT_MS;
+      const timeout = timeoutMs || context.config.execution.assertionTimeoutMs || DEFAULT_ASSERTION_TIMEOUT_MS;
 
-      // Determine assertion mode
-      const mode = (
-        params.mode ||
-        params.kind ||
-        (params.contains === false ? 'equals' : 'contains')
-      ).toLowerCase();
+      // Determine assertion mode - already set above
+      const normalizedMode = mode.toLowerCase();
 
       logger.debug('Running assertion', {
-        selector: params.selector,
-        mode,
+        selector,
+        mode: normalizedMode,
         timeout,
       });
 
       let assertion: AssertionOutcome;
 
-      switch (mode) {
+      switch (normalizedMode) {
         case 'exists':
-          assertion = await this.assertExists(page, params.selector, timeout);
+          assertion = await this.assertExists(page, selector, timeout);
           break;
 
         case 'notexists':
         case 'not_exists':
         case 'absent':
-          assertion = await this.assertNotExists(page, params.selector, timeout, logger);
+          assertion = await this.assertNotExists(page, selector, timeout, logger);
           break;
 
         case 'visible':
-          assertion = await this.assertVisible(page, params.selector, timeout);
+          assertion = await this.assertVisible(page, selector, timeout);
           break;
 
         case 'hidden':
         case 'notvisible':
         case 'not_visible':
-          assertion = await this.assertHidden(page, params.selector, timeout);
+          assertion = await this.assertHidden(page, selector, timeout);
           break;
 
         case 'attribute':
         case 'attribute_equals':
         case 'attribute_contains':
-          if (!params.attribute && !params.attr && !params.attributeName) {
+          if (!attributeName) {
             return {
               success: false,
               error: {
@@ -91,12 +95,12 @@ export class AssertionHandler extends BaseHandler {
             };
           }
           // Normalize attribute mode for assertAttribute method
-          const attrMode = mode.replace('attribute_', '');
+          const attrMode = normalizedMode.replace('attribute_', '');
           assertion = await this.assertAttribute(
             page,
-            params.selector,
-            params.attribute || params.attr || params.attributeName!,
-            String(params.expected ?? params.expectedValue ?? params.value ?? ''),
+            selector,
+            String(attributeName),
+            String(expectedValue),
             timeout,
             attrMode
           );
@@ -106,9 +110,9 @@ export class AssertionHandler extends BaseHandler {
         case 'equals':
           assertion = await this.assertText(
             page,
-            params.selector,
+            selector,
             'equals',
-            String(params.expected ?? params.expectedValue ?? params.text ?? ''),
+            String(expectedValue),
             timeout
           );
           break;
@@ -117,9 +121,9 @@ export class AssertionHandler extends BaseHandler {
         case 'contains':
           assertion = await this.assertText(
             page,
-            params.selector,
+            selector,
             'contains',
-            String(params.expected ?? params.expectedValue ?? params.text ?? ''),
+            String(expectedValue),
             timeout
           );
           break;
@@ -128,17 +132,17 @@ export class AssertionHandler extends BaseHandler {
         default:
           assertion = await this.assertText(
             page,
-            params.selector,
-            mode,
-            String(params.expected ?? params.expectedValue ?? params.text ?? ''),
+            selector,
+            normalizedMode,
+            String(expectedValue),
             timeout
           );
           break;
       }
 
       logger.info('Assertion complete', {
-        selector: params.selector,
-        mode,
+        selector,
+        mode: normalizedMode,
         success: assertion.success,
       });
 

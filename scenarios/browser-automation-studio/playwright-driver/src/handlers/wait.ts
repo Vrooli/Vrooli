@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { WaitParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getWaitParams } from '../proto';
 import { DEFAULT_WAIT_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 
@@ -15,14 +15,15 @@ export class WaitHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
     try {
-      // Validate parameters
-      const params = WaitParamsSchema.parse(instruction.params);
+      // Extract typed params from action
+      const typedParams = instruction.action ? getWaitParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'wait', instruction.nodeId);
 
       if (params.selector) {
         // Wait for selector
@@ -36,7 +37,7 @@ export class WaitHandler extends BaseHandler {
 
         await page.waitForSelector(params.selector, {
           timeout,
-          state: params.state || 'visible',
+          state: (params.state || 'visible') as 'attached' | 'detached' | 'visible' | 'hidden',
         });
 
         logger.info('Wait for selector successful', {
@@ -54,8 +55,8 @@ export class WaitHandler extends BaseHandler {
           },
         };
       } else {
-        // Wait for timeout
-        const timeout = params.timeoutMs || params.ms || 1000;
+        // Wait for timeout using durationMs from typed params
+        const timeout = params.durationMs || 1000;
 
         logger.debug('Waiting for timeout', {
           timeout,

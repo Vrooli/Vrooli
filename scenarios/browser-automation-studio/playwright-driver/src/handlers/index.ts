@@ -30,9 +30,10 @@
  *
  * ADDING A NEW INSTRUCTION TYPE:
  * 1. Create handler file implementing InstructionHandler (see base.ts)
- * 2. Add Zod schema to types/instruction.ts for parameter validation
- * 3. Export handler from this index file
- * 4. Register handler in server.ts:registerHandlers()
+ * 2. Add proto *Params message to action.proto and regenerate
+ * 3. Add param extractor in proto/index.ts (e.g., getNewActionParams)
+ * 4. Export handler from this index file
+ * 5. Register handler in server.ts:registerHandlers()
  */
 
 // Core abstractions

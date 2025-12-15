@@ -7,6 +7,7 @@
 package api
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	actions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	execution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -1869,7 +1870,7 @@ var File_browser_automation_studio_v1_api_service_proto protoreflect.FileDescrip
 
 const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\n" +
-	".browser-automation-studio/v1/api/service.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a1browser-automation-studio/v1/actions/action.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a6browser-automation-studio/v1/execution/execution.proto\"\xea\x04\n" +
+	".browser-automation-studio/v1/api/service.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bbuf/validate/validate.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a1browser-automation-studio/v1/actions/action.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a6browser-automation-studio/v1/execution/execution.proto\"\xea\x04\n" +
 	"\x0fWorkflowSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1905,14 +1906,14 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\fWorkflowList\x12K\n" +
 	"\tworkflows\x18\x01 \x03(\v2-.browser_automation_studio.v1.WorkflowSummaryR\tworkflows\"`\n" +
 	"\x13WorkflowVersionList\x12I\n" +
-	"\bversions\x18\x01 \x03(\v2-.browser_automation_studio.v1.WorkflowVersionR\bversions\"\xcc\x01\n" +
-	"\x14ListWorkflowsRequest\x12\"\n" +
+	"\bversions\x18\x01 \x03(\v2-.browser_automation_studio.v1.WorkflowVersionR\bversions\"\xea\x01\n" +
+	"\x14ListWorkflowsRequest\x12,\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tH\x00R\tprojectId\x88\x01\x01\x12$\n" +
+	"project_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\tprojectId\x88\x01\x01\x12$\n" +
 	"\vfolder_path\x18\x02 \x01(\tH\x01R\n" +
-	"folderPath\x88\x01\x01\x12\x19\n" +
-	"\x05limit\x18\x03 \x01(\x05H\x02R\x05limit\x88\x01\x01\x12\x1b\n" +
-	"\x06offset\x18\x04 \x01(\x05H\x03R\x06offset\x88\x01\x01B\r\n" +
+	"folderPath\x88\x01\x01\x12$\n" +
+	"\x05limit\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x02R\x05limit\x88\x01\x01\x12$\n" +
+	"\x06offset\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x03R\x06offset\x88\x01\x01B\r\n" +
 	"\v_project_idB\x0e\n" +
 	"\f_folder_pathB\b\n" +
 	"\x06_limitB\t\n" +
@@ -1939,7 +1940,7 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\tai_prompt\x18\x05 \x01(\tR\baiPrompt\"\xc0\x01\n" +
 	"\x16CreateWorkflowResponse\x12I\n" +
 	"\bworkflow\x18\x01 \x01(\v2-.browser_automation_studio.v1.WorkflowSummaryR\bworkflow\x12[\n" +
-	"\x0fflow_definition\x18\x02 \x01(\v22.browser_automation_studio.v1.WorkflowDefinitionV2R\x0eflowDefinition\"\xb3\x03\n" +
+	"\x0fflow_definition\x18\x02 \x01(\v22.browser_automation_studio.v1.WorkflowDefinitionV2R\x0eflowDefinition\"\xbd\x03\n" +
 	"\x15UpdateWorkflowRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1f\n" +
@@ -1949,8 +1950,8 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\x0fflow_definition\x18\x05 \x01(\v22.browser_automation_studio.v1.WorkflowDefinitionV2R\x0eflowDefinition\x12-\n" +
 	"\x12change_description\x18\x06 \x01(\tR\x11changeDescription\x12B\n" +
 	"\x06source\x18\a \x01(\x0e2*.browser_automation_studio.v1.ChangeSourceR\x06source\x12)\n" +
-	"\x10expected_version\x18\b \x01(\x05R\x0fexpectedVersion\x12$\n" +
-	"\vworkflow_id\x18\t \x01(\tH\x00R\n" +
+	"\x10expected_version\x18\b \x01(\x05R\x0fexpectedVersion\x12.\n" +
+	"\vworkflow_id\x18\t \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\n" +
 	"workflowId\x88\x01\x01B\x0e\n" +
 	"\f_workflow_id\"\xc0\x01\n" +
 	"\x16UpdateWorkflowResponse\x12I\n" +
@@ -1978,13 +1979,13 @@ const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\fcompleted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12\x19\n" +
 	"\x05error\x18\x04 \x01(\tH\x01R\x05error\x88\x01\x01B\x0f\n" +
 	"\r_completed_atB\b\n" +
-	"\x06_error\"\xf1\x01\n" +
-	"\x15ListExecutionsRequest\x12$\n" +
-	"\vworkflow_id\x18\x01 \x01(\tH\x00R\n" +
+	"\x06_error\"\x8f\x02\n" +
+	"\x15ListExecutionsRequest\x12.\n" +
+	"\vworkflow_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\n" +
 	"workflowId\x88\x01\x01\x12J\n" +
-	"\x06status\x18\x02 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusH\x01R\x06status\x88\x01\x01\x12\x19\n" +
-	"\x05limit\x18\x03 \x01(\x05H\x02R\x05limit\x88\x01\x01\x12\x1b\n" +
-	"\x06offset\x18\x04 \x01(\x05H\x03R\x06offset\x88\x01\x01B\x0e\n" +
+	"\x06status\x18\x02 \x01(\x0e2-.browser_automation_studio.v1.ExecutionStatusH\x01R\x06status\x88\x01\x01\x12$\n" +
+	"\x05limit\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x02R\x05limit\x88\x01\x01\x12$\n" +
+	"\x06offset\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x03R\x06offset\x88\x01\x01B\x0e\n" +
 	"\f_workflow_idB\t\n" +
 	"\a_statusB\b\n" +
 	"\x06_limitB\t\n" +

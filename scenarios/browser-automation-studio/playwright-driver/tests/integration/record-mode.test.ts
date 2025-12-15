@@ -311,7 +311,7 @@ describe('Record Mode Routes', () => {
   });
 
   describe('GET /session/:id/record/actions', () => {
-    it('should return buffered actions', async () => {
+    it('should return buffered actions as TimelineEntry format', async () => {
       const sessionManager = createMockSessionManager();
 
       // Manually add actions to buffer for this test
@@ -324,7 +324,8 @@ describe('Record Mode Routes', () => {
       expect(res._getStatusCode()).toBe(200);
       const data = JSON.parse(res._getData());
       expect(data.session_id).toBe(sessionId);
-      expect(Array.isArray(data.actions)).toBe(true);
+      // Now returns 'entries' (TimelineEntry format) instead of 'actions'
+      expect(Array.isArray(data.entries)).toBe(true);
       expect(typeof data.count).toBe('number');
     });
 
@@ -341,7 +342,8 @@ describe('Record Mode Routes', () => {
 
       expect(res._getStatusCode()).toBe(200);
       const data = JSON.parse(res._getData());
-      expect(data.actions).toEqual([]);
+      // Now returns 'entries' (TimelineEntry format) instead of 'actions'
+      expect(data.entries).toEqual([]);
     });
   });
 

@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { RotateParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getRotateParams } from '../proto';
 import { normalizeError } from '../utils';
 
 /**
@@ -22,13 +22,15 @@ export class DeviceHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
     try {
-      const params = RotateParamsSchema.parse(instruction.params);
+      // Get typed params from instruction.action (required after migration)
+      const typedParams = instruction.action ? getRotateParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'rotate', instruction.nodeId);
 
       logger.debug('Executing device rotation', {
         orientation: params.orientation,

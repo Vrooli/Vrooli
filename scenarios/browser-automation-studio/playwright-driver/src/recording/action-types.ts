@@ -1,74 +1,47 @@
 /**
  * Recording Action Types Registry
  *
+ * PROTO-FIRST ARCHITECTURE:
+ * This module provides utilities for working with proto ActionType enum
+ * and converting between browser events and proto types.
+ *
  * CHANGE AXIS: Recording Action Types
- *
- * This module centralizes all recording action type definitions and mappings.
  * When adding a new action type:
- * 1. Add to ACTION_TYPES constant
- * 2. Add normalization mapping if needed
- * 3. Add proto kind mapping
- *
- * This is VOLATILE code - expected to evolve as new action types are added.
+ * 1. Add to the proto schema (action.proto)
+ * 2. Regenerate proto types
+ * 3. Add normalization mapping here if browser sends different name
  */
 
-import type { RecordedActionKind, TypedActionPayload, ActionType } from './types';
-import type { RawBrowserEvent } from './types';
+import { ActionType } from '../proto';
 
 /**
- * All supported action types for recording.
- *
- * TypeScript ensures this array stays in sync with the ActionType union in types.ts.
- * If you add a new action type to the union, TypeScript will error here until
- * you add it to this array (and vice versa via the satisfies clause).
+ * Map from raw browser event type string to proto ActionType enum.
+ * Handles common variations in event naming from the browser.
  */
-export const ACTION_TYPES = [
-  'click',
-  'type',
-  'scroll',
-  'navigate',
-  'select',
-  'hover',
-  'focus',
-  'blur',
-  'keypress',
-] as const satisfies readonly ActionType[];
-
-/**
- * Map from raw event type to normalized ActionType.
- * Handles common variations in event naming.
- */
-const ACTION_TYPE_ALIASES: Record<string, ActionType> = {
+const ACTION_TYPE_FROM_STRING: Record<string, ActionType> = {
   // Direct mappings
-  click: 'click',
-  type: 'type',
-  scroll: 'scroll',
-  navigate: 'navigate',
-  select: 'select',
-  hover: 'hover',
-  focus: 'focus',
-  blur: 'blur',
-  keypress: 'keypress',
-  // Aliases
-  input: 'type',
-  change: 'select',
-  keydown: 'keypress',
-  keyup: 'keypress',
-};
-
-/**
- * Map from ActionType to proto-aligned RecordedActionKind.
- */
-const ACTION_KIND_MAP: Record<ActionType, RecordedActionKind> = {
-  navigate: 'RECORDED_ACTION_TYPE_NAVIGATE',
-  click: 'RECORDED_ACTION_TYPE_CLICK',
-  focus: 'RECORDED_ACTION_TYPE_CLICK',
-  hover: 'RECORDED_ACTION_TYPE_CLICK',
-  blur: 'RECORDED_ACTION_TYPE_CLICK',
-  type: 'RECORDED_ACTION_TYPE_INPUT',
-  keypress: 'RECORDED_ACTION_TYPE_INPUT',
-  scroll: 'RECORDED_ACTION_TYPE_UNSPECIFIED',
-  select: 'RECORDED_ACTION_TYPE_INPUT',
+  click: ActionType.CLICK,
+  type: ActionType.INPUT,
+  input: ActionType.INPUT,
+  scroll: ActionType.SCROLL,
+  navigate: ActionType.NAVIGATE,
+  select: ActionType.SELECT,
+  hover: ActionType.HOVER,
+  focus: ActionType.FOCUS,
+  blur: ActionType.BLUR,
+  keypress: ActionType.KEYBOARD,
+  keyboard: ActionType.KEYBOARD,
+  wait: ActionType.WAIT,
+  assert: ActionType.ASSERT,
+  screenshot: ActionType.SCREENSHOT,
+  evaluate: ActionType.EVALUATE,
+  // Aliases for browser event types
+  change: ActionType.SELECT,
+  keydown: ActionType.KEYBOARD,
+  keyup: ActionType.KEYBOARD,
+  mousedown: ActionType.CLICK,
+  mouseup: ActionType.CLICK,
+  dblclick: ActionType.CLICK,
 };
 
 /**
@@ -76,39 +49,44 @@ const ACTION_KIND_MAP: Record<ActionType, RecordedActionKind> = {
  * Used for confidence calculation and validation.
  */
 export const SELECTOR_OPTIONAL_ACTIONS: ReadonlySet<ActionType> = new Set([
-  'scroll',
-  'navigate',
+  ActionType.SCROLL,
+  ActionType.NAVIGATE,
+  ActionType.WAIT,
+  ActionType.KEYBOARD,
+  ActionType.SCREENSHOT,
+  ActionType.EVALUATE,
 ]);
 
 /**
- * Normalize raw action type string to valid ActionType.
+ * Normalize raw action type string to proto ActionType enum.
  *
  * @param rawType - Raw action type from browser event
- * @returns Normalized ActionType (defaults to 'click' for unknown)
+ * @returns Proto ActionType (defaults to CLICK for unknown)
  */
-export function normalizeActionType(rawType: string): ActionType {
+export function normalizeToProtoActionType(rawType: string): ActionType {
   const normalized = rawType.toLowerCase();
-  return ACTION_TYPE_ALIASES[normalized] ?? 'click';
+  return ACTION_TYPE_FROM_STRING[normalized] ?? ActionType.CLICK;
 }
 
 /**
- * Get proto-aligned RecordedActionKind for an action type.
+ * Convert proto ActionType enum to string name.
+ * Useful for logging and debugging.
  *
- * @param actionType - Normalized action type
- * @returns Proto-aligned action kind
+ * @param actionType - Proto ActionType enum value
+ * @returns Human-readable string name
  */
-export function toRecordedActionKind(actionType: ActionType): RecordedActionKind {
-  return ACTION_KIND_MAP[actionType] ?? 'RECORDED_ACTION_TYPE_UNSPECIFIED';
+export function actionTypeToString(actionType: ActionType): string {
+  return ActionType[actionType] ?? 'UNKNOWN';
 }
 
 /**
- * Check if action type is valid.
+ * Check if action type is valid (not UNSPECIFIED).
  *
- * @param type - Action type to validate
- * @returns True if valid ActionType
+ * @param actionType - Action type to validate
+ * @returns True if valid (not UNSPECIFIED)
  */
-export function isValidActionType(type: string): type is ActionType {
-  return ACTION_TYPES.includes(type as ActionType);
+export function isValidActionType(actionType: ActionType): boolean {
+  return actionType !== ActionType.UNSPECIFIED;
 }
 
 /**
@@ -122,63 +100,9 @@ export function isSelectorOptional(actionType: ActionType): boolean {
 }
 
 /**
- * Build typed action payload from raw browser event.
- *
- * @param kind - Proto-aligned action kind
- * @param raw - Raw browser event data
- * @returns Typed action payload or undefined
- */
-export function buildTypedActionPayload(
-  kind: RecordedActionKind,
-  raw: RawBrowserEvent
-): TypedActionPayload | undefined {
-  const payload = (raw.payload || {}) as Record<string, unknown>;
-
-  switch (kind) {
-    case 'RECORDED_ACTION_TYPE_NAVIGATE': {
-      const url = (payload.targetUrl as string) || raw.url;
-      return {
-        navigate: {
-          url,
-          waitForSelector: (payload.waitForSelector as string) || undefined,
-          timeoutMs: (payload.timeoutMs as number) || undefined,
-        },
-      };
-    }
-
-    case 'RECORDED_ACTION_TYPE_CLICK': {
-      return {
-        click: {
-          selector: raw.selector?.primary,
-          button: (payload.button as 'left' | 'right' | 'middle') || undefined,
-          clickCount: (payload.clickCount as number) || undefined,
-          delayMs: (payload.delayMs as number) || (payload.delay as number) || undefined,
-          scrollIntoView: (payload.scrollIntoView as boolean) || undefined,
-        },
-      };
-    }
-
-    case 'RECORDED_ACTION_TYPE_INPUT': {
-      const value = (payload.text as string) ?? (payload.value as string) ?? '';
-      return {
-        input: {
-          selector: raw.selector?.primary,
-          value,
-          isSensitive: (payload.isSensitive as boolean) || (payload.sensitive as boolean) || false,
-          submit: (payload.submit as boolean) || undefined,
-        },
-      };
-    }
-
-    default:
-      return undefined;
-  }
-}
-
-/**
  * Calculate confidence score for an action based on selector quality.
  *
- * @param actionType - Normalized action type
+ * @param actionType - Proto ActionType
  * @param selector - Selector set from raw event
  * @returns Confidence score 0-1
  */
@@ -212,4 +136,38 @@ export function calculateActionConfidence(
   }
 
   return primaryCandidate.confidence ?? 0.5;
+}
+
+/**
+ * Get all supported proto action types.
+ * Useful for validation and documentation.
+ */
+export function getSupportedActionTypes(): ActionType[] {
+  return [
+    ActionType.NAVIGATE,
+    ActionType.CLICK,
+    ActionType.INPUT,
+    ActionType.WAIT,
+    ActionType.ASSERT,
+    ActionType.SCROLL,
+    ActionType.SELECT,
+    ActionType.EVALUATE,
+    ActionType.KEYBOARD,
+    ActionType.HOVER,
+    ActionType.SCREENSHOT,
+    ActionType.FOCUS,
+    ActionType.BLUR,
+    ActionType.SUBFLOW,
+    ActionType.EXTRACT,
+    ActionType.UPLOAD_FILE,
+    ActionType.DOWNLOAD,
+    ActionType.FRAME_SWITCH,
+    ActionType.TAB_SWITCH,
+    ActionType.COOKIE_STORAGE,
+    ActionType.SHORTCUT,
+    ActionType.DRAG_DROP,
+    ActionType.GESTURE,
+    ActionType.NETWORK_MOCK,
+    ActionType.ROTATE,
+  ];
 }

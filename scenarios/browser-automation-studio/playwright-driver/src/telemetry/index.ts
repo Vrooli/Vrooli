@@ -16,7 +16,7 @@
  *
  * When adding a new telemetry type:
  * 1. Create collector file (e.g., `telemetry/performance.ts`)
- * 2. Define type in `types/contracts.ts` (coordinate with Go API)
+ * 2. Define type in proto schema (driver.proto) and regenerate
  * 3. Add to StepOutcome interface if needed
  * 4. Update `outcome/outcome-builder.ts` to include in output
  * 5. Add config options in `config.ts` under telemetry section

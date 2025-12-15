@@ -7,9 +7,8 @@
  */
 
 import { UploadHandler } from '../../../src/handlers/upload';
-import type { CompiledInstruction } from '../../../src/types';
 import type { HandlerContext } from '../../../src/handlers/base';
-import { createMockPage, createTestConfig } from '../../helpers';
+import { createMockPage, createTestConfig, createTypedInstruction } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 import * as fs from 'fs/promises';
 
@@ -37,15 +36,10 @@ describe('UploadHandler Idempotency', () => {
 
   describe('concurrent upload tracking', () => {
     it('should track concurrent uploads with same parameters', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input',
-          filePath: '/path/to/file.txt',
-        },
-      };
+      const instruction = createTypedInstruction('upload', {
+        selector: '#file-input',
+        filePath: '/path/to/file.txt',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -70,25 +64,15 @@ describe('UploadHandler Idempotency', () => {
     });
 
     it('should allow separate uploads for different files', async () => {
-      const instruction1: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input',
-          filePath: '/path/to/file1.txt',
-        },
-      };
+      const instruction1 = createTypedInstruction('upload', {
+        selector: '#file-input',
+        filePath: '/path/to/file1.txt',
+      });
 
-      const instruction2: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 1,
-        params: {
-          selector: '#file-input',
-          filePath: '/path/to/file2.txt',
-        },
-      };
+      const instruction2 = createTypedInstruction('upload', {
+        selector: '#file-input',
+        filePath: '/path/to/file2.txt',
+      }, { index: 1 });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -111,25 +95,15 @@ describe('UploadHandler Idempotency', () => {
     });
 
     it('should allow separate uploads for different selectors', async () => {
-      const instruction1: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input-1',
-          filePath: '/path/to/file.txt',
-        },
-      };
+      const instruction1 = createTypedInstruction('upload', {
+        selector: '#file-input-1',
+        filePath: '/path/to/file.txt',
+      });
 
-      const instruction2: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 1,
-        params: {
-          selector: '#file-input-2',
-          filePath: '/path/to/file.txt',
-        },
-      };
+      const instruction2 = createTypedInstruction('upload', {
+        selector: '#file-input-2',
+        filePath: '/path/to/file.txt',
+      }, { index: 1 });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -156,15 +130,10 @@ describe('UploadHandler Idempotency', () => {
     it('should return error for inaccessible file', async () => {
       mockFs.access.mockRejectedValue(new Error('ENOENT: file not found'));
 
-      const instruction: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input',
-          filePath: '/path/to/nonexistent.txt',
-        },
-      };
+      const instruction = createTypedInstruction('upload', {
+        selector: '#file-input',
+        filePath: '/path/to/nonexistent.txt',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -186,14 +155,9 @@ describe('UploadHandler Idempotency', () => {
 
   describe('parameter validation', () => {
     it('should return error for missing selector', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          filePath: '/path/to/file.txt',
-        },
-      };
+      const instruction = createTypedInstruction('upload', {
+        filePath: '/path/to/file.txt',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -213,14 +177,9 @@ describe('UploadHandler Idempotency', () => {
     });
 
     it('should return error for missing filePath', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input',
-        },
-      };
+      const instruction = createTypedInstruction('upload', {
+        selector: '#file-input',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -242,15 +201,10 @@ describe('UploadHandler Idempotency', () => {
 
   describe('multiple file upload', () => {
     it('should handle array of files', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input',
-          filePath: ['/path/to/file1.txt', '/path/to/file2.txt'],
-        },
-      };
+      const instruction = createTypedInstruction('upload', {
+        selector: '#file-input',
+        filePath: ['/path/to/file1.txt', '/path/to/file2.txt'],
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -274,25 +228,15 @@ describe('UploadHandler Idempotency', () => {
 
     it('should generate consistent idempotency key for same file array', async () => {
       // Note: File arrays are sorted when generating keys, so order doesn't matter
-      const instruction1: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input',
-          filePath: ['/path/to/a.txt', '/path/to/b.txt'],
-        },
-      };
+      const instruction1 = createTypedInstruction('upload', {
+        selector: '#file-input',
+        filePath: ['/path/to/a.txt', '/path/to/b.txt'],
+      });
 
-      const instruction2: CompiledInstruction = {
-        type: 'upload',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          selector: '#file-input',
-          filePath: ['/path/to/b.txt', '/path/to/a.txt'], // Different order, same files
-        },
-      };
+      const instruction2 = createTypedInstruction('upload', {
+        selector: '#file-input',
+        filePath: ['/path/to/b.txt', '/path/to/a.txt'], // Different order, same files
+      });
 
       const context: HandlerContext = {
         page: mockPage,

@@ -7,9 +7,8 @@
  */
 
 import { FrameHandler } from '../../../src/handlers/frame';
-import type { CompiledInstruction } from '../../../src/types';
 import type { HandlerContext } from '../../../src/handlers/base';
-import { createMockPage, createMockFrame, createTestConfig } from '../../helpers';
+import { createMockPage, createMockFrame, createTestConfig, createTypedInstruction } from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
 describe('FrameHandler Idempotency', () => {
@@ -36,15 +35,10 @@ describe('FrameHandler Idempotency', () => {
       // Setup the frame stack with the target frame already entered
       const frameStack = [targetFrame];
 
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'enter',
-          frameUrl: 'https://example.com/iframe',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'enter',
+        frameUrl: 'https://example.com/iframe',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -79,15 +73,10 @@ describe('FrameHandler Idempotency', () => {
       // Empty frame stack - not currently in any iframe
       const frameStack: any[] = [];
 
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'enter',
-          frameUrl: 'https://example.com/iframe',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'enter',
+        frameUrl: 'https://example.com/iframe',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -111,15 +100,10 @@ describe('FrameHandler Idempotency', () => {
     it('should return error when frame not found', async () => {
       mockPage.frames.mockReturnValue([]);
 
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'enter',
-          frameUrl: 'https://nonexistent.com/iframe',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'enter',
+        frameUrl: 'https://nonexistent.com/iframe',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -140,14 +124,9 @@ describe('FrameHandler Idempotency', () => {
 
   describe('frame-switch exit idempotency', () => {
     it('should return error when already at main frame', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'exit',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'exit',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -170,14 +149,9 @@ describe('FrameHandler Idempotency', () => {
       const frame = createMockFrame();
       frame.url.mockReturnValue('https://example.com/iframe');
 
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'exit',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'exit',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -200,14 +174,9 @@ describe('FrameHandler Idempotency', () => {
       const frame = createMockFrame();
       frame.url.mockReturnValue('https://example.com/iframe');
 
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'exit',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'exit',
+      });
 
       const frameStack = [frame];
       const context: HandlerContext = {
@@ -251,15 +220,10 @@ describe('FrameHandler Idempotency', () => {
       mockPage.frames.mockReturnValue([targetFrame]);
       mockPage.mainFrame.mockReturnValue(createMockFrame());
 
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'enter',
-          frameUrl: 'https://example.com/new-iframe',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'enter',
+        frameUrl: 'https://example.com/new-iframe',
+      });
 
       // Start with a stale frame in the stack
       const frameStack = [staleFrame, validFrame];
@@ -286,14 +250,9 @@ describe('FrameHandler Idempotency', () => {
 
   describe('frame-switch parent idempotency', () => {
     it('should return error when already at main frame (same as exit)', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'parent',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'parent',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -318,14 +277,9 @@ describe('FrameHandler Idempotency', () => {
       const childFrame = createMockFrame();
       childFrame.url.mockReturnValue('https://example.com/child');
 
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'parent',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'parent',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -347,14 +301,9 @@ describe('FrameHandler Idempotency', () => {
 
   describe('invalid action handling', () => {
     it('should return error for unknown action', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'invalid-action',
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'invalid-action',
+      });
 
       const context: HandlerContext = {
         page: mockPage,
@@ -369,21 +318,16 @@ describe('FrameHandler Idempotency', () => {
       const result = await handler.execute(instruction, context);
 
       expect(result.success).toBe(false);
-      // Either INVALID_ACTION or INVALID_INSTRUCTION depending on validation order
-      expect(['INVALID_ACTION', 'INVALID_INSTRUCTION']).toContain(result.error?.code);
+      // Handler throws MISSING_PARAM for unspecified action, INVALID_ACTION for unknown action string
+      expect(['INVALID_ACTION', 'INVALID_INSTRUCTION', 'MISSING_PARAM']).toContain(result.error?.code);
       expect(result.error?.retryable).toBe(false);
     });
 
     it('should return error when enter is called without target', async () => {
-      const instruction: CompiledInstruction = {
-        type: 'frame-switch',
-        node_id: 'test-node',
-        index: 0,
-        params: {
-          action: 'enter',
-          // No selector, frameId, or frameUrl
-        },
-      };
+      const instruction = createTypedInstruction('frame-switch', {
+        action: 'enter',
+        // No selector, frameId, or frameUrl
+      });
 
       const context: HandlerContext = {
         page: mockPage,

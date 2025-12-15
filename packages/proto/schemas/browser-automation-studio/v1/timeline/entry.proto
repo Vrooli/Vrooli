@@ -3,6 +3,7 @@ syntax = "proto3";
 package browser_automation_studio.v1;
 
 import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
 import "common/v1/types.proto";
 import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/base/geometry.proto";
@@ -56,7 +57,7 @@ message TimelineEntry {
   // Links this entry to the specific WorkflowNodeV2.
   // @format uuid
   // @see WorkflowNodeV2.id
-  optional string node_id = 4;
+  optional string node_id = 4 [(buf.validate.field).string.uuid = true];
 
   // === TIMING ===
   // When this entry was captured.

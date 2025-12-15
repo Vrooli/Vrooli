@@ -1,6 +1,6 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
-import type { CompiledInstruction } from '../types';
-import { NavigateParamsSchema } from '../types/instruction';
+import type { HandlerInstruction } from '../types';
+import { getNavigateParams } from '../proto';
 import { DEFAULT_NAVIGATION_TIMEOUT_MS } from '../constants';
 import { normalizeError } from '../utils';
 
@@ -69,14 +69,15 @@ export class NavigationHandler extends BaseHandler {
   }
 
   async execute(
-    instruction: CompiledInstruction,
+    instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
     try {
-      // Validate and parse parameters
-      const params = NavigateParamsSchema.parse(instruction.params);
+      // Extract typed params from action
+      const typedParams = instruction.action ? getNavigateParams(instruction.action) : undefined;
+      const params = this.requireTypedParams(typedParams, 'navigate', instruction.nodeId);
 
       // Get URL from params (support multiple param names for backwards compatibility)
       const url = params.url;
@@ -113,7 +114,7 @@ export class NavigationHandler extends BaseHandler {
       const normalizedUrl = urlValidation.normalized || url;
       // Prefer config timeout, fallback to param, then constant default
       const timeout = params.timeoutMs || context.config.execution.navigationTimeoutMs || DEFAULT_NAVIGATION_TIMEOUT_MS;
-      const waitUntil = params.waitUntil || 'networkidle';
+      const waitUntil = (params.waitUntil || 'networkidle') as 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
 
       logger.debug('instruction: navigate starting', {
         targetUrl: normalizedUrl,

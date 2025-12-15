@@ -1,4 +1,4 @@
-import { createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
 import { ExtractionHandler } from '../../../src/handlers/extraction';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -22,11 +22,9 @@ describe('ExtractionHandler', () => {
   });
 
   it('should extract text from element', async () => {
-    const instruction = createTestInstruction({
-      type: 'extract',
-      params: { selector: '#content' },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('extract', {
+      selector: '#content',
+    }, { nodeId: 'node-1' });
 
     mockPage.textContent.mockResolvedValue('Extracted text');
 
@@ -38,11 +36,9 @@ describe('ExtractionHandler', () => {
   });
 
   it('should handle empty text content', async () => {
-    const instruction = createTestInstruction({
-      type: 'extract',
-      params: { selector: '#empty' },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('extract', {
+      selector: '#empty',
+    }, { nodeId: 'node-1' });
 
     mockPage.textContent.mockResolvedValue(null);
 
@@ -53,11 +49,9 @@ describe('ExtractionHandler', () => {
   });
 
   it('should evaluate JavaScript', async () => {
-    const instruction = createTestInstruction({
-      type: 'evaluate',
-      params: { script: 'return document.title' },
-      node_id: 'node-1',
-    });
+    const instruction = createTypedInstruction('evaluate', {
+      script: 'return document.title',
+    }, { nodeId: 'node-1' });
 
     mockPage.evaluate.mockResolvedValue('Page Title');
 

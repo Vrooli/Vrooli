@@ -84,10 +84,10 @@ export async function handleReplayPreview(
     const body = await parseJsonBody(req, config);
     const request = body as unknown as ReplayPreviewRequest;
 
-    if (!request.actions || !Array.isArray(request.actions) || request.actions.length === 0) {
+    if (!request.entries || !Array.isArray(request.entries) || request.entries.length === 0) {
       sendJson(res, 400, {
-        error: 'MISSING_ACTIONS',
-        message: 'actions field is required and must be a non-empty array',
+        error: 'MISSING_ENTRIES',
+        message: 'entries field is required and must be a non-empty array',
       });
       return;
     }
@@ -99,14 +99,14 @@ export async function handleReplayPreview(
 
     logger.info(scopedLog(LogContext.RECORDING, 'replay started'), {
       sessionId,
-      actionCount: request.actions.length,
+      entryCount: request.entries.length,
       limit: request.limit,
       stopOnFailure: request.stop_on_failure ?? true,
     });
 
     // Execute replay
     const result = await session.recordingController.replayPreview({
-      actions: request.actions,
+      entries: request.entries,
       limit: request.limit,
       stopOnFailure: request.stop_on_failure ?? true,
       actionTimeout: request.action_timeout ?? config.execution.replayActionTimeoutMs,
@@ -128,7 +128,7 @@ export async function handleReplayPreview(
       passed_actions: result.passedActions,
       failed_actions: result.failedActions,
       results: result.results.map((r) => ({
-        action_id: r.actionId,
+        entry_id: r.entryId,
         sequence_num: r.sequenceNum,
         action_type: r.actionType,
         success: r.success,

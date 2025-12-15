@@ -19,12 +19,12 @@ import { logger, metrics, scopedLog, LogContext } from '../../utils';
 import { createRecordModeController } from '../../recording/controller';
 import {
   initRecordingBuffer,
-  bufferRecordedAction,
-  getRecordedActions,
-  getRecordedActionCount,
-  clearRecordedActions,
+  bufferTimelineEntry,
+  getTimelineEntries,
+  getTimelineEntryCount,
+  clearTimelineEntries,
 } from '../../recording/buffer';
-import type { RecordedAction } from '../../recording/types';
+import { timelineEntryToJson, type TimelineEntry, ActionType } from '../../proto/recording';
 import type {
   StartRecordingRequest,
   StartRecordingResponse,
@@ -273,23 +273,25 @@ export async function handleRecordStart(
       currentUrl: session.page?.url?.() || '(unknown)',
     });
 
-    // Start recording with callback to buffer actions
+    // Start recording with callback to buffer entries
     const recordingId = await session.recordingController.startRecording({
       sessionId,
-      onAction: async (action: RecordedAction) => {
-        // Buffer the action
-        bufferRecordedAction(sessionId, action);
+      onEntry: async (entry: TimelineEntry) => {
+        // Buffer the entry (proto TimelineEntry)
+        bufferTimelineEntry(sessionId, entry);
 
         // Track recording activity in metrics
         metrics.recordingActionsTotal.inc();
 
-        logger.debug(scopedLog(LogContext.RECORDING, 'action captured'), {
+        // Extract action type name for logging
+        const actionTypeName = ActionType[entry.action?.type ?? ActionType.UNSPECIFIED] ?? 'UNKNOWN';
+
+        logger.debug(scopedLog(LogContext.RECORDING, 'entry captured'), {
           sessionId,
           recordingId,
-          actionType: action.actionType,
-          sequenceNum: action.sequenceNum,
-          selector: action.selector?.primary,
-          confidence: action.confidence,
+          actionType: actionTypeName,
+          sequenceNum: entry.sequenceNum,
+          confidence: entry.action?.metadata?.confidence,
         });
 
         // If callback URL provided, stream to it (with circuit breaker protection)
@@ -303,15 +305,15 @@ export async function handleRecordStart(
           if (breaker.isOpen && !attemptHalfOpen) {
             logger.debug(scopedLog(LogContext.RECORDING, 'skipping callback (circuit open)'), {
               sessionId,
-              actionType: action.actionType,
-              sequenceNum: action.sequenceNum,
+              actionType: actionTypeName,
+              sequenceNum: entry.sequenceNum,
               halfOpenInProgress: breaker.halfOpenInProgress,
             });
             return;
           }
 
           try {
-            await streamActionToCallback(request.callback_url, action);
+            await streamEntryToCallback(request.callback_url, entry);
             recordCallbackSuccess(sessionId);
           } catch (err) {
             const circuitOpened = recordCallbackFailure(sessionId);
@@ -337,7 +339,7 @@ export async function handleRecordStart(
               consecutiveFailures: breaker.consecutiveFailures,
               circuitOpen: circuitOpened,
               hint: circuitOpened
-                ? 'Circuit breaker opened - actions still buffered locally'
+                ? 'Circuit breaker opened - entries still buffered locally'
                 : 'Callback endpoint may be unreachable or returning errors',
             });
           }
@@ -492,7 +494,7 @@ export async function handleRecordStatus(
     const session = sessionManager.getSession(sessionId);
 
     const state = session.recordingController?.getState();
-    const bufferedCount = getRecordedActionCount(sessionId);
+    const bufferedCount = getTimelineEntryCount(sessionId);
 
     const response: RecordingStatusResponse = {
       session_id: sessionId,
@@ -513,8 +515,10 @@ export async function handleRecordStatus(
  *
  * GET /session/:id/record/actions
  *
- * Returns all buffered actions for the session.
+ * Returns all buffered actions for the session as TimelineEntry format.
  * Optionally clears the buffer after retrieval.
+ *
+ * Wire format: Returns proto TimelineEntry JSON format for interoperability.
  */
 export async function handleRecordActions(
   req: IncomingMessage,
@@ -526,20 +530,24 @@ export async function handleRecordActions(
     // Verify session exists
     sessionManager.getSession(sessionId);
 
-    const actions = getRecordedActions(sessionId);
+    // Get buffered TimelineEntry objects (already proto format)
+    const entries = getTimelineEntries(sessionId);
 
     // Check for clear query param (parse URL manually since we don't have query parser)
     const url = new URL(req.url || '', `http://localhost`);
     const shouldClear = url.searchParams.get('clear') === 'true';
 
     if (shouldClear) {
-      clearRecordedActions(sessionId);
+      clearTimelineEntries(sessionId);
     }
+
+    // Convert to JSON wire format (snake_case)
+    const entriesJson = entries.map(timelineEntryToJson);
 
     sendJson(res, 200, {
       session_id: sessionId,
-      actions,
-      count: actions.length,
+      entries: entriesJson,
+      count: entriesJson.length,
     });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/actions`);
@@ -550,22 +558,28 @@ export async function handleRecordActions(
 const CALLBACK_TIMEOUT_MS = 5_000;
 
 /**
- * Stream an action to a callback URL with timeout.
+ * Stream a TimelineEntry to a callback URL with timeout.
  *
  * Hardened: Uses AbortController to enforce timeout and prevent
  * indefinite hangs if the callback endpoint is slow or unresponsive.
+ *
+ * Wire format: Serializes proto TimelineEntry to JSON (snake_case)
+ * for interoperability with the Go API.
  */
-async function streamActionToCallback(callbackUrl: string, action: RecordedAction): Promise<void> {
+async function streamEntryToCallback(callbackUrl: string, entry: TimelineEntry): Promise<void> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), CALLBACK_TIMEOUT_MS);
 
   try {
+    // Serialize proto to JSON wire format (snake_case)
+    const wireFormat = timelineEntryToJson(entry);
+
     const response = await fetch(callbackUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(action),
+      body: JSON.stringify(wireFormat),
       signal: controller.signal,
     });
 
@@ -573,10 +587,11 @@ async function streamActionToCallback(callbackUrl: string, action: RecordedActio
       throw new Error(`Callback returned ${response.status}: ${response.statusText}`);
     }
 
-    logger.debug('recording: action streamed', {
+    const actionTypeName = ActionType[entry.action?.type ?? ActionType.UNSPECIFIED] ?? 'UNKNOWN';
+    logger.debug('recording: entry streamed', {
       status: response.status,
-      actionType: action.actionType,
-      sequenceNum: action.sequenceNum,
+      actionType: actionTypeName,
+      sequenceNum: entry.sequenceNum,
     });
   } finally {
     clearTimeout(timeoutId);
