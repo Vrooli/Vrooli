@@ -7,8 +7,7 @@ import (
 	"testing"
 )
 
-func TestPreflightValidatorNoTokens(t *testing.T) {
-	// Create temp scenario directory
+func TestPreflightValidatorBasicStructure(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a simple workflow with no tokens
@@ -42,41 +41,27 @@ func TestPreflightValidatorNoTokens(t *testing.T) {
 		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
 	}
 
-	if result.TokenCounts.Fixtures != 0 {
-		t.Errorf("expected 0 fixtures, got %d", result.TokenCounts.Fixtures)
-	}
 	if result.TokenCounts.Selectors != 0 {
 		t.Errorf("expected 0 selectors, got %d", result.TokenCounts.Selectors)
 	}
+	if result.TokenCounts.Subflows != 0 {
+		t.Errorf("expected 0 subflows, got %d", result.TokenCounts.Subflows)
+	}
+	if result.TokenCounts.ParamsTokens != 0 {
+		t.Errorf("expected 0 params tokens, got %d", result.TokenCounts.ParamsTokens)
+	}
 }
 
-func TestPreflightValidatorMissingFixture(t *testing.T) {
+func TestPreflightValidatorMissingNodes(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create __subflows directory (empty)
-	if err := os.MkdirAll(filepath.Join(tmpDir, "test", "playbooks", "__subflows"), 0755); err != nil {
-		t.Fatalf("failed to create fixtures dir: %v", err)
-	}
-
-	// Create workflow referencing a fixture that doesn't exist
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "subflow",
-				"type": "subflow",
-				"data": map[string]any{
-					"workflowId": "@fixture/missing-fixture",
-				},
-			},
-		},
 		"edges": []any{},
 	}
 
 	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
-		t.Fatalf("failed to write workflow: %v", err)
-	}
+	os.WriteFile(workflowPath, data, 0644)
 
 	v := NewPreflightValidator(tmpDir)
 	result, err := v.Validate(workflowPath)
@@ -85,48 +70,25 @@ func TestPreflightValidatorMissingFixture(t *testing.T) {
 	}
 
 	if result.Valid {
-		t.Fatalf("expected invalid result for missing fixture")
-	}
-
-	if result.TokenCounts.Fixtures != 1 {
-		t.Errorf("expected 1 fixture, got %d", result.TokenCounts.Fixtures)
+		t.Fatalf("expected invalid result for missing nodes")
 	}
 
 	found := false
 	for _, issue := range result.Errors {
-		if issue.Code == "PF_FIXTURE_NOT_FOUND" {
+		if issue.Code == "PF_MISSING_NODES" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected PF_FIXTURE_NOT_FOUND error, got: %+v", result.Errors)
+		t.Errorf("expected PF_MISSING_NODES error, got: %+v", result.Errors)
 	}
 }
 
-func TestPreflightValidatorExistingFixture(t *testing.T) {
+func TestPreflightValidatorSubflowWithWorkflowPath(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create __subflows directory with a fixture
-	subflowsDir := filepath.Join(tmpDir, "test", "playbooks", "__subflows")
-	if err := os.MkdirAll(subflowsDir, 0755); err != nil {
-		t.Fatalf("failed to create fixtures dir: %v", err)
-	}
-
-	// Create fixture file
-	fixture := map[string]any{
-		"metadata": map[string]any{
-			"fixture_id": "login-flow",
-		},
-		"nodes": []any{},
-		"edges": []any{},
-	}
-	fixtureData, _ := json.Marshal(fixture)
-	if err := os.WriteFile(filepath.Join(subflowsDir, "login-flow.json"), fixtureData, 0644); err != nil {
-		t.Fatalf("failed to write fixture: %v", err)
-	}
-
-	// Create workflow referencing the fixture
+	// Create workflow with subflow using new workflowPath format
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
 		"nodes": []any{
@@ -134,7 +96,12 @@ func TestPreflightValidatorExistingFixture(t *testing.T) {
 				"id":   "subflow",
 				"type": "subflow",
 				"data": map[string]any{
-					"workflowId": "@fixture/login-flow",
+					"label":        "Call helper",
+					"workflowPath": "actions/helper.json",
+					"params": map[string]any{
+						"projectName": "${@params/projectName}",
+						"projectId":   "${@params/projectId}",
+					},
 				},
 			},
 		},
@@ -156,18 +123,63 @@ func TestPreflightValidatorExistingFixture(t *testing.T) {
 		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
 	}
 
-	if result.TokenCounts.Fixtures != 1 {
-		t.Errorf("expected 1 fixture, got %d", result.TokenCounts.Fixtures)
+	if result.TokenCounts.Subflows != 1 {
+		t.Errorf("expected 1 subflow, got %d", result.TokenCounts.Subflows)
+	}
+
+	if result.TokenCounts.ParamsTokens != 2 {
+		t.Errorf("expected 2 params tokens, got %d", result.TokenCounts.ParamsTokens)
+	}
+}
+
+func TestPreflightValidatorAbsoluteWorkflowPathWarning(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	workflowPath := filepath.Join(tmpDir, "test.json")
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "subflow",
+				"type": "subflow",
+				"data": map[string]any{
+					"workflowPath": "/absolute/path/to/helper.json",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	data, _ := json.Marshal(workflow)
+	os.WriteFile(workflowPath, data, 0644)
+
+	v := NewPreflightValidator(tmpDir)
+	result, err := v.Validate(workflowPath)
+	if err != nil {
+		t.Fatalf("validation failed: %v", err)
+	}
+
+	// Should be valid but with warning
+	if !result.Valid {
+		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
+	}
+
+	found := false
+	for _, issue := range result.Warnings {
+		if issue.Code == "PF_ABSOLUTE_WORKFLOW_PATH" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected PF_ABSOLUTE_WORKFLOW_PATH warning, got: %+v", result.Warnings)
 	}
 }
 
 // TestPreflightValidatorSelectorCounting verifies that preflight counts @selector/ tokens
 // without validating them. Selector validation is delegated to BAS compiler.
-// See: scenarios/browser-automation-studio/api/automation/compiler/compiler.go:939-1073
 func TestPreflightValidatorSelectorCounting(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create workflow with multiple @selector/ tokens
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
 		"nodes": []any{
@@ -208,79 +220,18 @@ func TestPreflightValidatorSelectorCounting(t *testing.T) {
 		t.Fatalf("validation failed: %v", err)
 	}
 
-	// Should be valid - preflight doesn't validate selectors anymore (BAS does)
 	if !result.Valid {
 		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
 	}
 
-	// Should count selectors for informational purposes
 	if result.TokenCounts.Selectors != 3 {
 		t.Errorf("expected 3 selectors counted, got %d", result.TokenCounts.Selectors)
-	}
-
-	// Should NOT have any PF_SELECTOR_NOT_FOUND errors (validation delegated to BAS)
-	for _, issue := range result.Errors {
-		if issue.Code == "PF_SELECTOR_NOT_FOUND" {
-			t.Errorf("unexpected PF_SELECTOR_NOT_FOUND error - selector validation should be delegated to BAS")
-		}
-	}
-}
-
-func TestPreflightValidatorSeedWarning(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Create workflow with seed reference
-	workflowPath := filepath.Join(tmpDir, "test.json")
-	workflow := map[string]any{
-		"nodes": []any{
-			map[string]any{
-				"id":   "type",
-				"type": "type",
-				"data": map[string]any{
-					"selector": "#email",
-					"text":     "@seed/user.email",
-				},
-			},
-		},
-		"edges": []any{},
-	}
-
-	data, _ := json.Marshal(workflow)
-	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
-		t.Fatalf("failed to write workflow: %v", err)
-	}
-
-	v := NewPreflightValidator(tmpDir)
-	result, err := v.Validate(workflowPath)
-	if err != nil {
-		t.Fatalf("validation failed: %v", err)
-	}
-
-	// Seeds generate warnings, not errors
-	if !result.Valid {
-		t.Fatalf("expected valid result (seeds only produce warnings), got errors: %+v", result.Errors)
-	}
-
-	if result.TokenCounts.Seeds != 1 {
-		t.Errorf("expected 1 seed, got %d", result.TokenCounts.Seeds)
-	}
-
-	found := false
-	for _, issue := range result.Warnings {
-		if issue.Code == "PF_SEED_RUNTIME_DEPENDENCY" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected PF_SEED_RUNTIME_DEPENDENCY warning, got: %+v", result.Warnings)
 	}
 }
 
 func TestPreflightValidatorScenarioNavigation(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create workflow with scenario navigation
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
 		"nodes": []any{
@@ -308,7 +259,6 @@ func TestPreflightValidatorScenarioNavigation(t *testing.T) {
 		t.Fatalf("validation failed: %v", err)
 	}
 
-	// Should extract required scenarios
 	if len(result.RequiredScenarios) != 1 {
 		t.Errorf("expected 1 required scenario, got %d", len(result.RequiredScenarios))
 	}
@@ -321,7 +271,6 @@ func TestPreflightValidatorScenarioNavigation(t *testing.T) {
 func TestPreflightValidatorMissingScenarioName(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create workflow with scenario navigation but missing scenario name
 	workflowPath := filepath.Join(tmpDir, "test.json")
 	workflow := map[string]any{
 		"nodes": []any{
@@ -367,27 +316,18 @@ func TestPreflightValidatorMissingScenarioName(t *testing.T) {
 func TestPreflightValidatorValidateAll(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create fixtures dir with one fixture
-	subflowsDir := filepath.Join(tmpDir, "test", "playbooks", "__subflows")
-	if err := os.MkdirAll(subflowsDir, 0755); err != nil {
-		t.Fatalf("failed to create fixtures dir: %v", err)
-	}
-
-	fixture := map[string]any{
-		"metadata": map[string]any{"fixture_id": "existing"},
-		"nodes":    []any{},
-		"edges":    []any{},
-	}
-	fixtureData, _ := json.Marshal(fixture)
-	os.WriteFile(filepath.Join(subflowsDir, "existing.json"), fixtureData, 0644)
-
-	// Create two workflows
+	// Create two workflows with different characteristics
 	wf1 := map[string]any{
 		"nodes": []any{
 			map[string]any{
 				"id":   "sf1",
 				"type": "subflow",
-				"data": map[string]any{"workflowId": "@fixture/existing"},
+				"data": map[string]any{
+					"workflowPath": "actions/helper1.json",
+					"params": map[string]any{
+						"param1": "${@params/value1}",
+					},
+				},
 			},
 		},
 		"edges": []any{},
@@ -397,7 +337,20 @@ func TestPreflightValidatorValidateAll(t *testing.T) {
 			map[string]any{
 				"id":   "sf2",
 				"type": "subflow",
-				"data": map[string]any{"workflowId": "@fixture/missing"},
+				"data": map[string]any{
+					"workflowPath": "actions/helper2.json",
+					"params": map[string]any{
+						"param2": "${@params/value2}",
+					},
+				},
+			},
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "scenario",
+					"scenario":        "test-scenario",
+				},
 			},
 		},
 		"edges": []any{},
@@ -417,22 +370,81 @@ func TestPreflightValidatorValidateAll(t *testing.T) {
 		t.Fatalf("validation failed: %v", err)
 	}
 
-	if result.Valid {
-		t.Fatalf("expected invalid result due to wf2 missing fixture")
+	if !result.Valid {
+		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
 	}
 
-	if result.TokenCounts.Fixtures != 2 {
-		t.Errorf("expected 2 total fixtures, got %d", result.TokenCounts.Fixtures)
+	if result.TokenCounts.Subflows != 2 {
+		t.Errorf("expected 2 total subflows, got %d", result.TokenCounts.Subflows)
 	}
 
-	found := false
-	for _, issue := range result.Errors {
-		if issue.Code == "PF_FIXTURE_NOT_FOUND" {
-			found = true
-			break
-		}
+	if result.TokenCounts.ParamsTokens != 2 {
+		t.Errorf("expected 2 total params tokens, got %d", result.TokenCounts.ParamsTokens)
 	}
-	if !found {
-		t.Errorf("expected PF_FIXTURE_NOT_FOUND error from wf2")
+
+	if len(result.RequiredScenarios) != 1 {
+		t.Errorf("expected 1 required scenario, got %d", len(result.RequiredScenarios))
+	}
+}
+
+func TestPreflightValidatorNestedWorkflowDefinition(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	workflowPath := filepath.Join(tmpDir, "test.json")
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "subflow",
+				"type": "subflow",
+				"data": map[string]any{
+					"label": "Inline subflow",
+					"workflowDefinition": map[string]any{
+						"nodes": []any{
+							map[string]any{
+								"id":   "nested-click",
+								"type": "click",
+								"data": map[string]any{
+									"selector": "@selector/nested.button",
+								},
+							},
+							map[string]any{
+								"id":   "nested-subflow",
+								"type": "subflow",
+								"data": map[string]any{
+									"workflowPath": "actions/deeply-nested.json",
+								},
+							},
+						},
+						"edges": []any{},
+					},
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	data, _ := json.Marshal(workflow)
+	if err := os.WriteFile(workflowPath, data, 0644); err != nil {
+		t.Fatalf("failed to write workflow: %v", err)
+	}
+
+	v := NewPreflightValidator(tmpDir)
+	result, err := v.Validate(workflowPath)
+	if err != nil {
+		t.Fatalf("validation failed: %v", err)
+	}
+
+	if !result.Valid {
+		t.Fatalf("expected valid result, got errors: %+v", result.Errors)
+	}
+
+	// Should count nested selectors and subflows
+	// Note: The scanner recursively scans nested workflowDefinition nodes
+	if result.TokenCounts.Selectors < 1 {
+		t.Errorf("expected at least 1 selector (from nested def), got %d", result.TokenCounts.Selectors)
+	}
+
+	if result.TokenCounts.Subflows != 1 {
+		t.Errorf("expected 1 subflow (from nested def), got %d", result.TokenCounts.Subflows)
 	}
 }

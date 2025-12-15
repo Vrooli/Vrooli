@@ -32,31 +32,30 @@ type PreflightResult struct {
 }
 
 // TokenCounts tracks how many tokens of each type were found.
+// Note: These counts are informational only - BAS handles all token resolution at runtime.
 type TokenCounts struct {
-	Fixtures  int `json:"fixtures"`
-	Selectors int `json:"selectors"`
-	Seeds     int `json:"seeds"`
+	Selectors    int `json:"selectors"`     // @selector/ tokens (resolved by BAS compiler)
+	Subflows     int `json:"subflows"`      // Subflow nodes with workflowPath
+	ParamsTokens int `json:"params_tokens"` // ${@params/...} tokens
 }
 
-// PreflightValidator validates workflows before resolution.
+// PreflightValidator validates workflows before execution.
+// Since BAS handles all variable interpolation and subflow resolution natively,
+// preflight validation is minimal - primarily checking basic structure and scenario dependencies.
 type PreflightValidator struct {
-	scenarioDir    string
-	fixturesDir    string
-	loadedFixtures map[string]bool
-	// NOTE: Selector validation removed - BAS handles @selector/ resolution natively.
-	// See: scenarios/browser-automation-studio/api/automation/compiler/compiler.go:939-1073
+	scenarioDir string
 }
 
 // NewPreflightValidator creates a new preflight validator.
 func NewPreflightValidator(scenarioDir string) *PreflightValidator {
 	return &PreflightValidator{
 		scenarioDir: scenarioDir,
-		fixturesDir: filepath.Join(scenarioDir, "test", "playbooks", "__subflows"),
 	}
 }
 
 // Validate performs preflight validation on a workflow file.
-// It checks that all referenced fixtures and selectors exist without actually resolving them.
+// Checks basic structure and extracts scenario dependencies.
+// Variable interpolation and subflow resolution are delegated to BAS at runtime.
 func (v *PreflightValidator) Validate(workflowPath string) (*PreflightResult, error) {
 	// Ensure absolute path
 	if !filepath.IsAbs(workflowPath) {
@@ -79,19 +78,10 @@ func (v *PreflightValidator) Validate(workflowPath string) (*PreflightResult, er
 		Valid: true,
 	}
 
-	// Load available fixtures
-	if err := v.loadAvailableFixtures(); err != nil {
-		result.Errors = append(result.Errors, PreflightIssue{
-			Severity: "error",
-			Code:     "PF_FIXTURES_LOAD_FAILED",
-			Message:  fmt.Sprintf("Failed to load fixtures directory: %v", err),
-			Hint:     "Check that test/playbooks/__subflows directory is accessible",
-		})
-	}
+	// Validate basic structure
+	v.validateStructure(workflow, result)
 
-	// NOTE: Selector manifest loading removed - BAS handles @selector/ validation natively.
-
-	// Scan workflow for tokens
+	// Scan workflow for tokens and dependencies
 	v.scanDefinition(workflow, result, "")
 
 	// Determine validity
@@ -100,58 +90,44 @@ func (v *PreflightValidator) Validate(workflowPath string) (*PreflightResult, er
 	return result, nil
 }
 
-// loadAvailableFixtures scans the fixtures directory for available fixture IDs.
-func (v *PreflightValidator) loadAvailableFixtures() error {
-	v.loadedFixtures = make(map[string]bool)
-
-	if _, err := os.Stat(v.fixturesDir); os.IsNotExist(err) {
-		return nil // No fixtures directory is OK
+// validateStructure checks that the workflow has the required structure.
+func (v *PreflightValidator) validateStructure(workflow map[string]any, result *PreflightResult) {
+	// Check for nodes array
+	nodes, ok := workflow["nodes"]
+	if !ok {
+		result.Errors = append(result.Errors, PreflightIssue{
+			Severity: "error",
+			Code:     "PF_MISSING_NODES",
+			Message:  "Workflow missing required 'nodes' field",
+			Hint:     "Add a 'nodes' array to the workflow",
+		})
+	} else if _, ok := nodes.([]any); !ok {
+		result.Errors = append(result.Errors, PreflightIssue{
+			Severity: "error",
+			Code:     "PF_INVALID_NODES",
+			Message:  "Workflow 'nodes' field must be an array",
+		})
 	}
 
-	return filepath.WalkDir(v.fixturesDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	// Check for edges array (optional but if present must be array)
+	if edges, ok := workflow["edges"]; ok {
+		if _, ok := edges.([]any); !ok {
+			result.Errors = append(result.Errors, PreflightIssue{
+				Severity: "error",
+				Code:     "PF_INVALID_EDGES",
+				Message:  "Workflow 'edges' field must be an array",
+			})
 		}
-		if d.IsDir() || filepath.Ext(path) != ".json" {
-			return nil
-		}
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil // Skip unreadable files
-		}
-
-		var doc map[string]any
-		if err := json.Unmarshal(data, &doc); err != nil {
-			return nil // Skip invalid JSON
-		}
-
-		// Extract fixture ID
-		metadata, _ := doc["metadata"].(map[string]any)
-		if metadata == nil {
-			return nil
-		}
-
-		fixtureID, _ := metadata["fixture_id"].(string)
-		if fixtureID == "" {
-			fixtureID, _ = metadata["fixtureId"].(string)
-		}
-		if fixtureID != "" {
-			v.loadedFixtures[fixtureID] = true
-		}
-
-		return nil
-	})
+	}
 }
 
 // Patterns for token detection
 var (
-	preflightFixturePattern  = regexp.MustCompile(`@fixture/([A-Za-z0-9_.-]+)`)
 	preflightSelectorPattern = regexp.MustCompile(`@selector/([A-Za-z0-9_.-]+)`)
-	preflightSeedPattern     = regexp.MustCompile(`@seed/([A-Za-z0-9_.-]+)`)
+	preflightParamsPattern   = regexp.MustCompile(`\$\{@params/([A-Za-z0-9_./]+)\}`)
 )
 
-// scanDefinition recursively scans a workflow definition for tokens.
+// scanDefinition recursively scans a workflow definition for tokens and dependencies.
 func (v *PreflightValidator) scanDefinition(definition map[string]any, result *PreflightResult, pointer string) {
 	nodes, ok := definition["nodes"].([]any)
 	if !ok {
@@ -173,9 +149,22 @@ func (v *PreflightValidator) scanDefinition(definition map[string]any, result *P
 			continue
 		}
 
-		// Check workflowId for fixture references
-		if workflowID, ok := data["workflowId"].(string); ok {
-			v.checkFixtureReference(workflowID, nodeID, nodeType, nodePointer+"/data/workflowId", result)
+		// Check for subflow references (workflowPath is the new format)
+		if workflowPath, ok := data["workflowPath"].(string); ok && workflowPath != "" {
+			result.TokenCounts.Subflows++
+			// Validate path format (should be relative, not absolute)
+			if filepath.IsAbs(workflowPath) {
+				result.Warnings = append(result.Warnings, PreflightIssue{
+					Severity: "warning",
+					Code:     "PF_ABSOLUTE_WORKFLOW_PATH",
+					Message:  fmt.Sprintf("Subflow uses absolute path: %s", workflowPath),
+					NodeID:   nodeID,
+					NodeType: nodeType,
+					Field:    "workflowPath",
+					Pointer:  nodePointer + "/data/workflowPath",
+					Hint:     "Use relative paths for portability (e.g., 'actions/helper.json')",
+				})
+			}
 		}
 
 		// Check navigate nodes for scenario references
@@ -183,18 +172,40 @@ func (v *PreflightValidator) scanDefinition(definition map[string]any, result *P
 			v.checkScenarioReference(data, nodeID, nodePointer, result)
 		}
 
-		// Scan all string fields for selector and seed references
-		for field, value := range data {
-			if strVal, ok := value.(string); ok {
-				fieldPointer := fmt.Sprintf("%s/data/%s", nodePointer, field)
-				v.checkSelectorReferences(strVal, nodeID, nodeType, field, fieldPointer, result)
-				v.checkSeedReferences(strVal, nodeID, nodeType, field, fieldPointer, result)
-			}
-		}
+		// Scan all string fields for @selector/ and ${@params/...} tokens
+		v.scanFieldsForTokens(data, nodeID, nodeType, nodePointer, result)
 
 		// Recursively check nested workflow definitions
 		if nestedDef, ok := data["workflowDefinition"].(map[string]any); ok {
 			v.scanDefinition(nestedDef, result, nodePointer+"/data/workflowDefinition")
+		}
+	}
+}
+
+// scanFieldsForTokens scans all string fields in data for tokens.
+func (v *PreflightValidator) scanFieldsForTokens(data map[string]any, nodeID, nodeType, pointer string, result *PreflightResult) {
+	for _, value := range data {
+		switch val := value.(type) {
+		case string:
+			// Count @selector/ tokens
+			selectorMatches := preflightSelectorPattern.FindAllStringSubmatch(val, -1)
+			result.TokenCounts.Selectors += len(selectorMatches)
+
+			// Count ${@params/...} tokens
+			paramsMatches := preflightParamsPattern.FindAllStringSubmatch(val, -1)
+			result.TokenCounts.ParamsTokens += len(paramsMatches)
+
+		case map[string]any:
+			// Recursively scan nested objects
+			v.scanFieldsForTokens(val, nodeID, nodeType, pointer, result)
+
+		case []any:
+			// Recursively scan arrays
+			for _, item := range val {
+				if itemMap, ok := item.(map[string]any); ok {
+					v.scanFieldsForTokens(itemMap, nodeID, nodeType, pointer, result)
+				}
+			}
 		}
 	}
 }
@@ -227,114 +238,6 @@ func (v *PreflightValidator) checkScenarioReference(data map[string]any, nodeID,
 	result.RequiredScenarios = append(result.RequiredScenarios, scenario)
 }
 
-// checkFixtureReference validates a fixture reference.
-func (v *PreflightValidator) checkFixtureReference(ref string, nodeID, nodeType, pointer string, result *PreflightResult) {
-	if !strings.HasPrefix(ref, "@fixture/") {
-		return
-	}
-
-	match := preflightFixturePattern.FindStringSubmatch(ref)
-	if match == nil {
-		result.Errors = append(result.Errors, PreflightIssue{
-			Severity: "error",
-			Code:     "PF_FIXTURE_INVALID_SYNTAX",
-			Message:  fmt.Sprintf("Invalid fixture reference syntax: %s", ref),
-			NodeID:   nodeID,
-			NodeType: nodeType,
-			Pointer:  pointer,
-			Hint:     "Use format @fixture/fixture-id or @fixture/fixture-id(param=value)",
-		})
-		return
-	}
-
-	fixtureID := match[1]
-	result.TokenCounts.Fixtures++
-
-	if v.loadedFixtures != nil && !v.loadedFixtures[fixtureID] {
-		// Find similar fixtures for suggestions
-		suggestions := v.findSimilarFixtures(fixtureID)
-		hint := fmt.Sprintf("Create fixture in test/playbooks/__subflows/%s.json", fixtureID)
-		if len(suggestions) > 0 {
-			hint = fmt.Sprintf("Did you mean: %s? Or create: test/playbooks/__subflows/%s.json",
-				strings.Join(suggestions, ", "), fixtureID)
-		}
-
-		result.Errors = append(result.Errors, PreflightIssue{
-			Severity: "error",
-			Code:     "PF_FIXTURE_NOT_FOUND",
-			Message:  fmt.Sprintf("Fixture @fixture/%s not found", fixtureID),
-			NodeID:   nodeID,
-			NodeType: nodeType,
-			Field:    "workflowId",
-			Pointer:  pointer,
-			Hint:     hint,
-		})
-	}
-}
-
-// checkSelectorReferences counts selector references for informational purposes.
-// NOTE: Selector validation is handled by BAS compiler, not test-genie preflight.
-// See: scenarios/browser-automation-studio/api/automation/compiler/compiler.go:939-1073
-func (v *PreflightValidator) checkSelectorReferences(value, nodeID, nodeType, field, pointer string, result *PreflightResult) {
-	matches := preflightSelectorPattern.FindAllStringSubmatch(value, -1)
-	result.TokenCounts.Selectors += len(matches)
-	// Validation delegated to BAS - selectors are resolved at compile time by BAS compiler
-}
-
-// checkSeedReferences notes seed references (warnings only - can't validate statically).
-func (v *PreflightValidator) checkSeedReferences(value, nodeID, nodeType, field, pointer string, result *PreflightResult) {
-	matches := preflightSeedPattern.FindAllStringSubmatch(value, -1)
-	for _, match := range matches {
-		seedKey := match[1]
-		result.TokenCounts.Seeds++
-
-		// Seeds can only be validated at runtime, so we just count them
-		// and emit a warning if many are found (indicates heavy seed dependency)
-		if result.TokenCounts.Seeds == 1 {
-			result.Warnings = append(result.Warnings, PreflightIssue{
-				Severity: "warning",
-				Code:     "PF_SEED_RUNTIME_DEPENDENCY",
-				Message:  fmt.Sprintf("Workflow uses @seed/%s which requires runtime seed state", seedKey),
-				NodeID:   nodeID,
-				NodeType: nodeType,
-				Field:    field,
-				Pointer:  pointer,
-				Hint:     "Seeds are resolved at runtime from test/playbooks/__seeds/state.json",
-			})
-		}
-	}
-}
-
-// findSimilarFixtures finds fixtures with similar names for suggestions.
-func (v *PreflightValidator) findSimilarFixtures(target string) []string {
-	var suggestions []string
-	targetParts := strings.Split(strings.ToLower(target), "-")
-
-	for fixtureID := range v.loadedFixtures {
-		fixtureParts := strings.Split(strings.ToLower(fixtureID), "-")
-		for _, tp := range targetParts {
-			for _, fp := range fixtureParts {
-				if tp == fp || strings.Contains(fp, tp) || strings.Contains(tp, fp) {
-					suggestions = append(suggestions, "@fixture/"+fixtureID)
-					break
-				}
-			}
-		}
-	}
-
-	// Deduplicate and limit
-	seen := make(map[string]bool)
-	var unique []string
-	for _, s := range suggestions {
-		if !seen[s] && len(unique) < 3 {
-			seen[s] = true
-			unique = append(unique, s)
-		}
-	}
-	sort.Strings(unique)
-	return unique
-}
-
 // ValidateAll validates multiple workflow files and aggregates results.
 func (v *PreflightValidator) ValidateAll(workflowPaths []string) (*PreflightResult, error) {
 	aggregated := &PreflightResult{
@@ -357,9 +260,9 @@ func (v *PreflightValidator) ValidateAll(workflowPaths []string) (*PreflightResu
 
 		aggregated.Errors = append(aggregated.Errors, result.Errors...)
 		aggregated.Warnings = append(aggregated.Warnings, result.Warnings...)
-		aggregated.TokenCounts.Fixtures += result.TokenCounts.Fixtures
 		aggregated.TokenCounts.Selectors += result.TokenCounts.Selectors
-		aggregated.TokenCounts.Seeds += result.TokenCounts.Seeds
+		aggregated.TokenCounts.Subflows += result.TokenCounts.Subflows
+		aggregated.TokenCounts.ParamsTokens += result.TokenCounts.ParamsTokens
 
 		// Deduplicate required scenarios
 		for _, scenario := range result.RequiredScenarios {

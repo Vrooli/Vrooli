@@ -8,5 +8,5 @@ This registry mirrors the operational targets captured in the PRD:
 
 ## Usage
 - Tag source/tests with `[REQ:ID]` (see each module JSON file for canonical IDs).
-- Run the full suite via `cd scenarios/test-genie && ./test/run-tests.sh` once the new orchestrator exists. Until then, document any alternate commands in docs/PROGRESS.md.
-- Requirement status sync happens automatically after `vrooli scenario test test-genie` executes once the scenario exposes its own orchestration APIs.
+- Run the full suite via `test-genie execute test-genie --preset comprehensive` or `cd scenarios/test-genie && make test`.
+- Requirement status sync happens automatically after comprehensive test execution.

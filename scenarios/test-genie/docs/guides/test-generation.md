@@ -148,7 +148,6 @@ graph TD
      - `api/*_test.go` - Go unit tests
      - `ui/src/**/*.test.ts` - Vitest UI tests
      - `test/playbooks/**/*.json` - BAS workflow scaffolds
-     - `test/phases/test-*.sh` - Phase scripts (if missing)
 
 5. **Tests integrated into scenario**:
    - Generated tests committed to scenario repo

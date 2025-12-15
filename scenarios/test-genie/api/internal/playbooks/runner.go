@@ -872,9 +872,9 @@ func (r *Runner) runPreflightValidation(reg Registry) *RunResult {
 	}
 
 	// Log preflight success with token counts
-	if result.TokenCounts.Fixtures > 0 || result.TokenCounts.Selectors > 0 || result.TokenCounts.Seeds > 0 {
-		shared.LogStep(r.logWriter, "preflight validation passed: %d fixtures, %d selectors, %d seeds",
-			result.TokenCounts.Fixtures, result.TokenCounts.Selectors, result.TokenCounts.Seeds)
+	if result.TokenCounts.Selectors > 0 || result.TokenCounts.Subflows > 0 || result.TokenCounts.ParamsTokens > 0 {
+		shared.LogStep(r.logWriter, "preflight validation passed: %d selectors, %d subflows, %d params tokens",
+			result.TokenCounts.Selectors, result.TokenCounts.Subflows, result.TokenCounts.ParamsTokens)
 	}
 
 	// Log required scenarios

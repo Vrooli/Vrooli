@@ -218,9 +218,6 @@ ls -la test/
 # Use absolute paths
 APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Check script permissions
-chmod +x test/run-tests.sh
-
 # Verify symlinks
 ls -la test/ | grep -E "^l"
 ```
