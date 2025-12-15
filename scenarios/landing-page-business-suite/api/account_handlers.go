@@ -82,7 +82,7 @@ func handleEntitlements(accountService *AccountService) http.HandlerFunc {
 	}
 }
 
-func handleDownloads(authorizer *DownloadAuthorizer) http.HandlerFunc {
+func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		appKey := strings.TrimSpace(r.URL.Query().Get("app"))
 		if appKey == "" {
@@ -116,6 +116,24 @@ func handleDownloads(authorizer *DownloadAuthorizer) http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 			return
+		}
+
+		if asset != nil && strings.TrimSpace(asset.ArtifactSource) == "managed" && asset.ArtifactID != nil && *asset.ArtifactID > 0 {
+			artifact, err := hosting.GetArtifact(r.Context(), plans.BundleKey(), *asset.ArtifactID)
+			if err != nil {
+				http.Error(w, "failed to resolve managed artifact", http.StatusInternalServerError)
+				return
+			}
+			if artifact == nil {
+				http.Error(w, "download artifact not found", http.StatusNotFound)
+				return
+			}
+			signedURL, err := hosting.PresignGetArtifact(r.Context(), plans.BundleKey(), *artifact)
+			if err != nil {
+				http.Error(w, "failed to generate download url", http.StatusInternalServerError)
+				return
+			}
+			asset.ArtifactURL = signedURL
 		}
 
 		writeJSON(w, asset)

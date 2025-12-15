@@ -135,10 +135,48 @@ export interface DownloadAsset {
   app_key: string;
   platform: string;
   artifact_url: string;
+  artifact_source?: 'direct' | 'managed';
+  artifact_id?: number;
   release_version: string;
   release_notes?: string;
+  checksum?: string;
   requires_entitlement: boolean;
   metadata?: Record<string, unknown>;
+}
+
+export interface DownloadStorageSettingsSnapshot {
+  provider: 's3';
+  bucket?: string;
+  region?: string;
+  endpoint?: string;
+  force_path_style: boolean;
+  default_prefix?: string;
+  signed_url_ttl_seconds: number;
+  public_base_url?: string;
+  access_key_id_set: boolean;
+  secret_access_key_set: boolean;
+  session_token_set: boolean;
+  credentials_from_env: boolean;
+  settings_row_available: boolean;
+}
+
+export interface DownloadArtifact {
+  id: number;
+  bundle_key: string;
+  provider: 's3';
+  bucket: string;
+  object_key: string;
+  etag?: string;
+  size_bytes?: number;
+  sha256?: string;
+  content_type?: string;
+  original_filename?: string;
+  platform?: string;
+  release_version?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  stable_object_uri?: string;
 }
 
 export interface DownloadStorefront {

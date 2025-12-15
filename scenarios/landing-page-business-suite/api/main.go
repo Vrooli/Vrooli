@@ -38,6 +38,7 @@ type Server struct {
 	contentService       *ContentService
 	planService          *PlanService
 	downloadService      *DownloadService
+	downloadHosting      *DownloadHostingService
 	downloadAuthorizer   *DownloadAuthorizer
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
@@ -79,6 +80,7 @@ func NewServer() (*Server, error) {
 	contentService := NewContentService(db)
 	planService := NewPlanService(db)
 	downloadService := NewDownloadService(db)
+	downloadHosting := NewDownloadHostingService(db, S3DownloadStorageProvider{})
 	accountService := NewAccountService(db, planService)
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	paymentSettings := NewPaymentSettingsService(db)
@@ -104,6 +106,7 @@ func NewServer() (*Server, error) {
 		contentService:       contentService,
 		planService:          planService,
 		downloadService:      downloadService,
+		downloadHosting:      downloadHosting,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
 		landingConfigService: NewLandingConfigService(variantService, contentService, planService, downloadService, brandingService),
@@ -142,7 +145,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/me/subscription", handleMeSubscription(s.accountService)).Methods("GET")
 	s.router.HandleFunc("/api/v1/me/credits", handleMeCredits(s.accountService)).Methods("GET")
 	s.router.HandleFunc("/api/v1/entitlements", handleEntitlements(s.accountService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/downloads", handleDownloads(s.downloadAuthorizer)).Methods("GET")
+	s.router.HandleFunc("/api/v1/downloads", handleDownloads(s.downloadAuthorizer, s.downloadHosting, s.planService)).Methods("GET")
 
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
 
@@ -160,6 +163,14 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdmin(handleAdminCreateDownloadApp(s.downloadService, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireAdmin(handleAdminSaveDownloadApp(s.downloadService, s.planService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireAdmin(handleAdminDeleteDownloadApp(s.downloadService, s.planService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/download-storage", s.requireAdmin(handleAdminGetDownloadStorage(s.downloadHosting, s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-storage", s.requireAdmin(handleAdminUpdateDownloadStorage(s.downloadHosting, s.planService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/download-storage/test", s.requireAdmin(handleAdminTestDownloadStorage(s.downloadHosting, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts", s.requireAdmin(handleAdminListDownloadArtifacts(s.downloadHosting, s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/presign-upload", s.requireAdmin(handleAdminPresignUploadDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/commit", s.requireAdmin(handleAdminCommitDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/{artifact_id}/presign-get", s.requireAdmin(handleAdminPresignGetDownloadArtifact(s.downloadHosting, s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdmin(handleAdminApplyDownloadArtifact(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/bundles", s.requireAdmin(handleAdminBundleCatalog(s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService))).Methods("PATCH")
 
@@ -762,9 +773,9 @@ func seedDownloadDefaults(db *sql.DB, downloads []DownloadApp) error {
 			}
 
 			if _, err := db.Exec(`
-				INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
-				ON CONFLICT (bundle_key, app_key, platform)
+				INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata, variant_key)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,'default')
+				ON CONFLICT (bundle_key, app_key, platform, variant_key)
 				DO UPDATE SET artifact_url = EXCLUDED.artifact_url,
 					release_version = EXCLUDED.release_version,
 					release_notes = EXCLUDED.release_notes,
@@ -1169,6 +1180,52 @@ func ensureSchema(db *sql.DB) error {
 			CONSTRAINT fk_download_app FOREIGN KEY (bundle_key, app_key)
 				REFERENCES download_apps(bundle_key, app_key) ON DELETE CASCADE
 		);`,
+		`ALTER TABLE download_assets ALTER COLUMN artifact_url DROP NOT NULL;`,
+		`CREATE TABLE IF NOT EXISTS download_artifacts (
+			id SERIAL PRIMARY KEY,
+			bundle_key VARCHAR(100) NOT NULL,
+			provider VARCHAR(50) NOT NULL DEFAULT 's3',
+			bucket TEXT NOT NULL,
+			object_key TEXT NOT NULL,
+			etag TEXT,
+			size_bytes BIGINT,
+			sha256 TEXT,
+			content_type TEXT,
+			original_filename TEXT,
+			platform VARCHAR(50),
+			release_version VARCHAR(50),
+			metadata JSONB DEFAULT '{}'::jsonb,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			UNIQUE (bundle_key, bucket, object_key)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_bundle ON download_artifacts(bundle_key);`,
+		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_platform ON download_artifacts(platform);`,
+		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_release_version ON download_artifacts(release_version);`,
+		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS artifact_source VARCHAR(20) NOT NULL DEFAULT 'direct';`,
+		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS artifact_id INTEGER NULL;`,
+		`ALTER TABLE download_assets DROP CONSTRAINT IF EXISTS fk_download_assets_artifact;`,
+		`ALTER TABLE download_assets ADD CONSTRAINT fk_download_assets_artifact FOREIGN KEY (artifact_id)
+			REFERENCES download_artifacts(id) ON DELETE SET NULL;`,
+		`CREATE INDEX IF NOT EXISTS idx_download_assets_artifact_id ON download_assets(artifact_id);`,
+		`CREATE TABLE IF NOT EXISTS download_storage_settings (
+			id SERIAL PRIMARY KEY,
+			bundle_key VARCHAR(100) UNIQUE NOT NULL,
+			provider VARCHAR(50) NOT NULL DEFAULT 's3',
+			bucket TEXT,
+			region TEXT,
+			endpoint TEXT,
+			force_path_style BOOLEAN DEFAULT FALSE,
+			default_prefix TEXT,
+			signed_url_ttl_seconds INTEGER DEFAULT 900,
+			public_base_url TEXT,
+			access_key_id TEXT,
+			secret_access_key TEXT,
+			session_token TEXT,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_download_storage_settings_bundle ON download_storage_settings(bundle_key);`,
 		`CREATE INDEX IF NOT EXISTS idx_download_apps_bundle ON download_apps(bundle_key);`,
 		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS app_key VARCHAR(100);`,
 		`UPDATE download_assets SET app_key = bundle_key WHERE app_key IS NULL OR app_key = '';`,

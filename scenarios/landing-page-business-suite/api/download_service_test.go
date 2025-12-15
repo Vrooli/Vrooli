@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -59,5 +60,43 @@ func TestDownloadServiceDeleteAppNotFound(t *testing.T) {
 	err := service.DeleteApp("missing_bundle", "missing_app")
 	if !errors.Is(err, ErrDownloadAppNotFound) {
 		t.Fatalf("expected ErrDownloadAppNotFound, got %v", err)
+	}
+}
+
+func TestDownloadServiceListAppsEmptyReturnsNonNilSlice(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewDownloadService(db)
+
+	apps, err := service.ListApps("bundle_with_no_apps")
+	if err != nil {
+		t.Fatalf("ListApps returned error: %v", err)
+	}
+	if apps == nil {
+		t.Fatalf("expected ListApps to return a non-nil slice")
+	}
+	if len(apps) != 0 {
+		t.Fatalf("expected empty result, got %d", len(apps))
+	}
+}
+
+func TestDownloadHostingListArtifactsEmptyReturnsNonNilSlice(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	hosting := NewDownloadHostingService(db, S3DownloadStorageProvider{})
+	result, err := hosting.ListArtifacts(context.Background(), "bundle_with_no_artifacts", "", "", 1, 50)
+	if err != nil {
+		t.Fatalf("ListArtifacts returned error: %v", err)
+	}
+	if result == nil {
+		t.Fatalf("expected ListArtifacts to return a result")
+	}
+	if result.Artifacts == nil {
+		t.Fatalf("expected ListArtifacts to return a non-nil artifacts slice")
+	}
+	if len(result.Artifacts) != 0 {
+		t.Fatalf("expected empty artifacts result, got %d", len(result.Artifacts))
 	}
 }

@@ -28,6 +28,8 @@ type downloadAppRequest struct {
 type downloadAssetRequest struct {
 	Platform            string                 `json:"platform"`
 	ArtifactURL         string                 `json:"artifact_url"`
+	ArtifactSource      string                 `json:"artifact_source"`
+	ArtifactID          *int64                 `json:"artifact_id"`
 	ReleaseVersion      string                 `json:"release_version"`
 	ReleaseNotes        string                 `json:"release_notes"`
 	Checksum            string                 `json:"checksum"`
@@ -169,8 +171,19 @@ func buildDownloadAppFromPayload(payload downloadAppRequest, bundleKey string, o
 		if strings.TrimSpace(platform.Platform) == "" {
 			return DownloadApp{}, fmt.Errorf("platform is required for all installers")
 		}
-		if strings.TrimSpace(platform.ArtifactURL) == "" {
-			return DownloadApp{}, fmt.Errorf("artifact_url is required for platform %s", platform.Platform)
+		artifactSource := strings.TrimSpace(platform.ArtifactSource)
+		if artifactSource == "" {
+			artifactSource = "direct"
+		}
+		if artifactSource != "direct" && artifactSource != "managed" {
+			return DownloadApp{}, fmt.Errorf("artifact_source must be 'direct' or 'managed' for platform %s", platform.Platform)
+		}
+		if artifactSource == "direct" {
+			if err := validateDirectArtifactURL(platform.ArtifactURL); err != nil {
+				return DownloadApp{}, fmt.Errorf("platform %s: %w", platform.Platform, err)
+			}
+		} else if platform.ArtifactID == nil || *platform.ArtifactID == 0 {
+			return DownloadApp{}, fmt.Errorf("artifact_id is required for managed platform %s", platform.Platform)
 		}
 		if strings.TrimSpace(platform.ReleaseVersion) == "" {
 			return DownloadApp{}, fmt.Errorf("release_version is required for platform %s", platform.Platform)
@@ -186,6 +199,8 @@ func buildDownloadAppFromPayload(payload downloadAppRequest, bundleKey string, o
 			AppKey:              appKey,
 			Platform:            strings.TrimSpace(platform.Platform),
 			ArtifactURL:         strings.TrimSpace(platform.ArtifactURL),
+			ArtifactSource:      artifactSource,
+			ArtifactID:          platform.ArtifactID,
 			ReleaseVersion:      strings.TrimSpace(platform.ReleaseVersion),
 			ReleaseNotes:        strings.TrimSpace(platform.ReleaseNotes),
 			Checksum:            strings.TrimSpace(platform.Checksum),

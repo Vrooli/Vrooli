@@ -5,13 +5,13 @@ This directory contains Vrooli Ascension (BAS) playbook workflows for end-to-end
 ## Structure
 
 ```
-test/playbooks/
-├── capabilities/                    # Feature-specific validation workflows
+bas/
+├── cases/                           # Feature-specific validation workflows
 │   └── 01-template-management/      # Template catalog & generation features
 │       └── ui/                      # UI-layer workflows
 │           ├── template-list-display.json     # TMPL-AVAILABILITY: Template catalog display
 │           └── dry-run-generation.json        # TMPL-DRY-RUN: Dry-run generation flow
-├── journeys/                        # End-to-end user journey workflows (future)
+├── flows/                           # End-to-end user journey workflows (future)
 │   └── 01-new-user/                 # First-time user happy path (planned)
 └── registry.json                    # Auto-generated playbook index
 ```
@@ -21,8 +21,7 @@ test/playbooks/
 Each playbook JSON file includes:
 - `metadata.description`: What the workflow validates
 - `metadata.version`: Schema version
-- `metadata.reset`: Database reset level (`none`, `full`)
-- `settings.executionViewport`: Browser viewport config
+- `metadata.labels.reset`: Reset level (`none`, `full`)
 - `nodes`: Workflow step definitions (navigate, wait, click, assert, etc.)
 - `edges`: Step execution order
 
@@ -48,7 +47,7 @@ make test                             # Full test suite including integration
 Or via CLI for individual workflows:
 ```bash
 # Requires browser-automation-studio running
-browser-automation-studio execute test/playbooks/capabilities/01-template-management/ui/template-list-display.json
+browser-automation-studio execution create --file bas/cases/01-template-management/ui/template-list-display.json --wait
 ```
 
 ## Registry

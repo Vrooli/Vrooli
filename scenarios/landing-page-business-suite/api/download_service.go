@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -36,6 +37,8 @@ type DownloadAsset struct {
 	AppKey              string                 `json:"app_key"`
 	Platform            string                 `json:"platform"`
 	ArtifactURL         string                 `json:"artifact_url"`
+	ArtifactSource      string                 `json:"artifact_source"`
+	ArtifactID          *int64                 `json:"artifact_id,omitempty"`
 	ReleaseVersion      string                 `json:"release_version"`
 	ReleaseNotes        string                 `json:"release_notes,omitempty"`
 	Checksum            string                 `json:"checksum,omitempty"`
@@ -73,10 +76,31 @@ func NewDownloadService(db *sql.DB) *DownloadService {
 	return &DownloadService{db: db}
 }
 
+func validateDirectArtifactURL(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return fmt.Errorf("artifact_url is required for direct downloads")
+	}
+	if strings.HasPrefix(raw, "/") {
+		return nil
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid artifact_url")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("artifact_url must be http(s) or a relative path")
+	}
+	if parsed.Host == "" {
+		return fmt.Errorf("artifact_url must include a host")
+	}
+	return nil
+}
+
 // ListAssets returns all download assets for a bundle.
 func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) {
 	query := `
-		SELECT id, bundle_key, app_key, platform, artifact_url, release_version,
+		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
 		       release_notes, checksum, requires_entitlement, metadata
 		FROM download_assets
 		WHERE bundle_key = $1
@@ -89,16 +113,21 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 	}
 	defer rows.Close()
 
-	var assets []DownloadAsset
+	assets := make([]DownloadAsset, 0)
 	for rows.Next() {
 		var asset DownloadAsset
+		var artifactURL sql.NullString
+		var artifactSource sql.NullString
+		var artifactID sql.NullInt64
 		var metadataBytes []byte
 		if err := rows.Scan(
 			&asset.ID,
 			&asset.BundleKey,
 			&asset.AppKey,
 			&asset.Platform,
-			&asset.ArtifactURL,
+			&artifactURL,
+			&artifactSource,
+			&artifactID,
 			&asset.ReleaseVersion,
 			&asset.ReleaseNotes,
 			&asset.Checksum,
@@ -106,6 +135,17 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 			&metadataBytes,
 		); err != nil {
 			return nil, err
+		}
+
+		asset.ArtifactURL = artifactURL.String
+		if artifactSource.Valid && strings.TrimSpace(artifactSource.String) != "" {
+			asset.ArtifactSource = artifactSource.String
+		} else {
+			asset.ArtifactSource = "direct"
+		}
+		if artifactID.Valid {
+			id := artifactID.Int64
+			asset.ArtifactID = &id
 		}
 
 		if len(metadataBytes) > 0 {
@@ -137,7 +177,7 @@ func (s *DownloadService) ListApps(bundleKey string) ([]DownloadApp, error) {
 	}
 	defer rows.Close()
 
-	var apps []DownloadApp
+	apps := make([]DownloadApp, 0)
 	for rows.Next() {
 		var app DownloadApp
 		var iconURL, screenshotURL sql.NullString
@@ -265,7 +305,7 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 	}
 
 	assetRows, err := s.db.Query(`
-		SELECT id, bundle_key, app_key, platform, artifact_url, release_version,
+		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
 		       release_notes, checksum, requires_entitlement, metadata
 		FROM download_assets
 		WHERE bundle_key = $1 AND app_key = $2
@@ -278,13 +318,18 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 
 	for assetRows.Next() {
 		var asset DownloadAsset
+		var artifactURL sql.NullString
+		var artifactSource sql.NullString
+		var artifactID sql.NullInt64
 		var metadataBytes []byte
 		if err := assetRows.Scan(
 			&asset.ID,
 			&asset.BundleKey,
 			&asset.AppKey,
 			&asset.Platform,
-			&asset.ArtifactURL,
+			&artifactURL,
+			&artifactSource,
+			&artifactID,
 			&asset.ReleaseVersion,
 			&asset.ReleaseNotes,
 			&asset.Checksum,
@@ -292,6 +337,17 @@ func (s *DownloadService) GetApp(bundleKey, appKey string) (*DownloadApp, error)
 			&metadataBytes,
 		); err != nil {
 			return nil, err
+		}
+
+		asset.ArtifactURL = artifactURL.String
+		if artifactSource.Valid && strings.TrimSpace(artifactSource.String) != "" {
+			asset.ArtifactSource = artifactSource.String
+		} else {
+			asset.ArtifactSource = "direct"
+		}
+		if artifactID.Valid {
+			id := artifactID.Int64
+			asset.ArtifactID = &id
 		}
 
 		if len(metadataBytes) > 0 {
@@ -376,9 +432,9 @@ func (s *DownloadService) UpsertDownloadApp(app DownloadApp) (*DownloadApp, erro
 	if len(app.Platforms) > 0 {
 		stmt, err := tx.Prepare(`
 			INSERT INTO download_assets (
-				bundle_key, app_key, platform, artifact_url,
+				bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id,
 				release_version, release_notes, checksum, requires_entitlement, metadata
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		`)
 		if err != nil {
 			return nil, fmt.Errorf("prepare asset insert: %w", err)
@@ -390,15 +446,35 @@ func (s *DownloadService) UpsertDownloadApp(app DownloadApp) (*DownloadApp, erro
 			if platform == "" {
 				return nil, fmt.Errorf("platform is required for all assets")
 			}
+			assetSource := strings.TrimSpace(asset.ArtifactSource)
+			if assetSource == "" {
+				assetSource = "direct"
+			}
+			if assetSource != "direct" && assetSource != "managed" {
+				return nil, fmt.Errorf("artifact_source must be 'direct' or 'managed'")
+			}
+			if assetSource == "direct" {
+				if err := validateDirectArtifactURL(asset.ArtifactURL); err != nil {
+					return nil, err
+				}
+			} else if asset.ArtifactID == nil || *asset.ArtifactID == 0 {
+				return nil, fmt.Errorf("artifact_id is required when artifact_source is managed")
+			}
 			metadataBytes, err := json.Marshal(asset.Metadata)
 			if err != nil {
 				return nil, fmt.Errorf("marshal asset metadata: %w", err)
+			}
+			var artifactID interface{}
+			if asset.ArtifactID != nil && *asset.ArtifactID != 0 {
+				artifactID = *asset.ArtifactID
 			}
 			if _, err := stmt.Exec(
 				app.BundleKey,
 				app.AppKey,
 				platform,
 				strings.TrimSpace(asset.ArtifactURL),
+				assetSource,
+				artifactID,
 				strings.TrimSpace(asset.ReleaseVersion),
 				strings.TrimSpace(asset.ReleaseNotes),
 				strings.TrimSpace(asset.Checksum),
@@ -440,7 +516,7 @@ func (s *DownloadService) DeleteApp(bundleKey, appKey string) error {
 // GetAsset fetches a download artifact by platform.
 func (s *DownloadService) GetAsset(bundleKey, appKey, platform string) (*DownloadAsset, error) {
 	query := `
-		SELECT id, bundle_key, app_key, platform, artifact_url, release_version,
+		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
 		       release_notes, checksum, requires_entitlement, metadata
 		FROM download_assets
 		WHERE bundle_key = $1 AND app_key = $2 AND platform = $3
@@ -449,13 +525,18 @@ func (s *DownloadService) GetAsset(bundleKey, appKey, platform string) (*Downloa
 
 	row := s.db.QueryRow(query, bundleKey, appKey, platform)
 	var asset DownloadAsset
+	var artifactURL sql.NullString
+	var artifactSource sql.NullString
+	var artifactID sql.NullInt64
 	var metadataBytes []byte
 	if err := row.Scan(
 		&asset.ID,
 		&asset.BundleKey,
 		&asset.AppKey,
 		&asset.Platform,
-		&asset.ArtifactURL,
+		&artifactURL,
+		&artifactSource,
+		&artifactID,
 		&asset.ReleaseVersion,
 		&asset.ReleaseNotes,
 		&asset.Checksum,
@@ -468,6 +549,17 @@ func (s *DownloadService) GetAsset(bundleKey, appKey, platform string) (*Downloa
 		return nil, err
 	}
 
+	asset.ArtifactURL = artifactURL.String
+	if artifactSource.Valid && strings.TrimSpace(artifactSource.String) != "" {
+		asset.ArtifactSource = artifactSource.String
+	} else {
+		asset.ArtifactSource = "direct"
+	}
+	if artifactID.Valid {
+		id := artifactID.Int64
+		asset.ArtifactID = &id
+	}
+
 	if len(metadataBytes) > 0 {
 		var meta map[string]interface{}
 		if err := json.Unmarshal(metadataBytes, &meta); err == nil {
@@ -476,6 +568,71 @@ func (s *DownloadService) GetAsset(bundleKey, appKey, platform string) (*Downloa
 	}
 
 	return &asset, nil
+}
+
+// UpsertAsset creates or updates a single download asset row (does not touch other platforms).
+func (s *DownloadService) UpsertAsset(ctx context.Context, asset DownloadAsset) (*DownloadAsset, error) {
+	asset.BundleKey = strings.TrimSpace(asset.BundleKey)
+	asset.AppKey = strings.TrimSpace(asset.AppKey)
+	asset.Platform = strings.TrimSpace(asset.Platform)
+	asset.ArtifactURL = strings.TrimSpace(asset.ArtifactURL)
+	asset.ReleaseVersion = strings.TrimSpace(asset.ReleaseVersion)
+	asset.ReleaseNotes = strings.TrimSpace(asset.ReleaseNotes)
+	asset.Checksum = strings.TrimSpace(asset.Checksum)
+
+	assetSource := strings.TrimSpace(asset.ArtifactSource)
+	if assetSource == "" {
+		assetSource = "direct"
+	}
+
+	if asset.BundleKey == "" || asset.AppKey == "" || asset.Platform == "" {
+		return nil, fmt.Errorf("bundle_key, app_key, and platform are required")
+	}
+	if asset.ReleaseVersion == "" {
+		return nil, fmt.Errorf("release_version is required")
+	}
+	if assetSource != "direct" && assetSource != "managed" {
+		return nil, fmt.Errorf("artifact_source must be 'direct' or 'managed'")
+	}
+	if assetSource == "direct" {
+		if err := validateDirectArtifactURL(asset.ArtifactURL); err != nil {
+			return nil, err
+		}
+	} else if asset.ArtifactID == nil || *asset.ArtifactID == 0 {
+		return nil, fmt.Errorf("artifact_id is required when artifact_source is managed")
+	}
+
+	metadataBytes, err := json.Marshal(asset.Metadata)
+	if err != nil {
+		return nil, fmt.Errorf("marshal asset metadata: %w", err)
+	}
+	var artifactID interface{}
+	if asset.ArtifactID != nil && *asset.ArtifactID != 0 {
+		artifactID = *asset.ArtifactID
+	}
+
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO download_assets (
+			bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id,
+			release_version, release_notes, checksum, requires_entitlement, metadata, variant_key, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'default', NOW())
+		ON CONFLICT (bundle_key, app_key, platform, variant_key) DO UPDATE SET
+			artifact_url = EXCLUDED.artifact_url,
+			artifact_source = EXCLUDED.artifact_source,
+			artifact_id = EXCLUDED.artifact_id,
+			release_version = EXCLUDED.release_version,
+			release_notes = EXCLUDED.release_notes,
+			checksum = EXCLUDED.checksum,
+			requires_entitlement = EXCLUDED.requires_entitlement,
+			metadata = EXCLUDED.metadata,
+			updated_at = NOW()
+	`, asset.BundleKey, asset.AppKey, asset.Platform, asset.ArtifactURL, assetSource, artifactID,
+		asset.ReleaseVersion, asset.ReleaseNotes, asset.Checksum, asset.RequiresEntitlement, metadataBytes)
+	if err != nil {
+		return nil, fmt.Errorf("upsert download asset: %w", err)
+	}
+
+	return s.GetAsset(asset.BundleKey, asset.AppKey, asset.Platform)
 }
 
 type downloadAssetLookup interface {
