@@ -1,0 +1,37 @@
+{
+  "module_id": "deployment-manager-integration",
+  "title": "Deployment-Manager Integration",
+  "priority": "P0",
+  "description": "Define the invocation contract from deployment-manager to scenario-to-cloud (mirrors scenario-to-desktop integration pattern).",
+  "requirements": [
+    {
+      "id": "STC-P0-007",
+      "category": "integration",
+      "prd_ref": "OT-P0-001",
+      "title": "Packager API surface for deploy-manager",
+      "description": "Expose a minimal API for: validate(plan), build bundle, deploy over SSH, and check status/logs. Must be callable from deployment-manager orchestration.",
+      "status": "planned",
+      "tags": [
+        "deployment-manager",
+        "api",
+        "packager"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/deployment_manager_contract_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-007]."
+        },
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/deployment-manager-handshake.yaml",
+          "notes": "E2E planned. Tag with [REQ:STC-P0-007]."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "module_id": "cloud-manifest",
+  "title": "Cloud Manifest",
+  "priority": "P0",
+  "description": "Define and validate the manifest that drives cloud deployments (VPS first).",
+  "requirements": [
+    {
+      "id": "STC-P0-001",
+      "category": "manifest",
+      "prd_ref": "OT-P0-001",
+      "title": "Cloud manifest export contract",
+      "description": "A deployment-manager export defines target type (vps), scenario id, dependency graph snapshot, bundle inclusions, fixed port overrides, and domain/caddy config.",
+      "status": "planned",
+      "tags": [
+        "manifest",
+        "deployment-manager",
+        "vps"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/manifest_contract_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-001]."
+        },
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/manifest-export.yaml",
+          "notes": "E2E planned: deployment-manager exports manifest and scenario-to-cloud consumes it. Tag with [REQ:STC-P0-001]."
+        }
+      ]
+    }
+  ]
+}

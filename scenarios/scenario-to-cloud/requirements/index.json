@@ -1,0 +1,17 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-manifest/module.json",
+    "02-bundling/module.json",
+    "03-preflight/module.json",
+    "04-vps-setup/module.json",
+    "05-deploy-start/module.json",
+    "06-observability/module.json",
+    "07-deployment-manager-integration/module.json"
+  ],
+  "requirements": []
+}

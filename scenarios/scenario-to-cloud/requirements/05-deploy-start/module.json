@@ -1,0 +1,60 @@
+{
+  "module_id": "deploy-start",
+  "title": "Deploy + Start",
+  "priority": "P0",
+  "description": "Start required resources and the target scenario with fixed ports, then verify HTTPS health.",
+  "requirements": [
+    {
+      "id": "STC-P0-005",
+      "category": "deploy",
+      "prd_ref": "OT-P0-005",
+      "title": "Start resources + scenario and verify HTTPS",
+      "description": "Start analyzer-derived resources, start the scenario with UI_PORT=3000/API_PORT=3001/WS_PORT=3002 overrides, configure Caddy+LE, and confirm https://<domain>/health returns 200.",
+      "status": "planned",
+      "tags": [
+        "deploy",
+        "caddy",
+        "ports",
+        "health"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/deploy_plan_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-005]."
+        },
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/deploy.yaml",
+          "notes": "E2E planned against a disposable VPS using landing-page-business-suite. Tag with [REQ:STC-P0-005]."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-011",
+      "category": "deploy",
+      "prd_ref": "OT-P0-005",
+      "title": "Caddy + Let’s Encrypt configured and verified",
+      "description": "Deployment installs/configures Caddy for the domain, obtains a certificate, and validates that HTTPS routes to the scenario UI health endpoint.",
+      "status": "planned",
+      "tags": [
+        "caddy",
+        "letsencrypt",
+        "https"
+      ],
+      "validation": [
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/caddy-letsencrypt.yaml",
+          "notes": "E2E planned. Tag with [REQ:STC-P0-011]."
+        }
+      ]
+    }
+  ]
+}

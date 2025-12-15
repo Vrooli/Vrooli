@@ -1,0 +1,60 @@
+{
+  "module_id": "vps-preflight",
+  "title": "VPS Preflight",
+  "priority": "P0",
+  "description": "Fail-fast checks before we copy or execute anything remotely.",
+  "requirements": [
+    {
+      "id": "STC-P0-003",
+      "category": "preflight",
+      "prd_ref": "OT-P0-003",
+      "title": "VPS readiness validation",
+      "description": "Validate SSH connectivity, Ubuntu version, disk/RAM thresholds, outbound network, ports 80/443 availability, and domain DNS pointing to the VPS.",
+      "status": "planned",
+      "tags": [
+        "preflight",
+        "ssh",
+        "dns",
+        "caddy",
+        "letsencrypt"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/preflight_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-003]."
+        },
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/preflight.yaml",
+          "notes": "E2E planned against a disposable VPS. Tag with [REQ:STC-P0-003]."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-009",
+      "category": "preflight",
+      "prd_ref": "OT-P0-003",
+      "title": "Preflight errors are actionable",
+      "description": "Preflight failures emit a specific reason and next-step hint (e.g. DNS not pointing, ports blocked, SSH auth failed) without leaking secrets.",
+      "status": "planned",
+      "tags": [
+        "preflight",
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/preflight_errors_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-009]."
+        }
+      ]
+    }
+  ]
+}

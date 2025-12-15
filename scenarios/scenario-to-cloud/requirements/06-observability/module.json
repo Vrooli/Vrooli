@@ -1,0 +1,37 @@
+{
+  "module_id": "observability",
+  "title": "Inspect + Logs",
+  "priority": "P0",
+  "description": "Standard ways to retrieve remote status and logs.",
+  "requirements": [
+    {
+      "id": "STC-P0-006",
+      "category": "observability",
+      "prd_ref": "OT-P0-006",
+      "title": "Remote status and logs retrieval",
+      "description": "Provide commands and/or API methods to fetch 'vrooli scenario status' and 'vrooli scenario logs' output from the VPS over SSH.",
+      "status": "planned",
+      "tags": [
+        "logs",
+        "status",
+        "ssh"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/ssh_logs_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-006]."
+        },
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/fetch-logs.yaml",
+          "notes": "E2E planned. Tag with [REQ:STC-P0-006]."
+        }
+      ]
+    }
+  ]
+}

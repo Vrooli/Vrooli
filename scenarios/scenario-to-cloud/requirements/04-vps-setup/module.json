@@ -1,0 +1,59 @@
+{
+  "module_id": "vps-setup",
+  "title": "VPS Install + Setup",
+  "priority": "P0",
+  "description": "Copy bundle to VPS and run Vrooli setup in a predictable layout.",
+  "requirements": [
+    {
+      "id": "STC-P0-004",
+      "category": "vps-setup",
+      "prd_ref": "OT-P0-004",
+      "title": "Install bundle and run setup",
+      "description": "Copy tarball to /root/Vrooli (P0), extract, run ./scripts/manage.sh setup --yes yes, configure autoheal scope, and verify vrooli CLI is functional.",
+      "status": "planned",
+      "tags": [
+        "ssh",
+        "scp",
+        "setup",
+        "autoheal"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/vps_setup_plan_test.go",
+          "notes": "Tag tests with [REQ:STC-P0-004]."
+        },
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/setup.yaml",
+          "notes": "E2E planned against a disposable VPS. Tag with [REQ:STC-P0-004]."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-010",
+      "category": "vps-setup",
+      "prd_ref": "OT-P0-004",
+      "title": "Autoheal scope configured for mini-Vrooli",
+      "description": "Deployment writes a scoped config so vrooli-autoheal monitors only the deployed scenario/resources and core lifecycle health signals.",
+      "status": "planned",
+      "tags": [
+        "autoheal",
+        "health"
+      ],
+      "validation": [
+        {
+          "type": "playbook",
+          "phase": "playbooks",
+          "status": "planned",
+          "ref": "test/playbooks/vps/autoheal-scope.yaml",
+          "notes": "E2E planned. Tag with [REQ:STC-P0-010]."
+        }
+      ]
+    }
+  ]
+}
