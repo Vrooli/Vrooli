@@ -715,7 +715,7 @@ func TestHandlePersonaShow(t *testing.T) {
 
 // [REQ:TMPL-PREVIEW-LINKS] Test preview links endpoint
 // NOTE: GetPreviewLinks now uses `vrooli scenario port` command which requires a running scenario.
-// This test is skipped in favor of E2E playbook tests in test/playbooks/
+// This test is skipped in favor of E2E playbook tests in bas/
 func TestHandlePreviewLinks(t *testing.T) {
 	t.Skip("Requires running scenarios - tested via E2E playbooks")
 	t.Run("REQ:TMPL-PREVIEW-LINKS", func(t *testing.T) {

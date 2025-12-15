@@ -29,7 +29,7 @@ audience: ["developers"]
 - **Impact**: Integration tests fail but **core functionality exists and is proven via API/unit tests**. Features like dry-run, lifecycle management, and promotion work via API/CLI. Requirements TMPL-DRY-RUN, TMPL-LIFECYCLE, TMPL-PROMOTION marked "in_progress" pending E2E validation.
 - **Boundary**: Within landing-manager scope - UI implementation needs alignment with test expectations.
 - **Evidence**:
-  - Workflow artifacts: `/home/matthalloran8/Vrooli/scenarios/landing-manager/coverage/automation/test/playbooks/capabilities/01-template-management/ui/`
+  - Workflow artifacts: `/home/matthalloran8/Vrooli/scenarios/landing-manager/coverage/automation/bas/cases/01-template-management/ui/`
   - API tests: All lifecycle/dry-run/promotion API tests passing in api/integration_test.go
   - Unit tests: UI component tests passing (111/111 React tests)
 - **Next**: Either (1) update UI to match workflow expectations, or (2) update workflows to match actual UI implementation, or (3) complete unimplemented UI features.

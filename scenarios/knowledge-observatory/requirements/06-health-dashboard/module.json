@@ -14,7 +14,7 @@
           "type": "automation",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/dashboard-load.json"
+          "ref": "bas/cases/06-health-dashboard/ui/dashboard-load.json"
         }
       ],
       "notes": "Dark theme, technical typography, dashboard layout with subtle animations",
@@ -30,7 +30,7 @@
           "type": "automation",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/metrics-display.json"
+          "ref": "bas/cases/06-health-dashboard/ui/metrics-display.json"
         }
       ],
       "notes": "Show coherence, freshness, redundancy scores per collection and overall",
@@ -46,7 +46,7 @@
           "type": "automation",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/graph-interaction.json"
+          "ref": "bas/cases/06-health-dashboard/ui/graph-interaction.json"
         }
       ],
       "notes": "Support up to 1000 nodes with acceptable performance",
@@ -62,7 +62,7 @@
           "type": "automation",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/search-interface.json"
+          "ref": "bas/cases/06-health-dashboard/ui/search-interface.json"
         }
       ],
       "notes": "Support collection filtering and result limits",
@@ -78,7 +78,7 @@
           "type": "automation",
           "phase": "integration",
           "status": "implemented",
-          "ref": "test/playbooks/capabilities/06-health-dashboard/ui/accessibility.json"
+          "ref": "bas/cases/06-health-dashboard/ui/accessibility.json"
         }
       ],
       "notes": "Professional interface for technical users",

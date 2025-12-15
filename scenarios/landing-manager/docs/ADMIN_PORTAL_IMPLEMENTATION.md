@@ -438,7 +438,7 @@ Once UI is implemented, create automated test workflows:
 
 #### 5.1 Admin Portal Playbook
 ```json
-// test/playbooks/capabilities/admin-portal/ui/admin-portal.json
+// bas/cases/admin-portal/ui/admin-portal.json
 {
   "name": "Admin Portal Core Functionality",
   "description": "Validates admin login, authentication, mode switcher, and navigation",
