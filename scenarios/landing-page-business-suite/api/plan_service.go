@@ -69,7 +69,22 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 		return nil, err
 	}
 
-	var monthly, yearly []*PlanOption
+	// Initialize as empty slices (not nil) so JSON serialization includes them as [] instead of omitting
+	monthly := make([]*PlanOption, 0)
+	yearly := make([]*PlanOption, 0)
+
+	// Log raw prices for debugging
+	for i, price := range prices {
+		logStructured("price_loaded", map[string]interface{}{
+			"level":           "debug",
+			"index":           i,
+			"plan_name":       price.PlanName,
+			"billing_interval": price.BillingInterval.String(),
+			"display_enabled": price.DisplayEnabled,
+			"tier":            price.PlanTier,
+		})
+	}
+
 	for _, price := range prices {
 		if !price.GetDisplayEnabled() && strings.ToLower(strings.TrimSpace(price.PlanTier)) != "free" {
 			continue
@@ -79,6 +94,13 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 			monthly = append(monthly, proto.Clone(price).(*PlanOption))
 		case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
 			yearly = append(yearly, proto.Clone(price).(*PlanOption))
+		default:
+			logStructured("unmatched_billing_interval", map[string]interface{}{
+				"level":     "warn",
+				"plan_name": price.PlanName,
+				"interval":  price.BillingInterval.String(),
+				"tier":      price.PlanTier,
+			})
 		}
 	}
 
@@ -93,6 +115,13 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 			return yearly[i].PlanRank < yearly[j].PlanRank
 		}
 		return yearly[i].DisplayWeight > yearly[j].DisplayWeight
+	})
+
+	logStructured("pricing_overview_built", map[string]interface{}{
+		"level":         "info",
+		"monthly_count": len(monthly),
+		"yearly_count":  len(yearly),
+		"total_prices":  len(prices),
 	})
 
 	return &PricingOverview{
@@ -182,6 +211,11 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 		ORDER BY bp.display_weight DESC, bp.plan_rank ASC
 	`
 
+	logStructured("loadBundlePrices_query", map[string]interface{}{
+		"level":      "debug",
+		"product_id": productID,
+	})
+
 	rows, err := s.db.Query(query, productID)
 	if err != nil {
 		return nil, err
@@ -189,7 +223,9 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 	defer rows.Close()
 
 	var options []*PlanOption
+	rowCount := 0
 	for rows.Next() {
+		rowCount++
 		var option PlanOption
 		var pricePrimaryID int64
 		var metadataBytes []byte
@@ -259,9 +295,23 @@ func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
 		option.Kind = mapPlanKind(rawKind)
 		option.BillingInterval = mapBillingInterval(rawInterval)
 
+		// Debug: log what we're reading from DB and what we're converting to
+		logStructured("price_interval_conversion", map[string]interface{}{
+			"level":        "debug",
+			"plan_name":    option.PlanName,
+			"raw_interval": rawInterval,
+			"mapped_enum":  option.BillingInterval.String(),
+		})
+
 		copied := option
 		options = append(options, &copied)
 	}
+
+	logStructured("loadBundlePrices_done", map[string]interface{}{
+		"level":         "debug",
+		"rows_scanned":  rowCount,
+		"options_count": len(options),
+	})
 
 	return options, nil
 }

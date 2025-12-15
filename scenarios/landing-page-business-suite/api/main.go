@@ -1320,6 +1320,11 @@ func resolveDatabaseURL() (string, error) {
 	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
 	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
 	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
+	// This scenario uses the landing-manager database (as defined in service.json).
+	// Override the default POSTGRES_DB if it's set to the global 'vrooli' database.
+	if name == "" || name == "vrooli" {
+		name = "landing-manager"
+	}
 
 	if host == "" || port == "" || user == "" || password == "" || name == "" {
 		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
