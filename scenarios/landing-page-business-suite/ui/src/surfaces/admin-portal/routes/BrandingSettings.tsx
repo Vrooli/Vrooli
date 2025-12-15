@@ -5,7 +5,7 @@ import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type Asset } from '../../../shared/api';
-import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle, MessageCircle } from 'lucide-react';
+import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle, MessageCircle, HelpCircle, Mail, Eye, EyeOff } from 'lucide-react';
 
 interface BrandingFormState {
   site_name: string;
@@ -23,6 +23,12 @@ interface BrandingFormState {
   google_site_verification: string;
   robots_txt: string;
   support_chat_url: string;
+  support_email: string;
+  smtp_host: string;
+  smtp_port: string;
+  smtp_username: string;
+  smtp_password: string;
+  smtp_from: string;
 }
 
 const defaultForm: BrandingFormState = {
@@ -41,6 +47,12 @@ const defaultForm: BrandingFormState = {
   google_site_verification: '',
   robots_txt: '',
   support_chat_url: '',
+  support_email: '',
+  smtp_host: '',
+  smtp_port: '587',
+  smtp_username: '',
+  smtp_password: '',
+  smtp_from: '',
 };
 
 function brandingToForm(branding: SiteBranding): BrandingFormState {
@@ -60,6 +72,12 @@ function brandingToForm(branding: SiteBranding): BrandingFormState {
     google_site_verification: branding.google_site_verification ?? '',
     robots_txt: branding.robots_txt ?? '',
     support_chat_url: branding.support_chat_url ?? '',
+    support_email: branding.support_email ?? '',
+    smtp_host: branding.smtp_host ?? '',
+    smtp_port: branding.smtp_port?.toString() ?? '587',
+    smtp_username: branding.smtp_username ?? '',
+    smtp_password: branding.smtp_password ?? '',
+    smtp_from: branding.smtp_from ?? '',
   };
 }
 
@@ -175,12 +193,17 @@ export function BrandingSettings() {
     setSuccessMessage(null);
 
     try {
-      const payload: Record<string, string> = {};
+      const payload: Record<string, string | number> = {};
       (Object.keys(form) as (keyof BrandingFormState)[]).forEach((key) => {
         const current = form[key].trim();
         const original = originalForm[key].trim();
         if (current !== original && current.length > 0) {
-          payload[key] = current;
+          // Convert smtp_port to number
+          if (key === 'smtp_port') {
+            payload[key] = parseInt(current, 10);
+          } else {
+            payload[key] = current;
+          }
         }
       });
 
@@ -684,6 +707,137 @@ export function BrandingSettings() {
                     Leave empty to hide the support CTA from the FAQ section.
                   </p>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Support Email
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={form.support_email}
+                      onChange={handleInput('support_email')}
+                      placeholder="support@yourcompany.com"
+                      className="mt-1 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                    />
+                    {form.support_email && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearField('support_email')}
+                        className="mt-1 p-2 text-slate-400 hover:text-rose-400"
+                        title="Clear email"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Feedback submissions from /feedback will be sent to this email address.
+                  </p>
+                </div>
+
+                {/* SMTP Configuration - only show when support email is set */}
+                {form.support_email && (
+                  <div className="rounded-xl border border-white/10 bg-slate-800/50 p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-slate-400" />
+                      <span className="text-sm font-medium text-white">Email Server Settings</span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Configure SMTP to send email notifications when feedback is submitted.
+                    </p>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <LabelWithHelp
+                          label="SMTP Host"
+                          help="Your email provider's SMTP server address. Common examples: smtp.gmail.com (Gmail), smtp.office365.com (Outlook), email-smtp.us-east-1.amazonaws.com (AWS SES)"
+                        />
+                        <input
+                          type="text"
+                          value={form.smtp_host}
+                          onChange={handleInput('smtp_host')}
+                          placeholder="smtp.gmail.com"
+                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <LabelWithHelp
+                          label="SMTP Port"
+                          help="The port your SMTP server uses. 587 (TLS) is most common and recommended. Some providers use 465 (SSL) or 25 (unencrypted, not recommended)."
+                        />
+                        <input
+                          type="number"
+                          value={form.smtp_port}
+                          onChange={handleInput('smtp_port')}
+                          placeholder="587"
+                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <LabelWithHelp
+                          label="SMTP Username"
+                          help="Usually your full email address (e.g., you@gmail.com). For AWS SES, this is your IAM access key ID."
+                        />
+                        <input
+                          type="text"
+                          value={form.smtp_username}
+                          onChange={handleInput('smtp_username')}
+                          placeholder="you@gmail.com"
+                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <LabelWithHelp
+                          label="SMTP Password / App Password"
+                          help={`For Gmail: You must use an "App Password" (not your regular password). Go to Google Account → Security → 2-Step Verification → App passwords → Generate a new one for "Mail". For Outlook: Use your regular password or an app password if 2FA is enabled.`}
+                        />
+                        <PasswordInput
+                          value={form.smtp_password}
+                          onChange={handleInput('smtp_password')}
+                          placeholder="Your app password"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <LabelWithHelp
+                        label="From Address (optional)"
+                        help="The email address that appears in the 'From' field. If left empty, uses the SMTP username. Some providers require this to match a verified sender address."
+                      />
+                      <input
+                        type="email"
+                        value={form.smtp_from}
+                        onChange={handleInput('smtp_from')}
+                        placeholder="noreply@yourcompany.com (optional)"
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      />
+                    </div>
+
+                    {/* Gmail Quick Setup Guide */}
+                    <details className="group">
+                      <summary className="cursor-pointer text-xs text-blue-400 hover:text-blue-300">
+                        Quick setup guide for Gmail
+                      </summary>
+                      <div className="mt-2 rounded-lg bg-slate-900/50 p-3 text-xs text-slate-300 space-y-2">
+                        <p><strong>1.</strong> Enable 2-Step Verification on your Google Account (required for app passwords)</p>
+                        <p><strong>2.</strong> Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">myaccount.google.com/apppasswords</a></p>
+                        <p><strong>3.</strong> Select "Mail" and your device, then click "Generate"</p>
+                        <p><strong>4.</strong> Copy the 16-character password (ignore spaces)</p>
+                        <p><strong>5.</strong> Use these settings:</p>
+                        <ul className="ml-4 list-disc">
+                          <li>Host: <code className="bg-slate-800 px-1 rounded">smtp.gmail.com</code></li>
+                          <li>Port: <code className="bg-slate-800 px-1 rounded">587</code></li>
+                          <li>Username: <code className="bg-slate-800 px-1 rounded">your-email@gmail.com</code></li>
+                          <li>Password: <code className="bg-slate-800 px-1 rounded">your-16-char-app-password</code></li>
+                        </ul>
+                      </div>
+                    </details>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -732,6 +886,71 @@ function BrandingHealthBadge({ label, configured, description }: BrandingHealthB
         <p className="text-sm font-semibold text-white">{label}</p>
         <p className="text-xs text-slate-400">{description}</p>
       </div>
+    </div>
+  );
+}
+
+interface LabelWithHelpProps {
+  label: string;
+  help: string;
+}
+
+function LabelWithHelp({ label, help }: LabelWithHelpProps) {
+  const [showHelp, setShowHelp] = useState(false);
+
+  return (
+    <div className="relative">
+      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+        <button
+          type="button"
+          onClick={() => setShowHelp(!showHelp)}
+          className="text-slate-500 hover:text-slate-300"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+      </label>
+      {showHelp && (
+        <div className="absolute left-0 top-full z-10 mt-1 w-72 rounded-lg border border-white/10 bg-slate-800 p-3 text-xs text-slate-300 shadow-xl">
+          {help}
+          <button
+            type="button"
+            onClick={() => setShowHelp(false)}
+            className="absolute right-2 top-2 text-slate-500 hover:text-slate-300"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PasswordInputProps {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+}
+
+function PasswordInput({ value, onChange, placeholder }: PasswordInputProps) {
+  const [show, setShow] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 pr-10 text-sm text-white"
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
     </div>
   );
 }

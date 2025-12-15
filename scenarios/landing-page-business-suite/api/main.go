@@ -46,6 +46,7 @@ type Server struct {
 	assetsService        *AssetsService
 	seoService           *SEOService
 	feedbackService      *FeedbackService
+	emailService         *EmailService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -86,6 +87,7 @@ func NewServer() (*Server, error) {
 	assetsService := NewAssetsService(db)
 	seoService := NewSEOService(brandingService, variantService)
 	feedbackService := NewFeedbackService(db)
+	emailService := NewEmailService()
 
 	if err := syncVariantSnapshots(variantService, contentService); err != nil {
 		return nil, fmt.Errorf("failed to sync variant snapshots: %w", err)
@@ -110,6 +112,7 @@ func NewServer() (*Server, error) {
 		assetsService:        assetsService,
 		seoService:           seoService,
 		feedbackService:      feedbackService,
+		emailService:         emailService,
 	}
 
 	// Initialize session store for authentication
@@ -223,9 +226,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/docs/content", s.requireAdmin(handleDocsContent())).Methods("GET")
 
 	// Feedback endpoints
-	s.router.HandleFunc("/api/feedback", handleFeedbackCreate(s.feedbackService)).Methods("POST")
+	s.router.HandleFunc("/api/feedback", handleFeedbackCreate(s.feedbackService, s.brandingService, s.emailService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/feedback", s.requireAdmin(handleFeedbackList(s.feedbackService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/feedback/bulk-delete", s.requireAdmin(handleFeedbackDeleteBulk(s.feedbackService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/feedback/{id}", s.requireAdmin(handleFeedbackGet(s.feedbackService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/feedback/{id}", s.requireAdmin(handleFeedbackDelete(s.feedbackService))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/feedback/{id}/status", s.requireAdmin(handleFeedbackUpdateStatus(s.feedbackService))).Methods("PATCH")
 }
 
@@ -1241,6 +1246,12 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(created_at);`,
 		`ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jsonb;`,
 		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_chat_url TEXT;`,
+		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_email TEXT;`,
+		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_host TEXT;`,
+		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_port INTEGER DEFAULT 587;`,
+		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_username TEXT;`,
+		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_password TEXT;`,
+		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_from TEXT;`,
 		`CREATE TABLE IF NOT EXISTS feedback_requests (
 			id SERIAL PRIMARY KEY,
 			type VARCHAR(50) NOT NULL CHECK (type IN ('refund', 'bug', 'feature', 'general')),

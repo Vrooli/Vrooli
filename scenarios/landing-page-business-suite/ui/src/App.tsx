@@ -13,6 +13,7 @@ import { BillingSettings } from './surfaces/admin-portal/routes/BillingSettings'
 import { DownloadSettings } from './surfaces/admin-portal/routes/DownloadSettings';
 import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSettings';
 import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
+import { FeedbackManagement } from './surfaces/admin-portal/routes/FeedbackManagement';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 import { CheckoutPage } from './surfaces/public-landing/routes/CheckoutPage';
 import { FeedbackPage } from './surfaces/public-landing/routes/FeedbackPage';
@@ -102,6 +103,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <DocsViewer />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/feedback"
+              element={
+                <ProtectedRoute>
+                  <FeedbackManagement />
                 </ProtectedRoute>
               }
             />

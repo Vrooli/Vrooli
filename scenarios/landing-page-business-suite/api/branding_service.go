@@ -23,6 +23,12 @@ type SiteBranding struct {
 	GoogleSiteVerification *string   `json:"google_site_verification,omitempty"`
 	RobotsTxt              *string   `json:"robots_txt,omitempty"`
 	SupportChatURL         *string   `json:"support_chat_url,omitempty"`
+	SupportEmail           *string   `json:"support_email,omitempty"`
+	SMTPHost               *string   `json:"smtp_host,omitempty"`
+	SMTPPort               *int      `json:"smtp_port,omitempty"`
+	SMTPUsername           *string   `json:"smtp_username,omitempty"`
+	SMTPPassword           *string   `json:"smtp_password,omitempty"`
+	SMTPFrom               *string   `json:"smtp_from,omitempty"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
@@ -44,7 +50,9 @@ func (s *BrandingService) Get() (*SiteBranding, error) {
 		       apple_touch_icon_url, default_title, default_description,
 		       default_og_image_url, theme_primary_color, theme_background_color,
 		       canonical_base_url, google_site_verification, robots_txt,
-		       support_chat_url, created_at, updated_at
+		       support_chat_url, support_email,
+		       smtp_host, smtp_port, smtp_username, smtp_password, smtp_from,
+		       created_at, updated_at
 		FROM site_branding
 		WHERE id = 1
 	`
@@ -55,7 +63,9 @@ func (s *BrandingService) Get() (*SiteBranding, error) {
 		&b.AppleTouchIconURL, &b.DefaultTitle, &b.DefaultDescription,
 		&b.DefaultOGImageURL, &b.ThemePrimaryColor, &b.ThemeBackgroundColor,
 		&b.CanonicalBaseURL, &b.GoogleSiteVerification, &b.RobotsTxt,
-		&b.SupportChatURL, &b.CreatedAt, &b.UpdatedAt,
+		&b.SupportChatURL, &b.SupportEmail,
+		&b.SMTPHost, &b.SMTPPort, &b.SMTPUsername, &b.SMTPPassword, &b.SMTPFrom,
+		&b.CreatedAt, &b.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -89,6 +99,12 @@ type BrandingUpdateRequest struct {
 	GoogleSiteVerification *string `json:"google_site_verification,omitempty"`
 	RobotsTxt              *string `json:"robots_txt,omitempty"`
 	SupportChatURL         *string `json:"support_chat_url,omitempty"`
+	SupportEmail           *string `json:"support_email,omitempty"`
+	SMTPHost               *string `json:"smtp_host,omitempty"`
+	SMTPPort               *int    `json:"smtp_port,omitempty"`
+	SMTPUsername           *string `json:"smtp_username,omitempty"`
+	SMTPPassword           *string `json:"smtp_password,omitempty"`
+	SMTPFrom               *string `json:"smtp_from,omitempty"`
 }
 
 // Update updates the site branding
@@ -110,13 +126,21 @@ func (s *BrandingService) Update(req *BrandingUpdateRequest) (*SiteBranding, err
 			google_site_verification = COALESCE($13, google_site_verification),
 			robots_txt = COALESCE($14, robots_txt),
 			support_chat_url = COALESCE($15, support_chat_url),
+			support_email = COALESCE($16, support_email),
+			smtp_host = COALESCE($17, smtp_host),
+			smtp_port = COALESCE($18, smtp_port),
+			smtp_username = COALESCE($19, smtp_username),
+			smtp_password = COALESCE($20, smtp_password),
+			smtp_from = COALESCE($21, smtp_from),
 			updated_at = NOW()
 		WHERE id = 1
 		RETURNING id, site_name, tagline, logo_url, logo_icon_url, favicon_url,
 		          apple_touch_icon_url, default_title, default_description,
 		          default_og_image_url, theme_primary_color, theme_background_color,
 		          canonical_base_url, google_site_verification, robots_txt,
-		          support_chat_url, created_at, updated_at
+		          support_chat_url, support_email,
+		          smtp_host, smtp_port, smtp_username, smtp_password, smtp_from,
+		          created_at, updated_at
 	`
 
 	var b SiteBranding
@@ -126,12 +150,16 @@ func (s *BrandingService) Update(req *BrandingUpdateRequest) (*SiteBranding, err
 		req.DefaultDescription, req.DefaultOGImageURL, req.ThemePrimaryColor,
 		req.ThemeBackgroundColor, req.CanonicalBaseURL,
 		req.GoogleSiteVerification, req.RobotsTxt, req.SupportChatURL,
+		req.SupportEmail, req.SMTPHost, req.SMTPPort, req.SMTPUsername,
+		req.SMTPPassword, req.SMTPFrom,
 	).Scan(
 		&b.ID, &b.SiteName, &b.Tagline, &b.LogoURL, &b.LogoIconURL, &b.FaviconURL,
 		&b.AppleTouchIconURL, &b.DefaultTitle, &b.DefaultDescription,
 		&b.DefaultOGImageURL, &b.ThemePrimaryColor, &b.ThemeBackgroundColor,
 		&b.CanonicalBaseURL, &b.GoogleSiteVerification, &b.RobotsTxt,
-		&b.SupportChatURL, &b.CreatedAt, &b.UpdatedAt,
+		&b.SupportChatURL, &b.SupportEmail,
+		&b.SMTPHost, &b.SMTPPort, &b.SMTPUsername, &b.SMTPPassword, &b.SMTPFrom,
+		&b.CreatedAt, &b.UpdatedAt,
 	)
 
 	if err != nil {
@@ -150,7 +178,9 @@ func (s *BrandingService) ClearField(field string) error {
 		"default_og_image_url": true, "theme_primary_color": true,
 		"theme_background_color": true, "canonical_base_url": true,
 		"google_site_verification": true, "robots_txt": true,
-		"support_chat_url": true,
+		"support_chat_url": true, "support_email": true,
+		"smtp_host": true, "smtp_port": true, "smtp_username": true,
+		"smtp_password": true, "smtp_from": true,
 	}
 
 	if !allowedFields[field] {

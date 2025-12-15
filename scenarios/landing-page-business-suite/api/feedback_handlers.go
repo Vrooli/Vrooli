@@ -10,7 +10,7 @@ import (
 )
 
 // handleFeedbackCreate handles POST /api/v1/feedback (public endpoint)
-func handleFeedbackCreate(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackCreate(svc *FeedbackService, brandingSvc *BrandingService, emailSvc *EmailService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input CreateFeedbackInput
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -55,6 +55,18 @@ func handleFeedbackCreate(svc *FeedbackService) http.HandlerFunc {
 			"type":  feedback.Type,
 			"email": feedback.Email,
 		})
+
+		// Send email notification if support email and SMTP are configured
+		go func() {
+			branding, err := brandingSvc.Get()
+			if err != nil {
+				logStructuredError("feedback_email_branding_fetch_failed", map[string]interface{}{"error": err.Error()})
+				return
+			}
+			if err := emailSvc.SendFeedbackNotification(branding, feedback); err != nil {
+				logStructuredError("feedback_email_send_failed", map[string]interface{}{"error": err.Error()})
+			}
+		}()
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -154,5 +166,75 @@ func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(feedback)
+	}
+}
+
+// handleFeedbackDelete handles DELETE /api/v1/admin/feedback/{id} (admin only)
+func handleFeedbackDelete(svc *FeedbackService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			http.Error(w, `{"error":"invalid feedback id"}`, http.StatusBadRequest)
+			return
+		}
+
+		if err := svc.Delete(id); err != nil {
+			logStructuredError("feedback_delete_failed", map[string]interface{}{
+				"id":    id,
+				"error": err.Error(),
+			})
+			http.Error(w, `{"error":"failed to delete feedback"}`, http.StatusInternalServerError)
+			return
+		}
+
+		logStructured("feedback_deleted", map[string]interface{}{
+			"id": id,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"id":      id,
+		})
+	}
+}
+
+// handleFeedbackDeleteBulk handles POST /api/v1/admin/feedback/bulk-delete (admin only)
+func handleFeedbackDeleteBulk(svc *FeedbackService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			IDs []int `json:"ids"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		if len(input.IDs) == 0 {
+			http.Error(w, `{"error":"no ids provided"}`, http.StatusBadRequest)
+			return
+		}
+
+		deleted, err := svc.DeleteBulk(input.IDs)
+		if err != nil {
+			logStructuredError("feedback_bulk_delete_failed", map[string]interface{}{
+				"ids":   input.IDs,
+				"error": err.Error(),
+			})
+			http.Error(w, `{"error":"failed to delete feedback"}`, http.StatusInternalServerError)
+			return
+		}
+
+		logStructured("feedback_bulk_deleted", map[string]interface{}{
+			"ids":     input.IDs,
+			"deleted": deleted,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"deleted": deleted,
+		})
 	}
 }

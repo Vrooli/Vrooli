@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -136,4 +138,46 @@ func (s *FeedbackService) GetByID(id int) (*FeedbackRequest, error) {
 	}
 
 	return &f, nil
+}
+
+// Delete removes a feedback request by ID
+func (s *FeedbackService) Delete(id int) error {
+	query := `DELETE FROM feedback_requests WHERE id = $1`
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+// DeleteBulk removes multiple feedback requests by IDs
+func (s *FeedbackService) DeleteBulk(ids []int) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	// Build placeholders for IN clause
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "$" + strconv.Itoa(i+1)
+		args[i] = id
+	}
+
+	query := "DELETE FROM feedback_requests WHERE id IN (" + strings.Join(placeholders, ",") + ")"
+	result, err := s.db.Exec(query, args...)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected()
 }

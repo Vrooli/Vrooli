@@ -321,6 +321,16 @@ ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jso
 -- Add support chat URL to site_branding for existing databases
 ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_chat_url TEXT;
 
+-- Add support email to site_branding for existing databases
+ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_email TEXT;
+
+-- SMTP configuration for email notifications
+ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_host TEXT;
+ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_port INTEGER DEFAULT 587;
+ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_username TEXT;
+ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_password TEXT;
+ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_from TEXT;
+
 -- Feedback Requests Table
 -- Stores user feedback, bug reports, feature requests, and refund requests
 CREATE TABLE IF NOT EXISTS feedback_requests (

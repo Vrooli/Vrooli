@@ -261,6 +261,7 @@ export interface LandingBranding {
   favicon_url?: string | null;
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
+  support_chat_url?: string | null;
 }
 
 export interface LandingConfigResponse {
@@ -357,6 +358,13 @@ export interface SiteBranding {
   canonical_base_url?: string | null;
   google_site_verification?: string | null;
   robots_txt?: string | null;
+  support_chat_url?: string | null;
+  support_email?: string | null;
+  smtp_host?: string | null;
+  smtp_port?: number | null;
+  smtp_username?: string | null;
+  smtp_password?: string | null;
+  smtp_from?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -376,6 +384,13 @@ export interface SiteBrandingUpdate {
   canonical_base_url?: string;
   google_site_verification?: string;
   robots_txt?: string;
+  support_chat_url?: string;
+  support_email?: string;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_username?: string;
+  smtp_password?: string;
+  smtp_from?: string;
 }
 
 export interface PublicBranding {
@@ -386,6 +401,7 @@ export interface PublicBranding {
   favicon_url?: string | null;
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
+  support_chat_url?: string | null;
 }
 
 // Uploaded asset
