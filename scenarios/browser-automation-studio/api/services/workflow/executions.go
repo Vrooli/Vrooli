@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -46,6 +47,16 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
 		return nil, err
 	}
+
+	_ = s.writeExecutionSnapshot(ctx, exec, &basexecution.Execution{
+		ExecutionId: exec.ID.String(),
+		WorkflowId:  workflowID.String(),
+		Status:      typeconv.StringToExecutionStatus(exec.Status),
+		TriggerType: basbase.TriggerType_TRIGGER_TYPE_MANUAL,
+		StartedAt:   timestamppb.New(now),
+		CreatedAt:   timestamppb.New(now),
+		UpdatedAt:   timestamppb.New(now),
+	})
 
 	s.startExecutionRunner(getResp.Workflow, exec.ID, parameters)
 	return exec, nil
@@ -81,6 +92,21 @@ func (s *WorkflowService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.Ex
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
 		return nil, err
 	}
+
+	// Persist an initial proto snapshot immediately so the filesystem is the source of truth
+	// for parameters/trigger metadata and other rich execution fields not stored in the DB index.
+	snapshot := &basexecution.Execution{
+		ExecutionId: exec.ID.String(),
+		WorkflowId:  workflowID.String(),
+		WorkflowVersion: int32(version),
+		Status:      typeconv.StringToExecutionStatus(exec.Status),
+		TriggerType: basbase.TriggerType_TRIGGER_TYPE_API,
+		StartedAt:   timestamppb.New(now),
+		CreatedAt:   timestamppb.New(now),
+		UpdatedAt:   timestamppb.New(now),
+		Parameters:  req.Parameters,
+	}
+	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
 	s.startExecutionRunnerWithNamespaces(workflowSummary, exec.ID, initialStore, initialParams, env)
 
@@ -187,6 +213,14 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *ba
 	execIndex.Status = database.ExecutionStatusRunning
 	execIndex.UpdatedAt = time.Now().UTC()
 	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
+	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
+		ExecutionId: execIndex.ID.String(),
+		WorkflowId:  execIndex.WorkflowID.String(),
+		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
+		StartedAt:   timestamppb.New(execIndex.StartedAt),
+		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
+		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
+	})
 
 	engineName := autoengine.FromEnv().Resolve("")
 	eventSink := s.newEventSink()
@@ -242,6 +276,22 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *ba
 	execIndex.CompletedAt = &now
 	execIndex.UpdatedAt = now
 	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
+	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
+		ExecutionId: execIndex.ID.String(),
+		WorkflowId:  execIndex.WorkflowID.String(),
+		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
+		StartedAt:   timestamppb.New(execIndex.StartedAt),
+		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
+		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
+		CompletedAt: timestamppb.New(now),
+		Error: func() *string {
+			if strings.TrimSpace(execIndex.ErrorMessage) == "" {
+				return nil
+			}
+			msg := execIndex.ErrorMessage
+			return &msg
+		}(),
+	})
 }
 
 func (s *WorkflowService) executeWorkflowAsyncWithNamespaces(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any) {
@@ -256,6 +306,14 @@ func (s *WorkflowService) executeWorkflowAsyncWithNamespaces(ctx context.Context
 	execIndex.Status = database.ExecutionStatusRunning
 	execIndex.UpdatedAt = time.Now().UTC()
 	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
+	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
+		ExecutionId: execIndex.ID.String(),
+		WorkflowId:  execIndex.WorkflowID.String(),
+		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
+		StartedAt:   timestamppb.New(execIndex.StartedAt),
+		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
+		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
+	})
 
 	engineName := autoengine.FromEnv().Resolve("")
 	eventSink := s.newEventSink()
@@ -312,6 +370,22 @@ func (s *WorkflowService) executeWorkflowAsyncWithNamespaces(ctx context.Context
 	execIndex.CompletedAt = &now
 	execIndex.UpdatedAt = now
 	_ = s.repo.UpdateExecution(persistenceCtx, execIndex)
+	_ = s.writeExecutionSnapshot(persistenceCtx, execIndex, &basexecution.Execution{
+		ExecutionId: execIndex.ID.String(),
+		WorkflowId:  execIndex.WorkflowID.String(),
+		Status:      typeconv.StringToExecutionStatus(execIndex.Status),
+		StartedAt:   timestamppb.New(execIndex.StartedAt),
+		CreatedAt:   timestamppb.New(execIndex.CreatedAt),
+		UpdatedAt:   timestamppb.New(execIndex.UpdatedAt),
+		CompletedAt: timestamppb.New(now),
+		Error: func() *string {
+			if strings.TrimSpace(execIndex.ErrorMessage) == "" {
+				return nil
+			}
+			msg := execIndex.ErrorMessage
+			return &msg
+		}(),
+	})
 }
 
 func (s *WorkflowService) storeExecutionCancel(executionID uuid.UUID, cancel context.CancelFunc) {

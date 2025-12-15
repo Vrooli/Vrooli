@@ -200,7 +200,7 @@
       "action": {
         "assert": {
           "failure_message": "Modal should close when X button is clicked",
-          "mode": "not_exists",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
           "selector": "@selector/dialogs.project.root /*dup-1*/",
           "timeout_ms": 5000
         },
@@ -253,7 +253,7 @@
       "action": {
         "assert": {
           "failure_message": "Modal should close when Cancel button is clicked",
-          "mode": "not_exists",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
           "selector": "@selector/dialogs.project.root /*dup-3*/",
           "timeout_ms": 5000
         },
@@ -308,7 +308,7 @@
       "action": {
         "assert": {
           "failure_message": "Modal should close when Escape key is pressed",
-          "mode": "not_exists",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
           "selector": "@selector/dialogs.project.root /*dup-5*/",
           "timeout_ms": 5000
         },

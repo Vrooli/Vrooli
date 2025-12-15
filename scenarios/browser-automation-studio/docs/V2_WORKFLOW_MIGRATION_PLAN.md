@@ -23,6 +23,23 @@ This makes the system harder to evolve:
 - The executor, compiler, UI, and test runner can stop carrying compatibility glue.
 - Removing v1 reduces surface area for subtle bugs and breaks “two systems drift” over time.
 
+## Ideal State (North Star)
+
+This migration plan targets the ideal BAS state:
+
+- **Core data types**
+  - **Workflows**: directed graph of nodes/edges that runs Playwright; supports cycles (loops), assertions, and reusable subflows.
+  - **Recordings**: a flat list of actions using the same `ActionDefinition` type; conceptually “a user did X” vs “an agent repeats X”.
+  - **Projects**: an index + storage container for workflows and artifacts (storage mechanism flexible).
+  - **Executions**: persisted results of running a workflow; should be replayable and ideally share timeline entry structure with recordings plus output/styling.
+- **Storage principles**
+  - Files are the source of truth; database stores only indexes and queryable metadata.
+  - Proto is the shared type system (UI/API/playwright-driver) for everything except minimal DB index types.
+  - Exactly one hydration/persistence layer assembles proto-compliant domain objects from DB indexes + files.
+- **Architecture principles**
+  - Clear boundaries and seams; compatibility logic is isolated (anti-corruption layer) and deletable.
+  - Tests can validate contracts without spinning up the world (compiler/executor/driver seams remain strong).
+
 ## Current Reality (What Exists Today)
 
 Key code anchors:
@@ -34,6 +51,25 @@ Key code anchors:
 - Subflow inline-def MIGRATION gap: `scenarios/browser-automation-studio/api/automation/executor/flow_executor.go`
 - Websocket sink emits proto but attaches legacy payload: `scenarios/browser-automation-studio/api/automation/events/ws_sink.go`
 - UI normalizes workflow response by converting to v1 flow to get nodes/edges reliably: `scenarios/browser-automation-studio/ui/src/stores/workflowStore.ts`
+
+## Canonical Domain Model + File Formats (Make It Explicit)
+
+We need to remove ambiguity around “files are the source of truth” by documenting the **two** on-disk shapes used today:
+
+1. **Project workflow file (source of truth for persisted workflows)**
+   - Stored on disk as **protojson `browser_automation_studio.v1.WorkflowSummary`**.
+   - `WorkflowSummary.flow_definition` is the canonical workflow graph (`WorkflowDefinitionV2`).
+   - Written by `WriteWorkflowSummaryFile` and read by `ReadWorkflowSummaryFile`.
+
+2. **Fixture/workflow-definition file (used by BAS playbooks/tooling)**
+   - Stored under `scenarios/browser-automation-studio/bas/actions/*.json` as **protojson `browser_automation_studio.v1.WorkflowDefinitionV2`**.
+   - These are not persisted workflows; they are reusable definitions referenced by `workflow_path`.
+
+**Policy (target):**
+
+- Persisted workflows always store `WorkflowSummary` protojson (with `flow_definition` v2).
+- Reusable playbook snippets always store `WorkflowDefinitionV2` protojson (referenced by `workflow_path`).
+- Subflows reference workflows by `workflow_id` or `workflow_path` only (no inline embedded “workflowDefinition” maps).
 
 ## Definition: “V2-Only” (Target End State)
 
@@ -61,8 +97,11 @@ We are “v2-only” when all are true:
    - Selector/token/fixture resolution happens in exactly one place (or a clearly-defined staged pipeline), not “sometimes here, sometimes there”.
 
 6. **Control-flow semantics are proto-modeled (no stringly-typed execution control)**
-   - Any non-browser “control” steps required at runtime (loops/branching/set-variable/subflow dispatch) have a proto representation so execution does not depend on legacy step type strings (e.g. `"loop"`, `"setVariable"`).
-   - If the chosen design is “loops are graph cycles” (no explicit loop node), then the legacy loop node type is removed entirely.
+   - Any non-browser “control” semantics required at runtime (loops/cycles, branching, variable writes, subflow dispatch) are representable in proto:
+     - either as `ActionDefinition` variants, OR
+     - as a separate, typed “workflow control” domain that is still shared across UI/API/driver.
+   - Edge conditions/branching are typed and validated (not just UI labels).
+   - Variable semantics are explicit (namespaces, read/write rules), so execution is deterministic.
 
 7. **One hydration/persistence layer**
    - The filesystem protojson is the source of truth; the database remains an index only.
@@ -89,16 +128,26 @@ We do this in phases that monotonically reduce v1 reliance. Each phase has:
   - Runtime dependencies on legacy step type strings (e.g. `"loop"`, `"workflowCall"`, `"setVariable"`)
   - Any remaining test runner preprocess steps that force a particular shape (fixtures/selectors/token resolution)
   - Any remaining map-shaped workflow compilation/execution paths on hot paths (e.g. `map[string]any` workflowDefinition ingestion)
+- A written, explicit statement of canonical storage formats:
+  - Persisted workflows: protojson `WorkflowSummary` on disk (contains `flow_definition` v2)
+  - Fixtures: protojson `WorkflowDefinitionV2` referenced by `workflow_path`
+- An inventory of:
+  - Persisted workflow files + `.bas/versions` snapshots
+  - Fixture workflow files under `bas/actions/*.json`
+  - Subflow targets used in the repository (`workflow_id` vs `workflow_path` vs inline maps)
 
 ### Checklist
 
 - [ ] Decide and record the v2-only definition (use the “Definition” section above; edit if needed).
-- [ ] Add a “v1 usage report” script/command sequence (no new deps) to run locally and in CI:
-  - [ ] `rg -n "\"type\"\\s*:\\s*\"[a-z]+\"|\"data\"\\s*:\\s*\\{" scenarios/browser-automation-studio` (heuristic for v1 nodes)
-  - [ ] `rg -n "workflowDefinition\"\\s*:" scenarios/browser-automation-studio` (inline subflows)
-  - [ ] `rg -n "legacy_payload" scenarios/browser-automation-studio` (websocket compatibility)
-  - [ ] `rg -n "\"type\"\\s*:\\s*\"(loop|setVariable|workflowCall)\"|isSetVariableStep\\(|StepLoop|workflowcall" scenarios/browser-automation-studio/api` (stringly-typed control flow)
-  - [ ] `rg -n "snakeToCamel\\(|v2ActionTypeToStepType\\(" scenarios/browser-automation-studio/api` (v2→v1 normalization helpers)
+- [ ] Confirm and document canonical on-disk formats (WorkflowSummary vs WorkflowDefinitionV2) in this plan (see section above).
+- [ ] Inventory workflows and fixtures that exist today:
+  - [ ] Persisted workflows (project store files + `.bas/versions` snapshots).
+  - [ ] Fixture workflows (`bas/actions/*.json`) that are referenced by `workflow_path`.
+- [ ] Decide the policy for fixture resolution:
+  - [ ] Allowed base roots (project root only).
+  - [ ] Path traversal rules (reject absolute paths, `.` and `..` segments).
+- [ ] Confirm subflow target contract is already proto-modeled (`ACTION_TYPE_SUBFLOW` with `workflow_id|workflow_path`).
+- [ ] Add a “v1 usage report” command sequence (no new deps) to run locally and in CI (use the commands below).
 - [ ] Capture current counts in this file under “Progress Snapshots”.
 
 ### Acceptance Criteria
@@ -108,6 +157,16 @@ We do this in phases that monotonically reduce v1 reliance. Each phase has:
 ### Test Gate
 
 - [ ] `vrooli scenario test browser-automation-studio` (baseline run; record pass rate and top failure categories).
+
+### Automation: Progress Snapshot Commands (Copy/Paste)
+
+Use these commands to create objective “ratchet” checkpoints:
+
+- [ ] `rg -n "\"type\"\\s*:" scenarios/browser-automation-studio/bas scenarios/browser-automation-studio/api scenarios/browser-automation-studio/ui` (heuristic for legacy `"type"` usage)
+- [ ] `rg -n "\"data\"\\s*:" scenarios/browser-automation-studio/api scenarios/browser-automation-studio/ui` (heuristic for v1 `node.data` usage)
+- [ ] `rg -n "workflowDefinition\"\\s*:" scenarios/browser-automation-studio` (inline subflows)
+- [ ] `rg -n "legacy_payload" scenarios/browser-automation-studio` (websocket compatibility)
+- [ ] `rg -n "snakeToCamel\\(|v2ActionTypeToStepType\\(" scenarios/browser-automation-studio/api` (v2→v1 normalization helpers)
 
 ---
 
@@ -161,7 +220,7 @@ Eliminate v1 definitions already stored (especially version history).
 
 ---
 
-## Phase 3 — Subflows: Remove Inline `workflowDefinition` (Or Fully Convert It)
+## Phase 3 — Subflows: References Only + Introduce `SubflowResolver` Seam (Delete Inline Maps)
 
 ### Why This Matters
 
@@ -170,38 +229,20 @@ Inline `workflowDefinition` keeps a map-shaped legacy workflow embedded in param
 
 If we don’t address this, we cannot delete legacy “map workflow” behavior safely.
 
-### Two Options (Pick One)
+### Decision
 
-**Option A (Recommended): Ban inline `workflowDefinition`**
+Pick the references-only approach and formalize it as a seam:
 
-- Treat subflows as references only: `workflowId` / `workflowPath`.
-- Inline defs are converted into real workflows on disk by tooling (e.g., playbook scaffolding).
+- Runtime subflows are **references only** (`workflow_id` / `workflow_path`) via `ACTION_TYPE_SUBFLOW`.
+- Resolution is performed by a single injected resolver, not by pre-processing hacks or embedding workflow maps into JSON.
 
-**Option B: Implement full inline-def proto conversion**
-
-- Convert the inline map into `basworkflows.WorkflowDefinitionV2` reliably (including nested nodes/edges/settings).
-- This is higher risk and tends to perpetuate “map-shaped” compatibility.
-
-**Option C (Recommended when tests/tooling need fixtures): Introduce a SubflowResolver seam**
-
-- Keep runtime subflows as references only (`workflowId`/`workflowPath`).
-- Add a resolver seam that can materialize a referenced workflow definition for:
-  - Production (project file store / workflow service)
-  - Tests (fixture registry) without embedding full inline `workflowDefinition` maps into the workflow JSON.
-- This avoids coupling runtime compilation to the test runner’s pre-processing shape.
-
-### Checklist (Option A)
-
-- [ ] Validator: enforce subflow references are `workflowId`/`workflowPath` (and/or explicit reference type); reject `workflowDefinition`.
-- [ ] Update playbooks/test tooling to never emit inline `workflowDefinition` (prefer `workflowPath` to files under `bas/actions/...`).
-- [ ] Remove inline workflowDefinition parsing/execution paths.
-
-### Checklist (Option C)
+### Checklist
 
 - [ ] Define a `SubflowResolver` seam (compiler/executor boundary) that resolves `workflowId`/`workflowPath` to a `WorkflowDefinitionV2`.
 - [ ] Production implementation resolves via the workflow/project file store (filesystem source of truth).
 - [ ] Test/tooling implementation resolves fixture references without embedding inline `workflowDefinition` maps into workflow JSON.
 - [ ] Remove any dependency on “inline workflowDefinition takes precedence” behaviors.
+- [ ] Validator: reject `workflowDefinition` in subflow params and require `workflow_id|workflow_path`.
 
 ### Acceptance Criteria
 
@@ -213,7 +254,58 @@ If we don’t address this, we cannot delete legacy “map workflow” behavior 
 
 ---
 
-## Phase 4 — Collapse Workflow Shape Compatibility in Compiler (Delete v1 Workflow Parsing)
+## Phase 4 — Streaming Contract: UI Consumes `timeline_entry`, Then Delete `legacy_payload`
+
+### Goal
+
+Stop paying the streaming compatibility tax. The server already emits a proto-first `timeline_entry`, but still attaches `legacy_payload`; the UI still reads it.
+
+### Checklist
+
+- [ ] UI: consume `timeline_entry` / `TimelineStreamMessage` as the primary data source for step timeline UX.
+- [ ] Remove UI fallback dependency on `legacy_payload` once the proto-first path is complete.
+- [ ] API/WS: stop attaching `legacy_payload` after consumers are migrated.
+- [ ] Keep a clear compatibility window (date/phase marker) so we don’t carry this forever.
+
+### Acceptance Criteria
+
+- WebSocket consumers do not require `legacy_payload`.
+
+### Test Gate
+
+- [ ] `vrooli scenario test browser-automation-studio`
+
+---
+
+## Phase 5 — One Hydration/Persistence Layer (Isolate + Delete Compat)
+
+### Goal
+
+Create a single, explicit hydration/persistence layer that:
+
+- reads protojson from disk,
+- uses DB only for indexes,
+- and isolates all compatibility logic in one deletable “legacy/compat” module.
+
+### Checklist
+
+- [ ] Identify all current normalization/compat logic that mutates workflow shapes (UI save/load, API validation compat, protoconv helpers).
+- [ ] Move remaining “compat mutations” behind one module boundary (anti-corruption layer):
+  - [ ] Legacy JSON payloads → `WorkflowDefinitionV2` conversion.
+  - [ ] Any “protojson compat wrappers” (e.g., JsonValue wrapping in subflow args) become a single utility, not scattered.
+- [ ] Enforce: internal layers operate on typed proto messages, not `map[string]any`, except inside the compat boundary.
+
+### Acceptance Criteria
+
+- There is one place to delete when we finally drop legacy payload shapes.
+
+### Test Gate
+
+- [ ] `vrooli scenario test browser-automation-studio`
+
+---
+
+## Phase 6 — Collapse Workflow Shape Compatibility in Compiler (Delete v1 Workflow Parsing)
 
 ### Goal
 
@@ -223,7 +315,7 @@ Remove v1 acceptance in the compiler once all persisted workflows are v2 and sub
 
 - [ ] Remove v1 node fields support (`rawNode.Type`, `rawNode.Data`) and v1 edge handle fields once no longer needed.
 - [ ] Compiler operates on `WorkflowDefinitionV2` as the canonical input (no “protojson → map → legacy structs → step strings” funnel).
-- [ ] Remove v2→v1 step type mapping (`v2ActionTypeToStepType`) only after Phase 6 (execution consumes proto `action` natively).
+- [ ] Remove v2→v1 step type mapping (`v2ActionTypeToStepType`) only after Phase 8 (execution consumes proto `action` natively).
 - [ ] Tighten schema validation so bad shapes fail early and clearly.
 
 ### Acceptance Criteria
@@ -236,20 +328,24 @@ Remove v1 acceptance in the compiler once all persisted workflows are v2 and sub
 
 ---
 
-## Phase 5 — Proto Completeness For Workflow Control-Flow (Unblock True “V2-Only”)
+## Phase 7 — Proto Completeness For Workflow Control-Flow + Branching + Variables
 
 ### Why This Exists
 
-We cannot reach true v2-only if execution still depends on legacy step type strings for control flow (e.g. `"loop"`, `"setVariable"`), because those are not represented by `ActionDefinition` today. Before we can cut over to proto `action` everywhere, we must decide and encode the workflow control model.
+We cannot reach true v2-only if execution still depends on legacy step type strings and ad-hoc conventions for control flow and branching. The proto model must be able to represent:
+
+- loops/cycles deterministically,
+- branching conditions explicitly (not just edge labels),
+- and variable semantics (what can read/write, and where).
 
 ### Checklist
 
-- [ ] Decide the control-flow model (document in this plan):
-  - [ ] **Option 1:** Loops are explicit workflow nodes (add proto support, e.g. `ACTION_TYPE_LOOP` + `LoopParams` / `ACTION_TYPE_SET_VARIABLE` + params).
-  - [ ] **Option 2:** Loops are pure graph cycles (delete explicit loop node type; executor enforces step budget + optional cycle guards).
-  - [ ] **Option 3:** Control-flow nodes are a separate proto domain (not `ActionDefinition`) but still fully typed and shared (UI/API/driver).
-- [ ] Update proto schemas to cover the chosen control-flow model and regenerate code.
-- [ ] Update validator rules accordingly (so control-flow nodes are validated with the same rigor as browser actions).
+- [ ] Decide the control model (document in this plan with examples):
+  - [ ] **Cycles/loops**: pure graph cycles vs explicit loop node (if cycles, define step budgets + cycle guards; if node, define typed params).
+  - [ ] **Branching**: typed edge condition(s) (not only `label`) so execution routing is deterministic and validated.
+  - [ ] **Variables**: confirm and enforce namespace semantics (`@store/`, `@params/`, `@env/`) for reads/writes; define how subflows pass args/params and merge results.
+- [ ] Update proto schemas to cover the chosen control-flow + branching model and regenerate code.
+- [ ] Update validator rules accordingly (control semantics validated as strictly as browser actions).
 
 ### Acceptance Criteria
 
@@ -262,19 +358,23 @@ We cannot reach true v2-only if execution still depends on legacy step type stri
 
 ---
 
-## Phase 6 — Cut Over Execution To Proto `action` (Delete v2→v1 Normalization)
+## Phase 8 — Cut Over Execution To Proto `action` (Delete Stringly Dispatch + Param Normalization)
 
 ### Why This Is the Core Cutover
 
-We are not truly v2-only if the compiler/executor/driver still depend on v1-ish `type` strings and camelCase params. The driver contract already supports a typed `action` field; this phase makes it the single execution path.
+We are not truly v2-only if execution still depends on v1-ish `type` strings, camelCase params, or a “legacy compiler” path. The driver contract already supports a typed `action` field; this phase makes it the single execution path and removes the “two compilers” problem.
 
 ### Checklist
 
-- [ ] Compiler emits `CompiledInstruction.action` / `PlanStep.action` as the canonical execution payload.
+- [ ] Plan compilation produces a single canonical contract:
+  - [ ] `contracts.CompiledInstruction.action` and `contracts.PlanStep.action` are required and sufficient.
+  - [ ] `type/params` are no longer required for execution (may remain temporarily for diagnostics only).
+- [ ] Eliminate stringly dispatch:
+  - [ ] Executor routes by `ActionDefinition.type` (and typed params) instead of `step.Type` strings.
+  - [ ] Playwright-driver dispatch uses `CompiledInstruction.action` only.
+- [ ] Eliminate normalization taxes:
   - [ ] Stop using `snakeToCamel` and `v2ActionTypeToStepType` on the execution-critical path.
-  - [ ] Stop inlining/consuming map-shaped `workflowDefinition` during compilation.
-- [ ] Executor routes by `ActionDefinition.type` (and typed params) instead of `step.Type` strings.
-- [ ] Playwright-driver consumes `CompiledInstruction.action` and no longer requires `instruction.type` for dispatch.
+  - [ ] Remove any remaining “inline workflowDefinition” compilation paths (subflows resolved via seam from Phase 3).
 
 ### Acceptance Criteria
 
@@ -287,16 +387,13 @@ We are not truly v2-only if the compiler/executor/driver still depend on v1-ish 
 
 ---
 
-## Phase 7 — Remove Legacy Execution/Streaming Compatibility
+## Phase 9 — Remove Legacy Execution Compatibility
 
 ### Checklist
 
 - [ ] Execution parameters:
   - [ ] Remove legacy `variables map<string,string>` support once all callers use `initial_store/initial_params/env`.
   - [ ] Ensure error messages guide callers to correct fields.
-- [ ] Websocket streaming:
-  - [ ] Move UI/CLI consumers to consume the proto-first timeline shape (`timeline_entry` / `TimelineStreamMessage`) end-to-end.
-  - [ ] Remove `legacy_payload` attachment once UI/CLI consumers no longer require it.
 
 ### Acceptance Criteria
 
@@ -308,7 +405,7 @@ We are not truly v2-only if the compiler/executor/driver still depend on v1-ish 
 
 ---
 
-## Phase 8 — Delete v1 Code + Lock the Door (Prevent Regression)
+## Phase 10 — Delete v1 Code + Lock the Door (Prevent Regression)
 
 ### Checklist
 

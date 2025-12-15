@@ -248,15 +248,12 @@ func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pbExecution, err := protoconv.ExecutionToProto(execution)
+	pbExecution, err := h.executionService.HydrateExecutionProto(ctx, execution)
 	if err != nil {
 		if h.log != nil {
-			h.log.WithError(err).WithField("execution_id", id).Error("Failed to convert execution to proto")
+			h.log.WithError(err).WithField("execution_id", id).Error("Failed to hydrate execution proto")
 		}
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"operation": "execution_to_proto",
-			"error":     err.Error(),
-		}))
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "hydrate_execution"}))
 		return
 	}
 
@@ -290,13 +287,13 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 		if executions[idx] == nil {
 			continue
 		}
-		pbExec, convErr := protoconv.ExecutionToProto(executions[idx])
+		pbExec, convErr := h.executionService.HydrateExecutionProto(ctx, executions[idx])
 		if convErr != nil {
 			if h.log != nil {
-				h.log.WithError(convErr).WithField("execution_id", executions[idx].ID).Error("Failed to convert execution to proto")
+				h.log.WithError(convErr).WithField("execution_id", executions[idx].ID).Error("Failed to hydrate execution proto")
 			}
 			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-				"operation": fmt.Sprintf("execution_to_proto[%d]", idx),
+				"operation": fmt.Sprintf("hydrate_execution[%d]", idx),
 				"error":     convErr.Error(),
 			}))
 			return

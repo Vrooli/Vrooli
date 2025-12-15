@@ -176,7 +176,7 @@
       "action": {
         "assert": {
           "failure_message": "Modal should close after successful project update",
-          "mode": "not_exists",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
           "selector": "@selector/dialogs.project.root /*dup-1*/",
           "timeout_ms": 5000
         },

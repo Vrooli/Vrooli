@@ -165,6 +165,10 @@ export class RecordModeController {
       throw new Error('Recording already in progress');
     }
 
+    if (!options.onEntry) {
+      throw new Error('onEntry callback is required');
+    }
+
     // Use crypto.randomUUID() for UUID generation (Node 19+)
     const recordingId = options.recordingId || crypto.randomUUID();
 

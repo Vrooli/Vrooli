@@ -1,4 +1,5 @@
 import { FailureKind } from '../proto';
+import { ZodError } from 'zod';
 
 /**
  * Error codes for playwright driver.
@@ -166,6 +167,25 @@ export class FrameNotFoundError extends PlaywrightDriverError {
 export function normalizeError(error: unknown): PlaywrightDriverError {
   if (error instanceof PlaywrightDriverError) {
     return error;
+  }
+
+  if (error instanceof ZodError) {
+    if (error.issues.length === 0) {
+      return new InvalidInstructionError('Validation failed', { zodIssues: [] });
+    }
+
+    const issues = error.issues.map((issue) => ({
+      path: issue.path,
+      message: issue.message,
+      code: issue.code,
+    }));
+
+    const message =
+      issues.length === 1
+        ? `Validation error: ${issues[0].path.join('.') || 'value'} - ${issues[0].message}`
+        : `Validation errors: ${issues.map((issue) => issue.path.join('.') || 'value').join(', ')}`;
+
+    return new InvalidInstructionError(message, { zodIssues: issues });
   }
 
   if (error instanceof Error) {

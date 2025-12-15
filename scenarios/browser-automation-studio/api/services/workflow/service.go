@@ -60,6 +60,7 @@ type WorkflowService struct {
 	artifactRecorder autorecorder.Recorder
 	planCompiler     autoexec.PlanCompiler
 	eventSinkFactory func() autoevents.Sink
+	executionDataRoot string
 	syncLocks        sync.Map
 	filePathCache    sync.Map
 	executionCancels sync.Map
@@ -120,6 +121,9 @@ type WorkflowServiceOptions struct {
 	PlanCompiler     autoexec.PlanCompiler
 	AIClient         ai.AIClient
 	EventSinkFactory func() autoevents.Sink
+	// ExecutionDataRoot controls where execution artifacts and proto snapshots are persisted.
+	// When empty, defaults to "/tmp/bas-executions" for backward compatibility with earlier recorder defaults.
+	ExecutionDataRoot string
 }
 
 // NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
@@ -147,6 +151,7 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 		artifactRecorder: opts.ArtifactRecorder,
 		planCompiler:     opts.PlanCompiler,
 		eventSinkFactory: eventSinkFactory,
+		executionDataRoot: strings.TrimSpace(opts.ExecutionDataRoot),
 	}
 
 	return svc

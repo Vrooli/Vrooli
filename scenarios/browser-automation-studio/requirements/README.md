@@ -32,4 +32,4 @@ Numbers preserve ordering/insertion; they do **not** indicate priority. Each tar
 ## References
 - Shared standards: `docs/testing/requirements.md` (see repo docs) for schema/details.
 - Scenario authoring guides: `docs/scenarios/scenario-generator.md`, `scenario-improver.md`.
-- Selector + playbook linkage lives in `test/playbooks/README.md` (mirrors these operational targets).
+- Selector + playbook linkage lives in `bas/README.md` (mirrors these operational targets).

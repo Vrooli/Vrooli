@@ -29,14 +29,19 @@ func TestValidateAndNormalizeFolderPath(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "path outside root",
+			name:    "path outside cwd is allowed",
 			path:    "/tmp/outside-project",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name:    "cwd itself is valid",
 			path:    cwd,
 			wantErr: false,
+		},
+		{
+			name:    "empty path is invalid",
+			path:    "   ",
+			wantErr: true,
 		},
 	}
 

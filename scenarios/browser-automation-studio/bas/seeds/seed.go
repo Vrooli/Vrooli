@@ -297,38 +297,57 @@ func createWorkflow(client *http.Client, apiURL, name, folder, projectID string)
 	// Seed a minimal-but-real workflow so the builder canvas has nodes to render and
 	// the Execute flow produces observable execution state.
 	workflowDefinition := map[string]any{
+		"metadata": map[string]any{
+			"name":        name,
+			"description": "Seeded workflow for BAS integration testing",
+			"labels": map[string]string{
+				"seeded": "true",
+			},
+		},
+		"settings": map[string]any{
+			"viewport_width":  1280,
+			"viewport_height": 720,
+			"headless":        true,
+			"timeout_ms":      180000,
+		},
 		"nodes": []map[string]any{
 			{
-				"id":   "navigate-dashboard",
-				"type": "navigate",
-				"data": map[string]any{
-					"label":           "Navigate to BAS dashboard",
-					"destinationType": "scenario",
-					"scenario":        "browser-automation-studio",
-					"scenarioPath":    "/",
-					"waitUntil":       "networkidle",
-					"timeoutMs":       45000,
-					"waitForMs":       1000,
+				"id": "11111111-1111-1111-1111-111111111111",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_NAVIGATE",
+					"navigate": map[string]any{
+						"url":              "http://localhost/",
+						"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+						"scenario":         "browser-automation-studio",
+						"scenario_path":    "/",
+						"wait_until":       "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+						"timeout_ms":       45000,
+					},
 				},
+				"position": map[string]any{"x": 0, "y": 0},
 			},
 			{
-				"id":   "assert-app-ready",
-				"type": "assert",
-				"data": map[string]any{
-					"label":          "App ready",
-					"selector":       "[data-testid=\"app-ready\"]",
-					"assertMode":     "exists",
-					"timeoutMs":      15000,
-					"failureMessage": "BAS UI should load for the seeded demo workflow",
+				"id": "22222222-2222-2222-2222-222222222222",
+				"action": map[string]any{
+					"type": "ACTION_TYPE_ASSERT",
+					"assert": map[string]any{
+						"selector": "[data-testid=\"app-ready\"]",
+						"mode":     "ASSERTION_MODE_EXISTS",
+					},
 				},
+				"execution_settings": map[string]any{
+					"timeout_ms":    15000,
+					"wait_after_ms": 1000,
+				},
+				"position": map[string]any{"x": 320, "y": 0},
 			},
 		},
 		"edges": []map[string]any{
 			{
-				"id":     "e1",
-				"source": "navigate-dashboard",
-				"target": "assert-app-ready",
-				"type":   "smoothstep",
+				"id":     "33333333-3333-3333-3333-333333333333",
+				"source": "11111111-1111-1111-1111-111111111111",
+				"target": "22222222-2222-2222-2222-222222222222",
+				"type":   "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
 			},
 		},
 	}

@@ -14,6 +14,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
+import WebSocket from 'ws';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, metrics, scopedLog, LogContext } from '../../utils';
 import { createRecordModeController } from '../../recording/controller';
@@ -612,9 +613,7 @@ interface FrameWebSocket {
   on(event: 'error', listener: (err: Error) => void): void;
 }
 
-// Use dynamic require - ws is definitely installed as a dependency
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-const WS: new (url: string) => FrameWebSocket = require('ws');
+const WS: new (url: string) => FrameWebSocket = WebSocket as unknown as new (url: string) => FrameWebSocket;
 
 /**
  * Frame streaming state for a session.

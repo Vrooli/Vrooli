@@ -231,7 +231,7 @@
       "action": {
         "assert": {
           "failure_message": "Input should be hidden after save",
-          "mode": "not_exists",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
           "selector": "@selector/header.title.input /*dup-2*/",
           "timeout_ms": 3000
         },

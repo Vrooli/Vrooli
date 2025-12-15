@@ -3,7 +3,8 @@ import type { HandlerInstruction } from '../types';
 import { getUploadFileParams } from '../proto';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
 import { normalizeError, validateTimeout, logger, scopedLog, LogContext } from '../utils';
-import * as fs from 'fs/promises';
+import { constants as fsConstants } from 'fs';
+import { access } from 'fs/promises';
 
 /**
  * Track in-flight uploads to prevent duplicate concurrent upload operations.
@@ -72,7 +73,7 @@ export class UploadHandler extends BaseHandler {
       const fileToCheck = filePaths[0];
       if (fileToCheck) {
         try {
-          await fs.access(fileToCheck, fs.constants.R_OK);
+          await access(fileToCheck, fsConstants.R_OK);
         } catch {
           return {
             success: false,

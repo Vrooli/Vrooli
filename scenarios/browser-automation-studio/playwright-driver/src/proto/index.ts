@@ -270,17 +270,27 @@ import { jsonValueMapToPlain, jsonValueToPlain } from './utils';
  * The `action` field contains the typed ActionDefinition with strongly-typed params.
  * Handlers use `requireTypedParams()` to extract and validate params from action.
  *
- * Legacy `type` and `params` fields are preserved for backward compatibility but
- * should not be used - all execution paths now populate the typed action field.
+ * @example
+ * ```typescript
+ * const typedParams = instruction.action ? getClickParams(instruction.action) : undefined;
+ * const params = this.requireTypedParams(typedParams, 'click', instruction.nodeId);
+ * ```
  */
 export interface HandlerInstruction {
   /** Zero-based index in execution order */
   index: number;
   /** Node ID from the workflow definition (UUID) */
   nodeId: string;
-  /** @deprecated Use action.type instead */
+  /**
+   * @deprecated Legacy field - no longer populated by Go API.
+   * Use `getActionType(instruction)` to get the action type string.
+   */
   type: string;
-  /** @deprecated Use typed params from action field */
+  /**
+   * @deprecated Legacy field - no longer populated by Go API.
+   * Use typed param extractors like `getClickParams(instruction.action)` instead.
+   * This field is always an empty object.
+   */
   params: Record<string, unknown>;
   /** Optional preload HTML */
   preloadHtml?: string;
@@ -299,20 +309,24 @@ export interface HandlerInstruction {
 /**
  * Convert a proto CompiledInstruction to a HandlerInstruction.
  *
- * Converts proto JsonValue maps to plain objects and preserves the typed action field.
+ * Preserves the typed action field which is the canonical representation.
+ * Legacy type/params fields are set to empty values - they are no longer
+ * populated by the Go API and should not be used.
  *
  * @param proto - Proto CompiledInstruction from API
- * @returns HandlerInstruction with typed action and legacy params for compatibility
+ * @returns HandlerInstruction with typed action field
  */
 export function toHandlerInstruction(proto: CompiledInstruction): HandlerInstruction {
   return {
     index: proto.index,
     nodeId: proto.nodeId,
-    type: proto.type,
-    params: jsonValueMapToPlain(proto.params),
+    // Legacy fields - no longer populated, kept for interface compatibility
+    type: '',
+    params: {},
     preloadHtml: proto.preloadHtml,
     context: jsonValueMapToPlain(proto.context),
     metadata: proto.metadata ? { ...proto.metadata } : undefined,
+    // Typed action - the canonical representation
     action: proto.action,
   };
 }

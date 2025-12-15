@@ -138,7 +138,7 @@
       "action": {
         "assert": {
           "failure_message": "Workflows tab should be inactive when executions tab is active",
-          "mode": "not_exists",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
           "selector": "@selector/workflows.tab[aria-selected=\"true\"]",
           "timeout_ms": 3000
         },

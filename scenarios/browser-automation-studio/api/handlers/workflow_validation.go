@@ -33,39 +33,71 @@ func looksLikeWorkflowDefinitionV2(doc map[string]any) bool {
 func normalizeWorkflowDefinitionV2Compat(doc map[string]any) {
 	settings, ok := doc["settings"].(map[string]any)
 	if !ok || settings == nil {
-		return
+		// Continue; settings are optional, but node-level normalization still applies.
+	} else {
+		// test-genie may inject UI-oriented execution defaults (camelCase) that do not exist in the proto.
+		// Translate what we can and drop the rest.
+		if viewport, ok := settings["executionViewport"].(map[string]any); ok && viewport != nil {
+			if width, ok := viewport["width"]; ok {
+				switch v := width.(type) {
+				case float64:
+					settings["viewport_width"] = int32(v)
+				case int:
+					settings["viewport_width"] = int32(v)
+				case int32:
+					settings["viewport_width"] = v
+				case int64:
+					settings["viewport_width"] = int32(v)
+				}
+			}
+			if height, ok := viewport["height"]; ok {
+				switch v := height.(type) {
+				case float64:
+					settings["viewport_height"] = int32(v)
+				case int:
+					settings["viewport_height"] = int32(v)
+				case int32:
+					settings["viewport_height"] = v
+				case int64:
+					settings["viewport_height"] = int32(v)
+				}
+			}
+			delete(settings, "executionViewport")
+		}
+		delete(settings, "defaultStepTimeoutMs")
 	}
 
-	// test-genie may inject UI-oriented execution defaults (camelCase) that do not exist in the proto.
-	// Translate what we can and drop the rest.
-	if viewport, ok := settings["executionViewport"].(map[string]any); ok && viewport != nil {
-		if width, ok := viewport["width"]; ok {
-			switch v := width.(type) {
-			case float64:
-				settings["viewport_width"] = int32(v)
-			case int:
-				settings["viewport_width"] = int32(v)
-			case int32:
-				settings["viewport_width"] = v
-			case int64:
-				settings["viewport_width"] = int32(v)
-			}
-		}
-		if height, ok := viewport["height"]; ok {
-			switch v := height.(type) {
-			case float64:
-				settings["viewport_height"] = int32(v)
-			case int:
-				settings["viewport_height"] = int32(v)
-			case int32:
-				settings["viewport_height"] = v
-			case int64:
-				settings["viewport_height"] = int32(v)
-			}
-		}
-		delete(settings, "executionViewport")
+	// WorkflowDefinitionV2 expects some nested maps to be JsonValue-wrapped in proto JSON.
+	// For compatibility with existing playbook JSON, wrap primitive subflow args into the
+	// expected oneof shape (string_value/bool_value/int_value/object_value/etc).
+	nodes, ok := doc["nodes"].([]any)
+	if !ok || len(nodes) == 0 {
+		return
 	}
-	delete(settings, "defaultStepTimeoutMs")
+	for _, rawNode := range nodes {
+		node, ok := rawNode.(map[string]any)
+		if !ok || node == nil {
+			continue
+		}
+		action, ok := node["action"].(map[string]any)
+		if !ok || action == nil {
+			continue
+		}
+		subflow, ok := action["subflow"].(map[string]any)
+		if !ok || subflow == nil {
+			continue
+		}
+		args, ok := subflow["args"].(map[string]any)
+		if !ok || args == nil {
+			continue
+		}
+
+		normalized := make(map[string]any, len(args))
+		for k, v := range args {
+			normalized[k] = jsonValueWrapper(v)
+		}
+		subflow["args"] = normalized
+	}
 }
 
 // ValidateWorkflow validates ad-hoc workflow definitions via schema + lint rules.

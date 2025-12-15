@@ -49,39 +49,16 @@ func ResolveDemoProjectFolder(log *logrus.Logger) string {
 
 // ValidateAndNormalizeFolderPath validates a folder path and returns the absolute normalized path.
 // Returns an error with appropriate message if validation fails.
-// The folder path must be within the allowed root (VROOLI_ROOT or cwd).
 func ValidateAndNormalizeFolderPath(folderPath string, log *logrus.Logger) (string, error) {
-	// Get absolute path
-	absPath, err := filepath.Abs(folderPath)
-	if err != nil {
+	trimmed := strings.TrimSpace(folderPath)
+	if trimmed == "" {
 		return "", fmt.Errorf("invalid path")
 	}
 
-	// Get allowed root directory
-	allowedRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	if allowedRoot == "" {
-		cwd, cwdErr := os.Getwd()
-		if cwdErr != nil {
-			if log != nil {
-				log.WithError(cwdErr).Error("Failed to resolve VROOLI_ROOT for folder validation")
-			}
-			return "", fmt.Errorf("failed to resolve project root")
-		}
-		allowedRoot = cwd
-	}
-
-	// Normalize allowed root
-	allowedRoot, err = filepath.Abs(allowedRoot)
+	// Get absolute path
+	absPath, err := filepath.Abs(trimmed)
 	if err != nil {
-		if log != nil {
-			log.WithError(err).Error("Failed to normalize VROOLI_ROOT for folder validation")
-		}
-		return "", fmt.Errorf("failed to normalize project root")
-	}
-
-	// Check if path is within allowed root
-	if !strings.HasPrefix(absPath, allowedRoot+string(os.PathSeparator)) && absPath != allowedRoot {
-		return "", fmt.Errorf("folder path must be inside project root")
+		return "", fmt.Errorf("invalid path")
 	}
 
 	return absPath, nil

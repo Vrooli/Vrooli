@@ -206,6 +206,8 @@ func main() {
 		r.Get("/health", handler.Health)
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
+		r.Post("/projects/inspect-folder", handler.InspectProjectFolder)
+		r.Post("/projects/import", handler.ImportProject)
 		r.Get("/projects", handler.ListProjects)
 		r.Get("/projects/{id}", handler.GetProject)
 		r.Put("/projects/{id}", handler.UpdateProject)
@@ -305,6 +307,9 @@ func main() {
 
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
+
+		// Filesystem helper routes (UI support utilities)
+		r.Post("/fs/list-directories", handler.ListDirectories)
 
 		// Entitlement routes for subscription management
 		r.Get("/entitlement/status", entitlementHandler.GetEntitlementStatus)
