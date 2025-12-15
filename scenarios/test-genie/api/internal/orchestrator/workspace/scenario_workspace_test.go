@@ -9,8 +9,8 @@ import (
 func TestNewScenarioWorkspace(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
-		t.Fatalf("failed to create test dir: %v", err)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("failed to create scenario dir: %v", err)
 	}
 
 	workspace, err := New(root, "demo")
@@ -20,10 +20,10 @@ func TestNewScenarioWorkspace(t *testing.T) {
 	if workspace.ScenarioDir != scenarioDir {
 		t.Fatalf("unexpected scenario dir %s", workspace.ScenarioDir)
 	}
-	if workspace.TestDir != filepath.Join(scenarioDir, "test") {
+	if workspace.TestDir != filepath.Join(scenarioDir, "coverage") {
 		t.Fatalf("unexpected test dir %s", workspace.TestDir)
 	}
-	expectedPhaseDir := filepath.Join(scenarioDir, "test", "phases")
+	expectedPhaseDir := filepath.Join(scenarioDir, "coverage", "phases")
 	if workspace.PhaseDir != expectedPhaseDir {
 		t.Fatalf("unexpected phase dir %s", workspace.PhaseDir)
 	}
@@ -34,6 +34,9 @@ func TestNewScenarioWorkspace(t *testing.T) {
 	env := workspace.Environment()
 	if env.ScenarioName != "demo" || env.ScenarioDir == "" || env.TestDir == "" {
 		t.Fatalf("environment missing data: %#v", env)
+	}
+	if info, err := os.Stat(workspace.TestDir); err != nil || !info.IsDir() {
+		t.Fatalf("coverage dir missing: %v", err)
 	}
 
 	artifactDir, err := workspace.EnsureArtifactDir()

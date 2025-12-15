@@ -18,7 +18,7 @@ test-genie status --executions
 
 ## What Test Genie Does
 
-- **Executes tests** via 10-phase pipeline (structure → dependencies → lint → docs → smoke → unit → integration → playbooks → business → performance)
+- **Executes tests** via 11-phase pipeline (structure → standards → dependencies → lint → docs → smoke → unit → integration → playbooks → business → performance)
 - **Tracks requirements** by auto-syncing `[REQ:ID]` tags from test results
 - **Provides APIs** for agent automation (REST + CLI)
 - **Queues test generation** requests for downstream AI agents
@@ -38,6 +38,7 @@ test-genie/
 | Phase | Timeout | Purpose |
 |-------|---------|---------|
 | Structure | 15s | Validate files, JSON configs |
+| Standards | 60s | Run scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
 | Dependencies | 30s | Check runtimes, tools, resources |
 | Lint | 30s | Type checking and linting |
 | Docs | 60s | Validate Markdown, mermaid, links, portability |
@@ -52,12 +53,17 @@ test-genie/
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| `quick` | Structure, Docs, Unit | Fast sanity check |
-| `smoke` | Structure, Lint, Docs, Integration | Pre-commit validation |
-| `comprehensive` | All 10 phases | Full CI/CD validation |
+| `quick` | Structure, Standards, Docs, Unit | Fast sanity check |
+| `smoke` | Structure, Standards, Lint, Docs, Integration | Pre-commit validation |
+| `comprehensive` | All 11 phases | Full CI/CD validation |
 
 ```bash
 test-genie execute my-scenario --preset smoke
+```
+
+Opt out per run:
+```bash
+test-genie execute my-scenario --skip standards
 ```
 
 ## CLI Usage
@@ -155,7 +161,7 @@ make stop
 Comprehensive docs are in `docs/`:
 
 - [QUICKSTART.md](docs/QUICKSTART.md) - Get started in 5 minutes
-- [Phased Testing Guide](docs/guides/phased-testing.md) - 10-phase architecture
+- [Phased Testing Guide](docs/guides/phased-testing.md) - 11-phase architecture
 - [Requirements Sync](docs/guides/requirements-sync.md) - Auto-tracking from tests
 - [API Reference](docs/reference/api-endpoints.md) - REST API documentation
 - [CLI Reference](docs/reference/cli-commands.md) - CLI command reference

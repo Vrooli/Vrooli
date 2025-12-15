@@ -41,12 +41,12 @@ scenario/
     └── **/*.test.tsx    ✅ ALWAYS reference (UI unit tests)
 ```
 
-### Why test/phases/ is Rejected
+### Why coverage/phases/ is Rejected
 
-**test/phases/** scripts are **orchestrators**, not test sources:
+**coverage/phases/** scripts are **orchestrators**, not test sources:
 
 ```bash
-# test/phases/test-unit.sh
+# coverage/phases/test-unit.sh
 # This script RUNS tests, it doesn't CONTAIN tests
 
 go test ./api/...      # Runs Go tests
@@ -58,7 +58,7 @@ npm run test           # Runs Vitest tests
 **Proper references**:
 - `api/handlers/projects_test.go` (specific Go test file)
 - `ui/src/components/ProjectModal.test.tsx` (specific Vitest test)
-- `test/playbooks/projects/create.json` (specific BAS workflow)
+- `bas/cases/01-foundation/01-projects/create.json` (specific BAS workflow)
 
 ### Why test/cli/ is Rejected
 
@@ -80,7 +80,7 @@ The CLI should be a thin wrapper over the API. If CLI tests pass but API logic i
   "id": "PROFILE-CREATE",
   "validation": [
     {"type": "test", "ref": "api/profile_service_test.go"},
-    {"type": "automation", "ref": "test/playbooks/profiles/create.json"}
+    {"type": "automation", "ref": "bas/cases/profiles/create.json"}
   ]
 }
 ```
@@ -132,7 +132,7 @@ Validation requirements adapt based on your scenario's components:
     },
     {
       "type": "automation",
-      "ref": "test/playbooks/auth/login-flow.json",
+      "ref": "bas/cases/auth/login-flow.json",
       "phase": "integration",
       "status": "implemented",
       "notes": "Full user journey from login page to dashboard"
@@ -157,7 +157,7 @@ Validation requirements adapt based on your scenario's components:
     },
     {
       "type": "automation",
-      "ref": "test/playbooks/analyze-dependencies.json",
+      "ref": "bas/cases/analyze-dependencies.json",
       "phase": "integration",
       "status": "implemented"
     }
@@ -330,7 +330,7 @@ vrooli scenario completeness <scenario-name>
 
 When creating requirement validations, ensure:
 
-- [ ] **Refs point to actual test sources** (api/, ui/src/, test/playbooks/)
+- [ ] **Refs point to actual test sources** (api/, ui/src/, bas/)
 - [ ] **P0/P1 requirements have >= 2 AUTOMATED layers**
 - [ ] **Test files are meaningful** (>= 20 LOC, assertions, multiple test cases)
 - [ ] **No monolithic test files** (avoid 1 file validating 6+ requirements)

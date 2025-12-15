@@ -58,7 +58,7 @@ type Config struct {
 	Strict bool
 }
 
-// Validator validates the structure of test/playbooks/ directories.
+// Validator validates the structure of bas/ playbook directories.
 type Validator interface {
 	// Validate checks the playbooks directory structure.
 	// Returns a Result with observations (warnings or errors based on config).
@@ -90,12 +90,12 @@ func (v *validator) Validate() Result {
 		)
 	}
 
-	playboooksDir := filepath.Join(v.config.ScenarioDir, "test", "playbooks")
+	basDir := filepath.Join(v.config.ScenarioDir, "bas")
 
-	// Check if playbooks directory exists
-	if _, err := os.Stat(playboooksDir); os.IsNotExist(err) {
+	// Check if bas directory exists
+	if _, err := os.Stat(basDir); os.IsNotExist(err) {
 		return OK().WithObservations(
-			NewInfoObservation("No test/playbooks/ directory found (optional)"),
+			NewInfoObservation("No bas/ directory found (optional)"),
 		)
 	}
 
@@ -105,27 +105,21 @@ func (v *validator) Validate() Result {
 	var issues int
 
 	// Validate registry.json
-	registryObs, registryIssues := v.validateRegistry(playboooksDir)
+	registryObs, registryIssues := v.validateRegistry(basDir)
 	observations = append(observations, registryObs...)
 	issues += registryIssues
 
-	// Validate capabilities/ directory structure
-	capabilitiesObs, capabilitiesIssues := v.validatePrefixedDir(playboooksDir, "capabilities")
-	observations = append(observations, capabilitiesObs...)
-	issues += capabilitiesIssues
+	// Validate bas/cases and bas/flows folder prefixes (top-level only).
+	casesObs, casesIssues := v.validateTopLevelPrefixedDir(basDir, "cases")
+	observations = append(observations, casesObs...)
+	issues += casesIssues
 
-	// Validate journeys/ directory structure
-	journeysObs, journeysIssues := v.validatePrefixedDir(playboooksDir, "journeys")
-	observations = append(observations, journeysObs...)
-	issues += journeysIssues
+	flowsObs, flowsIssues := v.validateTopLevelPrefixedDir(basDir, "flows")
+	observations = append(observations, flowsObs...)
+	issues += flowsIssues
 
-	// Validate __subflows/ fixtures
-	subflowsObs, subflowsIssues := v.validateSubflows(playboooksDir)
-	observations = append(observations, subflowsObs...)
-	issues += subflowsIssues
-
-	// Validate __seeds/ directory
-	seedsObs, seedsIssues := v.validateSeeds(playboooksDir)
+	// Validate bas/seeds entrypoint, if present.
+	seedsObs, seedsIssues := v.validateSeeds(basDir)
 	observations = append(observations, seedsObs...)
 	issues += seedsIssues
 
@@ -151,11 +145,11 @@ func (v *validator) Validate() Result {
 }
 
 // validateRegistry checks that registry.json exists and is valid JSON.
-func (v *validator) validateRegistry(playbooksDir string) ([]Observation, int) {
+func (v *validator) validateRegistry(basDir string) ([]Observation, int) {
 	var observations []Observation
 	var issues int
 
-	registryPath := filepath.Join(playbooksDir, "registry.json")
+	registryPath := filepath.Join(basDir, "registry.json")
 	data, err := os.ReadFile(registryPath)
 	if os.IsNotExist(err) {
 		observations = append(observations, NewWarningObservation(
@@ -210,27 +204,31 @@ func (v *validator) validateRegistry(playbooksDir string) ([]Observation, int) {
 	return observations, issues
 }
 
-// validatePrefixedDir checks that directories use two-digit prefixes (e.g., 01-foundation).
-func (v *validator) validatePrefixedDir(playbooksDir, dirName string) ([]Observation, int) {
+// validateTopLevelPrefixedDir checks that top-level directories under bas/<dirName>
+// use two-digit prefixes (e.g., 01-foundation). Deeper nesting is intentionally
+// flexible (e.g., ui/, api/).
+func (v *validator) validateTopLevelPrefixedDir(basDir, dirName string) ([]Observation, int) {
 	var observations []Observation
 	var issues int
 
-	dirPath := filepath.Join(playbooksDir, dirName)
+	dirPath := filepath.Join(basDir, dirName)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		// Directory not required
-		return observations, issues
+		return []Observation{
+			NewInfoObservation(fmt.Sprintf("No bas/%s/ directory found (optional)", dirName)),
+		}, 0
 	}
 
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		observations = append(observations, NewWarningObservation(
-			fmt.Sprintf("Cannot read %s/: %v", dirName, err),
+			fmt.Sprintf("Cannot read bas/%s/: %v", dirName, err),
 		))
 		issues++
 		return observations, issues
 	}
 
 	var invalidDirs []string
+	var dirCount int
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -240,6 +238,7 @@ func (v *validator) validatePrefixedDir(playbooksDir, dirName string) ([]Observa
 		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "__") {
 			continue
 		}
+		dirCount++
 		if !twoDigitPrefixRE.MatchString(name) {
 			invalidDirs = append(invalidDirs, name)
 		}
@@ -247,89 +246,26 @@ func (v *validator) validatePrefixedDir(playbooksDir, dirName string) ([]Observa
 
 	if len(invalidDirs) > 0 {
 		observations = append(observations, NewWarningObservation(
-			fmt.Sprintf("%s/ has directories without NN- prefix: %s", dirName, strings.Join(invalidDirs, ", ")),
+			fmt.Sprintf("bas/%s/ has directories without NN- prefix: %s", dirName, strings.Join(invalidDirs, ", ")),
 		))
 		issues++
+	}
+
+	if dirCount == 0 {
+		observations = append(observations, NewInfoObservation(
+			fmt.Sprintf("No playbook folders found under bas/%s/", dirName),
+		))
 	}
 
 	return observations, issues
 }
 
-// validateSubflows checks that fixtures in __subflows/ declare fixture_id.
-func (v *validator) validateSubflows(playbooksDir string) ([]Observation, int) {
+// validateSeeds checks that bas/seeds has a supported entrypoint if the directory exists.
+func (v *validator) validateSeeds(basDir string) ([]Observation, int) {
 	var observations []Observation
 	var issues int
 
-	subflowsDir := filepath.Join(playbooksDir, "__subflows")
-	if _, err := os.Stat(subflowsDir); os.IsNotExist(err) {
-		// Directory not required
-		return observations, issues
-	}
-
-	entries, err := os.ReadDir(subflowsDir)
-	if err != nil {
-		observations = append(observations, NewWarningObservation(
-			fmt.Sprintf("Cannot read __subflows/: %v", err),
-		))
-		issues++
-		return observations, issues
-	}
-
-	var missingFixtureID []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".json") {
-			continue
-		}
-
-		filePath := filepath.Join(subflowsDir, name)
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			observations = append(observations, NewWarningObservation(
-				fmt.Sprintf("Cannot read %s: %v", name, err),
-			))
-			issues++
-			continue
-		}
-
-		var workflow struct {
-			Metadata struct {
-				FixtureID string `json:"fixture_id"`
-			} `json:"metadata"`
-		}
-
-		if err := json.Unmarshal(data, &workflow); err != nil {
-			observations = append(observations, NewWarningObservation(
-				fmt.Sprintf("Invalid JSON in %s: %v", name, err),
-			))
-			issues++
-			continue
-		}
-
-		if workflow.Metadata.FixtureID == "" {
-			missingFixtureID = append(missingFixtureID, name)
-		}
-	}
-
-	if len(missingFixtureID) > 0 {
-		observations = append(observations, NewWarningObservation(
-			fmt.Sprintf("__subflows/ fixtures missing fixture_id: %s", strings.Join(missingFixtureID, ", ")),
-		))
-		issues++
-	}
-
-	return observations, issues
-}
-
-// validateSeeds checks that __seeds/ has a supported entrypoint if the directory exists.
-func (v *validator) validateSeeds(playbooksDir string) ([]Observation, int) {
-	var observations []Observation
-	var issues int
-
-	seedsDir := filepath.Join(playbooksDir, "__seeds")
+	seedsDir := filepath.Join(basDir, "seeds")
 	if _, err := os.Stat(seedsDir); os.IsNotExist(err) {
 		// Directory not required
 		return observations, issues
@@ -341,7 +277,7 @@ func (v *validator) validateSeeds(playbooksDir string) ([]Observation, int) {
 	_, shErr := os.Stat(shPath)
 	if os.IsNotExist(goErr) && os.IsNotExist(shErr) {
 		observations = append(observations, NewWarningObservation(
-			"__seeds/ directory exists but missing seed.go or seed.sh",
+			"bas/seeds/ directory exists but missing seed.go or seed.sh",
 		))
 		issues++
 	}

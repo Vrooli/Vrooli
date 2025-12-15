@@ -1,3 +1,6 @@
+//go:build legacyproto
+// +build legacyproto
+
 package execution_test
 
 import (

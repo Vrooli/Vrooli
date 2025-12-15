@@ -135,7 +135,7 @@ func matchesPhase(val types.Validation, phase string) bool {
 	}
 
 	ref := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(val.Ref), "\\", "/"))
-	if ref != "" && ref == fmt.Sprintf("test/phases/test-%s.sh", phase) {
+	if ref != "" && ref == fmt.Sprintf("coverage/phases/test-%s.sh", phase) {
 		return true
 	}
 

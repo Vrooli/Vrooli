@@ -299,12 +299,12 @@ go test ./... -cover
 
 ### Complete Test Suites
 - [Visited Tracker Tests](/scenarios/visited-tracker/test/)
-- [Vrooli Ascension](/scenarios/browser-automation-studio/test/)
+- [Vrooli Ascension](/scenarios/browser-automation-studio/bas/)
 
 ### Specific Test Types
 - [Go Handler Tests](/scenarios/visited-tracker/api/main_test.go)
 - [BATS CLI Tests](/scenarios/visited-tracker/cli/visited-tracker.bats)
-- [Integration Tests](/scenarios/visited-tracker/test/phases/test-integration.sh)
+- [Integration Tests](/scenarios/visited-tracker/coverage/phases/test-integration.sh)
 
 ### Test Helpers
 - [HTTP Test Helpers](/scenarios/visited-tracker/api/test_helpers.go)

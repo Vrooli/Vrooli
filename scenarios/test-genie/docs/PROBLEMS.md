@@ -1,7 +1,7 @@
 # Open Issues
 - The scenario still needs to rebuild the CLI delegation workflow that triggers suite generation remotely.
 - Requirement modules now have `[REQ:TESTGENIE-*]` tags across Go + CLI suites, but we still need to run the orchestrator through the lifecycle to refresh requirement snapshots and add UI/E2E coverage (vault dashboard, delegated flows) before OT-P0-002 is truly multi-layer.
-- Requirements sync now runs directly from the Go orchestrator, but it only fires after full-suite executions triggered via the API—`test/run-tests.sh` and the UI still need to delegate to that path so coverage snapshots stay fresh without manual commands.
+- Requirements sync now runs directly from the Go orchestrator, but it only fires after full-suite executions triggered via the API—`coverage/run-tests.sh` and the UI still need to delegate to that path so coverage snapshots stay fresh without manual commands.
 - Queue telemetry now surfaces in `/health` and the CLI, but there is still no alerting when items stay queued for too long or when execution failures spike—ecosystem-manager will need to subscribe to the new signals to close that gap.
 - The React dashboard now exposes queue metrics and runner triggers, but it still lacks visibility into delegated issue IDs, coverage/vault analytics, and historical suite grouping, so ops personas cannot yet audit whether AI generation actually closed the gaps they queued.
 - The new quick-focus rail is still ephemeral; we need to persist the chosen scenario and outstanding queue/execution context (local storage + API) so operators can resume their intent after refreshes instead of retyping every session.

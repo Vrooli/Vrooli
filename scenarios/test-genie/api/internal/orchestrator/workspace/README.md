@@ -58,8 +58,8 @@ if err != nil {
 
 // Access paths
 fmt.Println(workspace.ScenarioDir)  // /path/to/scenarios/my-scenario
-fmt.Println(workspace.TestDir)      // /path/to/scenarios/my-scenario/test
-fmt.Println(workspace.PhaseDir)     // /path/to/scenarios/my-scenario/test/phases
+fmt.Println(workspace.TestDir)      // /path/to/scenarios/my-scenario/coverage
+fmt.Println(workspace.PhaseDir)     // /path/to/scenarios/my-scenario/coverage/phases
 fmt.Println(workspace.AppRoot)      // /path/to/scenarios (Vrooli root)
 ```
 
@@ -83,7 +83,7 @@ env := workspace.Environment()
 type Environment struct {
     ScenarioName string  // "my-scenario"
     ScenarioDir  string  // Full path to scenario
-    TestDir      string  // Full path to test directory
+    TestDir      string  // Full path to coverage directory (legacy "test root")
     AppRoot      string  // Vrooli repository root
 }
 ```

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 
 	"test-genie/internal/shared"
@@ -164,6 +165,9 @@ func (e *DefaultExecutor) Run(ctx context.Context, dir string, logWriter io.Writ
 	if dir != "" {
 		cmd.Dir = dir
 	}
+	if name == "go" && os.Getenv("GOWORK") == "" {
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+	}
 	if logWriter == nil {
 		logWriter = io.Discard
 	}
@@ -180,6 +184,9 @@ func (e *DefaultExecutor) Capture(ctx context.Context, dir string, logWriter io.
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir != "" {
 		cmd.Dir = dir
+	}
+	if name == "go" && os.Getenv("GOWORK") == "" {
+		cmd.Env = append(os.Environ(), "GOWORK=off")
 	}
 	var output bytes.Buffer
 	if logWriter != nil {

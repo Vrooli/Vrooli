@@ -198,7 +198,7 @@ Exercises higher-level test suites:
 
 **File:** `phase_playbooks.go`
 
-Executes Vrooli Ascension workflows declared in `test/playbooks/`:
+Executes Vrooli Ascension workflows declared in `bas/`:
 
 - Reads `registry.json` for workflow definitions
 - Invokes BAS runner for each workflow

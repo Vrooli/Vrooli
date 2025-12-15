@@ -4,29 +4,30 @@ This guide explains Vrooli's comprehensive phased testing architecture and how t
 
 ## Overview
 
-Vrooli uses a **10-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
+Vrooli uses a **11-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
 
-## The 10-Phase Architecture
+## The 11-Phase Architecture
 
 ```mermaid
 graph TB
     subgraph "Static Phases (No Runtime)"
         P1[Phase 1: Structure<br/>15s<br/>Files & config]
-        P2[Phase 2: Dependencies<br/>30s<br/>Packages & resources]
-        P3[Phase 3: Lint<br/>30s<br/>Type checking]
-        P4[Phase 4: Docs<br/>60s<br/>Markdown, links]
+        P2[Phase 2: Standards<br/>60s<br/>scenario-auditor rules]
+        P3[Phase 3: Dependencies<br/>30s<br/>Packages & resources]
+        P4[Phase 4: Lint<br/>30s<br/>Type checking]
+        P5[Phase 5: Docs<br/>60s<br/>Markdown, links]
     end
 
     subgraph "Runtime Phases (Scenario Running)"
-        P5[Phase 5: Smoke<br/>90s<br/>UI load, iframe-bridge]
-        P6[Phase 6: Unit<br/>60s<br/>Go, Node, Python]
-        P7[Phase 7: Integration<br/>120s<br/>API, CLI, BATS]
-        P8[Phase 8: Playbooks<br/>120s<br/>BAS browser automation]
-        P9[Phase 9: Business<br/>180s<br/>Requirements & coverage]
-        P10[Phase 10: Performance<br/>60s<br/>Benchmarks & load]
+        P6[Phase 6: Smoke<br/>90s<br/>UI load, iframe-bridge]
+        P7[Phase 7: Unit<br/>60s<br/>Go, Node, Python]
+        P8[Phase 8: Integration<br/>120s<br/>API, CLI, BATS]
+        P9[Phase 9: Playbooks<br/>120s<br/>BAS browser automation]
+        P10[Phase 10: Business<br/>180s<br/>Requirements & coverage]
+        P11[Phase 11: Performance<br/>60s<br/>Benchmarks & load]
     end
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11
 
     style P1 fill:#fff3e0
     style P2 fill:#f3e5f5
@@ -43,9 +44,11 @@ graph TB
 | Phase | Timeout | Purpose | Requires Runtime |
 |-------|---------|---------|------------------|
 | **Structure** | 15s | Validate files and configuration | No |
+| **Standards** | 60s | scenario-auditor standards rules | No |
 | **Dependencies** | 30s | Check tools and resources | No |
 | **Lint** | 30s | Type checking and linting | No |
 | **Docs** | 60s | Validate Markdown, mermaid, links, portability | No |
+| **Smoke** | 90s | UI load and iframe-bridge validation | Yes |
 | **Unit** | 60s | Run unit tests (Go, Node, Python) | No |
 | **Integration** | 120s | Test API endpoints and CLI commands | Yes |
 | **Playbooks** | 120s | Execute BAS browser automation workflows | Yes |
@@ -73,9 +76,9 @@ test-genie execute my-scenario --preset comprehensive
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| **Quick** | Structure, Docs, Unit | Fast feedback during development |
-| **Smoke** | Structure, Lint, Docs, Integration | Pre-push validation |
-| **Comprehensive** | All 10 phases | Full coverage before release |
+| **Quick** | Structure, Standards, Docs, Unit | Fast feedback during development |
+| **Smoke** | Structure, Standards, Lint, Docs, Integration | Pre-push validation |
+| **Comprehensive** | All 11 phases | Full coverage before release |
 
 See [Presets Reference](../reference/presets.md) for detailed preset definitions.
 
@@ -211,7 +214,7 @@ my-scenario-cli --version
 **Requires**: Scenario + BAS running
 
 **Validates**:
-- Declarative browser workflows in `test/playbooks/`
+- Declarative browser workflows in `bas/`
 - Fixture/seeds execution
 - Contract correctness with BAS timeline responses
 
@@ -278,7 +281,7 @@ scenario/
     └── *.test.ts         # Vitest/Jest tests
 ```
 
-> **Note**: Testing is orchestrated via `.vrooli/service.json` `lifecycle.test.steps` which invokes `test-genie execute`. The legacy `test/run-tests.sh` + `test/phases/*` pattern is deprecated. The `test/` directory is only needed for artifacts like playbooks, fixtures, and logs.
+> **Note**: Testing is orchestrated via `.vrooli/service.json` `lifecycle.test.steps` which invokes `test-genie execute`. The legacy `coverage/run-tests.sh` + `coverage/phases/*` pattern is deprecated.
 
 ## Configuration with `.vrooli/testing.json`
 

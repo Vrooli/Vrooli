@@ -196,7 +196,7 @@ Registry includes metadata, requirement definitions, validation entries, and par
 - `vite.config.ts` - Vitest configuration with requirement reporter (UI scenarios)
 
 ### Test Structure
-- `test/playbooks/` - BAS workflow JSON files for E2E automation
+- `bas/` - BAS workflow JSON files for E2E automation (cases/flows/actions/seeds + registry)
 - `api/*_test.go` - Go unit and integration tests
 - `ui/src/**/*.test.ts` - Vitest unit tests for UI
 

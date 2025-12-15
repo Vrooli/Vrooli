@@ -481,7 +481,7 @@ Run tests for a specific scenario directly (alternative to /api/v1/executions).
   "status": "completed",
   "command": {
     "type": "unit",
-    "path": "/home/user/Vrooli/scenarios/my-scenario/test/phases/test-unit.sh"
+    "path": "/home/user/Vrooli/scenarios/my-scenario/coverage/phases/test-unit.sh"
   },
   "type": "unit",
   "logPath": "/tmp/test-genie/logs/my-scenario-unit.log"
@@ -537,7 +537,7 @@ Returns the Go-native phase catalog with descriptions and configuration.
     {
       "name": "e2e",
       "optional": false,
-      "description": "Executes Vrooli Ascension workflows declared under test/playbooks/ to validate end-to-end UI flows.",
+      "description": "Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.",
       "source": "native",
       "defaultTimeoutSeconds": 900
     },

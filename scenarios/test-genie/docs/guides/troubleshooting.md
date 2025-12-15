@@ -693,16 +693,16 @@ no matching playbook for phase
 **Diagnosis:**
 ```bash
 # List available playbooks
-ls test/playbooks/*.yaml
+ls bas/cases/*.json
 
 # Check playbook naming
-cat test/playbooks/registry.json
+cat bas/registry.json
 ```
 
 **Solutions:**
 ```bash
 # Ensure playbook exists
-# Naming convention: test/playbooks/<name>.yaml
+# Naming convention: bas/cases/<name>.json
 
 # Register in registry.json
 {

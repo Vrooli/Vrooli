@@ -54,7 +54,7 @@ For custom scenarios or manual execution:
 source "${APP_ROOT}/scripts/scenarios/testing/playbooks/workflow-runner.sh"
 
 testing::playbooks::run_workflow \
-  --file test/playbooks/my-test.json \
+  --file bas/cases/my-test.json \
   --scenario my-scenario \
   --manage-runtime auto
 ```
@@ -109,12 +109,12 @@ testing::playbooks::run_workflow \
 
 ```
 Any Scenario
-  test/playbooks/          # BAS workflow JSON files
+  bas/                    # BAS workflow JSON files
     ui/
       page-loads.json
     api/
       endpoints.json
-  test/phases/
+  coverage/phases/
     test-integration.sh   # Calls run_workflow_validations()
             |
             v
@@ -132,7 +132,7 @@ scripts/scenarios/testing/playbooks/workflow-runner.sh
 BAS integration tests apply seed data before workflow execution:
 
 ```
-test/playbooks/
+bas/
   __seeds/
     seed.go         # Generates seed-state.json with dynamic IDs (or seed.sh)
 coverage/
@@ -147,7 +147,7 @@ coverage/
 
 ## Fixture Parameters
 
-Subflows in `test/playbooks/__subflows/` can expose typed parameters:
+Subflows in `bas/actions/` can expose typed parameters:
 
 ```json
 {
@@ -225,13 +225,13 @@ The old function name `testing::phase::run_bas_automation_validations` is mainta
 ### 1. Create Workflow Directory
 
 ```bash
-mkdir -p scenarios/my-scenario/test/playbooks/ui
+mkdir -p scenarios/my-scenario/bas/cases/01-foundation/ui
 ```
 
 ### 2. Define Workflow JSON
 
 ```json
-// scenarios/my-scenario/test/playbooks/ui/homepage-loads.json
+// scenarios/my-scenario/bas/cases/01-foundation/ui/homepage-loads.json
 {
   "metadata": {
     "description": "Verify homepage loads successfully",
@@ -281,7 +281,7 @@ mkdir -p scenarios/my-scenario/test/playbooks/ui
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/ui/homepage-loads.json",
+          "ref": "bas/cases/01-foundation/ui/homepage-loads.json",
           "phase": "integration",
           "status": "implemented"
         }
@@ -295,7 +295,7 @@ mkdir -p scenarios/my-scenario/test/playbooks/ui
 
 ```bash
 #!/bin/bash
-# scenarios/my-scenario/test/phases/test-integration.sh
+# scenarios/my-scenario/coverage/phases/test-integration.sh
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
@@ -319,7 +319,7 @@ testing::phase::end_with_summary "Integration tests completed"
 
 ```bash
 cd scenarios/my-scenario
-./test/phases/test-integration.sh
+./coverage/phases/test-integration.sh
 ```
 
 ## Troubleshooting
@@ -344,7 +344,7 @@ vrooli scenario start my-scenario
 Check that:
 1. Workflow paths in requirements match actual file locations
 2. Workflow JSON is valid and not empty
-3. Requirements use `type: "automation"` and `ref: "test/playbooks/..."` format
+3. Requirements use `type: "automation"` and `ref: "bas/..."` format
 
 ## See Also
 

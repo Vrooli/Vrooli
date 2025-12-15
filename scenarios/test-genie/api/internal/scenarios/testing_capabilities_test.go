@@ -12,11 +12,11 @@ func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
-	testDir := filepath.Join(dir, "test")
-	if err := os.MkdirAll(testDir, 0o755); err != nil {
-		t.Fatalf("mkdir test dir: %v", err)
+	coverageDir := filepath.Join(dir, "coverage")
+	if err := os.MkdirAll(coverageDir, 0o755); err != nil {
+		t.Fatalf("mkdir coverage dir: %v", err)
 	}
-	scriptPath := filepath.Join(testDir, "run-tests.sh")
+	scriptPath := filepath.Join(coverageDir, "run-tests.sh")
 	if err := os.WriteFile(scriptPath, []byte("#!/usr/bin/env bash"), 0o755); err != nil {
 		t.Fatalf("write script: %v", err)
 	}
@@ -98,14 +98,14 @@ func TestDetectTestingCapabilitiesMultipleModes(t *testing.T) {
 	}
 
 	// Add phased runner and ensure preference flips
-	if err := os.MkdirAll(filepath.Join(dir, "test"), 0o755); err != nil {
-		t.Fatalf("mkdir test dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(dir, "coverage"), 0o755); err != nil {
+		t.Fatalf("mkdir coverage dir: %v", err)
 	}
 	mode := os.FileMode(0o755)
 	if runtime.GOOS == "windows" {
 		mode = 0o644
 	}
-	if err := os.WriteFile(filepath.Join(dir, "test", "run-tests.sh"), []byte("#!/usr/bin/env bash"), mode); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "coverage", "run-tests.sh"), []byte("#!/usr/bin/env bash"), mode); err != nil {
 		t.Fatalf("write run-tests: %v", err)
 	}
 

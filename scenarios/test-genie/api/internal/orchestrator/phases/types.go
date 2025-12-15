@@ -15,6 +15,7 @@ type Name string
 // Canonical phase names implemented by the Go orchestrator.
 const (
 	Structure    Name = "structure"
+	Standards    Name = "standards"
 	Dependencies Name = "dependencies"
 	Lint         Name = "lint"
 	Docs         Name = "docs"

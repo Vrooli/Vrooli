@@ -12,7 +12,7 @@ The structure phase validates that a scenario has the required files, directorie
 ```mermaid
 graph TB
     subgraph "Structure Phase Checks"
-        DIRS[Required Directories<br/>api, cli, docs, requirements, test, ui]
+        DIRS[Required Directories<br/>api, cli, docs, requirements, ui]
         FILES[Required Files<br/>README.md, PRD.md, Makefile]
         CLI[CLI Validation<br/>Legacy bash or Go cross-platform]
         MANIFEST[Service Manifest<br/>.vrooli/service.json]
@@ -49,8 +49,13 @@ By default, scenarios must have these directories:
 | `cli/` | Command-line interface |
 | `docs/` | Documentation |
 | `requirements/` | PRD requirements tracking |
-| `test/` | Test artifacts and playbooks |
 | `ui/` | Frontend source code |
+
+Optional directories (not required for all scenarios):
+| Directory | Purpose |
+|-----------|---------|
+| `bas/` | Browser automation playbooks (cases/actions/flows + `bas/registry.json`) |
+| `coverage/` | Test artifacts and reports (logs, phase-results, traces) |
 
 ## Required Files
 
@@ -134,10 +139,10 @@ Schema validation catches:
 
 ## Playbooks Structure
 
-When a scenario includes UI automation playbooks (`test/playbooks/`), it should follow the canonical layout:
+When a scenario includes UI automation playbooks (`bas/`), it should follow the canonical layout:
 
 ```
-test/playbooks/
+bas/
 ├── registry.json       # Auto-generated manifest (required)
 ├── capabilities/       # Feature tests with NN- prefixes
 │   └── 01-foundation/

@@ -184,7 +184,7 @@ func ExtractPhaseFromRef(ref string) string {
 
 	// Playbook patterns
 	if strings.Contains(normalized, "playbook") ||
-		strings.Contains(normalized, "test/playbooks/") {
+		strings.HasPrefix(normalized, "bas/") {
 		return "playbooks"
 	}
 

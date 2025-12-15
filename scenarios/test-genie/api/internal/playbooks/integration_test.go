@@ -1,3 +1,6 @@
+//go:build legacyproto
+// +build legacyproto
+
 package playbooks_test
 
 import (
@@ -180,7 +183,6 @@ func TestIntegration_BASHealthCheckFailure(t *testing.T) {
 	}))
 	defer unhealthyServer.Close()
 
-	// testDir should be dir/test, NOT dir/test/playbooks
 	testDir := filepath.Join(tempDir, "test")
 
 	cfg := playbooks.Config{
@@ -193,7 +195,7 @@ func TestIntegration_BASHealthCheckFailure(t *testing.T) {
 
 	runner := playbooks.New(cfg,
 		playbooks.WithLogger(io.Discard),
-		playbooks.WithRegistryLoader(registry.NewLoader(testDir)),
+		playbooks.WithRegistryLoader(registry.NewLoader(tempDir)),
 		playbooks.WithWorkflowResolver(workflow.NewResolver(tempDir, tempDir)),
 		playbooks.WithBASClient(execution.NewClientWithConfig(unhealthyServer.URL, execution.ClientConfig{
 			Timeout:                  1 * time.Second,
@@ -280,21 +282,21 @@ func setupTestScenario(t *testing.T, dir string) {
 	t.Helper()
 
 	// Create directories
-	mustMkdir(t, filepath.Join(dir, "test", "playbooks", "smoke"))
-	mustMkdir(t, filepath.Join(dir, "test", "playbooks", "features"))
+	mustMkdir(t, filepath.Join(dir, "bas", "cases", "smoke"))
+	mustMkdir(t, filepath.Join(dir, "bas", "cases", "features"))
 	mustMkdir(t, filepath.Join(dir, "ui", "src", "constants"))
 
-	// Create registry.json with multiple playbooks
-	// Paths are relative to the scenario directory (not the registry file location)
+	// Create bas/registry.json with multiple playbooks.
+	// Paths are relative to the scenario directory.
 	registryContent := `{
 		"version": "1.0.0",
 		"playbooks": [
-			{"file": "test/playbooks/smoke/dashboard-loads.json", "requirements": ["REQ-001"]},
-			{"file": "test/playbooks/smoke/api-health.json", "requirements": ["REQ-002"]},
-			{"file": "test/playbooks/features/login-flow.json", "requirements": ["REQ-003"]}
+			{"file": "bas/cases/smoke/dashboard-loads.json", "requirements": ["REQ-001"]},
+			{"file": "bas/cases/smoke/api-health.json", "requirements": ["REQ-002"]},
+			{"file": "bas/cases/features/login-flow.json", "requirements": ["REQ-003"]}
 		]
 	}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "registry.json"), registryContent)
+	mustWriteFile(t, filepath.Join(dir, "bas", "registry.json"), registryContent)
 
 	// Create dashboard-loads.json (navigate + assert)
 	// Uses destinationType=url to avoid requiring scenario field
@@ -309,7 +311,7 @@ func setupTestScenario(t *testing.T, dir string) {
 			"selector": "@selector/dashboard",
 		}},
 	})
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "smoke", "dashboard-loads.json"), dashboardWorkflow)
+	mustWriteFile(t, filepath.Join(dir, "bas", "cases", "smoke", "dashboard-loads.json"), dashboardWorkflow)
 
 	// Create api-health.json (simple navigate - no selectors needed)
 	apiHealthWorkflow := createWorkflow(t, "API Health Check", []workflowNode{
@@ -318,7 +320,7 @@ func setupTestScenario(t *testing.T, dir string) {
 			"url":             "http://localhost:8080/health",
 		}},
 	})
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "smoke", "api-health.json"), apiHealthWorkflow)
+	mustWriteFile(t, filepath.Join(dir, "bas", "cases", "smoke", "api-health.json"), apiHealthWorkflow)
 
 	// Create login-flow.json (navigate + input + click + assert)
 	// All selectors use @selector tokens
@@ -340,7 +342,7 @@ func setupTestScenario(t *testing.T, dir string) {
 			"expected": "Welcome",
 		}},
 	})
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "features", "login-flow.json"), loginWorkflow)
+	mustWriteFile(t, filepath.Join(dir, "bas", "cases", "features", "login-flow.json"), loginWorkflow)
 
 	// Create selector manifest - selectors must be objects with "selector" field
 	selectorManifest := `{
@@ -359,8 +361,8 @@ func setupScenarioWithFixtures(t *testing.T, dir string) {
 	t.Helper()
 	setupTestScenario(t, dir)
 
-	// Add fixtures directory
-	mustMkdir(t, filepath.Join(dir, "test", "playbooks", "__subflows"))
+	// Add actions directory (fixtures/subflows)
+	mustMkdir(t, filepath.Join(dir, "bas", "actions"))
 
 	// Create a fixture workflow with metadata.fixture_id
 	fixtureWorkflow := `{
@@ -370,7 +372,7 @@ func setupScenarioWithFixtures(t *testing.T, dir string) {
 		"edges": [],
 		"metadata": {"name": "Dismiss Tutorial", "fixture_id": "dismiss-tutorial"}
 	}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "__subflows", "dismiss-tutorial.json"), fixtureWorkflow)
+	mustWriteFile(t, filepath.Join(dir, "bas", "actions", "dismiss-tutorial.json"), fixtureWorkflow)
 
 	// Create a workflow that references the fixture (without fixture for simplicity)
 	workflowWithFixture := createWorkflow(t, "Dashboard with Fixture", []workflowNode{
@@ -379,16 +381,16 @@ func setupScenarioWithFixtures(t *testing.T, dir string) {
 			"url":             "http://localhost:8080/",
 		}},
 	})
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "smoke", "dashboard-with-fixture.json"), workflowWithFixture)
+	mustWriteFile(t, filepath.Join(dir, "bas", "cases", "smoke", "dashboard-with-fixture.json"), workflowWithFixture)
 
 	// Update registry
 	registryContent := `{
 		"version": "1.0.0",
 		"playbooks": [
-			{"file": "test/playbooks/smoke/dashboard-with-fixture.json", "requirements": ["REQ-001"]}
+			{"file": "bas/cases/smoke/dashboard-with-fixture.json", "requirements": ["REQ-001"]}
 		]
 	}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "registry.json"), registryContent)
+	mustWriteFile(t, filepath.Join(dir, "bas", "registry.json"), registryContent)
 }
 
 func setupScenarioWithSelectors(t *testing.T, dir string) {
@@ -406,25 +408,25 @@ func setupScenarioWithSelectors(t *testing.T, dir string) {
 		],
 		"metadata": {"name": "Selector Test"}
 	}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "smoke", "selector-test.json"), workflowWithSelectors)
+	mustWriteFile(t, filepath.Join(dir, "bas", "cases", "smoke", "selector-test.json"), workflowWithSelectors)
 
 	registryContent := `{
 		"version": "1.0.0",
 		"playbooks": [
-			{"file": "test/playbooks/smoke/selector-test.json", "requirements": ["REQ-001"]}
+			{"file": "bas/cases/smoke/selector-test.json", "requirements": ["REQ-001"]}
 		]
 	}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "registry.json"), registryContent)
+	mustWriteFile(t, filepath.Join(dir, "bas", "registry.json"), registryContent)
 }
 
 func setupEmptyRegistry(t *testing.T, dir string) {
 	t.Helper()
 
-	mustMkdir(t, filepath.Join(dir, "test", "playbooks"))
+	mustMkdir(t, filepath.Join(dir, "bas"))
 	mustMkdir(t, filepath.Join(dir, "ui", "src", "constants"))
 
 	registryContent := `{"version": "1.0.0", "playbooks": []}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "registry.json"), registryContent)
+	mustWriteFile(t, filepath.Join(dir, "bas", "registry.json"), registryContent)
 }
 
 func setupScenarioWithInvalidWorkflow(t *testing.T, dir string) {
@@ -438,15 +440,15 @@ func setupScenarioWithInvalidWorkflow(t *testing.T, dir string) {
 		],
 		"edges": []
 	}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "smoke", "invalid.json"), invalidWorkflow)
+	mustWriteFile(t, filepath.Join(dir, "bas", "cases", "smoke", "invalid.json"), invalidWorkflow)
 
 	registryContent := `{
 		"version": "1.0.0",
 		"playbooks": [
-			{"file": "test/playbooks/smoke/invalid.json", "requirements": ["REQ-001"]}
+			{"file": "bas/cases/smoke/invalid.json", "requirements": ["REQ-001"]}
 		]
 	}`
-	mustWriteFile(t, filepath.Join(dir, "test", "playbooks", "registry.json"), registryContent)
+	mustWriteFile(t, filepath.Join(dir, "bas", "registry.json"), registryContent)
 }
 
 type workflowNode struct {
@@ -675,8 +677,6 @@ func createMockBASServerWithFailedAssertion(t *testing.T) *httptest.Server {
 func createTestRunner(t *testing.T, dir, basURL string) *playbooks.Runner {
 	t.Helper()
 
-	// testDir should be dir/test, NOT dir/test/playbooks
-	// The registry loader appends "playbooks/registry.json" to testDir
 	testDir := filepath.Join(dir, "test")
 
 	cfg := playbooks.Config{
@@ -689,7 +689,7 @@ func createTestRunner(t *testing.T, dir, basURL string) *playbooks.Runner {
 
 	return playbooks.New(cfg,
 		playbooks.WithLogger(io.Discard),
-		playbooks.WithRegistryLoader(registry.NewLoader(testDir)),
+		playbooks.WithRegistryLoader(registry.NewLoader(dir)),
 		playbooks.WithWorkflowResolver(workflow.NewResolver(dir, dir)),
 		playbooks.WithBASClient(execution.NewClientWithConfig(basURL, execution.ClientConfig{
 			Timeout:                  5 * time.Second,

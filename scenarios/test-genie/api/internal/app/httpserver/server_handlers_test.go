@@ -95,7 +95,7 @@ func TestServer_handleListScenarios(t *testing.T) {
 					HasTests:  true,
 					Preferred: "phased",
 					Commands: []scenarios.TestingCommand{
-						{Type: "phased", Command: []string{"./test/run-tests.sh"}},
+						{Type: "phased", Command: []string{"./coverage/run-tests.sh"}},
 					},
 				},
 			},
@@ -250,7 +250,7 @@ func TestServer_handleGetScenarioErrors(t *testing.T) {
 func TestServer_handleRunScenarioTests(t *testing.T) {
 	command := &scenarios.TestingCommand{
 		Type:    "phased",
-		Command: []string{"./test/run-tests.sh"},
+		Command: []string{"./coverage/run-tests.sh"},
 	}
 	scenarioSvc := &stubScenarioDirectory{
 		runResp:   command,
@@ -265,7 +265,7 @@ func TestServer_handleRunScenarioTests(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v1/scenarios/demo/run-tests",
-		strings.NewReader(`{"type":"phased","paths":["api/foo.go"],"playbooks":["test/playbooks/login.json"],"filter":"UserTest"}`),
+		strings.NewReader(`{"type":"phased","paths":["api/foo.go"],"playbooks":["bas/cases/login.json"],"filter":"UserTest"}`),
 	)
 	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
 	rec := httptest.NewRecorder()

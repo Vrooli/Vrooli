@@ -103,7 +103,7 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 		return RunReport{
 			Err:                   fmt.Errorf("failed to apply playbooks migrations: %w", err),
 			FailureClassification: FailureClassSystem,
-			Remediation:           "Ensure psql is available and migrations under test/playbooks/__seeds/migrations/ are valid.",
+			Remediation:           "Ensure psql is available and migrations under bas/seeds/migrations/ are valid.",
 		}
 	}
 
@@ -187,14 +187,14 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 	return report
 }
 
-// applyPlaybooksMigrations applies optional .sql files under test/playbooks/__seeds/migrations
+// applyPlaybooksMigrations applies optional .sql files under bas/seeds/migrations
 // against the current DATABASE_URL (already set via isolation env). Files execute in lexicographic order.
 func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, requirePostgres bool, logWriter io.Writer) error {
 	if !requirePostgres {
 		return nil
 	}
 
-	migrationsDir := filepath.Join(env.TestDir, "playbooks", "__seeds", "migrations")
+	migrationsDir := filepath.Join(env.ScenarioDir, "bas", "seeds", "migrations")
 	entries, err := os.ReadDir(migrationsDir)
 	if err != nil {
 		if os.IsNotExist(err) {

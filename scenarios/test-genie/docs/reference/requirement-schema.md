@@ -212,8 +212,8 @@ Each requirement can have multiple validation entries.
 
 **FORBIDDEN:**
 ```json
-{"ref": "test/phases/test-integration.sh"}
-{"ref": "test/phases/test-unit.sh"}
+{"ref": "coverage/phases/test-integration.sh"}
+{"ref": "coverage/phases/test-unit.sh"}
 ```
 
 #### Type: automation
@@ -221,7 +221,7 @@ Each requirement can have multiple validation entries.
 ```json
 {
   "type": "automation",
-  "ref": "test/playbooks/ui/projects/create-project.json",
+  "ref": "bas/cases/01-foundation/01-projects/create-project.json",
   "phase": "integration",
   "status": "implemented",
   "scenario": "browser-automation-studio"
@@ -285,7 +285,7 @@ Each requirement can have multiple validation entries.
   "validation": [
     {"type": "test", "ref": "api/workflow_service_test.go", "phase": "unit"},
     {"type": "test", "ref": "ui/src/stores/workflowStore.test.ts", "phase": "unit"},
-    {"type": "automation", "ref": "test/playbooks/workflows/crud.json"}
+    {"type": "automation", "ref": "bas/cases/workflows/crud.json"}
   ]
 }
 // 3 automated layers (API + UI + E2E)
@@ -340,7 +340,7 @@ Each requirement can have multiple validation entries.
     },
     {
       "type": "automation",
-      "ref": "test/playbooks/projects/workflow-crud.json",
+      "ref": "bas/cases/projects/workflow-crud.json",
       "phase": "integration",
       "status": "implemented"
     }

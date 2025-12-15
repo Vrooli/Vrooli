@@ -38,7 +38,7 @@ func DiscoverScenarioPaths(scenario string) Paths {
 	if err != nil || !info.IsDir() {
 		return Paths{}
 	}
-	testDir := filepath.Join(scenarioDir, "test")
+	testDir := filepath.Join(scenarioDir, "coverage")
 	if _, err := os.Stat(testDir); err != nil {
 		testDir = ""
 	}

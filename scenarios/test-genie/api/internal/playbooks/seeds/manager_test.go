@@ -12,7 +12,7 @@ import (
 func TestManagerHasSeeds(t *testing.T) {
 	tempDir := t.TempDir()
 	testDir := filepath.Join(tempDir, "test")
-	seedsDir := filepath.Join(testDir, "playbooks", SeedsFolder)
+	seedsDir := filepath.Join(tempDir, "bas", "seeds")
 	if err := os.MkdirAll(seedsDir, 0o755); err != nil {
 		t.Fatalf("failed to create seeds dir: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestManagerApplyNoScript(t *testing.T) {
 func TestManagerApplySuccess(t *testing.T) {
 	tempDir := t.TempDir()
 	testDir := filepath.Join(tempDir, "test")
-	seedsDir := filepath.Join(testDir, "playbooks", SeedsFolder)
+	seedsDir := filepath.Join(tempDir, "bas", "seeds")
 	if err := os.MkdirAll(seedsDir, 0o755); err != nil {
 		t.Fatalf("failed to create seeds dir: %v", err)
 	}
@@ -92,7 +92,7 @@ echo "applied" > "` + markerPath + `"
 func TestManagerApplyFailure(t *testing.T) {
 	tempDir := t.TempDir()
 	testDir := filepath.Join(tempDir, "test")
-	seedsDir := filepath.Join(testDir, "playbooks", SeedsFolder)
+	seedsDir := filepath.Join(tempDir, "bas", "seeds")
 	if err := os.MkdirAll(seedsDir, 0o755); err != nil {
 		t.Fatalf("failed to create seeds dir: %v", err)
 	}
@@ -118,7 +118,7 @@ exit 1
 func TestManagerApplyCanceled(t *testing.T) {
 	tempDir := t.TempDir()
 	testDir := filepath.Join(tempDir, "test")
-	seedsDir := filepath.Join(testDir, "playbooks", SeedsFolder)
+	seedsDir := filepath.Join(tempDir, "bas", "seeds")
 	if err := os.MkdirAll(seedsDir, 0o755); err != nil {
 		t.Fatalf("failed to create seeds dir: %v", err)
 	}
@@ -145,10 +145,6 @@ sleep 10
 func TestManagerEnvironmentVariables(t *testing.T) {
 	tempDir := t.TempDir()
 	testDir := filepath.Join(tempDir, "test")
-	seedsDir := filepath.Join(testDir, "playbooks", SeedsFolder)
-	if err := os.MkdirAll(seedsDir, 0o755); err != nil {
-		t.Fatalf("failed to create seeds dir: %v", err)
-	}
 
 	// Create scenario and app directories (must exist for cmd.Dir)
 	scenarioDir := filepath.Join(tempDir, "scenario")
@@ -158,6 +154,10 @@ func TestManagerEnvironmentVariables(t *testing.T) {
 	}
 	if err := os.MkdirAll(appRoot, 0o755); err != nil {
 		t.Fatalf("failed to create app root: %v", err)
+	}
+	seedsDir := filepath.Join(scenarioDir, "bas", "seeds")
+	if err := os.MkdirAll(seedsDir, 0o755); err != nil {
+		t.Fatalf("failed to create seeds dir: %v", err)
 	}
 
 	// Create script that uses environment variables
@@ -198,7 +198,7 @@ echo "APP_ROOT=$TEST_GENIE_APP_ROOT" >> "` + envMarker + `"
 func TestManagerPaths(t *testing.T) {
 	manager := NewManager("/scenario", "/app", "/test", nil)
 
-	expectedSeedsDir := "/test/playbooks/__seeds"
+	expectedSeedsDir := "/scenario/bas/seeds"
 	if got := manager.SeedsDir(); got != expectedSeedsDir {
 		t.Errorf("SeedsDir: expected %s, got %s", expectedSeedsDir, got)
 	}

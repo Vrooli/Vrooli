@@ -45,7 +45,7 @@ var failurePatterns = map[string]*regexp.Regexp{
 	"ui_bundle":  regexp.MustCompile(`(?i)bundle.*stale|UI bundle.*outdated|Bundle Status:.*stale`),
 	"api_port":   regexp.MustCompile(`(?i)API_PORT|HTTP 502|Bad Gateway|not responding`),
 	"build":      regexp.MustCompile(`(?i)build .*failed|compilation .*failed|ELIFECYCLE`),
-	"timeout":    regexp.MustCompile(`(?i)timed out|timeout|exceeded .*time`),
+	"timeout":    regexp.MustCompile(`(?i)phase timed out|timed out|deadline exceeded|context deadline exceeded|exit code 124`),
 	"tests":      regexp.MustCompile(`(?i)❌|test failed|tests failed`),
 	"missing":    regexp.MustCompile(`(?i)required (file|directory) missing|no such file or directory|expected file but found directory|expected directory but found file`),
 }

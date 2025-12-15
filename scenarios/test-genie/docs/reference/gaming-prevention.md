@@ -41,7 +41,7 @@ The system detects **7 gaming patterns** with varying severity levels:
 | Pattern | Severity | Description |
 |---------|----------|-------------|
 | 1:1 test-to-requirement ratio | Medium | Exactly 1 test per requirement |
-| Unsupported test/ directories | High | Using test/cli/, test/phases/ as refs |
+| Unsupported test/ directories | High | Using coverage/phases/ as refs |
 | Duplicate test refs | High | One test file validates >= 4 requirements |
 | Excessive 1:1 target mapping | High | 100% of OTs have 1:1 requirement mapping |
 | Missing validation diversity | High | P0/P1 requirements lack >= 2 automated layers |
@@ -88,12 +88,12 @@ A perfect 1:1 ratio suggests single-layer validation.
 ### Rationale
 
 **Rejected directories**:
-- `test/phases/` - Orchestration scripts that RUN tests
+- `coverage/phases/` - Orchestration scripts that RUN tests
 - `test/cli/` - CLI wrapper tests, not business logic
 - `test/unit/`, `test/integration/` - Test runner infrastructure
 
 **Allowed directory**:
-- `test/playbooks/` - E2E automation workflows
+- `bas/` - E2E automation workflows
 
 ### Example
 
@@ -105,7 +105,7 @@ A perfect 1:1 ratio suggests single-layer validation.
 **Proper**:
 ```json
 {"type": "test", "ref": "api/analyzer_test.go"},
-{"type": "automation", "ref": "test/playbooks/analyze.json"}
+{"type": "automation", "ref": "bas/cases/analyze.json"}
 ```
 
 ### Threshold
@@ -300,7 +300,7 @@ Manual validations are acceptable as temporary measures, but problematic when:
 
 **Action**:
 1. Replace `test/cli/*.bats` with API tests + e2e
-2. Replace `test/phases/*.sh` with actual test files
+2. Replace `coverage/phases/*.sh` with actual test files
 
 ### Warning: "Test files validate >= 4 requirements each"
 

@@ -22,13 +22,13 @@ func TestWriterWriteTimeline(t *testing.T) {
 	writer := NewWriter(scenarioDir, "test-scenario", tempDir)
 	timelineData := []byte(`{"frames": [{"step_type": "navigate"}]}`)
 
-	path, err := writer.WriteTimeline("test/playbooks/login.json", timelineData)
+	path, err := writer.WriteTimeline("bas/cases/login.json", timelineData)
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
 
 	// Verify file was created
-	fullPath := filepath.Join(scenarioDir, sharedartifacts.AutomationDir, "test-playbooks-login.timeline.json")
+	fullPath := filepath.Join(scenarioDir, sharedartifacts.AutomationDir, "bas-cases-login.timeline.json")
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		t.Fatalf("failed to read timeline file: %v", err)
@@ -73,7 +73,7 @@ func TestWriterWritePhaseResults(t *testing.T) {
 	results := []types.Result{
 		{
 			Entry: types.Entry{
-				File:         "test/playbooks/login.json",
+				File:         "bas/cases/login.json",
 				Description:  "Login flow",
 				Requirements: []string{"REQ-001", "REQ-002"},
 			},
@@ -133,7 +133,7 @@ func TestWriterWritePhaseResultsWithErrors(t *testing.T) {
 	results := []types.Result{
 		{
 			Entry: types.Entry{
-				File:         "test/playbooks/login.json",
+				File:         "bas/cases/login.json",
 				Requirements: []string{"REQ-001"},
 			},
 			Err: os.ErrNotExist,
@@ -185,8 +185,8 @@ func TestSanitizeFilenameWithoutExtension(t *testing.T) {
 		expected string
 	}{
 		{"test.json", "test"},
-		{"test/playbooks/login.json", "test-playbooks-login"},
-		{"test\\playbooks\\login.json", "test-playbooks-login"},
+		{"bas/cases/login.json", "bas-cases-login"},
+		{"bas\\cases\\login.json", "bas-cases-login"},
 		{"my-workflow.json", "my-workflow"},
 		{"my_workflow.json", "my_workflow"},
 		{"spaces and special!chars.json", "spaces-and-special-chars"},

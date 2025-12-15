@@ -12,8 +12,8 @@ The playbooks phase executes Vrooli Ascension (BAS) workflows for end-to-end UI 
 ```mermaid
 graph TB
     subgraph "Playbooks Phase"
-        DISCOVER[Discover Workflows<br/>test/playbooks/**/*.json]
-        REGISTRY[Load Registry<br/>test/playbooks/registry.json]
+        DISCOVER[Discover Workflows<br/>bas/cases/**/*.json]
+        REGISTRY[Load Registry<br/>bas/registry.json]
         BAS[Connect BAS<br/>Vrooli Ascension]
         EXECUTE[Execute Workflows<br/>Navigate, Click, Assert]
         ARTIFACTS[Collect Artifacts<br/>Screenshots, DOM snapshots]
@@ -81,26 +81,26 @@ Workflows are JSON files defining browser automation steps:
 Playbooks follow a canonical directory layout:
 
 ```
-test/playbooks/
+bas/
 ├── registry.json       # Auto-generated manifest
-├── capabilities/       # Feature tests (mirrors PRD)
+├── cases/              # Assertive validations (mirrors PRD)
 │   ├── 01-foundation/  # Two-digit prefix for ordering
 │   └── 02-builder/
-├── journeys/           # Multi-surface user flows
-├── __subflows/         # Reusable fixtures
-└── __seeds/            # Seed entrypoint (seed.go preferred, seed.sh allowed)
+├── flows/              # Multi-surface user journeys
+├── actions/            # Reusable fixtures/subflows
+└── seeds/              # Seed entrypoint (seed.go preferred, seed.sh allowed)
 ```
 
 Key conventions:
 - **Two-digit prefixes** (`01-`, `02-`) ensure deterministic execution order
-- **`__subflows/`** contains fixtures referenced via `@fixture/<slug>`
-- **`__seeds/`** contains `seed.go` (or `seed.sh`) for test data
+- **`actions/`** contains reusable subflows referenced via `workflowPath` (e.g., `actions/dismiss-tutorial.json`)
+- **`seeds/`** contains `seed.go` (or `seed.sh`) for test data
 
 See [Directory Structure](directory-structure.md) for complete documentation including fixture metadata, token types, and authoring checklist.
 
 ## Workflow Registry
 
-The registry (`test/playbooks/registry.json`) is **auto-generated** and tracks all playbooks:
+The registry (`bas/registry.json`) is **auto-generated** and tracks all playbooks:
 
 ```json
 {
@@ -109,7 +109,7 @@ The registry (`test/playbooks/registry.json`) is **auto-generated** and tracks a
   "generated_at": "2025-12-05T10:00:00Z",
   "playbooks": [
     {
-      "file": "test/playbooks/capabilities/01-foundation/create-project.json",
+      "file": "bas/cases/01-foundation/create-project.json",
       "description": "Creates a new project",
       "order": "01.01",
       "requirements": ["MY-PROJECT-CREATE"],
@@ -213,7 +213,7 @@ Dry-run mode validates workflows through BAS without executing browser automatio
 
 In dry-run mode:
 - Workflows are loaded, resolved, and validated via BAS
-- Seed entrypoint (`__seeds/seed.go` or `seed.sh`) runs once before execution; skipped in dry-run
+- Seed entrypoint (`seeds/seed.go` or `seed.sh`) runs once before execution; skipped in dry-run
 - Required scenarios (referenced via `destinationType: scenario`) are **not** started
 - Execution is skipped after successful validation
 - Each workflow returns with `(dry-run: validated only)` in its stats

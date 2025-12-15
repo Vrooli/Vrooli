@@ -18,7 +18,10 @@ var validScenarioName = regexp.MustCompile(`^[a-zA-Z0-9\-_]+$`)
 type Environment struct {
 	ScenarioName string
 	ScenarioDir  string
-	TestDir      string
+	// TestDir is the legacy "testing workspace" root. Vrooli no longer requires
+	// scenarios to include a top-level test/ directory; this now defaults to
+	// coverage/ to keep all test-related artifacts and optional configs together.
+	TestDir string
 	AppRoot      string
 
 	// Runtime URLs for phases that need to connect to running services.
@@ -33,8 +36,9 @@ type Environment struct {
 type ScenarioWorkspace struct {
 	Name        string
 	ScenarioDir string
-	TestDir     string
-	PhaseDir    string
+	// TestDir is the legacy "testing workspace" root (now coverage/ by default).
+	TestDir  string
+	PhaseDir string
 	AppRoot     string
 
 	artifactDir string
@@ -67,7 +71,10 @@ func New(scenariosRoot, scenario string) (*ScenarioWorkspace, error) {
 		return nil, fmt.Errorf("scenario path is not a directory: %s", scenarioDir)
 	}
 
-	testDir := filepath.Join(scenarioDir, "test")
+	testDir := filepath.Join(scenarioDir, "coverage")
+	if err := os.MkdirAll(testDir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create coverage directory: %w", err)
+	}
 	if err := EnsureDir(testDir); err != nil {
 		return nil, err
 	}

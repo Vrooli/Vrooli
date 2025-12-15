@@ -14,8 +14,8 @@ func TestBuilderBuild(t *testing.T) {
 
 	// Create required directories
 	dirs := []string{
-		filepath.Join(scenarioDir, "test", "playbooks", "capabilities", "01-feature"),
-		filepath.Join(scenarioDir, "test", "playbooks", "__subflows"),
+		filepath.Join(scenarioDir, "bas", "cases", "01-feature"),
+		filepath.Join(scenarioDir, "bas", "actions"),
 		filepath.Join(scenarioDir, "requirements"),
 	}
 	for _, dir := range dirs {
@@ -38,7 +38,7 @@ func TestBuilderBuild(t *testing.T) {
 		"requirements": [
 			{
 				"id": "TEST-REQ-001",
-				"validation": [{"ref": "test/playbooks/capabilities/01-feature/test-workflow.json"}]
+				"validation": [{"ref": "bas/cases/01-feature/test-workflow.json"}]
 			}
 		]
 	}`
@@ -50,22 +50,24 @@ func TestBuilderBuild(t *testing.T) {
 	playbookContent := `{
 		"metadata": {
 			"description": "Test workflow description",
-			"reset": "full"
+			"labels": {
+				"reset": "full"
+			}
 		},
 		"nodes": [
-			{"data": {"workflowId": "@fixture/load-state"}},
-			{"data": {"selector": "#button"}}
+			{"id": "seed", "action": {"type": "ACTION_TYPE_SUBFLOW", "subflow": {"workflow_path": "actions/load-state.json"}}},
+			{"id": "noop", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"duration_ms": 1}}}
 		],
 		"edges": []
 	}`
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "playbooks", "capabilities", "01-feature", "test-workflow.json"), []byte(playbookContent), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "bas", "cases", "01-feature", "test-workflow.json"), []byte(playbookContent), 0o644); err != nil {
 		t.Fatalf("failed to write playbook: %v", err)
 	}
 
-	// Create subflow (should be ignored)
-	subflowContent := `{"metadata": {"fixture_id": "load-state"}, "nodes": []}`
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "playbooks", "__subflows", "load-state.json"), []byte(subflowContent), 0o644); err != nil {
-		t.Fatalf("failed to write subflow: %v", err)
+	// Create action referenced by workflow (optional for registry build, but matches the pattern)
+	actionContent := `{"metadata": {"fixture_id": "load-state"}, "nodes": []}`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "bas", "actions", "load-state.json"), []byte(actionContent), 0o644); err != nil {
+		t.Fatalf("failed to write action: %v", err)
 	}
 
 	// Build registry
@@ -85,7 +87,7 @@ func TestBuilderBuild(t *testing.T) {
 	}
 
 	entry := result.Registry.Playbooks[0]
-	if entry.File != "test/playbooks/capabilities/01-feature/test-workflow.json" {
+	if entry.File != "bas/cases/01-feature/test-workflow.json" {
 		t.Errorf("unexpected file path: %s", entry.File)
 	}
 	if entry.Description != "Test workflow description" {
@@ -102,7 +104,7 @@ func TestBuilderBuild(t *testing.T) {
 	}
 
 	// Verify registry file was written
-	registryPath := filepath.Join(scenarioDir, "test", "playbooks", "registry.json")
+	registryPath := filepath.Join(scenarioDir, "bas", "registry.json")
 	if _, err := os.Stat(registryPath); os.IsNotExist(err) {
 		t.Error("registry.json was not created")
 	}
@@ -130,7 +132,7 @@ func TestBuilderBuildMissingPlaybooksDir(t *testing.T) {
 	builder := NewBuilder(scenarioDir)
 	_, err := builder.Build()
 	if err == nil {
-		t.Error("expected error when test/playbooks is missing")
+		t.Error("expected error when bas/cases is missing")
 	}
 }
 
@@ -139,8 +141,8 @@ func TestBuilderBuildMissingRequirementsDir(t *testing.T) {
 	scenarioDir := filepath.Join(tempDir, "test-scenario")
 
 	// Only create playbooks dir
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test", "playbooks"), 0o755); err != nil {
-		t.Fatalf("failed to create playbooks dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "bas", "cases"), 0o755); err != nil {
+		t.Fatalf("failed to create bas/cases dir: %v", err)
 	}
 
 	builder := NewBuilder(scenarioDir)
@@ -155,16 +157,16 @@ func TestBuilderBuildInvalidResetValue(t *testing.T) {
 	scenarioDir := filepath.Join(tempDir, "test-scenario")
 
 	// Create required directories
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test", "playbooks"), 0o755); err != nil {
-		t.Fatalf("failed to create playbooks dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "bas", "cases"), 0o755); err != nil {
+		t.Fatalf("failed to create bas/cases dir: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Join(scenarioDir, "requirements"), 0o755); err != nil {
 		t.Fatalf("failed to create requirements dir: %v", err)
 	}
 
 	// Create playbook with invalid reset value
-	playbookContent := `{"metadata": {"reset": "partial"}, "nodes": []}`
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "playbooks", "invalid.json"), []byte(playbookContent), 0o644); err != nil {
+	playbookContent := `{"metadata": {"labels": {"reset": "partial"}}, "nodes": []}`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "bas", "cases", "invalid.json"), []byte(playbookContent), 0o644); err != nil {
 		t.Fatalf("failed to write playbook: %v", err)
 	}
 
@@ -180,8 +182,8 @@ func TestBuilderBuildDefaultResetValue(t *testing.T) {
 	scenarioDir := filepath.Join(tempDir, "test-scenario")
 
 	// Create required directories
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test", "playbooks"), 0o755); err != nil {
-		t.Fatalf("failed to create playbooks dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "bas", "cases"), 0o755); err != nil {
+		t.Fatalf("failed to create bas/cases dir: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Join(scenarioDir, "requirements"), 0o755); err != nil {
 		t.Fatalf("failed to create requirements dir: %v", err)
@@ -189,7 +191,7 @@ func TestBuilderBuildDefaultResetValue(t *testing.T) {
 
 	// Create playbook without reset value
 	playbookContent := `{"metadata": {"description": "No reset"}, "nodes": []}`
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "playbooks", "default.json"), []byte(playbookContent), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "bas", "cases", "default.json"), []byte(playbookContent), 0o644); err != nil {
 		t.Fatalf("failed to write playbook: %v", err)
 	}
 
@@ -214,9 +216,8 @@ func TestBuilderBuildMultiplePlaybooks(t *testing.T) {
 
 	// Create directories
 	dirs := []string{
-		filepath.Join(scenarioDir, "test", "playbooks", "capabilities", "01-first"),
-		filepath.Join(scenarioDir, "test", "playbooks", "capabilities", "02-second"),
-		filepath.Join(scenarioDir, "test", "playbooks", "journeys"),
+		filepath.Join(scenarioDir, "bas", "cases", "01-first"),
+		filepath.Join(scenarioDir, "bas", "cases", "02-second", "ui"),
 		filepath.Join(scenarioDir, "requirements"),
 	}
 	for _, dir := range dirs {
@@ -227,10 +228,10 @@ func TestBuilderBuildMultiplePlaybooks(t *testing.T) {
 
 	// Create playbooks
 	playbooks := map[string]string{
-		filepath.Join(scenarioDir, "test", "playbooks", "capabilities", "01-first", "a-test.json"):  `{"metadata": {"description": "A"}, "nodes": []}`,
-		filepath.Join(scenarioDir, "test", "playbooks", "capabilities", "01-first", "b-test.json"):  `{"metadata": {"description": "B"}, "nodes": []}`,
-		filepath.Join(scenarioDir, "test", "playbooks", "capabilities", "02-second", "c-test.json"): `{"metadata": {"description": "C"}, "nodes": []}`,
-		filepath.Join(scenarioDir, "test", "playbooks", "journeys", "happy-path.json"):              `{"metadata": {"description": "Journey"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "01-first", "a-test.json"):     `{"metadata": {"description": "A"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "01-first", "b-test.json"):     `{"metadata": {"description": "B"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "02-second", "ui", "c.json"):   `{"metadata": {"description": "C"}, "nodes": []}`,
+		filepath.Join(scenarioDir, "bas", "cases", "02-second", "ui", "d.json"):   `{"metadata": {"description": "D"}, "nodes": []}`,
 	}
 	for path, content := range playbooks {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -260,66 +261,69 @@ func TestBuilderBuildMultiplePlaybooks(t *testing.T) {
 	}
 
 	// Order should follow directory structure
-	if first.Order != "01.01.01" {
-		t.Errorf("expected order 01.01.01, got %s", first.Order)
+	if first.Order != "01.01" {
+		t.Errorf("expected order 01.01, got %s", first.Order)
 	}
 }
 
 func TestBuilderExtractFixtures(t *testing.T) {
-	builder := NewBuilder("")
-
 	tests := []struct {
 		name     string
-		nodes    []playbookNode
+		workflow map[string]any
 		expected []string
 	}{
 		{
 			name:     "no fixtures",
-			nodes:    []playbookNode{{Data: nodeData{WorkflowID: ""}}},
+			workflow: map[string]any{"nodes": []any{}},
 			expected: []string{},
 		},
 		{
 			name:     "single fixture",
-			nodes:    []playbookNode{{Data: nodeData{WorkflowID: "@fixture/load-state"}}},
+			workflow: map[string]any{"nodes": []any{map[string]any{"data": map[string]any{"workflowId": "@fixture/load-state"}}}},
 			expected: []string{"load-state"},
 		},
 		{
 			name: "fixture with arguments",
-			nodes: []playbookNode{
-				{Data: nodeData{WorkflowID: "@fixture/setup(param=value)"}},
-			},
+			workflow: map[string]any{"nodes": []any{map[string]any{"data": map[string]any{"workflowId": "@fixture/setup(param=value)"}}}},
 			expected: []string{"setup"},
 		},
 		{
 			name: "multiple fixtures",
-			nodes: []playbookNode{
-				{Data: nodeData{WorkflowID: "@fixture/first"}},
-				{Data: nodeData{WorkflowID: "@fixture/second"}},
-			},
+			workflow: map[string]any{"nodes": []any{
+				map[string]any{"data": map[string]any{"workflowId": "@fixture/first"}},
+				map[string]any{"data": map[string]any{"workflowId": "@fixture/second"}},
+			}},
 			expected: []string{"first", "second"},
 		},
 		{
 			name: "duplicate fixtures",
-			nodes: []playbookNode{
-				{Data: nodeData{WorkflowID: "@fixture/same"}},
-				{Data: nodeData{WorkflowID: "@fixture/same"}},
-			},
+			workflow: map[string]any{"nodes": []any{
+				map[string]any{"data": map[string]any{"workflowId": "@fixture/same"}},
+				map[string]any{"data": map[string]any{"workflowId": "@fixture/same"}},
+			}},
 			expected: []string{"same"},
 		},
 		{
 			name: "mixed nodes",
-			nodes: []playbookNode{
-				{Data: nodeData{WorkflowID: ""}},
-				{Data: nodeData{WorkflowID: "@fixture/real"}},
-				{Data: nodeData{WorkflowID: "not-a-fixture"}},
-			},
+			workflow: map[string]any{"nodes": []any{
+				map[string]any{"data": map[string]any{"workflowId": ""}},
+				map[string]any{"data": map[string]any{"workflowId": "@fixture/real"}},
+				map[string]any{"data": map[string]any{"workflowId": "not-a-fixture"}},
+			}},
 			expected: []string{"real"},
+		},
+		{
+			name: "subflow fixture",
+			workflow: map[string]any{"nodes": []any{
+				map[string]any{"action": map[string]any{"subflow": map[string]any{"workflow_path": "actions/dismiss-tutorial.json"}}},
+			}},
+			expected: []string{"dismiss-tutorial"},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := builder.extractFixtures(tc.nodes)
+			result := extractFixturesFromWorkflow(tc.workflow)
 			if len(result) == 0 && len(tc.expected) == 0 {
 				return
 			}
@@ -355,15 +359,15 @@ func TestBuilderCollectRequirementValidations(t *testing.T) {
 			{
 				"id": "REQ-001",
 				"validation": [
-					{"ref": "test/playbooks/a.json"},
+					{"ref": "bas/cases/a.json"},
 					{"ref": "test/unit/test.go"}
 				]
 			},
 			{
 				"id": "REQ-002",
 				"validation": [
-					{"ref": "test/playbooks/a.json"},
-					{"ref": "test/playbooks/b.json"}
+					{"ref": "bas/cases/a.json"},
+					{"ref": "bas/cases/b.json"}
 				]
 			}
 		]
@@ -379,13 +383,13 @@ func TestBuilderCollectRequirementValidations(t *testing.T) {
 	}
 
 	// Check a.json has both requirements
-	aReqs := result["test/playbooks/a.json"]
+	aReqs := result["bas/cases/a.json"]
 	if len(aReqs) != 2 {
 		t.Errorf("expected 2 requirements for a.json, got %d", len(aReqs))
 	}
 
 	// Check b.json has one requirement
-	bReqs := result["test/playbooks/b.json"]
+	bReqs := result["bas/cases/b.json"]
 	if len(bReqs) != 1 || bReqs[0] != "REQ-002" {
 		t.Errorf("expected [REQ-002] for b.json, got %v", bReqs)
 	}
@@ -401,7 +405,7 @@ func BenchmarkBuilderBuild(b *testing.B) {
 	scenarioDir := filepath.Join(tempDir, "bench-scenario")
 
 	// Create structure with many playbooks
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test", "playbooks", "capabilities"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "bas", "cases", "01-bench"), 0o755); err != nil {
 		b.Fatalf("failed to create dir: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Join(scenarioDir, "requirements"), 0o755); err != nil {
@@ -411,7 +415,7 @@ func BenchmarkBuilderBuild(b *testing.B) {
 	// Create 100 playbook files
 	for i := 0; i < 100; i++ {
 		content := `{"metadata": {"description": "Playbook"}, "nodes": []}`
-		path := filepath.Join(scenarioDir, "test", "playbooks", "capabilities", filepath.Base(tempDir)+"-"+string(rune('a'+i%26))+".json")
+		path := filepath.Join(scenarioDir, "bas", "cases", "01-bench", filepath.Base(tempDir)+"-"+string(rune('a'+i%26))+".json")
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			b.Fatalf("failed to write playbook: %v", err)
 		}

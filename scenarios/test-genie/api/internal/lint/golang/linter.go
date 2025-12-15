@@ -193,6 +193,9 @@ func (l *Linter) runGoVet(ctx context.Context, result *Result) *Result {
 
 	cmd := exec.CommandContext(ctx, "go", "vet", "./...")
 	cmd.Dir = l.config.Dir
+	if os.Getenv("GOWORK") == "" {
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+	}
 
 	output, err := cmd.CombinedOutput()
 

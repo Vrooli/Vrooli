@@ -138,7 +138,7 @@ Phase selection follows this precedence:
 
 Phase discovery merges:
 - **Catalog phases** — Go-native runners from `phases.NewDefaultCatalog()`
-- **Script phases** — `test/phases/test-*.sh` files in the scenario
+- **Script phases** — `coverage/phases/test-*.sh` files in the scenario
 
 After selection, `request.Skip` filters out unwanted phases.
 

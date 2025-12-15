@@ -18,6 +18,7 @@ test-genie execute my-scenario --preset quick
 | Phase | Description | Timeout |
 |-------|-------------|---------|
 | Structure | Validates files and config | 15s |
+| Standards | scenario-auditor standards rules | 60s |
 | Docs | Validates Markdown, mermaid, links | 60s |
 | Unit | Runs unit tests | 60s |
 
@@ -47,6 +48,7 @@ test-genie execute my-scenario --preset smoke
 | Phase | Description | Timeout |
 |-------|-------------|---------|
 | Structure | Validates files and config | 15s |
+| Standards | scenario-auditor standards rules | 60s |
 | Lint | Type checking and linting | 30s |
 | Docs | Validates Markdown, mermaid, links | 60s |
 | Integration | Basic connectivity tests | 120s |
@@ -76,6 +78,7 @@ test-genie execute my-scenario --preset comprehensive
 | Phase | Description | Timeout |
 |-------|-------------|---------|
 | Structure | Validates files and config | 15s |
+| Standards | scenario-auditor standards rules | 60s |
 | Dependencies | Checks resources available | 30s |
 | Lint | Type checking and linting | 30s |
 | Docs | Validates Markdown, mermaid, links | 60s |
@@ -103,28 +106,31 @@ test-genie execute my-scenario --preset comprehensive
 graph LR
     subgraph Quick
         Q1[Structure]
-        Q2[Docs]
-        Q3[Unit]
+        Q2[Standards]
+        Q3[Docs]
+        Q4[Unit]
     end
 
     subgraph Smoke
         S1[Structure]
-        S2[Lint]
-        S3[Docs]
-        S4[Integration]
+        S2[Standards]
+        S3[Lint]
+        S4[Docs]
+        S5[Integration]
     end
 
     subgraph Comprehensive
         C1[Structure]
-        C2[Dependencies]
-        C3[Lint]
-        C4[Docs]
-        C5[Smoke]
-        C6[Unit]
-        C7[Integration]
-        C8[Playbooks]
-        C9[Business]
-        C10[Performance]
+        C2[Standards]
+        C3[Dependencies]
+        C4[Lint]
+        C5[Docs]
+        C6[Smoke]
+        C7[Unit]
+        C8[Integration]
+        C9[Playbooks]
+        C10[Business]
+        C11[Performance]
     end
 
     style Quick fill:#e8f5e9
@@ -135,7 +141,8 @@ graph LR
 | Feature | Quick | Smoke | Comprehensive |
 |---------|-------|-------|---------------|
 | Structure validation | ✅ | ✅ | ✅ |
-| Dependency check | ❌ | ✅ | ✅ |
+| Standards enforcement | ✅ | ✅ | ✅ |
+| Dependency check | ❌ | ❌ | ✅ |
 | Unit tests | ✅ | ✅ | ✅ |
 | Integration tests | ❌ | ✅ | ✅ |
 | Business logic | ❌ | ❌ | ✅ |
@@ -193,7 +200,8 @@ test-genie execute my-scenario --preset ci-fast
 
 ```bash
 # Skip specific phases
-test-genie execute my-scenario --preset comprehensive --skip-phase performance
+test-genie execute my-scenario --preset comprehensive --skip performance
+test-genie execute my-scenario --preset comprehensive --skip standards
 
 # Or in config
 {

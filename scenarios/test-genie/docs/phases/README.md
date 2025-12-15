@@ -1,6 +1,6 @@
 # Test Genie Phases
 
-Test Genie uses a **10-phase progressive testing architecture** where each phase has specific responsibilities, timeouts, and dependencies. Phases execute sequentially, with earlier phases providing the foundation for later ones.
+Test Genie uses a **11-phase progressive testing architecture** where each phase has specific responsibilities, timeouts, and dependencies. Phases execute sequentially, with earlier phases providing the foundation for later ones.
 
 ## Phase Overview
 
@@ -8,35 +8,37 @@ Test Genie uses a **10-phase progressive testing architecture** where each phase
 graph TB
     subgraph "Static Phases (No Runtime Required)"
         P1[1. Structure<br/>15s timeout<br/>Files, config, CLI]
-        P2[2. Dependencies<br/>30s timeout<br/>Tools, resources]
-        P3[3. Lint<br/>30s timeout<br/>Type checking, linters]
-        P4[4. Docs<br/>60s timeout<br/>Markdown, mermaid, links]
+        P2[2. Standards<br/>60s timeout<br/>scenario-auditor rules]
+        P3[3. Dependencies<br/>30s timeout<br/>Tools, resources]
+        P4[4. Lint<br/>30s timeout<br/>Type checking, linters]
+        P5[5. Docs<br/>60s timeout<br/>Markdown, mermaid, links]
     end
 
     subgraph "Runtime Phases (Scenario Running)"
-        P5[5. Smoke<br/>90s timeout<br/>UI load, iframe-bridge]
-        P6[6. Unit<br/>60s timeout<br/>Go, Node, Python]
-        P7[7. Integration<br/>120s timeout<br/>API, CLI, BATS]
-        P8[8. Playbooks<br/>120s timeout<br/>BAS browser automation]
-        P9[9. Business<br/>180s timeout<br/>Requirements validation]
-        P10[10. Performance<br/>60s timeout<br/>Build benchmarks, Lighthouse]
+        P6[6. Smoke<br/>90s timeout<br/>UI load, iframe-bridge]
+        P7[7. Unit<br/>60s timeout<br/>Go, Node, Python]
+        P8[8. Integration<br/>120s timeout<br/>API, CLI, BATS]
+        P9[9. Playbooks<br/>120s timeout<br/>BAS browser automation]
+        P10[10. Business<br/>180s timeout<br/>Requirements validation]
+        P11[11. Performance<br/>60s timeout<br/>Build benchmarks, Lighthouse]
     end
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11
 
-    P6 -.->|fail-fast| ABORT[Abort]
-    P10 --> SYNC[Requirements Sync]
+    P7 -.->|fail-fast| ABORT[Abort]
+    P11 --> SYNC[Requirements Sync]
 
     style P1 fill:#e8f5e9
     style P2 fill:#e8f5e9
     style P3 fill:#e8f5e9
     style P4 fill:#e8f5e9
-    style P5 fill:#fff9c4
-    style P6 fill:#fff3e0
+    style P5 fill:#e8f5e9
+    style P6 fill:#fff9c4
     style P7 fill:#fff3e0
     style P8 fill:#fff3e0
     style P9 fill:#fff3e0
     style P10 fill:#fff3e0
+    style P11 fill:#fff3e0
 ```
 
 ## Phase Summary
@@ -44,6 +46,7 @@ graph TB
 | Phase | Timeout | Optional | Requires Runtime | Purpose |
 |-------|---------|----------|------------------|---------|
 | [Structure](structure/README.md) | 15s | No | No | Validate files, config, CLI setup |
+| [Standards](standards/README.md) | 60s | No | No | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
 | [Dependencies](dependencies/README.md) | 30s | No | No | Verify tools and resources |
 | [Lint](lint/README.md) | 30s | No | No | Type checking and linting (Go, TS, Python) |
 | [Docs](docs/README.md) | 60s | No | No | Validate Markdown, mermaid, links, portability |
@@ -56,13 +59,14 @@ graph TB
 
 ## Static vs Runtime Phases
 
-**Static phases** (1-4) can run without the scenario being started:
+**Static phases** (1-5) can run without the scenario being started:
 - Validate files exist and are well-formed
+- Enforce scenario standards (PRD/service.json/proxy setup)
 - Check dependencies are installed
 - Run type checking and linting
 - Validate docs, links, and mermaid diagrams
 
-**Runtime phases** (5-10) require the scenario to be running:
+**Runtime phases** (6-11) require the scenario to be running:
 - Smoke tests need UI server running
 - Unit tests may need scenario context
 - Integration and playbooks need API/UI endpoints accessible
@@ -135,9 +139,9 @@ Presets bundle phases for common use cases:
 
 | Preset | Phases | Duration | Use Case |
 |--------|--------|----------|----------|
-| **quick** | structure, docs, unit | ~1-2 min | Fast feedback during development |
-| **smoke** | structure, lint, docs, integration | ~4-5 min | Pre-push validation |
-| **comprehensive** | All 10 phases | ~10+ min | Full validation before release |
+| **quick** | structure, standards, docs, unit | ~1-2 min | Fast feedback during development |
+| **smoke** | structure, standards, lint, docs, integration | ~4-5 min | Pre-push validation |
+| **comprehensive** | All 11 phases | ~10+ min | Full validation before release |
 
 See [Presets Reference](../reference/presets.md) for custom preset configuration.
 
@@ -146,6 +150,7 @@ See [Presets Reference](../reference/presets.md) for custom preset configuration
 Each phase has its own documentation folder with detailed guides:
 
 - **[Structure](structure/README.md)** - File validation, CLI approaches
+- **[Standards](standards/README.md)** - Standards enforcement via scenario-auditor
 - **[Dependencies](dependencies/README.md)** - Tool and resource verification
 - **[Lint](lint/README.md)** - Type checking and linting (Go, TypeScript, Python)
 - **[Docs](docs/README.md)** - Markdown, mermaid, link, and portability validation

@@ -95,24 +95,23 @@ func (v *validator) Benchmark(ctx context.Context, maxDuration time.Duration) Be
 		}
 	}
 
-	// Create temp file for build output
-	tmpFile, err := os.CreateTemp("", "test-genie-perf-*")
+	// Create temp directory for build output.
+	// go build ./... produces multiple packages; -o must be a directory in that case.
+	tmpDir, err := os.MkdirTemp("", "test-genie-perf-*")
 	if err != nil {
 		return BenchmarkResult{
 			Result: FailSystem(
-				fmt.Errorf("failed to create temp binary: %w", err),
+				fmt.Errorf("failed to create temp build dir: %w", err),
 				"Verify the filesystem is writable for performance artifacts.",
 			),
 		}
 	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
+	defer os.RemoveAll(tmpDir)
 
 	// Run the build
 	logInfo(v.logWriter, "Building Go API binary in %s", apiDir)
 	start := time.Now()
-	if err := v.commandExecutor(ctx, apiDir, v.logWriter, "go", "build", "-o", tmpPath, "./..."); err != nil {
+	if err := v.commandExecutor(ctx, apiDir, v.logWriter, "go", "build", "-o", tmpDir, "./..."); err != nil {
 		duration := time.Since(start)
 		logError(v.logWriter, "Go build failed after %s", duration.Round(time.Second))
 		return BenchmarkResult{
@@ -148,6 +147,9 @@ func (v *validator) Benchmark(ctx context.Context, maxDuration time.Duration) Be
 func defaultCommandExecutor(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	if name == "go" && os.Getenv("GOWORK") == "" {
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+	}
 	cmd.Stdout = logWriter
 	cmd.Stderr = logWriter
 	return cmd.Run()

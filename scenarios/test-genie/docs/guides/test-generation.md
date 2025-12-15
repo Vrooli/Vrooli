@@ -147,7 +147,7 @@ graph TD
    - Creates test files in appropriate locations:
      - `api/*_test.go` - Go unit tests
      - `ui/src/**/*.test.ts` - Vitest UI tests
-     - `test/playbooks/**/*.json` - BAS workflow scaffolds
+     - `bas/cases/**/*.json` - BAS workflow scaffolds
 
 5. **Tests integrated into scenario**:
    - Generated tests committed to scenario repo
@@ -439,7 +439,7 @@ test-genie can generate **BAS workflow scaffolds**:
 # Generate workflow JSON templates
 test-genie generate my-scenario --types automation
 
-# Output: test/playbooks/ui/crud-workflow.json (template)
+# Output: bas/cases/ui/crud-workflow.json (template)
 ```
 
 Then:

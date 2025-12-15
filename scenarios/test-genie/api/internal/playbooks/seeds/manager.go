@@ -12,7 +12,7 @@ import (
 
 const (
 	// SeedsFolder is the name of the seeds folder within playbooks.
-	SeedsFolder = "__seeds"
+	SeedsFolder = "seeds"
 	// GoEntrypoint is the preferred seed entrypoint (executed via go run).
 	GoEntrypoint = "seed.go"
 	// ShellEntrypoint is the legacy-compatible seed entrypoint (bash).
@@ -50,7 +50,7 @@ func NewManager(scenarioDir, appRoot, testDir string, logWriter io.Writer) *File
 
 // SeedsDir returns the path to the seeds directory.
 func (m *FileManager) SeedsDir() string {
-	return filepath.Join(m.testDir, "playbooks", SeedsFolder)
+	return filepath.Join(m.scenarioDir, "bas", "seeds")
 }
 
 // HasSeeds returns true if the seeds directory exists with a supported entrypoint.

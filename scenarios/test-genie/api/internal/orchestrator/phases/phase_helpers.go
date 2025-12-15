@@ -140,7 +140,17 @@ type stripANSIWriter struct {
 
 func (w *stripANSIWriter) Write(p []byte) (int, error) {
 	clean := stripANSI(p)
-	return w.target.Write(clean)
+	n, err := w.target.Write(clean)
+	if err != nil {
+		return 0, err
+	}
+	if n != len(clean) {
+		return 0, io.ErrShortWrite
+	}
+	// Report that we've consumed the full input so io.Copy doesn't treat stripping
+	// as a short write and close the underlying exec pipes (which can SIGPIPE the
+	// child process).
+	return len(p), nil
 }
 
 // stripANSI removes ANSI escape sequences from a byte slice.

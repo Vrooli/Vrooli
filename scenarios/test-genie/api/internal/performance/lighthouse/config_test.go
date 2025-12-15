@@ -510,7 +510,7 @@ func TestConfig_BuildPageLighthouseConfig_Desktop(t *testing.T) {
 }
 
 func TestConfig_BuildPageLighthouseConfig_GlobalFormFactorNotOverridden(t *testing.T) {
-	// If global settings have formFactor, page viewport shouldn't override it
+	// Page viewport should override global settings for that page.
 	cfg := &Config{
 		GlobalOptions: &GlobalOptions{
 			Lighthouse: &LighthouseSettings{
@@ -531,9 +531,16 @@ func TestConfig_BuildPageLighthouseConfig_GlobalFormFactorNotOverridden(t *testi
 	result := cfg.BuildPageLighthouseConfig(mobilePage)
 	settings := result["settings"].(map[string]interface{})
 
-	// Global setting should be preserved
-	if settings["formFactor"] != "desktop" {
-		t.Errorf("expected formFactor 'desktop' from global, got %v", settings["formFactor"])
+	if settings["formFactor"] != "mobile" {
+		t.Errorf("expected formFactor 'mobile' from page viewport, got %v", settings["formFactor"])
+	}
+
+	screenEmulation, ok := settings["screenEmulation"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected screenEmulation to be a map for mobile viewport")
+	}
+	if screenEmulation["mobile"] != true {
+		t.Error("expected screenEmulation.mobile to be true")
 	}
 }
 

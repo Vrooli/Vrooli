@@ -1241,7 +1241,7 @@ def test_process_file(configured_manager):
 
 ### Related Guides
 - [Unit Phase](README.md) - Unit phase overview
-- [Phases Overview](../README.md) - 10-phase architecture
+- [Phases Overview](../README.md) - 11-phase architecture
 - [Requirements Sync](../business/requirements-sync.md) - Link tests to requirements with `[REQ:ID]`
 - [CLI Testing](../integration/cli-testing.md) - BATS testing for command-line tools
 - [UI Testability](../../guides/ui-testability.md) - Writing testable UIs

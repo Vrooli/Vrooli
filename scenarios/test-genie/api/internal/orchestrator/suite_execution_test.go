@@ -37,7 +37,8 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 		"ui",
 		"docs",
 		"test",
-		filepath.Join("test", "playbooks"),
+		"bas",
+		filepath.Join("bas", "cases"),
 		".vrooli",
 	}
 	for _, rel := range requiredDirs {
@@ -117,7 +118,7 @@ esac
 		t.Fatalf("failed to seed cli bats file: %v", err)
 	}
 	playbookRegistry := fmt.Sprintf(`{"scenario":"%s","playbooks":[]}`, name)
-	registryPath := filepath.Join(scenarioDir, "test", "playbooks", "registry.json")
+	registryPath := filepath.Join(scenarioDir, "bas", "registry.json")
 	if err := os.WriteFile(registryPath, []byte(playbookRegistry), 0o644); err != nil {
 		t.Fatalf("failed to seed playbook registry: %v", err)
 	}
@@ -159,6 +160,8 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
+			case name == "scenario-auditor":
+				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
 				return "demo version 1.0.0", nil
 			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
@@ -182,10 +185,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 10 {
-			t.Fatalf("expected ten phases, got %d", len(result.Phases))
+		if len(result.Phases) != 11 {
+			t.Fatalf("expected eleven phases, got %d", len(result.Phases))
 		}
-		expected := []string{"structure", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"}
+		expected := []string{"structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -219,6 +222,8 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
+			case name == "scenario-auditor":
+				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
 				return "demo version 1.0.0", nil
 			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
@@ -354,7 +359,10 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] custom presets are honored", func(t *testing.T) {
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
-		testDir := filepath.Join(scenarioDir, "test")
+		testDir := filepath.Join(scenarioDir, "coverage")
+		if err := os.MkdirAll(testDir, 0o755); err != nil {
+			t.Fatalf("failed to create coverage dir: %v", err)
+		}
 
 		if err := os.WriteFile(filepath.Join(testDir, "presets.json"), []byte(`{"focused":["unit"]}`), 0o644); err != nil {
 			t.Fatalf("failed to write preset: %v", err)
@@ -368,6 +376,12 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 				return fmt.Errorf("unknown command: %s", args[0])
 			}
 			return nil
+		})
+		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
+			if name == "scenario-auditor" {
+				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			}
+			return "", nil
 		})
 
 		orchestrator, err := NewSuiteOrchestrator(root)
@@ -442,8 +456,8 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected integration phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 9 {
-			t.Fatalf("expected nine phases after disabling integration, got %d", len(result.Phases))
+		if len(result.Phases) != 10 {
+			t.Fatalf("expected ten phases after disabling integration, got %d", len(result.Phases))
 		}
 	})
 }

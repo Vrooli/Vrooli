@@ -18,6 +18,16 @@ func TestNormalizePhaseSelection(t *testing.T) {
 		}
 	})
 
+	t.Run("accepts standards phase", func(t *testing.T) {
+		result, err := phases.NormalizeSelection([]string{"standards"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(result) != 1 || result[0] != "standards" {
+			t.Fatalf("unexpected phases: %#v", result)
+		}
+	})
+
 	t.Run("rejects unknown", func(t *testing.T) {
 		if _, err := phases.NormalizeSelection([]string{"unknown"}); err == nil {
 			t.Fatalf("expected error for unknown phase")

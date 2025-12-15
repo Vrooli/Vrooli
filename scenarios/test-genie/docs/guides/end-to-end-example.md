@@ -281,7 +281,7 @@ describe('CreateProjectDialog [REQ:APP-PROJECT-CREATE]', () => {
 
 ### BAS Workflow
 
-**File**: `test/playbooks/capabilities/01-foundation/projects/create-project.json`
+**File**: `bas/cases/01-foundation/projects/create-project.json`
 
 ```json
 {
@@ -409,7 +409,7 @@ describe('CreateProjectDialog [REQ:APP-PROJECT-CREATE]', () => {
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/projects/create-project.json",
+          "ref": "bas/cases/01-foundation/projects/create-project.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "BAS workflow for full creation flow"
@@ -430,7 +430,7 @@ describe('CreateProjectDialog [REQ:APP-PROJECT-CREATE]', () => {
         },
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/01-foundation/projects/create-project.json",
+          "ref": "bas/cases/01-foundation/projects/create-project.json",
           "phase": "integration",
           "status": "implemented",
           "notes": "Same workflow verifies project appears in list"

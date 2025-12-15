@@ -25,7 +25,7 @@ Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. Aft
 test-genie registry build
 ```
 
-This regenerates `test/playbooks/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.
+This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.
 
 ## Playbooks isolation quickstart
 

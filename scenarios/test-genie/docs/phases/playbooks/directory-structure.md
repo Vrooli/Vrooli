@@ -1,16 +1,16 @@
 # Playbooks Directory Structure
 
-> **Canonical layout for `test/playbooks/` in any scenario**
+> **Canonical layout for `bas/` in any scenario**
 
 This document defines the standard directory structure for playbook-based UI automation. All scenarios using playbooks should follow this layout for consistency and tooling compatibility.
 
 ## Directory Layout
 
 ```
-test/playbooks/
+bas/
 ├── registry.json           # AUTO-GENERATED manifest of all playbooks
 ├── README.md               # Scenario-specific notes (optional)
-├── capabilities/           # Feature-surface tests (mirrors PRD)
+├── cases/                  # Assertive validations (mirrors PRD)
 │   ├── 01-foundation/      # Two-digit prefix for ordering
 │   │   ├── 01-projects/
 │   │   │   ├── create-project.json
@@ -20,13 +20,13 @@ test/playbooks/
 │   └── 02-builder/
 │       ├── 01-canvas/
 │       └── 02-toolbar/
-├── journeys/               # Multi-surface user flows
+├── flows/                  # Multi-surface user journeys
 │   └── 01-new-user/
 │       └── onboarding-happy-path.json
-├── __subflows/             # Reusable fixtures (prefix: __)
+├── actions/                # Reusable fixtures/subflows
 │   ├── open-demo-project.json
 │   └── load-seed-state.json
-└── __seeds/                # Seed entrypoint (prefix: __)
+└── seeds/                  # Seed entrypoint
     └── seed.go             # or seed.sh
 ```
 
@@ -34,17 +34,17 @@ test/playbooks/
 
 | Directory | Purpose | Prefix Convention |
 |-----------|---------|-------------------|
-| `capabilities/` | Tests organized by PRD operational targets | `NN-name` (e.g., `01-foundation`) |
-| `journeys/` | End-to-end flows spanning multiple features | `NN-name` (e.g., `01-new-user`) |
-| `__subflows/` | Reusable workflow fragments (fixtures) | Double underscore prefix |
-| `__seeds/` | Database/state setup entrypoint | Double underscore prefix |
+| `cases/` | Tests organized by PRD operational targets | `NN-name` (e.g., `01-foundation`) |
+| `flows/` | End-to-end flows spanning multiple features | `NN-name` (e.g., `01-new-user`) |
+| `actions/` | Reusable workflow fragments (fixtures/subflows) | Kebab-case filenames |
+| `seeds/` | Database/state setup entrypoint | `seed.go` preferred |
 
-### capabilities/
+### cases/
 
 Mirrors your PRD's operational targets. Each subfolder represents a feature area, further divided by UI surface:
 
 ```
-capabilities/
+cases/
 ├── 01-foundation/          # Core CRUD operations
 │   ├── 01-projects/        # Project management
 │   ├── 02-workflows/       # Workflow management
@@ -58,35 +58,35 @@ capabilities/
     └── 02-ui/              # Execution UI tests
 ```
 
-### journeys/
+### flows/
 
 Composite flows that test complete user stories across multiple features:
 
 ```
-journeys/
+flows/
 ├── 01-new-user/
 │   └── onboarding-happy-path.json    # First project + first workflow
 └── 02-power-user/
     └── batch-operations.json          # Advanced multi-step flow
 ```
 
-### __subflows/
+### actions/
 
-Reusable workflow fragments referenced via `@fixture/<slug>`. The double underscore prefix (`__`) ensures these are excluded from the registry as standalone tests.
+Reusable workflow fragments referenced via subflow nodes (e.g. `ACTION_TYPE_SUBFLOW` with `workflow_path: "actions/<slug>.json"`). Actions are not executed standalone by the playbooks runner.
 
 ```
-__subflows/
+actions/
 ├── load-seed-state.json      # Load seed data into workflow context
 ├── open-demo-project.json    # Navigate to seeded demo project
 └── open-demo-workflow.json   # Open workflow in builder
 ```
 
-### __seeds/
+### seeds/
 
 Single entrypoint for deterministic test data setup. Runs once before playbook execution.
 
 ```
-__seeds/
+seeds/
 └── seed.go      # Preferred (go run), or seed.sh as a lightweight alternative
 ```
 
@@ -94,7 +94,7 @@ __seeds/
 
 ### Two-Digit Ordinal Prefixes
 
-**Required** for all folders under `capabilities/` and `journeys/`:
+**Required** for all folders under `cases/` and `flows/`:
 
 ```
 01-foundation/    # First capability area
@@ -129,7 +129,7 @@ Use kebab-case with action verbs:
   "generated_at": "2025-12-05T10:00:00Z",
   "playbooks": [
     {
-      "file": "test/playbooks/capabilities/01-foundation/01-projects/create-project.json",
+      "file": "bas/cases/01-foundation/01-projects/create-project.json",
       "description": "Creates a new project and verifies navigation",
       "order": "01.01.01",
       "requirements": ["MY-PROJECT-CREATE"],
@@ -163,43 +163,27 @@ test-genie registry build
 test-genie registry build --scenario /path/to/scenario
 ```
 
-## Fixture System
+## Actions (Subflows)
 
-Fixtures are reusable workflow fragments stored in `__subflows/`.
+Actions are reusable workflow fragments stored in `actions/`.
 
-### Fixture Metadata
+### Referencing Actions
 
-Every fixture must declare `fixture_id` in its metadata:
+Actions are referenced via subflow nodes that point to a relative workflow path. Example (JSON shape varies by workflow schema):
 
 ```json
 {
-  "metadata": {
-    "description": "Navigates to the seeded demo project",
-    "fixture_id": "open-demo-project",
-    "parameters": [
-      {
-        "name": "projectId",
-        "type": "string",
-        "required": true,
-        "default": "@seed/projectId",
-        "description": "Project identifier from seed"
-      }
-    ],
-    "requirements": ["MY-DEMO-SEED"],
-    "reset": "none"
-  },
-  "nodes": [...],
-  "edges": [...]
+  "type": "subflow",
+  "data": {
+    "workflowPath": "actions/open-demo-project.json"
+  }
 }
 ```
 
-### Fixture Metadata Fields
+### Notes
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `fixture_id` | Yes | Slug used in `@fixture/<slug>` references |
-| `parameters` | No | Array of parameter definitions |
-| `requirements` | No | Requirement IDs this fixture covers (propagated to callers) |
+- Prefer relative paths under `actions/` so playbooks are portable across machines.
+- Actions are not executed standalone by the playbooks runner; only entries listed in `bas/registry.json` run.
 
 ### Parameter Definition
 
@@ -251,7 +235,7 @@ Three token prefixes are used in workflows:
 
 | Token | Resolution Time | Purpose |
 |-------|-----------------|---------|
-| `@fixture/<slug>` | Resolution | Reference a subflow from `__subflows/` |
+| `actions/<slug>.json` | Resolution | Reference a subflow from `actions/` via `workflowPath` |
 | `@selector/<key>` | Resolution | Reference from `ui/src/consts/selectors.ts` |
 | `@seed/<key>` | Resolution | Literal value from seed-state.json |
 | `@store/<key>` | Runtime | Dynamic value stored during execution |
@@ -308,23 +292,23 @@ func main() {
 
 When adding a new playbook:
 
-1. **Choose location**: `capabilities/<target>/<surface>/` or `journeys/<flow>/`
+1. **Choose location**: `cases/<target>/<surface>/` or `flows/<flow>/`
 2. **Create folder** if needed with two-digit prefix (e.g., `04-new-feature/`)
 3. **Name file** using kebab-case with verb (e.g., `create-widget.json`)
 4. **Add metadata** with `description`, `version`, and `reset`
 5. **Use selectors** via `@selector/<key>` (never hardcode CSS)
-6. **Reference fixtures** via `@fixture/<slug>` for reusable setup
+6. **Reference fixtures** via subflows in `actions/` (e.g., `workflow_path: "actions/<slug>.json"`)
 7. **Link requirements** in `requirements/*.json` via `validation.ref`
 8. **Regenerate registry**: `test-genie registry build`
 9. **Verify order**: Check `registry.json` has correct `order` value
 
 ## Structure Phase Integration
 
-The [Structure Phase](../structure/README.md) documents the expected playbooks layout. When `test/playbooks/` exists, scenarios should follow these conventions:
+The [Structure Phase](../structure/README.md) documents the expected playbooks layout. When `bas/` exists, scenarios should follow these conventions:
 
 - `registry.json` must exist and be valid JSON
-- Directories under `capabilities/` and `journeys/` should use two-digit prefixes
-- `__subflows/` fixtures must declare `fixture_id`
+- Top-level directories under `cases/` and `flows/` should use two-digit prefixes
+- `seeds/` should include `seed.go` or `seed.sh` if present
 
 > **Note**: Structure phase validation for playbooks layout is currently informational. Future versions may enforce these conventions automatically.
 

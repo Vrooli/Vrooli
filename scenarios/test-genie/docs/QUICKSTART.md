@@ -56,23 +56,24 @@ Results are available via:
 
 | Preset | Phases | Time | Use Case |
 |--------|--------|------|----------|
-| **Quick** | Structure, Docs, Unit | ~1-2 min | Fast sanity check |
-| **Smoke** | Structure, Lint, Docs, Integration | ~4-5 min | Pre-push validation |
-| **Comprehensive** | All 10 phases | ~10+ min | Full coverage |
+| **Quick** | Structure, Standards, Docs, Unit | ~1-2 min | Fast sanity check |
+| **Smoke** | Structure, Standards, Lint, Docs, Integration | ~4-5 min | Pre-push validation |
+| **Comprehensive** | All 11 phases | ~10+ min | Full coverage |
 
 See [Presets Reference](reference/presets.md) for details.
 
 ## Test Phases
 
-Test Genie uses a 10-phase testing architecture:
+Test Genie uses a 11-phase testing architecture:
 
 ```
-Structure → Dependencies → Lint → Docs → Smoke → Unit → Integration → Playbooks → Business → Performance
+Structure → Standards → Dependencies → Lint → Docs → Smoke → Unit → Integration → Playbooks → Business → Performance
 ```
 
 | Phase | Purpose | Timeout |
 |-------|---------|---------|
 | **Structure** | Validate files and config | 15s |
+| **Standards** | scenario-auditor standards rules | 60s |
 | **Dependencies** | Check tools and resources | 30s |
 | **Lint** | Type checking and linting | 30s |
 | **Docs** | Markdown, mermaid, link validation | 60s |
@@ -95,8 +96,9 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
 
 ### Phase Documentation
-- [Phases Overview](phases/README.md) - 10-phase architecture with mermaid diagrams
+- [Phases Overview](phases/README.md) - 11-phase architecture with mermaid diagrams
 - [Structure Phase](phases/structure/README.md) - File and CLI validation
+- [Standards Phase](phases/standards/README.md) - Standards enforcement via scenario-auditor
 - [Dependencies Phase](phases/dependencies/README.md) - Runtime and tool checks
 - [Lint Phase](phases/lint/README.md) - Type checking and linting
 - [Docs Phase](phases/docs/README.md) - Markdown, mermaid, and link validation
@@ -107,7 +109,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Performance Phase](phases/performance/README.md) - Build benchmarks and Lighthouse
 
 ### Guides (How-To)
-- [Phased Testing](guides/phased-testing.md) - Understanding the 10-phase architecture
+- [Phased Testing](guides/phased-testing.md) - Understanding the 11-phase architecture
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests

@@ -440,7 +440,7 @@ jobs:
 
 ### Related Guides
 - [Integration Phase](README.md) - Integration phase overview
-- [Phases Overview](../README.md) - 10-phase architecture
+- [Phases Overview](../README.md) - 11-phase architecture
 - [Scenario Unit Testing](../unit/scenario-unit-testing.md) - Testing application code
 - [UI Testability](../../guides/ui-testability.md) - Testing UI components
 

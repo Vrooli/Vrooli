@@ -147,7 +147,7 @@ Vrooli Ascension (BAS) enables **declarative UI testing** through JSON workflows
 
 ## Workflow Stories & Registry Order
 
-- Prefix every folder under `test/playbooks/` with a two-digit ordinal (e.g., `01-foundation`, `02-builder`)
+- Prefix top-level folders under `bas/cases/` (and `bas/flows/` if used) with a two-digit ordinal (e.g., `01-foundation`, `02-builder`)
 - After editing or moving a workflow, regenerate the registry using the playbook build script
 - `metadata.reset` (`none`, `full`) tells the runner when to reseed
 
@@ -333,16 +333,16 @@ Nodes can include a `resilience` object for retries and readiness checks:
 
 ## Storage Location
 
-Each scenario owns automation assets under `test/playbooks/` following the [canonical directory structure](directory-structure.md):
+Each scenario owns automation assets under `bas/` following the [canonical directory structure](directory-structure.md):
 
 ```
-test/playbooks/
+bas/
 ├── registry.json       # Auto-generated manifest
-├── capabilities/       # Feature tests (mirrors PRD)
+├── cases/              # Assertive validations (mirrors PRD)
 │   └── 01-foundation/  # Two-digit prefix for ordering
-├── journeys/           # Multi-surface user flows
-├── __subflows/         # Reusable fixtures (@fixture/<slug>)
-└── __seeds/            # Seed entrypoint (seed.go preferred)
+├── flows/              # Multi-surface user journeys
+├── actions/            # Reusable fixtures/subflows
+└── seeds/              # Seed entrypoint (seed.go preferred)
 ```
 
 See [Directory Structure](directory-structure.md) for naming conventions, fixture metadata, and authoring checklist.
@@ -363,7 +363,7 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute
   -d '{"preset": "comprehensive"}'
 ```
 
-The business phase automatically discovers and executes workflows defined in `test/playbooks/` with `automation` validation types.
+The business phase automatically discovers and executes workflows defined in `bas/` with `automation` validation types.
 
 ## Requirements Integration
 
@@ -374,7 +374,7 @@ Annotate requirement validations with the `automation` type:
   "validation": [
     {
       "type": "automation",
-      "ref": "test/playbooks/capabilities/02-builder/demo-sanity.json",
+      "ref": "bas/cases/02-builder/demo-sanity.json",
       "scenario": "browser-automation-studio",
       "phase": "integration",
       "status": "implemented"
@@ -391,8 +391,8 @@ Annotate requirement validations with the `automation` type:
 
 **Solutions**:
 ```bash
-ls -la test/playbooks/ui/projects/create.json
-jq . test/playbooks/ui/projects/create.json
+ls -la bas/cases/01-foundation/01-projects/create.json
+jq . bas/cases/01-foundation/01-projects/create.json
 vrooli scenario status browser-automation-studio
 ```
 
@@ -428,8 +428,8 @@ For `@selector/` references, the error message will tell you:
 
 ## Reusable Subflows & Seed Data
 
-- **Subflows**: Store under `test/playbooks/__subflows/`. Reference with `@fixture/<slug>`
-- **Seed Data**: Keep in `test/playbooks/__seeds/` with `seed.go` (or `seed.sh`)
+- **Subflows**: Store under `bas/actions/`. Reference from case/flow workflows via subflow nodes (`workflow_path: "actions/<slug>.json"`).
+- **Seed Data**: Keep in `bas/seeds/` with `seed.go` (or `seed.sh`)
 - **Canonical fixtures**: Use `open-demo-project`, `open-builder-from-demo`, `open-demo-workflow`
 
 See [Directory Structure](directory-structure.md) for complete fixture metadata reference, parameter syntax, and token types (`@fixture/`, `@seed/`, `@store/`).

@@ -12,7 +12,7 @@ func TestNativeResolverBasicWorkflow(t *testing.T) {
 
 	// Create directories
 	dirs := []string{
-		filepath.Join(tempDir, "test", "playbooks"),
+		filepath.Join(tempDir, "bas", "cases"),
 		filepath.Join(tempDir, "requirements"),
 	}
 	for _, dir := range dirs {
@@ -27,7 +27,7 @@ func TestNativeResolverBasicWorkflow(t *testing.T) {
 		"nodes": [{"id": "n1", "type": "navigate", "data": {"url": "http://example.com"}}],
 		"edges": []
 	}`
-	workflowPath := filepath.Join(tempDir, "test", "playbooks", "test.json")
+	workflowPath := filepath.Join(tempDir, "bas", "cases", "test.json")
 	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
 		t.Fatalf("failed to write workflow: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestNativeResolverWorkflowWithSubflowPath(t *testing.T) {
 	tempDir := t.TempDir()
 
 	dirs := []string{
-		filepath.Join(tempDir, "test", "playbooks"),
+		filepath.Join(tempDir, "bas", "cases"),
 		filepath.Join(tempDir, "bas", "actions"),
 	}
 	for _, dir := range dirs {
@@ -84,7 +84,7 @@ func TestNativeResolverWorkflowWithSubflowPath(t *testing.T) {
 		],
 		"edges": []
 	}`
-	workflowPath := filepath.Join(tempDir, "test", "playbooks", "test.json")
+	workflowPath := filepath.Join(tempDir, "bas", "cases", "test.json")
 	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
 
 	// Resolve
@@ -117,7 +117,7 @@ func TestNativeResolverSelectorTokensPassedThrough(t *testing.T) {
 	tempDir := t.TempDir()
 
 	dirs := []string{
-		filepath.Join(tempDir, "test", "playbooks"),
+		filepath.Join(tempDir, "bas", "cases"),
 	}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0o755)
@@ -132,7 +132,7 @@ func TestNativeResolverSelectorTokensPassedThrough(t *testing.T) {
 		],
 		"edges": []
 	}`
-	workflowPath := filepath.Join(tempDir, "test", "playbooks", "test.json")
+	workflowPath := filepath.Join(tempDir, "bas", "cases", "test.json")
 	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
 
 	// Resolve
@@ -241,14 +241,14 @@ func TestNativeResolverInvalidJSON(t *testing.T) {
 	tempDir := t.TempDir()
 
 	dirs := []string{
-		filepath.Join(tempDir, "test", "playbooks"),
+		filepath.Join(tempDir, "bas", "cases"),
 	}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0o755)
 	}
 
 	// Create invalid JSON file
-	workflowPath := filepath.Join(tempDir, "test", "playbooks", "invalid.json")
+	workflowPath := filepath.Join(tempDir, "bas", "cases", "invalid.json")
 	os.WriteFile(workflowPath, []byte("{ not valid json"), 0o644)
 
 	resolver := NewNativeResolver(tempDir)
@@ -272,7 +272,7 @@ func TestNativeResolverPreservesExistingReset(t *testing.T) {
 	tempDir := t.TempDir()
 
 	dirs := []string{
-		filepath.Join(tempDir, "test", "playbooks"),
+		filepath.Join(tempDir, "bas", "cases"),
 	}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0o755)
@@ -284,7 +284,7 @@ func TestNativeResolverPreservesExistingReset(t *testing.T) {
 		"nodes": [],
 		"edges": []
 	}`
-	workflowPath := filepath.Join(tempDir, "test", "playbooks", "test.json")
+	workflowPath := filepath.Join(tempDir, "bas", "cases", "test.json")
 	os.WriteFile(workflowPath, []byte(workflowContent), 0o644)
 
 	resolver := NewNativeResolver(tempDir)

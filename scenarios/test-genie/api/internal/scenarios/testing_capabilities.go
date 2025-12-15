@@ -47,13 +47,13 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 			Description: "Runs the Go-native test-genie orchestrator (smoke preset).",
 		})
 	}
-	if hasExecutable(filepath.Join(scenarioDir, "test", "run-tests.sh")) {
+	if hasExecutable(filepath.Join(scenarioDir, "coverage", "run-tests.sh")) {
 		caps.Phased = true
 		caps.Commands = append(caps.Commands, TestingCommand{
 			Type:        "phased",
-			Command:     []string{"./test/run-tests.sh", "--quick"},
+			Command:     []string{"./coverage/run-tests.sh", "--quick"},
 			WorkingDir:  scenarioDir,
-			Description: "Runs the scenario-local phased suite (new format).",
+			Description: "Runs the scenario-local phased suite (legacy format; prefer test-genie).",
 		})
 	}
 	if hasLifecycleTest(filepath.Join(scenarioDir, ".vrooli", "service.json")) {

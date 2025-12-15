@@ -1,7 +1,7 @@
 // Package existence validates that required filesystem entries exist for a scenario.
 //
 // This includes:
-//   - Required directories (api, cli, docs, requirements, test, ui)
+//   - Required directories (api, cli, docs, requirements, ui)
 //   - Required files (README.md, PRD.md, Makefile, service.json, testing.json)
 //   - CLI structure (legacy bash scripts or cross-platform Go binaries)
 //

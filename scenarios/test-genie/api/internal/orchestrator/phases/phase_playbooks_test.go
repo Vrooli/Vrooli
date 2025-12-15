@@ -58,7 +58,7 @@ func newPlaybooksTestHarness(t *testing.T) *playbooksTestHarness {
 	// Create required directory structure
 	requiredDirs := []string{
 		"ui",
-		"test/playbooks",
+		"bas/cases",
 		".vrooli",
 	}
 	for _, dir := range requiredDirs {
@@ -84,9 +84,9 @@ func newPlaybooksTestHarness(t *testing.T) *playbooksTestHarness {
 
 func (h *playbooksTestHarness) writeRegistry(t *testing.T, content string) {
 	t.Helper()
-	registryDir := filepath.Join(h.testDir, "playbooks")
+	registryDir := filepath.Join(h.scenarioDir, "bas")
 	if err := os.MkdirAll(registryDir, 0o755); err != nil {
-		t.Fatalf("failed to create playbooks dir: %v", err)
+		t.Fatalf("failed to create bas dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(registryDir, "registry.json"), []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write registry.json: %v", err)
@@ -284,8 +284,8 @@ func TestRunPlaybooksPhaseIsolationEnvRestoredBeforeBAS(t *testing.T) {
 	h := newPlaybooksTestHarness(t)
 
 	// Minimal registry + workflow so runner executes BAS path.
-	h.writeRegistry(t, `{"playbooks":[{"file":"test/playbooks/capabilities/01-basic/test.json","description":"test","order":"01.01","requirements":[],"fixtures":[],"reset":"none"}]}`)
-	h.writeWorkflow(t, "test/playbooks/capabilities/01-basic/test.json", `{
+	h.writeRegistry(t, `{"playbooks":[{"file":"bas/cases/01-basic/test.json","description":"test","order":"01.01","requirements":[],"fixtures":[],"reset":"none"}]}`)
+	h.writeWorkflow(t, "bas/cases/01-basic/test.json", `{
   "metadata": {"description": "basic", "version": 1},
   "nodes": [{"id":"n1","type":"navigate","data":{"destinationType":"url","url":"http://example.com"}}],
   "edges": []
@@ -519,10 +519,10 @@ func TestRunPlaybooksPhaseDisabledInConfig(t *testing.T) {
 func BenchmarkRunPlaybooksPhaseEmptyRegistryNoUI(b *testing.B) {
 	tempDir := b.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenarios", "bench-scenario")
-	playbooksDir := filepath.Join(scenarioDir, "test", "playbooks")
-	os.MkdirAll(playbooksDir, 0o755)
+	basDir := filepath.Join(scenarioDir, "bas")
+	os.MkdirAll(basDir, 0o755)
 	// No ui/ directory, but provide empty registry
-	os.WriteFile(filepath.Join(playbooksDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
+	os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
 
 	env := workspace.Environment{
 		ScenarioName: "bench-scenario",
@@ -541,9 +541,9 @@ func BenchmarkRunPlaybooksPhaseEmptyRegistry(b *testing.B) {
 	tempDir := b.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenarios", "bench-scenario")
 	os.MkdirAll(filepath.Join(scenarioDir, "ui"), 0o755)
-	playbooksDir := filepath.Join(scenarioDir, "test", "playbooks")
-	os.MkdirAll(playbooksDir, 0o755)
-	os.WriteFile(filepath.Join(playbooksDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
+	basDir := filepath.Join(scenarioDir, "bas")
+	os.MkdirAll(basDir, 0o755)
+	os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
 
 	env := workspace.Environment{
 		ScenarioName: "bench-scenario",

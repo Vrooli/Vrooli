@@ -51,13 +51,14 @@ type BuildResult struct {
 
 // Build scans the scenario directory and generates a registry.
 func (b *Builder) Build() (*BuildResult, error) {
-	playbooksRoot := filepath.Join(b.scenarioDir, "test", "playbooks")
+	basRoot := filepath.Join(b.scenarioDir, "bas")
+	playbooksRoot := filepath.Join(basRoot, "cases")
 	requirementsDir := filepath.Join(b.scenarioDir, "requirements")
-	registryPath := filepath.Join(playbooksRoot, RegistryFileName)
+	registryPath := filepath.Join(basRoot, RegistryFileName)
 
 	// Check required directories exist
 	if _, err := os.Stat(playbooksRoot); os.IsNotExist(err) {
-		return nil, fmt.Errorf("test/playbooks directory not found at %s", playbooksRoot)
+		return nil, fmt.Errorf("bas/cases directory not found at %s", playbooksRoot)
 	}
 	if _, err := os.Stat(requirementsDir); os.IsNotExist(err) {
 		return nil, fmt.Errorf("requirements directory not found at %s", requirementsDir)
@@ -234,7 +235,7 @@ func (b *Builder) collectRequirementValidations(requirementsDir string) (map[str
 				if validation.Ref == "" {
 					continue
 				}
-				if !strings.HasPrefix(validation.Ref, "test/playbooks/") {
+				if !strings.HasPrefix(validation.Ref, "bas/") {
 					continue
 				}
 				result[validation.Ref] = append(result[validation.Ref], req.ID)
@@ -279,7 +280,7 @@ func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]str
 		return Entry{}, fmt.Errorf("failed to read playbook: %w", err)
 	}
 
-	var doc playbookDocument
+	var doc map[string]any
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return Entry{}, fmt.Errorf("failed to parse playbook: %w", err)
 	}
@@ -292,7 +293,7 @@ func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]str
 	relPath = filepath.ToSlash(relPath)
 
 	// Extract fixtures from nodes
-	fixtures := b.extractFixtures(doc.Nodes)
+	fixtures := extractFixturesFromWorkflow(doc)
 
 	// Get requirements from validation map
 	requirements := validationsByFile[relPath]
@@ -300,8 +301,13 @@ func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]str
 		requirements = []string{}
 	}
 
+	description := getString(doc, "metadata", "description")
+
 	// Validate reset value
-	reset := doc.Metadata.Reset
+	reset := getString(doc, "metadata", "labels", "reset")
+	if reset == "" {
+		reset = getString(doc, "metadata", "reset")
+	}
 	if reset == "" {
 		reset = "none"
 	}
@@ -311,7 +317,7 @@ func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]str
 
 	return Entry{
 		File:         relPath,
-		Description:  doc.Metadata.Description,
+		Description:  description,
 		Order:        pf.order,
 		Requirements: requirements,
 		Fixtures:     fixtures,
@@ -319,30 +325,81 @@ func (b *Builder) buildEntry(pf playbookFile, validationsByFile map[string][]str
 	}, nil
 }
 
-// extractFixtures extracts fixture slugs from playbook nodes.
-func (b *Builder) extractFixtures(nodes []playbookNode) []string {
-	seen := make(map[string]bool)
-	fixtures := make([]string, 0) // Initialize to empty slice, not nil
+func extractFixturesFromWorkflow(workflow map[string]any) []string {
+	nodesAny, ok := workflow["nodes"].([]any)
+	if !ok || len(nodesAny) == 0 {
+		return []string{}
+	}
 
-	for _, node := range nodes {
-		workflowID := node.Data.WorkflowID
-		if !strings.HasPrefix(workflowID, "@fixture/") {
+	seen := make(map[string]bool)
+	fixtures := make([]string, 0)
+
+	for _, nodeAny := range nodesAny {
+		node, ok := nodeAny.(map[string]any)
+		if !ok {
 			continue
 		}
 
-		// Extract slug: @fixture/some-slug or @fixture/some-slug(args)
-		slug := strings.TrimPrefix(workflowID, "@fixture/")
-		if idx := strings.Index(slug, "("); idx != -1 {
-			slug = slug[:idx]
+		// Legacy: "@fixture/<slug>(...)" in data.workflowId.
+		workflowID := getString(node, "data", "workflowId")
+		if strings.HasPrefix(workflowID, "@fixture/") {
+			slug := strings.TrimPrefix(workflowID, "@fixture/")
+			if idx := strings.Index(slug, "("); idx != -1 {
+				slug = slug[:idx]
+			}
+			slug = strings.TrimSpace(slug)
+			if slug != "" && !seen[slug] {
+				seen[slug] = true
+				fixtures = append(fixtures, slug)
+			}
+			continue
 		}
-		slug = strings.TrimSpace(slug)
 
-		if slug != "" && !seen[slug] {
-			seen[slug] = true
-			fixtures = append(fixtures, slug)
+		// Current BAS: action.subflow.workflow_path: "actions/<slug>.json".
+		subflowPath := getString(node, "action", "subflow", "workflow_path")
+		if subflowPath == "" {
+			subflowPath = getString(node, "action", "subflow", "workflowPath")
+		}
+		if subflowPath == "" {
+			// Older UI schema: type=subflow data.workflowPath.
+			subflowPath = getString(node, "data", "workflowPath")
+		}
+		subflowPath = strings.TrimSpace(subflowPath)
+		if subflowPath == "" {
+			continue
+		}
+		if strings.HasPrefix(subflowPath, "actions/") {
+			base := filepath.Base(subflowPath)
+			slug := strings.TrimSuffix(base, filepath.Ext(base))
+			slug = strings.TrimSpace(slug)
+			if slug != "" && !seen[slug] {
+				seen[slug] = true
+				fixtures = append(fixtures, slug)
+			}
 		}
 	}
 
 	sort.Strings(fixtures)
 	return fixtures
+}
+
+func getNestedString(m map[string]any, path ...string) (string, bool) {
+	var cur any = m
+	for _, key := range path {
+		next, ok := cur.(map[string]any)
+		if !ok {
+			return "", false
+		}
+		cur, ok = next[key]
+		if !ok {
+			return "", false
+		}
+	}
+	s, ok := cur.(string)
+	return s, ok
+}
+
+func getString(m map[string]any, path ...string) string {
+	v, _ := getNestedString(m, path...)
+	return v
 }

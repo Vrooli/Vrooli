@@ -27,9 +27,9 @@ import (
 var (
 	defaultPhaseTimeout     = phases.DefaultTimeout
 	defaultExecutionPresets = map[string][]string{
-		"quick":         {"structure", "docs", "unit"},
-		"smoke":         {"structure", "lint", "docs", "integration"},
-		"comprehensive": {"structure", "dependencies", "lint", "docs", "unit", "integration", "playbooks", "business", "performance"},
+		"quick":         {"structure", "standards", "docs", "unit"},
+		"smoke":         {"structure", "standards", "lint", "docs", "integration"},
+		"comprehensive": {"structure", "standards", "dependencies", "lint", "docs", "unit", "integration", "playbooks", "business", "performance"},
 	}
 	defaultPhaseSortFallback = 1000
 )
@@ -50,6 +50,7 @@ const (
 	failureClassTimeout           = phases.FailureClassTimeout
 	failureClassSystem            = phases.FailureClassSystem
 	PhaseStructure                = phases.Structure
+	PhaseStandards                = phases.Standards
 	PhaseDependencies             = phases.Dependencies
 	PhaseLint                     = phases.Lint
 	PhaseDocs                     = phases.Docs

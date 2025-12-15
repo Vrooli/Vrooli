@@ -42,6 +42,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description: "Validates scenario layout, manifests, and JSON health before any tests run.",
 	})
 	register(Spec{
+		Name:           Standards,
+		Runner:         runStandardsPhase,
+		Optional:       false,
+		DefaultTimeout: 60 * time.Second,
+		Description:    "Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config).",
+	})
+	register(Spec{
 		Name:        Dependencies,
 		Runner:      runDependenciesPhase,
 		Description: "Confirms required commands, runtimes, and declared resources are available.",
@@ -78,7 +85,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	register(Spec{
 		Name:        Playbooks,
 		Runner:      runPlaybooksPhase,
-		Description: "Executes Vrooli Ascension workflows declared under test/playbooks/ to validate end-to-end UI flows.",
+		Description: "Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.",
 	})
 	register(Spec{
 		Name:        Business,

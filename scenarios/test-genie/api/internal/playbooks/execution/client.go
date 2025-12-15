@@ -301,13 +301,14 @@ func (c *HTTPClient) ExecuteWorkflowWithParams(ctx context.Context, definition m
 		if len(params.InitialStore) > 0 {
 			execParams["initial_store"] = params.InitialStore
 		}
-		if len(params.Env) > 0 {
-			execParams["env"] = params.Env
+			if len(params.Env) > 0 {
+				execParams["env"] = params.Env
+			}
+			if len(execParams) > 0 {
+				// Keep this aligned with browser-automation-studio/v1/execution.ExecuteAdhocRequest.
+				reqBody["parameters"] = execParams
+			}
 		}
-		if len(execParams) > 0 {
-			reqBody["execution_params"] = execParams
-		}
-	}
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {

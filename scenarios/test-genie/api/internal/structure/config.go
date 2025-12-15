@@ -29,7 +29,7 @@ type Expectations struct {
 	ValidateServiceName bool
 
 	// ValidatePlaybooks controls whether playbooks structure is validated.
-	// When true (default), test/playbooks/ is checked for proper structure.
+	// When true (default), bas/ is checked for proper structure.
 	ValidatePlaybooks bool
 
 	// PlaybooksStrict controls whether playbooks issues block the structure phase.

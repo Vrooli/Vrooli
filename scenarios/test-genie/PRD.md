@@ -673,7 +673,7 @@ structure:
     - ui/index.html
     - ui/server.js
     - prompts/test-generation-prompt.md
-    - test/run-tests.sh
+    - coverage/run-tests.sh
     
   required_dirs:
     - api

@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	// FolderName is the name of the playbooks folder within the test directory.
-	FolderName = "playbooks"
+	// FolderName is the name of the playbooks folder within a scenario directory.
+	FolderName = "bas"
 	// RegistryFileName is the name of the registry file.
 	RegistryFileName = "registry.json"
 )
@@ -33,12 +33,12 @@ type Loader interface {
 
 // FileLoader loads registries from the filesystem.
 type FileLoader struct {
-	testDir string
+	scenarioDir string
 }
 
-// NewLoader creates a new registry loader for the given test directory.
-func NewLoader(testDir string) *FileLoader {
-	return &FileLoader{testDir: testDir}
+// NewLoader creates a new registry loader for the given scenario directory.
+func NewLoader(scenarioDir string) *FileLoader {
+	return &FileLoader{scenarioDir: scenarioDir}
 }
 
 // Load loads and parses the playbook registry from disk.
@@ -72,7 +72,7 @@ func (l *FileLoader) Load() (types.Registry, error) {
 
 // RegistryPath returns the full path to the registry file.
 func (l *FileLoader) RegistryPath() string {
-	return filepath.Join(l.testDir, FolderName, RegistryFileName)
+	return filepath.Join(l.scenarioDir, FolderName, RegistryFileName)
 }
 
 // sortEntries sorts playbook entries by order, then by file name.

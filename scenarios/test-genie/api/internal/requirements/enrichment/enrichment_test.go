@@ -98,7 +98,7 @@ func TestMatcher_FindBestMatch_ByWorkflowID(t *testing.T) {
 		RequirementID: "REQ-001",
 		Status:        types.LivePassed,
 		Phase:         "playbooks",
-		SourcePath:    "test/playbooks/user-login.yaml",
+		SourcePath:    "bas/cases/user-login.json",
 		Metadata:      map[string]any{"workflow_id": "user-login"},
 	})
 

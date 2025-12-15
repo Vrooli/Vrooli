@@ -19,6 +19,7 @@ type Descriptor struct {
 // AllowedPhases enumerates the standard phase set the planner understands.
 var AllowedPhases = []string{
 	"structure",
+	"standards",
 	"dependencies",
 	"lint",
 	"docs",
@@ -184,6 +185,7 @@ func MakeDescriptorMaps(descriptors []Descriptor) (map[string]Descriptor, map[st
 func DefaultTargetDurations() map[string]time.Duration {
 	return map[string]time.Duration{
 		"structure":    120 * time.Second,
+		"standards":    60 * time.Second,
 		"dependencies": 60 * time.Second,
 		"lint":         30 * time.Second,
 		"docs":         60 * time.Second,

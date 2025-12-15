@@ -84,7 +84,7 @@ Describes available test entrypoints for a scenario:
 ```go
 type TestingCapabilities struct {
     HasTests  bool             // Any test method available
-    Phased    bool             // Has test/run-tests.sh
+    Phased    bool             // Has coverage/run-tests.sh
     Lifecycle bool             // Has lifecycle.test in service.json
     Legacy    bool             // Has scenario-test.yaml
     Preferred string           // Recommended test type
@@ -143,7 +143,7 @@ The `DetectTestingCapabilities()` function inspects a scenario directory for tes
 
 | Check | File/Condition | Type |
 |-------|----------------|------|
-| Phased | `test/run-tests.sh` is executable | `phased` |
+| Phased | `coverage/run-tests.sh` is executable | `phased` |
 | Lifecycle | `service.json` has `lifecycle.test` | `lifecycle` |
 | Legacy | `scenario-test.yaml` exists | `legacy` |
 

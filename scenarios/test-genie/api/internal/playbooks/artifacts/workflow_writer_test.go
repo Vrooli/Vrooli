@@ -27,7 +27,7 @@ func TestWriteWorkflowArtifacts_Basic(t *testing.T) {
 		},
 	}
 	result := &WorkflowResult{
-		WorkflowFile: "test/playbooks/smoke.json",
+		WorkflowFile: "bas/cases/smoke.json",
 		Description:  "Smoke test",
 		ExecutionID:  "exec-123",
 		Success:      true,
@@ -38,7 +38,7 @@ func TestWriteWorkflowArtifacts_Basic(t *testing.T) {
 	}
 
 	artifacts, err := writer.WriteWorkflowArtifacts(
-		"test/playbooks/smoke.json",
+		"bas/cases/smoke.json",
 		timelineData,
 		parsed,
 		nil, // no screenshots
@@ -82,7 +82,7 @@ func TestWriteWorkflowArtifacts_WithScreenshots(t *testing.T) {
 		Status:      "completed",
 	}
 	result := &WorkflowResult{
-		WorkflowFile: "test/playbooks/with-screenshots.json",
+		WorkflowFile: "bas/cases/with-screenshots.json",
 		Success:      true,
 		Status:       "passed",
 		Timestamp:    time.Now().UTC(),
@@ -95,7 +95,7 @@ func TestWriteWorkflowArtifacts_WithScreenshots(t *testing.T) {
 	}
 
 	artifacts, err := writer.WriteWorkflowArtifacts(
-		"test/playbooks/with-screenshots.json",
+		"bas/cases/with-screenshots.json",
 		[]byte(`{}`),
 		parsed,
 		screenshots,
@@ -132,14 +132,14 @@ func TestWriteWorkflowArtifacts_WithLogs(t *testing.T) {
 		},
 	}
 	result := &WorkflowResult{
-		WorkflowFile: "test/playbooks/with-logs.json",
+		WorkflowFile: "bas/cases/with-logs.json",
 		Success:      true,
 		Status:       "passed",
 		Timestamp:    time.Now().UTC(),
 	}
 
 	artifacts, err := writer.WriteWorkflowArtifacts(
-		"test/playbooks/with-logs.json",
+		"bas/cases/with-logs.json",
 		[]byte(`{}`),
 		parsed,
 		nil,
@@ -183,7 +183,7 @@ func TestWriteWorkflowArtifacts_WithAssertions(t *testing.T) {
 		},
 	}
 	result := &WorkflowResult{
-		WorkflowFile: "test/playbooks/with-assertions.json",
+		WorkflowFile: "bas/cases/with-assertions.json",
 		Success:      false,
 		Status:       "failed",
 		Error:        "Assertion failed",
@@ -191,7 +191,7 @@ func TestWriteWorkflowArtifacts_WithAssertions(t *testing.T) {
 	}
 
 	artifacts, err := writer.WriteWorkflowArtifacts(
-		"test/playbooks/with-assertions.json",
+		"bas/cases/with-assertions.json",
 		[]byte(`{}`),
 		parsed,
 		nil,
@@ -232,14 +232,14 @@ func TestWriteWorkflowArtifacts_WithDOM(t *testing.T) {
 		FinalDOM:    "<html><body>Test DOM</body></html>",
 	}
 	result := &WorkflowResult{
-		WorkflowFile: "test/playbooks/with-dom.json",
+		WorkflowFile: "bas/cases/with-dom.json",
 		Success:      true,
 		Status:       "passed",
 		Timestamp:    time.Now().UTC(),
 	}
 
 	artifacts, err := writer.WriteWorkflowArtifacts(
-		"test/playbooks/with-dom.json",
+		"bas/cases/with-dom.json",
 		[]byte(`{}`),
 		parsed,
 		nil,
@@ -325,7 +325,7 @@ func TestGenerateScreenshotFilename(t *testing.T) {
 
 func TestGenerateWorkflowReadme_Success(t *testing.T) {
 	result := &WorkflowResult{
-		WorkflowFile: "test/playbooks/smoke.json",
+		WorkflowFile: "bas/cases/smoke.json",
 		Description:  "Smoke test workflow",
 		Requirements: []string{"REQ-001", "REQ-002"},
 		ExecutionID:  "exec-123",
@@ -366,7 +366,7 @@ func TestGenerateWorkflowReadme_Success(t *testing.T) {
 
 func TestGenerateWorkflowReadme_Failure(t *testing.T) {
 	result := &WorkflowResult{
-		WorkflowFile: "test/playbooks/failing.json",
+		WorkflowFile: "bas/cases/failing.json",
 		Success:      false,
 		Status:       "failed",
 		Error:        "Element not found: [data-testid='submit']",
@@ -403,9 +403,9 @@ func TestWorkflowDir_Sanitization(t *testing.T) {
 	writer := NewWriter(tempDir, "test-scenario", tempDir)
 
 	tests := []string{
-		"test/playbooks/simple.json",
-		"test/playbooks/with spaces.json",
-		"test/playbooks/special!chars.json",
+		"bas/cases/simple.json",
+		"bas/cases/with spaces.json",
+		"bas/cases/special!chars.json",
 		"deeply/nested/path/workflow.json",
 	}
 

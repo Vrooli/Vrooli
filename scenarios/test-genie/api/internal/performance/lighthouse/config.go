@@ -305,12 +305,9 @@ func (c *Config) BuildPageLighthouseConfig(page PageConfig) map[string]interface
 	}
 
 	// Apply page-specific viewport as formFactor
-	// If the page has a viewport and global settings don't override formFactor
 	if page.Viewport != "" {
-		// Check if formFactor is already set by global options
-		if _, hasFormFactor := settings["formFactor"]; !hasFormFactor {
-			settings["formFactor"] = page.Viewport
-		}
+		// Page viewport always overrides global formFactor for that page.
+		settings["formFactor"] = page.Viewport
 	}
 
 	// Apply screenEmulation for mobile viewport

@@ -12,7 +12,6 @@ var StandardDirs = []string{
 	"cli",
 	"docs",
 	"requirements",
-	"test",
 	"ui",
 }
 

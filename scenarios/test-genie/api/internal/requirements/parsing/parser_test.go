@@ -522,7 +522,7 @@ func TestExtractPhaseFromRef(t *testing.T) {
 		// Integration detection via path contains "integration"
 		{"integration/something.go", "integration"},
 		{"test_integration_helpers.go", "integration"},
-		{"test/playbooks/workflow.yaml", "playbooks"},
+		{"bas/cases/workflow.json", "playbooks"},
 		{"playbook/test.yaml", "playbooks"},
 		{"scripts/test.bats", "business"},
 		{"scripts/integration.bats", "integration"},

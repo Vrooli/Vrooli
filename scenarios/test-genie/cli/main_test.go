@@ -85,7 +85,7 @@ func TestConfigureSetsValues(t *testing.T) {
 
 func TestBuildAPIBaseOptionsUsesPortEnv(t *testing.T) {
 	app := newTestApp(t)
-	t.Setenv("API_PORT", "4567")
+	t.Setenv("TEST_GENIE_API_PORT", "4567")
 	base := cliutil.DetermineAPIBase(app.core.APIBaseOptions())
 	if base != "http://localhost:4567" {
 		t.Fatalf("expected base from port env, got %s", base)
@@ -127,7 +127,7 @@ func TestRunTestsCommandSendsType(t *testing.T) {
 		if !bytes.Contains(body, []byte(`"paths":["api/foo.go"]`)) {
 			t.Fatalf("expected paths in payload, got %s", string(body))
 		}
-		if !bytes.Contains(body, []byte(`"playbooks":["test/playbooks/run.json"]`)) {
+		if !bytes.Contains(body, []byte(`"playbooks":["bas/cases/run.json"]`)) {
 			t.Fatalf("expected playbooks in payload, got %s", string(body))
 		}
 		if !bytes.Contains(body, []byte(`"filter":"UserTest"`)) {
@@ -140,7 +140,7 @@ func TestRunTestsCommandSendsType(t *testing.T) {
 	t.Setenv("TEST_GENIE_API_BASE", server.URL)
 	app := newTestApp(t)
 
-	if err := app.Run([]string{"run-tests", "demo", "--type", "phased", "--path", "api/foo.go", "--playbook", "test/playbooks/run.json", "--filter", "UserTest"}); err != nil {
+	if err := app.Run([]string{"run-tests", "demo", "--type", "phased", "--path", "api/foo.go", "--playbook", "bas/cases/run.json", "--filter", "UserTest"}); err != nil {
 		t.Fatalf("run-tests failed: %v", err)
 	}
 }

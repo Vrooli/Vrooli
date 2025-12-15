@@ -104,7 +104,7 @@ func New(cfg Config, opts ...Option) *Runner {
 
 	// Set defaults for validators if not provided via options
 	if r.registryLoader == nil {
-		r.registryLoader = registry.NewLoader(cfg.TestDir)
+		r.registryLoader = registry.NewLoader(cfg.ScenarioDir)
 	}
 	if r.workflowResolver == nil {
 		r.workflowResolver = workflow.NewResolver(cfg.AppRoot, cfg.ScenarioDir)
@@ -249,15 +249,15 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Success:      false,
 			Error:        err,
 			FailureClass: FailureClassMisconfiguration,
-			Remediation:  "Regenerate test/playbooks/registry.json via playbook builder.",
+			Remediation:  "Regenerate bas/registry.json via playbook builder.",
 		}
 	}
 
 	if len(reg.Playbooks) == 0 {
-		shared.LogWarn(r.logWriter, "no workflows registered under test/playbooks/")
+		shared.LogWarn(r.logWriter, "no workflows registered under bas/")
 		return &RunResult{
 			Success:      true,
-			Observations: []Observation{NewInfoObservation("no workflows registered under test/playbooks/")},
+			Observations: []Observation{NewInfoObservation("no workflows registered under bas/")},
 		}
 	}
 
@@ -325,7 +325,7 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 				Success:       false,
 				Error:         err,
 				FailureClass:  FailureClassMisconfiguration,
-				Remediation:   "Fix playbook seeds under test/playbooks/__seeds.",
+				Remediation:   "Fix playbook seeds under bas/seeds.",
 				TracePath:     r.traceWriter.Path(),
 				ArtifactPaths: ArtifactPaths{Trace: r.traceWriter.Path()},
 			}
@@ -960,14 +960,12 @@ func (r *Runner) loadSeedState() (map[string]any, error) {
 // basProjectRoot returns the BAS workflow root directory for the current scenario.
 // This is typically the scenario's "bas" subdirectory where workflow JSON files are stored.
 func (r *Runner) basProjectRoot() string {
-	// The BAS workflows are typically in <scenarioDir>/bas/ for test workflows
-	// or in <scenarioDir>/test/playbooks/ for playbook workflows
+	// The BAS workflows are stored under <scenarioDir>/bas/.
 	basDir := filepath.Join(r.config.ScenarioDir, "bas")
 	if _, err := os.Stat(basDir); err == nil {
 		return basDir
 	}
-	// Fall back to the test directory which contains playbook workflows
-	return r.config.TestDir
+	return ""
 }
 
 // applyExecutionDefaults injects execution defaults (viewport, step timeout)

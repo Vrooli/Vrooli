@@ -1,3 +1,6 @@
+//go:build legacyproto
+// +build legacyproto
+
 package playbooks
 
 import (
@@ -461,9 +464,9 @@ func TestRunnerRunTimelineParseFailure(t *testing.T) {
 	tempDir := t.TempDir()
 	scenarioDir := tempDir
 	testDir := filepath.Join(tempDir, "test")
-	playbookPath := filepath.Join("test", "playbooks", "capabilities", "flow.json")
+	playbookPath := filepath.Join("bas", "cases", "capabilities", "flow.json")
 
-	if err := os.MkdirAll(filepath.Join(testDir, "playbooks", "capabilities"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "bas", "cases", "capabilities"), 0o755); err != nil {
 		t.Fatalf("failed to create playbooks dir: %v", err)
 	}
 

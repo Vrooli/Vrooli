@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestValidator_NoPlaybooksDir(t *testing.T) {
+func TestValidator_NoBasDir(t *testing.T) {
 	root := t.TempDir()
 
 	v := New(Config{
@@ -17,13 +17,12 @@ func TestValidator_NoPlaybooksDir(t *testing.T) {
 
 	result := v.Validate()
 	if !result.Success {
-		t.Fatalf("expected success when no playbooks dir, got error: %v", result.Error)
+		t.Fatalf("expected success when no bas dir, got error: %v", result.Error)
 	}
 
-	// Should have informational observation
 	found := false
 	for _, obs := range result.Observations {
-		if obs.Type == ObservationInfo && obs.Message == "No test/playbooks/ directory found (optional)" {
+		if obs.Type == ObservationInfo && obs.Message == "No bas/ directory found (optional)" {
 			found = true
 			break
 		}
@@ -46,7 +45,6 @@ func TestValidator_Disabled(t *testing.T) {
 		t.Fatalf("expected success when disabled, got error: %v", result.Error)
 	}
 
-	// Should have disabled observation
 	found := false
 	for _, obs := range result.Observations {
 		if obs.Type == ObservationInfo && obs.Message == "Playbooks validation disabled" {
@@ -61,8 +59,7 @@ func TestValidator_Disabled(t *testing.T) {
 
 func TestValidator_MissingRegistry(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	mustMkdir(t, filepath.Join(root, "bas"))
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -71,12 +68,10 @@ func TestValidator_MissingRegistry(t *testing.T) {
 	}, io.Discard)
 
 	result := v.Validate()
-	// Non-strict mode: should succeed but have warnings
 	if !result.Success {
 		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
 	}
 
-	// Should have warning about missing registry
 	found := false
 	for _, obs := range result.Observations {
 		if obs.Type == ObservationWarning && obs.Message == "Missing registry.json - run 'test-genie registry build'" {
@@ -91,8 +86,7 @@ func TestValidator_MissingRegistry(t *testing.T) {
 
 func TestValidator_MissingRegistry_Strict(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	mustMkdir(t, filepath.Join(root, "bas"))
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -101,7 +95,6 @@ func TestValidator_MissingRegistry_Strict(t *testing.T) {
 	}, io.Discard)
 
 	result := v.Validate()
-	// Strict mode: should fail
 	if result.Success {
 		t.Fatal("expected failure in strict mode for missing registry")
 	}
@@ -112,11 +105,10 @@ func TestValidator_MissingRegistry_Strict(t *testing.T) {
 
 func TestValidator_InvalidRegistryJSON(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, basDir)
 
-	// Create invalid JSON
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), "not valid json {{{")
+	writeFile(t, filepath.Join(basDir, "registry.json"), "not valid json {{{")
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -129,7 +121,6 @@ func TestValidator_InvalidRegistryJSON(t *testing.T) {
 		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
 	}
 
-	// Should have warning about invalid JSON
 	found := false
 	for _, obs := range result.Observations {
 		if obs.Type == ObservationWarning {
@@ -142,44 +133,17 @@ func TestValidator_InvalidRegistryJSON(t *testing.T) {
 	}
 }
 
-func TestValidator_ValidRegistry(t *testing.T) {
+func TestValidator_CasesWithoutPrefix(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, basDir)
 
-	// Create valid registry
-	registry := `{
-		"_note": "AUTO-GENERATED",
-		"scenario": "test-scenario",
-		"generated_at": "2025-12-05T10:00:00Z",
-		"playbooks": []
-	}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
-
-	v := New(Config{
-		ScenarioDir: root,
-		Enabled:     true,
-	}, io.Discard)
-
-	result := v.Validate()
-	if !result.Success {
-		t.Fatalf("expected success, got error: %v", result.Error)
-	}
-}
-
-func TestValidator_CapabilitiesWithoutPrefix(t *testing.T) {
-	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
-
-	// Create valid registry
 	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
+	writeFile(t, filepath.Join(basDir, "registry.json"), registry)
 
-	// Create capabilities with invalid directory names
-	mustMkdir(t, filepath.Join(playbooksDir, "capabilities", "foundation"))     // Missing NN- prefix
-	mustMkdir(t, filepath.Join(playbooksDir, "capabilities", "01-builder"))     // Valid
-	mustMkdir(t, filepath.Join(playbooksDir, "capabilities", "invalid-prefix")) // Missing NN- prefix
+	mustMkdir(t, filepath.Join(basDir, "cases", "foundation"))
+	mustMkdir(t, filepath.Join(basDir, "cases", "01-builder"))
+	mustMkdir(t, filepath.Join(basDir, "cases", "invalid-prefix"))
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -192,14 +156,11 @@ func TestValidator_CapabilitiesWithoutPrefix(t *testing.T) {
 		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
 	}
 
-	// Should have warning about invalid prefixes
 	found := false
 	for _, obs := range result.Observations {
-		if obs.Type == ObservationWarning {
-			t.Logf("Warning: %s", obs.Message)
-			if obs.Message == "capabilities/ has directories without NN- prefix: foundation, invalid-prefix" {
-				found = true
-			}
+		if obs.Type == ObservationWarning && obs.Message == "bas/cases/ has directories without NN- prefix: foundation, invalid-prefix" {
+			found = true
+			break
 		}
 	}
 	if !found {
@@ -207,18 +168,16 @@ func TestValidator_CapabilitiesWithoutPrefix(t *testing.T) {
 	}
 }
 
-func TestValidator_JourneysWithValidPrefix(t *testing.T) {
+func TestValidator_FlowsWithValidPrefix(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, basDir)
 
-	// Create valid registry
 	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
+	writeFile(t, filepath.Join(basDir, "registry.json"), registry)
 
-	// Create journeys with valid directory names
-	mustMkdir(t, filepath.Join(playbooksDir, "journeys", "01-new-user"))
-	mustMkdir(t, filepath.Join(playbooksDir, "journeys", "02-power-user"))
+	mustMkdir(t, filepath.Join(basDir, "flows", "01-new-user"))
+	mustMkdir(t, filepath.Join(basDir, "flows", "02-power-user"))
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -228,105 +187,18 @@ func TestValidator_JourneysWithValidPrefix(t *testing.T) {
 	result := v.Validate()
 	if !result.Success {
 		t.Fatalf("expected success, got error: %v", result.Error)
-	}
-}
-
-func TestValidator_SubflowsMissingFixtureID(t *testing.T) {
-	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
-
-	// Create valid registry
-	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
-
-	// Create __subflows directory with fixtures
-	subflowsDir := filepath.Join(playbooksDir, "__subflows")
-	mustMkdir(t, subflowsDir)
-
-	// Fixture WITHOUT fixture_id
-	invalidFixture := `{"metadata": {"description": "Missing fixture_id"}, "nodes": [], "edges": []}`
-	writeFile(t, filepath.Join(subflowsDir, "invalid-fixture.json"), invalidFixture)
-
-	// Fixture WITH fixture_id
-	validFixture := `{"metadata": {"fixture_id": "valid-fixture", "description": "Has fixture_id"}, "nodes": [], "edges": []}`
-	writeFile(t, filepath.Join(subflowsDir, "valid-fixture.json"), validFixture)
-
-	v := New(Config{
-		ScenarioDir: root,
-		Enabled:     true,
-		Strict:      false,
-	}, io.Discard)
-
-	result := v.Validate()
-	if !result.Success {
-		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
-	}
-
-	// Should have warning about missing fixture_id
-	found := false
-	for _, obs := range result.Observations {
-		if obs.Type == ObservationWarning && obs.Message == "__subflows/ fixtures missing fixture_id: invalid-fixture.json" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("expected warning about missing fixture_id")
-	}
-}
-
-func TestValidator_SubflowsAllValid(t *testing.T) {
-	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
-
-	// Create valid registry
-	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
-
-	// Create __subflows directory with valid fixtures
-	subflowsDir := filepath.Join(playbooksDir, "__subflows")
-	mustMkdir(t, subflowsDir)
-
-	fixture := `{"metadata": {"fixture_id": "my-fixture", "description": "Valid"}, "nodes": [], "edges": []}`
-	writeFile(t, filepath.Join(subflowsDir, "my-fixture.json"), fixture)
-
-	v := New(Config{
-		ScenarioDir: root,
-		Enabled:     true,
-	}, io.Discard)
-
-	result := v.Validate()
-	if !result.Success {
-		t.Fatalf("expected success, got error: %v", result.Error)
-	}
-
-	// Should have success observation
-	found := false
-	for _, obs := range result.Observations {
-		if obs.Type == ObservationSuccess && obs.Message == "Playbooks structure valid" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("expected success observation")
 	}
 }
 
 func TestValidator_SeedsMissingEntrypoint(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, basDir)
 
-	// Create valid registry
 	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
+	writeFile(t, filepath.Join(basDir, "registry.json"), registry)
 
-	// Create __seeds directory without seed.go/seed.sh
-	seedsDir := filepath.Join(playbooksDir, "__seeds")
-	mustMkdir(t, seedsDir)
+	mustMkdir(t, filepath.Join(basDir, "seeds"))
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -339,10 +211,9 @@ func TestValidator_SeedsMissingEntrypoint(t *testing.T) {
 		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
 	}
 
-	// Should have warning about missing entrypoint
 	found := false
 	for _, obs := range result.Observations {
-		if obs.Type == ObservationWarning && obs.Message == "__seeds/ directory exists but missing seed.go or seed.sh" {
+		if obs.Type == ObservationWarning && obs.Message == "bas/seeds/ directory exists but missing seed.go or seed.sh" {
 			found = true
 			break
 		}
@@ -354,15 +225,13 @@ func TestValidator_SeedsMissingEntrypoint(t *testing.T) {
 
 func TestValidator_SeedsWithEntrypoint(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, basDir)
 
-	// Create valid registry
 	registry := `{"_note": "AUTO-GENERATED", "generated_at": "2025-12-05T10:00:00Z", "playbooks": []}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
+	writeFile(t, filepath.Join(basDir, "registry.json"), registry)
 
-	// Create __seeds directory with seed.go
-	seedsDir := filepath.Join(playbooksDir, "__seeds")
+	seedsDir := filepath.Join(basDir, "seeds")
 	mustMkdir(t, seedsDir)
 	writeFile(t, filepath.Join(seedsDir, "seed.go"), "package main\nfunc main() {}")
 
@@ -379,12 +248,11 @@ func TestValidator_SeedsWithEntrypoint(t *testing.T) {
 
 func TestValidator_StaleRegistry(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, basDir)
 
-	// Create registry with null generated_at
 	registry := `{"_note": "AUTO-GENERATED", "generated_at": null, "playbooks": []}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
+	writeFile(t, filepath.Join(basDir, "registry.json"), registry)
 
 	v := New(Config{
 		ScenarioDir: root,
@@ -397,7 +265,6 @@ func TestValidator_StaleRegistry(t *testing.T) {
 		t.Fatalf("expected success in non-strict mode, got error: %v", result.Error)
 	}
 
-	// Should have warning about stale registry
 	found := false
 	for _, obs := range result.Observations {
 		if obs.Type == ObservationWarning && obs.Message == "Registry may be stale (no generated_at) - run 'test-genie registry build'" {
@@ -412,17 +279,16 @@ func TestValidator_StaleRegistry(t *testing.T) {
 
 func TestValidator_CompleteValidStructure(t *testing.T) {
 	root := t.TempDir()
-	playbooksDir := filepath.Join(root, "test", "playbooks")
-	mustMkdir(t, playbooksDir)
+	basDir := filepath.Join(root, "bas")
+	mustMkdir(t, basDir)
 
-	// Create valid registry
 	registry := `{
 		"_note": "AUTO-GENERATED",
 		"scenario": "test-scenario",
 		"generated_at": "2025-12-05T10:00:00Z",
 		"playbooks": [
 			{
-				"file": "test/playbooks/capabilities/01-foundation/01-core/test.json",
+				"file": "bas/cases/01-foundation/ui/test.json",
 				"description": "Test playbook",
 				"order": "01.01.01",
 				"requirements": ["REQ-001"],
@@ -431,29 +297,19 @@ func TestValidator_CompleteValidStructure(t *testing.T) {
 			}
 		]
 	}`
-	writeFile(t, filepath.Join(playbooksDir, "registry.json"), registry)
+	writeFile(t, filepath.Join(basDir, "registry.json"), registry)
 
-	// Create valid capabilities structure
-	mustMkdir(t, filepath.Join(playbooksDir, "capabilities", "01-foundation", "01-core"))
+	mustMkdir(t, filepath.Join(basDir, "cases", "01-foundation", "ui"))
+	mustMkdir(t, filepath.Join(basDir, "flows", "01-happy-path"))
 
-	// Create valid journeys structure
-	mustMkdir(t, filepath.Join(playbooksDir, "journeys", "01-happy-path"))
-
-	// Create valid __subflows
-	subflowsDir := filepath.Join(playbooksDir, "__subflows")
-	mustMkdir(t, subflowsDir)
-	fixture := `{"metadata": {"fixture_id": "setup", "description": "Setup fixture"}, "nodes": [], "edges": []}`
-	writeFile(t, filepath.Join(subflowsDir, "setup.json"), fixture)
-
-	// Create valid __seeds
-	seedsDir := filepath.Join(playbooksDir, "__seeds")
+	seedsDir := filepath.Join(basDir, "seeds")
 	mustMkdir(t, seedsDir)
 	writeFile(t, filepath.Join(seedsDir, "seed.go"), "package main\nfunc main() {}")
 
 	v := New(Config{
 		ScenarioDir: root,
 		Enabled:     true,
-		Strict:      true, // Even in strict mode, this should pass
+		Strict:      true,
 	}, io.Discard)
 
 	result := v.Validate()
@@ -462,11 +318,9 @@ func TestValidator_CompleteValidStructure(t *testing.T) {
 	}
 }
 
-// Helper functions
-
 func mustMkdir(t *testing.T, path string) {
 	t.Helper()
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatalf("failed to create directory %s: %v", path, err)
 	}
 }
@@ -474,10 +328,11 @@ func mustMkdir(t *testing.T, path string) {
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("failed to create directory %s: %v", dir, err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write file %s: %v", path, err)
 	}
 }
+
