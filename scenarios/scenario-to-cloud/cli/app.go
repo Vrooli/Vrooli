@@ -69,6 +69,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			{Name: "manifest-validate", NeedsAPI: true, Description: "Validate a cloud manifest JSON file", Run: a.cmdManifestValidate},
 			{Name: "plan", NeedsAPI: true, Description: "Generate a deploy plan from a cloud manifest JSON file", Run: a.cmdPlan},
+			{Name: "bundle-build", NeedsAPI: true, Description: "Build a mini-Vrooli tarball for a cloud manifest JSON file", Run: a.cmdBundleBuild},
 		},
 	}
 

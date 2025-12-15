@@ -10,7 +10,7 @@
       "prd_ref": "OT-P0-002",
       "title": "Deterministic mini-Vrooli tarball",
       "description": "Given a manifest, produce a tarball that includes required scenarios/resources (from analyzer), always includes packages/, always includes vrooli-autoheal, and excludes unrelated content.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "bundling",
         "tarball",
@@ -20,16 +20,23 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/bundling_rules_test.go",
-          "notes": "Tag tests with [REQ:STC-P0-002]."
+          "notes": "Bundle include/exclude rules + deterministic archive writer."
         },
         {
-          "type": "playbook",
-          "phase": "playbooks",
-          "status": "planned",
-          "ref": "test/playbooks/vps/build-mini-vrooli-bundle.yaml",
-          "notes": "E2E planned: build tarball for landing-page-business-suite and assert expected files exist. Tag with [REQ:STC-P0-002]."
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/bundle_build_contract_test.go",
+          "notes": "API endpoint builds a tarball artifact from a manifest."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/main_test.go",
+          "notes": "CLI can request /api/v1/bundle/build."
         }
       ]
     },
@@ -39,18 +46,18 @@
       "prd_ref": "OT-P0-002",
       "title": "Tarball is reproducible and self-contained",
       "description": "The produced tarball can be scp’d to a fresh VPS and unpacked without missing files (packages/, required scenarios/resources present, no references back to the original repo path).",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "bundling",
         "reproducibility"
       ],
       "validation": [
         {
-          "type": "playbook",
-          "phase": "playbooks",
-          "status": "planned",
-          "ref": "test/playbooks/vps/bundle-self-contained.yaml",
-          "notes": "E2E planned. Tag with [REQ:STC-P0-008]."
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/bundling_rules_test.go",
+          "notes": "Asserts deterministic bytes and relative tar entry names."
         }
       ]
     }

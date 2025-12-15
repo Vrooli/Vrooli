@@ -62,7 +62,7 @@
       },
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -70,7 +70,7 @@
           "critical": true
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -102,10 +102,8 @@
             ]
           },
           {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
+            "type": "command",
+            "command": "test -d ui/node_modules && [ \"$(ls -A ui/node_modules 2>/dev/null)\" ]"
           }
         ]
       },
@@ -117,7 +115,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o scenario-to-cloud-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o scenario-to-cloud-api .",
           "description": "Build Go API binary (api/scenario-to-cloud-api)"
         },
         {
@@ -198,8 +196,8 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "test-genie execute --scenario scenario-to-cloud",
-          "description": "Run test-genie orchestrated test suite"
+          "run": "test-genie execute scenario-to-cloud structure standards dependencies lint docs unit integration business",
+          "description": "Run test-genie orchestrated test suite (fast, deterministic phases)"
         }
       ]
     },

@@ -14,6 +14,8 @@
 
 ## 🎯 Operational Targets
 
+Operational targets are tracked via `requirements/` modules and auto-updated by the test suite.
+
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Cloud Manifest Export | Export a deployment manifest from deployment-manager that fully defines the cloud bundle + target config for one scenario.
 - [ ] OT-P0-002 | Mini-Vrooli Bundle Build | Build a tarball containing only required Vrooli core + required scenarios/resources (from analyzer) + all `packages/`, plus `vrooli-autoheal`.
@@ -26,7 +28,7 @@
 - [ ] OT-P1-001 | Multi-Environment Profiles | Support multiple environment configs (staging/prod) with separate domains/targets.
 - [ ] OT-P1-002 | Target Scaffolds | Add scaffolds for future targets (k8s, Railway, etc.) without requiring P0 deploy support.
 
-### 🟢 P2 – Future / expansion ideas
+### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Rollback | Keep previous release + one-command rollback.
 - [ ] OT-P2-002 | Updates | Delta updates instead of full tarball upload.
 - [ ] OT-P2-003 | Managed Services Swaps | Optional swaps to managed Postgres/Redis/etc.
@@ -56,4 +58,3 @@
 - Accessibility: basic keyboard navigation and readable contrast; UI is secondary to CLI in P0.
 - Voice & messaging: explicit about risks, prerequisites, and what is/isn’t automated.
 - Branding hooks: none in P0.
-

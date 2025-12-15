@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALL_DIR="${INSTALL_DIR:-${HOME}/.vrooli/bin}"
+CLI_WRAPPER="${INSTALL_DIR}/scenario-to-cloud"
+
+if [[ ! -x "${CLI_WRAPPER}" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  "${SCRIPT_DIR}/install.sh"
+fi
+
+exec "${CLI_WRAPPER}" "$@"

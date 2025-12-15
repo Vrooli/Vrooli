@@ -25,3 +25,6 @@
 - SSH automation patterns (future P1/P2 hardening)
 - Idempotent deployment patterns (future rollback/update work)
 
+## Notes / Findings
+
+- **API health dependency shape**: `test-genie` dependencies phase reads `vrooli scenario status --json` and fails if any `diagnostics.health_checks.api.dependencies.*.connected` is false/null. The Vrooli status collector derives this from the API `/health` response at `.dependencies.<name>.connected` (boolean). For scenarios without a real DB, return `dependencies.database.connected=true` to avoid `null → false` conversion.

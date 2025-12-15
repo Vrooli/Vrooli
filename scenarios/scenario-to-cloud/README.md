@@ -29,4 +29,3 @@ P0 will:
 - `scp` the tarball to the VPS and run Vrooli setup + start required resources + start the scenario.
 - Force fixed ports at start time: `UI_PORT=3000`, `API_PORT=3001`, `WS_PORT=3002`.
 - Configure Caddy + Let’s Encrypt to expose the UI over HTTPS (DNS is manual prerequisite in P0).
-

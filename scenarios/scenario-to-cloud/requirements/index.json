@@ -11,7 +11,8 @@
     "04-vps-setup/module.json",
     "05-deploy-start/module.json",
     "06-observability/module.json",
-    "07-deployment-manager-integration/module.json"
+    "07-deployment-manager-integration/module.json",
+    "08-p1-targets/module.json"
   ],
   "requirements": []
 }

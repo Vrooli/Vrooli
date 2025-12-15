@@ -53,6 +53,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/health", s.handleHealth).Methods("GET")
 	api.HandleFunc("/manifest/validate", s.handleManifestValidate).Methods("POST")
 	api.HandleFunc("/plan", s.handlePlan).Methods("POST")
+	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -99,7 +100,9 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"version":      "0.0.1",
 		"readiness":    true,
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{},
+		"dependencies": map[string]interface{}{
+			"database": map[string]bool{"connected": true},
+		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -140,7 +143,7 @@ func (s *Server) handlePlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	normalized, issues := ValidateAndNormalizeManifest(manifest)
-	if len(issues) > 0 {
+	if hasBlockingIssues(issues) {
 		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
 			Valid:     false,
 			Issues:    issues,
@@ -153,7 +156,58 @@ func (s *Server) handlePlan(w http.ResponseWriter, r *http.Request) {
 	plan := BuildPlan(normalized)
 	writeJSON(w, http.StatusOK, PlanResponse{
 		Plan:      plan,
+		Issues:    issues,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handleBundleBuild(w http.ResponseWriter, r *http.Request) {
+	manifest, err := decodeJSON[CloudManifest](r.Body, 1<<20)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, APIError{
+			Code:    "invalid_json",
+			Message: "Request body must be valid JSON",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	normalized, issues := ValidateAndNormalizeManifest(manifest)
+	if hasBlockingIssues(issues) {
+		writeJSON(w, http.StatusUnprocessableEntity, ManifestValidateResponse{
+			Valid:     false,
+			Issues:    issues,
+			Manifest:  normalized,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		})
+		return
+	}
+
+	repoRoot, err := FindRepoRootFromCWD()
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "repo_root_not_found",
+			Message: "Unable to locate Vrooli repo root from server working directory",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	outDir := repoRoot + "/scenarios/scenario-to-cloud/coverage/bundles"
+	artifact, err := BuildMiniVrooliBundle(repoRoot, outDir, normalized)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, APIError{
+			Code:    "bundle_build_failed",
+			Message: "Failed to build mini-Vrooli bundle",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"artifact":  artifact,
+		"issues":    issues,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

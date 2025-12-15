@@ -20,6 +20,15 @@ type ValidationIssue struct {
 	Severity ValidationIssueSeverity `json:"severity"`
 }
 
+func hasBlockingIssues(issues []ValidationIssue) bool {
+	for _, issue := range issues {
+		if issue.Severity == SeverityError {
+			return true
+		}
+	}
+	return false
+}
+
 type CloudManifest struct {
 	Version      string               `json:"version"`
 	Environment  string               `json:"environment,omitempty"`
@@ -285,11 +294,12 @@ func ValidateAndNormalizeManifest(in CloudManifest) (CloudManifest, []Validation
 	}
 
 	if out.Bundle.IncludeAutoheal && !contains(out.Bundle.Scenarios, "vrooli-autoheal") {
+		out.Bundle.Scenarios = stableUniqueStrings(append(out.Bundle.Scenarios, "vrooli-autoheal"))
 		issues = append(issues, ValidationIssue{
 			Path:     "bundle.scenarios",
-			Message:  "bundle.scenarios must include vrooli-autoheal when bundle.include_autoheal is true",
-			Hint:     "deployment-manager should always add vrooli-autoheal as a hard dependency for VPS deployments.",
-			Severity: SeverityError,
+			Message:  "vrooli-autoheal was missing and has been added automatically",
+			Hint:     "deployment-manager should add vrooli-autoheal as a hard dependency for VPS deployments so the exported manifest is explicit.",
+			Severity: SeverityWarn,
 		})
 	}
 

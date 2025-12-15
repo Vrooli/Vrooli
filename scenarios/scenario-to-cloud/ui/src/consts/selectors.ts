@@ -265,16 +265,19 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+const literalSelectors = {
+  manifest: {
+    input: "manifest-input",
+    validateButton: "manifest-validate-button",
+    validateResult: "manifest-validate-result",
+    planButton: "manifest-plan-button",
+    planResult: "manifest-plan-result",
+    bundleBuildButton: "manifest-bundle-build-button",
+    bundleBuildResult: "manifest-bundle-build-result",
   },
-  */
-};
+} as const satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
+const dynamicSelectorDefinitions = {
   /*
   Example dynamic selectors:
   projects: {
@@ -285,7 +288,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     }),
   },
   */
-};
+} as const satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

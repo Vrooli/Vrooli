@@ -183,6 +183,52 @@ func TestPlanPostsToPlanEndpoint(t *testing.T) {
 	}
 }
 
+func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
+	// [REQ:STC-P0-002] bundle build should be callable via CLI (integration layer)
+	app := newTestApp(t)
+
+	manifestPath := writeTempFile(t, "cloud-manifest.json", `{
+  "version": "1.0.0",
+  "target": { "type": "vps", "vps": { "host": "203.0.113.10" } },
+  "scenario": { "id": "landing-page-business-suite" },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": [],
+    "analyzer": { "tool": "scenario-dependency-analyzer" }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"]
+  },
+  "ports": { "ui": 3000, "api": 3001, "ws": 3002 },
+  "edge": { "domain": "example.com", "caddy": { "enabled": true, "email": "ops@example.com" } }
+}`)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/bundle/build" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"artifact":{"path":"/tmp/mini.tar.gz","sha256":"abc","size_bytes":123},"timestamp":"2025-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+
+	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
+
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"bundle-build", manifestPath}); err != nil {
+			t.Fatalf("bundle-build failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, "\"artifact\"") {
+		t.Fatalf("expected bundle-build output, got: %s", output)
+	}
+}
+
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	tempHome := t.TempDir()

@@ -10,7 +10,7 @@
       "prd_ref": "OT-P0-001",
       "title": "Packager API surface for deploy-manager",
       "description": "Expose a minimal API for: validate(plan), build bundle, deploy over SSH, and check status/logs. Must be callable from deployment-manager orchestration.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "deployment-manager",
         "api",
@@ -20,16 +20,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/deployment_manager_contract_test.go",
-          "notes": "Tag tests with [REQ:STC-P0-007]."
+          "notes": "Validates validate+plan endpoints exist for deployment-manager orchestration."
         },
         {
-          "type": "playbook",
-          "phase": "playbooks",
-          "status": "planned",
-          "ref": "test/playbooks/vps/deployment-manager-handshake.yaml",
-          "notes": "E2E planned. Tag with [REQ:STC-P0-007]."
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/bundle_build_contract_test.go",
+          "notes": "Validates bundle-build endpoint exists and returns an artifact."
         }
       ]
     }

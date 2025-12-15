@@ -10,7 +10,7 @@
       "prd_ref": "OT-P0-001",
       "title": "Cloud manifest export contract",
       "description": "A deployment-manager export defines target type (vps), scenario id, dependency graph snapshot, bundle inclusions, fixed port overrides, and domain/caddy config.",
-      "status": "planned",
+      "status": "complete",
       "tags": [
         "manifest",
         "deployment-manager",
@@ -20,16 +20,23 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "ref": "api/manifest_contract_test.go",
-          "notes": "Tag tests with [REQ:STC-P0-001]."
+          "notes": "API-side manifest normalization + validation contract."
         },
         {
-          "type": "playbook",
-          "phase": "playbooks",
-          "status": "planned",
-          "ref": "test/playbooks/vps/manifest-export.yaml",
-          "notes": "E2E planned: deployment-manager exports manifest and scenario-to-cloud consumes it. Tag with [REQ:STC-P0-001]."
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/App.test.tsx",
+          "notes": "UI validates a manifest and renders the result."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/main_test.go",
+          "notes": "CLI can post a manifest to /api/v1/manifest/validate."
         }
       ]
     }

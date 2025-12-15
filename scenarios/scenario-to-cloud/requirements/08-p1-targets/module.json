@@ -1,0 +1,44 @@
+{
+  "module_id": "p1-targets",
+  "title": "P1 Targets",
+  "priority": "P1",
+  "description": "P1 scaffolds to keep the platform surface stable while extending to multi-environment and future targets.",
+  "requirements": [
+    {
+      "id": "STC-P1-001",
+      "category": "profiles",
+      "prd_ref": "OT-P1-001",
+      "title": "Multi-environment profiles",
+      "description": "Support staging vs production configuration sets (separate domains/targets/secrets surfaces).",
+      "status": "planned",
+      "tags": ["profiles", "staging", "production"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/08-p1-targets/module.json",
+          "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1."
+        }
+      ]
+    },
+    {
+      "id": "STC-P1-002",
+      "category": "targets",
+      "prd_ref": "OT-P1-002",
+      "title": "Future target scaffolds",
+      "description": "Add manifest schemas + directory layout for future targets (k8s, Railway, etc.) without implementing deploy.",
+      "status": "planned",
+      "tags": ["k8s", "railway", "scaffolds"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/08-p1-targets/module.json",
+          "notes": "Scaffold only: requirement exists to keep PRD linkage explicit; implementation planned in P1."
+        }
+      ]
+    }
+  ]
+}
