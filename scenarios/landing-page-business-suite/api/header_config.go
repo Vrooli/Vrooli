@@ -55,7 +55,7 @@ type HeaderCTAConfig struct {
 }
 
 type HeaderBehaviorConfig struct {
-	Sticky      bool `json:"sticky"`
+	Sticky       bool `json:"sticky"`
 	HideOnScroll bool `json:"hide_on_scroll"`
 }
 

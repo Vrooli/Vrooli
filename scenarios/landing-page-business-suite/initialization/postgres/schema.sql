@@ -286,6 +286,9 @@ CREATE TABLE IF NOT EXISTS site_branding (
     google_site_verification TEXT,
     robots_txt TEXT,
 
+    -- Support settings
+    support_chat_url TEXT,
+
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -314,3 +317,25 @@ CREATE INDEX idx_assets_created ON assets(created_at);
 
 -- Add SEO config column to variants table for per-variant SEO
 ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jsonb;
+
+-- Add support chat URL to site_branding for existing databases
+ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_chat_url TEXT;
+
+-- Feedback Requests Table
+-- Stores user feedback, bug reports, feature requests, and refund requests
+CREATE TABLE IF NOT EXISTS feedback_requests (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('refund', 'bug', 'feature', 'general')),
+    email VARCHAR(255) NOT NULL,
+    subject VARCHAR(500) NOT NULL,
+    message TEXT NOT NULL,
+    order_id VARCHAR(255),
+    status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'resolved', 'rejected')),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_feedback_requests_type ON feedback_requests(type);
+CREATE INDEX idx_feedback_requests_status ON feedback_requests(status);
+CREATE INDEX idx_feedback_requests_email ON feedback_requests(email);
+CREATE INDEX idx_feedback_requests_created ON feedback_requests(created_at);

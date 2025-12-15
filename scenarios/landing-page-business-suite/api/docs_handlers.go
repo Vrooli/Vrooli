@@ -11,10 +11,10 @@ import (
 
 // DocEntry represents a documentation file or directory
 type DocEntry struct {
-	Name     string      `json:"name"`
-	Path     string      `json:"path"`
-	IsDir    bool        `json:"isDir"`
-	Children []DocEntry  `json:"children,omitempty"`
+	Name     string     `json:"name"`
+	Path     string     `json:"path"`
+	IsDir    bool       `json:"isDir"`
+	Children []DocEntry `json:"children,omitempty"`
 }
 
 // DocContent represents the content of a documentation file

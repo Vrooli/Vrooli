@@ -76,12 +76,12 @@ func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
 	// Log raw prices for debugging
 	for i, price := range prices {
 		logStructured("price_loaded", map[string]interface{}{
-			"level":           "debug",
-			"index":           i,
-			"plan_name":       price.PlanName,
+			"level":            "debug",
+			"index":            i,
+			"plan_name":        price.PlanName,
 			"billing_interval": price.BillingInterval.String(),
-			"display_enabled": price.DisplayEnabled,
-			"tier":            price.PlanTier,
+			"display_enabled":  price.DisplayEnabled,
+			"tier":             price.PlanTier,
 		})
 	}
 

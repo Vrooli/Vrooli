@@ -219,13 +219,13 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 		return nil, err
 	}
 
-payload := &EntitlementPayload{
-	Status:       legacyStateLabel(subscription.State),
-	PlanTier:     subscription.GetPlanTier(),
-	PriceID:      subscription.GetStripePriceId(),
-	Credits:      flattenCredits(credits),
-	Subscription: subscription,
-}
+	payload := &EntitlementPayload{
+		Status:       legacyStateLabel(subscription.State),
+		PlanTier:     subscription.GetPlanTier(),
+		PriceID:      subscription.GetStripePriceId(),
+		Credits:      flattenCredits(credits),
+		Subscription: subscription,
+	}
 
 	if subscription.GetStripePriceId() != "" {
 		if plan, err := s.planService.GetPlanByPriceID(subscription.GetStripePriceId()); err == nil {

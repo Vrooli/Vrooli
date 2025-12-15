@@ -5,7 +5,7 @@ import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type Asset } from '../../../shared/api';
-import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle, MessageCircle } from 'lucide-react';
 
 interface BrandingFormState {
   site_name: string;
@@ -22,6 +22,7 @@ interface BrandingFormState {
   canonical_base_url: string;
   google_site_verification: string;
   robots_txt: string;
+  support_chat_url: string;
 }
 
 const defaultForm: BrandingFormState = {
@@ -39,6 +40,7 @@ const defaultForm: BrandingFormState = {
   canonical_base_url: '',
   google_site_verification: '',
   robots_txt: '',
+  support_chat_url: '',
 };
 
 function brandingToForm(branding: SiteBranding): BrandingFormState {
@@ -57,6 +59,7 @@ function brandingToForm(branding: SiteBranding): BrandingFormState {
     canonical_base_url: branding.canonical_base_url ?? '',
     google_site_verification: branding.google_site_verification ?? '',
     robots_txt: branding.robots_txt ?? '',
+    support_chat_url: branding.support_chat_url ?? '',
   };
 }
 
@@ -636,6 +639,50 @@ export function BrandingSettings() {
                     rows={5}
                     className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 font-mono text-sm text-white"
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Support Settings */}
+            <Card className="border-white/10 bg-slate-900/60">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-orange-300" /> Support
+                </CardTitle>
+                <CardDescription>
+                  Configure how visitors can get help (async-first, no sales calls)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    AI Chat Agent URL
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={form.support_chat_url}
+                      onChange={handleInput('support_chat_url')}
+                      placeholder="https://chat.openai.com/g/g-your-gpt-id"
+                      className="mt-1 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                    />
+                    {form.support_chat_url && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearField('support_chat_url')}
+                        className="mt-1 p-2 text-slate-400 hover:text-rose-400"
+                        title="Clear URL"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Link to your AI assistant (ChatGPT GPT, Claude, or custom chat). Shown in the FAQ section as "Ask our AI assistant".
+                  </p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Leave empty to hide the support CTA from the FAQ section.
+                  </p>
                 </div>
               </CardContent>
             </Card>

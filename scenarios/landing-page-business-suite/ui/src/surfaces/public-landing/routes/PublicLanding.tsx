@@ -117,7 +117,7 @@ const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
   },
   cta: ({ section }) => <CTASection content={section.content} />, 
   testimonials: ({ section }) => <TestimonialsSection content={section.content} />,
-  faq: ({ section }) => <FAQSection content={section.content} />,
+  faq: ({ section, config }) => <FAQSection content={section.content} supportChatUrl={config?.branding?.support_chat_url} />,
   footer: ({ section }) => <FooterSection content={section.content} />,
   video: ({ section }) => <VideoSection content={section.content} />,
   downloads: ({ section, config }) => (

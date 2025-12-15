@@ -15,6 +15,7 @@ import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSetting
 import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 import { CheckoutPage } from './surfaces/public-landing/routes/CheckoutPage';
+import { FeedbackPage } from './surfaces/public-landing/routes/FeedbackPage';
 import { ProfileSettings } from './surfaces/admin-portal/routes/ProfileSettings';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/" element={<PublicLanding />} />
             <Route path="/health" element={<PublicLanding />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
 
             <Route path="/admin/login" element={<AdminLogin />} />
 

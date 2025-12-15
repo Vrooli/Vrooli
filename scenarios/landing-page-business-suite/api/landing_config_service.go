@@ -584,6 +584,7 @@ type LandingBranding struct {
 	FaviconURL           *string `json:"favicon_url,omitempty"`
 	ThemePrimaryColor    *string `json:"theme_primary_color,omitempty"`
 	ThemeBackgroundColor *string `json:"theme_background_color,omitempty"`
+	SupportChatURL       *string `json:"support_chat_url,omitempty"`
 }
 
 type LandingVariantSummary struct {
@@ -678,6 +679,7 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 				FaviconURL:           siteBranding.FaviconURL,
 				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
 				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
+				SupportChatURL:       siteBranding.SupportChatURL,
 			}
 		}
 	}
@@ -754,6 +756,7 @@ func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigRespons
 				FaviconURL:           siteBranding.FaviconURL,
 				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
 				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
+				SupportChatURL:       siteBranding.SupportChatURL,
 			}
 		}
 	}

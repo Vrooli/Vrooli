@@ -7,23 +7,24 @@ import (
 
 // SiteBranding represents site-wide branding configuration
 type SiteBranding struct {
-	ID                     int        `json:"id"`
-	SiteName               string     `json:"site_name"`
-	Tagline                *string    `json:"tagline,omitempty"`
-	LogoURL                *string    `json:"logo_url,omitempty"`
-	LogoIconURL            *string    `json:"logo_icon_url,omitempty"`
-	FaviconURL             *string    `json:"favicon_url,omitempty"`
-	AppleTouchIconURL      *string    `json:"apple_touch_icon_url,omitempty"`
-	DefaultTitle           *string    `json:"default_title,omitempty"`
-	DefaultDescription     *string    `json:"default_description,omitempty"`
-	DefaultOGImageURL      *string    `json:"default_og_image_url,omitempty"`
-	ThemePrimaryColor      *string    `json:"theme_primary_color,omitempty"`
-	ThemeBackgroundColor   *string    `json:"theme_background_color,omitempty"`
-	CanonicalBaseURL       *string    `json:"canonical_base_url,omitempty"`
-	GoogleSiteVerification *string    `json:"google_site_verification,omitempty"`
-	RobotsTxt              *string    `json:"robots_txt,omitempty"`
-	CreatedAt              time.Time  `json:"created_at"`
-	UpdatedAt              time.Time  `json:"updated_at"`
+	ID                     int       `json:"id"`
+	SiteName               string    `json:"site_name"`
+	Tagline                *string   `json:"tagline,omitempty"`
+	LogoURL                *string   `json:"logo_url,omitempty"`
+	LogoIconURL            *string   `json:"logo_icon_url,omitempty"`
+	FaviconURL             *string   `json:"favicon_url,omitempty"`
+	AppleTouchIconURL      *string   `json:"apple_touch_icon_url,omitempty"`
+	DefaultTitle           *string   `json:"default_title,omitempty"`
+	DefaultDescription     *string   `json:"default_description,omitempty"`
+	DefaultOGImageURL      *string   `json:"default_og_image_url,omitempty"`
+	ThemePrimaryColor      *string   `json:"theme_primary_color,omitempty"`
+	ThemeBackgroundColor   *string   `json:"theme_background_color,omitempty"`
+	CanonicalBaseURL       *string   `json:"canonical_base_url,omitempty"`
+	GoogleSiteVerification *string   `json:"google_site_verification,omitempty"`
+	RobotsTxt              *string   `json:"robots_txt,omitempty"`
+	SupportChatURL         *string   `json:"support_chat_url,omitempty"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 // BrandingService handles site-wide branding operations
@@ -43,7 +44,7 @@ func (s *BrandingService) Get() (*SiteBranding, error) {
 		       apple_touch_icon_url, default_title, default_description,
 		       default_og_image_url, theme_primary_color, theme_background_color,
 		       canonical_base_url, google_site_verification, robots_txt,
-		       created_at, updated_at
+		       support_chat_url, created_at, updated_at
 		FROM site_branding
 		WHERE id = 1
 	`
@@ -54,7 +55,7 @@ func (s *BrandingService) Get() (*SiteBranding, error) {
 		&b.AppleTouchIconURL, &b.DefaultTitle, &b.DefaultDescription,
 		&b.DefaultOGImageURL, &b.ThemePrimaryColor, &b.ThemeBackgroundColor,
 		&b.CanonicalBaseURL, &b.GoogleSiteVerification, &b.RobotsTxt,
-		&b.CreatedAt, &b.UpdatedAt,
+		&b.SupportChatURL, &b.CreatedAt, &b.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -87,6 +88,7 @@ type BrandingUpdateRequest struct {
 	CanonicalBaseURL       *string `json:"canonical_base_url,omitempty"`
 	GoogleSiteVerification *string `json:"google_site_verification,omitempty"`
 	RobotsTxt              *string `json:"robots_txt,omitempty"`
+	SupportChatURL         *string `json:"support_chat_url,omitempty"`
 }
 
 // Update updates the site branding
@@ -107,13 +109,14 @@ func (s *BrandingService) Update(req *BrandingUpdateRequest) (*SiteBranding, err
 			canonical_base_url = COALESCE($12, canonical_base_url),
 			google_site_verification = COALESCE($13, google_site_verification),
 			robots_txt = COALESCE($14, robots_txt),
+			support_chat_url = COALESCE($15, support_chat_url),
 			updated_at = NOW()
 		WHERE id = 1
 		RETURNING id, site_name, tagline, logo_url, logo_icon_url, favicon_url,
 		          apple_touch_icon_url, default_title, default_description,
 		          default_og_image_url, theme_primary_color, theme_background_color,
 		          canonical_base_url, google_site_verification, robots_txt,
-		          created_at, updated_at
+		          support_chat_url, created_at, updated_at
 	`
 
 	var b SiteBranding
@@ -122,13 +125,13 @@ func (s *BrandingService) Update(req *BrandingUpdateRequest) (*SiteBranding, err
 		req.FaviconURL, req.AppleTouchIconURL, req.DefaultTitle,
 		req.DefaultDescription, req.DefaultOGImageURL, req.ThemePrimaryColor,
 		req.ThemeBackgroundColor, req.CanonicalBaseURL,
-		req.GoogleSiteVerification, req.RobotsTxt,
+		req.GoogleSiteVerification, req.RobotsTxt, req.SupportChatURL,
 	).Scan(
 		&b.ID, &b.SiteName, &b.Tagline, &b.LogoURL, &b.LogoIconURL, &b.FaviconURL,
 		&b.AppleTouchIconURL, &b.DefaultTitle, &b.DefaultDescription,
 		&b.DefaultOGImageURL, &b.ThemePrimaryColor, &b.ThemeBackgroundColor,
 		&b.CanonicalBaseURL, &b.GoogleSiteVerification, &b.RobotsTxt,
-		&b.CreatedAt, &b.UpdatedAt,
+		&b.SupportChatURL, &b.CreatedAt, &b.UpdatedAt,
 	)
 
 	if err != nil {
@@ -147,6 +150,7 @@ func (s *BrandingService) ClearField(field string) error {
 		"default_og_image_url": true, "theme_primary_color": true,
 		"theme_background_color": true, "canonical_base_url": true,
 		"google_site_verification": true, "robots_txt": true,
+		"support_chat_url": true,
 	}
 
 	if !allowedFields[field] {

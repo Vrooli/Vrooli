@@ -45,6 +45,7 @@ type Server struct {
 	brandingService      *BrandingService
 	assetsService        *AssetsService
 	seoService           *SEOService
+	feedbackService      *FeedbackService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -84,6 +85,7 @@ func NewServer() (*Server, error) {
 	brandingService := NewBrandingService(db)
 	assetsService := NewAssetsService(db)
 	seoService := NewSEOService(brandingService, variantService)
+	feedbackService := NewFeedbackService(db)
 
 	if err := syncVariantSnapshots(variantService, contentService); err != nil {
 		return nil, fmt.Errorf("failed to sync variant snapshots: %w", err)
@@ -107,6 +109,7 @@ func NewServer() (*Server, error) {
 		brandingService:      brandingService,
 		assetsService:        assetsService,
 		seoService:           seoService,
+		feedbackService:      feedbackService,
 	}
 
 	// Initialize session store for authentication
@@ -218,6 +221,12 @@ func (s *Server) setupRoutes() {
 	// Documentation endpoints (admin-only for viewing docs)
 	s.router.HandleFunc("/api/v1/admin/docs/tree", s.requireAdmin(handleDocsTree())).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/docs/content", s.requireAdmin(handleDocsContent())).Methods("GET")
+
+	// Feedback endpoints
+	s.router.HandleFunc("/api/feedback", handleFeedbackCreate(s.feedbackService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/feedback", s.requireAdmin(handleFeedbackList(s.feedbackService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/feedback/{id}", s.requireAdmin(handleFeedbackGet(s.feedbackService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/feedback/{id}/status", s.requireAdmin(handleFeedbackUpdateStatus(s.feedbackService))).Methods("PATCH")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
@@ -1231,6 +1240,22 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_assets_category ON assets(category);`,
 		`CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(created_at);`,
 		`ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jsonb;`,
+		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_chat_url TEXT;`,
+		`CREATE TABLE IF NOT EXISTS feedback_requests (
+			id SERIAL PRIMARY KEY,
+			type VARCHAR(50) NOT NULL CHECK (type IN ('refund', 'bug', 'feature', 'general')),
+			email VARCHAR(255) NOT NULL,
+			subject VARCHAR(500) NOT NULL,
+			message TEXT NOT NULL,
+			order_id VARCHAR(255),
+			status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'resolved', 'rejected')),
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_feedback_requests_type ON feedback_requests(type);`,
+		`CREATE INDEX IF NOT EXISTS idx_feedback_requests_status ON feedback_requests(status);`,
+		`CREATE INDEX IF NOT EXISTS idx_feedback_requests_email ON feedback_requests(email);`,
+		`CREATE INDEX IF NOT EXISTS idx_feedback_requests_created ON feedback_requests(created_at);`,
 	}
 
 	for _, stmt := range stmts {

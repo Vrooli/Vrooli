@@ -124,7 +124,6 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
   }, [content.features, defaultCategories]);
 
   const [activeTab, setActiveTab] = useState(categories[0]?.id ?? 'automation');
-  const [activePersona, setActivePersona] = useState<'solo' | 'ops' | 'cs'>('solo');
   const [animateCards, setAnimateCards] = useState(false);
 
   useEffect(() => {
@@ -135,12 +134,6 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
     setAnimateCards(true);
   }, []);
 
-  const personaMessages: Record<typeof activePersona, string> = {
-    solo: 'Ship workflows in an afternoon, keep running them while you sell.',
-    ops: 'Guardrails, observability, and retries so ops doesn’t babysit scripts.',
-    cs: 'Prove every action with recordings and analytics your team can trust.',
-  };
-
   const activeFeatures = categories.find((category) => category.id === activeTab)?.features ?? [];
 
   return (
@@ -148,39 +141,14 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
       <div className="container mx-auto px-6">
         <div className="max-w-5xl space-y-4">
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">System features</p>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-2">
-              <h2 className="text-4xl font-semibold">
-                {content.title || 'The Silent Founder OS: automate ops, export proof, stay in flow'}
-              </h2>
-              <p className="text-lg text-slate-300">
-                {content.subtitle ||
-                  'Start with Vrooli Ascension, then snap in upcoming business apps. Your assets, automations, and analytics live together.'}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 rounded-full border border-white/10 bg-white/5 p-1">
-              {([
-                { id: 'solo', label: 'Solo founder' },
-                { id: 'ops', label: 'Ops lead' },
-                { id: 'cs', label: 'CS leader' },
-              ] as const).map((persona) => (
-                <button
-                  key={persona.id}
-                  type="button"
-                  onClick={() => setActivePersona(persona.id)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    activePersona === persona.id
-                      ? 'bg-[#F97316] text-white shadow-lg'
-                      : 'bg-transparent text-slate-200 hover:bg-white/10'
-                  }`}
-                >
-                  {persona.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
-            {personaMessages[activePersona]}
+          <div className="space-y-2">
+            <h2 className="text-4xl font-semibold">
+              {content.title || 'The Silent Founder OS: automate ops, export proof, stay in flow'}
+            </h2>
+            <p className="text-lg text-slate-300">
+              {content.subtitle ||
+                'Start with Vrooli Ascension, then snap in upcoming business apps. Your assets, automations, and analytics live together.'}
+            </p>
           </div>
         </div>
 
@@ -272,7 +240,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
 
         <div className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-slate-300">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p>Lock founder pricing while we add modules. Vrooli Ascension is the first drop; more ship without rebuilds.</p>
+            <p>Consistent pricing, no matter how many features and apps we ship. That's the Vrooli guarantee.</p>
             <div className="flex gap-3">
               <Button variant="default" size="sm">Preview Ascension</Button>
               <Button asChild variant="outline" size="sm" className="border-white/20 text-white hover:border-white/40">
