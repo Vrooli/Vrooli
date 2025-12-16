@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot string) RuleResult {
+func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot, scenarioName string) RuleResult {
 	start := time.Now()
 	result := RuleResult{
 		RuleID:    "REACT_VITE_UI_INSTALLS_DEPENDENCIES",
@@ -22,6 +22,13 @@ func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot string) Ru
 	}()
 
 	_ = ctx
+
+	cleaned := strings.TrimSpace(scenarioName)
+	if cleaned != "" {
+		scenarioDir := filepath.Join(repoRoot, "scenarios", cleaned)
+		result.Findings = append(result.Findings, checkScenarioUIInstallRule(scenarioDir, cleaned)...)
+		return result
+	}
 
 	scenariosRoot := filepath.Join(repoRoot, "scenarios")
 	entries, err := os.ReadDir(scenariosRoot)
@@ -35,51 +42,58 @@ func RunReactViteUIInstallsDependencies(ctx context.Context, repoRoot string) Ru
 			continue
 		}
 		scenarioDir := filepath.Join(scenariosRoot, ent.Name())
-		uiPackageJSON := filepath.Join(scenarioDir, "ui", "package.json")
-		if !fileExists(uiPackageJSON) {
-			continue
-		}
-
-		serviceJSONPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
-		if !fileExists(serviceJSONPath) {
-			result.Findings = append(result.Findings, Finding{
-				Level:   "warn",
-				Message: fmt.Sprintf("%s: UI present but .vrooli/service.json missing", ent.Name()),
-				Evidence: []Evidence{
-					{Type: "file", Ref: uiPackageJSON},
-				},
-			})
-			continue
-		}
-
-		lifecycleInstallOK, installRun := hasUIInstallIgnoreWorkspace(serviceJSONPath)
-		if !lifecycleInstallOK {
-			result.Findings = append(result.Findings, Finding{
-				Level:   "error",
-				Message: fmt.Sprintf("%s: lifecycle setup must install UI deps with `pnpm install --ignore-workspace`", ent.Name()),
-				Evidence: []Evidence{
-					{Type: "file", Ref: serviceJSONPath},
-					{Type: "note", Detail: "Expected setup step like: cd ui && pnpm install --ignore-workspace"},
-					{Type: "note", Detail: "Found: " + installRun},
-				},
-			})
-		}
-
-		// Optional runtime signal: if node_modules is missing, build will likely fail.
-		uiNodeModules := filepath.Join(scenarioDir, "ui", "node_modules")
-		if !dirExists(uiNodeModules) {
-			result.Findings = append(result.Findings, Finding{
-				Level:   "info",
-				Message: fmt.Sprintf("%s: ui/node_modules missing (run setup or install UI deps)", ent.Name()),
-				Evidence: []Evidence{
-					{Type: "path", Ref: uiNodeModules},
-					{Type: "command", Ref: "cd ui && pnpm install --ignore-workspace"},
-				},
-			})
-		}
+		result.Findings = append(result.Findings, checkScenarioUIInstallRule(scenarioDir, ent.Name())...)
 	}
 
 	return result
+}
+
+func checkScenarioUIInstallRule(scenarioDir, scenarioName string) []Finding {
+	findings := []Finding{}
+
+	uiPackageJSON := filepath.Join(scenarioDir, "ui", "package.json")
+	if !fileExists(uiPackageJSON) {
+		return findings
+	}
+
+	serviceJSONPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
+	if !fileExists(serviceJSONPath) {
+		findings = append(findings, Finding{
+			Level:   "warn",
+			Message: fmt.Sprintf("%s: UI present but .vrooli/service.json missing", scenarioName),
+			Evidence: []Evidence{
+				{Type: "file", Ref: uiPackageJSON},
+			},
+		})
+		return findings
+	}
+
+	lifecycleInstallOK, installRun := hasUIInstallIgnoreWorkspace(serviceJSONPath)
+	if !lifecycleInstallOK {
+		findings = append(findings, Finding{
+			Level:   "error",
+			Message: fmt.Sprintf("%s: lifecycle setup must install UI deps with `pnpm install --ignore-workspace`", scenarioName),
+			Evidence: []Evidence{
+				{Type: "file", Ref: serviceJSONPath},
+				{Type: "note", Detail: "Expected setup step like: cd ui && pnpm install --ignore-workspace"},
+				{Type: "note", Detail: "Found: " + installRun},
+			},
+		})
+	}
+
+	uiNodeModules := filepath.Join(scenarioDir, "ui", "node_modules")
+	if !dirExists(uiNodeModules) {
+		findings = append(findings, Finding{
+			Level:   "info",
+			Message: fmt.Sprintf("%s: ui/node_modules missing (run setup or install UI deps)", scenarioName),
+			Evidence: []Evidence{
+				{Type: "path", Ref: uiNodeModules},
+				{Type: "command", Ref: "cd ui && pnpm install --ignore-workspace"},
+			},
+		})
+	}
+
+	return findings
 }
 
 func hasUIInstallIgnoreWorkspace(serviceJSONPath string) (bool, string) {
@@ -115,4 +129,3 @@ func hasUIInstallIgnoreWorkspace(serviceJSONPath string) (bool, string) {
 
 	return false, best
 }
-

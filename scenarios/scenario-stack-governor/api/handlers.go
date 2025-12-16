@@ -88,9 +88,9 @@ func (s *Server) handleRunRules(w http.ResponseWriter, r *http.Request) {
 		}
 		switch rule.ID {
 		case "GO_CLI_WORKSPACE_INDEPENDENCE":
-			results = append(results, RunGoCliWorkspaceIndependence(ctx, repoRoot))
+			results = append(results, RunGoCliWorkspaceIndependence(ctx, repoRoot, req.ScenarioName))
 		case "REACT_VITE_UI_INSTALLS_DEPENDENCIES":
-			results = append(results, RunReactViteUIInstallsDependencies(ctx, repoRoot))
+			results = append(results, RunReactViteUIInstallsDependencies(ctx, repoRoot, req.ScenarioName))
 		default:
 			// unknown rule IDs are removed during config normalization
 		}

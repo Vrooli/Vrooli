@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot string) RuleResult {
+func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot, scenarioName string) RuleResult {
 	start := time.Now()
 	result := RuleResult{
 		RuleID:    "GO_CLI_WORKSPACE_INDEPENDENCE",
@@ -24,7 +24,13 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot string) RuleRes
 		result.Passed = len(result.Findings) == 0
 	}()
 
-	goMods, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod"))
+	glob := filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod")
+	cleanedScenario := strings.TrimSpace(scenarioName)
+	if cleanedScenario != "" {
+		glob = filepath.Join(repoRoot, "scenarios", cleanedScenario, "cli", "go.mod")
+	}
+
+	goMods, err := filepath.Glob(glob)
 	if err != nil {
 		result.Findings = append(result.Findings, Finding{
 			Level:   "error",
@@ -61,8 +67,8 @@ func RunGoCliWorkspaceIndependence(ctx context.Context, repoRoot string) RuleRes
 		}
 	}
 
-	result.Findings = append(result.Findings, checkCliInternalImports(repoRoot)...)
-	result.Findings = append(result.Findings, checkProtoReplaceForCliModules(repoRoot)...)
+	result.Findings = append(result.Findings, checkCliInternalImports(repoRoot, cleanedScenario)...)
+	result.Findings = append(result.Findings, checkProtoReplaceForCliModules(repoRoot, cleanedScenario)...)
 	return result
 }
 
@@ -81,10 +87,14 @@ func runGoBuild(ctx context.Context, dir string) (string, error) {
 	return out, err
 }
 
-func checkCliInternalImports(repoRoot string) []Finding {
+func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 	findings := []Finding{}
 
-	cliGoMods, _ := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod"))
+	glob := filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod")
+	if strings.TrimSpace(scenarioName) != "" {
+		glob = filepath.Join(repoRoot, "scenarios", strings.TrimSpace(scenarioName), "cli", "go.mod")
+	}
+	cliGoMods, _ := filepath.Glob(glob)
 	sort.Strings(cliGoMods)
 
 	for _, cliGoMod := range cliGoMods {
@@ -154,10 +164,14 @@ func checkCliInternalImports(repoRoot string) []Finding {
 	return findings
 }
 
-func checkProtoReplaceForCliModules(repoRoot string) []Finding {
+func checkProtoReplaceForCliModules(repoRoot, scenarioName string) []Finding {
 	findings := []Finding{}
 
-	cliGoMods, _ := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod"))
+	glob := filepath.Join(repoRoot, "scenarios", "*", "cli", "go.mod")
+	if strings.TrimSpace(scenarioName) != "" {
+		glob = filepath.Join(repoRoot, "scenarios", strings.TrimSpace(scenarioName), "cli", "go.mod")
+	}
+	cliGoMods, _ := filepath.Glob(glob)
 	sort.Strings(cliGoMods)
 
 	for _, cliGoMod := range cliGoMods {
@@ -199,4 +213,3 @@ func parseGoModuleLine(goModPath string) string {
 	}
 	return ""
 }
-

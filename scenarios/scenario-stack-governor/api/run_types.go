@@ -3,8 +3,8 @@ package main
 import "time"
 
 type Evidence struct {
-	Type   string `json:"type"`            // command|file|path|note
-	Ref    string `json:"ref,omitempty"`   // e.g. module dir, filepath, command
+	Type   string `json:"type"`             // command|file|path|note
+	Ref    string `json:"ref,omitempty"`    // e.g. module dir, filepath, command
 	Detail string `json:"detail,omitempty"` // extra context
 }
 
@@ -23,11 +23,11 @@ type RuleResult struct {
 }
 
 type RunRequest struct {
-	Scope string `json:"scope,omitempty"` // reserved (repo|scenario); default repo
+	Scope        string `json:"scope,omitempty"`         // reserved (repo|scenario); default repo
+	ScenarioName string `json:"scenario_name,omitempty"` // optional; when set, rules should scope to this scenario
 }
 
 type RunResponse struct {
 	RepoRoot string       `json:"repo_root"`
 	Results  []RuleResult `json:"results"`
 }
-
